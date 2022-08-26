@@ -18,8 +18,9 @@ def get_dataset_tensors(dataset, transform, tensors):
     these are provided, it will iterate over the dataset tensors and return any tensors
     that match htype 'image' for images and htype 'class_label' for labels.
     """
+    from hub.integrations.cleanlab.utils import is_label_tensor, is_image_tensor
 
-    tensors_list = list(dataset.tensors)
+    # tensors_list = list(dataset.tensors)
 
     if tensors is not None:
         tensors = map_tensor_keys(dataset, tensors)
@@ -31,32 +32,27 @@ def get_dataset_tensors(dataset, transform, tensors):
             [k for k in transform.keys() if k != "index"],
         )
 
-    # Map the images and labels tensors to the corresponding tensors in the dataset.
-    images_tensor, labels_tensor = None, None
-
-    # TODO: check by tensor shape if the tensor is an image or a label.
-    if tensors:
-        for tensor in tensors:
-            if dataset[tensor].htype == "image":
-                images_tensor = tensor
-            elif dataset[tensor].htype == "class_label":
-                labels_tensor = tensor
-    else:
-        for tensor in tensors_list:
-            if dataset[tensor].htype == "image":
-                images_tensor = tensor
-            elif dataset[tensor].htype == "class_label":
-                labels_tensor = tensor
-
-    if images_tensor and labels_tensor:
-        tensors = [images_tensor, labels_tensor]
-
-    else:
+    # Map the images and labels tensors.
+    try:
+        images_tensor, labels_tensor = tensors
+    except ValueError:
         raise ValueError(
             "Could not find the images and labels tensors. Please provide the images and labels tensors."
         )
 
-    return tensors
+    image_tensor_htype, label_tensor_htype = dataset[images_tensor].htype, dataset[labels_tensor].htype
+
+    if not is_image_tensor(image_tensor_htype):
+                raise TypeError(
+            f'The images tensor has an unsupported htype: {image_tensor_htype}. In general, the images tensor must be of type "image".'
+        )
+
+    if not is_label_tensor(label_tensor_htype):
+                raise TypeError(
+            f'The labels tensor has an unsupported htype: {label_tensor_htype}. In general, the labels tensor must be of type "class_label".'
+        )
+
+    return [images_tensor, labels_tensor]
 
 
 def estimate_cv_predicted_probabilities(

@@ -60,10 +60,10 @@ def clean_labels(
 
     # Catch most common user errors early.
     if not is_dataset(dataset):
-        raise ValueError(f"`dataset` must be a Hub Dataset. Got {type(dataset)}")
+        raise TypeError(f"`dataset` must be a Hub Dataset. Got {type(dataset)}")
 
     if dataset_valid and not is_dataset(dataset_valid):
-        raise ValueError(
+        raise TypeError(
             f"`dataset_valid` must be a Hub Dataset. Got {type(dataset_valid)}"
         )
 
