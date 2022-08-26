@@ -306,7 +306,12 @@ def deserialize_chunkids(byts: Union[bytes, memoryview]) -> Tuple[str, np.ndarra
     else:
         # Read number of bytes per entry
         num_bytes = byts[offset]
-        dtype = np.dtype(f"u{num_bytes}")
+        if num_bytes == 4:
+            dtype = np.uint32
+        elif num_bytes == 8:
+            dtype = np.uint64
+        else:
+            raise ValueError(f"Invalid number of bytes per entry: {num_bytes}")
         offset += 1
         # Read chunk ids
         ids = np.frombuffer(byts[offset:], dtype=dtype).reshape(-1, 2).copy()
