@@ -202,7 +202,7 @@ def get_label_issues(
     images_tensor, labels_tensor = get_dataset_tensors(
         dataset=dataset,
         tensors=tensors,
-        dataloader_train_params=dataloader_train_params
+        dataloader_train_params=dataloader_train_params,
     )
 
     # Get labels of a dataset

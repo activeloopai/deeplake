@@ -1,5 +1,6 @@
 from typing import Any, Callable, Optional, Sequence, Union
 
+
 def clean_labels(
     dataset,
     module: Union[Any, Callable, None] = None,
