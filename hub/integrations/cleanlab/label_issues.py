@@ -13,8 +13,8 @@ import numpy as np
 
 def get_dataset_tensors(dataset, transform, tensors):
     """
-    This function returns the tensors of a dataset. If a list of tensors is not provided,
-    it will try to get them from the transform.
+    This function returns the tensors of a dataset. If `tensors` list is not provided,
+    it will try to get them from the `transform`.
     """
     from hub.integrations.cleanlab.utils import is_label_tensor, is_image_tensor
 
@@ -60,7 +60,7 @@ def estimate_cv_predicted_probabilities(
     """
     This function computes an out-of-sample predicted
     probability for every example in a dataset using cross
-    validation. Output is an np.array of shape (N, K) where N is
+    validation. Output is an `np.array` of shape (N, K) where N is
     the number of training examples and K is the number of classes.
     """
 
