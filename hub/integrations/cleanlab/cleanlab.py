@@ -58,10 +58,14 @@ def clean_labels(
         raise ValueError(f"`dataset` must be a Hub Dataset. Got {type(dataset)}")
 
     if dataset_valid and not is_dataset(dataset_valid):
-        raise ValueError(f"`dataset_valid` must be a Hub Dataset. Got {type(dataset_valid)}")
+        raise ValueError(
+            f"`dataset_valid` must be a Hub Dataset. Got {type(dataset_valid)}"
+        )
 
     if create_tensors and dataset.read_only:
-        raise ValueError(f"`create_tensors` is True but dataset is read-only. Try loading the dataset with `read_only=False.`")
+        raise ValueError(
+            f"`create_tensors` is True but dataset is read-only. Try loading the dataset with `read_only=False.`"
+        )
 
     label_issues, label_quality_scores = get_label_issues(
         dataset=dataset,

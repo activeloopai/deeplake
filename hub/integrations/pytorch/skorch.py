@@ -12,7 +12,7 @@ class VisionClassifierNet(NeuralNet):
         dataloader_valid_params,
         images_tensor,
         labels_tensor,
-        **kwargs
+        **kwargs,
     ):
         super(VisionClassifierNet, self).__init__(**kwargs)
         self.dataloader_train_params = dataloader_train_params
