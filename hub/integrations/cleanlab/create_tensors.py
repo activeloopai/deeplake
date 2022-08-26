@@ -8,8 +8,8 @@ def check_label_issues_tensors(dataset, overwrite, verbose):
 
     if (
         "label_issues/is_label_issue" in tensors_list
-        or "label_issues/label_quality_scores" in tensors_list
-        or "label_issues/guessed_label" in tensors_list
+        or "label_issues/label_quality" in tensors_list
+        or "label_issues/predicted_label" in tensors_list
     ):
         if overwrite:
             if verbose:
@@ -24,7 +24,7 @@ def check_label_issues_tensors(dataset, overwrite, verbose):
 
 
 def create_label_issues_tensors(
-    dataset, label_issues, label_quality_scores, guessed_label, overwrite, verbose
+    dataset, label_issues, label_quality_scores, predicted_labels, overwrite, verbose
 ):
     """
     This function creates a group of tensors label_issues.
@@ -44,18 +44,18 @@ def create_label_issues_tensors(
             "is_label_issue", htype="generic", dtype="bool"
         )
         dataset.label_issues.create_tensor(
-            "label_quality_scores", htype="generic", dtype="float64"
+            "label_quality", htype="generic", dtype="float64"
         )
         dataset.label_issues.create_tensor(
-            "guessed_label", htype="generic", dtype="uint32"
+            "predicted_label", htype="generic", dtype="uint32"
         )
 
-        for label_issue, label_quality_score, guessed_label in zip(
-            label_issues, label_quality_scores, guessed_label
+        for label_issue, label_quality_score, predicted_label in zip(
+            label_issues, label_quality_scores, predicted_labels
         ):
             dataset.label_issues.is_label_issue.append(label_issue)
-            dataset.label_issues.label_quality_scores.append(label_quality_score)
-            dataset.label_issues.guessed_label.append(guessed_label)
+            dataset.label_issues.label_quality.append(label_quality_score)
+            dataset.label_issues.predicted_label.append(predicted_label)
 
     dataset.commit("Added label issues")
 

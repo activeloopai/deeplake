@@ -48,7 +48,7 @@ def clean_labels(
     Returns:
         label_issues: A boolean mask for the entire dataset where True represents a label issue and False represents an example that is confidently/accurately labeled.
         label_quality_scores: Label quality scores for each datapoint, where lower scores indicate labels less likely to be correct.
-        guessed_labels: Class predicted by model trained on cleaned data for each example in the dataset.
+        predicted_labels: Class predicted by model trained on cleaned data for each example in the dataset.
 
     Raises:
         ...
@@ -73,7 +73,7 @@ def clean_labels(
             f"`create_tensors` is True but dataset is read-only. Try loading the dataset with `read_only=False.`"
         )
 
-    label_issues, label_quality_scores, guessed_labels = get_label_issues(
+    label_issues, label_quality_scores, predicted_labels = get_label_issues(
         dataset=dataset,
         dataset_valid=dataset_valid,
         transform=transform,
@@ -95,9 +95,9 @@ def clean_labels(
             dataset=dataset,
             label_issues=label_issues,
             label_quality_scores=label_quality_scores,
-            guessed_labels=guessed_labels,
+            predicted_labels=predicted_labels,
             overwrite=overwrite,
             verbose=verbose,
         )
 
-    return label_issues, label_quality_scores, guessed_labels
+    return label_issues, label_quality_scores, predicted_labels
