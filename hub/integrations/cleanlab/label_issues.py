@@ -11,10 +11,10 @@ from sklearn.base import clone
 import numpy as np
 
 
-def get_dataset_tensors(dataset, tensors, dataloader_train_params):
+def get_dataset_tensors(dataset, transform, tensors):
     """
     This function returns the tensors of a dataset. If a list of tensors is not provided,
-    it will try to find them in the dataloader_train_params in the transform. If none of
+    it will try to find them in the transform. If none of
     these are provided, it will iterate over the dataset tensors and return any tensors
     that match htype 'image' for images and htype 'class_label' for labels.
     """
@@ -25,14 +25,10 @@ def get_dataset_tensors(dataset, tensors, dataloader_train_params):
         tensors = map_tensor_keys(dataset, tensors)
 
     # Try to get the tensors from the dataloader parameters.
-    elif (
-        dataloader_train_params
-        and "transform" in dataloader_train_params
-        and isinstance(dataloader_train_params["transform"], dict)
-    ):
+    elif transform and isinstance(transform, dict):
         tensors = map_tensor_keys(
             dataset,
-            [k for k in dataloader_train_params["transform"].keys() if k != "index"],
+            [k for k in transform.keys() if k != "index"],
         )
 
     # Map the images and labels tensors to the corresponding tensors in the dataset.
@@ -116,16 +112,17 @@ def estimate_cv_predicted_probabilities(
 def get_label_issues(
     dataset,
     dataset_valid,
+    transform,
+    tensors,
+    batch_size,
     module,
     criterion,
     optimizer,
     optimizer_lr,
     device,
     epochs,
+    shuffle,
     folds,
-    tensors,
-    dataloader_train_params,
-    dataloader_valid_params,
     verbose,
 ):
     """
@@ -138,8 +135,8 @@ def get_label_issues(
 
     images_tensor, labels_tensor = get_dataset_tensors(
         dataset=dataset,
+        transform=transform,
         tensors=tensors,
-        dataloader_train_params=dataloader_train_params,
     )
 
     # Get labels of a dataset
@@ -151,15 +148,16 @@ def get_label_issues(
     # Wrap the PyTorch Module in scikit-learn interface.
     model = to_skorch(
         dataset_valid=dataset_valid,
+        transform=transform,
+        tensors=[images_tensor, labels_tensor],
+        batch_size=batch_size,
         module=module,
         criterion=criterion,
         device=device,
         epochs=epochs,
+        shuffle=shuffle,
         optimizer=optimizer,
         optimizer_lr=optimizer_lr,
-        tensors=[images_tensor, labels_tensor],
-        dataloader_train_params=dataloader_train_params,
-        dataloader_valid_params=dataloader_valid_params,
         num_classes=num_classes,
     )
 

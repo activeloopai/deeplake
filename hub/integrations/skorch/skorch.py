@@ -9,15 +9,11 @@ from skorch.helper import predefined_split
 class VisionClassifierNet(NeuralNet):
     def __init__(
         self,
-        dataloader_train_params,
-        dataloader_valid_params,
         images_tensor,
         labels_tensor,
         **kwargs,
     ):
         super(VisionClassifierNet, self).__init__(**kwargs)
-        self.dataloader_train_params = dataloader_train_params
-        self.dataloader_valid_params = dataloader_valid_params
         self.images_tensor = images_tensor
         self.labels_tensor = labels_tensor
 
@@ -26,20 +22,19 @@ class VisionClassifierNet(NeuralNet):
 
     def get_iterator(self, dataset, training=False):
         if training:
-            kwargs = self.dataloader_train_params
+            kwargs = self.get_params_for("iterator_train")
 
         else:
-            kwargs = self.dataloader_valid_params
-            if kwargs is None:
-                kwargs = self.dataloader_train_params
-            # Set this to False to avoid getting incorrect probabilities in cross-validation.
-            kwargs["shuffle"] = False
+            kwargs = self.get_params_for("iterator_valid")
 
         if "batch_size" not in kwargs:
             kwargs["batch_size"] = self.batch_size
 
         if kwargs["batch_size"] == -1:
             kwargs["batch_size"] = len(dataset)
+
+        print(f"Dataloader params: {kwargs}")
+        print(f"Training: {training}")
 
         return dataset.pytorch(**kwargs)
 
@@ -76,15 +71,16 @@ class VisionClassifierNet(NeuralNet):
 
 def pytorch_module_to_skorch(
     dataset_valid,
+    transform,
+    tensors,
+    batch_size,
     module,
     criterion,
     device,
     epochs,
+    shuffle,
     optimizer,
     optimizer_lr,
-    dataloader_train_params,
-    dataloader_valid_params,
-    tensors,
     num_classes,
 ):
     from hub.integrations.skorch.utils import repeat_shape
@@ -105,8 +101,7 @@ def pytorch_module_to_skorch(
         module = resnet18()
 
         # Make training work with both grayscale and color images.
-        dataloader_train_params = repeat_shape(images_tensor, dataloader_train_params)
-        dataloader_valid_params = repeat_shape(images_tensor, dataloader_valid_params)
+        transform = repeat_shape(images_tensor, transform)
 
         # Change the last layer to have num_classes output channels.
         module.fc = torch.nn.Linear(module.fc.in_features, num_classes)
@@ -118,23 +113,26 @@ def pytorch_module_to_skorch(
         optimizer = torch.optim.Adam
 
     if dataset_valid:
-        train_split = predefined_split(dataset_valid),
+        train_split = predefined_split(dataset_valid)
     else:
         train_split = None
 
     model = VisionClassifierNet(
         module=module,
+        batch_size=batch_size,
         criterion=criterion,
         device=device,
         max_epochs=epochs,
         optimizer=optimizer,
         optimizer__lr=optimizer_lr,
         train_split=train_split,
-        dataloader_train_params=dataloader_train_params,
-        dataloader_valid_params=dataloader_valid_params,
         images_tensor=images_tensor,
         labels_tensor=labels_tensor,
+        iterator_train__shuffle=shuffle,
     )
 
+    model.set_params(
+        iterator_train__transform=transform, iterator_valid__transform=transform
+    )
 
     return model
