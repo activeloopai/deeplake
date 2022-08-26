@@ -25,7 +25,7 @@ def get_dataset_tensors(dataset, transform, tensors):
     if tensors is not None:
         tensors = map_tensor_keys(dataset, tensors)
 
-    # Try to get the tensors from the dataloader parameters.
+    # Try to get the tensors from the transform.
     elif transform and isinstance(transform, dict):
         tensors = map_tensor_keys(
             dataset,

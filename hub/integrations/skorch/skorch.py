@@ -5,7 +5,7 @@ from torchvision.models import resnet18
 from skorch import NeuralNet
 from skorch.helper import predefined_split
 
-# Wraps the PyTorch Module in an sklearn interface.
+# Wraps the PyTorch Module in a sklearn interface.
 class VisionClassifierNet(NeuralNet):
     def __init__(
         self,

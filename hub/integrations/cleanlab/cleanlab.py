@@ -7,7 +7,7 @@ def clean_labels(
     dataset_valid: Optional[Type[Dataset]] = None,
     transform: Optional[Callable] = None,
     tensors: Optional[Sequence[str]] = None,
-    batch_size: int = 16,
+    batch_size: int = 64,
     module: Union[Any, Callable, None] = None,
     criterion: Optional[Any] = None,
     optimizer: Optional[Any] = None,
@@ -32,7 +32,7 @@ def clean_labels(
         dataset_valid (class, Optional): Hub Dataset to use as a validation set for training. The label issues will not be computed for this set. Default is `None`.
         transform (Callable, Optional): Transformation function to be applied to each sample. Default is `None`.
         tensors (list, Optional): A list of two tensors (in the images, labels order) that would be considered for finding label issues (e.g. `['images', 'labels']`).
-        batch_size (int): Number of samples per batch to load. If `batch_size` is -1, a single batch with all the data will be used during training and validation.
+        batch_size (int): Number of samples per batch to load. If `batch_size` is -1, a single batch with all the data will be used during training and validation. Default is `64`.
         module (class): A PyTorch torch.nn.Module module (class or instance). Default is `torchvision.models.resnet18()`.
         criterion (class): An uninitialized PyTorch criterion (loss) used to optimize the module. Default is `torch.nn.CrossEntropyLoss`.
         optimizer (class): An uninitialized PyTorch optimizer used to optimize the module. Default is `torch.optim.SGD`.
