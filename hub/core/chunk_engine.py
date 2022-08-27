@@ -1335,7 +1335,7 @@ class ChunkEngine:
     def num_samples_per_chunk(self):
         # should only be called if self.is_fixed_shape
         if self._num_samples_per_chunk is None:
-            self._num_samples_per_chunk = (
+            self._num_samples_per_chunk = int(
                 self.chunk_id_encoder.array[0, LAST_SEEN_INDEX_COLUMN] + 1
             )
         return self._num_samples_per_chunk
