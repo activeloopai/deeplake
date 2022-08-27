@@ -2,6 +2,8 @@ from typing import Any, Callable, Optional, Sequence, Union, Type
 from hub.core.dataset import Dataset
 from hub.util.bugout_reporter import hub_reporter
 
+from hub.util.exceptions import CheckoutError
+
 # @hub_reporter.record_call
 def clean_labels(
     dataset: Type[Dataset],
@@ -20,6 +22,7 @@ def clean_labels(
     create_tensors: bool = False,
     overwrite: bool = False,
     verbose: bool = True,
+    branch: str = "main",
 ):
     """
     Finds label errors in a dataset with cleanlab (github.com/cleanlab) open-source library.
@@ -45,6 +48,7 @@ def clean_labels(
         create_tensors (bool): if True, will create tensors `is_label_issue` and `label_quality_scores` under `label_issues group`. This would only work if you have write access to the dataset. Default is False.
         overwrite (bool): If True, will overwrite label_issues tensors if they already exists. Only applicable if `create_tensors` is True. Default is False.
         verbose (bool): This parameter controls how much output is printed. Default is True.
+        branch (str): The name of the branch to use for creating the label_issues tensor group. If the branch name is provided but the branch does not exist, it will be created. Only applicable if `create_tensors` is True. Default is 'main'.
 
     Returns:
         label_issues: A boolean mask for the entire dataset where True represents a label issue and False represents an example that is confidently/accurately labeled.
@@ -73,6 +77,15 @@ def clean_labels(
         raise ValueError(
             f"`create_tensors` is True but dataset is read-only. Try loading the dataset with `read_only=False.`"
         )
+
+    if create_tensors:
+        try:
+            dataset.checkout(branch)
+        except CheckoutError:
+            dataset.checkout(branch, create=True)
+
+        if verbose:
+            print(f"The label_issues tensor will be committed to {branch} branch.")
 
     label_issues, label_quality_scores, predicted_labels = get_label_issues(
         dataset=dataset,
