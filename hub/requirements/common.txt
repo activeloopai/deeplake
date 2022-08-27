@@ -16,3 +16,8 @@ pydicom
 IPython
 flask
 pyjwt
+cleanlab
+skorch
+scikit-learn
+torch
+torchvision

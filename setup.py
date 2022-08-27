@@ -40,6 +40,7 @@ extras = {
         "google-auth",
         "google-auth-oauthlib",
     ],
+    "cleanlab": ["cleanlab", "scikit-learn", "skorch", "torch", "torchvision"],
 }
 
 all_extras = {r for v in extras.values() for r in v}
