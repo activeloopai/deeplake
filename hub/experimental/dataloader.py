@@ -105,7 +105,7 @@ class Hub3DataLoader:
     def pytorch(
         self,
         num_workers: int = 0,
-        collate_fn: Callable = None,
+        collate_fn: Optional[Callable] = None,
         tensors: Optional[List[str]] = None,
         num_threads: Optional[int] = None,
         prefetch_factor: int = 10,
