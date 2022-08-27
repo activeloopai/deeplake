@@ -21,7 +21,7 @@ def clean_labels(
     folds: int = 5,
     create_tensors: bool = False,
     overwrite: bool = False,
-    branch: str = "main",
+    branch: Union[str, None] = None,
     verbose: bool = True,
 ):
     """
@@ -47,7 +47,8 @@ def clean_labels(
         folds (int): Sets the number of cross-validation folds used to compute out-of-sample probabilities for each example in the dataset. The default is 5.
         create_tensors (bool): if True, will create tensors `is_label_issue` and `label_quality_scores` under `label_issues group`. This would only work if you have write access to the dataset. Default is False.
         overwrite (bool): If True, will overwrite label_issues tensors if they already exists. Only applicable if `create_tensors` is True. Default is False.
-        branch (str): The name of the branch to use for creating the label_issues tensor group. If the branch name is provided but the branch does not exist, it will be created. Only applicable if `create_tensors` is True. Default is 'main'.
+        branch (str): The name of the branch to use for creating the label_issues tensor group. If the branch name is provided but the branch does not exist, it will be created.
+        Only applicable if `create_tensors` is True. If no branch is provided, the default branch will be used.
         verbose (bool): This parameter controls how much output is printed. Default is True.
 
     Returns:
@@ -73,19 +74,25 @@ def clean_labels(
             f"`dataset_valid` must be a Hub Dataset. Got {type(dataset_valid)}"
         )
 
-    if create_tensors and dataset.read_only:
-        raise ValueError(
-            f"`create_tensors` is True but dataset is read-only. Try loading the dataset with `read_only=False.`"
-        )
-
     if create_tensors:
-        try:
-            dataset.checkout(branch)
-        except CheckoutError:
-            dataset.checkout(branch, create=True)
+
+        if dataset.read_only:
+            raise ValueError(
+                f"`create_tensors` is True but dataset is read-only. Try loading the dataset with `read_only=False.`"
+            )
+
+        if branch:
+            # Save the current branch to switch back to it later.
+            initial_branch = dataset.branch
+
+            # If branch is provided, check if it exists. If not, create it.
+            try:
+                dataset.checkout(branch)
+            except CheckoutError:
+                dataset.checkout(branch, create=True)
 
         if verbose:
-            print(f"The label_issues tensor will be committed to {branch} branch.")
+            print(f"The label_issues tensor will be committed to {dataset.branch} branch.")
 
     label_issues, label_quality_scores, predicted_labels = get_label_issues(
         dataset=dataset,
@@ -113,5 +120,9 @@ def clean_labels(
             overwrite=overwrite,
             verbose=verbose,
         )
+
+    # Switch back to the original branch.
+    if branch:
+        dataset.checkout(initial_branch)
 
     return label_issues, label_quality_scores, predicted_labels
