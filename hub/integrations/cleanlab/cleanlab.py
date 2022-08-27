@@ -47,8 +47,8 @@ def clean_labels(
         folds (int): Sets the number of cross-validation folds used to compute out-of-sample probabilities for each example in the dataset. The default is 5.
         create_tensors (bool): if True, will create tensors `is_label_issue` and `label_quality_scores` under `label_issues group`. This would only work if you have write access to the dataset. Default is False.
         overwrite (bool): If True, will overwrite label_issues tensors if they already exists. Only applicable if `create_tensors` is True. Default is False.
-        branch (str): The name of the branch to use for creating the label_issues tensor group. If the branch name is provided but the branch does not exist, it will be created.
-        If no branch is provided, the default branch will be used. After the label_issues tensor group is created, the branch will be set back to the default branch. Only applicable if `create_tensors` is True.
+        branch (str): The name of the branch to use for creating the label_issues tensor group. If the branch name is provided but the branch does not exist, it will be created. After the label_issues tensor group is created,
+        the branch will be set back to the default branch. If no branch is provided, the default branch will be used. Only applicable if `create_tensors` is True.
         verbose (bool): This parameter controls how much output is printed. Default is True.
 
     Returns:
@@ -75,7 +75,7 @@ def clean_labels(
         )
 
     if create_tensors:
-
+        # Catch write access error early.
         if dataset.read_only:
             raise ValueError(
                 f"`create_tensors` is True but dataset is read-only. Try loading the dataset with `read_only=False.`"
@@ -92,7 +92,9 @@ def clean_labels(
                 dataset.checkout(branch, create=True)
 
         if verbose:
-            print(f"The label_issues tensor will be committed to {dataset.branch} branch.")
+            print(
+                f"The label_issues tensor will be committed to {dataset.branch} branch."
+            )
 
     label_issues, label_quality_scores, predicted_labels = get_label_issues(
         dataset=dataset,
