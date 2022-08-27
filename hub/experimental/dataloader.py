@@ -14,8 +14,6 @@ except ImportError:
     INDRA_INSTALLED = False
 
 
-
-
 class Hub3DataLoader:
     def __init__(
         self,
@@ -210,6 +208,7 @@ class Hub3DataLoader:
             drop_last=drop_last,
             upcast=upcast,
         )
+
 
 def dataloader(dataset) -> Hub3DataLoader:
     return Hub3DataLoader(dataset)
