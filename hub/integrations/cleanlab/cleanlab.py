@@ -48,7 +48,7 @@ def clean_labels(
         create_tensors (bool): if True, will create tensors `is_label_issue` and `label_quality_scores` under `label_issues group`. This would only work if you have write access to the dataset. Default is False.
         overwrite (bool): If True, will overwrite label_issues tensors if they already exists. Only applicable if `create_tensors` is True. Default is False.
         branch (str): The name of the branch to use for creating the label_issues tensor group. If the branch name is provided but the branch does not exist, it will be created.
-        Only applicable if `create_tensors` is True. If no branch is provided, the default branch will be used.
+        If no branch is provided, the default branch will be used. After the label_issues tensor group is created, the branch will be set back to the default branch. Only applicable if `create_tensors` is True.
         verbose (bool): This parameter controls how much output is printed. Default is True.
 
     Returns:
@@ -83,7 +83,7 @@ def clean_labels(
 
         if branch:
             # Save the current branch to switch back to it later.
-            initial_branch = dataset.branch
+            default_branch = dataset.branch
 
             # If branch is provided, check if it exists. If not, create it.
             try:
@@ -123,6 +123,6 @@ def clean_labels(
 
     # Switch back to the original branch.
     if branch:
-        dataset.checkout(initial_branch)
+        dataset.checkout(default_branch)
 
     return label_issues, label_quality_scores, predicted_labels
