@@ -21,8 +21,8 @@ def clean_labels(
     folds: int = 5,
     create_tensors: bool = False,
     overwrite: bool = False,
-    verbose: bool = True,
     branch: str = "main",
+    verbose: bool = True,
 ):
     """
     Finds label errors in a dataset with cleanlab (github.com/cleanlab) open-source library.
@@ -47,8 +47,8 @@ def clean_labels(
         folds (int): Sets the number of cross-validation folds used to compute out-of-sample probabilities for each example in the dataset. The default is 5.
         create_tensors (bool): if True, will create tensors `is_label_issue` and `label_quality_scores` under `label_issues group`. This would only work if you have write access to the dataset. Default is False.
         overwrite (bool): If True, will overwrite label_issues tensors if they already exists. Only applicable if `create_tensors` is True. Default is False.
-        verbose (bool): This parameter controls how much output is printed. Default is True.
         branch (str): The name of the branch to use for creating the label_issues tensor group. If the branch name is provided but the branch does not exist, it will be created. Only applicable if `create_tensors` is True. Default is 'main'.
+        verbose (bool): This parameter controls how much output is printed. Default is True.
 
     Returns:
         label_issues: A boolean mask for the entire dataset where True represents a label issue and False represents an example that is confidently/accurately labeled.
