@@ -7,6 +7,10 @@ def is_dataset(dataset):
     return isinstance(dataset, Dataset)
 
 
+def is_np_ndarray(array):
+    return isinstance(array, np.ndarray)
+
+
 def is_image_tensor(image_tensor_htype):
     supported_image_htypes = set(
         ["image", "image.rgb", "image.gray", "generic"],
@@ -28,6 +32,10 @@ def is_label_tensor(label_tensor_htype):
 
 
 def subset_dataset(dataset, mask):
-    """Extracts subset of samples where mask is True"""
-    mask = np.where(mask)[0].tolist()
+    """Extracts subset of data examples where mask (np.ndarray) is True"""
+    if is_np_ndarray(mask):
+        mask = np.where(mask)[0].tolist()
+    else:
+        raise ValueError(f"Mask must be a 1D np.ndarray, got {type(mask)}")
+
     return dataset[mask]

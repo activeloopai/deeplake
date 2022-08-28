@@ -128,3 +128,26 @@ def clean_labels(
         dataset.checkout(default_branch)
 
     return label_issues, label_quality_scores, predicted_labels
+
+
+def clean_view(dataset: Type[Dataset], label_issues: Optional[Any] = None):
+    """
+    Returns a view of the dataset with clean labels.
+    """
+    from hub.integrations.cleanlab.utils import subset_dataset
+
+    if label_issues is not None:
+
+        label_issues_mask = ~label_issues
+        cleaned_dataset = subset_dataset(dataset, label_issues_mask)
+
+    elif "label_issues/is_label_issue" in list(dataset.tensors):
+        label_issues_mask = ~dataset.label_issues.is_label_issue.numpy()
+        cleaned_dataset = subset_dataset(dataset, label_issues_mask)
+
+    else:
+        raise ValueError(
+            "No `label_issues/is_label_issue` tensor found. Please run `clean_labels` first to obtain a boolean mask."
+        )
+
+    return cleaned_dataset
