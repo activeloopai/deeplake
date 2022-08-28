@@ -135,14 +135,14 @@ def clean_view(dataset: Type[Dataset], label_issues: Optional[Any] = None):
     Returns a view of the dataset with clean labels.
 
     Note:
-        If label_issues is not provided, the function will check if the dataset has a `label_issues/is_label_issue` tensor. If so, the function will use it to filter the dataset.
+        If `label_issues` np.ndarray is not provided, the function will check if the dataset has a `label_issues/is_label_issue` tensor. If so, the function will use it to filter the dataset.
 
     Args:
         dataset (class): Hub Dataset to be used to get a flitered view.
         label_issues (np.ndarray, Optional): A boolean mask for the entire dataset where True represents a label issue and False represents an example that is accurately labeled. Default is `None`.
 
     Returns:
-        cleaned_dataset(class): Dataset view where only clean labels are present, and the rest are filtered out.
+        cleaned_dataset (class): Dataset view where only clean labels are present, and the rest are filtered out.
 
     """
     from hub.integrations.cleanlab.utils import subset_dataset, is_np_ndarray
