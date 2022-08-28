@@ -203,7 +203,7 @@ def prune_labels(
     if is_np_ndarray(label_issues):
         if is_dataset_subsettable(dataset=dataset, mask=label_issues):
             label_issues_mask = ~label_issues
-            indices = extract_indices(mask=label_issues_mask)
+            indices = extract_indices(label_issues_mask)
             # TODO: This is a temporary solution until we have a way to efficiently delete a chunk of samples from a dataset.
             # for idx in indices:
             #     dataset.pop(idx)
@@ -220,7 +220,6 @@ def prune_labels(
         raise TypeError(
             f"`label_issues` must be a 1D np.ndarray, got {type(label_issues)}"
         )
-
 
     commit_id = dataset.commit("Removed erroneous labels.")
 
