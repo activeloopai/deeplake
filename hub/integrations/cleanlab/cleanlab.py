@@ -52,9 +52,9 @@ def clean_labels(
         verbose (bool): This parameter controls how much output is printed. Default is True.
 
     Returns:
-        label_issues: A boolean mask for the entire dataset where True represents a label issue and False represents an example that is confidently/accurately labeled.
-        label_quality_scores: Label quality scores for each datapoint, where lower scores indicate labels less likely to be correct.
-        predicted_labels: Class predicted by model trained on cleaned data for each example in the dataset.
+        label_issues (np.ndarray): A boolean mask for the entire dataset where True represents a label issue and False represents an example that is confidently/accurately labeled.
+        label_quality_scores (np.ndarray): Label quality scores for each datapoint, where lower scores indicate labels less likely to be correct.
+        predicted_labels (np.ndarray): Class predicted by model trained on cleaned data for each example in the dataset.
 
     Raises:
         ...
@@ -133,21 +133,39 @@ def clean_labels(
 def clean_view(dataset: Type[Dataset], label_issues: Optional[Any] = None):
     """
     Returns a view of the dataset with clean labels.
+
+    Note:
+        If label_issues is not provided, the function will check if the dataset has a `label_issues/is_label_issue` tensor. If so, the function will use it to filter the dataset.
+
+    Args:
+        dataset (class): Hub Dataset to be used to get a flitered view.
+        label_issues (np.ndarray, Optional): A boolean mask for the entire dataset where True represents a label issue and False represents an example that is accurately labeled. Default is `None`.
+
+    Returns:
+        cleaned_dataset(class): Dataset view where only clean labels are present, and the rest are filtered out.
+
     """
-    from hub.integrations.cleanlab.utils import subset_dataset
+    from hub.integrations.cleanlab.utils import subset_dataset, is_np_ndarray
 
     if label_issues is not None:
 
-        label_issues_mask = ~label_issues
-        cleaned_dataset = subset_dataset(dataset, label_issues_mask)
+        if is_np_ndarray(label_issues):
+            label_issues_mask = ~label_issues
+            cleaned_dataset = subset_dataset(dataset, label_issues_mask)
 
-    elif "label_issues/is_label_issue" in list(dataset.tensors):
+        else:
+            raise TypeError(
+                f"`label_issues` must be a 1D np.ndarray, got {type(label_issues)}"
+            )
+
+    elif "label_issues/is_label_issue" in dataset.tensors:
+
         label_issues_mask = ~dataset.label_issues.is_label_issue.numpy()
         cleaned_dataset = subset_dataset(dataset, label_issues_mask)
 
     else:
         raise ValueError(
-            "No `label_issues/is_label_issue` tensor found. Please run `clean_labels` first to obtain a boolean mask."
+            "No `label_issues/is_label_issue` tensor found. Please run `clean_labels` first to obtain `label_issues` boolean mask."
         )
 
     return cleaned_dataset

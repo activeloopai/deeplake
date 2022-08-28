@@ -33,9 +33,5 @@ def is_label_tensor(label_tensor_htype):
 
 def subset_dataset(dataset, mask):
     """Extracts subset of data examples where mask (np.ndarray) is True"""
-    if is_np_ndarray(mask):
-        mask = np.where(mask)[0].tolist()
-    else:
-        raise ValueError(f"Mask must be a 1D np.ndarray, got {type(mask)}")
-
+    mask = np.where(mask)[0].tolist()
     return dataset[mask]
