@@ -83,7 +83,7 @@ def clean_labels(
 
         if branch:
             # Save the current branch to switch back to it later.
-            default_branch = dataset.branch
+            # default_branch = dataset.branch
 
             # If branch is provided, check if it exists. If not, create it.
             try:
@@ -124,8 +124,8 @@ def clean_labels(
         )
 
     # Switch back to the original branch.
-    if branch:
-        dataset.checkout(default_branch)
+    # if branch:
+    #     dataset.checkout(default_branch)
 
     return label_issues, label_quality_scores, predicted_labels
 
@@ -147,6 +147,7 @@ def clean_view(dataset: Type[Dataset], label_issues: Optional[Any] = None):
     """
     from hub.integrations.cleanlab.utils import subset_dataset, is_np_ndarray
 
+    # Try to get the label_issues from the user input.
     if label_issues is not None:
 
         if is_np_ndarray(label_issues):
@@ -158,6 +159,7 @@ def clean_view(dataset: Type[Dataset], label_issues: Optional[Any] = None):
                 f"`label_issues` must be a 1D np.ndarray, got {type(label_issues)}"
             )
 
+    # If label_issues is not provided, try to get it from the tensor.
     elif "label_issues/is_label_issue" in dataset.tensors:
 
         label_issues_mask = ~dataset.label_issues.is_label_issue.numpy()
