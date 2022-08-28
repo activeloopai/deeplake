@@ -1,8 +1,7 @@
+from tabnanny import verbose
 from typing import Any, Callable, Optional, Sequence, Union, Type
 from hub.core.dataset import Dataset
 from hub.util.bugout_reporter import hub_reporter
-
-from hub.util.exceptions import CheckoutError
 
 # @hub_reporter.record_call
 def clean_labels(
@@ -102,9 +101,14 @@ def create_tensors(
         This method would only work if you have write access to the dataset.
 
     Args:
-        overwrite (bool): If True, will overwrite label_issues tensors if they already exists. Only applicable if `create_tensors` is True. Default is False.
+        dataset (class): Hub Dataset to add the tensors to.
+        label_issues (np.ndarray): A boolean mask for the entire dataset where True represents a label issue and False represents an example that is confidently/accurately labeled.
+        label_quality_scores (np.ndarray): Label quality scores for each datapoint, where lower scores indicate labels less likely to be correct.
+        predicted_labels (np.ndarray): Class predicted by model trained on cleaned data for each example in the dataset.
         branch (str): The name of the branch to use for creating the label_issues tensor group. If the branch name is provided but the branch does not exist, it will be created.
-        If no branch is provided, the default branch will be used. Only applicable if `create_tensors` is True.
+        If no branch is provided, the default branch will be used.
+        overwrite (bool): If True, will overwrite label_issues tensors if they already exists. Only applicable if `create_tensors` is True. Default is False.
+        verbose (bool): This parameter controls how much output is printed. Default is True.
 
     Returns:
         commit_id (str): The commit hash of the commit that was created.
@@ -114,6 +118,7 @@ def create_tensors(
 
     """
     from hub.integrations.cleanlab import create_label_issues_tensors
+    from hub.integrations.cleanlab.utils import switch_branch
 
     # Catch write access error early.
     if dataset.read_only:
@@ -125,14 +130,12 @@ def create_tensors(
         # Save the current branch to switch back to it later.
         # default_branch = dataset.branch
 
-        # If branch is provided, check if it exists. If not, create it.
-        try:
-            dataset.checkout(branch)
-        except CheckoutError:
-            dataset.checkout(branch, create=True)
+        switch_branch(dataset=dataset, branch=branch)
 
     if verbose:
-        print(f"The label_issues tensor will be committed to {dataset.branch} branch.")
+        print(
+            f"The `label_issues` tensor will be committed to {dataset.branch} branch."
+        )
 
     commit_id = create_label_issues_tensors(
         dataset=dataset,
@@ -165,14 +168,24 @@ def clean_view(dataset: Type[Dataset], label_issues: Optional[Any] = None):
         cleaned_dataset (class): Dataset view where only clean labels are present, and the rest are filtered out.
 
     """
-    from hub.integrations.cleanlab.utils import subset_dataset, is_np_ndarray
+    from hub.integrations.cleanlab.utils import (
+        subset_dataset,
+        is_np_ndarray,
+        is_dataset_subsettable,
+    )
 
     # Try to get the label_issues from the user input.
     if label_issues is not None:
 
         if is_np_ndarray(label_issues):
-            label_issues_mask = ~label_issues
-            cleaned_dataset = subset_dataset(dataset, label_issues_mask)
+            if is_dataset_subsettable(dataset=dataset, mask=label_issues):
+                label_issues_mask = ~label_issues
+                cleaned_dataset = subset_dataset(dataset, label_issues_mask)
+
+            else:
+                raise ValueError(
+                    "`label_issues` mask is not a subset of the dataset. Please provide a mask that is a subset of the dataset."
+                )
 
         else:
             raise TypeError(
@@ -181,9 +194,15 @@ def clean_view(dataset: Type[Dataset], label_issues: Optional[Any] = None):
 
     # If label_issues is not provided, try to get it from the tensor.
     elif "label_issues/is_label_issue" in dataset.tensors:
+        label_issues = dataset.label_issues.is_label_issue.numpy()
 
-        label_issues_mask = ~dataset.label_issues.is_label_issue.numpy()
-        cleaned_dataset = subset_dataset(dataset, label_issues_mask)
+        if is_dataset_subsettable(dataset=dataset, mask=label_issues):
+            label_issues_mask = ~label_issues
+            cleaned_dataset = subset_dataset(dataset, label_issues_mask)
+        else:
+            raise ValueError(
+                "`label_issues` mask is not a subset of the dataset. Please provide a mask that is a subset of the dataset."
+            )
 
     else:
         raise ValueError(
@@ -191,3 +210,90 @@ def clean_view(dataset: Type[Dataset], label_issues: Optional[Any] = None):
         )
 
     return cleaned_dataset
+
+
+def prune_labels(
+    dataset: Type[Dataset],
+    label_issues: Optional[Any] = None,
+    branch: Union[str, None] = None,
+    verbose: bool = True,
+):
+    """
+    Removes examples of the dataset where `label_issues` mask is True.
+
+    Note:
+        This method works only if you have write access to the dataset.
+
+    Args:
+        dataset (class): Hub Dataset used to delete erroneous labels.
+        label_issues (np.ndarray, Optional): A boolean mask for the entire dataset where True represents a label issue and False represents an example that is accurately labeled. Default is `None`.
+        branch (str): The name of the branch to use for creating the label_issues tensor group. If the branch name is provided but the branch does not exist, it will be created.
+        If no branch is provided, the default branch will be used.
+        verbose (bool): This parameter controls how much output is printed. Default is True.
+
+    Returns:
+        commit_id (str): The commit hash of the commit that was created.
+
+    Raises:
+        ...
+
+    """
+    from hub.integrations.cleanlab.utils import (
+        is_np_ndarray,
+        extract_indices,
+        is_dataset_subsettable,
+        switch_branch,
+    )
+
+    if branch:
+        switch_branch(dataset=dataset, branch=branch)
+
+    if verbose:
+        print(f"The erroneous examples will be removed on the {dataset.branch} branch.")
+
+    # Try to get the label_issues from the user input.
+    if label_issues is not None:
+
+        if is_np_ndarray(label_issues):
+            if is_dataset_subsettable(dataset=dataset, mask=label_issues):
+                label_issues_mask = ~label_issues
+                indices = extract_indices(mask=label_issues_mask)
+                for idx in indices:
+                    dataset.pop(idx)
+
+            else:
+                raise ValueError(
+                    "`label_issues` mask is not a subset of the dataset. Please provide a mask that is a subset of the dataset."
+                )
+
+        else:
+            raise TypeError(
+                f"`label_issues` must be a 1D np.ndarray, got {type(label_issues)}"
+            )
+
+    # If label_issues is not provided, try to get it from the tensor.
+    elif "label_issues/is_label_issue" in dataset.tensors:
+        label_issues = dataset.label_issues.is_label_issue.numpy()
+
+        if is_dataset_subsettable(dataset=dataset, mask=label_issues):
+            label_issues_mask = ~label_issues
+            indices = extract_indices(label_issues_mask)
+            for idx in indices:
+                dataset.pop(idx)
+
+            if verbose:
+                print(f"Removed {len(indices)} erroneous examples.")
+
+        else:
+            raise ValueError(
+                "`label_issues` mask is not a subset of the dataset. Please provide a mask that is a subset of the dataset."
+            )
+
+    else:
+        raise ValueError(
+            "No `label_issues/is_label_issue` tensor found. Please run `clean_labels` first to obtain `label_issues` boolean mask."
+        )
+
+    commit_id = dataset.commit("Removed erroneous labels.")
+
+    return commit_id

@@ -1,5 +1,7 @@
 from hub.core.dataset import Dataset
 
+from hub.util.exceptions import CheckoutError
+
 import numpy as np
 
 
@@ -31,7 +33,26 @@ def is_label_tensor(label_tensor_htype):
     )
 
 
+def extract_indices(mask):
+    """Extracts indices from mask (np.ndarray)"""
+    return np.where(mask)[0].tolist()
+
+
 def subset_dataset(dataset, mask):
     """Extracts subset of data examples where mask (np.ndarray) is True"""
-    mask = np.where(mask)[0].tolist()
+    mask = extract_indices(mask)
     return dataset[mask]
+
+
+def is_dataset_subsettable(dataset, mask):
+    """Returns True if dataset is subsettable"""
+    return len(dataset) == len(mask)
+
+
+def switch_branch(dataset, branch):
+    """Switches dataset to a different branch"""
+    # If branch is provided, check if it exists. If not, create it.
+    try:
+        dataset.checkout(branch)
+    except CheckoutError:
+        dataset.checkout(branch, create=True)
