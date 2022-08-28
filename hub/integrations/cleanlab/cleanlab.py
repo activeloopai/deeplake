@@ -103,11 +103,14 @@ def create_tensors(
 
     Args:
         overwrite (bool): If True, will overwrite label_issues tensors if they already exists. Only applicable if `create_tensors` is True. Default is False.
-        branch (str): The name of the branch to use for creating the label_issues tensor group. If the branch name is provided but the branch does not exist, it will be created. After the label_issues tensor group is created,
-        the branch will be set back to the default branch. If no branch is provided, the default branch will be used. Only applicable if `create_tensors` is True.
+        branch (str): The name of the branch to use for creating the label_issues tensor group. If the branch name is provided but the branch does not exist, it will be created.
+        If no branch is provided, the default branch will be used. Only applicable if `create_tensors` is True.
 
     Returns:
         commit_id (str): The commit hash of the commit that was created.
+
+    Raises:
+        ...
 
     """
     from hub.integrations.cleanlab import create_label_issues_tensors
