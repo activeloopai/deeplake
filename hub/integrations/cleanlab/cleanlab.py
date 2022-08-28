@@ -118,7 +118,10 @@ def create_tensors(
 
     """
     from hub.integrations.cleanlab import create_label_issues_tensors
-    from hub.integrations.cleanlab.utils import switch_branch
+    from hub.integrations.cleanlab.utils import is_dataset, switch_branch
+
+    if not is_dataset(dataset):
+        raise TypeError(f"`dataset` must be a Hub Dataset. Got {type(dataset)}")
 
     # Catch write access error early.
     if dataset.read_only:
@@ -144,65 +147,6 @@ def create_tensors(
     )
 
     return commit_id
-
-
-def clean_view(dataset: Type[Dataset], label_issues: Optional[Any] = None):
-    """
-    Returns a view of the dataset with clean labels.
-
-    Note:
-        If `label_issues` np.ndarray is not provided, the function will check if the dataset has a `label_issues/is_label_issue` tensor. If so, the function will use it to filter the dataset.
-
-    Args:
-        dataset (class): Hub Dataset to be used to get a flitered view.
-        label_issues (np.ndarray, Optional): A boolean mask for the entire dataset where True represents a label issue and False represents an example that is accurately labeled. Default is `None`.
-
-    Returns:
-        cleaned_dataset (class): Dataset view where only clean labels are present, and the rest are filtered out.
-
-    """
-    from hub.integrations.cleanlab.utils import (
-        subset_dataset,
-        is_np_ndarray,
-        is_dataset_subsettable,
-    )
-
-    # Try to get the label_issues from the user input.
-    if label_issues is not None:
-
-        if is_np_ndarray(label_issues):
-            if is_dataset_subsettable(dataset=dataset, mask=label_issues):
-                label_issues_mask = ~label_issues
-                cleaned_dataset = subset_dataset(dataset, label_issues_mask)
-
-            else:
-                raise ValueError(
-                    "`label_issues` mask is not a subset of the dataset. Please provide a mask that is a subset of the dataset."
-                )
-
-        else:
-            raise TypeError(
-                f"`label_issues` must be a 1D np.ndarray, got {type(label_issues)}"
-            )
-
-    # If label_issues is not provided, try to get it from the tensor.
-    elif "label_issues/is_label_issue" in dataset.tensors:
-        label_issues = dataset.label_issues.is_label_issue.numpy()
-
-        if is_dataset_subsettable(dataset=dataset, mask=label_issues):
-            label_issues_mask = ~label_issues
-            cleaned_dataset = subset_dataset(dataset, label_issues_mask)
-        else:
-            raise ValueError(
-                "`label_issues` mask is not a subset of the dataset. Please provide a mask that is a subset of the dataset."
-            )
-
-    else:
-        raise ValueError(
-            "No `label_issues/is_label_issue` tensor found. Please run `clean_labels` first to obtain `label_issues` boolean mask."
-        )
-
-    return cleaned_dataset
 
 
 def prune_labels(
@@ -232,11 +176,15 @@ def prune_labels(
 
     """
     from hub.integrations.cleanlab.utils import (
+        is_dataset,
         is_np_ndarray,
         extract_indices,
         is_dataset_subsettable,
         switch_branch,
     )
+
+    if not is_dataset(dataset):
+        raise TypeError(f"`dataset` must be a Hub Dataset. Got {type(dataset)}")
 
     if branch:
         switch_branch(dataset=dataset, branch=branch)
@@ -244,35 +192,21 @@ def prune_labels(
     if verbose:
         print(f"The erroneous examples will be removed on the {dataset.branch} branch.")
 
-    # Try to get the label_issues from the user input.
-    if label_issues is not None:
-
-        if is_np_ndarray(label_issues):
-            if is_dataset_subsettable(dataset=dataset, mask=label_issues):
-                label_issues_mask = ~label_issues
-                indices = extract_indices(mask=label_issues_mask)
-                for idx in indices:
-                    dataset.pop(idx)
-
-            else:
-                raise ValueError(
-                    "`label_issues` mask is not a subset of the dataset. Please provide a mask that is a subset of the dataset."
-                )
-
-        else:
-            raise TypeError(
-                f"`label_issues` must be a 1D np.ndarray, got {type(label_issues)}"
-            )
-
-    # If label_issues is not provided, try to get it from the tensor.
-    elif "label_issues/is_label_issue" in dataset.tensors:
+    # If label_issues is not provided as user input, try to get it from the tensor.
+    if label_issues is None and "label_issues/is_label_issue" in dataset.tensors:
         label_issues = dataset.label_issues.is_label_issue.numpy()
+    else:
+        raise ValueError(
+            "No `label_issues/is_label_issue` tensor found and no `label_issues` np.ndarray provided. Please run `clean_labels` first to obtain `label_issues` boolean mask."
+        )
 
+    if is_np_ndarray(label_issues):
         if is_dataset_subsettable(dataset=dataset, mask=label_issues):
             label_issues_mask = ~label_issues
-            indices = extract_indices(label_issues_mask)
-            for idx in indices:
-                dataset.pop(idx)
+            indices = extract_indices(mask=label_issues_mask)
+            # TODO: This is a temporary solution until we have a way to efficiently delete a chunk of samples from a dataset.
+            # for idx in indices:
+            #     dataset.pop(idx)
 
             if verbose:
                 print(f"Removed {len(indices)} erroneous examples.")
@@ -283,10 +217,58 @@ def prune_labels(
             )
 
     else:
-        raise ValueError(
-            "No `label_issues/is_label_issue` tensor found. Please run `clean_labels` first to obtain `label_issues` boolean mask."
+        raise TypeError(
+            f"`label_issues` must be a 1D np.ndarray, got {type(label_issues)}"
         )
+
 
     commit_id = dataset.commit("Removed erroneous labels.")
 
     return commit_id
+
+
+def clean_view(dataset: Type[Dataset], label_issues: Optional[Any] = None):
+    """
+    Returns a view of the dataset with clean labels.
+
+    Note:
+        If `label_issues` np.ndarray is not provided, the function will check if the dataset has a `label_issues/is_label_issue` tensor. If so, the function will use it to filter the dataset.
+
+    Args:
+        dataset (class): Hub Dataset to be used to get a flitered view.
+        label_issues (np.ndarray, Optional): A boolean mask for the entire dataset where True represents a label issue and False represents an example that is accurately labeled. Default is `None`.
+
+    Returns:
+        cleaned_dataset (class): Dataset view where only clean labels are present, and the rest are filtered out.
+
+    """
+    from hub.integrations.cleanlab.utils import (
+        subset_dataset,
+        is_np_ndarray,
+        is_dataset_subsettable,
+    )
+
+    # If label_issues is not provided as user input, try to get it from the tensor.
+    if label_issues is None and "label_issues/is_label_issue" in dataset.tensors:
+        label_issues = dataset.label_issues.is_label_issue.numpy()
+    else:
+        raise ValueError(
+            "No `label_issues/is_label_issue` tensor found and no `label_issues` np.ndarray provided. Please run `clean_labels` first to obtain `label_issues` boolean mask."
+        )
+
+    if is_np_ndarray(label_issues):
+        if is_dataset_subsettable(dataset=dataset, mask=label_issues):
+            label_issues_mask = ~label_issues
+            cleaned_dataset = subset_dataset(dataset=dataset, mask=label_issues_mask)
+
+        else:
+            raise ValueError(
+                "`label_issues` mask is not a subset of the dataset. Please provide a mask that is a subset of the dataset."
+            )
+
+    else:
+        raise TypeError(
+            f"`label_issues` must be a 1D np.ndarray, got {type(label_issues)}"
+        )
+
+    return cleaned_dataset
