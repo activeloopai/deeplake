@@ -57,7 +57,7 @@ def create_label_issues_tensors(
             dataset.label_issues.label_quality.append(label_quality_score)
             dataset.label_issues.predicted_label.append(predicted_label)
 
-    dataset.commit("Added label issues")
+    commit_id = dataset.commit("Added label issues")
 
     if verbose:
         print(
@@ -66,3 +66,5 @@ def create_label_issues_tensors(
         print(
             'View the labels with the lowest label quality scores by sorting by "label_issues/label_quality_scores"'
         )
+
+    return commit_id

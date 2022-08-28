@@ -19,9 +19,6 @@ def clean_labels(
     epochs: int = 10,
     shuffle: bool = False,
     folds: int = 5,
-    create_tensors: bool = False,
-    overwrite: bool = False,
-    branch: Union[str, None] = None,
     verbose: bool = True,
 ):
     """
@@ -45,10 +42,6 @@ def clean_labels(
         epochs (int): The number of epochs to train for each `fit()` call. Note that you may keyboard-interrupt training at any time. Default is 10.
         shuffle (bool): Whether to shuffle the data before each epoch. Default is `False`.
         folds (int): Sets the number of cross-validation folds used to compute out-of-sample probabilities for each example in the dataset. The default is 5.
-        create_tensors (bool): if True, will create tensors `is_label_issue` and `label_quality_scores` under `label_issues group`. This would only work if you have write access to the dataset. Default is False.
-        overwrite (bool): If True, will overwrite label_issues tensors if they already exists. Only applicable if `create_tensors` is True. Default is False.
-        branch (str): The name of the branch to use for creating the label_issues tensor group. If the branch name is provided but the branch does not exist, it will be created. After the label_issues tensor group is created,
-        the branch will be set back to the default branch. If no branch is provided, the default branch will be used. Only applicable if `create_tensors` is True.
         verbose (bool): This parameter controls how much output is printed. Default is True.
 
     Returns:
@@ -62,7 +55,6 @@ def clean_labels(
     """
 
     from hub.integrations.cleanlab import get_label_issues
-    from hub.integrations.cleanlab import create_label_issues_tensors
     from hub.integrations.cleanlab.utils import is_dataset
 
     # Catch most common user errors early.
@@ -73,28 +65,6 @@ def clean_labels(
         raise TypeError(
             f"`dataset_valid` must be a Hub Dataset. Got {type(dataset_valid)}"
         )
-
-    if create_tensors:
-        # Catch write access error early.
-        if dataset.read_only:
-            raise ValueError(
-                f"`create_tensors` is True but dataset is read-only. Try loading the dataset with `read_only=False.`"
-            )
-
-        if branch:
-            # Save the current branch to switch back to it later.
-            # default_branch = dataset.branch
-
-            # If branch is provided, check if it exists. If not, create it.
-            try:
-                dataset.checkout(branch)
-            except CheckoutError:
-                dataset.checkout(branch, create=True)
-
-        if verbose:
-            print(
-                f"The label_issues tensor will be committed to {dataset.branch} branch."
-            )
 
     label_issues, label_quality_scores, predicted_labels = get_label_issues(
         dataset=dataset,
@@ -113,21 +83,68 @@ def clean_labels(
         verbose=verbose,
     )
 
-    if create_tensors:
-        create_label_issues_tensors(
-            dataset=dataset,
-            label_issues=label_issues,
-            label_quality_scores=label_quality_scores,
-            predicted_labels=predicted_labels,
-            overwrite=overwrite,
-            verbose=verbose,
+    return label_issues, label_quality_scores, predicted_labels
+
+
+def create_tensors(
+    dataset: Type[Dataset],
+    label_issues: Optional[Any] = None,
+    label_quality_scores: Optional[Any] = None,
+    predicted_labels: Optional[Any] = None,
+    branch: Union[str, None] = None,
+    overwrite: bool = False,
+    verbose: bool = True,
+):
+    """
+    Creates tensors `is_label_issue` and `label_quality_scores` and `predicted_labels` under `label_issues group`.
+
+    Note:
+        This method would only work if you have write access to the dataset.
+
+    Args:
+        overwrite (bool): If True, will overwrite label_issues tensors if they already exists. Only applicable if `create_tensors` is True. Default is False.
+        branch (str): The name of the branch to use for creating the label_issues tensor group. If the branch name is provided but the branch does not exist, it will be created. After the label_issues tensor group is created,
+        the branch will be set back to the default branch. If no branch is provided, the default branch will be used. Only applicable if `create_tensors` is True.
+
+    Returns:
+        commit_id (str): The commit hash of the commit that was created.
+
+    """
+    from hub.integrations.cleanlab import create_label_issues_tensors
+
+    # Catch write access error early.
+    if dataset.read_only:
+        raise ValueError(
+            f"`create_tensors` is True but dataset is read-only. Try loading the dataset with `read_only=False.`"
         )
+
+    if branch:
+        # Save the current branch to switch back to it later.
+        # default_branch = dataset.branch
+
+        # If branch is provided, check if it exists. If not, create it.
+        try:
+            dataset.checkout(branch)
+        except CheckoutError:
+            dataset.checkout(branch, create=True)
+
+    if verbose:
+        print(f"The label_issues tensor will be committed to {dataset.branch} branch.")
+
+    commit_id = create_label_issues_tensors(
+        dataset=dataset,
+        label_issues=label_issues,
+        label_quality_scores=label_quality_scores,
+        predicted_labels=predicted_labels,
+        overwrite=overwrite,
+        verbose=verbose,
+    )
 
     # Switch back to the original branch.
     # if branch:
     #     dataset.checkout(default_branch)
 
-    return label_issues, label_quality_scores, predicted_labels
+    return commit_id
 
 
 def clean_view(dataset: Type[Dataset], label_issues: Optional[Any] = None):

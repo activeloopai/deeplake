@@ -1,3 +1,6 @@
-from .cleanlab import clean_labels, clean_view
+from .cleanlab import clean_labels
+from .cleanlab import clean_view
+from .cleanlab import create_tensors
+
 from .label_issues import get_label_issues
-from .create_tensors import create_label_issues_tensors
+from .tensors import create_label_issues_tensors
