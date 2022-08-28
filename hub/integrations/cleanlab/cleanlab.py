@@ -127,9 +127,6 @@ def create_tensors(
         )
 
     if branch:
-        # Save the current branch to switch back to it later.
-        # default_branch = dataset.branch
-
         switch_branch(dataset=dataset, branch=branch)
 
     if verbose:
@@ -145,10 +142,6 @@ def create_tensors(
         overwrite=overwrite,
         verbose=verbose,
     )
-
-    # Switch back to the original branch.
-    # if branch:
-    #     dataset.checkout(default_branch)
 
     return commit_id
 
