@@ -30,11 +30,23 @@ def create_label_issues_tensors(
     This function creates a group of tensors label_issues.
     After creating tensors, automatically commits the changes.
     """
+    from hub.integrations.cleanlab.utils import (
+        assert_label_issues,
+        assert_label_quality_scores,
+        assert_predicted_labels,
+    )
+
     # Check if label_issues tensor already exists.
-    check_label_issues_tensors(dataset, overwrite, verbose)
+    check_label_issues_tensors(dataset=dataset, overwrite=overwrite, verbose=verbose)
 
     if verbose:
         print("Creating tensors with label issues...")
+
+    assert_label_issues(dataset=dataset, label_issues=label_issues)
+    assert_label_quality_scores(
+        dataset=dataset, label_quality_scores=label_quality_scores
+    )
+    assert_predicted_labels(dataset=dataset, predicted_labels=predicted_labels)
 
     with dataset:
 
@@ -43,9 +55,11 @@ def create_label_issues_tensors(
         dataset.label_issues.create_tensor(
             "is_label_issue", htype="generic", dtype="bool"
         )
+
         dataset.label_issues.create_tensor(
             "label_quality", htype="generic", dtype="float64"
         )
+
         dataset.label_issues.create_tensor(
             "predicted_label", htype="generic", dtype="uint32"
         )

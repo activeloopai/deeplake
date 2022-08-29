@@ -30,7 +30,7 @@ def is_label_tensor(label_tensor_htype):
 
 def is_dataset_subsettable(dataset, mask):
     """Returns True if dataset is subsettable"""
-    return len(dataset) == len(mask)
+    return len(mask) == len(dataset)
 
 
 def subset_dataset(dataset, mask):
@@ -56,3 +56,44 @@ def switch_branch(dataset, branch):
         dataset.checkout(branch)
     except CheckoutError:
         dataset.checkout(branch, create=True)
+
+
+def is_valid_ndarray(dataset, array):
+    """Returns True if array is a 1D np.ndarray with length equal to the dataset size"""
+    return isinstance(array, np.ndarray) and len(array) == len(dataset)
+
+
+def assert_label_issues(dataset, label_issues):
+    """Asserts that label_issues is a 1D np.ndarray with dtype bool and length equal to the dataset size"""
+    if not is_valid_ndarray(dataset=dataset, array=label_issues):
+        raise ValueError(
+            "`label_issues` must be a 1D np.ndarray with length equal to the dataset size."
+        )
+    if label_issues.dtype is not np.dtype("bool"):
+        raise ValueError("`label_issues` must be a 1D np.ndarray with dtype `bool`.")
+
+
+def assert_label_quality_scores(dataset, label_quality_scores):
+    """Asserts that label_quality_scores is a 1D np.ndarray with dtype bool and length equal to the dataset size"""
+    if not is_valid_ndarray(dataset=dataset, array=label_quality_scores):
+        raise ValueError(
+            "`label_quality_scores` must be a 1D np.ndarray with length equal to the dataset size."
+        )
+
+    if label_quality_scores.dtype is not np.dtype("float64"):
+        raise ValueError(
+            "`label_quality_scores` must be a 1D np.ndarray with dtype `float64`."
+        )
+
+
+def assert_predicted_labels(dataset, predicted_labels):
+    """Asserts that predicted_labels is a 1D np.ndarray with dtype bool and length equal to the dataset size"""
+    if not is_valid_ndarray(dataset=dataset, array=predicted_labels):
+        raise ValueError(
+            "`label_quality_scores` must be a 1D np.ndarray with length equal to the dataset size."
+        )
+
+    if predicted_labels.dtype is not np.dtype("int64"):
+        raise ValueError(
+            "`predicted_labels` must be a 1D np.ndarray with dtype `int64`."
+        )
