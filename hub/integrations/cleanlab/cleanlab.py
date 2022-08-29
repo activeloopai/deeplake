@@ -1,8 +1,6 @@
 from typing import Any, Callable, Optional, Sequence, Union, Type
 from hub.core.dataset import Dataset
-from hub.util.bugout_reporter import hub_reporter
 
-# @hub_reporter.record_call
 def clean_labels(
     dataset: Type[Dataset],
     dataset_valid: Optional[Type[Dataset]] = None,
@@ -81,7 +79,7 @@ def clean_labels(
         verbose=verbose,
     )
 
-    return label_issues, label_quality_scores, predicted_labels
+    return (label_issues, label_quality_scores, predicted_labels)
 
 
 def create_tensors(
@@ -148,7 +146,7 @@ def create_tensors(
     return commit_id
 
 
-def clean_view(dataset: Type[Dataset], label_issues: Optional[Any] = None):
+def clean_view(dataset: Type[Dataset], label_issues: Any):
     """
     Returns a view of the dataset with clean labels.
 
@@ -157,7 +155,7 @@ def clean_view(dataset: Type[Dataset], label_issues: Optional[Any] = None):
 
     Args:
         dataset (class): Hub Dataset to be used to get a flitered view.
-        label_issues (np.ndarray, Optional): A boolean mask for the entire dataset where True represents a label issue and False represents an example that is accurately labeled. Default is `None`.
+        label_issues (np.ndarray): A boolean mask for the entire dataset where True represents a label issue and False represents an example that is accurately labeled. Default is `None`.
 
     Returns:
         cleaned_dataset (class): Dataset view where only clean labels are present, and the rest are filtered out.
