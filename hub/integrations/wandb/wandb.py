@@ -159,11 +159,11 @@ def dataset_written(ds):
 
 def _filter_input_datasets(input_datasets):
     ret = []
-    for dsconfig in input_datasets:
+    for i, dsconfig in enumerate(input_datasets):
         if "Index" not in dsconfig:
             rm = False
-            for dsconfig2 in input_datasets:
-                if dsconfig2["Dataset"] == dsconfig["Dataset"] and dsconfig["Commit ID"] == dsconfig["Commit ID"]:
+            for j, dsconfig2 in enumerate(input_datasets):
+                if i != j and dsconfig2["Dataset"] == dsconfig["Dataset"] and dsconfig2["Commit ID"] == dsconfig["Commit ID"]:
                     rm = True
                     break
             if not rm:
