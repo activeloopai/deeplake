@@ -44,12 +44,7 @@ def artifact_name_from_ds_path(ds) -> str:
     else:
         pfix = path.split("://", 1)[0] if "://" in path else "local"
         artifact_name = f"{pfix}"
-    artifact_name += f"-commit-{ds.commit_id}"
-    if ds.has_head_changes:
-        warnings.warn(
-            "Creating artifact for dataset with head changes. State of the dataset during artifact consumption will be differnt from the state when it was logged."
-        )
-        artifact_name += f"-has-head-changes"
+    artifact_name += f"-commit-{ds.pending_commit_id}"
     artifact_name += f"-{hash[:8]}"
     return artifact_name
 
@@ -87,16 +82,20 @@ def dataset_config(ds):
         q = entry.query
         if q:
             ret["Query"] = q
+        if entry.virtual:
+            ret["Index"] = ds.index.to_json()
+        else:
+            ret["Index"] = list(ds.sample_indices)
         return ret
 
     ret = {
         "Dataset": ds.path,
-        "Commit ID": ds.commit_id,
+        "Commit ID": ds.commit_id or ds.pending_commit_id,
     }
     if ds.path.startswith("hub://"):
         ret["URL"] = _plat_link(ds)
     if not ds.index.is_trivial():
-        ret["index"] = ds.index.to_json()
+        ret["Index"] = ds.index.to_json()
     q = getattr(ds, "_query", None)
     if q:
         ret["Query"] = q
