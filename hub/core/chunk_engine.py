@@ -1445,8 +1445,8 @@ class ChunkEngine:
             and isinstance(self.base_storage, (S3Provider, GCSProvider))
             and not isinstance(self.chunk_class, ChunkCompressedChunk)
         ):
-            prev = enc.array[row - 1][LAST_SEEN_INDEX_COLUMN] if row > 0 else -1
-            num_samples_in_chunk = enc.array[row][LAST_SEEN_INDEX_COLUMN] - prev
+            prev = int(enc.array[row - 1][LAST_SEEN_INDEX_COLUMN]) if row > 0 else -1
+            num_samples_in_chunk = int(enc.array[row][LAST_SEEN_INDEX_COLUMN]) - prev
             worst_case_header_size += HEADER_SIZE_BYTES + 10  # 10 for version
             ENTRY_SIZE = 4
             if self.tensor_meta.max_shape == self.tensor_meta.min_shape:
