@@ -152,21 +152,20 @@ class dataset:
             create = True
 
         try:
-            remote_ds = dataset_factory(
-                path=path,
-                storage=cache_chain,
-                read_only=read_only,
-                public=public,
-                token=token,
-                verbose=verbose,
-            )
-            if create:
-                dataset_created(remote_ds)
-            else:
-                dataset_loaded(remote_ds)
-
             if access_method == "stream":
-                return remote_ds
+                ret = dataset_factory(
+                    path=path,
+                    storage=cache_chain,
+                    read_only=read_only,
+                    public=public,
+                    token=token,
+                    verbose=verbose,
+                )
+                if create:
+                    dataset_created(ret)
+                else:
+                    dataset_loaded(ret)
+                return ret
 
             return get_local_dataset(
                 access_method=access_method,
@@ -388,13 +387,15 @@ class dataset:
 
         try:
             if access_method == "stream":
-                return dataset_factory(
+                ret = dataset_factory(
                     path=path,
                     storage=cache_chain,
                     read_only=read_only,
                     token=token,
                     verbose=verbose,
                 )
+                dataset_loaded(ret)
+                return ret
             return get_local_dataset(
                 access_method=access_method,
                 path=path,
