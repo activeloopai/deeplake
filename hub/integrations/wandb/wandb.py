@@ -163,7 +163,7 @@ def _filter_input_datasets(input_datasets):
         if "Index" not in dsconfig:
             rm = False
             for j, dsconfig2 in enumerate(input_datasets):
-                if i != j and dsconfig2["Dataset"] == dsconfig["Dataset"] and dsconfig2["Commit ID"] == dsconfig["Commit ID"]:
+                if (i != j and dsconfig2["Dataset"] == dsconfig["Dataset"] and dsconfig2["Commit ID"] == dsconfig["Commit ID"]) or dsconfig2 in ret:
                     rm = True
                     break
             if not rm:
