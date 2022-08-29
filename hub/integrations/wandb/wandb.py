@@ -204,7 +204,12 @@ def dataset_read(ds):
 
         if not run._settings.mode == "online":
             return
-        # TODO consider optimized datasets:
+        ds = ds._view_base
+        wandb_info = None
+        if hasattr(ds, "_view_entry"):  # optimized dataset
+            entry = ds._view_entry
+            if not entry._external:
+                ds = entry._ds
         wandb_info = (
             ds.info.get("wandb", {})
             .get("commits", {})
