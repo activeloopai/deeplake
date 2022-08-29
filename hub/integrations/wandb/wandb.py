@@ -78,7 +78,7 @@ def dataset_config(ds):
             "View ID": vid,
         }
         if source_ds_path.startswith("hub://") and ds.path.startswith("hub://"):
-            ret["URL"] = _plat_link(ds)
+            ret["URL"] = _plat_url(ds)
         q = entry.query
         if q:
             ret["Query"] = q
@@ -93,7 +93,7 @@ def dataset_config(ds):
         "Commit ID": ds.commit_id or ds.pending_commit_id,
     }
     if ds.path.startswith("hub://"):
-        ret["URL"] = _plat_link(ds)
+        ret["URL"] = _plat_url(ds)
     if not ds.index.is_trivial():
         ret["Index"] = ds.index.to_json()
     q = getattr(ds, "_query", None)
@@ -101,14 +101,23 @@ def dataset_config(ds):
         ret["Query"] = q
     return ret
 
+def log_dataset(dsconfig):
+    url = dsconfig.get("URL")
+    if not url:
+        return
+    import wandb
+    run = wandb.run
+    dsconfig = dsconfig.copy()
+    url_prefix = "https://app.activeloop.ai/"
+    hub_url = "hub://" + url[len(url_prefix):]
+    dsconfig["Visualizer"] = _viz_html(hub_url)
+    run.log({f"Hub Dataset - {url}": dsconfig}, step=0)
 
 def dataset_written(ds):
     path = ds.path
     run = wandb_run()
     key = get_ds_key(ds)
     if run:
-        import wandb
-
         if run.id not in _WRITTEN_DATASETS:
             _WRITTEN_DATASETS.clear()
             _WRITTEN_DATASETS[run.id] = {}
@@ -120,20 +129,8 @@ def dataset_written(ds):
             except (KeyError, AttributeError):
                 output_datasets = []
             dsconfig = dataset_config(ds)
-            path = dsconfig["Dataset"]
-            if path.startswith("hub://"):
-                import wandb
-                is_view = not ds.index.is_trivial() or hasattr(ds, "_view_entry")
-                run.log(
-                    {
-                        f"Hub Dataset {'View ' if is_view else ''}[{path[len('hub://'):]}]": wandb.Html(
-                            viz_html(path), False
-                        )
-                    },
-                    step=0,
-                )
-
             output_datasets.append(dsconfig)
+            log_dataset(dsconfig)
             run.config.output_datasets = output_datasets
         if key in _CREATED_DATASETS:
             artifact = artifact_from_ds(ds)
@@ -195,20 +192,10 @@ def dataset_read(ds):
         dsconfig = dataset_config(ds)
         path = dsconfig["Dataset"]
         if dsconfig not in input_datasets:
-
-            if path.startswith("hub://"):
-                import wandb
-
-                run.log(
-                    {
-                        f"Hub Dataset [{path[len('hub://'):]}]": wandb.Html(
-                            viz_html(path), False
-                        )
-                    }
-                )
-
             input_datasets.append(dsconfig)
             input_datasets = _filter_input_datasets(input_datasets)
+            for config in input_datasets:
+                log_dataset(config)
             run.config.input_datasets = input_datasets
         if run._settings.mode != "online":
             return
@@ -245,7 +232,7 @@ def dataset_read(ds):
             pass
 
 
-def viz_html(hub_path: str):
+def _viz_html(hub_path: str):
     #     return f"""
     #       <div id='container'></div>
     #   <script src="https://app.activeloop.ai/visualizer/vis.js"></script>
@@ -260,21 +247,22 @@ def viz_html(hub_path: str):
     return f"""<iframe width="100%" height="100%" sandbox="allow-same-origin allow-scripts allow-popups allow-forms" src="https://app.activeloop.ai/visualizer/iframe?url={hub_path}" />"""
 
 
-def _plat_link(ds):
+def _plat_url(ds, http=True):
+    prefix = "https://app.activeloop.ai/" if http else "hub://"
     if hasattr(ds, "_view_entry"):
         entry = ds._view_entry
         _, org, ds_name, _ = process_hub_path(entry.source_dataset_path)
         commit_id = entry.info["source-dataset-version"]
-        return f"https://app.activeloop.ai/{org}/{ds_name}/{commit_id}?view={entry.id}"
+        return f"{prefix}{org}/{ds_name}/{commit_id}?view={entry.id}"
     _, org, ds_name, _ = process_hub_path(ds.path)
-    ret = f"https://app.activeloop.ai/{org}/{ds_name}"
+    ret = f"{prefix}{org}/{ds_name}"
     if ds.commit_id:
         ret += f"/{ds.commit_id}"
     return ret
 
 
 def link_html(hub_path):
-    return f"""<a href="{_plat_link(hub_path)}">{hub_path}</a>"""
+    return f"""<a href="{_plat_url(hub_path)}">{hub_path}</a>"""
 
 
 if _WANDB_INSTALLED:
