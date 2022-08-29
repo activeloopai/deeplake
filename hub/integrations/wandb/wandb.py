@@ -157,6 +157,19 @@ def dataset_written(ds):
         _CREATED_DATASETS.discard(key)
 
 
+def _filter_input_datasets(input_datasets):
+    ret = []
+    for dsconfig in input_datasets:
+        if "Index" not in dsconfig:
+            rm = False
+            for dsconfig2 in input_datasets:
+                if dsconfig2["Dataset"] == dsconfig["Dataset"] and dsconfig["Commit ID"] == dsconfig["Commit ID"]:
+                    rm = True
+                    break
+            if not rm:
+                ret.append(dsconfig)
+    return ret
+
 def dataset_read(ds):
     path = ds.path
     run = wandb_run()
@@ -167,10 +180,11 @@ def dataset_read(ds):
         _READ_DATASETS[run.id] = {}
     keys = _READ_DATASETS[run.id]
     key = get_ds_key(ds)
-    if key not in keys or ds.index.to_json() not in keys[key]:
+    idx = ds.index.to_json()
+    if key not in keys or idx not in keys[key]:
         if key not in keys:
             keys[key] = []
-        keys[key].append(ds.index.to_json())
+        keys[key].append(idx)
         try:
             input_datasets = run.config.input_datasets
         except (KeyError, AttributeError):
@@ -191,16 +205,8 @@ def dataset_read(ds):
                 )
 
             input_datasets.append(dsconfig)
-            if len(keys[key]) > 1:
-                rm = None
-                for i, dsconfig in enumerate(input_datasets):
-                    if "Index" not in dsconfig:
-                        rm = i
-                        break
-                if rm is not None:
-                    input_datasets.pop(rm)
+            input_datasets = _filter_input_datasets(input_datasets)
             run.config.input_datasets = input_datasets
-
         if not run._settings.mode == "online":
             return
         ds = ds._view_base or ds
