@@ -198,20 +198,23 @@ class Hub3DataLoader:
         upcast = (
             self._mode == "pytorch"
         )  # only upcast for pytorch, this handles unsupported dtypes
-        return iter(Loader(
-            dataset,
-            batch_size=batch_size,
-            num_threads=num_threads,
-            shuffle=shuffle,
-            num_workers=num_workers,
-            collate_fn=collate_fn,
-            transform_fn=transform_fn,
-            distributed=distributed,
-            prefetch_factor=prefetch_factor,
-            tensors=tensors,
-            drop_last=drop_last,
-            upcast=upcast,
-        ))
+        return iter(
+            Loader(
+                dataset,
+                batch_size=batch_size,
+                num_threads=num_threads,
+                shuffle=shuffle,
+                num_workers=num_workers,
+                collate_fn=collate_fn,
+                transform_fn=transform_fn,
+                distributed=distributed,
+                prefetch_factor=prefetch_factor,
+                tensors=tensors,
+                drop_last=drop_last,
+                upcast=upcast,
+            )
+        )
+
 
 @hub_reporter.record_call
 def dataloader(dataset) -> Hub3DataLoader:
