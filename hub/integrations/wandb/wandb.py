@@ -10,6 +10,7 @@ from hub.hooks import (
 import importlib
 import sys
 import warnings
+import json
 
 
 _WANDB_INSTALLED = bool(importlib.util.find_spec("wandb"))
@@ -111,7 +112,7 @@ def log_dataset(dsconfig):
     url = url[len(url_prefix):]
     # TODO : commit and view id are not supported by visualizer. Remove below line once they are supported.
     url = "/".join(url.split("/")[:2])
-    run.log({f"Hub Dataset - {url}": {"Visualizer": wandb.Html(_viz_html("hub://" + url)), "Info": dsconfig}}, step=0)
+    run.log({f"Hub Dataset - {url}": {"Visualizer": wandb.Html(_viz_html("hub://" + url)), "Info": json.dumps(dsconfig, indent=4)}}, step=0)
 
 def dataset_written(ds):
     run = wandb_run()
