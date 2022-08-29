@@ -203,7 +203,7 @@ def dataset_read(ds):
 
         if not run._settings.mode == "online":
             return
-        ds = ds._view_base
+        ds = ds._view_base or ds
         wandb_info = None
         if hasattr(ds, "_view_entry"):  # optimized dataset
             entry = ds._view_entry
