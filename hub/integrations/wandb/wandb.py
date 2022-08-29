@@ -109,8 +109,10 @@ def log_dataset(dsconfig):
     run = wandb.run
     dsconfig = dsconfig.copy()
     url_prefix = "https://app.activeloop.ai/"
-    hub_url = "hub://" + url[len(url_prefix):]
-    run.log({f"Hub Dataset - {url}": wandb.Html(_viz_html(hub_url))}, step=0)
+    url = url[len(url_prefix):]
+    # TODO : commit and view id are not supported by visualizer. Remove below line once they are supported.
+    url = "/".join(url.split("/")[:2])
+    run.log({f"Hub Dataset - {url}": wandb.Html(_viz_html("hub://" + url))}, step=0)
 
 def dataset_written(ds):
     run = wandb_run()
