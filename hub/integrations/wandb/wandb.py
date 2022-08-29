@@ -112,7 +112,7 @@ def log_dataset(dsconfig):
     url = url[len(url_prefix):]
     # TODO : commit and view id are not supported by visualizer. Remove below line once they are supported.
     url = "/".join(url.split("/")[:2])
-    run.log({f"Hub Dataset - {url}": {"Visualizer": wandb.Html(_viz_html("hub://" + url)), "Info": wandb.Html(json.dumps(dsconfig, indent=4))}}, step=0)
+    run.log({f"Hub Dataset - {url}": wandb.Html(_viz_html("hub://" + url))}, step=0)
 
 def dataset_written(ds):
     run = wandb_run()
