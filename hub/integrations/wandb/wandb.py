@@ -194,7 +194,7 @@ def dataset_read(ds):
             if len(keys[key]) > 1:
                 rm = None
                 for i, dsconfig in enumerate(input_datasets):
-                    if "index" not in dsconfig:
+                    if "Index" not in dsconfig:
                         rm = i
                         break
                 if rm is not None:
