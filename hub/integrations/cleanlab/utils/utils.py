@@ -33,15 +33,10 @@ def is_label_tensor(label_tensor_htype):
     )
 
 
-def extract_indices(mask):
-    """Extracts indices from mask (np.ndarray)"""
-    return np.where(mask)[0].tolist()
-
-
 def subset_dataset(dataset, mask):
     """Extracts subset of data examples where mask (np.ndarray) is True"""
-    mask = extract_indices(mask)
-    return dataset[mask]
+    indices = np.where(mask)[0].tolist()
+    return dataset[indices]
 
 
 def is_dataset_subsettable(dataset, mask):
