@@ -36,14 +36,13 @@ def dataset_to_hub3(hub2_dataset):
             region_name=region_name,
             endpoint_url=endpoint_url,
         )
-    elif path.startswith({"gcs://", "gs://", "gcp://"}):
-        # TODO: Handle gcp properly
-        # gcs_provider = dataset.storage.next_storage
-        # credentials = gcs_provider.credentials
-        hub3_dataset = api.dataset(path)
+    elif path.startswith(("gcs://", "gs://", "gcp://")):
+        raise ValueError("GCP datasets are not supported for hub3 currently.")
     else:
         hub3_dataset = api.dataset(path)
 
+    commit_id = hub2_dataset.pending_commit_id
+    hub3_dataset.checkout(commit_id)
     slice_ = hub2_dataset.index.values[0].value
 
     if slice_ != slice(None):

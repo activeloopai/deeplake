@@ -20,6 +20,7 @@ class Hub3DataLoader:
         dataset,
         _batch_size=None,
         _shuffle=None,
+        _num_threads=None,
         _num_workers=None,
         _collate=None,
         _transform=None,
@@ -30,10 +31,12 @@ class Hub3DataLoader:
         _mode=None,
     ):
         raise_indra_installation_error(INDRA_INSTALLED)
-
+        # verifies underlying storage
+        dataset_to_hub3(dataset)
         self.dataset = dataset
         self._batch_size = _batch_size
         self._shuffle = _shuffle
+        self._num_threads = _num_threads
         self._num_workers = _num_workers
         self._collate = _collate
         self._transform = _transform
@@ -193,8 +196,7 @@ class Hub3DataLoader:
         upcast = (
             self._mode == "pytorch"
         )  # only upcast for pytorch, this handles unsupported dtypes
-
-        return Loader(
+        return iter(Loader(
             dataset,
             batch_size=batch_size,
             num_threads=num_threads,
@@ -207,7 +209,7 @@ class Hub3DataLoader:
             tensors=tensors,
             drop_last=drop_last,
             upcast=upcast,
-        )
+        ))
 
 
 def dataloader(dataset) -> Hub3DataLoader:
