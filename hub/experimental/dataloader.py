@@ -1,4 +1,3 @@
-from copy import deepcopy
 from typing import Callable, List, Optional
 from hub.experimental.convert_to_hub3 import dataset_to_hub3  # type: ignore
 from hub.experimental.util import raise_indra_installation_error  # type: ignore
@@ -30,6 +29,7 @@ class Hub3DataLoader:
         _drop_last=False,
         _mode=None,
     ):
+        dataset.flush()
         raise_indra_installation_error(INDRA_INSTALLED)
         # verifies underlying storage
         dataset_to_hub3(dataset)
@@ -62,7 +62,7 @@ class Hub3DataLoader:
         if self._batch_size is not None:
             raise ValueError("batch size is already set")
 
-        all_vars = deepcopy(self.__dict__)
+        all_vars = self.__dict__.copy()
         all_vars["_batch_size"] = batch_size
         all_vars["_drop_last"] = drop_last
         return self.__class__(**all_vars)
@@ -78,7 +78,7 @@ class Hub3DataLoader:
         """
         if self._shuffle is not None:
             raise ValueError("shuffle is already set")
-        all_vars = deepcopy(self.__dict__)
+        all_vars = self.__dict__.copy()
         all_vars["_shuffle"] = True
         return self.__class__(**all_vars)
 
@@ -96,12 +96,12 @@ class Hub3DataLoader:
         """
         if self._transform is not None:
             raise ValueError("transform is already set")
-        all_vars = deepcopy(self.__dict__)
+        all_vars = self.__dict__.copy()
         all_vars["_transform"] = transform_fn
         return self.__class__(**all_vars)
 
     def query(self, query_string: str):
-        all_vars = deepcopy(self.__dict__)
+        all_vars = self.__dict__.copy()
         all_vars["dataset"] = query(self.dataset, query_string)
         return self.__class__(**all_vars)
 
@@ -134,7 +134,7 @@ class Hub3DataLoader:
             if self._mode == "numpy":
                 raise ValueError("Can't call .to_pytorch after .to_numpy()")
             raise ValueError("already called .to_pytorch()")
-        all_vars = deepcopy(self.__dict__)
+        all_vars = self.__dict__.copy()
         all_vars["_num_workers"] = num_workers
         all_vars["_collate"] = collate_fn
         all_vars["_tensors"] = tensors
@@ -169,7 +169,7 @@ class Hub3DataLoader:
             if self._mode == "pytorch":
                 raise ValueError("Can't call .to_numpy after .to_pytorch()")
             raise ValueError("already called .to_numpy()")
-        all_vars = deepcopy(self.__dict__)
+        all_vars = self.__dict__.copy()
         all_vars["_num_workers"] = num_workers
         all_vars["_tensors"] = tensors
         all_vars["_num_threads"] = num_threads
@@ -189,6 +189,8 @@ class Hub3DataLoader:
         num_workers = self._num_workers or 0
         if self._collate is None and self._mode == "pytorch":
             collate_fn = default_collate
+        else:
+            collate_fn = self._collate
         tensors = self._tensors or []
         num_threads = self._num_threads
         prefetch_factor = self._prefetch_factor
@@ -211,6 +213,6 @@ class Hub3DataLoader:
             upcast=upcast,
         ))
 
-
+@hub_reporter.record_call
 def dataloader(dataset) -> Hub3DataLoader:
     return Hub3DataLoader(dataset)
