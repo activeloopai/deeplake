@@ -102,17 +102,20 @@ def dataset_config(ds):
         ret["Query"] = q
     return ret
 
+
 def log_dataset(dsconfig):
     url = dsconfig.get("URL")
     if not url:
         return
     import wandb
+
     run = wandb.run
     url_prefix = "https://app.activeloop.ai/"
-    url = url[len(url_prefix):]
+    url = url[len(url_prefix) :]
     # TODO : commit and view id are not supported by visualizer. Remove below line once they are supported.
     url = "/".join(url.split("/")[:2])
     run.log({f"Hub Dataset - {url}": wandb.Html(_viz_html("hub://" + url))}, step=0)
+
 
 def dataset_written(ds):
     run = wandb_run()
@@ -161,7 +164,11 @@ def _filter_input_datasets(input_datasets):
         if "Index" not in dsconfig:
             rm = False
             for j, dsconfig2 in enumerate(input_datasets):
-                if (i != j and dsconfig2["Dataset"] == dsconfig["Dataset"] and dsconfig2["Commit ID"] == dsconfig["Commit ID"]):
+                if (
+                    i != j
+                    and dsconfig2["Dataset"] == dsconfig["Dataset"]
+                    and dsconfig2["Commit ID"] == dsconfig["Commit ID"]
+                ):
                     rm = True
                     break
             if not rm:
@@ -169,6 +176,7 @@ def _filter_input_datasets(input_datasets):
         else:
             ret.append(dsconfig)
     return ret
+
 
 def dataset_read(ds):
     path = ds.path
