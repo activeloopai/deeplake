@@ -110,11 +110,9 @@ def log_dataset(dsconfig):
     dsconfig = dsconfig.copy()
     url_prefix = "https://app.activeloop.ai/"
     hub_url = "hub://" + url[len(url_prefix):]
-    dsconfig["Visualizer"] = _viz_html(hub_url)
-    run.log({f"Hub Dataset - {url}": dsconfig}, step=0)
+    run.log({f"Hub Dataset - {url}": wandb.Html(_viz_html(hub_url))}, step=0)
 
 def dataset_written(ds):
-    path = ds.path
     run = wandb_run()
     key = get_ds_key(ds)
     if run:
