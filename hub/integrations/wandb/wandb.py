@@ -168,6 +168,7 @@ def _filter_input_datasets(input_datasets):
                     break
             if not rm:
                 ret.append(dsconfig)
+        ret.append(dsconfig)
     return ret
 
 def dataset_read(ds):
