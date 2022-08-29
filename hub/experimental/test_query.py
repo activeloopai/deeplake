@@ -1,5 +1,6 @@
 from hub.experimental import query
 
+
 def test_query(local_ds):
     with local_ds as ds:
         ds.create_tensor("label")
@@ -10,6 +11,3 @@ def test_query(local_ds):
     assert len(dsv) == 20
     for i in range(20):
         assert dsv.label[i].numpy() == 2
-
-        
-            
