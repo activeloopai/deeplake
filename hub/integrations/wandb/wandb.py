@@ -260,28 +260,12 @@ def viz_html(hub_path: str):
 
 
 def _plat_link(ds):
-    path = ds.path
-    if "/.queries/" in path:
-        if "/queries/" in path:
-            entry = getattr((ds._view_base or ds), "_view_entry")
-            if not entry:
-                _, org, ds_name, _ = process_hub_path(path)
-                return f"https://app.activeloop.ai/{org}/{ds_name}"
-            source_ds_path = entry.info["source-dataset"]
-            commit_id = entry.info["source-dataset-version"]
-            _, org, ds_name, _ = process_hub_path(source_ds_path)
-            return (
-                f"https://app.activeloop.ai/{org}/{ds_name}/{commit_id}?view={entry.id}"
-            )
-        else:
-            _, org, ds_name, _ = process_hub_path(path)
-            vid = path.split("/.queries/")[1]
-            ret = f"https://app.activeloop.ai/{org}/{ds_name}"
-            if ds.commit_id:
-                ret += f"/{ds.commit_id}"
-            ret += f"?view={vid}"
-            return ret
-    _, org, ds_name, _ = process_hub_path(path)
+    if hasattr(ds, "_view_entry"):
+        entry = ds._view_entry
+        _, org, ds_name, _ = process_hub_path(entry.source_dataset_path)
+        commit_id = entry.info["source-dataset-version"]
+        return f"https://app.activeloop.ai/{org}/{ds_name}/{commit_id}?view={entry.id}"
+    _, org, ds_name, _ = process_hub_path(ds.path)
     ret = f"https://app.activeloop.ai/{org}/{ds_name}"
     if ds.commit_id:
         ret += f"/{ds.commit_id}"
