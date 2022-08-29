@@ -208,7 +208,7 @@ def dataset_read(ds):
             input_datasets.append(dsconfig)
             input_datasets = _filter_input_datasets(input_datasets)
             run.config.input_datasets = input_datasets
-        if not run._settings.mode == "online":
+        if run._settings.mode != "online":
             return
         ds = ds._view_base or ds
         wandb_info = None
