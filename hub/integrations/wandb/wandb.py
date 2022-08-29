@@ -123,13 +123,14 @@ def dataset_written(ds):
             path = dsconfig["Dataset"]
             if path.startswith("hub://"):
                 import wandb
-
+                is_view = not ds.index.is_trivial() or hasattr(ds, "_view_entry")
                 run.log(
                     {
-                        f"Hub Dataset [{path[len('hub://'):]}]": wandb.Html(
+                        f"Hub Dataset {'View ' if is_view else ''}[{path[len('hub://'):]}]": wandb.Html(
                             viz_html(path), False
                         )
-                    }
+                    },
+                    step=0,
                 )
 
             output_datasets.append(dsconfig)
