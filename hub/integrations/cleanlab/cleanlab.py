@@ -164,11 +164,7 @@ def clean_view(dataset: Type[Dataset], label_issues: Optional[Any] = None):
         cleaned_dataset (class): Dataset view where only clean labels are present, and the rest are filtered out.
 
     """
-    from hub.integrations.cleanlab.utils import (
-        subset_dataset,
-        is_np_ndarray,
-        is_dataset_subsettable,
-    )
+    from hub.integrations.cleanlab.utils import subset_dataset
 
     # If label_issues is not provided as user input, try to get it from the tensor.
     if label_issues is None and "label_issues/is_label_issue" in dataset.tensors:
@@ -178,19 +174,7 @@ def clean_view(dataset: Type[Dataset], label_issues: Optional[Any] = None):
             "No `label_issues/is_label_issue` tensor found and no `label_issues` np.ndarray provided. Please run `clean_labels` first to obtain `label_issues` boolean mask."
         )
 
-    if is_np_ndarray(label_issues):
-        if is_dataset_subsettable(dataset=dataset, mask=label_issues):
-            label_issues_mask = ~label_issues
-            cleaned_dataset = subset_dataset(dataset=dataset, mask=label_issues_mask)
-
-        else:
-            raise ValueError(
-                "`label_issues` mask is not a subset of the dataset. Please provide a mask that is a subset of the dataset."
-            )
-
-    else:
-        raise TypeError(
-            f"`label_issues` must be a 1D np.ndarray, got {type(label_issues)}"
-        )
+    label_issues_mask = ~label_issues
+    cleaned_dataset = subset_dataset(dataset=dataset, mask=label_issues_mask)
 
     return cleaned_dataset
