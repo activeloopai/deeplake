@@ -152,7 +152,7 @@ def create_tensors(
     return commit_id
 
 
-def clean_view(dataset: Type[Dataset], label_issues: Any):
+def clean_view(dataset: Type[Dataset], label_issues: Optional[Any] = None):
     """
     Returns a view of the dataset with clean labels.
 
@@ -161,7 +161,7 @@ def clean_view(dataset: Type[Dataset], label_issues: Any):
 
     Args:
         dataset (class): Hub Dataset to be used to get a flitered view.
-        label_issues (np.ndarray): A boolean mask for the entire dataset where True represents a label issue and False represents an example that is accurately labeled. Default is `None`.
+        label_issues (np.ndarray, Optional): A boolean mask for the entire dataset where True represents a label issue and False represents an example that is accurately labeled. Default is `None`.
 
     Returns:
         cleaned_dataset (class): Dataset view where only clean labels are present, and the rest are filtered out.
