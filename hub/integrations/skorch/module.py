@@ -23,7 +23,7 @@ def pytorch_module_to_skorch(
     skorch_kwargs,
 ):
 
-    from hub.integrations.skorch.utils import repeat_image_shape, get_dataset_tensors
+    from hub.integrations.skorch.utils import get_dataset_tensors
     from hub.integrations.common.utils import get_num_classes, get_labels
 
     images_tensor, labels_tensor = get_dataset_tensors(
@@ -45,9 +45,6 @@ def pytorch_module_to_skorch(
     if module is None:
         # Set default module.
         module = resnet18()
-
-        # Make training work with both grayscale and color images.
-        transform = repeat_image_shape(images_tensor, transform)
 
         # Change the last layer to have num_classes output channels.
         labels = get_labels(dataset=dataset, labels_tensor=labels_tensor)
