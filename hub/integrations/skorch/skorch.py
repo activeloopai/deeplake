@@ -42,12 +42,12 @@ def skorch(
 
     """
     from hub.integrations.skorch.module import pytorch_module_to_skorch
-    from hub.integrations.common.utils import is_hub_dataset
+    from hub.integrations.common.utils import is_dataset
 
-    if not is_hub_dataset(dataset):
+    if not is_dataset(dataset):
         raise TypeError(f"`dataset` must be a Hub Dataset. Got {type(dataset)}")
 
-    if dataset_valid and not is_hub_dataset(dataset_valid):
+    if dataset_valid and not is_dataset(dataset_valid):
         raise TypeError(
             f"`dataset_valid` must be a Hub Dataset. Got {type(dataset_valid)}"
         )

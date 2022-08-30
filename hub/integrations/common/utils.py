@@ -2,7 +2,7 @@ from hub.core.dataset import Dataset
 import numpy as np
 
 
-def is_hub_dataset(dataset):
+def is_dataset(dataset):
     return isinstance(dataset, Dataset)
 
 
