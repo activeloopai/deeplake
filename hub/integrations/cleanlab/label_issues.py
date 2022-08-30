@@ -8,26 +8,6 @@ from sklearn.base import clone
 import numpy as np
 
 
-def assert_valid_tensors(dataset, images_tensor, labels_tensor):
-
-    from hub.integrations.cleanlab.utils import is_label_tensor, is_image_tensor
-
-    image_tensor_htype, label_tensor_htype = (
-        dataset[images_tensor].htype,
-        dataset[labels_tensor].htype,
-    )
-
-    if not is_image_tensor(image_tensor_htype):
-        raise TypeError(
-            f'The images tensor has an unsupported htype: {image_tensor_htype}. In general, the images tensor must be of type "image".'
-        )
-
-    if not is_label_tensor(label_tensor_htype):
-        raise TypeError(
-            f'The labels tensor has an unsupported htype: {label_tensor_htype}. In general, the labels tensor must be of type "class_label".'
-        )
-
-
 def estimate_cv_predicted_probabilities(
     dataset, labels, model, folds, num_classes, verbose
 ):
@@ -130,11 +110,6 @@ def get_label_issues(
 
     # Get tensor names from the instantiated skorch model.
     images_tensor, labels_tensor = model.images_tensor, model.labels_tensor
-
-    # Assert that the images tensor and labels tensor are valid.
-    assert_valid_tensors(
-        dataset=dataset, images_tensor=images_tensor, labels_tensor=labels_tensor
-    )
 
     # Get labels of a dataset
     labels = dataset[labels_tensor].numpy().flatten()

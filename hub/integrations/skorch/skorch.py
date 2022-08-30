@@ -1,4 +1,7 @@
 import torch
+import numpy as np
+
+from typing import Any, Callable, Optional, Sequence, Union, Type
 
 from torchvision.models import resnet18
 
@@ -6,9 +9,6 @@ from skorch.helper import predefined_split
 
 from .net import VisionClassifierNet
 
-from typing import Any, Callable, Optional, Sequence, Union, Type
-
-import numpy as np
 
 
 def pytorch_module_to_skorch(
@@ -67,8 +67,6 @@ def pytorch_module_to_skorch(
 
     images_tensor, labels_tensor = tensors
 
-    labels = dataset[labels_tensor].numpy().flatten()
-    num_classes = len(np.unique(labels))
 
     if device is None:
         if torch.cuda.is_available():
@@ -87,6 +85,8 @@ def pytorch_module_to_skorch(
         transform = repeat_image_shape(images_tensor, transform)
 
         # Change the last layer to have num_classes output channels.
+        labels = dataset[labels_tensor].numpy().flatten()
+        num_classes = len(np.unique(labels))
         module.fc = torch.nn.Linear(module.fc.in_features, num_classes)
 
     if criterion is None:

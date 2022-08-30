@@ -3,26 +3,6 @@ from hub.util.exceptions import CheckoutError
 import numpy as np
 
 
-def is_image_tensor(image_tensor_htype):
-    supported_image_htypes = set(
-        ["image", "image.rgb", "image.gray", "generic"],
-    )
-    return (
-        image_tensor_htype in supported_image_htypes
-        and not image_tensor_htype.startswith("sequence")
-    )
-
-
-def is_label_tensor(label_tensor_htype):
-    supported_label_htypes = set(
-        ["class_label", "generic"],
-    )
-    return (
-        label_tensor_htype in supported_label_htypes
-        and not label_tensor_htype.startswith("sequence")
-    )
-
-
 def is_dataset_subsettable(dataset, mask):
     """Returns True if dataset is subsettable"""
     return len(mask) == len(dataset)
