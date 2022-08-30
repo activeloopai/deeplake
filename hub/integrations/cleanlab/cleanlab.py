@@ -1,6 +1,7 @@
 from typing import Any, Callable, Optional, Sequence, Union, Type
 from hub.core.dataset import Dataset
 
+
 def clean_labels(
     dataset: Type[Dataset],
     dataset_valid: Optional[Type[Dataset]] = None,
@@ -81,7 +82,7 @@ def clean_labels(
         shuffle=shuffle,
         folds=folds,
         verbose=verbose,
-        skorch_kwargs=skorch_kwargs
+        skorch_kwargs=skorch_kwargs,
     )
 
     return (label_issues, label_quality_scores, predicted_labels)

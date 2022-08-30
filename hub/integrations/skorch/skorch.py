@@ -141,11 +141,10 @@ def pytorch_module_to_skorch(
         labels_tensor=labels_tensor,
         iterator_train__shuffle=shuffle,
         iterator_train__transform=transform,
-        iterator_valid__transform=transform
-
+        iterator_valid__transform=transform,
     )
 
-    # Set optional kwargs params for the neural net.
+    # Set optional kwargs params for the neural net. This will override any params set in the module.
     model.set_params(**skorch_kwargs)
 
     return model
