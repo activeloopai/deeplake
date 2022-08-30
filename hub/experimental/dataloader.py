@@ -29,7 +29,6 @@ class Hub3DataLoader:
         _drop_last=False,
         _mode=None,
     ):
-        dataset.flush()
         raise_indra_installation_error(INDRA_INSTALLED)
         # verifies underlying storage
         dataset_to_hub3(dataset)

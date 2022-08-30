@@ -1,3 +1,4 @@
+from math import floor
 from hub.experimental import query
 
 
@@ -5,7 +6,7 @@ def test_query(local_ds):
     with local_ds as ds:
         ds.create_tensor("label")
         for i in range(100):
-            ds.label.append(2)
+            ds.label.append(floor(i / 20))
 
     dsv = query(local_ds, "SELECT * WHERE CONTAINS(label, 2)")
     assert len(dsv) == 20
