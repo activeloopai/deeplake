@@ -85,7 +85,7 @@ def clean_labels(
         skorch_kwargs=skorch_kwargs,
     )
 
-    return (label_issues, label_quality_scores, predicted_labels)
+    return label_issues, label_quality_scores, predicted_labels
 
 
 def create_tensors(
