@@ -1,14 +1,13 @@
 import torch
 import numpy as np
 
-from typing import Any, Callable, Optional, Sequence, Union, Type
+from typing import Any, Callable, Optional, Sequence, Union
 
 from torchvision.models import resnet18
 
 from skorch.helper import predefined_split
 
-from .net import VisionClassifierNet
-
+from hub.integrations.skorch.net import VisionClassifierNet
 
 
 def pytorch_module_to_skorch(
@@ -49,7 +48,7 @@ def pytorch_module_to_skorch(
 
     """
     from hub.integrations.skorch.utils import repeat_image_shape, get_dataset_tensors
-    from hub.integrations.utils import is_hub_dataset
+    from hub.integrations.utils import is_hub_dataset, get_num_classes, get_labels
 
     if not is_hub_dataset(dataset):
         raise TypeError(f"`dataset` must be a Hub Dataset. Got {type(dataset)}")
@@ -64,9 +63,6 @@ def pytorch_module_to_skorch(
         transform=transform,
         tensors=tensors,
     )
-
-    images_tensor, labels_tensor = tensors
-
 
     if device is None:
         if torch.cuda.is_available():
@@ -85,9 +81,8 @@ def pytorch_module_to_skorch(
         transform = repeat_image_shape(images_tensor, transform)
 
         # Change the last layer to have num_classes output channels.
-        labels = dataset[labels_tensor].numpy().flatten()
-        num_classes = len(np.unique(labels))
-        module.fc = torch.nn.Linear(module.fc.in_features, num_classes)
+        labels = get_labels(dataset=dataset, labels_tensor=labels_tensor)
+        module.fc = torch.nn.Linear(module.fc.in_features, get_num_classes(labels))
 
     if criterion is None:
         criterion = torch.nn.CrossEntropyLoss

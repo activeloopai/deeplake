@@ -23,24 +23,19 @@ def repeat_image_shape(images_tensor, transform):
 
     return transform
 
+
 def is_image_tensor(image_tensor_htype):
     supported_image_htypes = set(
         ["image", "image.rgb", "image.gray", "generic"],
     )
-    return (
-        image_tensor_htype in supported_image_htypes
-        and not image_tensor_htype.startswith("sequence")
-    )
+    return image_tensor_htype in supported_image_htypes
 
 
 def is_label_tensor(label_tensor_htype):
     supported_label_htypes = set(
         ["class_label", "generic"],
     )
-    return (
-        label_tensor_htype in supported_label_htypes
-        and not label_tensor_htype.startswith("sequence")
-    )
+    return label_tensor_htype in supported_label_htypes
 
 
 def assert_valid_tensors(dataset, images_tensor, labels_tensor):
@@ -84,8 +79,8 @@ def get_dataset_tensors(dataset, transform, tensors):
             "Could not find the images and labels tensors. Please provide the images and labels tensors in `tensors` or `transform`."
         )
 
-    assert_valid_tensors(dataset=dataset, images_tensor=images_tensor, labels_tensor=labels_tensor)
+    assert_valid_tensors(
+        dataset=dataset, images_tensor=images_tensor, labels_tensor=labels_tensor
+    )
 
     return [images_tensor, labels_tensor]
-
-

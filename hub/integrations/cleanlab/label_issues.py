@@ -107,15 +107,16 @@ def get_label_issues(
     and `rank.get_label_quality_scores` to find label quality scores for each sample in the dataset.
     Finally, it fits the model on a cleaned dataset to compute predicted labels.
     """
+    from hub.integrations.utils import get_labels, get_num_classes
 
     # Get tensor names from the instantiated skorch model.
     images_tensor, labels_tensor = model.images_tensor, model.labels_tensor
 
     # Get labels of a dataset
-    labels = dataset[labels_tensor].numpy().flatten()
+    labels = get_labels(dataset=dataset, labels_tensor=labels_tensor)
 
     # Get the number of unique classes.
-    num_classes = len(np.unique(labels))
+    num_classes = get_num_classes(labels)
 
     # Compute out-of-sample predicted probabilities.
     pred_probs = estimate_cv_predicted_probabilities(

@@ -1,5 +1,6 @@
 from typing import Any, Optional, Union
 
+
 def clean_labels(
     dataset: Any,
     model: Any,
@@ -17,7 +18,7 @@ def clean_labels(
 
     Args:
         dataset (class): Hub Dataset for training. The label issues will be computed for training set.
-        model (class): An instantiated scikit-learn compatitable skorch NeuralNet model.
+        model (class): An instantiated skorch NeuralNet module.
         folds (int): Sets the number of cross-validation folds used to compute out-of-sample probabilities for each example in the dataset. The default is 5.
         verbose (bool): This parameter controls how much output is printed. Default is True.
         label_issues_kwargs (dict, Optional): Keyword arguments to be passed to the `cleanlab.filter.find_label_issues` function. Options that may especially impact accuracy include: filter_by, frac_noise, min_examples_per_class. Default is `None`.
