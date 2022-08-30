@@ -83,7 +83,6 @@ def dataset_to_hub3(hub2_dataset):
                 region_name=region_name,
                 endpoint_url=endpoint_url,
             )
-        return hub3_dataset
     elif path.startswith(("gcs://", "gs://", "gcp://")):
         raise ValueError("GCP datasets are not supported for hub3 currently.")
     else:
