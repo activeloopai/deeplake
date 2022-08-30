@@ -1391,7 +1391,7 @@ class Dataset:
                 Read torch.utils.data.DataLoader docs for more details.
             shuffle (bool): If True, the data loader will shuffle the data indices. Default value is False. Details about how hub shuffles data can be found at https://docs.activeloop.ai/how-hub-works/shuffling-in-ds.pytorch
             buffer_size (int): The size of the buffer used to shuffle the data in MBs. Defaults to 2048 MB. Increasing the buffer_size will increase the extent of shuffling.
-            use_local_cache (bool): If True, the data loader will use a local cache to store data. This is useful when the dataset can fit on the machine and we don't want to fetch the data multiple times for each iteration. Default value is False.
+            use_local_cache (bool): If True, the data loader will use a local cache to store data. The default cache location is ~/.activeloop/cache, but it can be changed by setting the LOCAL_CACHE_PREFIX environment variable. This is useful when the dataset can fit on the machine and we don't want to fetch the data multiple times for each iteration. Default value is False
             use_progress_bar (bool): If True, tqdm will be wrapped around the returned dataloader. Default value is True.
             return_index (bool): If True, the returned dataloader will have a key "index" that contains the index of the sample(s) in the original dataset. Default value is True.
             pad_tensors (bool): If True, shorter tensors will be padded to the length of the longest tensor. Default value is False.
