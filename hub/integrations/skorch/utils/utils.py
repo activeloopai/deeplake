@@ -2,6 +2,7 @@ from torchvision import transforms
 
 from hub.util.dataset import map_tensor_keys
 
+
 def repeat_image_shape(images_tensor, transform):
     """
     This function adds an additional lambda transformation to the `transform`.

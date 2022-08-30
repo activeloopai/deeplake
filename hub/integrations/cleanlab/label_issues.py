@@ -27,6 +27,7 @@ def assert_valid_tensors(dataset, images_tensor, labels_tensor):
             f'The labels tensor has an unsupported htype: {label_tensor_htype}. In general, the labels tensor must be of type "class_label".'
         )
 
+
 def estimate_cv_predicted_probabilities(
     dataset, labels, model, folds, num_classes, verbose
 ):
@@ -131,7 +132,9 @@ def get_label_issues(
     images_tensor, labels_tensor = model.images_tensor, model.labels_tensor
 
     # Assert that the images tensor and labels tensor are valid.
-    assert_valid_tensors(dataset=dataset, images_tensor=images_tensor, labels_tensor=labels_tensor)
+    assert_valid_tensors(
+        dataset=dataset, images_tensor=images_tensor, labels_tensor=labels_tensor
+    )
 
     # Get labels of a dataset
     labels = dataset[labels_tensor].numpy().flatten()
@@ -152,7 +155,9 @@ def get_label_issues(
     if verbose:
         print("Using predicted probabilities to identify label issues ...")
 
-    label_issues = find_label_issues(labels=labels, pred_probs=pred_probs, **find_label_issues_kwargs)
+    label_issues = find_label_issues(
+        labels=labels, pred_probs=pred_probs, **find_label_issues_kwargs
+    )
 
     label_quality_scores = get_label_quality_scores(
         labels=labels, pred_probs=pred_probs, **label_quality_scores_kwargs

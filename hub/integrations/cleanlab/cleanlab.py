@@ -2,6 +2,7 @@ from typing import Any, Optional, Union, Type
 from hub.core.dataset import Dataset
 from skorch import NeuralNet
 
+
 def clean_labels(
     dataset: Type[Dataset],
     model: Type[NeuralNet],
@@ -48,7 +49,7 @@ def clean_labels(
         folds=folds,
         verbose=verbose,
         find_label_issues_kwargs=find_label_issues_kwargs,
-        label_quality_scores_kwargs=label_quality_scores_kwargs
+        label_quality_scores_kwargs=label_quality_scores_kwargs,
     )
 
     return label_issues, label_quality_scores, predicted_labels

@@ -8,8 +8,8 @@ from .net import VisionClassifierNet
 
 from typing import Any, Callable, Optional, Sequence, Union, Type
 
-# from hub.core.dataset import Dataset
 import numpy as np
+
 
 def pytorch_module_to_skorch(
     dataset: Any,
