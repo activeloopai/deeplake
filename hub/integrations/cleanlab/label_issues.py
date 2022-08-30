@@ -57,6 +57,22 @@ def estimate_cv_predicted_probabilities(
 
     return pred_probs
 
+def estimate_predicted_probabilities(dataset, model, verbose):
+    """This function computes an out-of-sample predicted if pretrained classifier is used."""
+    # Initialize a fresh untrained model.
+    model_copy = clone(model)
+
+    if verbose:
+        print(
+            "Computing out-of-sample predicted probabilities"
+        )
+
+    # Fit model once to obtain out-of-sample predicted probabilities.
+    model_copy.fit(X=dataset)
+
+    pred_probs = model_copy.predict_proba(X=dataset)
+
+    return pred_probs
 
 def get_predicted_labels(dataset, label_issues, model, verbose):
     """
@@ -97,6 +113,7 @@ def get_label_issues(
     dataset,
     model,
     folds,
+    pretrained,
     verbose,
     label_issues_kwargs,
     label_quality_kwargs,
@@ -118,15 +135,24 @@ def get_label_issues(
     # Get the number of unique classes.
     num_classes = get_num_classes(labels)
 
-    # Compute out-of-sample predicted probabilities.
-    pred_probs = estimate_cv_predicted_probabilities(
-        dataset=dataset,
-        labels=labels,
-        model=model,
-        folds=folds,
-        num_classes=num_classes,
-        verbose=verbose,
-    )
+    if pretrained:
+        # Compute out-of-sample predicted probabilities if pre-trained classifier is used.
+        pred_probs = estimate_predicted_probabilities(
+            dataset=dataset,
+            model=model,
+            verbose=verbose,
+        )
+
+    else:
+        # Compute out-of-sample predicted probabilities.
+        pred_probs = estimate_cv_predicted_probabilities(
+            dataset=dataset,
+            labels=labels,
+            model=model,
+            folds=folds,
+            num_classes=num_classes,
+            verbose=verbose,
+        )
 
     if verbose:
         print("Using predicted probabilities to identify label issues ...")

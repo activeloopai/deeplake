@@ -5,6 +5,7 @@ def clean_labels(
     dataset: Any,
     model: Any,
     folds: int = 5,
+    pretrained: bool = False,
     verbose: bool = True,
     label_issues_kwargs: Optional[dict] = {},
     label_quality_kwargs: Optional[dict] = {},
@@ -13,13 +14,14 @@ def clean_labels(
     Finds label errors in a dataset with cleanlab (github.com/cleanlab) open-source library.
 
     Note:
-        Currently, only image classification tasks is supported. Therefore, the method accepts two tensors for the images and labels (e.g. `['images', 'labels']`).
-        The tensors can be specified in `transofrm` or `tensors` when instantiating skorch module.
+        The tensors used to obtain label_issues can be specified in `transofrm` or `tensors` when instantiating skorch module.
+        Setting `pretrained` to `True` is only recommended if there's no distribution shift in the dataset.
 
     Args:
         dataset (class): Hub Dataset for training. The label issues will be computed for training set.
         model (class): An instantiated skorch NeuralNet module.
-        folds (int): Sets the number of cross-validation folds used to compute out-of-sample probabilities for each example in the dataset. The default is 5.
+        folds (int): Sets the number of cross-validation folds used to compute out-of-sample probabilities for each example in the dataset. Only applicable if pretrained is `False`. The default is 5.
+        pretrained (bool): If using a pretrained model, set this to True. This will skip cross-validation and obtain predicted probabilities on a single `fit()`. Default is False.
         verbose (bool): This parameter controls how much output is printed. Default is True.
         label_issues_kwargs (dict, Optional): Keyword arguments to be passed to the `cleanlab.filter.find_label_issues` function. Options that may especially impact accuracy include: filter_by, frac_noise, min_examples_per_class. Default is `None`.
         label_quality_kwargs (dict, Optional): Keyword arguments to be passed to the `cleanlab.rank.get_label_quality_scores` function. Options include: method, adjust_pred_probs. Default is `None`.
@@ -46,6 +48,7 @@ def clean_labels(
         dataset=dataset,
         model=model,
         folds=folds,
+        pretrained=pretrained,
         verbose=verbose,
         label_issues_kwargs=label_issues_kwargs,
         label_quality_kwargs=label_quality_kwargs,

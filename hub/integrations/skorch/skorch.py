@@ -19,11 +19,14 @@ def skorch(
     """
     This function wraps a PyTorch Module in a skorch NeuralNet. It will also initialize a default PyTorch module if one is not provided. Any PyTorch module can be used as a classifier.
 
+    Note:
+        Currently, only image classification tasks is supported. Therefore, two tensors for the images and labels should be specified (e.g. `['images', 'labels']`).
+
     Args:
         dataset (class): Hub Dataset to use to instantiate the NeuralNet.
         dataset_valid (class, Optional): Hub Dataset to use as a validation set for training. It is expected that the validation set tensor names are the same as the training tensor names. Default is `None`.
         transform (Callable, Optional): Transformation function to be applied to each sample. Default is `None`.
-        tensors (list, Optional): A list of two tensors (in the following order: data, labels) that would be used to find label issues (e.g. `['images', 'labels']`).
+        tensors (list, Optional): A list of ordered tensors (data, labels) that would be used to find label issues (e.g. `['images', 'labels']`).
         batch_size (int): Number of samples per batch to load. If `batch_size` is -1, a single batch with all the data will be used during training and validation. Default is `64`.
         module (class): A PyTorch torch.nn.Module module (class or instance). Default is `torchvision.models.resnet18()`.
         criterion (class): An uninitialized PyTorch criterion (loss) used to optimize the module. Default is `torch.nn.CrossEntropyLoss`.
