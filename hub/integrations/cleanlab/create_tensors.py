@@ -80,5 +80,8 @@ def create_label_issues_tensors(
         print(
             'View the labels with the lowest label quality scores by sorting by "label_issues/label_quality_scores"'
         )
+        print(
+            'Explore the predicted (guessed) labels by viewing the "label_issues/predicted_label" tensor'
+        )
 
     return commit_id

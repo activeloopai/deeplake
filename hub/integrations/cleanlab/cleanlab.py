@@ -36,7 +36,7 @@ def clean_labels(
 
     """
 
-    from hub.integrations.cleanlab import get_label_issues
+    from hub.integrations.cleanlab.label_issues import get_label_issues
     from hub.integrations.utils import is_hub_dataset
 
     # Catch most common user errors early.
@@ -86,7 +86,7 @@ def create_tensors(
         ...
 
     """
-    from hub.integrations.cleanlab import create_label_issues_tensors
+    from hub.integrations.cleanlab.create_tensors import create_label_issues_tensors
     from hub.integrations.cleanlab.utils import switch_branch
     from hub.integrations.utils import is_hub_dataset
 

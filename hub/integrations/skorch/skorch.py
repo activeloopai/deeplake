@@ -67,6 +67,9 @@ def pytorch_module_to_skorch(
 
     images_tensor, labels_tensor = tensors
 
+    labels = dataset[labels_tensor].numpy().flatten()
+    num_classes = len(np.unique(labels))
+
     if device is None:
         if torch.cuda.is_available():
             device_name = "cuda:0"
@@ -84,8 +87,6 @@ def pytorch_module_to_skorch(
         transform = repeat_image_shape(images_tensor, transform)
 
         # Change the last layer to have num_classes output channels.
-        labels = dataset[labels_tensor].numpy().flatten()
-        num_classes = len(np.unique(labels))
         module.fc = torch.nn.Linear(module.fc.in_features, num_classes)
 
     if criterion is None:
