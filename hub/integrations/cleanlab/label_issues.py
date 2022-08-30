@@ -1,5 +1,3 @@
-from hub.integrations import pytorch_module_to_skorch as to_skorch
-
 from cleanlab.filter import find_label_issues
 from cleanlab.rank import get_label_quality_scores
 

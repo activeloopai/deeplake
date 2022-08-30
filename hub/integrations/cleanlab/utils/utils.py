@@ -1,11 +1,6 @@
-from hub.core.dataset import Dataset
 from hub.util.exceptions import CheckoutError
 
 import numpy as np
-
-
-def is_dataset(dataset):
-    return isinstance(dataset, Dataset)
 
 
 def is_image_tensor(image_tensor_htype):
