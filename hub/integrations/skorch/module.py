@@ -6,6 +6,7 @@ from skorch.helper import predefined_split
 
 from hub.integrations.skorch.net import VisionClassifierNet
 
+
 def pytorch_module_to_skorch(
     dataset,
     dataset_valid,

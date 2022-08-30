@@ -57,15 +57,14 @@ def estimate_cv_predicted_probabilities(
 
     return pred_probs
 
+
 def estimate_predicted_probabilities(dataset, model, verbose):
     """This function computes an out-of-sample predicted if pretrained classifier is used."""
     # Initialize a fresh untrained model.
     model_copy = clone(model)
 
     if verbose:
-        print(
-            "Computing out-of-sample predicted probabilities"
-        )
+        print("Computing out-of-sample predicted probabilities")
 
     # Fit model once to obtain out-of-sample predicted probabilities.
     model_copy.fit(X=dataset)
@@ -73,6 +72,7 @@ def estimate_predicted_probabilities(dataset, model, verbose):
     pred_probs = model_copy.predict_proba(X=dataset)
 
     return pred_probs
+
 
 def get_predicted_labels(dataset, label_issues, model, verbose):
     """

@@ -42,14 +42,10 @@ def process_label_issues(dataset, label_issues):
         raise ValueError("`is_label_issue` must be a 1D np.ndarray with dtype `bool`.")
 
     if not np.issubdtype(label_issues["label_quality"].dtype, np.floating):
-        raise ValueError(
-            "`label_quality` must be a 1D np.ndarray with dtype `float`."
-        )
+        raise ValueError("`label_quality` must be a 1D np.ndarray with dtype `float`.")
 
     if not np.issubdtype(label_issues["predicted_labels"].dtype, np.integer):
-        raise ValueError(
-            "`predicted_labels` must be a 1D np.ndarray with dtype `int`."
-        )
+        raise ValueError("`predicted_labels` must be a 1D np.ndarray with dtype `int`.")
 
     return (
         label_issues["is_label_issue"].to_numpy(),
