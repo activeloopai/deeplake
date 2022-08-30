@@ -1,4 +1,5 @@
 from hub.experimental.util import raise_indra_installation_error  # type: ignore
+from hub.util.dataset import try_flushing  # type: ignore
 
 try:
     from indra import api  # type: ignore
@@ -11,6 +12,7 @@ except ImportError:
 def dataset_to_hub3(hub2_dataset):
     """Convert a hub 2.x dataset object to a hub 3.x dataset object."""
     raise_indra_installation_error(INDRA_INSTALLED)
+    try_flushing(hub2_dataset)
     path: str = hub2_dataset.path
     if path.startswith("gdrive://"):
         raise ValueError("Gdrive datasets are not supported for hub3")
