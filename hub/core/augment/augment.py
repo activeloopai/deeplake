@@ -21,7 +21,7 @@ class Augmenter():
     else:
       self.pipe_dict = {}
 
-  def add_step(self, input_tensors , step_transform):
+  def add_step(self, input_tensors , step_transform, tensor_condition=None):
     """
     Adds a transformation_pipeline to each of the tensors in input_tensors.
 
@@ -31,9 +31,9 @@ class Augmenter():
     """
     for tensor in input_tensors:
       if tensor not in self.pipe_dict.keys():
-        self.pipe_dict[tensor] = [step_transform]
+        self.pipe_dict[tensor] = [(step_transform, tensor_condition)]
       else:
-        self.pipe_dict[tensor].append(step_transform)
+        self.pipe_dict[tensor].append((step_transform, tensor_condition))
 
   def augment(self, ds, num_workers=1):
     """

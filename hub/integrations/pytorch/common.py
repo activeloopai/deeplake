@@ -47,12 +47,16 @@ def convert_fn(data):
 
 def transform_sample(data, transform):
     transformed_samples = []
+    global dataset
+    dataset = data
     for tensor in transform.keys():
         tensor_pipes = transform[tensor]
         for transformation in tensor_pipes:
-            transformed_sample = data.copy()
-            transformed_sample[tensor] = pipeline_image(data[tensor], transformation)
-            transformed_samples.append(transformed_sample)
+            label_condition = transformation[0]
+            if label_condition==None or label_condition() == True:
+                transformed_sample = data.copy()    
+                transformed_sample[tensor] = pipeline_image(data[tensor], transformation[0])
+                transformed_samples.append(transformed_sample)
     return transformed_samples
 
 
