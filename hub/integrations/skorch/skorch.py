@@ -1,16 +1,7 @@
-import torch
-import numpy as np
-
 from typing import Any, Callable, Optional, Sequence, Union
 
-from torchvision.models import resnet18
 
-from skorch.helper import predefined_split
-
-from hub.integrations.skorch.net import VisionClassifierNet
-
-
-def pytorch_module_to_skorch(
+def skorch(
     dataset: Any,
     dataset_valid: Any = None,
     transform: Optional[Callable] = None,
@@ -47,12 +38,8 @@ def pytorch_module_to_skorch(
         model (class): A skorch NeuralNet instance.
 
     """
-    from hub.integrations.skorch.utils import repeat_image_shape, get_dataset_tensors
-    from hub.integrations.common.utils import (
-        is_hub_dataset,
-        get_num_classes,
-        get_labels,
-    )
+    from hub.integrations.skorch.module import pytorch_module_to_skorch
+    from hub.integrations.common.utils import is_hub_dataset
 
     if not is_hub_dataset(dataset):
         raise TypeError(f"`dataset` must be a Hub Dataset. Got {type(dataset)}")
@@ -62,60 +49,18 @@ def pytorch_module_to_skorch(
             f"`dataset_valid` must be a Hub Dataset. Got {type(dataset_valid)}"
         )
 
-    images_tensor, labels_tensor = get_dataset_tensors(
+    return pytorch_module_to_skorch(
         dataset=dataset,
+        dataset_valid=dataset_valid,
         transform=transform,
         tensors=tensors,
-    )
-
-    if device is None:
-        if torch.cuda.is_available():
-            device_name = "cuda:0"
-        # elif torch.backends.mps.is_available():
-        #     device_name = "mps"
-        else:
-            device_name = "cpu"
-        device = torch.device(device_name)
-
-    if module is None:
-        # Set default module.
-        module = resnet18()
-
-        # Make training work with both grayscale and color images.
-        transform = repeat_image_shape(images_tensor, transform)
-
-        # Change the last layer to have num_classes output channels.
-        labels = get_labels(dataset=dataset, labels_tensor=labels_tensor)
-        module.fc = torch.nn.Linear(module.fc.in_features, get_num_classes(labels))
-
-    if criterion is None:
-        criterion = torch.nn.CrossEntropyLoss
-
-    if optimizer is None:
-        optimizer = torch.optim.Adam
-
-    if dataset_valid:
-        train_split = predefined_split(dataset_valid)
-    else:
-        train_split = None
-
-    model = VisionClassifierNet(
-        module=module,
         batch_size=batch_size,
+        module=module,
         criterion=criterion,
         device=device,
-        max_epochs=epochs,
+        epochs=epochs,
+        shuffle=shuffle,
         optimizer=optimizer,
-        optimizer__lr=optimizer_lr,
-        train_split=train_split,
-        images_tensor=images_tensor,
-        labels_tensor=labels_tensor,
-        iterator_train__shuffle=shuffle,
-        iterator_train__transform=transform,
-        iterator_valid__transform=transform,
+        optimizer_lr=optimizer_lr,
+        skorch_kwargs=skorch_kwargs,
     )
-
-    # Set optional kwargs params for the neural net. This will override any params set in the module.
-    model.set_params(**skorch_kwargs)
-
-    return model
