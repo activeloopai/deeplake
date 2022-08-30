@@ -233,8 +233,12 @@ def test_pytorch_collate(local_ds):
             local_ds.b.append(1)
             local_ds.c.append(2)
 
-    ptds = dataloader(local_ds).batch(4).pytorch(
-        collate_fn=reorder_collate,
+    ptds = (
+        dataloader(local_ds)
+        .batch(4)
+        .pytorch(
+            collate_fn=reorder_collate,
+        )
     )
     for batch in ptds:
         assert len(batch) == 2
@@ -255,9 +259,14 @@ def test_pytorch_transform_collate(local_ds):
             local_ds.b.append(1 * np.ones((300, 300)))
             local_ds.c.append(2 * np.ones((300, 300)))
 
-    ptds = dataloader(local_ds).batch(4).pytorch(
-        collate_fn=my_transform_collate,
-    ).transform(dict_to_list)
+    ptds = (
+        dataloader(local_ds)
+        .batch(4)
+        .pytorch(
+            collate_fn=my_transform_collate,
+        )
+        .transform(dict_to_list)
+    )
     for batch in ptds:
         assert len(batch) == 3
         for i in range(2):
@@ -279,9 +288,7 @@ def test_rename(local_ds):
     loader = dataloader(ds).pytorch()
     for sample in loader:
         assert set(sample.keys()) == {"xyz", "red/green"}
-        np.testing.assert_array_equal(
-            np.array(sample["xyz"]), np.array([[1, 2, 3]])
-        )
+        np.testing.assert_array_equal(np.array(sample["xyz"]), np.array([[1, 2, 3]]))
         np.testing.assert_array_equal(
             np.array(sample["red/green"]), np.array([[1, 2, 3, 4]])
         )
