@@ -30,9 +30,11 @@ class VisionClassifierNet(NeuralNet):
     def get_iterator(self, dataset, training=False):
         if training:
             kwargs = self.get_params_for("iterator_train")
+            print(f"Training iterator: {kwargs}")
 
         else:
             kwargs = self.get_params_for("iterator_valid")
+            print(f"Validation iterator: {kwargs}")
 
         if "batch_size" not in kwargs:
             kwargs["batch_size"] = self.batch_size
@@ -86,6 +88,7 @@ def pytorch_module_to_skorch(
     optimizer,
     optimizer_lr,
     num_classes,
+    skorch_kwargs,
 ):
     """
     This function wraps a PyTorch Module in a skorch NeuralNet.
@@ -137,11 +140,12 @@ def pytorch_module_to_skorch(
         images_tensor=images_tensor,
         labels_tensor=labels_tensor,
         iterator_train__shuffle=shuffle,
+        iterator_train__transform=transform,
+        iterator_valid__transform=transform
+
     )
 
-    # Set transoform params for the train and validation dataloader.
-    model.set_params(
-        iterator_train__transform=transform, iterator_valid__transform=transform
-    )
+    # Set optional kwargs params for the neural net.
+    model.set_params(**skorch_kwargs)
 
     return model

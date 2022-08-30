@@ -154,6 +154,7 @@ def get_label_issues(
     shuffle,
     folds,
     verbose,
+    skorch_kwargs,
 ):
     """
     This function finds label issues of a dataset. It wraps a PyTorch instance in a sklearn classifier.
@@ -189,6 +190,7 @@ def get_label_issues(
         optimizer=optimizer,
         optimizer_lr=optimizer_lr,
         num_classes=num_classes,
+        skorch_kwargs=skorch_kwargs,
     )
 
     # Compute out-of-sample predicted probabilities.
