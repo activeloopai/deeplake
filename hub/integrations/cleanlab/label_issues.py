@@ -126,8 +126,8 @@ def get_label_issues(
     """
     from hub.integrations.common.utils import get_labels, get_num_classes
 
-    # Get tensor names from the instantiated skorch model.
-    images_tensor, labels_tensor = model.images_tensor, model.labels_tensor
+    # Get tensor name from the instantiated skorch model.
+    labels_tensor = model.labels_tensor
 
     # Get labels of a dataset
     labels = get_labels(dataset=dataset, labels_tensor=labels_tensor)

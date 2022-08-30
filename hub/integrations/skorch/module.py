@@ -35,6 +35,7 @@ def pytorch_module_to_skorch(
     if device is None:
         if torch.cuda.is_available():
             device_name = "cuda:0"
+        # TODO: add check if pytorch version is nightly
         # elif torch.backends.mps.is_available():
         #     device_name = "mps"
         else:
