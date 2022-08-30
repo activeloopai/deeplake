@@ -15,7 +15,7 @@ def clean_labels(
 
     Note:
         Currently, only image classification tasks is supported. Therefore, the method accepts two tensors for the images and labels (e.g. `['images', 'labels']`).
-        The tensors can be specified in `transofrm` or `tensors`. Any PyTorch module can be used as a classifier.
+        The tensors can be specified in `transofrm` or `tensors` when instantiating skorch module.
 
     Args:
         dataset (class): Hub Dataset for training. The label issues will be computed for training set.
@@ -119,7 +119,7 @@ def create_tensors(
     return commit_id
 
 
-def clean_view(dataset: Any, label_issues: Optional[Any] = None):
+def clean_view(dataset: Any, label_issues: Optional[Any] = None, threshold: float = 1):
     """
     Returns a view of the dataset with clean labels.
 

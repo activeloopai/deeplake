@@ -26,7 +26,7 @@ def pytorch_module_to_skorch(
     skorch_kwargs: Optional[dict] = {},
 ):
     """
-    This function wraps a PyTorch Module in a skorch NeuralNet. It will also initialize a default PyTorch module if one is not provided.
+    This function wraps a PyTorch Module in a skorch NeuralNet. It will also initialize a default PyTorch module if one is not provided. Any PyTorch module can be used as a classifier.
 
     Args:
         dataset (class): Hub Dataset to use to instantiate the NeuralNet.
