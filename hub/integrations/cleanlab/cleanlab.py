@@ -15,7 +15,7 @@ def clean_labels(
 
     Note:
         The tensors used to obtain label_issues can be specified in `transofrm` or `tensors` when instantiating skorch module.
-        Setting `pretrained` to `True` is only recommended if there's no distribution shift in the dataset.
+        Setting `pretrained` to `True` is only recommended if there's no distribution shift in the dataset. in general, using cross-validation is strongly recommended.
 
     Args:
         dataset (class): Hub Dataset for training. The label issues will be computed for training set.
