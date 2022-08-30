@@ -1,4 +1,5 @@
 from typing import Any, Optional, Union
+import pandas as pd
 
 
 def clean_labels(
@@ -25,9 +26,10 @@ def clean_labels(
         label_quality_kwargs (dict, Optional): Keyword arguments to be passed to the `cleanlab.rank.get_label_quality_scores` function. Options include: method, adjust_pred_probs. Default is `None`.
 
     Returns:
-        label_issues (np.ndarray): A boolean mask for the entire dataset where True represents a label issue and False represents an example that is confidently/accurately labeled.
-        label_quality_scores (np.ndarray): Label quality scores for each datapoint, where lower scores indicate labels less likely to be correct.
-        predicted_labels (np.ndarray): Class predicted by model trained on cleaned data for each example in the dataset.
+        pandas DataFrame of label issues for each example. Each row represents an example from the dataset and the DataFrame contains the following columns:
+            - label_issues: A boolean mask for the entire dataset where True represents a label issue and False represents an example that is confidently/accurately labeled.
+            - label_quality_scores: Label quality scores for each datapoint, where lower scores indicate labels less likely to be correct.
+            - predicted_labels: Class predicted by model trained on cleaned data for each example in the dataset.
 
     Raises:
         ...
@@ -50,14 +52,18 @@ def clean_labels(
         label_quality_kwargs=label_quality_kwargs,
     )
 
-    return label_issues, label_quality_scores, predicted_labels
+    return pd.DataFrame(
+        {
+            "is_label_issue": label_issues,
+            "label_quality": label_quality_scores,
+            "predicted_labels": predicted_labels,
+        }
+    )
 
 
 def create_tensors(
     dataset: Any,
     label_issues: Any,
-    label_quality_scores: Any,
-    predicted_labels: Any,
     branch: Union[str, None] = None,
     overwrite: bool = False,
     verbose: bool = True,
@@ -70,9 +76,7 @@ def create_tensors(
 
     Args:
         dataset (class): Hub Dataset to add the tensors to.
-        label_issues (np.ndarray): A boolean mask for the entire dataset where True represents a label issue and False represents an example that is confidently/accurately labeled.
-        label_quality_scores (np.ndarray): Label quality scores for each datapoint, where lower scores indicate labels less likely to be correct.
-        predicted_labels (np.ndarray): Class predicted by model trained on cleaned data for each example in the dataset.
+        label_issues (class): pandas DataFrame of label issues for each example computed by running `clean_labels()`.
         branch (str, Optional): The name of the branch to use for creating the label_issues tensor group. If the branch name is provided but the branch does not exist, it will be created. If no branch is provided, the default branch will be used.
         overwrite (bool): If True, will overwrite label_issues tensors if they already exists. Only applicable if `create_tensors` is True. Default is False.
         verbose (bool): This parameter controls how much output is printed. Default is True.
@@ -84,7 +88,7 @@ def create_tensors(
         ...
 
     """
-    from hub.integrations.cleanlab.create_tensors import create_label_issues_tensors
+    from hub.integrations.cleanlab.tensors import create_label_issues_tensors
     from hub.integrations.cleanlab.utils import switch_branch
     from hub.integrations.utils import is_hub_dataset
 
@@ -108,8 +112,6 @@ def create_tensors(
     commit_id = create_label_issues_tensors(
         dataset=dataset,
         label_issues=label_issues,
-        label_quality_scores=label_quality_scores,
-        predicted_labels=predicted_labels,
         overwrite=overwrite,
         verbose=verbose,
     )
@@ -132,9 +134,10 @@ def clean_view(dataset: Any, label_issues: Optional[Any] = None):
         cleaned_dataset (class): Dataset view where only clean labels are present, and the rest are filtered out.
 
     """
-    from hub.integrations.cleanlab.utils import subset_dataset, assert_label_issues
+    from hub.integrations.cleanlab.utils import subset_dataset, process_label_issues
 
     if label_issues is not None:
+        label_issues, _, _ = process_label_issues(label_issues)
         label_issues_mask = ~label_issues
 
     # If label_issues is not provided as user input, try to get it from the tensor.
@@ -146,7 +149,6 @@ def clean_view(dataset: Any, label_issues: Optional[Any] = None):
             "No `label_issues/is_label_issue` tensor found and no `label_issues` np.ndarray provided. Please run `clean_labels` first to obtain `label_issues` boolean mask."
         )
 
-    assert_label_issues(dataset=dataset, label_issues=label_issues_mask)
     cleaned_dataset = subset_dataset(dataset=dataset, mask=label_issues_mask)
 
     return cleaned_dataset

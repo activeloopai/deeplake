@@ -1,4 +1,4 @@
-def check_label_issues_tensors(dataset, overwrite, verbose):
+def assert_label_issues_tensors(dataset, overwrite, verbose):
     """
     This function checks if a dataset already has a label_issues group.
     If overwrite = True, it will delete the existing label_issues group,
@@ -23,30 +23,23 @@ def check_label_issues_tensors(dataset, overwrite, verbose):
             )
 
 
-def create_label_issues_tensors(
-    dataset, label_issues, label_quality_scores, predicted_labels, overwrite, verbose
-):
+def create_label_issues_tensors(dataset, label_issues, overwrite, verbose):
     """
     This function creates a group of tensors label_issues.
     After creating tensors, automatically commits the changes.
     """
-    from hub.integrations.cleanlab.utils import (
-        assert_label_issues,
-        assert_label_quality_scores,
-        assert_predicted_labels,
-    )
+    from hub.integrations.cleanlab.utils import process_label_issues
 
     # Check if label_issues tensor already exists.
-    check_label_issues_tensors(dataset=dataset, overwrite=overwrite, verbose=verbose)
+    assert_label_issues_tensors(dataset=dataset, overwrite=overwrite, verbose=verbose)
+
+    # Process label_issues dataframe to numpy ndarrays.
+    label_issues, label_quality_scores, predicted_labels = process_label_issues(
+        dataset=dataset, label_issues=label_issues
+    )
 
     if verbose:
         print("Creating tensors with label issues...")
-
-    assert_label_issues(dataset=dataset, label_issues=label_issues)
-    assert_label_quality_scores(
-        dataset=dataset, label_quality_scores=label_quality_scores
-    )
-    assert_predicted_labels(dataset=dataset, predicted_labels=predicted_labels)
 
     with dataset:
 
