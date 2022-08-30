@@ -60,7 +60,7 @@ def test_multiple(local_ds_generator):
 
 def test_link_pop(local_ds_generator, cat_path, flower_path):
     with local_ds_generator() as ds:
-        ds.create_tensor("xyz", htype="link")
+        ds.create_tensor("xyz", htype="link[image]")
         for i in range(10):
             url = cat_path if i % 2 == 0 else flower_path
             ds.xyz.append(hub.link(url))

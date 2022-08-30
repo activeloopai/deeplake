@@ -39,6 +39,7 @@ extras = {
         "google-auth",
         "google-auth-oauthlib",
     ],
+    "point_cloud": ["laspy"],
     "deeplake": ["deeplake"],
 }
 
