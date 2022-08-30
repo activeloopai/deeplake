@@ -8,8 +8,8 @@ def clean_labels(
     model: Type[NeuralNet],
     folds: int = 5,
     verbose: bool = True,
-    find_label_issues_kwargs: Optional[dict] = {},
-    label_quality_scores_kwargs: Optional[dict] = {},
+    label_issues_kwargs: Optional[dict] = {},
+    label_quality_kwargs: Optional[dict] = {},
 ):
     """
     Finds label errors in a dataset with cleanlab (github.com/cleanlab) open-source library.
@@ -23,8 +23,8 @@ def clean_labels(
         model (class): An instantiated scikit-learn compatitable skorch NeuralNet model.
         folds (int): Sets the number of cross-validation folds used to compute out-of-sample probabilities for each example in the dataset. The default is 5.
         verbose (bool): This parameter controls how much output is printed. Default is True.
-        find_label_issues_kwargs (dict, Optional): Keyword arguments to be passed to the `cleanlab.filter.find_label_issues` function. Options that may especially impact accuracy include: filter_by, frac_noise, min_examples_per_class. Default is `None`.
-        label_quality_scores_kwargs (dict, Optional): Keyword arguments to be passed to the `cleanlab.rank.get_label_quality_scores` function. Options include: method, adjust_pred_probs. Default is `None`.
+        label_issues_kwargs (dict, Optional): Keyword arguments to be passed to the `cleanlab.filter.find_label_issues` function. Options that may especially impact accuracy include: filter_by, frac_noise, min_examples_per_class. Default is `None`.
+        label_quality_kwargs (dict, Optional): Keyword arguments to be passed to the `cleanlab.rank.get_label_quality_scores` function. Options include: method, adjust_pred_probs. Default is `None`.
 
     Returns:
         label_issues (np.ndarray): A boolean mask for the entire dataset where True represents a label issue and False represents an example that is confidently/accurately labeled.
@@ -48,8 +48,8 @@ def clean_labels(
         model=model,
         folds=folds,
         verbose=verbose,
-        find_label_issues_kwargs=find_label_issues_kwargs,
-        label_quality_scores_kwargs=label_quality_scores_kwargs,
+        label_issues_kwargs=label_issues_kwargs,
+        label_quality_kwargs=label_quality_kwargs,
     )
 
     return label_issues, label_quality_scores, predicted_labels

@@ -118,8 +118,8 @@ def get_label_issues(
     model,
     folds,
     verbose,
-    find_label_issues_kwargs,
-    label_quality_scores_kwargs,
+    label_issues_kwargs,
+    label_quality_kwargs,
 ):
     """
     This function finds label issues of a dataset. First, it runs cross-validation to get out-of-sample
@@ -156,11 +156,11 @@ def get_label_issues(
         print("Using predicted probabilities to identify label issues ...")
 
     label_issues = find_label_issues(
-        labels=labels, pred_probs=pred_probs, **find_label_issues_kwargs
+        labels=labels, pred_probs=pred_probs, **label_issues_kwargs
     )
 
     label_quality_scores = get_label_quality_scores(
-        labels=labels, pred_probs=pred_probs, **label_quality_scores_kwargs
+        labels=labels, pred_probs=pred_probs, **label_quality_kwargs
     )
 
     if verbose:
