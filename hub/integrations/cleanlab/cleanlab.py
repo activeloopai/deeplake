@@ -1,11 +1,8 @@
-from typing import Any, Optional, Union, Type
-from hub.core.dataset import Dataset
-from skorch import NeuralNet
-
+from typing import Any, Optional, Union
 
 def clean_labels(
-    dataset: Type[Dataset],
-    model: Type[NeuralNet],
+    dataset: Any,
+    model: Any,
     folds: int = 5,
     verbose: bool = True,
     label_issues_kwargs: Optional[dict] = {},
@@ -56,7 +53,7 @@ def clean_labels(
 
 
 def create_tensors(
-    dataset: Type[Dataset],
+    dataset: Any,
     label_issues: Any,
     label_quality_scores: Any,
     predicted_labels: Any,
@@ -119,7 +116,7 @@ def create_tensors(
     return commit_id
 
 
-def clean_view(dataset: Type[Dataset], label_issues: Optional[Any] = None):
+def clean_view(dataset: Any, label_issues: Optional[Any] = None):
     """
     Returns a view of the dataset with clean labels.
 
