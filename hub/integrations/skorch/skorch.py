@@ -143,7 +143,6 @@ def pytorch_module_to_skorch(
     )
 
     # Set optional kwargs params for the neural net. This will override any params set in the module.
-    if skorch_kwargs is not None:
-        model.set_params(**skorch_kwargs)
+    model.set_params(**skorch_kwargs)
 
     return model

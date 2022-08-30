@@ -17,7 +17,9 @@ def clean_labels(
     shuffle: bool = False,
     folds: int = 5,
     verbose: bool = True,
-    skorch_kwargs: Optional[dict] = None,
+    skorch_kwargs: Optional[dict] = {},
+    find_label_issues_kwargs: Optional[dict] = {},
+    label_quality_scores_kwargs: Optional[dict] = {},
 ):
     """
     Finds label errors in a dataset with cleanlab (github.com/cleanlab) open-source library.
@@ -28,8 +30,7 @@ def clean_labels(
 
     Args:
         dataset (class): Hub Dataset for training. The label issues will be computed for training set.
-        dataset_valid (class, Optional): Hub Dataset to use as a validation set for training. The label issues will not be computed for this set.
-        It is assumed that the validation tensor names are the same as the training tensor names. Default is `None`.
+        dataset_valid (class, Optional): Hub Dataset to use as a validation set for training. The label issues will not be computed for this set. It is expected that the validation set tensor names are the same as the training tensor names. Default is `None`.
         transform (Callable, Optional): Transformation function to be applied to each sample. Default is `None`.
         tensors (list, Optional): A list of two tensors (in the following order: data, labels) that would be used to find label issues (e.g. `['images', 'labels']`).
         batch_size (int): Number of samples per batch to load. If `batch_size` is -1, a single batch with all the data will be used during training and validation. Default is `64`.
@@ -42,8 +43,9 @@ def clean_labels(
         shuffle (bool): Whether to shuffle the data before each epoch. Default is `False`.
         folds (int): Sets the number of cross-validation folds used to compute out-of-sample probabilities for each example in the dataset. The default is 5.
         verbose (bool): This parameter controls how much output is printed. Default is True.
-        skorch_kwargs (dict, Optional): Keyword arguments to be passed to the skorch module (skorch.readthedocs.io/en/stable/net.html).
-        Additionally, `iterator_train__transform` and iterator_valid__transform` can be used to set params for the training and validation iterators. Default is `None`.
+        skorch_kwargs (dict, Optional): Keyword arguments to be passed to the skorch `NeuralNet` module (skorch.readthedocs.io/en/stable/net.html). Additionally, `iterator_train__transform` and iterator_valid__transform` can be used to set params for the training and validation iterators. Default is `None`.
+        find_label_issues_kwargs (dict, Optional): Keyword arguments to be passed to the `cleanlab.filter.find_label_issues` function. Options that may especially impact accuracy include: filter_by, frac_noise, min_examples_per_class. Default is `None`.
+        label_quality_scores_kwargs (dict, Optional): Keyword arguments to be passed to the `cleanlab.rank.get_label_quality_scores` function. Options include: method, adjust_pred_probs. Default is `None`.
 
     Returns:
         label_issues (np.ndarray): A boolean mask for the entire dataset where True represents a label issue and False represents an example that is confidently/accurately labeled.
@@ -83,6 +85,8 @@ def clean_labels(
         folds=folds,
         verbose=verbose,
         skorch_kwargs=skorch_kwargs,
+        find_label_issues_kwargs=find_label_issues_kwargs,
+        label_quality_scores_kwargs=label_quality_scores_kwargs
     )
 
     return label_issues, label_quality_scores, predicted_labels
@@ -108,8 +112,7 @@ def create_tensors(
         label_issues (np.ndarray): A boolean mask for the entire dataset where True represents a label issue and False represents an example that is confidently/accurately labeled.
         label_quality_scores (np.ndarray): Label quality scores for each datapoint, where lower scores indicate labels less likely to be correct.
         predicted_labels (np.ndarray): Class predicted by model trained on cleaned data for each example in the dataset.
-        branch (str, Optional): The name of the branch to use for creating the label_issues tensor group. If the branch name is provided but the branch does not exist, it will be created.
-        If no branch is provided, the default branch will be used.
+        branch (str, Optional): The name of the branch to use for creating the label_issues tensor group. If the branch name is provided but the branch does not exist, it will be created. If no branch is provided, the default branch will be used.
         overwrite (bool): If True, will overwrite label_issues tensors if they already exists. Only applicable if `create_tensors` is True. Default is False.
         verbose (bool): This parameter controls how much output is printed. Default is True.
 

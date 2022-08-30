@@ -33,7 +33,7 @@ def get_dataset_tensors(dataset, transform, tensors):
         images_tensor, labels_tensor = tensors
     except ValueError:
         raise ValueError(
-            "Could not find the images and labels tensors. Please provide the images and labels tensors."
+            "Could not find the images and labels tensors. Please provide the images and labels tensors in `tensors` or `transform`."
         )
 
     image_tensor_htype, label_tensor_htype = (
@@ -155,6 +155,8 @@ def get_label_issues(
     folds,
     verbose,
     skorch_kwargs,
+    find_label_issues_kwargs,
+    label_quality_scores_kwargs,
 ):
     """
     This function finds label issues of a dataset. It wraps a PyTorch instance in a sklearn classifier.
@@ -206,10 +208,10 @@ def get_label_issues(
     if verbose:
         print("Using predicted probabilities to identify label issues ...")
 
-    label_issues = find_label_issues(labels=labels, pred_probs=pred_probs)
+    label_issues = find_label_issues(labels=labels, pred_probs=pred_probs, **find_label_issues_kwargs)
 
     label_quality_scores = get_label_quality_scores(
-        labels=labels, pred_probs=pred_probs
+        labels=labels, pred_probs=pred_probs, **label_quality_scores_kwargs
     )
 
     if verbose:
