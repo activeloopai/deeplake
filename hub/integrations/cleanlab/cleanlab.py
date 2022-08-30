@@ -1,23 +1,12 @@
 from typing import Any, Callable, Optional, Sequence, Union, Type
 from hub.core.dataset import Dataset
-
+from skorch import NeuralNet
 
 def clean_labels(
     dataset: Type[Dataset],
-    dataset_valid: Optional[Type[Dataset]] = None,
-    transform: Optional[Callable] = None,
-    tensors: Optional[Sequence[str]] = None,
-    batch_size: int = 64,
-    module: Union[Any, Callable, None] = None,
-    criterion: Optional[Any] = None,
-    optimizer: Optional[Any] = None,
-    optimizer_lr: int = 0.01,
-    device: Union[str, Any, None] = None,
-    epochs: int = 10,
-    shuffle: bool = False,
+    model: Type[NeuralNet],
     folds: int = 5,
     verbose: bool = True,
-    skorch_kwargs: Optional[dict] = {},
     find_label_issues_kwargs: Optional[dict] = {},
     label_quality_scores_kwargs: Optional[dict] = {},
 ):
@@ -30,20 +19,9 @@ def clean_labels(
 
     Args:
         dataset (class): Hub Dataset for training. The label issues will be computed for training set.
-        dataset_valid (class, Optional): Hub Dataset to use as a validation set for training. The label issues will not be computed for this set. It is expected that the validation set tensor names are the same as the training tensor names. Default is `None`.
-        transform (Callable, Optional): Transformation function to be applied to each sample. Default is `None`.
-        tensors (list, Optional): A list of two tensors (in the following order: data, labels) that would be used to find label issues (e.g. `['images', 'labels']`).
-        batch_size (int): Number of samples per batch to load. If `batch_size` is -1, a single batch with all the data will be used during training and validation. Default is `64`.
-        module (class): A PyTorch torch.nn.Module module (class or instance). Default is `torchvision.models.resnet18()`.
-        criterion (class): An uninitialized PyTorch criterion (loss) used to optimize the module. Default is `torch.nn.CrossEntropyLoss`.
-        optimizer (class): An uninitialized PyTorch optimizer used to optimize the module. Default is `torch.optim.SGD`.
-        optimizer_lr (int): The learning rate passed to the optimizer. Default is 0.01.
-        device (str, torch.device): The compute device to be used. Default is `'cuda:0'` if available, else `'cpu'`.
-        epochs (int): The number of epochs to train for each `fit()` call. Note that you may keyboard-interrupt training at any time. Default is 10.
-        shuffle (bool): Whether to shuffle the data before each epoch. Default is `False`.
+        model (class): An instantiated scikit-learn compatitable skorch NeuralNet model.
         folds (int): Sets the number of cross-validation folds used to compute out-of-sample probabilities for each example in the dataset. The default is 5.
         verbose (bool): This parameter controls how much output is printed. Default is True.
-        skorch_kwargs (dict, Optional): Keyword arguments to be passed to the skorch `NeuralNet` module (skorch.readthedocs.io/en/stable/net.html). Additionally, `iterator_train__transform` and iterator_valid__transform` can be used to set params for the training and validation iterators. Default is `None`.
         find_label_issues_kwargs (dict, Optional): Keyword arguments to be passed to the `cleanlab.filter.find_label_issues` function. Options that may especially impact accuracy include: filter_by, frac_noise, min_examples_per_class. Default is `None`.
         label_quality_scores_kwargs (dict, Optional): Keyword arguments to be passed to the `cleanlab.rank.get_label_quality_scores` function. Options include: method, adjust_pred_probs. Default is `None`.
 
@@ -64,27 +42,11 @@ def clean_labels(
     if not is_dataset(dataset):
         raise TypeError(f"`dataset` must be a Hub Dataset. Got {type(dataset)}")
 
-    if dataset_valid and not is_dataset(dataset_valid):
-        raise TypeError(
-            f"`dataset_valid` must be a Hub Dataset. Got {type(dataset_valid)}"
-        )
-
     label_issues, label_quality_scores, predicted_labels = get_label_issues(
         dataset=dataset,
-        dataset_valid=dataset_valid,
-        transform=transform,
-        tensors=tensors,
-        batch_size=batch_size,
-        module=module,
-        criterion=criterion,
-        optimizer=optimizer,
-        optimizer_lr=optimizer_lr,
-        device=device,
-        epochs=epochs,
-        shuffle=shuffle,
+        model=model,
         folds=folds,
         verbose=verbose,
-        skorch_kwargs=skorch_kwargs,
         find_label_issues_kwargs=find_label_issues_kwargs,
         label_quality_scores_kwargs=label_quality_scores_kwargs
     )

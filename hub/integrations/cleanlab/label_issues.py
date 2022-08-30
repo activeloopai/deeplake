@@ -1,5 +1,4 @@
 from hub.integrations import pytorch_module_to_skorch as to_skorch
-from hub.util.dataset import map_tensor_keys
 
 from cleanlab.filter import find_label_issues
 from cleanlab.rank import get_label_quality_scores
@@ -11,30 +10,9 @@ from sklearn.base import clone
 import numpy as np
 
 
-def get_dataset_tensors(dataset, transform, tensors):
-    """
-    This function returns the tensors of a dataset. If `tensors` list is not provided,
-    it will try to get them from the `transform`.
-    """
+def assert_valid_tensors(dataset, images_tensor, labels_tensor):
+
     from hub.integrations.cleanlab.utils import is_label_tensor, is_image_tensor
-
-    if tensors is not None:
-        tensors = map_tensor_keys(dataset, tensors)
-
-    # Try to get the tensors from the transform.
-    elif transform and isinstance(transform, dict):
-        tensors = map_tensor_keys(
-            dataset,
-            [k for k in transform.keys() if k != "index"],
-        )
-
-    # Map the images and labels tensors.
-    try:
-        images_tensor, labels_tensor = tensors
-    except ValueError:
-        raise ValueError(
-            "Could not find the images and labels tensors. Please provide the images and labels tensors in `tensors` or `transform`."
-        )
 
     image_tensor_htype, label_tensor_htype = (
         dataset[images_tensor].htype,
@@ -50,9 +28,6 @@ def get_dataset_tensors(dataset, transform, tensors):
         raise TypeError(
             f'The labels tensor has an unsupported htype: {label_tensor_htype}. In general, the labels tensor must be of type "class_label".'
         )
-
-    return [images_tensor, labels_tensor]
-
 
 def estimate_cv_predicted_probabilities(
     dataset, labels, model, folds, num_classes, verbose
@@ -141,59 +116,30 @@ def get_predicted_labels(dataset, label_issues, model, verbose):
 
 def get_label_issues(
     dataset,
-    dataset_valid,
-    transform,
-    tensors,
-    batch_size,
-    module,
-    criterion,
-    optimizer,
-    optimizer_lr,
-    device,
-    epochs,
-    shuffle,
+    model,
     folds,
     verbose,
-    skorch_kwargs,
     find_label_issues_kwargs,
     label_quality_scores_kwargs,
 ):
     """
-    This function finds label issues of a dataset. It wraps a PyTorch instance in a sklearn classifier.
-    Next, it runs cross-validation to get out-of-sample predicted probabilities for each example.
-    Then, it calls `filter.find_label_issues` to find label issues and `rank.get_label_quality_scores`
-    to find label quality scores for each sample in the dataset. Finally, it fits the model on a
-    cleaned dataset to compute predicted labels.
+    This function finds label issues of a dataset. First, it runs cross-validation to get out-of-sample
+    predicted probabilities for each example. Then, it calls `filter.find_label_issues` to find label issues
+    and `rank.get_label_quality_scores` to find label quality scores for each sample in the dataset.
+    Finally, it fits the model on a cleaned dataset to compute predicted labels.
     """
 
-    images_tensor, labels_tensor = get_dataset_tensors(
-        dataset=dataset,
-        transform=transform,
-        tensors=tensors,
-    )
+    # Get tensor names from the instantiated skorch model.
+    images_tensor, labels_tensor = model.images_tensor, model.labels_tensor
+
+    # Assert that the images tensor and labels tensor are valid.
+    assert_valid_tensors(dataset=dataset, images_tensor=images_tensor, labels_tensor=labels_tensor)
 
     # Get labels of a dataset
     labels = dataset[labels_tensor].numpy().flatten()
 
     # Get the number of unique classes.
     num_classes = len(np.unique(labels))
-
-    # Wrap the PyTorch Module in scikit-learn interface.
-    model = to_skorch(
-        dataset_valid=dataset_valid,
-        transform=transform,
-        tensors=[images_tensor, labels_tensor],
-        batch_size=batch_size,
-        module=module,
-        criterion=criterion,
-        device=device,
-        epochs=epochs,
-        shuffle=shuffle,
-        optimizer=optimizer,
-        optimizer_lr=optimizer_lr,
-        num_classes=num_classes,
-        skorch_kwargs=skorch_kwargs,
-    )
 
     # Compute out-of-sample predicted probabilities.
     pred_probs = estimate_cv_predicted_probabilities(

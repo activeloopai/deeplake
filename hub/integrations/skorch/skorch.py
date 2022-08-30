@@ -2,97 +2,64 @@ import torch
 
 from torchvision.models import resnet18
 
-from skorch import NeuralNet
 from skorch.helper import predefined_split
 
-# Wraps the PyTorch Module in a sklearn interface.
-class VisionClassifierNet(NeuralNet):
-    """
-    This class extends the `NeuralNet` class from skorch.
-    It overrides `get_dataset` and `get_iterator` to return the Hub's PyTorch Dataloader.
-    Additionally, it overrides `train_step_single`, `evaluation_step` and `validation_step`
-    to get the data for each batch from the images and label tensors.
-    """
+from .net import VisionClassifierNet
 
-    def __init__(
-        self,
-        images_tensor,
-        labels_tensor,
-        **kwargs,
-    ):
-        super(VisionClassifierNet, self).__init__(**kwargs)
-        self.images_tensor = images_tensor
-        self.labels_tensor = labels_tensor
+from typing import Any, Callable, Optional, Sequence, Union, Type
 
-    def get_dataset(self, dataset, y=None):
-        return dataset
-
-    def get_iterator(self, dataset, training=False):
-        if training:
-            kwargs = self.get_params_for("iterator_train")
-
-        else:
-            kwargs = self.get_params_for("iterator_valid")
-
-        if "batch_size" not in kwargs:
-            kwargs["batch_size"] = self.batch_size
-
-        if kwargs["batch_size"] == -1:
-            kwargs["batch_size"] = len(dataset)
-
-        return dataset.pytorch(**kwargs)
-
-    def train_step_single(self, batch, **fit_params):
-        self._set_training(True)
-        Xi, yi = batch[self.images_tensor], torch.squeeze(batch[self.labels_tensor])
-
-        y_pred = self.infer(Xi, **fit_params)
-        loss = self.get_loss(y_pred, yi, X=Xi, training=True)
-        loss.backward()
-        return {
-            "loss": loss,
-            "y_pred": y_pred,
-        }
-
-    def evaluation_step(self, batch, training=False):
-        self.check_is_fitted()
-        Xi = batch[self.images_tensor]
-        with torch.set_grad_enabled(training):
-            self._set_training(training)
-            return self.infer(Xi)
-
-    def validation_step(self, batch, **fit_params):
-        self._set_training(False)
-        Xi, yi = batch[self.images_tensor], torch.squeeze(batch[self.labels_tensor])
-        with torch.no_grad():
-            y_pred = self.infer(Xi, **fit_params)
-            loss = self.get_loss(y_pred, yi, X=Xi, training=False)
-        return {
-            "loss": loss,
-            "y_pred": y_pred,
-        }
-
+# from hub.core.dataset import Dataset
+import numpy as np
 
 def pytorch_module_to_skorch(
-    dataset_valid,
-    transform,
-    tensors,
-    batch_size,
-    module,
-    criterion,
-    device,
-    epochs,
-    shuffle,
-    optimizer,
-    optimizer_lr,
-    num_classes,
-    skorch_kwargs,
+    dataset: Any,
+    dataset_valid: Any = None,
+    transform: Optional[Callable] = None,
+    tensors: Optional[Sequence[str]] = None,
+    batch_size: int = 64,
+    module: Union[Any, Callable, None] = None,
+    criterion: Optional[Any] = None,
+    device: Union[str, Any, None] = None,
+    epochs: int = 10,
+    shuffle: bool = False,
+    optimizer: Optional[Any] = None,
+    optimizer_lr: int = 0.01,
+    skorch_kwargs: Optional[dict] = {},
 ):
     """
-    This function wraps a PyTorch Module in a skorch NeuralNet.
-    It will also initialize a default PyTorch module if one is not provided.
+    This function wraps a PyTorch Module in a skorch NeuralNet. It will also initialize a default PyTorch module if one is not provided.
+
+    Args:
+        dataset (class): Hub Dataset to use to instantiate the NeuralNet.
+        dataset_valid (class, Optional): Hub Dataset to use as a validation set for training. It is expected that the validation set tensor names are the same as the training tensor names. Default is `None`.
+        transform (Callable, Optional): Transformation function to be applied to each sample. Default is `None`.
+        tensors (list, Optional): A list of two tensors (in the following order: data, labels) that would be used to find label issues (e.g. `['images', 'labels']`).
+        batch_size (int): Number of samples per batch to load. If `batch_size` is -1, a single batch with all the data will be used during training and validation. Default is `64`.
+        module (class): A PyTorch torch.nn.Module module (class or instance). Default is `torchvision.models.resnet18()`.
+        criterion (class): An uninitialized PyTorch criterion (loss) used to optimize the module. Default is `torch.nn.CrossEntropyLoss`.
+        optimizer (class): An uninitialized PyTorch optimizer used to optimize the module. Default is `torch.optim.SGD`.
+        optimizer_lr (int): The learning rate passed to the optimizer. Default is 0.01.
+        device (str, torch.device): The compute device to be used. Default is `'cuda:0'` if available, else `'cpu'`.
+        epochs (int): The number of epochs to train for each `fit()` call. Note that you may keyboard-interrupt training at any time. Default is 10.
+        shuffle (bool): Whether to shuffle the data before each epoch. Default is `False`.
+        skorch_kwargs (dict, Optional): Keyword arguments to be passed to the skorch `NeuralNet` constructor.  Additionally,`iterator_train__transform` and iterator_valid__transform` can be used to set params for the training and validation iterators. Default is {}.
+
+    Returns:
+        model (class): A skorch NeuralNet instance.
+
     """
-    from hub.integrations.skorch.utils import repeat_shape
+    from hub.integrations.skorch.utils import repeat_image_shape, get_dataset_tensors
+
+    # if dataset_valid and not is_dataset(dataset_valid):
+    #     raise TypeError(
+    #         f"`dataset_valid` must be a Hub Dataset. Got {type(dataset_valid)}"
+    #     )
+
+    images_tensor, labels_tensor = get_dataset_tensors(
+        dataset=dataset,
+        transform=transform,
+        tensors=tensors,
+    )
 
     images_tensor, labels_tensor = tensors
 
@@ -110,9 +77,11 @@ def pytorch_module_to_skorch(
         module = resnet18()
 
         # Make training work with both grayscale and color images.
-        transform = repeat_shape(images_tensor, transform)
+        transform = repeat_image_shape(images_tensor, transform)
 
         # Change the last layer to have num_classes output channels.
+        labels = dataset[labels_tensor].numpy().flatten()
+        num_classes = len(np.unique(labels))
         module.fc = torch.nn.Linear(module.fc.in_features, num_classes)
 
     if criterion is None:
