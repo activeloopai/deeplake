@@ -107,7 +107,7 @@ def get_label_issues(
     and `rank.get_label_quality_scores` to find label quality scores for each sample in the dataset.
     Finally, it fits the model on a cleaned dataset to compute predicted labels.
     """
-    from hub.integrations.utils import get_labels, get_num_classes
+    from hub.integrations.common.utils import get_labels, get_num_classes
 
     # Get tensor names from the instantiated skorch model.
     images_tensor, labels_tensor = model.images_tensor, model.labels_tensor

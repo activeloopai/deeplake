@@ -37,7 +37,7 @@ def clean_labels(
     """
 
     from hub.integrations.cleanlab.label_issues import get_label_issues
-    from hub.integrations.utils import is_hub_dataset
+    from hub.integrations.common.utils import is_hub_dataset
 
     # Catch most common user errors early.
     if not is_hub_dataset(dataset):
@@ -90,7 +90,7 @@ def create_tensors(
     """
     from hub.integrations.cleanlab.tensors import create_label_issues_tensors
     from hub.integrations.cleanlab.utils import switch_branch
-    from hub.integrations.utils import is_hub_dataset
+    from hub.integrations.common.utils import is_hub_dataset
 
     if not is_hub_dataset(dataset):
         raise TypeError(f"`dataset` must be a Hub Dataset. Got {type(dataset)}")

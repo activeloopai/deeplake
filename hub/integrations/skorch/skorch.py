@@ -48,7 +48,11 @@ def pytorch_module_to_skorch(
 
     """
     from hub.integrations.skorch.utils import repeat_image_shape, get_dataset_tensors
-    from hub.integrations.utils import is_hub_dataset, get_num_classes, get_labels
+    from hub.integrations.common.utils import (
+        is_hub_dataset,
+        get_num_classes,
+        get_labels,
+    )
 
     if not is_hub_dataset(dataset):
         raise TypeError(f"`dataset` must be a Hub Dataset. Got {type(dataset)}")
