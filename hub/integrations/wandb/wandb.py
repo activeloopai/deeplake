@@ -154,6 +154,7 @@ def dataset_committed(ds):
                 "artifact": artifact.name,
             }
             ds.info["wandb"] = wandb_info
+            ds.commit("Update wandb metadata.")
             ds.flush()
             run.log_artifact(artifact)
 
