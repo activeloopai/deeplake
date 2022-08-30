@@ -1,7 +1,6 @@
 from typing import Any, Optional, Union
 import pandas as pd
 
-
 def clean_labels(
     dataset: Any,
     model: Any,
@@ -119,7 +118,7 @@ def create_tensors(
     return commit_id
 
 
-def clean_view(dataset: Any, label_issues: Optional[Any] = None, threshold: float = 1):
+def clean_view(dataset: Any, label_issues: Optional[Any] = None):
     """
     Returns a view of the dataset with clean labels.
 
@@ -128,7 +127,7 @@ def clean_view(dataset: Any, label_issues: Optional[Any] = None, threshold: floa
 
     Args:
         dataset (class): Hub Dataset to be used to get a flitered view.
-        label_issues (np.ndarray, Optional): A boolean mask for the entire dataset where True represents a label issue and False represents an example that is accurately labeled. Default is `None`.
+        label_issues (class): pandas DataFrame of label issues for each example computed by running `clean_labels()`.
 
     Returns:
         cleaned_dataset (class): Dataset view where only clean labels are present, and the rest are filtered out.
@@ -138,17 +137,17 @@ def clean_view(dataset: Any, label_issues: Optional[Any] = None, threshold: floa
 
     if label_issues is not None:
         label_issues, _, _ = process_label_issues(label_issues)
-        label_issues_mask = ~label_issues
 
     # If label_issues is not provided as user input, try to get it from the tensor.
     elif "label_issues/is_label_issue" in dataset.tensors:
-        label_issues_mask = ~dataset.label_issues.is_label_issue.numpy()
+        label_issues = dataset.label_issues.is_label_issue.numpy()
 
     else:
         raise ValueError(
             "No `label_issues/is_label_issue` tensor found and no `label_issues` np.ndarray provided. Please run `clean_labels` first to obtain `label_issues` boolean mask."
         )
 
+    label_issues_mask = ~label_issues
     cleaned_dataset = subset_dataset(dataset=dataset, mask=label_issues_mask)
 
     return cleaned_dataset

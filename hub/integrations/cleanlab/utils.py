@@ -10,17 +10,7 @@ def is_subsettable(dataset, mask):
 
 def subset_dataset(dataset, mask):
     """Extracts subset of data examples where mask (np.ndarray) is True"""
-    if not is_subsettable:
-        raise ValueError(
-            "`label_issues` mask is not a subset of the dataset. Please provide a mask that is a subset of the dataset."
-        )
-
-    try:
-        # Extract indices where mask is True.
-        indices = np.where(mask)[0].tolist()
-    except Exception:
-        raise TypeError(f"`label_issues` must be a 1D np.ndarray, got {type(mask)}")
-
+    indices = np.where(mask)[0].tolist()
     return dataset[indices]
 
 
@@ -34,7 +24,7 @@ def switch_branch(dataset, branch):
 
 
 def process_label_issues(dataset, label_issues):
-
+    """This is a helper function to process the label_issues DataFrame into a tuple of numpy ndarrays."""
     columns = ["is_label_issue", "label_quality", "predicted_labels"]
 
     for column in columns:
