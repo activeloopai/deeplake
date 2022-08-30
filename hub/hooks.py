@@ -5,6 +5,7 @@ CREATE_DATASET_HOOKS: Dict[str, Callable] = {}
 LOAD_DATASET_HOOKS: Dict[str, Callable] = {}
 WRITE_DATASET_HOOKS: Dict[str, Callable] = {}
 READ_DATASET_HOOKS: Dict[str, Callable] = {}
+COMMIT_DATASET_HOOKS: Dict[str, Callable] = {}
 HOOK_EVENTS: Dict[str, str] = {}
 
 
@@ -33,6 +34,10 @@ def add_write_dataset_hook(hook: Callable, id: Optional[str] = None):
     _add_hook("WRITE_DATASET", hook, id)
 
 
+def add_commit_dataset_hook(hook: Callable, id: Optional[str] = None):
+    _add_hook("COMMIT_DATASET", hook, id)
+
+
 def remove_hook(id: str):
     del globals()[f"_{HOOK_EVENTS.pop(id)}_HOOKS"][id]
 
@@ -51,3 +56,7 @@ def dataset_written(ds):
 
 def dataset_read(ds):
     [f(ds) for f in READ_DATASET_HOOKS.values()]
+
+
+def dataset_committed(ds):
+    [f(ds) for f in COMMIT_DATASET_HOOKS.values()]

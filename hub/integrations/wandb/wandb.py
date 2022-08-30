@@ -6,6 +6,7 @@ from hub.hooks import (
     add_load_dataset_hook,
     add_write_dataset_hook,
     add_read_dataset_hook,
+    add_commit_dataset_hook,
 )
 import importlib
 import sys
@@ -22,11 +23,10 @@ def wandb_run():
 
 _READ_DATASETS: Dict[str, Set[str]] = {}
 _WRITTEN_DATASETS: Dict[str, Set[str]] = {}
-_CREATED_DATASETS: Set[str] = set()
 
 
 def dataset_created(ds):
-    _CREATED_DATASETS.add(get_ds_key(ds))
+    pass
 
 
 def dataset_loaded(ds):
@@ -118,6 +118,10 @@ def log_dataset(dsconfig):
 
 
 def dataset_written(ds):
+    pass
+
+
+def dataset_committed(ds):
     run = wandb_run()
     key = get_ds_key(ds)
     if run:
@@ -135,7 +139,6 @@ def dataset_written(ds):
             output_datasets.append(dsconfig)
             log_dataset(dsconfig)
             run.config.output_datasets = output_datasets
-        if key in _CREATED_DATASETS:
             artifact = artifact_from_ds(ds)
             wandb_info = ds.info.get("wandb") or {"commits": {}}
             commits = wandb_info["commits"]
@@ -152,10 +155,7 @@ def dataset_written(ds):
             }
             ds.info["wandb"] = wandb_info
             ds.flush()
-            _CREATED_DATASETS.remove(key)
             run.log_artifact(artifact)
-    else:
-        _CREATED_DATASETS.discard(key)
 
 
 def _filter_input_datasets(input_datasets):
@@ -179,7 +179,6 @@ def _filter_input_datasets(input_datasets):
 
 
 def dataset_read(ds):
-    path = ds.path
     run = wandb_run()
     if not run:
         return
@@ -278,3 +277,4 @@ if _WANDB_INSTALLED:
     add_load_dataset_hook(dataset_loaded, "wandb_dataset_load")
     add_write_dataset_hook(dataset_written, "wandb_dataset_write")
     add_read_dataset_hook(dataset_read, "wandb_dataset_read")
+    add_commit_dataset_hook(dataset_committed, "wandb_dataset_commit")
