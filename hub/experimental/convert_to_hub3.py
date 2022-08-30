@@ -24,7 +24,7 @@ def dataset_to_hub3(hub2_dataset):
         aws_access_key_id = s3_provider.aws_access_key_id
         aws_secret_access_key = s3_provider.aws_secret_access_key
         aws_session_token = s3_provider.aws_session_token
-        region_name = s3_provider.region_name
+        region_name = s3_provider.aws_region
         endpoint_url = s3_provider.endpoint_url
 
         # we don't need to pass profile name as hub has already found creds for it
