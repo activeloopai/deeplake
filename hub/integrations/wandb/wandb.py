@@ -45,7 +45,7 @@ def artifact_name_from_ds_path(ds) -> str:
     else:
         pfix = path.split("://", 1)[0] if "://" in path else "local"
         artifact_name = f"{pfix}"
-    artifact_name += f"-commit-{ds.pending_commit_id}"
+    artifact_name += f"-commit-{ds.commit_id}"
     artifact_name += f"-{hash[:8]}"
     return artifact_name
 
@@ -91,7 +91,7 @@ def dataset_config(ds):
 
     ret = {
         "Dataset": ds.path,
-        "Commit ID": ds.commit_id or ds.pending_commit_id,
+        "Commit ID": ds.commit_id,
     }
     if ds.path.startswith("hub://"):
         ret["URL"] = _plat_url(ds)
@@ -121,7 +121,14 @@ def dataset_written(ds):
     pass
 
 
+_IGNORE_NEXT_COMMIT = False
+
+
 def dataset_committed(ds):
+    global _IGNORE_NEXT_COMMIT
+    if _IGNORE_NEXT_COMMIT:
+        _IGNORE_NEXT_COMMIT = False
+        return
     run = wandb_run()
     key = get_ds_key(ds)
     if run:
@@ -143,7 +150,7 @@ def dataset_committed(ds):
             wandb_info = ds.info.get("wandb") or {"commits": {}}
             commits = wandb_info["commits"]
             info = {}
-            commits[ds.commit_id or ds.pending_commit_id] = info
+            commits[ds.commit_id] = info
             info["created-by"] = {
                 "run": {
                     "entity": run.entity,
@@ -154,6 +161,7 @@ def dataset_committed(ds):
                 "artifact": artifact.name,
             }
             ds.info["wandb"] = wandb_info
+            _IGNORE_NEXT_COMMIT = True
             ds.commit("Update wandb metadata.")
             ds.flush()
             run.log_artifact(artifact)
@@ -213,11 +221,7 @@ def dataset_read(ds):
             entry = ds._view_entry
             if not entry._external:
                 ds = entry._ds
-        wandb_info = (
-            ds.info.get("wandb", {})
-            .get("commits", {})
-            .get(ds.commit_id or ds.pending_commit_id)
-        )
+        wandb_info = ds.info.get("wandb", {}).get("commits", {}).get(ds.commit_id)
         if wandb_info:
             try:
                 run_and_artifact = wandb_info["created-by"]
