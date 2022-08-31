@@ -375,6 +375,8 @@ class Dataset:
         else:
             raise InvalidKeyTypeError(item)
         ret._view_base = self._view_base or self
+        if hasattr(self, "_view_entry"):
+            ret._view_entry = self._view_entry
         return ret
 
     @invalid_view_op
@@ -927,6 +929,7 @@ class Dataset:
             return super().__setattr__(name, value)
 
     def __iter__(self):
+        dataset_read(self)
         for i in range(len(self)):
             yield self.__getitem__(i, is_iteration=True)
 
