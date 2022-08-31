@@ -11,8 +11,7 @@ from hub.hooks import (
 import importlib
 import sys
 import warnings
-import json
-
+from hub.client.log import logger
 
 _WANDB_INSTALLED = bool(importlib.util.find_spec("wandb"))
 
@@ -161,9 +160,9 @@ def dataset_committed(ds):
                 "artifact": artifact.name,
             }
             ds.info["wandb"] = wandb_info
+            ds.flush()
             _IGNORE_NEXT_COMMIT = True
             ds.commit("Update wandb metadata.")
-            ds.flush()
             run.log_artifact(artifact)
 
 
@@ -206,7 +205,6 @@ def dataset_read(ds):
         except (KeyError, AttributeError):
             input_datasets = []
         dsconfig = dataset_config(ds)
-        path = dsconfig["Dataset"]
         if dsconfig not in input_datasets:
             input_datasets.append(dsconfig)
             input_datasets = _filter_input_datasets(input_datasets)
@@ -227,9 +225,11 @@ def dataset_read(ds):
                 run_and_artifact = wandb_info["created-by"]
                 run_info = run_and_artifact["run"]
                 artifact = run_and_artifact["artifact"]
-                run.use_artifact(
+                artifact_path = (
                     f"{run_info['entity']}/{run_info['project']}/{artifact}:latest"
                 )
+                logger.info(f"Using wandb artifact: {artifact_path}")
+                run.use_artifact(artifact_path)
             except Exception as e:
                 warnings.warn(
                     f"Wandb integration: Error while using wandb artifact: {e}"
