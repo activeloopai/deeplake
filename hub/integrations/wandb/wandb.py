@@ -142,7 +142,11 @@ def dataset_committed(ds):
             run.config.output_datasets = output_datasets
             artifact = artifact_from_ds(ds)
             wandb_info = read_json(ds)
-            commits = wandb_info["commits"]
+            try:
+                commits = wandb_info["commits"]
+            except KeyError:
+                commits = {}
+                wandb_info["commits"] = commits
             info = {}
             commits[ds.commit_id] = info
             info["created-by"] = {
