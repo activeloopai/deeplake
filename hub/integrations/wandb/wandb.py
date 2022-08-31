@@ -210,7 +210,7 @@ def dataset_read(ds):
         if run._settings.mode != "online":
             return
         ds = ds._view_base or ds
-        wandb_info = read_json(ds)
+        wandb_info = read_json(ds).get("commits", {}).get(ds.commit_id)
         if wandb_info:
             try:
                 run_and_artifact = wandb_info["created-by"]
