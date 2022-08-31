@@ -222,9 +222,7 @@ def dataset_read(ds):
                 artifact_path = (
                     f"{run_info['entity']}/{run_info['project']}/{artifact}:latest"
                 )
-                print(f"Using wandb artifact: {artifact_path}")
                 run.use_artifact(artifact_path)
-                print("OK")
             except Exception as e:
                 warnings.warn(
                     f"Wandb integration: Error while using wandb artifact: {e}"
