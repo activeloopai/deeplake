@@ -209,6 +209,9 @@ def dataset_read(ds):
             run.config.input_datasets = input_datasets
         if run._settings.mode != "online":
             return
+        if hasattr(ds, "_view_entry") and not ds._view_entry._external:
+            # TODO handle external otimized views
+            ds = ds._view_entry._ds
         wandb_info = read_json(ds).get("commits", {}).get(ds.commit_id)
         print("wandb_info", wandb_info, read_json(ds))
         if wandb_info:
@@ -278,10 +281,7 @@ if _WANDB_INSTALLED:
 
 
 def read_json(ds):
-    # TODO handle optimized external datasets
     try:
-        if hasattr(ds, "_view_entry") and not ds._view_entry._external:
-            ds = ds._view_entry._ds
         return json.loads(ds.base_storage[WANDB_JSON_FILENMAE].decode("utf-8"))
     except KeyError:
         return {}
