@@ -206,11 +206,13 @@ def test_groups(local_ds, compressed_image_paths):
         for _ in range(10):
             local_ds.images.jpegs.cats.append(img1)
             local_ds.images.pngs.flowers.append(img2)
-    dl = dataloader(local_ds).pytorch()
+
+    another_ds = hub.dataset(local_ds.path)
+    dl = dataloader(another_ds).pytorch()
     for i, (cat, flower) in enumerate(dl):
-        np.testing.assert_array_equal(cat[0], local_ds.images.jpegs.cats[i].numpy())
+        np.testing.assert_array_equal(cat[0], another_ds.images.jpegs.cats[i].numpy())
         np.testing.assert_array_equal(
-            flower[0], local_ds.images.pngs.flowers[i].numpy()
+            flower[0], another_ds.images.pngs.flowers[i].numpy()
         )
 
 
