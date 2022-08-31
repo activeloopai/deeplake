@@ -209,8 +209,8 @@ def dataset_read(ds):
             run.config.input_datasets = input_datasets
         if run._settings.mode != "online":
             return
-        ds = ds._view_base or ds
         wandb_info = read_json(ds).get("commits", {}).get(ds.commit_id)
+        print("wandb_info", wandb_info, read_json(ds))
         if wandb_info:
             try:
                 run_and_artifact = wandb_info["created-by"]
@@ -219,8 +219,9 @@ def dataset_read(ds):
                 artifact_path = (
                     f"{run_info['entity']}/{run_info['project']}/{artifact}:latest"
                 )
-                logger.info(f"Using wandb artifact: {artifact_path}")
+                print(f"Using wandb artifact: {artifact_path}")
                 run.use_artifact(artifact_path)
+                print("OK")
             except Exception as e:
                 warnings.warn(
                     f"Wandb integration: Error while using wandb artifact: {e}"
