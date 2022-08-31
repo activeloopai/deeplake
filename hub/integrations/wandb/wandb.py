@@ -213,7 +213,6 @@ def dataset_read(ds):
             # TODO handle external otimized views
             ds = ds._view_entry._ds
         wandb_info = read_json(ds).get("commits", {}).get(ds.commit_id)
-        print("wandb_info", wandb_info, read_json(ds))
         if wandb_info:
             try:
                 run_and_artifact = wandb_info["created-by"]
