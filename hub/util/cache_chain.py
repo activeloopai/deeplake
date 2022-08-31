@@ -76,11 +76,6 @@ def generate_chain(
 
     if local_cache_size > 0:
         local_cache_prefix = os.getenv("LOCAL_CACHE_PREFIX", default=LOCAL_CACHE_PREFIX)
-        local_cache_prefix = (
-            LOCAL_CACHE_PREFIX
-            if local_cache_prefix_env is None
-            else local_cache_prefix_env
-        )
         storage_list.append(
             LocalProvider(f"{local_cache_prefix}/{cached_dataset_name}")
         )
