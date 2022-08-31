@@ -281,9 +281,10 @@ def read_json(ds):
     try:
         if hasattr(ds, "_view_entry") and not ds._view_entry._external:
             ds = ds._view_entry._ds
-        return ds.base_storage[WANDB_JSON_FILENMAE].decode('utf-8')
+        return json.loads(ds.base_storage[WANDB_JSON_FILENMAE].decode("utf-8"))
     except KeyError:
         return {}
 
+
 def write_json(ds, dat):
-    ds.base_storage[WANDB_JSON_FILENMAE] = json.dumps(dat).encode('utf-8')
+    ds.base_storage[WANDB_JSON_FILENMAE] = json.dumps(dat).encode("utf-8")
