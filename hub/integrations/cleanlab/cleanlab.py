@@ -140,7 +140,9 @@ def clean_view(dataset: Any, label_issues: Optional[Any] = None):
     from hub.integrations.cleanlab.utils import subset_dataset, process_label_issues
 
     if label_issues is not None:
-        label_issues, _, _ = process_label_issues(dataset=dataset, label_issues=label_issues)
+        label_issues, _, _ = process_label_issues(
+            dataset=dataset, label_issues=label_issues
+        )
 
     # If label_issues is not provided as user input, try to get it from the tensor.
     elif "label_issues/is_label_issue" in dataset.tensors:

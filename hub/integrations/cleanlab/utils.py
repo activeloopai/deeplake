@@ -41,8 +41,13 @@ def process_label_issues(dataset, label_issues):
     if label_issues["is_label_issue"].dtype is not np.dtype("bool"):
         raise ValueError("`is_label_issue` must be a 1D np.ndarray with dtype `bool`")
 
-    if not label_issues["label_quality"].dtype in [np.dtype("float32"), np.dtype("float64")]:
-        raise ValueError("`label_quality` must be a 1D np.ndarray with dtype `float32` or `float64`.")
+    if not label_issues["label_quality"].dtype in [
+        np.dtype("float32"),
+        np.dtype("float64"),
+    ]:
+        raise ValueError(
+            "`label_quality` must be a 1D np.ndarray with dtype `float32` or `float64`."
+        )
 
     if label_issues["predicted_labels"].dtype is not np.dtype("int"):
         raise ValueError("`predicted_labels` must be a 1D np.ndarray with dtype `int`.")
