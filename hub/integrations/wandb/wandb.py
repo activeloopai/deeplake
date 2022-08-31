@@ -1,6 +1,7 @@
 from typing import Dict, Set
 from hub.util.tag import process_hub_path
 from hub.util.hash import hash_inputs
+from hub.constants import WANDB_JSON_FILENMAE
 from hub.hooks import (
     add_create_dataset_hook,
     add_load_dataset_hook,
@@ -10,6 +11,7 @@ from hub.hooks import (
 )
 import importlib
 import sys
+import json
 import warnings
 from hub.client.log import logger
 
@@ -120,14 +122,7 @@ def dataset_written(ds):
     pass
 
 
-_IGNORE_NEXT_COMMIT = False
-
-
 def dataset_committed(ds):
-    global _IGNORE_NEXT_COMMIT
-    if _IGNORE_NEXT_COMMIT:
-        _IGNORE_NEXT_COMMIT = False
-        return
     run = wandb_run()
     key = get_ds_key(ds)
     if run:
@@ -146,7 +141,7 @@ def dataset_committed(ds):
             log_dataset(dsconfig)
             run.config.output_datasets = output_datasets
             artifact = artifact_from_ds(ds)
-            wandb_info = ds.info.get("wandb") or {"commits": {}}
+            wandb_info = read_json(ds)
             commits = wandb_info["commits"]
             info = {}
             commits[ds.commit_id] = info
@@ -159,10 +154,7 @@ def dataset_committed(ds):
                 },
                 "artifact": artifact.name,
             }
-            ds.info["wandb"] = wandb_info
-            ds.flush()
-            _IGNORE_NEXT_COMMIT = True
-            ds.commit("Update wandb metadata.")
+            write_json(ds, wandb_info)
             run.log_artifact(artifact)
 
 
@@ -214,12 +206,7 @@ def dataset_read(ds):
         if run._settings.mode != "online":
             return
         ds = ds._view_base or ds
-        wandb_info = None
-        if hasattr(ds, "_view_entry"):  # optimized dataset
-            entry = ds._view_entry
-            if not entry._external:
-                ds = entry._ds
-        wandb_info = ds.info.get("wandb", {}).get("commits", {}).get(ds.commit_id)
+        wandb_info = read_json(ds)
         if wandb_info:
             try:
                 run_and_artifact = wandb_info["created-by"]
@@ -283,3 +270,16 @@ if _WANDB_INSTALLED:
     add_write_dataset_hook(dataset_written, "wandb_dataset_write")
     add_read_dataset_hook(dataset_read, "wandb_dataset_read")
     add_commit_dataset_hook(dataset_committed, "wandb_dataset_commit")
+
+
+def read_json(ds):
+    # TODO handle optimized external datasets
+    try:
+        if hasattr(ds, "_view_entry") and not ds._view_entry._external:
+            ds = ds._view_entry._ds
+        return ds.base_storate[WANDB_JSON_FILENMAE].decode('utf-8')
+    except KeyError:
+        return {}
+
+def write_json(ds, dat):
+    ds.base_storage[WANDB_JSON_FILENMAE] = json.dumps(dat).encode('utf-8')
