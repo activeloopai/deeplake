@@ -194,7 +194,7 @@ def test_readonly_with_two_workers(local_ds):
 @requires_torch
 @requires_linux
 def test_groups(local_ds, compressed_image_paths):
-    ds = hub.dataset("s3://hub-2.0-datasets-n/key_error_testing", overwrite=True)
+    ds = hub.dataset("hub://testingacc/key_err_1", overwrite=True)
 
     img1 = hub.read(compressed_image_paths["jpeg"][0])
     img2 = hub.read(compressed_image_paths["png"][0])
