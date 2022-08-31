@@ -3,7 +3,11 @@ import uuid
 from flask import Flask, request, Response  # type: ignore
 from hub.core.storage.provider import StorageProvider
 from hub.util.threading import terminate_thread
-from hub.client.config import USE_DEV_ENVIRONMENT, USE_LOCAL_HOST
+from hub.client.config import (
+    USE_DEV_ENVIRONMENT,
+    USE_STAGING_ENVIRONMENT,
+    USE_LOCAL_HOST,
+)
 import logging
 import re
 import socketserver
@@ -95,7 +99,9 @@ def _get_visualizer_backend_url():
     if USE_LOCAL_HOST:
         return "http://localhost:3000"
     elif USE_DEV_ENVIRONMENT:
-        return "https://app.dev.activeloop.ai"
+        return "https://app-dev.activeloop.dev"
+    elif USE_STAGING_ENVIRONMENT:
+        return "https://app-staging.activeloop.dev"
     else:
         return "https://app.activeloop.ai"
 
