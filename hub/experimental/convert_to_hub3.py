@@ -30,59 +30,15 @@ def dataset_to_hub3(hub2_dataset):
         endpoint_url = s3_provider.endpoint_url
 
         # we don't need to pass profile name as hub has already found creds for it
+        hub3_dataset = api.dataset(
+            path,
+            aws_access_key_id=aws_access_key_id,
+            aws_secret_access_key=aws_secret_access_key,
+            aws_session_token=aws_session_token,
+            region_name=region_name,
+            endpoint_url=endpoint_url,
+        )
 
-        if aws_session_token is None and region_name is None and endpoint_url is None:
-            hub3_dataset = api.dataset(
-                path,
-                aws_access_key_id=aws_access_key_id,
-                aws_secret_access_key=aws_secret_access_key,
-            )
-        elif aws_session_token is None and region_name is None:
-            hub3_dataset = api.dataset(
-                path,
-                aws_access_key_id=aws_access_key_id,
-                aws_secret_access_key=aws_secret_access_key,
-                endpoint_url=endpoint_url,
-            )
-        elif aws_session_token is None and endpoint_url is None:
-            hub3_dataset = api.dataset(
-                path,
-                aws_access_key_id=aws_access_key_id,
-                aws_secret_access_key=aws_secret_access_key,
-                region_name=region_name,
-            )
-        elif region_name is None and endpoint_url is None:
-            hub3_dataset = api.dataset(
-                path,
-                aws_access_key_id=aws_access_key_id,
-                aws_secret_access_key=aws_secret_access_key,
-                aws_session_token=aws_session_token,
-            )
-        elif region_name is None:
-            hub3_dataset = api.dataset(
-                path,
-                aws_access_key_id=aws_access_key_id,
-                aws_secret_access_key=aws_secret_access_key,
-                aws_session_token=aws_session_token,
-                endpoint_url=endpoint_url,
-            )
-        elif endpoint_url is None:
-            hub3_dataset = api.dataset(
-                path,
-                aws_access_key_id=aws_access_key_id,
-                aws_secret_access_key=aws_secret_access_key,
-                aws_session_token=aws_session_token,
-                region_name=region_name,
-            )
-        else:
-            hub3_dataset = api.dataset(
-                path,
-                aws_access_key_id=aws_access_key_id,
-                aws_secret_access_key=aws_secret_access_key,
-                aws_session_token=aws_session_token,
-                region_name=region_name,
-                endpoint_url=endpoint_url,
-            )
     elif path.startswith(("gcs://", "gs://", "gcp://")):
         raise ValueError("GCP datasets are not supported for hub3 currently.")
     else:
