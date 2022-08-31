@@ -194,8 +194,6 @@ def test_readonly_with_two_workers(local_ds):
 @requires_torch
 @requires_linux
 def test_groups(local_ds, compressed_image_paths):
-    ds = hub.dataset("hub://testingacc/key_err_1", overwrite=True)
-
     img1 = hub.read(compressed_image_paths["jpeg"][0])
     img2 = hub.read(compressed_image_paths["png"][0])
     with local_ds:
@@ -209,17 +207,12 @@ def test_groups(local_ds, compressed_image_paths):
             local_ds.images.jpegs.cats.append(img1)
             local_ds.images.pngs.flowers.append(img2)
 
-    with ds:
-        ds.create_tensor("images/jpegs/cats", htype="image", sample_compression="jpeg")
-        ds.create_tensor("images/pngs/flowers", htype="image", sample_compression="png")
-        for _ in range(10):
-            ds.images.jpegs.cats.append(img1)
-            ds.images.pngs.flowers.append(img2)
-
     dl = dataloader(local_ds).pytorch()
-    for cat, flower in dl:
-        np.testing.assert_array_equal(cat[0], img1.array)
-        np.testing.assert_array_equal(flower[0], img2.array)
+    for i, (cat, flower) in enumerate(dl):
+        np.testing.assert_array_equal(cat[0], local_ds.images.jpegs.cats[i].numpy())
+        np.testing.assert_array_equal(
+            flower[0], local_ds.images.pngs.flowers[i].numpy()
+        )
 
 
 @requires_torch
