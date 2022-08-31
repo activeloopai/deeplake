@@ -36,6 +36,7 @@ from .compression import SUPPORTED_COMPRESSIONS
 from .htype import HTYPE_CONFIGURATIONS
 from .htype import htype
 from .integrations import huggingface
+from .integrations import wandb
 
 compressions = list(SUPPORTED_COMPRESSIONS)
 htypes = sorted(list(HTYPE_CONFIGURATIONS))
@@ -82,7 +83,7 @@ __all__ = [
     "rename",
 ]
 
-__version__ = "2.7.5"
+__version__ = "2.7.6"
 warn_if_update_required(__version__)
 __encoded_version__ = np.array(__version__)
 config = {"s3": Config(max_pool_connections=50, connect_timeout=300, read_timeout=300)}

@@ -16,8 +16,10 @@ pydicom
 IPython
 flask
 pyjwt
+laspy
 cleanlab~=2.0.0
 skorch~=0.11.0
 scikit-learn
 torch
 torchvision
+

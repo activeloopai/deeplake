@@ -40,6 +40,7 @@ extras = {
         "google-auth",
         "google-auth-oauthlib",
     ],
+    "point_cloud": ["laspy"],
     "cleanlab": ["cleanlab", "scikit-learn", "skorch", "torch", "torchvision"],
 }
 
