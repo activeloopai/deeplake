@@ -8,6 +8,7 @@ from uuid import uuid4
 import numpy as np
 import posixpath
 import pytest
+import sys
 
 from hub.constants import KB, MB
 
@@ -104,8 +105,15 @@ requires_tensorflow = pytest.mark.skipif(
     not tensorflow_installed(), reason="requires tensorflow to be installed"
 )
 
+
 requires_tfds = pytest.mark.skipif(
     not tfds_installed(), reason="requires tensorflow_datasets to be installed"
+)
+
+
+requires_linux = pytest.mark.skipif(
+    sys.platform in ["Windows", "Darwin", "windows", "darwin"],
+    reason="Thest should work only in linux",
 )
 
 

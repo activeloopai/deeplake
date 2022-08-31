@@ -1,7 +1,9 @@
 from math import floor
+from hub.tests.common import requires_linux
 from hub.experimental import query
 
 
+@requires_linux
 def test_query(local_ds):
     with local_ds as ds:
         ds.create_tensor("label")
