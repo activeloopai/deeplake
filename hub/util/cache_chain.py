@@ -75,7 +75,7 @@ def generate_chain(
     size_list.append(memory_cache_size)
 
     if local_cache_size > 0:
-        local_cache_prefix_env = os.getenv("LOCAL_CACHE_PREFIX")
+        local_cache_prefix = os.getenv("LOCAL_CACHE_PREFIX", default=LOCAL_CACHE_PREFIX)
         local_cache_prefix = (
             LOCAL_CACHE_PREFIX
             if local_cache_prefix_env is None
