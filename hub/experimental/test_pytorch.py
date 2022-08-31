@@ -1,12 +1,12 @@
 from hub.experimental import dataloader
-import platform
+import sys
 
 import hub
 import numpy as np
 import pytest
 
 from hub.util.remove_cache import get_base_storage
-from hub.tests.common import requires_torch
+from hub.tests.common import requires_torch, requires_linux
 from hub.core.dataset import Dataset
 from hub.core.storage import MemoryProvider, GCSProvider
 from hub.constants import KB
@@ -20,10 +20,6 @@ except ImportError:
 
 # ensure tests have multiple chunks without a ton of data
 PYTORCH_TESTS_MAX_CHUNK_SIZE = 5 * KB
-
-
-if platform.system() in ["Windows", "Darwin"]:
-    pytest.skip("mock pickling gets quite messy on win/mac", allow_module_level=True)
 
 
 def double(sample):
@@ -50,6 +46,7 @@ def my_transform_collate(batch):
 
 @requires_torch
 @enabled_non_gdrive_datasets
+@requires_linux
 def test_pytorch_small(ds):
     with ds:
         ds.create_tensor("image", max_chunk_size=PYTORCH_TESTS_MAX_CHUNK_SIZE)
@@ -113,6 +110,7 @@ def test_pytorch_small(ds):
 
 @requires_torch
 @enabled_non_gdrive_datasets
+@requires_linux
 def test_pytorch_transform(ds):
     with ds:
         ds.create_tensor("image", max_chunk_size=PYTORCH_TESTS_MAX_CHUNK_SIZE)
@@ -140,6 +138,7 @@ def test_pytorch_transform(ds):
 
 @requires_torch
 @enabled_non_gdrive_datasets
+@requires_linux
 def test_pytorch_with_compression(ds: Dataset):
     # TODO: chunk-wise compression for labels (right now they are uncompressed)
     with ds:
@@ -174,6 +173,7 @@ def test_pytorch_with_compression(ds: Dataset):
 
 
 @requires_torch
+@requires_linux
 def test_readonly_with_two_workers(local_ds):
     local_ds.create_tensor("images", max_chunk_size=PYTORCH_TESTS_MAX_CHUNK_SIZE)
     local_ds.create_tensor("labels", max_chunk_size=PYTORCH_TESTS_MAX_CHUNK_SIZE)
@@ -192,6 +192,7 @@ def test_readonly_with_two_workers(local_ds):
 
 
 @requires_torch
+@requires_linux
 def test_groups(local_ds, compressed_image_paths):
     img1 = hub.read(compressed_image_paths["jpeg"][0])
     img2 = hub.read(compressed_image_paths["png"][0])
@@ -212,6 +213,7 @@ def test_groups(local_ds, compressed_image_paths):
 
 
 @requires_torch
+@requires_linux
 def test_string_tensors(local_ds):
     with local_ds:
         local_ds.create_tensor("strings", htype="text")
@@ -223,6 +225,7 @@ def test_string_tensors(local_ds):
 
 
 @requires_torch
+@requires_linux
 def test_pytorch_collate(local_ds):
     with local_ds:
         local_ds.create_tensor("a")
@@ -249,6 +252,7 @@ def test_pytorch_collate(local_ds):
 
 
 @requires_torch
+@requires_linux
 def test_pytorch_transform_collate(local_ds):
     with local_ds:
         local_ds.create_tensor("a")
@@ -277,6 +281,7 @@ def test_pytorch_transform_collate(local_ds):
 
 
 @requires_torch
+@requires_linux
 def test_rename(local_ds):
     with local_ds as ds:
         ds.create_tensor("abc")
@@ -294,6 +299,7 @@ def test_rename(local_ds):
         )
 
 
+@requires_linux
 def test_uneven_iteration(local_ds):
     with local_ds as ds:
         ds.create_tensor("x")
