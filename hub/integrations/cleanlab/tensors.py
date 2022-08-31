@@ -50,11 +50,11 @@ def create_label_issues_tensors(dataset, label_issues, overwrite, verbose):
         )
 
         dataset.label_issues.create_tensor(
-            "label_quality", htype="generic", dtype="float64"
+            "label_quality", htype="generic", dtype=label_quality_scores.dtype
         )
 
         dataset.label_issues.create_tensor(
-            "predicted_label", htype="generic", dtype="uint32"
+            "predicted_label", htype="class_label", dtype="uint32"
         )
 
         for label_issue, label_quality_score, predicted_label in zip(

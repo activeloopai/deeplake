@@ -78,7 +78,7 @@ def create_tensors(
         This method would only work if you have write access to the dataset.
 
     Args:
-        dataset (class): Hub Dataset to add the tensors to.
+        dataset (class): Hub Dataset to append the tensors to.
         label_issues (class): pandas DataFrame of label issues for each example computed by running `clean_labels()`.
         branch (str, Optional): The name of the branch to use for creating the label_issues tensor group. If the branch name is provided but the branch does not exist, it will be created. If no branch is provided, the default branch will be used.
         overwrite (bool): If True, will overwrite label_issues tensors if they already exists. Only applicable if `create_tensors` is True. Default is False.
@@ -140,7 +140,7 @@ def clean_view(dataset: Any, label_issues: Optional[Any] = None):
     from hub.integrations.cleanlab.utils import subset_dataset, process_label_issues
 
     if label_issues is not None:
-        label_issues, _, _ = process_label_issues(label_issues)
+        label_issues, _, _ = process_label_issues(dataset=dataset, label_issues=label_issues)
 
     # If label_issues is not provided as user input, try to get it from the tensor.
     elif "label_issues/is_label_issue" in dataset.tensors:

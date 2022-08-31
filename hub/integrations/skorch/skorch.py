@@ -35,7 +35,7 @@ def skorch(
         device (str, torch.device): The compute device to be used. Default is `'cuda:0'` if available, else `'cpu'`.
         epochs (int): The number of epochs to train for each `fit()` call. Note that you may keyboard-interrupt training at any time. Default is 10.
         shuffle (bool): Whether to shuffle the data before each epoch. Default is `False`.
-        skorch_kwargs (dict, Optional): Keyword arguments to be passed to the skorch `NeuralNet` constructor.  Additionally,`iterator_train__transform` and iterator_valid__transform` can be used to set params for the training and validation iterators. Default is {}.
+        skorch_kwargs (dict, Optional): Keyword arguments to be passed to the skorch `NeuralNet` constructor. Additionally,`iterator_train__transform` and iterator_valid__transform` can be used to set params for the training and validation iterators. Default is {}.
 
     Returns:
         model (class): A skorch NeuralNet instance.
