@@ -16,6 +16,10 @@ from hub.util.exceptions import (
     TensorModifiedError,
     EmptyCommitError,
 )
+from hub.tests.dataset_fixtures import (
+    ds_generator,
+    enabled_persistent_dataset_generators,
+)
 
 NO_COMMIT_PASSED_DIFF = ""
 ONE_COMMIT_PASSED_DIFF = "The 2 diffs are calculated relative to the most recent common ancestor (%s) of the current state and the commit passed."
@@ -1893,14 +1897,24 @@ def test_reset_create_delete_tensors(local_ds):
         assert set(ds.tensors.keys()) == {"one", "two"}
 
 
-def test_local_reset_bug(local_ds_generator):
-    ds = local_ds_generator()
+@pytest.mark.parametrize(
+    "ds_generator",
+    [
+        "local_ds_generator",
+        "s3_ds_generator",
+        "gcs_ds_generator",
+        "hub_cloud_ds_generator",
+    ],
+    indirect=True,
+)
+def test_reset_bug(ds_generator):
+    ds = ds_generator()
     ds.create_tensor("abc")
     ds.abc.append([1, 2, 3])
     assert len(ds.abc) == 1
     a = ds.commit()
 
-    ds = local_ds_generator()
+    ds = ds_generator()
     ds.abc.append([3, 4, 5])
     assert len(ds.abc) == 2
     ds.reset()
