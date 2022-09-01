@@ -16,10 +16,6 @@ from hub.util.exceptions import (
     TensorModifiedError,
     EmptyCommitError,
 )
-from hub.tests.dataset_fixtures import (
-    ds_generator,
-    enabled_persistent_dataset_generators,
-)
 
 NO_COMMIT_PASSED_DIFF = ""
 ONE_COMMIT_PASSED_DIFF = "The 2 diffs are calculated relative to the most recent common ancestor (%s) of the current state and the commit passed."
