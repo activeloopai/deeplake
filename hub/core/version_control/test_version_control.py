@@ -1891,3 +1891,11 @@ def test_reset_create_delete_tensors(local_ds):
         assert set(ds.tensors.keys()) == {"one", "three"}
         ds.reset()
         assert set(ds.tensors.keys()) == {"one", "two"}
+
+
+def test_reset_delete_group(local_ds):
+    with local_ds as ds:
+        ds.create_tensor("abc/x")
+        ds.commit()
+        ds.delete_group("abc")
+        assert ds.has_head_changes
