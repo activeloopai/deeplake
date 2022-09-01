@@ -272,6 +272,14 @@ class Dataset:
         length_fn = max if self._pad_tensors else min
         return length_fn(tensor_lengths, default=0)
 
+    def max_len(self):
+        """Return the maximum length of the tensor"""
+        return max([len(tensor) for tensor in self.tensors.values()])
+
+    def min_len(self):
+        """Return the minimum length of the tensor"""
+        return min([len(tensor) for tensor in self.tensors.values()])
+
     def __getstate__(self) -> Dict[str, Any]:
         """Returns a dict that can be pickled and used to restore this dataset.
 
