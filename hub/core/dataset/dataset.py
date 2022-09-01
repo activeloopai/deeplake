@@ -80,6 +80,7 @@ from hub.util.exceptions import (
     DatasetViewSavingError,
     DatasetHandlerError,
     EmptyTensorError,
+    SampleAppendingError,
 )
 from hub.util.keys import (
     dataset_exists,
@@ -2073,9 +2074,7 @@ class Dataset:
         if isinstance(sample, Dataset):
             sample = sample.tensors
         if not isinstance(sample, dict):
-            raise Exception(
-                """Can not append sample because tensor name is not specified. If you want to append sample you need to either specify the tensor name and append sample as a dictionary, like: `ds.append({"tensor_name": sample})` or you need to call tensor method from the dataset like: `ds.tensor_name.append(sample)`"""
-            )
+            raise SampleAppendingError()
 
         skipped_tensors = [k for k in self.tensors if k not in sample]
         if skipped_tensors and not skip_ok and not append_empty:
