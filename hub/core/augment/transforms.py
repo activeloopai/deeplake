@@ -67,13 +67,13 @@ def trivial_augment(image, include_transforms=None, exclude_transforms=None):
   """
   Applies TrivialAugment on a tensor.
   """
-  trivial_augmenter = TrivialAugment(include_transforms=include_transforms, exclude_transforms=exclude_transforms)
-  shape_initial = list(image.shape)
-  shape_new = shape_initial[:-1]
-  shape_new.insert(0, shape_initial[-1])
-  image = image.reshape(shape_new)
+  trivial_augmenter = TrivialAugment(include_transforms=include_transforms, exclude_transforms=exclude_transforms)  
+
   image = torch.from_numpy(image)
-  return trivial_augmenter.forward(image).numpy().reshape(shape_initial)
+  image = image.permute(2, 0, 1)
+  image = trivial_augmenter.forward(image).permute(1, 2, 0).numpy()
+  
+  return image
 
 
 @hub.compute
