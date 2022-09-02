@@ -47,6 +47,7 @@ from hub.compression import (
     VIDEO_COMPRESSIONS,
     AUDIO_COMPRESSIONS,
 )
+
 IMAGE_COMPRESSIONS.append("jpg")
 from hub.util.storage import get_storage_and_cache_chain, storage_provider_from_path
 from hub.util.compute import get_compute_provider

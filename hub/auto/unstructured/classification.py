@@ -121,7 +121,7 @@ class Classification(UnstructuredDataset):
             if not use_set_prefix:
                 set_name = ""
 
-            tensor_name = os.path.join(set_name, self.htype+"s")
+            tensor_name = os.path.join(set_name, self.htype + "s")
             labels_tensor_name = os.path.join(set_name, LABELS_TENSOR_NAME)
             tensor_map[set_name] = tensor_name.replace("\\", "/")
             labels_tensor_map[set_name] = labels_tensor_name.replace("\\", "/")
