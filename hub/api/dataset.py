@@ -47,13 +47,16 @@ from hub.compression import (
     VIDEO_COMPRESSIONS,
     AUDIO_COMPRESSIONS,
 )
-
-IMAGE_COMPRESSIONS.append("jpg")
 from hub.util.storage import get_storage_and_cache_chain, storage_provider_from_path
 from hub.util.compute import get_compute_provider
 from hub.util.remove_cache import get_base_storage
 from hub.util.cache_chain import generate_chain
 from hub.core.storage.hub_memory_object import HubMemoryObject
+
+IMAGE_COMPRESSIONS = IMAGE_COMPRESSIONS.copy()
+IMAGE_COMPRESSIONS.append(
+    "jpg"
+)  # cannot append to the original list as that affects IMAGE_COMPRESSIONS used later.
 
 
 class dataset:
