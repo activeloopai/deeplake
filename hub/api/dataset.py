@@ -47,6 +47,7 @@ from hub.compression import (
     VIDEO_COMPRESSIONS,
     AUDIO_COMPRESSIONS,
 )
+IMAGE_COMPRESSIONS.append("jpg")
 from hub.util.storage import get_storage_and_cache_chain, storage_provider_from_path
 from hub.util.compute import get_compute_provider
 from hub.util.remove_cache import get_base_storage
@@ -985,7 +986,6 @@ class dataset:
                 sample_compression = get_most_common_extension(src)
                 if sample_compression is None:
                     raise InvalidFileExtension(src)
-
             ds = hub.dataset(dest, creds=dest_creds, **dataset_kwargs)
 
             # TODO: support more than just image classification (and update docstring)

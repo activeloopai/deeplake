@@ -28,7 +28,7 @@ def test_ingestion_simple(memory_ds: Dataset, convert_to_pathlib: bool):
         hub.ingest(
             src=src,
             dest=memory_ds.path,
-            images_compression="auto",
+            sample_compression="auto",
             progressbar=False,
             summary=False,
             overwrite=False,
@@ -38,7 +38,7 @@ def test_ingestion_simple(memory_ds: Dataset, convert_to_pathlib: bool):
         hub.ingest(
             src=path,
             dest=path,
-            images_compression="jpeg",
+            sample_compression="jpeg",
             progressbar=False,
             summary=False,
             overwrite=False,
@@ -47,7 +47,7 @@ def test_ingestion_simple(memory_ds: Dataset, convert_to_pathlib: bool):
     ds = hub.ingest(
         src=path,
         dest=memory_ds.path,
-        images_compression="auto",
+        sample_compression="auto",
         progressbar=False,
         summary=False,
         overwrite=False,
@@ -65,7 +65,7 @@ def test_image_classification_sets(memory_ds: Dataset):
     ds = hub.ingest(
         src=path,
         dest=memory_ds.path,
-        images_compression="auto",
+        sample_compression="auto",
         progressbar=False,
         summary=False,
         overwrite=False,
@@ -94,7 +94,7 @@ def test_ingestion_exception(memory_ds: Dataset):
         hub.ingest(
             src="tests_auto/invalid_path",
             dest=memory_ds.path,
-            images_compression="auto",
+            sample_compression="auto",
             progressbar=False,
             summary=False,
             overwrite=False,
@@ -104,7 +104,7 @@ def test_ingestion_exception(memory_ds: Dataset):
         hub.ingest(
             src=path,
             dest=path,
-            images_compression="auto",
+            sample_compression="auto",
             progressbar=False,
             summary=False,
             overwrite=False,
@@ -117,7 +117,7 @@ def test_overwrite(local_ds: Dataset):
     hub.ingest(
         src=path,
         dest=local_ds.path,
-        images_compression="auto",
+        sample_compression="auto",
         progressbar=False,
         summary=False,
         overwrite=False,
@@ -127,7 +127,7 @@ def test_overwrite(local_ds: Dataset):
         hub.ingest(
             src=path,
             dest=local_ds.path,
-            images_compression="auto",
+            sample_compression="auto",
             progressbar=False,
             summary=False,
             overwrite=False,
