@@ -209,9 +209,8 @@ def dataset_read(ds):
             run.config.input_datasets = input_datasets
         if run._settings.mode != "online":
             return
-        if hasattr(ds, "_view_entry") and not ds._view_entry._external:
-            # TODO handle external otimized views
-            ds = ds._view_entry._ds
+        if hasattr(ds, "_view_entry"):
+            ds = ds._view_entry._src_ds
         wandb_info = read_json(ds).get("commits", {}).get(ds.commit_id)
         if wandb_info:
             try:

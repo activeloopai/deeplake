@@ -2557,7 +2557,9 @@ class Dataset:
                 ret = chain(
                     ret,
                     map(
-                        partial(ViewEntry, dataset=qds, external=True),
+                        partial(
+                            ViewEntry, dataset=qds, source_dataset=self, external=True
+                        ),
                         filter(f, queries),
                     ),
                 )
@@ -2596,7 +2598,7 @@ class Dataset:
             queries, qds = self._read_queries_json_from_user_account()
             for q in queries:
                 if q["id"] == f"[{self.org_id}][{self.ds_name}]{id}":
-                    return ViewEntry(q, qds, True)
+                    return ViewEntry(q, qds, self, True)
         raise KeyError(f"No view with id {id} found in the dataset.")
 
     def load_view(
