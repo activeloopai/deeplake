@@ -53,10 +53,9 @@ from hub.util.remove_cache import get_base_storage
 from hub.util.cache_chain import generate_chain
 from hub.core.storage.hub_memory_object import HubMemoryObject
 
-IMAGE_COMPRESSIONS = IMAGE_COMPRESSIONS.copy()
-IMAGE_COMPRESSIONS.append(
-    "jpg"
-)  # cannot append to the original list as that affects IMAGE_COMPRESSIONS used later.
+_image_compressions = IMAGE_COMPRESSIONS + ["jpg"]
+_video_compressions = VIDEO_COMPRESSIONS
+_audio_compressions = AUDIO_COMPRESSIONS
 
 
 class dataset:
@@ -993,11 +992,11 @@ class dataset:
             ds = hub.dataset(dest, creds=dest_creds, **dataset_kwargs)
 
             # TODO: support more than just image classification (and update docstring)
-            if sample_compression in IMAGE_COMPRESSIONS:
+            if sample_compression in _image_compressions:
                 unstructured = ImageClassification(source=src, htype="image")  # type: ignore
-            elif sample_compression in AUDIO_COMPRESSIONS:
+            elif sample_compression in _audio_compressions:
                 unstructured = AudioClassification(source=src, htype="audio")  # type: ignore
-            elif sample_compression in VIDEO_COMPRESSIONS:
+            elif sample_compression in _video_compressions:
                 unstructured = VideoClassification(source=src, htype="video")  # type: ignore
 
             # TODO: auto detect compression
