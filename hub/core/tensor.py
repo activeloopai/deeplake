@@ -867,7 +867,7 @@ class Tensor:
                 if len(self.sample_info) == 0:
                     return meta
 
-                for i, dimension_name in enumerate(self.sample_info["dimension_names"]):
+                for i, dimension_name in enumerate(self.sample_info["dimension_names"]):  # type: ignore
                     typestr = POINT_CLOUD_FIELD_NAME_TO_TYPESTR[dimension_name]
                     meta[dimension_name] = full_arr[..., i].astype(np.dtype(typestr))  # type: ignore
                 return meta

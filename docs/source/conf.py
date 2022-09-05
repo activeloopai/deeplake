@@ -23,7 +23,7 @@ copyright = "2022, Activeloop"
 author = "Activeloop"
 
 # The full version, including alpha/beta/rc tags
-release = "2.6.0"
+release = "2.7.6"
 
 
 # -- General configuration ---------------------------------------------------
