@@ -508,8 +508,8 @@ def test_length_slices(memory_ds):
     ds.data_2.extend(data_2)
 
     assert len(ds) == 11
-    assert ds.min_len() == len(ds)
-    assert ds.max_len() == 14
+    assert ds.min_len == len(ds)
+    assert ds.max_len == 14
     assert len(ds[0]) == 1
     assert len(ds[0:1]) == 1
     assert len(ds[0:0]) == 0
