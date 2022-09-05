@@ -2,6 +2,7 @@ Tensors
 =======
 
 .. currentmodule:: hub.core.dataset
+
 Creating Tensors
 ~~~~~~~~~~~~~~~~
 .. autosummary::
@@ -26,6 +27,7 @@ Deleting and Renaming Tensors
 
 
 .. currentmodule:: hub.core.tensor
+
 Adding and deleting samples
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~
 .. autosummary::
