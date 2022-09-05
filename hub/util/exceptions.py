@@ -772,5 +772,5 @@ class TokenPermissionError(Exception):
 
 class SampleAppendingError(Exception):
     def __init__(self):
-        message = """Can not append sample because tensor name is not specified. If you want to append sample you need to either specify the tensor name and append sample as a dictionary, like: `ds.append({"tensor_name": sample})` or you need to call tensor method from the dataset like: `ds.tensor_name.append(sample)`"""
+        message = """Cannot append sample because tensor(s) are not specified. To append samples, you need to either specify the tensors and append the samples as a dictionary, like: `ds.append({"image_tensor": sample, "label_tensor": sample})` or you need to call `append` method of the required tensor, like: `ds.image_tensor.append(sample)`"""
         super().__init__(message)
