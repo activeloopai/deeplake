@@ -2035,16 +2035,10 @@ def TokenPermissionError_check(
     username,
     password,
     runner,
-    hub_cloud_dev_token,
 ):
     result = runner.invoke(login, f"-u {username} -p {password}")
     with pytest.raises(TokenPermissionError):
         hub.empty("hub://activeloop-test/sohas-weapons-train")
-
-    runner.invoke(logout)
-    ds = hub.empty(
-        "hub://testingacc/test_hub_token", token=hub_cloud_dev_token, overwrite=True
-    )
 
     with pytest.raises(TokenPermissionError):
         ds = hub.load("hub://activeloop/fake-path")
@@ -2077,7 +2071,6 @@ def test_hub_related_permission_exceptions(
         username,
         password,
         runner,
-        hub_cloud_dev_token,
     )
     InvalidTokenException_check()
     UserNotLoggedInException_check(runner)

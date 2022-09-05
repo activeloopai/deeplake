@@ -41,11 +41,6 @@ import jwt  # should add it to requirements.txt
 retry_status_codes = {502}
 
 
-ERROR_TYPE_TO_RESPONSE_DATA_DESCRIPTION = {
-    TokenPermissionError: "You don't have permission to access this dataset",
-}
-
-
 class HubBackendClient:
     """Communicates with Activeloop Backend"""
 
@@ -222,7 +217,7 @@ class HubBackendClient:
             ).json()
         except Exception as e:
             if isinstance(e, AuthorizationException):
-                authorization_exception_prompt = "You don't have permission to access"
+                authorization_exception_prompt = "You don't have permission to "
                 response_data = e.response.json()
                 code = response_data.get("code")
                 if code == 1:
@@ -239,7 +234,10 @@ class HubBackendClient:
                     except Exception:
                         raise InvalidTokenException
 
-                    if authorization_exception_prompt in response_data["description"]:
+                    if (
+                        authorization_exception_prompt in response_data["description"]
+                        and decoded_token["id"] == "public"
+                    ):
                         raise UserNotLoggedInException()
                     raise TokenPermissionError()
             raise
