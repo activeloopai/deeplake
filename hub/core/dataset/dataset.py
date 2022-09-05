@@ -2011,9 +2011,10 @@ class Dataset:
         for k in sample:
             if k not in self._tensors():
                 raise TensorDoesNotExistError(k)
-        if len(set(map(len, (self[k] for k in sample)))) != 1:
+        tensors_to_check_length = self.tensors if append_empty else sample
+        if len(set(map(len, (self[k] for k in tensors_to_check_length)))) != 1:
             raise ValueError(
-                "When appending using Dataset.append, all tensors are expected to have the same length."
+                "When appending using Dataset.append, all tensors being updated are expected to have the same length."
             )
         [f() for f in list(self._update_hooks.values())]
         tensors_appended = []

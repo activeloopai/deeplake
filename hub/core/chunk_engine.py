@@ -788,6 +788,8 @@ class ChunkEngine:
         if self.is_sequence:
             samples = tqdm(samples) if progressbar else samples
             for sample in samples:
+                if sample is None:
+                    sample = []
                 verified_sample = self._extend(
                     sample, progressbar=False, update_commit_diff=False
                 )
@@ -801,6 +803,7 @@ class ChunkEngine:
                         link_callback(s, flat=True)
 
         else:
+            assert samples is not None
             verified_samples = self._extend(samples, progressbar)
             ls = verified_samples or samples
             if link_callback:
