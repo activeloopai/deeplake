@@ -17,4 +17,4 @@ IPython
 flask
 pyjwt
 laspy
-protobuf==3.20.*
+protobuf==3.19.*
