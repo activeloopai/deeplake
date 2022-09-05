@@ -1893,6 +1893,30 @@ def test_reset_create_delete_tensors(local_ds):
         assert set(ds.tensors.keys()) == {"one", "two"}
 
 
+@pytest.mark.parametrize(
+    "ds_generator",
+    [
+        "local_ds_generator",
+        "s3_ds_generator",
+        "gcs_ds_generator",
+        "hub_cloud_ds_generator",
+    ],
+    indirect=True,
+)
+def test_reset_bug(ds_generator):
+    ds = ds_generator()
+    ds.create_tensor("abc")
+    ds.abc.append([1, 2, 3])
+    assert len(ds.abc) == 1
+    a = ds.commit()
+
+    ds = ds_generator()
+    ds.abc.append([3, 4, 5])
+    assert len(ds.abc) == 2
+    ds.reset()
+    assert len(ds.abc) == 1
+
+
 def test_reset_delete_group(local_ds):
     with local_ds as ds:
         ds.create_tensor("abc/x")
