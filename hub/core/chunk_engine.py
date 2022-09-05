@@ -803,7 +803,6 @@ class ChunkEngine:
                         link_callback(s, flat=True)
 
         else:
-            assert samples is not None
             verified_samples = self._extend(samples, progressbar)
             ls = verified_samples or samples
             if link_callback:
