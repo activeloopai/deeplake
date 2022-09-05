@@ -1993,7 +1993,7 @@ class Dataset:
         Args:
             sample (dict): Dictionary with tensor names as keys and samples as values.
             skip_ok (bool): Skip tensors not in `sample` if set to True.
-            append_empty (bool): Append empty samples to tensors not in `sample` if set to True. If True, `skip_ok` is ignored.
+            append_empty (bool): Append empty samples to tensors not specified in `sample` if set to True. If True, `skip_ok` is ignored.
         Raises:
             KeyError: If any tensor in the dataset is not a key in `sample` and `skip_ok` is False.
             TensorDoesNotExistError: If tensor in `sample` does not exist.
