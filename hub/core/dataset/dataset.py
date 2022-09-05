@@ -17,6 +17,7 @@ from hub.util.invalid_view_op import invalid_view_op
 import numpy as np
 from hub.api.info import load_info
 from hub.client.log import logger
+from hub.client.utils import get_user_name
 from hub.constants import (
     FIRST_COMMIT_ID,
     DEFAULT_MEMORY_CACHE_SIZE,
@@ -113,7 +114,7 @@ from hub.util.version_control import (
 )
 from hub.util.pretty_print import summary_dataset
 from hub.core.dataset.view_entry import ViewEntry
-from hub.client.utils import get_user_name
+from hub.hooks import dataset_read
 from itertools import chain
 import warnings
 import jwt
@@ -223,9 +224,10 @@ class Dataset:
     def _lock_lost_handler(self):
         """This is called when lock is acquired but lost later on due to slow update."""
         self.read_only = True
-        always_warn(
-            "Unable to update dataset lock as another machine has locked it for writing. Switching to read only mode."
-        )
+        if self.verbose:
+            always_warn(
+                "Unable to update dataset lock as another machine has locked it for writing. Switching to read only mode."
+            )
         self._locked_out = True
 
     def __enter__(self):
@@ -373,6 +375,8 @@ class Dataset:
         else:
             raise InvalidKeyTypeError(item)
         ret._view_base = self._view_base or self
+        if hasattr(self, "_view_entry"):
+            ret._view_entry = self._view_entry
         return ret
 
     @invalid_view_op
@@ -397,10 +401,13 @@ class Dataset:
         Examples:
             >>> # create dataset
             >>> ds = hub.dataset("path/to/dataset")
+
             >>> # create tensors
             >>> ds.create_tensor("images", htype="image", sample_compression="jpg")
             >>> ds.create_tensor("videos", htype="video", sample_compression="mp4")
             >>> ds.create_tensor("data")
+            >>> ds.create_tensor("point_clouds", htype="point_cloud")
+
             >>> # append data
             >>> ds.images.append(np.ones((400, 400, 3), dtype='uint8'))
             >>> ds.videos.append(hub.read("videos/sample_video.mp4"))
@@ -549,7 +556,13 @@ class Dataset:
         if info_kwargs:
             tensor.info.update(info_kwargs)
         self.storage.maybe_flush()
-        if create_sample_info_tensor and htype in ("image", "audio", "video", "dicom"):
+        if create_sample_info_tensor and htype in (
+            "image",
+            "audio",
+            "video",
+            "dicom",
+            "point_cloud",
+        ):
             self._create_sample_info_tensor(name)
         if create_shape_tensor and htype not in ("text", "json"):
             self._create_sample_shape_tensor(name, htype=htype)
@@ -910,6 +923,7 @@ class Dataset:
             return super().__setattr__(name, value)
 
     def __iter__(self):
+        dataset_read(self)
         for i in range(len(self)):
             yield self.__getitem__(i, is_iteration=True)
 
@@ -1429,7 +1443,7 @@ class Dataset:
 
         if use_progress_bar:
             dataloader = tqdm(dataloader, desc=self.path, total=len(self) // batch_size)
-
+        dataset_read(self)
         return dataloader
 
     @hub_reporter.record_call
@@ -1471,7 +1485,7 @@ class Dataset:
         from hub.core.query import filter_dataset, query_dataset
 
         fn = query_dataset if isinstance(function, str) else filter_dataset
-        result = fn(
+        ret = fn(
             self,
             function,
             num_workers=num_workers,
@@ -1481,7 +1495,8 @@ class Dataset:
             result_path=result_path,
             result_ds_args=result_ds_args,
         )
-        return result
+        dataset_read(self)
+        return ret
 
     def _get_total_meta(self):
         """Returns tensor metas all together"""
@@ -1556,6 +1571,7 @@ class Dataset:
         Returns:
             tf.data.Dataset object that can be used for tensorflow training.
         """
+        dataset_read(self)
         return dataset_to_tensorflow(self, tensors=tensors, tobytes=tobytes)
 
     def flush(self):

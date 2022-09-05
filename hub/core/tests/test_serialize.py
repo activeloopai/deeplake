@@ -1,3 +1,4 @@
+from hub.constants import ENCODING_DTYPE
 from hub.core.serialize import (
     serialize_chunk,
     deserialize_chunk,
@@ -37,11 +38,9 @@ def test_chunk_serialize():
 
 def test_chunkids_serialize():
     version = hub.__version__
-    shards = [
-        np.cast[hub.constants.ENCODING_DTYPE](np.random.randint(100, size=(100, 2)))
-    ]
-    encoded = serialize_chunkids(version, shards)
+    arr = np.cast[ENCODING_DTYPE](np.random.randint(100, size=(100, 2)))
+    encoded = serialize_chunkids(version, arr)
     decoded = deserialize_chunkids(encoded)
-    version2, ids = decoded
+    version2, ids, dtype = decoded
     assert version2 == version
-    np.testing.assert_array_equal(np.concatenate(shards), ids)
+    np.testing.assert_array_equal(arr, ids)

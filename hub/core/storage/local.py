@@ -32,6 +32,7 @@ class LocalProvider(StorageProvider):
             raise FileAtPathException(root)
         self.root = root
         self.files: Optional[Set[str]] = None
+        self._all_keys()
 
     def subdir(self, path: str):
         return self.__class__(os.path.join(self.root, path))

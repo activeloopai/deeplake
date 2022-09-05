@@ -286,6 +286,15 @@ class BaseChunk(HubMemoryObject):
         )
         if tiling_threshold < 0:
             break_into_tiles = False
+
+        if isinstance(incoming_sample, LinkedSample):
+            if self.tensor_meta.is_link:
+                incoming_sample = incoming_sample.path
+            else:
+                raise ValueError(
+                    "hub.link() samples can only be appended to linked tensors. To create linked tensors, include link in htype during create_tensor, for example 'link[image]'."
+                )
+
         if self.is_text_like:
             if isinstance(incoming_sample, LinkedSample):
                 incoming_sample = incoming_sample.path

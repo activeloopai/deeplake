@@ -284,7 +284,7 @@ class ChunkEngine:
             commit_id = self.commit_id
             key = get_chunk_id_encoder_key(self.key, commit_id)
             if not self.chunk_id_encoder_exists:
-                enc = ChunkIdEncoder()
+                enc = ChunkIdEncoder(dtype=np.uint64)
                 try:
                     self.meta_cache[key] = enc
                 except ReadOnlyModeError:
@@ -1335,7 +1335,7 @@ class ChunkEngine:
     def num_samples_per_chunk(self):
         # should only be called if self.is_fixed_shape
         if self._num_samples_per_chunk is None:
-            self._num_samples_per_chunk = (
+            self._num_samples_per_chunk = int(
                 self.chunk_id_encoder.array[0, LAST_SEEN_INDEX_COLUMN] + 1
             )
         return self._num_samples_per_chunk
@@ -1445,8 +1445,8 @@ class ChunkEngine:
             and isinstance(self.base_storage, (S3Provider, GCSProvider))
             and not isinstance(self.chunk_class, ChunkCompressedChunk)
         ):
-            prev = enc.array[row - 1][LAST_SEEN_INDEX_COLUMN] if row > 0 else -1
-            num_samples_in_chunk = enc.array[row][LAST_SEEN_INDEX_COLUMN] - prev
+            prev = int(enc.array[row - 1][LAST_SEEN_INDEX_COLUMN]) if row > 0 else -1
+            num_samples_in_chunk = int(enc.array[row][LAST_SEEN_INDEX_COLUMN]) - prev
             worst_case_header_size += HEADER_SIZE_BYTES + 10  # 10 for version
             ENTRY_SIZE = 4
             if self.tensor_meta.max_shape == self.tensor_meta.min_shape:
@@ -1479,7 +1479,8 @@ class ChunkEngine:
             chunk_id, partial_chunk_bytes=worst_case_header_size
         )
         return chunk.read_sample(
-            local_sample_index, cast=self.tensor_meta.htype != "dicom"
+            local_sample_index,
+            cast=self.tensor_meta.htype != "dicom",
         )[tuple(entry.value for entry in index.values[1:])]
 
     def get_non_tiled_sample(self, global_sample_index, index, fetch_chunks=False):
@@ -1611,8 +1612,8 @@ class ChunkEngine:
                     chunk_arr = self.chunk_id_encoder.array
 
                     chunk = chunks[0]
-                    first_sample = 0 if row == 0 else chunk_arr[row - 1][1] + 1
-                    last_sample = self.chunk_id_encoder.array[row][1]
+                    first_sample = int(0 if row == 0 else chunk_arr[row - 1][1] + 1)
+                    last_sample = int(self.chunk_id_encoder.array[row][1])
                     num_samples = last_sample - first_sample + 1
 
                     full_shape = (num_samples,) + tuple(self.tensor_meta.max_shape)

@@ -21,6 +21,14 @@ def parse_complex_htype(htype: Optional[str]) -> Tuple[bool, bool, str]:
     if "[" in htype or "]" in htype:
         raise TensorMetaInvalidHtype(htype, list(HTYPE_CONFIGURATIONS))
 
+    if is_link and htype == HTYPE.DEFAULT:
+        if is_sequence:
+            raise ValueError(
+                "Can't create a linked tensor with a generic htype, you need to specify htype, for example sequence[link[image]] or link[sequence[image]]"
+            )
+        raise ValueError(
+            "Can't create a linked tensor with a generic htype, you need to specify htype, for example link[image]"
+        )
     return is_sequence, is_link, htype
 
 

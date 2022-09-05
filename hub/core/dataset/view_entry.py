@@ -1,5 +1,4 @@
 from typing import Dict, Optional, Any
-
 from hub.util.logging import log_visualizer_link
 
 
@@ -98,6 +97,10 @@ class ViewEntry:
             progressbar=progressbar,
         )
         return self
+
+    @property
+    def source_dataset_path(self) -> str:
+        return self.info["source-dataset"]
 
     def delete(self):
         """Deletes the view."""
