@@ -1,14 +1,13 @@
 import os
 from hub.util.exceptions import InvalidPathException
 import numpy as np
-import pandas as pd  # type: ignore
 from .base import StructuredDataset
 from hub.core.dataset import Dataset
 from tqdm import tqdm  # type: ignore
 
 
 class DataFrame(StructuredDataset):
-    def __init__(self, source: pd.DataFrame):
+    def __init__(self, source):
         """Convert a pandas dataframe to a Hub dataset.
 
         Args:
@@ -17,6 +16,8 @@ class DataFrame(StructuredDataset):
         Raises:
             Exception: If source is not a pandas dataframe object.
         """
+        import pandas as pd
+
         super().__init__(source)
         if not isinstance(self.source, pd.DataFrame):
             raise Exception("Source is not a pandas dataframe object.")
