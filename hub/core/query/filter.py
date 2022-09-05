@@ -102,8 +102,6 @@ def filter_dataset(
             vds.info["error"] = str(e)
         raise e
 
-    print("index_map", index_map)
-
     ds = dataset[index_map]
     ds._is_filtered_view = True
 
