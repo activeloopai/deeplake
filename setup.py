@@ -41,7 +41,7 @@ extras = {
         "google-auth-oauthlib",
     ],
     "point_cloud": ["laspy"],
-    "cleanlab": ["cleanlab", "scikit-learn", "skorch", "torch", "torchvision"],
+    "cleanlab": ["cleanlab", "skorch", "torch", "torchvision"],
 }
 
 all_extras = {r for v in extras.values() for r in v}
