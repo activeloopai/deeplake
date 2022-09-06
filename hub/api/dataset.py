@@ -11,7 +11,7 @@ from hub.client.log import logger
 from hub.core.dataset import Dataset, dataset_factory
 from hub.core.meta.dataset_meta import DatasetMeta
 from hub.util.path import convert_pathlib_to_string_if_needed
-from hub.hooks import dataset_created, dataset_loaded
+from hub.hooks import dataset_created, dataset_loaded, dataset_written
 from hub.constants import (
     DEFAULT_MEMORY_CACHE_SIZE,
     DEFAULT_LOCAL_CACHE_SIZE,
@@ -875,6 +875,8 @@ class dataset:
             verbose=verbose,
         )
         ret._register_dataset()
+        dataset_created(ret)
+        dataset_written(ret)
         return ret
 
     @staticmethod
