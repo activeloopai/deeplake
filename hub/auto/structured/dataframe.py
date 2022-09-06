@@ -16,7 +16,7 @@ class DataFrame(StructuredDataset):
         Raises:
             Exception: If source is not a pandas dataframe object.
         """
-        import pandas as pd
+        import pandas as pd  # type: ignore
 
         super().__init__(source)
         if not isinstance(self.source, pd.DataFrame):
