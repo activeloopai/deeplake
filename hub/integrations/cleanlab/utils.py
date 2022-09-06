@@ -52,10 +52,6 @@ def process_label_issues(dataset, label_issues):
     if label_issues["predicted_labels"].dtype is not np.dtype("int"):
         raise ValueError("`predicted_labels` must be a 1D np.ndarray with dtype `int`.")
 
-    print(label_issues["is_label_issue"].dtype)
-    print(label_issues["label_quality"].dtype)
-    print(label_issues["predicted_labels"].dtype)
-
     return (
         label_issues["is_label_issue"].to_numpy(),
         label_issues["label_quality"].to_numpy(),

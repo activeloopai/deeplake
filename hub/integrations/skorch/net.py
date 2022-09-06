@@ -73,5 +73,4 @@ class VisionClassifierNet(NeuralNet):
     def score(self, X, y):
         pred_probs = self.predict(X)
         y_pred = pred_probs.argmax(-1)
-
         return accuracy_score(y_pred=y_pred, y_true=y)

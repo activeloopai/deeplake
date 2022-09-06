@@ -29,8 +29,8 @@ def clean_labels(
 
     Returns:
         pandas DataFrame of label issues for each example. Each row represents an example from the dataset and the DataFrame contains the following columns:
-            - label_issues: A boolean mask for the entire dataset where True represents a label issue and False represents an example that is confidently/accurately labeled.
-            - label_quality_scores: Label quality scores for each datapoint, where lower scores indicate labels less likely to be correct.
+            - is_label_issue: A boolean mask for the entire dataset where True represents a label issue and False represents an example that is confidently/accurately labeled.
+            - label_quality: Label quality scores for each datapoint, where lower scores indicate labels less likely to be correct.
             - predicted_labels: Class predicted by model trained on cleaned data for each example in the dataset.
 
     Raises:
