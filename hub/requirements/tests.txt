@@ -16,4 +16,3 @@ boto3-stubs[essential]
 lz4
 
 wandb
-protobuf==3.19.*
