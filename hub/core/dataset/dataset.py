@@ -425,7 +425,7 @@ class Dataset:
             sample_compression (str): All samples will be compressed in the provided format. If ``None``, samples are uncompressed.
             chunk_compression (str): All chunks will be compressed in the provided format. If ``None``, chunks are uncompressed.
             hidden (bool): If ``True``, the tensor will be hidden from ds.tensors but can still be accessed via ``ds[tensor_name]``.
-            create_sample_info_tensor (bool): If ``True``, meta data of individual samples will be saved in a hidden tensor. This data can be accessed via tensor[i].:attr:`~Tensor.sample_info`.
+            create_sample_info_tensor (bool): If ``True``, meta data of individual samples will be saved in a hidden tensor. This data can be accessed via :attr:`tensor[i].sample_info <hub.core.tensor.Tensor.sample_info>`.
             create_shape_tensor (bool): If ``True``, an associated tensor containing shapes of each sample will be created.
             create_id_tensor (bool): If ``True``, an associated tensor containing unique ids for each sample will be created. This is useful for merge operations.
             verify (bool): Valid only for link htypes. If ``True``, all links will be verified before they are added to the tensor.
