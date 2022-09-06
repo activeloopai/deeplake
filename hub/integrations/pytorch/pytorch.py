@@ -47,6 +47,7 @@ def create_dataloader_nesteddataloader(
         collate_fn=collate_fn,
         pin_memory=pin_memory,
         drop_last=drop_last,
+        num_workers=1,
     )
 
 

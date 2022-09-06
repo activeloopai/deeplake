@@ -500,17 +500,18 @@ class SubIterableDataset(torch.utils.data.IterableDataset):
         if self.buffer_size == 0:
             warn("setting buffer_size = 0 will result in poor shuffling distribution")
 
-    def __iter__(self):
-        buffer = ShuffleBuffer(self.buffer_size) if self.buffer_size > 0 else None
-
-        sub_loader = DataLoader(
+        self.sub_loader = DataLoader(
             self.torch_datset,
             batch_size=self.batch_size,
             num_workers=self.num_workers,
             collate_fn=identity,
+            persistent_workers=True,
         )
+        iter(self.sub_loader)  # Create threads here
 
-        it = iter(sub_loader)
+    def __iter__(self):
+        buffer = ShuffleBuffer(self.buffer_size) if self.buffer_size > 0 else None
+        it = iter(self.sub_loader)
 
         try:
             while True:
@@ -531,8 +532,6 @@ class SubIterableDataset(torch.utils.data.IterableDataset):
         if buffer is not None:
             while not buffer.emtpy():
                 yield buffer.exchange(None)
-
-        del sub_loader
 
     def __len__(self):
         return len(self.torch_datset)
