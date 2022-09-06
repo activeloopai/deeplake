@@ -1,4 +1,5 @@
 from skorch import NeuralNet
+from sklearn.metrics import accuracy_score
 
 import torch
 
@@ -68,3 +69,9 @@ class VisionClassifierNet(NeuralNet):
             "loss": loss,
             "y_pred": y_pred,
         }
+
+    def score(self, X, y):
+        pred_probs = self.predict(X)
+        y_pred = pred_probs.argmax(-1)
+
+        return accuracy_score(y_pred=y_pred, y_true=y)
