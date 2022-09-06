@@ -273,8 +273,8 @@ class Dataset:
         if min(tensor_lengths) != max(tensor_lengths):
             warning(
                 "The length of tensors in the dataset is different. By default len(ds) computes the length of the "
-                "smallest tensor in the dataset. If you want to compute the length of the longest tensor in the "
-                "dataset use ds.max_len."
+                "smallest tensor in the dataset. If you want the length of the longest tensor in the dataset use "
+                "ds.max_len."
             )
         length_fn = max if self._pad_tensors else min
         return length_fn(tensor_lengths, default=0)
