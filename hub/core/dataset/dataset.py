@@ -270,7 +270,7 @@ class Dataset:
     def __len__(self):
         """Returns the length of the smallest tensor"""
         tensor_lengths = [len(tensor) for tensor in self.tensors.values()]
-        if min(tensor_lengths) != max(tensor_lengths):
+        if min(tensor_lengths, default=0) != max(tensor_lengths, default=0):
             warning(
                 "The length of tensors in the dataset is different. The len(ds) returns the length of the "
                 "smallest tensor in the dataset. If you want the length of the longest tensor in the dataset use "
