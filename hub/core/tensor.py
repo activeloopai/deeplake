@@ -1052,6 +1052,7 @@ class Tensor:
 
     def play(self):
         """Play video sample. Plays video in Jupyter notebook or plays in web browser. Video is streamed directly from storage.
+        This method will fail for incompatible htypes.
 
         Note:
             Video streaming is not yet supported on colab.

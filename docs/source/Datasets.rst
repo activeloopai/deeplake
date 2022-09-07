@@ -91,8 +91,8 @@ Dataset Properties
 
     Dataset.tensors
     Dataset.groups
+    Dataset.num_samples
     Dataset.read_only
-    Dataset.token
     Dataset.info
 
 Dataset Views

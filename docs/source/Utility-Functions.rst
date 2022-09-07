@@ -20,7 +20,6 @@ Making Hub Samples
 
     read
     link
-    tiled
 
 Parallelism
 ~~~~~~~~~~~

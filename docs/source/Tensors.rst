@@ -66,11 +66,11 @@ Tensor Properties
     Tensor.shape_interval
     Tensor.ndim
     Tensor.num_samples
+    Tensor.__len__
     Tensor.is_dynamic
     Tensor.is_sequence
     Tensor.is_link
     Tensor.verify
-    Tensor.meta
 
 Info
 ~~~~
