@@ -1340,6 +1340,17 @@ def test_ds_append(memory_ds, x_args, y_args, x_size, htype):
     assert ds.y.chunk_engine.commit_diff.num_samples_added == 3
     assert ds.z.chunk_engine.commit_diff.num_samples_added == 0
     assert len(ds) == 0
+    for _ in range(3):
+        ds.append({"z": np.zeros(2)}, skip_ok=True)
+    assert len(ds.z) == 3
+    ds.append({"x": np.ones(3), "y": [1, 2, 3]}, append_empty=True)
+    assert len(ds.x) == 4
+    assert len(ds.y) == 4
+    assert len(ds.z) == 4
+    assert ds.x.chunk_engine.commit_diff.num_samples_added == 4
+    assert ds.y.chunk_engine.commit_diff.num_samples_added == 4
+    assert ds.z.chunk_engine.commit_diff.num_samples_added == 4
+    assert len(ds) == 4
 
 
 def test_ds_append_with_ds_view():

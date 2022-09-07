@@ -1,16 +1,19 @@
 from typing import Dict, Set
 from hub.util.tag import process_hub_path
 from hub.util.hash import hash_inputs
+from hub.constants import WANDB_JSON_FILENMAE
 from hub.hooks import (
     add_create_dataset_hook,
     add_load_dataset_hook,
     add_write_dataset_hook,
     add_read_dataset_hook,
+    add_commit_dataset_hook,
 )
 import importlib
 import sys
+import json
 import warnings
-
+from hub.client.log import logger
 
 _WANDB_INSTALLED = bool(importlib.util.find_spec("wandb"))
 
@@ -21,11 +24,10 @@ def wandb_run():
 
 _READ_DATASETS: Dict[str, Set[str]] = {}
 _WRITTEN_DATASETS: Dict[str, Set[str]] = {}
-_CREATED_DATASETS: Set[str] = set()
 
 
 def dataset_created(ds):
-    _CREATED_DATASETS.add(get_ds_key(ds))
+    pass
 
 
 def dataset_loaded(ds):
@@ -45,11 +47,6 @@ def artifact_name_from_ds_path(ds) -> str:
         pfix = path.split("://", 1)[0] if "://" in path else "local"
         artifact_name = f"{pfix}"
     artifact_name += f"-commit-{ds.commit_id}"
-    if ds.has_head_changes:
-        warnings.warn(
-            "Creating artifact for dataset with head changes. State of the dataset during artifact consumption will be differnt from the state when it was logged."
-        )
-        artifact_name += f"-has-head-changes"
     artifact_name += f"-{hash[:8]}"
     return artifact_name
 
@@ -83,10 +80,14 @@ def dataset_config(ds):
             "View ID": vid,
         }
         if source_ds_path.startswith("hub://") and ds.path.startswith("hub://"):
-            ret["URL"] = _plat_link(ds)
+            ret["URL"] = _plat_url(ds)
         q = entry.query
         if q:
             ret["Query"] = q
+        if entry.virtual:
+            ret["Index"] = ds.index.to_json()
+        else:
+            ret["Index"] = list(ds.sample_indices)
         return ret
 
     ret = {
@@ -94,22 +95,37 @@ def dataset_config(ds):
         "Commit ID": ds.commit_id,
     }
     if ds.path.startswith("hub://"):
-        ret["URL"] = _plat_link(ds)
+        ret["URL"] = _plat_url(ds)
     if not ds.index.is_trivial():
-        ret["index"] = ds.index.to_json()
+        ret["Index"] = ds.index.to_json()
     q = getattr(ds, "_query", None)
     if q:
         ret["Query"] = q
     return ret
 
 
+def log_dataset(dsconfig):
+    url = dsconfig.get("URL")
+    if not url:
+        return
+    import wandb
+
+    run = wandb.run
+    url_prefix = "https://app.activeloop.ai/"
+    url = url[len(url_prefix) :]
+    # TODO : commit and view id are not supported by visualizer. Remove below line once they are supported.
+    url = "/".join(url.split("/")[:2])
+    run.log({f"Hub Dataset - {url}": wandb.Html(_viz_html("hub://" + url))}, step=0)
+
+
 def dataset_written(ds):
-    path = ds.path
+    pass
+
+
+def dataset_committed(ds):
     run = wandb_run()
     key = get_ds_key(ds)
     if run:
-        import wandb
-
         if run.id not in _WRITTEN_DATASETS:
             _WRITTEN_DATASETS.clear()
             _WRITTEN_DATASETS[run.id] = {}
@@ -121,26 +137,18 @@ def dataset_written(ds):
             except (KeyError, AttributeError):
                 output_datasets = []
             dsconfig = dataset_config(ds)
-            path = dsconfig["Dataset"]
-            if path.startswith("hub://"):
-                import wandb
-
-                run.log(
-                    {
-                        f"Hub Dataset [{path[len('hub://'):]}]": wandb.Html(
-                            viz_html(path), False
-                        )
-                    }
-                )
-
             output_datasets.append(dsconfig)
+            log_dataset(dsconfig)
             run.config.output_datasets = output_datasets
-        if key in _CREATED_DATASETS:
             artifact = artifact_from_ds(ds)
-            wandb_info = ds.info.get("wandb") or {"commits": {}}
-            commits = wandb_info["commits"]
+            wandb_info = read_json(ds)
+            try:
+                commits = wandb_info["commits"]
+            except KeyError:
+                commits = {}
+                wandb_info["commits"] = commits
             info = {}
-            commits[ds.commit_id or ds.pending_commit_id] = info
+            commits[ds.commit_id] = info
             info["created-by"] = {
                 "run": {
                     "entity": run.entity,
@@ -150,16 +158,31 @@ def dataset_written(ds):
                 },
                 "artifact": artifact.name,
             }
-            ds.info["wandb"] = wandb_info
-            ds.flush()
-            _CREATED_DATASETS.remove(key)
+            write_json(ds, wandb_info)
             run.log_artifact(artifact)
-    else:
-        _CREATED_DATASETS.discard(key)
+
+
+def _filter_input_datasets(input_datasets):
+    ret = []
+    for i, dsconfig in enumerate(input_datasets):
+        if "Index" not in dsconfig:
+            rm = False
+            for j, dsconfig2 in enumerate(input_datasets):
+                if (
+                    i != j
+                    and dsconfig2["Dataset"] == dsconfig["Dataset"]
+                    and dsconfig2["Commit ID"] == dsconfig["Commit ID"]
+                ):
+                    rm = True
+                    break
+            if not rm:
+                ret.append(dsconfig)
+        else:
+            ret.append(dsconfig)
+    return ret
 
 
 def dataset_read(ds):
-    path = ds.path
     run = wandb_run()
     if not run:
         return
@@ -168,56 +191,37 @@ def dataset_read(ds):
         _READ_DATASETS[run.id] = {}
     keys = _READ_DATASETS[run.id]
     key = get_ds_key(ds)
-    if key not in keys or ds.index.to_json() not in keys[key]:
+    idx = ds.index.to_json()
+    if key not in keys or idx not in keys[key]:
         if key not in keys:
             keys[key] = []
-        keys[key].append(ds.index.to_json())
+        keys[key].append(idx)
         try:
             input_datasets = run.config.input_datasets
         except (KeyError, AttributeError):
             input_datasets = []
         dsconfig = dataset_config(ds)
-        path = dsconfig["Dataset"]
         if dsconfig not in input_datasets:
-
-            if path.startswith("hub://"):
-                import wandb
-
-                run.log(
-                    {
-                        f"Hub Dataset [{path[len('hub://'):]}]": wandb.Html(
-                            viz_html(path), False
-                        )
-                    }
-                )
-
             input_datasets.append(dsconfig)
-            if len(keys[key]) > 1:
-                rm = None
-                for i, dsconfig in enumerate(input_datasets):
-                    if "index" not in dsconfig:
-                        rm = i
-                        break
-                if rm is not None:
-                    input_datasets.pop(rm)
+            input_datasets = _filter_input_datasets(input_datasets)
+            for config in input_datasets:
+                log_dataset(config)
             run.config.input_datasets = input_datasets
-
-        if not run._settings.mode == "online":
+        if run._settings.mode != "online":
             return
-        # TODO consider optimized datasets:
-        wandb_info = (
-            ds.info.get("wandb", {})
-            .get("commits", {})
-            .get(ds.commit_id or ds.pending_commit_id)
-        )
+        if hasattr(ds, "_view_entry") and not ds._view_entry._external:
+            # TODO handle external otimized views
+            ds = ds._view_entry._ds
+        wandb_info = read_json(ds).get("commits", {}).get(ds.commit_id)
         if wandb_info:
             try:
                 run_and_artifact = wandb_info["created-by"]
                 run_info = run_and_artifact["run"]
                 artifact = run_and_artifact["artifact"]
-                run.use_artifact(
+                artifact_path = (
                     f"{run_info['entity']}/{run_info['project']}/{artifact}:latest"
                 )
+                run.use_artifact(artifact_path)
             except Exception as e:
                 warnings.warn(
                     f"Wandb integration: Error while using wandb artifact: {e}"
@@ -232,7 +236,7 @@ def dataset_read(ds):
             pass
 
 
-def viz_html(hub_path: str):
+def _viz_html(hub_path: str):
     #     return f"""
     #       <div id='container'></div>
     #   <script src="https://app.activeloop.ai/visualizer/vis.js"></script>
@@ -247,37 +251,22 @@ def viz_html(hub_path: str):
     return f"""<iframe width="100%" height="100%" sandbox="allow-same-origin allow-scripts allow-popups allow-forms" src="https://app.activeloop.ai/visualizer/iframe?url={hub_path}" />"""
 
 
-def _plat_link(ds):
-    path = ds.path
-    if "/.queries/" in path:
-        if "/queries/" in path:
-            entry = getattr((ds._view_base or ds), "_view_entry")
-            if not entry:
-                _, org, ds_name, _ = process_hub_path(path)
-                return f"https://app.activeloop.ai/{org}/{ds_name}"
-            source_ds_path = entry.info["source-dataset"]
-            commit_id = entry.info["source-dataset-version"]
-            _, org, ds_name, _ = process_hub_path(source_ds_path)
-            return (
-                f"https://app.activeloop.ai/{org}/{ds_name}/{commit_id}?view={entry.id}"
-            )
-        else:
-            _, org, ds_name, _ = process_hub_path(path)
-            vid = path.split("/.queries/")[1]
-            ret = f"https://app.activeloop.ai/{org}/{ds_name}"
-            if ds.commit_id:
-                ret += f"/{ds.commit_id}"
-            ret += f"?view={vid}"
-            return ret
-    _, org, ds_name, _ = process_hub_path(path)
-    ret = f"https://app.activeloop.ai/{org}/{ds_name}"
+def _plat_url(ds, http=True):
+    prefix = "https://app.activeloop.ai/" if http else "hub://"
+    if hasattr(ds, "_view_entry"):
+        entry = ds._view_entry
+        _, org, ds_name, _ = process_hub_path(entry.source_dataset_path)
+        commit_id = entry.info["source-dataset-version"]
+        return f"{prefix}{org}/{ds_name}/{commit_id}?view={entry.id}"
+    _, org, ds_name, _ = process_hub_path(ds.path)
+    ret = f"{prefix}{org}/{ds_name}"
     if ds.commit_id:
         ret += f"/{ds.commit_id}"
     return ret
 
 
 def link_html(hub_path):
-    return f"""<a href="{_plat_link(hub_path)}">{hub_path}</a>"""
+    return f"""<a href="{_plat_url(hub_path)}">{hub_path}</a>"""
 
 
 if _WANDB_INSTALLED:
@@ -285,3 +274,15 @@ if _WANDB_INSTALLED:
     add_load_dataset_hook(dataset_loaded, "wandb_dataset_load")
     add_write_dataset_hook(dataset_written, "wandb_dataset_write")
     add_read_dataset_hook(dataset_read, "wandb_dataset_read")
+    add_commit_dataset_hook(dataset_committed, "wandb_dataset_commit")
+
+
+def read_json(ds):
+    try:
+        return json.loads(ds.base_storage[WANDB_JSON_FILENMAE].decode("utf-8"))
+    except KeyError:
+        return {}
+
+
+def write_json(ds, dat):
+    ds.base_storage[WANDB_JSON_FILENMAE] = json.dumps(dat).encode("utf-8")
