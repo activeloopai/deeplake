@@ -1989,11 +1989,14 @@ class Dataset:
             self.append({k: v[i] for k, v in samples.items()})
 
     @invalid_view_op
-    def append(self, sample: Dict[str, Any], skip_ok: bool = False):
+    def append(
+        self, sample: Dict[str, Any], skip_ok: bool = False, append_empty: bool = False
+    ):
         """Append samples to mutliple tensors at once. This method expects all tensors being updated to be of the same length.
         Args:
             sample (dict): Dictionary with tensor names as keys and samples as values.
             skip_ok (bool): Skip tensors not in `sample` if set to True.
+            append_empty (bool): Append empty samples to tensors not specified in `sample` if set to True. If True, `skip_ok` is ignored.
         Raises:
             KeyError: If any tensor in the dataset is not a key in `sample` and `skip_ok` is False.
             TensorDoesNotExistError: If tensor in `sample` does not exist.
@@ -2003,23 +2006,30 @@ class Dataset:
         """
         if isinstance(sample, Dataset):
             sample = sample.tensors
-        if not skip_ok:
-            for k in self.tensors:
-                if k not in sample:
-                    raise KeyError(
-                        f"Required tensor not provided: {k}. Use ds.append(sample, skip_ok=True) to skip tensors."
-                    )
+        skipped_tensors = [k for k in self.tensors if k not in sample]
+        if skipped_tensors and not skip_ok and not append_empty:
+            raise KeyError(
+                f"Required tensors not provided: {skipped_tensors}. Pass either `skip_ok=True` to skip tensors or `append_empty=True` to append empty samples to unspecified tensors."
+            )
         for k in sample:
             if k not in self._tensors():
                 raise TensorDoesNotExistError(k)
-        if len(set(map(len, (self[k] for k in sample)))) != 1:
+        tensors_to_check_length = self.tensors if append_empty else sample
+        if len(set(map(len, (self[k] for k in tensors_to_check_length)))) != 1:
             raise ValueError(
-                "When appending using Dataset.append, all tensors are expected to have the same length."
+                "When appending using Dataset.append, all tensors being updated are expected to have the same length."
             )
         [f() for f in list(self._update_hooks.values())]
         tensors_appended = []
         with self:
-            for k, v in sample.items():
+            for k in self.tensors:
+                if k in sample:
+                    v = sample[k]
+                else:
+                    if skip_ok:
+                        continue
+                    else:
+                        v = None
                 try:
                     tensor = self[k]
                     enc = tensor.chunk_engine.chunk_id_encoder
