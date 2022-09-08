@@ -77,6 +77,20 @@ def trivial_augment(image, include_transforms=None, exclude_transforms=None):
 
 
 @hub.compute
+def resize(image, height, width, interpolation=cv.INTER_LINEAR, p=1):
+  from albumentations import Resize
+  resize = Resize(height, width, interpolation=interpolation, p=p)
+  return resize.apply(image, interpolation)
+  
+
+@hub.compute
+def normalize(image, mean, std):
+  from albumentations import Normalize
+  normalize = Normalize(mean, std)
+  return normalize
+
+
+@hub.compute
 def horizontalflip(image):
   flipped = np.ascontiguousarray(image[:, ::-1, ...])
   return flipped
@@ -113,7 +127,7 @@ def adjust_brightness_contrast(image, alpha, beta): #pixel = alpha*pixel + beta*
   lut = np.arange(0, 256).astype("float32")
   if alpha != 1:
     lut *= alpha
-  if beta != 0:
+  if beta != 0:     
     lut += beta * np.mean(image)
 
   lut = np.clip(lut, 0, 255).astype("uint8")
