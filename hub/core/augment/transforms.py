@@ -87,7 +87,7 @@ def resize(image, height, width, interpolation=cv.INTER_LINEAR, p=1):
 def normalize(image, mean, std):
   from albumentations import Normalize
   normalize = Normalize(mean, std)
-  return normalize(image)
+  return normalize.apply(image)
 
 
 @hub.compute
