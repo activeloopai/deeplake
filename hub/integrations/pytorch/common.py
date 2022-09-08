@@ -1,6 +1,9 @@
 from typing import Callable, Dict, List, Optional
 from hub.util.iterable_ordered_dict import IterableOrderedDict
 import numpy as np
+import torch 
+
+
 def pipeline_image(image, pipe): #could not import due to circular impoet error
   if not isinstance(image, np.ndarray):
     updated_image = image.numpy()
@@ -8,6 +11,8 @@ def pipeline_image(image, pipe): #could not import due to circular impoet error
     updated_image = image
   if pipe is None:
     return image
+  if len(image.shape) == 2:
+    updated_image = np.expand_dims(updated_image, axis=2)
   for fun in pipe:
     if len(fun.args)!=0:
       arr = [*fun.args]
@@ -16,6 +21,7 @@ def pipeline_image(image, pipe): #could not import due to circular impoet error
       updated_image = fun.func(*args)
     else:
       updated_image = fun.func(updated_image)
+  updated_image = torch.from_numpy(updated_image).permute(2,0,1)
   return updated_image
 
 
@@ -56,7 +62,7 @@ def transform_sample(data, transform):
                 transformed_sample[tensor] = pipeline_image(data[tensor], transformation[0])
                 transformed_samples.append(transformed_sample)
     return transformed_samples
-
+            
 
 class PytorchTransformFunction:
     def __init__(
