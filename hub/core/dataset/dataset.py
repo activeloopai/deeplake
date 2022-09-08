@@ -3327,23 +3327,32 @@ class Dataset:
             default_tag=default_tag,
         )
         ret = group.create_tensor(default_tag, **kwargs)
+        group.create_tensor("_default_tags", hidden=True, dtype=np.uint16)  # supports 65536 annotators
         self.storage.maybe_flush()
         return ret
 
-    def create_tag_group(self, name: str, default_tag="default", exist_ok=False):
-        group = self._create_group(
-            name, exist_ok=exist_ok, is_tag_tensor=True, default_tag=default_tag
-        )
-        group.create_group(default_tag, exist_ok=exist_ok)
-        return group
+    def _get_sample_default_tag(self, sample_index):
+        try:
+            tag_idx = self.__getitem__("_default_tags", skip_tag_check=True, ignore_index=True)[sample_index].numpy()
+            if tag_idx.size == 0:
+                return self.meta.tag_tensors[self.group_index]
+            return list(self.tensors)[tag_idx]
+        except EmptyTensorError, IndexError:
+            return self.meta.tag_tensors[self.group_index]
+
+    def _set_sample_default_tag(self, sample_index, default_tag):
+        tag_idx = self.tags.index(default_tag)
+        self.__getitem__("_default_tags", skip_tag_check=True, ignore_index=True)[sample_index] = tag_idx
+
+    def _reset_sample_default_tags(self):
+        self.__getitem__("_default_tags", skip_tag_check=True, ignore_index=True).clear()
 
     @property
     def htype(self):
         try:
             return self._htype
         except AttributeError:
-            t = object.__getattribute__(self, "default_tensor")
-            ret = "group" if isinstance(t, Dataset) else t.htype
+            ret = object.__getattribute__(self, "default_tensor").htype
             self._htype = ret
             return ret
 
@@ -3357,10 +3366,7 @@ class Dataset:
 
     def add_tag(self, name: str):
         default_tensor = object.__getattribute__(self, "default_tensor")
-        if isinstance(default_tensor, Dataset):
-            self.create_group(name)
-        else:
-            self.create_tensor_like(name, default_tensor)
+        self.create_tensor_like(name, default_tensor)
 
     @property
     def is_tag_tensor(self) -> bool:
@@ -3375,22 +3381,23 @@ class Dataset:
         tag = tag or self.default_tag
         return self.__getitem__(tag, skip_tag_check=True)
 
+    def _get_tag_tensor_default_tag(self):
+        return self.meta.tag_tensors[self.group_index]
+
     @property
     def default_tag(self):
         return self.meta.tag_tensors[self.group_index]
 
     @property
     def tags(self) -> List[str]:
-        ret = {}
-        for t in self.tensors:
-            t = t.split("/")[0]
-            ret[t] = None
-        return list(ret)
+        if not self.is_tag_tensor:
+            raise AttributeError("Attribute `tags` only valid for tag tensors.")
+        return list(self.tensors)
 
     @default_tag.setter
     def default_tag(self, value):
         if value not in self.tags:
-            pass  # TODO
+            self.add_tag(value)
         self.meta.tag_tensors[self.group_index] = value
         self.storage.maybe_flush()
 
