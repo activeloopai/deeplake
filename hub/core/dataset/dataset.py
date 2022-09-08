@@ -977,7 +977,7 @@ class Dataset:
             link_creds = LinkCreds.frombuffer(data_bytes)
         self.link_creds = link_creds
 
-    def _lock(self, err=False):
+    def _lock(self, err=False, verbose=True):
         if not self._locking_enabled:
             return True
         storage = self.base_storage
@@ -1001,9 +1001,10 @@ class Dataset:
                 self.__dict__["_locked_out"] = True
                 if err:
                     raise e
-                always_warn(
-                    "Checking out dataset in read only mode as another machine has locked this version for writing."
-                )
+                if verbose:
+                    always_warn(
+                        "Checking out dataset in read only mode as another machine has locked this version for writing."
+                    )
                 return False
         return True
 
@@ -1124,7 +1125,6 @@ class Dataset:
         Args:
             address (str): The commit_id or branch to checkout to.
             create (bool): If True, creates a new branch with name as address.
-
         Returns:
             str: The commit_id of the dataset after checkout.
 
@@ -1134,7 +1134,11 @@ class Dataset:
         return self._checkout(address, create)
 
     def _checkout(
-        self, address: str, create: bool = False, hash: Optional[str] = None
+        self,
+        address: str,
+        create: bool = False,
+        hash: Optional[str] = None,
+        verbose=True,
     ) -> Optional[str]:
         if self._is_filtered_view:
             raise Exception(
@@ -1160,7 +1164,7 @@ class Dataset:
             raise e
         finally:
             if not (err and self._locked_out):
-                self._lock()
+                self._lock(verbose=verbose)
             self.storage.autoflush = self._initial_autoflush.pop()
         self._info = None
         self._ds_diff = None
@@ -2469,7 +2473,7 @@ class Dataset:
         try:
             orig_index = ds.index
             ds.index = Index()
-            ds.checkout(commit_id)
+            ds._checkout(commit_id, verbose=False)
             first_index_subscriptable = self.info.get("first-index-subscriptable", True)
             if first_index_subscriptable:
                 index_entries = [
