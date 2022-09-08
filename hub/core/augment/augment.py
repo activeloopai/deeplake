@@ -35,7 +35,7 @@ class Augmenter():
       else:
         self.pipe_dict[tensor].append((step_transform, tensor_condition))
 
-  def augment(self, ds, num_workers=1):
+  def augment(self, ds, num_workers=1, batch_size=1):
     """
     Returns a Dataloader. Each sample in the dataloader contains a transformed tensor according to the defined steps.
 
@@ -45,7 +45,7 @@ class Augmenter():
     """
     #Todo - Add other arguments from dataset.pytorch
     pipe_dict = self.pipe_dict.copy()
-    return ds.pytorch(transform=pipe_dict, multiple_transforms=True, num_workers=num_workers)
+    return ds.pytorch(transform=pipe_dict, multiple_transforms=True, num_workers=num_workers, batch_size=batch_size)
 
 
 
