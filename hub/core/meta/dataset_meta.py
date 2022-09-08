@@ -9,8 +9,9 @@ class DatasetMeta(Meta):
         super().__init__()
         self.tensors = []
         self.groups = []
-        self.tensor_names = {}
+        self.tensor_names = {}  # map user facing tensor name to storage key (can be different due to renaming)
         self.hidden_tensors = []
+        self.tag_tensors = {}  # map tag tensor name to default tag
         self.default_index = Index().to_json()
 
     @property
@@ -50,9 +51,11 @@ class DatasetMeta(Meta):
             self.hidden_tensors.append(self.tensor_names[name])
             self.is_dirty = True
 
-    def add_group(self, name):
+    def add_group(self, name, is_tag_tensor=False, default_tag="default"):
         if name not in self.groups:
             self.groups.append(name)
+            if is_tag_tensor:
+                self.tag_tensors[name] = default_tag
             self.is_dirty = True
 
     def delete_tensor(self, name):

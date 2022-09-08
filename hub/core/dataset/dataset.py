@@ -1,4 +1,6 @@
 # type: ignore
+from calendar import day_abbr
+from email.policy import default
 import os
 import uuid
 import sys
@@ -334,7 +336,10 @@ class Dataset:
             str, int, slice, List[int], Tuple[Union[int, slice, Tuple[int]]], Index
         ],
         is_iteration: bool = False,
+        skip_tag_check: bool = False,
     ):
+        if not skip_tag_check and self.is_tag_tensor:
+            return self.__getitem__(self.default_tag, is_iteration=is_iteration, skip_tag_check=True)[item]
         if isinstance(item, str):
             fullpath = posixpath.join(self.group_index, item)
             tensor = self._get_tensor_from_root(fullpath)
@@ -513,7 +518,7 @@ class Dataset:
             )
 
         if "/" in name:
-            self._create_group(posixpath.split(name)[0])
+            self.__create_group(posixpath.split(name)[0])
 
         # Seperate meta and info
 
@@ -1849,7 +1854,7 @@ class Dataset:
         self.storage.autoflush = autoflush
         return ds
 
-    def _create_group(self, name: str) -> "Dataset":
+    def __create_group(self, name: str) -> "Dataset":
         """Internal method used by `create_group` and `create_tensor`."""
         meta: DatasetMeta = self.version_state["meta"]
         if not name or name in dir(self):
@@ -1862,13 +1867,13 @@ class Dataset:
             name, _ = posixpath.split(name)
         return self[fullname]
 
-    @hub_reporter.record_call
-    def create_group(self, name: str, exist_ok=False) -> "Dataset":
+    def _create_group(self, name: str, exist_ok: bool, is_tag_tensor: bool) -> Dataset
         """Creates a tensor group. Intermediate groups in the path are also created.
 
         Args:
             name: The name of the group to create.
             exist_ok: If True, the group is created if it does not exist. If False, an error is raised if the group already exists.
+            is_tag_tensor: Whether this group represents a tag tensor
 
         Returns:
             The created group.
@@ -1896,7 +1901,37 @@ class Dataset:
             if not exist_ok:
                 raise TensorGroupAlreadyExistsError(name)
             return self[name]
-        return self._create_group(name)
+        return self.__create_group(name, is_tag_tensor=is_tag_tensor)
+
+    @hub_reporter.record_call
+    def create_group(self, name: str, exist_ok=False) -> "Dataset":
+        """Creates a tensor group. Intermediate groups in the path are also created.
+
+        Args:
+            name: The name of the group to create.
+            exist_ok: If True, the group is created if it does not exist. If False, an error is raised if the group already exists.
+
+        Returns:
+            The created group.
+
+        Raises:
+            TensorGroupAlreadyExistsError: If the group already exists and exist_ok is False.
+
+        Examples:
+
+            ```
+            ds.create_group("images")
+            ds['images'].create_tensor("cats")
+            ```
+
+                ds.create_groups("images/jpg/cats")
+                ds["images"].create_tensor("png")
+                ds["images/jpg"].create_group("dogs")
+        """
+        ret = self._create_group(name=name, exist_ok=exist_ok, is_tag_tensor=False)
+        self.storage.maybe_flush()
+        return ret
+        
 
     def rechunk(
         self,
@@ -3255,6 +3290,69 @@ class Dataset:
             or hasattr(self, "_view_entry")
         )
 
+    def _create_tag_tensor(name: str, **kwrags):
+        default_tag = kwargs.pop("default_tag", "default")
+        ret = self._create_group(name, exist_ok=kwargs.get("exist_ok", False), is_tag_tensor=True, default_tag=default_tag)
+        ret.create_tensor(default_tag, **kwargs)
+        self.maybe_flush()
+
+    def create_tag_group(name: str, default_tag="default", exist_ok=False):
+        ret = self._create_group(name, exist_ok=exist_ok, is_tag_tensor=True, is_tag_tensor=True, default_tag=default_tag)
+        ret.create_group(default_tag, exist_ok=exist_ok)
+
+    @property
+    def htype(self):
+        try:
+            return self._htype
+        except AttributeError:
+            t = self.default_tensor
+            ret = "group" if isinstance(t, Dataset) else t.htype
+            self._htype = ret
+            return ret
+
+    @property
+    def default_tensor(self):
+        if not self.is_tag_tensor:
+            raise Exception("Invalid operation for Dataset object.")
+        return (self._view_base or self)[self.default_tag]
+
+    def add_tag(name: str):
+        default_tensor = self.default_tensor
+        if isinstance(default_tensor, Dataset):
+            self.create_group(name)
+        else:
+            self.create_tensor_like(name, default_tensor)
+
+    @property
+    def is_tag_tensor(self) -> bool:
+        try:
+            return self.is_tag_tensor
+        except AttributeError:
+            ret = self.group_index in self.meta.tag_tensors
+            self.is_tag_tensor = ret
+            return ret
+
+    def tag(tag: Optional[str] = None):
+        return self.__getitem__(self.default_tag, skip_tag_check=True)
+
+    @property
+    def default_tag(self):
+        return self.meta.tag_tensors[self.group_index]
+
+    @property
+    def tags(self) -> List[str]:
+        ret = {}
+        for t in self.tensors:
+            t = t.split('/')[0]
+            ret[t] = None
+        return list(ret)
+
+    @default_tag.setter
+    def default_tag(self, value):
+        if value not in self.tags:
+            pass  # TODO
+        self.meta.tag_tensors[self.group_index] = value
+        self.storage.maybe_flush()
 
 def _copy_tensor(sample_in, sample_out, tensor_name):
     sample_out[tensor_name].append(sample_in[tensor_name])
