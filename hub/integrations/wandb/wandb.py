@@ -63,7 +63,12 @@ def artifact_from_ds(ds):
 
 def _is_public(ds_path):
     try:
-        hub.load(ds_path)
+        hub.load(
+            ds_path,
+            token=hub.client.client.HubBackendClient(token="").request_auth_token(
+                username="public", password=""
+            ),
+        )
         return True
     except Exception:
         return False
