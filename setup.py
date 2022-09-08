@@ -1,6 +1,5 @@
 import os
 import re
-
 from setuptools import find_packages, setup
 
 project_name = "hub"
@@ -41,6 +40,7 @@ extras = {
         "google-auth-oauthlib",
     ],
     "point_cloud": ["laspy"],
+    "deeplake": ["deeplake"],
 }
 
 all_extras = {r for v in extras.values() for r in v}

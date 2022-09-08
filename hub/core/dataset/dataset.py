@@ -679,7 +679,6 @@ class Dataset:
             self.version_state["full_tensors"].pop(key)
             ffw_dataset_meta(meta)
             meta.delete_tensor(name)
-            self.version_state["meta"] = meta
 
         for t_name in [
             func(name)
@@ -734,7 +733,7 @@ class Dataset:
                 return
 
         with self:
-            meta = self.version_state["meta"]
+            meta = self.meta
             ffw_dataset_meta(meta)
             tensors = [
                 posixpath.join(name, tensor)
@@ -742,9 +741,13 @@ class Dataset:
             ]
             meta.delete_group(name)
             for tensor in tensors:
-                key = self.version_state["tensor_names"][tensor]
+                key = self.version_state["tensor_names"].pop(tensor)
+                if key not in meta.hidden_tensors:
+                    tensor_diff = Tensor(key, self).chunk_engine.commit_diff
+                    # if tensor was created in this commit, there's no diff for deleting it.
+                    if not tensor_diff.created:
+                        self._dataset_diff.tensor_deleted(name)
                 delete_tensor(key, self)
-                self.version_state["tensor_names"].pop(tensor)
                 self.version_state["full_tensors"].pop(key)
 
         self.storage.maybe_flush()
