@@ -9,7 +9,9 @@ class DatasetMeta(Meta):
         super().__init__()
         self.tensors = []
         self.groups = []
-        self.tensor_names = {}  # map user facing tensor name to storage key (can be different due to renaming)
+        self.tensor_names = (
+            {}
+        )  # map user facing tensor name to storage key (can be different due to renaming)
         self.hidden_tensors = []
         self.tag_tensors = {}  # map tag tensor name to default tag
         self.default_index = Index().to_json()

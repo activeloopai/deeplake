@@ -338,10 +338,12 @@ class Dataset:
         ],
         is_iteration: bool = False,
         skip_tag_check: bool = False,
-        ignore_index: bool = False
+        ignore_index: bool = False,
     ):
         if not skip_tag_check and self.is_tag_tensor:
-            return self.__getitem__(self.default_tag, is_iteration=is_iteration, skip_tag_check=True)[item]
+            return self.__getitem__(
+                self.default_tag, is_iteration=is_iteration, skip_tag_check=True
+            )[item]
         if isinstance(item, str):
             fullpath = posixpath.join(self.group_index, item)
             tensor = self._get_tensor_from_root(fullpath)
@@ -459,9 +461,20 @@ class Dataset:
         is_sequence, is_link, is_tag, htype = parse_complex_htype(htype)
         if is_tag:
             htype = remove_wrapper_from_htype(orig_htype, "tag")
-            return self._create_tag_tensor(name=name, htype=htype, dtype=dtype, sample_compression=sample_compression,
-            chunk_compression=chunk_compression, hidden=hidden, create_sample_info_tensor=create_sample_info_tensor, create_shape_tensor=create_shape_tensor,
-            create_id_tensor=create_id_tensor, verify=verify, exist_ok=exist_ok, **kwargs)
+            return self._create_tag_tensor(
+                name=name,
+                htype=htype,
+                dtype=dtype,
+                sample_compression=sample_compression,
+                chunk_compression=chunk_compression,
+                hidden=hidden,
+                create_sample_info_tensor=create_sample_info_tensor,
+                create_shape_tensor=create_shape_tensor,
+                create_id_tensor=create_id_tensor,
+                verify=verify,
+                exist_ok=exist_ok,
+                **kwargs,
+            )
 
         # if not the head node, checkout to an auto branch that is newly created
         auto_checkout(self)
@@ -1866,7 +1879,9 @@ class Dataset:
         self.storage.autoflush = autoflush
         return ds
 
-    def __create_group(self, name: str, is_tag_tensor: bool = False, default_tag: str = "default") -> "Dataset":
+    def __create_group(
+        self, name: str, is_tag_tensor: bool = False, default_tag: str = "default"
+    ) -> "Dataset":
         """Internal method used by `create_group` and `create_tensor`."""
         meta: DatasetMeta = self.version_state["meta"]
         if not name or name in dir(self):
@@ -1879,7 +1894,9 @@ class Dataset:
             name, _ = posixpath.split(name)
         return self[fullname]
 
-    def _create_group(self, name: str, exist_ok: bool, is_tag_tensor: bool, default_tag: str) -> "Dataset":
+    def _create_group(
+        self, name: str, exist_ok: bool, is_tag_tensor: bool, default_tag: str
+    ) -> "Dataset":
         """Creates a tensor group. Intermediate groups in the path are also created.
 
         Args:
@@ -1943,7 +1960,6 @@ class Dataset:
         ret = self._create_group(name=name, exist_ok=exist_ok, is_tag_tensor=False)
         self.storage.maybe_flush()
         return ret
-        
 
     def rechunk(
         self,
@@ -3304,13 +3320,20 @@ class Dataset:
 
     def _create_tag_tensor(self, name: str, **kwargs):
         default_tag = kwargs.pop("default_tag", "default")
-        group = self._create_group(name, exist_ok=kwargs.get("exist_ok", False), is_tag_tensor=True, default_tag=default_tag)
+        group = self._create_group(
+            name,
+            exist_ok=kwargs.get("exist_ok", False),
+            is_tag_tensor=True,
+            default_tag=default_tag,
+        )
         ret = group.create_tensor(default_tag, **kwargs)
         self.storage.maybe_flush()
         return ret
 
     def create_tag_group(self, name: str, default_tag="default", exist_ok=False):
-        group = self._create_group(name, exist_ok=exist_ok, is_tag_tensor=True, default_tag=default_tag)
+        group = self._create_group(
+            name, exist_ok=exist_ok, is_tag_tensor=True, default_tag=default_tag
+        )
         group.create_group(default_tag, exist_ok=exist_ok)
         return group
 
@@ -3328,7 +3351,9 @@ class Dataset:
     def default_tensor(self):
         if not self.is_tag_tensor:
             raise Exception("Invalid operation for Dataset object.")
-        return self.__getitem__(self.default_tag, skip_tag_check=True, ignore_index=True)
+        return self.__getitem__(
+            self.default_tag, skip_tag_check=True, ignore_index=True
+        )
 
     def add_tag(self, name: str):
         default_tensor = object.__getattribute__(self, "default_tensor")
@@ -3358,7 +3383,7 @@ class Dataset:
     def tags(self) -> List[str]:
         ret = {}
         for t in self.tensors:
-            t = t.split('/')[0]
+            t = t.split("/")[0]
             ret[t] = None
         return list(ret)
 
@@ -3368,6 +3393,7 @@ class Dataset:
             pass  # TODO
         self.meta.tag_tensors[self.group_index] = value
         self.storage.maybe_flush()
+
 
 def _copy_tensor(sample_in, sample_out, tensor_name):
     sample_out[tensor_name].append(sample_in[tensor_name])

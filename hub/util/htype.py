@@ -37,7 +37,8 @@ def parse_complex_htype(htype: Optional[str]) -> Tuple[bool, bool, bool, str]:
         _raise(orig_htype)
     return (*wrappers.values(), htype)
 
-def remove_wrapper_from_htype(htype:str, wrapper: str):
+
+def remove_wrapper_from_htype(htype: str, wrapper: str):
     if htype == wrapper:
         return HTYPE.DEFAULT
     htype = htype.replace("f{wrapper}[", "")[:-1]
