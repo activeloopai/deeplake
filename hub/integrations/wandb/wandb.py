@@ -13,7 +13,7 @@ import importlib
 import sys
 import json
 import warnings
-from hub.client.log import logger
+import hub
 
 _WANDB_INSTALLED = bool(importlib.util.find_spec("wandb"))
 
@@ -59,6 +59,14 @@ def artifact_from_ds(ds):
     artifact = wandb.Artifact(name, "dataset")
     artifact.add_reference(path, name="url")
     return artifact
+
+
+def _is_public(ds_path):
+    try:
+        hub.load(ds_path)
+        return True
+    except Exception:
+        return False
 
 
 def get_ds_key(ds):
@@ -236,18 +244,19 @@ def dataset_read(ds):
 
 
 def _viz_html(hub_path: str):
-    #     return f"""
-    #       <div id='container'></div>
-    #   <script src="https://app.activeloop.ai/visualizer/vis.js"></script>
-    #   <script>
-    #     let container = document.getElementById('container')
+    if _is_public(hub_path):
+        return f"""<iframe width="100%" height="100%" sandbox="allow-same-origin allow-scripts allow-popups allow-forms" src="https://app.activeloop.ai/visualizer/iframe?url={hub_path}" />"""
+    return f"""
+      <div id='container'></div>
+  <script src="https://app.activeloop.ai/visualizer/vis.js"></script>
+  <script>
+    let container = document.getElementById('container')
 
-    #     window.vis.visualize('{hub_path}', null, null, container, {{
-    #       requireSignin: true
-    #     }})
-    #   </script>
-    #     """
-    return f"""<iframe width="100%" height="100%" sandbox="allow-same-origin allow-scripts allow-popups allow-forms" src="https://app.activeloop.ai/visualizer/iframe?url={hub_path}" />"""
+    window.vis.visualize('{hub_path}', null, null, container, {{
+      requireSignin: true
+    }})
+  </script>
+    """
 
 
 def _plat_url(ds, http=True):
