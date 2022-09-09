@@ -19,7 +19,21 @@ creation on W&B.
 
 NOTE: In case of :meth:`hub.deepcopy`, if the original dataset was already committed, you don't have to perform a commit again.
 
-If you make changes to an existing dataset, commit the changes with an active Weights and Biases run to log it.
+NOTE: If you make changes to an existing dataset, commit the changes with an active Weights and Biases run to log it.
+
+Logging Dataset Read
+~~~~~~~~~~~~~~~~~~~~
+A dataset read will be logged if you iterate over the dataset or call :meth:`~hub.core.dataset.Dataset.numpy` or :meth:`~hub.core.dataset.Dataset.pytorch` 
+on it.
+
+>>> run = wandb.init(project="hub_wandb", job_type="torch dataloader")
+>>> train_loader = ds.pytorch()
+>>> run.finish()
+
+>>> run = wandb.init(project="hub_wandb", job_type="iteration")
+>>> for sample in ds:
+>>>     print(sample["images"].shape)
+>>> run.finish()
 """
 
 from typing import Dict, Set
