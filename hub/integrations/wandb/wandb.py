@@ -1,5 +1,25 @@
 """
-Weig
+Hub's Weights and Biases integration allows you to track and improve reproducibility of your machine learning experiments.
+Hub will automatically push all information required to reproduce the snapshot of the data like your dataset's URI, commit ID, and view IDs of any 
+views that you have used in your training workflow.
+
+Learn more about Weights and Biases `here <https://wandb.ai>`.
+
+Logging Dataset Creation
+~~~~~~~~~~~~~~~~~~~~~~~~
+If you create a Hub dataset using any of the functions mentioned in :ref:`creating-datasets`, just perform a commit on the dataset to log its 
+creation on W&B.
+
+>>> run = wandb.init(project="hub_wandb", job_type="dataset_upload")
+>>> ds = hub.empty("hub://fayazrahman4u/my_dataset") # create dataset
+>>> ds.create_tensor("images", htype="image", sample_compression="jpg") # create a tensor
+>>> ds.images.append(hub.read("files/images/dog.jpg")) # add a sample
+>>> ds.commit("creation") # commit -> trigger logging
+>>> run.finish()
+
+NOTE: In case of :meth:`hub.deepcopy`, if the original dataset was already committed, you don't have to perform a commit again.
+
+If you make changes to an existing dataset, commit the changes with an active Weights and Biases run to log it.
 """
 
 from typing import Dict, Set
