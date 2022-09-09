@@ -62,6 +62,8 @@ def artifact_from_ds(ds):
 
 
 def _is_public(ds_path):
+    return True
+    # TODO
     try:
         hub.load(
             ds_path,
