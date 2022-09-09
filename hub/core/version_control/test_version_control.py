@@ -1915,3 +1915,11 @@ def test_reset_bug(ds_generator):
     assert len(ds.abc) == 2
     ds.reset()
     assert len(ds.abc) == 1
+
+
+def test_reset_delete_group(local_ds):
+    with local_ds as ds:
+        ds.create_tensor("abc/x")
+        ds.commit()
+        ds.delete_group("abc")
+        assert ds.has_head_changes

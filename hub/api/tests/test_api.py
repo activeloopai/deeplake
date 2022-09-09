@@ -500,10 +500,16 @@ def test_compute_slices(memory_ds):
 def test_length_slices(memory_ds):
     ds = memory_ds
     data = np.array([1, 2, 3, 9, 8, 7, 100, 99, 98, 99, 101])
+    data_2 = np.array([1, 2, 3, 9, 8, 7, 100, 99, 98, 99, 101, 12, 15, 18])
     ds.create_tensor("data")
+    ds.create_tensor("data_2")
+
     ds.data.extend(data)
+    ds.data_2.extend(data_2)
 
     assert len(ds) == 11
+    assert ds.min_len == len(ds)
+    assert ds.max_len == 14
     assert len(ds[0]) == 1
     assert len(ds[0:1]) == 1
     assert len(ds[0:0]) == 0
@@ -1340,6 +1346,17 @@ def test_ds_append(memory_ds, x_args, y_args, x_size, htype):
     assert ds.y.chunk_engine.commit_diff.num_samples_added == 3
     assert ds.z.chunk_engine.commit_diff.num_samples_added == 0
     assert len(ds) == 0
+    for _ in range(3):
+        ds.append({"z": np.zeros(2)}, skip_ok=True)
+    assert len(ds.z) == 3
+    ds.append({"x": np.ones(3), "y": [1, 2, 3]}, append_empty=True)
+    assert len(ds.x) == 4
+    assert len(ds.y) == 4
+    assert len(ds.z) == 4
+    assert ds.x.chunk_engine.commit_diff.num_samples_added == 4
+    assert ds.y.chunk_engine.commit_diff.num_samples_added == 4
+    assert ds.z.chunk_engine.commit_diff.num_samples_added == 4
+    assert len(ds) == 4
 
 
 def test_ds_append_with_ds_view():
