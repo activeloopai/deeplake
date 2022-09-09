@@ -1,3 +1,7 @@
+"""
+Weig
+"""
+
 from typing import Dict, Set
 from hub.util.tag import process_hub_path
 from hub.util.hash import hash_inputs

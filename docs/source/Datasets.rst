@@ -2,6 +2,7 @@ Datasets
 ========
 .. currentmodule:: hub
 
+.. _creating-datasets
 Creating Datasets
 ~~~~~~~~~~~~~~~~~
 .. autosummary::
