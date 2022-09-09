@@ -49,15 +49,22 @@ def convert_fn(data):
 
     return torch.utils.data._utils.collate.default_convert(data)
 
+def copy_sample(sample, return_tensors):
+    sample_dict = {}
+    for tensor in return_tensors:
+        sample_dict[tensor] = sample[tensor]
+    return sample_dict 
 
 def transform_sample(data, transform):
     transformed_samples = []
+    return_tensors = transform[0]
+    transform = transform[1]
     for tensor in transform.keys():
         tensor_pipes = transform[tensor]
         for transformation in tensor_pipes:
             label_condition = transformation[1]
             if label_condition==None or label_condition(data) == True:
-                transformed_sample = data.copy()    
+                transformed_sample = copy_sample(data, return_tensors)  
                 transformed_sample[tensor] = pipeline_image(data[tensor], transformation[0])
                 transformed_samples.append(IterableOrderedDict(transformed_sample))
     return transformed_samples

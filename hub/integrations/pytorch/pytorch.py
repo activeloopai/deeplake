@@ -120,7 +120,7 @@ def dataset_to_pytorch(
     if isinstance(transform, dict) and multiple_transforms==False:
         tensors = [k for k in transform.keys() if k != "index"]
         transform = PytorchTransformFunction(transform_dict=transform)
-    elif isinstance(transform, dict) and multiple_transforms==True:
+    elif isinstance(transform, list) and multiple_transforms==True:
         tensors = list(dataset.tensors.keys())
         transform = PytorchTransformFunction(transform_dict=transform)
     else:
