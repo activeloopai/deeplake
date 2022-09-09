@@ -73,12 +73,12 @@ from hub.util.exceptions import (
     LockedException,
     TensorGroupAlreadyExistsError,
     ReadOnlyModeError,
-    NotLoggedInError,
     RenameError,
     EmptyCommitError,
     DatasetViewSavingError,
     DatasetHandlerError,
     EmptyTensorError,
+    DynamicTensorNumpyError,
 )
 from hub.util.keys import (
     dataset_exists,
@@ -272,7 +272,7 @@ class Dataset:
     def __len__(self):
         """Returns the length of the smallest tensor"""
         tensor_lengths = [len(tensor) for tensor in self.tensors.values()]
-        length_fn = max if self._pad_tensors else min
+        length_fn = max if self._pad_tensors or self.is_tag_tensor else min
         return length_fn(tensor_lengths, default=0)
 
     def __getstate__(self) -> Dict[str, Any]:
@@ -337,13 +337,8 @@ class Dataset:
             str, int, slice, List[int], Tuple[Union[int, slice, Tuple[int]]], Index
         ],
         is_iteration: bool = False,
-        skip_tag_check: bool = False,
         ignore_index: bool = False,
     ):
-        if not skip_tag_check and self.is_tag_tensor:
-            return self.__getitem__(
-                self.default_tag, is_iteration=is_iteration, skip_tag_check=True
-            )[item]
         if isinstance(item, str):
             fullpath = posixpath.join(self.group_index, item)
             tensor = self._get_tensor_from_root(fullpath)
@@ -1735,14 +1730,17 @@ class Dataset:
             and (include_hidden or tensor_names[t] not in hidden_tensors)
         ]
 
-    def _tensors(self, include_hidden: bool = True) -> Dict[str, Tensor]:
-        """All tensors belonging to this group, including those within sub groups. Always returns the sliced tensors."""
-        return {
-            t: self.version_state["full_tensors"][
-                self.version_state["tensor_names"][posixpath.join(self.group_index, t)]
-            ][self.index]
-            for t in self._all_tensors_filtered(include_hidden)
-        }
+    def _tensors(self, include_hidden: bool = True, ignore_index=False) -> Dict[str, Tensor]:
+        """All tensors belonging to this group, including those within sub groups. Returns the sliced tensors unless `ignore_index` is True"""
+        ret = {}
+        for k in self._all_tensors_filtered(include_hidden):
+            v = self.version_state["full_tensors"][
+                self.version_state["tensor_names"][posixpath.join(self.group_index, k)]
+            ]
+            if not ignore_index:
+                v = v[self.index]
+            ret[k] = v
+        return ret
 
     @property
     def tensors(self) -> Dict[str, Tensor]:
@@ -2076,7 +2074,10 @@ class Dataset:
             )
         for k in sample:
             if k not in self._tensors():
-                raise TensorDoesNotExistError(k)
+                if self.is_tag_tensor:
+                    self.add_tag(k)
+                else:
+                    raise TensorDoesNotExistError(k)
         tensors_to_check_length = self.tensors if append_empty else sample
         if len(set(map(len, (self[k] for k in tensors_to_check_length)))) != 1:
             raise ValueError(
@@ -3327,25 +3328,45 @@ class Dataset:
             default_tag=default_tag,
         )
         ret = group.create_tensor(default_tag, **kwargs)
-        group.create_tensor("_default_tags", hidden=True, dtype=np.uint16)  # supports 65536 annotators
+        group.create_tensor("_default_tags", hidden=True, htype="text", chunk_compression="lz4")
         self.storage.maybe_flush()
         return ret
 
     def _get_sample_default_tag(self, sample_index):
         try:
-            tag_idx = self.__getitem__("_default_tags", skip_tag_check=True, ignore_index=True)[sample_index].numpy()
-            if tag_idx.size == 0:
+            key = self.__getitem__("_default_tags", ignore_index=True)[sample_index].numpy()
+            if key.size == 0:
                 return self.meta.tag_tensors[self.group_index]
-            return list(self.tensors)[tag_idx]
-        except EmptyTensorError, IndexError:
+            key = key[0]
+            for v, k in self.version_state["tensor_names"].items():
+                if key == k:
+                    return posixpath.relpath(v, self.group_index)
+            return self.meta.tag_tensors[self.group_index]
+        except (EmptyTensorError, IndexError):
             return self.meta.tag_tensors[self.group_index]
 
     def _set_sample_default_tag(self, sample_index, default_tag):
-        tag_idx = self.tags.index(default_tag)
-        self.__getitem__("_default_tags", skip_tag_check=True, ignore_index=True)[sample_index] = tag_idx
+        key = self.version_state["tensor_names"][posixpath.join(self.group_index, default_tag)]
+        self.__getitem__("_default_tags", ignore_index=True)[sample_index] = key
 
     def _reset_sample_default_tags(self):
-        self.__getitem__("_default_tags", skip_tag_check=True, ignore_index=True).clear()
+        self.__getitem__("_default_tags", ignore_index=True).clear()
+
+    @property
+    def sample_default_tag(self):
+        ret = list(map(self._get_sample_default_tag, self.index.values[0].indices(max(map(len, self._tensors(include_hidden=False, ignore_index=True).values()), default=0))))
+        if not self.index.subscriptable_at(0):
+            ret = ret[0]
+        return ret
+ 
+    @sample_default_tag.setter
+    def sample_default_tag(self, value: str):
+        if value not in self._tags:
+            add_tag(value)
+        k = self.version_state["tensor_names"][posixpath.join(self.group_index, value)]
+        t = self.__getitem__("_default_tags", ignore_index=True)
+        for idx in self.index.values[0].indices(max(map(len, self._tensors(include_hidden=False, ignore_index=True).values()), default=0)):
+            t[idx] = k
 
     @property
     def htype(self):
@@ -3361,12 +3382,17 @@ class Dataset:
         if not self.is_tag_tensor:
             raise Exception("Invalid operation for Dataset object.")
         return self.__getitem__(
-            self.default_tag, skip_tag_check=True, ignore_index=True
+            self.default_tag, ignore_index=True
         )
 
     def add_tag(self, name: str):
-        default_tensor = object.__getattribute__(self, "default_tensor")
-        self.create_tensor_like(name, default_tensor)
+        orig_index = self.index
+        self.index = Index()
+        try:
+            default_tensor = object.__getattribute__(self, "default_tensor")
+            return self.create_tensor_like(name, default_tensor)
+        finally:
+            self.index = orig_index
 
     @property
     def is_tag_tensor(self) -> bool:
@@ -3377,9 +3403,6 @@ class Dataset:
             self._is_tag_tensor = ret
             return ret
 
-    def tag(self, tag: Optional[str] = None):
-        tag = tag or self.default_tag
-        return self.__getitem__(tag, skip_tag_check=True)
 
     def _get_tag_tensor_default_tag(self):
         return self.meta.tag_tensors[self.group_index]
@@ -3389,10 +3412,10 @@ class Dataset:
         return self.meta.tag_tensors[self.group_index]
 
     @property
-    def tags(self) -> List[str]:
+    def _tags(self) -> List[str]:
         if not self.is_tag_tensor:
-            raise AttributeError("Attribute `tags` only valid for tag tensors.")
-        return list(self.tensors)
+            raise AttributeError("Attribute `_tags` only valid for tag tensors.")
+        return list(self._tensors(include_hidden=False, ignore_index=True))
 
     @default_tag.setter
     def default_tag(self, value):
@@ -3400,6 +3423,76 @@ class Dataset:
             self.add_tag(value)
         self.meta.tag_tensors[self.group_index] = value
         self.storage.maybe_flush()
+
+    def delete_tag(self, tag):
+        self.delete_tensor(tag)
+
+    def numpy(self, aslist=False, fetch_chunks=False):
+        if not self.is_tag_tensor:
+            raise AttributeError("Attribute `numpy` only valid for tag tensors.")
+        default_tags_tensor = self.__getitem__("_default_tags", ignore_index=True)
+        if not len(default_tags_tensor):
+            return self[self.default_tag].numpy(aslist=aslist, fetch_chunks=fetch_chunks)
+        else:
+            ret = []
+            length = max(len(t) for t in self.tensors.values())
+            shape = None
+            for global_sample_index in self.index.values[0].indices(length):
+                tag = self._get_sample_default_tag(global_sample_index)
+                t = self.__getitem__(tag, ignore_index=True)
+                if len(self.index) == 1:
+                    arr = t[global_sample_index].numpy(aslist=aslist, fetch_chunks=fetch_chunks)
+                else:
+                    arr = t[Index([global_sample_index, *self.index.values[1:]])]
+                if shape is None:
+                    shape = arr.shape
+                elif shape != arr.shape:
+                    raise DynamicTensorNumpyError()
+                ret.append(arr)
+            if not self.index.subscriptable_at(0):
+                ret = ret[0]
+            if not aslist:
+                return np.array(ret)
+            return ret
+
+    def data(self, aslist=False):
+        if not self.is_tag_tensor:
+            raise AttributeError("Attribute `data` only valid for tag tensors.")
+        default_tags_tensor = self.__getitem__("_default_tags", ignore_index=True)
+        if not len(default_tags_tensor):
+            return self[self.default_tag].data(aslist=aslist)
+        else:
+            ret = []
+            length = max(len(t) for t in self.tensors.values())
+            for global_sample_index in self.index.values[0].indices(length):
+                tag = self._get_sample_default_tag(global_sample_index)
+                t = self.__getitem__(tag, ignore_index=True)
+                ret.append(t[global_sample_index].data(aslist=aslist))
+            if not self.index.subscriptable_at(0):
+                ret = ret[0]
+            return ret
+
+    def materialize(self, materialized_tensor_name: str, 
+        num_workers: int = 0,
+        scheduler="threaded",
+        progressbar=True,):
+        if not self.is_tag_tensor:
+            raise AttributeError("Attribute `materialize` only valid for tag tensors.")
+        self.create_tensor_like(materialized_tensor_name, self.default_tensor)
+        materialized_tensor_path = posixpath.join(self.group_index, materialized_tensor_name)
+        assert len(self) != 0
+        print(len(self))
+        hub.compute(_materialize_tage_tensor, name="Materialize transform")(tensor_name=materialized_tensor_path, default_tag=self.default_tag).eval(
+                    self,
+                    None,
+                    num_workers=num_workers,
+                    scheduler=scheduler,
+                    progressbar=progressbar,
+                    skip_ok=True,
+                    check_lengths=False,
+                )
+        return self.root[materialized_tensor_path]
+
 
 
 def _copy_tensor(sample_in, sample_out, tensor_name):
@@ -3416,3 +3509,13 @@ def _copy_tensor_unlinked_full_sample(sample_in, sample_out, tensor_name):
 
 def _copy_tensor_unlinked_partial_sample(sample_in, sample_out, tensor_name):
     sample_out[tensor_name].append(sample_in[tensor_name].numpy())
+
+
+def _materialize_tage_tensor(sample_in, sample_out, tensor_name, default_tag):
+    print("!!!!!!!!!!!!!!!!!")
+    sample_default_tag = sample_in["_default_tag"].numpy()
+    if sample_default_tag.size:
+        default_tag = sample_default_tag[0]
+    sample_out[tensor_name].append(sample_in[default_tag])
+    print("-----------------")
+
