@@ -3,7 +3,7 @@ Hub's Weights and Biases integration allows you to track and improve reproducibi
 Hub will automatically push all information required to reproduce the snapshot of the data like your dataset's URI, commit ID, and view IDs of any 
 views that you have used in your training workflow.
 
-Learn more about Weights and Biases `here <https://wandb.ai>`.
+Learn more about Weights and Biases `here <https://wandb.ai>`_.
 
 Logging Dataset Creation
 ~~~~~~~~~~~~~~~~~~~~~~~~
@@ -17,13 +17,15 @@ creation on W&B.
 >>> ds.commit("creation") # commit -> trigger logging
 >>> run.finish()
 
-NOTE: In case of :meth:`hub.deepcopy`, if the original dataset was already committed, you don't have to perform a commit again.
+NOTE:
+    If you created your dataset using :meth:`hub.deepcopy`, perform the commit only if you have head changes.
 
-NOTE: If you make changes to an existing dataset, commit the changes with an active Weights and Biases run to log it.
+NOTE:
+    If you make changes to an existing dataset, commit the changes with an active Weights and Biases run to log it's state.
 
 Logging Dataset Read
 ~~~~~~~~~~~~~~~~~~~~
-A dataset read will be logged if you iterate over the dataset or call :meth:`~hub.core.dataset.Dataset.numpy` or :meth:`~hub.core.dataset.Dataset.pytorch` 
+A dataset read will be logged if you iterate over a dataset or call :meth:`~hub.core.dataset.Dataset.numpy` or :meth:`~hub.core.dataset.Dataset.pytorch` 
 on it.
 
 >>> run = wandb.init(project="hub_wandb", job_type="torch dataloader")

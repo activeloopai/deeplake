@@ -20,6 +20,7 @@ Hub is an open-source database for AI.
    PyTorch and Tensorflow Support <Pytorch-and-Tensorflow-Support>
    Utility Functions <Utility-Functions>
 
+.. toctree::
    :caption: Integrations
 
    Weights and Biases <Weights-and-Biases>
