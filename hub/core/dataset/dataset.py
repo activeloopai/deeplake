@@ -1125,8 +1125,9 @@ class Dataset:
         Args:
             address (str): The commit_id or branch to checkout to.
             create (bool): If True, creates a new branch with name as address.
+
         Returns:
-            str: The commit_id of the dataset after checkout.
+            Optional[str]: The commit_id of the dataset after checkout.
 
         Raises:
             Exception: If dataset is a filtered view.
