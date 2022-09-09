@@ -8,6 +8,7 @@ import json
 from tqdm import tqdm  # type: ignore
 import pathlib
 import posixpath
+from logging import warning
 
 from typing import Any, Callable, Dict, List, Optional, Sequence, Tuple, Union
 from functools import partial
@@ -269,8 +270,24 @@ class Dataset:
     def __len__(self):
         """Returns the length of the smallest tensor"""
         tensor_lengths = [len(tensor) for tensor in self.tensors.values()]
+        if min(tensor_lengths, default=0) != max(tensor_lengths, default=0):
+            warning(
+                "The length of tensors in the dataset is different. The len(ds) returns the length of the "
+                "smallest tensor in the dataset. If you want the length of the longest tensor in the dataset use "
+                "ds.max_len."
+            )
         length_fn = max if self._pad_tensors else min
         return length_fn(tensor_lengths, default=0)
+
+    @property
+    def max_len(self):
+        """Return the maximum length of the tensor"""
+        return max([len(tensor) for tensor in self.tensors.values()])
+
+    @property
+    def min_len(self):
+        """Return the minimum length of the tensor"""
+        return min([len(tensor) for tensor in self.tensors.values()])
 
     def __getstate__(self) -> Dict[str, Any]:
         """Returns a dict that can be pickled and used to restore this dataset.

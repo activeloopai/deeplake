@@ -500,10 +500,16 @@ def test_compute_slices(memory_ds):
 def test_length_slices(memory_ds):
     ds = memory_ds
     data = np.array([1, 2, 3, 9, 8, 7, 100, 99, 98, 99, 101])
+    data_2 = np.array([1, 2, 3, 9, 8, 7, 100, 99, 98, 99, 101, 12, 15, 18])
     ds.create_tensor("data")
+    ds.create_tensor("data_2")
+
     ds.data.extend(data)
+    ds.data_2.extend(data_2)
 
     assert len(ds) == 11
+    assert ds.min_len == len(ds)
+    assert ds.max_len == 14
     assert len(ds[0]) == 1
     assert len(ds[0:1]) == 1
     assert len(ds[0:0]) == 0
