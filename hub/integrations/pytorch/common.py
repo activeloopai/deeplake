@@ -21,7 +21,6 @@ def pipeline_image(image, pipe): #could not import due to circular impoet error
       updated_image = fun.func(*args)
     else:
       updated_image = fun.func(updated_image)
-  updated_image = torch.from_numpy(updated_image).permute(2,0,1)
   return updated_image
 
 
@@ -60,7 +59,7 @@ def transform_sample(data, transform):
             if label_condition==None or label_condition(data) == True:
                 transformed_sample = data.copy()    
                 transformed_sample[tensor] = pipeline_image(data[tensor], transformation[0])
-                transformed_samples.append(transformed_sample)
+                transformed_samples.append(IterableOrderedDict(transformed_sample))
     return transformed_samples
             
 
