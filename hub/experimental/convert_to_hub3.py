@@ -22,7 +22,6 @@ def dataset_to_hub3(hub2_dataset):
         token = hub2_dataset._token
         hub3_dataset = api.dataset(path, token=token)
     elif path.startswith("s3://"):
-        orig_path = hub2_dataset.storage.next_storage.root
         s3_provider = hub2_dataset.storage.next_storage
         aws_access_key_id = s3_provider.aws_access_key_id
         aws_secret_access_key = s3_provider.aws_secret_access_key
@@ -32,7 +31,7 @@ def dataset_to_hub3(hub2_dataset):
 
         # we don't need to pass profile name as hub has already found creds for it
         hub3_dataset = api.dataset(
-            orig_path,
+            path,
             aws_access_key_id=aws_access_key_id,
             aws_secret_access_key=aws_secret_access_key,
             aws_session_token=aws_session_token,
