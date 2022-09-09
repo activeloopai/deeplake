@@ -21,6 +21,7 @@ def pipeline_image(image, pipe): #could not import due to circular impoet error
       updated_image = fun.func(*args)
     else:
       updated_image = fun.func(updated_image)
+  updated_image = torch.from_numpy(updated_image).permute(2,0,1)
   return updated_image
 
 
