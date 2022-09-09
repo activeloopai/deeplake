@@ -25,8 +25,8 @@ NOTE:
 
 Logging Dataset Read
 ~~~~~~~~~~~~~~~~~~~~
-A dataset read will be logged if you iterate over a dataset or call :meth:`~hub.core.dataset.Dataset.numpy` or :meth:`~hub.core.dataset.Dataset.pytorch` 
-on it.
+A dataset read will be logged if you iterate over a dataset or call :meth:`Dataset.pytorch() <hub.core.dataset.Dataset.pytorch>` 
+or :meth:`Tensor.numpy() <hub.core.tensor.Tensor.numpy>` on its tensors.
 
 >>> run = wandb.init(project="hub_wandb", job_type="torch dataloader")
 >>> train_loader = ds.pytorch()
