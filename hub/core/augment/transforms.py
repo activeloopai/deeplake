@@ -98,7 +98,6 @@ def random_horizontalflip(image, p=0.5):
 
 @hub.compute
 def random_rotate(image, rotate, p = 1.0): 
-  print(image.shape)
   from albumentations import ShiftScaleRotate
   rotate = ShiftScaleRotate(rotate_limit=rotate, p=p)
   params = rotate.get_params()
