@@ -5,6 +5,8 @@ from torchvision.transforms import TrivialAugmentWide
 import torch
 
 
+def transform_image(comp_func):
+    return comp_func.func(*comp_func.args)
 
 
 def is_grayscale_image(image):
@@ -77,7 +79,68 @@ def trivial_augment(image, include_transforms=None, exclude_transforms=None):
 
 
 @hub.compute
-def resize(image, height, width, interpolation=cv.INTER_LINEAR, p=1):
+def center_crop(image, size, p=1.0):
+  from albumentations import CenterCrop
+  if  isinstance(size, int):
+    crop = CenterCrop(size, size, p=p)
+    return crop.apply(image)
+  assert len(size) == 2
+  crop = CenterCrop(size[0], size[1], p=p)
+  return crop.apply(image)
+
+  
+@hub.compute
+def random_horizontalflip(image, p=0.5):
+  from albumentations import HorizontalFlip
+  flip = HorizontalFlip(p=p)
+  return flip.apply(image)
+
+
+@hub.compute
+def random_rotate(image, rotate, p = 1.0): 
+  print(image.shape)
+  from albumentations import ShiftScaleRotate
+  rotate = ShiftScaleRotate(rotate_limit=rotate, p=p)
+  params = rotate.get_params()
+  params["img"] = image
+  return rotate.apply(**params)
+
+
+@hub.compute
+def random_greyscale(image, p=0.1):
+  import random
+  temp = random.random()
+  if temp <= p:
+    comp_func = adjust_saturation(image, 0)
+    return transform_image(comp_func)
+  return image
+
+
+@hub.compute
+def shift_scale_rotate(image, shift, scale, rotate, p=0.5):
+  from albumentations import ShiftScaleRotate
+  affine = ShiftScaleRotate(shift_limit = shift, scale_limit = scale, rotate_limit = rotate)
+  params = affine.get_params()
+  params["img"] = image
+  return affine.apply(**params)
+
+@hub.compute
+def random_affine(image, degrees, translate=None, scale=None, shear=None): #temporary
+  from torchvision.transforms import RandomAffine
+  affine = RandomAffine(degrees=degrees, translate=translate, scale=scale, shear=shear)  
+
+  image = torch.from_numpy(image)
+  image = image.permute(2, 0, 1)
+  image = affine.forward(image).permute(1, 2, 0).numpy()
+  
+  return image
+
+
+
+
+
+@hub.compute
+def resize(image, height, width, interpolation=cv.INTER_LINEAR, p=1.0):
   from albumentations import Resize
   resize = Resize(height, width, interpolation=interpolation, p=p)
   return resize.apply(image, interpolation)
