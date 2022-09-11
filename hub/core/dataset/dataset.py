@@ -8,6 +8,7 @@ import json
 from tqdm import tqdm  # type: ignore
 import pathlib
 import posixpath
+from logging import warning
 
 from typing import Any, Callable, Dict, List, Optional, Sequence, Tuple, Union
 from functools import partial
@@ -269,8 +270,24 @@ class Dataset:
     def __len__(self):
         """Returns the length of the smallest tensor"""
         tensor_lengths = [len(tensor) for tensor in self.tensors.values()]
+        if min(tensor_lengths, default=0) != max(tensor_lengths, default=0):
+            warning(
+                "The length of tensors in the dataset is different. The len(ds) returns the length of the "
+                "smallest tensor in the dataset. If you want the length of the longest tensor in the dataset use "
+                "ds.max_len."
+            )
         length_fn = max if self._pad_tensors else min
         return length_fn(tensor_lengths, default=0)
+
+    @property
+    def max_len(self):
+        """Return the maximum length of the tensor"""
+        return max([len(tensor) for tensor in self.tensors.values()])
+
+    @property
+    def min_len(self):
+        """Return the minimum length of the tensor"""
+        return min([len(tensor) for tensor in self.tensors.values()])
 
     def __getstate__(self) -> Dict[str, Any]:
         """Returns a dict that can be pickled and used to restore this dataset.
@@ -681,7 +698,6 @@ class Dataset:
             self.version_state["full_tensors"].pop(key)
             ffw_dataset_meta(meta)
             meta.delete_tensor(name)
-            self.version_state["meta"] = meta
 
         for t_name in [
             func(name)
@@ -738,7 +754,7 @@ class Dataset:
                 return
 
         with self:
-            meta = self.version_state["meta"]
+            meta = self.meta
             ffw_dataset_meta(meta)
             tensors = [
                 posixpath.join(name, tensor)
@@ -746,9 +762,13 @@ class Dataset:
             ]
             meta.delete_group(name)
             for tensor in tensors:
-                key = self.version_state["tensor_names"][tensor]
+                key = self.version_state["tensor_names"].pop(tensor)
+                if key not in meta.hidden_tensors:
+                    tensor_diff = Tensor(key, self).chunk_engine.commit_diff
+                    # if tensor was created in this commit, there's no diff for deleting it.
+                    if not tensor_diff.created:
+                        self._dataset_diff.tensor_deleted(name)
                 delete_tensor(key, self)
-                self.version_state["tensor_names"].pop(tensor)
                 self.version_state["full_tensors"].pop(key)
 
         self.storage.maybe_flush()
@@ -1125,8 +1145,9 @@ class Dataset:
         Args:
             address (str): The commit_id or branch to checkout to.
             create (bool): If True, creates a new branch with name as address.
+
         Returns:
-            str: The commit_id of the dataset after checkout.
+            Optional[str]: The commit_id of the dataset after checkout.
 
         Raises:
             Exception: If dataset is a filtered view.
@@ -1990,11 +2011,14 @@ class Dataset:
             self.append({k: v[i] for k, v in samples.items()})
 
     @invalid_view_op
-    def append(self, sample: Dict[str, Any], skip_ok: bool = False):
+    def append(
+        self, sample: Dict[str, Any], skip_ok: bool = False, append_empty: bool = False
+    ):
         """Append samples to mutliple tensors at once. This method expects all tensors being updated to be of the same length.
         Args:
             sample (dict): Dictionary with tensor names as keys and samples as values.
             skip_ok (bool): Skip tensors not in `sample` if set to True.
+            append_empty (bool): Append empty samples to tensors not specified in `sample` if set to True. If True, `skip_ok` is ignored.
         Raises:
             KeyError: If any tensor in the dataset is not a key in `sample` and `skip_ok` is False.
             TensorDoesNotExistError: If tensor in `sample` does not exist.
@@ -2004,23 +2028,30 @@ class Dataset:
         """
         if isinstance(sample, Dataset):
             sample = sample.tensors
-        if not skip_ok:
-            for k in self.tensors:
-                if k not in sample:
-                    raise KeyError(
-                        f"Required tensor not provided: {k}. Use ds.append(sample, skip_ok=True) to skip tensors."
-                    )
+        skipped_tensors = [k for k in self.tensors if k not in sample]
+        if skipped_tensors and not skip_ok and not append_empty:
+            raise KeyError(
+                f"Required tensors not provided: {skipped_tensors}. Pass either `skip_ok=True` to skip tensors or `append_empty=True` to append empty samples to unspecified tensors."
+            )
         for k in sample:
             if k not in self._tensors():
                 raise TensorDoesNotExistError(k)
-        if len(set(map(len, (self[k] for k in sample)))) != 1:
+        tensors_to_check_length = self.tensors if append_empty else sample
+        if len(set(map(len, (self[k] for k in tensors_to_check_length)))) != 1:
             raise ValueError(
-                "When appending using Dataset.append, all tensors are expected to have the same length."
+                "When appending using Dataset.append, all tensors being updated are expected to have the same length."
             )
         [f() for f in list(self._update_hooks.values())]
         tensors_appended = []
         with self:
-            for k, v in sample.items():
+            for k in self.tensors:
+                if k in sample:
+                    v = sample[k]
+                else:
+                    if skip_ok:
+                        continue
+                    else:
+                        v = None
                 try:
                     tensor = self[k]
                     enc = tensor.chunk_engine.chunk_id_encoder

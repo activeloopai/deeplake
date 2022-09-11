@@ -88,38 +88,43 @@ def sync_labels(
         samples_out[label_tensor].append(idxs)
 
     for tensor, temp_tensor in label_temp_tensors.items():
-        try:
-            target_tensor = ds[tensor]
-            hash_label_map = hash_label_maps[temp_tensor]
-            class_names = target_tensor.info.class_names
-            new_labels = [
-                label for label in hash_label_map.values() if label not in class_names
-            ]
-            if verbose:
-                N = len(class_names)
-                for i in range(len(new_labels)):
-                    logger.info(
-                        f"'{new_labels[i]}' added to {tensor}.info.class_names at index {N + i}"
-                    )
-            class_names.extend(new_labels)
-            label_idx_map = {class_names[i]: i for i in range(len(class_names))}
-            hash_idx_map = {
-                hash: label_idx_map[hash_label_map[hash]] for hash in hash_label_map
-            }
-            target_tensor.info.is_dirty = True
-            target_tensor.meta._disable_temp_transform = True
-            target_tensor.meta.is_dirty = True
-
-            logger.info("Synchronizing class labels...")
-            class_label_sync(label_tensor=tensor, hash_idx_map=hash_idx_map).eval(
-                ds[temp_tensor],
-                ds,
-                num_workers=num_workers,
-                scheduler=scheduler,
-                progressbar=True,
-                check_lengths=False,
-                skip_ok=True,
-            )
-            target_tensor.meta._disable_temp_transform = False
-        finally:
+        if len(ds[temp_tensor]) == 0:
             ds.delete_tensor(temp_tensor, large_ok=True)
+        else:
+            try:
+                target_tensor = ds[tensor]
+                hash_label_map = hash_label_maps[temp_tensor]
+                class_names = target_tensor.info.class_names
+                new_labels = [
+                    label
+                    for label in hash_label_map.values()
+                    if label not in class_names
+                ]
+                if verbose:
+                    N = len(class_names)
+                    for i in range(len(new_labels)):
+                        logger.info(
+                            f"'{new_labels[i]}' added to {tensor}.info.class_names at index {N + i}"
+                        )
+                class_names.extend(new_labels)
+                label_idx_map = {class_names[i]: i for i in range(len(class_names))}
+                hash_idx_map = {
+                    hash: label_idx_map[hash_label_map[hash]] for hash in hash_label_map
+                }
+                target_tensor.info.is_dirty = True
+                target_tensor.meta._disable_temp_transform = True
+                target_tensor.meta.is_dirty = True
+
+                logger.info("Synchronizing class labels...")
+                class_label_sync(label_tensor=tensor, hash_idx_map=hash_idx_map).eval(
+                    ds[temp_tensor],
+                    ds,
+                    num_workers=num_workers,
+                    scheduler=scheduler,
+                    progressbar=True,
+                    check_lengths=False,
+                    skip_ok=True,
+                )
+                target_tensor.meta._disable_temp_transform = False
+            finally:
+                ds.delete_tensor(temp_tensor, large_ok=True)
