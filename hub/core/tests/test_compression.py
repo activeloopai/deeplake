@@ -4,7 +4,7 @@ from hub.tests.common import get_actual_compression_from_buffer, assert_images_c
 import numpy as np
 import pytest
 import hub
-import lz4.frame  # type: ignore
+#import lz4.frame  # type: ignore
 from hub.core.compression import (
     compress_array,
     decompress_array,
@@ -33,6 +33,8 @@ image_compressions = IMAGE_COMPRESSIONS[:]
 image_compressions.remove("wmf")
 image_compressions.remove("apng")
 image_compressions.remove("dcm")
+image_compressions.remove("fli")
+image_compressions.remove("mpo")
 
 image_compressions = list(
     filter(lambda c: is_readonly_compression(c), image_compressions)
