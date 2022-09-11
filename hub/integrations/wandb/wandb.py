@@ -63,7 +63,7 @@ def artifact_from_ds(ds):
 
 def _is_public(ds_path):
     return True
-    # TODO
+    # TODO: We need api for this.
     try:
         hub.load(
             ds_path,
@@ -120,6 +120,8 @@ def dataset_config(ds):
 
 
 def log_dataset(dsconfig):
+    # TODO: This is disabled until the embedded visualizer is actually useful for users.
+    return
     url = dsconfig.get("URL")
     if not url:
         return
