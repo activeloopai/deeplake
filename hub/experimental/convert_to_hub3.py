@@ -1,4 +1,3 @@
-from tkinter import S
 from hub.core.storage.s3 import S3Provider
 from hub.experimental.util import raise_indra_installation_error  # type: ignore
 from hub.util.dataset import try_flushing  # type: ignore
