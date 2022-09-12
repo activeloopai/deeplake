@@ -17,6 +17,7 @@ Hub is an open-source database for AI.
    Datasets
    Tensors
    Htypes
+   Sample Compressions <Sample-Compressions>
    PyTorch and Tensorflow Support <Pytorch-and-Tensorflow-Support>
    Utility Functions <Utility-Functions>
 

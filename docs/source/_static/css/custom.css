@@ -97,10 +97,25 @@ html.writer-html5 .rst-content dl[class]:not(.option-list):not(.field-list):not(
     cursor: pointer;
 }
 
-.wy-nav-content {
+/* Takes full width of screen */
+/* .wy-nav-content {
     max-width: none;
+} */
+
+.wy-nav-content {
+    max-width: 80%;
 }
 
 .docutils.literal.notranslate .pre {
     font-size: 120%;
+}
+
+/* Names of Parameters, Exceptions, etc in description */
+dl.field-list strong {
+    font-family: IBMPlexMono;
+}
+
+/* Render fix for paranthesis touching text eg: (read_only) */
+dl.field-list dd em {
+    padding-right: 2px;
 }

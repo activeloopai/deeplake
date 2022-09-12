@@ -3,6 +3,8 @@ Tensors
 
 .. currentmodule:: hub.core.dataset
 
+.. _creating-tensors:
+
 Creating Tensors
 ~~~~~~~~~~~~~~~~
 .. autosummary::
