@@ -27,6 +27,9 @@ from hub.util.keys import get_chunk_key, get_tensor_meta_key
 from hub.util.remove_cache import get_base_storage
 from hub.util.storage import get_pytorch_local_storage
 
+import bisect
+
+
 ChunkEngineMap = Dict[str, ChunkEngine]
 CachesMap = Dict[str, LRUCache]
 
@@ -367,10 +370,63 @@ class SampleStreaming(Streaming):
                     sample["index"] = np.array([idx])
                 yield sample
 
-    def list_blocks(self) -> List[IOBlock]:
-        blocks: List[IOBlock] = list()
+    def _get_block_for_single_sample(self, idx):
+        chunks = []
+        for engine in self.chunk_engines.values():
+            enc = engine.chunk_id_encoder
+            try:
+                cids = enc[idx]
+                cnames = map(enc.name_from_id, cids)
+                chunks.append(cnames)
+            except Exception:
+                chunks.append([None])
+        return IOBlock(chunks, [idx])
 
-        ds_indicies_set = set(self._get_dataset_indicies())
+    def _is_continuious(self):
+        idx_entry = self.dataset.index.values[0]
+        if isinstance(idx_entry, slice):
+            step = idx_entry.value.step
+            if step and step < 1:
+                return False
+            return True
+        else:
+            prev = -1
+            for idx in idx_entry.indices(self._get_dataset_length()):
+                if idx < prev:
+                    return False
+                prev = idx
+            return True
+
+    def list_blocks(self) -> List[IOBlock]:
+        if self._is_continuious():
+            return self.list_blocks_continuous()
+        return self.list_blocks_random()
+
+    def list_blocks_random(self) -> List[IOBlock]:
+        return list(map(self._get_block_for_single_sample, self._get_dataset_indices()))
+
+    def _intersection(self, index, low, high):
+        if isinstance(index, slice):
+            start = index.start or 0
+            stop = index.stop or self._get_dataset_length()
+            step = index.step
+            if step is None or step == 1:
+
+                return range(max(start, low), min(stop, high))
+            else:
+                if start < low:
+                    rm = (low - start) % step
+                    start = low + bool(rm) * (step - rm)
+                return range(start, min(stop, high), step)
+        elif isinstance(index, (list, tuple)):
+            return index[np.searchsorted(index, low) : np.searchsorted(index, high)]
+        elif isinstance(index, int):
+            return [index] if index >= low and index < high else None
+        else:
+            raise TypeError(index)
+
+    def list_blocks_continuous(self) -> List[IOBlock]:
+        blocks: List[IOBlock] = list()
 
         chunk_id_encodings = [
             engine.chunk_id_encoder.array for engine in self.chunk_engines.values()
@@ -410,9 +466,10 @@ class SampleStreaming(Streaming):
                     chunks.append(cur_chunks)
 
                 streamable_ids = list(
-                    ds_indicies_set.intersection(range(last_idx, next_it_value + 1))
+                    self._intersection(
+                        self.dataset.index.values[0].value, last_idx, next_it_value + 1
+                    )
                 )
-                streamable_ids.sort()
 
                 if len(streamable_ids) > 0:
                     new_block = IOBlock(chunks, streamable_ids)
@@ -447,12 +504,14 @@ class SampleStreaming(Streaming):
             )
         return ChunkEngine(tensor_key, cache, version_state)
 
-    def _get_dataset_indicies(self):
+    def _get_dataset_length(self):
         version_state = self.dataset.version_state
         tensor_lengths = [
             len(version_state["full_tensors"][version_state["tensor_names"][tensor]])
             for tensor in self.tensors
         ]
         length_fn = max if self.pad_tensors else min
-        length = length_fn(tensor_lengths, default=0)
-        return self.dataset.index.values[0].indices(length)
+        return length_fn(tensor_lengths, default=0)
+
+    def _get_dataset_indices(self):
+        return self.dataset.index.values[0].indices(self._get_dataset_length())
