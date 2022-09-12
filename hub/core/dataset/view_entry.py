@@ -5,9 +5,12 @@ from hub.util.logging import log_visualizer_link
 class ViewEntry:
     """Represents a view saved inside a dataset."""
 
-    def __init__(self, info: Dict, dataset, external: bool = False):
+    def __init__(
+        self, info: Dict, dataset, source_dataset=None, external: bool = False
+    ):
         self.info = info
         self._ds = dataset
+        self._src_ds = source_dataset if external else dataset
         self._external = external
 
     def __getitem__(self, key: str):

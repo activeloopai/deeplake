@@ -13,7 +13,7 @@ import importlib
 import sys
 import json
 import warnings
-from hub.client.log import logger
+import hub
 
 _WANDB_INSTALLED = bool(importlib.util.find_spec("wandb"))
 
@@ -61,6 +61,21 @@ def artifact_from_ds(ds):
     return artifact
 
 
+def _is_public(ds_path):
+    return True
+    # TODO: We need api for this.
+    try:
+        hub.load(
+            ds_path,
+            token=hub.client.client.HubBackendClient(token="").request_auth_token(
+                username="public", password=""
+            ),
+        )
+        return True
+    except Exception:
+        return False
+
+
 def get_ds_key(ds):
     entry = getattr(ds, "_view_entry", None)
     if entry:
@@ -105,6 +120,8 @@ def dataset_config(ds):
 
 
 def log_dataset(dsconfig):
+    # TODO: This is disabled until the embedded visualizer is actually useful for users.
+    return
     url = dsconfig.get("URL")
     if not url:
         return
@@ -209,9 +226,8 @@ def dataset_read(ds):
             run.config.input_datasets = input_datasets
         if run._settings.mode != "online":
             return
-        if hasattr(ds, "_view_entry") and not ds._view_entry._external:
-            # TODO handle external otimized views
-            ds = ds._view_entry._ds
+        if hasattr(ds, "_view_entry"):
+            ds = ds._view_entry._src_ds
         wandb_info = read_json(ds).get("commits", {}).get(ds.commit_id)
         if wandb_info:
             try:
@@ -237,18 +253,19 @@ def dataset_read(ds):
 
 
 def _viz_html(hub_path: str):
-    #     return f"""
-    #       <div id='container'></div>
-    #   <script src="https://app.activeloop.ai/visualizer/vis.js"></script>
-    #   <script>
-    #     let container = document.getElementById('container')
+    if _is_public(hub_path):
+        return f"""<iframe width="100%" height="100%" sandbox="allow-same-origin allow-scripts allow-popups allow-forms" src="https://app.activeloop.ai/visualizer/iframe?url={hub_path}" />"""
+    return f"""
+      <div id='container'></div>
+  <script src="https://app.activeloop.ai/visualizer/vis.js"></script>
+  <script>
+    let container = document.getElementById('container')
 
-    #     window.vis.visualize('{hub_path}', null, null, container, {{
-    #       requireSignin: true
-    #     }})
-    #   </script>
-    #     """
-    return f"""<iframe width="100%" height="100%" sandbox="allow-same-origin allow-scripts allow-popups allow-forms" src="https://app.activeloop.ai/visualizer/iframe?url={hub_path}" />"""
+    window.vis.visualize('{hub_path}', null, null, container, {{
+      requireSignin: true
+    }})
+  </script>
+    """
 
 
 def _plat_url(ds, http=True):
