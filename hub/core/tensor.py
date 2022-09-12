@@ -199,10 +199,6 @@ class Tensor:
     ):
         """Initializes a new tensor.
 
-        Note:
-            This operation does not create a new tensor in the storage provider,
-            and should normally only be performed by Hub internals.
-
         Args:
             key (str): The internal identifier for this tensor.
             dataset (Dataset): The dataset that this tensor is located in.
@@ -213,6 +209,10 @@ class Tensor:
 
         Raises:
             TensorDoesNotExistError: If no tensor with ``key`` exists and a ``tensor_meta`` was not provided.
+
+        Note:
+            This operation does not create a new tensor in the storage provider,
+            and should normally only be performed by Hub internals.
         """
         self.key = key
         self.dataset = dataset
@@ -424,10 +424,6 @@ class Tensor:
     def shape(self) -> Tuple[Optional[int], ...]:
         """Get the shape of this tensor. Length is included.
 
-        Note:
-            If you don't want ``None`` in the output shape or want the lower/upper bound shapes,
-            use :attr:`shape_interval` instead.
-
         Example:
 
             >>> tensor.append(np.zeros((10, 10)))
@@ -437,6 +433,10 @@ class Tensor:
 
         Returns:
             tuple: Tuple where each value is either ``None`` (if that axis is dynamic) or an int (if that axis is fixed).
+
+        Note:
+            If you don't want ``None`` in the output shape or want the lower/upper bound shapes,
+            use :attr:`shape_interval` instead.
         """
         sample_shape_tensor = self._sample_shape_tensor
         sample_shape_provider = (
@@ -525,9 +525,6 @@ class Tensor:
     def shape_interval(self) -> ShapeInterval:
         """Returns a :class:`~hub.util.shape_interval.ShapeInterval` object that describes this tensor's shape more accurately. Length is included.
 
-        Note:
-            If you are expecting a tuple, use :attr:`shape` instead.
-
         Example:
 
             >>> tensor.append(np.zeros((10, 10)))
@@ -539,6 +536,9 @@ class Tensor:
 
         Returns:
             ShapeInterval: Object containing ``lower`` and ``upper`` properties.
+
+        Note:
+            If you are expecting a tuple, use :attr:`shape` instead.
         """
         return self.chunk_engine.shape_interval
 
@@ -1054,14 +1054,14 @@ class Tensor:
         """Play video sample. Plays video in Jupyter notebook or plays in web browser. Video is streamed directly from storage.
         This method will fail for incompatible htypes.
 
-        Note:
-            Video streaming is not yet supported on colab.
-
         Example:
 
             >>> ds = hub.load("./test/my_video_ds")
             >>> # play second sample
             >>> ds.videos[2].play()
+
+        Note:
+            Video streaming is not yet supported on colab.
         """
         if (
             get_compression_type(self.meta.sample_compression) != VIDEO_COMPRESSION

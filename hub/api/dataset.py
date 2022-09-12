@@ -61,9 +61,6 @@ class dataset:
     ):
         """Returns a :class:`~hub.core.dataset.Dataset` object referencing either a new or existing dataset.
 
-        Warning:
-            Setting ``overwrite`` to ``True`` will delete all of your data if it exists! Be very careful when setting this parameter.
-
         Examples:
 
             >>> ds = hub.dataset("hub://username/dataset")
@@ -106,8 +103,6 @@ class dataset:
                         - Doesn't download the data again.
                         - Raises an exception if ``HUB_DOWNLOAD_PATH`` environment variable is not set or the dataset is not found in ``HUB_DOWNLOAD_PATH``.
 
-                Note: Any changes made to the dataset in download/local mode will only be made to the local copy and will not be reflected in the original dataset.**
-
         Returns:
             Dataset: Dataset created using the arguments provided.
 
@@ -116,6 +111,12 @@ class dataset:
             UserNotLoggedInException: When user is not logged in
             InvalidTokenException: If the specified token is invalid
             TokenPermissionError: When there are permission or other errors related to token
+
+        Danger:
+            Setting ``overwrite`` to ``True`` will delete all of your data if it exists! Be very careful when setting this parameter.
+
+        Note:
+            Any changes made to the dataset in download / local mode will only be made to the local copy and will not be reflected in the original dataset.
         """
         access_method, num_workers, scheduler = parse_access_method(access_method)
         check_access_method(access_method, overwrite)
@@ -235,9 +236,6 @@ class dataset:
     ) -> Dataset:
         """Creates an empty dataset
 
-        Warning:
-            Using ``overwrite`` will delete all of your data if it exists! Be very careful when setting this parameter.
-
         Args:
             path (str, pathlib.Path): - The full path to the dataset. Can be:
                 - a Hub cloud path of the form ``hub://username/datasetname``. To write to Hub cloud datasets, ensure that you are logged in to Hub (use 'activeloop login' from command line)
@@ -262,6 +260,9 @@ class dataset:
             UserNotLoggedInException: When user is not logged in
             InvalidTokenException: If the specified toke is invalid
             TokenPermissionError: When there are permission or other errors related to token
+
+        Danger:
+            Setting ``overwrite`` to ``True`` will delete all of your data if it exists! Be very careful when setting this parameter.
         """
         path = convert_pathlib_to_string_if_needed(path)
 
@@ -356,8 +357,6 @@ class dataset:
                         - Doesn't download the data again.
                         - Raises an exception if ``HUB_DOWNLOAD_PATH`` environment variable is not set or the dataset is not found in ``HUB_DOWNLOAD_PATH``.
 
-                **Note: Any changes made to the dataset in download/local mode will only be made to the local copy and will not be reflected in the original dataset.**
-
         Returns:
             Dataset: Dataset loaded using the arguments provided.
 
@@ -367,6 +366,9 @@ class dataset:
             UserNotLoggedInException: When user is not logged in
             InvalidTokenException: If the specified toke is invalid
             TokenPermissionError: When there are permission or other errors related to token
+
+        Note:
+            Any changes made to the dataset in download / local mode will only be made to the local copy and will not be reflected in the original dataset.
         """
         access_method, num_workers, scheduler = parse_access_method(access_method)
         check_access_method(access_method, overwrite=False)
@@ -480,9 +482,6 @@ class dataset:
     ) -> None:
         """Deletes a dataset at a given path.
 
-        Warning:
-            This is an irreversible operation. Data once deleted cannot be recovered.
-
         Args:
             path (str, pathlib.Path): The path to the dataset to be deleted.
             force (bool): Delete data regardless of whether
@@ -497,6 +496,9 @@ class dataset:
         Raises:
             DatasetHandlerError: If a Dataset does not exist at the given path and ``force = False``.
             NotImplementedError: When attempting to delete a managed view.
+
+        Warning:
+            This is an irreversible operation. Data once deleted cannot be recovered.
         """
         path = convert_pathlib_to_string_if_needed(path)
 
@@ -903,6 +905,28 @@ class dataset:
     ) -> Dataset:
         """Ingests a dataset from a source and stores it as a structured dataset to destination.
 
+        Args:
+            src (str, pathlib.Path): Local path to where the unstructured dataset is stored or path to csv file.
+            dest (str, pathlib.Path): - The full path to the dataset. Can be:
+                - a Hub cloud path of the form ``hub://username/datasetname``. To write to Hub cloud datasets, ensure that you are logged in to Hub (use 'activeloop login' from command line)
+                - an s3 path of the form ``s3://bucketname/path/to/dataset``. Credentials are required in either the environment or passed to the creds argument.
+                - a local file system path of the form ``./path/to/dataset`` or ``~/path/to/dataset`` or ``path/to/dataset``.
+                - a memory path of the form ``mem://path/to/dataset`` which doesn't save the dataset but keeps it in memory instead. Should be used only for testing as it does not persist.
+            images_compression (str): For image classification datasets, this compression will be used for the `images` tensor. If ``images_compression`` is "auto", compression will be automatically determined by the most common extension in the directory.
+            dest_creds (Optional[Dict]): A dictionary containing credentials used to access the destination path of the dataset.
+            progressbar (bool): Enables or disables ingestion progress bar. Defaults to ``True``.
+            summary (bool): If ``True``, a summary of skipped files will be printed after completion. Defaults to ``True``.
+            **dataset_kwargs: Any arguments passed here will be forwarded to the dataset creator function.
+
+        Returns:
+            Dataset: New dataset object with structured dataset.
+
+        Raises:
+            InvalidPathException: If the source directory does not exist.
+            SamePathException: If the source and destination path are same.
+            AutoCompressionError: If the source director is empty or does not contain a valid extension.
+            InvalidFileExtension: If the most frequent file extension is found to be 'None' during auto-compression.
+
         Note:
             - Currently only local source paths and image classification datasets / csv files are supported for automatic ingestion.
             - Supported filetypes: png/jpeg/jpg/csv.
@@ -943,28 +967,6 @@ class dataset:
             - Classes defined as sub-directories can be accessed at ``ds["test/labels"].info.class_names``.
             - Support for train and test sub directories is present under ``ds["train/images"]``, ``ds["train/labels"]`` and ``ds["test/images"]``, ``ds["test/labels"]``.
             - Mapping filenames to classes from an external file is currently not supported.
-
-        Args:
-            src (str, pathlib.Path): Local path to where the unstructured dataset is stored or path to csv file.
-            dest (str, pathlib.Path): - The full path to the dataset. Can be:
-                - a Hub cloud path of the form ``hub://username/datasetname``. To write to Hub cloud datasets, ensure that you are logged in to Hub (use 'activeloop login' from command line)
-                - an s3 path of the form ``s3://bucketname/path/to/dataset``. Credentials are required in either the environment or passed to the creds argument.
-                - a local file system path of the form ``./path/to/dataset`` or ``~/path/to/dataset`` or ``path/to/dataset``.
-                - a memory path of the form ``mem://path/to/dataset`` which doesn't save the dataset but keeps it in memory instead. Should be used only for testing as it does not persist.
-            images_compression (str): For image classification datasets, this compression will be used for the `images` tensor. If ``images_compression`` is "auto", compression will be automatically determined by the most common extension in the directory.
-            dest_creds (Optional[Dict]): A dictionary containing credentials used to access the destination path of the dataset.
-            progressbar (bool): Enables or disables ingestion progress bar. Defaults to ``True``.
-            summary (bool): If ``True``, a summary of skipped files will be printed after completion. Defaults to ``True``.
-            **dataset_kwargs: Any arguments passed here will be forwarded to the dataset creator function.
-
-        Returns:
-            Dataset: New dataset object with structured dataset.
-
-        Raises:
-            InvalidPathException: If the source directory does not exist.
-            SamePathException: If the source and destination path are same.
-            AutoCompressionError: If the source director is empty or does not contain a valid extension.
-            InvalidFileExtension: If the most frequent file extension is found to be 'None' during auto-compression.
         """
         dest = convert_pathlib_to_string_if_needed(dest)
         feature_report_path(
@@ -1031,9 +1033,6 @@ class dataset:
     ) -> Dataset:
         """Download and ingest a kaggle dataset and store it as a structured dataset to destination.
 
-        Note:
-            Currently only local source paths and image classification datasets are supported for automatic ingestion.
-
         Args:
             tag (str): Kaggle dataset tag. Example: ``"coloradokb/dandelionimages"`` points to https://www.kaggle.com/coloradokb/dandelionimages
             src (str, pathlib.Path): Local path to where the raw kaggle dataset will be downlaoded to.
@@ -1055,6 +1054,9 @@ class dataset:
 
         Raises:
             SamePathException: If the source and destination path are same.
+
+        Note:
+            Currently only local source paths and image classification datasets are supported for automatic ingestion.
         """
         src = convert_pathlib_to_string_if_needed(src)
         dest = convert_pathlib_to_string_if_needed(dest)

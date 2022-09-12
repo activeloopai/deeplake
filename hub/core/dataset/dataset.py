@@ -1033,10 +1033,6 @@ class Dataset:
     def commit(self, message: Optional[str] = None, allow_empty=False) -> str:
         """Stores a snapshot of the current state of the dataset.
 
-        Note:
-            - Commiting from a non-head node in any branch, will lead to an automatic checkout to a new branch.
-            - This same behaviour will happen if new samples are added or existing samples are updated from a non-head node.
-
         Args:
             message (str, Optional): Used to describe the commit.
             allow_empty (bool): If ``True``, commit even if there are no changes.
@@ -1047,6 +1043,10 @@ class Dataset:
         Raises:
             Exception: If dataset is a filtered view.
             EmptyCommitError: if there are no changes and user does not forced to commit unchanged data.
+
+        Note:
+            - Commiting from a non-head node in any branch, will lead to an automatic checkout to a new branch.
+            - This same behaviour will happen if new samples are added or existing samples are updated from a non-head node.
         """
         if not allow_empty and not self.has_head_changes:
             raise EmptyCommitError(
@@ -1132,9 +1132,6 @@ class Dataset:
     def checkout(self, address: str, create: bool = False) -> Optional[str]:
         """Checks out to a specific commit_id or branch. If ``create = True``, creates a new branch with name ``address``.
 
-        Note:
-            Checkout from a head node in any branch that contains uncommitted data will lead to an automatic commit before the checkout.
-
         Args:
             address (str): The commit_id or branch to checkout to.
             create (bool): If ``True``, creates a new branch with name as address.
@@ -1163,6 +1160,8 @@ class Dataset:
             >>> ds.abc.numpy()
             array([[1, 2, 3]])
 
+        Note:
+            Checkout from a head node in any branch that contains uncommitted data will lead to an automatic commit before the checkout.
         """
         return self._checkout(address, create)
 
@@ -1237,14 +1236,17 @@ class Dataset:
                 This dictionary will have two keys - "tensor" and "dataset" which represents tensor level and dataset level changes, respectively.
                 Defaults to False.
 
+        Returns:
+            Optional[Dict]
+
+        Raises:
+            ValueError: If ``id_1`` is None and ``id_2`` is not None.
+
         Note:
             - If both ``id_1`` and ``id_2`` are None, the differences between the current state and the previous commit will be calculated. If you're at the head of the branch, this will show the uncommitted changes, if any.
             - If only ``id_1`` is provided, the differences between the current state and id_1 will be calculated. If you're at the head of the branch, this will take into account the uncommitted changes, if any.
             - If only ``id_2`` is provided, a ValueError will be raised.
             - If both ``id_1`` and ``id_2`` are provided, the differences between ``id_1`` and ``id_2`` will be calculated.
-
-        Returns:
-            Optional[Dict]
 
         Note:
             A dictionary of the differences between the commits/branches is returned if ``as_dict`` is ``True``.
@@ -1279,10 +1281,6 @@ class Dataset:
             - "info_updated" is a boolean that is ``True`` if the info of the tensor was updated.
 
             - "data_transformed_in_place" is a boolean that is ``True`` if the data of the tensor was transformed in place.
-
-
-        Raises:
-            ValueError: If ``id_1`` is None and ``id_2`` is not None.
         """
         version_state, storage = self.version_state, self.storage
         res = get_changes_and_messages(version_state, storage, id_1, id_2)
@@ -1412,10 +1410,6 @@ class Dataset:
     ):
         """Converts the dataset into a pytorch Dataloader.
 
-        Note:
-            Pytorch does not support uint16, uint32, uint64 dtypes. These are implicitly type casted to int32, int64 and int64 respectively.
-            This spins up it's own workers to fetch data.
-
         Args:
             transform (Callable, Optional): Transformation function to be applied to each sample.
             tensors (List, Optional): Optionally provide a list of tensor names in the ordering that your training script expects. For example, if you have a dataset that has "image" and "label" tensors, if `tensors=["image", "label"]`, your training script should expect each batch will be provided as a tuple of (image, label).
@@ -1441,6 +1435,10 @@ class Dataset:
 
         Raises:
             EmptyTensorError: If one or more tensors being passed to pytorch are empty.
+
+        Note:
+            Pytorch does not support uint16, uint32, uint64 dtypes. These are implicitly type casted to int32, int64 and int64 respectively.
+            This spins up it's own workers to fetch data.
         """
         from hub.integrations import dataset_to_pytorch as to_pytorch
 
@@ -2407,16 +2405,16 @@ class Dataset:
             verbose (bool): If ``True``, logs will be printed. Defaults to ``True``.
             ds_args (dict): Additional args for creating VDS when path is specified. (See documentation for :func:`hub.dataset()`)
 
-        Note:
-            Specifying ``path`` makes the view external. External views cannot be accessed using the parent dataset's :func:`Dataset.get_view`,
-            :func:`Dataset.load_view`, :func:`Dataset.delete_view` methods. They have to be loaded using :func:`hub.load`.
-
         Returns:
             str: Path to the saved VDS.
 
         Raises:
             ReadOnlyModeError: When attempting to save a view inplace and the user doesn't have write access.
             DatasetViewSavingError: If HEAD node has uncommitted changes.
+
+        Note:
+            Specifying ``path`` makes the view external. External views cannot be accessed using the parent dataset's :func:`Dataset.get_view`,
+            :func:`Dataset.load_view`, :func:`Dataset.delete_view` methods. They have to be loaded using :func:`hub.load`.
         """
         return self._save_view(
             path,
@@ -2753,7 +2751,6 @@ class Dataset:
         verbose=True,
     ):
         """Loads a nested dataset. Internal.
-        Note: Virtual datasets are returned as such, they are not converted to views.
 
         Args:
             path (str): Path to sub directory
@@ -2766,6 +2763,9 @@ class Dataset:
 
         Returns:
             Sub dataset
+
+        Note:
+            Virtual datasets are returned as such, they are not converted to views.
         """
         sub_storage = self.base_storage.subdir(path)
 
@@ -3036,7 +3036,7 @@ class Dataset:
         """Resets the uncommitted changes present in the branch.
 
         Note:
-            - The uncommitted data is deleted from underlying storage, this is not a reversible operation.
+            The uncommitted data is deleted from underlying storage, this is not a reversible operation.
         """
         storage, version_state = self.storage, self.version_state
         if version_state["commit_node"].children:
@@ -3101,12 +3101,14 @@ class Dataset:
         Args:
             creds_key (str): The key to be added.
             managed (bool):
-                - If ``True``, the creds corresponding to the key will be fetched from activeloop platform.
-                - Note that this is only applicable for datasets that are connected to activeloop platform.
+                - If ``True``, the creds corresponding to the key will be fetched from Activeloop platform.
                 - Defaults to ``False``.
 
         Raises:
-            ValueError: If the dataset is not connected to activeloop platform.
+            ValueError: If the dataset is not connected to Activeloop platform and ``managed`` is ``True``.
+
+        Note:
+            ``managed`` parameter is applicable only for datasets that are connected to `Activeloop platform <https://app.activeloop.ai>`_.
         """
         if managed:
             raise ValueError(
