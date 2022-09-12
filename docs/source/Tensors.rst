@@ -3,8 +3,6 @@ Tensors
 
 .. currentmodule:: hub.core.dataset
 
-.. _creating-tensors:
-
 Creating Tensors
 ~~~~~~~~~~~~~~~~
 .. autosummary::
@@ -33,7 +31,7 @@ Deleting and Renaming Tensors
 Adding and deleting samples
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~
 .. autosummary::
-    :toctree: generated
+    :toctree:
     :nosignatures:
 
     Tensor.append

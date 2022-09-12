@@ -18,9 +18,6 @@ def read(
     - Recompresses data into format required by the tensor if permitted by the tensor htype.
     - Simply copies the data in the file if file format matches sample_compression of the tensor, thus maximizing upload speeds.
 
-    Note:
-        No data is actually loaded until you try to get a property of the returned :class:`Sample`. This is useful for passing along to :func:`Tensor.append <hub.core.tensor.Tensor.append>` and :func:`Tensor.extend <hub.core.tensor.Tensor.extend>`.
-
     Examples:
 
         >>> ds.create_tensor("images", htype="image", sample_compression="jpeg")
@@ -54,6 +51,10 @@ def read(
 
     Returns:
         Sample: Sample object. Call ``sample.array`` to get the ``np.ndarray``.
+
+    Note:
+        No data is actually loaded until you try to get a property of the returned :class:`Sample`.
+        This is useful for passing along to :func:`Tensor.append <hub.core.tensor.Tensor.append>` and :func:`Tensor.extend <hub.core.tensor.Tensor.extend>`.
     """
     path = convert_pathlib_to_string_if_needed(path)
     return Sample(

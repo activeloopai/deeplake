@@ -6,4 +6,4 @@ Tensor
 ~~~~~~
 .. autoclass:: Tensor()
     :members:
-    :special-members: __setitem__
+    :special-members: __setitem__, __len__

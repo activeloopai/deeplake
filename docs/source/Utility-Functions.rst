@@ -12,8 +12,6 @@ General Functions
     list
     exists
 
-.. _making-hub-samples:
-
 Making Hub Samples
 ~~~~~~~~~~~~~~~~~~
 .. autosummary::

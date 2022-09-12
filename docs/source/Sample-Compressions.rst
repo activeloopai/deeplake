@@ -20,5 +20,5 @@ File formats supported by Hub:
 | Dicom          | ``dcm``                                |
 +----------------+----------------------------------------+
 
-Sample compressions may have to be specified when :ref:`creating-tensors` or 
-:ref:`making-hub-samples`.
+Sample compressions may have to be specified when :meth:`creating tensors <hub.core.dataset.Dataset.create_tensor>`
+or in :meth:`hub.read`.
