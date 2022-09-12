@@ -83,7 +83,7 @@ class Hub3DataLoader:
         all_vars["_shuffle"] = True
         return self.__class__(**all_vars)
 
-    def transform(self, transform: Union[Callable, Dict[Callable]]):
+    def transform(self, transform: Union[Callable, Dict[str, Callable]]):
         """Returns a transformed Dataloader object.
 
         Args:
