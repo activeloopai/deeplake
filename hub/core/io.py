@@ -419,7 +419,7 @@ class SampleStreaming(Streaming):
         elif isinstance(index, (list, tuple)):
             return index[np.searchsorted(index, low) : np.searchsorted(index, high)]
         elif isinstance(index, int):
-            return [index] if index >= low and index < high else None
+            return [index] if index >= low and index < high else []
         else:
             raise TypeError(index)
 
