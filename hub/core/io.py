@@ -27,8 +27,6 @@ from hub.util.keys import get_chunk_key, get_tensor_meta_key
 from hub.util.remove_cache import get_base_storage
 from hub.util.storage import get_pytorch_local_storage
 
-import bisect
-
 
 ChunkEngineMap = Dict[str, ChunkEngine]
 CachesMap = Dict[str, LRUCache]
