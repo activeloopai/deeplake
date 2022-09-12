@@ -410,12 +410,12 @@ class SampleStreaming(Streaming):
             step = index.step
             if step is None or step == 1:
 
-                return range(max(start, low), min(stop, high))
+                return list(range(max(start, low), min(stop, high)))
             else:
                 if start < low:
                     rm = (low - start) % step
                     start = low + bool(rm) * (step - rm)
-                return range(start, min(stop, high), step)
+                return list(range(start, min(stop, high), step))
         elif isinstance(index, (list, tuple)):
             return index[np.searchsorted(index, low) : np.searchsorted(index, high)]
         elif isinstance(index, int):
@@ -463,13 +463,11 @@ class SampleStreaming(Streaming):
                     ]
                     chunks.append(cur_chunks)
 
-                streamable_ids = list(
-                    self._intersection(
-                        self.dataset.index.values[0].value, last_idx, next_it_value + 1
-                    )
+                streamable_ids = self._intersection(
+                    self.dataset.index.values[0].value, last_idx, next_it_value + 1
                 )
 
-                if len(streamable_ids) > 0:
+                if streamable_ids:
                     new_block = IOBlock(chunks, streamable_ids)
                     blocks.append(new_block)
 
