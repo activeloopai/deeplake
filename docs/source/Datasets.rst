@@ -97,6 +97,26 @@ Dataset Properties
     Dataset.read_only
     Dataset.info
 
+Dataset Version Control
+~~~~~~~~~~~~~~~~~~~~~~~
+.. autosummary::
+    :toctree:
+    :nosignatures:
+
+    Dataset.commit
+    Dataset.diff
+    Dataset.checkout
+    Dataset.merge
+    Dataset.log
+    Dataset.reset
+    Dataset.get_commit_details
+    Dataset.commit_id
+    Dataset.branch
+    Dataset.pending_commit_id
+    Dataset.has_head_changes
+    Dataset.commits
+    Dataset.branches
+
 Dataset Views
 ~~~~~~~~~~~~~
 A dataset view is a subset of a dataset that points to specific samples (indices) in an existing dataset. Dataset views
@@ -127,23 +147,3 @@ changing after the query or filter conditions have been evaluated.
     Dataset.delete_view
     Dataset.get_views
     Dataset.is_view
-
-Version Control
-~~~~~~~~~~~~~~~
-.. autosummary::
-    :toctree:
-    :nosignatures:
-
-    Dataset.commit
-    Dataset.diff
-    Dataset.checkout
-    Dataset.merge
-    Dataset.log
-    Dataset.reset
-    Dataset.get_commit_details
-    Dataset.commit_id
-    Dataset.branch
-    Dataset.pending_commit_id
-    Dataset.has_head_changes
-    Dataset.commits
-    Dataset.branches
