@@ -47,7 +47,7 @@ class Info(HubMemoryObject):
         self._info = state
 
     def __getattribute__(self, name: str) -> Any:
-        """Allows access to info values using the `.` syntax. Example: `info.description`."""
+        """Allows access to info values using the `.` syntax. Example: ``info.description``."""
 
         if name == "_info":
             return super().__getattribute__(name)
@@ -158,7 +158,7 @@ class Info(HubMemoryObject):
         return None
 
 
-def load_info(path, dataset, key=None):
+def load_info(path, dataset, key=None) -> Info:
     storage: LRUCache = dataset.storage
 
     try:

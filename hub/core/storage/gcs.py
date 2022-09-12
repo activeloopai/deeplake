@@ -177,7 +177,7 @@ class GCloudCredentials:
         one is within 100s of expiry.
 
         Args:
-            method (str/Dict): Supported methods: google_default|cache|anon|browser|None.
+            method (str/Dict): Supported methods: ``google_default | cache | anon | browser | None``.
                 Type of authorisation to implement - calls `_connect_*` methods.
                 If None, will try sequence of methods.
 
@@ -206,23 +206,23 @@ class GCSProvider(StorageProvider):
     """Provider class for using GC storage."""
 
     def __init__(self, root: str, token: Union[str, Dict] = None, project: str = None):
-        """Initializes the GCSProvider
+        """Initializes the GCSProvider.
 
         Example:
-            gcs_provider = GCSProvider("gcs://my-bucket/gcs_ds")
+            >>> gcs_provider = GCSProvider("gcs://my-bucket/gcs_ds")
 
         Args:
             root (str): The root of the provider. All read/write request keys will be appended to root.
             token (str/Dict): GCP token, used for fetching credentials for storage).
                 Can be a path to the credentials file, actual credential dictionary or one of the folowing:
-                `google_default`: Tries to load default credentials for the specified project.
-                `cache`: Retrieves the previously used credentials from cache if exist.
-                `anon`: Sets credentials=None
-                `browser`: Generates and stores new token file using cli.
-            project (str): Name of the project from gcloud.
+                - ``google_default``: Tries to load default credentials for the specified project.
+                - ``cache``: Retrieves the previously used credentials from cache if exist.
+                - ``anon``: Sets ``credentials=None``.
+                - ``browser``: Generates and stores new token file using cli.
+            project (str): Name of the project from GCloud.
 
         Raises:
-            ModuleNotFoundError: If google cloud packages aren't installed
+            ModuleNotFoundError: If google cloud packages aren't installed.
         """
         if not _GOOGLE_PACKAGES_INSTALLED:
             raise ModuleNotFoundError(
@@ -296,7 +296,11 @@ class GCSProvider(StorageProvider):
         self.expiration = expiration
 
     def clear(self, prefix=""):
-        """Remove all keys with given prefix below root - empties out mapping"""
+        """Remove all keys with given prefix below root - empties out mapping.
+
+        Warning:
+            Exercise caution!
+        """
         self.check_readonly()
         path = posixpath.join(self.path, prefix) if prefix else self.path
         blob_objects = self.client_bucket.list_blobs(prefix=path)
@@ -307,7 +311,7 @@ class GCSProvider(StorageProvider):
                 pass
 
     def rename(self, root):
-        """Rename root folder"""
+        """Rename root folder."""
         self.check_readonly()
         path = _remove_protocol_from_path(root)
         new_bucket, new_path = path.split("/", 1)
@@ -327,7 +331,7 @@ class GCSProvider(StorageProvider):
             self.path += "/"
 
     def __getitem__(self, key):
-        """Retrieve data"""
+        """Retrieve data."""
         return self.get_bytes(key)
 
     def get_bytes(
@@ -340,14 +344,14 @@ class GCSProvider(StorageProvider):
 
         Args:
             path (str): The path relative to the root of the provider.
-            start_byte (int, optional): If only specific bytes starting from start_byte are required.
-            end_byte (int, optional): If only specific bytes up to end_byte are required.
+            start_byte (int, optional): If only specific bytes starting from ``start_byte`` are required.
+            end_byte (int, optional): If only specific bytes up to ``end_byte`` are required.
 
         Returns:
             bytes: The bytes of the object present at the path within the given byte range.
 
         Raises:
-            InvalidBytesRequestedError: If `start_byte` > `end_byte` or `start_byte` < 0 or `end_byte` < 0.
+            InvalidBytesRequestedError: If ``start_byte`` > ``end_byte`` or ``start_byte`` < 0 or ``end_byte`` < 0.
             KeyError: If an object is not found at the path.
         """
         try:
@@ -361,7 +365,7 @@ class GCSProvider(StorageProvider):
             raise KeyError(path)
 
     def __setitem__(self, key, value):
-        """Store value in key"""
+        """Store value in key."""
         self.check_readonly()
         blob = self.client_bucket.blob(self._get_path_from_key(key))
         if isinstance(value, memoryview):
@@ -376,15 +380,15 @@ class GCSProvider(StorageProvider):
         blob.upload_from_string(value, retry=self.retry)
 
     def __iter__(self):
-        """Iterating over the structure"""
+        """Iterating over the structure."""
         yield from [f for f in self._all_keys() if not f.endswith("/")]
 
     def __len__(self):
-        """Returns length of the structure"""
+        """Returns length of the structure."""
         return len(self._all_keys())
 
     def __delitem__(self, key):
-        """Remove key"""
+        """Remove key."""
         self.check_readonly()
         blob = self.client_bucket.blob(self._get_path_from_key(key))
         try:
@@ -393,7 +397,7 @@ class GCSProvider(StorageProvider):
             raise KeyError(key)
 
     def __contains__(self, key):
-        """Does key exist in mapping?"""
+        """Checks if key exists in mapping."""
         stats = storage.Blob(
             bucket=self.client_bucket, name=self._get_path_from_key(key)
         ).exists(self.client_bucket.client)

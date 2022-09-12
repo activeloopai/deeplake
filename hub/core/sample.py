@@ -57,23 +57,22 @@ class Sample:
         """Represents a single sample for a tensor. Provides all important meta information in one place.
 
         Note:
-            If `self.is_lazy` is True, this `Sample` doesn't actually have any data loaded. To read this data,
-                simply try to read it into a numpy array (`sample.array`)
+            If ``self.is_lazy`` is ``True``, this :class:`Sample` doesn't actually have any data loaded. To read this data, simply try to read it into a numpy array (`sample.array`)
 
         Args:
-            path (str): Path to a sample stored on the local file system that represents a single sample. If `path` is provided, `array` should not be.
-                Implicitly makes `self.is_lazy == True`.
-            array (np.ndarray): Array that represents a single sample. If `array` is provided, `path` should not be. Implicitly makes `self.is_lazy == False`.
-            buffer: (bytes): Byte buffer that represents a single sample. If compressed, `compression` argument should be provided.
+            path (str): Path to a sample stored on the local file system that represents a single sample. If ``path`` is provided, ``array`` should not be.
+                Implicitly makes ``self.is_lazy == True``.
+            array (np.ndarray): Array that represents a single sample. If ``array`` is provided, ``path`` should not be. Implicitly makes ``self.is_lazy == False``.
+            buffer: (bytes): Byte buffer that represents a single sample. If compressed, ``compression`` argument should be provided.
             compression (str): Specify in case of byte buffer.
-            verify (bool): If a path is provided, verifies the sample if True.
+            verify (bool): If a path is provided, verifies the sample if ``True``.
             shape (Tuple[int]): Shape of the sample.
             dtype (optional, str): Data type of the sample.
             creds (optional, Dict): Credentials for s3, gcp and http urls.
             storage (optional, StorageProvider): Storage provider.
 
         Raises:
-            ValueError: Cannot create a sample from both a `path` and `array`.
+            ValueError: Cannot create a sample from both a ``path`` and ``array``.
         """
         if path is None and array is None and buffer is None:
             raise ValueError("Must pass one of `path`, `array` or `buffer`.")
@@ -264,11 +263,10 @@ class Sample:
         """Returns this sample as compressed bytes.
 
         Note:
-            If this sample is pointing to a path and the requested `compression` is the same as it's stored in, the data is
-                returned without re-compressing.
+            If this sample is pointing to a path and the requested ``compression`` is the same as it's stored in, the data is returned without re-compressing.
 
         Args:
-            compression (optional, str): `self.array` will be compressed into this format. If `compression is None`, return `self.uncompressed_bytes()`.
+            compression (Optional[str]): ``self.array`` will be compressed into this format. If ``compression`` is ``None``, return :meth:`uncompressed_bytes`.
 
         Returns:
             bytes: Bytes for the compressed sample. Contains all metadata required to decompress within these bytes.
@@ -339,6 +337,15 @@ class Sample:
 
     @property
     def array(self) -> np.ndarray:  # type: ignore
+        """Return numpy array corresponding to the sample. Decompresses the sample if necessary.
+
+        Example:
+
+            >>> sample = hub.read("./images/dog.jpg")
+            >>> arr = sample.array
+            >>> arr.shape
+            (323, 480, 3)
+        """
         arr = self._array
         if arr is not None:
             return arr

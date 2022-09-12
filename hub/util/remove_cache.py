@@ -1,3 +1,4 @@
+from typing import Optional
 import hub
 from hub.core.storage.provider import StorageProvider
 from hub.core.storage.lru_cache import LRUCache
@@ -45,7 +46,7 @@ def get_dataset_with_zero_size_cache(ds):
     return ds
 
 
-def create_read_copy_dataset(dataset, commit_id=None):
+def create_read_copy_dataset(dataset, commit_id: Optional[str] = None):
     """Creates a read-only copy of the given dataset object, without copying underlying data.
 
     Args:
