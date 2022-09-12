@@ -1,3 +1,5 @@
+from tkinter import S
+from hub.core.storage.s3 import S3Provider
 from hub.experimental.util import raise_indra_installation_error  # type: ignore
 from hub.util.dataset import try_flushing  # type: ignore
 
@@ -20,7 +22,21 @@ def dataset_to_hub3(hub2_dataset):
         raise ValueError("In memory datasets are not supported for hub3")
     elif path.startswith("hub://"):
         token = hub2_dataset._token
-        hub3_dataset = api.dataset(path, token=token)
+        provider = hub2_dataset.storage.next_storage
+        if isinstance(provider, S3Provider):
+            hub3_dataset = api.dataset(
+                path,
+                origin_path=provider.root,
+                token=token,
+                aws_access_key_id=provider.aws_access_key_id,
+                aws_secret_access_key=provider.aws_secret_access_key,
+                aws_session_token=provider.aws_session_token,
+                region_name=provider.aws_region,
+                endpoint_url=provider.endpoint_url,
+                expiration=provider.expiration,
+            )
+        else:
+            raise ValueError("GCP datasets are not supported for hub3 currently.")
     elif path.startswith("s3://"):
         s3_provider = hub2_dataset.storage.next_storage
         aws_access_key_id = s3_provider.aws_access_key_id
