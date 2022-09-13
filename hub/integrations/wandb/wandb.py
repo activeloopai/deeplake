@@ -11,6 +11,7 @@ from hub.hooks import (
 )
 import importlib
 import sys
+import os
 import json
 import warnings
 from hub.client.log import logger
@@ -57,6 +58,8 @@ def artifact_from_ds(ds):
     path = ds.path
     name = artifact_name_from_ds_path(ds)
     artifact = wandb.Artifact(name, "dataset")
+    if '://' not in path and os.path.exists(path):
+        path = 'file://' + path
     artifact.add_reference(path, name="url")
     return artifact
 
