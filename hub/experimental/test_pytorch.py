@@ -219,6 +219,7 @@ def test_pytorch_with_compression(ds: Dataset):
 
 @requires_torch
 @enabled_non_gdrive_datasets
+@requires_linux
 def test_custom_tensor_order(ds):
     with ds:
         tensors = ["a", "b", "c", "d"]
@@ -454,6 +455,7 @@ def test_rename(local_ds):
 
 
 @requires_torch
+@requires_linux
 @pytest.mark.parametrize("num_workers", [0, 2])
 def test_indexes(local_ds, num_workers):
     with local_ds as ds:
@@ -474,6 +476,7 @@ def test_indexes(local_ds, num_workers):
 
 
 @requires_torch
+@requires_linux
 @pytest.mark.parametrize("num_workers", [0, 2])
 def test_indexes_transform(local_ds, num_workers):
     with local_ds as ds:
@@ -498,6 +501,7 @@ def test_indexes_transform(local_ds, num_workers):
 
 
 @requires_torch
+@requires_linux
 @pytest.mark.parametrize("num_workers", [0, 2])
 def test_indexes_transform_dict(local_ds, num_workers):
     with local_ds as ds:
@@ -529,6 +533,7 @@ def test_indexes_transform_dict(local_ds, num_workers):
 
 
 @requires_torch
+@requires_linux
 @pytest.mark.parametrize("num_workers", [0, 2])
 def test_indexes_tensors(local_ds, num_workers):
     with local_ds as ds:
