@@ -59,6 +59,8 @@ _WANDB_INSTALLED = bool(importlib.util.find_spec("wandb"))
 
 
 def wandb_run():
+    if not hub.constants.WANDB_INTEGRATION_ENABLED:
+        return
     return getattr(sys.modules.get("wandb"), "run", None)
 
 
