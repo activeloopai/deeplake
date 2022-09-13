@@ -226,6 +226,7 @@ def test_string_tensors(local_ds):
     for idx, batch in enumerate(ptds):
         np.testing.assert_array_equal(batch["strings"], f"string{idx}")
 
+
 @requires_torch
 @requires_linux
 @pytest.mark.parametrize(
@@ -262,6 +263,7 @@ def test_pytorch_view(local_ds, index):
         np.testing.assert_array_equal(batch["img1"][0], arr_list_1[idx])
         np.testing.assert_array_equal(batch["img2"][0], arr_list_2[idx])
         np.testing.assert_array_equal(batch["label"][0], idx)
+
 
 @requires_torch
 @requires_linux
