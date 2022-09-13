@@ -15,6 +15,8 @@
 # import sys
 # sys.path.insert(0, os.path.abspath('.'))
 
+import hub
+
 
 # -- Project information -----------------------------------------------------
 
@@ -23,7 +25,7 @@ copyright = "2022, Activeloop"
 author = "Activeloop"
 
 # The full version, including alpha/beta/rc tags
-release = "2.7.6"
+release = hub.__version__
 
 
 # -- General configuration ---------------------------------------------------
