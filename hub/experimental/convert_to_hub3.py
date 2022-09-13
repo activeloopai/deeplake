@@ -32,7 +32,7 @@ def dataset_to_hub3(hub2_dataset):
                 aws_session_token=provider.aws_session_token,
                 region_name=provider.aws_region,
                 endpoint_url=provider.endpoint_url,
-                expiration=provider.expiration,
+                expiration=str(provider.expiration),
             )
         else:
             raise ValueError("GCP datasets are not supported for hub3 currently.")
@@ -64,5 +64,7 @@ def dataset_to_hub3(hub2_dataset):
     slice_ = hub2_dataset.index.values[0].value
 
     if slice_ != slice(None):
+        if isinstance(slice_, tuple):
+            slice_ = list(slice_)
         hub3_dataset = hub3_dataset[slice_]
     return hub3_dataset

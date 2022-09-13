@@ -236,10 +236,10 @@ def test_string_tensors(local_ds):
         slice(None, 10),
         # slice(None, None, -1),
         # slice(None, None, -2),
-        # [2, 3, 4],
-        # [2, 4, 6, 8],
-        # [2, 2, 4, 4, 6, 6, 7, 7, 8, 8, 9, 9, 9],
-        # [4, 3, 2, 1],
+        [2, 3, 4],
+        [2, 4, 6, 8],
+        [2, 2, 4, 4, 6, 6, 7, 7, 8, 8, 9, 9, 9],
+        [4, 3, 2, 1],
     ],
 )
 def test_pytorch_view(local_ds, index):
