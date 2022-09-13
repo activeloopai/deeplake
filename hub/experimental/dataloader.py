@@ -1,9 +1,11 @@
-from typing import Callable, List, Optional
+from typing import Callable, Dict, List, Optional, Union
 from hub.experimental.convert_to_hub3 import dataset_to_hub3  # type: ignore
 from hub.experimental.util import raise_indra_installation_error  # type: ignore
 from hub.experimental.util import collate_fn as default_collate  # type: ignore
 from hub.experimental.hub3_query import query
+from hub.integrations.pytorch.common import PytorchTransformFunction
 from hub.util.bugout_reporter import hub_reporter
+from hub.util.dataset import map_tensor_keys
 
 try:
     from indra import Loader  # type: ignore
@@ -83,11 +85,11 @@ class Hub3DataLoader:
         all_vars["_shuffle"] = True
         return self.__class__(**all_vars)
 
-    def transform(self, transform_fn: Callable):
+    def transform(self, transform: Union[Callable, Dict[str, Optional[Callable]]]):
         """Returns a transformed Dataloader object.
 
         Args:
-            transform_fn (Callable): A function that takes a sample as input and returns a transformed sample.
+            transform (Callable or Dict[Callable]): A function or dictionary of functions to apply to the data.
 
         Returns:
             Dataloader: A Dataloader object.
@@ -98,7 +100,18 @@ class Hub3DataLoader:
         if self._transform is not None:
             raise ValueError("transform is already set")
         all_vars = self.__dict__.copy()
-        all_vars["_transform"] = transform_fn
+        if isinstance(transform, dict):
+            tensors = [k for k in transform.keys() if k != "index"]
+            tensors = map_tensor_keys(self.dataset, tensors)
+            if self._tensors:
+                raise ValueError(
+                    f"Tensors have already been specified in the .{self._mode} method."
+                )
+            all_vars["_tensors"] = map_tensor_keys(self.dataset, tensors)
+            transform = PytorchTransformFunction(transform_dict=transform)
+        else:
+            transform = PytorchTransformFunction(composite_transform=transform)
+        all_vars["_transform"] = transform
         return self.__class__(**all_vars)
 
     def query(self, query_string: str):
@@ -106,6 +119,7 @@ class Hub3DataLoader:
         all_vars["dataset"] = query(self.dataset, query_string)
         return self.__class__(**all_vars)
 
+    @hub_reporter.record_call
     def pytorch(
         self,
         num_workers: int = 0,
@@ -140,7 +154,17 @@ class Hub3DataLoader:
         all_vars = self.__dict__.copy()
         all_vars["_num_workers"] = num_workers
         all_vars["_collate"] = collate_fn
-        all_vars["_tensors"] = tensors
+        if tensors:
+            if "index" in tensors:
+                raise ValueError(
+                    "index is not a tensor, to get index, pass return_index=True"
+                )
+            tensors = map_tensor_keys(self.dataset, tensors)
+            if self._tensors:
+                raise ValueError(
+                    "Tensors have already been specified by passing a dictionary to .transform() method"
+                )
+        all_vars["_tensors"] = self._tensors or tensors
         all_vars["_num_threads"] = num_threads
         all_vars["_prefetch_factor"] = prefetch_factor
         all_vars["_distributed"] = distributed
@@ -148,6 +172,7 @@ class Hub3DataLoader:
         all_vars["_mode"] = "pytorch"
         return self.__class__(**all_vars)
 
+    @hub_reporter.record_call
     def numpy(
         self,
         num_workers: int = 0,
@@ -175,7 +200,17 @@ class Hub3DataLoader:
             raise ValueError("already called .to_numpy()")
         all_vars = self.__dict__.copy()
         all_vars["_num_workers"] = num_workers
-        all_vars["_tensors"] = tensors
+        if tensors:
+            if "index" in tensors:
+                raise ValueError(
+                    "index is not a tensor, to get index, pass return_index=True"
+                )
+            tensors = map_tensor_keys(self.dataset, tensors)
+            if self._tensors:
+                raise ValueError(
+                    "Tensors have already been specified by passing a dictionary to .transform() method"
+                )
+        all_vars["_tensors"] = self._tensors or tensors
         all_vars["_num_threads"] = num_threads
         all_vars["_prefetch_factor"] = prefetch_factor
         all_vars["_mode"] = "numpy"
@@ -198,7 +233,7 @@ class Hub3DataLoader:
             collate_fn = default_collate
         else:
             collate_fn = self._collate
-        tensors = self._tensors or []
+        tensors = self._tensors or map_tensor_keys(self.dataset, None)
         num_threads = self._num_threads
         prefetch_factor = self._prefetch_factor
         distributed = self._distributed or False
@@ -224,6 +259,5 @@ class Hub3DataLoader:
         )
 
 
-@hub_reporter.record_call
 def dataloader(dataset) -> Hub3DataLoader:
     return Hub3DataLoader(dataset)
