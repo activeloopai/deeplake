@@ -326,7 +326,6 @@ def test_string_tensors(local_ds):
         np.testing.assert_array_equal(batch["strings"], f"string{idx}")
 
 
-
 @pytest.mark.xfail(raises=NotImplementedError, strict=True)
 def test_pytorch_large():
     raise NotImplementedError
