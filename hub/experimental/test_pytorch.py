@@ -340,6 +340,15 @@ def test_rename(local_ds):
         )
 
 
+@requires_torch
+@requires_linux
+def test_expiration_tate_casting_to_string():
+    ds = hub.dataset("hub://activeloop/cifar100-train")[0:10:2]
+    loader = dataloader(ds).pytorch(return_index=False)
+    for _ in loader:
+        pass
+
+
 @requires_linux
 def test_uneven_iteration(local_ds):
     with local_ds as ds:
