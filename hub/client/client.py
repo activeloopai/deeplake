@@ -217,6 +217,7 @@ class HubBackendClient:
             ).json()
         except Exception as e:
             if isinstance(e, AuthorizationException):
+                authorization_exception_prompt = "You don't have permission to "
                 response_data = e.response.json()
                 code = response_data.get("code")
                 if code == 1:
@@ -225,16 +226,20 @@ class HubBackendClient:
                     raise AgreementNotAcceptedError(agreements) from e
                 elif code == 2:
                     raise NotLoggedInAgreementError from e
-            try:
-                decoded_token = jwt.decode(
-                    self.token, options={"verify_signature": False}
-                )
-            except Exception:
-                raise InvalidTokenException
-            if decoded_token["id"] == "public":
-                raise UserNotLoggedInException()
-            if isinstance(e, AuthorizationException):
-                raise TokenPermissionError()
+                else:
+                    try:
+                        decoded_token = jwt.decode(
+                            self.token, options={"verify_signature": False}
+                        )
+                    except Exception:
+                        raise InvalidTokenException
+
+                    if (
+                        authorization_exception_prompt in response_data["description"]
+                        and decoded_token["id"] == "public"
+                    ):
+                        raise UserNotLoggedInException()
+                    raise TokenPermissionError()
             raise
 
         full_url = response.get("path")

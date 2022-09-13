@@ -500,10 +500,16 @@ def test_compute_slices(memory_ds):
 def test_length_slices(memory_ds):
     ds = memory_ds
     data = np.array([1, 2, 3, 9, 8, 7, 100, 99, 98, 99, 101])
+    data_2 = np.array([1, 2, 3, 9, 8, 7, 100, 99, 98, 99, 101, 12, 15, 18])
     ds.create_tensor("data")
+    ds.create_tensor("data_2")
+
     ds.data.extend(data)
+    ds.data_2.extend(data_2)
 
     assert len(ds) == 11
+    assert ds.min_len == len(ds)
+    assert ds.max_len == 14
     assert len(ds[0]) == 1
     assert len(ds[0:1]) == 1
     assert len(ds[0:0]) == 0
@@ -2031,36 +2037,50 @@ def test_uneven_iteration(memory_ds):
             np.testing.assert_equal(y, target_y)
 
 
-def test_hub_token_without_permission(
-    hub_cloud_dev_credentials, hub_cloud_dev_token, hub_dev_token
+def token_permission_error_check(
+    username,
+    password,
+    runner,
 ):
-    os.remove(REPORTING_CONFIG_FILE_PATH)
-    ds = hub.load("hub://activeloop/mnist-test", token=hub_cloud_dev_token)
-
-    ds = hub.load("hub://activeloop/mnist-test", token=hub_dev_token)
-
-    feature_report_path(
-        "hub://testingacc/test_hub_token", "empty", parameters={}, token=hub_dev_token
-    )
-
-    username, password = hub_cloud_dev_credentials
-    runner = CliRunner()
-
-    feature_report_path(
-        "hub://testingacc/test_hub_token",
-        "empty",
-        parameters={},
-        token=hub_cloud_dev_token,
-    )
-
     result = runner.invoke(login, f"-u {username} -p {password}")
     with pytest.raises(TokenPermissionError):
         hub.empty("hub://activeloop-test/sohas-weapons-train")
 
+    with pytest.raises(TokenPermissionError):
+        ds = hub.load("hub://activeloop/fake-path")
+
+
+def invalid_token_exception_check():
+    with pytest.raises(InvalidTokenException):
+        ds = hub.empty("hub://adilkhan/demo", token="invalid_token")
+
+
+def user_not_logged_in_exception_check(runner):
     runner.invoke(logout)
-    ds = hub.empty(
-        "hub://testingacc/test_hub_token", token=hub_cloud_dev_token, overwrite=True
+    with pytest.raises(UserNotLoggedInException):
+        ds = hub.load("hub://activeloop-test/sohas-weapons-train", read_only=True)
+
+
+def dataset_handler_error_check(runner, username, password):
+    result = runner.invoke(login, f"-u {username} -p {password}")
+    with pytest.raises(DatasetHandlerError):
+        ds = hub.load(f"hub://{username}/wrong-path")
+
+
+def test_hub_related_permission_exceptions(
+    hub_cloud_dev_credentials, hub_cloud_dev_token, hub_dev_token
+):
+    username, password = hub_cloud_dev_credentials
+    runner = CliRunner()
+
+    token_permission_error_check(
+        username,
+        password,
+        runner,
     )
+    invalid_token_exception_check()
+    user_not_logged_in_exception_check(runner)
+    dataset_handler_error_check(runner, username, password)
 
 
 def test_incompat_dtype_msg(local_ds, capsys):

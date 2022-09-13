@@ -1,3 +1,43 @@
+"""
+Hub's Weights and Biases integration allows you to track and improve reproducibility of your machine learning experiments.
+Hub will automatically push all information required to reproduce the snapshot of the data like your dataset's URI, commit ID, and view IDs of any 
+views that you have used in your training workflow.
+
+Learn more about Weights and Biases `here <https://wandb.ai>`_.
+
+Logging Dataset Creation
+~~~~~~~~~~~~~~~~~~~~~~~~
+If you create a Hub dataset using any of the functions mentioned in :ref:`creating-datasets`, just perform a commit on the dataset to log its 
+creation on W&B.
+
+>>> run = wandb.init(project="hub_wandb", job_type="dataset_upload")
+>>> ds = hub.empty("hub://fayazrahman4u/my_dataset") # create dataset
+>>> ds.create_tensor("images", htype="image", sample_compression="jpg") # create a tensor
+>>> ds.images.append(hub.read("files/images/dog.jpg")) # add a sample
+>>> ds.commit("creation") # commit -> trigger logging
+>>> run.finish()
+
+NOTE:
+    If you created your dataset using :meth:`hub.deepcopy`, perform the commit only if you have head changes.
+
+NOTE:
+    If you make changes to an existing dataset, commit the changes with an active Weights and Biases run to log it's state.
+
+Logging Dataset Read
+~~~~~~~~~~~~~~~~~~~~
+A dataset read will be logged if you iterate over a dataset or call :meth:`Dataset.pytorch() <hub.core.dataset.Dataset.pytorch>` 
+or :meth:`Tensor.numpy() <hub.core.tensor.Tensor.numpy>` on its tensors.
+
+>>> run = wandb.init(project="hub_wandb", job_type="torch dataloader")
+>>> train_loader = ds.pytorch()
+>>> run.finish()
+
+>>> run = wandb.init(project="hub_wandb", job_type="iteration")
+>>> for sample in ds:
+>>>     print(sample["images"].shape)
+>>> run.finish()
+"""
+
 from typing import Dict, Set
 from hub.util.tag import process_hub_path
 from hub.util.hash import hash_inputs
@@ -13,7 +53,7 @@ import importlib
 import sys
 import json
 import warnings
-from hub.client.log import logger
+import hub
 
 _WANDB_INSTALLED = bool(importlib.util.find_spec("wandb"))
 
@@ -61,6 +101,21 @@ def artifact_from_ds(ds):
     return artifact
 
 
+def _is_public(ds_path):
+    return True
+    # TODO: We need api for this.
+    try:
+        hub.load(
+            ds_path,
+            token=hub.client.client.HubBackendClient(token="").request_auth_token(
+                username="public", password=""
+            ),
+        )
+        return True
+    except Exception:
+        return False
+
+
 def get_ds_key(ds):
     entry = getattr(ds, "_view_entry", None)
     if entry:
@@ -105,6 +160,8 @@ def dataset_config(ds):
 
 
 def log_dataset(dsconfig):
+    # TODO: This is disabled until the embedded visualizer is actually useful for users.
+    return
     url = dsconfig.get("URL")
     if not url:
         return
@@ -209,9 +266,8 @@ def dataset_read(ds):
             run.config.input_datasets = input_datasets
         if run._settings.mode != "online":
             return
-        if hasattr(ds, "_view_entry") and not ds._view_entry._external:
-            # TODO handle external otimized views
-            ds = ds._view_entry._ds
+        if hasattr(ds, "_view_entry"):
+            ds = ds._view_entry._src_ds
         wandb_info = read_json(ds).get("commits", {}).get(ds.commit_id)
         if wandb_info:
             try:
@@ -237,18 +293,19 @@ def dataset_read(ds):
 
 
 def _viz_html(hub_path: str):
-    #     return f"""
-    #       <div id='container'></div>
-    #   <script src="https://app.activeloop.ai/visualizer/vis.js"></script>
-    #   <script>
-    #     let container = document.getElementById('container')
+    if _is_public(hub_path):
+        return f"""<iframe width="100%" height="100%" sandbox="allow-same-origin allow-scripts allow-popups allow-forms" src="https://app.activeloop.ai/visualizer/iframe?url={hub_path}" />"""
+    return f"""
+      <div id='container'></div>
+  <script src="https://app.activeloop.ai/visualizer/vis.js"></script>
+  <script>
+    let container = document.getElementById('container')
 
-    #     window.vis.visualize('{hub_path}', null, null, container, {{
-    #       requireSignin: true
-    #     }})
-    #   </script>
-    #     """
-    return f"""<iframe width="100%" height="100%" sandbox="allow-same-origin allow-scripts allow-popups allow-forms" src="https://app.activeloop.ai/visualizer/iframe?url={hub_path}" />"""
+    window.vis.visualize('{hub_path}', null, null, container, {{
+      requireSignin: true
+    }})
+  </script>
+    """
 
 
 def _plat_url(ds, http=True):
