@@ -103,7 +103,7 @@ class Hub3DataLoader:
         if isinstance(transform, dict):
             tensors = [k for k in transform.keys() if k != "index"]
             tensors = map_tensor_keys(self.dataset, tensors)
-            if self._tensors and set(tensors) != set(self._tensors):
+            if self._tensors:
                 raise ValueError(
                     f"Tensors have already been specified in the .{self._mode} method."
                 )
