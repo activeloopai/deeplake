@@ -82,11 +82,8 @@ from hub.util.exceptions import (
     DatasetViewSavingError,
     DatasetHandlerError,
     EmptyTensorError,
-<<<<<<< HEAD
     DynamicTensorNumpyError,
-=======
     SampleAppendingError,
->>>>>>> 72bc6b48e9673bdcc85b43ed2c3f64994e3d4ef9
 )
 from hub.util.keys import (
     dataset_exists,
