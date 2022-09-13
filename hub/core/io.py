@@ -382,7 +382,7 @@ class SampleStreaming(Streaming):
 
     def _is_continuious(self):
         idx_entry = self.dataset.index.values[0]
-        if isinstance(idx_entry, slice):
+        if isinstance(idx_entry.value, slice):
             step = idx_entry.value.step
             if step and step < 1:
                 return False

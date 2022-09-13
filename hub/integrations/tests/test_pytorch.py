@@ -486,6 +486,7 @@ def test_pytorch_large(local_ds):
         [2, 4, 6, 8],
         [2, 2, 4, 4, 6, 6, 7, 7, 8, 8, 9, 9, 9],
         [4, 3, 2, 1],
+        3,
     ],
 )
 def test_pytorch_view(local_ds, index):
