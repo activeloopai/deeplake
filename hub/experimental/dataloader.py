@@ -105,7 +105,7 @@ class Hub3DataLoader:
             tensors = map_tensor_keys(self.dataset, tensors)
             if self._tensors and set(tensors) != set(self._tensors):
                 raise ValueError(
-                    f"Tensors have already been specified in the .{self._mode} method, can't use a dictionary of transforms, with different tensors"
+                    f"Tensors have already been specified in the .{self._mode} method."
                 )
             all_vars["_tensors"] = map_tensor_keys(self.dataset, tensors)
             transform = PytorchTransformFunction(transform_dict=transform)
@@ -155,10 +155,14 @@ class Hub3DataLoader:
         all_vars["_num_workers"] = num_workers
         all_vars["_collate"] = collate_fn
         if tensors:
-            tensors = map_tensor_keys(self.dataset, tensors)
-            if self._tensors and set(tensors) != set(self._tensors):
+            if "index" in tensors:
                 raise ValueError(
-                    "Tensors have already been specified by passing a dictionary to .transform() method, can't specify a different list of tensors"
+                    "index is not a tensor, to get index, pass return_index=True"
+                )
+            tensors = map_tensor_keys(self.dataset, tensors)
+            if self._tensors:
+                raise ValueError(
+                    "Tensors have already been specified by passing a dictionary to .transform() method"
                 )
         all_vars["_tensors"] = self._tensors or tensors
         all_vars["_num_threads"] = num_threads
@@ -197,10 +201,14 @@ class Hub3DataLoader:
         all_vars = self.__dict__.copy()
         all_vars["_num_workers"] = num_workers
         if tensors:
-            tensors = map_tensor_keys(self.dataset, tensors)
-            if self._tensors and set(tensors) != set(self._tensors):
+            if "index" in tensors:
                 raise ValueError(
-                    "Tensors have already been specified by passing a dictionary to .transform() method, can't specify a different list of tensors"
+                    "index is not a tensor, to get index, pass return_index=True"
+                )
+            tensors = map_tensor_keys(self.dataset, tensors)
+            if self._tensors:
+                raise ValueError(
+                    "Tensors have already been specified by passing a dictionary to .transform() method"
                 )
         all_vars["_tensors"] = self._tensors or tensors
         all_vars["_num_threads"] = num_threads
