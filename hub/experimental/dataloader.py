@@ -219,7 +219,7 @@ class Hub3DataLoader:
                 tensors=tensors,
                 drop_last=drop_last,
                 upcast=upcast,
-                return_index=return_index
+                return_index=return_index,
             )
         )
 
