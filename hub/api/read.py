@@ -18,11 +18,8 @@ def read(
     - Recompresses data into format required by the tensor if permitted by the tensor htype.
     - Simply copies the data in the file if file format matches sample_compression of the tensor, thus maximizing upload speeds.
 
-    Note:
-        No data is actually loaded until you try to get a property of the returned `Sample`. This is useful for passing along to
-            `tensor.append` and `tensor.extend`.
-
     Examples:
+
         >>> ds.create_tensor("images", htype="image", sample_compression="jpeg")
         >>> ds.images.append(hub.read("path/to/cat.jpg"))
         >>> ds.images.shape
@@ -38,7 +35,7 @@ def read(
         >>> ds.images[0].shape
         (300, 200, 3)
 
-    Supported file types:
+    Supported file types::
 
         Image: "bmp", "dib", "gif", "ico", "jpeg", "jpeg2000", "pcx", "png", "ppm", "sgi", "tga", "tiff", "webp", "wmf", "xbm"
         Audio: "flac", "mp3", "wav"
@@ -49,11 +46,15 @@ def read(
         path (str): Path to a supported file.
         verify (bool):  If True, contents of the file are verified.
         creds (optional, Dict): Credentials for s3, gcp and http urls.
-        compression (optional, str): Format of the file (see `hub.compression.SUPPORTED_COMPRESSIONS`). Only required if path does not have an extension.
+        compression (optional, str): Format of the file. Only required if path does not have an extension.
         storage (optional, StorageProvider): Storage provider to use to retrieve remote files. Useful if multiple files are being read from same storage to minimize overhead of creating a new provider.
 
     Returns:
-        Sample: Sample object. Call `sample.array` to get the `np.ndarray`.
+        Sample: Sample object. Call ``sample.array`` to get the ``np.ndarray``.
+
+    Note:
+        No data is actually loaded until you try to get a property of the returned :class:`Sample`.
+        This is useful for passing along to :func:`Tensor.append <hub.core.tensor.Tensor.append>` and :func:`Tensor.extend <hub.core.tensor.Tensor.extend>`.
     """
     path = convert_pathlib_to_string_if_needed(path)
     return Sample(
