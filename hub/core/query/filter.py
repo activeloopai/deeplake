@@ -100,7 +100,7 @@ def filter_dataset(
     except Exception as e:
         if vds:
             vds.info["error"] = str(e)
-            raise (e)
+        raise e
 
     ds = dataset[index_map]
     ds._is_filtered_view = True

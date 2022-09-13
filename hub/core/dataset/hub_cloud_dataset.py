@@ -16,6 +16,9 @@ import hub
 
 
 class HubCloudDataset(Dataset):
+    """Subclass of :class:`Dataset`. Hub cloud datasets are those datasets which are stored on Activeloop servers, their paths look like:
+    ``hub://username/dataset_name``."""
+
     def _first_load_init(self, verbose=True):
         self._set_org_and_name()
         if self.is_first_load:
@@ -38,7 +41,7 @@ class HubCloudDataset(Dataset):
     @property
     def is_actually_cloud(self) -> bool:
         """Datasets that are connected to hub cloud can still technically be stored anywhere.
-        If a dataset is hub cloud but stored without `hub://` prefix, it should only be used for testing.
+        If a dataset is hub cloud but stored without ``hub://`` prefix, it should only be used for testing.
         """
         return is_hub_cloud_path(self.path)  # type: ignore
 
@@ -252,19 +255,17 @@ class HubCloudDataset(Dataset):
         """Adds a new creds key to the dataset. These keys are used for tensors that are linked to external data.
 
         Examples:
-            ```
-            # create/load a dataset
-            ds = hub.dataset("path/to/dataset")
 
-            # add a new creds key
-            ds.add_creds_key("my_s3_key")
-            ```
+            >>> # create/load a dataset
+            >>> ds = hub.dataset("hub://username/dataset")
+            >>> # add a new creds key
+            >>> ds.add_creds_key("my_s3_key")
 
         Args:
             creds_key (str): The key to be added.
-            managed (bool): If True, the creds corresponding to the key will be fetched from activeloop platform.
+            managed (bool): If ``True``, the creds corresponding to the key will be fetched from activeloop platform.
                 Note, this is only applicable for datasets that are connected to activeloop platform.
-                Defaults to False.
+                Defaults to ``False``.
         """
         self.link_creds.add_creds_key(creds_key, managed=managed)
         save_link_creds(self.link_creds, self.storage)
@@ -277,7 +278,7 @@ class HubCloudDataset(Dataset):
                 f"""Cannot update managed creds key directly. If you want to update it, follow these steps:-
                 1. ds.change_creds_management("{old_creds_key}", False)
                 2. ds.update_creds_key("{old_creds_key}", "{new_creds_key}")
-                3. [OPTIONSL] ds.change_creds_management("{new_creds_key}", True)
+                3. [OPTIONAL] ds.change_creds_management("{new_creds_key}", True)
                 """
             )
         super().update_creds_key(old_creds_key, new_creds_key)
@@ -288,29 +289,26 @@ class HubCloudDataset(Dataset):
 
         Args:
             creds_key (str): The key whose management status is to be changed.
-            managed (bool): The target management status. If True, the creds corresponding to the key will be fetched from activeloop platform.
+            managed (bool): The target management status. If ``True``, the creds corresponding to the key will be fetched from activeloop platform.
 
         Raises:
             ValueError: If the dataset is not connected to activeloop platform.
             KeyError: If the creds key is not present in the dataset.
 
         Examples:
-            ```
-            # create/load a dataset
-            ds = hub.dataset("path/to/dataset")
 
-            # add a new creds key
-            ds.add_creds_key("my_s3_key")
+            >>> # create/load a dataset
+            >>> ds = hub.dataset("hub://username/dataset")
+            >>> # add a new creds key
+            >>> ds.add_creds_key("my_s3_key")
+            >>> # Populate the name added with creds dictionary
+            >>> # These creds are only present temporarily and will have to be repopulated on every reload
+            >>> ds.populate_creds("my_s3_key", {})
+            >>> # Change the management status of the key to True. Before doing this, ensure that the creds have been created on activeloop platform
+            >>> # Now, this key will no longer use the credentials populated in the previous step but will instead fetch them from activeloop platform
+            >>> # These creds don't have to be populated again on every reload and will be fetched every time the dataset is loaded
+            >>> ds.change_creds_management("my_s3_key", True)
 
-            # Populate the name added with creds dictionary
-            # These creds are only present temporarily and will have to be repopulated on every reload
-            ds.populate_creds("my_s3_key", {})
-
-            # Change the management status of the key to True. Before doing this, ensure that the creds have been created on activeloop platform
-            # Now, this key will no longer use the credentials populated in the previous step but will instead fetch them from activeloop platform
-            # These creds don't have to be populated again on every reload and will be fetched every time the dataset is loaded
-            ds.change_creds_management("my_s3_key", True)
-            ```
         """
 
         key_index = self.link_creds.creds_mapping[creds_key] - 1
