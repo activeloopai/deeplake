@@ -107,11 +107,11 @@ class Hub3DataLoader:
                 raise ValueError(
                     f"Tensors have already been specified in the .{self._mode} method, can't use a dictionary of transforms, with different tensors"
                 )
+            all_vars["_tensors"] = map_tensor_keys(self.dataset, tensors)
             transform = PytorchTransformFunction(transform_dict=transform)
         else:
             transform = PytorchTransformFunction(composite_transform=transform)
         all_vars["_transform"] = transform
-        all_vars["_tensors"] = map_tensor_keys(self.dataset, tensors)
         return self.__class__(**all_vars)
 
     def query(self, query_string: str):
