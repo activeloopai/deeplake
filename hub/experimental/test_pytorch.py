@@ -226,6 +226,7 @@ def test_string_tensors(local_ds):
     for idx, batch in enumerate(ptds):
         np.testing.assert_array_equal(batch["strings"], f"string{idx}")
 
+
 @requires_torch
 @requires_linux
 @pytest.mark.parametrize(
@@ -262,6 +263,7 @@ def test_pytorch_view(local_ds, index):
         np.testing.assert_array_equal(batch["img1"][0], arr_list_1[idx])
         np.testing.assert_array_equal(batch["img2"][0], arr_list_2[idx])
         np.testing.assert_array_equal(batch["label"][0], idx)
+
 
 @requires_torch
 @requires_linux
@@ -336,6 +338,15 @@ def test_rename(local_ds):
         np.testing.assert_array_equal(
             np.array(sample["red/green"]), np.array([[1, 2, 3, 4]])
         )
+
+
+@requires_torch
+@requires_linux
+def test_expiration_tate_casting_to_string():
+    ds = hub.dataset("hub://activeloop/cifar100-train")[0:10:2]
+    loader = dataloader(ds).pytorch(return_index=False)
+    for _ in loader:
+        pass
 
 
 @requires_linux
