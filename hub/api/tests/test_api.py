@@ -30,6 +30,7 @@ from hub.util.exceptions import (
     InvalidTokenException,
     TokenPermissionError,
     UserNotLoggedInException,
+    SampleAppendingError,
 )
 from hub.util.path import convert_string_to_pathlib_if_needed
 from hub.util.pretty_print import summary_tensor, summary_dataset
@@ -1405,6 +1406,15 @@ def test_append_with_tensor(src_args, dest_args, size):
     ds2.create_tensor("y", max_chunk_size=3 * MB, tiling_threshold=2 * MB, **dest_args)
     ds2.y.append(ds1.x[0])
     np.testing.assert_array_equal(ds1.x.numpy(), ds2.y.numpy())
+
+    with pytest.raises(SampleAppendingError):
+        ds1.append(np.zeros((416, 416, 3)))
+
+    with pytest.raises(SampleAppendingError):
+        ds1.append(set())
+
+    with pytest.raises(SampleAppendingError):
+        ds1.append([1, 2, 3])
 
 
 def test_extend_with_tensor():

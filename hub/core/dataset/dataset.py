@@ -2,20 +2,24 @@
 import os
 import uuid
 import sys
-from hub.core.index.index import IndexEntry
-from time import time
 import json
-from tqdm import tqdm  # type: ignore
-import pathlib
 import posixpath
 from logging import warning
-
+from collections import Iterable
 from typing import Any, Callable, Dict, List, Optional, Sequence, Tuple, Union
 from functools import partial
+from itertools import chain
+
+import jwt
+import pathlib
+import numpy as np
+from time import time
+from tqdm import tqdm  # type: ignore
+
 import hub
+from hub.core.index.index import IndexEntry
 from hub.core.link_creds import LinkCreds
 from hub.util.invalid_view_op import invalid_view_op
-import numpy as np
 from hub.api.info import load_info
 from hub.client.log import logger
 from hub.client.utils import get_user_name
@@ -38,7 +42,6 @@ from hub.core.storage import (
     MemoryProvider,
 )
 from hub.core.tensor import Tensor, create_tensor, delete_tensor
-
 from hub.core.version_control.commit_node import CommitNode  # type: ignore
 from hub.core.version_control.dataset_diff import load_dataset_diff
 from hub.htype import (
@@ -77,6 +80,7 @@ from hub.util.exceptions import (
     DatasetViewSavingError,
     DatasetHandlerError,
     EmptyTensorError,
+    SampleAppendingError,
 )
 from hub.util.keys import (
     dataset_exists,
@@ -2056,6 +2060,7 @@ class Dataset:
             ValueError: If all tensors being updated are not of the same length.
             NotImplementedError: If an error occurs while writing tiles.
             Exception: Error while attempting to rollback appends.
+            SampleAppendingError: Error that occurs when someone tries to append a tensor value directly to the dataset without specifying tensor name.
 
         Examples:
 
@@ -2069,6 +2074,9 @@ class Dataset:
         """
         if isinstance(sample, Dataset):
             sample = sample.tensors
+        if not isinstance(sample, dict):
+            raise SampleAppendingError()
+
         skipped_tensors = [k for k in self.tensors if k not in sample]
         if skipped_tensors and not skip_ok and not append_empty:
             raise KeyError(
