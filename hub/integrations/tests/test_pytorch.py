@@ -7,6 +7,7 @@ from hub.util.remove_cache import get_base_storage
 from hub.util.exceptions import DatasetUnsupportedPytorch, TensorDoesNotExistError
 from hub.tests.common import requires_torch
 from hub.core.dataset import Dataset
+from hub.core.index.index import IndexEntry
 from hub.core.storage.memory import MemoryProvider
 from hub.constants import KB
 
@@ -467,6 +468,44 @@ def test_pytorch_large(local_ds):
 
     ptds = local_ds.pytorch()
     for idx, batch in enumerate(ptds):
+        np.testing.assert_array_equal(batch["img1"][0], arr_list_1[idx])
+        np.testing.assert_array_equal(batch["img2"][0], arr_list_2[idx])
+        np.testing.assert_array_equal(batch["label"][0], idx)
+
+
+@requires_torch
+@pytest.mark.parametrize(
+    "index",
+    [
+        slice(2, 7),
+        slice(3, 10, 2),
+        slice(None, 10),
+        slice(None, None, -1),
+        slice(None, None, -2),
+        [2, 3, 4],
+        [2, 4, 6, 8],
+        [2, 2, 4, 4, 6, 6, 7, 7, 8, 8, 9, 9, 9],
+        [4, 3, 2, 1],
+        3,
+    ],
+)
+def test_pytorch_view(local_ds, index):
+    arr_list_1 = [np.random.randn(15, 15, i) for i in range(10)]
+    arr_list_2 = [np.random.randn(40, 15, 4, i) for i in range(10)]
+    label_list = list(range(10))
+
+    with local_ds as ds:
+        ds.create_tensor("img1")
+        ds.create_tensor("img2")
+        ds.create_tensor("label")
+        ds.img1.extend(arr_list_1)
+        ds.img2.extend(arr_list_2)
+        ds.label.extend(label_list)
+
+    ptds = local_ds[index].pytorch()
+    idxs = list(IndexEntry(index).indices(len(local_ds)))
+    for idx, batch in enumerate(ptds):
+        idx = idxs[idx]
         np.testing.assert_array_equal(batch["img1"][0], arr_list_1[idx])
         np.testing.assert_array_equal(batch["img2"][0], arr_list_2[idx])
         np.testing.assert_array_equal(batch["label"][0], idx)

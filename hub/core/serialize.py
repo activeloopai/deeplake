@@ -273,11 +273,12 @@ def serialize_chunkids(version: str, arr: np.ndarray) -> memoryview:
     flatbuff[1 : 1 + len_version] = version.encode("ascii")
     offset = 1 + len_version
 
-    # write number of bytes per entry
-    dtype = arr.dtype
-    num_bytes = int(dtype.itemsize)
-    flatbuff[offset] = num_bytes
-    offset += 1
+    # write encoder dtype
+    if version_compare(version, "2.7.6") >= 0:
+        dtype = arr.dtype
+        num_bytes = int(dtype.itemsize)
+        flatbuff[offset] = num_bytes
+        offset += 1
 
     # Write ids
     flatbuff[offset : offset + arr.nbytes] = arr.tobytes()
@@ -304,7 +305,7 @@ def deserialize_chunkids(
     len_version = byts[0]
     version = str(byts[1 : 1 + len_version], "ascii")
     offset = 1 + len_version
-    if version_compare(version, "2.7.6") < 0:  # change this to 2.8.0 closer to release
+    if version_compare(version, "2.7.6") < 0:
         # Read chunk ids
         ids = np.frombuffer(byts[offset:], dtype=np.uint32).reshape(-1, 2).copy()
         return version, ids, np.uint32

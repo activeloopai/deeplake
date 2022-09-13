@@ -9,11 +9,13 @@ def _contains_negatives(shape: Sequence[int]):
 
 
 class ShapeInterval:
-    def __init__(self, lower: Sequence[int], upper: Sequence[int] = None):
+    def __init__(self, lower: Sequence[int], upper: Optional[Sequence[int]] = None):
         """
         Shapes in hub are best represented as intervals, this is to support dynamic tensors. Instead of having a single tuple of integers representing shape,
-        we use 2 tuples of integers to represent the lower and upper bounds of the representing shape. If lower == upper for all cases, the shape is considered
-        "fixed". If lower != upper for any cases, the shape is considered "dynamic".
+        we use 2 tuples of integers to represent the lower and upper bounds of the representing shape.
+
+        - If ``lower == upper`` for all cases, the shape is considered "fixed".
+        - If ``lower != upper`` for any cases, the shape is considered "dynamic".
 
         Args:
             lower (sequence): Sequence of integers that represent the lower-bound shape.

@@ -14,7 +14,7 @@
   <h3 align="center">
    <a href="https://docs.activeloop.ai/?utm_source=github&utm_medium=github&utm_campaign=github_readme&utm_id=readme"><b>Documentation</b></a> &bull;
    <a href="https://docs.activeloop.ai/getting-started/?utm_source=github&utm_medium=github&utm_campaign=github_readme&utm_id=readme"><b>Getting Started</b></a> &bull;
-   <a href="https://api-docs.activeloop.ai/"><b>API Reference</b></a> &bull;  
+   <a href="https://docs.deeplake.ai/"><b>API Reference</b></a> &bull;  
    <a href="https://github.com/activeloopai/examples/"><b>Examples</b></a> &bull; 
    <a href="https://www.activeloop.ai/resources/?utm_source=github&utm_medium=github&utm_campaign=github_readme&utm_id=readme"><b>Blog</b></a> &bull;  
   <a href="http://slack.activeloop.ai"><b>Slack Community</b></a> &bull;

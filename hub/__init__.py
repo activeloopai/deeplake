@@ -1,3 +1,8 @@
+r"""
+The hub package provides a database which stores data as compressed chunked arrays that can be stored anywhere and 
+later streamed to deep learning models.
+"""
+
 import threading
 from queue import Queue
 from botocore.config import Config
@@ -9,21 +14,7 @@ from hub.util.check_latest_version import warn_if_update_required
 if sys.platform == "darwin":
     multiprocessing.set_start_method("fork", force=True)
 
-__pdoc__ = {
-    "api": False,
-    "cli": False,
-    "client": False,
-    "constants": False,
-    "config": False,
-    "integrations": False,
-    "tests": False,
-    "Dataset.clear_cache": False,
-    "Dataset.flush": False,
-    "Dataset.read_only": False,
-    "Dataset.size_approx": False,
-    "Dataset.token": False,
-    "Dataset.num_samples": False,
-}
+
 from .api.dataset import dataset as api_dataset
 from .api.read import read
 from .api.link import link
@@ -53,7 +44,7 @@ ingest = api_dataset.ingest
 ingest_kaggle = api_dataset.ingest_kaggle
 ingest_dataframe = api_dataset.ingest_dataframe
 ingest_huggingface = huggingface.ingest_huggingface
-dataset = api_dataset.init
+dataset = api_dataset.init  # type: ignore
 tensor = Tensor
 
 __all__ = [
@@ -83,7 +74,7 @@ __all__ = [
     "rename",
 ]
 
-__version__ = "2.8.1"
+__version__ = "2.8.2"
 warn_if_update_required(__version__)
 __encoded_version__ = np.array(__version__)
 config = {"s3": Config(max_pool_connections=50, connect_timeout=300, read_timeout=300)}
