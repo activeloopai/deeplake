@@ -2060,6 +2060,7 @@ class Dataset:
             ValueError: If all tensors being updated are not of the same length.
             NotImplementedError: If an error occurs while writing tiles.
             Exception: Error while attempting to rollback appends.
+            SampleAppendingError: Error that occurs when someone tries to append a tensor value directly to the dataset without specifying tensor name.
 
         Examples:
 
