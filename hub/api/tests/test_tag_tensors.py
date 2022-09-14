@@ -30,7 +30,7 @@ def test_tag_tensors(memory_ds):
         ds.create_tensor("y", htype="tag")
         ds.y.add_tag("a")
         ds.y.add_tag("b")
-        ds.y.add_tag("c") 
+        ds.y.add_tag("c")
         ds.y.a[0] = 0
         ds.y.b[0] = 1
         ds.y.c[0] = 2

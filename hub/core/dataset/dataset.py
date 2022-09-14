@@ -132,6 +132,7 @@ import jwt
 
 
 _LOCKABLE_STORAGES = {S3Provider, GCSProvider}
+_TAG_TENSOR_RESERVED_KEYWORDS = {"numpy", "data"}
 
 
 class Dataset:
@@ -961,6 +962,8 @@ class Dataset:
         self.storage.maybe_flush()
 
     def __getattr__(self, key):
+        if self.is_tag_tensor and key in _TAG_TENSOR_RESERVED_KEYWORDS:
+            return object.__getattribute__(self, "_" + key)
         try:
             return self.__getitem__(key)
         except TensorDoesNotExistError as ke:
@@ -3489,6 +3492,8 @@ class Dataset:
         return self.__getitem__(self.default_tag, ignore_index=True)
 
     def add_tag(self, name: str):
+        if name in _TAG_TENSOR_RESERVED_KEYWORDS:
+            raise InvalidTensorNameError(name)
         return self.create_tensor_like(
             name, object.__getattribute__(self, "default_tensor")
         )
@@ -3525,7 +3530,7 @@ class Dataset:
     def delete_tag(self, tag):
         self.delete_tensor(tag)
 
-    def numpy(self, aslist=False, fetch_chunks=False):
+    def _numpy(self, aslist=False, fetch_chunks=False):
         if not self.is_tag_tensor:
             raise AttributeError("Attribute `numpy` only valid for tag tensors.")
         default_tags_tensor = self.__getitem__("_default_tags", ignore_index=True)
@@ -3557,7 +3562,7 @@ class Dataset:
                 return np.array(ret)
             return ret
 
-    def data(self, aslist=False):
+    def _data(self, aslist=False):
         if not self.is_tag_tensor:
             raise AttributeError("Attribute `data` only valid for tag tensors.")
         default_tags_tensor = self.__getitem__("_default_tags", ignore_index=True)
