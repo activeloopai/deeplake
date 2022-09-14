@@ -315,7 +315,14 @@ class Hub3DataLoader:
 
 
 def dataloader(dataset) -> Hub3DataLoader:
-    """Returns a hub Hub3DataLoader object which can be transformed either numpy DataLoader or pytorch Dataloader.
+    """Returns a hub hub.experimental.Hub3DataLoader object which can be transformed either numpy DataLoader or pytorch Dataloader.
+
+
+    Args:
+        dataset: hub.Dataset object on which dataloader nneds to be built
+
+    Returns:
+        Hub3DataLoader: A hub.experimental.Hub3DataLoader object.
 
 
     Examples:
@@ -345,9 +352,5 @@ def dataloader(dataset) -> Hub3DataLoader:
         >>> for i, data in enumerate(train_loader):
         ...     # custom logic on dat
         ...     pass
-
-
-    Returns:
-        Dataloader: A Dataloader object.
     """
     return Hub3DataLoader(dataset)
