@@ -7,7 +7,7 @@ import hub
 from hub.core.dataset import Dataset
 from hub.core.tensor import Tensor
 
-from hub.tests.common import assert_array_lists_equal, is_opt_true
+from hub.tests.common import assert_array_lists_equal, is_opt_true, get_dummy_data_path
 from hub.tests.storage_fixtures import enabled_remote_storages
 from hub.core.storage import GCSProvider
 from hub.util.exceptions import (
@@ -30,6 +30,7 @@ from hub.util.exceptions import (
     InvalidTokenException,
     TokenPermissionError,
     UserNotLoggedInException,
+    SampleAppendingError,
 )
 from hub.util.path import convert_string_to_pathlib_if_needed
 from hub.util.pretty_print import summary_tensor, summary_dataset
@@ -500,10 +501,16 @@ def test_compute_slices(memory_ds):
 def test_length_slices(memory_ds):
     ds = memory_ds
     data = np.array([1, 2, 3, 9, 8, 7, 100, 99, 98, 99, 101])
+    data_2 = np.array([1, 2, 3, 9, 8, 7, 100, 99, 98, 99, 101, 12, 15, 18])
     ds.create_tensor("data")
+    ds.create_tensor("data_2")
+
     ds.data.extend(data)
+    ds.data_2.extend(data_2)
 
     assert len(ds) == 11
+    assert ds.min_len == len(ds)
+    assert ds.max_len == 14
     assert len(ds[0]) == 1
     assert len(ds[0:1]) == 1
     assert len(ds[0:0]) == 0
@@ -560,6 +567,12 @@ def test_htype(memory_ds: Dataset):
     segment_mask = memory_ds.create_tensor("segment_mask", htype="segment_mask")
     keypoints_coco = memory_ds.create_tensor("keypoints_coco", htype="keypoints_coco")
     point = memory_ds.create_tensor("point", htype="point")
+    point_cloud = memory_ds.create_tensor(
+        "point_cloud", htype="point_cloud", sample_compression="las"
+    )
+    memory_ds.create_tensor(
+        "point_cloud_calibration_matrix", htype="point_cloud.calibration_matrix"
+    )
 
     image.append(np.ones((28, 28, 3), dtype=np.uint8))
     bbox.append(np.array([1.0, 1.0, 0.0, 0.5], dtype=np.float32))
@@ -571,6 +584,17 @@ def test_htype(memory_ds: Dataset):
     segment_mask.append(np.ones((28, 28), dtype=np.uint32))
     keypoints_coco.append(np.ones((51, 2), dtype=np.int32))
     point.append(np.ones((11, 2), dtype=np.int32))
+
+    point_cloud.append(
+        hub.read(os.path.join(get_dummy_data_path("point_cloud"), "point_cloud.las"))
+    )
+    point_cloud_dummy_data_path = pathlib.Path(get_dummy_data_path("point_cloud"))
+    point_cloud.append(hub.read(point_cloud_dummy_data_path / "point_cloud.las"))
+    # Along the forst direcection three matrices are concatenated, the first matrix is P,
+    # the second one is Tr and the third one is R
+    memory_ds.point_cloud_calibration_matrix.append(
+        np.zeros((3, 4, 4), dtype=np.float32)
+    )
 
 
 def test_dtype(memory_ds: Dataset):
@@ -969,6 +993,7 @@ def test_compressions_list():
         "ico",
         "jpeg",
         "jpeg2000",
+        "las",
         "lz4",
         "mkv",
         "mp3",
@@ -991,6 +1016,7 @@ def test_htypes_list():
     assert hub.htypes == [
         "audio",
         "bbox",
+        "bbox.3d",
         "binary_mask",
         "class_label",
         "dicom",
@@ -998,10 +1024,13 @@ def test_htypes_list():
         "image",
         "image.gray",
         "image.rgb",
+        "instance_label",
         "json",
         "keypoints_coco",
         "list",
         "point",
+        "point_cloud",
+        "point_cloud.calibration_matrix",
         "segment_mask",
         "text",
         "video",
@@ -1318,6 +1347,17 @@ def test_ds_append(memory_ds, x_args, y_args, x_size, htype):
     assert ds.y.chunk_engine.commit_diff.num_samples_added == 3
     assert ds.z.chunk_engine.commit_diff.num_samples_added == 0
     assert len(ds) == 0
+    for _ in range(3):
+        ds.append({"z": np.zeros(2)}, skip_ok=True)
+    assert len(ds.z) == 3
+    ds.append({"x": np.ones(3), "y": [1, 2, 3]}, append_empty=True)
+    assert len(ds.x) == 4
+    assert len(ds.y) == 4
+    assert len(ds.z) == 4
+    assert ds.x.chunk_engine.commit_diff.num_samples_added == 4
+    assert ds.y.chunk_engine.commit_diff.num_samples_added == 4
+    assert ds.z.chunk_engine.commit_diff.num_samples_added == 4
+    assert len(ds) == 4
 
 
 def test_ds_append_with_ds_view():
@@ -1366,6 +1406,15 @@ def test_append_with_tensor(src_args, dest_args, size):
     ds2.create_tensor("y", max_chunk_size=3 * MB, tiling_threshold=2 * MB, **dest_args)
     ds2.y.append(ds1.x[0])
     np.testing.assert_array_equal(ds1.x.numpy(), ds2.y.numpy())
+
+    with pytest.raises(SampleAppendingError):
+        ds1.append(np.zeros((416, 416, 3)))
+
+    with pytest.raises(SampleAppendingError):
+        ds1.append(set())
+
+    with pytest.raises(SampleAppendingError):
+        ds1.append([1, 2, 3])
 
 
 def test_extend_with_tensor():
@@ -1998,36 +2047,50 @@ def test_uneven_iteration(memory_ds):
             np.testing.assert_equal(y, target_y)
 
 
-def test_hub_token_without_permission(
-    hub_cloud_dev_credentials, hub_cloud_dev_token, hub_dev_token
+def token_permission_error_check(
+    username,
+    password,
+    runner,
 ):
-    os.remove(REPORTING_CONFIG_FILE_PATH)
-    ds = hub.load("hub://activeloop/mnist-test", token=hub_cloud_dev_token)
-
-    ds = hub.load("hub://activeloop/mnist-test", token=hub_dev_token)
-
-    feature_report_path(
-        "hub://testingacc/test_hub_token", "empty", parameters={}, token=hub_dev_token
-    )
-
-    username, password = hub_cloud_dev_credentials
-    runner = CliRunner()
-
-    feature_report_path(
-        "hub://testingacc/test_hub_token",
-        "empty",
-        parameters={},
-        token=hub_cloud_dev_token,
-    )
-
     result = runner.invoke(login, f"-u {username} -p {password}")
     with pytest.raises(TokenPermissionError):
         hub.empty("hub://activeloop-test/sohas-weapons-train")
 
+    with pytest.raises(TokenPermissionError):
+        ds = hub.load("hub://activeloop/fake-path")
+
+
+def invalid_token_exception_check():
+    with pytest.raises(InvalidTokenException):
+        ds = hub.empty("hub://adilkhan/demo", token="invalid_token")
+
+
+def user_not_logged_in_exception_check(runner):
     runner.invoke(logout)
-    ds = hub.empty(
-        "hub://testingacc/test_hub_token", token=hub_cloud_dev_token, overwrite=True
+    with pytest.raises(UserNotLoggedInException):
+        ds = hub.load("hub://activeloop-test/sohas-weapons-train", read_only=True)
+
+
+def dataset_handler_error_check(runner, username, password):
+    result = runner.invoke(login, f"-u {username} -p {password}")
+    with pytest.raises(DatasetHandlerError):
+        ds = hub.load(f"hub://{username}/wrong-path")
+
+
+def test_hub_related_permission_exceptions(
+    hub_cloud_dev_credentials, hub_cloud_dev_token, hub_dev_token
+):
+    username, password = hub_cloud_dev_credentials
+    runner = CliRunner()
+
+    token_permission_error_check(
+        username,
+        password,
+        runner,
     )
+    invalid_token_exception_check()
+    user_not_logged_in_exception_check(runner)
+    dataset_handler_error_check(runner, username, password)
 
 
 def test_incompat_dtype_msg(local_ds, capsys):

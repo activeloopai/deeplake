@@ -107,15 +107,15 @@ VIDEO_COMPRESSIONS = ["mp4", "mkv", "avi"]
 
 AUDIO_COMPRESSIONS = ["mp3", "flac", "wav"]
 
+POINT_CLOUD_COMPRESSIONS = ["las"]
+
 
 # Just constants
 BYTE_COMPRESSION = "byte"
 IMAGE_COMPRESSION = "image"
 VIDEO_COMPRESSION = "video"
 AUDIO_COMPRESSION = "audio"
-
-
-COMPRESSION_TYPES = [BYTE_COMPRESSION, IMAGE_COMPRESSION, AUDIO_COMPRESSION]
+POINT_CLOUD_COMPRESSION = "point_cloud"
 
 
 COMPRESSION_TYPES = [
@@ -123,6 +123,7 @@ COMPRESSION_TYPES = [
     IMAGE_COMPRESSION,
     AUDIO_COMPRESSION,
     VIDEO_COMPRESSION,
+    POINT_CLOUD_COMPRESSION,
 ]
 
 # Pillow plugins for some formats might not be installed:
@@ -140,6 +141,7 @@ SUPPORTED_COMPRESSIONS = [
     *IMAGE_COMPRESSIONS,
     *AUDIO_COMPRESSIONS,
     *VIDEO_COMPRESSIONS,
+    *POINT_CLOUD_COMPRESSIONS,
 ]
 SUPPORTED_COMPRESSIONS = list(sorted(set(SUPPORTED_COMPRESSIONS)))  # type: ignore
 SUPPORTED_COMPRESSIONS.append(None)  # type: ignore
@@ -160,6 +162,8 @@ for c in VIDEO_COMPRESSIONS:
     _compression_types[c] = VIDEO_COMPRESSION
 for c in AUDIO_COMPRESSIONS:
     _compression_types[c] = AUDIO_COMPRESSION
+for c in POINT_CLOUD_COMPRESSIONS:
+    _compression_types[c] = POINT_CLOUD_COMPRESSION
 
 
 def get_compression_type(c):

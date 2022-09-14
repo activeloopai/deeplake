@@ -1,3 +1,4 @@
+import io
 from logging import warning
 import hub
 from hub.util.exceptions import (
@@ -6,18 +7,20 @@ from hub.util.exceptions import (
     UnsupportedCompressionError,
     CorruptedSampleError,
 )
+from hub.util.point_cloud import LAS_HEADER_FILED_NAME_TO_PARSER
 from hub.compression import (
     get_compression_type,
     BYTE_COMPRESSION,
-    IMAGE_COMPRESSION,
     VIDEO_COMPRESSION,
     AUDIO_COMPRESSION,
+    POINT_CLOUD_COMPRESSION,
 )
 from typing import Union, Tuple, Sequence, List, Optional, BinaryIO
 import numpy as np
 from pathlib import Path
 from PIL import Image, UnidentifiedImageError  # type: ignore
 from io import BytesIO
+
 import mmap
 import struct
 import sys
@@ -39,7 +42,6 @@ try:
     _LZ4_INSTALLED = True
 except ImportError:
     _LZ4_INSTALLED = False
-
 
 if sys.byteorder == "little":
     _NATIVE_INT32 = "<i4"
@@ -214,7 +216,10 @@ def compress_array(array: np.ndarray, compression: Optional[str]) -> bytes:
         raise NotImplementedError(
             "In order to store video data, you should use `hub.read(path_to_file)`. Compressing raw data is not yet supported."
         )
-
+    elif compr_type == POINT_CLOUD_COMPRESSION:
+        raise NotImplementedError(
+            "In order to store point cloud data, you should use `hub.read(path_to_file)`. Compressing raw data is not yet supported."
+        )
     if compression == "apng":
         return _compress_apng(array)
     try:
@@ -281,6 +286,8 @@ def decompress_array(
         return _decompress_audio(buffer)
     elif compr_type == VIDEO_COMPRESSION:
         return _decompress_video(buffer, start_idx, end_idx, step, reverse)  # type: ignore
+    elif compr_type == POINT_CLOUD_COMPRESSION:
+        return _decompress_full_point_cloud(buffer)
 
     if compression == "apng":
         return _decompress_apng(buffer)  # type: ignore
@@ -352,6 +359,10 @@ def compress_multiple(
         raise NotImplementedError("compress_multiple does not support audio samples.")
     elif compr_type == VIDEO_COMPRESSION:
         raise NotImplementedError("compress_multiple does not support video samples.")
+    elif compr_type == POINT_CLOUD_COMPRESSION:
+        raise NotImplementedError(
+            "compress_multiple does not support point cloud samples."
+        )
     elif compression == "apng":
         raise NotImplementedError("compress_multiple does not support apng samples.")
     canvas = np.zeros(_get_bounding_shape([arr.shape for arr in arrays]), dtype=dtype)
@@ -424,6 +435,8 @@ def verify_compressed_file(
                 return _read_video_shape(file), "|u1"  # type: ignore
         elif compression == "dcm":
             return _read_dicom_shape_and_dtype(file)
+        elif compression == "las":
+            return _read_point_cloud_shape_and_dtype(file)
         else:
             return _fast_decompress(file)
     except Exception as e:
@@ -438,7 +451,16 @@ def verify_compressed_file(
 def get_compression(header=None, path=None):
     if path:
         # These formats are recognized by file extension for now
-        file_formats = [".mp3", ".flac", ".wav", ".mp4", ".mkv", ".avi", ".dcm"]
+        file_formats = [
+            ".mp3",
+            ".flac",
+            ".wav",
+            ".mp4",
+            ".mkv",
+            ".avi",
+            ".dcm",
+            ".las",
+        ]
         path = str(path).lower()
         for fmt in file_formats:
             if path.endswith(fmt):
@@ -623,6 +645,11 @@ def read_meta_from_compressed_file(
                 shape, typestr = _read_video_shape(file), "|u1"  # type: ignore
             except Exception as e:
                 raise CorruptedSampleError(compression)
+        elif compression == "las":
+            try:
+                shape, typestr = _read_point_cloud_shape_and_dtype(file)
+            except Exception as e:
+                raise CorruptedSampleError(compression) from e
         else:
             img = Image.open(f) if isfile else Image.open(BytesIO(f))  # type: ignore
             shape, typestr = Image._conv_type_shape(img)
@@ -1058,3 +1085,88 @@ def _decompress_audio(
             )
             sample_count += frame.samples
     return audio
+
+
+def _open_lidar_file(file):
+    try:
+        import laspy as lp  # type: ignore
+    except:
+        raise ModuleNotFoundError("laspy not found. Install using `pip install laspy`")
+    return lp.read(file)
+
+
+def _load_lidar_point_cloud_data(file):
+    point_cloud = _open_lidar_file(file)
+    dimension_names = list(point_cloud.point_format.dimension_names)
+    return point_cloud, dimension_names
+
+
+def _open_point_cloud_data(file: Union[bytes, memoryview, str]):
+    if isinstance(file, str):
+        point_cloud, dimension_names = _load_lidar_point_cloud_data(file)
+        return point_cloud, dimension_names
+
+    point_cloud, dimension_names = _load_lidar_point_cloud_data(BytesIO(file))
+    return point_cloud, dimension_names
+
+
+def _read_point_cloud_meta(file):
+    point_cloud, dimension_names = _open_point_cloud_data(file)
+    meta_data = {
+        "dimension_names": dimension_names,
+    }
+    if type(point_cloud) != np.ndarray:
+        meta_data.update(
+            {
+                "las_header": {
+                    "DEFAULT_VERSION": LAS_HEADER_FILED_NAME_TO_PARSER[
+                        "DEFAULT_VERSION"
+                    ](point_cloud),
+                    "file_source_id": point_cloud.header.file_source_id,
+                    "system_identifier": point_cloud.header.system_identifier,
+                    "generating_software": point_cloud.header.generating_software,
+                    "creation_date": LAS_HEADER_FILED_NAME_TO_PARSER["creation_date"](
+                        point_cloud
+                    ),
+                    "point_count": point_cloud.header.point_count,
+                    "scales": point_cloud.header.scales.tolist(),
+                    "offsets": point_cloud.header.offsets.tolist(),
+                    "number_of_points_by_return": point_cloud.header.number_of_points_by_return.tolist(),
+                    "start_of_waveform_data_packet_record": point_cloud.header.start_of_waveform_data_packet_record,
+                    "start_of_first_evlr": point_cloud.header.start_of_first_evlr,
+                    "number_of_evlrs": point_cloud.header.number_of_evlrs,
+                    "version": LAS_HEADER_FILED_NAME_TO_PARSER["version"](point_cloud),
+                    "maxs": point_cloud.header.maxs.tolist(),
+                    "mins": point_cloud.header.mins.tolist(),
+                    "major_version": point_cloud.header.major_version,
+                    "minor_version": point_cloud.header.minor_version,
+                    "global_encoding": LAS_HEADER_FILED_NAME_TO_PARSER[
+                        "global_encoding"
+                    ](point_cloud),
+                    "uuid": str(point_cloud.header.uuid),
+                },
+                "vlrs": point_cloud.vlrs,
+            }
+        )
+    return meta_data
+
+
+def _read_point_cloud_shape_and_dtype(file):
+    point_cloud = _decompress_full_point_cloud(file)
+    shape = point_cloud.shape
+    return shape, point_cloud.dtype
+
+
+def _decompress_full_point_cloud(file: Union[bytes, memoryview, str]):
+    decompressed_point_cloud, _ = _open_point_cloud_data(file)
+    meta = _read_point_cloud_meta(file)
+
+    decompressed_point_cloud = np.concatenate(
+        [
+            np.expand_dims(decompressed_point_cloud[dim_name], -1)
+            for dim_name in meta["dimension_names"]
+        ],
+        axis=1,
+    )
+    decompressed_point_cloud = decompressed_point_cloud.astype(np.float32)
+    return decompressed_point_cloud

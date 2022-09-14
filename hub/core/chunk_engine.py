@@ -284,7 +284,7 @@ class ChunkEngine:
             commit_id = self.commit_id
             key = get_chunk_id_encoder_key(self.key, commit_id)
             if not self.chunk_id_encoder_exists:
-                enc = ChunkIdEncoder()
+                enc = ChunkIdEncoder(dtype=np.uint64)
                 try:
                     self.meta_cache[key] = enc
                 except ReadOnlyModeError:
@@ -606,13 +606,15 @@ class ChunkEngine:
             return samples[0].nbytes >= self.min_chunk_size
         return True
 
-    def check_each_sample(self, samples):
+    def check_each_sample(self, samples, verify_creds_key_exists=True):
         return
 
-    def _sanitize_samples(self, samples):
+    def _sanitize_samples(self, samples, verify_creds_key_exists=True):
         check_samples_type(samples)
         samples = [None if is_empty_list(sample) else sample for sample in samples]
-        verified_samples = self.check_each_sample(samples)
+        verified_samples = self.check_each_sample(
+            samples, verify_creds_key_exists=verify_creds_key_exists
+        )
         tensor_meta = self.tensor_meta
         all_empty = all(sample is None for sample in samples)
         if tensor_meta.htype is None and not all_empty:
@@ -663,6 +665,7 @@ class ChunkEngine:
         update_tensor_meta: bool = True,
         start_chunk_row: Optional[int] = None,
         progressbar: bool = False,
+        register_creds: bool = True,
     ):
         """Add samples to chunks, in case if there is a space on the start_chunk,
         othewise creating new chunk and append samples to newly created chunk
@@ -675,6 +678,7 @@ class ChunkEngine:
             update_tensor_meta (bool): Parameter that shows if it is needed to update tensor metas, this will be false in case of rechunking at the meta will not be changed
             start_chunk_row (int, Optional): Parameter that shows the chunk row that needs to be updated, those params are needed only in rechunking phase.
             progressbar (bool): Parameter that shows if need to show sample insertion progress
+            register_creds (bool): Parameter that shows if need to register the creds_key of the sample
 
         Returns:
             Tuple[List[BaseChunk], Dict[Any, Any]]
@@ -696,7 +700,8 @@ class ChunkEngine:
             num_samples_added = current_chunk.extend_if_has_space(
                 samples, update_tensor_meta=update_tensor_meta
             )  # type: ignore
-            self.register_new_creds(num_samples_added, samples)
+            if register_creds:
+                self.register_new_creds(num_samples_added, samples)
             if num_samples_added == 0:
                 current_chunk = self._create_new_chunk(register, row=start_chunk_row)
                 if start_chunk_row is not None:
@@ -783,6 +788,8 @@ class ChunkEngine:
         if self.is_sequence:
             samples = tqdm(samples) if progressbar else samples
             for sample in samples:
+                if sample is None:
+                    sample = []
                 verified_sample = self._extend(
                     sample, progressbar=False, update_commit_diff=False
                 )
@@ -1045,7 +1052,9 @@ class ChunkEngine:
             row=new_chunk_row, num_samples=num_samples
         )
         chunk.pop_multiple(num_samples=len(samples_to_move))
-        samples, _ = self._sanitize_samples(samples_to_move)
+        samples, _ = self._sanitize_samples(
+            samples_to_move, verify_creds_key_exists=False
+        )
         self._samples_to_chunks(
             samples,
             start_chunk=new_chunk,
@@ -1053,6 +1062,7 @@ class ChunkEngine:
             update_commit_diff=True,
             update_tensor_meta=False,
             start_chunk_row=new_chunk_row,
+            register_creds=False,
         )
 
     def _merge_chunks(
@@ -1068,7 +1078,9 @@ class ChunkEngine:
             return True
 
         from_chunk.pop_multiple(num_samples=num_samples)
-        samples, _ = self._sanitize_samples(samples_to_move)
+        samples, _ = self._sanitize_samples(
+            samples_to_move, verify_creds_key_exists=False
+        )
         to_chunk.is_dirty = True
         self.active_updated_chunk = to_chunk
         self._samples_to_chunks(
@@ -1078,6 +1090,7 @@ class ChunkEngine:
             update_commit_diff=True,
             update_tensor_meta=False,
             start_chunk_row=to_chunk_row,
+            register_creds=False,
         )
         self.chunk_id_encoder.delete_chunk_id(row=from_chunk_row)
         try:
@@ -1324,7 +1337,7 @@ class ChunkEngine:
     def num_samples_per_chunk(self):
         # should only be called if self.is_fixed_shape
         if self._num_samples_per_chunk is None:
-            self._num_samples_per_chunk = (
+            self._num_samples_per_chunk = int(
                 self.chunk_id_encoder.array[0, LAST_SEEN_INDEX_COLUMN] + 1
             )
         return self._num_samples_per_chunk
@@ -1434,8 +1447,8 @@ class ChunkEngine:
             and isinstance(self.base_storage, (S3Provider, GCSProvider))
             and not isinstance(self.chunk_class, ChunkCompressedChunk)
         ):
-            prev = enc.array[row - 1][LAST_SEEN_INDEX_COLUMN] if row > 0 else -1
-            num_samples_in_chunk = enc.array[row][LAST_SEEN_INDEX_COLUMN] - prev
+            prev = int(enc.array[row - 1][LAST_SEEN_INDEX_COLUMN]) if row > 0 else -1
+            num_samples_in_chunk = int(enc.array[row][LAST_SEEN_INDEX_COLUMN]) - prev
             worst_case_header_size += HEADER_SIZE_BYTES + 10  # 10 for version
             ENTRY_SIZE = 4
             if self.tensor_meta.max_shape == self.tensor_meta.min_shape:
@@ -1468,7 +1481,8 @@ class ChunkEngine:
             chunk_id, partial_chunk_bytes=worst_case_header_size
         )
         return chunk.read_sample(
-            local_sample_index, cast=self.tensor_meta.htype != "dicom"
+            local_sample_index,
+            cast=self.tensor_meta.htype != "dicom",
         )[tuple(entry.value for entry in index.values[1:])]
 
     def get_non_tiled_sample(self, global_sample_index, index, fetch_chunks=False):
@@ -1600,8 +1614,8 @@ class ChunkEngine:
                     chunk_arr = self.chunk_id_encoder.array
 
                     chunk = chunks[0]
-                    first_sample = 0 if row == 0 else chunk_arr[row - 1][1] + 1
-                    last_sample = self.chunk_id_encoder.array[row][1]
+                    first_sample = int(0 if row == 0 else chunk_arr[row - 1][1] + 1)
+                    last_sample = int(self.chunk_id_encoder.array[row][1])
                     num_samples = last_sample - first_sample + 1
 
                     full_shape = (num_samples,) + tuple(self.tensor_meta.max_shape)

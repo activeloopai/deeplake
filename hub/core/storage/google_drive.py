@@ -105,15 +105,16 @@ class GDriveProvider(StorageProvider):
         """Initializes the GDriveProvider
 
         Example:
-            gdrive_provider = GDriveProvider("gdrive://folder_name/folder_name")
+
+            >>> gdrive_provider = GDriveProvider("gdrive://folder_name/folder_name")
 
         Args:
             root(str): The root of the provider. All read/write request keys will be appended to root.
             token(dict, str, optional): Google Drive token. Can be path to the token file or the actual credentials dictionary.
-            makemap(bool): Creates path to id map if True.
+            makemap(bool): Creates path to id map if ``True``.
 
         Note:
-            - Requires `client_secrets.json` in working directory if `token` is not provided.
+            - Requires ``client_secrets.json`` in working directory if ``token`` is not provided.
             - Due to limits on requests per 100 seconds on google drive api, continuous requests such as uploading many small files can be slow.
             - Users can request to increse their quotas on their google cloud platform.
         """

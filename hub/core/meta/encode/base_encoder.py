@@ -31,7 +31,7 @@ class Encoder(ABC):
                 return self.last_row
         return None
 
-    def __init__(self, encoded=None):
+    def __init__(self, encoded=None, dtype=ENCODING_DTYPE):
         """Base class for custom encoders that allow reading meta information from sample indices without decoding the entire encoded state.
 
         Handles heavy lifting logic for:
@@ -63,18 +63,20 @@ class Encoder(ABC):
 
         Args:
             encoded (np.ndarray): Encoded state, if None state is empty. Helpful for deserialization. Defaults to None.
+            dtype (np.dtype): Dtype of the encoder. Defaults to `ENCODING_DTYPE`.
         """
+        self.dtype = dtype
 
         if isinstance(encoded, list):
-            encoded = np.array(encoded, dtype=ENCODING_DTYPE)
+            encoded = np.array(encoded, dtype=self.dtype)
 
         self._encoded = encoded
         if self._encoded is None:
-            self._encoded = np.array([], dtype=ENCODING_DTYPE)
+            self._encoded = np.array([], dtype=self.dtype)
 
-        if self._encoded.dtype != ENCODING_DTYPE:
+        if self._encoded.dtype != self.dtype:
             raise ValueError(
-                f"Encoding dtype should be {ENCODING_DTYPE}, instead got {self._encoded.dtype}"
+                f"Encoding dtype should be {self.dtype}, instead got {self._encoded.dtype}"
             )
 
         self.version = hub.__version__
@@ -178,19 +180,19 @@ class Encoder(ABC):
                 if row is not None:
                     self._encoded[:, LAST_SEEN_INDEX_COLUMN] += num_samples
                     shape_entry = np.array(
-                        [*decomposable, num_samples - 1], dtype=ENCODING_DTYPE
+                        [*decomposable, num_samples - 1], dtype=self.dtype
                     )
                     self._encoded = np.insert(self._encoded, row, shape_entry, axis=0)
                 else:
                     shape_entry = np.array(
-                        [[*decomposable, next_last_index]], dtype=ENCODING_DTYPE
+                        [[*decomposable, next_last_index]], dtype=self.dtype
                     )
                     self._encoded = np.concatenate([self._encoded, shape_entry], axis=0)
 
         else:
             decomposable = self._make_decomposable(item)
             self._encoded = np.array(
-                [[*decomposable, num_samples - 1]], dtype=ENCODING_DTYPE
+                [[*decomposable, num_samples - 1]], dtype=self.dtype
             )
 
         self.is_dirty = True
@@ -213,7 +215,7 @@ class Encoder(ABC):
     def _combine_condition(self, item: Any, compare_row_index: int = -1) -> bool:
         """Should determine if `item` can be combined with a row in `self._encoded`."""
 
-    def _derive_next_last_index(self, last_index: ENCODING_DTYPE, num_samples: int):
+    def _derive_next_last_index(self, last_index, num_samples: int):
         """Calculates what the next last index should be."""
         return last_index + num_samples
 
@@ -628,7 +630,7 @@ class Encoder(ABC):
         start = self._encoded[: max(0, row_index)]
         end = self._encoded[row_index:]
         new_row = np.array(
-            [*self._decomposable_item, local_sample_index], dtype=ENCODING_DTYPE
+            [*self._decomposable_item, local_sample_index], dtype=self.dtype
         )
         self._encoded = np.concatenate((start, [new_row], end))
         return True
@@ -670,7 +672,7 @@ class Encoder(ABC):
         end = self._encoded[row_index + 1 :]
         start[-1, LAST_SEEN_INDEX_COLUMN] -= 1
         new_row = np.array(
-            [*self._decomposable_item, local_sample_index], dtype=ENCODING_DTYPE
+            [*self._decomposable_item, local_sample_index], dtype=self.dtype
         )
         self._encoded = np.concatenate((start, [new_row], end))
 
@@ -708,7 +710,7 @@ class Encoder(ABC):
         # 2 rows should be created, and 1 should be updated
         start = np.array(self._encoded[: row_index + 1])
         new_row = np.array(
-            [*self._decomposable_item, local_sample_index], dtype=ENCODING_DTYPE
+            [*self._decomposable_item, local_sample_index], dtype=self.dtype
         )
         end = self._encoded[row_index:]
         start[-1, LAST_SEEN_INDEX_COLUMN] = local_sample_index - 1

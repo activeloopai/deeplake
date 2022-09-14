@@ -1,0 +1,121 @@
+@font-face {
+    font-family: IBMPlexMono;
+    src: url("../fonts/IBM_Plex_Mono/IBMPlexMono-SemiBold.ttf") format("truetype");
+}
+
+@font-face {
+    font-family: ProximaNova;
+    src: url("../fonts/Proxima_Nova/Proxima\ Nova\ Font.otf") format("opentype");
+}
+
+body {
+    font-family: ProximaNova;
+    background-color: #ffff;
+}
+
+.icon.icon-home {
+    color: #ff6d35;
+}
+
+.wy-side-nav-search>a img.logo {
+    width: 50%;
+    height: 50%;
+}
+
+.wy-side-nav-search>a {
+    color: #ff6d35;
+}
+
+a.reference.internal {
+    color: #ff6d35;
+}
+
+.section>h1 {
+    font-family: ProximaNova;
+}
+
+.caption-text {
+    font-size: smaller;
+    font-family: ProximaNova;
+}
+
+.section>h2 {
+    font-family: ProximaNova;
+}
+
+.section>h3 {
+    font-family: ProximaNova;
+}
+
+.pre {
+    color: rgb(66, 63, 63);
+}
+
+dt.sig {
+    font-family: IBMPlexMono;
+}
+
+.sig .pre {
+    font-size: 94%
+}
+
+.wy-menu-vertical>p.caption {
+    font-size: large;
+}
+
+.wy-menu-vertical .reference.internal {
+    color: rgb(66, 63, 63);
+}
+
+.wy-side-nav-search input[type=text] {
+    border-color: #ff6d35;
+}
+
+html.writer-html5 .rst-content dl[class]:not(.option-list):not(.field-list):not(.footnote):not(.glossary):not(.simple)>dt {
+    display: table;
+    margin: 6px 0;
+    font-size: 100%;
+    line-height: normal;
+    background: #fcf6f4;
+    color: rgb(66, 63, 63);
+    border-top: 3px solid #ff6d35;
+    padding: 6px;
+    position: relative
+}
+
+html.writer-html4 .rst-content dl:not(.docutils) dl:not(.field-list)>dt,
+html.writer-html5 .rst-content dl[class]:not(.option-list):not(.field-list):not(.footnote):not(.glossary):not(.simple) dl:not(.field-list)>dt {
+    margin-bottom: 6px;
+    border: none;
+    border-left: 3px solid #51ced2;
+    background: #f0f0f0;
+    color: #555;
+}
+
+.wy-menu-vertical a:hover {
+    background-color: #cbcbcb;
+    cursor: pointer;
+}
+
+/* Takes full width of screen */
+/* .wy-nav-content {
+    max-width: none;
+} */
+
+.wy-nav-content {
+    max-width: 80%;
+}
+
+.docutils.literal.notranslate .pre {
+    font-size: 120%;
+}
+
+/* Names of Parameters, Exceptions, etc in description */
+dl.field-list strong {
+    font-family: IBMPlexMono;
+}
+
+/* Render fix for paranthesis touching text eg: (read_only) */
+dl.field-list dd em {
+    padding-right: 2px;
+}
