@@ -1,4 +1,4 @@
-from hub.core.storage.s3 import S3Provider
+from hub.core.storage import S3Provider, GCSProvider, GDriveProvider, MemoryProvider
 from hub.experimental.util import raise_indra_installation_error  # type: ignore
 from hub.util.dataset import try_flushing  # type: ignore
 
@@ -68,3 +68,10 @@ def dataset_to_hub3(hub2_dataset):
             slice_ = list(slice_)
         hub3_dataset = hub3_dataset[slice_]
     return hub3_dataset
+
+
+def verify_base_storage(dataset):
+    if isinstance(dataset.base_storage, (GCSProvider, GDriveProvider, MemoryProvider)):
+        raise ValueError(
+            "GCS, Google Drive and Memory datasets are not supported for experimental features currently."
+        )
