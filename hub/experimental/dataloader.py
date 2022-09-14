@@ -50,7 +50,7 @@ class Hub3DataLoader:
         self._return_index = _return_index
 
     def batch(self, batch_size: int, drop_last: bool = False):
-        """Returns a batched DataLoader object.
+        """Returns a batched hub.experimental.Hub3DataLoader object.
 
 
         Args:
@@ -59,7 +59,7 @@ class Hub3DataLoader:
 
 
         Returns:
-            Dataloader: A Dataloader object.
+            Hub3DataLoader: A hub.experimental.Hub3DataLoader object.
 
 
         Raises:
@@ -78,7 +78,7 @@ class Hub3DataLoader:
 
 
         Returns:
-            Dataloader: A Dataloader object.
+            Hub3DataLoader: A hub.experimental.Hub3DataLoader object.
 
 
         Raises:
@@ -91,7 +91,7 @@ class Hub3DataLoader:
         return self.__class__(**all_vars)
 
     def transform(self, transform: Union[Callable, Dict[str, Optional[Callable]]]):
-        """Returns a transformed Dataloader object.
+        """Returns a transformed hub.experimental.Hub3DataLoader object.
 
 
         Args:
@@ -99,7 +99,7 @@ class Hub3DataLoader:
 
 
         Returns:
-            Dataloader: A Dataloader object.
+            Hub3DataLoader: A hub.experimental.Hub3DataLoader object.
 
 
         Raises:
@@ -123,7 +123,7 @@ class Hub3DataLoader:
         return self.__class__(**all_vars)
 
     def query(self, query_string: str):
-        """Returns a sliced Dataloader with given query results.
+        """Returns a sliced hub.experimental.Hub3DataLoader object with given query results.
         It allows to run SQL like queries on dataset and extract results. Currently supported keywords are the following:
 
         +-------------------------------------------+
@@ -146,14 +146,14 @@ class Hub3DataLoader:
 
 
         Args:
-            query_string (str): An SQL string adjusted with new functionalities to run on dataset object
+            query_string (str): An SQL string adjusted with new functionalities to run on the dataset object
 
 
         Examples:
             >>> import hub
             >>> from hub.experimental import dataloader
             >>> ds = hub.load('hub://activeloop/fashion-mnist-train')
-            >>> query_ds_train = dataloader(ds_train).query("select * shere labels != 5")
+            >>> query_ds_train = dataloader(ds_train).query("select * where labels != 5")
 
             >>> import hub
             >>> from hub.experimental import query
@@ -162,7 +162,7 @@ class Hub3DataLoader:
 
 
         Returns:
-            Dataloader: A Dataloader object.
+            Hub3DataLoader: A hub.experimental.Hub3DataLoader object.
         """
         all_vars = self.__dict__.copy()
         all_vars["dataset"] = query(self.dataset, query_string)
@@ -179,7 +179,7 @@ class Hub3DataLoader:
         distributed: bool = False,
         return_index: bool = True,
     ):
-        """Returns a pytorch Dataloader object.
+        """Returns a hub.experimental.Hub3DataLoader object.
 
 
         Args:
@@ -193,7 +193,7 @@ class Hub3DataLoader:
 
 
         Returns:
-            Dataloader: A Dataloader object.
+            Hub3DataLoader: A hub.experimental.Hub3DataLoader object.
 
 
         Raises:
@@ -232,7 +232,7 @@ class Hub3DataLoader:
         num_threads: Optional[int] = None,
         prefetch_factor: int = 10,
     ):
-        """Returns a numpy Dataloader object.
+        """Returns a hub.experimental.Hub3DataLoader object.
 
         Args:
             num_workers (int): Number of workers to use for transforming and processing the data. Defaults to 0.
@@ -242,7 +242,7 @@ class Hub3DataLoader:
 
 
         Returns:
-            Dataloader: A Dataloader object.
+            Hub3DataLoader: A hub.experimental.Hub3DataLoader object.
 
 
         Raises:
@@ -314,7 +314,7 @@ class Hub3DataLoader:
 
 
 def dataloader(dataset) -> Hub3DataLoader:
-    """Returns a hub hub.experimental.Hub3DataLoader object which can be transformed to either numpy DataLoader or pytorch Dataloader.
+    """Returns a hub.experimental.Hub3DataLoader object which can be transformed to either pytorch dataloader or numpy.
 
 
     Args:
@@ -347,7 +347,7 @@ def dataloader(dataset) -> Hub3DataLoader:
         ...     .transform({'images': tform, 'labels': None})
         ...     .batch(batch_size).pytorch()
         >>> for i, data in enumerate(train_loader):
-        ...     # custom logic on dat
+        ...     # custom logic on data
         ...     pass
     """
     return Hub3DataLoader(dataset)
