@@ -9,7 +9,7 @@ from hub.auto.unstructured.kaggle import download_kaggle_dataset
 from hub.auto.unstructured.classification import (
     ImageClassification,
     AudioClassification,
-    VideoClassification,
+    VideoClassification,    
 )
 from hub.client.client import HubBackendClient
 from hub.client.log import logger
@@ -46,6 +46,8 @@ from hub.compression import (
     IMAGE_COMPRESSIONS,
     VIDEO_COMPRESSIONS,
     AUDIO_COMPRESSIONS,
+    BYTE_COMPRESSIONS,
+    COMPRESSION_ALIASES,
 )
 from hub.util.storage import get_storage_and_cache_chain, storage_provider_from_path
 from hub.util.compute import get_compute_provider
@@ -53,7 +55,10 @@ from hub.util.remove_cache import get_base_storage
 from hub.util.cache_chain import generate_chain
 from hub.core.storage.hub_memory_object import HubMemoryObject
 
-_image_compressions = IMAGE_COMPRESSIONS + ["jpg"]
+_image_compressions = (
+    IMAGE_COMPRESSIONS[:] + BYTE_COMPRESSIONS + list(COMPRESSION_ALIASES)
+)
+_image_compressions.remove("dcm")
 _video_compressions = VIDEO_COMPRESSIONS
 _audio_compressions = AUDIO_COMPRESSIONS
 
