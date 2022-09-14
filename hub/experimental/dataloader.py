@@ -115,6 +115,36 @@ class Hub3DataLoader:
         return self.__class__(**all_vars)
 
     def query(self, query_string: str):
+        """Returns a sliced with given query Dataloader object.
+           It allows to run SQL like queries on dataset and extract the data needed the query result
+           is sliced dataset view which contains all the samples that are matched to to the query
+           Currently supported keywords are the following
+           SELECT
+           FROM
+           CONTAINS
+           ORDER BY
+           GROUP BY
+           LIMIT
+           OFFSET
+           RANDOM() -> for shuffing the query results
+
+        Args:
+            query_string (str): An SQL string adjusted with new functionalities to run on dataset object
+
+        Examples:
+            >>> import hub
+            >>> from hub.experimental import query
+            >>> ds = hub.load('hub://activeloop/fashion-mnist-train')
+            >>> query_ds_train = query(ds_train, "SELECT * WHERE labels != 5")
+
+            >>> import hub
+            >>> from hub.experimental import query
+            >>> ds_train = hub.load('hub://activeloop/coco-train')
+            >>> query_ds_train = query(ds_train, "(select * where contains(categories, 'car') limit 1000) union (select * where contains(categories, 'motorcycle') limit 1000)")
+
+        Returns:
+            Dataloader: A Dataloader object.
+        """
         all_vars = self.__dict__.copy()
         all_vars["dataset"] = query(self.dataset, query_string)
         return self.__class__(**all_vars)
@@ -260,4 +290,36 @@ class Hub3DataLoader:
 
 
 def dataloader(dataset) -> Hub3DataLoader:
+    """Returns a bub Dataloader object which can be transformed either numpy DataLoader or pytorch Dataloader.
+
+    Examples:
+        >>> import hub
+        >>> from hub.experimental import dataloader
+        >>> ds_train = hub.load('hub://activeloop/fashion-mnist-train')
+        >>> train_loader = dataloader(ds_train)
+        >>> for i, data in enumerate(train_loader):
+        ...     # custom logic on dat
+        ...     pass
+
+        >>> import hub
+        >>> from hub.experimental import dataloader
+        >>> import torch
+        >>> from torchvision import datasets, transforms, models
+        >>> ds_train = hub.load('hub://activeloop/fashion-mnist-train')
+        >>> tform = transforms.Compose([
+        ...     transforms.ToPILImage(), # Must convert to PIL image for subsequent operations to run
+        ...     transforms.RandomRotation(20), # Image augmentation
+        ...     transforms.ToTensor(), # Must convert to pytorch tensor for subsequent operations to run
+        ...     transforms.Normalize([0.5], [0.5]),
+        ... ])
+        >>> batch_size = 32
+        >>> train_loader = dataloader(ds_train)\
+        ...     .transform({'images': tform, 'labels': None})\
+        ...     .batch(batch_size).pytorch()
+        >>> for i, data in enumerate(train_loader):
+        ...     # custom logic on dat
+        ...     pass
+    Returns:
+        Dataloader: A Dataloader object.
+    """
     return Hub3DataLoader(dataset)

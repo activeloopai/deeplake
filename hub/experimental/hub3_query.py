@@ -9,5 +9,5 @@ def query(dataset, query_string: str):
     """
     ds = dataset_to_hub3(dataset)
     dsv = ds.query(query_string)
-    indexes = dsv.indexes  # TODO: enable this in indra
+    indexes = dsv.indexes
     return dataset[indexes]
