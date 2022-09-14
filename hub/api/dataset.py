@@ -1056,7 +1056,7 @@ class dataset:
         src: Union[str, pathlib.Path],
         dest: Union[str, pathlib.Path],
         exist_ok: bool = False,
-        images_compression: str = "auto",
+        sample_compression: str = "auto",
         dest_creds: Optional[Dict] = None,
         kaggle_credentials: dict = None,
         progressbar: bool = True,
@@ -1074,7 +1074,7 @@ class dataset:
                 - a local file system path of the form ``./path/to/dataset`` or ``~/path/to/dataset`` or ``path/to/dataset``.
                 - a memory path of the form ``mem://path/to/dataset`` which doesn't save the dataset but keeps it in memory instead. Should be used only for testing as it does not persist.
             exist_ok (bool): If the kaggle dataset was already downloaded and ``exist_ok`` is ``True``, ingestion will proceed without error.
-            images_compression (str): For image classification datasets, this compression will be used for the ``images`` tensor. If ``images_compression`` is "auto", compression will be automatically determined by the most common extension in the directory.
+            sample_compression (str): For image classification datasets, this compression will be used for the ``images`` tensor. If ``sample_compression`` is "auto", compression will be automatically determined by the most common extension in the directory.
             dest_creds (Optional[Dict]): A dictionary containing credentials used to access the destination path of the dataset.
             kaggle_credentials (dict): A dictionary containing kaggle credentials {"username":"YOUR_USERNAME", "key": "YOUR_KEY"}. If ``None``, environment variables/the kaggle.json file will be used if available.
             progressbar (bool): Enables or disables ingestion progress bar. Set to ``True`` by default.
