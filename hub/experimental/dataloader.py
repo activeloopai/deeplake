@@ -124,8 +124,7 @@ class Hub3DataLoader:
 
     def query(self, query_string: str):
         """Returns a sliced Dataloader with given query results.
-        It allows to run SQL like queries on dataset and extract results
-        Currently supported keywords are the following:
+        It allows to run SQL like queries on dataset and extract results. Currently supported keywords are the following:
 
         +-------------------------------------------+
         | SELECT                                    |
@@ -315,11 +314,11 @@ class Hub3DataLoader:
 
 
 def dataloader(dataset) -> Hub3DataLoader:
-    """Returns a hub hub.experimental.Hub3DataLoader object which can be transformed either numpy DataLoader or pytorch Dataloader.
+    """Returns a hub hub.experimental.Hub3DataLoader object which can be transformed to either numpy DataLoader or pytorch Dataloader.
 
 
     Args:
-        dataset: hub.Dataset object on which dataloader nneds to be built
+        dataset: hub.Dataset object on which dataloader needs to be built
 
     Returns:
         Hub3DataLoader: A hub.experimental.Hub3DataLoader object.
@@ -334,8 +333,6 @@ def dataloader(dataset) -> Hub3DataLoader:
         ...     # custom logic on dat
         ...     pass
 
-        >>> import hub
-        >>> from hub.experimental import dataloader
         >>> import torch
         >>> from torchvision import datasets, transforms, models
         >>> ds_train = hub.load('hub://activeloop/fashion-mnist-train')
