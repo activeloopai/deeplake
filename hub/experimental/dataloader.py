@@ -115,32 +115,31 @@ class Hub3DataLoader:
         return self.__class__(**all_vars)
 
     def query(self, query_string: str):
-        """Returns a sliced with given query Dataloader object.
-           It allows to run SQL like queries on dataset and extract the data needed the query result
-           is sliced dataset view which contains all the samples that are matched to to the query
-           Currently supported keywords are the following
-           SELECT
-           FROM
-           CONTAINS
-           ORDER BY
-           GROUP BY
-           LIMIT
-           OFFSET
-           RANDOM() -> for shuffing the query results
+        """Returns a sliced Dataloader with given query results.
+        It allows to run SQL like queries on dataset and extract results
+        Currently supported keywords are the following
+        SELECT
+        FROM
+        CONTAINS
+        ORDER BY
+        GROUP BY
+        LIMIT
+        OFFSET
+        RANDOM() -> for shuffing the query results
 
         Args:
             query_string (str): An SQL string adjusted with new functionalities to run on dataset object
 
         Examples:
             >>> import hub
-            >>> from hub.experimental import query
+            >>> from hub.experimental import dataloader
             >>> ds = hub.load('hub://activeloop/fashion-mnist-train')
-            >>> query_ds_train = query(ds_train, "SELECT * WHERE labels != 5")
+            >>> query_ds_train = dataloader(ds_train).query("select * shere labels != 5")
 
             >>> import hub
             >>> from hub.experimental import query
             >>> ds_train = hub.load('hub://activeloop/coco-train')
-            >>> query_ds_train = query(ds_train, "(select * where contains(categories, 'car') limit 1000) union (select * where contains(categories, 'motorcycle') limit 1000)")
+            >>> query_ds_train = dataloader(ds_train).query("(select * where contains(categories, 'car') limit 1000) union (select * where contains(categories, 'motorcycle') limit 1000)")
 
         Returns:
             Dataloader: A Dataloader object.
@@ -290,13 +289,13 @@ class Hub3DataLoader:
 
 
 def dataloader(dataset) -> Hub3DataLoader:
-    """Returns a bub Dataloader object which can be transformed either numpy DataLoader or pytorch Dataloader.
+    """Returns a hub Hub3DataLoader object which can be transformed either numpy DataLoader or pytorch Dataloader.
 
     Examples:
         >>> import hub
         >>> from hub.experimental import dataloader
         >>> ds_train = hub.load('hub://activeloop/fashion-mnist-train')
-        >>> train_loader = dataloader(ds_train)
+        >>> train_loader = dataloader(ds_train).numpy()
         >>> for i, data in enumerate(train_loader):
         ...     # custom logic on dat
         ...     pass
