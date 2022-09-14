@@ -127,8 +127,10 @@ class Hub3DataLoader:
         OFFSET
         RANDOM() -> for shuffing the query results
 
+
         Args:
             query_string (str): An SQL string adjusted with new functionalities to run on dataset object
+
 
         Examples:
             >>> import hub
@@ -140,6 +142,7 @@ class Hub3DataLoader:
             >>> from hub.experimental import query
             >>> ds_train = hub.load('hub://activeloop/coco-train')
             >>> query_ds_train = dataloader(ds_train).query("(select * where contains(categories, 'car') limit 1000) union (select * where contains(categories, 'motorcycle') limit 1000)")
+
 
         Returns:
             Dataloader: A Dataloader object.
