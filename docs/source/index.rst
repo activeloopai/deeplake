@@ -27,6 +27,11 @@ Hub is an open-source database for AI.
    Weights and Biases <Weights-and-Biases>
 
 .. toctree::
+   :caption: Experimental API
+
+   Dataloader & Query <Dataloader-and-Query>
+
+.. toctree::
    :maxdepth: 1
    :caption: API Reference
 
@@ -38,6 +43,8 @@ Hub is an open-source database for AI.
    hub.auto
    hub.util
    hub.client.log
+   hub.experimental
+   hub.experimental.dataloader
 
 
 Indices and tables
