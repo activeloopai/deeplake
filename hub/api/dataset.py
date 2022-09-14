@@ -9,7 +9,7 @@ from hub.auto.unstructured.kaggle import download_kaggle_dataset
 from hub.auto.unstructured.classification import (
     ImageClassification,
     AudioClassification,
-    VideoClassification,    
+    VideoClassification,
 )
 from hub.client.client import HubBackendClient
 from hub.client.log import logger
