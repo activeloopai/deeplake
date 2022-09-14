@@ -22,35 +22,35 @@ from hub.util.htype import parse_complex_htype  # type: ignore
 
 def test_complex_htype_parsing():
     with pytest.raises(ValueError):
-        is_sequence, is_link, htype = parse_complex_htype("link")
+        is_sequence, is_link, is_tag, htype = parse_complex_htype("link")
 
-    is_sequence, is_link, htype = parse_complex_htype("sequence")
+    is_sequence, is_link, is_tag, htype = parse_complex_htype("sequence")
     assert is_sequence
     assert not is_link
     assert htype == "generic"
 
     with pytest.raises(ValueError):
-        is_sequence, is_link, htype = parse_complex_htype("sequence[link]")
+        is_sequence, is_link, is_tag, htype = parse_complex_htype("sequence[link]")
 
     with pytest.raises(ValueError):
-        is_sequence, is_link, htype = parse_complex_htype("link[sequence]")
+        is_sequence, is_link, is_tag, htype = parse_complex_htype("link[sequence]")
 
-    is_sequence, is_link, htype = parse_complex_htype("sequence[image]")
+    is_sequence, is_link, is_tag, htype = parse_complex_htype("sequence[image]")
     assert is_sequence
     assert not is_link
     assert htype == "image"
 
-    is_sequence, is_link, htype = parse_complex_htype("link[image]")
+    is_sequence, is_link, is_tag, htype = parse_complex_htype("link[image]")
     assert not is_sequence
     assert is_link
     assert htype == "image"
 
-    is_sequence, is_link, htype = parse_complex_htype("link[sequence[image]]")
+    is_sequence, is_link, is_tag, htype = parse_complex_htype("link[sequence[image]]")
     assert is_sequence
     assert is_link
     assert htype == "image"
 
-    is_sequence, is_link, htype = parse_complex_htype("sequence[link[video]]")
+    is_sequence, is_link, is_tag, htype = parse_complex_htype("sequence[link[video]]")
     assert is_sequence
     assert is_link
     assert htype == "video"
