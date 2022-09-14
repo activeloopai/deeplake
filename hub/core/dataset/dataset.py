@@ -3220,48 +3220,51 @@ class Dataset:
         scheduler="threaded",
         progressbar=True,
     ):
-        with self._lock_queries_json():
-            qjson = self._read_queries_json()
-            idx = -1
-            for i in range(len(qjson)):
-                if qjson[i]["id"] == id:
-                    idx = i
-                    break
-            if idx == -1:
-                raise KeyError(f"View with id {id} not found.")
-            info = qjson[i]
-            if not info["virtual-datasource"]:
-                # Already optimized
-                return info
-            path = info.get("path", info["id"])
-            vds = self._sub_ds(".queries/" + path, verbose=False)
-            view = vds._get_view(not external)
-            new_path = path + "_OPTIMIZED"
-            optimized = self._sub_ds(".queries/" + new_path, empty=True, verbose=False)
-            view._copy(
-                optimized,
-                overwrite=True,
-                unlink=unlink,
-                create_vds_index_tensor=True,
-                num_workers=num_workers,
-                scheduler=scheduler,
-                progressbar=progressbar,
-            )
-            optimized.info.update(vds.info.__getstate__())
-            optimized.info["virtual-datasource"] = False
-            optimized.info["path"] = new_path
-            optimized.flush()
-            info["virtual-datasource"] = False
-            info["path"] = new_path
-            self._write_queries_json(qjson)
-        vds.base_storage.disable_readonly()
-        try:
-            vds.base_storage.clear()
-        except Exception as e:
-            warnings.warn(
-                f"Error while deleting old view after writing optimized version: {e}"
-            )
-        return info
+        with self._temp_write_access():
+            with self._lock_queries_json():
+                qjson = self._read_queries_json()
+                idx = -1
+                for i in range(len(qjson)):
+                    if qjson[i]["id"] == id:
+                        idx = i
+                        break
+                if idx == -1:
+                    raise KeyError(f"View with id {id} not found.")
+                info = qjson[i]
+                if not info["virtual-datasource"]:
+                    # Already optimized
+                    return info
+                path = info.get("path", info["id"])
+                vds = self._sub_ds(".queries/" + path, verbose=False)
+                view = vds._get_view(not external)
+                new_path = path + "_OPTIMIZED"
+                optimized = self._sub_ds(
+                    ".queries/" + new_path, empty=True, verbose=False
+                )
+                view._copy(
+                    optimized,
+                    overwrite=True,
+                    unlink=unlink,
+                    create_vds_index_tensor=True,
+                    num_workers=num_workers,
+                    scheduler=scheduler,
+                    progressbar=progressbar,
+                )
+                optimized.info.update(vds.info.__getstate__())
+                optimized.info["virtual-datasource"] = False
+                optimized.info["path"] = new_path
+                optimized.flush()
+                info["virtual-datasource"] = False
+                info["path"] = new_path
+                self._write_queries_json(qjson)
+            vds.base_storage.disable_readonly()
+            try:
+                vds.base_storage.clear()
+            except Exception as e:
+                warnings.warn(
+                    f"Error while deleting old view after writing optimized version: {e}"
+                )
+            return info
 
     def _sample_indices(self, maxlen: int):
         vds_index = self._tensors(include_hidden=True).get("VDS_INDEX")
@@ -3318,6 +3321,10 @@ class Dataset:
             or hasattr(self, "_vds")
             or hasattr(self, "_view_entry")
         )
+
+    def _temp_write_access(self):
+        # Defined in HubCloudDataset
+        pass
 
 
 def _copy_tensor(sample_in, sample_out, tensor_name):
