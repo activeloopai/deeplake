@@ -71,12 +71,10 @@ from hub.util.exceptions import (
     LockedException,
     TensorGroupAlreadyExistsError,
     ReadOnlyModeError,
-    NotLoggedInError,
     RenameError,
     EmptyCommitError,
     DatasetViewSavingError,
     DatasetHandlerError,
-    EmptyTensorError,
     SampleAppendingError,
 )
 from hub.util.keys import (
