@@ -4,17 +4,18 @@ from hub.util.bugout_reporter import hub_reporter
 
 @hub_reporter.record_call
 def query(dataset, query_string: str):
-    """ Returns a sliced hub.Dataset with given query results.
+    """Returns a sliced hub.Dataset with given query results.
 
-    It allows to run SQL like queries on dataset and extract results. Currently supported keywords are the following
-    SELECT
-    FROM
-    CONTAINS
-    ORDER BY
-    GROUP BY
-    LIMIT
-    OFFSET
-    RANDOM() -> for shuffing the query results
+    It allows to run SQL like queries on dataset and extract results. Currently supported keywords are the following:
+
+    | ``SELECT``
+    | ``FROM``
+    | ``CONTAINS``
+    | ``ORDER BY``
+    | ``GROUP BY``
+    | ``LIMIT``
+    | ``OFFSET``
+    | ``RANDOM()`` -> for shuffing the query results
 
     Args:
         dataset: hub.Dataset object on which the query needs to be run
