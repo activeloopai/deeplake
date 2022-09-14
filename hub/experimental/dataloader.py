@@ -33,7 +33,6 @@ class Hub3DataLoader:
         _return_index=None,
     ):
         raise_indra_installation_error(INDRA_INSTALLED)
-        verify_base_storage(dataset)
         self.dataset = dataset
         self._batch_size = _batch_size
         self._shuffle = _shuffle
@@ -259,4 +258,5 @@ class Hub3DataLoader:
 
 
 def dataloader(dataset) -> Hub3DataLoader:
+    verify_base_storage(dataset)
     return Hub3DataLoader(dataset)
