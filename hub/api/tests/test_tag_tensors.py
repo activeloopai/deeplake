@@ -27,4 +27,3 @@ def test_tag_tensors(memory_ds):
         materialized = ds.x.materialize("materialized")
         assert ds.x.is_tag_tensor, (ds.x.group_index, ds.x.meta.tag_tensors)
         np.testing.assert_array_equal(ds.x.numpy(), materialized.numpy())
-

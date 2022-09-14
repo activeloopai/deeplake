@@ -157,3 +157,5 @@ DEFAULT_READONLY = (
 
 _UNLINK_VIDEOS = False
 WANDB_JSON_FILENMAE = "wandb.json"
+
+SKIP_SAMPLE = "skip_sample"
