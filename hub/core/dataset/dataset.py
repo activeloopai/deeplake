@@ -1958,35 +1958,35 @@ class Dataset:
         return self[fullname]
 
     def _create_group(
-        self, name: str, exist_ok: bool, is_tag_tensor: bool, default_tag: str
+        self,
+        name: str,
+        exist_ok: bool,
+        is_tag_tensor: bool = False,
+        default_tag: str = "default",
     ) -> "Dataset":
         """Creates a tensor group. Intermediate groups in the path are also created.
 
-                Args:
-                    name: The name of the group to create.
-        <<<<<<< HEAD
-                    exist_ok: If True, the group is created if it does not exist. If False, an error is raised if the group already exists.
-                    is_tag_tensor: Whether this group represents a tag tensor.
-                    default_tag: Default tag to use if this group represents a tag tensor.
-        =======
-                    exist_ok: If ``True``, the group is created if it does not exist. If ``False``, an error is raised if the group already exists.
-                        Defaults to ``False``.
+        Args:
+            name: The name of the group to create.
+            exist_ok: If ``True``, the group is created if it does not exist. If ``False``, an error is raised if the group already exists.
+                Defaults to ``False``.
+            is_tag_tensor: Whether this group represents a tag tensor.
+            default_tag: Default tag to use if this group represents a tag tensor.
 
-        >>>>>>> 72bc6b48e9673bdcc85b43ed2c3f64994e3d4ef9
-                Returns:
-                    The created group.
+        Returns:
+            The created group.
 
-                Raises:
-                    TensorGroupAlreadyExistsError: If the group already exists and ``exist_ok`` is False.
+        Raises:
+            TensorGroupAlreadyExistsError: If the group already exists and ``exist_ok`` is False.
 
-                Examples:
+        Examples:
 
-                    >>> ds.create_group("images")
-                    >>> ds['images'].create_tensor("cats")
+            >>> ds.create_group("images")
+            >>> ds['images'].create_tensor("cats")
 
-                    >>> ds.create_groups("images/jpg/cats")
-                    >>> ds["images"].create_tensor("png")
-                    >>> ds["images/jpg"].create_group("dogs")
+            >>> ds.create_groups("images/jpg/cats")
+            >>> ds["images"].create_tensor("png")
+            >>> ds["images/jpg"].create_group("dogs")
         """
         if not self._is_root():
             return self.root.create_group(
@@ -1997,7 +1997,9 @@ class Dataset:
             if not exist_ok:
                 raise TensorGroupAlreadyExistsError(name)
             return self[name]
-        return self.__create_group(name, is_tag_tensor=is_tag_tensor)
+        return self.__create_group(
+            name, is_tag_tensor=is_tag_tensor, default_tag=default_tag
+        )
 
     @hub_reporter.record_call
     def create_group(self, name: str, exist_ok=False) -> "Dataset":
