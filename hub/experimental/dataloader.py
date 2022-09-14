@@ -125,15 +125,25 @@ class Hub3DataLoader:
     def query(self, query_string: str):
         """Returns a sliced Dataloader with given query results.
         It allows to run SQL like queries on dataset and extract results
-        Currently supported keywords are the following
-        SELECT
-        FROM
-        CONTAINS
-        ORDER BY
-        GROUP BY
-        LIMIT
-        OFFSET
-        RANDOM() -> for shuffing the query results
+        Currently supported keywords are the following:
+
+        +-------------------------------------------+
+        | SELECT                                    |
+        +-------------------------------------------+
+        | FROM                                      |
+        +-------------------------------------------+
+        | CONTAINS                                  |
+        +-------------------------------------------+
+        | ORDER BY                                  |
+        +-------------------------------------------+
+        | GROUP BY                                  |
+        +-------------------------------------------+
+        | LIMIT                                     |
+        +-------------------------------------------+
+        | OFFSET                                    |
+        +-------------------------------------------+
+        | RANDOM() -> for shuffling query results   |
+        +-------------------------------------------+
 
 
         Args:

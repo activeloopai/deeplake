@@ -27,6 +27,7 @@ Hub is an open-source database for AI.
    Weights and Biases <Weights-and-Biases>
 
 .. toctree::
+   :maxdepth: 1
    :caption: Experimental API
 
    Dataloader & Query <Dataloader-and-Query>
