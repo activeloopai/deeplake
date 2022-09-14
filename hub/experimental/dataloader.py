@@ -1,5 +1,5 @@
 from typing import Callable, Dict, List, Optional, Union
-from hub.experimental.convert_to_hub3 import dataset_to_hub3  # type: ignore
+from hub.experimental.convert_to_hub3 import dataset_to_hub3, verify_base_storage  # type: ignore
 from hub.experimental.util import raise_indra_installation_error  # type: ignore
 from hub.experimental.util import collate_fn as default_collate  # type: ignore
 from hub.experimental.hub3_query import query
@@ -33,8 +33,6 @@ class Hub3DataLoader:
         _return_index=None,
     ):
         raise_indra_installation_error(INDRA_INSTALLED)
-        # verifies underlying storage
-        dataset_to_hub3(dataset)
         self.dataset = dataset
         self._batch_size = _batch_size
         self._shuffle = _shuffle
@@ -348,4 +346,5 @@ def dataloader(dataset) -> Hub3DataLoader:
         ...     # custom logic on data
         ...     pass
     """
+    verify_base_storage(dataset)
     return Hub3DataLoader(dataset)
