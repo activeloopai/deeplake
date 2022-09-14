@@ -328,7 +328,7 @@ def dataloader(dataset) -> Hub3DataLoader:
         >>> ds_train = hub.load('hub://activeloop/fashion-mnist-train')
         >>> train_loader = dataloader(ds_train).numpy()
         >>> for i, data in enumerate(train_loader):
-        ...     # custom logic on dat
+        ...     # custom logic on data
         ...     pass
 
         >>> import torch
