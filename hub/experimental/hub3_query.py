@@ -16,6 +16,7 @@ def query(dataset, query_string: str):
     OFFSET
     RANDOM() -> for shuffing the query results
 
+
     Args:
         dataset: hub.Dataset object on which the query needs to be run
         query_string (str): An SQL string adjusted with new functionalities to run on given hub.dataset object
@@ -27,6 +28,7 @@ def query(dataset, query_string: str):
 
         >>> ds_train = hub.load('hub://activeloop/coco-train')
         >>> query_ds_train = query(ds_train, "(select * where contains(categories, 'car') limit 1000) union (select * where contains(categories, 'motorcycle') limit 1000)")
+
 
     Returns:
         Dataset: A hub.Dataset object.
