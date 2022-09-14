@@ -51,6 +51,7 @@ from hub.hooks import (
 )
 import importlib
 import sys
+import os
 import json
 import warnings
 import hub
@@ -59,6 +60,8 @@ _WANDB_INSTALLED = bool(importlib.util.find_spec("wandb"))
 
 
 def wandb_run():
+    if not hub.constants.WANDB_INTEGRATION_ENABLED:
+        return
     return getattr(sys.modules.get("wandb"), "run", None)
 
 
@@ -97,6 +100,8 @@ def artifact_from_ds(ds):
     path = ds.path
     name = artifact_name_from_ds_path(ds)
     artifact = wandb.Artifact(name, "dataset")
+    if "://" not in path and os.path.exists(path):
+        path = "file://" + path
     artifact.add_reference(path, name="url")
     return artifact
 
