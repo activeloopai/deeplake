@@ -74,7 +74,7 @@ class Hub3DataLoader:
         return self.__class__(**all_vars)
 
     def shuffle(self):
-        """Returns a shuffled Dataloader object.
+        """Returns a shuffled hub.experimental.Hub3DataLoader object.
 
 
         Returns:
@@ -148,6 +148,8 @@ class Hub3DataLoader:
         Args:
             query_string (str): An SQL string adjusted with new functionalities to run on the dataset object
 
+        Returns:
+            Hub3DataLoader: A hub.experimental.Hub3DataLoader object.
 
         Examples:
             >>> import hub
@@ -159,10 +161,6 @@ class Hub3DataLoader:
             >>> from hub.experimental import query
             >>> ds_train = hub.load('hub://activeloop/coco-train')
             >>> query_ds_train = dataloader(ds_train).query("(select * where contains(categories, 'car') limit 1000) union (select * where contains(categories, 'motorcycle') limit 1000)")
-
-
-        Returns:
-            Hub3DataLoader: A hub.experimental.Hub3DataLoader object.
         """
         all_vars = self.__dict__.copy()
         all_vars["dataset"] = query(self.dataset, query_string)
