@@ -346,8 +346,8 @@ def dataloader(dataset) -> Hub3DataLoader:
         ...     transforms.Normalize([0.5], [0.5]),
         ... ])
         >>> batch_size = 32
-        >>> train_loader = dataloader(ds_train)\
-        ...     .transform({'images': tform, 'labels': None})\
+        >>> train_loader = dataloader(ds_train)
+        ...     .transform({'images': tform, 'labels': None})
         ...     .batch(batch_size).pytorch()
         >>> for i, data in enumerate(train_loader):
         ...     # custom logic on dat
