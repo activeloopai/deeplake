@@ -27,3 +27,19 @@ def test_tag_tensors(memory_ds):
         materialized = ds.x.materialize("materialized")
         assert ds.x.is_tag_tensor, (ds.x.group_index, ds.x.meta.tag_tensors)
         np.testing.assert_array_equal(ds.x.numpy(), materialized.numpy())
+        ds.create_tensor("y", htype="tag")
+        ds.y.add_tag("a")
+        ds.y.add_tag("b")
+        ds.y.add_tag("c") 
+        ds.y.a[0] = 0
+        ds.y.b[0] = 1
+        ds.y.c[0] = 2
+        ds.y.a[1] = 2
+        ds.y.b[1] = 1
+        ds.y.c[1] = 0
+        ds.y.a[2] = 0
+        ds.y.b[2] = 2
+        ds.y.c[2] = 1
+        aggr_fn = lambda x: np.max([x.a, x.b, x.c])
+        ds.y.materialize("d", aggr_fn)
+        np.testing.assert_array_equal(ds.y.d, np.ones((3, 1)) * 2)
