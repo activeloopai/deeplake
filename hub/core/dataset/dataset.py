@@ -277,13 +277,16 @@ class Dataset:
     def __len__(self):
         """Returns the length of the smallest tensor"""
         tensor_lengths = [len(tensor) for tensor in self.tensors.values()]
-        if min(tensor_lengths, default=0) != max(tensor_lengths, default=0):
-            warning(
-                "The length of tensors in the dataset is different. The len(ds) returns the length of the "
-                "smallest tensor in the dataset. If you want the length of the longest tensor in the dataset use "
-                "ds.max_len."
-            )
-        length_fn = max if self._pad_tensors else min
+        if self._pad_tensors or self.is_tag_tensor:
+            length_fn = max
+        else:
+            if len(set(tensor_lengths)) > 1:
+                warning(
+                    "The length of tensors in the dataset is different. The len(ds) returns the length of the "
+                    "smallest tensor in the dataset. If you want the length of the longest tensor in the dataset use "
+                    "ds.max_len."
+                )
+            length_fn = min
         return length_fn(tensor_lengths, default=0)
 
     @property
@@ -3455,13 +3458,7 @@ class Dataset:
         )
 
     def add_tag(self, name: str):
-        orig_index = self.index
-        self.index = Index()
-        try:
-            default_tensor = object.__getattribute__(self, "default_tensor")
-            return self.create_tensor_like(name, default_tensor)
-        finally:
-            self.index = orig_index
+        return self.create_tensor_like(name, object.__getattribute__(self, "default_tensor"))
 
     @property
     def is_tag_tensor(self) -> bool:
@@ -3549,11 +3546,9 @@ class Dataset:
             raise AttributeError("Attribute `materialize` only valid for tag tensors.")
         self.create_tensor_like(materialized_tensor_name, self.default_tensor)
         materialized_tensor_path = posixpath.join(self.group_index, materialized_tensor_name)
-        assert len(self) != 0
-        print(len(self))
-        hub.compute(_materialize_tage_tensor, name="Materialize transform")(tensor_name=materialized_tensor_path, default_tag=self.default_tag).eval(
+        hub.compute(_materialize_tage_tensor, name="Materialize transform")(tensor_name=materialized_tensor_path).eval(
                     self,
-                    None,
+                    self.root,
                     num_workers=num_workers,
                     scheduler=scheduler,
                     progressbar=progressbar,
@@ -3561,7 +3556,6 @@ class Dataset:
                     check_lengths=False,
                 )
         return self.root[materialized_tensor_path]
-
 
 
 def _copy_tensor(sample_in, sample_out, tensor_name):
@@ -3580,11 +3574,6 @@ def _copy_tensor_unlinked_partial_sample(sample_in, sample_out, tensor_name):
     sample_out[tensor_name].append(sample_in[tensor_name].numpy())
 
 
-def _materialize_tage_tensor(sample_in, sample_out, tensor_name, default_tag):
-    print("!!!!!!!!!!!!!!!!!")
-    sample_default_tag = sample_in["_default_tag"].numpy()
-    if sample_default_tag.size:
-        default_tag = sample_default_tag[0]
-    sample_out[tensor_name].append(sample_in[default_tag])
-    print("-----------------")
-
+def _materialize_tage_tensor(sample_in, sample_out, tensor_name):
+    sample_default_tag = sample_in._get_sample_default_tag(sample_in.index.values[0].value)
+    sample_out[tensor_name].append(sample_in[sample_default_tag])

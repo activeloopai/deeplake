@@ -6,6 +6,7 @@ def test_tag_tensors(memory_ds):
     ds = memory_ds
     with ds:
         ds.create_tensor("x", htype="tag")
+        assert ds.x.is_tag_tensor
         ds.x.add_tag("a")
         ds.x.add_tag("b")
         ds.x.a.append(1)
@@ -21,6 +22,9 @@ def test_tag_tensors(memory_ds):
         assert ds.x[1].sample_default_tag == "b"
         assert ds.x.sample_default_tag == ["a", "b"]
         np.testing.assert_array_equal(ds.x.numpy(), np.array([[1], [3]]))
+        assert ds.x.is_tag_tensor
+        assert ds.x.default_tag == "default"
         materialized = ds.x.materialize("materialized")
+        assert ds.x.is_tag_tensor, (ds.x.group_index, ds.x.meta.tag_tensors)
         np.testing.assert_array_equal(ds.x.numpy(), materialized.numpy())
 

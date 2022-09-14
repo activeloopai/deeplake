@@ -37,6 +37,7 @@ class DatasetMeta(Meta):
         d["tensor_names"] = self.tensor_names
         d["hidden_tensors"] = self.hidden_tensors
         d["default_index"] = self.default_index
+        d["tag_tensors"] = self.tag_tensors
         return d
 
     def add_tensor(self, name, key, hidden=False):
