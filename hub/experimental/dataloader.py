@@ -321,16 +321,26 @@ def dataloader(dataset) -> Hub3DataLoader:
 
 
     Examples:
+
+
+        Creating a simple dataloader object which returns a batch of numpy arrays
+
+
         >>> import hub
         >>> from hub.experimental import dataloader
+        >>>
         >>> ds_train = hub.load('hub://activeloop/fashion-mnist-train')
         >>> train_loader = dataloader(ds_train).numpy()
         >>> for i, data in enumerate(train_loader):
         ...     # custom logic on data
         ...     pass
 
+
+        Creating dataloader with custom transformation and batch size
+
         >>> import torch
         >>> from torchvision import datasets, transforms, models
+        ...
         >>> ds_train = hub.load('hub://activeloop/fashion-mnist-train')
         >>> tform = transforms.Compose([
         ...     transforms.ToPILImage(), # Must convert to PIL image for subsequent operations to run
@@ -338,10 +348,28 @@ def dataloader(dataset) -> Hub3DataLoader:
         ...     transforms.ToTensor(), # Must convert to pytorch tensor for subsequent operations to run
         ...     transforms.Normalize([0.5], [0.5]),
         ... ])
+        ...
+        ...
         >>> batch_size = 32
+        >>> #create dataloader with chaining transform function and batch size which returns batch of pytorch tensors
         >>> train_loader = dataloader(ds_train)
         ...     .transform({'images': tform, 'labels': None})
-        ...     .batch(batch_size).pytorch()
+        ...     .batch(batch_size)
+        ...     .pytorch()
+        ...
+        >>> #loop over the elements
+        >>> for i, data in enumerate(train_loader):
+        ...     # custom logic on data
+        ...     pass
+
+        Creating dataloader and chaning with query
+
+        >>> ds = hub.load('hub://activeloop/coco-train')
+        >>> dl = dataloader(ds_train)
+        ...     .query("(select * where contains(categories, 'car') limit 1000) union (select * where contains(categories, 'motorcycle') limit 1000)")
+        ...     .pytorch()
+        ...
+        >>> #loop over the elements
         >>> for i, data in enumerate(train_loader):
         ...     # custom logic on data
         ...     pass
