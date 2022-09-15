@@ -890,7 +890,6 @@ class dataset:
         ret = dataset_factory(
             path=dest,
             storage=cache_chain,
-            read_only=False,
             public=public,
             token=dest_token,
             verbose=verbose,
