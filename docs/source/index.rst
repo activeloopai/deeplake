@@ -28,6 +28,12 @@ Hub is an open-source database for AI.
 
 .. toctree::
    :maxdepth: 1
+   :caption: Experimental API
+
+   Dataloader & Query <Dataloader-and-Query>
+
+.. toctree::
+   :maxdepth: 1
    :caption: API Reference
 
    hub
@@ -38,6 +44,8 @@ Hub is an open-source database for AI.
    hub.auto
    hub.util
    hub.client.log
+   hub.experimental
+   hub.experimental.dataloader
 
 
 Indices and tables

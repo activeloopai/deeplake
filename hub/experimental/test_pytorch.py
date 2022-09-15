@@ -341,10 +341,10 @@ def test_pytorch_large():
         slice(None, 10),
         # slice(None, None, -1),
         # slice(None, None, -2),
-        # [2, 3, 4],
-        # [2, 4, 6, 8],
-        # [2, 2, 4, 4, 6, 6, 7, 7, 8, 8, 9, 9, 9],
-        # [4, 3, 2, 1],
+        [2, 3, 4],
+        [2, 4, 6, 8],
+        [2, 2, 4, 4, 6, 6, 7, 7, 8, 8, 9, 9, 9],
+        [4, 3, 2, 1],
     ],
 )
 def test_pytorch_view(local_ds, index):
@@ -452,6 +452,15 @@ def test_rename(local_ds):
         np.testing.assert_array_equal(
             np.array(sample["red/green"]), np.array([[1, 2, 3, 4]])
         )
+
+
+@requires_torch
+@requires_linux
+def test_expiration_date_casting_to_string():
+    ds = hub.dataset("hub://activeloop/cifar100-train")[0:10:2]
+    loader = dataloader(ds).pytorch(return_index=False)
+    for _ in loader:
+        pass
 
 
 @requires_torch
