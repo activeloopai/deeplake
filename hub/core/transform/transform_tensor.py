@@ -9,7 +9,7 @@ class TransformTensor:
         self.name = name
         self.dataset = dataset
         self.items = [] if base_tensor is None else base_tensor.items
-        self.base_tensor = base_tensor or self
+        self._base_tensor = base_tensor or None
         self.slice_list = slice_list or []
         self.length = None
         self._ndim = None
@@ -59,7 +59,7 @@ class TransformTensor:
         return TransformTensor(
             name=self.name,
             dataset=self.dataset,
-            base_tensor=self.base_tensor,
+            base_tensor=self._base_tensor,
             slice_list=new_slice_list,
         )
 
@@ -82,3 +82,7 @@ class TransformTensor:
         """Adds multiple items to the tensor."""
         for item in items:
             self.append(item)
+
+    @property
+    def base_tensor(self):
+        return self._base_tensor or self
