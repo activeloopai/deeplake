@@ -58,7 +58,7 @@ class TransformTensor:
         return TransformTensor(
             name=self.name,
             dataset=self.dataset,
-            items = self.items,
+            items=self.items,
             slice_list=new_slice_list,
         )
 
@@ -81,7 +81,3 @@ class TransformTensor:
         """Adds multiple items to the tensor."""
         for item in items:
             self.append(item)
-
-    @property
-    def base_tensor(self):
-        return self._base_tensor or self
