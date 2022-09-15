@@ -206,7 +206,8 @@ def test_inplace_dataset_view_save(
     compressed_image_paths,
 ):
     ds = ds_generator()
-    if read_only and not ds.path.startswith("hub://"):
+    is_hub = ds.path.startswith("hub://")
+    if read_only and not is_hub:
         return
     id = str(uuid4())
     to_del = [id]
@@ -239,6 +240,8 @@ def test_inplace_dataset_view_save(
             assert ds.path + "/.queries/" in vds_path
     for t in view.tensors:
         np.testing.assert_array_equal(view[t].numpy(), view2[t].numpy())
+    if not read_only and is_hub:
+        ds = hub.load(ds.path, read_only=True)
     entry = ds.get_view(id)
     assert entry.virtual == (not optimize)
     assert indices == list(entry.load().sample_indices)
