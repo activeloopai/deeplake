@@ -3319,7 +3319,7 @@ class Dataset:
 
     def _temp_write_access(self):
         # Defined in HubCloudDataset
-        pass
+        return memoryview(b"")  # No-op context manager
 
 
 def _copy_tensor(sample_in, sample_out, tensor_name):
