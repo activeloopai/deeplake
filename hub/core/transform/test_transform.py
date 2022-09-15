@@ -1008,7 +1008,7 @@ def test_transform_bug_link(local_ds, cat_path):
 
 def test_tensor_dataset_memory_leak(local_ds):
     local_ds.create_tensor("image", htype="image", sample_compression="png")
-    add_images().eval(list(range(5)), local_ds, scheduler="threaded")
+    add_images().eval(list(range(100)), local_ds, scheduler="threaded")
 
     _, n = retrieve_objects_from_memory()
     assert n == 0
