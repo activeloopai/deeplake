@@ -7,7 +7,7 @@ INDRA_INSTALLED = bool(importlib.util.find_spec("indra"))
 
 if INDRA_INSTALLED:
     try:
-        from indra import Loader  # type:ignore
+        from indra import api  # type:ignore
 
         INDRA_IMPORT_ERROR = None
     except ImportError as e:
