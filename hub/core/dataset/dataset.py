@@ -5,12 +5,9 @@ import sys
 import json
 import posixpath
 from logging import warning
-from collections import Iterable
 from typing import Any, Callable, Dict, List, Optional, Sequence, Tuple, Union
 from functools import partial
-from itertools import chain
 
-import jwt
 import pathlib
 import numpy as np
 from time import time
@@ -74,12 +71,10 @@ from hub.util.exceptions import (
     LockedException,
     TensorGroupAlreadyExistsError,
     ReadOnlyModeError,
-    NotLoggedInError,
     RenameError,
     EmptyCommitError,
     DatasetViewSavingError,
     DatasetHandlerError,
-    EmptyTensorError,
     SampleAppendingError,
 )
 from hub.util.keys import (
