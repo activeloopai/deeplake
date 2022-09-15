@@ -6,13 +6,17 @@ from hub.experimental.hub3_query import query
 from hub.integrations.pytorch.common import PytorchTransformFunction
 from hub.util.bugout_reporter import hub_reporter
 from hub.util.dataset import map_tensor_keys
+import importlib
 
-try:
-    from indra import Loader  # type: ignore
+INDRA_INSTALLED = bool(importlib.util.find_spec("indra"))
 
-    INDRA_INSTALLED = True
-except ImportError:
-    INDRA_INSTALLED = False
+if INDRA_INSTALLED:
+    try:
+        from indra import Loader  # type:ignore
+
+        INDRA_IMPORT_ERROR = None
+    except ImportError as e:
+        INDRA_IMPORT_ERROR = e
 
 
 class Hub3DataLoader:
@@ -32,7 +36,7 @@ class Hub3DataLoader:
         _mode=None,
         _return_index=None,
     ):
-        raise_indra_installation_error(INDRA_INSTALLED)
+        raise_indra_installation_error(INDRA_INSTALLED, INDRA_IMPORT_ERROR)
         self.dataset = dataset
         self._batch_size = _batch_size
         self._shuffle = _shuffle
