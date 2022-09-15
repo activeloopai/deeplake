@@ -71,6 +71,7 @@ class ComputeFunction:
             check_lengths (bool): If True, checks whether ds_out has tensors of same lengths initially.
             pad_data_in (bool): NOTE: This is only applicable if data_in is a Hub dataset. If True, pads tensors of data_in to match the length of the largest tensor in data_in.
                 Defaults to False.
+            **kwargs: Additional arguments.
 
         Raises:
             InvalidInputDataError: If data_in passed to transform is invalid. It should support \__getitem__ and \__len__ operations. Using scheduler other than "threaded" with hub dataset having base storage as memory as data_in will also raise this.
@@ -133,6 +134,7 @@ class Pipeline:
             check_lengths (bool): If True, checks whether ds_out has tensors of same lengths initially.
             pad_data_in (bool): NOTE: This is only applicable if data_in is a Hub dataset. If True, pads tensors of data_in to match the length of the largest tensor in data_in.
                 Defaults to False.
+            **kwargs: Additional arguments.
 
         Raises:
             InvalidInputDataError: If data_in passed to transform is invalid. It should support \__getitem__ and \__len__ operations. Using scheduler other than "threaded" with hub dataset having base storage as memory as data_in will also raise this.
