@@ -12,11 +12,9 @@ def raise_indra_installation_error(
             "This is an experimental feature that requires Hub deeplake package. To use it, you can run `pip install hub[deeplake]`."
         )
     if indra_import_error:
-        if "libpng" in str(indra_import_error):
-            msg = "Seems libpng is not installed. You can install it with `apt install libpng`."
-        else:
-            msg = "Error while importing C++ backend. One of the dependencies might not be installed."
-        raise ImportError(msg) from indra_import_error
+        raise ImportError(
+            "Error while importing C++ backend. One of the dependencies might not be installed."
+        ) from indra_import_error
 
 
 def collate_fn(batch):
