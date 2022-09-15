@@ -9,7 +9,7 @@ class TransformTensor:
         self.name = name
         self.dataset = dataset
         self.items = [] if base_tensor is None else base_tensor.items
-        self._base_tensor = base_tensor or None
+        self._base_tensor = base_tensor
         self.slice_list = slice_list or []
         self.length = None
         self._ndim = None
