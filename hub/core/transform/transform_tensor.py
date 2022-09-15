@@ -8,7 +8,7 @@ class TransformTensor:
     def __init__(self, name, dataset, items=None, slice_list=None) -> None:
         self.name = name
         self.dataset = dataset
-        self.items = items or []
+        self.items = items if items is not None else []
         self.slice_list = slice_list or []
         self.length = None
         self._ndim = None
