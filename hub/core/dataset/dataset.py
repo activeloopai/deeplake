@@ -2970,6 +2970,7 @@ class Dataset:
                     progressbar=progressbar,
                     skip_ok=True,
                     check_lengths=False,
+                    disable_label_sync=True,
                 )
 
             dest_ds.flush()

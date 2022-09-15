@@ -52,6 +52,7 @@ class ComputeFunction:
         skip_ok: bool = False,
         check_lengths: bool = True,
         pad_data_in: bool = False,
+        **kwargs,
     ):
         """Evaluates the ComputeFunction on data_in to produce an output dataset ds_out.
 
@@ -88,6 +89,7 @@ class ComputeFunction:
             skip_ok,
             check_lengths,
             pad_data_in,
+            **kwargs,
         )
 
     def __call__(self, sample_in):
@@ -112,6 +114,7 @@ class Pipeline:
         skip_ok: bool = False,
         check_lengths: bool = True,
         pad_data_in: bool = False,
+        **kwargs,
     ):
         """Evaluates the pipeline on data_in to produce an output dataset ds_out.
 
@@ -186,6 +189,7 @@ class Pipeline:
                 progressbar,
                 overwrite,
                 skip_ok,
+                **kwargs,
             )
             target_ds._send_compute_progress(**progress_end_args, status="success")
         except Exception as e:
@@ -212,6 +216,7 @@ class Pipeline:
         progressbar: bool = True,
         overwrite: bool = False,
         skip_ok: bool = False,
+        **kwargs,
     ):
         """Runs the pipeline on the input data to produce output samples and stores in the dataset.
         This receives arguments processed and sanitized by the Pipeline.eval method.
@@ -220,12 +225,16 @@ class Pipeline:
             dataset_read(data_in)
         slices = create_slices(data_in, num_workers)
         storage = get_base_storage(target_ds.storage)
-        class_label_tensors = [
-            tensor.key
-            for tensor in target_ds.tensors.values()
-            if tensor.base_htype == "class_label"
-            and not tensor.meta._disable_temp_transform
-        ]
+        class_label_tensors = (
+            [
+                tensor.key
+                for tensor in target_ds.tensors.values()
+                if tensor.base_htype == "class_label"
+                and not tensor.meta._disable_temp_transform
+            ]
+            if not kwargs.get("disable_label_sync")
+            else []
+        )
         label_temp_tensors = {}
         actual_tensors = (
             None
