@@ -5,11 +5,10 @@ import numpy as np
 
 
 class TransformTensor:
-    def __init__(self, name, dataset, base_tensor=None, slice_list=None) -> None:
+    def __init__(self, name, dataset, items=None, slice_list=None) -> None:
         self.name = name
         self.dataset = dataset
-        self.items = [] if base_tensor is None else base_tensor.items
-        self._base_tensor = base_tensor
+        self.items = items or []
         self.slice_list = slice_list or []
         self.length = None
         self._ndim = None
@@ -59,7 +58,7 @@ class TransformTensor:
         return TransformTensor(
             name=self.name,
             dataset=self.dataset,
-            base_tensor=self._base_tensor,
+            items = self.items,
             slice_list=new_slice_list,
         )
 
