@@ -1,6 +1,6 @@
 version: 2
 
 build:
+  os: ubuntu-20.04
   tools:
-    os: ubuntu-20.04
     python: "3.8"
