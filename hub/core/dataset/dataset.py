@@ -14,7 +14,7 @@ from time import time
 from tqdm import tqdm  # type: ignore
 
 import hub
-from hub.core.index.index import IndexEntry
+from hub.core.index.index import IndexEntry, replace_ellipsis_with_slices
 from hub.core.link_creds import LinkCreds
 from hub.util.invalid_view_op import invalid_view_op
 from hub.api.info import load_info
@@ -374,7 +374,7 @@ class Dataset:
                 ret = self[splt[0]][splt[1]]
             else:
                 raise TensorDoesNotExistError(item)
-        elif isinstance(item, (int, slice, list, tuple, Index)):
+        elif isinstance(item, (int, slice, list, tuple, Index, type(Ellipsis))):
             ret = self.__class__(
                 storage=self.storage,
                 index=self.index[item],
