@@ -12,4 +12,4 @@ python:
    install:
     - requirements: hub/requirements/docs.txt
     - method: pip
-      path: hub
+      path: .
