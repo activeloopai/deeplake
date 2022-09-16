@@ -4,3 +4,12 @@ build:
   os: ubuntu-20.04
   tools:
     python: "3.8"
+
+sphinx:
+  configuration: docs/conf.py
+
+python:
+   install:
+   - requirements: hub/requirements/docs.txt
+   - method: pip
+     path: hub
