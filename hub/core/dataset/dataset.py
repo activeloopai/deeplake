@@ -2719,23 +2719,18 @@ class Dataset:
         Raises:
             KeyError: if view with given id does not exist.
         """
-        if self._read_only and not self._locked_out:
-            raise ReadOnlyModeError(
-                "Cannot delete view as the dataset is open in read only mode."
-            )
-        try:
-            with self._lock_queries_json():
-                qjson = self._read_queries_json()
-                for i, q in enumerate(qjson):
-                    if q["id"] == id:
-                        qjson.pop(i)
-                        self.base_storage.subdir(
-                            ".queries/" + (q.get("path") or q["id"])
-                        ).clear()
-                        self._write_queries_json(qjson)
-                        return
-        except Exception:
-            pass
+
+        with self._lock_queries_json():
+            qjson = self._read_queries_json()
+            for i, q in enumerate(qjson):
+                if q["id"] == id:
+                    qjson.pop(i)
+                    self.base_storage.subdir(
+                        ".queries/" + (q.get("path") or q["id"])
+                    ).clear()
+                    self._write_queries_json(qjson)
+                    return
+
         if self.path.startswith("hub://"):
             qds = Dataset._get_queries_ds_from_user_account()
             if qds:
