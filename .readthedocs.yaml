@@ -1,0 +1,5 @@
+version: 2
+
+build:
+  tools:
+    python: "3.8"
