@@ -12,11 +12,15 @@ Hub has the following extras that you can choose to install according to your ne
 +======================================+=======================================+
 | ``pip install hub[av]``              | Audio and video support via PyAV      |
 +--------------------------------------+---------------------------------------+
-| ``pip install hub["gcp"]``           | GCS support                           |
+| ``pip install hub[gcp]``             | GCS support                           |
 +--------------------------------------+---------------------------------------+
-| ``pip install hub["dicom"]``         | DICOM data support                    |
+| ``pip install hub[dicom]``           | DICOM data support                    |
 +--------------------------------------+---------------------------------------+
-| ``pip install hub["gdrive"]``        | Google Drive support                  |
+| ``pip install hub[gdrive]``          | Google Drive support                  |
 +--------------------------------------+---------------------------------------+
-| ``pip install hub["point_cloud"]``   | Support for LiDAR point cloud data    |
+| ``pip install hub[point_cloud]``     | Support for LiDAR point cloud data    |
++--------------------------------------+---------------------------------------+
+| ``pip install hub[deeplake]``        | Installs experimental features        |
++--------------------------------------+---------------------------------------+
+| ``pip install hub[all]``             | Installs all of the above             |
 +--------------------------------------+---------------------------------------+
