@@ -12,6 +12,12 @@ Hub is an open-source database for AI.
 
 .. toctree::
    :maxdepth: 2
+   :caption: Getting Started
+   
+   Installation
+
+.. toctree::
+   :maxdepth: 2
    :caption: Key Concepts
 
    Datasets
