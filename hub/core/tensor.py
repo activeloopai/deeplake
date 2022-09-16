@@ -1036,6 +1036,9 @@ class Tensor:
         return self._sample_info(self.index)
 
     def _linked_sample(self):
+        """Returns the linked sample at the given index. This is only applicable for tensors of ``link[]`` htype
+        and can only be used for exactly one sample.
+        """
         if not self.is_link:
             raise ValueError("Not supported as the tensor is not a link.")
         if self.index.values[0].subscriptable() or len(self.index.values) > 1:

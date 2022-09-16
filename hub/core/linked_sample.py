@@ -11,6 +11,8 @@ def convert_creds_key(creds_key: Optional[str], path: str):
 
 
 class LinkedSample:
+    """Represents a linked sample."""
+
     def __init__(self, path: str, creds_key: Optional[str] = None):
         self.path = path
         self.creds_key = convert_creds_key(creds_key, path)
