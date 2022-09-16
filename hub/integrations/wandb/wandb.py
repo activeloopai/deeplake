@@ -131,7 +131,7 @@ def get_ds_key(ds):
 def dataset_config(ds):
     if hasattr(ds, "_view_entry"):
         entry = ds._view_entry
-        source_ds_path = entry.source_dataset_path
+        source_ds_path = entry._src_ds.path
         commit_id = entry.info["source-dataset-version"]
         vid = entry.id
         ret = {
