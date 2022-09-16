@@ -2719,6 +2719,10 @@ class Dataset:
         Raises:
             KeyError: if view with given id does not exist.
         """
+        if self._read_only and not self._locked_out:
+            raise ReadOnlyModeError(
+                "Cannot delete view as the dataset is open in read only mode."
+            )
         try:
             with self._lock_queries_json():
                 qjson = self._read_queries_json()
@@ -2738,10 +2742,7 @@ class Dataset:
                 with qds._lock_queries_json():
                     qjson = qds._read_queries_json()
                     for i, q in enumerate(qjson):
-                        if (
-                            q["source-dataset"] == self.path
-                            and q["id"] == f"[{self.org_id}][{self.ds_name}]{id}"
-                        ):
+                        if q["id"] == f"[{self.org_id}][{self.ds_name}]{id}":
                             qjson.pop(i)
                             qds.base_storage.subdir(
                                 ".queries/" + (q.get("path") or q["id"])

@@ -240,6 +240,7 @@ def test_inplace_dataset_view_save(
             assert ds.path + "/.queries/" in vds_path
     for t in view.tensors:
         np.testing.assert_array_equal(view[t].numpy(), view2[t].numpy())
+    ds_orig = ds
     if not read_only and is_hub:
         ds = hub.load(ds.path, read_only=True)
     entry = ds.get_view(id)
@@ -259,9 +260,9 @@ def test_inplace_dataset_view_save(
     for t in view.tensors:
         np.testing.assert_array_equal(view[t].numpy(), view3[t].numpy())
     for id in to_del:
-        ds.delete_view(id)
+        ds_orig.delete_view(id)
         with pytest.raises(KeyError):
-            ds.get_view(id)
+            ds_orig.get_view(id)
 
 
 def test_group(local_ds):
