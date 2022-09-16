@@ -122,7 +122,7 @@ def slice_length(s: slice, parent_length: int) -> int:
     return max(0, total_length)
 
 
-def replace_ellipsis_with_slices(items: List, ndim):
+def replace_ellipsis_with_slices(items, ndim: int):
     if items is Ellipsis:
         return (slice(None),) * ndim
     try:
