@@ -134,16 +134,13 @@ def check_target_array(ds, index, target):
     np.testing.assert_array_equal(ds.label[index].numpy(), target * np.ones((1,)))
 
 
-def retrieve_objects_from_memory(object_type=hub.core.sample.Sample, save=False):
+def retrieve_objects_from_memory(object_type=hub.core.sample.Sample):
     total_n_of_occurences = 0
-    list_to_return = []
     gc_objects = gc.get_objects()
     for item in gc_objects:
         if isinstance(item, object_type):
-            if save:
-                list_to_return.append(item)
             total_n_of_occurences += 1
-    return list_to_return, total_n_of_occurences
+    return total_n_of_occurences
 
 
 @all_schedulers
