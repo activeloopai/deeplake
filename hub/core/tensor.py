@@ -1038,6 +1038,10 @@ class Tensor:
     def _linked_sample(self):
         """Returns the linked sample at the given index. This is only applicable for tensors of ``link[]`` htype
         and can only be used for exactly one sample.
+
+        >>> linked_sample = ds.abc[0]._linked_sample().path
+        'https://picsum.photos/200/300'
+
         """
         if not self.is_link:
             raise ValueError("Not supported as the tensor is not a link.")

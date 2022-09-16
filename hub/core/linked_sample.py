@@ -11,7 +11,7 @@ def convert_creds_key(creds_key: Optional[str], path: str):
 
 
 class LinkedSample:
-    """Represents a linked sample."""
+    """Represents a sample that is initialized using external links. See :meth:`hub.link`."""
 
     def __init__(self, path: str, creds_key: Optional[str] = None):
         self.path = path
