@@ -333,16 +333,17 @@ class HubCloudDataset(Dataset):
 
         class _TmpWriteAccess:
             def __enter__(self2):
-                self2.orig_provider = self.base_storage
-                self.base_storage = storage_provider_from_hub_path(
+                self2.orig_storage = self.base_storage
+                storage = storage_provider_from_hub_path(
                     self.path, read_only=False, token=self._token
                 )
                 if storage.read_only:
                     raise ReadOnlyModeError(
                         f"You do not have permission to materialize views in this dataset ({self.path})."
                     )
+                self.base_storage = storage
 
             def __exit__(self2, *_, **__):
-                self.base_storage = self2.orig_provider
+                self.base_storage = self2.orig_storage
 
         return _TmpWriteAccess()
