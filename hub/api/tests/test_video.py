@@ -71,7 +71,7 @@ def test_video_slicing(local_ds: Dataset, video_paths):
     ],
     indirect=True,
 )
-def test_video_streaming(vstream_path, hub_token):
+def test_video_streaming(vstream_path, hub_token, skip_fast_fail):
     ds = hub.load(vstream_path, read_only=True, token=hub_token)
 
     # no streaming, downloads chunk
@@ -98,7 +98,7 @@ def test_video_streaming(vstream_path, hub_token):
     ],
     indirect=True,
 )
-def test_video_timestamps(vstream_path, hub_token):
+def test_video_timestamps(vstream_path, hub_token, skip_fast_fail):
     ds = hub.load(vstream_path, read_only=True, token=hub_token)
 
     with pytest.raises(ValueError):
