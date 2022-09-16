@@ -661,6 +661,7 @@ class Dataset:
 
         Raises:
             TensorDoesNotExistError: If tensor of name ``name`` does not exist in the dataset.
+            TensorTooLargeToDelete: If the tensor is larger than 1 GB and ``large_ok`` is ``False``.
         """
         auto_checkout(self)
 
@@ -1655,6 +1656,9 @@ class Dataset:
 
         Args:
             large_ok (bool): Delete datasets larger than 1 GB. Defaults to ``False``.
+
+        Raises:
+            DatasetTooLargeToDelete: If the dataset is larger than 1 GB and ``large_ok`` is ``False``.
         """
 
         if hasattr(self, "_view_entry"):

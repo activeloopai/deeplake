@@ -31,6 +31,7 @@ from hub.util.exceptions import (
     TokenPermissionError,
     UserNotLoggedInException,
     SampleAppendingError,
+    DatasetTooLargeToDelete,
 )
 from hub.util.path import convert_string_to_pathlib_if_needed
 from hub.util.pretty_print import summary_tensor, summary_dataset
@@ -792,10 +793,9 @@ def test_dataset_delete():
         ds.create_tensor("data")
         ds.data.extend(np.zeros((100, 2000)))
 
-        try:
+        with pytest.raises(DatasetTooLargeToDelete):
             hub.delete("test/")
-        finally:
-            assert os.path.isfile("test/dataset_meta.json")
+        assert os.path.isfile("test/dataset_meta.json")
 
         hub.delete("test/", large_ok=True)
         assert not os.path.isfile("test/dataset_meta.json")
