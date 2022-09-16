@@ -472,3 +472,16 @@ def hub_token(request):
     if is_opt_true(request, HUB_CLOUD_OPT):
         return request.getfixturevalue(request.param)
     return None
+
+
+@pytest.fixture
+def skip_fast_fail(request):
+    if (
+        is_opt_true(request, S3_OPT)
+        or is_opt_true(request, GCS_OPT)
+        or is_opt_true(request, GDRIVE_OPT)
+        or is_opt_true(request, HUB_CLOUD_OPT)
+    ):
+        return
+    else:
+        pytest.skip()
