@@ -36,10 +36,15 @@ def query(dataset, query_string: str):
         Dataset: A hub.Dataset object.
 
     Examples:
+
+        Query from dataset all the samples with lables other than ``5``
+
         >>> import hub
         >>> from hub.experimental import query
         >>> ds = hub.load('hub://activeloop/fashion-mnist-train')
-        >>> query_ds_train = query(ds_train, "select * shere labels != 5")
+        >>> query_ds_train = query(ds_train, "select * where labels != 5")
+
+        Query from dataset first appeard ``1000`` samples where the ``categories`` is ``car`` and ``1000`` samples where the ``categories`` is ``motorcycle``
 
         >>> ds_train = hub.load('hub://activeloop/coco-train')
         >>> query_ds_train = query(ds_train, "(select * where contains(categories, 'car') limit 1000) union (select * where contains(categories, 'motorcycle') limit 1000)")

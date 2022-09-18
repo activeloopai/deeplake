@@ -2111,3 +2111,13 @@ def test_ellipsis(memory_ds):
     np.testing.assert_array_equal(arr[2:, ...], ds.x[2:, ...])
     np.testing.assert_array_equal(arr[2:, ...][...], ds.x[2:, ...][...])
     np.testing.assert_array_equal(arr[...], ds.x[...])
+
+
+def test_copy_label_sync_disabled(local_ds, capsys):
+    abc = local_ds.create_tensor("abc", htype="class_label")
+    abc.extend([1, 2, 3, 4, 5])
+    ds = local_ds.copy(
+        f"{local_ds.path}_copy", overwrite=True, progressbar=False, num_workers=2
+    )
+    captured = capsys.readouterr().out
+    assert captured == ""
