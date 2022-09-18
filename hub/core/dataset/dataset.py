@@ -1267,7 +1267,7 @@ class Dataset:
             >>> {
             ...    "image": {"data_added": [3, 6], "data_updated": {0, 2}, "created": False, "info_updated": False, "data_transformed_in_place": False},
             ...    "label": {"data_added": [0, 3], "data_updated": {}, "created": True, "info_updated": False, "data_transformed_in_place": False},
-            ...    "other/stuff" : {data_added: [3, 3], data_updated: {1, 2}, created: True, "info_updated": False, "data_transformed_in_place": False},
+            ...    "other/stuff" : {"data_added": [3, 3], "data_updated": {1, 2}, "created": True, "info_updated": False, "data_transformed_in_place": False},
             ... }
 
 
