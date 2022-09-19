@@ -12,7 +12,8 @@ Hub has the following extras that you can choose to install according to your ne
 +======================================+=======================================+=============================================+
 | ``pip install hub[av]``              | Audio and video support via PyAV      | av                                          |
 +--------------------------------------+---------------------------------------+---------------------------------------------+
-| ``pip install hub[visualizer]``      | Visualize datasets within notebooks   | IPython, flask                              |
+| ``pip install hub[visualizer]``      | | Visualize Hub datasets within       | IPython, flask                              |
+|                                      | | notebooks                           |                                             |
 +--------------------------------------+---------------------------------------+---------------------------------------------+
 | ``pip install hub[gcp]``             | GCS support                           | | google-cloud-storage, google-auth,        |
 |                                      |                                       | | google-auth-oauthlib                      |
