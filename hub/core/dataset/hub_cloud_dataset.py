@@ -5,11 +5,12 @@ from hub.constants import HUB_CLOUD_DEV_USERNAME
 from hub.core.dataset import Dataset
 from hub.client.client import HubBackendClient
 from hub.util.bugout_reporter import hub_reporter
-from hub.util.exceptions import RenameError
+from hub.util.exceptions import RenameError, ReadOnlyModeError
 from hub.util.link import save_link_creds
 from hub.util.path import is_hub_cloud_path
 from hub.util.tag import process_hub_path
 from hub.util.logging import log_visualizer_link
+from hub.util.storage import storage_provider_from_hub_path
 from warnings import warn
 import time
 import hub
@@ -325,3 +326,24 @@ class HubCloudDataset(Dataset):
             self._set_org_and_name()
             self.link_creds.org_id = self.org_id
             self.link_creds.client = self.client
+
+    def _temp_write_access(self):
+        if not self.read_only or self._locked_out:
+            return memoryview(b"")  # No-op context manager
+
+        class _TmpWriteAccess:
+            def __enter__(self2):
+                self2.orig_storage = self.base_storage
+                storage = storage_provider_from_hub_path(
+                    self.path, read_only=False, token=self._token
+                )
+                if storage.read_only:
+                    raise ReadOnlyModeError(
+                        f"You do not have permission to materialize views in this dataset ({self.path})."
+                    )
+                self.base_storage = storage
+
+            def __exit__(self2, *_, **__):
+                self.base_storage = self2.orig_storage
+
+        return _TmpWriteAccess()
