@@ -8,15 +8,14 @@ def tiled(
     tile_shape: Optional[Tuple[int, ...]] = None,
     dtype: Union[str, np.dtype] = np.dtype("uint8"),
 ):
-    """Allocates an empty sample of shape `sample_shape`, broken into tiles of shape `tile_shape` (except for edge tiles).
+    """Allocates an empty sample of shape ``sample_shape``, broken into tiles of shape ``tile_shape`` (except for edge tiles).
 
     Example:
-        ```
-        with ds:
-            ds.create_tensor("image", htype="image", sample_compression="png")
-            ds.image.append(hub.tiled(sample_shape=(1003, 1103, 3), tile_shape=(10, 10, 3)))
-            ds.image[0][-217:, :212, 1:] = np.random.randint(0, 256, (217, 212, 2), dtype=np.uint8)
-        ```
+
+        >>> with ds:
+        ...    ds.create_tensor("image", htype="image", sample_compression="png")
+        ...    ds.image.append(hub.tiled(sample_shape=(1003, 1103, 3), tile_shape=(10, 10, 3)))
+        ...    ds.image[0][-217:, :212, 1:] = np.random.randint(0, 256, (217, 212, 2), dtype=np.uint8)
 
     Args:
         sample_shape (Tuple[int, ...]): Full shape of the sample.

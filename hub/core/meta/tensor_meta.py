@@ -69,6 +69,7 @@ class TensorMeta(Meta):
     def add_link(
         self, name, append_f: str, update_f: Optional[str], flatten_sequence: bool
     ):
+        """Link this tensor with another."""
         link = {
             "append": append_f,
             "flatten_sequence": flatten_sequence,
@@ -81,11 +82,12 @@ class TensorMeta(Meta):
         self.is_dirty = True
 
     def set_hidden(self, val: bool):
+        """Set visibility of tensor."""
         self.hidden = val
         self.is_dirty = True
 
     def set_dtype(self, dtype: np.dtype):
-        """Should only be called once."""
+        """Set dtype of tensor. Should only be called once."""
 
         if self.dtype is not None:
             raise ValueError(
@@ -100,7 +102,7 @@ class TensorMeta(Meta):
         self.is_dirty = True
 
     def set_htype(self, htype: str, **kwargs):
-        """Should only be called once."""
+        """Set htype of tensor. Should only be called once."""
 
         if getattr(self, "htype", None) is not None:
             raise ValueError(
@@ -132,6 +134,7 @@ class TensorMeta(Meta):
         _validate_links(self.links)
 
     def update_shape_interval(self, shape: Sequence[int]):
+        """Update shape interval of tensor."""
         initial_min_shape = None if self.min_shape is None else self.min_shape.copy()
         initial_max_shape = None if self.max_shape is None else self.max_shape.copy()
 
@@ -152,11 +155,13 @@ class TensorMeta(Meta):
             self.is_dirty = True
 
     def update_length(self, length: int):
+        """Update length of tensor."""
         self.length += length
         if length != 0:
             self.is_dirty = True
 
     def pop(self, index):
+        """Reflect popping a sample in tensor's meta."""
         self.length -= 1
         if self.length == 0:
             self.min_shape = []
@@ -183,6 +188,7 @@ class TensorMeta(Meta):
 
     @property
     def nbytes(self):
+        """Returns size of the metadata stored in bytes."""
         # TODO: optimize this
         return len(self.tobytes())
 
@@ -242,7 +248,7 @@ def _required_meta_from_htype(htype: str) -> dict:
 
 
 def _validate_htype_overwrites(htype: str, htype_overwrite: dict):
-    """Raises errors if `htype_overwrite` has invalid keys or was missing required values."""
+    """Raises errors if ``htype_overwrite`` has invalid keys or was missing required values."""
 
     defaults = HTYPE_CONFIGURATIONS[htype]
 
@@ -281,7 +287,7 @@ def _validate_htype_overwrites(htype: str, htype_overwrite: dict):
 
 
 def _replace_unspecified_values(htype: str, htype_overwrite: dict):
-    """Replaces `UNSPECIFIED` values in `htype_overwrite` with the `htype`'s defaults."""
+    """Replaces ``UNSPECIFIED`` values in ``htype_overwrite`` with the ``htype``'s defaults."""
 
     defaults = HTYPE_CONFIGURATIONS[htype]
 

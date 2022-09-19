@@ -30,6 +30,7 @@ from hub.util.exceptions import (
     InvalidTokenException,
     TokenPermissionError,
     UserNotLoggedInException,
+    SampleAppendingError,
 )
 from hub.util.path import convert_string_to_pathlib_if_needed
 from hub.util.pretty_print import summary_tensor, summary_dataset
@@ -500,10 +501,16 @@ def test_compute_slices(memory_ds):
 def test_length_slices(memory_ds):
     ds = memory_ds
     data = np.array([1, 2, 3, 9, 8, 7, 100, 99, 98, 99, 101])
+    data_2 = np.array([1, 2, 3, 9, 8, 7, 100, 99, 98, 99, 101, 12, 15, 18])
     ds.create_tensor("data")
+    ds.create_tensor("data_2")
+
     ds.data.extend(data)
+    ds.data_2.extend(data_2)
 
     assert len(ds) == 11
+    assert ds.min_len == len(ds)
+    assert ds.max_len == 14
     assert len(ds[0]) == 1
     assert len(ds[0:1]) == 1
     assert len(ds[0:0]) == 0
@@ -1345,6 +1352,17 @@ def test_ds_append(memory_ds, x_args, y_args, x_size, htype):
     assert ds.y.chunk_engine.commit_diff.num_samples_added == 3
     assert ds.z.chunk_engine.commit_diff.num_samples_added == 0
     assert len(ds) == 0
+    for _ in range(3):
+        ds.append({"z": np.zeros(2)}, skip_ok=True)
+    assert len(ds.z) == 3
+    ds.append({"x": np.ones(3), "y": [1, 2, 3]}, append_empty=True)
+    assert len(ds.x) == 4
+    assert len(ds.y) == 4
+    assert len(ds.z) == 4
+    assert ds.x.chunk_engine.commit_diff.num_samples_added == 4
+    assert ds.y.chunk_engine.commit_diff.num_samples_added == 4
+    assert ds.z.chunk_engine.commit_diff.num_samples_added == 4
+    assert len(ds) == 4
 
 
 def test_ds_append_with_ds_view():
@@ -1393,6 +1411,15 @@ def test_append_with_tensor(src_args, dest_args, size):
     ds2.create_tensor("y", max_chunk_size=3 * MB, tiling_threshold=2 * MB, **dest_args)
     ds2.y.append(ds1.x[0])
     np.testing.assert_array_equal(ds1.x.numpy(), ds2.y.numpy())
+
+    with pytest.raises(SampleAppendingError):
+        ds1.append(np.zeros((416, 416, 3)))
+
+    with pytest.raises(SampleAppendingError):
+        ds1.append(set())
+
+    with pytest.raises(SampleAppendingError):
+        ds1.append([1, 2, 3])
 
 
 def test_extend_with_tensor():
@@ -2025,36 +2052,50 @@ def test_uneven_iteration(memory_ds):
             np.testing.assert_equal(y, target_y)
 
 
-def test_hub_token_without_permission(
-    hub_cloud_dev_credentials, hub_cloud_dev_token, hub_dev_token
+def token_permission_error_check(
+    username,
+    password,
+    runner,
 ):
-    os.remove(REPORTING_CONFIG_FILE_PATH)
-    ds = hub.load("hub://activeloop/mnist-test", token=hub_cloud_dev_token)
-
-    ds = hub.load("hub://activeloop/mnist-test", token=hub_dev_token)
-
-    feature_report_path(
-        "hub://testingacc/test_hub_token", "empty", parameters={}, token=hub_dev_token
-    )
-
-    username, password = hub_cloud_dev_credentials
-    runner = CliRunner()
-
-    feature_report_path(
-        "hub://testingacc/test_hub_token",
-        "empty",
-        parameters={},
-        token=hub_cloud_dev_token,
-    )
-
     result = runner.invoke(login, f"-u {username} -p {password}")
     with pytest.raises(TokenPermissionError):
         hub.empty("hub://activeloop-test/sohas-weapons-train")
 
+    with pytest.raises(TokenPermissionError):
+        ds = hub.load("hub://activeloop/fake-path")
+
+
+def invalid_token_exception_check():
+    with pytest.raises(InvalidTokenException):
+        ds = hub.empty("hub://adilkhan/demo", token="invalid_token")
+
+
+def user_not_logged_in_exception_check(runner):
     runner.invoke(logout)
-    ds = hub.empty(
-        "hub://testingacc/test_hub_token", token=hub_cloud_dev_token, overwrite=True
+    with pytest.raises(UserNotLoggedInException):
+        ds = hub.load("hub://activeloop-test/sohas-weapons-train", read_only=True)
+
+
+def dataset_handler_error_check(runner, username, password):
+    result = runner.invoke(login, f"-u {username} -p {password}")
+    with pytest.raises(DatasetHandlerError):
+        ds = hub.load(f"hub://{username}/wrong-path")
+
+
+def test_hub_related_permission_exceptions(
+    hub_cloud_dev_credentials, hub_cloud_dev_token, hub_dev_token
+):
+    username, password = hub_cloud_dev_credentials
+    runner = CliRunner()
+
+    token_permission_error_check(
+        username,
+        password,
+        runner,
     )
+    invalid_token_exception_check()
+    user_not_logged_in_exception_check(runner)
+    dataset_handler_error_check(runner, username, password)
 
 
 def test_incompat_dtype_msg(local_ds, capsys):
@@ -2063,3 +2104,25 @@ def test_incompat_dtype_msg(local_ds, capsys):
         local_ds.abc.append([0.0])
     captured = capsys.readouterr()
     assert "True" not in captured
+
+
+def test_ellipsis(memory_ds):
+    with memory_ds as ds:
+        ds.create_tensor("x")
+        arr = np.random.random((5, 3, 2, 3, 4))
+        ds.x.extend(arr)
+    np.testing.assert_array_equal(arr[:3, ..., 1], ds.x[:3, ..., 1])
+    np.testing.assert_array_equal(arr[..., :2], ds.x[..., :2])
+    np.testing.assert_array_equal(arr[2:, ...], ds.x[2:, ...])
+    np.testing.assert_array_equal(arr[2:, ...][...], ds.x[2:, ...][...])
+    np.testing.assert_array_equal(arr[...], ds.x[...])
+
+
+def test_copy_label_sync_disabled(local_ds, capsys):
+    abc = local_ds.create_tensor("abc", htype="class_label")
+    abc.extend([1, 2, 3, 4, 5])
+    ds = local_ds.copy(
+        f"{local_ds.path}_copy", overwrite=True, progressbar=False, num_workers=2
+    )
+    captured = capsys.readouterr().out
+    assert captured == ""

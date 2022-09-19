@@ -194,6 +194,7 @@ def _transform_sample_and_update_chunk_engines(
         chunk_engine = all_chunk_engines[label_temp_tensors.get(tensor) or tensor]
         callback = chunk_engine._transform_callback
         chunk_engine.extend(value.numpy_compressed(), link_callback=callback)
+        value.items.clear()
 
 
 def transform_data_slice_and_append(

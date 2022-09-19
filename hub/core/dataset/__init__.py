@@ -1,5 +1,6 @@
 from .dataset import Dataset  # type: ignore
 from .hub_cloud_dataset import HubCloudDataset
+from .view_entry import ViewEntry
 
 from hub.util.path import is_hub_cloud_path
 

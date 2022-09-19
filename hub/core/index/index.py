@@ -20,8 +20,8 @@ def merge_slices(existing_slice: slice, new_slice: slice) -> slice:
     """Compose two slice objects
 
     Given an iterable x, the following should be equivalent:
-    x[existing_slice][new_slice]
-    x[merge_slices(existing_slice, new_slice)]
+
+    ``x[existing_slice][new_slice] == x[merge_slices(existing_slice, new_slice)]``
 
     Args:
         existing_slice (slice): The existing slice to be restricted.
@@ -69,7 +69,7 @@ def merge_slices(existing_slice: slice, new_slice: slice) -> slice:
 
 
 def slice_at_int(s: slice, i: int):
-    """Returns the `i`th element of a slice `s`.
+    """Returns the ``i`` th element of a slice ``s``.
 
     Examples:
         >>> slice_at_int(slice(None), 10)
@@ -83,7 +83,7 @@ def slice_at_int(s: slice, i: int):
         i (int): The integer offset into the slice.
 
     Returns:
-        The index corresponding to the offset into the slice.
+        int: The index corresponding to the offset into the slice.
 
     Raises:
         NotImplementedError: Nontrivial slices should not be indexed with negative integers.
@@ -122,6 +122,20 @@ def slice_length(s: slice, parent_length: int) -> int:
     return max(0, total_length)
 
 
+def replace_ellipsis_with_slices(items, ndim: int):
+    if items is Ellipsis:
+        return (slice(None),) * ndim
+    try:
+        idx = items.index(Ellipsis)
+    except ValueError:
+        return items
+    nslices = ndim - len(items) + 1
+    if Ellipsis in items[idx + 1 :]:
+        raise IndexError("an index can only have a single ellipsis ('...')")
+    items = items[:idx] + (slice(None),) * nslices + items[idx + 1 :]
+    return items
+
+
 class IndexEntry:
     def __init__(self, value: IndexValue = slice(None)):
         self.value = value
@@ -130,7 +144,7 @@ class IndexEntry:
         return f"IndexEntry({self.value})"
 
     def __getitem__(self, item: IndexValue):
-        """Combines the given `item` and this IndexEntry.
+        """Combines the given ``item`` and this IndexEntry.
         Returns a new IndexEntry representing the composition of the two.
 
         Examples:
@@ -151,7 +165,7 @@ class IndexEntry:
                 Can be an int, a slice, or a tuple of ints.
 
         Returns:
-            The new IndexEntry object.
+            IndexEntry: The new IndexEntry object.
 
         Raises:
             TypeError: An integer IndexEntry should not be indexed further.
@@ -391,7 +405,7 @@ class Index:
 
     def length(self, parent_length: int):
         """Returns the primary length of an Index given the length of the parent it is indexing.
-        See: IndexEntry.length"""
+        See: :meth:`IndexEntry.length`"""
         return self.values[0].length(parent_length)
 
     def validate(self, parent_length):

@@ -33,6 +33,7 @@ from hub.util.keys import (
     get_version_control_info_lock_key,
 )
 from hub.util.remove_cache import get_base_storage
+from hub.hooks import dataset_committed
 from datetime import datetime
 import json
 
@@ -124,6 +125,7 @@ def commit(dataset, message: str = None, hash: Optional[str] = None) -> None:
     dataset._send_commit_event(
         commit_message=commit_message, commit_time=commit_time, author=author
     )
+    dataset_committed(dataset)
 
 
 def checkout(

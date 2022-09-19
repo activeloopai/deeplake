@@ -5,6 +5,8 @@ from typing import Any, Dict
 
 
 class Info(HubMemoryObject):
+    """Contains optional key-value pairs that can be stored for datasets/tensors."""
+
     def __init__(self):
         self._info = {}
         self._dataset = None
@@ -35,6 +37,7 @@ class Info(HubMemoryObject):
 
     @property
     def nbytes(self):
+        """Returns size of info stored in bytes."""
         return len(self.tobytes())
 
     def __len__(self):
@@ -47,7 +50,7 @@ class Info(HubMemoryObject):
         self._info = state
 
     def __getattribute__(self, name: str) -> Any:
-        """Allows access to info values using the `.` syntax. Example: `info.description`."""
+        """Allows access to info values using the `.` syntax. Example: ``info.description``."""
 
         if name == "_info":
             return super().__getattribute__(name)
@@ -96,41 +99,51 @@ class Info(HubMemoryObject):
                 self[key] = value
 
     def get(self, key, default=None):
+        """Get value for key from info."""
         return self._info.get(key, default)
 
     def setdefault(self, key, default=None):
+        """Set default value for a key in info."""
         with self:
             ret = self._info.setdefault(key, default)
         return ret
 
     def clear(self):
+        """Clear info."""
         with self:
             self._info.clear()
 
     def pop(self, key, default=None):
+        """Pop item from info by key."""
         with self:
             popped = self._info.pop(key, default)
         return popped
 
     def popitem(self):
+        """Pop item from info."""
         with self:
             popped = self._info.popitem()
         return popped
 
     def update(self, *args, **kwargs):
+        """Update info."""
         with self:
             self._info.update(*args, **kwargs)
 
     def keys(self):
+        """Return all keys in info."""
         return self._info.keys()
 
     def values(self):
+        """Return all values in info."""
         return self._info.values()
 
     def items(self):
+        """Return all items in info."""
         return self._info.items()
 
     def replace_with(self, d):
+        """Replace info with another dictionary."""
         with self:
             self._info.clear()
             self._info.update(d)
@@ -158,7 +171,7 @@ class Info(HubMemoryObject):
         return None
 
 
-def load_info(path, dataset, key=None):
+def load_info(path, dataset, key=None) -> Info:
     storage: LRUCache = dataset.storage
 
     try:

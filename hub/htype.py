@@ -2,49 +2,67 @@
 "htype" is the class of a tensor: image, bounding box, generic tensor, etc.
 
 When not specified, the unspecified options will be inferred from the data:
-```
+
 >>> ds.create_tensor("my_tensor")
 >>> ds.my_tensor.append(1)
 >>> ds.my_tensor.dtype
 int64
-```
 
 If you know beforehand, you can use htype at creation:
-```
+
 >>> ds.create_tensor("my_tensor", htype="image", sample_compression=None)
-```
 
 Specifying an htype allows for strict settings and error handling, and it is critical for increasing the performance of hub datasets containing rich data such as images and videos.
 
 Supported htypes and their respective defaults are:
 
++----------------+-----------+---------------+
 | HTYPE          |  DTYPE    |  COMPRESSION  |
-| ------------   |  -------  |  -----------  |
-| image          |  uint8    |  none         |
-| image.rgb      |  uint8    |  none         |
-| image.gray     |  uint8    |  none         |
-| class_label    |  uint32   |  none         |
-| bbox           |  float32  |  none         |
-| video          |  uint8    |  none         |
-| binary_mask    |  bool     |  none         |
-| segment_mask   |  uint32   |  none         |
-| keypoints_coco |  int32    |  none         |
-| point          |  int32    |  none         |
-| audio          |  float64  |  none         |
-| text           |  str      |  none         |
-| json           |  Any      |  none         |
-| list           |  List     |  none         |
-| dicom          |  none     |  dcm          |
-| link           |  str      |  none         |
-| sequence       |  none     |  none         |
++================+===========+===============+
+| image          |  uint8    |  None         |
++----------------+-----------+---------------+
+| image.rgb      |  uint8    |  None         |
++----------------+-----------+---------------+
+| image.gray     |  uint8    |  None         |
++----------------+-----------+---------------+
+| class_label    |  uint32   |  None         |
++----------------+-----------+---------------+
+| bbox           |  float32  |  None         |
++----------------+-----------+---------------+
+| video          |  uint8    |  None         |
++----------------+-----------+---------------+
+| binary_mask    |  bool     |  None         |
++----------------+-----------+---------------+
+| segment_mask   |  uint32   |  None         |
++----------------+-----------+---------------+
+| keypoints_coco |  int32    |  None         |
++----------------+-----------+---------------+
+| point          |  int32    |  None         |
++----------------+-----------+---------------+
+| audio          |  float64  |  None         |
++----------------+-----------+---------------+
+| text           |  str      |  None         |
++----------------+-----------+---------------+
+| json           |  Any      |  None         |
++----------------+-----------+---------------+
+| list           |  List     |  None         |
++----------------+-----------+---------------+
+| dicom          |  None     |  dcm          |
++----------------+-----------+---------------+
+| link           |  str      |  None         |
++----------------+-----------+---------------+
+| sequence       |  None     |  None         |
++----------------+-----------+---------------+
 
-## Sequence htype
+Sequence htype
+~~~~~~~~~~~~~~
 
-- An htype for tensors where each sample is a sequence. The items in the sequence are samples of another htype.
-- It is a wrapper htype that can wrap other htypes like `sequence[image]`, `sequence[video]`, `sequence[text]`, etc.
+- A special meta htype for tensors where each sample is a sequence. The items in the sequence are samples of another htype.
+- It is a wrapper htype that can wrap other htypes like ``sequence[image]``, ``sequence[video]``, ``sequence[text]``, etc.
 
-### Examples:
-```
+Examples
+--------
+
 >>> ds.create_tensor("seq", htype="sequence")
 >>> ds.seq.append([1, 2, 3])
 >>> ds.seq.append([4, 5, 6])
@@ -52,70 +70,65 @@ Supported htypes and their respective defaults are:
 array([[[1],
         [2],
         [3]],
-
        [[4],
         [5],
         [6]]])
-```
 
-```
 >>> ds.create_tensor("image_seq", htype="sequence[image]", sample_compression="jpg")
 >>> ds.image_seq.append([hub.read("img01.jpg"), hub.read("img02.jpg")])
-```
 
-## Link htype
+Link htype
+~~~~~~~~~~
 
-- Link htype is a special htype that allows linking of external data (files) to the dataset, without storing the data in the dataset itself.
-- Moreover, there can be variations in this htype, such as `link[image]`, `link[video]`, `link[audio]`, etc. that would enable the activeloop visualizer to correctly display the data.
+- Link htype is a special meta htype that allows linking of external data (files) to the dataset, without storing the data in the dataset itself.
+- Moreover, there can be variations in this htype, such as ``link[image]``, ``link[video]``, ``link[audio]``, etc. that would enable the activeloop visualizer to correctly display the data.
 - No data is actually loaded until you try to read the sample from a dataset.
 - There are a few exceptions to this:-
-    - If `verify=True` was specified DURING `create_tensor` of the tensor to which this is being added, some metadata is read to verify the integrity of the sample.
-    - If `create_shape_tensor=True` was specified DURING `create_tensor` of the tensor to which this is being added, the shape of the sample is read.
-    - If `create_sample_info_tensor=True` was specified DURING `create_tensor` of the tensor to which this is being added, the sample info is read.
-### Examples:
-```
->>> ds = hub.dataset(“......“)
-```
+    - If ``verify=True`` was specified during ``create_tensor`` of the tensor to which this is being added, some metadata is read to verify the integrity of the sample.
+    - If ``create_shape_tensor=True`` was specified during ``create_tensor`` of the tensor to which this is being added, the shape of the sample is read.
+    - If ``create_sample_info_tensor=True`` was specified during ``create_tensor`` of the tensor to which this is being added, the sample info is read.
+
+.. _linked_sample_examples:
+
+Examples
+--------
+
+>>> ds = hub.dataset("......")
 
 Add the names of the creds you want to use (not needed for http/local urls)
 
-```
->>> ds.add_creds_key(“MY_S3_KEY”)
->>> ds.add_creds_key(“GCS_KEY”)
-```
+>>> ds.add_creds_key("MY_S3_KEY")
+>>> ds.add_creds_key("GCS_KEY")
 
 Populate the names added with creds dictionary
 These creds are only present temporarily and will have to be repopulated on every reload
-```
->>> ds.populate_creds(“MY_S3_KEY”, {})
->>> ds.populate_creds(“GCS_KEY”, {})
-```
+
+>>> ds.populate_creds("MY_S3_KEY", {})   # add creds here
+>>> ds.populate_creds("GCS_KEY", {})    # add creds here
 
 Create a tensor that can contain links
-```
->>> ds.create_tensor(“img”, htype=“link[image]“, verify=True, create_shape_tensor=False, create_sample_info_tensor=False)
-```
+
+>>> ds.create_tensor("img", htype="link[image]", verify=True, create_shape_tensor=False, create_sample_info_tensor=False)
 
 Populate the tensor with links
-```
->>> ds.img.append(hub.link(“s3://abc/def.jpeg”, creds_key=“MY_S3_KEY”))
->>> ds.img.append(hub.link(“gcs://ghi/jkl.png”, creds_key=“GCS_KEY”))
->>> ds.img.append(hub.link(“https://picsum.photos/200/300”)) # http path doesn’t need creds
->>> ds.img.append(hub.link(“./path/to/cat.jpeg”)) # local path doesn’t need creds
->>> ds.img.append(hub.link(“s3://abc/def.jpeg”))  # this will throw an exception as cloud paths always need creds_key
->>> ds.img.append(hub.link(“s3://abc/def.jpeg”, creds_key=“ENV”))  # this will use creds from environment
-```
+
+>>> ds.img.append(hub.link("s3://abc/def.jpeg", creds_key="MY_S3_KEY"))
+>>> ds.img.append(hub.link("gcs://ghi/jkl.png", creds_key="GCS_KEY"))
+>>> ds.img.append(hub.link("https://picsum.photos/200/300")) # http path doesn’t need creds
+>>> ds.img.append(hub.link("./path/to/cat.jpeg")) # local path doesn’t need creds
+>>> ds.img.append(hub.link("s3://abc/def.jpeg"))  # this will throw an exception as cloud paths always need creds_key
+>>> ds.img.append(hub.link("s3://abc/def.jpeg", creds_key="ENV"))  # this will use creds from environment
 
 Accessing the data
-```
+
 >>> for i in range(5):
->>>     ds.img[i].numpy()
-```
+...     ds.img[i].numpy()
+...
 
 Updating a sample
-```
->>> ds.img[0] = hub.link(“./data/cat.jpeg”)
-```
+
+>>> ds.img[0] = hub.link("./data/cat.jpeg")
+
 """
 
 from typing import Dict

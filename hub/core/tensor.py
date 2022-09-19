@@ -8,13 +8,13 @@ from hub.core.chunk.base_chunk import InputSample
 import numpy as np
 from typing import Dict, List, Sequence, Union, Optional, Tuple, Any, Callable
 from functools import reduce, partial
-from hub.core.index import Index, IndexEntry
+from hub.core.index import Index, IndexEntry, replace_ellipsis_with_slices
 from hub.core.meta.tensor_meta import TensorMeta
 from hub.core.storage import StorageProvider
 from hub.core.chunk_engine import ChunkEngine
 from hub.core.compression import _read_timestamps
 from hub.core.tensor_link import get_link_transform
-from hub.api.info import load_info
+from hub.api.info import Info, load_info
 from hub.util.keys import (
     get_chunk_id_encoder_key,
     get_chunk_key,
@@ -23,12 +23,6 @@ from hub.util.keys import (
     get_tensor_meta_key,
     get_tensor_tile_encoder_key,
     get_sequence_encoder_key,
-    tensor_exists,
-    get_tensor_info_key,
-    get_sample_id_tensor_key,
-)
-from hub.util.keys import (
-    get_tensor_meta_key,
     tensor_exists,
     get_tensor_info_key,
     get_sample_id_tensor_key,
@@ -43,10 +37,8 @@ from hub.util.exceptions import (
     InvalidKeyTypeError,
     TensorAlreadyExistsError,
 )
-
+from hub.hooks import dataset_read, dataset_written
 from hub.util.pretty_print import (
-    max_array_length,
-    get_string,
     summary_tensor,
 )
 from hub.constants import FIRST_COMMIT_ID, _NO_LINK_UPDATE, UNSPECIFIED
@@ -207,20 +199,20 @@ class Tensor:
     ):
         """Initializes a new tensor.
 
-        Note:
-            This operation does not create a new tensor in the storage provider,
-            and should normally only be performed by Hub internals.
-
         Args:
             key (str): The internal identifier for this tensor.
             dataset (Dataset): The dataset that this tensor is located in.
             index: The Index object restricting the view of this tensor.
                 Can be an int, slice, or (used internally) an Index object.
             is_iteration (bool): If this tensor is being used as an iterator.
-            chunk_engine (ChunkEngine, optional): The underlying chunk_engine for the tensor
+            chunk_engine (ChunkEngine, optional): The underlying chunk_engine for the tensor.
 
         Raises:
-            TensorDoesNotExistError: If no tensor with `key` exists and a `tensor_meta` was not provided.
+            TensorDoesNotExistError: If no tensor with ``key`` exists and a ``tensor_meta`` was not provided.
+
+        Note:
+            This operation does not create a new tensor in the storage provider,
+            and should normally only be performed by Hub internals.
         """
         self.key = key
         self.dataset = dataset
@@ -276,7 +268,7 @@ class Tensor:
     ):
 
         """Extends the end of the tensor by appending multiple elements from a sequence. Accepts a sequence, a single batched numpy array,
-        or a sequence of `hub.read` outputs, which can be used to load files. See examples down below.
+        or a sequence of :func:`hub.read` outputs, which can be used to load files. See examples down below.
 
         Example:
             Numpy input:
@@ -306,7 +298,7 @@ class Tensor:
             progressbar (bool): Specifies whether a progressbar should be displayed while extending.
 
         Raises:
-            TensorDtypeMismatchError: TensorDtypeMismatchError: Dtype for array must be equal to or castable to this tensor's dtype
+            TensorDtypeMismatchError: Dtype for array must be equal to or castable to this tensor's dtype.
         """
         self._write_initialization()
         [f() for f in list(self.dataset._update_hooks.values())]
@@ -315,13 +307,27 @@ class Tensor:
             progressbar=progressbar,
             link_callback=self._append_to_links if self.meta.links else None,
         )
+        dataset_written(self.dataset)
 
     @property
-    def info(self):
-        """Returns the information about the tensor.
+    def info(self) -> Info:
+        """Returns the information about the tensor. User can set info of tensor.
 
         Returns:
-            TensorInfo: Information about the tensor.
+            Info: Information about the tensor.
+
+        Example:
+
+            >>> # update info
+            >>> ds.images.info.update(large=True, gray=False)
+            >>> # get info
+            >>> ds.images.info
+            {'large': True, 'gray': False}
+
+            >>> ds.images.info = {"complete": True}
+            >>> ds.images.info
+            {'complete': True}
+
         """
         commit_id = self.version_state["commit_id"]
         chunk_engine = self.chunk_engine
@@ -342,7 +348,7 @@ class Tensor:
 
     @invalid_view_op
     def append(self, sample: InputSample):
-        """Appends a single sample to the end of the tensor. Can be an array, scalar value, or the return value from `hub.read`,
+        """Appends a single sample to the end of the tensor. Can be an array, scalar value, or the return value from :func:`hub.read`,
         which can be used to load files. See examples down below.
 
         Examples:
@@ -363,7 +369,7 @@ class Tensor:
             1
 
         Args:
-            sample (InputSample): The data to append to the tensor. `Sample` is generated by `hub.read`. See the above examples.
+            sample (InputSample): The data to append to the tensor. :class:`~hub.core.sample.Sample` is generated by :func:`hub.read`. See the above examples.
         """
         self.extend([sample], progressbar=False)
 
@@ -383,15 +389,15 @@ class Tensor:
         self, target_id: Optional[str] = None, return_indexes: Optional[bool] = False
     ):
         """Returns a slice of the tensor with only those elements that were modified/added.
-        By default the modifications are calculated relative to the previous commit made, but this can be changed by providing a `target id`.
+        By default the modifications are calculated relative to the previous commit made, but this can be changed by providing a ``target id``.
 
         Args:
-            target_id (str, optional): The commit id or branch name to calculate the modifications relative to. Defaults to None.
-            return_indexes (bool, optional): If True, returns the indexes of the modified elements. Defaults to False.
+            target_id (str, optional): The commit id or branch name to calculate the modifications relative to. Defaults to ``None``.
+            return_indexes (bool, optional): If ``True``, returns the indexes of the modified elements. Defaults to ``False``.
 
         Returns:
-            Tensor: A new tensor with only the modified elements if `return_indexes` is False.
-            Tuple[Tensor, List[int]]: A new tensor with only the modified elements and the indexes of the modified elements if `return_indexes` is True.
+            Tensor: A new tensor with only the modified elements if ``return_indexes`` is ``False``.
+            Tuple[Tensor, List[int]]: A new tensor with only the modified elements and the indexes of the modified elements if ``return_indexes`` is ``True``.
 
         Raises:
             TensorModifiedError: If a target id is passed which is not an ancestor of the current commit.
@@ -411,25 +417,26 @@ class Tensor:
 
     @property
     def meta(self):
+        """Metadata of the tensor."""
         return self.chunk_engine.tensor_meta
 
     @property
     def shape(self) -> Tuple[Optional[int], ...]:
         """Get the shape of this tensor. Length is included.
 
-        Note:
-            If you don't want `None` in the output shape or want the lower/upper bound shapes,
-            use `tensor.shape_interval` instead.
-
         Example:
+
             >>> tensor.append(np.zeros((10, 10)))
             >>> tensor.append(np.zeros((10, 15)))
             >>> tensor.shape
             (2, 10, None)
 
         Returns:
-            tuple: Tuple where each value is either `None` (if that axis is dynamic) or
-                an `int` (if that axis is fixed).
+            tuple: Tuple where each value is either ``None`` (if that axis is dynamic) or an int (if that axis is fixed).
+
+        Note:
+            If you don't want ``None`` in the output shape or want the lower/upper bound shapes,
+            use :attr:`shape_interval` instead.
         """
         sample_shape_tensor = self._sample_shape_tensor
         sample_shape_provider = (
@@ -458,10 +465,12 @@ class Tensor:
 
     @property
     def ndim(self) -> int:
+        """Number of dimensions of the tensor."""
         return self.chunk_engine.ndim(self.index)
 
     @property
     def dtype(self) -> Optional[np.dtype]:
+        """Dtype of the tensor."""
         if self.base_htype in ("json", "list"):
             return np.dtype(str)
         if self.meta.dtype:
@@ -470,18 +479,22 @@ class Tensor:
 
     @property
     def is_sequence(self):
+        """Whether this tensor is a sequence tensor."""
         return self.meta.is_sequence
 
     @property
     def is_link(self):
+        """Whether this tensor is a link tensor."""
         return self.meta.is_link
 
     @property
     def verify(self):
+        """Whether linked data will be verified when samples are added. Applicable only to tensors with htype ``link[htype]``."""
         return self.is_link and self.meta.verify
 
     @property
     def htype(self):
+        """Htype of the tensor."""
         htype = self.meta.htype
         if self.is_sequence:
             htype = f"sequence[{htype}]"
@@ -491,20 +504,29 @@ class Tensor:
 
     @property
     def hidden(self) -> bool:
+        """Whether this tensor is a hidden tensor."""
         return self.meta.hidden
 
     @property
     def base_htype(self):
+        """Base htype of the tensor.
+
+        Example:
+
+            >>> ds.create_tensor("video_seq", htype="sequence[video]", sample_compression="mp4")
+            >>> ds.video_seq.htype
+            sequence[video]
+            >>> ds.video_seq.base_htype
+            video
+        """
         return self.meta.htype
 
     @property
     def shape_interval(self) -> ShapeInterval:
-        """Returns a `ShapeInterval` object that describes this tensor's shape more accurately. Length is included.
-
-        Note:
-            If you are expecting a `tuple`, use `tensor.shape` instead.
+        """Returns a :class:`~hub.util.shape_interval.ShapeInterval` object that describes this tensor's shape more accurately. Length is included.
 
         Example:
+
             >>> tensor.append(np.zeros((10, 10)))
             >>> tensor.append(np.zeros((10, 15)))
             >>> tensor.shape_interval
@@ -513,13 +535,16 @@ class Tensor:
             (2, 10, 10:15)
 
         Returns:
-            ShapeInterval: Object containing `lower` and `upper` properties.
+            ShapeInterval: Object containing ``lower`` and ``upper`` properties.
+
+        Note:
+            If you are expecting a tuple, use :attr:`shape` instead.
         """
         return self.chunk_engine.shape_interval
 
     @property
     def is_dynamic(self) -> bool:
-        """Will return True if samples in this tensor have shapes that are unequal."""
+        """Will return ``True`` if samples in this tensor have shapes that are unequal."""
         return self.shape_interval.is_dynamic
 
     @property
@@ -558,8 +583,10 @@ class Tensor:
         item: Union[int, slice, List[int], Tuple[Union[int, slice, Tuple[int]]], Index],
         is_iteration: bool = False,
     ):
-        if not isinstance(item, (int, slice, list, tuple, Index)):
+        if not isinstance(item, (int, slice, list, tuple, type(Ellipsis), Index)):
             raise InvalidKeyTypeError(item)
+        if isinstance(item, tuple) or item is Ellipsis:
+            item = replace_ellipsis_with_slices(item, self.ndim)
         return Tensor(
             self.key,
             self.dataset,
@@ -601,6 +628,7 @@ class Tensor:
         """Update samples with new values.
 
         Example:
+
             >>> tensor.append(np.zeros((10, 10)))
             >>> tensor.shape
             (1, 10, 10)
@@ -636,17 +664,18 @@ class Tensor:
                 append_link_callback=append_link_callback,
                 update_link_callback=update_link_callback,
             )
-            return
+        else:
 
-        if not item_index.values[0].subscriptable() and not self.is_sequence:
-            # we're modifying a single sample, convert it to a list as chunk engine expects multiple samples
-            value = [value]
+            if not item_index.values[0].subscriptable() and not self.is_sequence:
+                # we're modifying a single sample, convert it to a list as chunk engine expects multiple samples
+                value = [value]
 
-        self.chunk_engine.update(
-            self.index[item_index],
-            value,
-            link_callback=update_link_callback,
-        )
+            self.chunk_engine.update(
+                self.index[item_index],
+                value,
+                link_callback=update_link_callback,
+            )
+        dataset_written(self.dataset)
 
     def __iter__(self):
         for i in range(len(self)):
@@ -658,41 +687,38 @@ class Tensor:
         """Computes the contents of the tensor in numpy format.
 
         Args:
-            aslist (bool): If True, a list of np.ndarrays will be returned. Helpful for dynamic tensors.
-                If False, a single np.ndarray will be returned unless the samples are dynamically shaped, in which case
+            aslist (bool): If ``True``, a list of np.ndarrays will be returned. Helpful for dynamic tensors.
+                If ``False``, a single np.ndarray will be returned unless the samples are dynamically shaped, in which case
                 an error is raised.
-            fetch_chunks (bool): If True, full chunks will be retrieved from the storage, otherwise only required bytes will be retrieved.
-                This will always be True even if specified as False in the following cases:
-                - The tensor is ChunkCompressed
+            fetch_chunks (bool): If ``True``, full chunks will be retrieved from the storage, otherwise only required bytes will be retrieved.
+                This will always be ``True`` even if specified as ``False`` in the following cases:
+
+                - The tensor is ChunkCompressed.
                 - The chunk which is being accessed has more than 128 samples.
 
         Raises:
-            DynamicTensorNumpyError: If reading a dynamically-shaped array slice without `aslist=True`.
+            DynamicTensorNumpyError: If reading a dynamically-shaped array slice without ``aslist=True``.
             ValueError: If the tensor is a link and the credentials are not populated.
 
         Returns:
             A numpy array containing the data represented by this tensor.
         """
-        if self.htype == "point_cloud":
-            full_numpy_arr = self.chunk_engine.numpy(
-                self.index,
-                aslist=aslist,
-                fetch_chunks=fetch_chunks,
-                pad_tensor=self.pad_tensor,
-            )
-
-            if isinstance(full_numpy_arr, list):
-                return [arr[..., :3] for arr in full_numpy_arr]
-            return full_numpy_arr[..., :3]
-
-        return self.chunk_engine.numpy(
+        ret = self.chunk_engine.numpy(
             self.index,
             aslist=aslist,
             fetch_chunks=fetch_chunks,
             pad_tensor=self.pad_tensor,
         )
+        if self.htype == "point_cloud":
+            if isinstance(ret, list):
+                ret = [arr[..., :3] for arr in ret]
+            else:
+                ret = ret[..., :3]
+        dataset_read(self.dataset)
+        return ret
 
     def summary(self):
+        """Prints a summary of the tensor."""
         pretty_print = summary_tensor(self)
 
         print(self)
@@ -758,19 +784,40 @@ class Tensor:
         pass
 
     def data(self, aslist: bool = False) -> Any:
-        htype = self.base_htype
-        if htype in ("json", "text"):
+        """Returns data in the tensor in a format based on the tensor's base htype.
 
-            if self.ndim == 1:
-                return {"value": self.numpy()[0]}
-            else:
-                return {"value": [sample[0] for sample in self.numpy(aslist=True)]}
-        elif htype == "list":
-            if self.ndim == 1:
-                return {"value": list(self.numpy())}
-            else:
-                return {"value": list(map(list, self.numpy(aslist=True)))}
-        elif self.htype == "video":
+        - Returns dict with dict["value"] = :meth:`Tensor.text() <text>` for tensors with base htype of 'text'.
+
+        - Returns dict with dict["value"] = :meth:`Tensor.dict() <dict>` for tensors with base htype of 'json'.
+
+        - Returns dict with dict["value"] = :meth:`Tensor.list() <list>` for tensors with base htype of 'list'.
+
+        - For video tensors, returns a dict with keys "frames", "timestamps" and "sample_info":
+
+            - Value of dict["frames"] will be same as :meth:`numpy`.
+            - Value of dict["timestamps"] will be same as :attr:`timestamps` corresponding to the frames.
+            - Value of dict["sample_info"] will be same as :attr:`sample_info`.
+
+        - For class_label tensors, returns a dict with keys "value" and "text".
+
+            - Value of dict["value"] will be same as :meth:`numpy`.
+            - Value of dict["text"] will be list of class labels as strings.
+
+        - For image or dicom tensors, returns dict with keys "value" and "sample_info".
+
+            - Value of dict["value"] will be same as :meth:`numpy`.
+            - Value of dict["sample_info"] will be same as :attr:`sample_info`.
+
+        - For all else, returns dict with key "value" with value same as :meth:`numpy`.
+        """
+        htype = self.base_htype
+        if htype == "text":
+            return {"value": self.text()}
+        if htype == "json":
+            return {"value": self.dict()}
+        if htype == "list":
+            return {"value": self.list()}
+        if self.htype == "video":
             data = {}
             data["frames"] = self.numpy(aslist=aslist)
             index = self.index
@@ -795,16 +842,16 @@ class Tensor:
             if aslist:
                 data["timestamps"] = data["timestamps"].tolist()  # type: ignore
 
-            data["sample_info"] = self.sample_info
+            data["sample_info"] = self.sample_info  # type: ignore
             return data
-        elif htype == "class_label":
+        if htype == "class_label":
             labels = self.numpy(aslist=aslist)
             data = {"value": labels}
             class_names = self.info.class_names
             if class_names:
                 data["text"] = convert_to_text(labels, self.info.class_names)
             return data
-        elif htype in ("image", "image.rgb", "image.gray", "dicom"):
+        if htype in ("image", "image.rgb", "image.gray", "dicom"):
             return {
                 "value": self.numpy(aslist=aslist),
                 "sample_info": self.sample_info or {},
@@ -822,7 +869,7 @@ class Tensor:
                 if len(self.sample_info) == 0:
                     return meta
 
-                for i, dimension_name in enumerate(self.sample_info["dimension_names"]):
+                for i, dimension_name in enumerate(self.sample_info["dimension_names"]):  # type: ignore
                     typestr = POINT_CLOUD_FIELD_NAME_TO_TYPESTR[dimension_name]
                     meta[dimension_name] = full_arr[..., i].astype(np.dtype(typestr))  # type: ignore
                 return meta
@@ -870,7 +917,9 @@ class Tensor:
         if self.index.values[0].subscriptable() or len(self.index.values) > 1:
             raise ValueError("tobytes() can be used only on exatcly 1 sample.")
         idx = self.index.values[0].value
-        return self.chunk_engine.read_bytes_for_sample(idx)  # type: ignore
+        ret = self.chunk_engine.read_bytes_for_sample(idx)  # type: ignore
+        dataset_read(self.dataset)
+        return ret
 
     def _append_to_links(self, sample, flat: Optional[bool]):
         for k, v in self.meta.links.items():
@@ -975,10 +1024,27 @@ class Tensor:
         return self._get_sample_info_at_index(index.values[0].value, sample_info_tensor)  # type: ignore
 
     @property
-    def sample_info(self):
+    def sample_info(self) -> Union[Dict, List[Dict]]:
+        """Returns info about particular samples in a tensor. Returns dict in case of single sample, otherwise list of dicts.
+        Data in returned dict would depend on the tensor's htype and the sample itself.
+
+        Example:
+
+            >>> ds.videos[0].sample_info
+            {'duration': 400400, 'fps': 29.97002997002997, 'timebase': 3.3333333333333335e-05, 'shape': [400, 360, 640, 3], 'format': 'mp4', 'filename': '../hub/tests/dummy_data/video/samplemp4.mp4', 'modified': False}
+            >>> ds.images[:2].sample_info
+            [{'exif': {'Software': 'Google'}, 'shape': [900, 900, 3], 'format': 'jpeg', 'filename': '../hub/tests/dummy_data/images/cat.jpeg', 'modified': False}, {'exif': {}, 'shape': [495, 750, 3], 'format': 'jpeg', 'filename': '../hub/tests/dummy_data/images/car.jpg', 'modified': False}]
+        """
         return self._sample_info(self.index)
 
     def _linked_sample(self):
+        """Returns the linked sample at the given index. This is only applicable for tensors of ``link[]`` htype
+        and can only be used for exactly one sample.
+
+        >>> linked_sample = ds.abc[0]._linked_sample().path
+        'https://picsum.photos/200/300'
+
+        """
         if not self.is_link:
             raise ValueError("Not supported as the tensor is not a link.")
         if self.index.values[0].subscriptable() or len(self.index.values) > 1:
@@ -994,6 +1060,18 @@ class Tensor:
         return get_video_stream_url(self, self.index.values[0].value)
 
     def play(self):
+        """Play video sample. Plays video in Jupyter notebook or plays in web browser. Video is streamed directly from storage.
+        This method will fail for incompatible htypes.
+
+        Example:
+
+            >>> ds = hub.load("./test/my_video_ds")
+            >>> # play second sample
+            >>> ds.videos[2].play()
+
+        Note:
+            Video streaming is not yet supported on colab.
+        """
         if (
             get_compression_type(self.meta.sample_compression) != VIDEO_COMPRESSION
             and self.htype != "link[video]"
@@ -1027,21 +1105,15 @@ class Tensor:
     def timestamps(self) -> np.ndarray:
         """Returns timestamps (in seconds) for video sample as numpy array.
 
-        ## Examples:
+        Example:
 
-        Return timestamps for all frames of first video sample
-
-        ```
-        >>> ds.video[0].timestamp
-        ```
-
-        Return timestamps for 5th to 10th frame of first video sample
-
-        ```
-        >>> ds.video[0, 5:10].timestamp
-        array([0.2002    , 0.23356667, 0.26693332, 0.33366665, 0.4004    ],
-        dtype=float32)
-        ```
+            >>> # Return timestamps for all frames of first video sample
+            >>> ds.videos[0].timestamps.shape
+            (400,)
+            >>> # Return timestamps for 5th to 10th frame of first video sample
+            >>> ds.videos[0, 5:10].timestamps
+            array([0.2002    , 0.23356667, 0.26693332, 0.33366665, 0.4004    ],
+            dtype=float32)
 
         """
         if (
@@ -1088,6 +1160,7 @@ class Tensor:
 
     @property
     def sample_indices(self):
+        """Returns all the indices pointed to by this tensor in the dataset view."""
         return self.dataset._sample_indices(self.num_samples)
 
     def _extract_value(self, htype):
@@ -1100,12 +1173,15 @@ class Tensor:
             return [sample[0] for sample in self.numpy(aslist=True)]
 
     def text(self):
+        """Return text data. Only applicable for tensors with 'text' base htype."""
         return self._extract_value("text")
 
     def dict(self):
+        """Return json data. Only applicable for tensors with 'json' base htype."""
         return self._extract_value("json")
 
     def list(self):
+        """Return list data. Only applicable for tensors with 'list' base htype."""
         if self.base_htype != "list":
             raise Exception(f"Only supported for list tensors.")
 

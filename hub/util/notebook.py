@@ -2,6 +2,7 @@ import sys
 
 
 def is_notebook():
+    """Whether running in a notebook."""
     try:
         from IPython import get_ipython  # type: ignore
 
@@ -13,6 +14,7 @@ def is_notebook():
 
 
 def is_jupyter():
+    """Whether running in a Jupyter notebook."""
     if not is_notebook():
         return False
     from IPython import get_ipython
@@ -23,6 +25,7 @@ def is_jupyter():
 
 
 def is_colab():
+    """Whether running in a colab notebook."""
     return "google.colab" in sys.modules
 
 

@@ -7,6 +7,9 @@
 <p align="center">
     <a href="https://github.com/activeloopai/Hub/actions/workflows/test-pr-on-label.yml"><img src="https://github.com/activeloopai/Hub/actions/workflows/test-push.yml/badge.svg" alt="PyPI version" height="18"></a>
     <a href="https://pypi.org/project/hub/"><img src="https://badge.fury.io/py/hub.svg" alt="PyPI version" height="18"></a>
+    <a href='https://docs.deeplake.ai/en/latest/?badge=latest'>
+     <img src='https://readthedocs.org/projects/deep-lake/badge/?version=latest' alt='Documentation Status' />
+     </a>
     <a href="https://pepy.tech/project/hub"><img src="https://static.pepy.tech/personalized-badge/hub?period=month&units=international_system&left_color=grey&right_color=orange&left_text=Downloads" alt="PyPI version" height="18"></a>
      <a href="https://github.com/activeloopai/Hub/issues">
     <img alt="GitHub issues" src="https://img.shields.io/github/issues/activeloopai/Hub"> </a>
@@ -14,7 +17,7 @@
   <h3 align="center">
    <a href="https://docs.activeloop.ai/?utm_source=github&utm_medium=github&utm_campaign=github_readme&utm_id=readme"><b>Documentation</b></a> &bull;
    <a href="https://docs.activeloop.ai/getting-started/?utm_source=github&utm_medium=github&utm_campaign=github_readme&utm_id=readme"><b>Getting Started</b></a> &bull;
-   <a href="https://api-docs.activeloop.ai/"><b>API Reference</b></a> &bull;  
+   <a href="https://docs.deeplake.ai/"><b>API Reference</b></a> &bull;  
    <a href="https://github.com/activeloopai/examples/"><b>Examples</b></a> &bull; 
    <a href="https://www.activeloop.ai/resources/?utm_source=github&utm_medium=github&utm_campaign=github_readme&utm_id=readme"><b>Blog</b></a> &bull;  
   <a href="http://slack.activeloop.ai"><b>Slack Community</b></a> &bull;

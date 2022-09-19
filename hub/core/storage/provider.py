@@ -84,7 +84,7 @@ class StorageProvider(ABC, MutableMapping):
 
         Raises:
             InvalidBytesRequestedError: If `start_byte` < 0.
-            ReadOnlyError: If the provider is in read-only mode.
+            ReadOnlyModeError: If the provider is in read-only mode.
         """
         self.check_readonly()
         start_byte = start_byte or 0
