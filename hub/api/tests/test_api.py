@@ -2093,6 +2093,26 @@ def test_hub_related_permission_exceptions(
     dataset_handler_error_check(runner, username, password)
 
 
+def test_incompat_dtype_msg(local_ds, capsys):
+    local_ds.create_tensor("abc", dtype="uint32")
+    with pytest.raises(TensorDtypeMismatchError):
+        local_ds.abc.append([0.0])
+    captured = capsys.readouterr()
+    assert "True" not in captured
+
+
+def test_ellipsis(memory_ds):
+    with memory_ds as ds:
+        ds.create_tensor("x")
+        arr = np.random.random((5, 3, 2, 3, 4))
+        ds.x.extend(arr)
+    np.testing.assert_array_equal(arr[:3, ..., 1], ds.x[:3, ..., 1])
+    np.testing.assert_array_equal(arr[..., :2], ds.x[..., :2])
+    np.testing.assert_array_equal(arr[2:, ...], ds.x[2:, ...])
+    np.testing.assert_array_equal(arr[2:, ...][...], ds.x[2:, ...][...])
+    np.testing.assert_array_equal(arr[...], ds.x[...])
+
+
 def test_copy_label_sync_disabled(local_ds, capsys):
     abc = local_ds.create_tensor("abc", htype="class_label")
     abc.extend([1, 2, 3, 4, 5])

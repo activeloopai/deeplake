@@ -8,7 +8,7 @@ from hub.core.chunk.base_chunk import InputSample
 import numpy as np
 from typing import Dict, List, Sequence, Union, Optional, Tuple, Any, Callable
 from functools import reduce, partial
-from hub.core.index import Index, IndexEntry
+from hub.core.index import Index, IndexEntry, replace_ellipsis_with_slices
 from hub.core.meta.tensor_meta import TensorMeta
 from hub.core.storage import StorageProvider
 from hub.core.chunk_engine import ChunkEngine
@@ -583,8 +583,10 @@ class Tensor:
         item: Union[int, slice, List[int], Tuple[Union[int, slice, Tuple[int]]], Index],
         is_iteration: bool = False,
     ):
-        if not isinstance(item, (int, slice, list, tuple, Index)):
+        if not isinstance(item, (int, slice, list, tuple, type(Ellipsis), Index)):
             raise InvalidKeyTypeError(item)
+        if isinstance(item, tuple) or item is Ellipsis:
+            item = replace_ellipsis_with_slices(item, self.ndim)
         return Tensor(
             self.key,
             self.dataset,
