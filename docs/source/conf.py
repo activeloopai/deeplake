@@ -38,6 +38,7 @@ extensions = [
     "sphinx.ext.autosummary",
     "sphinx.ext.napoleon",
     "sphinx.ext.autosectionlabel",
+    "sphinx_copybutton",  # copy button
 ]
 autosummary_generate = False
 
@@ -70,3 +71,7 @@ html_logo = "_static/img/logo.svg"
 
 # Favicon
 html_favicon = "_static/img/tensie.svg"
+
+# copy button args
+copybutton_prompt_text = ">>> |\.\.\. "
+copybutton_prompt_is_regexp = True

@@ -52,6 +52,7 @@ Retrieving samples
     Tensor.text
     Tensor.dict
     Tensor.list
+    Tensor._linked_sample
 
 Tensor Properties
 ~~~~~~~~~~~~~~~~~

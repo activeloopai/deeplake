@@ -21,5 +21,12 @@ def link(
 
     Returns:
         LinkedSample: LinkedSample object that stores path and creds.
+
+    Examples:
+        >>> ds = hub.dataset("test/test_ds")
+        >>> ds.create_tensor("images", htype="link[image]")
+        >>> ds.images.append(hub.link("https://picsum.photos/200/300"))
+
+    See more examples :ref:`here <linked_sample_examples>`.
     """
     return LinkedSample(path, creds_key)
