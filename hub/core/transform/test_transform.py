@@ -3,12 +3,15 @@ import pytest
 import numpy as np
 from click.testing import CliRunner
 from hub.core.storage.memory import MemoryProvider
+from hub.core.transform.transform_tensor import TransformTensor
 from hub.util.remove_cache import remove_memory_cache
 from hub.util.check_installation import ray_installed
 from hub.util.exceptions import InvalidOutputDatasetError, TransformError
 from hub.tests.common import parametrize_num_workers
 from hub.util.transform import get_pbar_description
 import hub
+import gc
+from hub.tests.common import get_dummy_data_path
 
 
 # github actions can only support 2 workers
@@ -117,11 +120,27 @@ def add_link(sample_in, samples_out):
     samples_out.abc.append(hub.link(sample_in))
 
 
+@hub.compute
+def add_images(i, sample_out):
+    for i in range(5):
+        image = hub.read(get_dummy_data_path("images/flower.png"))
+        sample_out.append({"image": image})
+
+
 def check_target_array(ds, index, target):
     np.testing.assert_array_equal(
         ds.img[index].numpy(), target * np.ones((200, 200, 3))
     )
     np.testing.assert_array_equal(ds.label[index].numpy(), target * np.ones((1,)))
+
+
+def retrieve_objects_from_memory(object_type=hub.core.sample.Sample):
+    total_n_of_occurences = 0
+    gc_objects = gc.get_objects()
+    for item in gc_objects:
+        if isinstance(item, object_type):
+            total_n_of_occurences += 1
+    return total_n_of_occurences
 
 
 @all_schedulers
@@ -982,3 +1001,11 @@ def test_transform_bug_link(local_ds, cat_path):
         for i in range(9):
             assert ds[i].abc.numpy().shape == (900, 900, 3)
             assert ds[i].abc.shape == (900, 900, 3)
+
+
+def test_tensor_dataset_memory_leak(local_ds):
+    local_ds.create_tensor("image", htype="image", sample_compression="png")
+    add_images().eval(list(range(100)), local_ds, scheduler="threaded")
+
+    n = retrieve_objects_from_memory()
+    assert n == 0

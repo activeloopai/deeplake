@@ -8,7 +8,7 @@ from hub.core.chunk.base_chunk import InputSample
 import numpy as np
 from typing import Dict, List, Sequence, Union, Optional, Tuple, Any, Callable
 from functools import reduce, partial
-from hub.core.index import Index, IndexEntry
+from hub.core.index import Index, IndexEntry, replace_ellipsis_with_slices
 from hub.core.meta.tensor_meta import TensorMeta
 from hub.core.storage import StorageProvider
 from hub.core.chunk_engine import ChunkEngine
@@ -583,8 +583,10 @@ class Tensor:
         item: Union[int, slice, List[int], Tuple[Union[int, slice, Tuple[int]]], Index],
         is_iteration: bool = False,
     ):
-        if not isinstance(item, (int, slice, list, tuple, Index)):
+        if not isinstance(item, (int, slice, list, tuple, type(Ellipsis), Index)):
             raise InvalidKeyTypeError(item)
+        if isinstance(item, tuple) or item is Ellipsis:
+            item = replace_ellipsis_with_slices(item, self.ndim)
         return Tensor(
             self.key,
             self.dataset,
@@ -1036,6 +1038,13 @@ class Tensor:
         return self._sample_info(self.index)
 
     def _linked_sample(self):
+        """Returns the linked sample at the given index. This is only applicable for tensors of ``link[]`` htype
+        and can only be used for exactly one sample.
+
+        >>> linked_sample = ds.abc[0]._linked_sample().path
+        'https://picsum.photos/200/300'
+
+        """
         if not self.is_link:
             raise ValueError("Not supported as the tensor is not a link.")
         if self.index.values[0].subscriptable() or len(self.index.values) > 1:

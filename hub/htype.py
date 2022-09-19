@@ -88,6 +88,8 @@ Link htype
     - If ``create_shape_tensor=True`` was specified during ``create_tensor`` of the tensor to which this is being added, the shape of the sample is read.
     - If ``create_sample_info_tensor=True`` was specified during ``create_tensor`` of the tensor to which this is being added, the sample info is read.
 
+.. _linked_sample_examples:
+
 Examples
 --------
 

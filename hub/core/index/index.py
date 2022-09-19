@@ -122,6 +122,20 @@ def slice_length(s: slice, parent_length: int) -> int:
     return max(0, total_length)
 
 
+def replace_ellipsis_with_slices(items, ndim: int):
+    if items is Ellipsis:
+        return (slice(None),) * ndim
+    try:
+        idx = items.index(Ellipsis)
+    except ValueError:
+        return items
+    nslices = ndim - len(items) + 1
+    if Ellipsis in items[idx + 1 :]:
+        raise IndexError("an index can only have a single ellipsis ('...')")
+    items = items[:idx] + (slice(None),) * nslices + items[idx + 1 :]
+    return items
+
+
 class IndexEntry:
     def __init__(self, value: IndexValue = slice(None)):
         self.value = value

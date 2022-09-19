@@ -14,7 +14,7 @@ from time import time
 from tqdm import tqdm  # type: ignore
 
 import hub
-from hub.core.index.index import IndexEntry
+from hub.core.index.index import IndexEntry, replace_ellipsis_with_slices
 from hub.core.link_creds import LinkCreds
 from hub.util.invalid_view_op import invalid_view_op
 from hub.api.info import load_info
@@ -374,7 +374,7 @@ class Dataset:
                 ret = self[splt[0]][splt[1]]
             else:
                 raise TensorDoesNotExistError(item)
-        elif isinstance(item, (int, slice, list, tuple, Index)):
+        elif isinstance(item, (int, slice, list, tuple, Index, type(Ellipsis))):
             ret = self.__class__(
                 storage=self.storage,
                 index=self.index[item],
@@ -1267,7 +1267,7 @@ class Dataset:
             >>> {
             ...    "image": {"data_added": [3, 6], "data_updated": {0, 2}, "created": False, "info_updated": False, "data_transformed_in_place": False},
             ...    "label": {"data_added": [0, 3], "data_updated": {}, "created": True, "info_updated": False, "data_transformed_in_place": False},
-            ...    "other/stuff" : {data_added: [3, 3], data_updated: {1, 2}, created: True, "info_updated": False, "data_transformed_in_place": False},
+            ...    "other/stuff" : {"data_added": [3, 3], "data_updated": {1, 2}, "created": True, "info_updated": False, "data_transformed_in_place": False},
             ... }
 
 
@@ -2719,29 +2719,25 @@ class Dataset:
         Raises:
             KeyError: if view with given id does not exist.
         """
-        try:
-            with self._lock_queries_json():
-                qjson = self._read_queries_json()
-                for i, q in enumerate(qjson):
-                    if q["id"] == id:
-                        qjson.pop(i)
-                        self.base_storage.subdir(
-                            ".queries/" + (q.get("path") or q["id"])
-                        ).clear()
-                        self._write_queries_json(qjson)
-                        return
-        except Exception:
-            pass
+
+        with self._lock_queries_json():
+            qjson = self._read_queries_json()
+            for i, q in enumerate(qjson):
+                if q["id"] == id:
+                    qjson.pop(i)
+                    self.base_storage.subdir(
+                        ".queries/" + (q.get("path") or q["id"])
+                    ).clear()
+                    self._write_queries_json(qjson)
+                    return
+
         if self.path.startswith("hub://"):
             qds = Dataset._get_queries_ds_from_user_account()
             if qds:
                 with qds._lock_queries_json():
                     qjson = qds._read_queries_json()
                     for i, q in enumerate(qjson):
-                        if (
-                            q["source-dataset"] == self.path
-                            and q["id"] == f"[{self.org_id}][{self.ds_name}]{id}"
-                        ):
+                        if q["id"] == f"[{self.org_id}][{self.ds_name}]{id}":
                             qjson.pop(i)
                             qds.base_storage.subdir(
                                 ".queries/" + (q.get("path") or q["id"])
@@ -2970,6 +2966,7 @@ class Dataset:
                     progressbar=progressbar,
                     skip_ok=True,
                     check_lengths=False,
+                    disable_label_sync=True,
                 )
 
             dest_ds.flush()
@@ -3215,48 +3212,51 @@ class Dataset:
         scheduler="threaded",
         progressbar=True,
     ):
-        with self._lock_queries_json():
-            qjson = self._read_queries_json()
-            idx = -1
-            for i in range(len(qjson)):
-                if qjson[i]["id"] == id:
-                    idx = i
-                    break
-            if idx == -1:
-                raise KeyError(f"View with id {id} not found.")
-            info = qjson[i]
-            if not info["virtual-datasource"]:
-                # Already optimized
-                return info
-            path = info.get("path", info["id"])
-            vds = self._sub_ds(".queries/" + path, verbose=False)
-            view = vds._get_view(not external)
-            new_path = path + "_OPTIMIZED"
-            optimized = self._sub_ds(".queries/" + new_path, empty=True, verbose=False)
-            view._copy(
-                optimized,
-                overwrite=True,
-                unlink=unlink,
-                create_vds_index_tensor=True,
-                num_workers=num_workers,
-                scheduler=scheduler,
-                progressbar=progressbar,
-            )
-            optimized.info.update(vds.info.__getstate__())
-            optimized.info["virtual-datasource"] = False
-            optimized.info["path"] = new_path
-            optimized.flush()
-            info["virtual-datasource"] = False
-            info["path"] = new_path
-            self._write_queries_json(qjson)
-        vds.base_storage.disable_readonly()
-        try:
-            vds.base_storage.clear()
-        except Exception as e:
-            warnings.warn(
-                f"Error while deleting old view after writing optimized version: {e}"
-            )
-        return info
+        with self._temp_write_access():
+            with self._lock_queries_json():
+                qjson = self._read_queries_json()
+                idx = -1
+                for i in range(len(qjson)):
+                    if qjson[i]["id"] == id:
+                        idx = i
+                        break
+                if idx == -1:
+                    raise KeyError(f"View with id {id} not found.")
+                info = qjson[i]
+                if not info["virtual-datasource"]:
+                    # Already optimized
+                    return info
+                path = info.get("path", info["id"])
+                vds = self._sub_ds(".queries/" + path, verbose=False)
+                view = vds._get_view(not external)
+                new_path = path + "_OPTIMIZED"
+                optimized = self._sub_ds(
+                    ".queries/" + new_path, empty=True, verbose=False
+                )
+                view._copy(
+                    optimized,
+                    overwrite=True,
+                    unlink=unlink,
+                    create_vds_index_tensor=True,
+                    num_workers=num_workers,
+                    scheduler=scheduler,
+                    progressbar=progressbar,
+                )
+                optimized.info.update(vds.info.__getstate__())
+                optimized.info["virtual-datasource"] = False
+                optimized.info["path"] = new_path
+                optimized.flush()
+                info["virtual-datasource"] = False
+                info["path"] = new_path
+                self._write_queries_json(qjson)
+            vds.base_storage.disable_readonly()
+            try:
+                vds.base_storage.clear()
+            except Exception as e:
+                warnings.warn(
+                    f"Error while deleting old view after writing optimized version: {e}"
+                )
+            return info
 
     def _sample_indices(self, maxlen: int):
         vds_index = self._tensors(include_hidden=True).get("VDS_INDEX")
@@ -3313,6 +3313,10 @@ class Dataset:
             or hasattr(self, "_vds")
             or hasattr(self, "_view_entry")
         )
+
+    def _temp_write_access(self):
+        # Defined in HubCloudDataset
+        return memoryview(b"")  # No-op context manager
 
 
 def _copy_tensor(sample_in, sample_out, tensor_name):
