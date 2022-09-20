@@ -34,6 +34,8 @@ class Polygon:
 
 class Polygons:
     def __init__(self, data: Union[np.ndarray, List], dtype="float32"):
+        if data is None:
+            data = []
         self.data = data
         self.dtype = dtype
         self._validate()
