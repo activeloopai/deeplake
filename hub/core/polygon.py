@@ -15,9 +15,7 @@ _SUPPORTED_DTYPES = [
     "float32",
 ]
 
-_DTYPE_MAP = {
-    np.dtype(d).num: d for d in _SUPPORTED_DTYPES
-}
+_DTYPE_MAP = {np.dtype(d).num: d for d in _SUPPORTED_DTYPES}
 
 
 class Polygon:
@@ -43,12 +41,24 @@ class Polygon:
         return self.coords[i]
 
     def tobytes(self) -> bytes:
-        return self.__array__.tobytes()
+        return self.__array__().tobytes()
+
+    @property
+    def shape(self):
+        return (len(self.data), len(self.data[0]))
+
 
 class Polygons:
     def __init__(self, data: Union[np.ndarray, List], dtype="float32"):
         self.data = data
         self.dtype = dtype
+        self._validate()
+        self.shape = (len(self.data), max(map(len, self.data)), self.ndim)
+
+    def _validate(self):
+        ndim = self[0].ndim
+        for p in self:
+            assert p.ndim == ndim
 
     def __getitem__(self, i):
         if isinstance(i, int):
@@ -57,6 +67,7 @@ class Polygons:
             return Polygons(self.data[i], self.dtype)
         else:
             raise IndexError(f"Unsupported index: {i}")
+
     @property
     def ndim(self):
         return self[0].ndim
@@ -65,40 +76,40 @@ class Polygons:
         return len(self.data)
 
     def __iter__(self):
-        for i in range(self):
-            yield self[i]
+        for c in self.data:
+            yield Polygon(c, self.dtype)
 
     def tobytes(self) -> memoryview:
         ndim = self.ndim
         assert ndim < 256, "Maximum number of dimensions supported is 255."  # uint8
         lengths = list(map(len, self))
-        assert max(lengths) < 65536, "Maximum number of points per polygon is 65535."  # uint16
+        assert (
+            max(lengths) < 65536
+        ), "Maximum number of points per polygon is 65535."  # uint16
         num_polygons = len(self.data)
-        assert num_polygons < 65536, "Maximum number of polygons per sample is 65535."  # uint16
-        dtype = np.dtype(self.dtytpe)
+        assert (
+            num_polygons < 65536
+        ), "Maximum number of polygons per sample is 65535."  # uint16
+        dtype = np.dtype(self.dtype)
         data_size = dtype.itemsize * self.ndim * sum(lengths)
-        header_size = 1 + 1 + 2 + num_polygons * 2  # [dtype ui8][ndim uin8][num_polygons ui16][lengths ui16]
+        header_size = 2 + num_polygons * 2  # [num_polygons ui16][lengths ui16]
         buff = bytearray(header_size + data_size)
-        buff[0] = dtype.num
-        buff[1] = ndim
-        buff[2:4] = num_polygons.to_bytes(2, "little")
-        offset = num_polygons * 2 + 4
-        buff[4:offset] = np.array(lengths, dtype=np.uint16).tobytes()
+        buff[:2] = num_polygons.to_bytes(2, "little")
+        offset = num_polygons * 2 + 2
+        buff[2:offset] = np.array(lengths, dtype=np.uint16).tobytes()
         for polygon in self:
             bts = polygon.tobytes()
             nbts = len(bts)
-            buff[offset + nbts] = bts
+            buff[offset : offset + nbts] = bts
             offset += nbts
         assert offset == len(buff)
         return memoryview(buff)
 
     @classmethod
-    def frombytes(cls, buff):
-        dtype = _DTYPE_MAP(buff[0])
-        ndim = buff[1]
-        num_polygons = int.from_bytes(buff[2:4], "little")
-        offset = num_polygons * 2 + 4
-        lengths = np.frombuffer(buff[4: offset], dtype=np.uint32)
+    def frombuffer(cls, buff, dtype, ndim):
+        num_polygons = int.from_bytes(buff[:2], "little")
+        offset = num_polygons * 2 + 2
+        lengths = np.frombuffer(buff[2:offset], dtype=np.uint16)
         points = np.frombuffer(buff[offset:], dtype=dtype).reshape(-1, ndim)
         data = []
         for l in lengths:

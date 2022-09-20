@@ -897,7 +897,9 @@ class Tensor:
 
         else:
             return {
-                "value": self.numpy(aslist=aslist),
+                "value": self.chunk_engine._numpy(
+                    index=self.index, aslist=aslist, convert_polygons=False
+                ),
             }
 
     def tobytes(self) -> bytes:

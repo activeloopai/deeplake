@@ -27,6 +27,7 @@ from hub.core.storage.provider import StorageProvider
 from hub.core.storage import S3Provider, GCSProvider
 from hub.core.tiling.deserialize import combine_chunks, translate_slices, coalesce_tiles
 from hub.core.tiling.serialize import break_into_tiles
+from hub.core.polygon import Polygons
 from hub.util.casting import get_empty_text_like_sample, intelligent_cast
 from hub.util.empty_sample import is_empty_list
 from hub.util.shape_interval import ShapeInterval
@@ -638,6 +639,11 @@ class ChunkEngine:
             samples = verified_samples = converted
         elif tensor_meta.htype == "class_label":
             samples = verified_samples = self._convert_class_labels(samples)
+        elif tensor_meta.htype == "polygon":
+            samples = verified_samples = [
+                p if isinstance(p, Polygons) else Polygons(p, dtype=tensor_meta.dtype)
+                for p in samples
+            ]
         return samples, verified_samples
 
     def _convert_class_labels(self, samples):
@@ -1022,6 +1028,8 @@ class ChunkEngine:
     def _get_sample_object(
         self, sample_data, sample_shape, compression, dtype, decompress
     ):
+        if isinstance(sample_data, Polygons):
+            return sample_data
         if decompress:
             sample = Sample(array=sample_data, shape=sample_shape)
         else:
@@ -1273,7 +1281,7 @@ class ChunkEngine:
             else:
                 index1 = index
                 index2 = None
-            arr = self._numpy(index1, use_data_cache=False)
+            arr = self.__numpy(index1, use_data_cache=False)
             view = arr
             if index2:
                 for v in index2.values:
@@ -1386,6 +1394,22 @@ class ChunkEngine:
             return numpy_array_length > threshold
         return False
 
+    def _numpy(
+        self,
+        index,
+        aslist=False,
+        use_data_cache=True,
+        fetch_chunks=False,
+        pad_tensor=False,
+        convert_polygons=True,
+    ):
+        """Internal"""
+        self.check_link_ready()
+        fetch_chunks = fetch_chunks or self._get_full_chunk(index)
+        return (self._sequence_numpy if self.is_sequence else self.__numpy)(
+            index, aslist, use_data_cache, fetch_chunks, pad_tensor, convert_polygons
+        )
+
     def numpy(
         self,
         index: Index,
@@ -1412,11 +1436,7 @@ class ChunkEngine:
         Returns:
             Union[np.ndarray, List[np.ndarray]]: Either a list of numpy arrays or a single numpy array (depending on the `aslist` argument).
         """
-        self.check_link_ready()
-        fetch_chunks = fetch_chunks or self._get_full_chunk(index)
-        return (self._sequence_numpy if self.is_sequence else self._numpy)(
-            index, aslist, use_data_cache, fetch_chunks, pad_tensor
-        )
+        return self.__numpy(index, aslist, use_data_cache, fetch_chunks, pad_tensor)
 
     def get_video_sample(self, global_sample_index, index, decompress=True):
         enc = self.chunk_id_encoder
@@ -1480,10 +1500,13 @@ class ChunkEngine:
         chunk = self.get_chunk_from_chunk_id(
             chunk_id, partial_chunk_bytes=worst_case_header_size
         )
-        return chunk.read_sample(
+        ret = chunk.read_sample(
             local_sample_index,
             cast=self.tensor_meta.htype != "dicom",
-        )[tuple(entry.value for entry in index.values[1:])]
+        )
+        if len(index) > 1:
+            ret = ret[tuple(entry.value for entry in index.values[1:])]
+        return ret
 
     def get_non_tiled_sample(self, global_sample_index, index, fetch_chunks=False):
         if self.is_video:
@@ -1539,25 +1562,27 @@ class ChunkEngine:
 
         return sample
 
-    def _numpy(
+    def __numpy(
         self,
         index: Index,
         aslist: bool = False,
         use_data_cache: bool = True,
         fetch_chunks: bool = False,
         pad_tensor: bool = False,
+        convert_polygons: bool = True,
     ) -> Union[np.ndarray, List[np.ndarray]]:
         """Reads samples from chunks and returns as a numpy array. If `aslist=True`, returns a sequence of numpy arrays.
 
         Args:
             index (Index): Represents the samples to read from chunks. See `Index` for more information.
-            aslist (bool): If True, the samples will be returned as a list of numpy arrays. If False, returns a single numpy array. Defaults to False.
+            aslist (bool): If True, the samples will be returned as a list of numpy arrays. If False, returns a single numpy array. Defaults to False. For polygons, aslist is always True.
             use_data_cache (bool): If True, the data cache is used to speed up the read if possible. If False, the data cache is ignored. Defaults to True.
             fetch_chunks (bool): If True, full chunks will be retrieved from the storage, otherwise only required bytes will be retrieved.
                 This will always be True even if specified as False in the following cases:
                 - The tensor is ChunkCompressed
                 - The chunk which is being accessed has more than 128 samples.
             pad_tensor (bool): If True, any index out of bounds will not throw an error, but instead will return an empty sample.
+            convert_polygons: Whether polygons should be converted to numpy arrays or returned as list of ``hub.core.Polygons``.
 
         Raises:
             DynamicTensorNumpyError: If shapes of the samples being read are not all the same.
@@ -1567,6 +1592,9 @@ class ChunkEngine:
         """
         length = self.num_samples
         last_shape = None
+        ispolygon = self.tensor_meta.htype == "polygon"
+        if ispolygon:
+            aslist = True
         if use_data_cache and self.is_data_cachable:
             samples = self.numpy_from_data_cache(index, length, aslist, pad_tensor)
         else:
@@ -1578,10 +1606,11 @@ class ChunkEngine:
                     fetch_chunks=fetch_chunks,
                     pad_tensor=pad_tensor,
                 )
-                samples.append(sample)
                 check_sample_shape(sample.shape, last_shape, self.key, index, aslist)
                 last_shape = sample.shape
-
+                if ispolygon and convert_polygons:
+                    sample = [p.__array__() for p in sample]
+                samples.append(sample)
         if aslist and all(map(np.isscalar, samples)):
             samples = list(arr.item() for arr in samples)
 
@@ -1853,13 +1882,15 @@ class ChunkEngine:
         use_data_cache: bool = True,
         fetch_chunks: bool = False,
         pad_tensor: bool = False,
+        convert_polygons: bool = False,
     ):
-        arr = self._numpy(
+        arr = self.__numpy(
             self._get_flat_index_from_sequence_index(index),
             aslist=aslist,
             use_data_cache=use_data_cache,
             fetch_chunks=fetch_chunks,
             pad_tensor=pad_tensor,
+            convert_polygons=convert_polygons,
         )
         if isinstance(arr, np.ndarray) and arr.size == 0:
             return self.get_empty_sample()

@@ -32,9 +32,11 @@ from hub.core.serialize import (
     serialize_partial_sample_object,
     get_header_from_url,
     serialize_text_sample_object,
+    serialize_polygons,
 )
 from hub.core.storage.hub_memory_object import HubMemoryObject
 from hub.core.tiling.sample_tiles import SampleTiles
+from hub.core.polygon import Polygons
 from hub.util.exceptions import TensorInvalidSampleShapeError
 from functools import reduce
 from operator import mul
@@ -368,6 +370,10 @@ class BaseChunk(HubMemoryObject):
             )
         elif isinstance(incoming_sample, SampleTiles):
             shape = incoming_sample.sample_shape
+        elif isinstance(incoming_sample, Polygons):
+            incoming_sample, shape = serialize_polygons(
+                incoming_sample, sample_compression, dt
+            )
         else:
             raise TypeError(f"Cannot serialize sample of type {type(incoming_sample)}")
         shape = self.normalize_shape(shape)

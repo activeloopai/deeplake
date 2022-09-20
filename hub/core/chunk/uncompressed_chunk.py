@@ -1,7 +1,9 @@
+from io import BufferedWriter
 import numpy as np
 from typing import List, Union
 from hub.core.serialize import check_sample_shape, bytes_to_text
 from hub.core.tiling.sample_tiles import SampleTiles
+from hub.core.polygon import Polygons
 from hub.util.casting import intelligent_cast
 from hub.util.exceptions import EmptyTensorError
 from .base_chunk import BaseChunk, InputSample
@@ -128,6 +130,12 @@ class UncompressedChunk(BaseChunk):
         if self.is_text_like:
             buffer = bytes(buffer)
             return bytes_to_text(buffer, self.htype)
+        if self.tensor_meta.htype == "polygon":
+            return Polygons.frombuffer(
+                buffer,
+                dtype=self.tensor_meta.dtype,
+                ndim=self.tensor_meta.max_shape[-1],
+            )
         ret = np.frombuffer(buffer, dtype=self.dtype).reshape(shape)
         if copy and not ret.flags["WRITEABLE"]:
             ret = ret.copy()
