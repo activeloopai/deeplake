@@ -64,6 +64,8 @@ class Polygons:
             yield Polygon(c, self.dtype)
 
     def tobytes(self) -> memoryview:
+        if not self.data:
+            return memoryview(b"")
         ndim = self.ndim
         assert ndim < 256, "Maximum number of dimensions supported is 255."  # uint8
         lengths = list(map(len, self))
@@ -91,6 +93,8 @@ class Polygons:
 
     @classmethod
     def frombuffer(cls, buff, dtype, ndim):
+        if not buff:
+            return cls([], dtype)
         num_polygons = int.from_bytes(buff[:2], "little")
         offset = num_polygons * 2 + 2
         lengths = np.frombuffer(buff[2:offset], dtype=np.uint16)
