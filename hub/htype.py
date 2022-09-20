@@ -163,6 +163,7 @@ class htype:
     DICOM = "dicom"
     POINT_CLOUD = "point_cloud"
     POINT_CLOUD_CALIBRATION_MATRIX = "point_cloud.calibration_matrix"
+    POLYGON = "polygon"
 
 
 # used for requiring the user to specify a value for htype properties. notates that the htype property has no default.
@@ -212,6 +213,7 @@ HTYPE_CONFIGURATIONS: Dict[str, Dict] = {
     htype.DICOM: {"sample_compression": "dcm"},
     htype.POINT_CLOUD: {"sample_compression": "las"},
     htype.POINT_CLOUD_CALIBRATION_MATRIX: {"dtype": "float32"},
+    htype.POLYGON: {"dtype": "float32"},
 }
 
 HTYPE_VERIFICATIONS: Dict[str, Dict] = {

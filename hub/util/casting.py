@@ -29,7 +29,7 @@ def get_dtype(val: Union[np.ndarray, Sequence, Sample]) -> np.dtype:
         return np.array(0).dtype
     elif isinstance(val, float):
         return np.array(0.0).dtype
-    elif isinstance(val, (str, LinkedSample)):
+    elif isinstance(val, str):
         return np.array("").dtype
     elif isinstance(val, bool):
         return np.dtype(bool)
