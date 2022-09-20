@@ -37,12 +37,14 @@ class Polygons:
         self.data = data
         self.dtype = dtype
         self._validate()
-        self.shape = (len(self.data), max(map(len, self.data)), self.ndim)
+        self.ndim = len(self.data[0][0]) if self.data else 0
+        self.shape = (len(self.data), max(map(len, self.data), default=0), self.ndim)
 
     def _validate(self):
-        ndim = self[0].ndim
-        for p in self:
-            assert p.ndim == ndim
+        if self.data:
+            ndim = self[0].ndim
+            for p in self:
+                assert p.ndim == ndim
 
     def __getitem__(self, i):
         if isinstance(i, int):
@@ -51,10 +53,6 @@ class Polygons:
             return Polygons(self.data[i], self.dtype)
         else:
             raise IndexError(f"Unsupported index: {i}")
-
-    @property
-    def ndim(self):
-        return self[0].ndim
 
     def __len__(self):
         return len(self.data)
