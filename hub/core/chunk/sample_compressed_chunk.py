@@ -117,7 +117,7 @@ class SampleCompressedChunk(BaseChunk):
             return Polygons.frombuffer(
                 buffer,
                 dtype=self.tensor_meta.dtype,
-                ndim=self.tensor_meta.max_shape[-1],
+                ndim=shape[-1],
             )
 
         sample = decompress_array(

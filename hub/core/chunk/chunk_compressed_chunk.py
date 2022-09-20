@@ -220,9 +220,7 @@ class ChunkCompressedChunk(BaseChunk):
         if self.is_text_like:
             return bytes_to_text(decompressed, self.htype)
         if self.tensor_meta.htype == "polygon":
-            return Polygons.frombuffer(
-                decompressed, dtype=self.dtype, ndim=self.tensor_meta.max_shape[-1]
-            )
+            return Polygons.frombuffer(decompressed, dtype=self.dtype, ndim=shape[-1])
         ret = np.frombuffer(decompressed, dtype=self.dtype).reshape(shape)
         if copy and not ret.flags["WRITEABLE"]:
             ret = ret.copy()

@@ -134,7 +134,7 @@ class UncompressedChunk(BaseChunk):
             return Polygons.frombuffer(
                 buffer,
                 dtype=self.tensor_meta.dtype,
-                ndim=self.tensor_meta.max_shape[-1],
+                ndim=shape[-1],
             )
         ret = np.frombuffer(buffer, dtype=self.dtype).reshape(shape)
         if copy and not ret.flags["WRITEABLE"]:
