@@ -2,22 +2,6 @@ from typing import Union, List
 import numpy as np
 
 
-_SUPPORTED_DTYPES = [
-    "int8",
-    "uint8",
-    "int16",
-    "uint16",
-    "int32",
-    "uint32",
-    "int64",
-    "uint64",
-    "float64",
-    "float32",
-]
-
-_DTYPE_MAP = {np.dtype(d).num: d for d in _SUPPORTED_DTYPES}
-
-
 class Polygon:
     def __init__(self, coords: Union[np.ndarray, List[float]], dtype="float32"):
         self.coords = coords
