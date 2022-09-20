@@ -75,8 +75,6 @@ def update_info(
 
 @link
 def append_shape(sample, link_creds=None):
-    if sample is None:
-        return np.zeros(1, dtype=np.int64)
     if isinstance(sample, hub.core.linked_sample.LinkedSample):
         sample = read_linked_sample(
             sample.path, sample.creds_key, link_creds, verify=False

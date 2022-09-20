@@ -11,6 +11,7 @@ from hub.core.meta.encode.shape import ShapeEncoder
 from hub.core.serialize import bytes_to_text, check_sample_shape
 from hub.core.partial_sample import PartialSample
 from hub.core.tiling.sample_tiles import SampleTiles
+from hub.core.polygon import Polygons
 from hub.util.casting import intelligent_cast
 from hub.util.compression import get_compression_ratio
 from hub.util.exceptions import EmptyTensorError
@@ -218,6 +219,10 @@ class ChunkCompressedChunk(BaseChunk):
                 decompressed = decompressed[sb:eb]
         if self.is_text_like:
             return bytes_to_text(decompressed, self.htype)
+        if self.tensor_meta.htype == "polygon":
+            return Polygons.frombuffer(
+                decompressed, dtype=self.dtype, ndim=self.tensor_meta.max_shape[-1]
+            )
         ret = np.frombuffer(decompressed, dtype=self.dtype).reshape(shape)
         if copy and not ret.flags["WRITEABLE"]:
             ret = ret.copy()
