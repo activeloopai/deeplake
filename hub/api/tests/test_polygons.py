@@ -4,9 +4,10 @@ import numpy as np
 
 
 @pytest.mark.parametrize("ndim", [2, 3])
-def test_polygons(memory_ds, ndim):
+@pytest.mark.parametrize("args", [{}, {"sample_compression": "lz4"}, {"chunk_compression": "lz4"}])
+def test_polygons(memory_ds, ndim, args):
     with memory_ds as ds:
-        ds.create_tensor("x", htype="polygon", sample_compression="lz4")
+        ds.create_tensor("x", htype="polygon", **args)
         samples = []
         num_samples = 10
         for _ in range(num_samples):

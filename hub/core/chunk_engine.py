@@ -1436,7 +1436,7 @@ class ChunkEngine:
         Returns:
             Union[np.ndarray, List[np.ndarray]]: Either a list of numpy arrays or a single numpy array (depending on the `aslist` argument).
         """
-        return self.__numpy(index, aslist, use_data_cache, fetch_chunks, pad_tensor)
+        return self._numpy(index, aslist, use_data_cache, fetch_chunks, pad_tensor)
 
     def get_video_sample(self, global_sample_index, index, decompress=True):
         enc = self.chunk_id_encoder
