@@ -34,15 +34,19 @@ class Polygon:
 
 class Polygons:
     def __init__(self, data: Union[np.ndarray, List], dtype="float32"):
+        if data is None:
+            data = []
         self.data = data
         self.dtype = dtype
         self._validate()
-        self.shape = (len(self.data), max(map(len, self.data)), self.ndim)
+        self.ndim = len(self.data[0][0]) if self.data else 0
+        self.shape = (len(self.data), max(map(len, self.data), default=0), self.ndim)
 
     def _validate(self):
-        ndim = self[0].ndim
-        for p in self:
-            assert p.ndim == ndim
+        if self.data:
+            ndim = self[0].ndim
+            for p in self:
+                assert p.ndim == ndim
 
     def __getitem__(self, i):
         if isinstance(i, int):
@@ -52,10 +56,6 @@ class Polygons:
         else:
             raise IndexError(f"Unsupported index: {i}")
 
-    @property
-    def ndim(self):
-        return self[0].ndim
-
     def __len__(self):
         return len(self.data)
 
@@ -64,6 +64,8 @@ class Polygons:
             yield Polygon(c, self.dtype)
 
     def tobytes(self) -> memoryview:
+        if not self.data:
+            return memoryview(b"")
         ndim = self.ndim
         assert ndim < 256, "Maximum number of dimensions supported is 255."  # uint8
         lengths = list(map(len, self))
@@ -91,6 +93,8 @@ class Polygons:
 
     @classmethod
     def frombuffer(cls, buff, dtype, ndim):
+        if not buff:
+            return cls([], dtype)
         num_polygons = int.from_bytes(buff[:2], "little")
         offset = num_polygons * 2 + 2
         lengths = np.frombuffer(buff[2:offset], dtype=np.uint16)
