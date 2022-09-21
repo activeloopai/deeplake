@@ -94,6 +94,8 @@ class Hub3DataLoader:
         all_vars["_shuffle"] = True
         primary_tensor_name = find_primary_tensor(self.dataset)
         schedule = create_fetching_schedule(self.dataset, primary_tensor_name)
+        tiles = set(self.dataset.images.chunk_engine.tile_encoder.entries.keys())
+        schedule = [x for x in schedule if x not in tiles]
         all_vars["_primary_tensor_name"] = primary_tensor_name
         all_vars["dataset"] = self.dataset[schedule]
         return self.__class__(**all_vars)
