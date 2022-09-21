@@ -34,7 +34,7 @@ def collate_fn(batch):
 def find_primary_tensor(dataset):
     current_max_size = 0
     primary_tensor_name = None
-    for tensor_key, tensor in dataset:
+    for tensor_key, tensor in dataset.tensors.items():
         max_shape = tensor.meta.max_shape
         max_size = np.prod(max_shape)
         if max_size > current_max_size:

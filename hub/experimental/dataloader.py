@@ -301,7 +301,7 @@ class Hub3DataLoader:
         # only upcast for pytorch, this handles unsupported dtypes
         upcast = self._mode == "pytorch"
 
-        primary_tensor = self._primary_tensor
+        primary_tensor_name = self._primary_tensor_name
         return iter(
             Loader(
                 dataset,
@@ -317,7 +317,7 @@ class Hub3DataLoader:
                 drop_last=drop_last,
                 upcast=upcast,
                 return_index=return_index,
-                primary_tensor=primary_tensor,
+                primary_tensor=primary_tensor_name,
             )
         )
 
