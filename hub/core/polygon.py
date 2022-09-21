@@ -3,15 +3,19 @@ import numpy as np
 
 
 class Polygon:
+    """Represents a polygon."""
+
     def __init__(self, coords: Union[np.ndarray, List[float]], dtype="float32"):
         self.coords = coords
         self.dtype = dtype
 
     @property
     def ndim(self):
+        """Dimension of the polygon."""
         return len(self.coords[0])
 
-    def __array__(self, dtype=None):
+    def __array__(self, dtype=None) -> np.ndarray:
+        """Returns a numpy array with the co-ordinates of the points in the polygon."""
         if not dtype:
             dtype = self.dtype
         if isinstance(self.coords, np.ndarray) and self.coords.dtype == dtype:
@@ -19,9 +23,11 @@ class Polygon:
         return np.array(self.coords, dtype=dtype)
 
     def __len__(self):
+        """Returns the number of points in the polygon."""
         return len(self.coords)
 
     def __getitem__(self, i):
+        """Returns the ``i`` th co-ordinate of the polygon."""
         return self.coords[i]
 
     def tobytes(self) -> bytes:
@@ -29,10 +35,13 @@ class Polygon:
 
     @property
     def shape(self):
-        return (len(self.data), len(self.data[0]))
+        """Returns the shape of the Polygon - (#co-ordinates, #dimensions)"""
+        return (len(self.coords), len(self.coords[0]))
 
 
 class Polygons:
+    """Represents a group of polygons"""
+
     def __init__(self, data: Union[np.ndarray, List], dtype="float32"):
         if data is None:
             data = []
@@ -50,6 +59,7 @@ class Polygons:
                 assert p.ndim == ndim
 
     def __getitem__(self, i):
+        """Returns a :class:`~hub.core.polygon.Polygon` if ``i`` is an ``int``, otherwise another :class:`~hub.core.polygon.Polygons` object."""
         if isinstance(i, int):
             return Polygon(self.data[i], self.dtype)
         elif isinstance(i, (slice, list)):
@@ -58,6 +68,7 @@ class Polygons:
             raise IndexError(f"Unsupported index: {i}")
 
     def __len__(self):
+        """Returns the number of polygons in this group."""
         return len(self.data)
 
     def __iter__(self):
@@ -107,6 +118,7 @@ class Polygons:
         return cls(data, dtype)
 
     def astype(self, dtype):
+        """Returns the polygons in the specified dtype."""
         return Polygons(self.data, np.dtype(dtype).name)
 
     def copy(self):
@@ -119,4 +131,5 @@ class Polygons:
         )
 
     def numpy(self) -> List[np.ndarray]:
+        """Returns a list of numpy arrays corresponding to each polygon in this group."""
         return [Polygon(p, self.dtype).__array__() for p in self.data]

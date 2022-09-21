@@ -702,6 +702,9 @@ class Tensor:
 
         Returns:
             A numpy array containing the data represented by this tensor.
+
+        Note:
+            For tensors of htype ``polygon``, aslist is always ``True``.
         """
         ret = self.chunk_engine.numpy(
             self.index,

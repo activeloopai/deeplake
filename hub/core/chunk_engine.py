@@ -1435,6 +1435,9 @@ class ChunkEngine:
 
         Returns:
             Union[np.ndarray, List[np.ndarray]]: Either a list of numpy arrays or a single numpy array (depending on the `aslist` argument).
+
+        Note:
+            For polygons, aslist is always True.
         """
         return self._numpy(index, aslist, use_data_cache, fetch_chunks, pad_tensor)
 
@@ -1582,7 +1585,7 @@ class ChunkEngine:
                 - The tensor is ChunkCompressed
                 - The chunk which is being accessed has more than 128 samples.
             pad_tensor (bool): If True, any index out of bounds will not throw an error, but instead will return an empty sample.
-            convert_polygons: Whether polygons should be converted to numpy arrays or returned as list of ``hub.core.Polygons``.
+            convert_polygons: Whether polygons should be converted to numpy arrays or returned as list of ``hub.core.polygon.Polygons``.
 
         Raises:
             DynamicTensorNumpyError: If shapes of the samples being read are not all the same.
