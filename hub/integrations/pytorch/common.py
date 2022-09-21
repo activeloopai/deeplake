@@ -1,5 +1,6 @@
 from typing import Callable, Dict, List, Optional
 from hub.util.iterable_ordered_dict import IterableOrderedDict
+from hub.core.polygon import Polygons
 import numpy as np
 
 
@@ -15,6 +16,8 @@ def collate_fn(batch):
 
     if isinstance(elem, np.ndarray) and elem.size > 0 and isinstance(elem[0], str):
         batch = [it[0] for it in batch]
+    elif isinstance(elem, Polygons):
+        batch = [it.numpy() for it in batch]
     return torch.utils.data._utils.collate.default_collate(batch)
 
 
@@ -25,6 +28,8 @@ def convert_fn(data):
         return IterableOrderedDict((k, convert_fn(v)) for k, v in data.items())
     if isinstance(data, np.ndarray) and data.size > 0 and isinstance(data[0], str):
         data = data[0]
+    elif isinstance(data, Polygons):
+        data = data.numpy()
 
     return torch.utils.data._utils.collate.default_convert(data)
 

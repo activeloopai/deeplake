@@ -9,21 +9,21 @@ import numpy as np
 )
 def test_polygons(local_ds, ndim, args):
     with local_ds as ds:
-        ds.create_tensor("x", htype="polygon", **args)
+        ds.create_tensor("polygons", htype="polygon", **args)
         samples = []
         num_samples = 10
         for _ in range(num_samples):
-            num_polygons = np.random.randint(10, 100)
+            num_polygons = np.random.randint(1, 10)
             polygons = []
             for _ in range(num_polygons):
-                num_points = np.random.randint(10, 100)
-                polygon = np.random.randint(0, 1000, (num_points, ndim))
+                num_points = np.random.randint(3, 10)
+                polygon = np.random.randint(0, 100, (num_points, ndim))
                 polygons.append(polygon)
             samples.append(polygons)
         for i in range(num_samples // 2):
-            ds.x.append(samples[i])
-        ds.x.extend(samples[num_samples // 2 :])
-        samples2 = ds.x.numpy()
+            ds.polygons.append(samples[i])
+        ds.polygons.extend(samples[num_samples // 2 :])
+        samples2 = ds.polygons.numpy()
         assert len(samples) == len(samples2)
         for s1, s2 in zip(samples, samples2):
             assert len(s1) == len(s2)
@@ -31,5 +31,7 @@ def test_polygons(local_ds, ndim, args):
             for p1, p2 in zip(s1, s2):
                 assert isinstance(p2, np.ndarray)
                 np.testing.assert_array_equal(p1, p2)
-    for sample in ds.pytorch():
-        print(sample["polygons"])
+    for i, sample in enumerate(ds.pytorch(num_workers=2)):
+        assert len(samples[i]) == len(sample["polygons"])
+        for p1, p2 in zip(samples[i], sample["polygons"]):
+            np.testing.assert_array_equal(p1, p2[0])

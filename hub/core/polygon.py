@@ -39,6 +39,7 @@ class Polygons:
         self.data = data
         self.dtype = dtype
         self._validate()
+        # Note: here ndim is the number of dimensions of the polygon's space, not the ndim of data.
         self.ndim = len(self.data[0][0]) if self.data else 0
         self.shape = (len(self.data), max(map(len, self.data), default=0), self.ndim)
 
@@ -107,3 +108,15 @@ class Polygons:
 
     def astype(self, dtype):
         return Polygons(self.data, np.dtype(dtype).name)
+
+    def copy(self):
+        # No-op, called by pytorch integration
+        if isinstance(self.data, np.ndarray):
+            return Polygons(self.data.copy(), self.dtype)
+        return Polygons(
+            [p.copy() if isinstance(p, np.ndarray) else p for p in self.data],
+            self.dtype,
+        )
+
+    def numpy(self) -> List[np.ndarray]:
+        return [Polygon(p, self.dtype).__array__() for p in self.data]
