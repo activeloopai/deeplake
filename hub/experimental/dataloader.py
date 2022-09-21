@@ -1,6 +1,6 @@
 from typing import Callable, Dict, List, Optional, Union
 from hub.experimental.convert_to_hub3 import dataset_to_hub3, verify_base_storage  # type: ignore
-from hub.experimental.util import raise_indra_installation_error  # type: ignore
+from hub.experimental.util import create_fetching_schedule, find_primary_tensor, raise_indra_installation_error  # type: ignore
 from hub.experimental.util import collate_fn as default_collate  # type: ignore
 from hub.experimental.hub3_query import query
 from hub.integrations.pytorch.common import PytorchTransformFunction
@@ -35,6 +35,7 @@ class Hub3DataLoader:
         _drop_last=False,
         _mode=None,
         _return_index=None,
+        _primary_tensor_name=None,
     ):
         raise_indra_installation_error(INDRA_INSTALLED, INDRA_IMPORT_ERROR)
         self.dataset = dataset
@@ -50,6 +51,7 @@ class Hub3DataLoader:
         self._drop_last = _drop_last
         self._mode = _mode
         self._return_index = _return_index
+        self._primary_tensor_name = _primary_tensor_name
 
     def batch(self, batch_size: int, drop_last: bool = False):
         """Returns a batched hub.experimental.Hub3DataLoader object.
@@ -90,6 +92,10 @@ class Hub3DataLoader:
             raise ValueError("shuffle is already set")
         all_vars = self.__dict__.copy()
         all_vars["_shuffle"] = True
+        primary_tensor_name = find_primary_tensor(self.dataset)
+        schedule = create_fetching_schedule(self.dataset, primary_tensor_name)
+        all_vars["_primary_tensor_name"] = primary_tensor_name
+        all_vars["dataset"] = self.dataset[schedule]
         return self.__class__(**all_vars)
 
     def transform(self, transform: Union[Callable, Dict[str, Optional[Callable]]]):
@@ -291,9 +297,11 @@ class Hub3DataLoader:
         num_threads = self._num_threads
         prefetch_factor = self._prefetch_factor
         distributed = self._distributed or False
-        upcast = (
-            self._mode == "pytorch"
-        )  # only upcast for pytorch, this handles unsupported dtypes
+
+        # only upcast for pytorch, this handles unsupported dtypes
+        upcast = self._mode == "pytorch"
+
+        primary_tensor = self._primary_tensor
         return iter(
             Loader(
                 dataset,
@@ -309,6 +317,7 @@ class Hub3DataLoader:
                 drop_last=drop_last,
                 upcast=upcast,
                 return_index=return_index,
+                primary_tensor=primary_tensor,
             )
         )
 
