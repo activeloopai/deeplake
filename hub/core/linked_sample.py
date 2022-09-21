@@ -1,5 +1,6 @@
 from typing import Optional
 from hub.constants import ALL_CLOUD_PREFIXES
+import numpy as np
 
 
 def convert_creds_key(creds_key: Optional[str], path: str):

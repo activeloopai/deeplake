@@ -414,7 +414,7 @@ def serialize_polygons(
 ):
     bts = incoming_smaple.tobytes()
     if sample_compression:
-        bts = compress_bytes(bts, sample_compression)
+        bts = compress_bytes(bts, sample_compression)  # type: ignore
     return bts, incoming_smaple.shape
 
 
