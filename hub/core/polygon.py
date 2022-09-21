@@ -100,3 +100,6 @@ class Polygons:
             data.append(points[:l])
             points = points[l:]
         return cls(data, dtype)
+
+    def astype(self, dtype):
+        return Polygons(self.data, np.dtype(dtype).name)

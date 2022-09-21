@@ -7,8 +7,8 @@ import numpy as np
 @pytest.mark.parametrize(
     "args", [{}, {"sample_compression": "lz4"}, {"chunk_compression": "lz4"}]
 )
-def test_polygons(memory_ds, ndim, args):
-    with memory_ds as ds:
+def test_polygons(local_ds, ndim, args):
+    with local_ds as ds:
         ds.create_tensor("x", htype="polygon", **args)
         samples = []
         num_samples = 10
@@ -31,3 +31,5 @@ def test_polygons(memory_ds, ndim, args):
             for p1, p2 in zip(s1, s2):
                 assert isinstance(p2, np.ndarray)
                 np.testing.assert_array_equal(p1, p2)
+    for sample in ds.pytorch():
+        print(sample["polygons"])
