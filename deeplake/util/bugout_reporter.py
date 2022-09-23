@@ -101,7 +101,7 @@ session_id = str(uuid.uuid4())
 bugout_reporting_config = get_reporting_config()
 client_id = bugout_reporting_config.get("client_id")
 
-hub_reporter = HumbugReporter(
+dl_reporter = HumbugReporter(
     name="activeloopai/Hub",
     consent=consent,
     client_id=client_id,
@@ -112,11 +112,11 @@ hub_reporter = HumbugReporter(
 
 hub_user = bugout_reporting_config.get("username")
 if hub_user is not None:
-    hub_reporter.tags.append(f"username:{hub_user}")
+    dl_reporter.tags.append(f"username:{hub_user}")
 
 machine_id = bugout_reporting_config.get("machine_id")
 if machine_id is not None:
-    hub_reporter.tags.append(f"machine_id:{machine_id}")
+    dl_reporter.tags.append(f"machine_id:{machine_id}")
 
 
 def feature_report_path(
@@ -139,19 +139,19 @@ def feature_report_path(
         index, current_username = find_current_username()
 
         if current_username is None:
-            hub_reporter.tags.append(f"username:{username}")
+            dl_reporter.tags.append(f"username:{username}")
         else:
             if f"username:{username}" != current_username:
-                hub_reporter.tags[index] = f"username:{username}"
+                dl_reporter.tags[index] = f"username:{username}"
 
-    hub_reporter.feature_report(
+    dl_reporter.feature_report(
         feature_name=feature_name,
         parameters=parameters,
     )
 
 
 def find_current_username():
-    for index, tag in enumerate(hub_reporter.tags):
+    for index, tag in enumerate(dl_reporter.tags):
         if "username" in tag:
             return index, tag
     return None, None

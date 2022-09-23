@@ -168,7 +168,7 @@ class Hub3DataLoader:
         all_vars["dataset"] = query(self.dataset, query_string)
         return self.__class__(**all_vars)
 
-    @hub_reporter.record_call
+    @dl_reporter.record_call
     def pytorch(
         self,
         num_workers: int = 0,
@@ -224,7 +224,7 @@ class Hub3DataLoader:
         all_vars["_mode"] = "pytorch"
         return self.__class__(**all_vars)
 
-    @hub_reporter.record_call
+    @dl_reporter.record_call
     def numpy(
         self,
         num_workers: int = 0,

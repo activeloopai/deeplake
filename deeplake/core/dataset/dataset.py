@@ -399,7 +399,7 @@ class Dataset:
         return ret
 
     @invalid_view_op
-    @hub_reporter.record_call
+    @dl_reporter.record_call
     def create_tensor(
         self,
         name: str,
@@ -645,7 +645,7 @@ class Dataset:
         self.storage.maybe_flush()
 
     @invalid_view_op
-    @hub_reporter.record_call
+    @dl_reporter.record_call
     def delete_tensor(self, name: str, large_ok: bool = False):
         """Delete a tensor from the dataset.
 
@@ -716,7 +716,7 @@ class Dataset:
         self.storage.flush()
 
     @invalid_view_op
-    @hub_reporter.record_call
+    @dl_reporter.record_call
     def delete_group(self, name: str, large_ok: bool = False):
         """Delete a tensor group from the dataset.
 
@@ -772,7 +772,7 @@ class Dataset:
         self.storage.maybe_flush()
 
     @invalid_view_op
-    @hub_reporter.record_call
+    @dl_reporter.record_call
     def create_tensor_like(
         self, name: str, source: "Tensor", unlink: bool = False
     ) -> "Tensor":
@@ -832,7 +832,7 @@ class Dataset:
 
         return tensor
 
-    @hub_reporter.record_call
+    @dl_reporter.record_call
     def rename_tensor(self, name: str, new_name: str) -> "Tensor":
         """Renames tensor with name ``name`` to ``new_name``
 
@@ -876,7 +876,7 @@ class Dataset:
         self.storage.maybe_flush()
         return tensor
 
-    @hub_reporter.record_call
+    @dl_reporter.record_call
     def rename_group(self, name: str, new_name: str) -> None:
         """Renames group with name ``name`` to ``new_name``
 
@@ -1058,7 +1058,7 @@ class Dataset:
 
         return self._commit(message)
 
-    @hub_reporter.record_call
+    @dl_reporter.record_call
     def merge(
         self,
         target_id: str,
@@ -1128,7 +1128,7 @@ class Dataset:
         self._ds_diff = None
         [f() for f in list(self._commit_hooks.values())]
         # do not store commit message
-        hub_reporter.feature_report(feature_name="commit", parameters={})
+        dl_reporter.feature_report(feature_name="commit", parameters={})
 
         return self.commit_id  # type: ignore
 
@@ -1205,7 +1205,7 @@ class Dataset:
         self._ds_diff = None
 
         # do not store address
-        hub_reporter.feature_report(
+        dl_reporter.feature_report(
             feature_name="checkout", parameters={"Create": str(create)}
         )
         commit_node = self.version_state["commit_node"]
@@ -1214,7 +1214,7 @@ class Dataset:
 
         return self.commit_id
 
-    @hub_reporter.record_call
+    @dl_reporter.record_call
     def log(self):
         """Displays the details of all the past commits."""
         commit_node = self.version_state["commit_node"]
@@ -1228,7 +1228,7 @@ class Dataset:
                 print(f"{commit_node}\n")
             commit_node = commit_node.parent
 
-    @hub_reporter.record_call
+    @dl_reporter.record_call
     def diff(
         self, id_1: Optional[str] = None, id_2: Optional[str] = None, as_dict=False
     ) -> Optional[Dict]:
@@ -1397,7 +1397,7 @@ class Dataset:
     def read_only(self, value: bool):
         self._set_read_only(value, True)
 
-    @hub_reporter.record_call
+    @dl_reporter.record_call
     def pytorch(
         self,
         transform: Optional[Callable] = None,
@@ -1471,7 +1471,7 @@ class Dataset:
         dataset_read(self)
         return dataloader
 
-    @hub_reporter.record_call
+    @dl_reporter.record_call
     def filter(
         self,
         function: Union[Callable, str],
@@ -1579,7 +1579,7 @@ class Dataset:
             self.__dict__["_ds_diff"] = load_dataset_diff(self)
         return self._ds_diff
 
-    @hub_reporter.record_call
+    @dl_reporter.record_call
     def tensorflow(
         self,
         tensors: Optional[Sequence[str]] = None,
@@ -1629,7 +1629,7 @@ class Dataset:
         return size
 
     @invalid_view_op
-    @hub_reporter.record_call
+    @dl_reporter.record_call
     def rename(self, path: Union[str, pathlib.Path]):
         """Renames the dataset to `path`.
 
@@ -1652,7 +1652,7 @@ class Dataset:
         self.path = path
 
     @invalid_view_op
-    @hub_reporter.record_call
+    @dl_reporter.record_call
     def delete(self, large_ok=False):
         """Deletes the entire dataset from the cache layers (if any) and the underlying storage.
         This is an **IRREVERSIBLE** operation. Data once deleted can not be recovered.
@@ -1914,7 +1914,7 @@ class Dataset:
             name, _ = posixpath.split(name)
         return self[fullname]
 
-    @hub_reporter.record_call
+    @dl_reporter.record_call
     def create_group(self, name: str, exist_ok=False) -> "Dataset":
         """Creates a tensor group. Intermediate groups in the path are also created.
 
@@ -3196,7 +3196,7 @@ class Dataset:
         """
         from deeplake.visualizer import visualize
 
-        hub_reporter.feature_report(feature_name="visualize", parameters={})
+        dl_reporter.feature_report(feature_name="visualize", parameters={})
         if is_colab():
             raise Exception("Cannot visualize non hub cloud dataset in Colab.")
         else:

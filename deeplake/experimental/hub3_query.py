@@ -2,7 +2,7 @@ from deeplake.experimental.convert_to_hub3 import dataset_to_hub3
 from deeplake.util.bugout_reporter import deeplake as dl_reporter
 
 
-@hub_reporter.record_call
+@dl_reporter.record_call
 def query(dataset, query_string: str):
     """Returns a sliced dl.Dataset with given query results.
 

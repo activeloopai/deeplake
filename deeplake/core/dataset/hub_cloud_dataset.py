@@ -249,7 +249,7 @@ class HubCloudDataset(Dataset):
     ):
         from deeplake.visualizer import visualize
 
-        hub_reporter.feature_report(feature_name="visualize", parameters={})
+        dl_reporter.feature_report(feature_name="visualize", parameters={})
         visualize(self.path, self.token, width=width, height=height)
 
     def add_creds_key(self, creds_key: str, managed: bool = False):

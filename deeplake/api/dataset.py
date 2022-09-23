@@ -29,7 +29,7 @@ from deeplake.util.access_method import (
     parse_access_method,
 )
 from deeplake.util.auto import get_most_common_extension
-from deeplake.util.bugout_reporter import feature_report_path, hub_reporter
+from deeplake.util.bugout_reporter import feature_report_path, dl_reporter
 from deeplake.util.delete_entry import remove_path_from_backend
 from deeplake.util.keys import dataset_exists
 from deeplake.util.exceptions import (
@@ -1149,7 +1149,7 @@ class dataset:
         return ds  # type: ignore
 
     @staticmethod
-    @hub_reporter.record_call
+    @dl_reporter.record_call
     def list(
         workspace: str = "",
         token: Optional[str] = None,

@@ -9,7 +9,7 @@ from deeplake.client.utils import remove_username_from_config, write_token, remo
 from deeplake.util.bugout_reporter import (
     save_reporting_config,
     get_reporting_config,
-    hub_reporter,
+    dl_reporter,
 )
 from deeplake.util.exceptions import AuthenticationException
 
@@ -74,10 +74,10 @@ def reporting(on):
     """Enable or disable sending crash report to Activeloop AI"""
     report = Report(
         title="Consent change",
-        tags=hub_reporter.system_tags(),
+        tags=dl_reporter.system_tags(),
         content=f"Consent? `{on}`",
     )
-    hub_reporter.publish(report)
+    dl_reporter.publish(report)
     save_reporting_config(on)
 
 

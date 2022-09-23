@@ -80,9 +80,9 @@ __encoded_version__ = np.array(__version__)
 config = {"s3": Config(max_pool_connections=50, connect_timeout=300, read_timeout=300)}
 
 
-hub_reporter.tags.append(f"version:{__version__}")
-hub_reporter.system_report(publish=True)
-hub_reporter.setup_excepthook(publish=True)
+dl_reporter.tags.append(f"version:{__version__}")
+dl_reporter.system_report(publish=True)
+dl_reporter.setup_excepthook(publish=True)
 
 event_queue: Queue = Queue()
 

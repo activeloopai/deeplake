@@ -148,7 +148,7 @@ class Pipeline:
         """
         num_workers, scheduler = sanitize_workers_scheduler(num_workers, scheduler)
         overwrite = ds_out is None
-        hub_reporter.feature_report(
+        dl_reporter.feature_report(
             feature_name="eval",
             parameters={"Num_Workers": str(num_workers), "Scheduler": scheduler},
         )
