@@ -3,10 +3,10 @@ from hub.util.dataset import try_flushing
 from hub.util.dataset import map_tensor_keys
 from .common import (
     PytorchTransformFunction,
+    check_empty_tensors,
     convert_fn as default_convert_fn,
     collate_fn as default_collate_fn,
 )
-from hub.util.exceptions import EmptyTensorError
 
 
 def create_dataloader_nesteddataloader(
@@ -126,15 +126,7 @@ def dataset_to_pytorch(
     else:
         transform = PytorchTransformFunction(composite_transform=transform)
 
-    # check whether we have an empty tensor inside of tensors
-    for tensor_name in tensors:
-        tensor = dataset._get_tensor_from_root(tensor_name)
-        if len(tensor) == 0:
-            raise EmptyTensorError(
-                f" the dataset has an empty tensor {tensor_name}, pytorch dataloader can't be created."
-                f" Please either populate the tensor or pass tensors argument to .pytorch that excludes this"
-                f" tensor."
-            )
+    check_empty_tensors(dataset, tensors)
 
     if shuffle and num_workers > 0:
         return create_dataloader(
