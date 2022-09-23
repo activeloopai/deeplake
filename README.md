@@ -2,7 +2,7 @@
      <img src="https://user-images.githubusercontent.com/83741606/156426873-c0a77da0-9e0f-41a0-a4fb-cf77eb2fe35e.png" width="300"/>
 </h1>
     </br>
-    <h1 align="center">Dataset Format for AI
+    <h1 align="center">Deep Lake: Data Lake for Deep Learning
  </h1>
 <p align="center">
     <a href="https://github.com/activeloopai/Hub/actions/workflows/test-pr-on-label.yml"><img src="https://github.com/activeloopai/Hub/actions/workflows/test-push.yml/badge.svg" alt="PyPI version" height="18"></a>
@@ -27,9 +27,9 @@
 
 *Read this in other languages: [简体中文](README.zh-cn.md)*
 
-## About Hub
+## About Deep Lake
 
-Hub is a dataset format with a simple API for creating, storing, and collaborating on AI datasets of any size. It enables you to store all of your data in one place, ranging from simple annotations to large videos, and it unlocks rapid streaming of data while training models at scale. Hub is used by Google, Waymo, Red Cross, Oxford University, and Omdena. Hub includes the following features:
+Deep Lake (formerly known as hub) is a data lake for deep learning applications. Open-source dataset format provides a simple API for creating, storing, and collaborating on AI datasets of any size. It enables you to store all of your data in one place, ranging from simple annotations to large videos, and it unlocks rapid streaming of data while training models at scale. Deep Lake is used by Google, Waymo, Red Cross, Oxford University, and Omdena. Deep Lake includes the following features:
 
 <details>
   <summary><b>Storage Agnostic API</b></summary>
@@ -49,19 +49,19 @@ Commits, branches, checkout - Concepts you are already familiar with in your cod
 </details>
 <details>
   <summary><b>Integrations with Deep Learning Frameworks</b></summary>
-Hub comes with built-in integrations for Pytorch and Tensorflow. Train your model with a few lines of code - we even take care of dataset shuffling. :)
+Deep Lake comes with built-in integrations for Pytorch and Tensorflow. Train your model with a few lines of code - we even take care of dataset shuffling. :)
 </details>
 <details>
   <summary><b>Distributed Transformations</b></summary>
 Rapidly apply transformations on your datasets using multi-threading, multi-processing, or our built-in <a href="https://www.ray.io/">Ray</a> integration.</details>
 <details>
   <summary><b>100+ most-popular image, video, and audio datasets available in seconds</b></summary>
-Hub community has uploaded <a href="https://docs.activeloop.ai/datasets/?utm_source=github&utm_medium=github&utm_campaign=github_readme&utm_id=readme">100+ image, video and audio datasets</a> like <a href="https://docs.activeloop.ai/datasets/mnist/?utm_source=github&utm_medium=github&utm_campaign=github_readme&utm_id=readme">MNIST</a>, <a href="https://docs.activeloop.ai/datasets/coco-dataset/?utm_source=github&utm_medium=github&utm_campaign=github_readme&utm_id=readme">COCO</a>,  <a href="https://docs.activeloop.ai/datasets/imagenet-dataset/?utm_source=github&utm_medium=github&utm_campaign=github_readme&utm_id=readme">ImageNet</a>,  <a href="https://docs.activeloop.ai/datasets/cifar-10-dataset/?utm_source=github&utm_medium=github&utm_campaign=github_readme&utm_id=readme">CIFAR</a>,  <a href="https://docs.activeloop.ai/datasets/gtzan-genre-dataset/?utm_source=github&utm_medium=github&utm_campaign=github_readme&utm_id=readme">GTZAN</a> and others.
+Deep Lake community has uploaded <a href="https://docs.activeloop.ai/datasets/?utm_source=github&utm_medium=github&utm_campaign=github_readme&utm_id=readme">100+ image, video and audio datasets</a> like <a href="https://docs.activeloop.ai/datasets/mnist/?utm_source=github&utm_medium=github&utm_campaign=github_readme&utm_id=readme">MNIST</a>, <a href="https://docs.activeloop.ai/datasets/coco-dataset/?utm_source=github&utm_medium=github&utm_campaign=github_readme&utm_id=readme">COCO</a>,  <a href="https://docs.activeloop.ai/datasets/imagenet-dataset/?utm_source=github&utm_medium=github&utm_campaign=github_readme&utm_id=readme">ImageNet</a>,  <a href="https://docs.activeloop.ai/datasets/cifar-10-dataset/?utm_source=github&utm_medium=github&utm_campaign=github_readme&utm_id=readme">CIFAR</a>,  <a href="https://docs.activeloop.ai/datasets/gtzan-genre-dataset/?utm_source=github&utm_medium=github&utm_campaign=github_readme&utm_id=readme">GTZAN</a> and others.
 </details>
 </details>
 <details>
   <summary><b>Instant Visualization Support in <a href="https://app.activeloop.ai/?utm_source=github&utm_medium=github&utm_campaign=github_readme&utm_id=readme">Activeloop Platform</a></b></summary>
-Hub datasets are instantly visualized with bounding boxes, masks, annotations, etc. in <a href="https://app.activeloop.ai/?utm_source=github&utm_medium=github&utm_campaign=github_readme&utm_id=readme">Activeloop Platform</a> (see below).
+Deep Lake datasets are instantly visualized with bounding boxes, masks, annotations, etc. in <a href="https://app.activeloop.ai/?utm_source=github&utm_medium=github&utm_campaign=github_readme&utm_id=readme">Activeloop Platform</a> (see below).
 </details>
 
 
@@ -70,10 +70,10 @@ Hub datasets are instantly visualized with bounding boxes, masks, annotations, e
 </div>
 
     
-## Getting Started with Hub
+## Getting Started with Hub (deprecated soon and will be replaced with deeplake)
 
 
-### 🚀 How to install Hub
+### 🚀 How to install Deep Lake
 Hub is written in 100% Python and can be quickly installed using pip.
 
 ```sh
@@ -304,7 +304,7 @@ Hub and Zarr both offer storage of data as chunked arrays. However, hub is prima
 
 ## Community
 
-Join our [**Slack community**](https://join.slack.com/t/hubdb/shared_invite/zt-ivhsj8sz-GWv9c5FLBDVw8vn~sxRKqQ) to learn more about unstructured dataset management using Hub and to get help from the Activeloop team and other users.
+Join our [**Slack community**](https://join.slack.com/t/hubdb/shared_invite/zt-ivhsj8sz-GWv9c5FLBDVw8vn~sxRKqQ) to learn more about unstructured dataset management using Deep Lake and to get help from the Activeloop team and other users.
 
 We'd love your feedback by completing our 3-minute [**survey**](https://forms.gle/rLi4w33dow6CSMcm9).
 
@@ -321,13 +321,13 @@ Please read [CONTRIBUTING.md](CONTRIBUTING.md) to get started with making contri
 
 ## README Badge
 
-Using Hub? Add a README badge to let everyone know: 
+Using Deep Lake? Add a README badge to let everyone know: 
 
 
-[![hub](https://img.shields.io/badge/powered%20by-hub%20-ff5a1f.svg)](https://github.com/activeloopai/Hub)
+[![deeplake](https://img.shields.io/badge/powered%20by-Deep%20Lake%20-ff5a1f.svg)](https://github.com/activeloopai/deeplake)
 
 ```
-[![hub](https://img.shields.io/badge/powered%20by-hub%20-ff5a1f.svg)](https://github.com/activeloopai/Hub)
+[![deeplake](https://img.shields.io/badge/powered%20by-Deep%20Lake%20-ff5a1f.svg)](https://github.com/activeloopai/deeplake)
 ```
 
 
@@ -336,17 +336,17 @@ Using Hub? Add a README badge to let everyone know:
 
 <details>
   <summary><b> Dataset Licenses</b></summary>
+  
+Deep Lake users may have access to a variety of publicly available datasets. We do not host or distribute these datasets, vouch for their quality or fairness, or claim that you have a license to use the datasets. It is your responsibility to determine whether you have permission to use the datasets under their license.
 
-Hub users may have access to a variety of publicly available datasets. We do not host or distribute these datasets, vouch for their quality or fairness, or claim that you have a license to use the datasets. It is your responsibility to determine whether you have permission to use the datasets under their license.
-
-If you're a dataset owner and do not want your dataset to be included in this library, please get in touch through a [GitHub issue](https://github.com/activeloopai/Hub/issues/new). Thank you for your contribution to the ML community!
+If you're a dataset owner and do not want your dataset to be included in this library, please get in touch through a [GitHub issue](https://github.com/activeloopai/deeplake/issues/new). Thank you for your contribution to the ML community!
 
 </details>
 
 <details>
   <summary><b> Usage Tracking</b></summary>
 
-By default, we collect usage data using Bugout (here's the [code](https://github.com/activeloopai/Hub/blob/853456a314b4fb5623c936c825601097b0685119/hub/__init__.py#L24) that does it). It does not collect user data other than anonymized IP address data, and it only logs the Hub library's own actions. This helps our team understand how the tool is used and how to build features that matter to you! After you register with Activeloop, data is no longer anonymous. You can always opt-out of reporting using the CLI command below, or by setting an environmental variable ```BUGGER_OFF``` to ```True```:
+By default, we collect usage data using Bugout (here's the [code](https://github.com/activeloopai/Hub/blob/853456a314b4fb5623c936c825601097b0685119/hub/__init__.py#L24) that does it). It does not collect user data other than anonymized IP address data, and it only logs the Deep Lake library's own actions. This helps our team understand how the tool is used and how to build features that matter to you! After you register with Activeloop, data is no longer anonymous. You can always opt-out of reporting using the CLI command below, or by setting an environmental variable ```BUGGER_OFF``` to ```True```:
 
 ```
 activeloop reporting --off
@@ -354,14 +354,18 @@ activeloop reporting --off
 </details>
 
 ## Citation
-If you use Hub in your research, please cite Activeloop using:
+If you use Deep Lake in your research, please cite Activeloop using:
+
 ```
-@article{2022ActiveloopHub,
-  title={Hub: A Dataset Format for AI. A simple API for creating, storing, collaborating on AI datasets of any size & streaming them to ML frameworks at scale.},
-  author={Activeloop Developer Team},
-  journal={GitHub. Note: https://github.com/activeloopai/Hub},
-  year={2022}
+@article{deeplake,
+  doi = {10.48550/ARXIV.2209.10785},
+  url = {https://arxiv.org/abs/2209.10785},
+  author = {Hambardzumyan, Sasun and Tuli, Abhinav and Ghukasyan, Levon and Rahman, Fariz and Topchyan, Hrant and Isayan, David and Harutyunyan, Mikayel and Hakobyan, Tatevik and Stranic, Ivo and Buniatyan, Davit},
+  title = {Deep Lake: a Lakehouse for Deep Learning},
+  publisher = {arXiv},
+  year = {2022},
 }
 ```
+
 ## Acknowledgment
 This technology was inspired by our research work at Princeton University. We would like to thank William Silversmith @SeungLab for his awesome [cloud-volume](https://github.com/seung-lab/cloud-volume) tool.
