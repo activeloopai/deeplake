@@ -1,6 +1,6 @@
 import os
 import time
-import deeplake as hub
+import deeplake as dl
 from deeplake.constants import TIMESTAMP_FILENAME
 from deeplake.util.exceptions import DatasetHandlerError
 from deeplake.util.storage import get_local_storage_path

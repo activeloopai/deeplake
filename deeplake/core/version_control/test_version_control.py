@@ -1,5 +1,5 @@
 from collections import OrderedDict
-import deeplake as hub
+import deeplake as dl
 import pytest
 import numpy as np
 from deeplake.util.diff import (

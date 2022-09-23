@@ -1,6 +1,6 @@
 from collections import OrderedDict
 from deeplake.client.log import logger
-import deeplake as hub
+import deeplake as dl
 import numpy as np
 from tqdm import tqdm  # type: ignore
 from typing import (

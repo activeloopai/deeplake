@@ -4,7 +4,7 @@ import pytest
 from typing import Callable
 from deeplake.tests.common import assert_array_lists_equal
 import numpy as np
-import deeplake as hub
+import deeplake as dl
 
 
 def _add_dummy_mnist(ds, **kwargs):

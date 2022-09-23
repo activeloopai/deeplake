@@ -1,5 +1,5 @@
 import numpy as np
-import deeplake as hub
+import deeplake as dl
 
 
 def test_read(cat_path, flower_path):

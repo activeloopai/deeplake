@@ -2,7 +2,7 @@ import pathlib
 from typing import Union, Set
 from deeplake.core.dataset import Dataset
 import posixpath
-import deeplake as hub
+import deeplake as dl
 from tqdm import tqdm  # type: ignore
 
 

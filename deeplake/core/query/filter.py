@@ -1,7 +1,7 @@
 from typing import Callable, List, Optional, Sequence, Dict
 from uuid import uuid4
 
-import deeplake as hub
+import deeplake as dl
 
 from deeplake.core.io import SampleStreaming
 from deeplake.core.query.query import DatasetQuery

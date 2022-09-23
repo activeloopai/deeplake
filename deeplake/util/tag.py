@@ -1,6 +1,6 @@
 from deeplake.util.exceptions import InvalidHubPathException
 from typing import Tuple
-import deeplake as hub
+import deeplake as dl
 
 
 def process_hub_path(path: str) -> Tuple[str, str, str, str]:

@@ -1,6 +1,6 @@
 import io
 from logging import warning
-import deeplake as hub
+import deeplake as dl
 from deeplake.util.exceptions import (
     SampleCompressionError,
     SampleDecompressionError,

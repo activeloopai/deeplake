@@ -1,4 +1,4 @@
-import deeplake as hub
+import deeplake as dl
 
 
 def test_mnist():

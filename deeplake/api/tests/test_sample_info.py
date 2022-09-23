@@ -5,7 +5,7 @@ import numpy as np
 import pytest
 import os
 import sys
-import deeplake as hub
+import deeplake as dl
 import json
 
 

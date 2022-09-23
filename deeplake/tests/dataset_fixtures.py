@@ -1,5 +1,5 @@
 import pytest
-import deeplake as hub
+import deeplake as dl
 
 
 enabled_datasets = pytest.mark.parametrize(

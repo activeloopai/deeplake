@@ -1,4 +1,4 @@
-import deeplake as hub
+import deeplake as dl
 from deeplake.util.threading import terminate_thread
 import socketserver
 from typing import Optional, Callable, Dict

@@ -4,7 +4,7 @@ import numpy as np
 from deeplake.core.linked_sample import LinkedSample
 from deeplake.util.exceptions import TensorDtypeMismatchError
 from deeplake.core.sample import Sample  # type: ignore
-import deeplake as hub
+import deeplake as dl
 
 
 def _get_bigger_dtype(d1, d2):

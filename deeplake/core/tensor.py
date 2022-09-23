@@ -1,4 +1,4 @@
-import deeplake as hub
+import deeplake as dl
 from deeplake.core.linked_chunk_engine import LinkedChunkEngine
 from deeplake.core.storage.lru_cache import LRUCache
 from deeplake.util.invalid_view_op import invalid_view_op

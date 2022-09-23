@@ -11,7 +11,7 @@ from deeplake.util.threading import terminate_thread
 from deeplake.util.hash import hash_inputs
 from deeplake.constants import MB
 import socketserver
-import deeplake as hub
+import deeplake as dl
 import threading
 import struct
 import numpy as np

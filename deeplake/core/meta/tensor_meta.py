@@ -1,4 +1,4 @@
-import deeplake as hub
+import deeplake as dl
 from deeplake.core.fast_forwarding import ffw_tensor_meta
 from typing import Any, Callable, Dict, List, Sequence, Union, Optional
 import numpy as np

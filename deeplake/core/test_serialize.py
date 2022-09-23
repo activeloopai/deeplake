@@ -1,6 +1,6 @@
 import numpy as np
 
-import deeplake as hub
+import deeplake as dl
 from deeplake.core.compression import decompress_array
 from deeplake.core.serialize import (
     serialize_numpy_and_base_types,

@@ -1,5 +1,5 @@
 from deeplake.core.query.autocomplete import autocomplete
-import deeplake as hub
+import deeplake as dl
 
 
 def _test_ds():

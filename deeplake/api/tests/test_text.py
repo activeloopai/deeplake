@@ -1,4 +1,4 @@
-import deeplake as hub
+import deeplake as dl
 import pytest
 from deeplake.tests.dataset_fixtures import enabled_non_gcs_gdrive_datasets
 

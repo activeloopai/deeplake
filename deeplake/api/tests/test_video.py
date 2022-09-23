@@ -2,7 +2,7 @@ import os
 import sys
 import pytest
 
-import deeplake as hub
+import deeplake as dl
 from deeplake.core.dataset import Dataset
 from deeplake.util.exceptions import DynamicTensorNumpyError
 

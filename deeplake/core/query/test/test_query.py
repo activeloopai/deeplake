@@ -4,7 +4,7 @@ import numpy as np
 
 from deeplake.core.query import DatasetQuery
 from deeplake.util.exceptions import DatasetViewSavingError, InvalidOperationError
-import deeplake as hub
+import deeplake as dl
 from uuid import uuid4
 
 

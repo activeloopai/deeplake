@@ -6,7 +6,7 @@ from deeplake.integrations.huggingface.huggingface import _is_seq_convertible
 from numpy.testing import assert_array_equal
 
 import pytest
-import deeplake as hub
+import deeplake as dl
 
 
 @pytest.mark.parametrize("convert_to_pathlib", [True, False])

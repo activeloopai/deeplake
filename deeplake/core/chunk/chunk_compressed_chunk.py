@@ -16,7 +16,7 @@ from deeplake.util.compression import get_compression_ratio
 from deeplake.util.exceptions import EmptyTensorError
 from .base_chunk import BaseChunk, InputSample
 from deeplake.core.serialize import infer_chunk_num_bytes
-import deeplake as hub
+import deeplake as dl
 
 
 class ChunkCompressedChunk(BaseChunk):

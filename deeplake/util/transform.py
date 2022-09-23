@@ -1,7 +1,7 @@
 from collections import defaultdict
 import math
 import warnings
-import deeplake as hub
+import deeplake as dl
 from typing import Any, Dict, List, Optional, Tuple
 from json.decoder import JSONDecodeError
 from deeplake.core.linked_chunk_engine import LinkedChunkEngine

@@ -1,4 +1,4 @@
-import deeplake as hub
+import deeplake as dl
 import numpy as np
 from typing import Any, Dict, List, Optional, Tuple
 from deeplake.core.storage.hub_memory_object import HubMemoryObject

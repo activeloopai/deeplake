@@ -6,7 +6,7 @@ from deeplake.core.serialize import (
     deserialize_chunkids,
 )
 import numpy as np
-import deeplake as hub
+import deeplake as dl
 import time
 
 

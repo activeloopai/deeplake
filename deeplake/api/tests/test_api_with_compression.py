@@ -13,7 +13,7 @@ from deeplake.core.tensor import Tensor
 from deeplake.tests.common import TENSOR_KEY, assert_images_close
 import numpy as np
 
-import deeplake as hub
+import deeplake as dl
 from deeplake.core.dataset import Dataset
 
 

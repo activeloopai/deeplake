@@ -14,7 +14,7 @@ from deeplake.util.json import HubJsonDecoder, HubJsonEncoder, validate_json_obj
 from deeplake.core.sample import Sample, SampleValue  # type: ignore
 from deeplake.core.compression import compress_array, compress_bytes
 from typing import Optional, Sequence, Union, Tuple
-import deeplake as hub
+import deeplake as dl
 import numpy as np
 import struct
 import json

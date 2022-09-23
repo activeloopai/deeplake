@@ -1,5 +1,5 @@
 import numpy as np
-import deeplake as hub
+import deeplake as dl
 import wandb
 
 

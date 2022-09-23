@@ -1,4 +1,4 @@
-import deeplake as hub
+import deeplake as dl
 import numpy as np
 import pytest
 from unittest.mock import patch

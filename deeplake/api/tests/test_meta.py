@@ -1,6 +1,6 @@
 from deeplake.api.tests.test_api import MAX_FLOAT_DTYPE
 import numpy as np
-import deeplake as hub
+import deeplake as dl
 
 
 def test_version(local_ds_generator):

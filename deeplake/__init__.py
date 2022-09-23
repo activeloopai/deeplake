@@ -22,7 +22,7 @@ from .api.tiled import tiled
 from .core.dataset import Dataset
 from .core.transform import compute, compose
 from .core.tensor import Tensor
-from .util.bugout_reporter import deeplake as hub_reporter
+from .util.bugout_reporter import deeplake as dl_reporter
 from .compression import SUPPORTED_COMPRESSIONS
 from .htype import HTYPE_CONFIGURATIONS
 from .htype import htype

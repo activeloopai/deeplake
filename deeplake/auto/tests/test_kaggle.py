@@ -10,7 +10,7 @@ from click.testing import CliRunner
 from deeplake.tests.common import get_dummy_data_path
 import pytest
 import os
-import deeplake as hub
+import deeplake as dl
 
 
 @pytest.mark.parametrize("convert_to_pathlib", [True, False])

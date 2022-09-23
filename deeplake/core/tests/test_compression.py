@@ -6,7 +6,7 @@ from deeplake.tests.common import (
 )
 import numpy as np
 import pytest
-import deeplake as hub
+import deeplake as dl
 import lz4.frame  # type: ignore
 from deeplake.core.compression import (
     compress_array,

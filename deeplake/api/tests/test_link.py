@@ -2,7 +2,7 @@ import numpy as np
 import os
 import sys
 import pickle
-import deeplake as hub
+import deeplake as dl
 import pytest
 from deeplake.client.client import HubBackendClient
 from deeplake.constants import GCS_OPT, S3_OPT

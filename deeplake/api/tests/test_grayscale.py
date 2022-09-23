@@ -1,5 +1,5 @@
 import pytest
-import deeplake as hub
+import deeplake as dl
 from deeplake.util.exceptions import TensorInvalidSampleShapeError
 
 WARNING_STR = "Grayscale images will be reshaped"

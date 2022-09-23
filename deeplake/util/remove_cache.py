@@ -1,5 +1,5 @@
 from typing import Optional
-import deeplake as hub
+import deeplake as dl
 from deeplake.core.storage.provider import StorageProvider
 from deeplake.core.storage.lru_cache import LRUCache
 from deeplake.core.storage import MemoryProvider

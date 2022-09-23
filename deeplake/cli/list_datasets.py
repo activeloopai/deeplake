@@ -1,5 +1,5 @@
 import click
-import deeplake as hub
+import deeplake as dl
 
 
 @click.command()

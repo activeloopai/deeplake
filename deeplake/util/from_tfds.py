@@ -6,7 +6,7 @@ from tensorflow_datasets import Split
 from tqdm import tqdm  # type: ignore
 
 from deeplake.core.dataset import Dataset
-import deeplake as hub
+import deeplake as dl
 
 
 def from_tfds_to_path(

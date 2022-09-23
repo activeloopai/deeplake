@@ -1,7 +1,7 @@
 from deeplake.core.dataset import Dataset
 from deeplake.tests.common import requires_tensorflow
 import numpy as np
-import deeplake as hub
+import deeplake as dl
 import pytest
 
 

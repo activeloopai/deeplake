@@ -28,7 +28,7 @@ from warnings import warn
 from queue import Empty
 
 import numpy as np
-import deeplake as hub
+import deeplake as dl
 
 
 mp = torch.multiprocessing.get_context()

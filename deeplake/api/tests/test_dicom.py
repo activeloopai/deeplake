@@ -1,4 +1,4 @@
-import deeplake as hub
+import deeplake as dl
 import pytest
 from pydicom.data import get_testdata_file
 from pydicom import dcmread

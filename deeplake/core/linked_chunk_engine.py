@@ -1,4 +1,4 @@
-import deeplake as hub
+import deeplake as dl
 from deeplake.core.chunk.base_chunk import BaseChunk
 from deeplake.core.chunk_engine import ChunkEngine
 from deeplake.core.compression import _read_video_shape, _decompress_video

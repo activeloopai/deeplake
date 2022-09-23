@@ -2,7 +2,7 @@ from deeplake.util.exceptions import DatasetHandlerError, UserNotLoggedInExcepti
 from deeplake.cli.auth import logout
 from click.testing import CliRunner
 import pytest
-import deeplake as hub
+import deeplake as dl
 import numpy as np
 
 

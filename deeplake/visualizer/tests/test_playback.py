@@ -1,4 +1,4 @@
-import deeplake as hub
+import deeplake as dl
 from urllib.request import urlopen
 from deeplake.util.keys import get_chunk_key
 from deeplake.visualizer.video_streaming import _VideoStream

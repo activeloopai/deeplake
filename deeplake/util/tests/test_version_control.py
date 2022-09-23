@@ -1,4 +1,4 @@
-import deeplake as hub
+import deeplake as dl
 from deeplake.core.version_control.commit_node import CommitNode
 from deeplake.constants import FIRST_COMMIT_ID
 from deeplake.util.version_control import (

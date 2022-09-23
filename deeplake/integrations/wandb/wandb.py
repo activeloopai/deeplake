@@ -54,7 +54,7 @@ import sys
 import os
 import json
 import warnings
-import deeplake as hub
+import deeplake as dl
 
 _WANDB_INSTALLED = bool(importlib.util.find_spec("wandb"))
 

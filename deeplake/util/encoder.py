@@ -1,4 +1,4 @@
-import deeplake as hub
+import deeplake as dl
 import numpy as np
 from typing import Dict, List
 from deeplake.core.meta.encode.creds import CredsEncoder

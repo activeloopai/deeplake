@@ -1,4 +1,4 @@
-import deeplake as hub
+import deeplake as dl
 from math import ceil
 import time
 import boto3

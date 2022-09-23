@@ -3,7 +3,7 @@ import sys
 import numpy as np
 import pathlib
 import pytest
-import deeplake as hub
+import deeplake as dl
 from deeplake.core.dataset import Dataset
 from deeplake.core.tensor import Tensor
 

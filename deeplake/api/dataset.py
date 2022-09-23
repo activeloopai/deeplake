@@ -1,5 +1,5 @@
 import os
-import deeplake as hub
+import deeplake as dl
 import pathlib
 import posixpath
 from typing import Dict, Optional, Union, List

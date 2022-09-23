@@ -4,7 +4,7 @@ from deeplake.util.storage import storage_provider_from_hub_path
 from deeplake.core.storage.s3 import S3Provider
 from deeplake.core.storage.local import LocalProvider
 import os
-import deeplake as hub
+import deeplake as dl
 from deeplake.constants import (
     HUB_CLOUD_OPT,
     KEEP_STORAGE_OPT,

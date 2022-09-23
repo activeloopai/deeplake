@@ -8,7 +8,7 @@ from deeplake.util.exceptions import (
 )
 import numpy as np
 import pytest
-import deeplake as hub
+import deeplake as dl
 import pandas as pd  # type: ignore
 
 

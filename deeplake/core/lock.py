@@ -1,4 +1,4 @@
-import deeplake as hub
+import deeplake as dl
 import time
 import uuid
 import struct

@@ -1,4 +1,4 @@
-import deeplake as hub
+import deeplake as dl
 import torch
 import numpy as np
 from deeplake.util.iterable_ordered_dict import IterableOrderedDict

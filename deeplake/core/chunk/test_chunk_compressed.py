@@ -3,7 +3,7 @@ from deeplake.core.chunk.chunk_compressed_chunk import ChunkCompressedChunk
 import numpy as np
 import pytest
 
-import deeplake as hub
+import deeplake as dl
 from deeplake.core.meta.tensor_meta import TensorMeta
 from deeplake.core.sample import Sample  # type: ignore
 from deeplake.core.tiling.deserialize import np_list_to_sample

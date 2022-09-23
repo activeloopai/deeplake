@@ -2,7 +2,7 @@ import os
 import pytest
 from click.testing import CliRunner
 
-import deeplake as hub
+import deeplake as dl
 from deeplake.cli.auth import login, logout
 from deeplake.cli.list_datasets import list_datasets
 from deeplake.tests.common import SESSION_ID

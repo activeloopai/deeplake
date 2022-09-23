@@ -4,7 +4,7 @@ from deeplake.client.utils import get_user_name
 from deeplake.constants import HUB_CLOUD_DEV_USERNAME
 from deeplake.core.dataset import Dataset
 from deeplake.client.client import HubBackendClient
-from deeplake.util.bugout_reporter import deeplake as hub_reporter
+from deeplake.util.bugout_reporter import deeplake as dl_reporter
 from deeplake.util.exceptions import RenameError, ReadOnlyModeError
 from deeplake.util.link import save_link_creds
 from deeplake.util.path import is_hub_cloud_path
@@ -13,7 +13,7 @@ from deeplake.util.logging import log_visualizer_link
 from deeplake.util.storage import storage_provider_from_hub_path
 from warnings import warn
 import time
-import deeplake as hub
+import deeplake as dl
 
 
 class HubCloudDataset(Dataset):

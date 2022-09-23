@@ -17,7 +17,7 @@ from tqdm import tqdm  # type: ignore
 
 from .base import UnstructuredDataset
 
-import deeplake as hub
+import deeplake as dl
 
 IMAGES_TENSOR_NAME = "images"
 LABELS_TENSOR_NAME = "labels"

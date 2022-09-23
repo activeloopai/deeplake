@@ -1,4 +1,4 @@
-import deeplake as hub
+import deeplake as dl
 import requests
 from typing import Optional
 from deeplake.util.exceptions import (

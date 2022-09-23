@@ -13,7 +13,7 @@ import numpy as np
 from time import time
 from tqdm import tqdm  # type: ignore
 
-import deeplake as hub
+import deeplake as dl
 from deeplake.core.index.index import IndexEntry, replace_ellipsis_with_slices
 from deeplake.core.link_creds import LinkCreds
 from deeplake.util.invalid_view_op import invalid_view_op
@@ -47,7 +47,7 @@ from deeplake.htype import (
     verify_htype_key_value,
 )
 from deeplake.integrations import dataset_to_tensorflow
-from deeplake.util.bugout_reporter import deeplake as hub_reporter, feature_report_path
+from deeplake.util.bugout_reporter import deeplake as dl_reporter, feature_report_path
 from deeplake.util.dataset import try_flushing
 from deeplake.util.cache_chain import generate_chain
 from deeplake.util.hash import hash_inputs

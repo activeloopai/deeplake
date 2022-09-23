@@ -1,6 +1,6 @@
 import pytest
 
-import deeplake as hub
+import deeplake as dl
 from deeplake.core.dataset import Dataset
 from deeplake.core.compression import compress_multiple
 from deeplake.tests.common import get_dummy_data_path

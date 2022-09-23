@@ -1,5 +1,5 @@
 from typing import Any, Dict
-import deeplake as hub
+import deeplake as dl
 from deeplake.core.storage.hub_memory_object import HubMemoryObject
 
 

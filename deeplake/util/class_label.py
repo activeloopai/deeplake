@@ -4,7 +4,7 @@ from typing import List
 from deeplake.util.hash import hash_str_to_int32
 from deeplake.client.log import logger
 import numpy as np
-import deeplake as hub
+import deeplake as dl
 
 
 def convert_to_idx(samples, class_names: List[str]):

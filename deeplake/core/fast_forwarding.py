@@ -1,6 +1,6 @@
 from deeplake.constants import ENCODING_DTYPE
 import numpy as np
-import deeplake as hub
+import deeplake as dl
 import warnings
 
 

@@ -1,7 +1,7 @@
 import pickle
 from deeplake.experimental import dataloader
 
-import deeplake as hub
+import deeplake as dl
 import numpy as np
 import pytest
 from deeplake.util.exceptions import TensorDoesNotExistError

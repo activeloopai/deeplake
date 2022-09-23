@@ -2,7 +2,7 @@ from typing import Tuple
 import pytest
 import numpy as np
 
-import deeplake as hub
+import deeplake as dl
 from deeplake.util.exceptions import (
     CouldNotCreateNewDatasetException,
     ReadOnlyModeError,

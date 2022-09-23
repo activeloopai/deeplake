@@ -1,4 +1,4 @@
-import deeplake as hub
+import deeplake as dl
 from abc import ABC
 from typing import Any, List, Sequence, Optional
 from deeplake.constants import ENCODING_DTYPE

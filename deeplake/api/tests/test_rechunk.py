@@ -1,7 +1,7 @@
 from deeplake.constants import MB
 import numpy as np
 import random
-import deeplake as hub
+import deeplake as dl
 import json
 
 

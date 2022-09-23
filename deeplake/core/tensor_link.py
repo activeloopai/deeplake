@@ -2,7 +2,7 @@ from typing import Callable
 from deeplake.core.index import Index
 from deeplake.constants import _NO_LINK_UPDATE
 import inspect
-import deeplake as hub
+import deeplake as dl
 import inspect
 from deeplake.util.generate_id import generate_id
 import numpy as np

@@ -1,7 +1,7 @@
 from deeplake.util.exceptions import LockedException
 import numpy as np
 import pytest
-import deeplake as hub
+import deeplake as dl
 import uuid
 import time
 import warnings

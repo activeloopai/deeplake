@@ -1,4 +1,4 @@
-import deeplake as hub
+import deeplake as dl
 from tokenize import tokenize, TokenError
 from io import BytesIO
 from typing import Any, Dict, List

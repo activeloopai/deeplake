@@ -1,4 +1,4 @@
-import deeplake as hub
+import deeplake as dl
 import pytest
 import numpy as np
 from click.testing import CliRunner
@@ -9,7 +9,7 @@ from deeplake.util.check_installation import ray_installed
 from deeplake.util.exceptions import InvalidOutputDatasetError, TransformError
 from deeplake.tests.common import parametrize_num_workers
 from deeplake.util.transform import get_pbar_description
-import deeplake as hub
+import deeplake as dl
 import gc
 from deeplake.tests.common import get_dummy_data_path
 

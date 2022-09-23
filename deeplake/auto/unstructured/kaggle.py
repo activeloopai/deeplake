@@ -1,5 +1,5 @@
 from threading import local
-import deeplake as hub
+import deeplake as dl
 import glob
 import os
 from deeplake.util.exceptions import (

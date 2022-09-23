@@ -4,7 +4,7 @@ import numpy as np
 from typing import List, Optional, Tuple, Union
 import warnings
 
-import deeplake as hub
+import deeplake as dl
 from deeplake.compression import (
     BYTE_COMPRESSION,
     IMAGE_COMPRESSION,

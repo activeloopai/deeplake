@@ -4,7 +4,7 @@ from deeplake.experimental.util import raise_indra_installation_error  # type: i
 from deeplake.experimental.util import collate_fn as default_collate  # type: ignore
 from deeplake.experimental.hub3_query import query
 from deeplake.integrations.pytorch.common import PytorchTransformFunction
-from deeplake.util.bugout_reporter import deeplake as hub_reporter
+from deeplake.util.bugout_reporter import deeplake as dl_reporter
 from deeplake.util.dataset import map_tensor_keys
 import importlib
 
@@ -154,12 +154,12 @@ class Hub3DataLoader:
             Hub3DataLoader: A dl.experimental.Hub3DataLoader object.
 
         Examples:
-            >>> import deeplake as hub
+            >>> import deeplake as dl
             >>> from deeplake.experimental import dataloader
             >>> ds = dl.load('hub://activeloop/fashion-mnist-train')
             >>> query_ds_train = dataloader(ds_train).query("select * where labels != 5")
 
-            >>> import deeplake as hub
+            >>> import deeplake as dl
             >>> from deeplake.experimental import query
             >>> ds_train = dl.load('hub://activeloop/coco-train')
             >>> query_ds_train = dataloader(ds_train).query("(select * where contains(categories, 'car') limit 1000) union (select * where contains(categories, 'motorcycle') limit 1000)")
@@ -330,7 +330,7 @@ def dataloader(dataset) -> Hub3DataLoader:
         Creating a simple dataloader object which returns a batch of numpy arrays
 
 
-        >>> import deeplake as hub
+        >>> import deeplake as dl
         >>> from deeplake.experimental import dataloader
         >>>
         >>> ds_train = dl.load('hub://activeloop/fashion-mnist-train')

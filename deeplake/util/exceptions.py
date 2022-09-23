@@ -1,5 +1,5 @@
 import numpy as np
-import deeplake as hub
+import deeplake as dl
 from deeplake.htype import HTYPE_CONFIGURATIONS
 from typing import Any, List, Sequence, Tuple, Optional, Union
 
