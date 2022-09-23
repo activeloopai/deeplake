@@ -21,6 +21,7 @@ from hub.compression import (
     BYTE_COMPRESSIONS,
     AUDIO_COMPRESSIONS,
     VIDEO_COMPRESSIONS,
+    is_readonly_compression,
     SUPPORTED_COMPRESSIONS,
     POINT_CLOUD_COMPRESSIONS,
 )
@@ -32,6 +33,12 @@ image_compressions = IMAGE_COMPRESSIONS[:]
 image_compressions.remove("wmf")
 image_compressions.remove("apng")
 image_compressions.remove("dcm")
+image_compressions.remove("fli")
+image_compressions.remove("mpo")
+
+image_compressions = list(
+    filter(lambda c: is_readonly_compression(c), image_compressions)
+)
 
 
 @pytest.mark.parametrize("compression", image_compressions + BYTE_COMPRESSIONS)

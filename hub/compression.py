@@ -27,10 +27,15 @@ BYTE_COMPRESSIONS = [
 IMAGE_COMPRESSIONS = [
     "bmp",
     "dib",
+    "eps",
+    "fli",
     "gif",
     "ico",
+    "im",
     "jpeg",
     "jpeg2000",
+    "msp",
+    "mpo",
     "pcx",
     "png",
     "ppm",
@@ -45,9 +50,12 @@ IMAGE_COMPRESSIONS = [
 IMAGE_COMPRESSION_EXT_DICT = {
     "apng": [".png"],
     "bmp": [".bmp"],
+    "eps": [".eps"],
+    "fli": [".fli"],
     "dib": [".dib"],
     "gif": [".gif"],
     "ico": [".ico"],
+    "im": [".im"],
     "jpeg": [".jpg", ".jpeg", ".jfif", ".pjpeg", ".pjp"],
     "jpeg2000": [
         ".jp2",
@@ -60,6 +68,8 @@ IMAGE_COMPRESSION_EXT_DICT = {
         ".jpx",
         ".mj2",
     ],
+    "msp": [".msp"],
+    "mpo": [".mpo"],
     "pcx": [".pcx"],
     "png": [".png"],
     "ppm": [".pbm", ".pgm", ".ppm", ".pnm"],
@@ -80,6 +90,8 @@ VIDEO_COMPRESSIONS = ["mp4", "mkv", "avi"]
 
 AUDIO_COMPRESSIONS = ["mp3", "flac", "wav"]
 
+
+READONLY_COMPRESSIONS = ["mpo", "fli", "dcm", *AUDIO_COMPRESSIONS, *VIDEO_COMPRESSIONS]
 POINT_CLOUD_COMPRESSIONS = ["las"]
 
 
@@ -107,7 +119,9 @@ IMAGE_COMPRESSIONS = [
 
 
 IMAGE_COMPRESSIONS.insert(0, "apng")
-IMAGE_COMPRESSIONS.insert(2, "dcm")
+IMAGE_COMPRESSIONS.insert(1, "dcm")
+IMAGE_COMPRESSIONS.insert(2, "mpo")
+IMAGE_COMPRESSIONS.insert(3, "fli")
 
 SUPPORTED_COMPRESSIONS = [
     *BYTE_COMPRESSIONS,
@@ -149,3 +163,8 @@ def get_compression_type(c):
     if ret is None:
         raise KeyError(c)
     return ret
+
+
+def is_readonly_compression(c):
+    """Returns if the file exists in READONLY_COMPRESSOINS or not."""
+    return c in READONLY_COMPRESSIONS
