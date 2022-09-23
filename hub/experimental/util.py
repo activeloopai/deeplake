@@ -53,7 +53,7 @@ def create_fetching_schedule(dataset, primary_tensor_name):
     chunk_order = np.random.choice(num_chunks, num_chunks, replace=False)
     schedule = []
     for chunk_idx in chunk_order:
-        start_index = enc_array[chunk_idx - 1][1] if chunk_idx > 0 else 0
+        start_index = enc_array[chunk_idx - 1][1] + 1 if chunk_idx > 0 else 0
         last_index = enc_array[chunk_idx][1] + 1
         indexes = np.arange(start_index, last_index)
         schedule.extend(indexes)
