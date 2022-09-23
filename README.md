@@ -29,7 +29,10 @@
 
 ## About Deep Lake
 
-Deep Lake (formerly known as hub) is a data lake for deep learning applications. Open-source dataset format provides a simple API for creating, storing, and collaborating on AI datasets of any size. It enables you to store all of your data in one place, ranging from simple annotations to large videos, and it unlocks rapid streaming of data while training models at scale. Deep Lake is used by Google, Waymo, Red Cross, Oxford University, and Omdena. Deep Lake includes the following features:
+<b> 🚀 Deep Lake's efficient new C++ implementation speeds up data streaming by >2x compared to Hub 2.x (Ofeidis et al. 2022) 🚀</b>
+
+
+Deep Lake (formerly known as Activeloop Hub) is a data lake for deep learning applications. Open-source dataset format provides a simple API for creating, storing, and collaborating on AI datasets of any size. It enables you to store all of your data in one place, ranging from simple annotations to large videos, and it unlocks rapid streaming of data while training models at scale. Deep Lake is used by Google, Waymo, Red Cross, Omdena, Yale, & Oxford. Deep Lake includes the following features:
 
 <details>
   <summary><b>Storage Agnostic API</b></summary>
@@ -61,7 +64,7 @@ Deep Lake community has uploaded <a href="https://docs.activeloop.ai/datasets/?u
 </details>
 <details>
   <summary><b>Instant Visualization Support in <a href="https://app.activeloop.ai/?utm_source=github&utm_medium=github&utm_campaign=github_readme&utm_id=readme">Activeloop Platform</a></b></summary>
-Deep Lake datasets are instantly visualized with bounding boxes, masks, annotations, etc. in <a href="https://app.activeloop.ai/?utm_source=github&utm_medium=github&utm_campaign=github_readme&utm_id=readme">Activeloop Platform</a> (see below).
+Deep Lake datasets are instantly visualized with bounding boxes, masks, annotations, etc. in <a href="https://app.activeloop.ai/?utm_source=github&utm_medium=github&utm_campaign=github_readme&utm_id=readme">Deep Lake Visualizer</a> (see below).
 </details>
 
 
@@ -70,11 +73,11 @@ Deep Lake datasets are instantly visualized with bounding boxes, masks, annotati
 </div>
 
     
-## Getting Started with Deep Lake (deprecated soon and will be replaced with deeplake)
+## Getting Started with Deep Lake
 
 
 ### 🚀 How to install Deep Lake
-Deep Lake is written in 100% Python and can be quickly installed using pip.
+Deep Lake's core is efficiently built in C++ and can be quickly installed using pip.
 
 ```sh
 pip3 install hub
