@@ -36,6 +36,7 @@ class Hub3DataLoader:
         _mode=None,
         _return_index=None,
         _primary_tensor_name=None,
+        _buffer_size=None,
     ):
         raise_indra_installation_error(INDRA_INSTALLED, INDRA_IMPORT_ERROR)
         self.dataset = dataset
@@ -52,6 +53,7 @@ class Hub3DataLoader:
         self._mode = _mode
         self._return_index = _return_index
         self._primary_tensor_name = _primary_tensor_name or find_primary_tensor(dataset)
+        self._buffer_size = _buffer_size
 
     def batch(self, batch_size: int, drop_last: bool = False):
         """Returns a batched hub.experimental.Hub3DataLoader object.
@@ -77,13 +79,14 @@ class Hub3DataLoader:
         all_vars["_drop_last"] = drop_last
         return self.__class__(**all_vars)
 
-    def shuffle(self):
+    def shuffle(self, buffer_size: int = 2048):
         """Returns a shuffled hub.experimental.Hub3DataLoader object.
 
+        Args:
+            buffer_size (int): The size of the buffer used to shuffle the data in MBs. Defaults to 2048 MB. Increasing the buffer_size will increase the extent of shuffling.
 
         Returns:
             Hub3DataLoader: A hub.experimental.Hub3DataLoader object.
-
 
         Raises:
             ValueError: If .shuffle() has already been called.
@@ -92,6 +95,7 @@ class Hub3DataLoader:
             raise ValueError("shuffle is already set")
         all_vars = self.__dict__.copy()
         all_vars["_shuffle"] = True
+        all_vars["_buffer_size"] = buffer_size
         schedule = create_fetching_schedule(self.dataset, self._primary_tensor_name)
         all_vars["dataset"] = self.dataset[schedule]
         return self.__class__(**all_vars)
@@ -300,6 +304,7 @@ class Hub3DataLoader:
         upcast = self._mode == "pytorch"
 
         primary_tensor_name = self._primary_tensor_name
+        buffer_size = self._buffer_size
         return iter(
             Loader(
                 dataset,
@@ -316,6 +321,7 @@ class Hub3DataLoader:
                 upcast=upcast,
                 return_index=return_index,
                 primary_tensor=primary_tensor_name,
+                buffer_size=buffer_size,
             )
         )
 
