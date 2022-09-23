@@ -52,7 +52,7 @@ class PytorchTransformFunction:
         return data_in
 
 
-def check_empty_tensors(dataset, tensors):
+def check_tensors(dataset, tensors, mode):
     for tensor_name in tensors:
         tensor = dataset._get_tensor_from_root(tensor_name)
         if len(tensor) == 0:
@@ -61,3 +61,5 @@ def check_empty_tensors(dataset, tensors):
                 f" Please either populate the tensor or pass tensors argument to .pytorch that excludes this"
                 f" tensor."
             )
+        elif mode == "pytorch" and tensor.meta.htype == "json":
+            raise ValueError(f"json tensors are not supported for pytorch dataloaders.")

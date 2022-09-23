@@ -5,7 +5,7 @@ from hub.experimental.util import collate_fn as default_collate  # type: ignore
 from hub.experimental.hub3_query import query
 from hub.integrations.pytorch.common import (
     PytorchTransformFunction,
-    check_empty_tensors,
+    check_tensors,
 )
 from hub.util.bugout_reporter import hub_reporter
 from hub.util.dataset import map_tensor_keys
@@ -275,7 +275,7 @@ class Hub3DataLoader:
 
     def __iter__(self):
         tensors = self._tensors or map_tensor_keys(self.dataset, None)
-        check_empty_tensors(dataset, tensors)
+        check_tensors(dataset, tensors, self._mode)
         dataset = dataset_to_hub3(self.dataset)
         batch_size = self._batch_size or 1
         drop_last = self._drop_last or False

@@ -3,7 +3,7 @@ from hub.util.dataset import try_flushing
 from hub.util.dataset import map_tensor_keys
 from .common import (
     PytorchTransformFunction,
-    check_empty_tensors,
+    check_tensors,
     convert_fn as default_convert_fn,
     collate_fn as default_collate_fn,
 )
@@ -126,7 +126,7 @@ def dataset_to_pytorch(
     else:
         transform = PytorchTransformFunction(composite_transform=transform)
 
-    check_empty_tensors(dataset, tensors)
+    check_tensors(dataset, tensors, "pytorch")
 
     if shuffle and num_workers > 0:
         return create_dataloader(
