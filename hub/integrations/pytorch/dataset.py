@@ -12,6 +12,7 @@ from hub.core.io import (
     SingleThreadScheduler,
     MultiThreadedNaiveScheduler,
 )
+from hub.core.sample import Sample
 from hub.integrations.pytorch.shuffle_buffer import ShuffleBuffer
 
 import torch
@@ -56,12 +57,14 @@ def cast_type(tensor: np.ndarray):
     if tensor.dtype == np.uint64:
         return tensor.astype(np.int64)
 
-    return tensor
+    return tensor.copy()
 
 
 def copy_tensor(x):
+    if isinstance(x, Sample):
+        x = x.array
     try:
-        return cast_type(x.copy())
+        return cast_type(x)
     except AttributeError:
         return bytes(x)
 
