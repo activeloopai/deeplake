@@ -1,5 +1,5 @@
 import pytest
-from hub.core.meta.encode.byte_positions import BytePositionsEncoder
+from deeplake.core.meta.encode.byte_positions import BytePositionsEncoder
 from .common import assert_encoded
 import numpy as np
 

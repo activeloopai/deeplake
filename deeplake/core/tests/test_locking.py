@@ -1,11 +1,11 @@
-from hub.util.exceptions import LockedException
+from deeplake.util.exceptions import LockedException
 import numpy as np
 import pytest
-import hub
+import deeplake
 import uuid
 import time
 import warnings
-from hub.tests.dataset_fixtures import enabled_cloud_dataset_generators
+from deeplake.tests.dataset_fixtures import enabled_cloud_dataset_generators
 
 
 _counter = 0
@@ -24,12 +24,12 @@ class VM(object):
     def __enter__(self):
         self._getnode = uuid.getnode
         uuid.getnode = lambda: self.id
-        self._locks = hub.core.lock._LOCKS.copy()
-        hub.core.lock._LOCKS.clear()
+        self._locks = deeplake.core.lock._LOCKS.copy()
+        deeplake.core.lock._LOCKS.clear()
 
     def __exit__(self, *args, **kwargs):
         uuid.getnode = self._getnode
-        hub.core.lock._LOCKS.update(self._locks)
+        deeplake.core.lock._LOCKS.update(self._locks)
 
 
 @enabled_cloud_dataset_generators
@@ -56,9 +56,9 @@ def test_dataset_locking(ds_generator):
             np.testing.assert_array_equal(arr, ds.x[0].numpy())
         assert not ws
 
-        DATASET_LOCK_VALIDITY = hub.constants.DATASET_LOCK_VALIDITY
+        DATASET_LOCK_VALIDITY = deeplake.constants.DATASET_LOCK_VALIDITY
         # Temporarily set validity to 1 second so we dont have to wait too long.
-        hub.constants.DATASET_LOCK_VALIDITY = 1
+        deeplake.constants.DATASET_LOCK_VALIDITY = 1
         # Wait for lock to expire.
         time.sleep(1.1)
 
@@ -67,7 +67,7 @@ def test_dataset_locking(ds_generator):
             np.testing.assert_array_equal(arr, ds.x[0].numpy())
             assert ds.read_only == False
         finally:
-            hub.constants.DATASET_LOCK_VALIDITY = DATASET_LOCK_VALIDITY
+            deeplake.constants.DATASET_LOCK_VALIDITY = DATASET_LOCK_VALIDITY
 
 
 @enabled_cloud_dataset_generators
@@ -86,8 +86,8 @@ def test_vc_locking(ds_generator):
 
 
 def test_lock_thread_leaking(s3_ds_generator):
-    locks = hub.core.lock._LOCKS
-    refs = hub.core.lock._REFS
+    locks = deeplake.core.lock._LOCKS
+    refs = deeplake.core.lock._REFS
     nlocks_previous = len(locks)
 
     def nlocks():

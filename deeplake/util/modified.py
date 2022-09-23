@@ -1,11 +1,11 @@
 from typing import Any, Dict, List, Optional, Set, Tuple
 
-from hub.core.storage import LRUCache
-from hub.core.version_control.commit_diff import CommitDiff
-from hub.core.version_control.commit_node import CommitNode
-from hub.util.diff import sanitize_commit
-from hub.util.exceptions import TensorModifiedError
-from hub.util.keys import get_tensor_commit_diff_key
+from deeplake.core.storage import LRUCache
+from deeplake.core.version_control.commit_diff import CommitDiff
+from deeplake.core.version_control.commit_node import CommitNode
+from deeplake.util.diff import sanitize_commit
+from deeplake.util.exceptions import TensorModifiedError
+from deeplake.util.keys import get_tensor_commit_diff_key
 
 
 def get_modified_indexes(

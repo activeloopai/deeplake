@@ -1,9 +1,9 @@
 from typing import Iterable, Optional, Sequence, List, Union
-from hub.constants import MB
-from hub.integrations.pytorch.common import PytorchTransformFunction
+from deeplake.constants import MB
+from deeplake.integrations.pytorch.common import PytorchTransformFunction
 
-from hub.util.iterable_ordered_dict import IterableOrderedDict
-from hub.core.io import (
+from deeplake.util.iterable_ordered_dict import IterableOrderedDict
+from deeplake.core.io import (
     DistributedScheduler,
     SampleStreaming,
     Schedule,
@@ -12,7 +12,7 @@ from hub.core.io import (
     SingleThreadScheduler,
     MultiThreadedNaiveScheduler,
 )
-from hub.integrations.pytorch.shuffle_buffer import ShuffleBuffer
+from deeplake.integrations.pytorch.shuffle_buffer import ShuffleBuffer
 
 import torch
 import torch.utils.data
@@ -28,7 +28,7 @@ from warnings import warn
 from queue import Empty
 
 import numpy as np
-import hub
+import deeplake
 
 
 mp = torch.multiprocessing.get_context()
@@ -258,7 +258,7 @@ class PrefetchConcurrentIterator(Iterable):
         while any(self.active_workers):
             try:
                 wid, data = self.data_queue.get(
-                    timeout=hub.constants.PYTORCH_DATALOADER_TIMEOUT
+                    timeout=deeplake.constants.PYTORCH_DATALOADER_TIMEOUT
                 )
 
                 if isinstance(data, ExceptionWrapper):
@@ -315,7 +315,7 @@ class PrefetchConcurrentIterator(Iterable):
                 for wid in range(self.num_workers):
                     self.request_queues[wid].put(None)
                     self.workers[wid].join(
-                        timeout=hub.constants.PYTORCH_DATALOADER_TIMEOUT
+                        timeout=deeplake.constants.PYTORCH_DATALOADER_TIMEOUT
                     )
 
                 for queue in self.request_queues:

@@ -1,6 +1,6 @@
 from io import BytesIO
 from PIL import Image  # type: ignore
-from hub.core.sample import Sample
+from deeplake.core.sample import Sample
 import numpy as np
 
 

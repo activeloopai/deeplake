@@ -1,10 +1,10 @@
-from hub.constants import KB
-from hub.util.exceptions import TensorInvalidSampleShapeError
+from deeplake.constants import KB
+from deeplake.util.exceptions import TensorInvalidSampleShapeError
 import pytest
 from typing import Callable
-from hub.tests.common import assert_array_lists_equal
+from deeplake.tests.common import assert_array_lists_equal
 import numpy as np
-import hub
+import deeplake
 
 
 def _add_dummy_mnist(ds, **kwargs):
@@ -161,16 +161,18 @@ def test_hub_read(local_ds_generator, images_compression, cat_path, flower_path)
     ds.create_tensor("images", htype="image", sample_compression=images_compression)
     ds.images.extend(np.zeros((10, 0, 0, 0), dtype=np.uint8))
 
-    ds.images[0] = hub.read(cat_path)
-    np.testing.assert_array_equal(ds.images[0].numpy(), hub.read(cat_path).array)
+    ds.images[0] = deeplake.read(cat_path)
+    np.testing.assert_array_equal(ds.images[0].numpy(), deeplake.read(cat_path).array)
 
-    ds.images[1] = hub.read(flower_path)
-    np.testing.assert_array_equal(ds.images[1].numpy(), hub.read(flower_path).array)
+    ds.images[1] = deeplake.read(flower_path)
+    np.testing.assert_array_equal(
+        ds.images[1].numpy(), deeplake.read(flower_path).array
+    )
 
-    ds.images[8:10] = [hub.read(cat_path), hub.read(flower_path)]
+    ds.images[8:10] = [deeplake.read(cat_path), deeplake.read(flower_path)]
     assert_array_lists_equal(
         ds.images[8:10].numpy(aslist=True),
-        [hub.read(cat_path).array, hub.read(flower_path).array],
+        [deeplake.read(cat_path).array, deeplake.read(flower_path).array],
     )
 
     assert ds.images.shape_interval.lower == (10, 0, 0, 0)
@@ -353,8 +355,8 @@ def test_sequence_htype_with_broadcasting(memory_ds):
 @pytest.mark.parametrize("shape", [(13, 17, 3), (1007, 3001, 3)])
 def test_sequence_htype_with_hub_read(local_ds, shape, compressed_image_paths):
     ds = local_ds
-    imgs = list(map(hub.read, compressed_image_paths["jpeg"][:3]))
-    new_imgs = list(map(hub.read, compressed_image_paths["jpeg"][3:6]))
+    imgs = list(map(deeplake.read, compressed_image_paths["jpeg"][:3]))
+    new_imgs = list(map(deeplake.read, compressed_image_paths["jpeg"][3:6]))
     arrs = np.random.randint(0, 256, (5, *shape), dtype=np.uint8)
     with ds:
         ds.create_tensor("x", htype="sequence[image]", sample_compression="png")

@@ -1,6 +1,6 @@
 from collections import OrderedDict
-from hub.client.log import logger
-import hub
+from deeplake.client.log import logger
+import deeplake
 import numpy as np
 from tqdm import tqdm  # type: ignore
 from typing import (
@@ -13,24 +13,28 @@ from typing import (
     List,
     Tuple,
 )
-from hub.api.info import Info
-from hub.core.linked_sample import LinkedSample
-from hub.core.meta.encode.base_encoder import LAST_SEEN_INDEX_COLUMN
-from hub.core.serialize import HEADER_SIZE_BYTES
-from hub.core.tensor_link import get_link_transform
-from hub.core.version_control.commit_diff import CommitDiff
-from hub.core.version_control.commit_node import CommitNode  # type: ignore
-from hub.core.version_control.commit_chunk_set import CommitChunkSet  # type: ignore
+from deeplake.api.info import Info
+from deeplake.core.linked_sample import LinkedSample
+from deeplake.core.meta.encode.base_encoder import LAST_SEEN_INDEX_COLUMN
+from deeplake.core.serialize import HEADER_SIZE_BYTES
+from deeplake.core.tensor_link import get_link_transform
+from deeplake.core.version_control.commit_diff import CommitDiff
+from deeplake.core.version_control.commit_node import CommitNode  # type: ignore
+from deeplake.core.version_control.commit_chunk_set import CommitChunkSet  # type: ignore
 from typing import Any, Dict, List, Optional, Sequence, Union, Callable
-from hub.core.meta.encode.tile import TileEncoder
-from hub.core.storage.provider import StorageProvider
-from hub.core.storage import S3Provider, GCSProvider
-from hub.core.tiling.deserialize import combine_chunks, translate_slices, coalesce_tiles
-from hub.core.tiling.serialize import break_into_tiles
-from hub.util.casting import get_empty_text_like_sample, intelligent_cast
-from hub.util.empty_sample import is_empty_list
-from hub.util.shape_interval import ShapeInterval
-from hub.constants import (
+from deeplake.core.meta.encode.tile import TileEncoder
+from deeplake.core.storage.provider import StorageProvider
+from deeplake.core.storage import S3Provider, GCSProvider
+from deeplake.core.tiling.deserialize import (
+    combine_chunks,
+    translate_slices,
+    coalesce_tiles,
+)
+from deeplake.core.tiling.serialize import break_into_tiles
+from deeplake.util.casting import get_empty_text_like_sample, intelligent_cast
+from deeplake.util.empty_sample import is_empty_list
+from deeplake.util.shape_interval import ShapeInterval
+from deeplake.constants import (
     DEFAULT_MAX_CHUNK_SIZE,
     FIRST_COMMIT_ID,
     PARTIAL_NUM_SAMPLES,
@@ -41,25 +45,25 @@ from hub.constants import (
     PARTIAL_NUM_SAMPLES,
     DEFAULT_TILING_THRESHOLD,
 )
-from hub.core.chunk.base_chunk import BaseChunk, InputSample
-from hub.core.chunk.chunk_compressed_chunk import ChunkCompressedChunk
-from hub.core.chunk.sample_compressed_chunk import SampleCompressedChunk
-from hub.core.chunk.uncompressed_chunk import UncompressedChunk
-from hub.core.fast_forwarding import ffw_chunk_id_encoder
-from hub.core.index.index import Index, IndexEntry
-from hub.core.meta.encode.chunk_id import CHUNK_ID_COLUMN, ChunkIdEncoder
-from hub.core.meta.encode.sequence import SequenceEncoder
-from hub.core.meta.tensor_meta import TensorMeta
-from hub.core.storage.lru_cache import LRUCache
-from hub.util.casting import get_dtype, get_htype
-from hub.core.sample import Sample
-from hub.util.chunk_engine import (
+from deeplake.core.chunk.base_chunk import BaseChunk, InputSample
+from deeplake.core.chunk.chunk_compressed_chunk import ChunkCompressedChunk
+from deeplake.core.chunk.sample_compressed_chunk import SampleCompressedChunk
+from deeplake.core.chunk.uncompressed_chunk import UncompressedChunk
+from deeplake.core.fast_forwarding import ffw_chunk_id_encoder
+from deeplake.core.index.index import Index, IndexEntry
+from deeplake.core.meta.encode.chunk_id import CHUNK_ID_COLUMN, ChunkIdEncoder
+from deeplake.core.meta.encode.sequence import SequenceEncoder
+from deeplake.core.meta.tensor_meta import TensorMeta
+from deeplake.core.storage.lru_cache import LRUCache
+from deeplake.util.casting import get_dtype, get_htype
+from deeplake.core.sample import Sample
+from deeplake.util.chunk_engine import (
     check_samples_type,
     make_sequence,
     check_suboptimal_chunks,
     check_sample_shape,
 )
-from hub.util.keys import (
+from deeplake.util.keys import (
     get_chunk_id_encoder_key,
     get_sequence_encoder_key,
     get_tensor_commit_diff_key,
@@ -70,17 +74,17 @@ from hub.util.keys import (
     get_tensor_tile_encoder_key,
     get_tensor_info_key,
 )
-from hub.util.exceptions import (
+from deeplake.util.exceptions import (
     CorruptedMetaError,
     DynamicTensorNumpyError,
     ReadOnlyModeError,
     SampleHtypeMismatchError,
 )
-from hub.util.remove_cache import get_base_storage
-from hub.util.image import convert_sample, convert_img_arr
-from hub.util.class_label import convert_to_idx, convert_to_hash
-from hub.compression import VIDEO_COMPRESSIONS
-from hub.core.sample import Sample
+from deeplake.util.remove_cache import get_base_storage
+from deeplake.util.image import convert_sample, convert_img_arr
+from deeplake.util.class_label import convert_to_idx, convert_to_hash
+from deeplake.compression import VIDEO_COMPRESSIONS
+from deeplake.core.sample import Sample
 from itertools import chain, repeat
 from collections.abc import Iterable
 
@@ -753,7 +757,7 @@ class ChunkEngine:
         return
 
     def _extend(self, samples, progressbar, update_commit_diff=True):
-        if isinstance(samples, hub.Tensor):
+        if isinstance(samples, deeplake.Tensor):
             samples = tqdm(samples) if progressbar else samples
             for sample in samples:
                 self._extend(
@@ -1265,7 +1269,7 @@ class ChunkEngine:
     ):
         """Update data at `index` with the output of elem-wise operatorion with samples"""
         try:
-            if isinstance(samples, hub.core.tensor.Tensor):
+            if isinstance(samples, deeplake.core.tensor.Tensor):
                 samples = samples.numpy()
             if len(index) > 1:
                 index1 = Index(index.values[:1])

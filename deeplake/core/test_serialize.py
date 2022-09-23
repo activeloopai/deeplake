@@ -1,11 +1,14 @@
 import numpy as np
 
-import hub
-from hub.core.compression import decompress_array
-from hub.core.serialize import serialize_numpy_and_base_types, serialize_sample_object
-from hub.constants import KB, MB
-from hub.core.tiling.deserialize import np_list_to_sample
-from hub.core.tiling.sample_tiles import SampleTiles
+import deeplake
+from deeplake.core.compression import decompress_array
+from deeplake.core.serialize import (
+    serialize_numpy_and_base_types,
+    serialize_sample_object,
+)
+from deeplake.constants import KB, MB
+from deeplake.core.tiling.deserialize import np_list_to_sample
+from deeplake.core.tiling.sample_tiles import SampleTiles
 
 
 def test_numpy_and_base_types():
@@ -47,11 +50,11 @@ def test_numpy_and_base_types():
 
 
 def test_sample_img_compression(cat_path, compression="png"):
-    sample = hub.read(cat_path)
+    sample = deeplake.read(cat_path)
     arr = sample.array
 
     # reloaded to get rid of cached array in sample
-    sample = hub.read(cat_path)
+    sample = deeplake.read(cat_path)
     out, shape = serialize_sample_object(
         sample, compression, None, "uint16", "generic", 16 * MB
     )
@@ -59,7 +62,7 @@ def test_sample_img_compression(cat_path, compression="png"):
     np.testing.assert_array_equal(arr, arr_deserialized)
 
     # reloaded to get rid of cached array in sample
-    sample = hub.read(cat_path)
+    sample = deeplake.read(cat_path)
     out, shape = serialize_sample_object(
         sample, compression, None, "uint16", "generic", 100 * KB
     )
@@ -74,11 +77,11 @@ def test_sample_img_compression(cat_path, compression="png"):
 
 
 def test_sample_byte_compression(cat_path, compression="lz4"):
-    sample = hub.read(cat_path)
+    sample = deeplake.read(cat_path)
     arr = sample.array
 
     # reloaded to get rid of cached array in sample
-    sample = hub.read(cat_path)
+    sample = deeplake.read(cat_path)
     dtype = "uint16"
     out, shape = serialize_sample_object(
         sample, compression, None, dtype, "generic", 16 * MB
@@ -87,7 +90,7 @@ def test_sample_byte_compression(cat_path, compression="lz4"):
     np.testing.assert_array_equal(arr, arr_deserialized)
 
     # reloaded to get rid of cached array in sample
-    sample = hub.read(cat_path)
+    sample = deeplake.read(cat_path)
     out, shape = serialize_sample_object(
         sample, compression, None, dtype, "generic", 100 * KB
     )
@@ -100,11 +103,11 @@ def test_sample_byte_compression(cat_path, compression="lz4"):
 
 
 def test_sample_no_compression(cat_path):
-    sample = hub.read(cat_path)
+    sample = deeplake.read(cat_path)
     arr = sample.array
 
     # reloaded to get rid of cached array in sample
-    sample = hub.read(cat_path)
+    sample = deeplake.read(cat_path)
     out, shape = serialize_sample_object(
         sample, None, None, "uint16", "generic", 16 * MB
     )
@@ -112,7 +115,7 @@ def test_sample_no_compression(cat_path):
     np.testing.assert_array_equal(arr, arr_deserialized)
 
     # reloaded to get rid of cached array in sample
-    sample = hub.read(cat_path)
+    sample = deeplake.read(cat_path)
     out, shape = serialize_sample_object(
         sample, None, None, "uint16", "generic", 100 * KB
     )

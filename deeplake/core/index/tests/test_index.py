@@ -1,4 +1,4 @@
-from hub.core.index import merge_slices, slice_at_int
+from deeplake.core.index import merge_slices, slice_at_int
 from pytest_cases import parametrize_with_cases  # type: ignore
 import pytest
 

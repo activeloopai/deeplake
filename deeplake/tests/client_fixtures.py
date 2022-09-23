@@ -1,4 +1,4 @@
-from hub.constants import (
+from deeplake.constants import (
     HUB_CLOUD_OPT,
     ENV_HUB_DEV_USERNAME,
     ENV_HUB_DEV_PASSWORD,
@@ -6,11 +6,11 @@ from hub.constants import (
     ENV_KAGGLE_KEY,
     KAGGLE_OPT,
 )
-from hub.tests.common import is_opt_true
+from deeplake.tests.common import is_opt_true
 import os
 import pytest
-from hub.client.client import HubBackendClient
-from hub.client.config import (
+from deeplake.client.client import DeepLakeBackendClient
+from deeplake.client.config import (
     USE_LOCAL_HOST,
     USE_DEV_ENVIRONMENT,
     USE_STAGING_ENVIRONMENT,
@@ -46,7 +46,7 @@ def hub_cloud_dev_credentials(request):
 def hub_cloud_dev_token(hub_cloud_dev_credentials):
     username, password = hub_cloud_dev_credentials
 
-    client = HubBackendClient()
+    client = DeepLakeBackendClient()
     token = client.request_auth_token(username, password)
     return token
 

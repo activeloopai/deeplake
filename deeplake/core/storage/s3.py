@@ -1,4 +1,4 @@
-import hub
+import deeplake
 from math import ceil
 import time
 import boto3
@@ -6,16 +6,16 @@ import botocore  # type: ignore
 import posixpath
 from typing import Dict, Optional, Tuple
 from botocore.session import ComponentLocator
-from hub.client.client import HubBackendClient
-from hub.core.storage.provider import StorageProvider
-from hub.util.exceptions import (
+from deeplake.client.client import DeepLakeBackendClient
+from deeplake.core.storage.provider import StorageProvider
+from deeplake.util.exceptions import (
     S3DeletionError,
     S3GetError,
     S3SetError,
     S3Error,
     PathNotEmptyException,
 )
-from hub.util.warnings import always_warn
+from deeplake.util.warnings import always_warn
 from botocore.exceptions import (
     ReadTimeoutError,
     ConnectionError,
@@ -121,7 +121,7 @@ class S3Provider(StorageProvider):
         self.tag: Optional[str] = None
         self.token: Optional[str] = token
         self.loaded_creds_from_environment = False
-        self.client_config = hub.config["s3"]
+        self.client_config = deeplake.config["s3"]
         self.start_time = time.time()
         self.profile_name = profile_name
         self._initialize_s3_parameters()
@@ -485,7 +485,7 @@ class S3Provider(StorageProvider):
         This would only happen for datasets stored on Hub storage for which temporary 12 hour credentials are generated.
         """
         if self.expiration and (force or float(self.expiration) < time.time()):
-            client = HubBackendClient(self.token)
+            client = DeepLakeBackendClient(self.token)
             org_id, ds_name = self.tag.split("/")
 
             mode = "r" if self.read_only else "a"
@@ -569,7 +569,7 @@ class S3Provider(StorageProvider):
 
         if url is None:
             if self._is_hub_path:
-                client = HubBackendClient(self.token)
+                client = DeepLakeBackendClient(self.token)
                 org_id, ds_name = self.tag.split("/")  # type: ignore
                 url = client.get_presigned_url(org_id, ds_name, key)
             else:

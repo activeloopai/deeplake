@@ -1,9 +1,9 @@
 from typing import Dict, Optional, Union
 import uuid
 from flask import Flask, request, Response  # type: ignore
-from hub.core.storage.provider import StorageProvider
-from hub.util.threading import terminate_thread
-from hub.client.config import (
+from deeplake.core.storage.provider import StorageProvider
+from deeplake.util.threading import terminate_thread
+from deeplake.client.config import (
     USE_DEV_ENVIRONMENT,
     USE_STAGING_ENVIRONMENT,
     USE_LOCAL_HOST,

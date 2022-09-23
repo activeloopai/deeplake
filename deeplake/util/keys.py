@@ -1,5 +1,5 @@
 import posixpath
-from hub.constants import (
+from deeplake.constants import (
     CHUNKS_FOLDER,
     DATASET_DIFF_FILENAME,
     DATASET_INFO_FILENAME,
@@ -22,7 +22,7 @@ from hub.constants import (
     QUERIES_FILENAME,
     QUERIES_LOCK_FILENAME,
 )
-from hub.util.exceptions import S3GetError
+from deeplake.util.exceptions import S3GetError
 
 
 def get_chunk_key(key: str, chunk_name: str, commit_id: str) -> str:

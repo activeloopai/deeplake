@@ -1,7 +1,7 @@
-import hub
+import deeplake
 import pytest
-from hub.util.exceptions import DatasetHandlerError
-from hub.util.access_method import parse_access_method
+from deeplake.util.exceptions import DatasetHandlerError
+from deeplake.util.access_method import parse_access_method
 
 
 def test_access_method_parsing():
@@ -20,10 +20,10 @@ def test_access_method_parsing():
 
 def test_access_method(s3_ds_generator):
     with pytest.raises(DatasetHandlerError):
-        hub.dataset("./some_non_existent_path", access_method="download")
+        deeplake.dataset("./some_non_existent_path", access_method="download")
 
     with pytest.raises(DatasetHandlerError):
-        hub.dataset("./some_non_existent_path", access_method="local")
+        deeplake.dataset("./some_non_existent_path", access_method="local")
 
     ds = s3_ds_generator()
     with ds:

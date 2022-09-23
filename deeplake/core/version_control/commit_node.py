@@ -1,5 +1,5 @@
 from datetime import datetime
-from hub.client.utils import get_user_name
+from deeplake.client.utils import get_user_name
 from typing import List, Optional
 
 

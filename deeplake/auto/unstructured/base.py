@@ -1,5 +1,5 @@
 from abc import ABC, abstractmethod
-from hub.util.path import find_root
+from deeplake.util.path import find_root
 from pathlib import Path
 
 

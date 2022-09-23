@@ -1,5 +1,5 @@
 from typing import Dict, Optional, Any
-from hub.util.logging import log_visualizer_link
+from deeplake.util.logging import log_visualizer_link
 
 
 class ViewEntry:
@@ -43,7 +43,7 @@ class ViewEntry:
         return self.info["virtual-datasource"]
 
     def load(self, verbose=True):
-        """Loads the view and returns the :class:`~hub.core.dataset.Dataset`.
+        """Loads the view and returns the :class:`~deeplake.core.dataset.Dataset`.
 
         Args:
             verbose (bool): If ``True``, logs will be printed. Defaults to ``True``.
@@ -82,7 +82,7 @@ class ViewEntry:
 
         Args:
             unlink (bool): - If ``True``, this unlinks linked tensors (if any) by copying data from the links to the view.
-                    - This does not apply to linked videos. Set ``hub.constants._UNLINK_VIDEOS`` to ``True`` to change this behavior.
+                    - This does not apply to linked videos. Set ``deeplake.constants._UNLINK_VIDEOS`` to ``True`` to change this behavior.
             num_workers (int): Number of workers to be used for the optimization process. Defaults to 0.
             scheduler (str): The scheduler to be used for optimization. Supported values include: 'serial', 'threaded', 'processed' and 'ray'.
                 Only applicable if ``optimize=True``. Defaults to 'threaded'.

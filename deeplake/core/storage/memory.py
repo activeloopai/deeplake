@@ -1,6 +1,6 @@
 from typing import Any, Dict
-from hub.core.storage.lru_cache import _get_nbytes
-from hub.core.storage.provider import StorageProvider
+from deeplake.core.storage.lru_cache import _get_nbytes
+from deeplake.core.storage.provider import StorageProvider
 
 
 class MemoryProvider(StorageProvider):

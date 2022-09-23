@@ -1,15 +1,15 @@
 from typing import Any, List, Tuple, Optional
-from hub.core.meta.encode.base_encoder import Encoder, LAST_SEEN_INDEX_COLUMN
-from hub.constants import ENCODING_DTYPE
-from hub.util.exceptions import (
+from deeplake.core.meta.encode.base_encoder import Encoder, LAST_SEEN_INDEX_COLUMN
+from deeplake.constants import ENCODING_DTYPE
+from deeplake.util.exceptions import (
     ChunkIdEncoderError,
     OutOfChunkCountError,
     OutOfSampleCountError,
 )
-from hub.core.storage.hub_memory_object import HubMemoryObject
+from deeplake.core.storage.hub_memory_object import HubMemoryObject
 import numpy as np
-from hub.core.serialize import serialize_chunkids, deserialize_chunkids
-from hub.util.generate_id import generate_id
+from deeplake.core.serialize import serialize_chunkids, deserialize_chunkids
+from deeplake.util.generate_id import generate_id
 
 CHUNK_ID_COLUMN = 0
 

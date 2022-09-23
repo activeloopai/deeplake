@@ -1,5 +1,5 @@
 from typing import List
-from hub.util.exceptions import AgreementNotAcceptedError
+from deeplake.util.exceptions import AgreementNotAcceptedError
 
 
 def agreement_prompt(agreements: List[str], org_id: str, ds_name: str):

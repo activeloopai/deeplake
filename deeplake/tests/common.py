@@ -10,14 +10,17 @@ import posixpath
 import pytest
 import sys
 
-from hub.constants import KB, MB
+from deeplake.constants import KB, MB
 
-from hub.util.check_installation import (
+from deeplake.util.check_installation import (
     pytorch_installed,
     tensorflow_installed,
     tfds_installed,
 )
-from hub.core.tensor_link import _register_link_transform, _unregister_link_transform
+from deeplake.core.tensor_link import (
+    _register_link_transform,
+    _unregister_link_transform,
+)
 
 
 SESSION_ID = str(uuid4())[:4]  # 4 ascii chars should be sufficient

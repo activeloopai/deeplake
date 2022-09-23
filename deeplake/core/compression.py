@@ -1,14 +1,14 @@
 import io
 from logging import warning
-import hub
-from hub.util.exceptions import (
+import deeplake
+from deeplake.util.exceptions import (
     SampleCompressionError,
     SampleDecompressionError,
     UnsupportedCompressionError,
     CorruptedSampleError,
 )
-from hub.util.point_cloud import LAS_HEADER_FILED_NAME_TO_PARSER
-from hub.compression import (
+from deeplake.util.point_cloud import LAS_HEADER_FILED_NAME_TO_PARSER
+from deeplake.compression import (
     get_compression_type,
     BYTE_COMPRESSION,
     VIDEO_COMPRESSION,
@@ -185,7 +185,7 @@ def compress_array(array: np.ndarray, compression: Optional[str]) -> bytes:
         compression (str, optional): `array` will be compressed with this compression into bytes. Right now only arrays compatible with `PIL` will be compressed.
 
     Raises:
-        UnsupportedCompressionError: If `compression` is unsupported. See `hub.compressions`.
+        UnsupportedCompressionError: If `compression` is unsupported. See `deeplake.compressions`.
         SampleCompressionError: If there was a problem compressing `array`.
         NotImplementedError: If compression is not supported.
 
@@ -198,7 +198,7 @@ def compress_array(array: np.ndarray, compression: Optional[str]) -> bytes:
     if 0 in array.shape:
         return bytes()
 
-    if compression not in hub.compressions:
+    if compression not in deeplake.compressions:
         raise UnsupportedCompressionError(compression)
 
     if compression is None:
@@ -210,15 +210,15 @@ def compress_array(array: np.ndarray, compression: Optional[str]) -> bytes:
         return compress_bytes(array.tobytes(), compression)
     elif compr_type == AUDIO_COMPRESSION:
         raise NotImplementedError(
-            "In order to store audio data, you should use `hub.read(path_to_file)`. Compressing raw data is not yet supported."
+            "In order to store audio data, you should use `deeplake.read(path_to_file)`. Compressing raw data is not yet supported."
         )
     elif compr_type == VIDEO_COMPRESSION:
         raise NotImplementedError(
-            "In order to store video data, you should use `hub.read(path_to_file)`. Compressing raw data is not yet supported."
+            "In order to store video data, you should use `deeplake.read(path_to_file)`. Compressing raw data is not yet supported."
         )
     elif compr_type == POINT_CLOUD_COMPRESSION:
         raise NotImplementedError(
-            "In order to store point cloud data, you should use `hub.read(path_to_file)`. Compressing raw data is not yet supported."
+            "In order to store point cloud data, you should use `deeplake.read(path_to_file)`. Compressing raw data is not yet supported."
         )
     if compression == "apng":
         return _compress_apng(array)

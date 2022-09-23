@@ -1,7 +1,7 @@
-from hub.core.dataset import Dataset
-from hub.tests.common import requires_tensorflow
+from deeplake.core.dataset import Dataset
+from deeplake.tests.common import requires_tensorflow
 import numpy as np
-import hub
+import deeplake
 import pytest
 
 
@@ -39,8 +39,8 @@ def test_tensorflow_small(local_ds):
 
 @requires_tensorflow
 def test_corrupt_dataset(local_ds, corrupt_image_paths, compressed_image_paths):
-    img_good = hub.read(compressed_image_paths["jpeg"][0])
-    img_bad = hub.read(corrupt_image_paths["jpeg"])
+    img_good = deeplake.read(compressed_image_paths["jpeg"][0])
+    img_bad = deeplake.read(corrupt_image_paths["jpeg"])
     with local_ds:
         local_ds.create_tensor("image", htype="image", sample_compression="jpeg")
         for i in range(3):
@@ -57,8 +57,8 @@ def test_corrupt_dataset(local_ds, corrupt_image_paths, compressed_image_paths):
 
 @requires_tensorflow
 def test_groups(local_ds, compressed_image_paths):
-    img1 = hub.read(compressed_image_paths["jpeg"][0])
-    img2 = hub.read(compressed_image_paths["png"][0])
+    img1 = deeplake.read(compressed_image_paths["jpeg"][0])
+    img2 = deeplake.read(compressed_image_paths["png"][0])
     with local_ds:
         local_ds.create_tensor(
             "images/jpegs/cats", htype="image", sample_compression="jpeg"
@@ -112,7 +112,7 @@ def test_pytorch_tobytes(local_ds, compressed_image_paths, compression):
         ds.image.extend(
             np.array([i * np.ones((10, 10, 3), dtype=np.uint8) for i in range(5)])
         )
-        ds.image.extend([hub.read(compressed_image_paths["jpeg"][0])] * 5)
+        ds.image.extend([deeplake.read(compressed_image_paths["jpeg"][0])] * 5)
 
     for i, batch in enumerate(ds.tensorflow(tobytes=["image"])):
         image = batch["image"][0].numpy()

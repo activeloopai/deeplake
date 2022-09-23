@@ -2,16 +2,16 @@
 
 from typing import Optional, Callable, Tuple
 from flask import Flask, request, Response
-from hub.core.meta.encode.chunk_id import ChunkIdEncoder
-from hub.core.storage import StorageProvider
-from hub.core.meta.encode.byte_positions import BytePositionsEncoder
-from hub.util.keys import get_chunk_key
-from hub.util.remove_cache import get_base_storage
-from hub.util.threading import terminate_thread
-from hub.util.hash import hash_inputs
-from hub.constants import MB
+from deeplake.core.meta.encode.chunk_id import ChunkIdEncoder
+from deeplake.core.storage import StorageProvider
+from deeplake.core.meta.encode.byte_positions import BytePositionsEncoder
+from deeplake.util.keys import get_chunk_key
+from deeplake.util.remove_cache import get_base_storage
+from deeplake.util.threading import terminate_thread
+from deeplake.util.hash import hash_inputs
+from deeplake.constants import MB
 import socketserver
-import hub
+import deeplake
 import threading
 import struct
 import numpy as np
@@ -101,7 +101,7 @@ class _VideoStream:
         n_ver = lazy.read(1)[0]
         lazy.read(n_ver)
         r, c = struct.unpack("<ii", lazy.read(8))
-        enc_dtype = np.dtype(hub.constants.ENCODING_DTYPE)
+        enc_dtype = np.dtype(deeplake.constants.ENCODING_DTYPE)
         isize = enc_dtype.itemsize
         sh_enc_size = r * c * isize
         lazy.read(sh_enc_size)

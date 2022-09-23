@@ -1,4 +1,4 @@
-from hub.constants import ENCODING_DTYPE
+from deeplake.constants import ENCODING_DTYPE
 import numpy as np
 
 

@@ -1,4 +1,4 @@
-import hub
+import deeplake
 from tokenize import tokenize, TokenError
 from io import BytesIO
 from typing import Any, Dict, List
@@ -64,12 +64,12 @@ def _filter_hidden_tensors(tensors):
     return tensors
 
 
-def _parse(s: str, ds: hub.Dataset) -> List[dict]:
+def _parse(s: str, ds: deeplake.Dataset) -> List[dict]:
     """Tokenizes a query string and assigns a token type to each token.
 
     Args:
         s (str): The query string
-        ds (hub.Dataset): The dataset against which the query is run
+        ds (deeplake.Dataset): The dataset against which the query is run
 
     Returns:
         List of "tokens", each token is a `dict` with following fields:
@@ -140,7 +140,7 @@ def _parse(s: str, ds: hub.Dataset) -> List[dict]:
     return hubtokens
 
 
-def _parse_no_fail(s: str, ds: hub.Dataset):
+def _parse_no_fail(s: str, ds: deeplake.Dataset):
     """Python tokenizer can fail for some partial queries such as those with trailing "(".
     This method supresses such errors.
     """
@@ -155,7 +155,7 @@ def _sort_suggestions(s: List[dict]) -> None:
     s.sort(key=lambda s: s["string"])
 
 
-def _initial_suggestions(ds: hub.Dataset):
+def _initial_suggestions(ds: deeplake.Dataset):
     """Suggestions for empty string query."""
     tensors = [
         {"string": k, "type": "TENSOR"}
@@ -250,12 +250,12 @@ def _op_suggestions():
     return [{"string": op, "type": "OP"} for op in ops]
 
 
-def autocomplete(s: str, ds: hub.Dataset) -> dict:
+def autocomplete(s: str, ds: deeplake.Dataset) -> dict:
     """Returns autocomplete suggestions and tokenizer result for a given query string and dataset.
 
     Args:
         s (str): The query string
-        ds (hub.Dataset): The hub dataset against which the query is to be run.
+        ds (deeplake.Dataset): The hub dataset against which the query is to be run.
 
     Returns:
         dict. Auto complete response.

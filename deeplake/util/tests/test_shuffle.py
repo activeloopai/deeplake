@@ -1,5 +1,5 @@
 import numpy as np
-from hub.util import shuffle
+from deeplake.util import shuffle
 
 
 def test_shuffle(memory_ds):

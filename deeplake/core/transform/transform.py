@@ -1,14 +1,17 @@
 from uuid import uuid4
-import hub
+import deeplake
 from typing import Callable, List, Optional
 from itertools import repeat
-from hub.core.compute.provider import ComputeProvider
-from hub.core.storage.memory import MemoryProvider
-from hub.util.bugout_reporter import hub_reporter
-from hub.util.compute import get_compute_provider
-from hub.util.dataset import try_flushing
-from hub.util.remove_cache import get_base_storage, get_dataset_with_zero_size_cache
-from hub.util.transform import (
+from deeplake.core.compute.provider import ComputeProvider
+from deeplake.core.storage.memory import MemoryProvider
+from deeplake.util.bugout_reporter import deeplake_reporter
+from deeplake.util.compute import get_compute_provider
+from deeplake.util.dataset import try_flushing
+from deeplake.util.remove_cache import (
+    get_base_storage,
+    get_dataset_with_zero_size_cache,
+)
+from deeplake.util.transform import (
     check_lengths,
     check_transform_data_in,
     check_transform_ds_out,
@@ -22,15 +25,15 @@ from hub.util.transform import (
     store_data_slice,
     store_data_slice_with_pbar,
 )
-from hub.util.encoder import merge_all_meta_info
-from hub.util.exceptions import (
+from deeplake.util.encoder import merge_all_meta_info
+from deeplake.util.exceptions import (
     HubComposeEmptyListError,
     HubComposeIncompatibleFunction,
     TransformError,
 )
-from hub.hooks import dataset_written, dataset_read
-from hub.util.version_control import auto_checkout, load_meta
-from hub.util.class_label import sync_labels
+from deeplake.hooks import dataset_written, dataset_read
+from deeplake.util.version_control import auto_checkout, load_meta
+from deeplake.util.class_label import sync_labels
 import numpy as np
 
 
@@ -45,7 +48,7 @@ class ComputeFunction:
     def eval(
         self,
         data_in,
-        ds_out: Optional[hub.Dataset] = None,
+        ds_out: Optional[deeplake.Dataset] = None,
         num_workers: int = 0,
         scheduler: str = "threaded",
         progressbar: bool = True,
@@ -99,7 +102,7 @@ class ComputeFunction:
 
 class Pipeline:
     def __init__(self, functions: List[ComputeFunction]):
-        """Takes a list of functions decorated using hub.compute and creates a pipeline that can be evaluated using .eval"""
+        """Takes a list of functions decorated using deeplake.compute and creates a pipeline that can be evaluated using .eval"""
         self.functions = functions
 
     def __len__(self):
@@ -108,7 +111,7 @@ class Pipeline:
     def eval(
         self,
         data_in,
-        ds_out: Optional[hub.Dataset] = None,
+        ds_out: Optional[deeplake.Dataset] = None,
         num_workers: int = 0,
         scheduler: str = "threaded",
         progressbar: bool = True,
@@ -145,13 +148,13 @@ class Pipeline:
         """
         num_workers, scheduler = sanitize_workers_scheduler(num_workers, scheduler)
         overwrite = ds_out is None
-        hub_reporter.feature_report(
+        deeplake_reporter.feature_report(
             feature_name="eval",
             parameters={"Num_Workers": str(num_workers), "Scheduler": scheduler},
         )
         check_transform_data_in(data_in, scheduler)
 
-        if isinstance(data_in, hub.Dataset):
+        if isinstance(data_in, deeplake.Dataset):
             try_flushing(data_in)
             if overwrite:
                 auto_checkout(data_in)
@@ -211,7 +214,7 @@ class Pipeline:
     def run(
         self,
         data_in,
-        target_ds: hub.Dataset,
+        target_ds: deeplake.Dataset,
         compute: ComputeProvider,
         num_workers: int,
         scheduler: str,
@@ -223,7 +226,7 @@ class Pipeline:
         """Runs the pipeline on the input data to produce output samples and stores in the dataset.
         This receives arguments processed and sanitized by the Pipeline.eval method.
         """
-        if isinstance(data_in, hub.Dataset):
+        if isinstance(data_in, deeplake.Dataset):
             dataset_read(data_in)
         slices = create_slices(data_in, num_workers)
         storage = get_base_storage(target_ds.storage)
@@ -326,11 +329,11 @@ class Pipeline:
 
 
 def compose(functions: List[ComputeFunction]):  # noqa: DAR101, DAR102, DAR201, DAR401
-    """Takes a list of functions decorated using :func:`hub.compute` and creates a pipeline that can be evaluated using .eval
+    """Takes a list of functions decorated using :func:`deeplake.compute` and creates a pipeline that can be evaluated using .eval
 
     Example::
 
-        pipeline = hub.compose([my_fn(a=3), another_function(b=2)])
+        pipeline = deeplake.compose([my_fn(a=3), another_function(b=2)])
         pipeline.eval(data_in, ds_out, scheduler="processed", num_workers=2)
 
     The ``eval`` method evaluates the pipeline/transform function.
@@ -401,7 +404,7 @@ def compute(
 
     Example::
 
-        @hub.compute
+        @deeplake.compute
         def my_fn(sample_in: Any, samples_out, my_arg0, my_arg1=0):
             samples_out.my_tensor.append(my_arg0 * my_arg1)
 
@@ -412,7 +415,7 @@ def compute(
         my_fn(arg0, arg1).eval(data_in, ds_out, scheduler="threaded", num_workers=5)
 
         # As a part of a Transform pipeline containing other functions
-        pipeline = hub.compose([my_fn(a, b), another_function(x=2)])
+        pipeline = deeplake.compose([my_fn(a, b), another_function(x=2)])
         pipeline.eval(data_in, ds_out, scheduler="processed", num_workers=2)
 
     The ``eval`` method evaluates the pipeline/transform function.

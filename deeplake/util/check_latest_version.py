@@ -2,8 +2,8 @@ import json
 import os
 import warnings
 import requests
-from hub.client.config import HUB_PYPI_VERSION_PATH
-from hub.core.fast_forwarding import version_compare
+from deeplake.client.config import HUB_PYPI_VERSION_PATH
+from deeplake.core.fast_forwarding import version_compare
 import time
 
 

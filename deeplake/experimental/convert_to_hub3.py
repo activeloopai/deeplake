@@ -1,6 +1,11 @@
-from hub.core.storage import S3Provider, GCSProvider, GDriveProvider, MemoryProvider
-from hub.experimental.util import raise_indra_installation_error  # type: ignore
-from hub.util.dataset import try_flushing  # type: ignore
+from deeplake.core.storage import (
+    S3Provider,
+    GCSProvider,
+    GDriveProvider,
+    MemoryProvider,
+)
+from deeplake.experimental.util import raise_indra_installation_error  # type: ignore
+from deeplake.util.dataset import try_flushing  # type: ignore
 import importlib
 
 INDRA_INSTALLED = bool(importlib.util.find_spec("indra"))

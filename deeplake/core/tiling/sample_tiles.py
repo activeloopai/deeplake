@@ -1,12 +1,16 @@
 from typing import Optional, Tuple, Union
 import numpy as np
 
-from hub.core.compression import compress_array
-from hub.core.tiling.optimizer import get_tile_shape
-from hub.core.tiling.serialize import break_into_tiles, serialize_tiles, get_tile_shapes
-from hub.util.compression import get_compression_ratio
-from hub.compression import BYTE_COMPRESSIONS
-from hub.constants import MB
+from deeplake.core.compression import compress_array
+from deeplake.core.tiling.optimizer import get_tile_shape
+from deeplake.core.tiling.serialize import (
+    break_into_tiles,
+    serialize_tiles,
+    get_tile_shapes,
+)
+from deeplake.util.compression import get_compression_ratio
+from deeplake.compression import BYTE_COMPRESSIONS
+from deeplake.constants import MB
 
 
 class SampleTiles:

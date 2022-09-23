@@ -6,18 +6,18 @@ import glob
 import PIL  # type: ignore
 from typing import Dict, List, Sequence, Tuple, Union
 
-from hub.util.auto import ingestion_summary
-from hub.util.exceptions import (
+from deeplake.util.auto import ingestion_summary
+from deeplake.util.exceptions import (
     InvalidPathException,
     TensorInvalidSampleShapeError,
 )
-from hub.core.dataset import Dataset
+from deeplake.core.dataset import Dataset
 
 from tqdm import tqdm  # type: ignore
 
 from .base import UnstructuredDataset
 
-import hub
+import deeplake
 
 IMAGES_TENSOR_NAME = "images"
 LABELS_TENSOR_NAME = "labels"
@@ -150,7 +150,7 @@ class ImageClassification(UnstructuredDataset):
 
         with ds, iterator:
             for file_path in iterator:
-                image = hub.read(file_path)
+                image = deeplake.read(file_path)
 
                 class_name = _class_name_from_path(file_path)
 

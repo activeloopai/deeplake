@@ -1,9 +1,9 @@
 import pathlib
-from hub.core.sample import Sample  # type: ignore
+from deeplake.core.sample import Sample  # type: ignore
 from typing import Optional, Dict, Union
 
-from hub.core.storage.provider import StorageProvider
-from hub.util.path import convert_pathlib_to_string_if_needed
+from deeplake.core.storage.provider import StorageProvider
+from deeplake.util.path import convert_pathlib_to_string_if_needed
 
 
 def read(
@@ -21,17 +21,17 @@ def read(
     Examples:
 
         >>> ds.create_tensor("images", htype="image", sample_compression="jpeg")
-        >>> ds.images.append(hub.read("path/to/cat.jpg"))
+        >>> ds.images.append(deeplake.read("path/to/cat.jpg"))
         >>> ds.images.shape
         (1, 399, 640, 3)
 
         >>> ds.create_tensor("videos", htype="video", sample_compression="mp4")
-        >>> ds.videos.append(hub.read("path/to/video.mp4"))
+        >>> ds.videos.append(deeplake.read("path/to/video.mp4"))
         >>> ds.videos.shape
         (1, 136, 720, 1080, 3)
 
         >>> ds.create_tensor("images", htype="image", sample_compression="jpeg")
-        >>> ds.images.append(hub.read("https://picsum.photos/200/300"))
+        >>> ds.images.append(deeplake.read("https://picsum.photos/200/300"))
         >>> ds.images[0].shape
         (300, 200, 3)
 
@@ -54,7 +54,7 @@ def read(
 
     Note:
         No data is actually loaded until you try to get a property of the returned :class:`Sample`.
-        This is useful for passing along to :func:`Tensor.append <hub.core.tensor.Tensor.append>` and :func:`Tensor.extend <hub.core.tensor.Tensor.extend>`.
+        This is useful for passing along to :func:`Tensor.append <deeplake.core.tensor.Tensor.append>` and :func:`Tensor.extend <deeplake.core.tensor.Tensor.extend>`.
     """
     path = convert_pathlib_to_string_if_needed(path)
     return Sample(

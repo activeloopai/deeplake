@@ -1,19 +1,19 @@
 from collections import defaultdict
 from typing import Dict, List, Optional, Set, Tuple
-from hub.core.version_control.commit_diff import CommitDiff
-from hub.core.version_control.dataset_diff import DatasetDiff
-from hub.core.version_control.commit_node import CommitNode
-from hub.util.diff import get_lowest_common_ancestor, sanitize_commit
-from hub.util.exceptions import (
+from deeplake.core.version_control.commit_diff import CommitDiff
+from deeplake.core.version_control.dataset_diff import DatasetDiff
+from deeplake.core.version_control.commit_node import CommitNode
+from deeplake.util.diff import get_lowest_common_ancestor, sanitize_commit
+from deeplake.util.exceptions import (
     MergeConflictError,
     MergeMismatchError,
     MergeNotSupportedError,
     TensorDoesNotExistError,
 )
-from hub.util.keys import get_sample_id_tensor_key, get_tensor_commit_diff_key
-from hub.util.remove_cache import create_read_copy_dataset
-from hub.util.version_control import auto_checkout, auto_commit, commit
-from hub.core.tensor import Tensor
+from deeplake.util.keys import get_sample_id_tensor_key, get_tensor_commit_diff_key
+from deeplake.util.remove_cache import create_read_copy_dataset
+from deeplake.util.version_control import auto_checkout, auto_commit, commit
+from deeplake.core.tensor import Tensor
 
 
 def merge(

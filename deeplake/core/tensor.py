@@ -1,21 +1,21 @@
-import hub
-from hub.core.linked_chunk_engine import LinkedChunkEngine
-from hub.core.storage.lru_cache import LRUCache
-from hub.util.invalid_view_op import invalid_view_op
-from hub.core.version_control.commit_chunk_set import CommitChunkSet
-from hub.core.version_control.commit_diff import CommitDiff
-from hub.core.chunk.base_chunk import InputSample
+import deeplake
+from deeplake.core.linked_chunk_engine import LinkedChunkEngine
+from deeplake.core.storage.lru_cache import LRUCache
+from deeplake.util.invalid_view_op import invalid_view_op
+from deeplake.core.version_control.commit_chunk_set import CommitChunkSet
+from deeplake.core.version_control.commit_diff import CommitDiff
+from deeplake.core.chunk.base_chunk import InputSample
 import numpy as np
 from typing import Dict, List, Sequence, Union, Optional, Tuple, Any, Callable
 from functools import reduce, partial
-from hub.core.index import Index, IndexEntry, replace_ellipsis_with_slices
-from hub.core.meta.tensor_meta import TensorMeta
-from hub.core.storage import StorageProvider
-from hub.core.chunk_engine import ChunkEngine
-from hub.core.compression import _read_timestamps
-from hub.core.tensor_link import get_link_transform
-from hub.api.info import Info, load_info
-from hub.util.keys import (
+from deeplake.core.index import Index, IndexEntry, replace_ellipsis_with_slices
+from deeplake.core.meta.tensor_meta import TensorMeta
+from deeplake.core.storage import StorageProvider
+from deeplake.core.chunk_engine import ChunkEngine
+from deeplake.core.compression import _read_timestamps
+from deeplake.core.tensor_link import get_link_transform
+from deeplake.api.info import Info, load_info
+from deeplake.util.keys import (
     get_chunk_id_encoder_key,
     get_chunk_key,
     get_tensor_commit_chunk_set_key,
@@ -29,27 +29,27 @@ from hub.util.keys import (
     get_sample_info_tensor_key,
     get_sample_shape_tensor_key,
 )
-from hub.util.modified import get_modified_indexes
-from hub.util.class_label import convert_to_text
-from hub.util.shape_interval import ShapeInterval
-from hub.util.exceptions import (
+from deeplake.util.modified import get_modified_indexes
+from deeplake.util.class_label import convert_to_text
+from deeplake.util.shape_interval import ShapeInterval
+from deeplake.util.exceptions import (
     TensorDoesNotExistError,
     InvalidKeyTypeError,
     TensorAlreadyExistsError,
 )
-from hub.hooks import dataset_read, dataset_written
-from hub.util.pretty_print import (
+from deeplake.hooks import dataset_read, dataset_written
+from deeplake.util.pretty_print import (
     summary_tensor,
 )
-from hub.constants import FIRST_COMMIT_ID, _NO_LINK_UPDATE, UNSPECIFIED
+from deeplake.constants import FIRST_COMMIT_ID, _NO_LINK_UPDATE, UNSPECIFIED
 
 
-from hub.util.version_control import auto_checkout
-from hub.util.video import normalize_index
+from deeplake.util.version_control import auto_checkout
+from deeplake.util.video import normalize_index
 
-from hub.compression import get_compression_type, VIDEO_COMPRESSION
-from hub.util.notebook import is_jupyter, video_html, is_colab
-from hub.util.point_cloud import (
+from deeplake.compression import get_compression_type, VIDEO_COMPRESSION
+from deeplake.util.notebook import is_jupyter, video_html, is_colab
+from deeplake.util.point_cloud import (
     POINT_CLOUD_FIELD_NAME_TO_TYPESTR,
     cast_point_cloud_array_to_proper_dtype,
 )
@@ -268,7 +268,7 @@ class Tensor:
     ):
 
         """Extends the end of the tensor by appending multiple elements from a sequence. Accepts a sequence, a single batched numpy array,
-        or a sequence of :func:`hub.read` outputs, which can be used to load files. See examples down below.
+        or a sequence of :func:`deeplake.read` outputs, which can be used to load files. See examples down below.
 
         Example:
             Numpy input:
@@ -285,8 +285,8 @@ class Tensor:
             >>> len(tensor)
             0
             >>> tensor.extend([
-                    hub.read("path/to/image1"),
-                    hub.read("path/to/image2"),
+                    deeplake.read("path/to/image1"),
+                    deeplake.read("path/to/image2"),
                 ])
             >>> len(tensor)
             2
@@ -348,7 +348,7 @@ class Tensor:
 
     @invalid_view_op
     def append(self, sample: InputSample):
-        """Appends a single sample to the end of the tensor. Can be an array, scalar value, or the return value from :func:`hub.read`,
+        """Appends a single sample to the end of the tensor. Can be an array, scalar value, or the return value from :func:`deeplake.read`,
         which can be used to load files. See examples down below.
 
         Examples:
@@ -364,12 +364,12 @@ class Tensor:
 
             >>> len(tensor)
             0
-            >>> tensor.append(hub.read("path/to/file"))
+            >>> tensor.append(deeplake.read("path/to/file"))
             >>> len(tensor)
             1
 
         Args:
-            sample (InputSample): The data to append to the tensor. :class:`~hub.core.sample.Sample` is generated by :func:`hub.read`. See the above examples.
+            sample (InputSample): The data to append to the tensor. :class:`~deeplake.core.sample.Sample` is generated by :func:`deeplake.read`. See the above examples.
         """
         self.extend([sample], progressbar=False)
 
@@ -523,7 +523,7 @@ class Tensor:
 
     @property
     def shape_interval(self) -> ShapeInterval:
-        """Returns a :class:`~hub.util.shape_interval.ShapeInterval` object that describes this tensor's shape more accurately. Length is included.
+        """Returns a :class:`~deeplake.util.shape_interval.ShapeInterval` object that describes this tensor's shape more accurately. Length is included.
 
         Example:
 
@@ -647,7 +647,7 @@ class Tensor:
         item_index = Index(item)
 
         if (
-            hub.constants._ENABLE_RANDOM_ASSIGNMENT
+            deeplake.constants._ENABLE_RANDOM_ASSIGNMENT
             and isinstance(item, int)
             and item >= self.num_samples
         ):
@@ -1055,7 +1055,7 @@ class Tensor:
         if self.is_link:
             return self.chunk_engine.get_video_url(self.index.values[0].value)
 
-        from hub.visualizer.video_streaming import get_video_stream_url
+        from deeplake.visualizer.video_streaming import get_video_stream_url
 
         return get_video_stream_url(self, self.index.values[0].value)
 
@@ -1065,7 +1065,7 @@ class Tensor:
 
         Example:
 
-            >>> ds = hub.load("./test/my_video_ds")
+            >>> ds = deeplake.load("./test/my_video_ds")
             >>> # play second sample
             >>> ds.videos[2].play()
 

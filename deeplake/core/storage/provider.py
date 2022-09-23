@@ -2,10 +2,10 @@ from abc import ABC, abstractmethod
 from collections.abc import MutableMapping
 from typing import Optional, Set, Sequence
 
-from hub.constants import BYTE_PADDING
-from hub.util.assert_byte_indexes import assert_byte_indexes
-from hub.util.exceptions import ReadOnlyModeError
-from hub.util.keys import get_dataset_lock_key
+from deeplake.constants import BYTE_PADDING
+from deeplake.util.assert_byte_indexes import assert_byte_indexes
+from deeplake.util.exceptions import ReadOnlyModeError
+from deeplake.util.keys import get_dataset_lock_key
 import posixpath
 
 

@@ -1,10 +1,10 @@
-from hub.constants import LOCAL_CACHE_PREFIX
+from deeplake.constants import LOCAL_CACHE_PREFIX
 from typing import List, Optional
 from uuid import uuid1
 
-from hub.core.storage import StorageProvider, MemoryProvider, LocalProvider
-from hub.core.storage.lru_cache import LRUCache
-from hub.util.exceptions import ProviderSizeListMismatch, ProviderListEmptyError
+from deeplake.core.storage import StorageProvider, MemoryProvider, LocalProvider
+from deeplake.core.storage.lru_cache import LRUCache
+from deeplake.util.exceptions import ProviderSizeListMismatch, ProviderListEmptyError
 
 
 def get_cache_chain(storage_list: List[StorageProvider], size_list: List[int]):

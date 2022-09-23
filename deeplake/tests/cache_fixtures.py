@@ -1,5 +1,5 @@
-from hub.util.cache_chain import get_cache_chain
-from hub.constants import MIN_FIRST_CACHE_SIZE, MIN_SECOND_CACHE_SIZE
+from deeplake.util.cache_chain import get_cache_chain
+from deeplake.constants import MIN_FIRST_CACHE_SIZE, MIN_SECOND_CACHE_SIZE
 import pytest
 
 _MEMORY = "memory_storage"

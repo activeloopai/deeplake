@@ -1,14 +1,14 @@
 from typing import Union
-from hub.util.exceptions import InvalidOperationError
+from deeplake.util.exceptions import InvalidOperationError
 from typing import Callable
 from functools import wraps
-import hub
+import deeplake
 
 
 def invalid_view_op(callable: Callable):
     @wraps(callable)
     def inner(x, *args, **kwargs):
-        ds = x if isinstance(x, hub.Dataset) else x.dataset
+        ds = x if isinstance(x, deeplake.Dataset) else x.dataset
         if not ds.__dict__.get("_allow_view_updates"):
             is_del = callable.__name__ == "delete"
             managed_view = "_view_entry" in ds.__dict__

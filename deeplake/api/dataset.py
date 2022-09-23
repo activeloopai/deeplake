@@ -1,38 +1,38 @@
 import os
-import hub
+import deeplake
 import pathlib
 import posixpath
 from typing import Dict, Optional, Union, List
 
-from hub.auto.unstructured.kaggle import download_kaggle_dataset
-from hub.auto.unstructured.image_classification import ImageClassification
-from hub.client.client import HubBackendClient
-from hub.client.log import logger
-from hub.core.dataset import Dataset, dataset_factory
-from hub.core.meta.dataset_meta import DatasetMeta
-from hub.util.path import convert_pathlib_to_string_if_needed
-from hub.hooks import (
+from deeplake.auto.unstructured.kaggle import download_kaggle_dataset
+from deeplake.auto.unstructured.image_classification import ImageClassification
+from deeplake.client.client import DeepLakeBackendClient
+from deeplake.client.log import logger
+from deeplake.core.dataset import Dataset, dataset_factory
+from deeplake.core.meta.dataset_meta import DatasetMeta
+from deeplake.util.path import convert_pathlib_to_string_if_needed
+from deeplake.hooks import (
     dataset_created,
     dataset_loaded,
     dataset_written,
     dataset_committed,
 )
-from hub.constants import (
+from deeplake.constants import (
     DEFAULT_MEMORY_CACHE_SIZE,
     DEFAULT_LOCAL_CACHE_SIZE,
     DEFAULT_READONLY,
     DATASET_META_FILENAME,
 )
-from hub.util.access_method import (
+from deeplake.util.access_method import (
     check_access_method,
     get_local_dataset,
     parse_access_method,
 )
-from hub.util.auto import get_most_common_extension
-from hub.util.bugout_reporter import feature_report_path, hub_reporter
-from hub.util.delete_entry import remove_path_from_backend
-from hub.util.keys import dataset_exists
-from hub.util.exceptions import (
+from deeplake.util.auto import get_most_common_extension
+from deeplake.util.bugout_reporter import feature_report_path, deeplake_reporter
+from deeplake.util.delete_entry import remove_path_from_backend
+from deeplake.util.keys import dataset_exists
+from deeplake.util.exceptions import (
     AgreementError,
     DatasetHandlerError,
     InvalidFileExtension,
@@ -43,11 +43,14 @@ from hub.util.exceptions import (
     UserNotLoggedInException,
     TokenPermissionError,
 )
-from hub.util.storage import get_storage_and_cache_chain, storage_provider_from_path
-from hub.util.compute import get_compute_provider
-from hub.util.remove_cache import get_base_storage
-from hub.util.cache_chain import generate_chain
-from hub.core.storage.hub_memory_object import HubMemoryObject
+from deeplake.util.storage import (
+    get_storage_and_cache_chain,
+    storage_provider_from_path,
+)
+from deeplake.util.compute import get_compute_provider
+from deeplake.util.remove_cache import get_base_storage
+from deeplake.util.cache_chain import generate_chain
+from deeplake.core.storage.hub_memory_object import HubMemoryObject
 
 
 class dataset:
@@ -64,13 +67,13 @@ class dataset:
         verbose: bool = True,
         access_method: str = "stream",
     ):
-        """Returns a :class:`~hub.core.dataset.Dataset` object referencing either a new or existing dataset.
+        """Returns a :class:`~deeplake.core.dataset.Dataset` object referencing either a new or existing dataset.
 
         Examples:
 
-            >>> ds = hub.dataset("hub://username/dataset")
-            >>> ds = hub.dataset("s3://mybucket/my_dataset")
-            >>> ds = hub.dataset("./datasets/my_dataset", overwrite=True)
+            >>> ds = deeplake.dataset("hub://username/dataset")
+            >>> ds = deeplake.dataset("s3://mybucket/my_dataset")
+            >>> ds = deeplake.dataset("./datasets/my_dataset", overwrite=True)
 
         Args:
             path (str, pathlib.Path): - The full path to the dataset. Can be:
@@ -301,7 +304,7 @@ class dataset:
             raise DatasetHandlerError(
                 f"A dataset already exists at the given path ({path}). If you want to create"
                 f" a new empty dataset, either specify another path or use overwrite=True. "
-                f"If you want to load the dataset that exists at this path, use hub.load() instead."
+                f"If you want to load the dataset that exists at this path, use deeplake.load() instead."
             )
         read_only = storage.read_only
         ret = dataset_factory(
@@ -405,7 +408,7 @@ class dataset:
             raise
         if not dataset_exists(cache_chain):
             raise DatasetHandlerError(
-                f"A Hub dataset does not exist at the given path ({path}). Check the path provided or in case you want to create a new dataset, use hub.empty()."
+                f"A Hub dataset does not exist at the given path ({path}). Check the path provided or in case you want to create a new dataset, use deeplake.empty()."
             )
 
         try:
@@ -446,8 +449,8 @@ class dataset:
 
         Examples:
 
-            >>> hub.rename("hub://username/image_ds", "hub://username/new_ds")
-            >>> hub.rename("s3://mybucket/my_ds", "s3://mybucket/renamed_ds")
+            >>> deeplake.rename("hub://username/image_ds", "hub://username/new_ds")
+            >>> deeplake.rename("s3://mybucket/my_ds", "s3://mybucket/renamed_ds")
 
         Args:
             old_path (str, pathlib.Path): The path to the dataset to be renamed.
@@ -471,7 +474,7 @@ class dataset:
 
         feature_report_path(old_path, "rename", {}, token=token)
 
-        ds = hub.load(old_path, verbose=False, token=token, creds=creds)
+        ds = deeplake.load(old_path, verbose=False, token=token, creds=creds)
         ds.rename(new_path)
 
         return ds  # type: ignore
@@ -521,7 +524,7 @@ class dataset:
                     raise NotImplementedError(
                         "Deleting managed views by path is not supported. Load the source dataset and do `ds.delete_view(id)` instead."
                     )
-            ds = hub.load(path, verbose=False, token=token, creds=creds)
+            ds = deeplake.load(path, verbose=False, token=token, creds=creds)
             ds.delete(large_ok=large_ok)
             if verbose:
                 logger.info(f"{path} dataset deleted successfully.")
@@ -696,7 +699,9 @@ class dataset:
 
         if isinstance(src, (str, pathlib.Path)):
             src = convert_pathlib_to_string_if_needed(src)
-            src_ds = hub.load(src, read_only=True, creds=src_creds, token=src_token)
+            src_ds = deeplake.load(
+                src, read_only=True, creds=src_creds, token=src_token
+            )
         else:
             src_ds = src
             src_ds.path = str(src_ds.path)
@@ -771,7 +776,7 @@ class dataset:
             report_params["Dest"] = dest
         feature_report_path(src, "deepcopy", report_params, token=dest_token)
 
-        src_ds = hub.load(
+        src_ds = deeplake.load(
             src, read_only=True, creds=src_creds, token=src_token, verbose=False
         )
         src_storage = get_base_storage(src_ds.storage)
@@ -1012,7 +1017,7 @@ class dataset:
                 if images_compression is None:
                     raise InvalidFileExtension(src)
 
-            ds = hub.dataset(dest, creds=dest_creds, **dataset_kwargs)
+            ds = deeplake.dataset(dest, creds=dest_creds, **dataset_kwargs)
 
             # TODO: support more than just image classification (and update docstring)
             unstructured = ImageClassification(source=src)
@@ -1055,7 +1060,7 @@ class dataset:
             kaggle_credentials (dict): A dictionary containing kaggle credentials {"username":"YOUR_USERNAME", "key": "YOUR_KEY"}. If ``None``, environment variables/the kaggle.json file will be used if available.
             progressbar (bool): Enables or disables ingestion progress bar. Set to ``True`` by default.
             summary (bool): Generates ingestion summary. Set to ``True`` by default.
-            **dataset_kwargs: Any arguments passed here will be forwarded to the dataset creator function. See :func:`hub.dataset`.
+            **dataset_kwargs: Any arguments passed here will be forwarded to the dataset creator function. See :func:`deeplake.dataset`.
 
         Returns:
             Dataset: New dataset object with structured dataset.
@@ -1091,7 +1096,7 @@ class dataset:
             exist_ok=exist_ok,
         )
 
-        ds = hub.ingest(
+        ds = deeplake.ingest(
             src=src,
             dest=dest,
             images_compression=images_compression,
@@ -1123,7 +1128,7 @@ class dataset:
                 - a memory path of the form ``mem://path/to/dataset`` which doesn't save the dataset but keeps it in memory instead. Should be used only for testing as it does not persist.
             dest_creds (Optional[Dict]): A dictionary containing credentials used to access the destination path of the dataset.
             progressbar (bool): Enables or disables ingestion progress bar. Set to ``True`` by default.
-            **dataset_kwargs: Any arguments passed here will be forwarded to the dataset creator function. See :func:`hub.dataset`.
+            **dataset_kwargs: Any arguments passed here will be forwarded to the dataset creator function. See :func:`deeplake.dataset`.
 
         Returns:
             Dataset: New dataset created from the dataframe.
@@ -1132,21 +1137,21 @@ class dataset:
             Exception: If ``src`` is not a valid pandas dataframe object.
         """
         import pandas as pd
-        from hub.auto.structured.dataframe import DataFrame
+        from deeplake.auto.structured.dataframe import DataFrame
 
         if not isinstance(src, pd.DataFrame):
             raise Exception("Source provided is not a valid pandas dataframe object")
 
         dest = convert_pathlib_to_string_if_needed(dest)
 
-        ds = hub.dataset(dest, creds=dest_creds, **dataset_kwargs)
+        ds = deeplake.dataset(dest, creds=dest_creds, **dataset_kwargs)
 
         structured = DataFrame(src)
         structured.fill_dataset(ds, progressbar)  # type: ignore
         return ds  # type: ignore
 
     @staticmethod
-    @hub_reporter.record_call
+    @deeplake_reporter.record_call
     def list(
         workspace: str = "",
         token: Optional[str] = None,
@@ -1162,6 +1167,6 @@ class dataset:
         Returns:
             List: List of dataset names.
         """
-        client = HubBackendClient(token=token)
+        client = DeepLakeBackendClient(token=token)
         datasets = client.get_datasets(workspace=workspace)
         return datasets

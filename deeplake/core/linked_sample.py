@@ -1,5 +1,5 @@
 from typing import Optional
-from hub.constants import ALL_CLOUD_PREFIXES
+from deeplake.constants import ALL_CLOUD_PREFIXES
 
 
 def convert_creds_key(creds_key: Optional[str], path: str):
@@ -11,7 +11,7 @@ def convert_creds_key(creds_key: Optional[str], path: str):
 
 
 class LinkedSample:
-    """Represents a sample that is initialized using external links. See :meth:`hub.link`."""
+    """Represents a sample that is initialized using external links. See :meth:`deeplake.link`."""
 
     def __init__(self, path: str, creds_key: Optional[str] = None):
         self.path = path

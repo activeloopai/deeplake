@@ -1,7 +1,7 @@
-import hub
+import deeplake
 import torch
 import numpy as np
-from hub.util.iterable_ordered_dict import IterableOrderedDict
+from deeplake.util.iterable_ordered_dict import IterableOrderedDict
 
 
 def raise_indra_installation_error(

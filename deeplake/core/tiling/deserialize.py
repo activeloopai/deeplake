@@ -1,7 +1,7 @@
 import numpy as np
 from typing import List, Tuple, Union, Optional
-from hub.core.chunk.base_chunk import BaseChunk
-from hub.core.meta.encode.tile import TileEncoder
+from deeplake.core.chunk.base_chunk import BaseChunk
+from deeplake.core.meta.encode.tile import TileEncoder
 
 
 def coalesce_tiles(

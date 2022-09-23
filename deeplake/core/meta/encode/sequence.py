@@ -1,6 +1,6 @@
-from hub.core.meta.encode.byte_positions import BytePositionsEncoder
-from hub.core.storage.hub_memory_object import HubMemoryObject
-from hub.core.serialize import (
+from deeplake.core.meta.encode.byte_positions import BytePositionsEncoder
+from deeplake.core.storage.hub_memory_object import HubMemoryObject
+from deeplake.core.serialize import (
     serialize_sequence_or_creds_encoder,
     deserialize_sequence_or_creds_encoder,
 )

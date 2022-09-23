@@ -1,7 +1,7 @@
-import hub
+import deeplake
 from urllib.request import urlopen
-from hub.util.keys import get_chunk_key
-from hub.visualizer.video_streaming import _VideoStream
+from deeplake.util.keys import get_chunk_key
+from deeplake.visualizer.video_streaming import _VideoStream
 import pytest
 import os
 import sys
@@ -14,7 +14,7 @@ def test_video_playback(local_ds_generator, video_paths):
     mp4_path = video_paths["mp4"][0]
     ds = local_ds_generator()
     ds.create_tensor("videos", htype="video", sample_compression="mp4")
-    ds.videos.append(hub.read(mp4_path))
+    ds.videos.append(deeplake.read(mp4_path))
     enc = ds.videos.chunk_engine.chunk_id_encoder
     chunk_name = enc.get_name_for_chunk(0)
     chunk_key = get_chunk_key("videos", chunk_name, ds.version_state["commit_id"])
@@ -34,13 +34,13 @@ def test_linked_video_playback(local_ds_generator, gcs_path):
     with local_ds_generator() as ds:
         ds.create_tensor("video_links", htype="link[video]")
         ds.video_links.append(
-            hub.link(
+            deeplake.link(
                 "http://commondatastorage.googleapis.com/gtv-videos-bucket/sample/ForBiggerJoyrides.mp4",
                 creds_key="ENV",
             )
         )
         ds.video_links.append(
-            hub.link(
+            deeplake.link(
                 "gcs://gtv-videos-bucket/sample/ForBiggerJoyrides.mp4", creds_key="ENV"
             )
         )

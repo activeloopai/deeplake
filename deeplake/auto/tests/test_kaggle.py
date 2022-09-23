@@ -1,16 +1,16 @@
-from hub.api.dataset import Dataset
-from hub.api.tests.test_api import convert_string_to_pathlib_if_needed
-from hub.util.exceptions import (
+from deeplake.api.dataset import Dataset
+from deeplake.api.tests.test_api import convert_string_to_pathlib_if_needed
+from deeplake.util.exceptions import (
     KaggleDatasetAlreadyDownloadedError,
     SamePathException,
     KaggleMissingCredentialsError,
     ExternalCommandError,
 )
 from click.testing import CliRunner
-from hub.tests.common import get_dummy_data_path
+from deeplake.tests.common import get_dummy_data_path
 import pytest
 import os
-import hub
+import deeplake
 
 
 @pytest.mark.parametrize("convert_to_pathlib", [True, False])
@@ -24,7 +24,7 @@ def test_ingestion_simple(
         )
         username, key = hub_kaggle_credentials
 
-        ds = hub.ingest_kaggle(
+        ds = deeplake.ingest_kaggle(
             tag="andradaolteanu/birdcall-recognition-data",
             src=kaggle_path,
             dest=local_ds.path,
@@ -44,7 +44,7 @@ def test_ingestion_sets(local_ds: Dataset, hub_kaggle_credentials):
         kaggle_path = os.path.join(local_ds.path, "unstructured_kaggle_data_sets")
         username, key = hub_kaggle_credentials
 
-        ds = hub.ingest_kaggle(
+        ds = deeplake.ingest_kaggle(
             tag="thisiseshan/bird-classes",
             src=kaggle_path,
             dest=local_ds.path,
@@ -77,7 +77,7 @@ def test_kaggle_exception(local_ds: Dataset, hub_kaggle_credentials):
         username, key = hub_kaggle_credentials
 
         with pytest.raises(SamePathException):
-            hub.ingest_kaggle(
+            deeplake.ingest_kaggle(
                 tag="thisiseshan/bird-classes",
                 src=dummy_path,
                 dest=dummy_path,
@@ -89,7 +89,7 @@ def test_kaggle_exception(local_ds: Dataset, hub_kaggle_credentials):
             )
 
         with pytest.raises(KaggleMissingCredentialsError):
-            hub.ingest_kaggle(
+            deeplake.ingest_kaggle(
                 tag="thisiseshan/bird-classes",
                 src=kaggle_path,
                 dest=local_ds.path,
@@ -101,7 +101,7 @@ def test_kaggle_exception(local_ds: Dataset, hub_kaggle_credentials):
             )
 
         with pytest.raises(KaggleMissingCredentialsError):
-            hub.ingest_kaggle(
+            deeplake.ingest_kaggle(
                 tag="thisiseshan/bird-classes",
                 src=kaggle_path,
                 dest=local_ds.path,
@@ -113,7 +113,7 @@ def test_kaggle_exception(local_ds: Dataset, hub_kaggle_credentials):
             )
 
         with pytest.raises(ExternalCommandError):
-            hub.ingest_kaggle(
+            deeplake.ingest_kaggle(
                 tag="thisiseshan/invalid-dataset",
                 src=kaggle_path,
                 dest=local_ds.path,
@@ -124,7 +124,7 @@ def test_kaggle_exception(local_ds: Dataset, hub_kaggle_credentials):
                 overwrite=False,
             )
 
-        hub.ingest_kaggle(
+        deeplake.ingest_kaggle(
             tag="thisiseshan/bird-classes",
             src=kaggle_path,
             dest=local_ds.path,
@@ -136,7 +136,7 @@ def test_kaggle_exception(local_ds: Dataset, hub_kaggle_credentials):
         )
 
         with pytest.raises(KaggleDatasetAlreadyDownloadedError):
-            hub.ingest_kaggle(
+            deeplake.ingest_kaggle(
                 tag="thisiseshan/bird-classes",
                 src=kaggle_path,
                 dest=local_ds.path,

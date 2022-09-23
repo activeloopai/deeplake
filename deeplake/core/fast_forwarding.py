@@ -1,6 +1,6 @@
-from hub.constants import ENCODING_DTYPE
+from deeplake.constants import ENCODING_DTYPE
 import numpy as np
-import hub
+import deeplake
 import warnings
 
 
@@ -38,10 +38,10 @@ def version_compare(v1, v2):
 def _check_version(v):
     """Returns True if no fast forwarding is required (False if otherwise)."""
 
-    comparison = version_compare(v, hub.__version__)
+    comparison = version_compare(v, deeplake.__version__)
     if comparison > 0:
         warnings.warn(
-            f"Loading a dataset that was created or updated with a newer version of hub. This could lead to corruption or unexpected errors! Dataset version: {v}, current hub version: {hub.__version__}. It's recommended that you update to a version of hub >= {v}."
+            f"Loading a dataset that was created or updated with a newer version of deeplake. This could lead to corruption or unexpected errors! Dataset version: {v}, current hub version: {deeplake.__version__}. It's recommended that you update to a version of hub >= {v}."
         )
 
     return comparison >= 0
@@ -55,7 +55,7 @@ def ffw(func):
         v = inp.version
         if not _check_version(v):
             out = func(inp, v, **kwargs)
-            inp.version = hub.__version__
+            inp.version = deeplake.__version__
             return out
 
     return decor

@@ -1,11 +1,11 @@
-from hub.core.storage.gcs import GCSProvider
-from hub.core.storage.google_drive import GDriveProvider
-from hub.util.storage import storage_provider_from_hub_path
-from hub.core.storage.s3 import S3Provider
-from hub.core.storage.local import LocalProvider
+from deeplake.core.storage.gcs import GCSProvider
+from deeplake.core.storage.google_drive import GDriveProvider
+from deeplake.util.storage import storage_provider_from_hub_path
+from deeplake.core.storage.s3 import S3Provider
+from deeplake.core.storage.local import LocalProvider
 import os
-import hub
-from hub.constants import (
+import deeplake
+from deeplake.constants import (
     HUB_CLOUD_OPT,
     KEEP_STORAGE_OPT,
     LOCAL_OPT,
@@ -26,7 +26,7 @@ from hub.constants import (
     ENV_GDRIVE_REFRESH_TOKEN,
 )
 import posixpath
-from hub.tests.common import (
+from deeplake.tests.common import (
     SESSION_ID,
     current_test_name,
     get_dummy_data_path,
@@ -312,7 +312,7 @@ def hub_cloud_path(request, hub_cloud_dev_token):
     # clear storage unless flagged otherwise
     if not is_opt_true(request, KEEP_STORAGE_OPT):
         try:
-            hub.delete(path, force=True, large_ok=True, token=hub_cloud_dev_token)
+            deeplake.delete(path, force=True, large_ok=True, token=hub_cloud_dev_token)
         except Exception:
             # TODO: investigate flakey `BadRequestException:
             # Invalid Request. One or more request parameters is incorrect.`

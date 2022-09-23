@@ -1,21 +1,21 @@
-from hub.core.storage.gcs import GCSProvider
-from hub.util.agreement import handle_dataset_agreements
-from hub.util.cache_chain import generate_chain
-from hub.constants import LOCAL_CACHE_PREFIX, MB
-from hub.util.exceptions import AgreementNotAcceptedError
-from hub.util.tag import process_hub_path
+from deeplake.core.storage.gcs import GCSProvider
+from deeplake.util.agreement import handle_dataset_agreements
+from deeplake.util.cache_chain import generate_chain
+from deeplake.constants import LOCAL_CACHE_PREFIX, MB
+from deeplake.util.exceptions import AgreementNotAcceptedError
+from deeplake.util.tag import process_hub_path
 from typing import Optional
-from hub.core.storage.provider import StorageProvider
+from deeplake.core.storage.provider import StorageProvider
 import os
-from hub.core.storage import (
+from deeplake.core.storage import (
     LocalProvider,
     S3Provider,
     MemoryProvider,
     GDriveProvider,
 )
-from hub.client.client import HubBackendClient
+from deeplake.client.client import DeepLakeBackendClient
 import posixpath
-from hub.constants import DEFAULT_READONLY
+from deeplake.constants import DEFAULT_READONLY
 
 
 def storage_provider_from_path(
@@ -94,7 +94,7 @@ def storage_provider_from_hub_path(
     path: str, read_only: bool = False, token: str = None
 ):
     path, org_id, ds_name, subdir = process_hub_path(path)
-    client = HubBackendClient(token=token)
+    client = DeepLakeBackendClient(token=token)
 
     mode = "r" if read_only else None
 

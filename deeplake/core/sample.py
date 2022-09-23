@@ -1,5 +1,5 @@
 import requests
-from hub.core.compression import (
+from deeplake.core.compression import (
     compress_array,
     decompress_array,
     verify_compressed_file,
@@ -10,17 +10,17 @@ from hub.core.compression import (
     _read_audio_meta,
     _read_point_cloud_meta,
 )
-from hub.compression import (
+from deeplake.compression import (
     get_compression_type,
     AUDIO_COMPRESSION,
     IMAGE_COMPRESSION,
     VIDEO_COMPRESSION,
     POINT_CLOUD_COMPRESSION,
 )
-from hub.util.exceptions import UnableToReadFromUrlError
-from hub.util.exif import getexif
-from hub.core.storage.provider import StorageProvider
-from hub.util.path import get_path_type, is_remote_path
+from deeplake.util.exceptions import UnableToReadFromUrlError
+from deeplake.util.exif import getexif
+from deeplake.core.storage.provider import StorageProvider
+from deeplake.util.path import get_path_type, is_remote_path
 import numpy as np
 from typing import Optional, Tuple, Union, Dict
 
@@ -28,11 +28,11 @@ from PIL import Image  # type: ignore
 from PIL.ExifTags import TAGS  # type: ignore
 from io import BytesIO
 
-from hub.core.storage.s3 import S3Provider
-from hub.core.storage.google_drive import GDriveProvider
+from deeplake.core.storage.s3 import S3Provider
+from deeplake.core.storage.google_drive import GDriveProvider
 
 try:
-    from hub.core.storage.gcs import GCSProvider
+    from deeplake.core.storage.gcs import GCSProvider
 except ImportError:
     GCSProvider = None  # type: ignore
 
@@ -308,7 +308,7 @@ class Sample:
         compression = self.compression
         if compression is None and self._buffer is not None:
             if self.is_text_like:
-                from hub.core.serialize import bytes_to_text
+                from deeplake.core.serialize import bytes_to_text
 
                 buffer = bytes(self._buffer)
                 self._array = bytes_to_text(buffer, self.htype)
@@ -341,7 +341,7 @@ class Sample:
 
         Example:
 
-            >>> sample = hub.read("./images/dog.jpg")
+            >>> sample = deeplake.read("./images/dog.jpg")
             >>> arr = sample.array
             >>> arr.shape
             (323, 480, 3)

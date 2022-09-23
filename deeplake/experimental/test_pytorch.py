@@ -1,19 +1,19 @@
 import pickle
-from hub.experimental import dataloader
+from deeplake.experimental import dataloader
 
-import hub
+import deeplake
 import numpy as np
 import pytest
-from hub.util.exceptions import TensorDoesNotExistError
+from deeplake.util.exceptions import TensorDoesNotExistError
 
-from hub.util.remove_cache import get_base_storage
-from hub.core.index.index import IndexEntry
-from hub.tests.common import requires_torch, requires_linux
-from hub.core.dataset import Dataset
-from hub.core.storage import MemoryProvider, GCSProvider
-from hub.constants import KB
+from deeplake.util.remove_cache import get_base_storage
+from deeplake.core.index.index import IndexEntry
+from deeplake.tests.common import requires_torch, requires_linux
+from deeplake.core.dataset import Dataset
+from deeplake.core.storage import MemoryProvider, GCSProvider
+from deeplake.constants import KB
 
-from hub.tests.dataset_fixtures import enabled_non_gdrive_datasets
+from deeplake.tests.dataset_fixtures import enabled_non_gdrive_datasets
 
 try:
     from torch.utils.data._utils.collate import default_collate
@@ -294,8 +294,8 @@ def test_pytorch_local_cache():
 @requires_torch
 @requires_linux
 def test_groups(local_ds, compressed_image_paths):
-    img1 = hub.read(compressed_image_paths["jpeg"][0])
-    img2 = hub.read(compressed_image_paths["png"][0])
+    img1 = deeplake.read(compressed_image_paths["jpeg"][0])
+    img2 = deeplake.read(compressed_image_paths["png"][0])
     with local_ds:
         local_ds.create_tensor(
             "images/jpegs/cats", htype="image", sample_compression="jpeg"
@@ -307,7 +307,7 @@ def test_groups(local_ds, compressed_image_paths):
             local_ds.images.jpegs.cats.append(img1)
             local_ds.images.pngs.flowers.append(img2)
 
-    another_ds = hub.dataset(local_ds.path)
+    another_ds = deeplake.dataset(local_ds.path)
     dl = dataloader(another_ds).pytorch(return_index=False)
     for i, (cat, flower) in enumerate(dl):
         assert cat[0].shape == another_ds.images.jpegs.cats[i].numpy().shape
@@ -457,7 +457,7 @@ def test_rename(local_ds):
 @requires_torch
 @requires_linux
 def test_expiration_date_casting_to_string():
-    ds = hub.dataset("hub://activeloop/cifar100-train")[0:10:2]
+    ds = deeplake.dataset("hub://activeloop/cifar100-train")[0:10:2]
     loader = dataloader(ds).pytorch(return_index=False)
     for _ in loader:
         pass

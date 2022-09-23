@@ -1,11 +1,11 @@
 from PIL import Image  # type: ignore
 from PIL.ExifTags import TAGS  # type: ignore
-from hub.util.exif import getexif
+from deeplake.util.exif import getexif
 import numpy as np
 import pytest
 import os
 import sys
-import hub
+import deeplake
 import json
 
 
@@ -19,7 +19,7 @@ def test_image_samples(local_ds_generator, compressed_image_paths):
     jpg = ds.create_tensor("jpg_images", htype="image", sample_compression="jpg")
     jpg_paths = compressed_image_paths["jpeg"]
     for jpg_path in jpg_paths:
-        ds.jpg_images.append(hub.read(jpg_path))
+        ds.jpg_images.append(deeplake.read(jpg_path))
 
     for i, (jpg_path, sample_info) in enumerate(zip(jpg_paths, jpg.sample_info)):
         img = Image.open(jpg_path)
@@ -52,7 +52,7 @@ def test_video_samples(local_ds_generator, video_paths):
     mp4 = ds.create_tensor("mp4_videos", htype="video", sample_compression="mp4")
     mp4_paths = video_paths["mp4"]
     for mp4_path in mp4_paths:
-        ds.mp4_videos.append(hub.read(mp4_path))
+        ds.mp4_videos.append(deeplake.read(mp4_path))
 
     for i, (mp4_path, sample_info) in enumerate(zip(mp4_paths, mp4.sample_info)):
         container = av.open(mp4_path)
@@ -95,7 +95,7 @@ def test_audio_samples(local_ds_generator, audio_paths):
     mp3 = ds.create_tensor("mp3_audios", htype="audio", sample_compression="mp3")
     mp3_paths = [audio_paths["mp3"]]
     for mp3_path in mp3_paths:
-        ds.mp3_audios.append(hub.read(mp3_path))
+        ds.mp3_audios.append(deeplake.read(mp3_path))
 
     for i, (mp3_path, sample_info) in enumerate(zip(mp3_paths, mp3.sample_info)):
         container = av.open(mp3_path)

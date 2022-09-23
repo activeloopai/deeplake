@@ -1,6 +1,9 @@
-from hub.util.exceptions import ModuleNotInstalledException, UnsupportedSchedulerError
-from hub.util.check_installation import ray_installed
-from hub.core.compute.provider import ComputeProvider
+from deeplake.util.exceptions import (
+    ModuleNotInstalledException,
+    UnsupportedSchedulerError,
+)
+from deeplake.util.check_installation import ray_installed
+from deeplake.core.compute.provider import ComputeProvider
 
 
 def get_compute_provider(
@@ -8,15 +11,15 @@ def get_compute_provider(
 ) -> ComputeProvider:
     num_workers = max(num_workers, 0)
     if scheduler == "serial" or num_workers == 0:
-        from hub.core.compute.serial import SerialProvider
+        from deeplake.core.compute.serial import SerialProvider
 
         compute: ComputeProvider = SerialProvider()
     elif scheduler == "threaded":
-        from hub.core.compute.thread import ThreadProvider
+        from deeplake.core.compute.thread import ThreadProvider
 
         compute = ThreadProvider(num_workers)
     elif scheduler == "processed":
-        from hub.core.compute.process import ProcessProvider
+        from deeplake.core.compute.process import ProcessProvider
 
         compute = ProcessProvider(num_workers)
     elif scheduler == "ray":
@@ -24,7 +27,7 @@ def get_compute_provider(
             raise ModuleNotInstalledException(
                 "'ray' should be installed to use ray scheduler."
             )
-        from hub.core.compute.ray import RayProvider
+        from deeplake.core.compute.ray import RayProvider
 
         compute = RayProvider(num_workers)
 

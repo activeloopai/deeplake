@@ -1,8 +1,8 @@
 from typing import Any, Callable, List, Union, Optional
-from hub.core.dataset import Dataset
-from hub.core.io import IOBlock, SampleStreaming
-from hub.core.index import Index
-from hub.core.tensor import Tensor
+from deeplake.core.dataset import Dataset
+from deeplake.core.io import IOBlock, SampleStreaming
+from deeplake.core.index import Index
+from deeplake.core.tensor import Tensor
 
 
 import numpy as np

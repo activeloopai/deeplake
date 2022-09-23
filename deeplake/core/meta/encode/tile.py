@@ -1,15 +1,15 @@
-import hub
+import deeplake
 import numpy as np
 from typing import Any, Dict, List, Optional, Tuple
-from hub.core.storage.hub_memory_object import HubMemoryObject
-from hub.core.tiling.sample_tiles import SampleTiles
+from deeplake.core.storage.hub_memory_object import HubMemoryObject
+from deeplake.core.tiling.sample_tiles import SampleTiles
 
 
 class TileEncoder(HubMemoryObject):
     def __init__(self, entries=None, version=None):
         self.is_dirty = False
         self.entries: Dict[int, Tuple[Tuple[int, ...], Tuple[int, ...]]] = entries or {}
-        self.version = version or hub.__version__
+        self.version = version or deeplake.__version__
 
     def register_sample(self, sample: SampleTiles, idx: int):
         """Registers a new tiled sample into the encoder.

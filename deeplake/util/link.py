@@ -1,11 +1,11 @@
-from hub.core.link_creds import LinkCreds
-from hub.core.lock import Lock
-from hub.core.storage.lru_cache import LRUCache
-from hub.util.keys import (
+from deeplake.core.link_creds import LinkCreds
+from deeplake.core.lock import Lock
+from deeplake.core.storage.lru_cache import LRUCache
+from deeplake.util.keys import (
     get_dataset_linked_creds_key,
     get_dataset_linked_creds_lock_key,
 )
-from hub.util.remove_cache import get_base_storage
+from deeplake.util.remove_cache import get_base_storage
 from typing import Optional, Tuple
 
 

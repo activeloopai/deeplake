@@ -1,5 +1,5 @@
 import numpy as np
-from hub.constants import KB
+from deeplake.constants import KB
 
 
 def _assert_num_chunks(tensor, expected_num_chunks):

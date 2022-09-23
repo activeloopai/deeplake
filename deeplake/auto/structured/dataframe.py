@@ -1,8 +1,8 @@
 import os
-from hub.util.exceptions import InvalidPathException
+from deeplake.util.exceptions import InvalidPathException
 import numpy as np
 from .base import StructuredDataset
-from hub.core.dataset import Dataset
+from deeplake.core.dataset import Dataset
 from tqdm import tqdm  # type: ignore
 
 

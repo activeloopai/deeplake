@@ -1,15 +1,15 @@
-from hub.api.tests.test_api import MAX_FLOAT_DTYPE
+from deeplake.api.tests.test_api import MAX_FLOAT_DTYPE
 import numpy as np
-import hub
+import deeplake
 
 
 def test_version(local_ds_generator):
     ds = local_ds_generator()
-    assert ds.meta.version == hub.__version__
+    assert ds.meta.version == deeplake.__version__
 
     # persistence
     ds = local_ds_generator()
-    assert ds.meta.version == hub.__version__
+    assert ds.meta.version == deeplake.__version__
 
 
 def test_subsequent_updates(local_ds_generator):

@@ -1,6 +1,6 @@
 from typing import Any, Dict
-from hub.core.meta.meta import Meta
-from hub.core.index import Index
+from deeplake.core.meta.meta import Meta
+from deeplake.core.index import Index
 import posixpath
 
 

@@ -1,15 +1,15 @@
-import hub
+import deeplake
 import numpy as np
 from typing import Dict, List
-from hub.core.meta.encode.creds import CredsEncoder
-from hub.core.meta.tensor_meta import TensorMeta
-from hub.core.meta.encode.chunk_id import ChunkIdEncoder
-from hub.core.meta.encode.tile import TileEncoder
-from hub.core.meta.encode.sequence import SequenceEncoder
-from hub.core.storage.provider import StorageProvider
-from hub.core.version_control.commit_chunk_set import CommitChunkSet
-from hub.core.version_control.commit_diff import CommitDiff
-from hub.util.keys import (
+from deeplake.core.meta.encode.creds import CredsEncoder
+from deeplake.core.meta.tensor_meta import TensorMeta
+from deeplake.core.meta.encode.chunk_id import ChunkIdEncoder
+from deeplake.core.meta.encode.tile import TileEncoder
+from deeplake.core.meta.encode.sequence import SequenceEncoder
+from deeplake.core.storage.provider import StorageProvider
+from deeplake.core.version_control.commit_chunk_set import CommitChunkSet
+from deeplake.core.version_control.commit_diff import CommitDiff
+from deeplake.util.keys import (
     get_creds_encoder_key,
     get_sequence_encoder_key,
     get_tensor_commit_chunk_set_key,
@@ -60,7 +60,7 @@ def merge_all_meta_info(
 
 def merge_all_tensor_metas(
     all_workers_tensor_metas: List[Dict[str, TensorMeta]],
-    target_ds: hub.Dataset,
+    target_ds: deeplake.Dataset,
     storage: StorageProvider,
     overwrite: bool,
     tensors: List[str],
@@ -104,7 +104,7 @@ def combine_metas(ds_tensor_meta: TensorMeta, worker_tensor_meta: TensorMeta) ->
 
 def merge_all_chunk_id_encoders(
     all_workers_chunk_id_encoders: List[Dict[str, ChunkIdEncoder]],
-    target_ds: hub.Dataset,
+    target_ds: deeplake.Dataset,
     storage: StorageProvider,
     overwrite: bool,
     tensors: List[str],
@@ -150,7 +150,7 @@ def combine_chunk_id_encoders(
 def merge_all_tile_encoders(
     all_workers_tile_encoders: List[Dict[str, TileEncoder]],
     all_num_samples: List[Dict[str, int]],
-    target_ds: hub.Dataset,
+    target_ds: deeplake.Dataset,
     storage: StorageProvider,
     overwrite: bool,
     tensors: List[str],
@@ -194,7 +194,7 @@ def combine_tile_encoders(
 
 def merge_all_commit_chunk_sets(
     all_workers_commit_chunk_sets: List[Dict[str, CommitChunkSet]],
-    target_ds: hub.Dataset,
+    target_ds: deeplake.Dataset,
     storage: StorageProvider,
     overwrite: bool,
     tensors: List[str],
@@ -227,7 +227,7 @@ def combine_commit_chunk_sets(
 
 def merge_all_commit_diffs(
     all_workers_commit_diffs: List[Dict[str, CommitDiff]],
-    target_ds: hub.Dataset,
+    target_ds: deeplake.Dataset,
     storage: StorageProvider,
     overwrite: bool,
     tensors: List[str],
@@ -258,7 +258,7 @@ def combine_commit_diffs(
 
 def merge_all_creds_encoders(
     all_workers_creds_encoders: List[Dict[str, CredsEncoder]],
-    target_ds: hub.Dataset,
+    target_ds: deeplake.Dataset,
     storage: StorageProvider,
     overwrite: bool,
     tensors: List[str],
@@ -298,7 +298,7 @@ def combine_creds_encoders(
 
 def merge_all_sequence_encoders(
     all_workers_sequence_encoders: List[Dict[str, SequenceEncoder]],
-    target_ds: hub.Dataset,
+    target_ds: deeplake.Dataset,
     storage: StorageProvider,
     overwrite: bool,
     tensors: List[str],

@@ -1,11 +1,11 @@
 import time
 import os
-from hub.core.storage.provider import StorageProvider
+from deeplake.core.storage.provider import StorageProvider
 from io import BytesIO
 import posixpath
 import pickle
 from typing import Dict, Optional, Union
-from hub.util.hash import hash_inputs
+from deeplake.util.hash import hash_inputs
 import logging
 
 try:

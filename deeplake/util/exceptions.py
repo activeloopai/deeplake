@@ -1,6 +1,6 @@
 import numpy as np
-import hub
-from hub.htype import HTYPE_CONFIGURATIONS
+import deeplake
+from deeplake.htype import HTYPE_CONFIGURATIONS
 from typing import Any, List, Sequence, Tuple, Optional, Union
 
 
@@ -211,15 +211,15 @@ class PathNotEmptyException(Exception):
     def __init__(self, use_hub=True):
         if use_hub:
             super().__init__(
-                f"Please use a url that points to an existing Hub Dataset or an empty folder. If you wish to delete the folder and its contents, you may run hub.delete(dataset_path, force=True)."
+                f"Please use a url that points to an existing Hub Dataset or an empty folder. If you wish to delete the folder and its contents, you may run deeplake.delete(dataset_path, force=True)."
             )
         else:
             super().__init__(
-                f"Specified path is not empty. If you wish to delete the folder and its contents, you may run hub.delete(path, force=True)."
+                f"Specified path is not empty. If you wish to delete the folder and its contents, you may run deeplake.delete(path, force=True)."
             )
 
 
-# Exceptions encountered while interection with the Hub backend
+# Exceptions encountered while interection with the Deep Lake backend
 class AuthenticationException(Exception):
     def __init__(self, message="Authentication failed. Please try logging in again."):
         super().__init__(message)
@@ -351,7 +351,7 @@ class UnsupportedCompressionError(CompressionError):
             )
         else:
             super().__init__(
-                f"Compression '{compression}' is not supported. Supported compressions: {hub.compressions}."
+                f"Compression '{compression}' is not supported. Supported compressions: {deeplake.compressions}."
             )
 
 
@@ -370,7 +370,7 @@ class SampleCompressionError(CompressionError):
 class SampleDecompressionError(CompressionError):
     def __init__(self):
         super().__init__(
-            f"Could not decompress sample buffer into an array. Either the sample's buffer is corrupted, or it is in an unsupported format. Supported compressions: {hub.compressions}."
+            f"Could not decompress sample buffer into an array. Either the sample's buffer is corrupted, or it is in an unsupported format. Supported compressions: {deeplake.compressions}."
         )
 
 
@@ -444,7 +444,7 @@ class TensorMetaMissingRequiredValue(MetaError):
     def __init__(self, htype: str, key: str):
         extra = ""
         if key == "sample_compression":
-            extra = f"`sample_compression` may be `None` if you want your '{htype}' data to be uncompressed. Available compressors: {hub.compressions}"
+            extra = f"`sample_compression` may be `None` if you want your '{htype}' data to be uncompressed. Available compressors: {deeplake.compressions}"
 
         super().__init__(
             f"Htype '{htype}' requires you to specify '{key}' inside the `create_tensor` method call. {extra}"
@@ -549,14 +549,14 @@ class InvalidTransformDataset(TransformError):
 
 
 class HubComposeEmptyListError(TransformError):
-    def __init__(self, message="Cannot hub.compose an empty list."):
+    def __init__(self, message="Cannot deeplake.compose an empty list."):
         super().__init__(message)
 
 
 class HubComposeIncompatibleFunction(TransformError):
     def __init__(self, index: int):
         super().__init__(
-            f"The element passed to hub.compose at index {index} is incompatible. Ensure that functions are all decorated with hub.compute decorator and instead of passing my_fn, use my_fn() or my_fn(arg1=5, arg2=3) in the list."
+            f"The element passed to deeplake.compose at index {index} is incompatible. Ensure that functions are all decorated with deeplake.compute decorator and instead of passing my_fn, use my_fn() or my_fn(arg1=5, arg2=3) in the list."
         )
 
 

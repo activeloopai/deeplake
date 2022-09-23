@@ -1,8 +1,8 @@
 import pathlib
 from typing import Union, Set
-from hub.core.dataset import Dataset
+from deeplake.core.dataset import Dataset
 import posixpath
-import hub
+import deeplake
 from tqdm import tqdm  # type: ignore
 
 
@@ -103,7 +103,7 @@ def ingest_huggingface(
     from datasets import DatasetDict
 
     if isinstance(dest, (str, pathlib.Path)):
-        ds = hub.dataset(dest)
+        ds = deeplake.dataset(dest)
     else:
         ds = dest  # type: ignore
 

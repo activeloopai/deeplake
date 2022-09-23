@@ -1,5 +1,5 @@
 from typing import Set
-from hub.core.storage.hub_memory_object import HubMemoryObject
+from deeplake.core.storage.hub_memory_object import HubMemoryObject
 
 
 class CommitChunkSet(HubMemoryObject):

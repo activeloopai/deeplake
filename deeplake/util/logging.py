@@ -1,5 +1,5 @@
-from hub.client.log import logger
-from hub.util.path import is_hub_cloud_path, get_org_id_and_ds_name
+from deeplake.client.log import logger
+from deeplake.util.path import is_hub_cloud_path, get_org_id_and_ds_name
 
 
 def log_visualizer_link(ds_path, source_ds_url=""):

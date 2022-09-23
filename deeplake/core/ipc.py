@@ -1,5 +1,5 @@
-import hub
-from hub.util.threading import terminate_thread
+import deeplake
+from deeplake.util.threading import terminate_thread
 import socketserver
 from typing import Optional, Callable, Dict
 import inspect

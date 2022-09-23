@@ -1,8 +1,8 @@
-import hub
-from hub.core.fast_forwarding import ffw_tensor_meta
+import deeplake
+from deeplake.core.fast_forwarding import ffw_tensor_meta
 from typing import Any, Callable, Dict, List, Sequence, Union, Optional
 import numpy as np
-from hub.util.exceptions import (
+from deeplake.util.exceptions import (
     TensorMetaInvalidHtype,
     TensorMetaInvalidHtypeOverwriteValue,
     TensorMetaInvalidHtypeOverwriteKey,
@@ -12,18 +12,22 @@ from hub.util.exceptions import (
     TensorInvalidSampleShapeError,
     InvalidTensorLinkError,
 )
-from hub.util.json import validate_json_schema
-from hub.constants import (
+from deeplake.util.json import validate_json_schema
+from deeplake.constants import (
     REQUIRE_USER_SPECIFICATION,
     UNSPECIFIED,
 )
-from hub.compression import (
+from deeplake.compression import (
     COMPRESSION_ALIASES,
 )
-from hub.htype import HTYPE_CONFIGURATIONS, HTYPE_SUPPORTED_COMPRESSIONS, htype as HTYPE
-from hub.htype import HTYPE_CONFIGURATIONS, REQUIRE_USER_SPECIFICATION, UNSPECIFIED
-from hub.core.meta.meta import Meta
-from hub.core.tensor_link import get_link_transform
+from deeplake.htype import (
+    HTYPE_CONFIGURATIONS,
+    HTYPE_SUPPORTED_COMPRESSIONS,
+    htype as HTYPE,
+)
+from deeplake.htype import HTYPE_CONFIGURATIONS, REQUIRE_USER_SPECIFICATION, UNSPECIFIED
+from deeplake.core.meta.meta import Meta
+from deeplake.core.tensor_link import get_link_transform
 
 
 class TensorMeta(Meta):
@@ -56,7 +60,7 @@ class TensorMeta(Meta):
 
         Args:
             htype (str): All tensors require an `htype`. This determines the default meta keys/values.
-            **kwargs: Any key that the provided `htype` has can be overridden via **kwargs. For more information, check out `hub.htype`.
+            **kwargs: Any key that the provided `htype` has can be overridden via **kwargs. For more information, check out `deeplake.htype`.
         """
 
         super().__init__()
@@ -306,12 +310,12 @@ def _validate_required_htype_overwrites(htype: str, htype_overwrite: dict):
     """Raises errors if `htype_overwrite` has invalid values."""
     sample_compression = htype_overwrite["sample_compression"]
     sample_compression = COMPRESSION_ALIASES.get(sample_compression, sample_compression)
-    if sample_compression not in hub.compressions:
+    if sample_compression not in deeplake.compressions:
         raise UnsupportedCompressionError(sample_compression)
 
     chunk_compression = htype_overwrite["chunk_compression"]
     chunk_compression = COMPRESSION_ALIASES.get(chunk_compression, chunk_compression)
-    if chunk_compression not in hub.compressions:
+    if chunk_compression not in deeplake.compressions:
         raise UnsupportedCompressionError(chunk_compression)
 
     if sample_compression and chunk_compression:

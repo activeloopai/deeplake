@@ -1,7 +1,7 @@
-from hub.constants import ENCODING_DTYPE
-from hub.util.exceptions import ChunkIdEncoderError
+from deeplake.constants import ENCODING_DTYPE
+from deeplake.util.exceptions import ChunkIdEncoderError
 import pytest
-from hub.core.meta.encode.chunk_id import ChunkIdEncoder
+from deeplake.core.meta.encode.chunk_id import ChunkIdEncoder
 
 
 def test_trivial():

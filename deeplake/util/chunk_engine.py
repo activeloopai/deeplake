@@ -2,9 +2,9 @@ import numpy as np
 from typing import List, Sequence, Union
 import warnings
 
-from hub.core.chunk.base_chunk import InputSample
-from hub.core.index.index import Index
-from hub.util.exceptions import DynamicTensorNumpyError
+from deeplake.core.chunk.base_chunk import InputSample
+from deeplake.core.index.index import Index
+from deeplake.util.exceptions import DynamicTensorNumpyError
 
 
 # used for warning the user if updating a tensor caused suboptimal chunks

@@ -1,4 +1,4 @@
-from hub.util.token import expires_in_to_expires_at, is_expired_token
+from deeplake.util.token import expires_in_to_expires_at, is_expired_token
 from time import sleep
 
 

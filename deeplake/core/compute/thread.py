@@ -1,5 +1,5 @@
 from multiprocessing import Manager
-from hub.core.compute.provider import ComputeProvider
+from deeplake.core.compute.provider import ComputeProvider
 from pathos.pools import ThreadPool  # type: ignore
 
 

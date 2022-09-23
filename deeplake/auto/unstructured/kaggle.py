@@ -1,13 +1,13 @@
 from threading import local
-import hub
+import deeplake
 import glob
 import os
-from hub.util.exceptions import (
+from deeplake.util.exceptions import (
     ExternalCommandError,
     KaggleMissingCredentialsError,
     KaggleDatasetAlreadyDownloadedError,
 )
-from hub.constants import ENV_KAGGLE_KEY, ENV_KAGGLE_USERNAME
+from deeplake.constants import ENV_KAGGLE_KEY, ENV_KAGGLE_USERNAME
 from zipfile import ZipFile
 
 

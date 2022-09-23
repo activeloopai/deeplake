@@ -1,5 +1,5 @@
 from typing import Optional, Sequence, List
-from hub.util.exceptions import ReadOnlyModeError, TensorDoesNotExistError
+from deeplake.util.exceptions import ReadOnlyModeError, TensorDoesNotExistError
 
 
 def try_flushing(ds):

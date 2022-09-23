@@ -1,6 +1,6 @@
-from hub.core.storage.hub_memory_object import HubMemoryObject
-from hub.core.storage import LRUCache
-from hub.util.keys import get_dataset_diff_key
+from deeplake.core.storage.hub_memory_object import HubMemoryObject
+from deeplake.core.storage import LRUCache
+from deeplake.util.keys import get_dataset_diff_key
 import typing
 from collections import OrderedDict
 

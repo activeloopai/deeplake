@@ -1,11 +1,14 @@
 import os
 import sys
-from hub.tests.common import get_actual_compression_from_buffer, assert_images_close
+from deeplake.tests.common import (
+    get_actual_compression_from_buffer,
+    assert_images_close,
+)
 import numpy as np
 import pytest
-import hub
+import deeplake
 import lz4.frame  # type: ignore
-from hub.core.compression import (
+from deeplake.core.compression import (
     compress_array,
     decompress_array,
     compress_multiple,
@@ -13,7 +16,7 @@ from hub.core.compression import (
     verify_compressed_file,
     decompress_bytes,
 )
-from hub.compression import (
+from deeplake.compression import (
     get_compression_type,
     BYTE_COMPRESSION,
     IMAGE_COMPRESSION,
@@ -25,7 +28,7 @@ from hub.compression import (
     SUPPORTED_COMPRESSIONS,
     POINT_CLOUD_COMPRESSIONS,
 )
-from hub.util.exceptions import CorruptedSampleError
+from deeplake.util.exceptions import CorruptedSampleError
 from PIL import Image  # type: ignore
 
 
@@ -48,7 +51,7 @@ def test_array(compression, compressed_image_paths):
     if compression_type == BYTE_COMPRESSION:
         array = np.random.randint(0, 10, (32, 32))
     elif compression_type == IMAGE_COMPRESSION:
-        array = np.array(hub.read(compressed_image_paths[compression][0]))
+        array = np.array(deeplake.read(compressed_image_paths[compression][0]))
     shape = array.shape
     compressed_buffer = compress_array(array, compression)
     if compression_type == BYTE_COMPRESSION:
@@ -93,10 +96,10 @@ def test_multi_array(compression, compressed_image_paths):
 @pytest.mark.parametrize("compression", image_compressions)
 def test_verify(compression, compressed_image_paths, corrupt_image_paths):
     for path in compressed_image_paths[compression]:
-        sample = hub.read(path)
-        sample_loaded = hub.read(path)
+        sample = deeplake.read(path)
+        sample_loaded = deeplake.read(path)
         sample_loaded.compressed_bytes(compression)
-        sample_verified_and_loaded = hub.read(path, verify=True)
+        sample_verified_and_loaded = deeplake.read(path, verify=True)
         sample_verified_and_loaded.compressed_bytes(compression)
         pil_image_shape = np.array(Image.open(path)).shape
         assert (
@@ -115,11 +118,11 @@ def test_verify(compression, compressed_image_paths, corrupt_image_paths):
             verify_compressed_file(f, compression)
     if compression in corrupt_image_paths:
         path = corrupt_image_paths[compression]
-        sample = hub.read(path)
+        sample = deeplake.read(path)
         sample.compressed_bytes(compression)
         Image.open(path)
         with pytest.raises(CorruptedSampleError):
-            sample = hub.read(path, verify=True)
+            sample = deeplake.read(path, verify=True)
             sample.compressed_bytes(compression)
         with pytest.raises(CorruptedSampleError):
             verify_compressed_file(path, compression)
@@ -148,7 +151,7 @@ def test_lz4_empty():
 @pytest.mark.parametrize("compression", AUDIO_COMPRESSIONS)
 def test_audio(compression, audio_paths):
     path = audio_paths[compression]
-    sample = hub.read(path)
+    sample = deeplake.read(path)
     arr = np.array(sample)
     assert arr.dtype == "float32"
     with open(path, "rb") as f:
@@ -161,7 +164,7 @@ def test_audio(compression, audio_paths):
 @pytest.mark.parametrize("compression", VIDEO_COMPRESSIONS)
 def test_video(compression, video_paths):
     for path in video_paths[compression]:
-        sample = hub.read(path)
+        sample = deeplake.read(path)
         arr = np.array(sample)
         assert arr.shape[-1] == 3
         assert arr.dtype == "uint8"
@@ -172,7 +175,7 @@ def test_video(compression, video_paths):
 @pytest.mark.parametrize("compression", POINT_CLOUD_COMPRESSIONS)
 def test_point_cloud(point_cloud_paths, compression):
     path = point_cloud_paths[compression]
-    sample = hub.read(path)
+    sample = deeplake.read(path)
     arr = np.array(sample)
     if compression == "las":
         assert len(arr[0]) == 18

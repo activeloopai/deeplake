@@ -1,6 +1,6 @@
 import pytest
-from hub.util.exceptions import ReadOnlyModeError
-from hub.tests.storage_fixtures import enabled_storages
+from deeplake.util.exceptions import ReadOnlyModeError
+from deeplake.tests.storage_fixtures import enabled_storages
 
 
 @pytest.mark.xfail(raises=ReadOnlyModeError, strict=True)

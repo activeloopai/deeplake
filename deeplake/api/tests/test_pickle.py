@@ -1,6 +1,6 @@
 import numpy as np
 import pytest
-from hub.util.exceptions import MemoryDatasetCanNotBePickledError
+from deeplake.util.exceptions import MemoryDatasetCanNotBePickledError
 import pickle
 
 

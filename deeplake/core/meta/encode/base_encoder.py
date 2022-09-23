@@ -1,7 +1,7 @@
-import hub
+import deeplake
 from abc import ABC
 from typing import Any, List, Sequence, Optional
-from hub.constants import ENCODING_DTYPE
+from deeplake.constants import ENCODING_DTYPE
 import numpy as np
 
 
@@ -79,7 +79,7 @@ class Encoder(ABC):
                 f"Encoding dtype should be {self.dtype}, instead got {self._encoded.dtype}"
             )
 
-        self.version = hub.__version__
+        self.version = deeplake.__version__
         self.is_dirty = True
 
     @property

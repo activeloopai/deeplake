@@ -1,6 +1,6 @@
 import numpy as np
-import hub
-from hub.api.tests.test_api_tiling import compressions_paremetrized
+import deeplake
+from deeplake.api.tests.test_api_tiling import compressions_paremetrized
 import pytest
 
 
@@ -63,7 +63,7 @@ def test_link_pop(local_ds_generator, cat_path, flower_path):
         ds.create_tensor("xyz", htype="link[image]")
         for i in range(10):
             url = cat_path if i % 2 == 0 else flower_path
-            ds.xyz.append(hub.link(url))
+            ds.xyz.append(deeplake.link(url))
         assert ds.xyz[0].numpy().shape == ds.xyz[0].shape == (900, 900, 3)
         ds.xyz.pop(0)
         assert len(ds.xyz) == 9
@@ -73,7 +73,7 @@ def test_link_pop(local_ds_generator, cat_path, flower_path):
     assert len(ds.xyz) == 9
     pop_helper_link(ds)
 
-    ds.xyz.append(hub.link(cat_path))
+    ds.xyz.append(deeplake.link(cat_path))
     assert ds.xyz[9].numpy().shape == ds.xyz[9].shape == (900, 900, 3)
 
 

@@ -1,6 +1,6 @@
 import pytest
-import hub
-from hub.util.exceptions import TensorInvalidSampleShapeError
+import deeplake
+from deeplake.util.exceptions import TensorInvalidSampleShapeError
 
 WARNING_STR = "Grayscale images will be reshaped"
 
@@ -9,7 +9,7 @@ WARNING_STR = "Grayscale images will be reshaped"
 def hub_read_images(request, grayscale_image_paths, color_image_paths):
     gray_path = grayscale_image_paths[request.param]
     color_path = color_image_paths[request.param]
-    yield request.param, hub.read(gray_path), hub.read(color_path)
+    yield request.param, deeplake.read(gray_path), deeplake.read(color_path)
 
 
 def make_tensor_and_append(ds, htype, sample_compression, images):
@@ -24,7 +24,7 @@ def make_tensor_and_extend(ds, htype, sample_compression, images):
 
 
 def test_append_grayscale_second(local_ds_generator, hub_read_images):
-    "Append a hub.read color image first, then a grayscale"
+    "Append a deeplake.read color image first, then a grayscale"
     ds = local_ds_generator()
     imgtype, gray, color = hub_read_images
     with pytest.warns(UserWarning, match=WARNING_STR):
@@ -35,7 +35,7 @@ def test_append_grayscale_second(local_ds_generator, hub_read_images):
 
 
 def test_append_grayscale_second_many(local_ds_generator, hub_read_images):
-    "Append a hub.read color image first, then a mix of color and gray."
+    "Append a deeplake.read color image first, then a mix of color and gray."
     ds = local_ds_generator()
     imgtype, gray, color = hub_read_images
     with pytest.warns(UserWarning, match=WARNING_STR):
@@ -85,7 +85,7 @@ def test_append_grayscale_second_generic_ds_unspecified_comp(
 
 
 def test_append_two_grayscale(local_ds_generator, hub_read_images):
-    "Append two hub.read grayscale images.  There should be no warning."
+    "Append two deeplake.read grayscale images.  There should be no warning."
     ds = local_ds_generator()
     imgtype, gray, _ = hub_read_images
     make_tensor_and_append(ds, "image", imgtype, [gray, gray])
@@ -96,7 +96,7 @@ def test_append_two_grayscale(local_ds_generator, hub_read_images):
 
 
 def test_append_many_grayscale(local_ds_generator, hub_read_images):
-    "Append two hub.read grayscale images."
+    "Append two deeplake.read grayscale images."
     ds = local_ds_generator()
     imgtype, gray, _ = hub_read_images
     make_tensor_and_append(ds, "image", imgtype, [gray, gray, gray, gray])

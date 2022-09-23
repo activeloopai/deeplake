@@ -1,6 +1,6 @@
-from hub.api.dataset import Dataset
-from hub.tests.common import get_dummy_data_path
-from hub.util.auto import get_most_common_extension, ingestion_summary
+from deeplake.api.dataset import Dataset
+from deeplake.tests.common import get_dummy_data_path
+from deeplake.util.auto import get_most_common_extension, ingestion_summary
 from io import StringIO
 import sys
 import pytest

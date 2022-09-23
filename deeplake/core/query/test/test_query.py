@@ -2,9 +2,9 @@ import pytest
 
 import numpy as np
 
-from hub.core.query import DatasetQuery
-from hub.util.exceptions import DatasetViewSavingError, InvalidOperationError
-import hub
+from deeplake.core.query import DatasetQuery
+from deeplake.util.exceptions import DatasetViewSavingError, InvalidOperationError
+import deeplake
 from uuid import uuid4
 
 
@@ -14,7 +14,7 @@ rows = [first_row, second_row]
 class_names = ["dog", "cat", "fish"]
 
 
-@hub.compute
+@deeplake.compute
 def hub_compute_filter(sample_in, mod):
     val = sample_in.abc.numpy()[0]
     return val % mod == 0
@@ -27,7 +27,7 @@ def _populate_data_linked(ds, n, compressed_image_paths, labels):
             if labels:
                 ds.create_tensor("labels", htype="class_label", class_names=class_names)
             for i in range(n):
-                ds.images.append(hub.link(compressed_image_paths["png"][0]))
+                ds.images.append(deeplake.link(compressed_image_paths["png"][0]))
                 if labels:
                     ds.labels.append(rows[i % 2]["labels"])
 
@@ -130,7 +130,7 @@ def test_query_scheduler(local_ds):
 def test_sub_sample_view_save(optimize, idx_subscriptable, compressed_image_paths):
     id = str(uuid4())
     arr = np.random.random((100, 32, 32, 3))
-    with hub.dataset(".tests/ds", overwrite=True) as ds:
+    with deeplake.dataset(".tests/ds", overwrite=True) as ds:
         ds.create_tensor("x")
         ds.x.extend(arr)
     _populate_data(ds, linked=True, n=100, paths=compressed_image_paths, labels=False)
@@ -156,14 +156,14 @@ def test_sub_sample_view_save(optimize, idx_subscriptable, compressed_image_path
 
 @pytest.mark.parametrize("optimize", [True, False])
 def test_dataset_view_save(optimize):
-    with hub.dataset(".tests/ds", overwrite=True) as ds:
+    with deeplake.dataset(".tests/ds", overwrite=True) as ds:
         _populate_data(ds)
     view = ds.filter("labels == 'dog'")
     with pytest.raises(DatasetViewSavingError):
         view.save_view(path=".tests/ds_view", overwrite=True, optimize=optimize)
     ds.commit()
     view.save_view(path=".tests/ds_view", overwrite=True, optimize=optimize)
-    view2 = hub.dataset(".tests/ds_view")
+    view2 = deeplake.dataset(".tests/ds_view")
     for t in view.tensors:
         np.testing.assert_array_equal(view[t].numpy(), view2[t].numpy())
     _populate_data(ds)
@@ -230,7 +230,7 @@ def test_inplace_dataset_view_save(
     assert len(ds.get_views()) == int(stream)
     vds_path = view.save_view(optimize=optimize, id=id)
     assert len(ds.get_views()) == 1 + int(stream)
-    view2 = hub.dataset(vds_path)
+    view2 = deeplake.dataset(vds_path)
     assert indices == list(view2.sample_indices)
     if ds.path.startswith("hub://"):
         assert vds_path.startswith("hub://")
@@ -242,7 +242,7 @@ def test_inplace_dataset_view_save(
         np.testing.assert_array_equal(view[t].numpy(), view2[t].numpy())
     ds_orig = ds
     if not read_only and is_hub:
-        ds = hub.load(ds.path, read_only=True)
+        ds = deeplake.load(ds.path, read_only=True)
     entry = ds.get_view(id)
     assert entry.virtual == (not optimize)
     assert indices == list(entry.load().sample_indices)
@@ -333,17 +333,17 @@ def test_query_sample_info(local_ds, compressed_image_paths):
         ds.create_tensor("image", htype="image", sample_compression="jpg")
         path_to_shape = {}
         for path in compressed_image_paths["jpeg"]:
-            img = hub.read(path)
+            img = deeplake.read(path)
             ds.image.append(img)
             path_to_shape[path] = img.shape
     for path in compressed_image_paths["jpeg"]:
         view = ds.filter(f"r'{path}' in image.sample_info['filename']")
         np.testing.assert_array_equal(
-            view[0].image.numpy().reshape(-1), np.array(hub.read(path)).reshape(-1)
+            view[0].image.numpy().reshape(-1), np.array(deeplake.read(path)).reshape(-1)
         )  # reshape to ignore grayscale normalization
 
 
-@hub.compute
+@deeplake.compute
 def create_dataset(class_num, sample_out):
     """Add new element with a specific class"""
     sample_out.append({"classes": np.uint32(class_num)})
@@ -395,11 +395,11 @@ def test_view_saving_with_path(local_ds):
         with pytest.raises(DatasetViewSavingError):
             ds[:10].save_view(path=local_ds.path)
         vds_path = local_ds.path + "/../vds"
-        hub.delete(vds_path, force=True)
+        deeplake.delete(vds_path, force=True)
         ds[:10].save_view(path=vds_path)
         with pytest.raises(DatasetViewSavingError):
             ds[:10].save_view(path=vds_path)
-        hub.delete(vds_path, force=True)
+        deeplake.delete(vds_path, force=True)
 
 
 def test_strided_view_bug(local_ds):

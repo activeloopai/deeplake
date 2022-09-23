@@ -1,6 +1,6 @@
 from typing import Any, Dict
-import hub
-from hub.core.storage.hub_memory_object import HubMemoryObject
+import deeplake
+from deeplake.core.storage.hub_memory_object import HubMemoryObject
 
 
 class Meta(HubMemoryObject):
@@ -10,7 +10,7 @@ class Meta(HubMemoryObject):
 
     def __init__(self):
         super().__init__()
-        self.version = hub.__version__
+        self.version = deeplake.__version__
 
     def __getstate__(self) -> Dict[str, Any]:
         return {"version": self.version}

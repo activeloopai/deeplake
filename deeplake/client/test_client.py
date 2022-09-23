@@ -1,9 +1,9 @@
 import subprocess
 import pytest
-from hub.cli.commands import login
+from deeplake.cli.commands import login
 from click.testing import CliRunner
-from hub.client.client import HubBackendClient
-from hub.client.utils import (
+from deeplake.client.client import DeepLakeBackendClient
+from deeplake.client.utils import (
     write_token,
     read_token,
     remove_token,
@@ -13,7 +13,7 @@ from hub.client.utils import (
 def test_client_requests(hub_cloud_dev_credentials):
     username, password = hub_cloud_dev_credentials
 
-    hub_client = HubBackendClient()
+    hub_client = DeepLakeBackendClient()
     hub_client.request_auth_token(username, password)
     with pytest.raises(Exception):
         # request will fail as username already exists
@@ -29,13 +29,13 @@ def test_client_utils():
 
 def test_client_workspace_organizations(hub_cloud_dev_credentials):
     username, password = hub_cloud_dev_credentials
-    hub_client = HubBackendClient()
+    hub_client = DeepLakeBackendClient()
 
     assert hub_client.get_user_organizations() == ["public"]
     token = hub_client.request_auth_token(username, password)
     runner = CliRunner()
     runner.invoke(login, f"-u {username} -p {password}")
-    hub_client = HubBackendClient()
+    hub_client = DeepLakeBackendClient()
     assert username in hub_client.get_user_organizations()
     assert "public" in hub_client.get_user_organizations()
 

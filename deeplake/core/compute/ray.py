@@ -1,7 +1,7 @@
 import ray  # type: ignore
 from ray.util.multiprocessing import Pool  # type: ignore
 from ray.util.queue import Queue  # type: ignore
-from hub.core.compute.provider import ComputeProvider
+from deeplake.core.compute.provider import ComputeProvider
 
 
 class RayProvider(ComputeProvider):

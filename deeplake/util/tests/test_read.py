@@ -1,10 +1,10 @@
 import numpy as np
-import hub
+import deeplake
 
 
 def test_read(cat_path, flower_path):
-    cat = hub.read(cat_path)
-    flower = hub.read(flower_path)
+    cat = deeplake.read(cat_path)
+    flower = deeplake.read(flower_path)
 
     assert cat.is_lazy
     assert flower.is_lazy

@@ -1,19 +1,19 @@
 import posixpath
 from typing import Any, Dict, Union
-from hub.client.utils import get_user_name
-from hub.constants import HUB_CLOUD_DEV_USERNAME
-from hub.core.dataset import Dataset
-from hub.client.client import HubBackendClient
-from hub.util.bugout_reporter import hub_reporter
-from hub.util.exceptions import RenameError, ReadOnlyModeError
-from hub.util.link import save_link_creds
-from hub.util.path import is_hub_cloud_path
-from hub.util.tag import process_hub_path
-from hub.util.logging import log_visualizer_link
-from hub.util.storage import storage_provider_from_hub_path
+from deeplake.client.utils import get_user_name
+from deeplake.constants import HUB_CLOUD_DEV_USERNAME
+from deeplake.core.dataset import Dataset
+from deeplake.client.client import DeepLakeBackendClient
+from deeplake.util.bugout_reporter import deeplake_reporter
+from deeplake.util.exceptions import RenameError, ReadOnlyModeError
+from deeplake.util.link import save_link_creds
+from deeplake.util.path import is_hub_cloud_path
+from deeplake.util.tag import process_hub_path
+from deeplake.util.logging import log_visualizer_link
+from deeplake.util.storage import storage_provider_from_hub_path
 from warnings import warn
 import time
-import hub
+import deeplake
 
 
 class HubCloudDataset(Dataset):
@@ -27,7 +27,7 @@ class HubCloudDataset(Dataset):
                 if self.verbose and verbose:
                     log_visualizer_link(self.path)
             else:
-                # NOTE: this can happen if you override `hub.core.dataset.FORCE_CLASS`
+                # NOTE: this can happen if you override `deeplake.core.dataset.FORCE_CLASS`
                 warn(
                     f'Created a hub cloud dataset @ "{self.path}" which does not have the "hub://" prefix. Note: this dataset should only be used for testing!'
                 )
@@ -36,7 +36,7 @@ class HubCloudDataset(Dataset):
     @property
     def client(self):
         if self._client is None:
-            self.__dict__["_client"] = HubBackendClient(token=self._token)
+            self.__dict__["_client"] = DeepLakeBackendClient(token=self._token)
         return self._client
 
     @property
@@ -110,7 +110,7 @@ class HubCloudDataset(Dataset):
             "hub_meta": hub_meta,
             "creator": "Hub",
         }
-        hub.event_queue.put((self.client, event_dict))
+        deeplake.event_queue.put((self.client, event_dict))
 
     def _send_query_progress(
         self,
@@ -247,9 +247,9 @@ class HubCloudDataset(Dataset):
     def visualize(
         self, width: Union[int, str, None] = None, height: Union[int, str, None] = None
     ):
-        from hub.visualizer import visualize
+        from deeplake.visualizer import visualize
 
-        hub_reporter.feature_report(feature_name="visualize", parameters={})
+        deeplake_reporter.feature_report(feature_name="visualize", parameters={})
         visualize(self.path, self.token, width=width, height=height)
 
     def add_creds_key(self, creds_key: str, managed: bool = False):
@@ -258,7 +258,7 @@ class HubCloudDataset(Dataset):
         Examples:
 
             >>> # create/load a dataset
-            >>> ds = hub.dataset("hub://username/dataset")
+            >>> ds = deeplake.dataset("hub://username/dataset")
             >>> # add a new creds key
             >>> ds.add_creds_key("my_s3_key")
 
@@ -299,7 +299,7 @@ class HubCloudDataset(Dataset):
         Examples:
 
             >>> # create/load a dataset
-            >>> ds = hub.dataset("hub://username/dataset")
+            >>> ds = deeplake.dataset("hub://username/dataset")
             >>> # add a new creds key
             >>> ds.add_creds_key("my_s3_key")
             >>> # Populate the name added with creds dictionary

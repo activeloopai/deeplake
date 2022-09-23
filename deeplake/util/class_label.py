@@ -1,10 +1,10 @@
 from collections import OrderedDict, defaultdict
 from typing import List
 
-from hub.util.hash import hash_str_to_int32
-from hub.client.log import logger
+from deeplake.util.hash import hash_str_to_int32
+from deeplake.client.log import logger
 import numpy as np
-import hub
+import deeplake
 
 
 def convert_to_idx(samples, class_names: List[str]):
@@ -76,7 +76,7 @@ def sync_labels(
             hl_maps[tensor].update(map[tensor])
     hash_label_maps = hl_maps
 
-    @hub.compute
+    @deeplake.compute
     def class_label_sync(
         hash_tensor_sample,
         samples_out,

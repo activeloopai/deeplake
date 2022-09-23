@@ -3,7 +3,7 @@ import numpy as np
 from numpy import ndarray
 import json
 import base64
-from hub.core.sample import Sample  # type: ignore
+from deeplake.core.sample import Sample  # type: ignore
 
 Schema = Any
 
@@ -17,8 +17,8 @@ def _norm_type(typ: str):
     replacements = {
         "numpy.ndarray": "ndarray",
         "np.ndarray": "ndarray",
-        "hub.core.sample.Sample": "Sample",
-        "hub.Sample": "Sample",
+        "deeplake.core.sample.Sample": "Sample",
+        "deeplake.Sample": "Sample",
     }
     return replacements.get(typ, typ)
 

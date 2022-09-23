@@ -1,5 +1,5 @@
 import pytest
-import hub
+import deeplake
 
 
 enabled_datasets = pytest.mark.parametrize(
@@ -47,7 +47,7 @@ enabled_cloud_dataset_generators = pytest.mark.parametrize(
 
 @pytest.fixture
 def memory_ds(memory_path):
-    return hub.dataset(memory_path)
+    return deeplake.dataset(memory_path)
 
 
 @pytest.fixture
@@ -58,7 +58,7 @@ def local_ds(local_ds_generator):
 @pytest.fixture
 def local_ds_generator(local_path):
     def generate_local_ds(**kwargs):
-        return hub.dataset(local_path, **kwargs)
+        return deeplake.dataset(local_path, **kwargs)
 
     return generate_local_ds
 
@@ -71,7 +71,7 @@ def s3_ds(s3_ds_generator):
 @pytest.fixture
 def s3_ds_generator(s3_path):
     def generate_s3_ds(**kwargs):
-        return hub.dataset(s3_path, **kwargs)
+        return deeplake.dataset(s3_path, **kwargs)
 
     return generate_s3_ds
 
@@ -84,7 +84,7 @@ def gdrive_ds(gdrive_ds_generator):
 @pytest.fixture
 def gdrive_ds_generator(gdrive_path, gdrive_creds):
     def generate_gdrive_ds():
-        return hub.dataset(gdrive_path, creds=gdrive_creds)
+        return deeplake.dataset(gdrive_path, creds=gdrive_creds)
 
     return generate_gdrive_ds
 
@@ -97,7 +97,7 @@ def gcs_ds(gcs_ds_generator):
 @pytest.fixture
 def gcs_ds_generator(gcs_path, gcs_creds):
     def generate_gcs_ds(**kwargs):
-        return hub.dataset(gcs_path, creds=gcs_creds, **kwargs)
+        return deeplake.dataset(gcs_path, creds=gcs_creds, **kwargs)
 
     return generate_gcs_ds
 
@@ -110,7 +110,7 @@ def hub_cloud_ds(hub_cloud_ds_generator):
 @pytest.fixture
 def hub_cloud_ds_generator(hub_cloud_path, hub_cloud_dev_token):
     def generate_hub_cloud_ds(**kwargs):
-        return hub.dataset(hub_cloud_path, token=hub_cloud_dev_token, **kwargs)
+        return deeplake.dataset(hub_cloud_path, token=hub_cloud_dev_token, **kwargs)
 
     return generate_hub_cloud_ds
 

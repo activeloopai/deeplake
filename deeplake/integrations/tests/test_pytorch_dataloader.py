@@ -1,6 +1,6 @@
 import pytest
 import platform
-from hub.util.check_installation import pytorch_installed
+from deeplake.util.check_installation import pytorch_installed
 
 if not pytorch_installed():
     pytest.skip("pytroch is not installed", allow_module_level=True)
@@ -10,13 +10,13 @@ if platform.system() in ["Windows", "Darwin"]:
 
 from unittest.mock import patch
 
-from hub.core.io import SampleStreaming, IOBlock, Schedule
-from hub.integrations.pytorch.dataset import (
+from deeplake.core.io import SampleStreaming, IOBlock, Schedule
+from deeplake.integrations.pytorch.dataset import (
     ShufflingIterableDataset,
     SubIterableDataset,
 )
-from hub.integrations.pytorch.common import collate_fn as default_collate_fn
-from hub.util.dataset import map_tensor_keys
+from deeplake.integrations.pytorch.common import collate_fn as default_collate_fn
+from deeplake.util.dataset import map_tensor_keys
 import torch
 from torch.utils.data.dataloader import DataLoader
 import numpy
@@ -48,7 +48,7 @@ def mock_dataset(cls):
 
 @patch.object(SampleStreaming, "list_blocks", list_blocks)
 @patch.object(SampleStreaming, "read", emit_samples)
-@patch("hub.core.dataset.Dataset")
+@patch("deeplake.core.dataset.Dataset")
 def test_dataloader(ds):
     tensors = map_tensor_keys(ds)
     dataset = ShufflingIterableDataset(
@@ -63,7 +63,7 @@ def test_dataloader(ds):
 
 @patch.object(SampleStreaming, "list_blocks", list_blocks)
 @patch.object(SampleStreaming, "read", emit_samples)
-@patch("hub.core.dataset.Dataset")
+@patch("deeplake.core.dataset.Dataset")
 def test_dataloader_batching(ds):
     tensors = map_tensor_keys(ds)
     dataset = ShufflingIterableDataset(
@@ -78,7 +78,7 @@ def test_dataloader_batching(ds):
 
 @patch.object(SampleStreaming, "list_blocks", list_blocks)
 @patch.object(SampleStreaming, "read", emit_samples)
-@patch("hub.core.dataset.Dataset")
+@patch("deeplake.core.dataset.Dataset")
 def test_more_workers_than_chunk(ds):
     tensors = map_tensor_keys(ds)
     dataset = ShufflingIterableDataset(
@@ -93,7 +93,7 @@ def test_more_workers_than_chunk(ds):
 
 @patch.object(SampleStreaming, "list_blocks", list_blocks)
 @patch.object(SampleStreaming, "read", emit_samples)
-@patch("hub.core.dataset.Dataset")
+@patch("deeplake.core.dataset.Dataset")
 def test_big_buffer_size(ds):
     tensors = map_tensor_keys(ds)
     dataset = ShufflingIterableDataset(
@@ -116,7 +116,7 @@ def mock_tranform_f(data):
 
 @patch.object(SampleStreaming, "list_blocks", list_blocks)
 @patch.object(SampleStreaming, "read", emit_samples)
-@patch("hub.core.dataset.Dataset")
+@patch("deeplake.core.dataset.Dataset")
 def test_workers_transform(ds):
     tensors = map_tensor_keys(ds)
     dataset = ShufflingIterableDataset(
@@ -136,7 +136,7 @@ def test_workers_transform(ds):
 
 @patch.object(SampleStreaming, "list_blocks", list_blocks)
 @patch.object(SampleStreaming, "read", throws_exception)
-@patch("hub.core.dataset.Dataset")
+@patch("deeplake.core.dataset.Dataset")
 def test_proppagete_exception(ds):
     tensors = map_tensor_keys(ds)
     dataset = ShufflingIterableDataset(
@@ -150,7 +150,7 @@ def test_proppagete_exception(ds):
 
 @patch.object(SampleStreaming, "list_blocks", list_blocks)
 @patch.object(SampleStreaming, "read", emit_samples)
-@patch("hub.core.dataset.Dataset")
+@patch("deeplake.core.dataset.Dataset")
 def test_method2(ds):
     tensors = map_tensor_keys(ds)
     dataset = SubIterableDataset(

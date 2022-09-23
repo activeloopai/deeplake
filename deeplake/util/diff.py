@@ -1,11 +1,11 @@
 from collections import defaultdict, OrderedDict
 from typing import Any, DefaultDict, Dict, List, Optional, Set, Tuple
-from hub.core.meta.dataset_meta import DatasetMeta
-from hub.core.version_control.commit_diff import CommitDiff
-from hub.core.version_control.commit_node import CommitNode  # type: ignore
-from hub.core.storage import LRUCache
-from hub.core.version_control.dataset_diff import DatasetDiff
-from hub.util.keys import (
+from deeplake.core.meta.dataset_meta import DatasetMeta
+from deeplake.core.version_control.commit_diff import CommitDiff
+from deeplake.core.version_control.commit_node import CommitNode  # type: ignore
+from deeplake.core.storage import LRUCache
+from deeplake.core.version_control.dataset_diff import DatasetDiff
+from deeplake.util.keys import (
     get_dataset_diff_key,
     get_dataset_meta_key,
     get_tensor_commit_diff_key,

@@ -1,12 +1,12 @@
 from typing import Callable, Dict, Optional, Sequence, Union
-from hub.util.dataset import try_flushing
-from hub.util.dataset import map_tensor_keys
+from deeplake.util.dataset import try_flushing
+from deeplake.util.dataset import map_tensor_keys
 from .common import (
     PytorchTransformFunction,
     convert_fn as default_convert_fn,
     collate_fn as default_collate_fn,
 )
-from hub.util.exceptions import EmptyTensorError
+from deeplake.util.exceptions import EmptyTensorError
 
 
 def create_dataloader_nesteddataloader(
@@ -26,7 +26,7 @@ def create_dataloader_nesteddataloader(
 ):
     import torch
     import torch.utils.data
-    from hub.integrations.pytorch.dataset import SubIterableDataset
+    from deeplake.integrations.pytorch.dataset import SubIterableDataset
 
     return torch.utils.data.DataLoader(
         # this data set is more efficient also shuffles
@@ -65,7 +65,7 @@ def create_dataloader_shufflingdataloader(
 ):
     import torch
     import torch.utils.data
-    from hub.integrations.pytorch.dataset import ShufflingIterableDataset
+    from deeplake.integrations.pytorch.dataset import ShufflingIterableDataset
 
     return torch.utils.data.DataLoader(
         # this data set is more efficient also shuffles
@@ -107,7 +107,7 @@ def dataset_to_pytorch(
 ):
 
     import torch
-    from hub.integrations.pytorch.dataset import TorchDataset
+    from deeplake.integrations.pytorch.dataset import TorchDataset
 
     try_flushing(dataset)
 

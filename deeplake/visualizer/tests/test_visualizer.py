@@ -1,7 +1,7 @@
 import numpy as np
 import requests
-from hub.visualizer.visualizer import visualizer
-from hub.tests.dataset_fixtures import *
+from deeplake.visualizer.visualizer import visualizer
+from deeplake.tests.dataset_fixtures import *
 
 
 @pytest.mark.parametrize(

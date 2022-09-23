@@ -1,17 +1,17 @@
-import hub
-from hub.core.chunk.base_chunk import BaseChunk
-from hub.core.chunk_engine import ChunkEngine
-from hub.core.compression import _read_video_shape, _decompress_video
-from hub.core.index.index import Index
-from hub.core.link_creds import LinkCreds
-from hub.core.linked_sample import LinkedSample
-from hub.core.meta.encode.creds import CredsEncoder
-from hub.core.storage import LRUCache
-from hub.core.tensor_link import read_linked_sample
-from hub.util.exceptions import ReadOnlyModeError, UnableToReadFromUrlError
-from hub.util.keys import get_creds_encoder_key
-from hub.util.link import get_path_creds_key, save_link_creds
-from hub.util.video import normalize_index
+import deeplake
+from deeplake.core.chunk.base_chunk import BaseChunk
+from deeplake.core.chunk_engine import ChunkEngine
+from deeplake.core.compression import _read_video_shape, _decompress_video
+from deeplake.core.index.index import Index
+from deeplake.core.link_creds import LinkCreds
+from deeplake.core.linked_sample import LinkedSample
+from deeplake.core.meta.encode.creds import CredsEncoder
+from deeplake.core.storage import LRUCache
+from deeplake.core.tensor_link import read_linked_sample
+from deeplake.util.exceptions import ReadOnlyModeError, UnableToReadFromUrlError
+from deeplake.util.keys import get_creds_encoder_key
+from deeplake.util.link import get_path_creds_key, save_link_creds
+from deeplake.util.video import normalize_index
 import numpy as np
 from typing import Optional, Dict, Any, Tuple
 
@@ -158,12 +158,12 @@ class LinkedChunkEngine(ChunkEngine):
         link_creds = self.link_creds
         verified_samples = []
         for i, sample in enumerate(samples):
-            if isinstance(sample, hub.core.tensor.Tensor) and sample.is_link:
+            if isinstance(sample, deeplake.core.tensor.Tensor) and sample.is_link:
                 sample = sample._linked_sample()
                 samples[i] = sample
             elif not isinstance(sample, LinkedSample) and sample is not None:
                 raise TypeError(
-                    f"Expected LinkedSample, got {type(sample)} instead. Use hub.link() to link samples."
+                    f"Expected LinkedSample, got {type(sample)} instead. Use deeplake.link() to link samples."
                 )
 
             path, creds_key = get_path_creds_key(sample)

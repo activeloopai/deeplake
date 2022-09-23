@@ -11,22 +11,22 @@ If you create a Hub dataset using any of the functions mentioned in :ref:`creati
 creation on W&B.
 
 >>> run = wandb.init(project="hub_wandb", job_type="dataset_upload")
->>> ds = hub.empty("hub://fayazrahman4u/my_dataset") # create dataset
+>>> ds = deeplake.empty("hub://fayazrahman4u/my_dataset") # create dataset
 >>> ds.create_tensor("images", htype="image", sample_compression="jpg") # create a tensor
->>> ds.images.append(hub.read("files/images/dog.jpg")) # add a sample
+>>> ds.images.append(deeplake.read("files/images/dog.jpg")) # add a sample
 >>> ds.commit("creation") # commit -> trigger logging
 >>> run.finish()
 
 NOTE:
-    If you created your dataset using :meth:`hub.deepcopy`, perform the commit only if you have head changes.
+    If you created your dataset using :meth:`deeplake.deepcopy`, perform the commit only if you have head changes.
 
 NOTE:
     If you make changes to an existing dataset, commit the changes with an active Weights and Biases run to log it's state.
 
 Logging Dataset Read
 ~~~~~~~~~~~~~~~~~~~~
-A dataset read will be logged if you iterate over a dataset or call :meth:`Dataset.pytorch() <hub.core.dataset.Dataset.pytorch>` 
-or :meth:`Tensor.numpy() <hub.core.tensor.Tensor.numpy>` on its tensors.
+A dataset read will be logged if you iterate over a dataset or call :meth:`Dataset.pytorch() <deeplake.core.dataset.Dataset.pytorch>` 
+or :meth:`Tensor.numpy() <deeplake.core.tensor.Tensor.numpy>` on its tensors.
 
 >>> run = wandb.init(project="hub_wandb", job_type="torch dataloader")
 >>> train_loader = ds.pytorch()
@@ -39,10 +39,10 @@ or :meth:`Tensor.numpy() <hub.core.tensor.Tensor.numpy>` on its tensors.
 """
 
 from typing import Dict, Set
-from hub.util.tag import process_hub_path
-from hub.util.hash import hash_inputs
-from hub.constants import WANDB_JSON_FILENMAE
-from hub.hooks import (
+from deeplake.util.tag import process_hub_path
+from deeplake.util.hash import hash_inputs
+from deeplake.constants import WANDB_JSON_FILENMAE
+from deeplake.hooks import (
     add_create_dataset_hook,
     add_load_dataset_hook,
     add_write_dataset_hook,
@@ -54,13 +54,13 @@ import sys
 import os
 import json
 import warnings
-import hub
+import deeplake
 
 _WANDB_INSTALLED = bool(importlib.util.find_spec("wandb"))
 
 
 def wandb_run():
-    if not hub.constants.WANDB_INTEGRATION_ENABLED:
+    if not deeplake.constants.WANDB_INTEGRATION_ENABLED:
         return
     return getattr(sys.modules.get("wandb"), "run", None)
 
@@ -110,11 +110,11 @@ def _is_public(ds_path):
     return True
     # TODO: We need api for this.
     try:
-        hub.load(
+        deeplake.load(
             ds_path,
-            token=hub.client.client.HubBackendClient(token="").request_auth_token(
-                username="public", password=""
-            ),
+            token=deeplake.client.client.DeepLakeBackendClient(
+                token=""
+            ).request_auth_token(username="public", password=""),
         )
         return True
     except Exception:

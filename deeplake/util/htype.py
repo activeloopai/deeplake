@@ -1,8 +1,8 @@
 # type: ignore
 
 from typing import Tuple, Optional
-from hub.htype import htype as HTYPE, HTYPE_CONFIGURATIONS
-from hub.util.exceptions import TensorMetaInvalidHtype
+from deeplake.htype import htype as HTYPE, HTYPE_CONFIGURATIONS
+from deeplake.util.exceptions import TensorMetaInvalidHtype
 
 
 def parse_complex_htype(htype: Optional[str]) -> Tuple[bool, bool, str]:

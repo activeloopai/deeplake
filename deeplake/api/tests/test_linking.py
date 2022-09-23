@@ -1,8 +1,8 @@
 import pytest
-import hub
+import deeplake
 import numpy as np
 import uuid
-from hub.tests.common import LinkTransformTestContext
+from deeplake.tests.common import LinkTransformTestContext
 
 
 def test_linking(memory_ds):

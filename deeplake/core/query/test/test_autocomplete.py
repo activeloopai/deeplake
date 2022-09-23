@@ -1,9 +1,9 @@
-from hub.core.query.autocomplete import autocomplete
-import hub
+from deeplake.core.query.autocomplete import autocomplete
+import deeplake
 
 
 def _test_ds():
-    ds = hub.dataset("mem://x")
+    ds = deeplake.dataset("mem://x")
     ds.create_tensor("a")
     ds.create_tensor("b")
     ds.create_tensor("c")

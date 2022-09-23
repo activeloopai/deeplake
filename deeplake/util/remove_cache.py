@@ -1,9 +1,9 @@
 from typing import Optional
-import hub
-from hub.core.storage.provider import StorageProvider
-from hub.core.storage.lru_cache import LRUCache
-from hub.core.storage import MemoryProvider
-from hub.constants import MB
+import deeplake
+from deeplake.core.storage.provider import StorageProvider
+from deeplake.core.storage.lru_cache import LRUCache
+from deeplake.core.storage import MemoryProvider
+from deeplake.constants import MB
 
 
 def remove_memory_cache(storage: StorageProvider):
@@ -30,7 +30,7 @@ def get_dataset_with_zero_size_cache(ds):
     ds_base_storage = get_base_storage(ds.storage)
     zero_cache_storage = LRUCache(MemoryProvider(), ds_base_storage, 0)
     commit_id = ds.pending_commit_id
-    ds = hub.core.dataset.dataset_factory(
+    ds = deeplake.core.dataset.dataset_factory(
         path=ds.path,
         storage=zero_cache_storage,
         index=ds.index,

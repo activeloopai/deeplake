@@ -13,14 +13,14 @@ import numpy as np
 from time import time
 from tqdm import tqdm  # type: ignore
 
-import hub
-from hub.core.index.index import IndexEntry, replace_ellipsis_with_slices
-from hub.core.link_creds import LinkCreds
-from hub.util.invalid_view_op import invalid_view_op
-from hub.api.info import load_info
-from hub.client.log import logger
-from hub.client.utils import get_user_name
-from hub.constants import (
+import deeplake
+from deeplake.core.index.index import IndexEntry, replace_ellipsis_with_slices
+from deeplake.core.link_creds import LinkCreds
+from deeplake.util.invalid_view_op import invalid_view_op
+from deeplake.api.info import load_info
+from deeplake.client.log import logger
+from deeplake.client.utils import get_user_name
+from deeplake.constants import (
     FIRST_COMMIT_ID,
     DEFAULT_MEMORY_CACHE_SIZE,
     DEFAULT_LOCAL_CACHE_SIZE,
@@ -28,37 +28,40 @@ from hub.constants import (
     SAMPLE_INFO_TENSOR_MAX_CHUNK_SIZE,
     DEFAULT_READONLY,
 )
-from hub.core.fast_forwarding import ffw_dataset_meta
-from hub.core.index import Index
-from hub.core.lock import lock_dataset, unlock_dataset, Lock
-from hub.core.meta.dataset_meta import DatasetMeta
-from hub.core.storage import (
+from deeplake.core.fast_forwarding import ffw_dataset_meta
+from deeplake.core.index import Index
+from deeplake.core.lock import lock_dataset, unlock_dataset, Lock
+from deeplake.core.meta.dataset_meta import DatasetMeta
+from deeplake.core.storage import (
     LRUCache,
     S3Provider,
     GCSProvider,
     MemoryProvider,
 )
-from hub.core.tensor import Tensor, create_tensor, delete_tensor
-from hub.core.version_control.commit_node import CommitNode  # type: ignore
-from hub.core.version_control.dataset_diff import load_dataset_diff
-from hub.htype import (
+from deeplake.core.tensor import Tensor, create_tensor, delete_tensor
+from deeplake.core.version_control.commit_node import CommitNode  # type: ignore
+from deeplake.core.version_control.dataset_diff import load_dataset_diff
+from deeplake.htype import (
     HTYPE_CONFIGURATIONS,
     UNSPECIFIED,
     verify_htype_key_value,
 )
-from hub.integrations import dataset_to_tensorflow
-from hub.util.bugout_reporter import hub_reporter, feature_report_path
-from hub.util.dataset import try_flushing
-from hub.util.cache_chain import generate_chain
-from hub.util.hash import hash_inputs
-from hub.util.htype import parse_complex_htype
-from hub.util.link import save_link_creds
-from hub.util.merge import merge
-from hub.util.notebook import is_colab
-from hub.util.path import convert_pathlib_to_string_if_needed, get_org_id_and_ds_name
-from hub.util.logging import log_visualizer_link
-from hub.util.warnings import always_warn
-from hub.util.exceptions import (
+from deeplake.integrations import dataset_to_tensorflow
+from deeplake.util.bugout_reporter import deeplake_reporter, feature_report_path
+from deeplake.util.dataset import try_flushing
+from deeplake.util.cache_chain import generate_chain
+from deeplake.util.hash import hash_inputs
+from deeplake.util.htype import parse_complex_htype
+from deeplake.util.link import save_link_creds
+from deeplake.util.merge import merge
+from deeplake.util.notebook import is_colab
+from deeplake.util.path import (
+    convert_pathlib_to_string_if_needed,
+    get_org_id_and_ds_name,
+)
+from deeplake.util.logging import log_visualizer_link
+from deeplake.util.warnings import always_warn
+from deeplake.util.exceptions import (
     CouldNotCreateNewDatasetException,
     InvalidKeyTypeError,
     MemoryDatasetCanNotBePickledError,
@@ -77,7 +80,7 @@ from hub.util.exceptions import (
     DatasetHandlerError,
     SampleAppendingError,
 )
-from hub.util.keys import (
+from deeplake.util.keys import (
     dataset_exists,
     get_dataset_info_key,
     get_dataset_meta_key,
@@ -98,10 +101,10 @@ from hub.util.keys import (
     get_sequence_encoder_key,
     get_dataset_linked_creds_key,
 )
-from hub.util.path import get_path_from_storage
-from hub.util.remove_cache import get_base_storage
-from hub.util.diff import get_all_changes_string, get_changes_and_messages
-from hub.util.version_control import (
+from deeplake.util.path import get_path_from_storage
+from deeplake.util.remove_cache import get_base_storage
+from deeplake.util.diff import get_all_changes_string, get_changes_and_messages
+from deeplake.util.version_control import (
     auto_checkout,
     checkout,
     commit,
@@ -112,9 +115,9 @@ from hub.util.version_control import (
     copy_metas,
     create_commit_chunk_sets,
 )
-from hub.util.pretty_print import summary_dataset
-from hub.core.dataset.view_entry import ViewEntry
-from hub.hooks import dataset_read
+from deeplake.util.pretty_print import summary_dataset
+from deeplake.core.dataset.view_entry import ViewEntry
+from deeplake.hooks import dataset_read
 from itertools import chain
 import warnings
 import jwt
@@ -396,7 +399,7 @@ class Dataset:
         return ret
 
     @invalid_view_op
-    @hub_reporter.record_call
+    @deeplake_reporter.record_call
     def create_tensor(
         self,
         name: str,
@@ -416,7 +419,7 @@ class Dataset:
 
         Examples:
             >>> # create dataset
-            >>> ds = hub.dataset("path/to/dataset")
+            >>> ds = deeplake.dataset("path/to/dataset")
 
             >>> # create tensors
             >>> ds.create_tensor("images", htype="image", sample_compression="jpg")
@@ -426,7 +429,7 @@ class Dataset:
 
             >>> # append data
             >>> ds.images.append(np.ones((400, 400, 3), dtype='uint8'))
-            >>> ds.videos.append(hub.read("videos/sample_video.mp4"))
+            >>> ds.videos.append(deeplake.read("videos/sample_video.mp4"))
             >>> ds.data.append(np.zeros((100, 100, 2)))
 
         Args:
@@ -441,7 +444,7 @@ class Dataset:
             sample_compression (str): All samples will be compressed in the provided format. If ``None``, samples are uncompressed.
             chunk_compression (str): All chunks will be compressed in the provided format. If ``None``, chunks are uncompressed.
             hidden (bool): If ``True``, the tensor will be hidden from ds.tensors but can still be accessed via ``ds[tensor_name]``.
-            create_sample_info_tensor (bool): If ``True``, meta data of individual samples will be saved in a hidden tensor. This data can be accessed via :attr:`tensor[i].sample_info <hub.core.tensor.Tensor.sample_info>`.
+            create_sample_info_tensor (bool): If ``True``, meta data of individual samples will be saved in a hidden tensor. This data can be accessed via :attr:`tensor[i].sample_info <deeplake.core.tensor.Tensor.sample_info>`.
             create_shape_tensor (bool): If ``True``, an associated tensor containing shapes of each sample will be created.
             create_id_tensor (bool): If ``True``, an associated tensor containing unique ids for each sample will be created. This is useful for merge operations.
             verify (bool): Valid only for link htypes. If ``True``, all links will be verified before they are added to the tensor.
@@ -642,7 +645,7 @@ class Dataset:
         self.storage.maybe_flush()
 
     @invalid_view_op
-    @hub_reporter.record_call
+    @deeplake_reporter.record_call
     def delete_tensor(self, name: str, large_ok: bool = False):
         """Delete a tensor from the dataset.
 
@@ -677,7 +680,7 @@ class Dataset:
         if not large_ok:
             chunk_engine = self.version_state["full_tensors"][key].chunk_engine
             size_approx = chunk_engine.num_samples * chunk_engine.min_chunk_size
-            if size_approx > hub.constants.DELETE_SAFETY_SIZE:
+            if size_approx > deeplake.constants.DELETE_SAFETY_SIZE:
                 logger.info(
                     f"Tensor {name} was too large to delete. Try again with large_ok=True."
                 )
@@ -713,7 +716,7 @@ class Dataset:
         self.storage.flush()
 
     @invalid_view_op
-    @hub_reporter.record_call
+    @deeplake_reporter.record_call
     def delete_group(self, name: str, large_ok: bool = False):
         """Delete a tensor group from the dataset.
 
@@ -742,7 +745,7 @@ class Dataset:
 
         if not large_ok:
             size_approx = self[name].size_approx()
-            if size_approx > hub.constants.DELETE_SAFETY_SIZE:
+            if size_approx > deeplake.constants.DELETE_SAFETY_SIZE:
                 logger.info(
                     f"Group {name} was too large to delete. Try again with large_ok=True."
                 )
@@ -769,7 +772,7 @@ class Dataset:
         self.storage.maybe_flush()
 
     @invalid_view_op
-    @hub_reporter.record_call
+    @deeplake_reporter.record_call
     def create_tensor_like(
         self, name: str, source: "Tensor", unlink: bool = False
     ) -> "Tensor":
@@ -829,7 +832,7 @@ class Dataset:
 
         return tensor
 
-    @hub_reporter.record_call
+    @deeplake_reporter.record_call
     def rename_tensor(self, name: str, new_name: str) -> "Tensor":
         """Renames tensor with name ``name`` to ``new_name``
 
@@ -873,7 +876,7 @@ class Dataset:
         self.storage.maybe_flush()
         return tensor
 
-    @hub_reporter.record_call
+    @deeplake_reporter.record_call
     def rename_group(self, name: str, new_name: str) -> None:
         """Renames group with name ``name`` to ``new_name``
 
@@ -1055,7 +1058,7 @@ class Dataset:
 
         return self._commit(message)
 
-    @hub_reporter.record_call
+    @deeplake_reporter.record_call
     def merge(
         self,
         target_id: str,
@@ -1125,7 +1128,7 @@ class Dataset:
         self._ds_diff = None
         [f() for f in list(self._commit_hooks.values())]
         # do not store commit message
-        hub_reporter.feature_report(feature_name="commit", parameters={})
+        deeplake_reporter.feature_report(feature_name="commit", parameters={})
 
         return self.commit_id  # type: ignore
 
@@ -1144,7 +1147,7 @@ class Dataset:
 
         Examples:
 
-            >>> ds = hub.empty("../test/test_ds")
+            >>> ds = deeplake.empty("../test/test_ds")
             >>> ds.create_tensor("abc")
             Tensor(key='abc')
             >>> ds.abc.append([1, 2, 3])
@@ -1202,7 +1205,7 @@ class Dataset:
         self._ds_diff = None
 
         # do not store address
-        hub_reporter.feature_report(
+        deeplake_reporter.feature_report(
             feature_name="checkout", parameters={"Create": str(create)}
         )
         commit_node = self.version_state["commit_node"]
@@ -1211,7 +1214,7 @@ class Dataset:
 
         return self.commit_id
 
-    @hub_reporter.record_call
+    @deeplake_reporter.record_call
     def log(self):
         """Displays the details of all the past commits."""
         commit_node = self.version_state["commit_node"]
@@ -1225,7 +1228,7 @@ class Dataset:
                 print(f"{commit_node}\n")
             commit_node = commit_node.parent
 
-    @hub_reporter.record_call
+    @deeplake_reporter.record_call
     def diff(
         self, id_1: Optional[str] = None, id_2: Optional[str] = None, as_dict=False
     ) -> Optional[Dict]:
@@ -1394,7 +1397,7 @@ class Dataset:
     def read_only(self, value: bool):
         self._set_read_only(value, True)
 
-    @hub_reporter.record_call
+    @deeplake_reporter.record_call
     def pytorch(
         self,
         transform: Optional[Callable] = None,
@@ -1444,7 +1447,7 @@ class Dataset:
             Pytorch does not support uint16, uint32, uint64 dtypes. These are implicitly type casted to int32, int64 and int64 respectively.
             This spins up it's own workers to fetch data.
         """
-        from hub.integrations import dataset_to_pytorch as to_pytorch
+        from deeplake.integrations import dataset_to_pytorch as to_pytorch
 
         dataloader = to_pytorch(
             self,
@@ -1468,7 +1471,7 @@ class Dataset:
         dataset_read(self)
         return dataloader
 
-    @hub_reporter.record_call
+    @deeplake_reporter.record_call
     def filter(
         self,
         function: Union[Callable, str],
@@ -1484,7 +1487,7 @@ class Dataset:
         Args:
             function (Callable, str): Filter function that takes sample as argument and returns ``True`` / ``False``
                 if sample should be included in result. Also supports simplified expression evaluations.
-                See :class:`hub.core.query.query.DatasetQuery` for more details.
+                See :class:`deeplake.core.query.query.DatasetQuery` for more details.
             num_workers (int): Level of parallelization of filter evaluations.
                 0 indicates in-place for-loop evaluation, multiprocessing is used otherwise.
             scheduler (str): Scheduler to use for multiprocessing evaluation.
@@ -1504,7 +1507,7 @@ class Dataset:
             >>> dataset.filter(lambda sample: sample.labels.numpy() == 2)
             >>> dataset.filter('labels == 2')
         """
-        from hub.core.query import filter_dataset, query_dataset
+        from deeplake.core.query import filter_dataset, query_dataset
 
         fn = query_dataset if isinstance(function, str) else filter_dataset
         ret = fn(
@@ -1576,7 +1579,7 @@ class Dataset:
             self.__dict__["_ds_diff"] = load_dataset_diff(self)
         return self._ds_diff
 
-    @hub_reporter.record_call
+    @deeplake_reporter.record_call
     def tensorflow(
         self,
         tensors: Optional[Sequence[str]] = None,
@@ -1626,13 +1629,13 @@ class Dataset:
         return size
 
     @invalid_view_op
-    @hub_reporter.record_call
+    @deeplake_reporter.record_call
     def rename(self, path: Union[str, pathlib.Path]):
         """Renames the dataset to `path`.
 
         Example:
 
-            >>> ds = hub.load("hub://username/dataset")
+            >>> ds = deeplake.load("hub://username/dataset")
             >>> ds.rename("hub://username/renamed_dataset")
 
         Args:
@@ -1649,7 +1652,7 @@ class Dataset:
         self.path = path
 
     @invalid_view_op
-    @hub_reporter.record_call
+    @deeplake_reporter.record_call
     def delete(self, large_ok=False):
         """Deletes the entire dataset from the cache layers (if any) and the underlying storage.
         This is an **IRREVERSIBLE** operation. Data once deleted can not be recovered.
@@ -1666,7 +1669,7 @@ class Dataset:
             return
         if not large_ok:
             size = self.size_approx()
-            if size > hub.constants.DELETE_SAFETY_SIZE:
+            if size > deeplake.constants.DELETE_SAFETY_SIZE:
                 logger.info(
                     f"Hub Dataset {self.path} was too large to delete. Try again with large_ok=True."
                 )
@@ -1911,7 +1914,7 @@ class Dataset:
             name, _ = posixpath.split(name)
         return self[fullname]
 
-    @hub_reporter.record_call
+    @deeplake_reporter.record_call
     def create_group(self, name: str, exist_ok=False) -> "Dataset":
         """Creates a tensor group. Intermediate groups in the path are also created.
 
@@ -1971,7 +1974,7 @@ class Dataset:
             tensors = [tensors]
 
         # identity function that rechunks
-        @hub.compute
+        @deeplake.compute
         def rechunking(sample_in, samples_out):
             for tensor in tensors:
                 samples_out[tensor].append(sample_in[tensor])
@@ -2059,7 +2062,7 @@ class Dataset:
 
         Examples:
 
-            >>> ds = hub.empty("../test/test_ds")
+            >>> ds = deeplake.empty("../test/test_ds")
             >>> ds.create_tensor('data')
             Tensor(key='data')
             >>> ds.create_tensor('labels')
@@ -2326,21 +2329,21 @@ class Dataset:
         queries_ds_path = f"hub://{username}/queries"
 
         try:
-            queries_ds = hub.load(
+            queries_ds = deeplake.load(
                 queries_ds_path,
                 verbose=False,
             )  # create if doesn't exist
         except PathNotEmptyException:
-            hub.delete(queries_ds_path, force=True)
-            queries_ds = hub.empty(queries_ds_path, verbose=False)
+            deeplake.delete(queries_ds_path, force=True)
+            queries_ds = deeplake.empty(queries_ds_path, verbose=False)
         except DatasetHandlerError:
-            queries_ds = hub.empty(queries_ds_path, verbose=False)
+            queries_ds = deeplake.empty(queries_ds_path, verbose=False)
 
         queries_ds._unlock()  # we don't need locking as no data will be added to this ds.
 
         path = f"hub://{username}/queries/{hash}"
 
-        vds = hub.empty(path, overwrite=True, verbose=False)
+        vds = deeplake.empty(path, overwrite=True, verbose=False)
 
         self._write_vds(vds, info, copy, num_workers, scheduler)
         queries_ds._append_to_queries_json(info)
@@ -2361,7 +2364,7 @@ class Dataset:
         if os.path.abspath(path) == os.path.abspath(self.path):
             raise DatasetViewSavingError("Rewriting parent dataset is not allowed.")
         try:
-            vds = hub.empty(path, **ds_args)
+            vds = deeplake.empty(path, **ds_args)
         except Exception as e:
             raise DatasetViewSavingError from e
         info = self._get_view_info(id, message, copy)
@@ -2403,7 +2406,7 @@ class Dataset:
             message (Optional, str): Custom user message.
             path (Optional, str, pathlib.Path): - The VDS will be saved as a standalone dataset at the specified path.
                 - If not specified, the VDS is saved under ``.queries`` subdirectory of the source dataset's storage.
-                - If the user doesn't have write access to the source dataset and the source dataset is a hub cloud dataset, then the VDS is saved is saved under the user's hub account and can be accessed using ``hub.load(f"hub://{username}/queries/{query_hash}")``.
+                - If the user doesn't have write access to the source dataset and the source dataset is a hub cloud dataset, then the VDS is saved is saved under the user's hub account and can be accessed using ``deeplake.load(f"hub://{username}/queries/{query_hash}")``.
             id (Optional, str): Unique id for this view. Random id will be generated if not specified.
             optimize (bool):
                 - If ``True``, the dataset view will be optimized by copying and rechunking the required data. This is necessary to achieve fast streaming speeds when training models using the dataset view. The optimization process will take some time, depending on the size of the data.
@@ -2411,7 +2414,7 @@ class Dataset:
             num_workers (int): Number of workers to be used for optimization process. Applicable only if ``optimize=True``. Defaults to 0.
             scheduler (str): The scheduler to be used for optimization. Supported values include: 'serial', 'threaded', 'processed' and 'ray'. Only applicable if ``optimize=True``. Defaults to 'threaded'.
             verbose (bool): If ``True``, logs will be printed. Defaults to ``True``.
-            ds_args (dict): Additional args for creating VDS when path is specified. (See documentation for :func:`hub.dataset()`)
+            ds_args (dict): Additional args for creating VDS when path is specified. (See documentation for :func:`deeplake.dataset()`)
 
         Returns:
             str: Path to the saved VDS.
@@ -2422,7 +2425,7 @@ class Dataset:
 
         Note:
             Specifying ``path`` makes the view external. External views cannot be accessed using the parent dataset's :func:`Dataset.get_view`,
-            :func:`Dataset.load_view`, :func:`Dataset.delete_view` methods. They have to be loaded using :func:`hub.load`.
+            :func:`Dataset.load_view`, :func:`Dataset.delete_view` methods. They have to be loaded using :func:`deeplake.load`.
         """
         return self._save_view(
             path,
@@ -2454,7 +2457,7 @@ class Dataset:
             path (Optional, str, pathlib.Path): If specified, the VDS will saved as a standalone dataset at the specified path. If not,
                 the VDS is saved under `.queries` subdirectory of the source dataset's storage. If the user doesn't have
                 write access to the source dataset and the source dataset is a hub cloud dataset, then the VDS is saved
-                is saved under the user's hub account and can be accessed using hub.load(f"hub://{username}/queries/{query_hash}").
+                is saved under the user's hub account and can be accessed using deeplake.load(f"hub://{username}/queries/{query_hash}").
             id (Optional, str): Unique id for this view.
             message (Optional, message): Custom user message.
             optimize (bool): Whether the view should be optimized by copying the required data. Default False.
@@ -2464,7 +2467,7 @@ class Dataset:
             verbose (bool): If ``True``, logs will be printed. Defaults to ``True``.
             _ret_ds (bool): If ``True``, the VDS is retured as such without converting it to a view. If ``False``, the VDS path is returned.
                 Default False.
-            ds_args (dict): Additional args for creating VDS when path is specified. (See documentation for `hub.dataset()`)
+            ds_args (dict): Additional args for creating VDS when path is specified. (See documentation for `deeplake.dataset()`)
 
         Returns:
             If ``_ret_ds`` is ``True``, the VDS is returned, else path to the VDS is returned.
@@ -2493,7 +2496,7 @@ class Dataset:
                         "Saving views inplace is not supported for in-memory datasets."
                     )
                 if self.read_only and not (self._view_base or self)._locked_out:
-                    if isinstance(self, hub.core.dataset.HubCloudDataset):
+                    if isinstance(self, deeplake.core.dataset.HubCloudDataset):
                         vds = self._save_view_in_user_queries_dataset(
                             id, message, optimize, num_workers, scheduler
                         )
@@ -2536,7 +2539,7 @@ class Dataset:
         ds = (
             self._parent_dataset
             if (inherit_creds and self._parent_dataset)
-            else hub.load(
+            else deeplake.load(
                 self.info["source-dataset"], verbose=False, creds=creds, read_only=True
             )
         )
@@ -2588,7 +2591,7 @@ class Dataset:
         if username == "public":
             return
         try:
-            return hub.load(f"hub://{username}/queries", verbose=False)
+            return deeplake.load(f"hub://{username}/queries", verbose=False)
         except DatasetHandlerError:
             return
 
@@ -2680,7 +2683,7 @@ class Dataset:
         scheduler: str = "threaded",
         progressbar: Optional[bool] = True,
     ):
-        """Loads the view and returns the :class:`~hub.core.dataset.dataset.Dataset` by id. Equivalent to ds.get_view(id).load().
+        """Loads the view and returns the :class:`~deeplake.core.dataset.dataset.Dataset` by id. Equivalent to ds.get_view(id).load().
 
         Args:
             id (str): id of the view to be loaded.
@@ -2780,10 +2783,10 @@ class Dataset:
 
         if self.path.startswith("hub://"):
             path = posixpath.join(self.path, path)
-            cls = hub.core.dataset.HubCloudDataset
+            cls = deeplake.core.dataset.HubCloudDataset
         else:
             path = sub_storage.root
-            cls = hub.core.dataset.Dataset
+            cls = deeplake.core.dataset.Dataset
 
         ret = cls(
             generate_chain(
@@ -2813,8 +2816,8 @@ class Dataset:
         Args:
             src (str): Name of the source tensor.
             dest (str): Name of the destination tensor.
-            append_f (str): Name of the linked tensor transform to be used for appending items to the destination tensor. This transform should be defined in `hub.core.tensor_link` module.
-            update_f (str): Name of the linked tensor transform to be used for updating items in the destination tensor. This transform should be defined in `hub.core.tensor_link` module.
+            append_f (str): Name of the linked tensor transform to be used for appending items to the destination tensor. This transform should be defined in `deeplake.core.tensor_link` module.
+            update_f (str): Name of the linked tensor transform to be used for updating items in the destination tensor. This transform should be defined in `deeplake.core.tensor_link` module.
             flatten_sequence (bool, Optional): Whether appends and updates should be done per item or per sequence if the source tensor is a sequence tensor.
 
         Raises:
@@ -2911,7 +2914,7 @@ class Dataset:
             report_params["Dest"] = path
         feature_report_path(self.path, "copy", report_params, token=token)
 
-        dest_ds = hub.api.dataset.dataset._like(
+        dest_ds = deeplake.api.dataset.dataset._like(
             dest,
             self,
             tensors=tensors,
@@ -2924,7 +2927,7 @@ class Dataset:
                 for t in self.tensors
                 if (
                     self.tensors[t].base_htype != "video"
-                    or hub.constants._UNLINK_VIDEOS
+                    or deeplake.constants._UNLINK_VIDEOS
                 )
             ]
             if unlink
@@ -2951,12 +2954,12 @@ class Dataset:
                     )
                     if unlink
                     and src.is_link
-                    and (src.base_htype != "video" or hub.constants._UNLINK_VIDEOS)
+                    and (src.base_htype != "video" or deeplake.constants._UNLINK_VIDEOS)
                     else _copy_tensor
                 )
                 if progressbar:
                     sys.stderr.write(f"Copying tensor: {tensor}.\n")
-                hub.compute(copy_f, name="tensor copy transform")(
+                deeplake.compute(copy_f, name="tensor copy transform")(
                     tensor_name=tensor
                 ).eval(
                     self,
@@ -3101,7 +3104,7 @@ class Dataset:
         Examples:
 
             >>> # create/load a dataset
-            >>> ds = hub.empty("path/to/dataset")
+            >>> ds = deeplake.empty("path/to/dataset")
             >>> # add a new creds key
             >>> ds.add_creds_key("my_s3_key")
 
@@ -3131,7 +3134,7 @@ class Dataset:
         Examples:
 
             >>> # create/load a dataset
-            >>> ds = hub.dataset("path/to/dataset")
+            >>> ds = deeplake.dataset("path/to/dataset")
             >>> # add a new creds key
             >>> ds.add_creds_key("my_s3_key")
             >>> # populate the creds
@@ -3159,7 +3162,7 @@ class Dataset:
         Examples:
 
             >>> # create/load a dataset
-            >>> ds = hub.dataset("path/to/dataset")
+            >>> ds = deeplake.dataset("path/to/dataset")
             >>> # add a new creds key
             >>> ds.add_creds_key("my_s3_key")
             >>> # Populate the name added with creds dictionary
@@ -3192,9 +3195,9 @@ class Dataset:
         Raises:
             Exception: If the dataset is not a hub cloud dataset and the visualization is attempted in colab.
         """
-        from hub.visualizer import visualize
+        from deeplake.visualizer import visualize
 
-        hub_reporter.feature_report(feature_name="visualize", parameters={})
+        deeplake_reporter.feature_report(feature_name="visualize", parameters={})
         if is_colab():
             raise Exception("Cannot visualize non hub cloud dataset in Colab.")
         else:

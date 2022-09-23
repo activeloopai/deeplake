@@ -1,14 +1,14 @@
 from collections import OrderedDict
-import hub
+import deeplake
 import pytest
 import numpy as np
-from hub.util.diff import (
+from deeplake.util.diff import (
     get_all_changes_string,
     get_lowest_common_ancestor,
     sanitize_commit,
 )
-from hub.util.remove_cache import get_base_storage
-from hub.util.exceptions import (
+from deeplake.util.remove_cache import get_base_storage
+from deeplake.util.exceptions import (
     CheckoutError,
     CommitError,
     ReadOnlyModeError,
@@ -288,7 +288,7 @@ def test_auto_checkout_bug(local_ds):
 def test_read_mode(local_ds):
     base_storage = get_base_storage(local_ds.storage)
     base_storage.enable_readonly()
-    ds = hub.Dataset(storage=local_ds.storage, read_only=True, verbose=False)
+    ds = deeplake.Dataset(storage=local_ds.storage, read_only=True, verbose=False)
     with pytest.raises(ReadOnlyModeError):
         ds.commit("first")
     with pytest.raises(ReadOnlyModeError):
@@ -387,7 +387,7 @@ def test_different_lengths(local_ds):
 
     # reloading the dataset to check persistence
 
-    local_ds = hub.dataset(path)
+    local_ds = deeplake.dataset(path)
     assert len(local_ds.tensors) == 2
     assert len(local_ds.img) == 8
     assert (local_ds.img.numpy() == np.ones((8, 50, 50))).all()
@@ -666,7 +666,7 @@ def test_dataset_diff(local_ds, capsys):
     assert diff == ({}, {})
 
     # cover DatasetDiff.frombuffer
-    ds = hub.load(local_ds.path)
+    ds = deeplake.load(local_ds.path)
     ds.diff(a)
     captured = capsys.readouterr()
     assert captured.out == target

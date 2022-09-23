@@ -1,4 +1,4 @@
-from hub.util.exceptions import InvalidBytesRequestedError
+from deeplake.util.exceptions import InvalidBytesRequestedError
 
 
 def assert_byte_indexes(start_byte, end_byte):

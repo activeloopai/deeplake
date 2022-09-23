@@ -1,13 +1,13 @@
-from hub.constants import MB, PARTIAL_NUM_SAMPLES
-from hub.core.chunk.sample_compressed_chunk import SampleCompressedChunk
+from deeplake.constants import MB, PARTIAL_NUM_SAMPLES
+from deeplake.core.chunk.sample_compressed_chunk import SampleCompressedChunk
 import numpy as np
 import pytest
 
-import hub
-from hub.core.meta.tensor_meta import TensorMeta
-from hub.core.sample import Sample  # type: ignore
-from hub.core.tiling.deserialize import np_list_to_sample
-from hub.core.tiling.sample_tiles import SampleTiles
+import deeplake
+from deeplake.core.meta.tensor_meta import TensorMeta
+from deeplake.core.sample import Sample  # type: ignore
+from deeplake.core.tiling.deserialize import np_list_to_sample
+from deeplake.core.tiling.sample_tiles import SampleTiles
 
 compressions_paremetrized = pytest.mark.parametrize("compression", ["lz4"])
 
@@ -63,7 +63,7 @@ def test_read_write_sequence_big(cat_path, compression):
         if i % 10 == 0:
             data_in.append(np.random.rand(6001, 3000, 3).astype(dtype))
         elif i % 3 == 0:
-            data_in.append(hub.read(cat_path))
+            data_in.append(deeplake.read(cat_path))
         else:
             data_in.append(np.random.rand(1000, 500, 3).astype(dtype))
     data_in2 = data_in.copy()

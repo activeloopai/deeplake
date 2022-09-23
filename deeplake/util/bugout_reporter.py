@@ -5,10 +5,10 @@ from platform import machine
 from typing import Any, Dict, Optional
 import uuid
 
-from hub.client.config import REPORTING_CONFIG_FILE_PATH
-from hub.client.client import HubBackendClient
-from hub.client.utils import get_user_name
-from hub.util.bugout_token import BUGOUT_TOKEN
+from deeplake.client.config import REPORTING_CONFIG_FILE_PATH
+from deeplake.client.client import DeepLakeBackendClient
+from deeplake.client.utils import get_user_name
+from deeplake.util.bugout_token import BUGOUT_TOKEN
 from humbug.consent import HumbugConsent
 from humbug.report import HumbugReporter
 
@@ -103,7 +103,7 @@ session_id = str(uuid.uuid4())
 bugout_reporting_config = get_reporting_config()
 client_id = bugout_reporting_config.get("client_id")
 
-hub_reporter = HumbugReporter(
+deeplake_reporter = HumbugReporter(
     name="activeloopai/Hub",
     consent=consent,
     client_id=client_id,
@@ -114,11 +114,11 @@ hub_reporter = HumbugReporter(
 
 hub_user = bugout_reporting_config.get("username")
 if hub_user is not None:
-    hub_reporter.tags.append(f"username:{hub_user}")
+    deeplake_reporter.tags.append(f"username:{hub_user}")
 
 machine_id = bugout_reporting_config.get("machine_id")
 if machine_id is not None:
-    hub_reporter.tags.append(f"machine_id:{machine_id}")
+    deeplake_reporter.tags.append(f"machine_id:{machine_id}")
 
 
 def feature_report_path(
@@ -135,25 +135,25 @@ def feature_report_path(
         parameters["Path"] = path
 
     if token is not None:
-        client = HubBackendClient(token=token)
+        client = DeepLakeBackendClient(token=token)
         username = client.get_user_profile()["name"]
 
         index, current_username = find_current_username()
 
         if current_username is None:
-            hub_reporter.tags.append(f"username:{username}")
+            deeplake_reporter.tags.append(f"username:{username}")
         else:
             if f"username:{username}" != current_username:
-                hub_reporter.tags[index] = f"username:{username}"
+                deeplake_reporter.tags[index] = f"username:{username}"
 
-    hub_reporter.feature_report(
+    deeplake_reporter.feature_report(
         feature_name=feature_name,
         parameters=parameters,
     )
 
 
 def find_current_username():
-    for index, tag in enumerate(hub_reporter.tags):
+    for index, tag in enumerate(deeplake_reporter.tags):
         if "username" in tag:
             return index, tag
     return None, None

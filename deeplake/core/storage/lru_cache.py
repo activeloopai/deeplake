@@ -1,12 +1,12 @@
 import sys
 from collections import OrderedDict
-from hub.constants import KB
-from hub.core.partial_reader import PartialReader
-from hub.core.storage.hub_memory_object import HubMemoryObject
-from hub.core.chunk.base_chunk import BaseChunk
+from deeplake.constants import KB
+from deeplake.core.partial_reader import PartialReader
+from deeplake.core.storage.hub_memory_object import HubMemoryObject
+from deeplake.core.chunk.base_chunk import BaseChunk
 from typing import Any, Dict, Optional, Union
 
-from hub.core.storage.provider import StorageProvider
+from deeplake.core.storage.provider import StorageProvider
 
 
 def _get_nbytes(obj: Union[bytes, memoryview, HubMemoryObject]):
@@ -129,7 +129,7 @@ class LRUCache(StorageProvider):
                 self._insert_in_cache(path, obj)
             return obj
         if url:
-            from hub.util.remove_cache import get_base_storage
+            from deeplake.util.remove_cache import get_base_storage
 
             item = get_base_storage(self).get_presigned_url(path).encode("utf-8")
             if issubclass(expected_class, BaseChunk):

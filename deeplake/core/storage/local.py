@@ -4,8 +4,8 @@ import posixpath
 import shutil
 from typing import Optional, Set
 
-from hub.core.storage.provider import StorageProvider
-from hub.util.exceptions import (
+from deeplake.core.storage.provider import StorageProvider
+from deeplake.util.exceptions import (
     DirectoryAtPathException,
     FileAtPathException,
     PathNotEmptyException,

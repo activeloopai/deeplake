@@ -1,10 +1,10 @@
 import pytest
-from hub.util.check_installation import pytorch_installed
+from deeplake.util.check_installation import pytorch_installed
 
 if not pytorch_installed():
     pytest.skip("pytroch is not installed", allow_module_level=True)
 
-from hub.integrations.pytorch.shuffle_buffer import ShuffleBuffer
+from deeplake.integrations.pytorch.shuffle_buffer import ShuffleBuffer
 import torch
 
 

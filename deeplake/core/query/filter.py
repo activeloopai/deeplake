@@ -1,13 +1,13 @@
 from typing import Callable, List, Optional, Sequence, Dict
 from uuid import uuid4
 
-import hub
+import deeplake
 
-from hub.core.io import SampleStreaming
-from hub.core.query.query import DatasetQuery
-from hub.util.compute import get_compute_provider
-from hub.util.dataset import map_tensor_keys
-from hub.constants import QUERY_PROGRESS_UPDATE_FREQUENCY
+from deeplake.core.io import SampleStreaming
+from deeplake.core.query.query import DatasetQuery
+from deeplake.util.compute import get_compute_provider
+from deeplake.util.dataset import map_tensor_keys
+from deeplake.constants import QUERY_PROGRESS_UPDATE_FREQUENCY
 from time import time
 
 import inspect
@@ -15,8 +15,8 @@ import threading
 from queue import Queue
 from collections import defaultdict
 
-from hub.util.exceptions import FilterError
-from hub.util.hash import hash_inputs
+from deeplake.util.exceptions import FilterError
+from deeplake.util.hash import hash_inputs
 
 
 _LAST_UPDATED_TIMES: Dict = defaultdict(time)
@@ -39,7 +39,7 @@ def _del_counter(id):
 
 
 def _filter_function_to_query_text(filter_function):
-    if isinstance(filter_function, hub.core.query.DatasetQuery):
+    if isinstance(filter_function, deeplake.core.query.DatasetQuery):
         query_text = filter_function._query
     else:
         try:
@@ -57,15 +57,15 @@ def _filter_function_to_query_text(filter_function):
 
 
 def filter_dataset(
-    dataset: hub.Dataset,
-    filter_function: Callable[[hub.Dataset], bool],
+    dataset: deeplake.Dataset,
+    filter_function: Callable[[deeplake.Dataset], bool],
     num_workers: int = 0,
     scheduler: str = "threaded",
     progressbar: bool = True,
     save_result: bool = False,
     result_path: Optional[str] = None,
     result_ds_args: Optional[dict] = None,
-) -> hub.Dataset:
+) -> deeplake.Dataset:
     index_map: List[int]
 
     tm = time()
@@ -113,11 +113,11 @@ def filter_dataset(
     return ds  # type: ignore [this is fine]
 
 
-def _get_vds_thread(vds: hub.Dataset, queue: Queue, num_samples: int):
+def _get_vds_thread(vds: deeplake.Dataset, queue: Queue, num_samples: int):
     """Creates a thread which writes to a vds in background.
 
     Args:
-        vds: (hub.Dataset) The vds to write to.
+        vds: (deeplake.Dataset) The vds to write to.
         queue: (Queue) Queue to pop progress info from.
             Each item in the queue should be of form Tuple[int, bool],
             where the int is a sample index and the bool is whether
@@ -148,13 +148,13 @@ def _get_vds_thread(vds: hub.Dataset, queue: Queue, num_samples: int):
 
 
 def filter_with_compute(
-    dataset: hub.Dataset,
+    dataset: deeplake.Dataset,
     filter_function: Callable,
     num_workers: int,
     scheduler: str,
     progressbar: bool = True,
     query_text: Optional[str] = None,
-    vds: Optional[hub.Dataset] = None,
+    vds: Optional[deeplake.Dataset] = None,
 ) -> List[int]:
 
     blocks = SampleStreaming(dataset, tensors=map_tensor_keys(dataset)).list_blocks()
@@ -255,11 +255,11 @@ def filter_with_compute(
 
 
 def filter_inplace(
-    dataset: hub.Dataset,
+    dataset: deeplake.Dataset,
     filter_function: Callable,
     progressbar: bool,
     query_text: Optional[str] = None,
-    vds: Optional[hub.Dataset] = None,
+    vds: Optional[deeplake.Dataset] = None,
 ) -> List[int]:
     index_map: List[int] = list()
 
@@ -327,7 +327,7 @@ def filter_inplace(
 
 
 def query_dataset(
-    dataset: hub.Dataset,
+    dataset: deeplake.Dataset,
     query: str,
     num_workers: int = 0,
     scheduler: str = "threaded",
@@ -335,7 +335,7 @@ def query_dataset(
     save_result: bool = False,
     result_path: Optional[str] = None,
     result_ds_args: Optional[Dict] = None,
-) -> hub.Dataset:
+) -> deeplake.Dataset:
     index_map: List[int]
 
     vds = (
@@ -352,12 +352,12 @@ def query_dataset(
 
 
 def query_inplace(
-    dataset: hub.Dataset,
+    dataset: deeplake.Dataset,
     query: str,
     progressbar: bool,
     num_workers: int,
     scheduler: str,
-    vds: Optional[hub.Dataset] = None,
+    vds: Optional[deeplake.Dataset] = None,
 ) -> List[int]:
 
     num_samples = len(dataset)

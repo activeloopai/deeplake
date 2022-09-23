@@ -1,11 +1,11 @@
 import json
 from typing import Optional
 import warnings
-from hub.constants import ALL_CLOUD_PREFIXES
-from hub.core.storage.hub_memory_object import HubMemoryObject
-from hub.core.storage.provider import StorageProvider
-from hub.core.storage.s3 import S3Provider
-from hub.util.token import expires_in_to_expires_at, is_expired_token
+from deeplake.constants import ALL_CLOUD_PREFIXES
+from deeplake.core.storage.hub_memory_object import HubMemoryObject
+from deeplake.core.storage.provider import StorageProvider
+from deeplake.core.storage.s3 import S3Provider
+from deeplake.util.token import expires_in_to_expires_at, is_expired_token
 
 
 class LinkCreds(HubMemoryObject):
@@ -51,7 +51,7 @@ class LinkCreds(HubMemoryObject):
             return self.default_s3_provider
         else:
             if self.default_gcs_provider is None:
-                from hub.core.storage.gcs import GCSProvider
+                from deeplake.core.storage.gcs import GCSProvider
 
                 self.default_gcs_provider = GCSProvider("gcs://bucket/path")
             return self.default_gcs_provider
@@ -72,7 +72,7 @@ class LinkCreds(HubMemoryObject):
 
             provider = S3Provider("s3://bucket/path", **creds)
         else:
-            from hub.core.storage.gcs import GCSProvider
+            from deeplake.core.storage.gcs import GCSProvider
 
             if key in self.storage_providers:
                 provider = self.storage_providers[key]

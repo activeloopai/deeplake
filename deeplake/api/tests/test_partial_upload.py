@@ -1,4 +1,4 @@
-import hub
+import deeplake
 import pytest
 import numpy as np
 
@@ -27,7 +27,7 @@ import numpy as np
 def test_partial_upload(memory_ds, kwargs, compression_type, compression):
     ds = memory_ds
     ds.create_tensor("image", htype="image", **{compression_type: compression})
-    ds.image.append(hub.tiled(**kwargs))
+    ds.image.append(deeplake.tiled(**kwargs))
     np.testing.assert_array_equal(
         ds.image[0][:10, :10].numpy(), np.zeros((10, 10, 3), dtype=np.uint8)
     )

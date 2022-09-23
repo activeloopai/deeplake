@@ -3,14 +3,18 @@ import sys
 import numpy as np
 import pathlib
 import pytest
-import hub
-from hub.core.dataset import Dataset
-from hub.core.tensor import Tensor
+import deeplake
+from deeplake.core.dataset import Dataset
+from deeplake.core.tensor import Tensor
 
-from hub.tests.common import assert_array_lists_equal, is_opt_true, get_dummy_data_path
-from hub.tests.storage_fixtures import enabled_remote_storages
-from hub.core.storage import GCSProvider
-from hub.util.exceptions import (
+from deeplake.tests.common import (
+    assert_array_lists_equal,
+    is_opt_true,
+    get_dummy_data_path,
+)
+from deeplake.tests.storage_fixtures import enabled_remote_storages
+from deeplake.core.storage import GCSProvider
+from deeplake.util.exceptions import (
     InvalidOperationError,
     TensorDtypeMismatchError,
     TensorDoesNotExistError,
@@ -32,14 +36,14 @@ from hub.util.exceptions import (
     UserNotLoggedInException,
     SampleAppendingError,
 )
-from hub.util.path import convert_string_to_pathlib_if_needed
-from hub.util.pretty_print import summary_tensor, summary_dataset
-from hub.constants import GDRIVE_OPT, MB
-from hub.client.config import REPORTING_CONFIG_FILE_PATH
+from deeplake.util.path import convert_string_to_pathlib_if_needed
+from deeplake.util.pretty_print import summary_tensor, summary_dataset
+from deeplake.constants import GDRIVE_OPT, MB
+from deeplake.client.config import REPORTING_CONFIG_FILE_PATH
 
 from click.testing import CliRunner
-from hub.cli.auth import login, logout
-from hub.util.bugout_reporter import feature_report_path
+from deeplake.cli.auth import login, logout
+from deeplake.util.bugout_reporter import feature_report_path
 
 
 # need this for 32-bit and 64-bit systems to have correct tests
@@ -69,7 +73,7 @@ def test_persist(ds_generator):
     assert ds_new.image.shape == (4, 224, 224, 3)
     np.testing.assert_array_equal(ds_new.image.numpy(), np.ones((4, 224, 224, 3)))
 
-    assert ds_new.meta.version == hub.__version__
+    assert ds_new.meta.version == deeplake.__version__
 
     ds_new.create_tensor("label")
     ds_new.label.extend([1, 2, 3, 4])
@@ -117,7 +121,7 @@ def test_persist_with(local_ds_generator):
 
     np.testing.assert_array_equal(ds_new.image.numpy(), np.ones((4, 224, 224, 3)))
 
-    assert ds_new.meta.version == hub.__version__
+    assert ds_new.meta.version == deeplake.__version__
 
 
 def test_persist_clear_cache(local_ds_generator):
@@ -155,7 +159,7 @@ def test_populate_dataset(local_ds):
     assert len(local_ds.image[-5:].numpy()) == 5
 
     assert local_ds.meta.tensors == ["image", "_image_shape", "_image_id"]
-    assert local_ds.meta.version == hub.__version__
+    assert local_ds.meta.version == deeplake.__version__
 
 
 def test_larger_data_memory(memory_ds):
@@ -586,10 +590,12 @@ def test_htype(memory_ds: Dataset):
     point.append(np.ones((11, 2), dtype=np.int32))
 
     point_cloud.append(
-        hub.read(os.path.join(get_dummy_data_path("point_cloud"), "point_cloud.las"))
+        deeplake.read(
+            os.path.join(get_dummy_data_path("point_cloud"), "point_cloud.las")
+        )
     )
     point_cloud_dummy_data_path = pathlib.Path(get_dummy_data_path("point_cloud"))
-    point_cloud.append(hub.read(point_cloud_dummy_data_path / "point_cloud.las"))
+    point_cloud.append(deeplake.read(point_cloud_dummy_data_path / "point_cloud.las"))
     # Along the forst direcection three matrices are concatenated, the first matrix is P,
     # the second one is Tr and the third one is R
     memory_ds.point_cloud_calibration_matrix.append(
@@ -662,7 +668,7 @@ def test_array_interface(memory_ds: Dataset):
 
 def test_hub_dataset_suffix_bug(hub_cloud_ds, hub_cloud_dev_token):
     # creating dataset with similar name but some suffix removed from end
-    ds = hub.dataset(hub_cloud_ds.path[:-1], token=hub_cloud_dev_token)
+    ds = deeplake.dataset(hub_cloud_ds.path[:-1], token=hub_cloud_dev_token)
 
     # need to delete because it's a different path (won't be auto cleaned up)
     ds.delete()
@@ -701,11 +707,11 @@ def test_empty_dataset(convert_to_pathlib):
     with CliRunner().isolated_filesystem():
         test_path = "test"
         test_path = convert_string_to_pathlib_if_needed(test_path, convert_to_pathlib)
-        ds = hub.dataset(test_path)
+        ds = deeplake.dataset(test_path)
         ds.create_tensor("x")
         ds.create_tensor("y")
         ds.create_tensor("z")
-        ds = hub.dataset(test_path)
+        ds = deeplake.dataset(test_path)
         assert list(ds.tensors) == ["x", "y", "z"]
 
 
@@ -716,7 +722,7 @@ def test_like(local_path, convert_to_pathlib):
     dest_path = os.path.join(local_path, "dest")
     dest_path = convert_string_to_pathlib_if_needed(dest_path, convert_to_pathlib)
 
-    src_ds = hub.dataset(src_path)
+    src_ds = deeplake.dataset(src_path)
     src_ds.info.update(key=0)
 
     src_ds.create_tensor("a", htype="image", sample_compression="png")
@@ -729,7 +735,7 @@ def test_like(local_path, convert_to_pathlib):
     assert src_ds.info.key == 0
     assert src_ds.d.info.key == 1
 
-    dest_ds = hub.like(dest_path, src_ds)
+    dest_ds = deeplake.like(dest_path, src_ds)
 
     assert tuple(dest_ds.tensors.keys()) == ("a", "b", "c", "d")
 
@@ -747,13 +753,13 @@ def test_like(local_path, convert_to_pathlib):
 
 def test_tensor_creation_fail_recovery():
     with CliRunner().isolated_filesystem():
-        ds = hub.dataset("test")
+        ds = deeplake.dataset("test")
         with ds:
             ds.create_tensor("x")
             ds.create_tensor("y")
             with pytest.raises(UnsupportedCompressionError):
                 ds.create_tensor("z", sample_compression="something_random")
-        ds = hub.dataset("test")
+        ds = deeplake.dataset("test")
         assert list(ds.tensors) == ["x", "y"]
         ds.create_tensor("z")
         assert list(ds.tensors) == ["x", "y", "z"]
@@ -767,40 +773,40 @@ def test_dataset_delete():
 
         with pytest.raises(DatasetHandlerError):
             # Can't delete raw data without force
-            hub.delete("test/")
+            deeplake.delete("test/")
 
-        hub.delete("test/", force=True)
+        deeplake.delete("test/", force=True)
         assert not os.path.isfile("test/test.txt")
 
-        hub.empty("test/").create_tensor("tmp")
+        deeplake.empty("test/").create_tensor("tmp")
         assert os.path.isfile("test/dataset_meta.json")
 
-        hub.delete("test/")
+        deeplake.delete("test/")
         assert not os.path.isfile("test/dataset_meta.json")
 
         pathlib_path = pathlib.Path("test/")
-        hub.empty(pathlib_path).create_tensor("tmp")
+        deeplake.empty(pathlib_path).create_tensor("tmp")
         assert os.path.isfile("test/dataset_meta.json")
 
-        hub.delete(pathlib_path)
+        deeplake.delete(pathlib_path)
         assert not os.path.isfile("test/dataset_meta.json")
 
-        old_size = hub.constants.DELETE_SAFETY_SIZE
-        hub.constants.DELETE_SAFETY_SIZE = 1 * MB
+        old_size = deeplake.constants.DELETE_SAFETY_SIZE
+        deeplake.constants.DELETE_SAFETY_SIZE = 1 * MB
 
-        ds = hub.empty("test/")
+        ds = deeplake.empty("test/")
         ds.create_tensor("data")
         ds.data.extend(np.zeros((100, 2000)))
 
         try:
-            hub.delete("test/")
+            deeplake.delete("test/")
         finally:
             assert os.path.isfile("test/dataset_meta.json")
 
-        hub.delete("test/", large_ok=True)
+        deeplake.delete("test/", large_ok=True)
         assert not os.path.isfile("test/dataset_meta.json")
 
-        hub.constants.DELETE_SAFETY_SIZE = old_size
+        deeplake.constants.DELETE_SAFETY_SIZE = old_size
 
 
 @pytest.mark.parametrize(
@@ -834,29 +840,29 @@ def test_dataset_rename(ds_generator, path, hub_token, convert_to_pathlib):
         with pytest.raises(PathNotEmptyException):
             ds.rename(ds.path)
 
-    ds = hub.rename(ds.path, new_path, token=hub_token)
+    ds = deeplake.rename(ds.path, new_path, token=hub_token)
     assert ds.path == str(new_path)
     np.testing.assert_array_equal(ds.abc.numpy(), np.array([[1, 2, 3, 4]]))
 
-    ds = hub.load(new_path, token=hub_token)
+    ds = deeplake.load(new_path, token=hub_token)
     np.testing.assert_array_equal(ds.abc.numpy(), np.array([[1, 2, 3, 4]]))
 
     with pytest.raises(InvalidTokenException):
-        ds = hub.load(
+        ds = deeplake.load(
             "hub://activeloop-test/sohas-weapons-train", token="invalid token"
         )
 
     with pytest.raises(InvalidTokenException):
-        ds = hub.empty(
+        ds = deeplake.empty(
             "hub://activeloop-test/sohas-weapons-train", token="invalid token"
         )
 
     with pytest.raises(InvalidTokenException):
-        ds = hub.dataset(
+        ds = deeplake.dataset(
             "hub://activeloop-test/sohas-weapons-train", token="invalid token"
         )
 
-    hub.delete(new_path, token=hub_token)
+    deeplake.delete(new_path, token=hub_token)
 
 
 @pytest.mark.parametrize(
@@ -873,7 +879,7 @@ def test_dataset_deepcopy(path, hub_token, num_workers, progressbar):
     src_path = "_".join((path, "src"))
     dest_path = "_".join((path, "dest"))
 
-    src_ds = hub.empty(src_path, overwrite=True, token=hub_token)
+    src_ds = deeplake.empty(src_path, overwrite=True, token=hub_token)
 
     with src_ds:
         src_ds.info.update(key=0)
@@ -888,7 +894,7 @@ def test_dataset_deepcopy(path, hub_token, num_workers, progressbar):
         src_ds["a"].append(np.ones((28, 28), dtype="uint8"))
         src_ds["b"].append(0)
 
-    dest_ds = hub.deepcopy(
+    dest_ds = deeplake.deepcopy(
         src_path,
         dest_path,
         overwrite=True,
@@ -912,9 +918,11 @@ def test_dataset_deepcopy(path, hub_token, num_workers, progressbar):
         np.testing.assert_array_equal(src_ds[tensor].numpy(), dest_ds[tensor].numpy())
 
     with pytest.raises(DatasetHandlerError):
-        hub.deepcopy(src_path, dest_path, src_token=hub_token, dest_token=hub_token)
+        deeplake.deepcopy(
+            src_path, dest_path, src_token=hub_token, dest_token=hub_token
+        )
 
-    hub.deepcopy(
+    deeplake.deepcopy(
         src_path,
         dest_path,
         overwrite=True,
@@ -929,12 +937,12 @@ def test_dataset_deepcopy(path, hub_token, num_workers, progressbar):
         np.testing.assert_array_equal(src_ds[tensor].numpy(), dest_ds[tensor].numpy())
 
     # test fot dataset.load:
-    dest_ds = hub.load(dest_path, token=hub_token)
+    dest_ds = deeplake.load(dest_path, token=hub_token)
     assert list(dest_ds.tensors) == ["a", "b", "c", "d"]
     for tensor in dest_ds.tensors.keys():
         np.testing.assert_array_equal(src_ds[tensor].numpy(), dest_ds[tensor].numpy())
 
-    hub.deepcopy(
+    deeplake.deepcopy(
         src_path,
         dest_path,
         overwrite=True,
@@ -943,13 +951,13 @@ def test_dataset_deepcopy(path, hub_token, num_workers, progressbar):
         num_workers=num_workers,
         progressbar=progressbar,
     )
-    dest_ds = hub.load(dest_path, token=hub_token)
+    dest_ds = deeplake.load(dest_path, token=hub_token)
 
     assert list(dest_ds.tensors) == ["a", "b", "c", "d"]
     for tensor in dest_ds.tensors:
         np.testing.assert_array_equal(src_ds[tensor].numpy(), dest_ds[tensor].numpy())
 
-    hub.deepcopy(
+    deeplake.deepcopy(
         src_path,
         dest_path,
         tensors=["a", "d"],
@@ -959,19 +967,19 @@ def test_dataset_deepcopy(path, hub_token, num_workers, progressbar):
         num_workers=num_workers,
         progressbar=progressbar,
     )
-    dest_ds = hub.load(dest_path, token=hub_token)
+    dest_ds = deeplake.load(dest_path, token=hub_token)
     assert list(dest_ds.tensors) == ["a", "d"]
     for tensor in dest_ds.tensors:
         np.testing.assert_array_equal(src_ds[tensor].numpy(), dest_ds[tensor].numpy())
-    hub.delete(src_path, token=hub_token)
-    hub.delete(dest_path, token=hub_token)
+    deeplake.delete(src_path, token=hub_token)
+    deeplake.delete(dest_path, token=hub_token)
 
 
 def test_cloud_delete_doesnt_exist(hub_cloud_path, hub_cloud_dev_token):
     username = hub_cloud_path.split("/")[2]
     # this dataset doesn't exist
     new_path = f"hub://{username}/doesntexist123"
-    hub.delete(new_path, token=hub_cloud_dev_token, force=True)
+    deeplake.delete(new_path, token=hub_cloud_dev_token, force=True)
 
 
 def test_invalid_tensor_name(memory_ds):
@@ -982,7 +990,7 @@ def test_invalid_tensor_name(memory_ds):
 
 
 def test_compressions_list():
-    assert hub.compressions == [
+    assert deeplake.compressions == [
         "apng",
         "avi",
         "bmp",
@@ -1018,7 +1026,7 @@ def test_compressions_list():
 
 
 def test_htypes_list():
-    assert hub.htypes == [
+    assert deeplake.htypes == [
         "audio",
         "bbox",
         "bbox.3d",
@@ -1226,8 +1234,8 @@ def test_tobytes(memory_ds, compressed_image_paths, audio_paths):
     ds.create_tensor("audio", sample_compression="mp3")
     with ds:
         for _ in range(3):
-            ds.image.append(hub.read(compressed_image_paths["jpeg"][0]))
-            ds.audio.append(hub.read(audio_paths["mp3"]))
+            ds.image.append(deeplake.read(compressed_image_paths["jpeg"][0]))
+            ds.audio.append(deeplake.read(audio_paths["mp3"]))
     with open(compressed_image_paths["jpeg"][0], "rb") as f:
         image_bytes = f.read()
     with open(audio_paths["mp3"], "rb") as f:
@@ -1240,8 +1248,8 @@ def test_tobytes(memory_ds, compressed_image_paths, audio_paths):
 def test_tobytes_link(memory_ds):
     with memory_ds as ds:
         ds.create_tensor("images", htype="link[image]")
-        ds.images.append(hub.link("https://picsum.photos/id/237/200/300"))
-        sample = hub.read("https://picsum.photos/id/237/200/300")
+        ds.images.append(deeplake.link("https://picsum.photos/id/237/200/300"))
+        sample = deeplake.read("https://picsum.photos/id/237/200/300")
         assert ds.images[0].tobytes() == sample.buffer
 
 
@@ -1366,8 +1374,8 @@ def test_ds_append(memory_ds, x_args, y_args, x_size, htype):
 
 
 def test_ds_append_with_ds_view():
-    ds1 = hub.dataset("mem://x")
-    ds2 = hub.dataset("mem://y")
+    ds1 = deeplake.dataset("mem://x")
+    ds2 = deeplake.dataset("mem://y")
     ds1.create_tensor("x")
     ds2.create_tensor("x")
     ds1.create_tensor("y")
@@ -1381,8 +1389,8 @@ def test_ds_append_with_ds_view():
 
 
 def test_ds_extend():
-    ds1 = hub.dataset("mem://x")
-    ds2 = hub.dataset("mem://y")
+    ds1 = deeplake.dataset("mem://x")
+    ds2 = deeplake.dataset("mem://y")
     ds1.create_tensor("x")
     ds2.create_tensor("x")
     ds1.create_tensor("y")
@@ -1403,8 +1411,8 @@ def test_ds_extend():
 )
 @pytest.mark.parametrize("size", [(30, 40, 3), (1261, 759, 3)])
 def test_append_with_tensor(src_args, dest_args, size):
-    ds1 = hub.dataset("mem://ds1")
-    ds2 = hub.dataset("mem://ds2")
+    ds1 = deeplake.dataset("mem://ds1")
+    ds2 = deeplake.dataset("mem://ds2")
     ds1.create_tensor("x", **src_args, max_chunk_size=2 * MB, tiling_threshold=2 * MB)
     x = np.random.randint(0, 256, size, dtype=np.uint8)
     ds1.x.append(x)
@@ -1423,8 +1431,8 @@ def test_append_with_tensor(src_args, dest_args, size):
 
 
 def test_extend_with_tensor():
-    ds1 = hub.dataset("mem://ds1")
-    ds2 = hub.dataset("mem://ds2")
+    ds1 = deeplake.dataset("mem://ds1")
+    ds2 = deeplake.dataset("mem://ds2")
     with ds1:
         ds1.create_tensor("x")
         ds1.x.extend([1, 2, 3, 4])
@@ -1445,7 +1453,7 @@ def test_empty_extend(memory_ds):
 
 
 def test_extend_with_progressbar():
-    ds1 = hub.dataset("mem://ds1")
+    ds1 = deeplake.dataset("mem://ds1")
     with ds1:
         ds1.create_tensor("x")
         ds1.x.extend([1, 2, 3, 4], progressbar=True)
@@ -1504,12 +1512,12 @@ def test_hub_remote_read_images(storage, memory_ds, color_image_paths, gdrive_cr
 
     memory_ds.create_tensor("images", htype="image", sample_compression="jpg")
 
-    image = hub.read("https://picsum.photos/200/300")
+    image = deeplake.read("https://picsum.photos/200/300")
     memory_ds.images.append(image)
     assert memory_ds.images[0].shape == (300, 200, 3)
 
     storage["sample/samplejpg.jpg"] = byts
-    image = hub.read(
+    image = deeplake.read(
         f"{storage.root}/sample/samplejpg.jpg",
         creds=gdrive_creds if storage.root.startswith("gdrive://") else None,
     )
@@ -1517,7 +1525,7 @@ def test_hub_remote_read_images(storage, memory_ds, color_image_paths, gdrive_cr
     assert memory_ds.images[1].shape == (323, 480, 3)
 
     storage["samplejpg.jpg"] = byts
-    image = hub.read(
+    image = deeplake.read(
         f"{storage.root}/samplejpg.jpg",
         creds=gdrive_creds if storage.root.startswith("gdrive://") else None,
     )
@@ -1529,7 +1537,7 @@ def test_hub_remote_read_gdrive_root(request, memory_ds, gdrive_creds):
     if not is_opt_true(request, GDRIVE_OPT):
         pytest.skip()
     memory_ds.create_tensor("images", htype="image", sample_compression="jpg")
-    memory_ds.images.append(hub.read("gdrive://cat.jpeg", creds=gdrive_creds))
+    memory_ds.images.append(deeplake.read("gdrive://cat.jpeg", creds=gdrive_creds))
     assert memory_ds.images[0].shape == (900, 900, 3)
 
 
@@ -1540,14 +1548,14 @@ def test_hub_remote_read_gdrive_root(request, memory_ds, gdrive_creds):
 def test_hub_remote_read_videos(storage, memory_ds):
     memory_ds.create_tensor("videos", htype="video", sample_compression="mp4")
 
-    video = hub.read(
+    video = deeplake.read(
         "http://commondatastorage.googleapis.com/gtv-videos-bucket/sample/ForBiggerJoyrides.mp4",
     )
     memory_ds.videos.append(video)
     assert memory_ds.videos[0].shape == (361, 720, 1280, 3)
 
     if isinstance(storage, GCSProvider):
-        video = hub.read(
+        video = deeplake.read(
             "gcs://gtv-videos-bucket/sample/ForBiggerJoyrides.mp4",
         )
         memory_ds.videos.append(video)
@@ -1589,7 +1597,7 @@ def test_sequence_htype(memory_ds, aslist, args, idx):
 @pytest.mark.parametrize("shape", [(13, 17, 3), (1007, 3001, 3)])
 def test_sequence_htype_with_hub_read(local_ds, shape, compressed_image_paths):
     ds = local_ds
-    imgs = list(map(hub.read, compressed_image_paths["jpeg"][:3]))
+    imgs = list(map(deeplake.read, compressed_image_paths["jpeg"][:3]))
     arrs = np.random.randint(0, 256, (5, *shape), dtype=np.uint8)
     with ds:
         ds.create_tensor("x", htype="sequence[image]", sample_compression="png")
@@ -1700,7 +1708,7 @@ def test_dataset_copy(
             ds.label.append(np.random.randint(0, 10, (1, 10)))
             ds.nocopy.append([0])
 
-    hub.copy(
+    deeplake.copy(
         ds[index],
         local_ds.path,
         tensors=["images", "label"],
@@ -1708,7 +1716,7 @@ def test_dataset_copy(
         num_workers=num_workers,
         progressbar=progressbar,
     )
-    local_ds = hub.load(local_ds.path)
+    local_ds = deeplake.load(local_ds.path)
     assert set(local_ds.tensors) == set(["images/image1", "images/image2", "label"])
     for t in local_ds.tensors:
         np.testing.assert_array_equal(ds[t][index].numpy(), local_ds[t].numpy())
@@ -1728,17 +1736,17 @@ def test_dataset_copy(
 def test_hub_exists(ds_generator, path, hub_token, convert_to_pathlib):
     path = convert_string_to_pathlib_if_needed(path, convert_to_pathlib)
     ds = ds_generator()
-    assert hub.exists(path, token=hub_token) == True
-    assert hub.exists(f"{path}_does_not_exist", token=hub_token) == False
+    assert deeplake.exists(path, token=hub_token) == True
+    assert deeplake.exists(f"{path}_does_not_exist", token=hub_token) == False
 
 
 def test_pyav_not_installed(local_ds, video_paths):
-    pyav_installed = hub.core.compression._PYAV_INSTALLED
-    hub.core.compression._PYAV_INSTALLED = False
+    pyav_installed = deeplake.core.compression._PYAV_INSTALLED
+    deeplake.core.compression._PYAV_INSTALLED = False
     local_ds.create_tensor("videos", htype="video", sample_compression="mp4")
-    with pytest.raises(hub.util.exceptions.CorruptedSampleError):
-        local_ds.videos.append(hub.read(video_paths["mp4"][0]))
-    hub.core.compression._PYAV_INSTALLED = pyav_installed
+    with pytest.raises(deeplake.util.exceptions.CorruptedSampleError):
+        local_ds.videos.append(deeplake.read(video_paths["mp4"][0]))
+    deeplake.core.compression._PYAV_INSTALLED = pyav_installed
 
 
 def test_create_branch_when_locked_out(local_ds):
@@ -1753,10 +1761,10 @@ def test_create_branch_when_locked_out(local_ds):
 
 def test_access_method(s3_ds_generator):
     with pytest.raises(DatasetHandlerError):
-        hub.dataset("./some_non_existent_path", access_method="download")
+        deeplake.dataset("./some_non_existent_path", access_method="download")
 
     with pytest.raises(DatasetHandlerError):
-        hub.dataset("./some_non_existent_path", access_method="local")
+        deeplake.dataset("./some_non_existent_path", access_method="local")
 
     ds = s3_ds_generator()
     with ds:
@@ -1921,8 +1929,8 @@ def test_text_label(local_ds_generator):
         ds.nested.info.class_names = ["airplane", "boat", "car"]
         ds.nested.extend([[["person", 2], ["airplane", "bus"]], [[0, 1], ["car", 3]]])
 
-        temp = hub.constants._ENABLE_RANDOM_ASSIGNMENT
-        hub.constants._ENABLE_RANDOM_ASSIGNMENT = True
+        temp = deeplake.constants._ENABLE_RANDOM_ASSIGNMENT
+        deeplake.constants._ENABLE_RANDOM_ASSIGNMENT = True
 
         ds.create_tensor("random", htype="class_label")
         ds.random[0] = ["l1", "l2"]
@@ -1937,7 +1945,7 @@ def test_text_label(local_ds_generator):
             ds.seq.append(["l3", "l1"])
             ds.seq[4] = ["l1", "l3"]
 
-        hub.constants._ENABLE_RANDOM_ASSIGNMENT = temp
+        deeplake.constants._ENABLE_RANDOM_ASSIGNMENT = temp
 
         verify_label_data(ds)
 
@@ -1957,7 +1965,7 @@ def test_text_labels_transform(local_ds_generator, num_workers):
     seq_labels = [["ship", "train", "car"], ["ship", "train"], ["car", "train"]]
     data = list(zip(labels, multiple_labels, seq_labels))
 
-    @hub.compute
+    @deeplake.compute
     def upload(data, ds):
         ds.labels.append(data[0])
         ds.multiple_labels.append(data[1])
@@ -2059,27 +2067,27 @@ def token_permission_error_check(
 ):
     result = runner.invoke(login, f"-u {username} -p {password}")
     with pytest.raises(TokenPermissionError):
-        hub.empty("hub://activeloop-test/sohas-weapons-train")
+        deeplake.empty("hub://activeloop-test/sohas-weapons-train")
 
     with pytest.raises(TokenPermissionError):
-        ds = hub.load("hub://activeloop/fake-path")
+        ds = deeplake.load("hub://activeloop/fake-path")
 
 
 def invalid_token_exception_check():
     with pytest.raises(InvalidTokenException):
-        ds = hub.empty("hub://adilkhan/demo", token="invalid_token")
+        ds = deeplake.empty("hub://adilkhan/demo", token="invalid_token")
 
 
 def user_not_logged_in_exception_check(runner):
     runner.invoke(logout)
     with pytest.raises(UserNotLoggedInException):
-        ds = hub.load("hub://activeloop-test/sohas-weapons-train", read_only=True)
+        ds = deeplake.load("hub://activeloop-test/sohas-weapons-train", read_only=True)
 
 
 def dataset_handler_error_check(runner, username, password):
     result = runner.invoke(login, f"-u {username} -p {password}")
     with pytest.raises(DatasetHandlerError):
-        ds = hub.load(f"hub://{username}/wrong-path")
+        ds = deeplake.load(f"hub://{username}/wrong-path")
 
 
 def test_hub_related_permission_exceptions(

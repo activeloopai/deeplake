@@ -1,6 +1,6 @@
-from hub.core.storage.lru_cache import LRUCache
-from hub.util.exceptions import InfoError
-from hub.core.storage.hub_memory_object import HubMemoryObject
+from deeplake.core.storage.lru_cache import LRUCache
+from deeplake.util.exceptions import InfoError
+from deeplake.core.storage.hub_memory_object import HubMemoryObject
 from typing import Any, Dict
 
 
@@ -16,7 +16,7 @@ class Info(HubMemoryObject):
         self.is_dirty = False
 
     def __enter__(self):
-        from hub.core.tensor import Tensor
+        from deeplake.core.tensor import Tensor
 
         ds = self._dataset
         key = self._key

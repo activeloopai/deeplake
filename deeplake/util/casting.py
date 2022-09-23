@@ -1,10 +1,10 @@
 from typing import List, Union, Sequence, Any
 from functools import reduce
 import numpy as np
-from hub.core.linked_sample import LinkedSample
-from hub.util.exceptions import TensorDtypeMismatchError
-from hub.core.sample import Sample  # type: ignore
-import hub
+from deeplake.core.linked_sample import LinkedSample
+from deeplake.util.exceptions import TensorDtypeMismatchError
+from deeplake.core.sample import Sample  # type: ignore
+import deeplake
 
 
 def _get_bigger_dtype(d1, d2):
@@ -41,7 +41,7 @@ def get_dtype(val: Union[np.ndarray, Sequence, Sample]) -> np.dtype:
 
 def get_htype(val: Union[np.ndarray, Sequence, Sample]) -> str:
     """Get the htype of a non-uniform mixed dtype sequence of samples."""
-    if isinstance(val, hub.core.tensor.Tensor):
+    if isinstance(val, deeplake.core.tensor.Tensor):
         return val.meta.htype
     if hasattr(val, "shape"):  # covers numpy arrays, numpy scalars and hub samples.
         return "generic"

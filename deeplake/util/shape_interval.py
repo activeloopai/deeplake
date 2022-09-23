@@ -1,6 +1,6 @@
 from typing import Sequence
 
-from hub.util.exceptions import InvalidShapeIntervalError
+from deeplake.util.exceptions import InvalidShapeIntervalError
 from typing import Optional, Sequence, Tuple
 
 

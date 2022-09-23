@@ -1,20 +1,20 @@
-from hub.compression import (
+from deeplake.compression import (
     BYTE_COMPRESSION,
     VIDEO_COMPRESSION,
     AUDIO_COMPRESSION,
     get_compression_type,
 )
-from hub.core.fast_forwarding import version_compare
-from hub.core.tiling.sample_tiles import SampleTiles
-from hub.core.partial_sample import PartialSample
-from hub.util.compression import get_compression_ratio  # type: ignore
-from hub.util.exceptions import TensorInvalidSampleShapeError
-from hub.util.casting import intelligent_cast
-from hub.util.json import HubJsonDecoder, HubJsonEncoder, validate_json_object
-from hub.core.sample import Sample, SampleValue  # type: ignore
-from hub.core.compression import compress_array, compress_bytes
+from deeplake.core.fast_forwarding import version_compare
+from deeplake.core.tiling.sample_tiles import SampleTiles
+from deeplake.core.partial_sample import PartialSample
+from deeplake.util.compression import get_compression_ratio  # type: ignore
+from deeplake.util.exceptions import TensorInvalidSampleShapeError
+from deeplake.util.casting import intelligent_cast
+from deeplake.util.json import HubJsonDecoder, HubJsonEncoder, validate_json_object
+from deeplake.core.sample import Sample, SampleValue  # type: ignore
+from deeplake.core.compression import compress_array, compress_bytes
 from typing import Optional, Sequence, Union, Tuple
-import hub
+import deeplake
 import numpy as np
 import struct
 import json
@@ -141,7 +141,7 @@ def write_actual_data(data, buffer, offset) -> int:
 
 def get_header_from_url(url: str):
     # Note: to be only used for chunks contains a single sample
-    enc_dtype = np.dtype(hub.constants.ENCODING_DTYPE)
+    enc_dtype = np.dtype(deeplake.constants.ENCODING_DTYPE)
     itemsize = enc_dtype.itemsize
 
     headers = {"Range": "bytes=0-100"}
@@ -209,7 +209,7 @@ def deserialize_chunk(
     incoming_mview = isinstance(byts, memoryview)
     byts = memoryview(byts)
 
-    enc_dtype = np.dtype(hub.constants.ENCODING_DTYPE)
+    enc_dtype = np.dtype(deeplake.constants.ENCODING_DTYPE)
     itemsize = enc_dtype.itemsize
 
     # Read version
@@ -336,7 +336,7 @@ def deserialize_sequence_or_creds_encoder(
     len_version = byts[0]
     version = str(byts[1 : 1 + len_version], "ascii")
     enc = (
-        np.frombuffer(byts[1 + len_version :], dtype=hub.constants.ENCODING_DTYPE)
+        np.frombuffer(byts[1 + len_version :], dtype=deeplake.constants.ENCODING_DTYPE)
         .reshape(-1, dim)
         .copy()
     )
@@ -349,7 +349,7 @@ def check_sample_shape(shape, num_dims):
 
 
 def text_to_bytes(sample, dtype, htype):
-    if isinstance(sample, hub.core.tensor.Tensor):
+    if isinstance(sample, deeplake.core.tensor.Tensor):
         try:
             if sample.htype == htype or sample.htype == "json" and htype == "list":
                 return sample.tobytes(), sample.shape
@@ -517,7 +517,7 @@ def serialize_sample_object(
 
 
 def serialize_tensor(
-    incoming_sample: "hub.core.tensor.Tensor",
+    incoming_sample: "deeplake.core.tensor.Tensor",
     sample_compression: Optional[str],
     chunk_compression: Optional[str],
     dtype: str,

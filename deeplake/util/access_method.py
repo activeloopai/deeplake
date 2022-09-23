@@ -1,9 +1,9 @@
 import os
 import time
-import hub
-from hub.constants import TIMESTAMP_FILENAME
-from hub.util.exceptions import DatasetHandlerError
-from hub.util.storage import get_local_storage_path
+import deeplake
+from deeplake.constants import TIMESTAMP_FILENAME
+from deeplake.util.exceptions import DatasetHandlerError
+from deeplake.util.storage import get_local_storage_path
 
 
 def check_access_method(access_method: str, overwrite: bool):
@@ -65,11 +65,11 @@ def get_local_dataset(
             raise DatasetHandlerError(
                 f"Dataset {path} does not exist. Cannot use access method 'download'"
             )
-        elif hub.exists(local_path):
+        elif deeplake.exists(local_path):
             raise DatasetHandlerError(
                 f"A dataset already exists at the download location {local_path}. To reuse the dataset, use access method 'local'. If you want to download the dataset again, delete the dataset at the download location and try again."
             )
-        hub.deepcopy(
+        deeplake.deepcopy(
             path,
             local_path,
             src_creds=creds,
@@ -79,12 +79,12 @@ def get_local_dataset(
             progressbar=True,
             verbose=False,
         )
-    elif not hub.exists(local_path):
+    elif not deeplake.exists(local_path):
         raise DatasetHandlerError(
             f"A dataset does not exist at the download location {local_path}. Cannot use access method 'local'. Use access method 'download' to first download the dataset and then use access method 'local' in subsequent runs."
         )
 
-    ds = hub.load(
+    ds = deeplake.load(
         local_path,
         read_only=read_only,
         verbose=verbose,

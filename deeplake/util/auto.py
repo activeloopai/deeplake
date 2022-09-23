@@ -3,8 +3,8 @@ import os, random
 from collections import Counter
 from typing import Tuple
 import shutil
-from hub.util.exceptions import AutoCompressionError
-from hub.compression import IMAGE_COMPRESSION_EXTENSIONS
+from deeplake.util.exceptions import AutoCompressionError
+from deeplake.compression import IMAGE_COMPRESSION_EXTENSIONS
 
 
 def get_most_common_extension(

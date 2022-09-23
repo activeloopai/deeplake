@@ -1,6 +1,6 @@
 import numpy as np
 import pytest
-from hub.core.meta.encode.shape import ShapeEncoder
+from deeplake.core.meta.encode.shape import ShapeEncoder
 
 
 def test_trivial():

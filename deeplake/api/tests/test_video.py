@@ -2,9 +2,9 @@ import os
 import sys
 import pytest
 
-import hub
-from hub.core.dataset import Dataset
-from hub.util.exceptions import DynamicTensorNumpyError
+import deeplake
+from deeplake.core.dataset import Dataset
+from deeplake.util.exceptions import DynamicTensorNumpyError
 
 import numpy as np
 
@@ -12,13 +12,13 @@ import numpy as np
 @pytest.mark.skipif(
     os.name == "nt" and sys.version_info < (3, 7), reason="requires python 3.7 or above"
 )
-@pytest.mark.parametrize("compression", hub.compression.VIDEO_COMPRESSIONS)
+@pytest.mark.parametrize("compression", deeplake.compression.VIDEO_COMPRESSIONS)
 def test_video(local_ds, compression, video_paths):
     for i, path in enumerate(video_paths[compression]):
         tensor = local_ds.create_tensor(
             f"video_{i}", htype="video", sample_compression=compression
         )
-        sample = hub.read(path)
+        sample = deeplake.read(path)
         assert len(sample.shape) == 4
         if "dummy_data" in path:  # check shape only for internal test videos
             if compression == "mp4":
@@ -30,8 +30,8 @@ def test_video(local_ds, compression, video_paths):
         assert sample.shape[-1] == 3
         with local_ds:
             for _ in range(5):
-                tensor.append(hub.read(path))  # type: ignore
-            tensor.extend([hub.read(path) for _ in range(5)])  # type: ignore
+                tensor.append(deeplake.read(path))  # type: ignore
+            tensor.extend([deeplake.read(path) for _ in range(5)])  # type: ignore
         for i in range(10):
             assert tensor[i].numpy().shape == sample.shape  # type: ignore
 
@@ -45,7 +45,7 @@ def test_video_slicing(local_ds: Dataset, video_paths):
             dummy = np.zeros((132, 720, 1080, 3))
 
             local_ds.create_tensor("video", htype="video", sample_compression="mp4")
-            local_ds.video.append(hub.read(path))
+            local_ds.video.append(deeplake.read(path))
             local_ds.video[0][0:5].numpy().shape == dummy[0:5].shape
             local_ds.video[0][100:120].numpy().shape == dummy[100:120].shape
             local_ds.video[0][120].numpy().shape == dummy[120].shape
@@ -72,7 +72,7 @@ def test_video_slicing(local_ds: Dataset, video_paths):
     indirect=True,
 )
 def test_video_streaming(vstream_path, hub_token):
-    ds = hub.load(vstream_path, read_only=True, token=hub_token)
+    ds = deeplake.load(vstream_path, read_only=True, token=hub_token)
 
     # no streaming, downloads chunk
     assert ds.mp4_videos[0].shape == (400, 360, 640, 3)
@@ -99,7 +99,7 @@ def test_video_streaming(vstream_path, hub_token):
     indirect=True,
 )
 def test_video_timestamps(vstream_path, hub_token):
-    ds = hub.load(vstream_path, read_only=True, token=hub_token)
+    ds = deeplake.load(vstream_path, read_only=True, token=hub_token)
 
     with pytest.raises(ValueError):
         stamps = ds.mp4_videos[:2].timestamps
@@ -131,8 +131,8 @@ def test_video_exception(local_ds):
 def test_video_sequence(local_ds, video_paths):
     with local_ds as ds:
         ds.create_tensor("video_seq", htype="sequence[video]", sample_compression="mp4")
-        ds.video_seq.append([hub.read(video_paths["mp4"][0]) for _ in range(3)])
-        ds.video_seq.append([hub.read(video_paths["mp4"][1]) for _ in range(3)])
+        ds.video_seq.append([deeplake.read(video_paths["mp4"][0]) for _ in range(3)])
+        ds.video_seq.append([deeplake.read(video_paths["mp4"][1]) for _ in range(3)])
 
         with pytest.raises(ValueError):
             ds.video_seq[:2].timestamps
@@ -153,8 +153,8 @@ def test_video_data(local_ds, video_paths):
     with local_ds as ds:
         ds.create_tensor("video", htype="video", sample_compression="mp4")
         for _ in range(3):
-            ds.video.append(hub.read(video_paths["mp4"][0]))
-        ds.video.append(hub.read(video_paths["mp4"][1]))
+            ds.video.append(deeplake.read(video_paths["mp4"][0]))
+        ds.video.append(deeplake.read(video_paths["mp4"][1]))
 
         data = ds.video[2].data()
         assert data["frames"].shape == (400, 360, 640, 3)
@@ -187,7 +187,7 @@ def test_linked_video_timestamps(local_ds):
     with local_ds as ds:
         ds.create_tensor("videos", htype="link[video]")
         ds.videos.append(
-            hub.link(
+            deeplake.link(
                 "http://commondatastorage.googleapis.com/gtv-videos-bucket/sample/ForBiggerBlazes.mp4",
                 creds_key="ENV",
             )

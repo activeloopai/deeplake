@@ -1,15 +1,18 @@
 import json
-from hub.tests.path_fixtures import gcs_creds
-from hub.tests.common import is_opt_true
-from hub.tests.storage_fixtures import enabled_storages, enabled_persistent_storages
-from hub.tests.cache_fixtures import enabled_cache_chains
-from hub.core.storage.gcs import GCloudCredentials
-from hub.core.storage.google_drive import GDriveProvider
-from hub.util.exceptions import GCSDefaultCredsNotFoundError
+from deeplake.tests.path_fixtures import gcs_creds
+from deeplake.tests.common import is_opt_true
+from deeplake.tests.storage_fixtures import (
+    enabled_storages,
+    enabled_persistent_storages,
+)
+from deeplake.tests.cache_fixtures import enabled_cache_chains
+from deeplake.core.storage.gcs import GCloudCredentials
+from deeplake.core.storage.google_drive import GDriveProvider
+from deeplake.util.exceptions import GCSDefaultCredsNotFoundError
 from google.oauth2.credentials import Credentials  # type: ignore
 import os
 import pytest
-from hub.constants import MB, GCS_OPT, GDRIVE_OPT
+from deeplake.constants import MB, GCS_OPT, GDRIVE_OPT
 import pickle
 
 

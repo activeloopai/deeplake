@@ -1,11 +1,11 @@
 from typing import Callable, Dict, List, Optional, Union
-from hub.experimental.convert_to_hub3 import dataset_to_hub3, verify_base_storage  # type: ignore
-from hub.experimental.util import raise_indra_installation_error  # type: ignore
-from hub.experimental.util import collate_fn as default_collate  # type: ignore
-from hub.experimental.hub3_query import query
-from hub.integrations.pytorch.common import PytorchTransformFunction
-from hub.util.bugout_reporter import hub_reporter
-from hub.util.dataset import map_tensor_keys
+from deeplake.experimental.convert_to_hub3 import dataset_to_hub3, verify_base_storage  # type: ignore
+from deeplake.experimental.util import raise_indra_installation_error  # type: ignore
+from deeplake.experimental.util import collate_fn as default_collate  # type: ignore
+from deeplake.experimental.hub3_query import query
+from deeplake.integrations.pytorch.common import PytorchTransformFunction
+from deeplake.util.bugout_reporter import deeplake_reporter
+from deeplake.util.dataset import map_tensor_keys
 import importlib
 
 INDRA_INSTALLED = bool(importlib.util.find_spec("indra"))
@@ -52,7 +52,7 @@ class Hub3DataLoader:
         self._return_index = _return_index
 
     def batch(self, batch_size: int, drop_last: bool = False):
-        """Returns a batched hub.experimental.Hub3DataLoader object.
+        """Returns a batched deeplake.experimental.Hub3DataLoader object.
 
 
         Args:
@@ -61,7 +61,7 @@ class Hub3DataLoader:
 
 
         Returns:
-            Hub3DataLoader: A hub.experimental.Hub3DataLoader object.
+            Hub3DataLoader: A deeplake.experimental.Hub3DataLoader object.
 
 
         Raises:
@@ -76,11 +76,11 @@ class Hub3DataLoader:
         return self.__class__(**all_vars)
 
     def shuffle(self):
-        """Returns a shuffled hub.experimental.Hub3DataLoader object.
+        """Returns a shuffled deeplake.experimental.Hub3DataLoader object.
 
 
         Returns:
-            Hub3DataLoader: A hub.experimental.Hub3DataLoader object.
+            Hub3DataLoader: A deeplake.experimental.Hub3DataLoader object.
 
 
         Raises:
@@ -93,7 +93,7 @@ class Hub3DataLoader:
         return self.__class__(**all_vars)
 
     def transform(self, transform: Union[Callable, Dict[str, Optional[Callable]]]):
-        """Returns a transformed hub.experimental.Hub3DataLoader object.
+        """Returns a transformed deeplake.experimental.Hub3DataLoader object.
 
 
         Args:
@@ -101,7 +101,7 @@ class Hub3DataLoader:
 
 
         Returns:
-            Hub3DataLoader: A hub.experimental.Hub3DataLoader object.
+            Hub3DataLoader: A deeplake.experimental.Hub3DataLoader object.
 
 
         Raises:
@@ -125,7 +125,7 @@ class Hub3DataLoader:
         return self.__class__(**all_vars)
 
     def query(self, query_string: str):
-        """Returns a sliced hub.experimental.Hub3DataLoader object with given query results.
+        """Returns a sliced deeplake.experimental.Hub3DataLoader object with given query results.
         It allows to run SQL like queries on dataset and extract results. Currently supported keywords are the following:
 
         +-------------------------------------------+
@@ -151,24 +151,24 @@ class Hub3DataLoader:
             query_string (str): An SQL string adjusted with new functionalities to run on the dataset object
 
         Returns:
-            Hub3DataLoader: A hub.experimental.Hub3DataLoader object.
+            Hub3DataLoader: A deeplake.experimental.Hub3DataLoader object.
 
         Examples:
-            >>> import hub
-            >>> from hub.experimental import dataloader
-            >>> ds = hub.load('hub://activeloop/fashion-mnist-train')
+            >>> import deeplake
+            >>> from deeplake.experimental import dataloader
+            >>> ds = deeplake.load('hub://activeloop/fashion-mnist-train')
             >>> query_ds_train = dataloader(ds_train).query("select * where labels != 5")
 
-            >>> import hub
-            >>> from hub.experimental import query
-            >>> ds_train = hub.load('hub://activeloop/coco-train')
+            >>> import deeplake
+            >>> from deeplake.experimental import query
+            >>> ds_train = deeplake.load('hub://activeloop/coco-train')
             >>> query_ds_train = dataloader(ds_train).query("(select * where contains(categories, 'car') limit 1000) union (select * where contains(categories, 'motorcycle') limit 1000)")
         """
         all_vars = self.__dict__.copy()
         all_vars["dataset"] = query(self.dataset, query_string)
         return self.__class__(**all_vars)
 
-    @hub_reporter.record_call
+    @deeplake_reporter.record_call
     def pytorch(
         self,
         num_workers: int = 0,
@@ -179,7 +179,7 @@ class Hub3DataLoader:
         distributed: bool = False,
         return_index: bool = True,
     ):
-        """Returns a hub.experimental.Hub3DataLoader object.
+        """Returns a deeplake.experimental.Hub3DataLoader object.
 
 
         Args:
@@ -193,7 +193,7 @@ class Hub3DataLoader:
 
 
         Returns:
-            Hub3DataLoader: A hub.experimental.Hub3DataLoader object.
+            Hub3DataLoader: A deeplake.experimental.Hub3DataLoader object.
 
 
         Raises:
@@ -224,7 +224,7 @@ class Hub3DataLoader:
         all_vars["_mode"] = "pytorch"
         return self.__class__(**all_vars)
 
-    @hub_reporter.record_call
+    @deeplake_reporter.record_call
     def numpy(
         self,
         num_workers: int = 0,
@@ -232,7 +232,7 @@ class Hub3DataLoader:
         num_threads: Optional[int] = None,
         prefetch_factor: int = 10,
     ):
-        """Returns a hub.experimental.Hub3DataLoader object.
+        """Returns a deeplake.experimental.Hub3DataLoader object.
 
         Args:
             num_workers (int): Number of workers to use for transforming and processing the data. Defaults to 0.
@@ -242,7 +242,7 @@ class Hub3DataLoader:
 
 
         Returns:
-            Hub3DataLoader: A hub.experimental.Hub3DataLoader object.
+            Hub3DataLoader: A deeplake.experimental.Hub3DataLoader object.
 
 
         Raises:
@@ -314,14 +314,14 @@ class Hub3DataLoader:
 
 
 def dataloader(dataset) -> Hub3DataLoader:
-    """Returns a hub.experimental.Hub3DataLoader object which can be transformed to either pytorch dataloader or numpy.
+    """Returns a deeplake.experimental.Hub3DataLoader object which can be transformed to either pytorch dataloader or numpy.
 
 
     Args:
-        dataset: hub.Dataset object on which dataloader needs to be built
+        dataset: deeplake.Dataset object on which dataloader needs to be built
 
     Returns:
-        Hub3DataLoader: A hub.experimental.Hub3DataLoader object.
+        Hub3DataLoader: A deeplake.experimental.Hub3DataLoader object.
 
 
     Examples:
@@ -330,10 +330,10 @@ def dataloader(dataset) -> Hub3DataLoader:
         Creating a simple dataloader object which returns a batch of numpy arrays
 
 
-        >>> import hub
-        >>> from hub.experimental import dataloader
+        >>> import deeplake
+        >>> from deeplake.experimental import dataloader
         >>>
-        >>> ds_train = hub.load('hub://activeloop/fashion-mnist-train')
+        >>> ds_train = deeplake.load('hub://activeloop/fashion-mnist-train')
         >>> train_loader = dataloader(ds_train).numpy()
         >>> for i, data in enumerate(train_loader):
         ...     # custom logic on data
@@ -345,7 +345,7 @@ def dataloader(dataset) -> Hub3DataLoader:
         >>> import torch
         >>> from torchvision import datasets, transforms, models
         ...
-        >>> ds_train = hub.load('hub://activeloop/fashion-mnist-train')
+        >>> ds_train = deeplake.load('hub://activeloop/fashion-mnist-train')
         >>> tform = transforms.Compose([
         ...     transforms.ToPILImage(), # Must convert to PIL image for subsequent operations to run
         ...     transforms.RandomRotation(20), # Image augmentation
@@ -368,7 +368,7 @@ def dataloader(dataset) -> Hub3DataLoader:
 
         Creating dataloader and chaning with query
 
-        >>> ds = hub.load('hub://activeloop/coco-train')
+        >>> ds = deeplake.load('hub://activeloop/coco-train')
         >>> dl = dataloader(ds_train)
         ...     .query("(select * where contains(categories, 'car') limit 1000) union (select * where contains(categories, 'motorcycle') limit 1000)")
         ...     .pytorch()

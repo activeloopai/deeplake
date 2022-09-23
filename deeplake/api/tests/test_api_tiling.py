@@ -1,7 +1,7 @@
 import pytest
 import numpy as np
 
-from hub.constants import MB
+from deeplake.constants import MB
 
 compressions_paremetrized = pytest.mark.parametrize(
     "compression",

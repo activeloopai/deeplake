@@ -1,17 +1,17 @@
 import textwrap
 
-from hub.client.config import HUB_REST_ENDPOINT
+from deeplake.client.config import HUB_REST_ENDPOINT
 import click
 from humbug.report import Report
 
-from hub.client.client import HubBackendClient
-from hub.client.utils import remove_username_from_config, write_token, remove_token
-from hub.util.bugout_reporter import (
+from deeplake.client.client import DeepLakeBackendClient
+from deeplake.client.utils import remove_username_from_config, write_token, remove_token
+from deeplake.util.bugout_reporter import (
     save_reporting_config,
     get_reporting_config,
-    hub_reporter,
+    deeplake_reporter,
 )
-from hub.util.exceptions import AuthenticationException
+from deeplake.util.exceptions import AuthenticationException
 
 
 @click.command()
@@ -36,7 +36,7 @@ def login(username: str, password: str):
         username = username.strip()
         password = password.strip()
         try:
-            client = HubBackendClient()
+            client = DeepLakeBackendClient()
             token = client.request_auth_token(username, password)
             write_token(token)
             click.echo("Successfully logged in to Activeloop.")
@@ -74,10 +74,10 @@ def reporting(on):
     """Enable or disable sending crash report to Activeloop AI"""
     report = Report(
         title="Consent change",
-        tags=hub_reporter.system_tags(),
+        tags=deeplake_reporter.system_tags(),
         content=f"Consent? `{on}`",
     )
-    hub_reporter.publish(report)
+    deeplake_reporter.publish(report)
     save_reporting_config(on)
 
 
@@ -108,7 +108,7 @@ def register(username: str, email: str, password: str):
     email = email.strip()
     password = password.strip()
     try:
-        client = HubBackendClient()
+        client = DeepLakeBackendClient()
         client.send_register_request(username, email, password)
         token = client.request_auth_token(username, password)
         write_token(token)

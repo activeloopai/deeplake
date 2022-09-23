@@ -4,19 +4,19 @@ import hashlib
 import pickle
 from typing import Any, Dict, Optional
 import warnings
-from hub.client.log import logger
-from hub.constants import FIRST_COMMIT_ID
-from hub.core.fast_forwarding import ffw_dataset_meta
-from hub.core.meta.dataset_meta import DatasetMeta
-from hub.core.storage.hub_memory_object import HubMemoryObject
-from hub.core.version_control.commit_diff import CommitDiff
-from hub.core.version_control.dataset_diff import DatasetDiff
-from hub.core.version_control.commit_node import CommitNode  # type: ignore
-from hub.core.version_control.commit_chunk_set import CommitChunkSet  # type: ignore
-from hub.core.storage import LRUCache
-from hub.core.lock import Lock
-from hub.util.exceptions import CheckoutError, CommitError
-from hub.util.keys import (
+from deeplake.client.log import logger
+from deeplake.constants import FIRST_COMMIT_ID
+from deeplake.core.fast_forwarding import ffw_dataset_meta
+from deeplake.core.meta.dataset_meta import DatasetMeta
+from deeplake.core.storage.hub_memory_object import HubMemoryObject
+from deeplake.core.version_control.commit_diff import CommitDiff
+from deeplake.core.version_control.dataset_diff import DatasetDiff
+from deeplake.core.version_control.commit_node import CommitNode  # type: ignore
+from deeplake.core.version_control.commit_chunk_set import CommitChunkSet  # type: ignore
+from deeplake.core.storage import LRUCache
+from deeplake.core.lock import Lock
+from deeplake.util.exceptions import CheckoutError, CommitError
+from deeplake.util.keys import (
     get_chunk_id_encoder_key,
     get_creds_encoder_key,
     get_sequence_encoder_key,
@@ -32,8 +32,8 @@ from hub.util.keys import (
     get_version_control_info_key_old,
     get_version_control_info_lock_key,
 )
-from hub.util.remove_cache import get_base_storage
-from hub.hooks import dataset_committed
+from deeplake.util.remove_cache import get_base_storage
+from deeplake.hooks import dataset_committed
 from datetime import datetime
 import json
 
@@ -518,7 +518,7 @@ def commit_diff_exists(
 
 def load_meta(dataset):
     """Loads the meta info for the version state."""
-    from hub.core.tensor import Tensor
+    from deeplake.core.tensor import Tensor
 
     version_state = dataset.version_state
     storage: LRUCache = dataset.storage

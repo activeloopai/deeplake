@@ -1,7 +1,7 @@
 import os
 import sys
-from hub.constants import KB, MB
-from hub.util.exceptions import (
+from deeplake.constants import KB, MB
+from deeplake.util.exceptions import (
     SampleCompressionError,
     TensorMetaMissingRequiredValue,
     TensorMetaMutuallyExclusiveKeysError,
@@ -9,18 +9,18 @@ from hub.util.exceptions import (
     SampleHtypeMismatchError,
 )
 import pytest
-from hub.core.tensor import Tensor
-from hub.tests.common import TENSOR_KEY, assert_images_close
+from deeplake.core.tensor import Tensor
+from deeplake.tests.common import TENSOR_KEY, assert_images_close
 import numpy as np
 
-import hub
-from hub.core.dataset import Dataset
+import deeplake
+from deeplake.core.dataset import Dataset
 
 
 def _populate_compressed_samples(tensor: Tensor, cat_path, flower_path, count=1):
     for _ in range(count):
-        tensor.append(hub.read(cat_path))
-        tensor.append(hub.read(flower_path))
+        tensor.append(deeplake.read(cat_path))
+        tensor.append(deeplake.read(flower_path))
         tensor.append(np.ones((100, 100, 4), dtype="uint8"))
         tensor.append(
             np.ones((100, 100, 4), dtype=int).tolist()
@@ -28,8 +28,8 @@ def _populate_compressed_samples(tensor: Tensor, cat_path, flower_path, count=1)
 
         tensor.extend(
             [
-                hub.read(flower_path),
-                hub.read(cat_path),
+                deeplake.read(flower_path),
+                deeplake.read(cat_path),
             ]
         )
 
@@ -188,11 +188,11 @@ def test_chunkwise_compression(memory_ds, cat_path, flower_path):
             max_chunk_size=chunk_size,
             tiling_threshold=chunk_size,
         )
-        images.extend([hub.read(cat_path)] * im_ct)
+        images.extend([deeplake.read(cat_path)] * im_ct)
         expected_arr = np.random.randint(0, 10, (500, 450, 3)).astype("uint8")
         images.append(expected_arr)
-        images.extend([hub.read(cat_path)] * im_ct)
-        expected_img = np.array(hub.read(cat_path))
+        images.extend([deeplake.read(cat_path)] * im_ct)
+        expected_img = np.array(deeplake.read(cat_path))
     ds.clear_cache()
     for i, img in enumerate(images):
         if i == im_ct:
@@ -207,11 +207,11 @@ def test_chunkwise_compression(memory_ds, cat_path, flower_path):
             max_chunk_size=chunk_size,
             tiling_threshold=chunk_size,
         )
-        images.extend([hub.read(flower_path)] * im_ct)
+        images.extend([deeplake.read(flower_path)] * im_ct)
         expected_arr = np.random.randint(0, 256, (200, 250, 4)).astype("uint8")
         images.append(expected_arr)
-        images.extend([hub.read(flower_path)] * im_ct)
-        expected_img = np.array(hub.read(flower_path))
+        images.extend([deeplake.read(flower_path)] * im_ct)
+        expected_img = np.array(deeplake.read(flower_path))
     ds.clear_cache()
     for i, img in enumerate(images):
         if i == im_ct:
@@ -260,14 +260,14 @@ def _decompress_audio_helper(path):
 @pytest.mark.skipif(
     os.name == "nt" and sys.version_info < (3, 7), reason="requires python 3.7 or above"
 )
-@pytest.mark.parametrize("compression", hub.compression.AUDIO_COMPRESSIONS)
+@pytest.mark.parametrize("compression", deeplake.compression.AUDIO_COMPRESSIONS)
 def test_audio(local_ds, compression, audio_paths):
     path = audio_paths[compression]
     arr = _decompress_audio_helper(path)
     local_ds.create_tensor("audio", htype="audio", sample_compression=compression)
     with local_ds:
         for _ in range(10):
-            local_ds.audio.append(hub.read(path))  # type: ignore
+            local_ds.audio.append(deeplake.read(path))  # type: ignore
     for i in range(10):
         decompressed = local_ds.audio[i].numpy()
         np.testing.assert_array_equal(decompressed[: len(arr), :], arr)  # type: ignore
@@ -278,7 +278,7 @@ def test_exif(memory_ds, compressed_image_paths):
     with ds:
         ds.create_tensor("images", htype="image", sample_compression="jpeg")
         for path in compressed_image_paths["jpeg"]:
-            ds.images.append(hub.read(path))
+            ds.images.append(deeplake.read(path))
     for image in ds.images:
         assert isinstance(image.sample_info["exif"], dict), (
             type(image.sample_info["exif"]),
@@ -293,21 +293,24 @@ def test_forced_htypes(
         gray = ds.create_tensor("gray", htype="image.gray", sample_compression="jpeg")
         rgb = ds.create_tensor("rgb", htype="image.rgb", sample_compression="jpeg")
 
-        gray.append(hub.read(grayscale_image_paths["jpeg"]))
-        gray.append(hub.read(color_image_paths["jpeg"]))
-        gray.append(hub.read(flower_path))
+        gray.append(deeplake.read(grayscale_image_paths["jpeg"]))
+        gray.append(deeplake.read(color_image_paths["jpeg"]))
+        gray.append(deeplake.read(flower_path))
         gray.extend(np.ones((4, 10, 10, 3), dtype=np.uint8))
         gray.extend(
-            [hub.read(color_image_paths["jpeg"]), np.ones((10, 10), dtype=np.uint8)]
+            [
+                deeplake.read(color_image_paths["jpeg"]),
+                np.ones((10, 10), dtype=np.uint8),
+            ]
         )
 
-        rgb.append(hub.read(grayscale_image_paths["jpeg"]))
-        rgb.append(hub.read(color_image_paths["jpeg"]))
-        rgb.append(hub.read(flower_path))
+        rgb.append(deeplake.read(grayscale_image_paths["jpeg"]))
+        rgb.append(deeplake.read(color_image_paths["jpeg"]))
+        rgb.append(deeplake.read(flower_path))
         rgb.extend(np.ones((4, 10, 10), dtype=np.uint8))
         rgb.extend(
             [
-                hub.read(grayscale_image_paths["jpeg"]),
+                deeplake.read(grayscale_image_paths["jpeg"]),
                 np.ones((10, 10, 3), dtype=np.uint8),
             ]
         )
@@ -319,10 +322,10 @@ def test_forced_htypes(
             "rgb_png", htype="image.rgb", sample_compression="png"
         )
 
-        gray_png.append(hub.read(flower_path))
+        gray_png.append(deeplake.read(flower_path))
         gray_png.append(np.ones((10, 10, 4), dtype=np.uint8))
 
-        rgb_png.append(hub.read(flower_path))
+        rgb_png.append(deeplake.read(flower_path))
         rgb_png.append(np.ones((10, 10, 4), dtype=np.uint8))
 
         with pytest.raises(SampleHtypeMismatchError):

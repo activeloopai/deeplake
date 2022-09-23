@@ -1,7 +1,7 @@
-from hub.constants import MB
+from deeplake.constants import MB
 import numpy as np
 import random
-import hub
+import deeplake
 import json
 
 
@@ -72,7 +72,7 @@ def test_rechunk_2(local_ds):
 
 def test_rechunk_3(local_ds):
     NUM_TEST_SAMPLES = 100
-    hub.constants._ENABLE_RANDOM_ASSIGNMENT = True
+    deeplake.constants._ENABLE_RANDOM_ASSIGNMENT = True
     test_sample = np.random.randint(0, 255, size=(600, 600, 3), dtype=np.uint8)
     with local_ds as ds:
         ds.create_tensor("test", dtype="uint8")
@@ -90,7 +90,7 @@ def test_rechunk_4(local_ds):
     NUM_TEST_SAMPLES = 1000
     MIN_SAMPLE_SIZE_MB = 0.1
     MAX_SAMPLE_SIZE_MB = 4
-    hub.constants._ENABLE_RANDOM_ASSIGNMENT = True
+    deeplake.constants._ENABLE_RANDOM_ASSIGNMENT = True
     random.seed(1337)
     state = json.loads(state_json)
     random.setstate((state[0], tuple(state[1]), state[2]))
@@ -120,7 +120,7 @@ def test_rechunk_4(local_ds):
                 ds.test[i] = test_sample_r
 
 
-@hub.compute
+@deeplake.compute
 def add_sample_in(sample_in, samples_out):
     samples_out.abc.append(sample_in)
 
@@ -199,12 +199,16 @@ def test_rechunk_link(local_ds_generator, cat_path, flower_path, color_image_pat
     with local_ds_generator() as ds:
         ds.create_tensor("abc", "link[image]")
         add_sample_in().eval(
-            [hub.link(dog_path), hub.link(flower_path), hub.link(cat_path)],
+            [
+                deeplake.link(dog_path),
+                deeplake.link(flower_path),
+                deeplake.link(cat_path),
+            ],
             ds,
             num_workers=2,
         )
         assert len(ds.abc.chunk_engine.chunk_id_encoder.array) == 2
-        ds.abc[0] = hub.link(cat_path)
+        ds.abc[0] = deeplake.link(cat_path)
 
         assert ds.abc[0].numpy().shape == (900, 900, 3)
         assert ds.abc[1].numpy().shape == (513, 464, 4)
@@ -236,10 +240,10 @@ def test_rechunk_cloud_link(local_ds_generator):
         ds.populate_creds("my_s3_key_2", {})
 
         add_sample_in().eval(
-            [hub.link(s3_path_1, "my_s3_key_1")] * 3, ds, num_workers=2
+            [deeplake.link(s3_path_1, "my_s3_key_1")] * 3, ds, num_workers=2
         )
         assert len(ds.abc.chunk_engine.chunk_id_encoder.array) == 2
-        ds.abc[0] = hub.link(s3_path_2, "my_s3_key_2")
+        ds.abc[0] = deeplake.link(s3_path_2, "my_s3_key_2")
 
         assert len(ds.abc.chunk_engine.chunk_id_encoder.array) == 1
 

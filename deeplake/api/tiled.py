@@ -1,5 +1,5 @@
 from typing import Optional, Tuple, Union, List, Any
-from hub.core.partial_sample import PartialSample
+from deeplake.core.partial_sample import PartialSample
 import numpy as np
 
 
@@ -14,7 +14,7 @@ def tiled(
 
         >>> with ds:
         ...    ds.create_tensor("image", htype="image", sample_compression="png")
-        ...    ds.image.append(hub.tiled(sample_shape=(1003, 1103, 3), tile_shape=(10, 10, 3)))
+        ...    ds.image.append(deeplake.tiled(sample_shape=(1003, 1103, 3), tile_shape=(10, 10, 3)))
         ...    ds.image[0][-217:, :212, 1:] = np.random.randint(0, 256, (217, 212, 2), dtype=np.uint8)
 
     Args:

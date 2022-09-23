@@ -4,12 +4,12 @@ import requests
 from pathlib import Path
 
 
-from hub.client.config import (
+from deeplake.client.config import (
     REPORTING_CONFIG_FILE_PATH,
     TOKEN_FILE_PATH,
     HUB_AUTH_TOKEN,
 )
-from hub.util.exceptions import (
+from deeplake.util.exceptions import (
     AuthenticationException,
     AuthorizationException,
     BadGatewayException,

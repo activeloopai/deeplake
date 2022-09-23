@@ -1,5 +1,5 @@
 from typing import Callable, Dict, List, Optional
-from hub.util.iterable_ordered_dict import IterableOrderedDict
+from deeplake.util.iterable_ordered_dict import IterableOrderedDict
 import numpy as np
 
 

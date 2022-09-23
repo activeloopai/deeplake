@@ -1,19 +1,19 @@
 from collections import defaultdict
 import math
 import warnings
-import hub
+import deeplake
 from typing import Any, Dict, List, Optional, Tuple
 from json.decoder import JSONDecodeError
-from hub.core.linked_chunk_engine import LinkedChunkEngine
-from hub.core.meta.tensor_meta import TensorMeta
-from hub.core.storage import StorageProvider, MemoryProvider, LRUCache
-from hub.core.chunk_engine import ChunkEngine
-from hub.core.transform.transform_dataset import TransformDataset
+from deeplake.core.linked_chunk_engine import LinkedChunkEngine
+from deeplake.core.meta.tensor_meta import TensorMeta
+from deeplake.core.storage import StorageProvider, MemoryProvider, LRUCache
+from deeplake.core.chunk_engine import ChunkEngine
+from deeplake.core.transform.transform_dataset import TransformDataset
 
-from hub.constants import MB, TRANSFORM_PROGRESSBAR_UPDATE_INTERVAL
-from hub.util.remove_cache import get_base_storage
-from hub.util.keys import get_tensor_meta_key
-from hub.util.exceptions import (
+from deeplake.constants import MB, TRANSFORM_PROGRESSBAR_UPDATE_INTERVAL
+from deeplake.util.remove_cache import get_base_storage
+from deeplake.util.keys import get_tensor_meta_key
+from deeplake.util.exceptions import (
     InvalidInputDataError,
     InvalidOutputDatasetError,
     InvalidTransformDataset,
@@ -114,7 +114,7 @@ def store_data_slice_with_pbar(pg_callback, transform_input: Tuple) -> Dict:
         tensors, label_temp_tensors, output_storage, version_state, link_creds
     )
 
-    if isinstance(data_slice, hub.Dataset):
+    if isinstance(data_slice, deeplake.Dataset):
         data_slice = add_cache_to_dataset_slice(data_slice, tensors)
 
     transform_data_slice_and_append(
@@ -303,9 +303,9 @@ def create_worker_chunk_engines(
 
 
 def add_cache_to_dataset_slice(
-    dataset_slice: hub.Dataset,
+    dataset_slice: deeplake.Dataset,
     tensors: List[str],
-) -> hub.Dataset:
+) -> deeplake.Dataset:
     base_storage = get_base_storage(dataset_slice.storage)
     # 64 to account for potentially big encoder corresponding to each tensor
     # TODO: adjust this size once we get rid of cachable
@@ -313,7 +313,7 @@ def add_cache_to_dataset_slice(
     cached_store = LRUCache(MemoryProvider(), base_storage, cache_size)
     commit_id = dataset_slice.pending_commit_id
     # don't pass version state to constructor as otherwise all workers will share it, checkout to commit_id instead
-    dataset_slice = hub.core.dataset.dataset_factory(
+    dataset_slice = deeplake.core.dataset.dataset_factory(
         path=dataset_slice.path,
         storage=cached_store,
         index=dataset_slice.index,
@@ -334,7 +334,7 @@ def check_transform_data_in(data_in, scheduler: str) -> None:
         raise InvalidInputDataError("__getitem__")
     if not hasattr(data_in, "__len__"):
         raise InvalidInputDataError("__len__")
-    if isinstance(data_in, hub.Dataset):
+    if isinstance(data_in, deeplake.Dataset):
         input_base_storage = get_base_storage(data_in.storage)
         if isinstance(input_base_storage, MemoryProvider) and scheduler not in [
             "serial",
@@ -346,7 +346,7 @@ def check_transform_data_in(data_in, scheduler: str) -> None:
 
 
 def check_transform_ds_out(
-    ds_out: hub.Dataset, scheduler: str, check_lengths: bool
+    ds_out: deeplake.Dataset, scheduler: str, check_lengths: bool
 ) -> None:
     """Checks whether the ds_out for a transform is valid or not."""
     if ds_out._read_only:
@@ -371,7 +371,7 @@ def check_transform_ds_out(
 
 
 def get_pbar_description(compute_functions: List):
-    """Returns the description string for a hub.compute evaluation progress bar. Incoming list should be a list of `ComputeFunction`s."""
+    """Returns the description string for a deeplake.compute evaluation progress bar. Incoming list should be a list of `ComputeFunction`s."""
 
     num_funcs = len(compute_functions)
     if num_funcs == 0:

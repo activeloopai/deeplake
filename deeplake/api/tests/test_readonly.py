@@ -2,8 +2,11 @@ from typing import Tuple
 import pytest
 import numpy as np
 
-import hub
-from hub.util.exceptions import CouldNotCreateNewDatasetException, ReadOnlyModeError
+import deeplake
+from deeplake.util.exceptions import (
+    CouldNotCreateNewDatasetException,
+    ReadOnlyModeError,
+)
 
 
 def _assert_readonly_ops(ds, num_samples: int, sample_shape: Tuple[int]):
@@ -41,4 +44,4 @@ def test_readonly(local_ds_generator):
 
 @pytest.mark.xfail(raises=CouldNotCreateNewDatasetException, strict=True)
 def test_readonly_doesnt_exist(local_path):
-    hub.dataset(local_path, read_only=True)
+    deeplake.dataset(local_path, read_only=True)

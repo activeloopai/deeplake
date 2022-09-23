@@ -1,7 +1,7 @@
-from hub.core.meta.encode.base_encoder import Encoder, LAST_SEEN_INDEX_COLUMN
-from hub.constants import ENCODING_DTYPE
+from deeplake.core.meta.encode.base_encoder import Encoder, LAST_SEEN_INDEX_COLUMN
+from deeplake.constants import ENCODING_DTYPE
 from typing import Tuple
-from hub.core.storage.provider import StorageProvider
+from deeplake.core.storage.provider import StorageProvider
 import numpy as np
 
 

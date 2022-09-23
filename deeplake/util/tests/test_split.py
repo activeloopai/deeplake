@@ -1,5 +1,5 @@
 import numpy as np
-from hub.util import split
+from deeplake.util import split
 
 
 def test_split(memory_ds):

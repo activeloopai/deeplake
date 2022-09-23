@@ -1,22 +1,22 @@
 import numpy as np
 from typing import List
-from hub.core.compression import (
+from deeplake.core.compression import (
     compress_bytes,
     compress_multiple,
     decompress_bytes,
     decompress_multiple,
 )
-from hub.core.fast_forwarding import ffw_chunk
-from hub.core.meta.encode.shape import ShapeEncoder
-from hub.core.serialize import bytes_to_text, check_sample_shape
-from hub.core.partial_sample import PartialSample
-from hub.core.tiling.sample_tiles import SampleTiles
-from hub.util.casting import intelligent_cast
-from hub.util.compression import get_compression_ratio
-from hub.util.exceptions import EmptyTensorError
+from deeplake.core.fast_forwarding import ffw_chunk
+from deeplake.core.meta.encode.shape import ShapeEncoder
+from deeplake.core.serialize import bytes_to_text, check_sample_shape
+from deeplake.core.partial_sample import PartialSample
+from deeplake.core.tiling.sample_tiles import SampleTiles
+from deeplake.util.casting import intelligent_cast
+from deeplake.util.compression import get_compression_ratio
+from deeplake.util.exceptions import EmptyTensorError
 from .base_chunk import BaseChunk, InputSample
-from hub.core.serialize import infer_chunk_num_bytes
-import hub
+from deeplake.core.serialize import infer_chunk_num_bytes
+import deeplake
 
 
 class ChunkCompressedChunk(BaseChunk):
@@ -302,7 +302,7 @@ class ChunkCompressedChunk(BaseChunk):
                 ),
                 sample.sample_shape,
             )
-        if isinstance(sample, hub.core.tensor.Tensor):
+        if isinstance(sample, deeplake.core.tensor.Tensor):
             sample = sample.numpy()
         sample = intelligent_cast(sample, self.dtype, self.htype)
         shape = sample.shape

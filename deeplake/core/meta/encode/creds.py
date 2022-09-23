@@ -1,11 +1,11 @@
 import json
 from typing import Any, Optional
-from hub.core.meta.encode.shape import ShapeEncoder
-from hub.core.serialize import (
+from deeplake.core.meta.encode.shape import ShapeEncoder
+from deeplake.core.serialize import (
     deserialize_sequence_or_creds_encoder,
     serialize_sequence_or_creds_encoder,
 )
-from hub.core.storage.hub_memory_object import HubMemoryObject
+from deeplake.core.storage.hub_memory_object import HubMemoryObject
 
 
 class CredsEncoder(ShapeEncoder, HubMemoryObject):

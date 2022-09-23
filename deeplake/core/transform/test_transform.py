@@ -1,17 +1,17 @@
-import hub
+import deeplake
 import pytest
 import numpy as np
 from click.testing import CliRunner
-from hub.core.storage.memory import MemoryProvider
-from hub.core.transform.transform_tensor import TransformTensor
-from hub.util.remove_cache import remove_memory_cache
-from hub.util.check_installation import ray_installed
-from hub.util.exceptions import InvalidOutputDatasetError, TransformError
-from hub.tests.common import parametrize_num_workers
-from hub.util.transform import get_pbar_description
-import hub
+from deeplake.core.storage.memory import MemoryProvider
+from deeplake.core.transform.transform_tensor import TransformTensor
+from deeplake.util.remove_cache import remove_memory_cache
+from deeplake.util.check_installation import ray_installed
+from deeplake.util.exceptions import InvalidOutputDatasetError, TransformError
+from deeplake.tests.common import parametrize_num_workers
+from deeplake.util.transform import get_pbar_description
+import deeplake
 import gc
-from hub.tests.common import get_dummy_data_path
+from deeplake.tests.common import get_dummy_data_path
 
 
 # github actions can only support 2 workers
@@ -25,28 +25,28 @@ all_schedulers = pytest.mark.parametrize("scheduler", schedulers)
 commit_or_not = pytest.mark.parametrize("do_commit", [True, False])
 
 
-@hub.compute
+@deeplake.compute
 def fn1(sample_in, samples_out, mul=1, copy=1):
     for _ in range(copy):
         samples_out.image.append(np.ones((337, 200)) * sample_in * mul)
         samples_out.label.append(np.ones((1,)) * sample_in * mul)
 
 
-@hub.compute
+@deeplake.compute
 def fn2(sample_in, samples_out, mul=1, copy=1):
     for _ in range(copy):
         samples_out.image.append(sample_in.image.numpy() * mul)
         samples_out.label.append(sample_in.label.numpy() * mul)
 
 
-@hub.compute
+@deeplake.compute
 def fn3(sample_in, samples_out, mul=1, copy=1):
     for _ in range(copy):
         samples_out.image.append(np.ones((1310, 2087)) * sample_in * mul)
         samples_out.label.append(np.ones((13,)) * sample_in * mul)
 
 
-@hub.compute
+@deeplake.compute
 def fn4(sample_in, samples_out):
     samples_out.image.append(sample_in.image)
     samples_out.image.append(sample_in.image.numpy() * 2)
@@ -54,14 +54,14 @@ def fn4(sample_in, samples_out):
     samples_out.label.append(sample_in.label.numpy() * 2)
 
 
-@hub.compute
+@deeplake.compute
 def fn5(sample_in, samples_out, mul=1, copy=1):
     for _ in range(copy):
         samples_out.x["y"].z.image.append(sample_in.z.y.x.image.numpy() * mul)
         samples_out.x.y.z["label"].append(sample_in.z.y.x.label.numpy() * mul)
 
 
-@hub.compute
+@deeplake.compute
 def fn6(sample_in, samples_out, mul=1, copy=1):
     for _ in range(copy):
         samples_out.append(
@@ -72,30 +72,30 @@ def fn6(sample_in, samples_out, mul=1, copy=1):
         )
 
 
-@hub.compute
+@deeplake.compute
 def read_image(sample_in, samples_out):
-    samples_out.image.append(hub.read(sample_in))
+    samples_out.image.append(deeplake.read(sample_in))
 
 
-@hub.compute
+@deeplake.compute
 def crop_image(sample_in, samples_out, copy=1):
     for _ in range(copy):
         samples_out.image.append(sample_in.image.numpy()[:100, :100, :])
 
 
-@hub.compute
+@deeplake.compute
 def filter_tr(sample_in, sample_out):
     if sample_in % 2 == 0:
         sample_out.image.append(sample_in * np.ones((100, 100)))
 
 
-@hub.compute
+@deeplake.compute
 def populate_cc_bug(sample_in, samples_out):
     samples_out.xyz.append(sample_in)
     return samples_out
 
 
-@hub.compute
+@deeplake.compute
 def inplace_transform(sample_in, samples_out):
     samples_out.img.append(2 * sample_in.img.numpy())
     samples_out.img.append(3 * sample_in.img.numpy())
@@ -103,27 +103,27 @@ def inplace_transform(sample_in, samples_out):
     samples_out.label.append(3 * sample_in.label.numpy())
 
 
-@hub.compute
+@deeplake.compute
 def unequal_transform(sample_in, samples_out):
     samples_out.x.append(sample_in.x.numpy() * 2)
     if sample_in.y.numpy().size > 0:
         samples_out.y.append(sample_in.y.numpy() * 2)
 
 
-@hub.compute
+@deeplake.compute
 def add_text(sample_in, samples_out):
     samples_out.abc.append(sample_in)
 
 
-@hub.compute
+@deeplake.compute
 def add_link(sample_in, samples_out):
-    samples_out.abc.append(hub.link(sample_in))
+    samples_out.abc.append(deeplake.link(sample_in))
 
 
-@hub.compute
+@deeplake.compute
 def add_images(i, sample_out):
     for i in range(5):
-        image = hub.read(get_dummy_data_path("images/flower.png"))
+        image = deeplake.read(get_dummy_data_path("images/flower.png"))
         sample_out.append({"image": image})
 
 
@@ -134,7 +134,7 @@ def check_target_array(ds, index, target):
     np.testing.assert_array_equal(ds.label[index].numpy(), target * np.ones((1,)))
 
 
-def retrieve_objects_from_memory(object_type=hub.core.sample.Sample):
+def retrieve_objects_from_memory(object_type=deeplake.core.sample.Sample):
     total_n_of_occurences = 0
     gc_objects = gc.get_objects()
     for item in gc_objects:
@@ -150,7 +150,7 @@ def retrieve_objects_from_memory(object_type=hub.core.sample.Sample):
     indirect=True,
 )
 def test_single_transform_hub_dataset(ds, scheduler):
-    data_in = hub.dataset("./test/single_transform_hub_dataset", overwrite=True)
+    data_in = deeplake.dataset("./test/single_transform_hub_dataset", overwrite=True)
     with data_in:
         data_in.create_tensor("image")
         data_in.create_tensor("label")
@@ -199,13 +199,13 @@ def test_single_transform_hub_dataset(ds, scheduler):
 
 def test_groups(local_ds):
     with CliRunner().isolated_filesystem():
-        with hub.dataset("./test/transform_hub_in_generic") as data_in:
+        with deeplake.dataset("./test/transform_hub_in_generic") as data_in:
             data_in.create_tensor("data/image")
             data_in.create_tensor("data/label")
             for i in range(1, 100):
                 data_in.data.image.append(i * np.ones((i, i)))
                 data_in.data.label.append(i * np.ones((1,)))
-        data_in = hub.dataset("./test/transform_hub_in_generic")
+        data_in = deeplake.dataset("./test/transform_hub_in_generic")
         ds_out = local_ds
         ds_out.create_tensor("stuff/image")
         ds_out.create_tensor("stuff/label")
@@ -231,13 +231,13 @@ def test_groups(local_ds):
 
 def test_groups_2(local_ds):
     with CliRunner().isolated_filesystem():
-        with hub.dataset("./test/transform_hub_in_generic") as data_in:
+        with deeplake.dataset("./test/transform_hub_in_generic") as data_in:
             data_in.create_tensor("data/z/y/x/image")
             data_in.create_tensor("data/z/y/x/label")
             for i in range(1, 100):
                 data_in.data.z.y.x.image.append(i * np.ones((i, i)))
                 data_in.data.z.y.x.label.append(i * np.ones((1,)))
-        data_in = hub.dataset("./test/transform_hub_in_generic")
+        data_in = deeplake.dataset("./test/transform_hub_in_generic")
         ds_out = local_ds
         ds_out.create_tensor("stuff/x/y/z/image")
         ds_out.create_tensor("stuff/x/y/z/label")
@@ -265,7 +265,9 @@ def test_groups_2(local_ds):
 @parametrize_num_workers
 @all_schedulers
 def test_single_transform_hub_dataset_htypes(local_ds, num_workers, scheduler):
-    data_in = hub.dataset("./test/single_transform_hub_dataset_htypes", overwrite=True)
+    data_in = deeplake.dataset(
+        "./test/single_transform_hub_dataset_htypes", overwrite=True
+    )
     with data_in:
         data_in.create_tensor("image", htype="image", sample_compression="png")
         data_in.create_tensor("label", htype="class_label")
@@ -298,7 +300,7 @@ def test_chain_transform_list_small(local_ds, scheduler):
     ds_out = local_ds
     ds_out.create_tensor("image")
     ds_out.create_tensor("label")
-    pipeline = hub.compose([fn1(mul=5, copy=2), fn2(mul=3, copy=3)])
+    pipeline = deeplake.compose([fn1(mul=5, copy=2), fn2(mul=3, copy=3)])
     pipeline.eval(
         ls,
         ds_out,
@@ -323,7 +325,7 @@ def test_chain_transform_list_big(local_ds, scheduler):
     ds_out = local_ds
     ds_out.create_tensor("image")
     ds_out.create_tensor("label")
-    pipeline = hub.compose([fn3(mul=5, copy=2), fn2(mul=3, copy=3)])
+    pipeline = deeplake.compose([fn3(mul=5, copy=2), fn2(mul=3, copy=3)])
     pipeline.eval(
         ls,
         ds_out,
@@ -349,7 +351,7 @@ def test_add_to_non_empty_dataset(local_ds, scheduler, do_commit):
     ds_out = local_ds
     ds_out.create_tensor("image")
     ds_out.create_tensor("label")
-    pipeline = hub.compose([fn1(mul=5, copy=2), fn2(mul=3, copy=3)])
+    pipeline = deeplake.compose([fn1(mul=5, copy=2), fn2(mul=3, copy=3)])
     with ds_out:
         for i in range(10):
             ds_out.image.append(i * np.ones((10, 10)))
@@ -435,7 +437,7 @@ def test_transform_hub_read_pipeline(local_ds, cat_path, sample_compression, sch
     data_in = [cat_path] * 10
     ds_out = local_ds
     ds_out.create_tensor("image", htype="image", sample_compression=sample_compression)
-    pipeline = hub.compose([read_image(), crop_image(copy=2)])
+    pipeline = deeplake.compose([read_image(), crop_image(copy=2)])
     pipeline.eval(
         data_in,
         ds_out,
@@ -458,7 +460,7 @@ def test_hub_like(local_ds, scheduler="threaded"):
             for i in range(1, 100):
                 data_in.image.append(i * np.ones((i, i), dtype="uint8"))
                 data_in.label.append(i * np.ones((1,), dtype="uint32"))
-        ds_out = hub.like("./transform_hub_like", data_in)
+        ds_out = deeplake.like("./transform_hub_like", data_in)
         fn2(copy=1, mul=2).eval(
             data_in,
             ds_out,
@@ -510,9 +512,9 @@ def test_bad_transform(memory_ds):
     with ds:
         ds.x.extend(np.random.rand(10, 1))
         ds.y.extend(np.random.rand(10, 1))
-    ds2 = hub.like("mem://dummy2", ds)
+    ds2 = deeplake.like("mem://dummy2", ds)
 
-    @hub.compute
+    @deeplake.compute
     def fn_filter(sample_in, sample_out):
         sample_out.y.append(sample_in.y.numpy())
         return sample_out
@@ -522,7 +524,9 @@ def test_bad_transform(memory_ds):
 
 
 def test_transform_persistance(local_ds_generator, num_workers=2, scheduler="threaded"):
-    data_in = hub.dataset("./test/single_transform_hub_dataset_htypes", overwrite=True)
+    data_in = deeplake.dataset(
+        "./test/single_transform_hub_dataset_htypes", overwrite=True
+    )
     with data_in:
         data_in.create_tensor("image", htype="image", sample_compression="png")
         data_in.create_tensor("label", htype="class_label")
@@ -575,7 +579,7 @@ def test_transform_persistance(local_ds_generator, num_workers=2, scheduler="thr
 
 def test_ds_append_in_transform(memory_ds):
     ds = memory_ds
-    data_in = hub.dataset("./test/single_transform_hub_dataset", overwrite=True)
+    data_in = deeplake.dataset("./test/single_transform_hub_dataset", overwrite=True)
     with data_in:
         data_in.create_tensor("image")
         data_in.create_tensor("label")
@@ -604,13 +608,13 @@ def test_ds_append_in_transform(memory_ds):
 
 
 def test_transform_pass_through():
-    data_in = hub.dataset("mem://ds1")
+    data_in = deeplake.dataset("mem://ds1")
     data_in.create_tensor("image", htype="image", sample_compression="png")
     data_in.create_tensor("label", htype="class_label")
     for i in range(1, 100):
         data_in.image.append(i * np.ones((i, i), dtype="uint8"))
         data_in.label.append(i * np.ones((1,), dtype="uint32"))
-    ds_out = hub.dataset("mem://ds2")
+    ds_out = deeplake.dataset("mem://ds2")
     ds_out.create_tensor("image", htype="image", sample_compression="png")
     ds_out.create_tensor("label", htype="class_label")
     fn4().eval(data_in, ds_out, num_workers=2, scheduler="threaded", progressbar=False)
@@ -836,7 +840,7 @@ def test_transform_skip_ok(local_ds_generator):
         ds.create_tensor("label")
         ds.create_tensor("unused")
 
-    pipeline = hub.compose([fn1(mul=5, copy=2), fn2(mul=3, copy=3)])
+    pipeline = deeplake.compose([fn1(mul=5, copy=2), fn2(mul=3, copy=3)])
     pipeline.eval(
         ls,
         ds,
@@ -919,7 +923,7 @@ def test_chunk_compression_bug(local_ds):
         np.testing.assert_array_equal(ds.xyz[index].numpy(), xyz)
 
 
-@hub.compute
+@deeplake.compute
 def sequence_transform(inp, out):
     out.x.append([np.ones(inp)] * inp)
 
@@ -955,7 +959,7 @@ def test_transform_pad_data_in(local_ds):
         ds.create_tensor("y")
         ds.x.extend(list(range(10)))
         ds.y.extend(list(range(5)))
-    ds2 = hub.dataset("./data/unequal2", overwrite=True)
+    ds2 = deeplake.dataset("./data/unequal2", overwrite=True)
     ds2.create_tensor("x")
     ds2.create_tensor("y")
 

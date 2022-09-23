@@ -1,15 +1,15 @@
 import os
 import struct
 from typing import List, Optional, Union
-from hub.core.compression import decompress_array, decompress_bytes
-from hub.core.sample import Sample  # type: ignore
-from hub.core.serialize import (
+from deeplake.core.compression import decompress_array, decompress_bytes
+from deeplake.core.sample import Sample  # type: ignore
+from deeplake.core.serialize import (
     check_sample_shape,
     bytes_to_text,
 )
-from hub.core.tiling.sample_tiles import SampleTiles
-from hub.util.exceptions import EmptyTensorError
-from hub.util.video import normalize_index
+from deeplake.core.tiling.sample_tiles import SampleTiles
+from deeplake.util.exceptions import EmptyTensorError
+from deeplake.util.video import normalize_index
 from .base_chunk import BaseChunk, InputSample
 import numpy as np
 

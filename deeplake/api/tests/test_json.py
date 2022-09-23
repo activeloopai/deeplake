@@ -1,8 +1,8 @@
 import numpy as np
-import hub
+import deeplake
 import pytest
-from hub.util.json import JsonValidationError
-from hub.tests.dataset_fixtures import (
+from deeplake.util.json import JsonValidationError
+from deeplake.tests.dataset_fixtures import (
     enabled_non_gcs_gdrive_datasets,
     enabled_non_gcs_datasets,
 )
@@ -52,12 +52,12 @@ def test_json_with_hub_sample(memory_ds, compressed_image_paths):
         {
             "x": [1, 2, 3],
             "y": [4, [5, 6]],
-            "z": hub.read(compressed_image_paths["jpeg"][0]),
+            "z": deeplake.read(compressed_image_paths["jpeg"][0]),
         },
         {
             "x": [1, 2, 3],
             "y": [4, {"z": [0.1, 0.2, []]}],
-            "z": hub.read(compressed_image_paths["png"][0]),
+            "z": deeplake.read(compressed_image_paths["png"][0]),
         },
     ]
     with ds:
@@ -117,15 +117,15 @@ def test_list_with_hub_sample(memory_ds, compressed_image_paths):
         [
             {
                 "x": [1, 2, 3],
-                "y": [4, [5, 6, hub.read(compressed_image_paths["jpeg"][0])]],
+                "y": [4, [5, 6, deeplake.read(compressed_image_paths["jpeg"][0])]],
             },
-            [[hub.read(compressed_image_paths["jpeg"][1])]],
+            [[deeplake.read(compressed_image_paths["jpeg"][1])]],
             [None, 0.1],
         ],
         [
             [],
-            [[[hub.read(compressed_image_paths["png"][0])]]],
-            {"a": [0.1, 1, "a", hub.read(compressed_image_paths["png"][0])]},
+            [[[deeplake.read(compressed_image_paths["png"][0])]]],
+            {"a": [0.1, 1, "a", deeplake.read(compressed_image_paths["png"][0])]},
         ],
     ]
     with ds:
@@ -182,7 +182,7 @@ def test_json_transform(ds, compression, scheduler="threaded"):
         None,
     ] * 5
 
-    @hub.compute
+    @deeplake.compute
     def upload(stuff, ds):
         ds.json.append(stuff)
         return ds
@@ -203,7 +203,7 @@ def test_list_transform(ds, scheduler="threaded"):
         ["a", "b", "c", "d"],
     ] * 5
 
-    @hub.compute
+    @deeplake.compute
     def upload(stuff, ds):
         ds.list.append(stuff)
         return ds

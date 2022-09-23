@@ -1,5 +1,5 @@
 import warnings
-from hub.core.compute.provider import ComputeProvider
+from deeplake.core.compute.provider import ComputeProvider
 from pathos.pools import ProcessPool  # type: ignore
 from pathos.helpers import mp as pathos_multiprocess  # type: ignore
 

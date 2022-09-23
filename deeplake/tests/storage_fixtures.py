@@ -1,16 +1,16 @@
-from hub.core.storage.gcs import GCSProvider
-from hub.util.storage import storage_provider_from_hub_path
-from hub.core.storage.s3 import S3Provider
-from hub.core.storage.google_drive import GDriveProvider
-from hub.core.storage.local import LocalProvider
-from hub.core.storage.memory import MemoryProvider
-from hub.constants import (
+from deeplake.core.storage.gcs import GCSProvider
+from deeplake.util.storage import storage_provider_from_hub_path
+from deeplake.core.storage.s3 import S3Provider
+from deeplake.core.storage.google_drive import GDriveProvider
+from deeplake.core.storage.local import LocalProvider
+from deeplake.core.storage.memory import MemoryProvider
+from deeplake.constants import (
     PYTEST_S3_PROVIDER_BASE_ROOT,
     PYTEST_GCS_PROVIDER_BASE_ROOT,
     S3_OPT,
     GCS_OPT,
 )
-from hub.tests.common import is_opt_true
+from deeplake.tests.common import is_opt_true
 import pytest
 
 

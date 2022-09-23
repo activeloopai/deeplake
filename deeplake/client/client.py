@@ -1,7 +1,7 @@
-import hub
+import deeplake
 import requests
 from typing import Optional
-from hub.util.exceptions import (
+from deeplake.util.exceptions import (
     AgreementNotAcceptedError,
     AuthorizationException,
     LoginException,
@@ -13,8 +13,8 @@ from hub.util.exceptions import (
     UserNotLoggedInException,
     TokenPermissionError,
 )
-from hub.client.utils import check_response_status, write_token, read_token
-from hub.client.config import (
+from deeplake.client.utils import check_response_status, write_token, read_token
+from deeplake.client.config import (
     ACCEPT_AGREEMENTS_SUFFIX,
     REJECT_AGREEMENTS_SUFFIX,
     GET_MANAGED_CREDS_SUFFIX,
@@ -34,18 +34,18 @@ from hub.client.config import (
     UPDATE_SUFFIX,
     GET_PRESIGNED_URL_SUFFIX,
 )
-from hub.client.log import logger
+from deeplake.client.log import logger
 import jwt  # should add it to requirements.txt
 
 # for these codes, we will retry requests upto 3 times
 retry_status_codes = {502}
 
 
-class HubBackendClient:
+class DeepLakeBackendClient:
     """Communicates with Activeloop Backend"""
 
     def __init__(self, token: Optional[str] = None):
-        self.version = hub.__version__
+        self.version = deeplake.__version__
         self.auth_header = None
         if token is None:
             self.token = self.get_token()
@@ -135,11 +135,11 @@ class HubBackendClient:
         return response
 
     def endpoint(self):
-        if hub.client.config.USE_LOCAL_HOST:
+        if deeplake.client.config.USE_LOCAL_HOST:
             return HUB_REST_ENDPOINT_LOCAL
-        if hub.client.config.USE_DEV_ENVIRONMENT:
+        if deeplake.client.config.USE_DEV_ENVIRONMENT:
             return HUB_REST_ENDPOINT_DEV
-        if hub.client.config.USE_STAGING_ENVIRONMENT:
+        if deeplake.client.config.USE_STAGING_ENVIRONMENT:
             return HUB_REST_ENDPOINT_STAGING
 
         return HUB_REST_ENDPOINT

@@ -1,5 +1,5 @@
-from hub.core.transform.transform_tensor import TransformTensor
-from hub.util.exceptions import TensorDoesNotExistError
+from deeplake.core.transform.transform_tensor import TransformTensor
+from deeplake.util.exceptions import TensorDoesNotExistError
 
 
 class TransformDataset:

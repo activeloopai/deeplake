@@ -1,4 +1,4 @@
-import hub
+import deeplake
 import numpy as np
 import pytest
 
@@ -8,7 +8,7 @@ image_compressions = ["mpo", "fli"]
 @pytest.mark.parametrize("compression", image_compressions)
 def test_array(compression, compressed_image_paths):
     # TODO: check dtypes and no information loss
-    array = np.array(hub.read(compressed_image_paths[compression][0]))
+    array = np.array(deeplake.read(compressed_image_paths[compression][0]))
     arr = np.array(array)
     for c in arr:
         if c == "fli":

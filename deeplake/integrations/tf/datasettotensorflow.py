@@ -3,12 +3,12 @@ Helper function for exporting tensorflow dataset wrapper
 """
 import warnings
 
-from hub.util.exceptions import (
+from deeplake.util.exceptions import (
     ModuleNotInstalledException,
     SampleDecompressionError,
     CorruptedSampleError,
 )
-from hub.util.check_installation import tensorflow_installed
+from deeplake.util.check_installation import tensorflow_installed
 
 
 def dataset_to_tensorflow(dataset, tensors, tobytes):
@@ -19,7 +19,7 @@ def dataset_to_tensorflow(dataset, tensors, tobytes):
         )
 
     import tensorflow as tf  # type: ignore
-    from hub.integrations.tf.hubtensorflowdataset import HubTensorflowDataset  # type: ignore
+    from deeplake.integrations.tf.hubtensorflowdataset import HubTensorflowDataset  # type: ignore
 
     if not tensors:
         tensors = dataset.tensors

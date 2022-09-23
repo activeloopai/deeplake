@@ -1,6 +1,6 @@
 from math import floor
-from hub.tests.common import requires_linux
-from hub.experimental import query
+from deeplake.tests.common import requires_linux
+from deeplake.experimental import query
 
 
 @requires_linux

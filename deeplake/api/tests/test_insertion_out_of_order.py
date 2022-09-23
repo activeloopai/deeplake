@@ -1,4 +1,4 @@
-import hub
+import deeplake
 import numpy as np
 import pytest
 from unittest.mock import patch
@@ -14,7 +14,7 @@ all_non_image_compressions = pytest.mark.parametrize(
 )
 
 
-@patch("hub.constants._ENABLE_RANDOM_ASSIGNMENT", True)
+@patch("deeplake.constants._ENABLE_RANDOM_ASSIGNMENT", True)
 @all_non_image_compressions
 @pytest.mark.parametrize("insert_first", [True, False])
 def test_insertion_array(memory_ds, compression, insert_first):
@@ -37,7 +37,7 @@ def test_insertion_array(memory_ds, compression, insert_first):
         np.testing.assert_array_equal(ds.abc[10].numpy(), tenth)
 
 
-@patch("hub.constants._ENABLE_RANDOM_ASSIGNMENT", True)
+@patch("deeplake.constants._ENABLE_RANDOM_ASSIGNMENT", True)
 @pytest.mark.parametrize("sample_compression", ["png", "jpeg"])
 @pytest.mark.parametrize("insert_first", [True, False])
 def test_insertion_array_img_compressed(memory_ds, sample_compression, insert_first):
@@ -67,7 +67,7 @@ def test_insertion_array_img_compressed(memory_ds, sample_compression, insert_fi
             assert ds.abc[10].numpy().shape == tenth.shape
 
 
-@patch("hub.constants._ENABLE_RANDOM_ASSIGNMENT", True)
+@patch("deeplake.constants._ENABLE_RANDOM_ASSIGNMENT", True)
 @all_non_image_compressions
 @pytest.mark.parametrize("insert_first", [True, False])
 def test_insertion_json(memory_ds, compression, insert_first):
@@ -91,7 +91,7 @@ def test_insertion_json(memory_ds, compression, insert_first):
         assert ds.abc[10].numpy() == tenth
 
 
-@patch("hub.constants._ENABLE_RANDOM_ASSIGNMENT", True)
+@patch("deeplake.constants._ENABLE_RANDOM_ASSIGNMENT", True)
 @all_non_image_compressions
 @pytest.mark.parametrize("insert_first", [True, False])
 def test_insertion_text(memory_ds, compression, insert_first):
@@ -115,7 +115,7 @@ def test_insertion_text(memory_ds, compression, insert_first):
         assert ds.abc[10].numpy() == tenth
 
 
-@patch("hub.constants._ENABLE_RANDOM_ASSIGNMENT", True)
+@patch("deeplake.constants._ENABLE_RANDOM_ASSIGNMENT", True)
 @all_non_image_compressions
 @pytest.mark.parametrize("insert_first", [True, False])
 def test_insertion_list(memory_ds, compression, insert_first):
@@ -139,7 +139,7 @@ def test_insertion_list(memory_ds, compression, insert_first):
         np.testing.assert_array_equal(ds.abc[10].numpy(), np.array(tenth))
 
 
-@patch("hub.constants._ENABLE_RANDOM_ASSIGNMENT", True)
+@patch("deeplake.constants._ENABLE_RANDOM_ASSIGNMENT", True)
 def test_updation_bug(memory_ds):
     with memory_ds as ds:
         labels = ds.create_tensor("labels", "class_label")
@@ -149,13 +149,13 @@ def test_updation_bug(memory_ds):
         np.testing.assert_array_equal(labels[0].numpy(), [1, 2])
 
 
-@patch("hub.constants._ENABLE_RANDOM_ASSIGNMENT", True)
+@patch("deeplake.constants._ENABLE_RANDOM_ASSIGNMENT", True)
 @pytest.mark.parametrize("insert_first", [False, True])
 def test_insertion_link(memory_ds, insert_first, cat_path, flower_path):
     with memory_ds as ds:
         ds.create_tensor("abc", htype="link[image]")
-        first = hub.link(cat_path)
-        tenth = hub.link(flower_path)
+        first = deeplake.link(cat_path)
+        tenth = deeplake.link(flower_path)
         empty_sample = np.ones((0,))
         if insert_first:
             ds.abc.append(first)
@@ -173,7 +173,7 @@ def test_insertion_link(memory_ds, insert_first, cat_path, flower_path):
 
 
 # removing this test until we fix sequence updates
-# @patch("hub.constants._ENABLE_RANDOM_ASSIGNMENT", True)
+# @patch("deeplake.constants._ENABLE_RANDOM_ASSIGNMENT", True)
 # @pytest.mark.parametrize("insert_first", [True])
 # def test_insertion_sequence(memory_ds, insert_first):
 #     with memory_ds as ds:

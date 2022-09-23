@@ -1,6 +1,6 @@
-from hub.util.exceptions import InvalidHubPathException
+from deeplake.util.exceptions import InvalidHubPathException
 from typing import Tuple
-import hub
+import deeplake
 
 
 def process_hub_path(path: str) -> Tuple[str, str, str, str]:
@@ -28,7 +28,7 @@ def process_hub_path(path: str) -> Tuple[str, str, str, str]:
         if len(s) > 2:
             if (
                 not (len(s) == 4 and s[2] == ".queries")
-                and not hub.constants._ENABLE_HUB_SUB_DATASETS
+                and not deeplake.constants._ENABLE_HUB_SUB_DATASETS
             ):
                 raise InvalidHubPathException(path)
     return (path, *s[:2], subdir)  # type: ignore

@@ -2,22 +2,22 @@ import numpy as np
 import os
 import sys
 import pickle
-import hub
+import deeplake
 import pytest
-from hub.client.client import HubBackendClient
-from hub.constants import GCS_OPT, S3_OPT
-from hub.core.link_creds import LinkCreds
-from hub.core.meta.encode.creds import CredsEncoder
-from hub.core.storage.gcs import GCSProvider
-from hub.core.storage.s3 import S3Provider
-from hub.tests.common import is_opt_true
-from hub.util.exceptions import (
+from deeplake.client.client import DeepLakeBackendClient
+from deeplake.constants import GCS_OPT, S3_OPT
+from deeplake.core.link_creds import LinkCreds
+from deeplake.core.meta.encode.creds import CredsEncoder
+from deeplake.core.storage.gcs import GCSProvider
+from deeplake.core.storage.s3 import S3Provider
+from deeplake.tests.common import is_opt_true
+from deeplake.util.exceptions import (
     ManagedCredentialsNotFoundError,
     TensorMetaInvalidHtype,
     UnableToReadFromUrlError,
 )
 
-from hub.util.htype import parse_complex_htype  # type: ignore
+from deeplake.util.htype import parse_complex_htype  # type: ignore
 
 
 def test_complex_htype_parsing():
@@ -188,11 +188,11 @@ def test_none_used_key(local_ds_generator, cat_path):
         ds.create_tensor("xyz", htype="link[image]")
         ds.add_creds_key("my_s3_key")
         ds.populate_creds("my_s3_key", {})
-        ds.xyz.append(hub.link(cat_path))
+        ds.xyz.append(deeplake.link(cat_path))
         assert ds.link_creds.used_creds_keys == set()
-        ds.xyz.append(hub.link(cat_path, "ENV"))
+        ds.xyz.append(deeplake.link(cat_path, "ENV"))
         assert ds.link_creds.used_creds_keys == set()
-        ds.xyz.append(hub.link(cat_path, "my_s3_key"))
+        ds.xyz.append(deeplake.link(cat_path, "my_s3_key"))
         assert ds.link_creds.used_creds_keys == {"my_s3_key"}
 
     ds = local_ds_generator()
@@ -215,13 +215,13 @@ def test_basic(local_ds_generator, cat_path, flower_path, create_shape_tensor, v
             ds.linked_images.append(np.ones((100, 100, 3)))
 
         for _ in range(10):
-            sample = hub.link(flower_path)
+            sample = deeplake.link(flower_path)
             ds.linked_images.append(sample)
 
         ds.linked_images.append(None)
 
         for i in range(0, 10, 2):
-            sample = hub.link(cat_path)
+            sample = deeplake.link(cat_path)
             ds.linked_images[i] = sample
 
         assert len(ds.linked_images) == 11
@@ -270,13 +270,13 @@ def test_basic(local_ds_generator, cat_path, flower_path, create_shape_tensor, v
 def test_jwt_link(local_ds):
     with local_ds as ds:
         ds.create_tensor("img", htype="link[image]", create_shape_tensor=False)
-        auth = HubBackendClient().auth_header
+        auth = DeepLakeBackendClient().auth_header
         my_jwt = {"Authorization": auth}
         ds.add_creds_key("my_jwt_key")
         ds.populate_creds("my_jwt_key", my_jwt)
         img_url = "https://app-dev.activeloop.dev/api/org/tim4/storage/image"
         for _ in range(3):
-            ds.img.append(hub.link(img_url, creds_key="my_jwt_key"))
+            ds.img.append(deeplake.link(img_url, creds_key="my_jwt_key"))
 
         for i in range(3):
             assert ds.img[i].shape == (50, 50, 4)
@@ -306,7 +306,7 @@ def test_video(request, local_ds_generator, create_shape_tensor, verify):
             verify=verify,
         )
         for _ in range(3):
-            sample = hub.link(
+            sample = deeplake.link(
                 "http://commondatastorage.googleapis.com/gtv-videos-bucket/sample/ForBiggerJoyrides.mp4"
             )
             ds.linked_videos.append(sample)
@@ -317,7 +317,7 @@ def test_video(request, local_ds_generator, create_shape_tensor, verify):
             assert ds.linked_videos[i][:5].numpy().shape == (5, 720, 1280, 3)
 
         if is_opt_true(request, GCS_OPT):
-            sample = hub.link(
+            sample = deeplake.link(
                 "gcs://gtv-videos-bucket/sample/ForBiggerJoyrides.mp4", creds_key="ENV"
             )
             ds.linked_videos.append(sample)
@@ -353,7 +353,7 @@ def test_complex_creds(local_ds_generator):
         ds.populate_creds("my_second_key", {})
         for i in range(10):
             creds_key = "my_first_key" if i % 2 == 0 else "my_second_key"
-            sample = hub.link("https://picsum.photos/200/300", creds_key=creds_key)
+            sample = deeplake.link("https://picsum.photos/200/300", creds_key=creds_key)
             ds.link.append(sample)
             ds.xyz.append(i)
 
@@ -368,7 +368,7 @@ def test_complex_creds(local_ds_generator):
         assert linked_sample.creds_key == "my_first_key"
 
         for i in range(10, 15):
-            sample = hub.link("https://picsum.photos/200/300")
+            sample = deeplake.link("https://picsum.photos/200/300")
             ds.link.append(sample)
             ds.xyz.append(i)
 
@@ -398,13 +398,13 @@ def test_complex_creds(local_ds_generator):
         ds.link[0].numpy().shape
 
 
-@hub.compute
+@deeplake.compute
 def identity(sample_in, samples_out):
     samples_out.linked_images.append(sample_in.linked_images)
 
 
 def test_transform(local_ds, cat_path, flower_path):
-    data_in = hub.dataset("./test/link_transform", overwrite=True)
+    data_in = deeplake.dataset("./test/link_transform", overwrite=True)
     with data_in as ds:
         ds.create_tensor(
             "linked_images",
@@ -414,7 +414,9 @@ def test_transform(local_ds, cat_path, flower_path):
             sample_compression="jpeg",
         )
         for i in range(10):
-            sample = hub.link(cat_path) if i % 2 == 0 else hub.link(flower_path)
+            sample = (
+                deeplake.link(cat_path) if i % 2 == 0 else deeplake.link(flower_path)
+            )
             ds.linked_images.append(sample)
 
     data_out = local_ds
@@ -437,9 +439,9 @@ def test_transform(local_ds, cat_path, flower_path):
     data_in.delete()
 
 
-@hub.compute
+@deeplake.compute
 def transform_path_link(sample_in, samples_out):
-    samples_out.images.append(hub.link(sample_in))
+    samples_out.images.append(deeplake.link(sample_in))
 
 
 def check_transformed_ds(ds):
@@ -474,7 +476,7 @@ def test_link_managed(hub_cloud_ds_generator, cat_path):
         assert key_name in ds.link_creds.managed_creds_keys
         assert key_name not in ds.link_creds.used_creds_keys
 
-        ds.img.append(hub.link(cat_path, creds_key=key_name))
+        ds.img.append(deeplake.link(cat_path, creds_key=key_name))
         assert key_name in ds.link_creds.used_creds_keys
 
     ds = hub_cloud_ds_generator()
@@ -532,7 +534,7 @@ def test_link_ready(local_ds_generator, cat_path):
         ds.add_creds_key("def")
         ds.add_creds_key("abc")
         ds.populate_creds("abc", {})
-        ds.img.append(hub.link(cat_path, creds_key="abc"))
+        ds.img.append(deeplake.link(cat_path, creds_key="abc"))
 
     ds = local_ds_generator()
     with pytest.raises(ValueError):

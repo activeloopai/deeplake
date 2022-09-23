@@ -1,4 +1,4 @@
-import hub
+import deeplake
 import numpy as np
 
 
@@ -21,7 +21,7 @@ def test_compute_progress_event(hub_cloud_ds):
     with hub_cloud_ds as ds:
         ds.create_tensor("abc")
 
-    @hub.compute
+    @deeplake.compute
     def func(sample_in, samples_out):
         samples_out.abc.append(sample_in * np.ones((2, 2)))
 

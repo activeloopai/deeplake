@@ -1,4 +1,4 @@
-from hub.util.iterable_ordered_dict import IterableOrderedDict as OrderedDict
+from deeplake.util.iterable_ordered_dict import IterableOrderedDict as OrderedDict
 import pickle
 
 

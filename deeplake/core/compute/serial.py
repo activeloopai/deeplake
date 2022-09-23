@@ -1,4 +1,4 @@
-from hub.core.compute.provider import ComputeProvider
+from deeplake.core.compute.provider import ComputeProvider
 
 
 class SerialProvider(ComputeProvider):

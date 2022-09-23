@@ -4,23 +4,23 @@ import numpy as np
 from typing import List, Optional, Tuple, Union
 import warnings
 
-import hub
-from hub.compression import (
+import deeplake
+from deeplake.compression import (
     BYTE_COMPRESSION,
     IMAGE_COMPRESSION,
     VIDEO_COMPRESSION,
     get_compression_type,
 )
-from hub.constants import CONVERT_GRAYSCALE
-from hub.core.fast_forwarding import ffw_chunk
-from hub.core.linked_sample import LinkedSample
-from hub.core.meta.encode.byte_positions import BytePositionsEncoder
-from hub.core.meta.encode.shape import ShapeEncoder
-from hub.core.meta.tensor_meta import TensorMeta
-from hub.core.partial_reader import PartialReader
-from hub.core.sample import Sample  # type: ignore
-from hub.core.partial_sample import PartialSample
-from hub.core.serialize import (
+from deeplake.constants import CONVERT_GRAYSCALE
+from deeplake.core.fast_forwarding import ffw_chunk
+from deeplake.core.linked_sample import LinkedSample
+from deeplake.core.meta.encode.byte_positions import BytePositionsEncoder
+from deeplake.core.meta.encode.shape import ShapeEncoder
+from deeplake.core.meta.tensor_meta import TensorMeta
+from deeplake.core.partial_reader import PartialReader
+from deeplake.core.sample import Sample  # type: ignore
+from deeplake.core.partial_sample import PartialSample
+from deeplake.core.serialize import (
     deserialize_chunk,
     infer_chunk_num_bytes,
     infer_header_num_bytes,
@@ -33,9 +33,9 @@ from hub.core.serialize import (
     get_header_from_url,
     serialize_text_sample_object,
 )
-from hub.core.storage.hub_memory_object import HubMemoryObject
-from hub.core.tiling.sample_tiles import SampleTiles
-from hub.util.exceptions import TensorInvalidSampleShapeError
+from deeplake.core.storage.hub_memory_object import HubMemoryObject
+from deeplake.core.tiling.sample_tiles import SampleTiles
+from deeplake.util.exceptions import TensorInvalidSampleShapeError
 from functools import reduce
 from operator import mul
 
@@ -71,7 +71,7 @@ class BaseChunk(HubMemoryObject):
         self._data_bytes: Union[bytearray, bytes, memoryview, PartialReader] = (
             data or bytearray()
         )
-        self.version = hub.__version__
+        self.version = deeplake.__version__
         self.min_chunk_size = min_chunk_size
         self.max_chunk_size = max_chunk_size
         self.tiling_threshold = tiling_threshold
@@ -292,7 +292,7 @@ class BaseChunk(HubMemoryObject):
                 incoming_sample = incoming_sample.path
             else:
                 raise ValueError(
-                    "hub.link() samples can only be appended to linked tensors. To create linked tensors, include link in htype during create_tensor, for example 'link[image]'."
+                    "deeplake.link() samples can only be appended to linked tensors. To create linked tensors, include link in htype during create_tensor, for example 'link[image]'."
                 )
 
         if self.is_text_like:
@@ -341,7 +341,7 @@ class BaseChunk(HubMemoryObject):
                 ht,
                 min_chunk_size,
             )
-        elif isinstance(incoming_sample, hub.core.tensor.Tensor):
+        elif isinstance(incoming_sample, deeplake.core.tensor.Tensor):
             incoming_sample, shape = serialize_tensor(
                 incoming_sample,
                 sample_compression,

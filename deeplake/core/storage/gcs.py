@@ -23,13 +23,13 @@ except ImportError:
     _GOOGLE_PACKAGES_INSTALLED = False
 
 
-from hub.core.storage.provider import StorageProvider
-from hub.util.exceptions import (
+from deeplake.core.storage.provider import StorageProvider
+from deeplake.util.exceptions import (
     GCSDefaultCredsNotFoundError,
     RenameError,
     PathNotEmptyException,
 )
-from hub.client.client import HubBackendClient
+from deeplake.client.client import DeepLakeBackendClient
 
 
 def _remove_protocol_from_path(path: str) -> str:
@@ -442,7 +442,7 @@ class GCSProvider(StorageProvider):
 
         if url is None:
             if self._is_hub_path:
-                client = HubBackendClient(self.token)  # type: ignore
+                client = DeepLakeBackendClient(self.token)  # type: ignore
                 org_id, ds_name = self.tag.split("/")  # type: ignore
                 url = client.get_presigned_url(org_id, ds_name, key)
             else:

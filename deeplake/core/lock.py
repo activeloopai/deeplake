@@ -1,4 +1,4 @@
-import hub
+import deeplake
 import time
 import uuid
 import struct
@@ -7,14 +7,14 @@ import threading
 
 from typing import Tuple, Dict, Callable, Optional, Set
 from collections import defaultdict
-from hub.util.exceptions import LockedException
-from hub.util.keys import get_dataset_lock_key
-from hub.util.remove_cache import get_base_storage
-from hub.util.path import get_path_from_storage
-from hub.util.threading import terminate_thread
-from hub.core.storage import StorageProvider
-from hub.constants import FIRST_COMMIT_ID
-from hub.client.utils import get_user_name
+from deeplake.util.exceptions import LockedException
+from deeplake.util.keys import get_dataset_lock_key
+from deeplake.util.remove_cache import get_base_storage
+from deeplake.util.path import get_path_from_storage
+from deeplake.util.threading import terminate_thread
+from deeplake.core.storage import StorageProvider
+from deeplake.constants import FIRST_COMMIT_ID
+from deeplake.client.utils import get_user_name
 
 
 def _get_lock_bytes(username: Optional[str] = None) -> bytes:
@@ -94,12 +94,12 @@ class PersistentLock(Lock):
 
     Example:
         From machine 1:
-        s3 = hub.core.storage.S3Provider(S3_URL)
-        lock = hub.core.lock.Lock(s3)  # Works
+        s3 = deeplake.core.storage.S3Provider(S3_URL)
+        lock = deeplake.core.lock.Lock(s3)  # Works
 
         From machine 2:
-        s3 = hub.core.storage.S3Provider(S3_URL)
-        lock = hub.core.lock.Lock(s3)  # Raises LockedException
+        s3 = deeplake.core.storage.S3Provider(S3_URL)
+        lock = deeplake.core.lock.Lock(s3)  # Raises LockedException
 
         The lock is updated every 2 mins by an internal thread. The lock is valid for 5 mins after the last update.
 
@@ -138,7 +138,7 @@ class PersistentLock(Lock):
                     if (
                         self._previous_update_timestamp is not None
                         and time.time() - self._previous_update_timestamp
-                        >= hub.constants.DATASET_LOCK_VALIDITY
+                        >= deeplake.constants.DATASET_LOCK_VALIDITY
                     ):
                         # Its been too long since last update, another machine might have locked the storage
                         lock_bytes = self.storage.get(self.path)
@@ -153,7 +153,7 @@ class PersistentLock(Lock):
                     self.storage[self.path] = _get_lock_bytes(self.username)
                 except Exception:
                     pass
-                time.sleep(hub.constants.DATASET_LOCK_UPDATE_INTERVAL)
+                time.sleep(deeplake.constants.DATASET_LOCK_UPDATE_INTERVAL)
         except Exception:  # Thread termination
             return
 
@@ -172,7 +172,7 @@ class PersistentLock(Lock):
                 if nodeid == uuid.getnode():
                     # Lock left by this machine from a previous run, ignore
                     pass
-                elif time.time() - timestamp < hub.constants.DATASET_LOCK_VALIDITY:
+                elif time.time() - timestamp < deeplake.constants.DATASET_LOCK_VALIDITY:
                     raise LockedException()
 
         self._thread = threading.Thread(target=self._lock_loop, daemon=True)

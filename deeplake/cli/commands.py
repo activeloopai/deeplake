@@ -1,8 +1,8 @@
 import click
 
-from hub import __version__
-from hub.cli.auth import login, logout, register, reporting
-from hub.cli.list_datasets import list_datasets
+from deeplake import __version__
+from deeplake.cli.auth import login, logout, register, reporting
+from deeplake.cli.list_datasets import list_datasets
 
 
 @click.group()

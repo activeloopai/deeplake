@@ -1,4 +1,4 @@
-from hub.core.linked_sample import LinkedSample
+from deeplake.core.linked_sample import LinkedSample
 from typing import Optional, Dict
 
 
@@ -23,9 +23,9 @@ def link(
         LinkedSample: LinkedSample object that stores path and creds.
 
     Examples:
-        >>> ds = hub.dataset("test/test_ds")
+        >>> ds = deeplake.dataset("test/test_ds")
         >>> ds.create_tensor("images", htype="link[image]")
-        >>> ds.images.append(hub.link("https://picsum.photos/200/300"))
+        >>> ds.images.append(deeplake.link("https://picsum.photos/200/300"))
 
     See more examples :ref:`here <linked_sample_examples>`.
     """

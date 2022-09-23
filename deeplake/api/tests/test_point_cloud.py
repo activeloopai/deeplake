@@ -1,10 +1,10 @@
 import pytest
 
-import hub
-from hub.core.dataset import Dataset
-from hub.core.compression import compress_multiple
-from hub.tests.common import get_dummy_data_path
-from hub.util.exceptions import CorruptedSampleError
+import deeplake
+from deeplake.core.dataset import Dataset
+from deeplake.core.compression import compress_multiple
+from deeplake.tests.common import get_dummy_data_path
+from deeplake.util.exceptions import CorruptedSampleError
 
 import numpy as np
 
@@ -15,7 +15,7 @@ def test_point_cloud(local_ds, point_cloud_paths):
             tensor = local_ds.create_tensor(
                 f"point_cloud_{i}", htype="point_cloud", sample_compression=compression
             )
-            sample = hub.read(path)
+            sample = deeplake.read(path)
 
             if "point_cloud" in path:  # check shape only for internal test point_clouds
                 assert sample.shape[0] == 20153
@@ -65,7 +65,7 @@ def test_point_cloud(local_ds, point_cloud_paths):
     local_ds.point_cloud_without_sample_compression.data()
     assert len(local_ds.point_cloud_without_sample_compression.data()) == 0
 
-    local_ds.point_cloud_without_sample_compression.append(hub.read(path))
+    local_ds.point_cloud_without_sample_compression.append(deeplake.read(path))
     assert local_ds.point_cloud_without_sample_compression[1].numpy().shape == (
         20153,
         3,
@@ -84,10 +84,12 @@ def test_point_cloud(local_ds, point_cloud_paths):
 
     with pytest.raises(CorruptedSampleError):
         local_ds.point_cloud_with_sample_compression.append(
-            hub.read(get_dummy_data_path("point_cloud/corrupted_point_cloud.las"))
+            deeplake.read(get_dummy_data_path("point_cloud/corrupted_point_cloud.las"))
         )
 
-    local_ds.point_cloud_with_sample_compression.append(hub.read(path, verify=True))
+    local_ds.point_cloud_with_sample_compression.append(
+        deeplake.read(path, verify=True)
+    )
     assert local_ds.point_cloud_with_sample_compression.shape == (1, 20153, 18)
 
     local_ds.create_tensor(
@@ -107,8 +109,8 @@ def test_point_cloud(local_ds, point_cloud_paths):
 def shape_tester(local_ds, path, sample, tensor, feature_size):
     with local_ds:
         for _ in range(5):
-            tensor.append(hub.read(path))  # type: ignore
-        tensor.extend([hub.read(path) for _ in range(5)])  # type: ignore
+            tensor.append(deeplake.read(path))  # type: ignore
+        tensor.extend([deeplake.read(path) for _ in range(5)])  # type: ignore
 
     for i in range(10):
         assert tensor[i].numpy().shape[0] == sample.shape[0]  # type: ignore
@@ -122,7 +124,7 @@ def test_point_cloud_slicing(local_ds: Dataset, point_cloud_paths):
         local_ds.create_tensor(
             "point_cloud", htype="point_cloud", sample_compression=compression
         )
-        local_ds.point_cloud.append(hub.read(path))
+        local_ds.point_cloud.append(deeplake.read(path))
         assert local_ds.point_cloud[0][0:5].numpy().shape == dummy[0:5].shape
         assert local_ds.point_cloud[0][100:120].numpy().shape == dummy[100:120].shape
         assert local_ds.point_cloud[0][120].numpy().shape == dummy[120].shape

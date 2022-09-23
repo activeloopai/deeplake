@@ -1,8 +1,8 @@
 import pathlib
 from typing import Optional, Union
-from hub.core.storage.provider import StorageProvider
-from hub.util.tag import process_hub_path
-from hub.constants import HUB_CLOUD_DEV_USERNAME
+from deeplake.core.storage.provider import StorageProvider
+from deeplake.util.tag import process_hub_path
+from deeplake.constants import HUB_CLOUD_DEV_USERNAME
 import glob
 import os
 
@@ -14,7 +14,7 @@ def is_hub_cloud_path(path: str):
 
 def get_path_from_storage(storage) -> str:
     """Extracts the underlying path from a given storage."""
-    from hub.core.storage.lru_cache import LRUCache
+    from deeplake.core.storage.lru_cache import LRUCache
 
     if isinstance(storage, LRUCache):
         return get_path_from_storage(storage.next_storage)

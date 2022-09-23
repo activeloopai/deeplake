@@ -1,17 +1,17 @@
-import hub
+import deeplake
 import numpy as np
 import pickle
 import pytest
 
-from hub.util.remove_cache import get_base_storage
-from hub.util.exceptions import DatasetUnsupportedPytorch, TensorDoesNotExistError
-from hub.tests.common import requires_torch
-from hub.core.dataset import Dataset
-from hub.core.index.index import IndexEntry
-from hub.core.storage.memory import MemoryProvider
-from hub.constants import KB
+from deeplake.util.remove_cache import get_base_storage
+from deeplake.util.exceptions import DatasetUnsupportedPytorch, TensorDoesNotExistError
+from deeplake.tests.common import requires_torch
+from deeplake.core.dataset import Dataset
+from deeplake.core.index.index import IndexEntry
+from deeplake.core.storage.memory import MemoryProvider
+from deeplake.constants import KB
 
-from hub.tests.dataset_fixtures import enabled_non_gdrive_datasets
+from deeplake.tests.dataset_fixtures import enabled_non_gdrive_datasets
 
 try:
     from torch.utils.data._utils.collate import default_collate
@@ -348,8 +348,8 @@ def test_readonly_with_two_workers(local_ds):
 
 @requires_torch
 def test_corrupt_dataset(local_ds, corrupt_image_paths, compressed_image_paths):
-    img_good = hub.read(compressed_image_paths["jpeg"][0])
-    img_bad = hub.read(corrupt_image_paths["jpeg"])
+    img_good = deeplake.read(compressed_image_paths["jpeg"][0])
+    img_bad = deeplake.read(corrupt_image_paths["jpeg"])
     with local_ds:
         local_ds.create_tensor("image", htype="image", sample_compression="jpeg")
         for i in range(3):
@@ -403,8 +403,8 @@ def test_pytorch_local_cache(ds):
 
 @requires_torch
 def test_groups(local_ds, compressed_image_paths):
-    img1 = hub.read(compressed_image_paths["jpeg"][0])
-    img2 = hub.read(compressed_image_paths["png"][0])
+    img1 = deeplake.read(compressed_image_paths["jpeg"][0])
+    img2 = deeplake.read(compressed_image_paths["png"][0])
     with local_ds:
         local_ds.create_tensor(
             "images/jpegs/cats", htype="image", sample_compression="jpeg"
@@ -623,7 +623,7 @@ def test_pytorch_tobytes(ds, compressed_image_paths, compression):
         ds.image.extend(
             np.array([i * np.ones((10, 10, 3), dtype=np.uint8) for i in range(5)])
         )
-        ds.image.extend([hub.read(compressed_image_paths["jpeg"][0])] * 5)
+        ds.image.extend([deeplake.read(compressed_image_paths["jpeg"][0])] * 5)
     if isinstance(get_base_storage(ds.storage), MemoryProvider):
         with pytest.raises(DatasetUnsupportedPytorch):
             ds.pytorch()

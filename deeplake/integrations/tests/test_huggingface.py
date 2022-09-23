@@ -1,12 +1,12 @@
 from datasets import load_dataset  # type: ignore
 from datasets import Dataset  # type: ignore
-from hub.api.tests.test_api import convert_string_to_pathlib_if_needed
-from hub.integrations.huggingface import ingest_huggingface
-from hub.integrations.huggingface.huggingface import _is_seq_convertible
+from deeplake.api.tests.test_api import convert_string_to_pathlib_if_needed
+from deeplake.integrations.huggingface import ingest_huggingface
+from deeplake.integrations.huggingface.huggingface import _is_seq_convertible
 from numpy.testing import assert_array_equal
 
 import pytest
-import hub
+import deeplake
 
 
 @pytest.mark.parametrize("convert_to_pathlib", [True, False])
@@ -41,7 +41,7 @@ def test_split():
 
 def test_seq_with_dict():
     ds = load_dataset("squad", split="train[:5%]")
-    hub_ds = hub.ingest_huggingface(ds, "mem://xyz")
+    hub_ds = deeplake.ingest_huggingface(ds, "mem://xyz")
 
     keys = set(ds.column_names) - {"answers"} | {"answers/text", "answers/answer_start"}
 

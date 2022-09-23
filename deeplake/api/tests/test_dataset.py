@@ -1,14 +1,14 @@
-from hub.util.exceptions import DatasetHandlerError, UserNotLoggedInException
-from hub.cli.auth import logout
+from deeplake.util.exceptions import DatasetHandlerError, UserNotLoggedInException
+from deeplake.cli.auth import logout
 from click.testing import CliRunner
 import pytest
-import hub
+import deeplake
 import numpy as np
 
 
 def test_new_dataset():
     with CliRunner().isolated_filesystem():
-        ds = hub.dataset("test_new_dataset")
+        ds = deeplake.dataset("test_new_dataset")
         with ds:
             ds.create_tensor("image")
             for i in range(10):
@@ -24,25 +24,25 @@ def test_dataset_empty_load():
     with CliRunner().isolated_filesystem():
         path = "test_dataset_load"
 
-        ds = hub.empty(path)
+        ds = deeplake.empty(path)
         with ds:
             ds.create_tensor("image")
             for i in range(10):
                 ds.image.append(i * np.ones((100 * (i + 1), 100 * (i + 1))))
 
         with pytest.raises(DatasetHandlerError):
-            ds_empty = hub.empty(path)
+            ds_empty = deeplake.empty(path)
 
-        ds_loaded = hub.load(path)
+        ds_loaded = deeplake.load(path)
         for i in range(10):
             np.testing.assert_array_equal(
                 ds.image[i].numpy(), ds_loaded.image[i].numpy()
             )
 
         with pytest.raises(DatasetHandlerError):
-            ds_random = hub.load("some_random_path")
+            ds_random = deeplake.load("some_random_path")
 
-        ds_overwrite_load = hub.dataset(path, overwrite=True)
+        ds_overwrite_load = deeplake.dataset(path, overwrite=True)
         assert len(ds_overwrite_load) == 0
         assert len(ds_overwrite_load.tensors) == 0
         with ds_overwrite_load:
@@ -53,9 +53,9 @@ def test_dataset_empty_load():
                 )
 
         with pytest.raises(DatasetHandlerError):
-            ds_empty = hub.empty(path)
+            ds_empty = deeplake.empty(path)
 
-        ds_overwrite_empty = hub.dataset(path, overwrite=True)
+        ds_overwrite_empty = deeplake.dataset(path, overwrite=True)
         assert len(ds_overwrite_empty) == 0
         assert len(ds_overwrite_empty.tensors) == 0
 
@@ -70,13 +70,13 @@ def test_update_privacy(hub_cloud_ds):
     runner = CliRunner()
     runner.invoke(logout)
     with pytest.raises(UserNotLoggedInException):
-        hub.dataset(hub_cloud_ds.path)
+        deeplake.dataset(hub_cloud_ds.path)
 
     with pytest.raises(UserNotLoggedInException):
-        hub.load(hub_cloud_ds.path)
+        deeplake.load(hub_cloud_ds.path)
 
     with pytest.raises(UserNotLoggedInException):
-        hub.empty(hub_cloud_ds.path)
+        deeplake.empty(hub_cloud_ds.path)
 
 
 def test_persistence_bug(local_ds_generator):

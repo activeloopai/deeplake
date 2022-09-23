@@ -1,9 +1,9 @@
 import numpy as np
 from typing import List, Union
-from hub.core.serialize import check_sample_shape, bytes_to_text
-from hub.core.tiling.sample_tiles import SampleTiles
-from hub.util.casting import intelligent_cast
-from hub.util.exceptions import EmptyTensorError
+from deeplake.core.serialize import check_sample_shape, bytes_to_text
+from deeplake.core.tiling.sample_tiles import SampleTiles
+from deeplake.util.casting import intelligent_cast
+from deeplake.util.exceptions import EmptyTensorError
 from .base_chunk import BaseChunk, InputSample
 
 

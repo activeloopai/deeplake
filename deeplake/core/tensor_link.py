@@ -1,10 +1,10 @@
 from typing import Callable
-from hub.core.index import Index
-from hub.constants import _NO_LINK_UPDATE
+from deeplake.core.index import Index
+from deeplake.constants import _NO_LINK_UPDATE
 import inspect
-import hub
+import deeplake
 import inspect
-from hub.util.generate_id import generate_id
+from deeplake.util.generate_id import generate_id
 import numpy as np
 
 
@@ -49,11 +49,11 @@ def update_test(
 @link
 def append_info(sample, link_creds=None):
     meta = {}
-    if isinstance(sample, hub.core.linked_sample.LinkedSample):
+    if isinstance(sample, deeplake.core.linked_sample.LinkedSample):
         sample = read_linked_sample(
             sample.path, sample.creds_key, link_creds, verify=False
         )
-    if isinstance(sample, hub.core.sample.Sample):
+    if isinstance(sample, deeplake.core.sample.Sample):
         meta = sample.meta
         meta["modified"] = False
     return meta
@@ -75,7 +75,7 @@ def update_info(
 
 @link
 def append_shape(sample, link_creds=None):
-    if isinstance(sample, hub.core.linked_sample.LinkedSample):
+    if isinstance(sample, deeplake.core.linked_sample.LinkedSample):
         sample = read_linked_sample(
             sample.path, sample.creds_key, link_creds, verify=False
         )
@@ -110,8 +110,8 @@ def read_linked_sample(
     if sample_path.startswith(("gcs://", "gcp://", "gs://", "s3://")):
         provider_type = "s3" if sample_path.startswith("s3://") else "gcs"
         storage = link_creds.get_storage_provider(sample_creds_key, provider_type)
-        return hub.read(sample_path, storage=storage, verify=verify)
+        return deeplake.read(sample_path, storage=storage, verify=verify)
     elif sample_path.startswith(("http://", "https://")):
         creds = link_creds.get_creds(sample_creds_key)
-        return hub.read(sample_path, verify=verify, creds=creds)
-    return hub.read(sample_path, verify=verify)
+        return deeplake.read(sample_path, verify=verify, creds=creds)
+    return deeplake.read(sample_path, verify=verify)

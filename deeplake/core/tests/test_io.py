@@ -1,7 +1,7 @@
 from typing import Iterator
 
 from numpy.testing._private.utils import assert_array_equal
-from hub.core.io import (
+from deeplake.core.io import (
     IOBlock,
     Streaming,
     Schedule,

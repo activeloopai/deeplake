@@ -1,21 +1,21 @@
-from hub.constants import ENCODING_DTYPE
-from hub.core.serialize import (
+from deeplake.constants import ENCODING_DTYPE
+from deeplake.core.serialize import (
     serialize_chunk,
     deserialize_chunk,
     serialize_chunkids,
     deserialize_chunkids,
 )
 import numpy as np
-import hub
+import deeplake
 import time
 
 
 def test_chunk_serialize():
-    version = hub.__version__
-    shape_info = np.cast[hub.constants.ENCODING_DTYPE](
+    version = deeplake.__version__
+    shape_info = np.cast[deeplake.constants.ENCODING_DTYPE](
         np.random.randint(100, size=(17, 63))
     )
-    byte_positions = np.cast[hub.constants.ENCODING_DTYPE](
+    byte_positions = np.cast[deeplake.constants.ENCODING_DTYPE](
         np.random.randint(100, size=(31, 3))
     )
     data = [b"x" * 8 * 1024 * 1024] * 2  # 16 MB chunk
@@ -37,7 +37,7 @@ def test_chunk_serialize():
 
 
 def test_chunkids_serialize():
-    version = hub.__version__
+    version = deeplake.__version__
     arr = np.cast[ENCODING_DTYPE](np.random.randint(100, size=(100, 2)))
     encoded = serialize_chunkids(version, arr)
     decoded = deserialize_chunkids(encoded)

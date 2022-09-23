@@ -1,5 +1,5 @@
 import click
-import hub
+import deeplake
 
 
 @click.command()
@@ -9,7 +9,7 @@ import hub
 def list_datasets(workspace: str):
     """Get a list of datasets in the workspace from Platform."""
     try:
-        res = hub.list(workspace)
+        res = deeplake.list(workspace)
         if res:
             click.echo("\n".join(res))
     except Exception as e:

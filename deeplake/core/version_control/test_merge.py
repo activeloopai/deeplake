@@ -1,7 +1,7 @@
 import numpy as np
 import pytest
 
-from hub.util.exceptions import (
+from deeplake.util.exceptions import (
     MergeConflictError,
     MergeMismatchError,
     MergeNotSupportedError,
