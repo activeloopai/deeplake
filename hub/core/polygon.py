@@ -40,7 +40,7 @@ class Polygon:
 
 
 class Polygons:
-    """Represents a group of polygons"""
+    """Represents a list of polygons"""
 
     def __init__(self, data: Union[np.ndarray, List], dtype="float32"):
         if data is None:
