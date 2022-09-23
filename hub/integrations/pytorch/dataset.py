@@ -50,13 +50,13 @@ def use_scheduler(num_workers: int, ensure_order: bool):
 
 
 def cast_type(tensor: np.ndarray):
+    assert isinstance(tensor, np.ndarray)
     if tensor.dtype == np.uint16:
         return tensor.astype(np.int32)
     if tensor.dtype == np.uint32:
         return tensor.astype(np.int64)
     if tensor.dtype == np.uint64:
         return tensor.astype(np.int64)
-
     return tensor.copy()
 
 
