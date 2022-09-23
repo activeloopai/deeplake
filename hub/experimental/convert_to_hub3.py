@@ -1,7 +1,9 @@
+from hub.core.chunk_engine import ChunkEngine
 from hub.core.storage import S3Provider, GCSProvider, GDriveProvider, MemoryProvider
 from hub.experimental.util import raise_indra_installation_error  # type: ignore
 from hub.util.dataset import try_flushing  # type: ignore
 import importlib
+import warnings
 
 INDRA_INSTALLED = bool(importlib.util.find_spec("indra"))
 
@@ -66,6 +68,7 @@ def dataset_to_hub3(hub2_dataset):
     commit_id = hub2_dataset.pending_commit_id
     hub3_dataset.checkout(commit_id)
     slice_ = hub2_dataset.index.values[0].value
+    slice_ = remove_tiled_samples(hub2_dataset, slice_) 
 
     if slice_ != slice(None):
         if isinstance(slice_, tuple):
@@ -79,3 +82,25 @@ def verify_base_storage(dataset):
         raise ValueError(
             "GCS, Google Drive and Memory datasets are not supported for experimental features currently."
         )
+
+def remove_tiled_samples(dataset, slice_):
+    found_tiled_samples = False
+    for tensor in dataset.tensors.values():
+        chunk_engine: ChunkEngine = tensor.chunk_engine
+        if chunk_engine.tile_encoder_exists:
+            tiles = set(chunk_engine.tile_encoder.entries.keys())
+            if len(tiles) > 0:
+                found_tiled_samples = True
+                if isinstance(slice_, slice):
+                    start = slice_.start if slice_.start is not None else 0
+                    stop = slice_.stop if slice_.stop is not None else tensor.num_samples
+                    step = slice_.step if slice_.step is not None else 1
+                    slice_ = list(range(start, stop, step))
+                if isinstance(slice_, (list, tuple)):
+                    slice_ = [idx for idx in slice_ if idx not in tiles]
+
+    if found_tiled_samples:
+        warnings.warn("One or more tiled samples (big samples that span across multiple chunks) were found in the dataset. These samples are currently not supported for query and dataloader and will be ignored.")
+
+    return slice_
+
