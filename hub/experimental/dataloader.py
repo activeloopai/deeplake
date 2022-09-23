@@ -102,7 +102,8 @@ class Hub3DataLoader:
         all_vars["_shuffle"] = True
         all_vars["_buffer_size"] = buffer_size
         schedule = create_fetching_schedule(self.dataset, self._primary_tensor_name)
-        all_vars["dataset"] = self.dataset[schedule]
+        if schedule is not None:
+            all_vars["dataset"] = self.dataset[schedule]
         return self.__class__(**all_vars)
 
     def transform(self, transform: Union[Callable, Dict[str, Optional[Callable]]]):

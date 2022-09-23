@@ -47,6 +47,16 @@ def find_primary_tensor(dataset):
 
 
 def create_fetching_schedule(dataset, primary_tensor_name):
+    slice_ = dataset.index.values[0].value
+    if isinstance(slice_, int):
+        return None
+    elif isinstance(slice_, slice):
+        start = slice_.start if slice_.start is not None else 0
+        stop = slice_.stop if slice_.stop is not None else dataset.min_len
+        step = slice_.step if slice_.step is not None else 1
+        index_set = set(range(start, stop, step))
+    elif isinstance(slice_, (list, tuple)):
+        index_set = set(slice_)
     primary_tensor = dataset[primary_tensor_name]
     chunk_id_encoder: ChunkIdEncoder = primary_tensor.chunk_engine.chunk_id_encoder
     enc_array = chunk_id_encoder.array
@@ -60,6 +70,7 @@ def create_fetching_schedule(dataset, primary_tensor_name):
         indexes = np.arange(start_index, last_index)
         schedule.extend(indexes)
 
+    schedule = [idx for idx in schedule if idx in index_set]
     return schedule
 
 
