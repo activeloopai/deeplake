@@ -8,4 +8,3 @@ hub.core
     hub.core.partial_sample <hub.core.partial-sample>
     hub.core.storage
     hub.core.index
-    hub.core.polygon
