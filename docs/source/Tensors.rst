@@ -1,7 +1,7 @@
 Tensors
 =======
 
-.. currentmodule:: hub.core.dataset
+.. currentmodule:: deeplake.core.dataset
 
 Creating Tensors
 ~~~~~~~~~~~~~~~~
@@ -26,7 +26,7 @@ Deleting and Renaming Tensors
     Dataset.rename_group
 
 
-.. currentmodule:: hub.core.tensor
+.. currentmodule:: deeplake.core.tensor
 
 Adding and deleting samples
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~

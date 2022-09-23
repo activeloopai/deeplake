@@ -1,8 +1,8 @@
-hub
-===
+deeplake
+========
 
-.. currentmodule:: hub
-.. automodule:: hub
+.. currentmodule:: deeplake
+.. automodule:: deeplake
 
 .. autofunction:: dataset
 .. autofunction:: empty

@@ -1,6 +1,6 @@
-hub.core.tensor
-===============
-.. currentmodule:: hub.core.tensor
+deeplake.core.tensor
+====================
+.. currentmodule:: deeplake.core.tensor
 
 Tensor
 ~~~~~~

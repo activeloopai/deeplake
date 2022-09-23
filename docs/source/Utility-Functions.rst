@@ -1,6 +1,6 @@
 Utility Functions
 =================
-.. currentmodule:: hub
+.. currentmodule:: deeplake
 
 
 General Functions
@@ -12,8 +12,8 @@ General Functions
     list
     exists
 
-Making Hub Samples
-~~~~~~~~~~~~~~~~~~
+Making Deep Lake Samples
+~~~~~~~~~~~~~~~~~~~~~~~~
 .. autosummary::
     :toctree:
     :nosignatures:

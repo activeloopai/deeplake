@@ -1,6 +1,6 @@
-hub.core.index
-==============
-.. currentmodule:: hub.core.index
+deeplake.core.index
+===================
+.. currentmodule:: deeplake.core.index
 
 .. autoclass:: IndexEntry
     :special-members:

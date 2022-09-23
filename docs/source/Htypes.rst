@@ -1,5 +1,5 @@
 Htypes
 ======
 
-.. currentmodule:: hub.htype
-.. automodule:: hub.htype
+.. currentmodule:: deeplake.htype
+.. automodule:: deeplake.htype
