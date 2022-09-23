@@ -1,5 +1,5 @@
 <img src="https://static.scarf.sh/a.png?x-pxid=bc3c57b0-9a65-49fe-b8ea-f711c4d35b82" /><p align="center">
-     <img src="https://user-images.githubusercontent.com/83741606/156426873-c0a77da0-9e0f-41a0-a4fb-cf77eb2fe35e.png" width="300"/>
+     <img src="https://i.postimg.cc/rsjcWc3S/deeplake-logo.png" width="400"/>
 </h1>
     </br>
     <h1 align="center">Deep Lake: Data Lake for Deep Learning
@@ -70,26 +70,26 @@ Deep Lake datasets are instantly visualized with bounding boxes, masks, annotati
 </div>
 
     
-## Getting Started with Hub (deprecated soon and will be replaced with deeplake)
+## Getting Started with Deep Lake (deprecated soon and will be replaced with deeplake)
 
 
 ### 🚀 How to install Deep Lake
-Hub is written in 100% Python and can be quickly installed using pip.
+Deep Lake is written in 100% Python and can be quickly installed using pip.
 
 ```sh
 pip3 install hub
 ```
 
-**By default, Hub does not install dependencies for audio, video, and google-cloud (GCS) support. They can be installed using**:
+**By default, Deep Lake does not install dependencies for audio, video, and google-cloud (GCS) support. They can be installed using**:
 ```sh
 pip3 install "hub[av]"          -> Audio and video support via PyAV
 pip3 install "hub[gcp]"         -> GCS support via google-* dependencies
 pip3 install "hub[all]"         -> Installs everything - audio, video and GCS support
 ```
 
-### 🧠 Training a PyTorch model on a Hub dataset
+### 🧠 Training a PyTorch model on a Deep Lake dataset
 
-#### Load CIFAR 10, one of the readily available datasets in Hub:
+#### Load CIFAR 10, one of the readily available datasets in Deep Lake:
 
 ```python
 import hub
@@ -108,7 +108,7 @@ ds.labels[0].numpy() # array([6], dtype=uint32)
 
 #### Train a PyTorch model on the CIFAR 10 dataset without the need to download it
 
-First, define a transform for the images and use Hub's built-in PyTorch one-line dataloader to connect the data to the compute:
+First, define a transform for the images and use Deep Lake's built-in PyTorch one-line dataloader to connect the data to the compute:
 
 ```python
 tform = transforms.Compose([
@@ -156,7 +156,7 @@ for epoch in range(2):
 ```
 
 
-### 🏗️ How to create a Hub Dataset
+### 🏗️ How to create a Deep Lake Dataset
 
 A hub dataset can be created in various locations (Storage providers). This is how the paths for each of them would look like:
 
@@ -171,7 +171,7 @@ A hub dataset can be created in various locations (Storage providers). This is h
 
 
 
-Let's create a dataset in the Activeloop cloud. Activeloop cloud provides free storage up to 300 GB per user (more info [here](#-for-students-and-educators)). Create a new account with Hub from the terminal using `activeloop register` if you haven't already. You will be asked for a user name, email ID, and password. The user name you enter here will be used in the dataset path.
+Let's create a dataset in the Activeloop cloud. Activeloop cloud provides free storage up to 300 GB per user (more info [here](#-for-students-and-educators)). Create a new account with Deep Lake from the terminal using `activeloop register` if you haven't already. You will be asked for a user name, email ID, and password. The user name you enter here will be used in the dataset path.
 
 ```sh
 $ activeloop register
@@ -220,7 +220,7 @@ with ds:
 
 
 
-### 🚀 How to load a Hub Dataset
+### 🚀 How to load a Deep Lake Dataset
 
 
 You can load the dataset you just created with a single line of code:
@@ -231,7 +231,7 @@ import hub
 ds = hub.load("hub://<USERNAME>/test-dataset")
 ```
 
-You can also access one of the <a href="https://docs.activeloop.ai/datasets/?utm_source=github&utm_medium=github&utm_campaign=github_readme&utm_id=readme">100+ image, video and audio datasets in Hub format</a>, not just the ones you created. Here is how you would load the [Objectron Bikes Dataset](https://github.com/google-research-datasets/Objectron):
+You can also access one of the <a href="https://docs.activeloop.ai/datasets/?utm_source=github&utm_medium=github&utm_campaign=github_readme&utm_id=readme">100+ image, video and audio datasets in Deep Lake format</a>, not just the ones you created. Here is how you would load the [Objectron Bikes Dataset](https://github.com/google-research-datasets/Objectron):
 
 ```python
 import hub
@@ -252,7 +252,7 @@ image_arr = ds.image[0].numpy()
 Getting started guides, examples, tutorials, API reference, and other useful information can be found on our [documentation page](http://docs.activeloop.ai/?utm_source=github&utm_medium=repo&utm_campaign=readme). 
 
 ## 🎓 For Students and Educators
-Hub users can access and visualize a variety of popular datasets through a free integration with Activeloop's Platform. Users can also create and store their own datasets and make them available to the public. Free storage of up to 300 GB is available for students and educators:
+Deep Lake users can access and visualize a variety of popular datasets through a free integration with Activeloop's Platform. Users can also create and store their own datasets and make them available to the public. Free storage of up to 300 GB is available for students and educators:
 
 | <!-- -->    | <!-- -->    |
 | ---------------------------------------------------- | ------------- |
@@ -265,39 +265,39 @@ Hub users can access and visualize a variety of popular datasets through a free 
 
 
 <details>
-  <summary><b>Hub vs DVC</b></summary>
+  <summary><b>Deep Lake vs DVC</b></summary>
   
-Hub and DVC offer dataset version control similar to git for data, but their methods for storing data differ significantly. Hub converts and stores data as chunked compressed arrays, which enables rapid streaming to ML models, whereas DVC operates on top of data stored in less efficient traditional file structures. The Hub format makes dataset versioning significantly easier compared to traditional file structures by DVC when datasets are composed of many files (i.e., many images). An additional distinction is that DVC primarily uses a command-line interface, whereas Hub is a Python package. Lastly, Hub offers an API to easily connect datasets to ML frameworks and other common ML tools and enables instant dataset visualization through [Activeloop's visualization tool](http://app.activeloop.ai/?utm_source=github&utm_medium=repo&utm_campaign=readme).
+Deep Lake and DVC offer dataset version control similar to git for data, but their methods for storing data differ significantly. Deep Lake converts and stores data as chunked compressed arrays, which enables rapid streaming to ML models, whereas DVC operates on top of data stored in less efficient traditional file structures. The Deep Lake format makes dataset versioning significantly easier compared to traditional file structures by DVC when datasets are composed of many files (i.e., many images). An additional distinction is that DVC primarily uses a command-line interface, whereas Deep Lake is a Python package. Lastly, Deep Lake offers an API to easily connect datasets to ML frameworks and other common ML tools and enables instant dataset visualization through [Activeloop's visualization tool](http://app.activeloop.ai/?utm_source=github&utm_medium=repo&utm_campaign=readme).
 
 </details>
 
 
 <details>
-  <summary><b>Hub vs TensorFlow Datasets (TFDS)</b></summary>
+  <summary><b>Deep Lake vs TensorFlow Datasets (TFDS)</b></summary>
   
-Hub and TFDS seamlessly connect popular datasets to ML frameworks. Hub datasets are compatible with both PyTorch and TensorFlow, whereas TFDS are only compatible with TensorFlow. A key difference between Hub and TFDS is that Hub datasets are designed for streaming from the cloud, whereas TFDS must be downloaded locally prior to use. As a result, with Hub, one can import datasets directly from TensorFlow Datasets and stream them either to PyTorch or TensorFlow. In addition to providing access to popular publicly available datasets, Hub also offers powerful tools for creating custom datasets, storing them on a variety of cloud storage providers, and collaborating with others via simple API. TFDS is primarily focused on giving the public easy access to commonly available datasets, and management of custom datasets is not the primary focus. A full comparison article can be found [here](https://www.activeloop.ai/resources/tensor-flow-tf-data-activeloop-hub-how-to-implement-your-tensor-flow-data-pipelines-with-hub/).
+Deep Lake and TFDS seamlessly connect popular datasets to ML frameworks. Deep Lake datasets are compatible with both PyTorch and TensorFlow, whereas TFDS are only compatible with TensorFlow. A key difference between Deep Lake and TFDS is that Deep Lake datasets are designed for streaming from the cloud, whereas TFDS must be downloaded locally prior to use. As a result, with Deep Lake, one can import datasets directly from TensorFlow Datasets and stream them either to PyTorch or TensorFlow. In addition to providing access to popular publicly available datasets, Deep Lake also offers powerful tools for creating custom datasets, storing them on a variety of cloud storage providers, and collaborating with others via simple API. TFDS is primarily focused on giving the public easy access to commonly available datasets, and management of custom datasets is not the primary focus. A full comparison article can be found [here](https://www.activeloop.ai/resources/tensor-flow-tf-data-activeloop-hub-how-to-implement-your-tensor-flow-data-pipelines-with-hub/).
 
 </details>
 
 
 
 <details>
-  <summary><b>Hub vs HuggingFace</b></summary>
-Hub and HuggingFace offer access to popular datasets, but Hub primarily focuses on computer vision, whereas HuggingFace focuses on natural language processing. HuggingFace Transforms and other computational tools for NLP are not analogous to features offered by Hub.
+  <summary><b>Deep Lake vs HuggingFace</b></summary>
+Deep Lake and HuggingFace offer access to popular datasets, but Deep Lake primarily focuses on computer vision, whereas HuggingFace focuses on natural language processing. HuggingFace Transforms and other computational tools for NLP are not analogous to features offered by Deep Lake.
 
 
 </details>
 
 <details>
-  <summary><b>Hub vs WebDatasets</b></summary>
-Hub and WebDatasets both offer rapid data streaming across networks. They have nearly identical steaming speeds because the underlying network requests and data structures are very similar. However, Hub offers superior random access and shuffling, its simple API is in python instead of command-line, and Hub enables simple indexing and modification of the dataset without having to recreate it.
+  <summary><b>Deep Lake vs WebDatasets</b></summary>
+Deep Lake and WebDatasets both offer rapid data streaming across networks. They have nearly identical steaming speeds because the underlying network requests and data structures are very similar. However, Hub offers superior random access and shuffling, its simple API is in python instead of command-line, and Deep Lake enables simple indexing and modification of the dataset without having to recreate it.
 
 
 </details>
 
 <details>
-  <summary><b>Hub vs Zarr</b></summary>
-Hub and Zarr both offer storage of data as chunked arrays. However, hub is primarily designed for returning data as arrays using a simple API, rather than actually storing raw arrays (even though that's also possible). Hub stores data in use-case-optimized formats, such as jpeg or png for images, or mp4 for video, and the user treats the data as if it's an array, because Hub handles all the data processing in between. Hub offers more flexibility for storing arrays with dynamic shape (ragged tensors), and it provides several features that are not naively available in Zarr such as version control, data streaming, and connecting data to ML Frameworks.
+  <summary><b>Deep Lake vs Zarr</b></summary>
+Deep Lake and Zarr both offer storage of data as chunked arrays. However, Deep Lake is primarily designed for returning data as arrays using a simple API, rather than actually storing raw arrays (even though that's also possible). Deep Lake stores data in use-case-optimized formats, such as jpeg or png for images, or mp4 for video, and the user treats the data as if it's an array, because Deep Lake handles all the data processing in between. Deep Lake offers more flexibility for storing arrays with dynamic shape (ragged tensors), and it provides several features that are not naively available in Zarr such as version control, data streaming, and connecting data to ML Frameworks.
 
 
 </details>
