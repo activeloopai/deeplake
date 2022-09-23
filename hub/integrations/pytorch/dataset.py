@@ -75,10 +75,9 @@ def copy_tensor(x):
     try:
         if copy.dtype == "object":
             raise TypeError(
-                "Samples from text-like tensors such as json and text tensors cannot \
-be converted to pytorch tensors automatically. Provide a custom collate function to handle \
-this type of data. Alternatively, you can also exclude these tensors from training using \
-the `tensors` argument of `ds.pytorch()`"
+                "Tensors of json htype cannot be converted to pytorch tensors automatically. \
+Provide a custom collate function to handle this type of data. \
+Alternatively, you can also exclude these tensors from training using the `tensors` argument of `ds.pytorch()`"
             )
     except AttributeError:
         pass
