@@ -28,7 +28,7 @@ jobs:
           pip install -r hub/requirements/common.txt
           pip install -r hub/requirements/tests.txt
           pip install -r hub/requirements/plugins.txt
-      - name: Install Hub
+      - name: Install deeplake
         run: pip install -e .
       - name: Check formatting with black
         run: |
