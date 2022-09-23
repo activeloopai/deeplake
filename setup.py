@@ -2,7 +2,7 @@ import os
 import re
 from setuptools import find_packages, setup
 
-project_name = "hub"
+project_name = "deeplake"
 
 
 this_directory = os.path.abspath(os.path.dirname(__file__))
@@ -40,7 +40,6 @@ extras = {
         "google-auth-oauthlib",
     ],
     "point_cloud": ["laspy"],
-    "deeplake": ["deeplake"],
 }
 
 all_extras = {r for v in extras.values() for r in v}
@@ -62,9 +61,8 @@ def get_property(prop):
 
 
 config = {
-    "name": project_name,
     "version": get_property("__version__"),
-    "description": "Activeloop Hub",
+    "description": "Activeloop Deep Lake",
     "long_description": long_description,
     "long_description_content_type": "text/markdown",
     "author": "activeloop.ai",
@@ -75,11 +73,11 @@ config = {
     "tests_require": tests,
     "include_package_data": True,
     "zip_safe": False,
-    "entry_points": {"console_scripts": ["activeloop = hub.cli.commands:cli"]},
+    "entry_points": {"console_scripts": ["activeloop = deeplake.cli.commands:cli"]},
     "dependency_links": [],
     "project_urls": {
         "Documentation": "https://docs.activeloop.ai/",
-        "Source": "https://github.com/activeloopai/Hub",
+        "Source": "https://github.com/activeloopai/deeplake",
     },
 }
 
