@@ -735,8 +735,13 @@ class Tensor:
 
     __repr__ = __str__
 
-    def __array__(self) -> np.ndarray:
-        return self.numpy()  # type: ignore
+    def __array__(self, dtype=None) -> np.ndarray:
+        ret = self.numpy()  # type: ignore
+        if self.base_htype == "polygon":
+            return np.array(ret, dtype=dtype)
+        if dtype and ret.dtype != dtype:
+            ret = ret.astype(dtype)
+        return ret
 
     @_inplace_op
     def __iadd__(self, other):

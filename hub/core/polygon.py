@@ -64,6 +64,10 @@ class Polygons:
             return Polygon(self.data[i], self.dtype)
         elif isinstance(i, (slice, list)):
             return Polygons(self.data[i], self.dtype)
+        elif isinstance(i, tuple):
+            if len(i) != 1:
+                raise IndexError(f"Unsupported index: {i}")
+            return Polygon(self.data[i[0]], self.dtype)
         else:
             raise IndexError(f"Unsupported index: {i}")
 
