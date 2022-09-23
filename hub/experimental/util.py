@@ -59,5 +59,3 @@ def create_fetching_schedule(dataset, primary_tensor_name):
         schedule.extend(indexes)
 
     return schedule
-
-

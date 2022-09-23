@@ -51,7 +51,7 @@ class Hub3DataLoader:
         self._drop_last = _drop_last
         self._mode = _mode
         self._return_index = _return_index
-        self._primary_tensor_name = _primary_tensor_name
+        self._primary_tensor_name = _primary_tensor_name or find_primary_tensor(dataset)
 
     def batch(self, batch_size: int, drop_last: bool = False):
         """Returns a batched hub.experimental.Hub3DataLoader object.
@@ -92,9 +92,7 @@ class Hub3DataLoader:
             raise ValueError("shuffle is already set")
         all_vars = self.__dict__.copy()
         all_vars["_shuffle"] = True
-        primary_tensor_name = find_primary_tensor(self.dataset)
-        schedule = create_fetching_schedule(self.dataset, primary_tensor_name)
-        all_vars["_primary_tensor_name"] = primary_tensor_name
+        schedule = create_fetching_schedule(self.dataset, self._primary_tensor_name)
         all_vars["dataset"] = self.dataset[schedule]
         return self.__class__(**all_vars)
 
