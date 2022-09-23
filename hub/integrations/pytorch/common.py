@@ -8,13 +8,6 @@ def collate_fn(batch):
     import torch
 
     elem = batch[0]
-    print("=======")
-    if isinstance(elem, np.ndarray):
-        print(elem.dtype)
-        if elem.dtype == "object":
-            print(elem)
-            print("!!!!!!!!!")
-    print(type(elem))
     if isinstance(elem, IterableOrderedDict):
         return IterableOrderedDict(
             (key, collate_fn([d[key] for d in batch])) for key in elem.keys()
