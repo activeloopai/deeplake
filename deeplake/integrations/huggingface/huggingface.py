@@ -69,7 +69,7 @@ def ingest_huggingface(
     dest,
     use_progressbar=True,
 ) -> Dataset:
-    """Converts hugging face datasets to hub format.
+    """Converts Hugging Face datasets to Deep Lake format.
 
     Args:
         src (hfDataset, DatasetDict): Hugging Face Dataset or DatasetDict to be converted. Data in different splits of a
@@ -78,7 +78,7 @@ def ingest_huggingface(
         use_progressbar (bool): Defines if progress bar should be used to show conversion progress.
 
     Returns:
-        Dataset: The destination Hub dataset.
+        Dataset: The destination Deep Lake dataset.
 
     Note:
         - if DatasetDict looks like:
@@ -95,7 +95,7 @@ def ingest_huggingface(
             ...    }),
             ... }
 
-        it will be converted to a Hub :class:`Dataset` with tensors ``['train/data', 'validation/data', 'test/data']``.
+        it will be converted to a Deep Lake :class:`Dataset` with tensors ``['train/data', 'validation/data', 'test/data']``.
 
         Features of the type ``Sequence(feature=Value(dtype='string'))`` are not supported. Columns of such type are skipped.
 

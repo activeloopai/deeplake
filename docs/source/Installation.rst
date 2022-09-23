@@ -12,7 +12,7 @@ Deep Lake has the following extras that you can choose to install according to y
 +======================================+=======================================+=============================================+
 | ``pip install deeplake[av]``         | Audio and video support via PyAV      | av                                          |
 +--------------------------------------+---------------------------------------+---------------------------------------------+
-| ``pip install deeplake[visualizer]`` | Visualize Deep Lake datasets within         | IPython, flask                              |
+| ``pip install deeplake[visualizer]`` | Visualize Deep Lake datasets within   | IPython, flask                              |
 |                                      | notebooks                             |                                             |
 +--------------------------------------+---------------------------------------+---------------------------------------------+
 | ``pip install deeplake[gcp]``        | GCS support                           | | google-cloud-storage, google-auth,        |

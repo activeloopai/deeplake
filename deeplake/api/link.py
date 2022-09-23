@@ -6,7 +6,7 @@ def link(
     path: str,
     creds_key: Optional[str] = None,
 ) -> LinkedSample:
-    """Utility that stores a link to raw data. Used to add data to a Hub Dataset without copying it. See :ref:`Link htype`.
+    """Utility that stores a link to raw data. Used to add data to a Deep Lake Dataset without copying it. See :ref:`Link htype`.
 
     Supported file types::
 

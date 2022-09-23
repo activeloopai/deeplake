@@ -54,7 +54,7 @@ class ImageClassification(UnstructuredDataset):
 
         Args:
             source (str): The full path to the dataset.
-                Can be a Hub cloud path of the form hub://username/datasetname. To write to Hub cloud datasets, ensure that you are logged in to Hub (use 'activeloop login' from command line)
+                Can be a Deep Lake cloud path of the form Deep Lake://username/datasetname. To write to Deep Lake cloud datasets, ensure that you are logged in to Deep Lake (use 'activeloop login' from command line)
                 Can be a s3 path of the form s3://bucketname/path/to/dataset. Credentials are required in either the environment or passed to the creds argument.
                 Can be a local file system path of the form ./path/to/dataset or ~/path/to/dataset or path/to/dataset.
                 Can be a memory path of the form mem://path/to/dataset which doesn't save the dataset but keeps it in memory instead. Should be used only for testing as it does not persist.
@@ -101,13 +101,13 @@ class ImageClassification(UnstructuredDataset):
         """Create a structured dataset.
 
         Args:
-            ds (Dataset) : A Hub dataset object.
+            ds (Dataset) : A Deep Lake dataset object.
             use_progress_bar (bool): Defines if the method uses a progress bar. Defaults to True.
             generate_summary (bool): Defines if the method generates ingestion summary. Defaults to True.
             image_tensor_args (dict): Defines the sample compression of the dataset (jpeg or png).
 
         Returns:
-            A hub dataset.
+            A Deep Lake dataset.
 
         """
 

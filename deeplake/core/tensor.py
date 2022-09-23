@@ -212,7 +212,7 @@ class Tensor:
 
         Note:
             This operation does not create a new tensor in the storage provider,
-            and should normally only be performed by Hub internals.
+            and should normally only be performed by Deep Lake internals.
         """
         self.key = key
         self.dataset = dataset

@@ -1,5 +1,5 @@
 r"""
-The hub package provides a database which stores data as compressed chunked arrays that can be stored anywhere and 
+The deeplake package provides a database which stores data as compressed chunked arrays that can be stored anywhere and 
 later streamed to deep learning models.
 """
 

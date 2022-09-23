@@ -8,7 +8,7 @@ from tqdm import tqdm  # type: ignore
 
 class DataFrame(StructuredDataset):
     def __init__(self, source):
-        """Convert a pandas dataframe to a Hub dataset.
+        """Convert a pandas dataframe to a Deep Lake dataset.
 
         Args:
             source: Pandas dataframe object.
@@ -26,11 +26,11 @@ class DataFrame(StructuredDataset):
         """Fill dataset with data from the dataframe - one tensor per column
 
         Args:
-            ds (Dataset) : A Hub dataset object.
+            ds (Dataset) : A Deep Lake dataset object.
             use_progress_bar (bool) : Defines if the method uses a progress bar. Defaults to True.
 
         Returns:
-            A hub dataset.
+            A Deep Lake dataset.
 
         """
         keys = list(self.source.columns)

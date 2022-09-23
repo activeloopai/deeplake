@@ -7,4 +7,4 @@ deeplake.experimental
 
 .. autofunction:: query
 
-.. autofunction:: dataset_to_deeplake3
+.. autofunction:: dataset_to_hub3
