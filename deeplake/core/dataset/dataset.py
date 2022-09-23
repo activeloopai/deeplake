@@ -47,7 +47,7 @@ from deeplake.htype import (
     verify_htype_key_value,
 )
 from deeplake.integrations import dataset_to_tensorflow
-from deeplake.util.bugout_reporter import deeplake as dl_reporter, feature_report_path
+from deeplake.util.bugout_reporter import dl_reporter, feature_report_path
 from deeplake.util.dataset import try_flushing
 from deeplake.util.cache_chain import generate_chain
 from deeplake.util.hash import hash_inputs

@@ -41,7 +41,7 @@ import jwt  # should add it to requirements.txt
 retry_status_codes = {502}
 
 
-class HubBackendClient:
+class DeeplakeBackendClient:
     """Communicates with Activeloop Backend"""
 
     def __init__(self, token: Optional[str] = None):

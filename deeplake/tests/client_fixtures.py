@@ -9,7 +9,7 @@ from deeplake.constants import (
 from deeplake.tests.common import is_opt_true
 import os
 import pytest
-from deeplake.client.client import HubBackendClient
+from deeplake.client.client import DeeplakeBackendClient
 from deeplake.client.config import (
     USE_LOCAL_HOST,
     USE_DEV_ENVIRONMENT,
@@ -46,7 +46,7 @@ def hub_cloud_dev_credentials(request):
 def hub_cloud_dev_token(hub_cloud_dev_credentials):
     username, password = hub_cloud_dev_credentials
 
-    client = HubBackendClient()
+    client = DeeplakeBackendClient()
     token = client.request_auth_token(username, password)
     return token
 

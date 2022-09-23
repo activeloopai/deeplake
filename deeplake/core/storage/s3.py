@@ -6,7 +6,7 @@ import botocore  # type: ignore
 import posixpath
 from typing import Dict, Optional, Tuple
 from botocore.session import ComponentLocator
-from deeplake.client.client import HubBackendClient
+from deeplake.client.client import DeeplakeBackendClient
 from deeplake.core.storage.provider import StorageProvider
 from deeplake.util.exceptions import (
     S3DeletionError,
@@ -485,7 +485,7 @@ class S3Provider(StorageProvider):
         This would only happen for datasets stored on Hub storage for which temporary 12 hour credentials are generated.
         """
         if self.expiration and (force or float(self.expiration) < time.time()):
-            client = HubBackendClient(self.token)
+            client = DeeplakeBackendClient(self.token)
             org_id, ds_name = self.tag.split("/")
 
             mode = "r" if self.read_only else "a"
@@ -569,7 +569,7 @@ class S3Provider(StorageProvider):
 
         if url is None:
             if self._is_hub_path:
-                client = HubBackendClient(self.token)
+                client = DeeplakeBackendClient(self.token)
                 org_id, ds_name = self.tag.split("/")  # type: ignore
                 url = client.get_presigned_url(org_id, ds_name, key)
             else:

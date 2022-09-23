@@ -13,7 +13,7 @@ from deeplake.core.storage import (
     MemoryProvider,
     GDriveProvider,
 )
-from deeplake.client.client import HubBackendClient
+from deeplake.client.client import DeeplakeBackendClient
 import posixpath
 from deeplake.constants import DEFAULT_READONLY
 
@@ -94,7 +94,7 @@ def storage_provider_from_hub_path(
     path: str, read_only: bool = False, token: str = None
 ):
     path, org_id, ds_name, subdir = process_hub_path(path)
-    client = HubBackendClient(token=token)
+    client = DeeplakeBackendClient(token=token)
 
     mode = "r" if read_only else None
 

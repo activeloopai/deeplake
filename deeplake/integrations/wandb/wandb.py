@@ -112,7 +112,7 @@ def _is_public(ds_path):
     try:
         dl.load(
             ds_path,
-            token=dl.client.client.HubBackendClient(token="").request_auth_token(
+            token=dl.client.client.DeeplakeBackendClient(token="").request_auth_token(
                 username="public", password=""
             ),
         )

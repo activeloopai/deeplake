@@ -4,7 +4,7 @@ from typing import Callable, List, Optional
 from itertools import repeat
 from deeplake.core.compute.provider import ComputeProvider
 from deeplake.core.storage.memory import MemoryProvider
-from deeplake.util.bugout_reporter import deeplake as dl_reporter
+from deeplake.util.bugout_reporter import dl_reporter
 from deeplake.util.compute import get_compute_provider
 from deeplake.util.dataset import try_flushing
 from deeplake.util.remove_cache import (

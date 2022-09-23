@@ -4,7 +4,7 @@ from deeplake.client.config import HUB_REST_ENDPOINT
 import click
 from humbug.report import Report
 
-from deeplake.client.client import HubBackendClient
+from deeplake.client.client import DeeplakeBackendClient
 from deeplake.client.utils import remove_username_from_config, write_token, remove_token
 from deeplake.util.bugout_reporter import (
     save_reporting_config,
@@ -36,7 +36,7 @@ def login(username: str, password: str):
         username = username.strip()
         password = password.strip()
         try:
-            client = HubBackendClient()
+            client = DeeplakeBackendClient()
             token = client.request_auth_token(username, password)
             write_token(token)
             click.echo("Successfully logged in to Activeloop.")
@@ -108,7 +108,7 @@ def register(username: str, email: str, password: str):
     email = email.strip()
     password = password.strip()
     try:
-        client = HubBackendClient()
+        client = DeeplakeBackendClient()
         client.send_register_request(username, email, password)
         token = client.request_auth_token(username, password)
         write_token(token)

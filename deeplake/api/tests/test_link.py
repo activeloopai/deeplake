@@ -4,7 +4,7 @@ import sys
 import pickle
 import deeplake as dl
 import pytest
-from deeplake.client.client import HubBackendClient
+from deeplake.client.client import DeeplakeBackendClient
 from deeplake.constants import GCS_OPT, S3_OPT
 from deeplake.core.link_creds import LinkCreds
 from deeplake.core.meta.encode.creds import CredsEncoder
@@ -270,7 +270,7 @@ def test_basic(local_ds_generator, cat_path, flower_path, create_shape_tensor, v
 def test_jwt_link(local_ds):
     with local_ds as ds:
         ds.create_tensor("img", htype="link[image]", create_shape_tensor=False)
-        auth = HubBackendClient().auth_header
+        auth = DeeplakeBackendClient().auth_header
         my_jwt = {"Authorization": auth}
         ds.add_creds_key("my_jwt_key")
         ds.populate_creds("my_jwt_key", my_jwt)

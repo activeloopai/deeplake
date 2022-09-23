@@ -6,7 +6,7 @@ from typing import Dict, Optional, Union, List
 
 from deeplake.auto.unstructured.kaggle import download_kaggle_dataset
 from deeplake.auto.unstructured.image_classification import ImageClassification
-from deeplake.client.client import HubBackendClient
+from deeplake.client.client import DeeplakeBackendClient
 from deeplake.client.log import logger
 from deeplake.core.dataset import Dataset, dataset_factory
 from deeplake.core.meta.dataset_meta import DatasetMeta
@@ -1165,6 +1165,6 @@ class dataset:
         Returns:
             List: List of dataset names.
         """
-        client = HubBackendClient(token=token)
+        client = DeeplakeBackendClient(token=token)
         datasets = client.get_datasets(workspace=workspace)
         return datasets

@@ -5,7 +5,7 @@ from io import StringIO
 from contextlib import contextmanager
 from click.testing import CliRunner
 from deeplake.cli.auth import login, logout
-from deeplake.client.client import HubBackendClient
+from deeplake.client.client import DeeplakeBackendClient
 from deeplake.util.exceptions import (
     AgreementNotAcceptedError,
     NotLoggedInAgreementError,
@@ -42,7 +42,7 @@ def agree(path):
 
 
 def reject(path):
-    client = HubBackendClient()
+    client = DeeplakeBackendClient()
     org_id, ds_name = path.split("/")[-2:]
     client.reject_agreements(org_id, ds_name)
 

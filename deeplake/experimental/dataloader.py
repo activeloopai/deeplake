@@ -4,7 +4,7 @@ from deeplake.experimental.util import raise_indra_installation_error  # type: i
 from deeplake.experimental.util import collate_fn as default_collate  # type: ignore
 from deeplake.experimental.hub3_query import query
 from deeplake.integrations.pytorch.common import PytorchTransformFunction
-from deeplake.util.bugout_reporter import deeplake as dl_reporter
+from deeplake.util.bugout_reporter import dl_reporter
 from deeplake.util.dataset import map_tensor_keys
 import importlib
 

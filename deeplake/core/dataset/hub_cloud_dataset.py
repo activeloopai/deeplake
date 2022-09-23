@@ -3,8 +3,8 @@ from typing import Any, Dict, Union
 from deeplake.client.utils import get_user_name
 from deeplake.constants import HUB_CLOUD_DEV_USERNAME
 from deeplake.core.dataset import Dataset
-from deeplake.client.client import HubBackendClient
-from deeplake.util.bugout_reporter import deeplake as dl_reporter
+from deeplake.client.client import DeeplakeBackendClient
+from deeplake.util.bugout_reporter import dl_reporter
 from deeplake.util.exceptions import RenameError, ReadOnlyModeError
 from deeplake.util.link import save_link_creds
 from deeplake.util.path import is_hub_cloud_path
@@ -36,7 +36,7 @@ class HubCloudDataset(Dataset):
     @property
     def client(self):
         if self._client is None:
-            self.__dict__["_client"] = HubBackendClient(token=self._token)
+            self.__dict__["_client"] = DeeplakeBackendClient(token=self._token)
         return self._client
 
     @property

@@ -1,5 +1,5 @@
 from deeplake.experimental.convert_to_hub3 import dataset_to_hub3
-from deeplake.util.bugout_reporter import deeplake as dl_reporter
+from deeplake.util.bugout_reporter import dl_reporter
 
 
 @dl_reporter.record_call
