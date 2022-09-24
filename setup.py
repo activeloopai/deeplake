@@ -68,7 +68,7 @@ def libdeeplake_availabe():
         if py_ver >= (3, 6) and py_ver <= (3, 10):
             return True
     if sys.platform == "darwin":
-        mac_ver = sys.platform.mac_ver()
+        mac_ver = platform.mac_ver()[0]
         if (
             (mac_ver[0] > 10 or mac_ver[0] == 10 and mac_ver[1] >= 12)
             and py_ver >= (3, 6)
