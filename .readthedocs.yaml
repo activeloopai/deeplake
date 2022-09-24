@@ -10,6 +10,6 @@ sphinx:
 
 python:
    install:
-    - requirements: hub/requirements/docs.txt
+    - requirements: deeplake/requirements/docs.txt
     - method: pip
       path: .
