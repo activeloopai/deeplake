@@ -1,4 +1,5 @@
 from typing import Union, List
+from hub.core.tensor import Tensor
 import numpy as np
 
 
@@ -45,6 +46,8 @@ class Polygons:
     def __init__(self, data: Union[np.ndarray, List], dtype="float32"):
         if data is None:
             data = []
+        if isinstance(data, Tensor):
+            data = data.numpy()
         self.data = data
         self.dtype = dtype
         self._validate()
@@ -60,10 +63,8 @@ class Polygons:
 
     def __getitem__(self, i):
         """Returns a :class:`~hub.core.polygon.Polygon` if ``i`` is an ``int``, otherwise another :class:`~hub.core.polygon.Polygons` object."""
-        if isinstance(i, int):
+        if isinstance(i, (int, slice, list)):
             return Polygon(self.data[i], self.dtype)
-        elif isinstance(i, (slice, list)):
-            return Polygons(self.data[i], self.dtype)
         elif isinstance(i, tuple):
             if len(i) != 1:
                 raise IndexError(f"Unsupported index: {i}")
