@@ -63,11 +63,17 @@ def get_property(prop):
 
 
 def libdeeplake_availabe():
+    py_ver = sys.version_info
     if sys.platform == "linux":
-        return True
+        if py_ver >= (3, 6) and py_ver <= (3, 10):
+            return True
     if sys.platform == "darwin":
         mac_ver = sys.platform.mac_ver()
-        if mac_ver[0] > 10 or mac_ver[0] == 10 and vac_ver[1] >= 12:
+        if (
+            (mac_ver[0] > 10 or mac_ver[0] == 10 and mac_ver[1] >= 12)
+            and py_ver >= (3, 6)
+            and py_ver <= (3, 10)
+        ):
             return True
     return False
 
