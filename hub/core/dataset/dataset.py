@@ -2414,6 +2414,7 @@ class Dataset:
             optimize (bool):
                 - If ``True``, the dataset view will be optimized by copying and rechunking the required data. This is necessary to achieve fast streaming speeds when training models using the dataset view. The optimization process will take some time, depending on the size of the data.
                 - You can also choose to optimize the saved view later by calling its :meth:`ViewEntry.optimize` method.
+            tensors (List, optional): Names of tensors (and groups) to be copied. If not specified all tensors are copied.
             num_workers (int): Number of workers to be used for optimization process. Applicable only if ``optimize=True``. Defaults to 0.
             scheduler (str): The scheduler to be used for optimization. Supported values include: 'serial', 'threaded', 'processed' and 'ray'. Only applicable if ``optimize=True``. Defaults to 'threaded'.
             verbose (bool): If ``True``, logs will be printed. Defaults to ``True``.

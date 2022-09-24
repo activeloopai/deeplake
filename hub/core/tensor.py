@@ -739,9 +739,9 @@ class Tensor:
         ret = self.numpy()  # type: ignore
         if self.base_htype == "polygon":
             return np.array(ret, dtype=dtype)
-        if dtype and ret.dtype != dtype:
-            ret = ret.astype(dtype)
-        return ret
+        if dtype and ret.dtype != dtype:  # type: ignore
+            ret = ret.astype(dtype)  # type: ignore
+        return ret  # type: ignore
 
     @_inplace_op
     def __iadd__(self, other):
