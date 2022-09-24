@@ -1,10 +1,6 @@
 from typing import Optional
-<<<<<<< HEAD:hub/core/linked_sample.py
-from hub.constants import ALL_CLOUD_PREFIXES
-import numpy as np
-=======
 from deeplake.constants import ALL_CLOUD_PREFIXES
->>>>>>> f13af75bb31f6b78c232d9a0ac9f7ce32ccb5922:deeplake/core/linked_sample.py
+import numpy as np
 
 
 def convert_creds_key(creds_key: Optional[str], path: str):
