@@ -16,6 +16,6 @@ pydicom
 IPython
 flask
 pyjwt
-libdeeplake==0.0.7; python_version >= '3.6' and python_version <= '3.10' and sys_platform != 'win32' and sys_platform != 'darwin'
+libdeeplake==0.0.8; python_version >= '3.6' and python_version <= '3.10' and sys_platform != 'win32' and sys_platform != 'darwin'
 laspy
 hubx
