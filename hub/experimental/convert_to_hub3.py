@@ -4,12 +4,10 @@ from hub.util.dataset import try_flushing  # type: ignore
 import importlib
 
 INDRA_INSTALLED = bool(importlib.util.find_spec("indra"))
-
+INDRA_IMPORT_ERROR = None
 if INDRA_INSTALLED:
     try:
         from indra import api  # type:ignore
-
-        INDRA_IMPORT_ERROR = None
     except ImportError as e:
         INDRA_IMPORT_ERROR = e
 
