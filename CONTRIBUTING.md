@@ -58,7 +58,7 @@ If you feel lost with any of these sections, try reading up on some of these top
 
 
 ### Fixture Usage Examples
-These are not all of the available fixtures. You can see all of them [here](hub/tests/).
+These are not all of the available fixtures. You can see all of them [here](/deeplake/tests/).
 
 Datasets
 ```python

@@ -76,7 +76,7 @@ def create_tensor(
         chunk_compression (str): All chunks will be compressed in the provided format. If `None`, chunks are uncompressed.
         version_state (Dict[str, Any]): The version state of the dataset, includes commit_id, commit_node, branch, branch_commit_map and commit_node_map.
         **kwargs: `htype` defaults can be overridden by passing any of the compatible parameters.
-            To see all `htype`s and their correspondent arguments, check out `hub/htypes.py`.
+            To see all `htype`s and their correspondent arguments, check out `/deeplake/htypes.py`.
 
     Raises:
         TensorAlreadyExistsError: If a tensor defined with `key` already exists.
