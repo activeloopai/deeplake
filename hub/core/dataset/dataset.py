@@ -1014,7 +1014,7 @@ class Dataset:
                 self.__dict__["_locked_out"] = True
                 if err:
                     raise e
-                if verbose:
+                if verbose and self.verbose:
                     always_warn(
                         "Checking out dataset in read only mode as another machine has locked this version for writing."
                     )
@@ -1540,7 +1540,7 @@ class Dataset:
             if self.index.is_trivial():
                 self.index = Index.from_json(self.meta.default_index)
         elif not self._read_only:
-            self._lock()  # for ref counting
+            self._lock(verbose=verbose)  # for ref counting
 
         if not self.is_iteration:
             group_index = self.group_index
@@ -2525,7 +2525,7 @@ class Dataset:
                     scheduler,
                     **ds_args,
                 )
-        if verbose:
+        if verbose and self.verbose:
             log_visualizer_link(vds.path, self.path)
         if _ret_ds:
             return vds
