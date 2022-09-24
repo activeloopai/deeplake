@@ -2379,6 +2379,7 @@ class Dataset:
         path: Optional[Union[str, pathlib.Path]] = None,
         id: Optional[str] = None,
         optimize: bool = False,
+        tensors: Optional[List[str]] = None,
         num_workers: int = 0,
         scheduler: str = "threaded",
         verbose: bool = True,
@@ -2432,6 +2433,7 @@ class Dataset:
         return self._save_view(
             path,
             id,
+            tensors,
             message,
             optimize,
             num_workers,
@@ -2447,6 +2449,7 @@ class Dataset:
         id: Optional[str] = None,
         message: Optional[str] = None,
         optimize: bool = False,
+        tensors: Optional[List[str]] = None,
         num_workers: int = 0,
         scheduler: str = "threaded",
         verbose: bool = True,
@@ -2689,6 +2692,7 @@ class Dataset:
         self,
         id: str,
         optimize: Optional[bool] = False,
+        tensors: Optional[List[str]] = None,
         num_workers: int = 0,
         scheduler: str = "threaded",
         progressbar: Optional[bool] = True,
@@ -2700,6 +2704,7 @@ class Dataset:
             optimize (bool): If ``True``, the dataset view is optimized by copying and rechunking the required data before loading. This is
                 necessary to achieve fast streaming speeds when training models using the dataset view. The optimization process will
                 take some time, depending on the size of the data.
+            tensors (Optional, List[str]): Tensors to be copied if `optimize` is True. By default all tensors are copied.
             num_workers (int): Number of workers to be used for the optimization process. Only applicable if `optimize=True`. Defaults to 0.
             scheduler (str): The scheduler to be used for optimization. Supported values include: 'serial', 'threaded', 'processed' and 'ray'.
                 Only applicable if `optimize=True`. Defaults to 'threaded'.
@@ -2715,6 +2720,7 @@ class Dataset:
             return (
                 self.get_view(id)
                 .optimize(
+                    tensors=tensors,
                     num_workers=num_workers,
                     scheduler=scheduler,
                     progressbar=progressbar,

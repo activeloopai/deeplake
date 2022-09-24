@@ -66,7 +66,7 @@ class ViewEntry:
 
     def optimize(
         self,
-        tensors: Optional[List[str]],
+        tensors: Optional[List[str]] = None,
         unlink=True,
         num_workers=0,
         scheduler="threaded",
