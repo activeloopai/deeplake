@@ -9,10 +9,10 @@ project_name = "deeplake"
 
 this_directory = os.path.abspath(os.path.dirname(__file__))
 
-with open(os.path.join(this_directory, "hub/requirements/common.txt")) as f:
+with open(os.path.join(this_directory, "deeplake/requirements/common.txt")) as f:
     requirements = f.readlines()
 
-with open(os.path.join(this_directory, "hub/requirements/tests.txt")) as f:
+with open(os.path.join(this_directory, "deeplake/requirements/tests.txt")) as f:
     tests = f.readlines()
 
 with open(os.path.join(this_directory, "README.md"), encoding="utf-8") as f:
@@ -61,6 +61,7 @@ def get_property(prop):
     )
     return result.group(1)
 
+
 def libdeeplake_availabe():
     if sys.platform == "linux":
         return True
@@ -68,7 +69,7 @@ def libdeeplake_availabe():
         mac_ver = sys.platform.mac_ver()
         if mac_ver[0] > 10 or mac_ver[0] == 10 and vac_ver[1] >= 12:
             return True
-    return False 
+    return False
 
 
 if libdeeplake_availabe():
