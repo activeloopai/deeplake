@@ -1,6 +1,6 @@
 from typing import Union, List
-from hub.core.tensor import Tensor
 import numpy as np
+import hub
 
 
 class Polygon:
@@ -46,7 +46,7 @@ class Polygons:
     def __init__(self, data: Union[np.ndarray, List], dtype="float32"):
         if data is None:
             data = []
-        if isinstance(data, Tensor):
+        if isinstance(data, hub.core.tensor.Tensor):
             data = data.numpy()
         self.data = data
         self.dtype = dtype
