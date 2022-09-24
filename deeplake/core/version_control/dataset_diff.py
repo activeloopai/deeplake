@@ -1,11 +1,11 @@
-from deeplake.core.storage.hub_memory_object import HubMemoryObject
+from deeplake.core.storage.deeplake_memory_object import DeeplakeMemoryObject
 from deeplake.core.storage import LRUCache
 from deeplake.util.keys import get_dataset_diff_key
 import typing
 from collections import OrderedDict
 
 
-class DatasetDiff(HubMemoryObject):
+class DatasetDiff(DeeplakeMemoryObject):
     def __init__(self) -> None:
         self.is_dirty = False
         self.info_updated = False
