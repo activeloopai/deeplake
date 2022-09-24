@@ -1,4 +1,4 @@
-from hub.core.lock import _LOCKS, _REFS
+from deeplake.core.lock import _LOCKS, _REFS
 import os
 import logging
 
@@ -11,19 +11,19 @@ os.environ["TF_CPP_MIN_LOG_LEVEL"] = "2"
 logging.disable(logging.INFO)
 
 # Use staging environment for tests.
-import hub.client.config
+import deeplake.client.config
 
-hub.client.config.USE_STAGING_ENVIRONMENT = True
+deeplake.client.config.USE_STAGING_ENVIRONMENT = True
 
-from hub.constants import *
-from hub.tests.common import SESSION_ID
+from deeplake.constants import *
+from deeplake.tests.common import SESSION_ID
 
 # import * so all fixtures can be used accross the project
-from hub.tests.path_fixtures import *
-from hub.tests.dataset_fixtures import *
-from hub.tests.storage_fixtures import *
-from hub.tests.cache_fixtures import *
-from hub.tests.client_fixtures import *
+from deeplake.tests.path_fixtures import *
+from deeplake.tests.dataset_fixtures import *
+from deeplake.tests.storage_fixtures import *
+from deeplake.tests.cache_fixtures import *
+from deeplake.tests.client_fixtures import *
 import pytest
 
 
