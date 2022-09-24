@@ -1031,9 +1031,9 @@ class Tensor:
         Example:
 
             >>> ds.videos[0].sample_info
-            {'duration': 400400, 'fps': 29.97002997002997, 'timebase': 3.3333333333333335e-05, 'shape': [400, 360, 640, 3], 'format': 'mp4', 'filename': '../hub/tests/dummy_data/video/samplemp4.mp4', 'modified': False}
+            {'duration': 400400, 'fps': 29.97002997002997, 'timebase': 3.3333333333333335e-05, 'shape': [400, 360, 640, 3], 'format': 'mp4', 'filename': '../deeplake/tests/dummy_data/video/samplemp4.mp4', 'modified': False}
             >>> ds.images[:2].sample_info
-            [{'exif': {'Software': 'Google'}, 'shape': [900, 900, 3], 'format': 'jpeg', 'filename': '../hub/tests/dummy_data/images/cat.jpeg', 'modified': False}, {'exif': {}, 'shape': [495, 750, 3], 'format': 'jpeg', 'filename': '../hub/tests/dummy_data/images/car.jpg', 'modified': False}]
+            [{'exif': {'Software': 'Google'}, 'shape': [900, 900, 3], 'format': 'jpeg', 'filename': '../deeplake/tests/dummy_data/images/cat.jpeg', 'modified': False}, {'exif': {}, 'shape': [495, 750, 3], 'format': 'jpeg', 'filename': '../deeplake/tests/dummy_data/images/car.jpg', 'modified': False}]
         """
         return self._sample_info(self.index)
 
