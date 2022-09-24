@@ -1,5 +1,7 @@
 import os
+import sys
 import re
+import platform
 from setuptools import find_packages, setup
 
 project_name = "deeplake"
@@ -58,6 +60,19 @@ def get_property(prop):
         open(init_file).read(),
     )
     return result.group(1)
+
+def libdeeplake_availabe():
+    if sys.platform == "linux":
+        return True
+    if sys.platform == "darwin":
+        mac_ver = sys.platform.mac_ver()
+        if mac_ver[0] > 10 or mac_ver[0] == 10 and vac_ver[1] >= 12:
+            return True
+    return False 
+
+
+if libdeeplake_availabe():
+    install_requires.insert(0, "libdeeplake")
 
 
 config = {

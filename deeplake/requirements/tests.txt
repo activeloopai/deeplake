@@ -1,3 +1,4 @@
+libdeeplake
 pytest
 pytest-cases
 pytest-benchmark
