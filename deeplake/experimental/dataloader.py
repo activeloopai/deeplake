@@ -20,6 +20,7 @@ def import_indra_loader():
     if not importlib.util.find_spec("indra"):
         raise_indra_installation_error()  # type: ignore
     try:
+        from indra import api  # type: ignore
         from indra.pytorch.loader import Loader  # type:ignore
 
         INDRA_LOADER = Loader
