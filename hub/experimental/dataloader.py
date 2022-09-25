@@ -275,7 +275,7 @@ class Hub3DataLoader:
 
     def __iter__(self):
         tensors = self._tensors or map_tensor_keys(self.dataset, None)
-        check_tensors(dataset, tensors, self._mode)
+        check_tensors(self.dataset, tensors, self._mode)
         dataset = dataset_to_hub3(self.dataset)
         batch_size = self._batch_size or 1
         drop_last = self._drop_last or False
