@@ -8,15 +8,24 @@ from deeplake.util.bugout_reporter import deeplake_reporter
 from deeplake.util.dataset import map_tensor_keys
 import importlib
 
-INDRA_INSTALLED = bool(importlib.util.find_spec("indra"))
 
-if INDRA_INSTALLED:
+# Load lazy to avoid cycylic import.
+INDRA_LOADER = None
+
+
+def import_indra_loader():
+    global INDRA_LOADER
+    if INDRA_LOADER:
+        return INDRA_LOADER
+    if not importlib.util.find_spec("indra"):
+        raise_indra_installation_error()  # type: ignore
     try:
         from indra.pytorch.loader import Loader  # type:ignore
 
-        INDRA_IMPORT_ERROR = None
-    except ImportError as e:
-        INDRA_IMPORT_ERROR = e
+        INDRA_LOADER = Loader
+        return Loader
+    except Exception as e:
+        raise_indra_installation_error(e)
 
 
 class Hub3DataLoader:
@@ -36,7 +45,7 @@ class Hub3DataLoader:
         _mode=None,
         _return_index=None,
     ):
-        raise_indra_installation_error(INDRA_INSTALLED, INDRA_IMPORT_ERROR)
+        import_indra_loader()
         self.dataset = dataset
         self._batch_size = _batch_size
         self._shuffle = _shuffle
@@ -295,7 +304,7 @@ class Hub3DataLoader:
             self._mode == "pytorch"
         )  # only upcast for pytorch, this handles unsupported dtypes
         return iter(
-            Loader(
+            INDRA_LOADER(
                 dataset,
                 batch_size=batch_size,
                 num_threads=num_threads,

@@ -8,20 +8,31 @@ from deeplake.experimental.util import raise_indra_installation_error  # type: i
 from deeplake.util.dataset import try_flushing  # type: ignore
 import importlib
 
-INDRA_INSTALLED = bool(importlib.util.find_spec("indra"))
+# Load lazy to avoid cycylic import.
+INDRA_API = None
 
-if INDRA_INSTALLED:
+
+def import_indra_api():
+    global INDRA_API
+    if INDRA_API:
+        return INDRA_API
+    if not importlib.util.find_spec("indra"):
+        raise_indra_installation_error()  # type: ignore
     try:
-        from indra import api  # type:ignore
+        from indra import api  # type: ignore
 
-        INDRA_IMPORT_ERROR = None
-    except ImportError as e:
-        INDRA_IMPORT_ERROR = e
+        INDRA_API = api
+        return api
+    except Exception as e:
+        raise_indra_installation_error(e)
+
+
+INDRA_INSTALLED = bool(importlib.util.find_spec("indra"))
 
 
 def dataset_to_hub3(hub2_dataset):
     """Convert a hub 2.x dataset object to a hub 3.x dataset object."""
-    raise_indra_installation_error(INDRA_INSTALLED, INDRA_IMPORT_ERROR)
+    api = import_indra_api()
     try_flushing(hub2_dataset)
     path: str = hub2_dataset.path
     if path.startswith("gdrive://"):
