@@ -83,6 +83,7 @@ if libdeeplake_availabe():
 
 
 config = {
+    "name": project_name,
     "version": get_property("__version__"),
     "description": "Activeloop Deep Lake",
     "long_description": long_description,
