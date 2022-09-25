@@ -79,7 +79,7 @@ def libdeeplake_availabe():
 
 
 if libdeeplake_availabe():
-    install_requires.insert(0, "libdeeplake")
+    install_requires.insert(0, "libdeeplake==0.0.10")
 
 
 config = {

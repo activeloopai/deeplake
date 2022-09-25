@@ -1,4 +1,4 @@
-libdeeplake
+libdeeplake==0.0.10
 pytest
 pytest-cases
 pytest-benchmark
