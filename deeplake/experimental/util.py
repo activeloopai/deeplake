@@ -1,4 +1,3 @@
-import deeplake
 import torch
 from typing import Optional
 import numpy as np
