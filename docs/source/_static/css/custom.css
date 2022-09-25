@@ -119,3 +119,16 @@ dl.field-list strong {
 dl.field-list dd em {
     padding-right: 2px;
 }
+
+.blue {
+    color: #4d77cf;
+}
+
+/* code block settings */
+.rst-content .linenodiv pre,
+.rst-content div[class^=highlight] pre,
+.rst-content pre.literal-block {
+    font-family: SFMono-Regular, Menlo, Monaco, Consolas, Liberation Mono, Courier New, Courier, monospace;
+    font-size: 14px;
+    line-height: 1.4
+}

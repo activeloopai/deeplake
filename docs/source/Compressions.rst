@@ -14,7 +14,7 @@ are given below.
 |                |                | | ``png``, ``ppm``, ``sgi``, ``tga``,  |
 |                |                | | ``tiff``, ``webp``, ``wmf``, ``xbm``,|
 |                |                | | ``eps``, ``fli``, ``im``, ``msp``,   |
-|                |                | | ``mpo``                              |
+|                |                | | ``mpo``, ``apng``                    |
 +----------------+----------------+----------------------------------------+
 | Video          | video          | ``mp4``, ``mkv``, ``avi``              |
 +----------------+----------------+----------------------------------------+
@@ -28,6 +28,8 @@ are given below.
 |                | list, json,    |                                        |
 |                | generic, etc.  |                                        |
 +----------------+----------------+----------------------------------------+
+
+.. _sample_compression:
 
 Sample Compression
 ~~~~~~~~~~~~~~~~~~
@@ -51,6 +53,8 @@ Examples::
     :scale: 80%
 
     Structure of sample-wise compressed tensor.
+
+.. _chunk_compression:
 
 Chunk Compression
 ~~~~~~~~~~~~~~~~~
