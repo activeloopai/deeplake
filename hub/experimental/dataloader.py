@@ -189,7 +189,7 @@ class Hub3DataLoader:
         prefetch_factor: int = 10,
         distributed: bool = False,
         return_index: bool = True,
-        tobytes: Union[bool, Sequence[str]] = False
+        tobytes: Union[bool, Sequence[str]] = False,
     ):
         """Returns a hub.experimental.Hub3DataLoader object.
 
@@ -232,7 +232,7 @@ class Hub3DataLoader:
         tensors: Optional[List[str]] = None,
         num_threads: Optional[int] = None,
         prefetch_factor: int = 10,
-        tobytes: Union[bool, Sequence[str]] = False
+        tobytes: Union[bool, Sequence[str]] = False,
     ):
         """Returns a hub.experimental.Hub3DataLoader object.
 
@@ -405,7 +405,5 @@ def handle_tensors_and_tobytes(tensors, tobytes, dataset, all_vars):
             tensor_set = set(all_vars["_tensors"])
             for tensor in tobytes:
                 if tensor not in tensor_set:
-                    raise ValueError(
-                        f"tobytes tensor {tensor} not found in tensors."
-                    )
+                    raise ValueError(f"tobytes tensor {tensor} not found in tensors.")
     all_vars["_tobytes"] = tobytes
