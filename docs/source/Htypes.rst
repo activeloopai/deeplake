@@ -354,7 +354,7 @@ You can also choose to set the class names after tensor creation.
 :blue:`Appending segmentation masks`
 ------------------------------------
 
-- Segmentation masks can be appended as ``np.ndarray`` s.
+- Segmentation masks can be appended as ``np.ndarray``.
 - Input sample shape: ``(height, width)``
 
 :blue:`Examples`
@@ -398,7 +398,7 @@ A binary_mask tensor can be created using
 :blue:`Appending binary masks`
 ------------------------------
 
-- Binary masks can be appended as ``np.ndarray`` s.
+- Binary masks can be appended as ``np.ndarray``.
 - Input sample shape: ``(height, width, # objects in the sample)``
 
 :blue:`Examples`
@@ -450,7 +450,7 @@ You can also choose to set ``keypoints`` and / or ``connections`` after tensor c
 :blue:`Appending keypoints`
 ---------------------------
 
-- Keypoints can be appended as ``np.ndarray`` s or ``list`` s.
+- Keypoints can be appended as ``np.ndarray`` or ``list``.
 - Input sample shape: ``(3 x # keypoints, # objects in the sample)``
 
 :blue:`Examples`
@@ -504,7 +504,7 @@ A point tensor can be created using
 :blue:`Appending point samples`
 -------------------------------
 
-- Points can be appended as ``np.ndarray`` s or ``list`` s.
+- Points can be appended as ``np.ndarray`` or ``list``.
 - Input sample shape: ``(# points, 2)`` for 2-D or ``(# points, 3)`` for 3-D points.
 
 :blue:`Examples`
