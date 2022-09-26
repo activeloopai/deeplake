@@ -105,7 +105,7 @@ def test_tensorflow_string_objects(local_ds: Dataset):
 
 @requires_tensorflow
 @pytest.mark.parametrize("compression", [None, "jpeg"])
-def test_pytorch_tobytes(local_ds, compressed_image_paths, compression):
+def test_tensorflow_tobytes(local_ds, compressed_image_paths, compression):
     ds = local_ds
     with ds:
         ds.create_tensor("image", sample_compression=compression)
