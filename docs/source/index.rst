@@ -37,6 +37,7 @@ Hub is an open-source database for AI.
    :caption: Experimental API
 
    Dataloader & Query <Dataloader-and-Query>
+   Tensor Query Language <Tensor-Query-Language>
 
 .. toctree::
    :maxdepth: 1

@@ -63,14 +63,14 @@ class Hub3DataLoader:
         self._to_bytes = _to_bytes
 
     def batch(self, batch_size: int, drop_last: bool = False):
-        """Returns a batched hub.experimental.Hub3DataLoader object.
+        """Returns a batched :class:`Hub3DataLoader` object.
 
         Args:
             batch_size (int): Number of samples in each batch.
             drop_last (bool): If True, the last batch will be dropped if its size is less than batch_size. Defaults to False.
 
         Returns:
-            Hub3DataLoader: A hub.experimental.Hub3DataLoader object.
+            Hub3DataLoader: A :class:`Hub3DataLoader` object.
 
         Raises:
             ValueError: If .batch() has already been called.
@@ -84,13 +84,13 @@ class Hub3DataLoader:
         return self.__class__(**all_vars)
 
     def shuffle(self, buffer_size: int = 2048):
-        """Returns a shuffled hub.experimental.Hub3DataLoader object.
+        """Returns a shuffled :class:`Hub3DataLoader` object.
 
         Args:
             buffer_size (int): The size of the buffer used to shuffle the data in MBs. Defaults to 2048 MB. Increasing the buffer_size will increase the extent of shuffling.
 
         Returns:
-            Hub3DataLoader: A hub.experimental.Hub3DataLoader object.
+            Hub3DataLoader: A :class:`Hub3DataLoader` object.
 
         Raises:
             ValueError: If .shuffle() has already been called.
@@ -106,14 +106,14 @@ class Hub3DataLoader:
         return self.__class__(**all_vars)
 
     def transform(self, transform: Union[Callable, Dict[str, Optional[Callable]]]):
-        """Returns a transformed hub.experimental.Hub3DataLoader object.
+        """Returns a transformed :class:`Hub3DataLoader` object.
 
 
         Args:
             transform (Callable or Dict[Callable]): A function or dictionary of functions to apply to the data.
 
         Returns:
-            Hub3DataLoader: A hub.experimental.Hub3DataLoader object.
+            Hub3DataLoader: A :class:`Hub3DataLoader` object.
 
         Raises:
             ValueError: If .transform() has already been called.
@@ -136,33 +136,15 @@ class Hub3DataLoader:
         return self.__class__(**all_vars)
 
     def query(self, query_string: str):
-        """Returns a sliced hub.experimental.Hub3DataLoader object with given query results.
-        It allows to run SQL like queries on dataset and extract results. Currently supported keywords are the following:
-
-        +-------------------------------------------+
-        | SELECT                                    |
-        +-------------------------------------------+
-        | FROM                                      |
-        +-------------------------------------------+
-        | CONTAINS                                  |
-        +-------------------------------------------+
-        | ORDER BY                                  |
-        +-------------------------------------------+
-        | GROUP BY                                  |
-        +-------------------------------------------+
-        | LIMIT                                     |
-        +-------------------------------------------+
-        | OFFSET                                    |
-        +-------------------------------------------+
-        | RANDOM() -> for shuffling query results   |
-        +-------------------------------------------+
-
+        """Returns a sliced :class:`Hub3DataLoader` object with given query results.
+        It allows to run SQL like queries on dataset and extract results. See supported keywords and the Tensor Query Language documentation
+        :ref:`here <tql>`.
 
         Args:
             query_string (str): An SQL string adjusted with new functionalities to run on the dataset object
 
         Returns:
-            Hub3DataLoader: A hub.experimental.Hub3DataLoader object.
+            Hub3DataLoader: A :class:`Hub3DataLoader` object.
 
         Examples:
             >>> import hub
@@ -191,7 +173,7 @@ class Hub3DataLoader:
         return_index: bool = True,
         tobytes: Union[bool, Sequence[str]] = False
     ):
-        """Returns a hub.experimental.Hub3DataLoader object.
+        """Returns a :class:`Hub3DataLoader` object.
 
 
         Args:
@@ -205,7 +187,7 @@ class Hub3DataLoader:
             tobytes (bool, Sequence[str]): If ``True``, samples will not be decompressed and their raw bytes will be returned instead of numpy arrays. Can also be a list of tensors, in which case those tensors alone will not be decompressed.
 
         Returns:
-            Hub3DataLoader: A hub.experimental.Hub3DataLoader object.
+            Hub3DataLoader: A :class:`Hub3DataLoader` object.
 
         Raises:
             ValueError: If .to_pytorch() or .to_numpy() has already been called.
@@ -234,7 +216,7 @@ class Hub3DataLoader:
         prefetch_factor: int = 10,
         tobytes: Union[bool, Sequence[str]] = False
     ):
-        """Returns a hub.experimental.Hub3DataLoader object.
+        """Returns a :class:`Hub3DataLoader` object.
 
         Args:
             num_workers (int): Number of workers to use for transforming and processing the data. Defaults to 0.
@@ -244,7 +226,7 @@ class Hub3DataLoader:
             tobytes (bool, Sequence[str]): If ``True``, samples will not be decompressed and their raw bytes will be returned instead of numpy arrays. Can also be a list of tensors, in which case those tensors alone will not be decompressed.
 
         Returns:
-            Hub3DataLoader: A hub.experimental.Hub3DataLoader object.
+            Hub3DataLoader: A :class:`Hub3DataLoader` object.
 
         Raises:
             ValueError: If .to_pytorch() or .to_numpy() has already been called.
@@ -318,14 +300,14 @@ class Hub3DataLoader:
 
 
 def dataloader(dataset) -> Hub3DataLoader:
-    """Returns a hub.experimental.Hub3DataLoader object which can be transformed to either pytorch dataloader or numpy.
+    """Returns a :class:`Hub3DataLoader` object which can be transformed to either pytorch dataloader or numpy.
 
 
     Args:
         dataset: hub.Dataset object on which dataloader needs to be built
 
     Returns:
-        Hub3DataLoader: A hub.experimental.Hub3DataLoader object.
+        Hub3DataLoader: A :class:`Hub3DataLoader` object.
 
 
     Examples:
