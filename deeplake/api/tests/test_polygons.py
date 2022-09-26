@@ -1,4 +1,4 @@
-import hub
+import deeplake
 import pytest
 import numpy as np
 
@@ -39,5 +39,5 @@ def test_polygons(local_ds, ndim, args):
     view = ds[idxs]
     ds.commit()
     view.save_view()
-    materialized = hub.empty("mem://")
-    hub.copy(view, materialized)
+    materialized = deeplake.empty("mem://")
+    deeplake.copy(view, materialized)
