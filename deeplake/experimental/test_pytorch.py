@@ -382,13 +382,7 @@ def test_pytorch_collate(local_ds, shuffle):
             local_ds.b.append(1)
             local_ds.c.append(2)
 
-    ptds = (
-        dataloader(local_ds)
-        .batch(4)
-        .pytorch(
-            collate_fn=reorder_collate
-        )
-    )
+    ptds = dataloader(local_ds).batch(4).pytorch(collate_fn=reorder_collate)
     if shuffle:
         ptds = ptds.shuffle()
     for batch in ptds:
