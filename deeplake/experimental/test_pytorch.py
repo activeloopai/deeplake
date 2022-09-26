@@ -436,9 +436,35 @@ def test_pytorch_ddp():
     raise NotImplementedError
 
 
-@pytest.mark.xfail(raises=NotImplementedError, strict=True)
-def test_pytorch_tobytes():
-    raise NotImplementedError
+@requires_torch
+@requires_linux
+@enabled_non_gdrive_datasets
+@pytest.mark.parametrize("compression", [None, "jpeg"])
+def test_pytorch_tobytes(ds, compressed_image_paths, compression):
+    with ds:
+        ds.create_tensor("image", sample_compression=compression)
+        ds.image.extend(
+            np.array([i * np.ones((10, 10, 3), dtype=np.uint8) for i in range(5)])
+        )
+        ds.image.extend([deeplake.read(compressed_image_paths["jpeg"][0])] * 5)
+    if isinstance(get_base_storage(ds.storage), (MemoryProvider, GCSProvider)):
+        with pytest.raises(ValueError):
+            dl = dataloader(ds)
+        return
+
+    ptds = dataloader(ds).pytorch(tobytes=["image"])
+
+    for i, batch in enumerate(ptds):
+        image = batch["image"][0]
+        assert isinstance(image, bytes)
+        if i < 5 and not compression:
+            np.testing.assert_array_equal(
+                np.frombuffer(image, dtype=np.uint8).reshape(10, 10, 3),
+                i * np.ones((10, 10, 3), dtype=np.uint8),
+            )
+        elif i >= 5 and compression:
+            with open(compressed_image_paths["jpeg"][0], "rb") as f:
+                assert f.read() == image
 
 
 @requires_torch

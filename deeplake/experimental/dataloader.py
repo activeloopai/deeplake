@@ -1,4 +1,4 @@
-from typing import Callable, Dict, List, Optional, Union
+from typing import Callable, Dict, List, Optional, Union, Sequence
 from deeplake.experimental.convert_to_hub3 import dataset_to_hub3  # type: ignore
 from deeplake.experimental.util import (
     create_fetching_schedule,
@@ -52,6 +52,7 @@ class Hub3DataLoader:
         _return_index=None,
         _primary_tensor_name=None,
         _buffer_size=None,
+        _tobytes=None,
     ):
         import_indra_loader()
         self.dataset = dataset
@@ -69,19 +70,17 @@ class Hub3DataLoader:
         self._return_index = _return_index
         self._primary_tensor_name = _primary_tensor_name or find_primary_tensor(dataset)
         self._buffer_size = _buffer_size
+        self._tobytes = _tobytes
 
     def batch(self, batch_size: int, drop_last: bool = False):
         """Returns a batched :class:`Hub3DataLoader` object.
-
 
         Args:
             batch_size (int): Number of samples in each batch.
             drop_last (bool): If True, the last batch will be dropped if its size is less than batch_size. Defaults to False.
 
-
         Returns:
             Hub3DataLoader: A :class:`Hub3DataLoader` object.
-
 
         Raises:
             ValueError: If .batch() has already been called.
@@ -123,10 +122,8 @@ class Hub3DataLoader:
         Args:
             transform (Callable or Dict[Callable]): A function or dictionary of functions to apply to the data.
 
-
         Returns:
             Hub3DataLoader: A :class:`Hub3DataLoader` object.
-
 
         Raises:
             ValueError: If .transform() has already been called.
@@ -184,6 +181,7 @@ class Hub3DataLoader:
         prefetch_factor: int = 10,
         distributed: bool = False,
         return_index: bool = True,
+        tobytes: Union[bool, Sequence[str]] = False,
     ):
         """Returns a :class:`Hub3DataLoader` object.
 
@@ -196,11 +194,10 @@ class Hub3DataLoader:
             prefetch_factor (int): Number of batches to transform and collate in advance per worker. Defaults to 10.
             distributed (bool): Used for DDP training. Distributes different sections of the dataset to different ranks. Defaults to False.
             return_index (bool): Used to idnetify where loader needs to retur sample index or not. Defaults to True.
-
+            tobytes (bool, Sequence[str]): If ``True``, samples will not be decompressed and their raw bytes will be returned instead of numpy arrays. Can also be a list of tensors, in which case those tensors alone will not be decompressed.
 
         Returns:
             Hub3DataLoader: A :class:`Hub3DataLoader` object.
-
 
         Raises:
             ValueError: If .to_pytorch() or .to_numpy() has already been called.
@@ -212,17 +209,7 @@ class Hub3DataLoader:
         all_vars = self.__dict__.copy()
         all_vars["_num_workers"] = num_workers
         all_vars["_collate"] = collate_fn
-        if tensors:
-            if "index" in tensors:
-                raise ValueError(
-                    "index is not a tensor, to get index, pass return_index=True"
-                )
-            tensors = map_tensor_keys(self.dataset, tensors)
-            if self._tensors:
-                raise ValueError(
-                    "Tensors have already been specified by passing a dictionary to .transform() method"
-                )
-        all_vars["_tensors"] = self._tensors or tensors
+        handle_tensors_and_tobytes(tensors, tobytes, self.dataset, all_vars)
         all_vars["_num_threads"] = num_threads
         all_vars["_prefetch_factor"] = prefetch_factor
         all_vars["_distributed"] = distributed
@@ -237,6 +224,7 @@ class Hub3DataLoader:
         tensors: Optional[List[str]] = None,
         num_threads: Optional[int] = None,
         prefetch_factor: int = 10,
+        tobytes: Union[bool, Sequence[str]] = False,
     ):
         """Returns a :class:`Hub3DataLoader` object.
 
@@ -245,11 +233,10 @@ class Hub3DataLoader:
             tensors (List[str], Optional): List of tensors to load. If None, all tensors are loaded. Defaults to None.
             num_threads (int, Optional): Number of threads to use for fetching and decompressing the data. If None, the number of threads is automatically determined. Defaults to None.
             prefetch_factor (int): Number of batches to transform and collate in advance per worker. Defaults to 10.
-
+            tobytes (bool, Sequence[str]): If ``True``, samples will not be decompressed and their raw bytes will be returned instead of numpy arrays. Can also be a list of tensors, in which case those tensors alone will not be decompressed.
 
         Returns:
             Hub3DataLoader: A :class:`Hub3DataLoader` object.
-
 
         Raises:
             ValueError: If .to_pytorch() or .to_numpy() has already been called.
@@ -260,16 +247,7 @@ class Hub3DataLoader:
             raise ValueError("already called .to_numpy()")
         all_vars = self.__dict__.copy()
         all_vars["_num_workers"] = num_workers
-        if tensors:
-            if "index" in tensors:
-                raise ValueError(
-                    "index is not a tensor, to get index, pass return_index=True"
-                )
-            tensors = map_tensor_keys(self.dataset, tensors)
-            if self._tensors:
-                raise ValueError(
-                    "Tensors have already been specified by passing a dictionary to .transform() method"
-                )
+        handle_tensors_and_tobytes(tensors, tobytes, self.dataset, all_vars)
         all_vars["_tensors"] = self._tensors or tensors
         all_vars["_num_threads"] = num_threads
         all_vars["_prefetch_factor"] = prefetch_factor
@@ -303,6 +281,12 @@ class Hub3DataLoader:
 
         primary_tensor_name = self._primary_tensor_name
         buffer_size = self._buffer_size
+        if self._tobytes is True:
+            raw_tensors = tensors
+        elif self._tobytes is False:
+            raw_tensors = []
+        else:
+            raw_tensors = self._tobytes
         return iter(
             INDRA_LOADER(
                 dataset,
@@ -320,6 +304,7 @@ class Hub3DataLoader:
                 return_index=return_index,
                 primary_tensor=primary_tensor_name,
                 buffer_size=buffer_size,
+                raw_tensors=raw_tensors,
             )
         )
 
@@ -391,3 +376,26 @@ def dataloader(dataset) -> Hub3DataLoader:
     """
     verify_base_storage(dataset)
     return Hub3DataLoader(dataset)
+
+
+def handle_tensors_and_tobytes(tensors, tobytes, dataset, all_vars):
+    existing_tensors = all_vars["_tensors"]
+    if tensors:
+        if "index" in tensors:
+            raise ValueError(
+                "index is not a tensor, to get index, pass return_index=True"
+            )
+        tensors = map_tensor_keys(dataset, tensors)
+        if existing_tensors:
+            raise ValueError(
+                "Tensors have already been specified by passing a dictionary to .transform() method"
+            )
+    all_vars["_tensors"] = existing_tensors or tensors
+    if isinstance(tobytes, Sequence):
+        tobytes = map_tensor_keys(dataset, tobytes)
+        if tobytes and all_vars["_tensors"]:
+            tensor_set = set(all_vars["_tensors"])
+            for tensor in tobytes:
+                if tensor not in tensor_set:
+                    raise ValueError(f"tobytes tensor {tensor} not found in tensors.")
+    all_vars["_tobytes"] = tobytes
