@@ -17,7 +17,9 @@ def test_client_requests(hub_cloud_dev_credentials):
     deeplake_client.request_auth_token(username, password)
     with pytest.raises(Exception):
         # request will fail as username already exists
-        deeplake_client.send_register_request("activeloop", "abc@d.com", "notactualpassword")
+        deeplake_client.send_register_request(
+            "activeloop", "abc@d.com", "notactualpassword"
+        )
 
 
 def test_client_utils():
