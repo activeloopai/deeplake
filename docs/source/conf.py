@@ -15,17 +15,17 @@
 # import sys
 # sys.path.insert(0, os.path.abspath('.'))
 
-import hub
+import deeplake
 
 
 # -- Project information -----------------------------------------------------
 
-project = "Hub"
+project = "Deep Lake"
 copyright = "2022, Activeloop"
 author = "Activeloop"
 
 # The full version, including alpha/beta/rc tags
-release = hub.__version__
+release = deeplake.__version__
 
 
 # -- General configuration ---------------------------------------------------
