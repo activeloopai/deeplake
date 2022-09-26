@@ -1,4 +1,5 @@
 from typing import Callable, Dict, List, Optional
+from deeplake.util.exceptions import EmptyTensorError
 from deeplake.util.iterable_ordered_dict import IterableOrderedDict
 import numpy as np
 
@@ -49,3 +50,14 @@ class PytorchTransformFunction:
             data_out = IterableOrderedDict(data_out)
             return data_out
         return data_in
+
+
+def check_tensors(dataset, tensors, mode):
+    for tensor_name in tensors:
+        tensor = dataset._get_tensor_from_root(tensor_name)
+        if len(tensor) == 0:
+            raise EmptyTensorError(
+                f" the dataset has an empty tensor {tensor_name}, pytorch dataloader can't be created."
+                f" Please either populate the tensor or pass tensors argument to .pytorch that excludes this"
+                f" tensor."
+            )

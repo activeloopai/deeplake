@@ -3,7 +3,7 @@ from deeplake.experimental.convert_to_hub3 import dataset_to_hub3, verify_base_s
 from deeplake.experimental.util import raise_indra_installation_error  # type: ignore
 from deeplake.experimental.util import collate_fn as default_collate  # type: ignore
 from deeplake.experimental.hub3_query import query
-from deeplake.integrations.pytorch.common import PytorchTransformFunction
+from deeplake.integrations.pytorch.common import PytorchTransformFunction, check_tensors
 from deeplake.util.bugout_reporter import deeplake_reporter
 from deeplake.util.dataset import map_tensor_keys
 import importlib
@@ -263,6 +263,8 @@ class Hub3DataLoader:
         return self.__class__(**all_vars)
 
     def __iter__(self):
+        tensors = self._tensors or map_tensor_keys(self.dataset, None)
+        check_tensors(self.dataset, tensors, self._mode)
         dataset = dataset_to_hub3(self.dataset)
         batch_size = self._batch_size or 1
         drop_last = self._drop_last or False
@@ -279,7 +281,6 @@ class Hub3DataLoader:
             collate_fn = default_collate
         else:
             collate_fn = self._collate
-        tensors = self._tensors or map_tensor_keys(self.dataset, None)
         num_threads = self._num_threads
         prefetch_factor = self._prefetch_factor
         distributed = self._distributed or False
