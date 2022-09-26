@@ -52,7 +52,7 @@ class Hub3DataLoader:
         _return_index=None,
         _primary_tensor_name=None,
         _buffer_size=None,
-        _to_bytes=None,
+        _tobytes=None,
     ):
         import_indra_loader()
         self.dataset = dataset
@@ -70,7 +70,7 @@ class Hub3DataLoader:
         self._return_index = _return_index
         self._primary_tensor_name = _primary_tensor_name or find_primary_tensor(dataset)
         self._buffer_size = _buffer_size
-        self._to_bytes = _to_bytes
+        self._tobytes = _tobytes
 
     def batch(self, batch_size: int, drop_last: bool = False):
         """Returns a batched :class:`Hub3DataLoader` object.
@@ -281,12 +281,12 @@ class Hub3DataLoader:
 
         primary_tensor_name = self._primary_tensor_name
         buffer_size = self._buffer_size
-        if self._to_bytes is True:
+        if self._tobytes is True:
             raw_tensors = tensors
-        elif self._to_bytes is False:
+        elif self._tobytes is False:
             raw_tensors = []
         else:
-            raw_tensors = self._to_bytes
+            raw_tensors = self._tobytes
         return iter(
             INDRA_LOADER(
                 dataset,
