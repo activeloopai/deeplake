@@ -1,3 +1,0 @@
--r common.txt
--r plugins.txt
-sphinx-copybutton

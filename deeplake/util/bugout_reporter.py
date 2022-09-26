@@ -37,7 +37,7 @@ def save_reporting_config(
     else:
         # We should not expect that the parent directory for the reporting configuration will exist.
         # If it doesn't exist, we create the directory, if possible.
-        # This mirrors the code for the `write_token` method in hub/client/utils.py.
+        # This mirrors the code for the `write_token` method in /deeplake/client/utils.py.
         path = Path(REPORTING_CONFIG_FILE_PATH)
         os.makedirs(path.parent, exist_ok=True)
 

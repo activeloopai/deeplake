@@ -6,7 +6,7 @@
  </h1>
 <p align="center">
     <a href="https://github.com/activeloopai/Hub/actions/workflows/test-pr-on-label.yml"><img src="https://github.com/activeloopai/Hub/actions/workflows/test-push.yml/badge.svg" alt="PyPI version" height="18"></a>
-    <a href="https://pypi.org/project/hub/"><img src="https://badge.fury.io/py/hub.svg" alt="PyPI version" height="18"></a>
+    <a href="https://pypi.org/project/deeplake/"><img src="https://badge.fury.io/py/hub.svg" alt="PyPI version" height="18"></a>
     <a href='https://docs.deeplake.ai/en/latest/?badge=latest'>
      <img src='https://readthedocs.org/projects/deep-lake/badge/?version=latest' alt='Documentation Status' />
      </a>
@@ -29,7 +29,10 @@
 
 ## About Deep Lake
 
-Deep Lake (formerly known as hub) is a data lake for deep learning applications. Open-source dataset format provides a simple API for creating, storing, and collaborating on AI datasets of any size. It enables you to store all of your data in one place, ranging from simple annotations to large videos, and it unlocks rapid streaming of data while training models at scale. Deep Lake is used by Google, Waymo, Red Cross, Oxford University, and Omdena. Deep Lake includes the following features:
+<b> 🚀 Deep Lake's efficient new C++ implementation speeds up data streaming by >2x compared to Hub 2.x (Ofeidis et al. 2022) 🚀</b>
+
+
+Deep Lake (formerly known as Activeloop Hub) is a data lake for deep learning applications. Open-source dataset format provides a simple API for creating, storing, and collaborating on AI datasets of any size. It enables you to store all of your data in one place, ranging from simple annotations to large videos, and it unlocks rapid streaming of data while training models at scale. Deep Lake is used by Google, Waymo, Red Cross, Omdena, Yale, & Oxford. Deep Lake includes the following features:
 
 <details>
   <summary><b>Storage Agnostic API</b></summary>
@@ -61,7 +64,7 @@ Deep Lake community has uploaded <a href="https://docs.activeloop.ai/datasets/?u
 </details>
 <details>
   <summary><b>Instant Visualization Support in <a href="https://app.activeloop.ai/?utm_source=github&utm_medium=github&utm_campaign=github_readme&utm_id=readme">Activeloop Platform</a></b></summary>
-Deep Lake datasets are instantly visualized with bounding boxes, masks, annotations, etc. in <a href="https://app.activeloop.ai/?utm_source=github&utm_medium=github&utm_campaign=github_readme&utm_id=readme">Activeloop Platform</a> (see below).
+Deep Lake datasets are instantly visualized with bounding boxes, masks, annotations, etc. in <a href="https://app.activeloop.ai/?utm_source=github&utm_medium=github&utm_campaign=github_readme&utm_id=readme">Deep Lake Visualizer</a> (see below).
 </details>
 
 
@@ -70,11 +73,11 @@ Deep Lake datasets are instantly visualized with bounding boxes, masks, annotati
 </div>
 
     
-## Getting Started with Deep Lake (deprecated soon and will be replaced with deeplake)
+## Getting Started with Deep Lake
 
 
 ### 🚀 How to install Deep Lake
-Deep Lake is written in 100% Python and can be quickly installed using pip.
+Deep Lake's core is efficiently built in C++ and can be quickly installed using pip.
 
 ```sh
 pip3 install hub
@@ -310,7 +313,7 @@ We'd love your feedback by completing our 3-minute [**survey**](https://forms.gl
 
 As always, thanks to our amazing contributors!    
 
-<a href="https://github.com/activeloopai/hub/graphs/contributors">
+<a href="https://github.com/activeloopai/deeplake/graphs/contributors">
   <img src="https://contrib.rocks/image?repo=activeloopai/hub" />
 </a>
 
@@ -346,7 +349,7 @@ If you're a dataset owner and do not want your dataset to be included in this li
 <details>
   <summary><b> Usage Tracking</b></summary>
 
-By default, we collect usage data using Bugout (here's the [code](https://github.com/activeloopai/deeplake/blob/853456a314b4fb5623c936c825601097b0685119/hub/__init__.py#L24) that does it). It does not collect user data other than anonymized IP address data, and it only logs the Deep Lake library's own actions. This helps our team understand how the tool is used and how to build features that matter to you! After you register with Activeloop, data is no longer anonymous. You can always opt-out of reporting using the CLI command below, or by setting an environmental variable ```BUGGER_OFF``` to ```True```:
+By default, we collect usage data using Bugout (here's the [code](https://github.com/activeloopai/deeplake/blob/853456a314b4fb5623c936c825601097b0685119/deeplake/__init__.py#L24) that does it). It does not collect user data other than anonymized IP address data, and it only logs the Deep Lake library's own actions. This helps our team understand how the tool is used and how to build features that matter to you! After you register with Activeloop, data is no longer anonymous. You can always opt-out of reporting using the CLI command below, or by setting an environmental variable ```BUGGER_OFF``` to ```True```:
 
 ```
 activeloop reporting --off

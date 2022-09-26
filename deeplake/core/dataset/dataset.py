@@ -1359,6 +1359,7 @@ class Dataset:
 
     @property
     def read_only(self):
+        """Returns True if dataset is in read-only mode and False otherwise."""
         return self._read_only
 
     @property

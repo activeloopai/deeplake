@@ -1,11 +1,11 @@
 import deeplake
 import numpy as np
 from typing import Any, Dict, List, Optional, Tuple
-from deeplake.core.storage.hub_memory_object import HubMemoryObject
+from deeplake.core.storage.deeplake_memory_object import DeeplakeMemoryObject
 from deeplake.core.tiling.sample_tiles import SampleTiles
 
 
-class TileEncoder(HubMemoryObject):
+class TileEncoder(DeeplakeMemoryObject):
     def __init__(self, entries=None, version=None):
         self.is_dirty = False
         self.entries: Dict[int, Tuple[Tuple[int, ...], Tuple[int, ...]]] = entries or {}

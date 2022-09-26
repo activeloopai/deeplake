@@ -76,7 +76,7 @@ def create_tensor(
         chunk_compression (str): All chunks will be compressed in the provided format. If `None`, chunks are uncompressed.
         version_state (Dict[str, Any]): The version state of the dataset, includes commit_id, commit_node, branch, branch_commit_map and commit_node_map.
         **kwargs: `htype` defaults can be overridden by passing any of the compatible parameters.
-            To see all `htype`s and their correspondent arguments, check out `hub/htypes.py`.
+            To see all `htype`s and their correspondent arguments, check out `/deeplake/htypes.py`.
 
     Raises:
         TensorAlreadyExistsError: If a tensor defined with `key` already exists.
@@ -1031,9 +1031,9 @@ class Tensor:
         Example:
 
             >>> ds.videos[0].sample_info
-            {'duration': 400400, 'fps': 29.97002997002997, 'timebase': 3.3333333333333335e-05, 'shape': [400, 360, 640, 3], 'format': 'mp4', 'filename': '../hub/tests/dummy_data/video/samplemp4.mp4', 'modified': False}
+            {'duration': 400400, 'fps': 29.97002997002997, 'timebase': 3.3333333333333335e-05, 'shape': [400, 360, 640, 3], 'format': 'mp4', 'filename': '../deeplake/tests/dummy_data/video/samplemp4.mp4', 'modified': False}
             >>> ds.images[:2].sample_info
-            [{'exif': {'Software': 'Google'}, 'shape': [900, 900, 3], 'format': 'jpeg', 'filename': '../hub/tests/dummy_data/images/cat.jpeg', 'modified': False}, {'exif': {}, 'shape': [495, 750, 3], 'format': 'jpeg', 'filename': '../hub/tests/dummy_data/images/car.jpg', 'modified': False}]
+            [{'exif': {'Software': 'Google'}, 'shape': [900, 900, 3], 'format': 'jpeg', 'filename': '../deeplake/tests/dummy_data/images/cat.jpeg', 'modified': False}, {'exif': {}, 'shape': [495, 750, 3], 'format': 'jpeg', 'filename': '../deeplake/tests/dummy_data/images/car.jpg', 'modified': False}]
         """
         return self._sample_info(self.index)
 

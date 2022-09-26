@@ -1,10 +1,10 @@
 from deeplake.core.storage.lru_cache import LRUCache
 from deeplake.util.exceptions import InfoError
-from deeplake.core.storage.hub_memory_object import HubMemoryObject
+from deeplake.core.storage.deeplake_memory_object import DeeplakeMemoryObject
 from typing import Any, Dict
 
 
-class Info(HubMemoryObject):
+class Info(DeeplakeMemoryObject):
     """Contains optional key-value pairs that can be stored for datasets/tensors."""
 
     def __init__(self):

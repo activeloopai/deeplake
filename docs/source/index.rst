@@ -37,6 +37,7 @@ Deep Lake is an open-source database for AI.
    :caption: Experimental API
 
    Dataloader & Query <Dataloader-and-Query>
+   Tensor Query Language <Tensor-Query-Language>
 
 .. toctree::
    :maxdepth: 1
@@ -50,8 +51,6 @@ Deep Lake is an open-source database for AI.
    deeplake.auto
    deeplake.util
    deeplake.client.log
-   deeplake.experimental
-   deeplake.experimental.dataloader
 
 
 Indices and tables

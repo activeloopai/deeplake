@@ -13,7 +13,7 @@ def _add_hook(event: str, hook: Callable, id: Optional[str] = None):
     if id is None:
         id = str(uuid4())
     if id in HOOK_EVENTS:
-        raise Exception(f"Hook with id {id} already exists.")
+        return
     globals()[f"{event}_HOOKS"][id] = hook
     HOOK_EVENTS[id] = event
 

@@ -6,7 +6,7 @@
  </h1>
 <p align="center">
     <a href="https://github.com/activeloopai/Hub/actions/workflows/test-pr-on-label.yml"><img src="https://github.com/activeloopai/Hub/actions/workflows/test-push.yml/badge.svg" alt="PyPI version" height="18"></a>
-    <a href="https://pypi.org/project/hub/"><img src="https://badge.fury.io/py/hub.svg" alt="PyPI version" height="18"></a>
+    <a href="https://pypi.org/project/deeplake/"><img src="https://badge.fury.io/py/hub.svg" alt="PyPI version" height="18"></a>
     <a href="https://pepy.tech/project/hub"><img src="https://static.pepy.tech/personalized-badge/hub?period=month&units=international_system&left_color=grey&right_color=orange&left_text=Downloads" alt="PyPI version" height="18"></a>
      <a href="https://github.com/activeloopai/Hub/issues">
     <img alt="GitHub issues" src="https://img.shields.io/github/issues/activeloopai/Hub"> </a>
@@ -296,7 +296,7 @@ Hub 和 WebDatasets 都提供跨网络的快速数据流。它们具有几乎相
 
 一如既往，感谢我们出色的贡献者！ 
 
-<a href="https://github.com/activeloopai/hub/graphs/contributors">
+<a href="https://github.com/activeloopai/deeplake/graphs/contributors">
   <img src="https://contrib.rocks/image?repo=activeloopai/hub" />
 </a>
 
@@ -332,7 +332,7 @@ Hub 用户可以访问各种公开可用的数据集。我们不托管或分发�
 <details>
   <summary><b> 使用情况跟踪</b></summary>
 
-默认情况下，我们使用 Bugout 收集使用数据（这是执行此操作的[code](https://github.com/activeloopai/Hub/blob/853456a314b4fb5623c936c825601097b0685119/hub/__init__.py#L24)). 它不收集匿名 IP 地址数据以外的用户数据，并且只记录 Hub 库自己的操作。这有助于我们的团队了解该工具的使用方式以及如何构建对您而言重要的功能！在您注册 Activeloop 后，数据不再是匿名的。您始终可以使用以下 CLI 命令选择退出报告：
+默认情况下，我们使用 Bugout 收集使用数据（这是执行此操作的[code](https://github.com/activeloopai/Hub/blob/853456a314b4fb5623c936c825601097b0685119/deeplake/__init__.py#L24)). 它不收集匿名 IP 地址数据以外的用户数据，并且只记录 Hub 库自己的操作。这有助于我们的团队了解该工具的使用方式以及如何构建对您而言重要的功能！在您注册 Activeloop 后，数据不再是匿名的。您始终可以使用以下 CLI 命令选择退出报告：
 
 ```
 activeloop reporting --off

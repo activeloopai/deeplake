@@ -1,20 +1,17 @@
-import deeplake
 import torch
+from typing import Optional
 import numpy as np
 from deeplake.util.iterable_ordered_dict import IterableOrderedDict
 
 
-def raise_indra_installation_error(
-    indra_installed: bool, indra_import_error: Exception
-):
-    if not indra_installed:
+def raise_indra_installation_error(indra_import_error: Optional[Exception] = None):
+    if not indra_import_error:
         raise ImportError(
             "This is an experimental feature that requires Hub deeplake package. To use it, you can run `pip install hub[deeplake]`."
         )
-    if indra_import_error:
-        raise ImportError(
-            "Error while importing C++ backend. One of the dependencies might not be installed."
-        ) from indra_import_error
+    raise ImportError(
+        "Error while importing C++ backend. One of the dependencies might not be installed."
+    ) from indra_import_error
 
 
 def collate_fn(batch):

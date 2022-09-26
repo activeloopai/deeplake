@@ -1,5 +1,7 @@
 import os
+import sys
 import re
+import platform
 from setuptools import find_packages, setup
 
 project_name = "deeplake"
@@ -7,10 +9,10 @@ project_name = "deeplake"
 
 this_directory = os.path.abspath(os.path.dirname(__file__))
 
-with open(os.path.join(this_directory, "hub/requirements/common.txt")) as f:
+with open(os.path.join(this_directory, "deeplake/requirements/common.txt")) as f:
     requirements = f.readlines()
 
-with open(os.path.join(this_directory, "hub/requirements/tests.txt")) as f:
+with open(os.path.join(this_directory, "deeplake/requirements/tests.txt")) as f:
     tests = f.readlines()
 
 with open(os.path.join(this_directory, "README.md"), encoding="utf-8") as f:
@@ -60,7 +62,29 @@ def get_property(prop):
     return result.group(1)
 
 
+def libdeeplake_availabe():
+    py_ver = sys.version_info
+    if sys.platform == "linux":
+        if py_ver >= (3, 6) and py_ver <= (3, 10):
+            return True
+    if sys.platform == "darwin":
+        mac_ver = list(map(int, platform.mac_ver()[0].split(".")))
+        if (
+            (mac_ver[0] > 10 or mac_ver[0] == 10 and mac_ver[1] >= 12)
+            and py_ver >= (3, 7)
+            and py_ver <= (3, 10)
+        ):
+            return True
+    return False
+
+
+if libdeeplake_availabe():
+    install_requires.insert(0, "libdeeplake==0.0.10")
+install_requires.append("hub-redirect==3.0.2")
+
+
 config = {
+    "name": project_name,
     "version": get_property("__version__"),
     "description": "Activeloop Deep Lake",
     "long_description": long_description,

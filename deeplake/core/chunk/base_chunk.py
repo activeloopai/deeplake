@@ -33,7 +33,7 @@ from deeplake.core.serialize import (
     get_header_from_url,
     serialize_text_sample_object,
 )
-from deeplake.core.storage.hub_memory_object import HubMemoryObject
+from deeplake.core.storage.deeplake_memory_object import DeeplakeMemoryObject
 from deeplake.core.tiling.sample_tiles import SampleTiles
 from deeplake.util.exceptions import TensorInvalidSampleShapeError
 from functools import reduce
@@ -55,7 +55,7 @@ InputSample = Union[
 SerializedOutput = Tuple[bytes, Tuple]
 
 
-class BaseChunk(HubMemoryObject):
+class BaseChunk(DeeplakeMemoryObject):
     def __init__(
         self,
         min_chunk_size: int,
