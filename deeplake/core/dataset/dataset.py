@@ -1431,7 +1431,7 @@ class Dataset:
                 Read torch.utils.data.DataLoader docs for more details.
             pin_memory (bool): If ``True``, the data loader will copy Tensors into CUDA pinned memory before returning them. Default value is False.
                 Read torch.utils.data.DataLoader docs for more details.
-            shuffle (bool): If ``True``, the data loader will shuffle the data indices. Default value is False. Details about how hub shuffles data can be found at https://docs.activeloop.ai/how-hub-works/shuffling-in-ds.pytorch
+            shuffle (bool): If ``True``, the data loader will shuffle the data indices. Default value is False. Details about how deeplake shuffles data can be found at https://docs.activeloop.ai/how-hub-works/shuffling-in-ds.pytorch
             buffer_size (int): The size of the buffer used to shuffle the data in MBs. Defaults to 2048 MB. Increasing the buffer_size will increase the extent of shuffling.
             use_local_cache (bool): If ``True``, the data loader will use a local cache to store data. This is useful when the dataset can fit on the machine and we don't want to fetch the data multiple times for each iteration. Default value is False.
             use_progress_bar (bool): If ``True``, tqdm will be wrapped around the returned dataloader. Default value is True.
@@ -1672,7 +1672,7 @@ class Dataset:
             size = self.size_approx()
             if size > deeplake.constants.DELETE_SAFETY_SIZE:
                 logger.info(
-                    f"Hub Dataset {self.path} was too large to delete. Try again with large_ok=True."
+                    f"Deep Lake Dataset {self.path} was too large to delete. Try again with large_ok=True."
                 )
                 return
 
@@ -2310,7 +2310,7 @@ class Dataset:
         scheduler: str,
     ):
         """Saves this view under hub://username/queries
-        Only applicable for views of hub datasets.
+        Only applicable for views of deeplake datasets.
         """
         if len(self.index.values) > 1:
             raise NotImplementedError("Storing sub-sample slices is not supported yet.")
@@ -2407,7 +2407,7 @@ class Dataset:
             message (Optional, str): Custom user message.
             path (Optional, str, pathlib.Path): - The VDS will be saved as a standalone dataset at the specified path.
                 - If not specified, the VDS is saved under ``.queries`` subdirectory of the source dataset's storage.
-                - If the user doesn't have write access to the source dataset and the source dataset is a hub cloud dataset, then the VDS is saved is saved under the user's hub account and can be accessed using ``deeplake.load(f"hub://{username}/queries/{query_hash}")``.
+                - If the user doesn't have write access to the source dataset and the source dataset is a Deep Lake cloud dataset, then the VDS is saved is saved under the user's deeplake account and can be accessed using ``deeplake.load(f"hub://{username}/queries/{query_hash}")``.
             id (Optional, str): Unique id for this view. Random id will be generated if not specified.
             optimize (bool):
                 - If ``True``, the dataset view will be optimized by copying and rechunking the required data. This is necessary to achieve fast streaming speeds when training models using the dataset view. The optimization process will take some time, depending on the size of the data.
@@ -2457,8 +2457,8 @@ class Dataset:
         Args:
             path (Optional, str, pathlib.Path): If specified, the VDS will saved as a standalone dataset at the specified path. If not,
                 the VDS is saved under `.queries` subdirectory of the source dataset's storage. If the user doesn't have
-                write access to the source dataset and the source dataset is a hub cloud dataset, then the VDS is saved
-                is saved under the user's hub account and can be accessed using deeplake.load(f"hub://{username}/queries/{query_hash}").
+                write access to the source dataset and the source dataset is a Deep Lake cloud dataset, then the VDS is saved
+                is saved under the user's deeplake account and can be accessed using deeplake.load(f"hub://{username}/queries/{query_hash}").
             id (Optional, str): Unique id for this view.
             message (Optional, message): Custom user message.
             optimize (bool): Whether the view should be optimized by copying the required data. Default False.
@@ -2768,7 +2768,7 @@ class Dataset:
             memory_cache_size (int): Memory cache size for the sub dataset.
             local_cache_size (int): Local storage cache size for the sub dataset.
             read_only (bool): Loads the sub dataset in read only mode if ``True``. Default ``False``.
-            lock (bool): Whether the dataset should be locked for writing. Only applicable for s3, hub and gcs datasets. No effect if ``read_only=True``.
+            lock (bool): Whether the dataset should be locked for writing. Only applicable for s3, deeplake and gcs datasets. No effect if ``read_only=True``.
             verbose (bool): If ``True``, logs will be printed. Defaults to ``True``.
 
         Returns:
@@ -3194,13 +3194,13 @@ class Dataset:
             height: Union[int, str, None] Optional height of the visualizer canvas.
 
         Raises:
-            Exception: If the dataset is not a hub cloud dataset and the visualization is attempted in colab.
+            Exception: If the dataset is not a Deep Lake cloud dataset and the visualization is attempted in colab.
         """
         from deeplake.visualizer import visualize
 
         deeplake_reporter.feature_report(feature_name="visualize", parameters={})
         if is_colab():
-            raise Exception("Cannot visualize non hub cloud dataset in Colab.")
+            raise Exception("Cannot visualize non Deep Lake cloud dataset in Colab.")
         else:
             visualize(self.storage, width=width, height=height)
 

@@ -17,7 +17,7 @@ import deeplake
 
 
 class HubCloudDataset(Dataset):
-    """Subclass of :class:`Dataset`. Hub cloud datasets are those datasets which are stored on Activeloop servers, their paths look like:
+    """Subclass of :class:`Dataset`. Deep Lake cloud datasets are those datasets which are stored on Activeloop servers, their paths look like:
     ``hub://username/dataset_name``."""
 
     def _first_load_init(self, verbose=True):
@@ -29,7 +29,7 @@ class HubCloudDataset(Dataset):
             else:
                 # NOTE: this can happen if you override `deeplake.core.dataset.FORCE_CLASS`
                 warn(
-                    f'Created a hub cloud dataset @ "{self.path}" which does not have the "hub://" prefix. Note: this dataset should only be used for testing!'
+                    f'Created a Deep Lake cloud dataset @ "{self.path}" which does not have the "hub://" prefix. Note: this dataset should only be used for testing!'
                 )
             self.link_creds.populate_all_managed_creds()
 
@@ -41,8 +41,8 @@ class HubCloudDataset(Dataset):
 
     @property
     def is_actually_cloud(self) -> bool:
-        """Datasets that are connected to hub cloud can still technically be stored anywhere.
-        If a dataset is hub cloud but stored without ``hub://`` prefix, it should only be used for testing.
+        """Datasets that are connected to Deep Lake cloud can still technically be stored anywhere.
+        If a dataset is in Deep Lake cloud but stored without ``hub://`` prefix, it should only be used for testing.
         """
         return is_hub_cloud_path(self.path)  # type: ignore
 
@@ -62,7 +62,7 @@ class HubCloudDataset(Dataset):
                 ds_name += "/" + subdir
         else:
             # if this dataset isn't actually pointing to a datset in the cloud
-            # a.k.a this dataset is trying to simulate a hub cloud dataset
+            # a.k.a this dataset is trying to simulate a Deep Lake cloud dataset
             # it's safe to assume they want to use the dev org
             org_id = HUB_CLOUD_DEV_USERNAME
             ds_name = self.path.replace("/", "_").replace(".", "")

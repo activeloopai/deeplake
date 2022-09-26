@@ -56,7 +56,7 @@ class LRUCache(StorageProvider):
         self.hub_objects[path] = obj
 
     def clear_hub_objects(self):
-        """Removes all HubMemoryObjects from the cache."""
+        """Removes all DeepLakeMemoryObjects from the cache."""
         self.hub_objects.clear()
 
     def remove_hub_object(self, path: str):
