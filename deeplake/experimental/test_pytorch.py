@@ -570,6 +570,7 @@ def test_indexes_tensors(local_ds, num_workers):
 
 
 @requires_linux
+@requires_torch
 def test_uneven_iteration(local_ds):
     with local_ds as ds:
         ds.create_tensor("x")
@@ -581,3 +582,33 @@ def test_uneven_iteration(local_ds):
         x, y = np.array(batch["x"][0]), np.array(batch["y"][0])
         np.testing.assert_equal(x, i)
         np.testing.assert_equal(y, i)
+
+
+@requires_linux
+@requires_torch
+def test_pytorch_error_handling(local_ds):
+    with local_ds as ds:
+        ds.create_tensor("x")
+        ds.create_tensor("y")
+        ds.create_tensor("z", htype="json")
+        ds.x.extend(list(range(5)))
+        ds.z.extend({"a": 1} for _ in range(5))
+
+    ptds = dataloader(ds).pytorch()
+    with pytest.raises(ValueError):
+        for _ in ptds:
+            pass
+
+    ptds = dataloader(ds).pytorch(tensors=["x", "y"])
+    with pytest.raises(ValueError):
+        for _ in ptds:
+            pass
+
+    ptds = dataloader(ds).pytorch(tensors=["x", "z"])
+    with pytest.raises(ValueError):
+        for _ in ptds:
+            pass
+
+    ptds = dataloader(ds).pytorch(tensors=["x"])
+    for _ in ptds:
+        pass
