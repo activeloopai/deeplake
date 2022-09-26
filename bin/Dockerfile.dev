@@ -11,5 +11,5 @@ WORKDIR /app
 
 RUN pip install -e .[all]
 
-RUN pip install -r hub/requirements/plugins.txt && \
-    pip install -r hub/requirements/tests.txt
+RUN pip install -r deeplake/requirements/plugins.txt && \
+    pip install -r deeplake/requirements/tests.txt
