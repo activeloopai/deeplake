@@ -6,25 +6,8 @@ from deeplake.util.bugout_reporter import deeplake_reporter
 def query(dataset, query_string: str):
     """Returns a sliced deeplake.Dataset with given query results.
 
-    It allows to run SQL like queries on dataset and extract results. Currently supported keywords are the following:
-
-    +-------------------------------------------+
-    | SELECT                                    |
-    +-------------------------------------------+
-    | FROM                                      |
-    +-------------------------------------------+
-    | CONTAINS                                  |
-    +-------------------------------------------+
-    | ORDER BY                                  |
-    +-------------------------------------------+
-    | GROUP BY                                  |
-    +-------------------------------------------+
-    | LIMIT                                     |
-    +-------------------------------------------+
-    | OFFSET                                    |
-    +-------------------------------------------+
-    | RANDOM() -> for shuffling query results   |
-    +-------------------------------------------+
+    It allows to run SQL like queries on dataset and extract results. See supported keywords and the Tensor Query Language documentation
+    :ref:`here <tql>`.
 
 
     Args:
