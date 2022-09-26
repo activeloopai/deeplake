@@ -1,8 +1,8 @@
 <img src="https://static.scarf.sh/a.png?x-pxid=bc3c57b0-9a65-49fe-b8ea-f711c4d35b82" /><p align="center">
-     <img src="https://user-images.githubusercontent.com/83741606/156426873-c0a77da0-9e0f-41a0-a4fb-cf77eb2fe35e.png" width="300"/>
+     <img src="https://i.postimg.cc/rsjcWc3S/deeplake-logo.png" width="400"/>
 </h1>
     </br>
-    <h1 align="center">Dataset Format for AI
+    <h1 align="center">Deep Lake: Data Lake for Deep Learning
  </h1>
 <p align="center">
     <a href="https://github.com/activeloopai/Hub/actions/workflows/test-pr-on-label.yml"><img src="https://github.com/activeloopai/Hub/actions/workflows/test-push.yml/badge.svg" alt="PyPI version" height="18"></a>
@@ -11,9 +11,9 @@
      <img src='https://readthedocs.org/projects/deep-lake/badge/?version=latest' alt='Documentation Status' />
      </a>
     <a href="https://pepy.tech/project/hub"><img src="https://static.pepy.tech/personalized-badge/hub?period=month&units=international_system&left_color=grey&right_color=orange&left_text=Downloads" alt="PyPI version" height="18"></a>
-     <a href="https://github.com/activeloopai/Hub/issues">
-    <img alt="GitHub issues" src="https://img.shields.io/github/issues/activeloopai/Hub"> </a>
-    <a href="https://codecov.io/gh/activeloopai/Hub/branch/main"><img src="https://codecov.io/gh/activeloopai/Hub/branch/main/graph/badge.svg" alt="codecov" height="18"></a>
+     <a href="https://github.com/activeloopai/deeplake/issues">
+    <img alt="GitHub issues" src="https://img.shields.io/github/issues/activeloopai/deeplake"> </a>
+    <a href="https://codecov.io/gh/activeloopai/deeplake/branch/main"><img src="https://codecov.io/gh/activeloopai/deeplake/branch/main/graph/badge.svg" alt="codecov" height="18"></a>
   <h3 align="center">
    <a href="https://docs.activeloop.ai/?utm_source=github&utm_medium=github&utm_campaign=github_readme&utm_id=readme"><b>Documentation</b></a> &bull;
    <a href="https://docs.activeloop.ai/getting-started/?utm_source=github&utm_medium=github&utm_campaign=github_readme&utm_id=readme"><b>Getting Started</b></a> &bull;
@@ -27,9 +27,12 @@
 
 *Read this in other languages: [简体中文](README.zh-cn.md)*
 
-## About Hub
+## About Deep Lake
 
-Hub is a dataset format with a simple API for creating, storing, and collaborating on AI datasets of any size. It enables you to store all of your data in one place, ranging from simple annotations to large videos, and it unlocks rapid streaming of data while training models at scale. Hub is used by Google, Waymo, Red Cross, Oxford University, and Omdena. Hub includes the following features:
+<b> 🚀 Deep Lake's efficient new C++ implementation speeds up data streaming by >2x compared to Hub 2.x (Ofeidis et al. 2022) 🚀</b>
+
+
+Deep Lake (formerly known as Activeloop Hub) is a data lake for deep learning applications. Open-source dataset format provides a simple API for creating, storing, and collaborating on AI datasets of any size. It enables you to store all of your data in one place, ranging from simple annotations to large videos, and it unlocks rapid streaming of data while training models at scale. Deep Lake is used by Google, Waymo, Red Cross, Omdena, Yale, & Oxford. Deep Lake includes the following features:
 
 <details>
   <summary><b>Storage Agnostic API</b></summary>
@@ -49,19 +52,19 @@ Commits, branches, checkout - Concepts you are already familiar with in your cod
 </details>
 <details>
   <summary><b>Integrations with Deep Learning Frameworks</b></summary>
-Hub comes with built-in integrations for Pytorch and Tensorflow. Train your model with a few lines of code - we even take care of dataset shuffling. :)
+Deep Lake comes with built-in integrations for Pytorch and Tensorflow. Train your model with a few lines of code - we even take care of dataset shuffling. :)
 </details>
 <details>
   <summary><b>Distributed Transformations</b></summary>
 Rapidly apply transformations on your datasets using multi-threading, multi-processing, or our built-in <a href="https://www.ray.io/">Ray</a> integration.</details>
 <details>
   <summary><b>100+ most-popular image, video, and audio datasets available in seconds</b></summary>
-Hub community has uploaded <a href="https://docs.activeloop.ai/datasets/?utm_source=github&utm_medium=github&utm_campaign=github_readme&utm_id=readme">100+ image, video and audio datasets</a> like <a href="https://docs.activeloop.ai/datasets/mnist/?utm_source=github&utm_medium=github&utm_campaign=github_readme&utm_id=readme">MNIST</a>, <a href="https://docs.activeloop.ai/datasets/coco-dataset/?utm_source=github&utm_medium=github&utm_campaign=github_readme&utm_id=readme">COCO</a>,  <a href="https://docs.activeloop.ai/datasets/imagenet-dataset/?utm_source=github&utm_medium=github&utm_campaign=github_readme&utm_id=readme">ImageNet</a>,  <a href="https://docs.activeloop.ai/datasets/cifar-10-dataset/?utm_source=github&utm_medium=github&utm_campaign=github_readme&utm_id=readme">CIFAR</a>,  <a href="https://docs.activeloop.ai/datasets/gtzan-genre-dataset/?utm_source=github&utm_medium=github&utm_campaign=github_readme&utm_id=readme">GTZAN</a> and others.
+Deep Lake community has uploaded <a href="https://docs.activeloop.ai/datasets/?utm_source=github&utm_medium=github&utm_campaign=github_readme&utm_id=readme">100+ image, video and audio datasets</a> like <a href="https://docs.activeloop.ai/datasets/mnist/?utm_source=github&utm_medium=github&utm_campaign=github_readme&utm_id=readme">MNIST</a>, <a href="https://docs.activeloop.ai/datasets/coco-dataset/?utm_source=github&utm_medium=github&utm_campaign=github_readme&utm_id=readme">COCO</a>,  <a href="https://docs.activeloop.ai/datasets/imagenet-dataset/?utm_source=github&utm_medium=github&utm_campaign=github_readme&utm_id=readme">ImageNet</a>,  <a href="https://docs.activeloop.ai/datasets/cifar-10-dataset/?utm_source=github&utm_medium=github&utm_campaign=github_readme&utm_id=readme">CIFAR</a>,  <a href="https://docs.activeloop.ai/datasets/gtzan-genre-dataset/?utm_source=github&utm_medium=github&utm_campaign=github_readme&utm_id=readme">GTZAN</a> and others.
 </details>
 </details>
 <details>
   <summary><b>Instant Visualization Support in <a href="https://app.activeloop.ai/?utm_source=github&utm_medium=github&utm_campaign=github_readme&utm_id=readme">Activeloop Platform</a></b></summary>
-Hub datasets are instantly visualized with bounding boxes, masks, annotations, etc. in <a href="https://app.activeloop.ai/?utm_source=github&utm_medium=github&utm_campaign=github_readme&utm_id=readme">Activeloop Platform</a> (see below).
+Deep Lake datasets are instantly visualized with bounding boxes, masks, annotations, etc. in <a href="https://app.activeloop.ai/?utm_source=github&utm_medium=github&utm_campaign=github_readme&utm_id=readme">Deep Lake Visualizer</a> (see below).
 </details>
 
 
@@ -70,26 +73,26 @@ Hub datasets are instantly visualized with bounding boxes, masks, annotations, e
 </div>
 
     
-## Getting Started with Hub
+## Getting Started with Deep Lake
 
 
-### 🚀 How to install Hub
-Hub is written in 100% Python and can be quickly installed using pip.
+### 🚀 How to install Deep Lake
+Deep Lake's core is efficiently built in C++ and can be quickly installed using pip.
 
 ```sh
 pip3 install hub
 ```
 
-**By default, Hub does not install dependencies for audio, video, and google-cloud (GCS) support. They can be installed using**:
+**By default, Deep Lake does not install dependencies for audio, video, and google-cloud (GCS) support. They can be installed using**:
 ```sh
 pip3 install "hub[av]"          -> Audio and video support via PyAV
 pip3 install "hub[gcp]"         -> GCS support via google-* dependencies
 pip3 install "hub[all]"         -> Installs everything - audio, video and GCS support
 ```
 
-### 🧠 Training a PyTorch model on a Hub dataset
+### 🧠 Training a PyTorch model on a Deep Lake dataset
 
-#### Load CIFAR 10, one of the readily available datasets in Hub:
+#### Load CIFAR 10, one of the readily available datasets in Deep Lake:
 
 ```python
 import hub
@@ -108,7 +111,7 @@ ds.labels[0].numpy() # array([6], dtype=uint32)
 
 #### Train a PyTorch model on the CIFAR 10 dataset without the need to download it
 
-First, define a transform for the images and use Hub's built-in PyTorch one-line dataloader to connect the data to the compute:
+First, define a transform for the images and use Deep Lake's built-in PyTorch one-line dataloader to connect the data to the compute:
 
 ```python
 tform = transforms.Compose([
@@ -156,9 +159,9 @@ for epoch in range(2):
 ```
 
 
-### 🏗️ How to create a Hub Dataset
+### 🏗️ How to create a Deep Lake Dataset
 
-A hub dataset can be created in various locations (Storage providers). This is how the paths for each of them would look like:
+A Deep Lake dataset can be created in various locations (Storage providers). This is how the paths for each of them would look like:
 
 | Storage provider        | Example path                   |
 | ----------------------- | ------------------------------ |
@@ -171,7 +174,7 @@ A hub dataset can be created in various locations (Storage providers). This is h
 
 
 
-Let's create a dataset in the Activeloop cloud. Activeloop cloud provides free storage up to 300 GB per user (more info [here](#-for-students-and-educators)). Create a new account with Hub from the terminal using `activeloop register` if you haven't already. You will be asked for a user name, email ID, and password. The user name you enter here will be used in the dataset path.
+Let's create a dataset in the Activeloop cloud. Activeloop cloud provides free storage up to 300 GB per user (more info [here](#-for-students-and-educators)). Create a new account with Deep Lake from the terminal using `activeloop register` if you haven't already. You will be asked for a user name, email ID, and password. The user name you enter here will be used in the dataset path.
 
 ```sh
 $ activeloop register
@@ -220,7 +223,7 @@ with ds:
 
 
 
-### 🚀 How to load a Hub Dataset
+### 🚀 How to load a Deep Lake Dataset
 
 
 You can load the dataset you just created with a single line of code:
@@ -231,7 +234,7 @@ import hub
 ds = hub.load("hub://<USERNAME>/test-dataset")
 ```
 
-You can also access one of the <a href="https://docs.activeloop.ai/datasets/?utm_source=github&utm_medium=github&utm_campaign=github_readme&utm_id=readme">100+ image, video and audio datasets in Hub format</a>, not just the ones you created. Here is how you would load the [Objectron Bikes Dataset](https://github.com/google-research-datasets/Objectron):
+You can also access one of the <a href="https://docs.activeloop.ai/datasets/?utm_source=github&utm_medium=github&utm_campaign=github_readme&utm_id=readme">100+ image, video and audio datasets in Deep Lake format</a>, not just the ones you created. Here is how you would load the [Objectron Bikes Dataset](https://github.com/google-research-datasets/Objectron):
 
 ```python
 import hub
@@ -252,7 +255,7 @@ image_arr = ds.image[0].numpy()
 Getting started guides, examples, tutorials, API reference, and other useful information can be found on our [documentation page](http://docs.activeloop.ai/?utm_source=github&utm_medium=repo&utm_campaign=readme). 
 
 ## 🎓 For Students and Educators
-Hub users can access and visualize a variety of popular datasets through a free integration with Activeloop's Platform. Users can also create and store their own datasets and make them available to the public. Free storage of up to 300 GB is available for students and educators:
+Deep Lake users can access and visualize a variety of popular datasets through a free integration with Activeloop's Platform. Users can also create and store their own datasets and make them available to the public. Free storage of up to 300 GB is available for students and educators:
 
 | <!-- -->    | <!-- -->    |
 | ---------------------------------------------------- | ------------- |
@@ -265,46 +268,46 @@ Hub users can access and visualize a variety of popular datasets through a free 
 
 
 <details>
-  <summary><b>Hub vs DVC</b></summary>
+  <summary><b>Deep Lake vs DVC</b></summary>
   
-Hub and DVC offer dataset version control similar to git for data, but their methods for storing data differ significantly. Hub converts and stores data as chunked compressed arrays, which enables rapid streaming to ML models, whereas DVC operates on top of data stored in less efficient traditional file structures. The Hub format makes dataset versioning significantly easier compared to traditional file structures by DVC when datasets are composed of many files (i.e., many images). An additional distinction is that DVC primarily uses a command-line interface, whereas Hub is a Python package. Lastly, Hub offers an API to easily connect datasets to ML frameworks and other common ML tools and enables instant dataset visualization through [Activeloop's visualization tool](http://app.activeloop.ai/?utm_source=github&utm_medium=repo&utm_campaign=readme).
+Deep Lake and DVC offer dataset version control similar to git for data, but their methods for storing data differ significantly. Deep Lake converts and stores data as chunked compressed arrays, which enables rapid streaming to ML models, whereas DVC operates on top of data stored in less efficient traditional file structures. The Deep Lake format makes dataset versioning significantly easier compared to traditional file structures by DVC when datasets are composed of many files (i.e., many images). An additional distinction is that DVC primarily uses a command-line interface, whereas Deep Lake is a Python package. Lastly, Deep Lake offers an API to easily connect datasets to ML frameworks and other common ML tools and enables instant dataset visualization through [Activeloop's visualization tool](http://app.activeloop.ai/?utm_source=github&utm_medium=repo&utm_campaign=readme).
 
 </details>
 
 
 <details>
-  <summary><b>Hub vs TensorFlow Datasets (TFDS)</b></summary>
+  <summary><b>Deep Lake vs TensorFlow Datasets (TFDS)</b></summary>
   
-Hub and TFDS seamlessly connect popular datasets to ML frameworks. Hub datasets are compatible with both PyTorch and TensorFlow, whereas TFDS are only compatible with TensorFlow. A key difference between Hub and TFDS is that Hub datasets are designed for streaming from the cloud, whereas TFDS must be downloaded locally prior to use. As a result, with Hub, one can import datasets directly from TensorFlow Datasets and stream them either to PyTorch or TensorFlow. In addition to providing access to popular publicly available datasets, Hub also offers powerful tools for creating custom datasets, storing them on a variety of cloud storage providers, and collaborating with others via simple API. TFDS is primarily focused on giving the public easy access to commonly available datasets, and management of custom datasets is not the primary focus. A full comparison article can be found [here](https://www.activeloop.ai/resources/tensor-flow-tf-data-activeloop-hub-how-to-implement-your-tensor-flow-data-pipelines-with-hub/).
+Deep Lake and TFDS seamlessly connect popular datasets to ML frameworks. Deep Lake datasets are compatible with both PyTorch and TensorFlow, whereas TFDS are only compatible with TensorFlow. A key difference between Deep Lake and TFDS is that Deep Lake datasets are designed for streaming from the cloud, whereas TFDS must be downloaded locally prior to use. As a result, with Deep Lake, one can import datasets directly from TensorFlow Datasets and stream them either to PyTorch or TensorFlow. In addition to providing access to popular publicly available datasets, Deep Lake also offers powerful tools for creating custom datasets, storing them on a variety of cloud storage providers, and collaborating with others via simple API. TFDS is primarily focused on giving the public easy access to commonly available datasets, and management of custom datasets is not the primary focus. A full comparison article can be found [here](https://www.activeloop.ai/resources/tensor-flow-tf-data-activeloop-hub-how-to-implement-your-tensor-flow-data-pipelines-with-hub/).
 
 </details>
 
 
 
 <details>
-  <summary><b>Hub vs HuggingFace</b></summary>
-Hub and HuggingFace offer access to popular datasets, but Hub primarily focuses on computer vision, whereas HuggingFace focuses on natural language processing. HuggingFace Transforms and other computational tools for NLP are not analogous to features offered by Hub.
+  <summary><b>Deep Lake vs HuggingFace</b></summary>
+Deep Lake and HuggingFace offer access to popular datasets, but Deep Lake primarily focuses on computer vision, whereas HuggingFace focuses on natural language processing. HuggingFace Transforms and other computational tools for NLP are not analogous to features offered by Deep Lake.
 
 
 </details>
 
 <details>
-  <summary><b>Hub vs WebDatasets</b></summary>
-Hub and WebDatasets both offer rapid data streaming across networks. They have nearly identical steaming speeds because the underlying network requests and data structures are very similar. However, Hub offers superior random access and shuffling, its simple API is in python instead of command-line, and Hub enables simple indexing and modification of the dataset without having to recreate it.
+  <summary><b>Deep Lake vs WebDatasets</b></summary>
+Deep Lake and WebDatasets both offer rapid data streaming across networks. They have nearly identical steaming speeds because the underlying network requests and data structures are very similar. However, Deep Lake offers superior random access and shuffling, its simple API is in python instead of command-line, and Deep Lake enables simple indexing and modification of the dataset without having to recreate it.
 
 
 </details>
 
 <details>
-  <summary><b>Hub vs Zarr</b></summary>
-Hub and Zarr both offer storage of data as chunked arrays. However, hub is primarily designed for returning data as arrays using a simple API, rather than actually storing raw arrays (even though that's also possible). Hub stores data in use-case-optimized formats, such as jpeg or png for images, or mp4 for video, and the user treats the data as if it's an array, because Hub handles all the data processing in between. Hub offers more flexibility for storing arrays with dynamic shape (ragged tensors), and it provides several features that are not naively available in Zarr such as version control, data streaming, and connecting data to ML Frameworks.
+  <summary><b>Deep Lake vs Zarr</b></summary>
+Deep Lake and Zarr both offer storage of data as chunked arrays. However, Deep Lake is primarily designed for returning data as arrays using a simple API, rather than actually storing raw arrays (even though that's also possible). Deep Lake stores data in use-case-optimized formats, such as jpeg or png for images, or mp4 for video, and the user treats the data as if it's an array, because Deep Lake handles all the data processing in between. Deep Lake offers more flexibility for storing arrays with dynamic shape (ragged tensors), and it provides several features that are not naively available in Zarr such as version control, data streaming, and connecting data to ML Frameworks.
 
 
 </details>
 
 ## Community
 
-Join our [**Slack community**](https://join.slack.com/t/hubdb/shared_invite/zt-ivhsj8sz-GWv9c5FLBDVw8vn~sxRKqQ) to learn more about unstructured dataset management using Hub and to get help from the Activeloop team and other users.
+Join our [**Slack community**](https://join.slack.com/t/hubdb/shared_invite/zt-ivhsj8sz-GWv9c5FLBDVw8vn~sxRKqQ) to learn more about unstructured dataset management using Deep Lake and to get help from the Activeloop team and other users.
 
 We'd love your feedback by completing our 3-minute [**survey**](https://forms.gle/rLi4w33dow6CSMcm9).
 
@@ -321,13 +324,13 @@ Please read [CONTRIBUTING.md](CONTRIBUTING.md) to get started with making contri
 
 ## README Badge
 
-Using Hub? Add a README badge to let everyone know: 
+Using Deep Lake? Add a README badge to let everyone know: 
 
 
-[![hub](https://img.shields.io/badge/powered%20by-hub%20-ff5a1f.svg)](https://github.com/activeloopai/Hub)
+[![deeplake](https://img.shields.io/badge/powered%20by-Deep%20Lake%20-ff5a1f.svg)](https://github.com/activeloopai/deeplake)
 
 ```
-[![hub](https://img.shields.io/badge/powered%20by-hub%20-ff5a1f.svg)](https://github.com/activeloopai/Hub)
+[![deeplake](https://img.shields.io/badge/powered%20by-Deep%20Lake%20-ff5a1f.svg)](https://github.com/activeloopai/deeplake)
 ```
 
 
@@ -336,17 +339,17 @@ Using Hub? Add a README badge to let everyone know:
 
 <details>
   <summary><b> Dataset Licenses</b></summary>
+  
+Deep Lake users may have access to a variety of publicly available datasets. We do not host or distribute these datasets, vouch for their quality or fairness, or claim that you have a license to use the datasets. It is your responsibility to determine whether you have permission to use the datasets under their license.
 
-Hub users may have access to a variety of publicly available datasets. We do not host or distribute these datasets, vouch for their quality or fairness, or claim that you have a license to use the datasets. It is your responsibility to determine whether you have permission to use the datasets under their license.
-
-If you're a dataset owner and do not want your dataset to be included in this library, please get in touch through a [GitHub issue](https://github.com/activeloopai/Hub/issues/new). Thank you for your contribution to the ML community!
+If you're a dataset owner and do not want your dataset to be included in this library, please get in touch through a [GitHub issue](https://github.com/activeloopai/deeplake/issues/new). Thank you for your contribution to the ML community!
 
 </details>
 
 <details>
   <summary><b> Usage Tracking</b></summary>
 
-By default, we collect usage data using Bugout (here's the [code](https://github.com/activeloopai/Hub/blob/853456a314b4fb5623c936c825601097b0685119/hub/__init__.py#L24) that does it). It does not collect user data other than anonymized IP address data, and it only logs the Hub library's own actions. This helps our team understand how the tool is used and how to build features that matter to you! After you register with Activeloop, data is no longer anonymous. You can always opt-out of reporting using the CLI command below, or by setting an environmental variable ```BUGGER_OFF``` to ```True```:
+By default, we collect usage data using Bugout (here's the [code](https://github.com/activeloopai/deeplake/blob/853456a314b4fb5623c936c825601097b0685119/hub/__init__.py#L24) that does it). It does not collect user data other than anonymized IP address data, and it only logs the Deep Lake library's own actions. This helps our team understand how the tool is used and how to build features that matter to you! After you register with Activeloop, data is no longer anonymous. You can always opt-out of reporting using the CLI command below, or by setting an environmental variable ```BUGGER_OFF``` to ```True```:
 
 ```
 activeloop reporting --off
@@ -354,14 +357,18 @@ activeloop reporting --off
 </details>
 
 ## Citation
-If you use Hub in your research, please cite Activeloop using:
+If you use Deep Lake in your research, please cite Activeloop using:
+
 ```
-@article{2022ActiveloopHub,
-  title={Hub: A Dataset Format for AI. A simple API for creating, storing, collaborating on AI datasets of any size & streaming them to ML frameworks at scale.},
-  author={Activeloop Developer Team},
-  journal={GitHub. Note: https://github.com/activeloopai/Hub},
-  year={2022}
+@article{deeplake,
+  doi = {10.48550/ARXIV.2209.10785},
+  url = {https://arxiv.org/abs/2209.10785},
+  author = {Hambardzumyan, Sasun and Tuli, Abhinav and Ghukasyan, Levon and Rahman, Fariz and Topchyan, Hrant and Isayan, David and Harutyunyan, Mikayel and Hakobyan, Tatevik and Stranic, Ivo and Buniatyan, Davit},
+  title = {Deep Lake: a Lakehouse for Deep Learning},
+  publisher = {arXiv},
+  year = {2022},
 }
 ```
+
 ## Acknowledgment
 This technology was inspired by our research work at Princeton University. We would like to thank William Silversmith @SeungLab for his awesome [cloud-volume](https://github.com/seung-lab/cloud-volume) tool.

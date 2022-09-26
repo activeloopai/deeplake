@@ -11,7 +11,7 @@ env:
   REPOSITORY_PAT: ${{ secrets.ACTIVELOOP_BOT_PAT }}
   BASELINE_REF: pr-${{ github.event.number }}-baseline-${{ github.event.pull_request.base.ref }}
   COMMIT_REF: pr-${{ github.event.number }}-commit-${{ github.event.pull_request.head.sha }}
-  MAIN_REPO_NAME: hub
+  MAIN_REPO_NAME: deeplake
 jobs:
   benchmark-pr:
     if: ${{ (github.event_name == 'pull_request_target' || github.event_name == 'pull_request') && contains(github.event.pull_request.labels.*.name, 'trigger-benchmark') }}
