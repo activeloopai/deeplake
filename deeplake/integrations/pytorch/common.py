@@ -61,5 +61,3 @@ def check_tensors(dataset, tensors, mode):
                 f" Please either populate the tensor or pass tensors argument to .pytorch that excludes this"
                 f" tensor."
             )
-        elif mode == "pytorch" and tensor.meta.htype == "json":
-            raise ValueError(f"json tensors are not supported for pytorch dataloaders.")

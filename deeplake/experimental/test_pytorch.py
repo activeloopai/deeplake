@@ -4,7 +4,7 @@ from deeplake.experimental import dataloader
 import deeplake
 import numpy as np
 import pytest
-from deeplake.util.exceptions import TensorDoesNotExistError
+from deeplake.util.exceptions import EmptyTensorError, TensorDoesNotExistError
 
 from deeplake.util.remove_cache import get_base_storage
 from deeplake.core.index.index import IndexEntry
@@ -590,22 +590,15 @@ def test_pytorch_error_handling(local_ds):
     with local_ds as ds:
         ds.create_tensor("x")
         ds.create_tensor("y")
-        ds.create_tensor("z", htype="json")
         ds.x.extend(list(range(5)))
-        ds.z.extend({"a": 1} for _ in range(5))
 
     ptds = dataloader(ds).pytorch()
-    with pytest.raises(ValueError):
+    with pytest.raises(EmptyTensorError):
         for _ in ptds:
             pass
 
     ptds = dataloader(ds).pytorch(tensors=["x", "y"])
-    with pytest.raises(ValueError):
-        for _ in ptds:
-            pass
-
-    ptds = dataloader(ds).pytorch(tensors=["x", "z"])
-    with pytest.raises(ValueError):
+    with pytest.raises(EmptyTensorError):
         for _ in ptds:
             pass
 
