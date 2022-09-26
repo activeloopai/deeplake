@@ -12,12 +12,18 @@ Hub is an open-source database for AI.
 
 .. toctree::
    :maxdepth: 2
+   :caption: Getting Started
+   
+   Installation
+
+.. toctree::
+   :maxdepth: 2
    :caption: Key Concepts
 
    Datasets
    Tensors
    Htypes
-   Sample Compressions <Sample-Compressions>
+   Compressions <Compressions>
    PyTorch and Tensorflow Support <Pytorch-and-Tensorflow-Support>
    Utility Functions <Utility-Functions>
 
@@ -31,6 +37,7 @@ Hub is an open-source database for AI.
    :caption: Experimental API
 
    Dataloader & Query <Dataloader-and-Query>
+   Tensor Query Language <Tensor-Query-Language>
 
 .. toctree::
    :maxdepth: 1

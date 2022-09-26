@@ -15,17 +15,17 @@
 # import sys
 # sys.path.insert(0, os.path.abspath('.'))
 
-import hub
+import deeplake
 
 
 # -- Project information -----------------------------------------------------
 
-project = "Hub"
+project = "Deep Lake"
 copyright = "2022, Activeloop"
 author = "Activeloop"
 
 # The full version, including alpha/beta/rc tags
-release = hub.__version__
+release = deeplake.__version__
 
 
 # -- General configuration ---------------------------------------------------
@@ -38,6 +38,7 @@ extensions = [
     "sphinx.ext.autosummary",
     "sphinx.ext.napoleon",
     "sphinx.ext.autosectionlabel",
+    "sphinx_copybutton",  # copy button
 ]
 autosummary_generate = False
 
@@ -70,3 +71,7 @@ html_logo = "_static/img/logo.svg"
 
 # Favicon
 html_favicon = "_static/img/tensie.svg"
+
+# copy button args
+copybutton_prompt_text = ">>> |\.\.\. "
+copybutton_prompt_is_regexp = True
