@@ -17,4 +17,3 @@ IPython
 flask
 pyjwt
 laspy
-hub-redirect==3.0.1

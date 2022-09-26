@@ -1,9 +1,14 @@
-from typing import Callable, Dict, List, Optional, Union
-from deeplake.experimental.convert_to_hub3 import dataset_to_hub3, verify_base_storage  # type: ignore
-from deeplake.experimental.util import raise_indra_installation_error  # type: ignore
+from typing import Callable, Dict, List, Optional, Union, Sequence
+from deeplake.experimental.convert_to_hub3 import dataset_to_hub3  # type: ignore
+from deeplake.experimental.util import (
+    create_fetching_schedule,
+    find_primary_tensor,
+    raise_indra_installation_error,
+    verify_base_storage,
+)
 from deeplake.experimental.util import collate_fn as default_collate  # type: ignore
 from deeplake.experimental.hub3_query import query
-from deeplake.integrations.pytorch.common import PytorchTransformFunction
+from deeplake.integrations.pytorch.common import PytorchTransformFunction, check_tensors
 from deeplake.util.bugout_reporter import deeplake_reporter
 from deeplake.util.dataset import map_tensor_keys
 import importlib
@@ -20,6 +25,7 @@ def import_indra_loader():
     if not importlib.util.find_spec("indra"):
         raise_indra_installation_error()  # type: ignore
     try:
+        from indra import api  # type: ignore
         from indra.pytorch.loader import Loader  # type:ignore
 
         INDRA_LOADER = Loader
@@ -44,6 +50,9 @@ class Hub3DataLoader:
         _drop_last=False,
         _mode=None,
         _return_index=None,
+        _primary_tensor_name=None,
+        _buffer_size=None,
+        _tobytes=None,
     ):
         import_indra_loader()
         self.dataset = dataset
@@ -59,19 +68,19 @@ class Hub3DataLoader:
         self._drop_last = _drop_last
         self._mode = _mode
         self._return_index = _return_index
+        self._primary_tensor_name = _primary_tensor_name or find_primary_tensor(dataset)
+        self._buffer_size = _buffer_size
+        self._tobytes = _tobytes
 
     def batch(self, batch_size: int, drop_last: bool = False):
-        """Returns a batched deeplake.experimental.Hub3DataLoader object.
-
+        """Returns a batched :class:`Hub3DataLoader` object.
 
         Args:
             batch_size (int): Number of samples in each batch.
             drop_last (bool): If True, the last batch will be dropped if its size is less than batch_size. Defaults to False.
 
-
         Returns:
-            Hub3DataLoader: A deeplake.experimental.Hub3DataLoader object.
-
+            Hub3DataLoader: A :class:`Hub3DataLoader` object.
 
         Raises:
             ValueError: If .batch() has already been called.
@@ -84,13 +93,14 @@ class Hub3DataLoader:
         all_vars["_drop_last"] = drop_last
         return self.__class__(**all_vars)
 
-    def shuffle(self):
-        """Returns a shuffled deeplake.experimental.Hub3DataLoader object.
+    def shuffle(self, buffer_size: int = 2048):
+        """Returns a shuffled :class:`Hub3DataLoader` object.
 
+        Args:
+            buffer_size (int): The size of the buffer used to shuffle the data in MBs. Defaults to 2048 MB. Increasing the buffer_size will increase the extent of shuffling.
 
         Returns:
-            Hub3DataLoader: A deeplake.experimental.Hub3DataLoader object.
-
+            Hub3DataLoader: A :class:`Hub3DataLoader` object.
 
         Raises:
             ValueError: If .shuffle() has already been called.
@@ -99,19 +109,21 @@ class Hub3DataLoader:
             raise ValueError("shuffle is already set")
         all_vars = self.__dict__.copy()
         all_vars["_shuffle"] = True
+        all_vars["_buffer_size"] = buffer_size
+        schedule = create_fetching_schedule(self.dataset, self._primary_tensor_name)
+        if schedule is not None:
+            all_vars["dataset"] = self.dataset[schedule]
         return self.__class__(**all_vars)
 
     def transform(self, transform: Union[Callable, Dict[str, Optional[Callable]]]):
-        """Returns a transformed deeplake.experimental.Hub3DataLoader object.
+        """Returns a transformed :class:`Hub3DataLoader` object.
 
 
         Args:
             transform (Callable or Dict[Callable]): A function or dictionary of functions to apply to the data.
 
-
         Returns:
-            Hub3DataLoader: A deeplake.experimental.Hub3DataLoader object.
-
+            Hub3DataLoader: A :class:`Hub3DataLoader` object.
 
         Raises:
             ValueError: If .transform() has already been called.
@@ -134,33 +146,15 @@ class Hub3DataLoader:
         return self.__class__(**all_vars)
 
     def query(self, query_string: str):
-        """Returns a sliced deeplake.experimental.Hub3DataLoader object with given query results.
-        It allows to run SQL like queries on dataset and extract results. Currently supported keywords are the following:
-
-        +-------------------------------------------+
-        | SELECT                                    |
-        +-------------------------------------------+
-        | FROM                                      |
-        +-------------------------------------------+
-        | CONTAINS                                  |
-        +-------------------------------------------+
-        | ORDER BY                                  |
-        +-------------------------------------------+
-        | GROUP BY                                  |
-        +-------------------------------------------+
-        | LIMIT                                     |
-        +-------------------------------------------+
-        | OFFSET                                    |
-        +-------------------------------------------+
-        | RANDOM() -> for shuffling query results   |
-        +-------------------------------------------+
-
+        """Returns a sliced :class:`Hub3DataLoader` object with given query results.
+        It allows to run SQL like queries on dataset and extract results. See supported keywords and the Tensor Query Language documentation
+        :ref:`here <tql>`.
 
         Args:
             query_string (str): An SQL string adjusted with new functionalities to run on the dataset object
 
         Returns:
-            Hub3DataLoader: A deeplake.experimental.Hub3DataLoader object.
+            Hub3DataLoader: A :class:`Hub3DataLoader` object.
 
         Examples:
             >>> import deeplake
@@ -187,8 +181,9 @@ class Hub3DataLoader:
         prefetch_factor: int = 10,
         distributed: bool = False,
         return_index: bool = True,
+        tobytes: Union[bool, Sequence[str]] = False,
     ):
-        """Returns a deeplake.experimental.Hub3DataLoader object.
+        """Returns a :class:`Hub3DataLoader` object.
 
 
         Args:
@@ -199,11 +194,10 @@ class Hub3DataLoader:
             prefetch_factor (int): Number of batches to transform and collate in advance per worker. Defaults to 10.
             distributed (bool): Used for DDP training. Distributes different sections of the dataset to different ranks. Defaults to False.
             return_index (bool): Used to idnetify where loader needs to retur sample index or not. Defaults to True.
-
+            tobytes (bool, Sequence[str]): If ``True``, samples will not be decompressed and their raw bytes will be returned instead of numpy arrays. Can also be a list of tensors, in which case those tensors alone will not be decompressed.
 
         Returns:
-            Hub3DataLoader: A deeplake.experimental.Hub3DataLoader object.
-
+            Hub3DataLoader: A :class:`Hub3DataLoader` object.
 
         Raises:
             ValueError: If .to_pytorch() or .to_numpy() has already been called.
@@ -215,17 +209,7 @@ class Hub3DataLoader:
         all_vars = self.__dict__.copy()
         all_vars["_num_workers"] = num_workers
         all_vars["_collate"] = collate_fn
-        if tensors:
-            if "index" in tensors:
-                raise ValueError(
-                    "index is not a tensor, to get index, pass return_index=True"
-                )
-            tensors = map_tensor_keys(self.dataset, tensors)
-            if self._tensors:
-                raise ValueError(
-                    "Tensors have already been specified by passing a dictionary to .transform() method"
-                )
-        all_vars["_tensors"] = self._tensors or tensors
+        handle_tensors_and_tobytes(tensors, tobytes, self.dataset, all_vars)
         all_vars["_num_threads"] = num_threads
         all_vars["_prefetch_factor"] = prefetch_factor
         all_vars["_distributed"] = distributed
@@ -240,19 +224,19 @@ class Hub3DataLoader:
         tensors: Optional[List[str]] = None,
         num_threads: Optional[int] = None,
         prefetch_factor: int = 10,
+        tobytes: Union[bool, Sequence[str]] = False,
     ):
-        """Returns a deeplake.experimental.Hub3DataLoader object.
+        """Returns a :class:`Hub3DataLoader` object.
 
         Args:
             num_workers (int): Number of workers to use for transforming and processing the data. Defaults to 0.
             tensors (List[str], Optional): List of tensors to load. If None, all tensors are loaded. Defaults to None.
             num_threads (int, Optional): Number of threads to use for fetching and decompressing the data. If None, the number of threads is automatically determined. Defaults to None.
             prefetch_factor (int): Number of batches to transform and collate in advance per worker. Defaults to 10.
-
+            tobytes (bool, Sequence[str]): If ``True``, samples will not be decompressed and their raw bytes will be returned instead of numpy arrays. Can also be a list of tensors, in which case those tensors alone will not be decompressed.
 
         Returns:
-            Hub3DataLoader: A deeplake.experimental.Hub3DataLoader object.
-
+            Hub3DataLoader: A :class:`Hub3DataLoader` object.
 
         Raises:
             ValueError: If .to_pytorch() or .to_numpy() has already been called.
@@ -263,16 +247,7 @@ class Hub3DataLoader:
             raise ValueError("already called .to_numpy()")
         all_vars = self.__dict__.copy()
         all_vars["_num_workers"] = num_workers
-        if tensors:
-            if "index" in tensors:
-                raise ValueError(
-                    "index is not a tensor, to get index, pass return_index=True"
-                )
-            tensors = map_tensor_keys(self.dataset, tensors)
-            if self._tensors:
-                raise ValueError(
-                    "Tensors have already been specified by passing a dictionary to .transform() method"
-                )
+        handle_tensors_and_tobytes(tensors, tobytes, self.dataset, all_vars)
         all_vars["_tensors"] = self._tensors or tensors
         all_vars["_num_threads"] = num_threads
         all_vars["_prefetch_factor"] = prefetch_factor
@@ -280,6 +255,8 @@ class Hub3DataLoader:
         return self.__class__(**all_vars)
 
     def __iter__(self):
+        tensors = self._tensors or map_tensor_keys(self.dataset, None)
+        check_tensors(self.dataset, tensors, self._mode)
         dataset = dataset_to_hub3(self.dataset)
         batch_size = self._batch_size or 1
         drop_last = self._drop_last or False
@@ -296,13 +273,21 @@ class Hub3DataLoader:
             collate_fn = default_collate
         else:
             collate_fn = self._collate
-        tensors = self._tensors or map_tensor_keys(self.dataset, None)
         num_threads = self._num_threads
         prefetch_factor = self._prefetch_factor
         distributed = self._distributed or False
-        upcast = (
-            self._mode == "pytorch"
-        )  # only upcast for pytorch, this handles unsupported dtypes
+
+        # only upcast for pytorch, this handles unsupported dtypes
+        upcast = self._mode == "pytorch"
+
+        primary_tensor_name = self._primary_tensor_name
+        buffer_size = self._buffer_size
+        if self._tobytes is True:
+            raw_tensors = tensors
+        elif self._tobytes is False:
+            raw_tensors = []
+        else:
+            raw_tensors = self._tobytes
         return iter(
             INDRA_LOADER(
                 dataset,
@@ -318,19 +303,22 @@ class Hub3DataLoader:
                 drop_last=drop_last,
                 upcast=upcast,
                 return_index=return_index,
+                primary_tensor=primary_tensor_name,
+                buffer_size=buffer_size,
+                raw_tensors=raw_tensors,
             )
         )
 
 
 def dataloader(dataset) -> Hub3DataLoader:
-    """Returns a deeplake.experimental.Hub3DataLoader object which can be transformed to either pytorch dataloader or numpy.
+    """Returns a :class:`Hub3DataLoader` object which can be transformed to either pytorch dataloader or numpy.
 
 
     Args:
         dataset: deeplake.Dataset object on which dataloader needs to be built
 
     Returns:
-        Hub3DataLoader: A deeplake.experimental.Hub3DataLoader object.
+        Hub3DataLoader: A :class:`Hub3DataLoader` object.
 
 
     Examples:
@@ -389,3 +377,26 @@ def dataloader(dataset) -> Hub3DataLoader:
     """
     verify_base_storage(dataset)
     return Hub3DataLoader(dataset)
+
+
+def handle_tensors_and_tobytes(tensors, tobytes, dataset, all_vars):
+    existing_tensors = all_vars["_tensors"]
+    if tensors:
+        if "index" in tensors:
+            raise ValueError(
+                "index is not a tensor, to get index, pass return_index=True"
+            )
+        tensors = map_tensor_keys(dataset, tensors)
+        if existing_tensors:
+            raise ValueError(
+                "Tensors have already been specified by passing a dictionary to .transform() method"
+            )
+    all_vars["_tensors"] = existing_tensors or tensors
+    if isinstance(tobytes, Sequence):
+        tobytes = map_tensor_keys(dataset, tobytes)
+        if tobytes and all_vars["_tensors"]:
+            tensor_set = set(all_vars["_tensors"])
+            for tensor in tobytes:
+                if tensor not in tensor_set:
+                    raise ValueError(f"tobytes tensor {tensor} not found in tensors.")
+    all_vars["_tobytes"] = tobytes

@@ -71,7 +71,7 @@ def libdeeplake_availabe():
         mac_ver = list(map(int, platform.mac_ver()[0].split(".")))
         if (
             (mac_ver[0] > 10 or mac_ver[0] == 10 and mac_ver[1] >= 12)
-            and py_ver >= (3, 6)
+            and py_ver >= (3, 7)
             and py_ver <= (3, 10)
         ):
             return True
@@ -79,10 +79,12 @@ def libdeeplake_availabe():
 
 
 if libdeeplake_availabe():
-    install_requires.insert(0, "libdeeplake")
+    install_requires.insert(0, "libdeeplake==0.0.12")
+install_requires.append("hub-redirect==3.0.2")
 
 
 config = {
+    "name": project_name,
     "version": get_property("__version__"),
     "description": "Activeloop Deep Lake",
     "long_description": long_description,
