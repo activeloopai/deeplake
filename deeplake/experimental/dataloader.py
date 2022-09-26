@@ -1,4 +1,4 @@
-from typing import Callable, Dict, List, Optional, Union
+from typing import Callable, Dict, List, Optional, Union, Sequence
 from deeplake.experimental.convert_to_hub3 import dataset_to_hub3  # type: ignore
 from deeplake.experimental.util import (
     create_fetching_schedule,
