@@ -122,20 +122,20 @@ jobs:
           pip install -r deeplake/requirements/plugins.txt
           pip install -r deeplake/requirements/tests.txt
           python setup.py install
-      - name: Doing the benchmark and publishing results -> Hub baseline version
+      - name: Doing the benchmark and publishing results -> Deep Lake baseline version
         run: |
           cd benchmark-source
           pip install -r requirements.ci.txt
           python run.py --all --github
           python publish.py ${BASELINE_REF} --github
-      - name: Install Hub from PR
+      - name: Install Deep Lake from PR
         run: |
           cd pr-source
           pip install -r deeplake/requirements/common.txt
           pip install -r deeplake/requirements/plugins.txt
           pip install -r deeplake/requirements/tests.txt
           python setup.py install
-      - name: Doing the benchmark, publishing and comparing with baseline -> Hub from PR
+      - name: Doing the benchmark, publishing and comparing with baseline -> Deep Lake from PR
         run: |
           cd benchmark-source
           python3 run.py --all --baseline=${BASELINE_REF} --github
