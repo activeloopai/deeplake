@@ -41,7 +41,7 @@ def _check_version(v):
     comparison = version_compare(v, deeplake.__version__)
     if comparison > 0:
         warnings.warn(
-            f"Loading a dataset that was created or updated with a newer version of deeplake. This could lead to corruption or unexpected errors! Dataset version: {v}, current hub version: {deeplake.__version__}. It's recommended that you update to a version of hub >= {v}."
+            f"Loading a dataset that was created or updated with a newer version of deeplake. This could lead to corruption or unexpected errors! Dataset version: {v}, current deeplake version: {deeplake.__version__}. It's recommended that you update to a version of deeplake >= {v}."
         )
 
     return comparison >= 0

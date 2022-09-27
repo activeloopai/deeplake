@@ -67,7 +67,7 @@ jobs:
               });
             } else {
               const prComment =
-                'Thank you for contributing to the Hub! :tada:\n\nWe are currently running benchmarks on your code. Please wait until it completes.\n\nURL: ' +
+                'Thank you for contributing to the Deep Lake! :tada:\n\nWe are currently running benchmarks on your code. Please wait until it completes.\n\nURL: ' +
                 workflowRunUrl + '\n SHA: ${{ github.event.pull_request.head.sha }}';
               await github.issues.createComment({
                 owner: 'activeloopai',

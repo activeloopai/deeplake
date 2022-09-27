@@ -408,7 +408,7 @@ class dataset:
             raise
         if not dataset_exists(cache_chain):
             raise DatasetHandlerError(
-                f"A Hub dataset does not exist at the given path ({path}). Check the path provided or in case you want to create a new dataset, use deeplake.empty()."
+                f"A Deep Lake dataset does not exist at the given path ({path}). Check the path provided or in case you want to create a new dataset, use deeplake.empty()."
             )
 
         try:
