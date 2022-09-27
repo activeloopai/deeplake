@@ -1013,7 +1013,7 @@ class Dataset:
                     lock_lost_callback=self._lock_lost_handler,
                 )
             except LockedException as e:
-                self._set_read_only(True)
+                self._set_read_only(True, False)
                 self.__dict__["_locked_out"] = True
                 if err:
                     raise e
