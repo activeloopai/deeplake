@@ -60,15 +60,6 @@ dt.sig {
     font-size: 94%
 }
 
-.wy-menu-vertical>p.caption {
-    font-size: large;
-}
-
-
-.wy-menu-vertical .reference.internal {
-    color: rgb(0, 0, 0);
-}
-
 .wy-side-nav-search input[type=text] {
     border-color: #ff6d35;
 }
@@ -97,6 +88,56 @@ html.writer-html5 .rst-content dl[class]:not(.option-list):not(.field-list):not(
 .wy-menu-vertical a:hover {
     background-color: #cbcbcb;
     cursor: pointer;
+}
+
+/* hover color for + button*/
+.wy-menu-vertical li.toctree-l2 a:hover button.toctree-expand,
+.wy-menu-vertical li.toctree-l3 a:hover button.toctree-expand,
+.wy-menu-vertical li.toctree-l4 a:hover button.toctree-expand,
+.wy-menu-vertical li.toctree-l5 a:hover button.toctree-expand,
+.wy-menu-vertical li.toctree-l6 a:hover button.toctree-expand,
+.wy-menu-vertical li.toctree-l7 a:hover button.toctree-expand,
+.wy-menu-vertical li.toctree-l8 a:hover button.toctree-expand,
+.wy-menu-vertical li.toctree-l9 a:hover button.toctree-expand,
+.wy-menu-vertical li.toctree-l10 a:hover button.toctree-expand {
+    color: #ff6d35;
+}
+
+/* right border for current selected section*/
+.wy-menu-vertical li.current a {
+    color: grey;
+    border-right: 1px solid #ff6d35;
+    padding: .4045em 2.427em
+}
+
+/* headings in main nav */
+.wy-menu-vertical header,
+.wy-menu-vertical p.caption {
+    color: #0b72d9;
+    height: 32px;
+    line-height: 32px;
+    padding: 0 1.618em;
+    margin: 12px 0 0;
+    display: block;
+    font-weight: 700;
+    text-transform: uppercase;
+    font-size: large;
+    white-space: nowrap
+}
+
+/* selected background */
+.wy-menu-vertical li.current {
+    background: #ffffff
+}
+
+.wy-menu-vertical li.toctree-l2.current>a,
+.wy-menu-vertical li.toctree-l2.current li.toctree-l3>a {
+    background: #ffffff
+}
+
+
+.wy-menu-vertical .reference.internal {
+    color: rgb(0, 0, 0);
 }
 
 /* Takes full width of screen */
