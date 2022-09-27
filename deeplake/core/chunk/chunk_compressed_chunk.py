@@ -11,6 +11,7 @@ from deeplake.core.meta.encode.shape import ShapeEncoder
 from deeplake.core.serialize import bytes_to_text, check_sample_shape
 from deeplake.core.partial_sample import PartialSample
 from deeplake.core.tiling.sample_tiles import SampleTiles
+from deeplake.core.polygon import Polygons
 from deeplake.util.casting import intelligent_cast
 from deeplake.util.compression import get_compression_ratio
 from deeplake.util.exceptions import EmptyTensorError
@@ -218,6 +219,8 @@ class ChunkCompressedChunk(BaseChunk):
                 decompressed = decompressed[sb:eb]
         if self.is_text_like:
             return bytes_to_text(decompressed, self.htype)
+        if self.tensor_meta.htype == "polygon":
+            return Polygons.frombuffer(decompressed, dtype=self.dtype, ndim=shape[-1])
         ret = np.frombuffer(decompressed, dtype=self.dtype).reshape(shape)
         if copy and not ret.flags["WRITEABLE"]:
             ret = ret.copy()

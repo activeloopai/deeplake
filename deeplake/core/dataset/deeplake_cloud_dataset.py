@@ -16,7 +16,7 @@ import time
 import deeplake
 
 
-class HubCloudDataset(Dataset):
+class DeepLakeCloudDataset(Dataset):
     """Subclass of :class:`Dataset`. Deep Lake cloud datasets are those datasets which are stored on Activeloop servers, their paths look like:
     ``hub://username/dataset_name``."""
 

@@ -35,6 +35,7 @@ from deeplake.util.exceptions import (
     TokenPermissionError,
     UserNotLoggedInException,
     SampleAppendingError,
+    DatasetTooLargeToDelete,
 )
 from deeplake.util.path import convert_string_to_pathlib_if_needed
 from deeplake.util.pretty_print import summary_tensor, summary_dataset
@@ -798,10 +799,9 @@ def test_dataset_delete():
         ds.create_tensor("data")
         ds.data.extend(np.zeros((100, 2000)))
 
-        try:
+        with pytest.raises(DatasetTooLargeToDelete):
             deeplake.delete("test/")
-        finally:
-            assert os.path.isfile("test/dataset_meta.json")
+        assert os.path.isfile("test/dataset_meta.json")
 
         deeplake.delete("test/", large_ok=True)
         assert not os.path.isfile("test/dataset_meta.json")
@@ -1044,6 +1044,7 @@ def test_htypes_list():
         "point",
         "point_cloud",
         "point_cloud.calibration_matrix",
+        "polygon",
         "segment_mask",
         "text",
         "video",

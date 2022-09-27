@@ -7,9 +7,9 @@ Dataset
 .. autoclass:: Dataset()
     :members:
 
-HubCloudDataset
-~~~~~~~~~~~~~~~
-.. autoclass:: HubCloudDataset()
+DeepLakeCloudDataset
+~~~~~~~~~~~~~~~~~~~~
+.. autoclass:: DeepLakeCloudDataset()
     :show-inheritance:
     :members:
 

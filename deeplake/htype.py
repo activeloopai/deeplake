@@ -31,6 +31,8 @@ Supported htypes and their respective defaults are:
 +----------------------------+-----------+---------------+
 | bbox                       |  float32  |  None         |
 +----------------------------+-----------+---------------+
+| polygon                    | float32   |  None         |
++----------------------------+-----------+---------------+
 | video                      |  uint8    |  None         |
 +----------------------------+-----------+---------------+
 | instance_label             | uint32    |  None         |
@@ -171,6 +173,7 @@ class htype:
     DICOM = "dicom"
     POINT_CLOUD = "point_cloud"
     POINT_CLOUD_CALIBRATION_MATRIX = "point_cloud.calibration_matrix"
+    POLYGON = "polygon"
 
 
 # used for requiring the user to specify a value for htype properties. notates that the htype property has no default.
@@ -220,6 +223,7 @@ HTYPE_CONFIGURATIONS: Dict[str, Dict] = {
     htype.DICOM: {"sample_compression": "dcm"},
     htype.POINT_CLOUD: {"sample_compression": "las"},
     htype.POINT_CLOUD_CALIBRATION_MATRIX: {"dtype": "float32"},
+    htype.POLYGON: {"dtype": "float32"},
 }
 
 HTYPE_VERIFICATIONS: Dict[str, Dict] = {
@@ -242,6 +246,7 @@ HTYPE_SUPPORTED_COMPRESSIONS = {
     htype.JSON: BYTE_COMPRESSIONS[:],
     htype.POINT_CLOUD: POINT_CLOUD_COMPRESSIONS[:],
     htype.DICOM: ["dcm"],
+    htype.POLYGON: BYTE_COMPRESSIONS[:],
 }
 
 

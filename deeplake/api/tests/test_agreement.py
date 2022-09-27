@@ -30,7 +30,7 @@ def dont_agree(path):
 
 
 def agree(path):
-    """Load the hub cloud dataset at path and simulate agreeing to the terms of access."""
+    """Load the Deep Lake cloud dataset at path and simulate agreeing to the terms of access."""
     dataset_name = path.split("/")[-1]
     with replace_stdin(StringIO(dataset_name)):
         ds = deeplake.load(path)

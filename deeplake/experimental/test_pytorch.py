@@ -371,7 +371,8 @@ def test_pytorch_view(local_ds, index):
 
 @requires_torch
 @requires_linux
-def test_pytorch_collate(local_ds):
+@pytest.mark.parametrize("shuffle", [True, False])
+def test_pytorch_collate(local_ds, shuffle):
     with local_ds:
         local_ds.create_tensor("a")
         local_ds.create_tensor("b")
@@ -381,13 +382,9 @@ def test_pytorch_collate(local_ds):
             local_ds.b.append(1)
             local_ds.c.append(2)
 
-    ptds = (
-        dataloader(local_ds)
-        .batch(4)
-        .pytorch(
-            collate_fn=reorder_collate,
-        )
-    )
+    ptds = dataloader(local_ds).batch(4).pytorch(collate_fn=reorder_collate)
+    if shuffle:
+        ptds = ptds.shuffle()
     for batch in ptds:
         assert len(batch) == 2
         assert len(batch[0]) == 2
@@ -398,7 +395,8 @@ def test_pytorch_collate(local_ds):
 
 @requires_torch
 @requires_linux
-def test_pytorch_transform_collate(local_ds):
+@pytest.mark.parametrize("shuffle", [True, False])
+def test_pytorch_transform_collate(local_ds, shuffle):
     with local_ds:
         local_ds.create_tensor("a")
         local_ds.create_tensor("b")
@@ -416,6 +414,8 @@ def test_pytorch_transform_collate(local_ds):
         )
         .transform(dict_to_list)
     )
+    if shuffle:
+        ptds = ptds.shuffle()
     for batch in ptds:
         assert len(batch) == 3
         for i in range(2):
@@ -430,9 +430,35 @@ def test_pytorch_ddp():
     raise NotImplementedError
 
 
-@pytest.mark.xfail(raises=NotImplementedError, strict=True)
-def test_pytorch_tobytes():
-    raise NotImplementedError
+@requires_torch
+@requires_linux
+@enabled_non_gdrive_datasets
+@pytest.mark.parametrize("compression", [None, "jpeg"])
+def test_pytorch_tobytes(ds, compressed_image_paths, compression):
+    with ds:
+        ds.create_tensor("image", sample_compression=compression)
+        ds.image.extend(
+            np.array([i * np.ones((10, 10, 3), dtype=np.uint8) for i in range(5)])
+        )
+        ds.image.extend([deeplake.read(compressed_image_paths["jpeg"][0])] * 5)
+    if isinstance(get_base_storage(ds.storage), (MemoryProvider, GCSProvider)):
+        with pytest.raises(ValueError):
+            dl = dataloader(ds)
+        return
+
+    ptds = dataloader(ds).pytorch(tobytes=["image"])
+
+    for i, batch in enumerate(ptds):
+        image = batch["image"][0]
+        assert isinstance(image, bytes)
+        if i < 5 and not compression:
+            np.testing.assert_array_equal(
+                np.frombuffer(image, dtype=np.uint8).reshape(10, 10, 3),
+                i * np.ones((10, 10, 3), dtype=np.uint8),
+            )
+        elif i >= 5 and compression:
+            with open(compressed_image_paths["jpeg"][0], "rb") as f:
+                assert f.read() == image
 
 
 @requires_torch
@@ -465,8 +491,9 @@ def test_expiration_date_casting_to_string():
 
 @requires_torch
 @requires_linux
+@pytest.mark.parametrize("shuffle", [True, False])
 @pytest.mark.parametrize("num_workers", [0, 2])
-def test_indexes(local_ds, num_workers):
+def test_indexes(local_ds, shuffle, num_workers):
     with local_ds as ds:
         ds.create_tensor("xyz")
         for i in range(8):
@@ -477,6 +504,8 @@ def test_indexes(local_ds, num_workers):
         .batch(4)
         .pytorch(num_workers=num_workers, return_index=True)
     )
+    if shuffle:
+        ptds = ptds.shuffle()
 
     for batch in ptds:
         assert batch.keys() == {"xyz", "index"}
@@ -486,8 +515,9 @@ def test_indexes(local_ds, num_workers):
 
 @requires_torch
 @requires_linux
+@pytest.mark.parametrize("shuffle", [True, False])
 @pytest.mark.parametrize("num_workers", [0, 2])
-def test_indexes_transform(local_ds, num_workers):
+def test_indexes_transform(local_ds, shuffle, num_workers):
     with local_ds as ds:
         ds.create_tensor("xyz")
         for i in range(8):
@@ -499,6 +529,8 @@ def test_indexes_transform(local_ds, num_workers):
         .transform(index_transform)
         .pytorch(num_workers=num_workers, return_index=True)
     )
+    if shuffle:
+        ptds = ptds.shuffle()
 
     for batch in ptds:
         assert len(batch) == 2
@@ -511,8 +543,9 @@ def test_indexes_transform(local_ds, num_workers):
 
 @requires_torch
 @requires_linux
+@pytest.mark.parametrize("shuffle", [True, False])
 @pytest.mark.parametrize("num_workers", [0, 2])
-def test_indexes_transform_dict(local_ds, num_workers):
+def test_indexes_transform_dict(local_ds, shuffle, num_workers):
     with local_ds as ds:
         ds.create_tensor("xyz")
         for i in range(8):
@@ -524,6 +557,8 @@ def test_indexes_transform_dict(local_ds, num_workers):
         .transform({"xyz": double, "index": None})
         .pytorch(num_workers=num_workers, return_index=True)
     )
+    if shuffle:
+        ptds = ptds.shuffle()
 
     for batch in ptds:
         assert batch.keys() == {"xyz", "index"}
@@ -536,6 +571,8 @@ def test_indexes_transform_dict(local_ds, num_workers):
         .transform({"xyz": double})
         .pytorch(num_workers=num_workers, return_index=True)
     )
+    if shuffle:
+        ptds = ptds.shuffle()
 
     for batch in ptds:
         assert batch.keys() == {"xyz"}
@@ -543,8 +580,9 @@ def test_indexes_transform_dict(local_ds, num_workers):
 
 @requires_torch
 @requires_linux
+@pytest.mark.parametrize("shuffle", [True, False])
 @pytest.mark.parametrize("num_workers", [0, 2])
-def test_indexes_tensors(local_ds, num_workers):
+def test_indexes_tensors(local_ds, shuffle, num_workers):
     with local_ds as ds:
         ds.create_tensor("xyz")
         for i in range(8):
@@ -564,6 +602,8 @@ def test_indexes_tensors(local_ds, num_workers):
         .batch(4)
         .pytorch(num_workers=num_workers, return_index=True, tensors=["xyz"])
     )
+    if shuffle:
+        ptds = ptds.shuffle()
 
     for batch in ptds:
         assert batch.keys() == {"xyz", "index"}

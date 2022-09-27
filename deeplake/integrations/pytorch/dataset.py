@@ -12,6 +12,8 @@ from deeplake.core.io import (
     SingleThreadScheduler,
     MultiThreadedNaiveScheduler,
 )
+from deeplake.core.sample import Sample
+from deeplake.core.polygon import Polygons
 from deeplake.integrations.pytorch.shuffle_buffer import ShuffleBuffer
 
 import torch
@@ -48,22 +50,38 @@ def use_scheduler(num_workers: int, ensure_order: bool):
             return SequentialMultithreadScheduler(num_workers)
 
 
-def cast_type(tensor: np.ndarray):
+def cast_type(tensor):
+    # Cast to a pytorch supported dtype.
     if tensor.dtype == np.uint16:
         return tensor.astype(np.int32)
     if tensor.dtype == np.uint32:
         return tensor.astype(np.int64)
     if tensor.dtype == np.uint64:
         return tensor.astype(np.int64)
-
-    return tensor
+    return None  # if not casted, calling method might want to make a copy.
 
 
 def copy_tensor(x):
+    if isinstance(x, Sample):
+        x = x.array
     try:
-        return cast_type(x.copy())
+        copy = cast_type(x)
     except AttributeError:
         return bytes(x)
+    if copy is None:
+        copy = x.copy()
+    if isinstance(copy, Polygons):
+        copy = copy.numpy()
+    try:
+        if copy.dtype == "object":
+            raise TypeError(
+                "Tensors of json htype cannot be converted to pytorch tensors automatically. \
+Provide a custom collate function to handle this type of data. \
+Alternatively, you can also exclude these tensors from training using the `tensors` argument of `ds.pytorch()`"
+            )
+    except AttributeError:
+        pass
+    return copy
 
 
 def _process(tensor, transform: PytorchTransformFunction):

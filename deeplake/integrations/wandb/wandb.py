@@ -319,7 +319,7 @@ def _plat_url(ds, http=True):
     prefix = "https://app.activeloop.ai/" if http else "hub://"
     if hasattr(ds, "_view_entry"):
         entry = ds._view_entry
-        _, org, ds_name, _ = process_hub_path(entry.source_dataset_path)
+        _, org, ds_name, _ = process_hub_path(entry._src_ds.path)
         commit_id = entry.info["source-dataset-version"]
         return f"{prefix}{org}/{ds_name}/{commit_id}?view={entry.id}"
     _, org, ds_name, _ = process_hub_path(ds.path)
