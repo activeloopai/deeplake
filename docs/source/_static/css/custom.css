@@ -26,6 +26,7 @@ body {
     color: #ff6d35;
 }
 
+/* internal references */
 a.reference.internal {
     color: #ff6d35;
 }
@@ -63,8 +64,9 @@ dt.sig {
     font-size: large;
 }
 
+
 .wy-menu-vertical .reference.internal {
-    color: rgb(66, 63, 63);
+    color: rgb(0, 0, 0);
 }
 
 .wy-side-nav-search input[type=text] {

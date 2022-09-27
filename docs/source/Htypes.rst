@@ -456,7 +456,7 @@ array([[465, 398, 684, 469],
 Point Htype
 ~~~~~~~~~~~
 
-- :bluebold:`Sample dimensions:` ``(# points, 2)`` in case of 2-D (X, Y) co-ordinates or ``(# points, 3)`` in case of for 3-D (X, Y, Z) co-ordinates of the point.
+- :bluebold:`Sample dimensions:` ``(# points, 2)`` in case of 2-D (X, Y) co-ordinates or ``(# points, 3)`` in case of 3-D (X, Y, Z) co-ordinates of the point.
 
 Points does not contain a fixed mapping across samples between the point order and real-world objects (i.e., point 0 
 is an elbow, point 1 is a knee, etc.). If you require such a mapping, use `COCO Keypoints Htype`_.
