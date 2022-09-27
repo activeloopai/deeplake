@@ -8,6 +8,7 @@ from deeplake.core.serialize import (
     bytes_to_text,
 )
 from deeplake.core.tiling.sample_tiles import SampleTiles
+from deeplake.core.polygon import Polygons
 from deeplake.util.exceptions import EmptyTensorError
 from deeplake.util.video import normalize_index
 from .base_chunk import BaseChunk, InputSample
@@ -110,6 +111,14 @@ class SampleCompressedChunk(BaseChunk):
 
         if start > nframes:
             raise IndexError("Start index out of bounds.")
+
+        if self.tensor_meta.htype == "polygon":
+            buffer = decompress_bytes(buffer, self.compression)
+            return Polygons.frombuffer(
+                buffer,
+                dtype=self.tensor_meta.dtype,
+                ndim=shape[-1],
+            )
 
         sample = decompress_array(
             buffer,

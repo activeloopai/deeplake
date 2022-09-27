@@ -774,3 +774,15 @@ class SampleAppendingError(Exception):
     def __init__(self):
         message = """Cannot append sample because tensor(s) are not specified. Expected input to ds.append is a dictionary. To append samples, you need to either specify the tensors and append the samples as a dictionary, like: `ds.append({"image_tensor": sample, "label_tensor": sample})` or you need to call `append` method of the required tensor, like: `ds.image_tensor.append(sample)`"""
         super().__init__(message)
+
+
+class DatasetTooLargeToDelete(Exception):
+    def __init__(self, ds_path):
+        message = f"Hub Dataset {ds_path} was too large to delete. Try again with large_ok=True."
+        super().__init__(message)
+
+
+class TensorTooLargeToDelete(Exception):
+    def __init__(self, tensor_name):
+        message = f"Tensor {tensor_name} was too large to delete. Try again with large_ok=True."
+        super().__init__(message)

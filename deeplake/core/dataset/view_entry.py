@@ -1,4 +1,4 @@
-from typing import Dict, Optional, Any
+from typing import Dict, Optional, Any, List
 from deeplake.util.logging import log_visualizer_link
 
 
@@ -65,7 +65,12 @@ class ViewEntry:
         return ds
 
     def optimize(
-        self, unlink=True, num_workers=0, scheduler="threaded", progressbar=True
+        self,
+        tensors: Optional[List[str]] = None,
+        unlink=True,
+        num_workers=0,
+        scheduler="threaded",
+        progressbar=True,
     ):
         """Optimizes the dataset view by copying and rechunking the required data. This is necessary to achieve fast streaming
         speeds when training models using the dataset view. The optimization process will take some time, depending on
@@ -81,6 +86,7 @@ class ViewEntry:
             >>> ds.load_view("first_10")
 
         Args:
+            tensors (List[str]): Tensors required in the optimized view. By default all tensors are copied.
             unlink (bool): - If ``True``, this unlinks linked tensors (if any) by copying data from the links to the view.
                     - This does not apply to linked videos. Set ``deeplake.constants._UNLINK_VIDEOS`` to ``True`` to change this behavior.
             num_workers (int): Number of workers to be used for the optimization process. Defaults to 0.
@@ -93,6 +99,7 @@ class ViewEntry:
         """
         self.info = self._ds._optimize_saved_view(
             self.info["id"],
+            tensors=tensors,
             external=self._external,
             unlink=unlink,
             num_workers=num_workers,
