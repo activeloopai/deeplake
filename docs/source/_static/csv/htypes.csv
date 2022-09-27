@@ -3,8 +3,8 @@ generic, None, None
 :ref:`image <image-htype>`, uint8, Required arg
 :ref:`image.rgb <image-rgb-and-gray>`, uint8, Required arg
 :ref:`image.gray <image-rgb-and-gray>`, uint8, Required arg
-:ref:`video <video-htype>`, uint8, None
-:ref:`audio <audio-htype>`, float64, None
+:ref:`video <video-htype>`, uint8, Required arg
+:ref:`audio <audio-htype>`, float64, Required arg
 :ref:`class_label <class-label-htype>`, uint32, None
 :ref:`bbox <bbox-htype>`, float32, None
 :ref:`segment_mask <segment-mask-htype>`, uint32, None
