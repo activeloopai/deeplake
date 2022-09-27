@@ -102,7 +102,7 @@ class ComputeFunction:
 
 class Pipeline:
     def __init__(self, functions: List[ComputeFunction]):
-        """Takes a list of functions decorated using deeplake.compute and creates a pipeline that can be evaluated using .eval"""
+        """Takes a list of functions decorated using :func:`deeplake.compute` and creates a pipeline that can be evaluated using .eval"""
         self.functions = functions
 
     def __len__(self):

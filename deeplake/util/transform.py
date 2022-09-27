@@ -371,7 +371,7 @@ def check_transform_ds_out(
 
 
 def get_pbar_description(compute_functions: List):
-    """Returns the description string for a deeplake.compute evaluation progress bar. Incoming list should be a list of `ComputeFunction`s."""
+    """Returns the description string for a :meth:`deeplake.compute` evaluation progress bar. Incoming list should be a list of `ComputeFunction`s."""
 
     num_funcs = len(compute_functions)
     if num_funcs == 0:

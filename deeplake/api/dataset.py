@@ -1116,7 +1116,7 @@ class dataset:
         progressbar: bool = True,
         **dataset_kwargs,
     ):
-        """Convert pandas dataframe to a deeplake Dataset.
+        """Convert pandas dataframe to a Deep Lake Dataset.
 
         Args:
             src (pd.DataFrame): The pandas dataframe to be converted.
@@ -1156,7 +1156,7 @@ class dataset:
         workspace: str = "",
         token: Optional[str] = None,
     ) -> None:
-        """List all available deeplake cloud datasets.
+        """List all available Deep Lake cloud datasets.
 
         Args:
             workspace (str): Specify user/organization name. If not given,

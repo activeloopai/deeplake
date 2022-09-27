@@ -14,7 +14,7 @@ class TransformTensor:
         self._ndim = None
 
     def numpy(self) -> None:
-        """Returns all the items stored in the slice of the tensor as numpy arrays. Even samples stored using deeplake.read are converted to numpy arrays in this."""
+        """Returns all the items stored in the slice of the tensor as numpy arrays. Even samples stored using :meth:`deeplake.read` are converted to numpy arrays in this."""
         value = self.numpy_compressed()
         if isinstance(value, list):
             for i in range(len(value)):
@@ -25,7 +25,7 @@ class TransformTensor:
         return value
 
     def numpy_compressed(self):
-        """Returns all the items stored in the slice of the tensor. Samples stored using deeplake.read are not converted to numpy arrays in this."""
+        """Returns all the items stored in the slice of the tensor. Samples stored using :meth:`deeplake.read` are not converted to numpy arrays in this."""
         value = self.items
         for slice_ in self.slice_list:
             value = value[slice_]
