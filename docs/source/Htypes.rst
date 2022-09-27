@@ -135,7 +135,7 @@ Extending with multiple videos
 Audio Htype
 ~~~~~~~~~~~
 
-- :bluebold:`Sample dimensions:` ``(# frames, # channels)`` :bluebold:`or` ``(# frames,)``
+- :bluebold:`Sample dimensions:` ``(# samples in audio, # channels)`` :bluebold:`or` ``(# samples in audio,)``
 
 :blue:`Creating an audio tensor`
 --------------------------------
