@@ -2437,7 +2437,6 @@ class Dataset:
         return self._save_view(
             path,
             id,
-            tensors,
             message,
             optimize,
             tensors,
