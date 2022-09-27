@@ -31,6 +31,7 @@ from deeplake.core.tiling.deserialize import (
     coalesce_tiles,
 )
 from deeplake.core.tiling.serialize import break_into_tiles
+from deeplake.core.polygon import Polygons
 from deeplake.util.casting import get_empty_text_like_sample, intelligent_cast
 from deeplake.util.empty_sample import is_empty_list
 from deeplake.util.shape_interval import ShapeInterval
@@ -642,6 +643,11 @@ class ChunkEngine:
             samples = verified_samples = converted
         elif tensor_meta.htype == "class_label":
             samples = verified_samples = self._convert_class_labels(samples)
+        elif tensor_meta.htype == "polygon":
+            samples = verified_samples = [
+                p if isinstance(p, Polygons) else Polygons(p, dtype=tensor_meta.dtype)
+                for p in samples
+            ]
         return samples, verified_samples
 
     def _convert_class_labels(self, samples):
@@ -1026,6 +1032,8 @@ class ChunkEngine:
     def _get_sample_object(
         self, sample_data, sample_shape, compression, dtype, decompress
     ):
+        if isinstance(sample_data, Polygons):
+            return sample_data
         if decompress:
             sample = Sample(array=sample_data, shape=sample_shape)
         else:
@@ -1415,6 +1423,9 @@ class ChunkEngine:
 
         Returns:
             Union[np.ndarray, List[np.ndarray]]: Either a list of numpy arrays or a single numpy array (depending on the `aslist` argument).
+
+        Note:
+            For polygons, aslist is always True.
         """
         self.check_link_ready()
         fetch_chunks = fetch_chunks or self._get_full_chunk(index)
@@ -1484,10 +1495,13 @@ class ChunkEngine:
         chunk = self.get_chunk_from_chunk_id(
             chunk_id, partial_chunk_bytes=worst_case_header_size
         )
-        return chunk.read_sample(
+        ret = chunk.read_sample(
             local_sample_index,
             cast=self.tensor_meta.htype != "dicom",
-        )[tuple(entry.value for entry in index.values[1:])]
+        )
+        if len(index) > 1:
+            ret = ret[tuple(entry.value for entry in index.values[1:])]
+        return ret
 
     def get_non_tiled_sample(self, global_sample_index, index, fetch_chunks=False):
         if self.is_video:
@@ -1555,7 +1569,7 @@ class ChunkEngine:
 
         Args:
             index (Index): Represents the samples to read from chunks. See `Index` for more information.
-            aslist (bool): If True, the samples will be returned as a list of numpy arrays. If False, returns a single numpy array. Defaults to False.
+            aslist (bool): If True, the samples will be returned as a list of numpy arrays. If False, returns a single numpy array. Defaults to False. For polygons, aslist is always True.
             use_data_cache (bool): If True, the data cache is used to speed up the read if possible. If False, the data cache is ignored. Defaults to True.
             fetch_chunks (bool): If True, full chunks will be retrieved from the storage, otherwise only required bytes will be retrieved.
                 This will always be True even if specified as False in the following cases:
@@ -1571,6 +1585,9 @@ class ChunkEngine:
         """
         length = self.num_samples
         last_shape = None
+        ispolygon = self.tensor_meta.htype == "polygon"
+        if ispolygon:
+            aslist = True
         if use_data_cache and self.is_data_cachable:
             samples = self.numpy_from_data_cache(index, length, aslist, pad_tensor)
         else:
@@ -1582,10 +1599,11 @@ class ChunkEngine:
                     fetch_chunks=fetch_chunks,
                     pad_tensor=pad_tensor,
                 )
-                samples.append(sample)
                 check_sample_shape(sample.shape, last_shape, self.key, index, aslist)
                 last_shape = sample.shape
-
+                if ispolygon:
+                    sample = [p.__array__() for p in sample]
+                samples.append(sample)
         if aslist and all(map(np.isscalar, samples)):
             samples = list(arr.item() for arr in samples)
 

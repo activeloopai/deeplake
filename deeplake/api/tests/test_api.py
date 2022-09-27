@@ -1044,6 +1044,7 @@ def test_htypes_list():
         "point",
         "point_cloud",
         "point_cloud.calibration_matrix",
+        "polygon",
         "segment_mask",
         "text",
         "video",

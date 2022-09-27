@@ -1017,7 +1017,7 @@ class Dataset:
                 self.__dict__["_locked_out"] = True
                 if err:
                     raise e
-                if verbose:
+                if verbose and self.verbose:
                     always_warn(
                         "Checking out dataset in read only mode as another machine has locked this version for writing."
                     )
@@ -1543,7 +1543,7 @@ class Dataset:
             if self.index.is_trivial():
                 self.index = Index.from_json(self.meta.default_index)
         elif not self._read_only:
-            self._lock()  # for ref counting
+            self._lock(verbose=verbose)  # for ref counting
 
         if not self.is_iteration:
             group_index = self.group_index
@@ -2247,6 +2247,7 @@ class Dataset:
         vds,
         info: dict,
         copy: Optional[bool] = False,
+        tensors: Optional[List[str]] = None,
         num_workers: Optional[int] = 0,
         scheduler: str = "threaded",
         unlink=True,
@@ -2258,6 +2259,7 @@ class Dataset:
                 if copy:
                     self._copy(
                         vds,
+                        tensors=tensors,
                         num_workers=num_workers,
                         scheduler=scheduler,
                         unlink=unlink,
@@ -2288,6 +2290,7 @@ class Dataset:
         id: Optional[str],
         message: Optional[str],
         copy: bool,
+        tensors: Optional[List[str]],
         num_workers: int,
         scheduler: str,
     ):
@@ -2296,7 +2299,7 @@ class Dataset:
         hash = info["id"]
         path = f".queries/{hash}"
         vds = self._sub_ds(path, empty=True, verbose=False)
-        self._write_vds(vds, info, copy, num_workers, scheduler)
+        self._write_vds(vds, info, copy, tensors, num_workers, scheduler)
         self._append_to_queries_json(info)
         return vds
 
@@ -2305,6 +2308,7 @@ class Dataset:
         id: Optional[str],
         message: Optional[str],
         copy: bool,
+        tensors: Optional[List[str]],
         num_workers: int,
         scheduler: str,
     ):
@@ -2345,7 +2349,7 @@ class Dataset:
 
         vds = deeplake.empty(path, overwrite=True, verbose=False)
 
-        self._write_vds(vds, info, copy, num_workers, scheduler)
+        self._write_vds(vds, info, copy, tensors, num_workers, scheduler)
         queries_ds._append_to_queries_json(info)
 
         return vds
@@ -2356,6 +2360,7 @@ class Dataset:
         id: Optional[str],
         message: Optional[str],
         copy: bool,
+        tensors: Optional[List[str]],
         num_workers: int,
         scheduler: str,
         **ds_args,
@@ -2368,7 +2373,7 @@ class Dataset:
         except Exception as e:
             raise DatasetViewSavingError from e
         info = self._get_view_info(id, message, copy)
-        self._write_vds(vds, info, copy, num_workers, scheduler)
+        self._write_vds(vds, info, copy, tensors, num_workers, scheduler)
         return vds
 
     def save_view(
@@ -2377,6 +2382,7 @@ class Dataset:
         path: Optional[Union[str, pathlib.Path]] = None,
         id: Optional[str] = None,
         optimize: bool = False,
+        tensors: Optional[List[str]] = None,
         num_workers: int = 0,
         scheduler: str = "threaded",
         verbose: bool = True,
@@ -2411,6 +2417,7 @@ class Dataset:
             optimize (bool):
                 - If ``True``, the dataset view will be optimized by copying and rechunking the required data. This is necessary to achieve fast streaming speeds when training models using the dataset view. The optimization process will take some time, depending on the size of the data.
                 - You can also choose to optimize the saved view later by calling its :meth:`ViewEntry.optimize` method.
+            tensors (List, optional): Names of tensors (and groups) to be copied. If not specified all tensors are copied.
             num_workers (int): Number of workers to be used for optimization process. Applicable only if ``optimize=True``. Defaults to 0.
             scheduler (str): The scheduler to be used for optimization. Supported values include: 'serial', 'threaded', 'processed' and 'ray'. Only applicable if ``optimize=True``. Defaults to 'threaded'.
             verbose (bool): If ``True``, logs will be printed. Defaults to ``True``.
@@ -2430,6 +2437,7 @@ class Dataset:
         return self._save_view(
             path,
             id,
+            tensors,
             message,
             optimize,
             num_workers,
@@ -2445,6 +2453,7 @@ class Dataset:
         id: Optional[str] = None,
         message: Optional[str] = None,
         optimize: bool = False,
+        tensors: Optional[List[str]] = None,
         num_workers: int = 0,
         scheduler: str = "threaded",
         verbose: bool = True,
@@ -2461,6 +2470,7 @@ class Dataset:
             id (Optional, str): Unique id for this view.
             message (Optional, message): Custom user message.
             optimize (bool): Whether the view should be optimized by copying the required data. Default False.
+            tensors (Optional, List[str]): Tensors to be copied if `optimize` is True. By default all tensors are copied.
             num_workers (int): Number of workers to be used if `optimize` is True.
             scheduler (str): The scheduler to be used for optimization. Supported values include: 'serial', 'threaded', 'processed' and 'ray'.
                 Only applicable if ``optimize=True``. Defaults to 'threaded'.
@@ -2498,7 +2508,7 @@ class Dataset:
                 if self.read_only and not (self._view_base or self)._locked_out:
                     if isinstance(self, deeplake.core.dataset.HubCloudDataset):
                         vds = self._save_view_in_user_queries_dataset(
-                            id, message, optimize, num_workers, scheduler
+                            id, message, optimize, tensors, num_workers, scheduler
                         )
                     else:
                         raise ReadOnlyModeError(
@@ -2506,13 +2516,20 @@ class Dataset:
                         )
                 else:
                     vds = self._save_view_in_subdir(
-                        id, message, optimize, num_workers, scheduler
+                        id, message, optimize, tensors, num_workers, scheduler
                     )
             else:
                 vds = self._save_view_in_path(
-                    path, id, message, optimize, num_workers, scheduler, **ds_args
+                    path,
+                    id,
+                    message,
+                    optimize,
+                    tensors,
+                    num_workers,
+                    scheduler,
+                    **ds_args,
                 )
-        if verbose:
+        if verbose and self.verbose:
             log_visualizer_link(vds.path, self.path)
         if _ret_ds:
             return vds
@@ -2679,6 +2696,7 @@ class Dataset:
         self,
         id: str,
         optimize: Optional[bool] = False,
+        tensors: Optional[List[str]] = None,
         num_workers: int = 0,
         scheduler: str = "threaded",
         progressbar: Optional[bool] = True,
@@ -2690,6 +2708,7 @@ class Dataset:
             optimize (bool): If ``True``, the dataset view is optimized by copying and rechunking the required data before loading. This is
                 necessary to achieve fast streaming speeds when training models using the dataset view. The optimization process will
                 take some time, depending on the size of the data.
+            tensors (Optional, List[str]): Tensors to be copied if `optimize` is True. By default all tensors are copied.
             num_workers (int): Number of workers to be used for the optimization process. Only applicable if `optimize=True`. Defaults to 0.
             scheduler (str): The scheduler to be used for optimization. Supported values include: 'serial', 'threaded', 'processed' and 'ray'.
                 Only applicable if `optimize=True`. Defaults to 'threaded'.
@@ -2705,6 +2724,7 @@ class Dataset:
             return (
                 self.get_view(id)
                 .optimize(
+                    tensors=tensors,
                     num_workers=num_workers,
                     scheduler=scheduler,
                     progressbar=progressbar,
@@ -3209,6 +3229,7 @@ class Dataset:
     def _optimize_saved_view(
         self,
         id: str,
+        tensors: Optional[List[str]] = None,
         external=False,
         unlink=True,
         num_workers=0,
@@ -3238,6 +3259,7 @@ class Dataset:
                 )
                 view._copy(
                     optimized,
+                    tensors=tensors,
                     overwrite=True,
                     unlink=unlink,
                     create_vds_index_tensor=True,

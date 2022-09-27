@@ -7,6 +7,7 @@ from deeplake.compression import (
 from deeplake.core.fast_forwarding import version_compare
 from deeplake.core.tiling.sample_tiles import SampleTiles
 from deeplake.core.partial_sample import PartialSample
+from deeplake.core.polygon import Polygons
 from deeplake.util.compression import get_compression_ratio  # type: ignore
 from deeplake.util.exceptions import TensorInvalidSampleShapeError
 from deeplake.util.casting import intelligent_cast
@@ -406,6 +407,15 @@ def serialize_text(
     if sample_compression:
         incoming_sample = compress_bytes(incoming_sample, sample_compression)  # type: ignore
     return incoming_sample, shape
+
+
+def serialize_polygons(
+    incoming_smaple: Polygons, sample_compression: Optional[str], dtype: str
+):
+    bts = incoming_smaple.tobytes()
+    if sample_compression:
+        bts = compress_bytes(bts, sample_compression)  # type: ignore
+    return bts, incoming_smaple.shape
 
 
 def serialize_numpy_and_base_types(
