@@ -11,9 +11,9 @@ Supported compressions (formats):
 
 __Note__:- 
 
-For video compressions, we only support already compressed data read using hub.read. We do not actually compress the video data. 
+For video compressions, we only support already compressed data read using deeplake.read. We do not actually compress the video data. 
 
-Also, when using hub.read with one of the video compressions, ensure that the compression matches, otherwise hub will be unable to compress the data to the specified compression.
+Also, when using deeplake.read with one of the video compressions, ensure that the compression matches, otherwise hub will be unable to compress the data to the specified compression.
 
 """
 from PIL import Image  # type: ignore

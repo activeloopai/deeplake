@@ -50,7 +50,7 @@ from deeplake.util.storage import (
 from deeplake.util.compute import get_compute_provider
 from deeplake.util.remove_cache import get_base_storage
 from deeplake.util.cache_chain import generate_chain
-from deeplake.core.storage.deeplake_memory_object import DeeplakeMemoryObject
+from deeplake.core.storage.deeplake_memory_object import DeepLakeMemoryObject
 
 
 class dataset:
@@ -100,7 +100,7 @@ class dataset:
 
                     - 'download'
 
-                        - Downloads the data to the local filesystem to the path specified in environment variable ``HUB_DOWNLOAD_PATH``.
+                        - Downloads the data to the local filesystem to the path specified in environment variable ``DEEPLAKE_DOWNLOAD_PATH``.
                         - Raises an exception if the environment variable is not set, or if the path is not empty.
                         - Will also raise an exception if the dataset does not exist. The 'download' access method can also be modified to specify num_workers and/or scheduler.
                         - For example: 'download:2:processed', will use 2 workers and use processed scheduler, while 'download:3' will use 3 workers and default scheduler (threaded), and 'download:processed' will use a single worker and use processed scheduler.
@@ -109,7 +109,7 @@ class dataset:
 
                         - Used when download was already done in a previous run.
                         - Doesn't download the data again.
-                        - Raises an exception if ``HUB_DOWNLOAD_PATH`` environment variable is not set or the dataset is not found in ``HUB_DOWNLOAD_PATH``.
+                        - Raises an exception if ``DEEPLAKE_DOWNLOAD_PATH`` environment variable is not set or the dataset is not found in ``DEEPLAKE_DOWNLOAD_PATH``.
 
         Returns:
             Dataset: Dataset created using the arguments provided.
@@ -354,7 +354,7 @@ class dataset:
 
                     - 'download'
 
-                        - Downloads the data to the local filesystem to the path specified in environment variable ``HUB_DOWNLOAD_PATH``.
+                        - Downloads the data to the local filesystem to the path specified in environment variable `DEEPLAKE_DOWNLOAD_PATH`.
                         - Raises an exception if the environment variable is not set, or if the path is not empty.
                         - Will also raise an exception if the dataset does not exist. The 'download' access method can also be modified to specify num_workers and/or scheduler.
                         - For example: 'download:2:processed', will use 2 workers and use processed scheduler, while 'download:3' will use 3 workers and default scheduler (threaded), and 'download:processed' will use a single worker and use processed scheduler.
@@ -363,7 +363,7 @@ class dataset:
 
                         - Used when download was already done in a previous run.
                         - Doesn't download the data again.
-                        - Raises an exception if ``HUB_DOWNLOAD_PATH`` environment variable is not set or the dataset is not found in ``HUB_DOWNLOAD_PATH``.
+                        - Raises an exception if ``DEEPLAKE_DOWNLOAD_PATH`` environment variable is not set or the dataset is not found in ``DEEPLAKE_DOWNLOAD_PATH``.
 
         Returns:
             Dataset: Dataset loaded using the arguments provided.
@@ -809,7 +809,7 @@ class dataset:
             )
             for key in keys:
                 val = metas.get(key) or cache[key]
-                if isinstance(val, DeeplakeMemoryObject):
+                if isinstance(val, DeepLakeMemoryObject):
                     dest_storage[key] = val.tobytes()
                 else:
                     dest_storage[key] = val

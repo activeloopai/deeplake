@@ -5,10 +5,10 @@ from deeplake.core.serialize import (
     deserialize_sequence_or_creds_encoder,
     serialize_sequence_or_creds_encoder,
 )
-from deeplake.core.storage.deeplake_memory_object import DeeplakeMemoryObject
+from deeplake.core.storage.deeplake_memory_object import DeepLakeMemoryObject
 
 
-class CredsEncoder(ShapeEncoder, DeeplakeMemoryObject):
+class CredsEncoder(ShapeEncoder, DeepLakeMemoryObject):
     def __init__(self):
         self.is_dirty = False
         super().__init__()

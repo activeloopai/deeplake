@@ -1,9 +1,9 @@
 from typing import Any, Dict
 import deeplake
-from deeplake.core.storage.deeplake_memory_object import DeeplakeMemoryObject
+from deeplake.core.storage.deeplake_memory_object import DeepLakeMemoryObject
 
 
-class Meta(DeeplakeMemoryObject):
+class Meta(DeepLakeMemoryObject):
     """Contains **required** key/values that datasets/tensors use to function.
     See the ``Info`` class for optional key/values for datasets/tensors.
     """

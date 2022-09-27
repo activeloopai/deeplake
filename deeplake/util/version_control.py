@@ -8,7 +8,7 @@ from deeplake.client.log import logger
 from deeplake.constants import FIRST_COMMIT_ID
 from deeplake.core.fast_forwarding import ffw_dataset_meta
 from deeplake.core.meta.dataset_meta import DatasetMeta
-from deeplake.core.storage.deeplake_memory_object import DeeplakeMemoryObject
+from deeplake.core.storage.deeplake_memory_object import DeepLakeMemoryObject
 from deeplake.core.version_control.commit_diff import CommitDiff
 from deeplake.core.version_control.dataset_diff import DatasetDiff
 from deeplake.core.version_control.commit_node import CommitNode  # type: ignore
@@ -556,4 +556,4 @@ def warn_node_checkout(commit_node: CommitNode, create: bool):
 
 
 def convert_to_bytes(inp):
-    return inp.tobytes() if isinstance(inp, DeeplakeMemoryObject) else inp
+    return inp.tobytes() if isinstance(inp, DeepLakeMemoryObject) else inp

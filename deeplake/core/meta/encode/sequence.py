@@ -1,12 +1,12 @@
 from deeplake.core.meta.encode.byte_positions import BytePositionsEncoder
-from deeplake.core.storage.deeplake_memory_object import DeeplakeMemoryObject
+from deeplake.core.storage.deeplake_memory_object import DeepLakeMemoryObject
 from deeplake.core.serialize import (
     serialize_sequence_or_creds_encoder,
     deserialize_sequence_or_creds_encoder,
 )
 
 
-class SequenceEncoder(BytePositionsEncoder, DeeplakeMemoryObject):
+class SequenceEncoder(BytePositionsEncoder, DeepLakeMemoryObject):
     @classmethod
     def frombuffer(cls, buffer: bytes):
         instance = cls()

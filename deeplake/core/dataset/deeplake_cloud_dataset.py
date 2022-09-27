@@ -108,7 +108,7 @@ class DeepLakeCloudDataset(Dataset):
             "event_group": event_group,
             "ts": time.time(),
             "hub_meta": hub_meta,
-            "creator": "Hub",
+            "creator": "Deep Lake",
         }
         deeplake.event_queue.put((self.client, event_dict))
 

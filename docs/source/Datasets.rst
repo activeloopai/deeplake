@@ -126,7 +126,7 @@ changing after the query or filter conditions have been evaluated.
 
     >>> import deeplake
     >>> # load dataset
-    >>> ds = deeplake.load("deeplake://activeloop/mnist-train")
+    >>> ds = deeplake.load("hub://activeloop/mnist-train")
     >>> # filter dataset
     >>> zeros = ds.filter("labels == 0")
     >>> # save view

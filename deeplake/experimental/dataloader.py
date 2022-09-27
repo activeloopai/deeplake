@@ -1,5 +1,5 @@
 from typing import Callable, Dict, List, Optional, Union, Sequence
-from deeplake.experimental.convert_to_hub3 import dataset_to_hub3  # type: ignore
+from deeplake.experimental.convert_to_libdeeplake import dataset_to_libdeeplake  # type: ignore
 from deeplake.experimental.util import (
     create_fetching_schedule,
     find_primary_tensor,
@@ -7,7 +7,7 @@ from deeplake.experimental.util import (
     verify_base_storage,
 )
 from deeplake.experimental.util import collate_fn as default_collate  # type: ignore
-from deeplake.experimental.hub3_query import query
+from deeplake.experimental.libdeeplake_query import query
 from deeplake.integrations.pytorch.common import PytorchTransformFunction, check_tensors
 from deeplake.util.bugout_reporter import deeplake_reporter
 from deeplake.util.dataset import map_tensor_keys
@@ -34,7 +34,7 @@ def import_indra_loader():
         raise_indra_installation_error(e)
 
 
-class Hub3DataLoader:
+class DeepLakeDataLoader:
     def __init__(
         self,
         dataset,
@@ -73,14 +73,14 @@ class Hub3DataLoader:
         self._tobytes = _tobytes
 
     def batch(self, batch_size: int, drop_last: bool = False):
-        """Returns a batched :class:`Hub3DataLoader` object.
+        """Returns a batched :class:`DeepLakeDataLoader` object.
 
         Args:
             batch_size (int): Number of samples in each batch.
             drop_last (bool): If True, the last batch will be dropped if its size is less than batch_size. Defaults to False.
 
         Returns:
-            Hub3DataLoader: A :class:`Hub3DataLoader` object.
+            DeepLakeDataLoader: A :class:`DeepLakeDataLoader` object.
 
         Raises:
             ValueError: If .batch() has already been called.
@@ -94,13 +94,13 @@ class Hub3DataLoader:
         return self.__class__(**all_vars)
 
     def shuffle(self, buffer_size: int = 2048):
-        """Returns a shuffled :class:`Hub3DataLoader` object.
+        """Returns a shuffled :class:`DeepLakeDataLoader` object.
 
         Args:
             buffer_size (int): The size of the buffer used to shuffle the data in MBs. Defaults to 2048 MB. Increasing the buffer_size will increase the extent of shuffling.
 
         Returns:
-            Hub3DataLoader: A :class:`Hub3DataLoader` object.
+            DeepLakeDataLoader: A :class:`DeepLakeDataLoader` object.
 
         Raises:
             ValueError: If .shuffle() has already been called.
@@ -116,14 +116,14 @@ class Hub3DataLoader:
         return self.__class__(**all_vars)
 
     def transform(self, transform: Union[Callable, Dict[str, Optional[Callable]]]):
-        """Returns a transformed :class:`Hub3DataLoader` object.
+        """Returns a transformed :class:`DeepLakeDataLoader` object.
 
 
         Args:
             transform (Callable or Dict[Callable]): A function or dictionary of functions to apply to the data.
 
         Returns:
-            Hub3DataLoader: A :class:`Hub3DataLoader` object.
+            DeepLakeDataLoader: A :class:`DeepLakeDataLoader` object.
 
         Raises:
             ValueError: If .transform() has already been called.
@@ -146,7 +146,7 @@ class Hub3DataLoader:
         return self.__class__(**all_vars)
 
     def query(self, query_string: str):
-        """Returns a sliced :class:`Hub3DataLoader` object with given query results.
+        """Returns a sliced :class:`DeepLakeDataLoader` object with given query results.
         It allows to run SQL like queries on dataset and extract results. See supported keywords and the Tensor Query Language documentation
         :ref:`here <tql>`.
 
@@ -154,7 +154,7 @@ class Hub3DataLoader:
             query_string (str): An SQL string adjusted with new functionalities to run on the dataset object
 
         Returns:
-            Hub3DataLoader: A :class:`Hub3DataLoader` object.
+            DeepLakeDataLoader: A :class:`DeepLakeDataLoader` object.
 
         Examples:
             >>> import deeplake
@@ -178,12 +178,12 @@ class Hub3DataLoader:
         collate_fn: Optional[Callable] = None,
         tensors: Optional[List[str]] = None,
         num_threads: Optional[int] = None,
-        prefetch_factor: int = 10,
+        prefetch_factor: int = 2,
         distributed: bool = False,
         return_index: bool = True,
         tobytes: Union[bool, Sequence[str]] = False,
     ):
-        """Returns a :class:`Hub3DataLoader` object.
+        """Returns a :class:`DeepLakeDataLoader` object.
 
 
         Args:
@@ -191,13 +191,13 @@ class Hub3DataLoader:
             collate_fn (Callable, Optional): merges a list of samples to form a mini-batch of Tensor(s).
             tensors (List[str], Optional): List of tensors to load. If None, all tensors are loaded. Defaults to None.
             num_threads (int, Optional): Number of threads to use for fetching and decompressing the data. If None, the number of threads is automatically determined. Defaults to None.
-            prefetch_factor (int): Number of batches to transform and collate in advance per worker. Defaults to 10.
+            prefetch_factor (int): Number of batches to transform and collate in advance per worker. Defaults to 2.
             distributed (bool): Used for DDP training. Distributes different sections of the dataset to different ranks. Defaults to False.
             return_index (bool): Used to idnetify where loader needs to retur sample index or not. Defaults to True.
             tobytes (bool, Sequence[str]): If ``True``, samples will not be decompressed and their raw bytes will be returned instead of numpy arrays. Can also be a list of tensors, in which case those tensors alone will not be decompressed.
 
         Returns:
-            Hub3DataLoader: A :class:`Hub3DataLoader` object.
+            DeepLakeDataLoader: A :class:`DeepLakeDataLoader` object.
 
         Raises:
             ValueError: If .to_pytorch() or .to_numpy() has already been called.
@@ -223,20 +223,20 @@ class Hub3DataLoader:
         num_workers: int = 0,
         tensors: Optional[List[str]] = None,
         num_threads: Optional[int] = None,
-        prefetch_factor: int = 10,
+        prefetch_factor: int = 2,
         tobytes: Union[bool, Sequence[str]] = False,
     ):
-        """Returns a :class:`Hub3DataLoader` object.
+        """Returns a :class:`DeepLakeDataLoader` object.
 
         Args:
             num_workers (int): Number of workers to use for transforming and processing the data. Defaults to 0.
             tensors (List[str], Optional): List of tensors to load. If None, all tensors are loaded. Defaults to None.
             num_threads (int, Optional): Number of threads to use for fetching and decompressing the data. If None, the number of threads is automatically determined. Defaults to None.
-            prefetch_factor (int): Number of batches to transform and collate in advance per worker. Defaults to 10.
+            prefetch_factor (int): Number of batches to transform and collate in advance per worker. Defaults to 2.
             tobytes (bool, Sequence[str]): If ``True``, samples will not be decompressed and their raw bytes will be returned instead of numpy arrays. Can also be a list of tensors, in which case those tensors alone will not be decompressed.
 
         Returns:
-            Hub3DataLoader: A :class:`Hub3DataLoader` object.
+            DeepLakeDataLoader: A :class:`DeepLakeDataLoader` object.
 
         Raises:
             ValueError: If .to_pytorch() or .to_numpy() has already been called.
@@ -257,7 +257,7 @@ class Hub3DataLoader:
     def __iter__(self):
         tensors = self._tensors or map_tensor_keys(self.dataset, None)
         check_tensors(self.dataset, tensors, self._mode)
-        dataset = dataset_to_hub3(self.dataset)
+        dataset = dataset_to_libdeeplake(self.dataset)
         batch_size = self._batch_size or 1
         drop_last = self._drop_last or False
         return_index = self._return_index
@@ -310,15 +310,15 @@ class Hub3DataLoader:
         )
 
 
-def dataloader(dataset) -> Hub3DataLoader:
-    """Returns a :class:`Hub3DataLoader` object which can be transformed to either pytorch dataloader or numpy.
+def dataloader(dataset) -> DeepLakeDataLoader:
+    """Returns a :class:`DeepLakeDataLoader` object which can be transformed to either pytorch dataloader or numpy.
 
 
     Args:
         dataset: deeplake.Dataset object on which dataloader needs to be built
 
     Returns:
-        Hub3DataLoader: A :class:`Hub3DataLoader` object.
+        DeepLakeDataLoader: A :class:`DeepLakeDataLoader` object.
 
 
     Examples:
@@ -376,7 +376,7 @@ def dataloader(dataset) -> Hub3DataLoader:
         ...     pass
     """
     verify_base_storage(dataset)
-    return Hub3DataLoader(dataset)
+    return DeepLakeDataLoader(dataset)
 
 
 def handle_tensors_and_tobytes(tensors, tobytes, dataset, all_vars):

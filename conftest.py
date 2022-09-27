@@ -5,7 +5,7 @@ import logging
 # Disable crash reporting before running tests
 # This MUST come before hub imports to bypass import publication.
 os.environ["BUGGER_OFF"] = "true"
-os.environ["HUB_DOWNLOAD_PATH"] = "./testing/local_storage"
+os.environ["DEEPLAKE_DOWNLOAD_PATH"] = "./testing/local_storage"
 
 os.environ["TF_CPP_MIN_LOG_LEVEL"] = "2"
 logging.disable(logging.INFO)
@@ -42,7 +42,7 @@ def pytest_addoption(parser):
         GDRIVE_OPT, action="store_true", help="Google Drive tests will run if enabled."
     )
     parser.addoption(
-        HUB_CLOUD_OPT, action="store_true", help="Hub cloud tests will run if enabled."
+        HUB_CLOUD_OPT, action="store_true", help="Deep Lake cloud tests will run if enabled."
     )
     parser.addoption(
         S3_PATH_OPT,
