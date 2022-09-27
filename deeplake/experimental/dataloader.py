@@ -311,14 +311,14 @@ class DeepLakeDataLoader:
 
 
 def dataloader(dataset) -> DeepLakeDataLoader:
-    """Returns a :class:`DeepLakeDataLoader` object which can be transformed to either pytorch dataloader or numpy.
+    """Returns a :class:`~deeplake.experimental.dataloader.DeepLakeDataLoader` object which can be transformed to either pytorch dataloader or numpy.
 
 
     Args:
-        dataset: deeplake.Dataset object on which dataloader needs to be built
+        dataset: :class:`~deeplake.core.dataset.Dataset` object on which dataloader needs to be built
 
     Returns:
-        DeepLakeDataLoader: A :class:`DeepLakeDataLoader` object.
+        DeepLakeDataLoader: A :class:`~deeplake.experimental.dataloader.DeepLakeDataLoader` object.
 
 
     Examples:
@@ -356,6 +356,7 @@ def dataloader(dataset) -> DeepLakeDataLoader:
         >>> train_loader = dataloader(ds_train)
         ...     .transform({'images': tform, 'labels': None})
         ...     .batch(batch_size)
+        ...     .shuffle()
         ...     .pytorch()
         ...
         >>> #loop over the elements
