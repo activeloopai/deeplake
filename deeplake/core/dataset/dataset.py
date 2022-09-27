@@ -2440,6 +2440,7 @@ class Dataset:
             tensors,
             message,
             optimize,
+            tensors,
             num_workers,
             scheduler,
             verbose,
