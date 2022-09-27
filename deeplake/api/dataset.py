@@ -77,14 +77,14 @@ class dataset:
 
         Args:
             path (str, pathlib.Path): - The full path to the dataset. Can be:
-                - a Deeplake cloud path of the form ``hub://username/datasetname``. To write to Deeplake cloud datasets, ensure that you are logged in to Hub (use 'activeloop login' from command line)
+                - a Deep Lake cloud path of the form ``hub://username/datasetname``. To write to Deep Lake cloud datasets, ensure that you are logged in to Hub (use 'activeloop login' from command line)
                 - an s3 path of the form ``s3://bucketname/path/to/dataset``. Credentials are required in either the environment or passed to the creds argument.
                 - a local file system path of the form ``./path/to/dataset`` or ``~/path/to/dataset`` or ``path/to/dataset``.
                 - a memory path of the form ``mem://path/to/dataset`` which doesn't save the dataset but keeps it in memory instead. Should be used only for testing as it does not persist.
             read_only (bool, optional): Opens dataset in read only mode if this is passed as ``True``. Defaults to ``False``.
-                Datasets stored on Deeplake cloud that your account does not have write access to will automatically open in read mode.
+                Datasets stored on Deep Lake cloud that your account does not have write access to will automatically open in read mode.
             overwrite (bool): If set to ``True`` this overwrites the dataset if it already exists. Defaults to ``False``.
-            public (bool): Defines if the dataset will have public access. Applicable only if Deeplake cloud storage is used and a new Dataset is being created. Defaults to ``True``.
+            public (bool): Defines if the dataset will have public access. Applicable only if Deep Lake cloud storage is used and a new Dataset is being created. Defaults to ``True``.
             memory_cache_size (int): The size of the memory cache to be used in MB.
             local_cache_size (int): The size of the local filesystem cache to be used in MB.
             creds (dict, optional): - A dictionary containing credentials used to access the dataset at the path.
@@ -246,12 +246,12 @@ class dataset:
 
         Args:
             path (str, pathlib.Path): - The full path to the dataset. Can be:
-                - a Deeplake cloud path of the form ``hub://username/datasetname``. To write to Deeplake cloud datasets, ensure that you are logged in to Hub (use 'activeloop login' from command line)
+                - a Deep Lake cloud path of the form ``hub://username/datasetname``. To write to Deep Lake cloud datasets, ensure that you are logged in to Hub (use 'activeloop login' from command line)
                 - an s3 path of the form ``s3://bucketname/path/to/dataset``. Credentials are required in either the environment or passed to the creds argument.
                 - a local file system path of the form ``./path/to/dataset`` or ``~/path/to/dataset`` or ``path/to/dataset``.
                 - a memory path of the form ``mem://path/to/dataset`` which doesn't save the dataset but keeps it in memory instead. Should be used only for testing as it does not persist.
             overwrite (bool): If set to ``True`` this overwrites the dataset if it already exists. Defaults to ``False``.
-            public (bool): Defines if the dataset will have public access. Applicable only if Deeplake cloud storage is used and a new Dataset is being created. Defaults to ``False``.
+            public (bool): Defines if the dataset will have public access. Applicable only if Deep Lake cloud storage is used and a new Dataset is being created. Defaults to ``False``.
             memory_cache_size (int): The size of the memory cache to be used in MB.
             local_cache_size (int): The size of the local filesystem cache to be used in MB.
             creds (dict, optional): - A dictionary containing credentials used to access the dataset at the path.
@@ -333,12 +333,12 @@ class dataset:
 
         Args:
             path (str, pathlib.Path): - The full path to the dataset. Can be:
-                - a Deeplake cloud path of the form ``hub://username/datasetname``. To write to Deeplake cloud datasets, ensure that you are logged in to Hub (use 'activeloop login' from command line)
+                - a Deep Lake cloud path of the form ``hub://username/datasetname``. To write to Deep Lake cloud datasets, ensure that you are logged in to Hub (use 'activeloop login' from command line)
                 - an s3 path of the form ``s3://bucketname/path/to/dataset``. Credentials are required in either the environment or passed to the creds argument.
                 - a local file system path of the form ``./path/to/dataset`` or ``~/path/to/dataset`` or ``path/to/dataset``.
                 - a memory path of the form ``mem://path/to/dataset`` which doesn't save the dataset but keeps it in memory instead. Should be used only for testing as it does not persist.
             read_only (bool, optional): Opens dataset in read only mode if this is passed as ``True``. Defaults to ``False``.
-                Datasets stored on Deeplake cloud that your account does not have write access to will automatically open in read mode.
+                Datasets stored on Deep Lake cloud that your account does not have write access to will automatically open in read mode.
             memory_cache_size (int): The size of the memory cache to be used in MB.
             local_cache_size (int): The size of the local filesystem cache to be used in MB.
             creds (dict, optional): - A dictionary containing credentials used to access the dataset at the path.
@@ -571,7 +571,7 @@ class dataset:
                 - If 'aws_access_key_id', 'aws_secret_access_key', 'aws_session_token' are present, these take precedence over credentials present in the environment or in credentials file. Currently only works with s3 paths.
                 - It supports 'aws_access_key_id', 'aws_secret_access_key', 'aws_session_token', 'endpoint_url', 'aws_region', 'profile_name' as keys.
             token (str, optional): Activeloop token, used for fetching credentials to the dataset at path if it is a Hub dataset. This is optional, tokens are normally autogenerated.
-            public (bool): Defines if the dataset will have public access. Applicable only if Deeplake cloud storage is used and a new Dataset is being created. Defaults to False.
+            public (bool): Defines if the dataset will have public access. Applicable only if Deep Lake cloud storage is used and a new Dataset is being created. Defaults to False.
 
         Returns:
             Dataset: New dataset object.
@@ -612,7 +612,7 @@ class dataset:
                 - If 'aws_access_key_id', 'aws_secret_access_key', 'aws_session_token' are present, these take precedence over credentials present in the environment or in credentials file. Currently only works with s3 paths.
                 - It supports 'aws_access_key_id', 'aws_secret_access_key', 'aws_session_token', 'endpoint_url', 'aws_region', 'profile_name' as keys.
             token (str, optional): Activeloop token, used for fetching credentials to the dataset at path if it is a Hub dataset. This is optional, tokens are normally autogenerated.
-            public (bool): Defines if the dataset will have public access. Applicable only if Deeplake cloud storage is used and a new Dataset is being created. Defaults to ``False``.
+            public (bool): Defines if the dataset will have public access. Applicable only if Deep Lake cloud storage is used and a new Dataset is being created. Defaults to ``False``.
             unlink (Union[List[str], bool]): List of tensors to be unlinked. If ``True`` passed all tensors will be unlinked. Defaults to ``False``, no tensors are unlinked.
 
         Returns:
@@ -752,7 +752,7 @@ class dataset:
             scheduler (str): The scheduler to be used for copying. Supported values include: 'serial', 'threaded', 'processed' and 'ray'.
                 Defaults to 'threaded'.
             progressbar (bool): Displays a progress bar if True (default).
-            public (bool): Defines if the dataset will have public access. Applicable only if Deeplake cloud storage is used and a new Dataset is being created. Defaults to ``False``.
+            public (bool): Defines if the dataset will have public access. Applicable only if Deep Lake cloud storage is used and a new Dataset is being created. Defaults to ``False``.
             verbose (bool): If True, logs will be printed. Defaults to ``True``.
 
         Returns:
@@ -921,7 +921,7 @@ class dataset:
         Args:
             src (str, pathlib.Path): Local path to where the unstructured dataset is stored or path to csv file.
             dest (str, pathlib.Path): - The full path to the dataset. Can be:
-                - a Deeplake cloud path of the form ``hub://username/datasetname``. To write to Deeplake cloud datasets, ensure that you are logged in to Hub (use 'activeloop login' from command line)
+                - a Deep Lake cloud path of the form ``hub://username/datasetname``. To write to Deep Lake cloud datasets, ensure that you are logged in to Hub (use 'activeloop login' from command line)
                 - an s3 path of the form ``s3://bucketname/path/to/dataset``. Credentials are required in either the environment or passed to the creds argument.
                 - a local file system path of the form ``./path/to/dataset`` or ``~/path/to/dataset`` or ``path/to/dataset``.
                 - a memory path of the form ``mem://path/to/dataset`` which doesn't save the dataset but keeps it in memory instead. Should be used only for testing as it does not persist.
@@ -1050,7 +1050,7 @@ class dataset:
             tag (str): Kaggle dataset tag. Example: ``"coloradokb/dandelionimages"`` points to https://www.kaggle.com/coloradokb/dandelionimages
             src (str, pathlib.Path): Local path to where the raw kaggle dataset will be downlaoded to.
             dest (str, pathlib.Path): - The full path to the dataset. Can be:
-                - a Deeplake cloud path of the form ``hub://username/datasetname``. To write to Deeplake cloud datasets, ensure that you are logged in to Hub (use 'activeloop login' from command line)
+                - a Deep Lake cloud path of the form ``hub://username/datasetname``. To write to Deep Lake cloud datasets, ensure that you are logged in to Hub (use 'activeloop login' from command line)
                 - an s3 path of the form ``s3://bucketname/path/to/dataset``. Credentials are required in either the environment or passed to the creds argument.
                 - a local file system path of the form ``./path/to/dataset`` or ``~/path/to/dataset`` or ``path/to/dataset``.
                 - a memory path of the form ``mem://path/to/dataset`` which doesn't save the dataset but keeps it in memory instead. Should be used only for testing as it does not persist.
@@ -1122,7 +1122,7 @@ class dataset:
             src (pd.DataFrame): The pandas dataframe to be converted.
             dest (str, pathlib.Path):
                 - The full path to the dataset. Can be:
-                - a Deeplake cloud path of the form ``hub://username/datasetname``. To write to Deeplake cloud datasets, ensure that you are logged in to Hub (use 'activeloop login' from command line)
+                - a Deep Lake cloud path of the form ``hub://username/datasetname``. To write to Deep Lake cloud datasets, ensure that you are logged in to Hub (use 'activeloop login' from command line)
                 - an s3 path of the form ``s3://bucketname/path/to/dataset``. Credentials are required in either the environment or passed to the creds argument.
                 - a local file system path of the form ``./path/to/dataset`` or ``~/path/to/dataset`` or ``path/to/dataset``.
                 - a memory path of the form ``mem://path/to/dataset`` which doesn't save the dataset but keeps it in memory instead. Should be used only for testing as it does not persist.
