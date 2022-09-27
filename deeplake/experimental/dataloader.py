@@ -178,7 +178,7 @@ class Hub3DataLoader:
         collate_fn: Optional[Callable] = None,
         tensors: Optional[List[str]] = None,
         num_threads: Optional[int] = None,
-        prefetch_factor: int = 10,
+        prefetch_factor: int = 2,
         distributed: bool = False,
         return_index: bool = True,
         tobytes: Union[bool, Sequence[str]] = False,
@@ -191,7 +191,7 @@ class Hub3DataLoader:
             collate_fn (Callable, Optional): merges a list of samples to form a mini-batch of Tensor(s).
             tensors (List[str], Optional): List of tensors to load. If None, all tensors are loaded. Defaults to None.
             num_threads (int, Optional): Number of threads to use for fetching and decompressing the data. If None, the number of threads is automatically determined. Defaults to None.
-            prefetch_factor (int): Number of batches to transform and collate in advance per worker. Defaults to 10.
+            prefetch_factor (int): Number of batches to transform and collate in advance per worker. Defaults to 2.
             distributed (bool): Used for DDP training. Distributes different sections of the dataset to different ranks. Defaults to False.
             return_index (bool): Used to idnetify where loader needs to retur sample index or not. Defaults to True.
             tobytes (bool, Sequence[str]): If ``True``, samples will not be decompressed and their raw bytes will be returned instead of numpy arrays. Can also be a list of tensors, in which case those tensors alone will not be decompressed.
@@ -223,7 +223,7 @@ class Hub3DataLoader:
         num_workers: int = 0,
         tensors: Optional[List[str]] = None,
         num_threads: Optional[int] = None,
-        prefetch_factor: int = 10,
+        prefetch_factor: int = 2,
         tobytes: Union[bool, Sequence[str]] = False,
     ):
         """Returns a :class:`Hub3DataLoader` object.
@@ -232,7 +232,7 @@ class Hub3DataLoader:
             num_workers (int): Number of workers to use for transforming and processing the data. Defaults to 0.
             tensors (List[str], Optional): List of tensors to load. If None, all tensors are loaded. Defaults to None.
             num_threads (int, Optional): Number of threads to use for fetching and decompressing the data. If None, the number of threads is automatically determined. Defaults to None.
-            prefetch_factor (int): Number of batches to transform and collate in advance per worker. Defaults to 10.
+            prefetch_factor (int): Number of batches to transform and collate in advance per worker. Defaults to 2.
             tobytes (bool, Sequence[str]): If ``True``, samples will not be decompressed and their raw bytes will be returned instead of numpy arrays. Can also be a list of tensors, in which case those tensors alone will not be decompressed.
 
         Returns:
