@@ -123,7 +123,7 @@ def storage_provider_from_hub_path(
     url = posixpath.join(url, subdir)
 
     storage = storage_provider_from_path(
-        path=url, creds=creds, read_only=read_only, is_hub_path=True
+        path=url, creds=creds, read_only=read_only, is_hub_path=True, token=token
     )
     storage._set_hub_creds_info(path, expiration)
     return storage
