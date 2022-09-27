@@ -42,7 +42,9 @@ def pytest_addoption(parser):
         GDRIVE_OPT, action="store_true", help="Google Drive tests will run if enabled."
     )
     parser.addoption(
-        HUB_CLOUD_OPT, action="store_true", help="Deep Lake cloud tests will run if enabled."
+        HUB_CLOUD_OPT,
+        action="store_true",
+        help="Deep Lake cloud tests will run if enabled.",
     )
     parser.addoption(
         S3_PATH_OPT,
