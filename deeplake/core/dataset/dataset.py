@@ -79,6 +79,8 @@ from deeplake.util.exceptions import (
     DatasetViewSavingError,
     DatasetHandlerError,
     SampleAppendingError,
+    DatasetTooLargeToDelete,
+    TensorTooLargeToDelete,
 )
 from deeplake.util.keys import (
     dataset_exists,
@@ -662,6 +664,7 @@ class Dataset:
 
         Raises:
             TensorDoesNotExistError: If tensor of name ``name`` does not exist in the dataset.
+            TensorTooLargeToDelete: If the tensor is larger than 1 GB and ``large_ok`` is ``False``.
         """
         auto_checkout(self)
 
@@ -681,10 +684,7 @@ class Dataset:
             chunk_engine = self.version_state["full_tensors"][key].chunk_engine
             size_approx = chunk_engine.num_samples * chunk_engine.min_chunk_size
             if size_approx > deeplake.constants.DELETE_SAFETY_SIZE:
-                logger.info(
-                    f"Tensor {name} was too large to delete. Try again with large_ok=True."
-                )
-                return
+                raise TensorTooLargeToDelete(name)
 
         with self:
             meta = self.meta
@@ -1659,6 +1659,9 @@ class Dataset:
 
         Args:
             large_ok (bool): Delete datasets larger than 1 GB. Defaults to ``False``.
+
+        Raises:
+            DatasetTooLargeToDelete: If the dataset is larger than 1 GB and ``large_ok`` is ``False``.
         """
 
         if hasattr(self, "_view_entry"):
@@ -1670,10 +1673,7 @@ class Dataset:
         if not large_ok:
             size = self.size_approx()
             if size > deeplake.constants.DELETE_SAFETY_SIZE:
-                logger.info(
-                    f"Hub Dataset {self.path} was too large to delete. Try again with large_ok=True."
-                )
-                return
+                raise DatasetTooLargeToDelete(self.path)
 
         self._unlock()
         self.storage.clear()
