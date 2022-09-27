@@ -6,7 +6,7 @@ import abc
 import tensorflow as tf  # type: ignore
 
 
-def hub_tf_adapter(_fn):
+def deeplake_tf_adapter(_fn):
     """
     Decorator function
     """
@@ -18,10 +18,10 @@ def hub_tf_adapter(_fn):
 
 
 # pylint: disable=too-many-public-methods
-class HubTensorflowDataset(tf.data.Dataset):
+class DeepLakeTensorflowDataset(tf.data.Dataset):
     """Represents a potentially large set of elements.
 
-    A `HubTensorflowDataset` can be used to represent an input pipeline as a
+    A `DeepLakeTensorflowDataset` can be used to represent an input pipeline as a
     collection of elements and a "logical plan" of transformations that act on
     those elements.
     """
@@ -47,110 +47,110 @@ class HubTensorflowDataset(tf.data.Dataset):
         raise NotImplementedError("Dataset._as_variant_tensor")
 
     @staticmethod
-    @hub_tf_adapter
+    @deeplake_tf_adapter
     def from_tensors(tensors):
         return tf.data.Dataset.from_tensors(tensors)
 
     @staticmethod
-    @hub_tf_adapter
+    @deeplake_tf_adapter
     def from_tensor_slices(tensors):
         return tf.data.Dataset.from_tensor_slices(tensors)
 
     @staticmethod
-    @hub_tf_adapter
+    @deeplake_tf_adapter
     def from_generator(*args, **kwargs):
         return tf.data.Dataset.from_generator(*args, **kwargs)
 
     @staticmethod
-    @hub_tf_adapter
+    @deeplake_tf_adapter
     def range(*args, **kwargs):
         return tf.data.Dataset.range(*args, **kwargs)
 
     @staticmethod
-    @hub_tf_adapter
+    @deeplake_tf_adapter
     def zip(datasets):
         return tf.data.Dataset.zip(datasets)
 
-    @hub_tf_adapter
+    @deeplake_tf_adapter
     def concatenate(self, *args, **kwargs):
         return super(__class__, self).concatenate(*args, **kwargs)
 
-    @hub_tf_adapter
+    @deeplake_tf_adapter
     def prefetch(self, *args, **kwargs):
         return super(__class__, self).prefetch(*args, **kwargs)
 
     @staticmethod
-    @hub_tf_adapter
+    @deeplake_tf_adapter
     def list_files(*args, **kwargs):
         return tf.data.Dataset.list_files(*args, **kwargs)
 
-    @hub_tf_adapter
+    @deeplake_tf_adapter
     def repeat(self, *args, **kwargs):
         return super(__class__, self).repeat(*args, **kwargs)
 
-    @hub_tf_adapter
+    @deeplake_tf_adapter
     def shuffle(self, *args, **kwargs):
         return super(__class__, self).shuffle(*args, **kwargs)
 
-    @hub_tf_adapter
+    @deeplake_tf_adapter
     def cache(self, *args, **kwargs):
         return super(__class__, self).cache(*args, **kwargs)
 
-    @hub_tf_adapter
+    @deeplake_tf_adapter
     def take(self, *args, **kwargs):
         return super(__class__, self).take(*args, **kwargs)
 
-    @hub_tf_adapter
+    @deeplake_tf_adapter
     def skip(self, *args, **kwargs):
         return super(__class__, self).skip(*args, **kwargs)
 
-    @hub_tf_adapter
+    @deeplake_tf_adapter
     def shard(self, *args, **kwargs):
         return super(__class__, self).shard(*args, **kwargs)
 
-    @hub_tf_adapter
+    @deeplake_tf_adapter
     def batch(self, *args, **kwargs):
         return super(__class__, self).batch(*args, **kwargs)
 
-    @hub_tf_adapter
+    @deeplake_tf_adapter
     def padded_batch(self, *args, **kwargs):
         return super(__class__, self).padded_batch(*args, **kwargs)
 
-    @hub_tf_adapter
+    @deeplake_tf_adapter
     def map(self, *args, **kwargs):
         return super(__class__, self).map(*args, **kwargs)
 
-    @hub_tf_adapter
+    @deeplake_tf_adapter
     def flat_map(self, *args, **kwargs):
         return super(__class__, self).flat_map(*args, **kwargs)
 
-    @hub_tf_adapter
+    @deeplake_tf_adapter
     def interleave(self, *args, **kwargs):
         return super(__class__, self).interleave(*args, **kwargs)
 
-    @hub_tf_adapter
+    @deeplake_tf_adapter
     def filter(self, *args, **kwargs):
         return super(__class__, self).filter(*args, **kwargs)
 
-    @hub_tf_adapter
+    @deeplake_tf_adapter
     def apply(self, *args, **kwargs):
         return super(__class__, self).apply(*args, **kwargs)
 
-    @hub_tf_adapter
+    @deeplake_tf_adapter
     def window(self, *args, **kwargs):
         return super(__class__, self).window(*args, **kwargs)
 
-    @hub_tf_adapter
+    @deeplake_tf_adapter
     def unbatch(self):
         return super(__class__, self).unbatch()
 
-    @hub_tf_adapter
+    @deeplake_tf_adapter
     def with_options(self, *args, **kwargs):
         return super(__class__, self).with_options(*args, **kwargs)
 
 
-class DatasetAdapter(HubTensorflowDataset):
-    """Wraps a V2 `Dataset` object in the `HubTensorflowDataset` API."""
+class DatasetAdapter(DeepLakeTensorflowDataset):
+    """Wraps a V2 `Dataset` object in the `DeepLakeTensorflowDataset` API."""
 
     # pylint: disable=abstract-method
     def __init__(self, dataset):

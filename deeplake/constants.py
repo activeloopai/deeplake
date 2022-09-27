@@ -42,7 +42,7 @@ DEFAULT_LOCAL_CACHE_SIZE = 0
 # maximum allowable size before `large_ok` must be passed to dataset delete methods
 DELETE_SAFETY_SIZE = 1 * GB
 
-# meta is hub-defined information, necessary for hub Datasets/Tensors to function
+# meta is deeplake-defined information, necessary for Deep Lake Datasets/Tensors to function
 DATASET_META_FILENAME = "dataset_meta.json"
 TENSOR_META_FILENAME = "tensor_meta.json"
 
@@ -91,7 +91,7 @@ PYTEST_LOCAL_PROVIDER_BASE_ROOT = "/tmp/hub_pytest/"  # TODO: may fail for windo
 PYTEST_S3_PROVIDER_BASE_ROOT = "s3://hub-2.0-tests/"
 PYTEST_GCS_PROVIDER_BASE_ROOT = "gcs://snark-test/"
 PYTEST_GDRIVE_PROVIDER_BASE_ROOT = (
-    "gdrive://hubtest"  # TODO: personal folder, replace with hub's
+    "gdrive://hubtest"
 )
 PYTEST_HUB_CLOUD_PROVIDER_BASE_ROOT = (
     None if HUB_CLOUD_DEV_USERNAME is None else f"hub://{HUB_CLOUD_DEV_USERNAME}/"

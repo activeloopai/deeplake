@@ -813,7 +813,7 @@ def _frame_to_stamp(nframe, stream):
 def _open_video(file: Union[str, bytes, memoryview]):
     if not _PYAV_INSTALLED:
         raise ModuleNotFoundError(
-            "PyAV is not installed. Run `pip install hub[video]`."
+            "PyAV is not installed. Run `pip install deeplake[video]`."
         )
     if isinstance(file, str):
         container = av.open(
@@ -988,7 +988,7 @@ def _read_timestamps(
 def _open_audio(file: Union[str, bytes, memoryview]):
     if not _PYAV_INSTALLED:
         raise ModuleNotFoundError(
-            "PyAV is not installed. Please run `pip install hub[audio]`"
+            "PyAV is not installed. Please run `pip install deeplake[audio]`"
         )
     if isinstance(file, str):
         container = av.open(

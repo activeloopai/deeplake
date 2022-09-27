@@ -335,7 +335,7 @@ class SampleStreaming(Streaming):
                             local_cache = self.local_caches[key]
 
                             if c_key in local_cache:
-                                chunk = local_cache.get_hub_object(c_key, chunk_class, meta=engine.chunk_args)  # type: ignore
+                                chunk = local_cache.get_deeplake_object(c_key, chunk_class, meta=engine.chunk_args)  # type: ignore
                             else:
                                 chunk = engine.get_chunk(c_key)
                                 local_cache[c_key] = chunk
@@ -495,7 +495,7 @@ class SampleStreaming(Streaming):
         tensor_key = version_state["tensor_names"][tensor_name]
         meta_key = get_tensor_meta_key(tensor_key, version_state["commit_id"])
         cache = self._use_cache(self.storage)
-        meta = cache.get_hub_object(meta_key, TensorMeta)
+        meta = cache.get_deeplake_object(meta_key, TensorMeta)
         if meta.is_link:
             return LinkedChunkEngine(
                 tensor_key,

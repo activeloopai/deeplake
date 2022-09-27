@@ -89,7 +89,7 @@ class DeepLakeCloudDataset(Dataset):
         self,
         event_id: str,
         event_group: str,
-        hub_meta: Dict[str, Any],
+        deeplake_meta: Dict[str, Any],
         has_head_changes: bool = None,
     ):
         username = get_user_name()
@@ -102,12 +102,12 @@ class DeepLakeCloudDataset(Dataset):
             "pending_commit_id": self.pending_commit_id,
             "has_head_changes": has_head_changes,
         }
-        hub_meta.update(common_meta)
+        deeplake_meta.update(common_meta)
         event_dict = {
             "id": event_id,
             "event_group": event_group,
             "ts": time.time(),
-            "hub_meta": hub_meta,
+            "deeplake_meta": deeplake_meta,
             "creator": "Deep Lake",
         }
         deeplake.event_queue.put((self.client, event_dict))
@@ -121,7 +121,7 @@ class DeepLakeCloudDataset(Dataset):
         progress: int = 0,
         status="",
     ):
-        hub_meta = {
+        deeplake_meta = {
             "query_id": query_id,
             "query_text": query_text,
             "progress": progress,
@@ -130,7 +130,9 @@ class DeepLakeCloudDataset(Dataset):
             "status": status,
         }
         event_id = f"{self.org_id}/{self.ds_name}.query"
-        self._send_event(event_id=event_id, event_group="query", hub_meta=hub_meta)
+        self._send_event(
+            event_id=event_id, event_group="query", deeplake_meta=deeplake_meta
+        )
 
     def _send_compute_progress(
         self,
@@ -140,7 +142,7 @@ class DeepLakeCloudDataset(Dataset):
         progress: int = 0,
         status="",
     ):
-        hub_meta = {
+        deeplake_meta = {
             "compute_id": compute_id,
             "progress": progress,
             "start": start,
@@ -149,7 +151,7 @@ class DeepLakeCloudDataset(Dataset):
         }
         event_id = f"{self.org_id}/{self.ds_name}.compute"
         self._send_event(
-            event_id=event_id, event_group="hub_compute", hub_meta=hub_meta
+            event_id=event_id, event_group="hub_compute", deeplake_meta=deeplake_meta
         )
 
     def _send_pytorch_progress(
@@ -160,7 +162,7 @@ class DeepLakeCloudDataset(Dataset):
         progress: int = 0,
         status="",
     ):
-        hub_meta = {
+        deeplake_meta = {
             "pytorch_id": pytorch_id,
             "progress": progress,
             "start": start,
@@ -168,11 +170,13 @@ class DeepLakeCloudDataset(Dataset):
             "status": status,
         }
         event_id = f"{self.org_id}/{self.ds_name}.pytorch"
-        self._send_event(event_id=event_id, event_group="pytorch", hub_meta=hub_meta)
+        self._send_event(
+            event_id=event_id, event_group="pytorch", deeplake_meta=deeplake_meta
+        )
 
     def _send_commit_event(self, commit_message: str, commit_time, author: str):
         # newly created commit can't have head_changes
-        hub_meta = {
+        deeplake_meta = {
             "commit_message": commit_message,
             "commit_time": str(commit_time),
             "author": author,
@@ -181,27 +185,27 @@ class DeepLakeCloudDataset(Dataset):
         self._send_event(
             event_id=event_id,
             event_group="dataset_commit",
-            hub_meta=hub_meta,
+            deeplake_meta=deeplake_meta,
             has_head_changes=False,
         )
 
     def _send_branch_creation_event(self, branch_name: str):
-        hub_meta = {"branch_name": branch_name}
+        deeplake_meta = {"branch_name": branch_name}
         event_id = f"{self.org_id}/{self.ds_name}.branch_created"
         self._send_event(
             event_id=event_id,
             event_group="dataset_branch_creation",
-            hub_meta=hub_meta,
+            deeplake_meta=deeplake_meta,
             has_head_changes=False,
         )
 
     def _send_dataset_creation_event(self):
-        hub_meta = {}
+        deeplake_meta = {}
         event_id = f"{self.org_id}/{self.ds_name}.dataset_created"
         self._send_event(
             event_id=event_id,
             event_group="dataset_creation",
-            hub_meta=hub_meta,
+            deeplake_meta=deeplake_meta,
             has_head_changes=False,
         )
 

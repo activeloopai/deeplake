@@ -8,7 +8,7 @@ import os
 
 
 def is_hub_cloud_path(path: str):
-    """Whether given ``path`` is a hub cloud path."""
+    """Whether given ``path`` is a Deep Lake cloud path."""
     return path.startswith("hub://")
 
 

@@ -26,7 +26,7 @@ def hub_cloud_dev_credentials(request):
 
     if not (USE_LOCAL_HOST or USE_DEV_ENVIRONMENT or USE_STAGING_ENVIRONMENT):
         warn(
-            "Running hub cloud tests without setting USE_LOCAL_HOST, USE_DEV_ENVIRONMENT or USE_STAGING_ENVIRONMENT is not recommended."
+            "Running deeplake cloud tests without setting USE_LOCAL_HOST, USE_DEV_ENVIRONMENT or USE_STAGING_ENVIRONMENT is not recommended."
         )
 
     username = os.getenv(ENV_HUB_DEV_USERNAME)
@@ -34,10 +34,10 @@ def hub_cloud_dev_credentials(request):
 
     assert (
         username is not None
-    ), f"Hub dev username was not found in the environment variable '{ENV_HUB_DEV_USERNAME}'. This is necessary for testing hub cloud datasets."
+    ), f"Hub dev username was not found in the environment variable '{ENV_HUB_DEV_USERNAME}'. This is necessary for testing deeplake cloud datasets."
     assert (
         password is not None
-    ), f"Hub dev password was not found in the environment variable '{ENV_HUB_DEV_PASSWORD}'. This is necessary for testing hub cloud datasets."
+    ), f"Hub dev password was not found in the environment variable '{ENV_HUB_DEV_PASSWORD}'. This is necessary for testing deeplake cloud datasets."
 
     return username, password
 

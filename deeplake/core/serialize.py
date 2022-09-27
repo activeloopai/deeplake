@@ -31,7 +31,7 @@ def infer_header_num_bytes(
     """Calculates the number of header bytes in a chunk without serializing it.
 
     Args:
-        version: (str) Version of hub library
+        version: (str) Version of deeplake library
         shape_info: (numpy.ndarray) Encoded shapes info from the chunk's `ShapeEncoder` instance.
         byte_positions: (numpy.ndarray) Encoded byte positions from the chunk's `BytePositionsEncoder` instance.
 
@@ -50,7 +50,7 @@ def infer_chunk_num_bytes(
     """Calculates the number of bytes in a chunk without serializing it. Used by `LRUCache` to determine if a chunk can be cached.
 
     Args:
-        version: (str) Version of hub library
+        version: (str) Version of deeplake library
         shape_info: (numpy.ndarray) Encoded shapes info from the chunk's `ShapeEncoder` instance.
         byte_positions: (numpy.ndarray) Encoded byte positions from the chunk's `BytePositionsEncoder` instance.
         data: (list) `_data` field of the chunk
@@ -78,7 +78,7 @@ def serialize_chunk(
     """Serializes a chunk's headers and data into a single byte stream. This is how the chunk will be written to the storage provider.
 
     Args:
-        version: (str) Version of hub library.
+        version: (str) Version of deeplake library.
         shape_info: (numpy.ndarray) Encoded shapes info from the chunk's `ShapeEncoder` instance.
         byte_positions: (numpy.ndarray) Encoded byte positions from the chunk's `BytePositionsEncoder` instance.
         data: (list) `_data` field of the chunk.
@@ -199,7 +199,7 @@ def deserialize_chunk(
 
     Returns:
         Tuple of:
-        hub version used to create the chunk,
+        deeplake version used to create the chunk,
         encoded shapes info as numpy array,
         encoded byte positions as numpy array,
         chunk data as memoryview.
@@ -259,7 +259,7 @@ def serialize_chunkids(version: str, arr: np.ndarray) -> memoryview:
     """Serializes chunk ID encoders into a single byte stream. This is how the encoders will be written to the storage provider.
 
     Args:
-        version: (str) Version of hub library.
+        version: (str) Version of deeplake library.
         arr: (np.ndarray) Encoded chunk ids from a `ChunkIdEncoder` instance.
 
     Returns:
@@ -296,7 +296,7 @@ def deserialize_chunkids(
         byts: (bytes) Serialized chunk ids.
 
     Returns:
-        Tuple of: hub version used to create the chunk, encoded chunk ids as memoryview and dtype of the encoder.
+        Tuple of: deeplake version used to create the chunk, encoded chunk ids as memoryview and dtype of the encoder.
 
     Raises:
         ValueError: If the bytes are not a valid chunk ID encoder.

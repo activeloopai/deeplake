@@ -49,19 +49,19 @@ class LRUCache(StorageProvider):
         )  # keys present in cache but not next_storage. Using a dict instead of set to preserve order.
 
         self.cache_used = 0
-        self.hub_objects: Dict[str, DeepLakeMemoryObject] = {}
+        self.deeplake_objects: Dict[str, DeepLakeMemoryObject] = {}
 
-    def register_hub_object(self, path: str, obj: DeepLakeMemoryObject):
+    def register_deeplake_object(self, path: str, obj: DeepLakeMemoryObject):
         """Registers a new object in the cache."""
-        self.hub_objects[path] = obj
+        self.deeplake_objects[path] = obj
 
-    def clear_hub_objects(self):
+    def clear_deeplake_objects(self):
         """Removes all DeepLakeMemoryObjects from the cache."""
-        self.hub_objects.clear()
+        self.deeplake_objects.clear()
 
-    def remove_hub_object(self, path: str):
+    def remove_deeplake_object(self, path: str):
         """Removes a DeepLakeMemoryObject from the cache."""
-        self.hub_objects.pop(path, None)
+        self.deeplake_objects.pop(path, None)
 
     def update_used_cache_for_path(self, path: str, new_size: int):
         if new_size < 0:
@@ -79,7 +79,7 @@ class LRUCache(StorageProvider):
         self.check_readonly()
         initial_autoflush = self.autoflush
         self.autoflush = False
-        for path, obj in self.hub_objects.items():
+        for path, obj in self.deeplake_objects.items():
             if obj.is_dirty:
                 self[path] = obj
                 obj.is_dirty = False
@@ -92,7 +92,7 @@ class LRUCache(StorageProvider):
 
         self.autoflush = initial_autoflush
 
-    def get_hub_object(
+    def get_deeplake_object(
         self,
         path: str,
         expected_class,
@@ -176,10 +176,10 @@ class LRUCache(StorageProvider):
         Returns:
             bytes: The bytes of the object present at the path.
         """
-        if path in self.hub_objects:
+        if path in self.deeplake_objects:
             if path in self.lru_sizes:
                 self.lru_sizes.move_to_end(path)  # refresh position for LRU
-            return self.hub_objects[path]
+            return self.deeplake_objects[path]
         elif path in self.lru_sizes:
             self.lru_sizes.move_to_end(path)  # refresh position for LRU
             return self.cache_storage[path]
@@ -213,10 +213,10 @@ class LRUCache(StorageProvider):
             InvalidBytesRequestedError: If `start_byte` > `end_byte` or `start_byte` < 0 or `end_byte` < 0.
             KeyError: If an object is not found at the path.
         """
-        if path in self.hub_objects:
+        if path in self.deeplake_objects:
             if path in self.lru_sizes:
                 self.lru_sizes.move_to_end(path)  # refresh position for LRU
-            return self.hub_objects[path].tobytes()[start_byte:end_byte]
+            return self.deeplake_objects[path].tobytes()[start_byte:end_byte]
         # if it is a partially read chunk in the cache, to get new bytes, we need to look at actual storage and not the cache
         elif path in self.lru_sizes and not (
             isinstance(self.cache_storage[path], BaseChunk)
@@ -240,8 +240,8 @@ class LRUCache(StorageProvider):
             ReadOnlyError: If the provider is in read-only mode.
         """
         self.check_readonly()
-        if path in self.hub_objects:
-            self.hub_objects[path].is_dirty = False
+        if path in self.deeplake_objects:
+            self.deeplake_objects[path].is_dirty = False
 
         if path in self.lru_sizes:
             size = self.lru_sizes.pop(path)
@@ -268,8 +268,8 @@ class LRUCache(StorageProvider):
         self.check_readonly()
         deleted_from_cache = False
 
-        if path in self.hub_objects:
-            self.remove_hub_object(path)
+        if path in self.deeplake_objects:
+            self.remove_deeplake_object(path)
             deleted_from_cache = True
 
         if path in self.lru_sizes:
@@ -300,7 +300,7 @@ class LRUCache(StorageProvider):
         self.lru_sizes.clear()
         self.dirty_keys.clear()
         self.cache_storage.clear()
-        self.hub_objects.clear()
+        self.deeplake_objects.clear()
         if self.next_storage is not None and hasattr(self.next_storage, "clear_cache"):
             self.next_storage.clear_cache()
 
@@ -310,9 +310,9 @@ class LRUCache(StorageProvider):
         """
         self.check_readonly()
         if prefix:
-            rm = [path for path in self.hub_objects if path.startswith(prefix)]
+            rm = [path for path in self.deeplake_objects if path.startswith(prefix)]
             for path in rm:
-                self.remove_hub_object(path)
+                self.remove_deeplake_object(path)
 
             rm = [path for path in self.lru_sizes if path.startswith(prefix)]
             for path in rm:
@@ -323,7 +323,7 @@ class LRUCache(StorageProvider):
             self.cache_used = 0
             self.lru_sizes.clear()
             self.dirty_keys.clear()
-            self.hub_objects.clear()
+            self.deeplake_objects.clear()
 
         self.cache_storage.clear(prefix=prefix)
         if self.next_storage is not None:
@@ -409,7 +409,7 @@ class LRUCache(StorageProvider):
         if self.next_storage is not None:
             key_set = self.next_storage._all_keys()  # type: ignore
         key_set = set().union(key_set, self.cache_storage._all_keys())
-        for path, obj in self.hub_objects.items():
+        for path, obj in self.deeplake_objects.items():
             if obj.is_dirty:
                 key_set.add(path)
         return key_set
@@ -450,11 +450,11 @@ class LRUCache(StorageProvider):
         self.lru_sizes = OrderedDict()
         self.dirty_keys = OrderedDict()
         self.cache_used = 0
-        self.hub_objects = {}
+        self.deeplake_objects = {}
 
     def get_object_size(self, key: str) -> int:
-        if key in self.hub_objects:
-            return self.hub_objects[key].nbytes
+        if key in self.deeplake_objects:
+            return self.deeplake_objects[key].nbytes
 
         try:
             return self.cache_storage.get_object_size(key)

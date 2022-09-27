@@ -64,10 +64,10 @@ class LinkedChunkEngine(ChunkEngine):
                 except ReadOnlyModeError:
                     pass
             else:
-                enc = self.meta_cache.get_hub_object(key, CredsEncoder)
+                enc = self.meta_cache.get_deeplake_object(key, CredsEncoder)
             self._creds_encoder = enc
             self._creds_encoder_commit_id = commit_id
-            self.meta_cache.register_hub_object(key, enc)
+            self.meta_cache.register_deeplake_object(key, enc)
         return self._creds_encoder
 
     @property
@@ -131,7 +131,7 @@ class LinkedChunkEngine(ChunkEngine):
 
     @retry_refresh_managed_creds
     def get_basic_sample(self, global_sample_index, index, fetch_chunks=False):
-        sample = self.get_hub_read_sample(global_sample_index, fetch_chunks)
+        sample = self.get_deeplake_read_sample(global_sample_index, fetch_chunks)
         if sample is None:
             return np.ones((0,))
         return sample.array[tuple(entry.value for entry in index.values[1:])]
@@ -141,7 +141,7 @@ class LinkedChunkEngine(ChunkEngine):
             global_sample_index, Index(global_sample_index), fetch_chunks
         )[0]
 
-    def get_hub_read_sample(self, global_sample_index, fetch_chunks=False):
+    def get_deeplake_read_sample(self, global_sample_index, fetch_chunks=False):
         creds_encoder = self.creds_encoder
         sample_path = self.get_path(global_sample_index, fetch_chunks)
         if not sample_path:
@@ -209,7 +209,7 @@ class LinkedChunkEngine(ChunkEngine):
 
     @retry_refresh_managed_creds
     def read_shape_for_sample(self, global_sample_index: int) -> Tuple[int, ...]:
-        sample = self.get_hub_read_sample(global_sample_index)
+        sample = self.get_deeplake_read_sample(global_sample_index)
         if sample is None:
             return (0,)
         return sample.shape
@@ -253,5 +253,5 @@ class LinkedChunkEngine(ChunkEngine):
 
     @retry_refresh_managed_creds
     def read_bytes_for_sample(self, global_sample_index: int) -> bytes:
-        sample = self.get_hub_read_sample(global_sample_index)
+        sample = self.get_deeplake_read_sample(global_sample_index)
         return sample.buffer

@@ -21,7 +21,7 @@ def replace_stdin(target):
 
 
 def dont_agree(path):
-    """Load the hub cloud dataset at path and simulate disagreeing to the terms of access."""
+    """Load the Deep Lake cloud dataset at path and simulate disagreeing to the terms of access."""
 
     with pytest.raises(AgreementNotAcceptedError):
         # this text can be anything except expected

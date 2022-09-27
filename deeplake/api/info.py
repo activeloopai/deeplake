@@ -175,11 +175,11 @@ def load_info(path, dataset, key=None) -> Info:
     storage: LRUCache = dataset.storage
 
     try:
-        info = storage.get_hub_object(path, Info)
+        info = storage.get_deeplake_object(path, Info)
     except KeyError:
         info = Info()
 
     info._dataset = dataset
     info._key = key
-    storage.register_hub_object(path, info)
+    storage.register_deeplake_object(path, info)
     return info

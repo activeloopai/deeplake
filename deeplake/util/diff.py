@@ -265,7 +265,7 @@ def get_dataset_changes_for_id(
 
     dataset_diff_key = get_dataset_diff_key(commit_id)
     try:
-        dataset_diff = storage.get_hub_object(dataset_diff_key, DatasetDiff)
+        dataset_diff = storage.get_deeplake_object(dataset_diff_key, DatasetDiff)
         dataset_changes["info_updated"] = (
             dataset_changes.get("info_updated") or dataset_diff.info_updated
         )
@@ -307,7 +307,7 @@ def get_tensor_changes_for_id(
 ):
     """Identifies the changes made in the given commit_id and updates them in the changes dict."""
     meta_key = get_dataset_meta_key(commit_id)
-    meta = storage.get_hub_object(meta_key, DatasetMeta)
+    meta = storage.get_deeplake_object(meta_key, DatasetMeta)
     tensors = meta.visible_tensors
 
     for tensor in tensors:
@@ -315,7 +315,7 @@ def get_tensor_changes_for_id(
         try:
             commit_diff: CommitDiff
             commit_diff_key = get_tensor_commit_diff_key(key, commit_id)
-            commit_diff = storage.get_hub_object(commit_diff_key, CommitDiff)
+            commit_diff = storage.get_deeplake_object(commit_diff_key, CommitDiff)
             renamed = dataset_changes.get("renamed")
             deleted = dataset_changes.get("deleted")
 

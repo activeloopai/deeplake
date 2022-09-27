@@ -154,7 +154,7 @@ def test(local_ds_generator, compression):
 
 
 @pytest.mark.parametrize("images_compression", [None, "png"])
-def test_hub_read(local_ds_generator, images_compression, cat_path, flower_path):
+def test_deeplake_read(local_ds_generator, images_compression, cat_path, flower_path):
     gen = local_ds_generator
 
     ds = gen()
@@ -353,7 +353,7 @@ def test_sequence_htype_with_broadcasting(memory_ds):
 
 
 @pytest.mark.parametrize("shape", [(13, 17, 3), (1007, 3001, 3)])
-def test_sequence_htype_with_hub_read(local_ds, shape, compressed_image_paths):
+def test_sequence_htype_with_deeplake_read(local_ds, shape, compressed_image_paths):
     ds = local_ds
     imgs = list(map(deeplake.read, compressed_image_paths["jpeg"][:3]))
     new_imgs = list(map(deeplake.read, compressed_image_paths["jpeg"][3:6]))

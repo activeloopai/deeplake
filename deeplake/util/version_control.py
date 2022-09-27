@@ -463,7 +463,7 @@ def current_commit_has_data(version_state: Dict[str, Any], storage: LRUCache) ->
     commit_id = version_state["commit_id"]
     try:
         dataset_diff_key = get_dataset_diff_key(commit_id)
-        dataset_diff = storage.get_hub_object(dataset_diff_key, DatasetDiff)
+        dataset_diff = storage.get_deeplake_object(dataset_diff_key, DatasetDiff)
         if dataset_diff.deleted or dataset_diff.renamed:
             return True
     except KeyError:
@@ -485,7 +485,7 @@ def current_commit_has_info_modified(
     commit_id = version_state["commit_id"]
     try:
         dataset_diff_key = get_dataset_diff_key(commit_id)
-        dataset_diff = storage.get_hub_object(dataset_diff_key, DatasetDiff)
+        dataset_diff = storage.get_deeplake_object(dataset_diff_key, DatasetDiff)
         if dataset_diff.info_updated:
             return True
     except KeyError:
@@ -494,7 +494,7 @@ def current_commit_has_info_modified(
     for tensor in version_state["full_tensors"].keys():
         try:
             tensor_diff_key = get_tensor_commit_diff_key(tensor, commit_id)
-            tensor_diff = storage.get_hub_object(tensor_diff_key, CommitDiff)
+            tensor_diff = storage.get_deeplake_object(tensor_diff_key, CommitDiff)
             if tensor_diff.info_updated:
                 return True
         except KeyError:
@@ -522,16 +522,16 @@ def load_meta(dataset):
 
     version_state = dataset.version_state
     storage: LRUCache = dataset.storage
-    storage.clear_hub_objects()
+    storage.clear_deeplake_objects()
     meta_key = get_dataset_meta_key(version_state["commit_id"])
-    meta = storage.get_hub_object(meta_key, DatasetMeta)
+    meta = storage.get_deeplake_object(meta_key, DatasetMeta)
     if not meta.tensor_names:  # backward compatibility
         meta.tensor_names = {key: key for key in meta.tensors}
 
     ffw_dataset_meta(meta)
     version_state["meta"] = meta
 
-    storage.register_hub_object(meta_key, meta)
+    storage.register_deeplake_object(meta_key, meta)
     _tensors = version_state["full_tensors"]
     _tensors.clear()
     _tensor_names = version_state["tensor_names"]

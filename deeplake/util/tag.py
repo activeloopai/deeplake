@@ -4,7 +4,7 @@ import deeplake
 
 
 def process_hub_path(path: str) -> Tuple[str, str, str, str]:
-    """Checks whether path is a valid hub path."""
+    """Checks whether path is a valid Deep Lake cloud path."""
     # Allowed formats:
     # hub://org/ds
     # hub://org/ds/.queries/hash
