@@ -1,5 +1,5 @@
 deeplake.util.exceptions
-===================
+========================
 .. currentmodule:: deeplake.util.exceptions
 
 .. autoclass:: ExternalCommandError

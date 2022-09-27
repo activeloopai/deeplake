@@ -1,6 +1,6 @@
 Datasets
 ========
-.. currentmodule:: hub
+.. currentmodule:: deeplake
 
 .. _creating-datasets:
 
@@ -124,7 +124,7 @@ can be created using indexing or querying a dataset using :func:`~Dataset.filter
 has been committed and has no changes on the HEAD node, in order to preserve data lineage and prevent the underlying data from
 changing after the query or filter conditions have been evaluated.
 
-    >>> import hub
+    >>> import deeplake
     >>> # load dataset
     >>> ds = deeplake.load("hub://activeloop/mnist-train")
     >>> # filter dataset

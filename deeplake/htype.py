@@ -12,7 +12,7 @@ If you know beforehand, you can use htype at creation:
 
 >>> ds.create_tensor("my_tensor", htype="image", sample_compression=None)
 
-Specifying an htype allows for strict settings and error handling, and it is critical for increasing the performance of hub datasets containing rich data such as images and videos.
+Specifying an htype allows for strict settings and error handling, and it is critical for increasing the performance of deeplake datasets containing rich data such as images and videos.
 
 Supported htypes and their respective defaults are:
 

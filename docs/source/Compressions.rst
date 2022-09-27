@@ -1,9 +1,9 @@
 Compressions
 ============
 
-.. currentmodule:: hub
+.. currentmodule:: deeplake
 
-Hub can read, compress, decompress and recompress data to different formats. The supported htype-compression configurations
+Deep Lake can read, compress, decompress and recompress data to different formats. The supported htype-compression configurations
 are given below.
 
 +----------------+----------------+----------------------------------------+

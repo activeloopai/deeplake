@@ -1,5 +1,5 @@
 deeplake.util
-========
+=============
 .. currentmodule:: deeplake.util
 .. toctree::
     :maxdepth: 2

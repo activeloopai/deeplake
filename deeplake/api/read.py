@@ -13,7 +13,7 @@ def read(
     compression: Optional[str] = None,
     storage: Optional[StorageProvider] = None,
 ) -> Sample:
-    """Utility that reads raw data from supported files into hub format.
+    """Utility that reads raw data from supported files into Deep Lake format.
 
     - Recompresses data into format required by the tensor if permitted by the tensor htype.
     - Simply copies the data in the file if file format matches sample_compression of the tensor, thus maximizing upload speeds.

@@ -1,5 +1,5 @@
 deeplake.auto.structured
-===================
+========================
 .. toctree::
     :maxdepth: 2
 

@@ -1,5 +1,5 @@
 deeplake.core.dataset
-================
+=====================
 .. currentmodule:: deeplake.core.dataset
 
 Dataset
@@ -8,7 +8,7 @@ Dataset
     :members:
 
 DeepLakeCloudDataset
-~~~~~~~~~~~~~~~
+~~~~~~~~~~~~~~~~~~~~
 .. autoclass:: DeepLakeCloudDataset()
     :show-inheritance:
     :members:

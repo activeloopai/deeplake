@@ -60,8 +60,8 @@ class ComputeFunction:
         """Evaluates the ComputeFunction on data_in to produce an output dataset ds_out.
 
         Args:
-            data_in: Input passed to the transform to generate output dataset. Should support \__getitem__ and \__len__. Can be a Hub dataset.
-            ds_out (Dataset, optional): The dataset object to which the transform will get written. If this is not provided, data_in will be overwritten if it is a Hub dataset, otherwise error will be raised.
+            data_in: Input passed to the transform to generate output dataset. Should support \__getitem__ and \__len__. Can be a Deep Lake dataset.
+            ds_out (Dataset, optional): The dataset object to which the transform will get written. If this is not provided, data_in will be overwritten if it is a Deep Lake dataset, otherwise error will be raised.
                 It should have all keys being generated in output already present as tensors. It's initial state should be either:-
                 - Empty i.e. all tensors have no samples. In this case all samples are added to the dataset.
                 - All tensors are populated and have sampe length. In this case new samples are appended to the dataset.
@@ -72,13 +72,13 @@ class ComputeFunction:
             skip_ok (bool): If True, skips the check for output tensors generated. This allows the user to skip certain tensors in the function definition.
                 This is especially useful for inplace transformations in which certain tensors are not modified. Defaults to False.
             check_lengths (bool): If True, checks whether ds_out has tensors of same lengths initially.
-            pad_data_in (bool): NOTE: This is only applicable if data_in is a Hub dataset. If True, pads tensors of data_in to match the length of the largest tensor in data_in.
+            pad_data_in (bool): NOTE: This is only applicable if data_in is a Deep Lake dataset. If True, pads tensors of data_in to match the length of the largest tensor in data_in.
                 Defaults to False.
             **kwargs: Additional arguments.
 
         Raises:
-            InvalidInputDataError: If data_in passed to transform is invalid. It should support \__getitem__ and \__len__ operations. Using scheduler other than "threaded" with hub dataset having base storage as memory as data_in will also raise this.
-            InvalidOutputDatasetError: If all the tensors of ds_out passed to transform don't have the same length. Using scheduler other than "threaded" with hub dataset having base storage as memory as ds_out will also raise this.
+            InvalidInputDataError: If data_in passed to transform is invalid. It should support \__getitem__ and \__len__ operations. Using scheduler other than "threaded" with deeplake dataset having base storage as memory as data_in will also raise this.
+            InvalidOutputDatasetError: If all the tensors of ds_out passed to transform don't have the same length. Using scheduler other than "threaded" with deeplake dataset having base storage as memory as ds_out will also raise this.
             TensorMismatchError: If one or more of the outputs generated during transform contain different tensors than the ones present in 'ds_out' provided to transform.
             UnsupportedSchedulerError: If the scheduler passed is not recognized. Supported values include: 'serial', 'threaded', 'processed' and 'ray'.
         """
@@ -102,7 +102,7 @@ class ComputeFunction:
 
 class Pipeline:
     def __init__(self, functions: List[ComputeFunction]):
-        """Takes a list of functions decorated using deeplake.compute and creates a pipeline that can be evaluated using .eval"""
+        """Takes a list of functions decorated using :func:`deeplake.compute` and creates a pipeline that can be evaluated using .eval"""
         self.functions = functions
 
     def __len__(self):
@@ -123,8 +123,8 @@ class Pipeline:
         """Evaluates the pipeline on data_in to produce an output dataset ds_out.
 
         Args:
-            data_in: Input passed to the transform to generate output dataset. Should support \__getitem__ and \__len__. Can be a Hub dataset.
-            ds_out (Dataset, optional): The dataset object to which the transform will get written. If this is not provided, data_in will be overwritten if it is a Hub dataset, otherwise error will be raised.
+            data_in: Input passed to the transform to generate output dataset. Should support \__getitem__ and \__len__. Can be a Deep Lake dataset.
+            ds_out (Dataset, optional): The dataset object to which the transform will get written. If this is not provided, data_in will be overwritten if it is a Deep Lake dataset, otherwise error will be raised.
                 It should have all keys being generated in output already present as tensors. It's initial state should be either:-
                 - Empty i.e. all tensors have no samples. In this case all samples are added to the dataset.
                 - All tensors are populated and have sampe length. In this case new samples are appended to the dataset.
@@ -135,13 +135,13 @@ class Pipeline:
             skip_ok (bool): If True, skips the check for output tensors generated. This allows the user to skip certain tensors in the function definition.
                 This is especially useful for inplace transformations in which certain tensors are not modified. Defaults to False.
             check_lengths (bool): If True, checks whether ds_out has tensors of same lengths initially.
-            pad_data_in (bool): NOTE: This is only applicable if data_in is a Hub dataset. If True, pads tensors of data_in to match the length of the largest tensor in data_in.
+            pad_data_in (bool): NOTE: This is only applicable if data_in is a Deep Lake dataset. If True, pads tensors of data_in to match the length of the largest tensor in data_in.
                 Defaults to False.
             **kwargs: Additional arguments.
 
         Raises:
-            InvalidInputDataError: If data_in passed to transform is invalid. It should support \__getitem__ and \__len__ operations. Using scheduler other than "threaded" with hub dataset having base storage as memory as data_in will also raise this.
-            InvalidOutputDatasetError: If all the tensors of ds_out passed to transform don't have the same length. Using scheduler other than "threaded" with hub dataset having base storage as memory as ds_out will also raise this.
+            InvalidInputDataError: If data_in passed to transform is invalid. It should support \__getitem__ and \__len__ operations. Using scheduler other than "threaded" with deeplake dataset having base storage as memory as data_in will also raise this.
+            InvalidOutputDatasetError: If all the tensors of ds_out passed to transform don't have the same length. Using scheduler other than "threaded" with deeplake dataset having base storage as memory as ds_out will also raise this.
             TensorMismatchError: If one or more of the outputs generated during transform contain different tensors than the ones present in 'ds_out' provided to transform.
             UnsupportedSchedulerError: If the scheduler passed is not recognized. Supported values include: 'serial', 'threaded', 'processed' and 'ray'.
             TransformError: All other exceptions raised if there are problems while running the pipeline.
@@ -342,11 +342,11 @@ def compose(functions: List[ComputeFunction]):  # noqa: DAR101, DAR102, DAR201, 
 
     - ``data_in``: Input passed to the transform to generate output dataset.
 
-        - It should support ``__getitem__`` and ``__len__``. This can be a Hub dataset.
+        - It should support ``__getitem__`` and ``__len__``. This can be a Deep Lake dataset.
 
     - ``ds_out (Dataset, optional)``: The dataset object to which the transform will get written.
 
-        - If this is not provided, data_in will be overwritten if it is a Hub dataset, otherwise error will be raised.
+        - If this is not provided, data_in will be overwritten if it is a Deep Lake dataset, otherwise error will be raised.
         - It should have all keys being generated in output already present as tensors.
         - It's initial state should be either:
 
@@ -370,9 +370,9 @@ def compose(functions: List[ComputeFunction]):  # noqa: DAR101, DAR102, DAR201, 
 
     It raises the following errors:
 
-    - ``InvalidInputDataError``: If data_in passed to transform is invalid. It should support ``__getitem__`` and ``__len__`` operations. Using scheduler other than "threaded" with hub dataset having base storage as memory as data_in will also raise this.
+    - ``InvalidInputDataError``: If data_in passed to transform is invalid. It should support ``__getitem__`` and ``__len__`` operations. Using scheduler other than "threaded" with deeplake dataset having base storage as memory as data_in will also raise this.
 
-    - ``InvalidOutputDatasetError``: If all the tensors of ds_out passed to transform don't have the same length. Using scheduler other than "threaded" with hub dataset having base storage as memory as ds_out will also raise this.
+    - ``InvalidOutputDatasetError``: If all the tensors of ds_out passed to transform don't have the same length. Using scheduler other than "threaded" with deeplake dataset having base storage as memory as ds_out will also raise this.
 
     - ``TensorMismatchError``: If one or more of the outputs generated during transform contain different tensors than the ones present in 'ds_out' provided to transform.
 
@@ -398,7 +398,7 @@ def compute(
 
     There can be as many other arguments as required.
 
-    The output should be appended/extended to the second argument in a hub like syntax.
+    The output should be appended/extended to the second argument in a deeplake like syntax.
 
     Any value returned by the fn will be ignored.
 
@@ -424,11 +424,11 @@ def compute(
 
     - ``data_in``: Input passed to the transform to generate output dataset.
 
-        - It should support ``__getitem__`` and ``__len__``. This can be a Hub dataset.
+        - It should support ``__getitem__`` and ``__len__``. This can be a Deep Lake dataset.
 
     - ``ds_out (Dataset, optional)``: The dataset object to which the transform will get written.
 
-        - If this is not provided, data_in will be overwritten if it is a Hub dataset, otherwise error will be raised.
+        - If this is not provided, data_in will be overwritten if it is a Deep Lake dataset, otherwise error will be raised.
         - It should have all keys being generated in output already present as tensors.
         - It's initial state should be either:
 
@@ -452,9 +452,9 @@ def compute(
 
     It raises the following errors:
 
-    - ``InvalidInputDataError``: If data_in passed to transform is invalid. It should support ``__getitem__`` and ``__len__`` operations. Using scheduler other than "threaded" with hub dataset having base storage as memory as data_in will also raise this.
+    - ``InvalidInputDataError``: If data_in passed to transform is invalid. It should support ``__getitem__`` and ``__len__`` operations. Using scheduler other than "threaded" with deeplake dataset having base storage as memory as data_in will also raise this.
 
-    - ``InvalidOutputDatasetError``: If all the tensors of ds_out passed to transform don't have the same length. Using scheduler other than "threaded" with hub dataset having base storage as memory as ds_out will also raise this.
+    - ``InvalidOutputDatasetError``: If all the tensors of ds_out passed to transform don't have the same length. Using scheduler other than "threaded" with deeplake dataset having base storage as memory as ds_out will also raise this.
 
     - ``TensorMismatchError``: If one or more of the outputs generated during transform contain different tensors than the ones present in 'ds_out' provided to transform.
 

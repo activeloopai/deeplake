@@ -1,5 +1,5 @@
 deeplake.auto
-========
+=============
 .. toctree::
     :maxdepth: 2
 

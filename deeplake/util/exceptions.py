@@ -203,7 +203,7 @@ class UserNotLoggedInException(Exception):
 class InvalidHubPathException(Exception):
     def __init__(self, path):
         super().__init__(
-            f"The Dataset's path is an invalid Hub path. It should be of the form hub://username/dataset got {path}."
+            f"The Dataset's path is an invalid Deep Lake cloud path. It should be of the form hub://username/dataset got {path}."
         )
 
 
@@ -211,7 +211,7 @@ class PathNotEmptyException(Exception):
     def __init__(self, use_hub=True):
         if use_hub:
             super().__init__(
-                f"Please use a url that points to an existing Hub Dataset or an empty folder. If you wish to delete the folder and its contents, you may run deeplake.delete(dataset_path, force=True)."
+                f"Please use a url that points to an existing Deep Lake Dataset or an empty folder. If you wish to delete the folder and its contents, you may run deeplake.delete(dataset_path, force=True)."
             )
         else:
             super().__init__(
@@ -507,7 +507,7 @@ class InvalidInputDataError(TransformError):
     def __init__(self, operation):
         super().__init__(
             f"The data_in to transform is invalid. It doesn't support {operation} operation. "
-            "Please use a list, a hub dataset or an object that supports both __getitem__ and __len__. "
+            "Please use a list, a Deep Lake dataset or an object that supports both __getitem__ and __len__. "
             "Generators are not supported."
         )
 
@@ -515,7 +515,7 @@ class InvalidInputDataError(TransformError):
 class UnsupportedSchedulerError(TransformError):
     def __init__(self, scheduler):
         super().__init__(
-            f"Hub compute currently doesn't support {scheduler} scheduler."
+            f"Deep Lake compute currently doesn't support {scheduler} scheduler."
         )
 
 
@@ -523,7 +523,7 @@ class TensorMismatchError(TransformError):
     def __init__(self, tensors, output_keys, skip_ok=False):
         if skip_ok:
             super().__init__(
-                f"One or more tensors generated during hub compute don't exist in the target dataset. With skip_ok=True, you can skip certain tensors in the transform, however you need to ensure that all tensors generated exist in the dataset.\n "
+                f"One or more tensors generated during Deep Lake compute don't exist in the target dataset. With skip_ok=True, you can skip certain tensors in the transform, however you need to ensure that all tensors generated exist in the dataset.\n "
                 f"Tensors in target dataset: {tensors}\n Tensors in output sample: {output_keys}"
             )
         else:
@@ -778,7 +778,7 @@ class SampleAppendingError(Exception):
 
 class DatasetTooLargeToDelete(Exception):
     def __init__(self, ds_path):
-        message = f"Hub Dataset {ds_path} was too large to delete. Try again with large_ok=True."
+        message = f"Deep Lake Dataset {ds_path} was too large to delete. Try again with large_ok=True."
         super().__init__(message)
 
 

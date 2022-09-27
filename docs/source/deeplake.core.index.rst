@@ -1,5 +1,5 @@
 deeplake.core.index
-==============
+===================
 .. currentmodule:: deeplake.core.index
 
 .. autoclass:: IndexEntry

@@ -226,7 +226,7 @@ class GCSProvider(StorageProvider):
         """
         if not _GOOGLE_PACKAGES_INSTALLED:
             raise ModuleNotFoundError(
-                "Google cloud packages are not installed. Run `pip install hub[gcp]`."
+                "Google cloud packages are not installed. Run `pip install deeplake[gcp]`."
             )
         self.root = root
         self.token: Union[str, Dict, None] = token
@@ -284,11 +284,11 @@ class GCSProvider(StorageProvider):
         return {posixpath.relpath(obj.name, self.path) for obj in self._blob_objects}
 
     def _set_hub_creds_info(self, hub_path: str, expiration: str):
-        """Sets the tag and expiration of the credentials. These are only relevant to datasets using Hub storage.
+        """Sets the tag and expiration of the credentials. These are only relevant to datasets using Deep Lake storage.
         This info is used to fetch new credentials when the temporary 12 hour credentials expire.
 
         Args:
-            hub_path (str): The hub cloud path to the dataset.
+            hub_path (str): The deeplake cloud path to the dataset.
             expiration (str): The time at which the credentials expire.
         """
         self.hub_path = hub_path

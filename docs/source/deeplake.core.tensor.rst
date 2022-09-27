@@ -1,5 +1,5 @@
 deeplake.core.tensor
-===============
+====================
 .. currentmodule:: deeplake.core.tensor
 
 Tensor

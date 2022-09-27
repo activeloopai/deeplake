@@ -1,5 +1,5 @@
 deeplake.util.remove_cache
-=====================
+==========================
 .. currentmodule:: deeplake.util.remove_cache
 .. autofunction:: remove_memory_cache
 .. autofunction:: get_base_storage

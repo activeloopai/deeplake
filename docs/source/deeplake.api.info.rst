@@ -1,5 +1,5 @@
 deeplake.api.info
-============
+=================
 .. currentmodule:: deeplake.api.info
 .. automodule:: deeplake.api.info
     :members:

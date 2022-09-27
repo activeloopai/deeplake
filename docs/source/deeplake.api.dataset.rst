@@ -1,5 +1,5 @@
 deeplake.api.dataset
-===============
+====================
 .. currentmodule:: deeplake.api.dataset
 .. class:: dataset
     

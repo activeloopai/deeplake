@@ -1,5 +1,5 @@
 deeplake.api
-=======
+============
 .. toctree::
     :maxdepth: 2
 
