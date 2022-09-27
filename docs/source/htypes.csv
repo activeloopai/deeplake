@@ -1,0 +1,6 @@
+HTYPE, DTYPE, COMPRESSION
+generic, None, None
+:ref:`image <image-htype>`, uint8, Required arg
+:ref:`image.rgb <image-rgb-and-gray>`, uint8, Required arg
+:ref:`image.gray <image-rgb-and-gray>`, uint8, Required arg
+:ref:`class_label <class-label-htype>`_, uint32, None

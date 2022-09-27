@@ -5,6 +5,8 @@ Htypes
 
 .. role:: blue
 
+.. role:: bluebold
+
 
 Htype is the class of a tensor: image, bounding box, generic tensor, etc.
 
@@ -18,56 +20,16 @@ Specifying an htype allows for strict settings and error handling, and it is cri
 
 Supported htypes and their respective defaults are:
 
-+----------------------------+-----------+---------------+
-| HTYPE                      |  DTYPE    |  COMPRESSION  |
-+============================+===========+===============+
-| generic                    |  None     |  None         |
-+----------------------------+-----------+---------------+
-| image                      |  uint8    |  None         |
-+----------------------------+-----------+---------------+
-| image.rgb                  |  uint8    |  None         |
-+----------------------------+-----------+---------------+
-| image.gray                 |  uint8    |  None         |
-+----------------------------+-----------+---------------+
-| class_label                |  uint32   |  None         |
-+----------------------------+-----------+---------------+
-| bbox                       |  float32  |  None         |
-+----------------------------+-----------+---------------+
-| video                      |  uint8    |  None         |
-+----------------------------+-----------+---------------+
-| instance_label             | uint32    |  None         |
-+----------------------------+-----------+---------------+
-| point                      | int32     |  None         |
-+----------------------------+-----------+---------------+
-| binary_mask                |  bool     |  None         |
-+----------------------------+-----------+---------------+
-| segment_mask               |  uint32   |  None         |
-+----------------------------+-----------+---------------+
-| keypoints_coco             |  int32    |  None         |
-+----------------------------+-----------+---------------+
-| point                      |  int32    |  None         |
-+----------------------------+-----------+---------------+
-| audio                      |  float64  |  None         |
-+----------------------------+-----------+---------------+
-| text                       |  str      |  None         |
-+----------------------------+-----------+---------------+
-| json                       |  Any      |  None         |
-+----------------------------+-----------+---------------+
-| list                       |  List     |  None         |
-+----------------------------+-----------+---------------+
-| dicom                      |  None     |  dcm          |
-+----------------------------+-----------+---------------+
-| link                       |  str      |  None         |
-+----------------------------+-----------+---------------+
-| sequence                   |  None     |  None         |
-+----------------------------+-----------+---------------+
-| point_cloud                | None      | las           |
-+----------------------------+-----------+---------------+
+.. csv-table:: Htype configs
+    :file: _static/csv/htypes.csv
+    :header-rows: 1
+
+.. _image-htype:
 
 Image Htype
 ~~~~~~~~~~~
 
-- Tensor dimensions: ``(# images, height, width, # channels)`` or ``(# images, height, width)``.
+- :bluebold:`Sample dimensions:` ``(height, width, # channels)`` :bluebold:`or` ``(height, width)``.
 
 Images can be stored in hub as compressed bytes or as raw arrays. Due to the high compression ratio for most image 
 formats, it is highly recommended to store compressed images using the ``sample_compression`` input to the create_tensor method.
@@ -94,9 +56,8 @@ OR
 -------------------------------
 
 - Image samples can be of type ``np.ndarray`` or hub :class:`~hub.core.sample.Sample` which can be created using :meth:`hub.read`.
-- Input sample shape: ``(height, width, # channels)`` or ``(height, width)``
 
-:blue:`Examples`
+:bluebold:`Examples`
 
 Appending pixel data with array
 
@@ -115,6 +76,8 @@ You can append multiple samples at the same time using :meth:`~hub.core.tensor.T
     hub will decompress and recompress the image for storage, which may significantly slow down the upload
     process. The upload process is fastest when the image compression matches the ``sample_compression``.
 
+.. _image-rgb-and-gray:
+
 :blue:`image.rgb and image.gray htypes`
 ---------------------------------------
 
@@ -128,10 +91,13 @@ image.rgb and image.gray tensors can be created using
 
 >>> ds.create_tensor("gray_images", htype="image.gray", sample_compression="...")
 
+
+.. _video-htype:
+
 Video Htype
 ~~~~~~~~~~~
 
-- Tensor dimensions: ``(# videos, # frames, height, width, # channels)`` or ``(# videos, # frames, height, width)``
+- :bluebold:`Sample dimensions:` ``(# frames, height, width, # channels)`` :bluebold:`or` ``(# frames, height, width)``
 
 :blue:`Creating a video tensor`
 -------------------------------
@@ -153,9 +119,8 @@ A video tensor can be created using
 - Hub does not support compression of raw video frames. Therefore, array of raw frames can only be appended to tensors with
   ``None`` compression.
 - Recompression of samples read with :meth:`hub.read <hub.read>` is also not supported.
-- Input sample shape: ``(# frames, height, width, channels)`` or ``(# frames, height, width)``
 
-:blue:`Examples`
+:bluebold:`Examples`
 
 Appending hub video sample
 
@@ -165,10 +130,12 @@ Extending with multiple videos
 
 >>> ds.videos.extend([hub.read(f"videos/00{i}.mp4") for i in range(10)])
 
+.. _audio-htype:
+
 Audio Htype
 ~~~~~~~~~~~
 
-- Tensor dimensions: ``(# audios, # frames, # channels)`` or ``(# audios, # frames)``
+- :bluebold:`Sample dimensions:` ``(# frames, # channels)`` :bluebold:`or` ``(# frames,)``
 
 :blue:`Creating an audio tensor`
 --------------------------------
@@ -189,9 +156,8 @@ An audio tensor can be created using
 - Audio samples can be of type ``np.ndarray`` or :class:`~hub.core.sample.Sample` which is returned by :meth:`hub.read`.
 - Like videos, Hub does not support compression or recompression of input audio samples. Thus, samples of type ``np.ndarray``
   can only be appended to tensors with ``None`` compression.
-- Input sample shape: ``(# frames, # channels)`` or ``(# frames)``
 
-:blue:`Examples`
+:bluebold:`Examples`
 
 Appending hub audio sample
 
@@ -201,10 +167,12 @@ Extending with hub audio samples
 
 >>> ds.audios.extend([hub.read(f"videos/00{i}.mp3") for i in range(10)])
 
+.. _class-label-htype:
+
 Class Label Htype
 ~~~~~~~~~~~~~~~~~
 
-- Tensor dimensions: ``(# samples, # labels)``
+- :bluebold:`Sample dimensions:` ``(# labels,)``
 
 Class labels are stored as numerical values in tensors, which are indices of the list ``tensor.info.class_names``.
 
@@ -238,7 +206,7 @@ You can also choose to set the class names after tensor creation.
 - Class labels can be appended as ``int``, ``str``, ``np.ndarray`` or ``list`` of ``int`` or ``str``.
 - In case of strings, ``tensor.info.class_names`` is updated automatically.
 
-:blue:`Examples`
+:bluebold:`Examples`
 
 Appending index
 
@@ -253,10 +221,12 @@ Appending text labels
 
 >>> ds.labels.append(["cars", "airplanes"])
 
+.. _bbox-htype:
+
 Bounding Box Htype
 ~~~~~~~~~~~~~~~~~~
 
-- Tensor dimensions: ``(# samples, # bounding boxes in a sample, 4)``
+- :bluebold:`Sample dimensions:` ``(# bounding boxes, 4)``
 
 Bounding boxes have a variety of formats such as YOLO, COCO, Pascal-VOC and others. In order for bounding boxes
 to be correctly displayed by the visualizer, the format of the bounding box must be specified in the ``coords`` key in
@@ -297,9 +267,8 @@ You can also choose to set the class names after tensor creation.
 --------------------------------
 
 - Bounding boxes can be appended as ``np.ndarrays`` or ``list`` or ``lists of arrays``.
-- Input sample shape: ``(# Number of bounding boxes in the sample, 4)``
 
-:blue:`Examples`
+:bluebold:`Examples`
 
 Appending one bounding box
 
@@ -318,10 +287,12 @@ array([[965, 110, 262,  77],
 >>> ds.boxes.append(boxes)
 
 
+.. _segment-mask-htype:
+
 Segmentation Mask Htype
 ~~~~~~~~~~~~~~~~~~~~~~~
 
-- Tensor dimensions: ``(# samples, height, width)``
+- :bluebold:`Sample dimensions:` ``(height, width)``
 
 Segmentation masks are 2D representations of class labels where the numerical label data is encoded in an array of
 same shape as the image. The numerical values are indices of the list ``tensor.info.class_names``.
@@ -355,21 +326,22 @@ You can also choose to set the class names after tensor creation.
 ------------------------------------
 
 - Segmentation masks can be appended as ``np.ndarray``.
-- Input sample shape: ``(height, width)``
 
-:blue:`Examples`
+:bluebold:`Examples`
 
 >>> ds.masks.append(np.zeros((512, 512)))
 
 .. note::
     Since each pixel can only be labeled once, segmentation masks are not appropriate for datasets where objects
     might overlap, or where multiple objects within the same class must be distinguished. For these use cases,
-    please use `htype = "binary_mask" <Binary Mask Htype>`.
+    please use :ref:`htype = "binary_mask" <Binary Mask Htype>`.
+
+.. _binary-mask-htype:
 
 Binary Mask Htype
 ~~~~~~~~~~~~~~~~~
 
-- Tensor dimensions: ``(# samples, height, width, # objects in a sample)``
+- :bluebold:`Sample dimensions:` ``(height, width, # objects in a sample)``
 
 Binary masks are similar to segmentation masks, except that each object is represented by a channel in the mask.
 Each channel in the mask encodes values for a single object. A pixel in a mask channel should have a value of 1
@@ -399,19 +371,20 @@ A binary_mask tensor can be created using
 ------------------------------
 
 - Binary masks can be appended as ``np.ndarray``.
-- Input sample shape: ``(height, width, # objects in the sample)``
 
-:blue:`Examples`
+:bluebold:`Examples`
 
 Appending a binary mask with 5 objects
 
 >>> ds.masks.append(np.zeros((512, 512, 5), dtype="bool"))
 >>> ds.labels.append(["aeroplane", "aeroplane", "bottle", "bottle", "bird"])
 
+.. _keypoints-coco-htype:
+
 COCO Keypoints Htype
 ~~~~~~~~~~~~~~~~~~~~
 
-- Tensor Dimensions: ``(# samples, 3 x # keypoints, # objects in a sample)``
+- :bluebold:`Sample dimensions:` ``(3 x # keypoints, # objects in a sample)``
 
 `COCO keypoints <https://cocodataset.org/#format-data>`_ are a convention for storing points of interest
 in an image. Each keypoint consists of 3 values: ``x - coordinate``, ``y - coordinate`` and ``v - visibility``.
@@ -451,9 +424,8 @@ You can also choose to set ``keypoints`` and / or ``connections`` after tensor c
 ---------------------------
 
 - Keypoints can be appended as ``np.ndarray`` or ``list``.
-- Input sample shape: ``(3 x # keypoints, # objects in the sample)``
 
-:blue:`Examples`
+:bluebold:`Examples`
 
 Appending keypoints sample with 3 keypoints and 4 objects
 
@@ -479,10 +451,12 @@ array([[465, 398, 684, 469],
     present in an image, they can be stored with dummy coordinates of x = 0, y = 0, and v = 0, and the
     visibility will prevent them from being drawn in the visualizer. 
 
+.. _point-htype:
+
 Point Htype
 ~~~~~~~~~~~
 
-- Tensor dimensions: ``(# samples, # points, 2)`` for 2-D points or ``(# samples, # points, 3)`` for 3-D points.
+- :bluebold:`Sample dimensions:` ``(# points, 2)`` in case of 2-D (X, Y) co-ordinates or ``(# points, 3)`` in case of for 3-D (X, Y, Z) co-ordinates of the point.
 
 Points does not contain a fixed mapping across samples between the point order and real-world objects (i.e., point 0 
 is an elbow, point 1 is a knee, etc.). If you require such a mapping, use `COCO Keypoints Htype`_.
@@ -505,14 +479,18 @@ A point tensor can be created using
 -------------------------------
 
 - Points can be appended as ``np.ndarray`` or ``list``.
-- Input sample shape: ``(# points, 2)`` for 2-D or ``(# points, 3)`` for 3-D points.
 
-:blue:`Examples`
+:bluebold:`Examples`
+
+Appending 2 2-D points
 
 >>> ds.points.append([[0, 1], [1, 3]])
 
->>> ds.points.append(np.zeros((2, 2)))
+Appending 2 3-D points
 
+>>> ds.points.append(np.zeros((2, 3)))
+
+.. _sequence-htype:
 
 Sequence htype
 ~~~~~~~~~~~~~~
@@ -520,7 +498,7 @@ Sequence htype
 - A special meta htype for tensors where each sample is a sequence. The items in the sequence are samples of another htype.
 - It is a wrapper htype that can wrap other htypes like ``sequence[image]``, ``sequence[video]``, ``sequence[text]``, etc.
 
-:blue:`Examples`
+:bluebold:`Examples`
 
 >>> ds.create_tensor("seq", htype="sequence")
 >>> ds.seq.append([1, 2, 3])
@@ -536,6 +514,8 @@ array([[[1],
 >>> ds.create_tensor("image_seq", htype="sequence[image]", sample_compression="jpg")
 >>> ds.image_seq.append([hub.read("img01.jpg"), hub.read("img02.jpg")])
 
+.. _link-htype:
+
 Link htype
 ~~~~~~~~~~
 
@@ -549,7 +529,7 @@ Link htype
 
 .. _linked_sample_examples:
 
-:blue:`Examples`
+:bluebold:`Examples`
 
 >>> ds = hub.dataset("......")
 

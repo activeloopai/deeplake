@@ -121,7 +121,12 @@ dl.field-list dd em {
 }
 
 .blue {
-    color: #4d77cf;
+    color: #0b72d9;
+}
+
+.bluebold {
+    color: #0b72d9;
+    font-weight: bold;
 }
 
 /* code block settings */
