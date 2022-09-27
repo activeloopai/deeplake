@@ -80,7 +80,7 @@ def libdeeplake_availabe():
 
 if libdeeplake_availabe():
     install_requires.insert(0, "libdeeplake==0.0.12")
-install_requires.append("hub-redirect==3.0.2")
+install_requires.append("hub-redirect==3.0.3")
 
 
 config = {
