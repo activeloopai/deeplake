@@ -12,9 +12,9 @@ def check_access_method(access_method: str, overwrite: bool):
             f"Invalid access method: {access_method}. Must be one of 'stream', 'download', 'local'"
         )
     if access_method in {"download", "local"}:
-        if not os.environ.get("HUB_DOWNLOAD_PATH"):
+        if not os.environ.get("DEEPLAKE_DOWNLOAD_PATH"):
             raise ValueError(
-                f"HUB_DOWNLOAD_PATH environment variable is not set. Cannot use access method '{access_method}'"
+                f"DEEPLAKE_DOWNLOAD_PATH environment variable is not set. Cannot use access method '{access_method}'"
             )
         if overwrite:
             raise ValueError(
@@ -59,7 +59,7 @@ def get_local_dataset(
     num_workers,
     scheduler,
 ):
-    local_path = get_local_storage_path(path, os.environ["HUB_DOWNLOAD_PATH"])
+    local_path = get_local_storage_path(path, os.environ["DEEPLAKE_DOWNLOAD_PATH"])
     if access_method == "download":
         if not ds_exists:
             raise DatasetHandlerError(

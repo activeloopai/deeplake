@@ -1,4 +1,4 @@
-hub.client.log
+deeplake.client.log
 ==============
 Hub does logging using the "hub" logger. Logging level is ``logging.INFO`` by default. See example on how to change this.
 

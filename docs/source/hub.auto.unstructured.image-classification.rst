@@ -1,5 +1,5 @@
-hub.auto.unstructured.image_classification
+deeplake.auto.unstructured.image_classification
 ==========================================
-.. currentmodule:: hub.auto.unstructured.image_classification
+.. currentmodule:: deeplake.auto.unstructured.image_classification
 .. autoclass:: ImageClassification
     :members:

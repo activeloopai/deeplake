@@ -1,7 +1,7 @@
-hub.auto.structured
+deeplake.auto.structured
 ===================
 .. toctree::
     :maxdepth: 2
 
-    hub.auto.structured.base
-    hub.auto.structured.dataframe
+    deeplake.auto.structured.base
+    deeplake.auto.structured.dataframe

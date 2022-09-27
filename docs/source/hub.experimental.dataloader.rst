@@ -1,7 +1,7 @@
-hub.experimental.dataloader
+deeplake.experimental.dataloader
 ===========================
 
-.. currentmodule:: hub.experimental.dataloader
+.. currentmodule:: deeplake.experimental.dataloader
 
-.. autoclass:: Hub3DataLoader()
+.. autoclass:: DeeplakeDataLoader()
     :members:

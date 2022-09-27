@@ -1,5 +1,5 @@
 Weights and Biases
 ==================
 
-.. currentmodule:: hub.integrations.wandb.wandb
-.. automodule:: hub.integrations.wandb.wandb
+.. currentmodule:: deeplake.integrations.wandb.wandb
+.. automodule:: deeplake.integrations.wandb.wandb

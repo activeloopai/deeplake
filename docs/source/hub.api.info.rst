@@ -1,6 +1,6 @@
-hub.api.info
+deeplake.api.info
 ============
-.. currentmodule:: hub.api.info
-.. automodule:: hub.api.info
+.. currentmodule:: deeplake.api.info
+.. automodule:: deeplake.api.info
     :members:
     :special-members: __getattribute__

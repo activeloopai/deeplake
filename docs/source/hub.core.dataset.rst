@@ -1,6 +1,6 @@
-hub.core.dataset
+deeplake.core.dataset
 ================
-.. currentmodule:: hub.core.dataset
+.. currentmodule:: deeplake.core.dataset
 
 Dataset
 ~~~~~~~

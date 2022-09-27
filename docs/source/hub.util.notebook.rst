@@ -1,6 +1,6 @@
-hub.util.notebook
+deeplake.util.notebook
 =================
-.. currentmodule:: hub.util.notebook
+.. currentmodule:: deeplake.util.notebook
 .. autofunction:: is_notebook
 .. autofunction:: is_jupyter
 .. autofunction:: is_colab

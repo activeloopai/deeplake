@@ -3,7 +3,7 @@
 Dataloader & Query
 ==================
 
-.. currentmodule:: hub.experimental
+.. currentmodule:: deeplake.experimental
 
 .. autosummary::
     :toctree:
@@ -11,4 +11,4 @@ Dataloader & Query
 
     dataloader
     query
-    dataset_to_hub3
+    dataset_to_libdeeplake

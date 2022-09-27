@@ -1,6 +1,6 @@
-hub.util.exceptions
+deeplake.util.exceptions
 ===================
-.. currentmodule:: hub.util.exceptions
+.. currentmodule:: deeplake.util.exceptions
 
 .. autoclass:: ExternalCommandError
     :show-inheritance:

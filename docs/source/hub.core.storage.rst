@@ -1,6 +1,6 @@
-hub.core.storage
+deeplake.core.storage
 ================
-.. currentmodule:: hub.core.storage
+.. currentmodule:: deeplake.core.storage
 
 Base Storage Provider
 ~~~~~~~~~~~~~~~~~~~~~

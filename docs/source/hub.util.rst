@@ -1,10 +1,10 @@
-hub.util
+deeplake.util
 ========
-.. currentmodule:: hub.util
+.. currentmodule:: deeplake.util
 .. toctree::
     :maxdepth: 2
 
-    hub.util.shape_interval <hub.util.shape-interval>
-    hub.util.remove_cache <hub.util.remove-cache>
-    hub.util.notebook
-    hub.util.exceptions
+    deeplake.util.shape_interval <deeplake.util.shape-interval>
+    deeplake.util.remove_cache <deeplake.util.remove-cache>
+    deeplake.util.notebook
+    deeplake.util.exceptions

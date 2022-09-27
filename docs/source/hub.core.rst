@@ -1,10 +1,10 @@
-hub.core
+deeplake.core
 ========
 .. toctree::
     :maxdepth: 2
 
-    hub.core.sample
-    hub.core.linked_sample <hub.core.linked-sample>
-    hub.core.partial_sample <hub.core.partial-sample>
-    hub.core.storage
-    hub.core.index
+    deeplake.core.sample
+    deeplake.core.linked_sample <deeplake.core.linked-sample>
+    deeplake.core.partial_sample <deeplake.core.partial-sample>
+    deeplake.core.storage
+    deeplake.core.index

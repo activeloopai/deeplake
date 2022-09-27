@@ -1,10 +1,10 @@
-hub.api
+deeplake.api
 =======
 .. toctree::
     :maxdepth: 2
 
-    hub.api.dataset
-    hub.api.info
-    hub.api.link
-    hub.api.read
-    hub.api.tiled
+    deeplake.api.dataset
+    deeplake.api.info
+    deeplake.api.link
+    deeplake.api.read
+    deeplake.api.tiled

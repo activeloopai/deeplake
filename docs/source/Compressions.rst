@@ -30,7 +30,7 @@ are given below.
 Sample Compression
 ~~~~~~~~~~~~~~~~~~
 
-If sample compression is specified when :meth:`creating tensors <hub.core.dataset.Dataset.create_tensor>`, samples will
+If sample compression is specified when :meth:`creating tensors <deeplake.core.dataset.Dataset.create_tensor>`, samples will
 be compressed to the given format if possible. If given data is already compressed and matches the provided ``sample_compression``,
 it will be stored as is. If left as ``None``, given samples are uncompressed.
 
@@ -53,7 +53,7 @@ Examples::
 Chunk Compression
 ~~~~~~~~~~~~~~~~~
 
-If chunk compression is specified when :meth:`creating tensors <hub.core.dataset.Dataset.create_tensor>`, addded samples will be
+If chunk compression is specified when :meth:`creating tensors <deeplake.core.dataset.Dataset.create_tensor>`, addded samples will be
 clubbed together and compressed to the given format chunk-wise. If given data is already compressed, it will be uncompressed and then
 recompressed chunk-wise.
 
@@ -72,4 +72,4 @@ Examples::
     Structure of chunk-wise compressed tensor.
 
 .. note::
-    See :meth:`hub.read` to learn how to read data from files and populate these tensors.
+    See :meth:`deeplake.read` to learn how to read data from files and populate these tensors.

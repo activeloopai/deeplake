@@ -44,15 +44,15 @@ Hub is an open-source database for AI.
    :caption: API Reference
 
    hub
-   hub.core
-   hub.core.dataset
-   hub.core.tensor
-   hub.api
-   hub.auto
-   hub.util
-   hub.client.log
-   hub.experimental
-   hub.experimental.dataloader
+   deeplake.core
+   deeplake.core.dataset
+   deeplake.core.tensor
+   deeplake.api
+   deeplake.auto
+   deeplake.util
+   deeplake.client.log
+   deeplake.experimental
+   deeplake.experimental.dataloader
 
 
 Indices and tables

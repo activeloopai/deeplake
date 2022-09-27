@@ -85,7 +85,7 @@ array([[[1],
         [6]]])
 
 >>> ds.create_tensor("image_seq", htype="sequence[image]", sample_compression="jpg")
->>> ds.image_seq.append([hub.read("img01.jpg"), hub.read("img02.jpg")])
+>>> ds.image_seq.append([deeplake.read("img01.jpg"), deeplake.read("img02.jpg")])
 
 Link htype
 ~~~~~~~~~~
@@ -103,7 +103,7 @@ Link htype
 Examples
 --------
 
->>> ds = hub.dataset("......")
+>>> ds = deeplake.dataset("......")
 
 Add the names of the creds you want to use (not needed for http/local urls)
 
@@ -122,12 +122,12 @@ Create a tensor that can contain links
 
 Populate the tensor with links
 
->>> ds.img.append(hub.link("s3://abc/def.jpeg", creds_key="MY_S3_KEY"))
->>> ds.img.append(hub.link("gcs://ghi/jkl.png", creds_key="GCS_KEY"))
->>> ds.img.append(hub.link("https://picsum.photos/200/300")) # http path doesn’t need creds
->>> ds.img.append(hub.link("./path/to/cat.jpeg")) # local path doesn’t need creds
->>> ds.img.append(hub.link("s3://abc/def.jpeg"))  # this will throw an exception as cloud paths always need creds_key
->>> ds.img.append(hub.link("s3://abc/def.jpeg", creds_key="ENV"))  # this will use creds from environment
+>>> ds.img.append(deeplake.link("s3://abc/def.jpeg", creds_key="MY_S3_KEY"))
+>>> ds.img.append(deeplake.link("gcs://ghi/jkl.png", creds_key="GCS_KEY"))
+>>> ds.img.append(deeplake.link("https://picsum.photos/200/300")) # http path doesn’t need creds
+>>> ds.img.append(deeplake.link("./path/to/cat.jpeg")) # local path doesn’t need creds
+>>> ds.img.append(deeplake.link("s3://abc/def.jpeg"))  # this will throw an exception as cloud paths always need creds_key
+>>> ds.img.append(deeplake.link("s3://abc/def.jpeg", creds_key="ENV"))  # this will use creds from environment
 
 Accessing the data
 
@@ -137,7 +137,7 @@ Accessing the data
 
 Updating a sample
 
->>> ds.img[0] = hub.link("./data/cat.jpeg")
+>>> ds.img[0] = deeplake.link("./data/cat.jpeg")
 
 """
 

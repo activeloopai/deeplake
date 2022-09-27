@@ -1,5 +1,5 @@
-hub.auto.structured.dataframe
+deeplake.auto.structured.dataframe
 =============================
-.. currentmodule:: hub.auto.structured.dataframe
+.. currentmodule:: deeplake.auto.structured.dataframe
 .. autoclass:: DataFrame
     :members:

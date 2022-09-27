@@ -1,5 +1,5 @@
-hub.auto.structured.base
+deeplake.auto.structured.base
 ========================
-.. currentmodule:: hub.auto.structured.base
+.. currentmodule:: deeplake.auto.structured.base
 .. autoclass:: StructuredDataset
     :members:

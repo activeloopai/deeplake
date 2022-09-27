@@ -1,6 +1,6 @@
 PyTorch and Tensorflow Support
 ==============================
-.. currentmodule:: hub.core.dataset
+.. currentmodule:: deeplake.core.dataset
 
 Hub datasets can be easily converted to Torch dataloaders or Tensorflow datasets for training.
 

@@ -1,5 +1,5 @@
-hub.auto.unstructured.base
+deeplake.auto.unstructured.base
 ==========================
-.. currentmodule:: hub.auto.unstructured.base
+.. currentmodule:: deeplake.auto.unstructured.base
 .. autoclass:: UnstructuredDataset
     :members:

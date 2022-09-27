@@ -10,13 +10,13 @@ Creating Datasets
     :toctree:
     :nosignatures:
 
-    hub.dataset
-    hub.empty
-    hub.like
-    hub.ingest
-    hub.ingest_kaggle
-    hub.ingest_dataframe
-    hub.ingest_huggingface
+    deeplake.dataset
+    deeplake.empty
+    deeplake.like
+    deeplake.ingest
+    deeplake.ingest_kaggle
+    deeplake.ingest_dataframe
+    deeplake.ingest_huggingface
 
 Loading Datasets
 ~~~~~~~~~~~~~~~~
@@ -24,7 +24,7 @@ Loading Datasets
     :toctree:
     :nosignatures:
 
-    hub.load
+    deeplake.load
 
 Deleting and Renaming Datasets
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
@@ -32,8 +32,8 @@ Deleting and Renaming Datasets
     :toctree:
     :nosignatures:
 
-    hub.delete
-    hub.rename
+    deeplake.delete
+    deeplake.rename
 
 Copying Datasets
 ~~~~~~~~~~~~~~~~
@@ -41,10 +41,10 @@ Copying Datasets
     :toctree:
     :nosignatures:
     
-    hub.copy
-    hub.deepcopy
+    deeplake.copy
+    deeplake.deepcopy
 
-.. currentmodule:: hub.core.dataset
+.. currentmodule:: deeplake.core.dataset
 
 Dataset Operations
 ~~~~~~~~~~~~~~~~~~
@@ -126,7 +126,7 @@ changing after the query or filter conditions have been evaluated.
 
     >>> import hub
     >>> # load dataset
-    >>> ds = hub.load("hub://activeloop/mnist-train")
+    >>> ds = deeplake.load("hub://activeloop/mnist-train")
     >>> # filter dataset
     >>> zeros = ds.filter("labels == 0")
     >>> # save view

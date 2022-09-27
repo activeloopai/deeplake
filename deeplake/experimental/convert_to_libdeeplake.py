@@ -26,20 +26,20 @@ def import_indra_api():
 INDRA_INSTALLED = bool(importlib.util.find_spec("indra"))
 
 
-def dataset_to_hub3(hub2_dataset):
+def dataset_to_libdeeplake(hub2_dataset):
     """Convert a hub 2.x dataset object to a hub 3.x dataset object."""
     api = import_indra_api()
     try_flushing(hub2_dataset)
     path: str = hub2_dataset.path
     if path.startswith("gdrive://"):
-        raise ValueError("Gdrive datasets are not supported for hub3")
+        raise ValueError("Gdrive datasets are not supported for libdeeplake")
     elif path.startswith("mem://"):
-        raise ValueError("In memory datasets are not supported for hub3")
+        raise ValueError("In memory datasets are not supported for libdeeplake")
     elif path.startswith("hub://"):
         token = hub2_dataset._token
         provider = hub2_dataset.storage.next_storage
         if isinstance(provider, S3Provider):
-            hub3_dataset = api.dataset(
+            libdeeplake_dataset = api.dataset(
                 path,
                 origin_path=provider.root,
                 token=token,
@@ -51,7 +51,9 @@ def dataset_to_hub3(hub2_dataset):
                 expiration=str(provider.expiration),
             )
         else:
-            raise ValueError("GCP datasets are not supported for hub3 currently.")
+            raise ValueError(
+                "GCP datasets are not supported for libdeeplake currently."
+            )
     elif path.startswith("s3://"):
         s3_provider = hub2_dataset.storage.next_storage
         aws_access_key_id = s3_provider.aws_access_key_id
@@ -61,7 +63,7 @@ def dataset_to_hub3(hub2_dataset):
         endpoint_url = s3_provider.endpoint_url
 
         # we don't need to pass profile name as hub has already found creds for it
-        hub3_dataset = api.dataset(
+        libdeeplake_dataset = api.dataset(
             path,
             aws_access_key_id=aws_access_key_id,
             aws_secret_access_key=aws_secret_access_key,
@@ -71,17 +73,17 @@ def dataset_to_hub3(hub2_dataset):
         )
 
     elif path.startswith(("gcs://", "gs://", "gcp://")):
-        raise ValueError("GCP datasets are not supported for hub3 currently.")
+        raise ValueError("GCP datasets are not supported for libdeeplake currently.")
     else:
-        hub3_dataset = api.dataset(path)
+        libdeeplake_dataset = api.dataset(path)
 
     commit_id = hub2_dataset.pending_commit_id
-    hub3_dataset.checkout(commit_id)
+    libdeeplake_dataset.checkout(commit_id)
     slice_ = hub2_dataset.index.values[0].value
     slice_ = remove_tiled_samples(hub2_dataset, slice_)
 
     if slice_ != slice(None):
         if isinstance(slice_, tuple):
             slice_ = list(slice_)
-        hub3_dataset = hub3_dataset[slice_]
-    return hub3_dataset
+        libdeeplake_dataset = libdeeplake_dataset[slice_]
+    return libdeeplake_dataset

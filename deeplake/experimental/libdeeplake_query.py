@@ -1,4 +1,4 @@
-from deeplake.experimental.convert_to_hub3 import dataset_to_hub3
+from deeplake.experimental.convert_to_libdeeplake import dataset_to_libdeeplake
 from deeplake.util.bugout_reporter import deeplake_reporter
 
 
@@ -32,7 +32,7 @@ def query(dataset, query_string: str):
         >>> ds_train = deeplake.load('hub://activeloop/coco-train')
         >>> query_ds_train = query(ds_train, "(select * where contains(categories, 'car') limit 1000) union (select * where contains(categories, 'motorcycle') limit 1000)")
     """
-    ds = dataset_to_hub3(dataset)
+    ds = dataset_to_libdeeplake(dataset)
     dsv = ds.query(query_string)
     indexes = dsv.indexes
     return dataset[indexes]

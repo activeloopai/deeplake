@@ -1,6 +1,6 @@
-hub.api.link
+deeplake.api.link
 ============
-.. currentmodule:: hub.api.link
+.. currentmodule:: deeplake.api.link
 .. function:: link(path: str, creds_key: Optional[str] = None) -> LinkedSample
 
-    See :func:`hub.link`.
+    See :func:`deeplake.link`.
