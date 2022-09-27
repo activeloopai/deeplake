@@ -34,7 +34,7 @@ from deeplake.core.serialize import (
     serialize_text_sample_object,
     serialize_polygons,
 )
-from deeplake.core.storage.deeplake_memory_object import DeeplakeMemoryObject
+from deeplake.core.storage.deeplake_memory_object import DeepLakeMemoryObject
 from deeplake.core.tiling.sample_tiles import SampleTiles
 from deeplake.util.exceptions import TensorInvalidSampleShapeError
 from deeplake.core.polygon import Polygons
@@ -57,7 +57,7 @@ InputSample = Union[
 SerializedOutput = Tuple[bytes, Tuple]
 
 
-class BaseChunk(DeeplakeMemoryObject):
+class BaseChunk(DeepLakeMemoryObject):
     def __init__(
         self,
         min_chunk_size: int,

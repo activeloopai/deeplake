@@ -3,7 +3,7 @@ import json
 from typing import Any, Dict
 
 
-class DeeplakeMemoryObject(ABC):
+class DeepLakeMemoryObject(ABC):
     def __init__(self):
         self.is_dirty = True
 

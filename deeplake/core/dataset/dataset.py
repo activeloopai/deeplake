@@ -1331,31 +1331,31 @@ class Dataset:
             self.flush()
 
     def _register_dataset(self):
-        """overridden in DeeplakeCloudDataset"""
+        """overridden in DeepLakeCloudDataset"""
 
     def _send_query_progress(self, *args, **kwargs):
-        """overridden in DeeplakeCloudDataset"""
+        """overridden in DeepLakeCloudDataset"""
 
     def _send_compute_progress(self, *args, **kwargs):
-        """overridden in DeeplakeCloudDataset"""
+        """overridden in DeepLakeCloudDataset"""
 
     def _send_pytorch_progress(self, *args, **kwargs):
-        """overridden in DeeplakeCloudDataset"""
+        """overridden in DeepLakeCloudDataset"""
 
     def _send_filter_progress(self, *args, **kwargs):
-        """overridden in DeeplakeCloudDataset"""
+        """overridden in DeepLakeCloudDataset"""
 
     def _send_commit_event(self, *args, **kwargs):
-        """overridden in DeeplakeCloudDataset"""
+        """overridden in DeepLakeCloudDataset"""
 
     def _send_dataset_creation_event(self, *args, **kwargs):
-        """overridden in DeeplakeCloudDataset"""
+        """overridden in DeepLakeCloudDataset"""
 
     def _send_branch_creation_event(self, *args, **kwargs):
-        """overridden in DeeplakeCloudDataset"""
+        """overridden in DeepLakeCloudDataset"""
 
     def _first_load_init(self):
-        """overridden in DeeplakeCloudDataset"""
+        """overridden in DeepLakeCloudDataset"""
 
     @property
     def read_only(self):
@@ -2506,7 +2506,7 @@ class Dataset:
                         "Saving views inplace is not supported for in-memory datasets."
                     )
                 if self.read_only and not (self._view_base or self)._locked_out:
-                    if isinstance(self, deeplake.core.dataset.DeeplakeCloudDataset):
+                    if isinstance(self, deeplake.core.dataset.DeepLakeCloudDataset):
                         vds = self._save_view_in_user_queries_dataset(
                             id, message, optimize, tensors, num_workers, scheduler
                         )
@@ -2803,7 +2803,7 @@ class Dataset:
 
         if self.path.startswith("hub://"):
             path = posixpath.join(self.path, path)
-            cls = deeplake.core.dataset.DeeplakeCloudDataset
+            cls = deeplake.core.dataset.DeepLakeCloudDataset
         else:
             path = sub_storage.root
             cls = deeplake.core.dataset.Dataset
@@ -3340,7 +3340,7 @@ class Dataset:
         )
 
     def _temp_write_access(self):
-        # Defined in DeeplakeCloudDataset
+        # Defined in DeepLakeCloudDataset
         return memoryview(b"")  # No-op context manager
 
 

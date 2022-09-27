@@ -6,7 +6,7 @@ from deeplake.util.exceptions import (
     OutOfChunkCountError,
     OutOfSampleCountError,
 )
-from deeplake.core.storage.deeplake_memory_object import DeeplakeMemoryObject
+from deeplake.core.storage.deeplake_memory_object import DeepLakeMemoryObject
 import numpy as np
 from deeplake.core.serialize import serialize_chunkids, deserialize_chunkids
 from deeplake.util.generate_id import generate_id
@@ -14,7 +14,7 @@ from deeplake.util.generate_id import generate_id
 CHUNK_ID_COLUMN = 0
 
 
-class ChunkIdEncoder(Encoder, DeeplakeMemoryObject):
+class ChunkIdEncoder(Encoder, DeepLakeMemoryObject):
     def __init__(self, encoded=None, dtype=ENCODING_DTYPE):
         super().__init__(encoded, dtype)
 

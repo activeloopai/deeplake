@@ -1,8 +1,8 @@
 from typing import Set
-from deeplake.core.storage.deeplake_memory_object import DeeplakeMemoryObject
+from deeplake.core.storage.deeplake_memory_object import DeepLakeMemoryObject
 
 
-class CommitChunkSet(DeeplakeMemoryObject):
+class CommitChunkSet(DeepLakeMemoryObject):
     """Stores set of chunks stored for a particular tensor in a commit."""
 
     def __init__(self) -> None:

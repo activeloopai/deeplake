@@ -2,13 +2,13 @@ import json
 from typing import Optional
 import warnings
 from deeplake.constants import ALL_CLOUD_PREFIXES
-from deeplake.core.storage.deeplake_memory_object import DeeplakeMemoryObject
+from deeplake.core.storage.deeplake_memory_object import DeepLakeMemoryObject
 from deeplake.core.storage.provider import StorageProvider
 from deeplake.core.storage.s3 import S3Provider
 from deeplake.util.token import expires_in_to_expires_at, is_expired_token
 
 
-class LinkCreds(DeeplakeMemoryObject):
+class LinkCreds(DeepLakeMemoryObject):
     def __init__(self):
         self.creds_keys = []
         self.creds_dict = {}  # keys to actual creds dictionary

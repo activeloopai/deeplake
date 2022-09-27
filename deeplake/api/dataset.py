@@ -50,7 +50,7 @@ from deeplake.util.storage import (
 from deeplake.util.compute import get_compute_provider
 from deeplake.util.remove_cache import get_base_storage
 from deeplake.util.cache_chain import generate_chain
-from deeplake.core.storage.deeplake_memory_object import DeeplakeMemoryObject
+from deeplake.core.storage.deeplake_memory_object import DeepLakeMemoryObject
 
 
 class dataset:
@@ -809,7 +809,7 @@ class dataset:
             )
             for key in keys:
                 val = metas.get(key) or cache[key]
-                if isinstance(val, DeeplakeMemoryObject):
+                if isinstance(val, DeepLakeMemoryObject):
                     dest_storage[key] = val.tobytes()
                 else:
                     dest_storage[key] = val

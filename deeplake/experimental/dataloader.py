@@ -34,7 +34,7 @@ def import_indra_loader():
         raise_indra_installation_error(e)
 
 
-class DeeplakeDataLoader:
+class DeepLakeDataLoader:
     def __init__(
         self,
         dataset,
@@ -73,14 +73,14 @@ class DeeplakeDataLoader:
         self._tobytes = _tobytes
 
     def batch(self, batch_size: int, drop_last: bool = False):
-        """Returns a batched :class:`DeeplakeDataLoader` object.
+        """Returns a batched :class:`DeepLakeDataLoader` object.
 
         Args:
             batch_size (int): Number of samples in each batch.
             drop_last (bool): If True, the last batch will be dropped if its size is less than batch_size. Defaults to False.
 
         Returns:
-            DeeplakeDataLoader: A :class:`DeeplakeDataLoader` object.
+            DeepLakeDataLoader: A :class:`DeepLakeDataLoader` object.
 
         Raises:
             ValueError: If .batch() has already been called.
@@ -94,13 +94,13 @@ class DeeplakeDataLoader:
         return self.__class__(**all_vars)
 
     def shuffle(self, buffer_size: int = 2048):
-        """Returns a shuffled :class:`DeeplakeDataLoader` object.
+        """Returns a shuffled :class:`DeepLakeDataLoader` object.
 
         Args:
             buffer_size (int): The size of the buffer used to shuffle the data in MBs. Defaults to 2048 MB. Increasing the buffer_size will increase the extent of shuffling.
 
         Returns:
-            DeeplakeDataLoader: A :class:`DeeplakeDataLoader` object.
+            DeepLakeDataLoader: A :class:`DeepLakeDataLoader` object.
 
         Raises:
             ValueError: If .shuffle() has already been called.
@@ -116,14 +116,14 @@ class DeeplakeDataLoader:
         return self.__class__(**all_vars)
 
     def transform(self, transform: Union[Callable, Dict[str, Optional[Callable]]]):
-        """Returns a transformed :class:`DeeplakeDataLoader` object.
+        """Returns a transformed :class:`DeepLakeDataLoader` object.
 
 
         Args:
             transform (Callable or Dict[Callable]): A function or dictionary of functions to apply to the data.
 
         Returns:
-            DeeplakeDataLoader: A :class:`DeeplakeDataLoader` object.
+            DeepLakeDataLoader: A :class:`DeepLakeDataLoader` object.
 
         Raises:
             ValueError: If .transform() has already been called.
@@ -146,7 +146,7 @@ class DeeplakeDataLoader:
         return self.__class__(**all_vars)
 
     def query(self, query_string: str):
-        """Returns a sliced :class:`DeeplakeDataLoader` object with given query results.
+        """Returns a sliced :class:`DeepLakeDataLoader` object with given query results.
         It allows to run SQL like queries on dataset and extract results. See supported keywords and the Tensor Query Language documentation
         :ref:`here <tql>`.
 
@@ -154,7 +154,7 @@ class DeeplakeDataLoader:
             query_string (str): An SQL string adjusted with new functionalities to run on the dataset object
 
         Returns:
-            DeeplakeDataLoader: A :class:`DeeplakeDataLoader` object.
+            DeepLakeDataLoader: A :class:`DeepLakeDataLoader` object.
 
         Examples:
             >>> import deeplake
@@ -183,7 +183,7 @@ class DeeplakeDataLoader:
         return_index: bool = True,
         tobytes: Union[bool, Sequence[str]] = False,
     ):
-        """Returns a :class:`DeeplakeDataLoader` object.
+        """Returns a :class:`DeepLakeDataLoader` object.
 
 
         Args:
@@ -197,7 +197,7 @@ class DeeplakeDataLoader:
             tobytes (bool, Sequence[str]): If ``True``, samples will not be decompressed and their raw bytes will be returned instead of numpy arrays. Can also be a list of tensors, in which case those tensors alone will not be decompressed.
 
         Returns:
-            DeeplakeDataLoader: A :class:`DeeplakeDataLoader` object.
+            DeepLakeDataLoader: A :class:`DeepLakeDataLoader` object.
 
         Raises:
             ValueError: If .to_pytorch() or .to_numpy() has already been called.
@@ -226,7 +226,7 @@ class DeeplakeDataLoader:
         prefetch_factor: int = 2,
         tobytes: Union[bool, Sequence[str]] = False,
     ):
-        """Returns a :class:`DeeplakeDataLoader` object.
+        """Returns a :class:`DeepLakeDataLoader` object.
 
         Args:
             num_workers (int): Number of workers to use for transforming and processing the data. Defaults to 0.
@@ -236,7 +236,7 @@ class DeeplakeDataLoader:
             tobytes (bool, Sequence[str]): If ``True``, samples will not be decompressed and their raw bytes will be returned instead of numpy arrays. Can also be a list of tensors, in which case those tensors alone will not be decompressed.
 
         Returns:
-            DeeplakeDataLoader: A :class:`DeeplakeDataLoader` object.
+            DeepLakeDataLoader: A :class:`DeepLakeDataLoader` object.
 
         Raises:
             ValueError: If .to_pytorch() or .to_numpy() has already been called.
@@ -310,15 +310,15 @@ class DeeplakeDataLoader:
         )
 
 
-def dataloader(dataset) -> DeeplakeDataLoader:
-    """Returns a :class:`DeeplakeDataLoader` object which can be transformed to either pytorch dataloader or numpy.
+def dataloader(dataset) -> DeepLakeDataLoader:
+    """Returns a :class:`DeepLakeDataLoader` object which can be transformed to either pytorch dataloader or numpy.
 
 
     Args:
         dataset: deeplake.Dataset object on which dataloader needs to be built
 
     Returns:
-        DeeplakeDataLoader: A :class:`DeeplakeDataLoader` object.
+        DeepLakeDataLoader: A :class:`DeepLakeDataLoader` object.
 
 
     Examples:
@@ -376,7 +376,7 @@ def dataloader(dataset) -> DeeplakeDataLoader:
         ...     pass
     """
     verify_base_storage(dataset)
-    return DeeplakeDataLoader(dataset)
+    return DeepLakeDataLoader(dataset)
 
 
 def handle_tensors_and_tobytes(tensors, tobytes, dataset, all_vars):

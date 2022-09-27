@@ -1,8 +1,8 @@
 from typing import Set, List
-from deeplake.core.storage.deeplake_memory_object import DeeplakeMemoryObject
+from deeplake.core.storage.deeplake_memory_object import DeepLakeMemoryObject
 
 
-class CommitDiff(DeeplakeMemoryObject):
+class CommitDiff(DeepLakeMemoryObject):
     """Stores set of diffs stored for a particular tensor in a commit."""
 
     def __init__(self, first_index=0, created=False) -> None:

@@ -2,15 +2,15 @@ import sys
 from collections import OrderedDict
 from deeplake.constants import KB
 from deeplake.core.partial_reader import PartialReader
-from deeplake.core.storage.deeplake_memory_object import DeeplakeMemoryObject
+from deeplake.core.storage.deeplake_memory_object import DeepLakeMemoryObject
 from deeplake.core.chunk.base_chunk import BaseChunk
 from typing import Any, Dict, Optional, Union
 
 from deeplake.core.storage.provider import StorageProvider
 
 
-def _get_nbytes(obj: Union[bytes, memoryview, DeeplakeMemoryObject]):
-    if isinstance(obj, DeeplakeMemoryObject):
+def _get_nbytes(obj: Union[bytes, memoryview, DeepLakeMemoryObject]):
+    if isinstance(obj, DeepLakeMemoryObject):
         return obj.nbytes
     return len(obj)
 
@@ -49,9 +49,9 @@ class LRUCache(StorageProvider):
         )  # keys present in cache but not next_storage. Using a dict instead of set to preserve order.
 
         self.cache_used = 0
-        self.hub_objects: Dict[str, DeeplakeMemoryObject] = {}
+        self.hub_objects: Dict[str, DeepLakeMemoryObject] = {}
 
-    def register_hub_object(self, path: str, obj: DeeplakeMemoryObject):
+    def register_hub_object(self, path: str, obj: DeepLakeMemoryObject):
         """Registers a new object in the cache."""
         self.hub_objects[path] = obj
 
@@ -60,7 +60,7 @@ class LRUCache(StorageProvider):
         self.hub_objects.clear()
 
     def remove_hub_object(self, path: str):
-        """Removes a DeeplakeMemoryObject from the cache."""
+        """Removes a DeepLakeMemoryObject from the cache."""
         self.hub_objects.pop(path, None)
 
     def update_used_cache_for_path(self, path: str, new_size: int):
@@ -100,12 +100,12 @@ class LRUCache(StorageProvider):
         url=False,
         partial_bytes: int = 0,
     ):
-        """If the data at `path` was stored using the output of a DeeplakeMemoryObject's `tobytes` function,
+        """If the data at `path` was stored using the output of a DeepLakeMemoryObject's `tobytes` function,
         this function will read it back into object form & keep the object in cache.
 
         Args:
             path (str): Path to the stored object.
-            expected_class (callable): The expected subclass of `DeeplakeMemoryObject`.
+            expected_class (callable): The expected subclass of `DeepLakeMemoryObject`.
             meta (dict, optional): Metadata associated with the stored object
             url (bool): Get presigned url instead of downloading chunk (only for videos)
             partial_bytes (int): Number of bytes to read from the beginning of the file. If 0, reads the whole file. Defaults to 0.
@@ -142,7 +142,7 @@ class LRUCache(StorageProvider):
         else:
             item = self[path]
 
-        if isinstance(item, DeeplakeMemoryObject):
+        if isinstance(item, DeepLakeMemoryObject):
             if type(item) != expected_class:
                 raise ValueError(
                     f"'{path}' was expected to have the class '{expected_class.__name__}'. Instead, got: '{type(item)}'."
@@ -229,7 +229,7 @@ class LRUCache(StorageProvider):
                 return self.next_storage.get_bytes(path, start_byte, end_byte)
             raise KeyError(path)
 
-    def __setitem__(self, path: str, value: Union[bytes, DeeplakeMemoryObject]):
+    def __setitem__(self, path: str, value: Union[bytes, DeepLakeMemoryObject]):
         """Puts the item in the cache_storage (if possible), else writes to next_storage.
 
         Args:
@@ -355,12 +355,12 @@ class LRUCache(StorageProvider):
 
         Args:
             path (str): the path to the object relative to the root of the provider.
-            value (bytes, DeeplakeMemoryObject): the value to send to the next storage.
+            value (bytes, DeepLakeMemoryObject): the value to send to the next storage.
         """
         if self.next_storage is not None:
             self.dirty_keys.pop(path, None)
 
-            if isinstance(value, DeeplakeMemoryObject):
+            if isinstance(value, DeepLakeMemoryObject):
                 self.next_storage[path] = value.tobytes()
             else:
                 self.next_storage[path] = value
@@ -383,7 +383,7 @@ class LRUCache(StorageProvider):
         del self.cache_storage[key]
         self.cache_used -= itemsize
 
-    def _insert_in_cache(self, path: str, value: Union[bytes, DeeplakeMemoryObject]):
+    def _insert_in_cache(self, path: str, value: Union[bytes, DeepLakeMemoryObject]):
         """Helper function that adds a key value pair to the cache.
 
         Args:
