@@ -170,7 +170,6 @@ class TileEncoder(DeepLakeMemoryObject):
             # Get version string
             version = str(data[ofs : ofs + version_length], "ascii")
             ofs += version_length
-            check_version(version)
             entries = parse_tile_encoder_entries(data, ofs, "little")
             enc = cls(entries, version=version)
         except Exception:
@@ -217,10 +216,3 @@ def parse_tile_encoder_entries(data, ofs: int, byteorder: str) -> Dict:
         # Add the entry to the dict
         entries[key] = (tuple(first_shape), tuple(second_shape))
     return entries
-
-
-def check_version(version):
-    if len(version) < 5 or len(version) > 7:
-        raise ValueError("Invalid version length")
-    if version.count(".") < 2 or version[0] != "2":
-        raise ValueError("Invalid version format")
