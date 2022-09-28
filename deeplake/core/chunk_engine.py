@@ -663,6 +663,7 @@ class ChunkEngine:
                 logger.info(
                     f"'{new[0]}' added to {tensor_name}.info.class_names at index {new[1]}"
                 )
+            tensor_info.class_names = class_names
             tensor_info.is_dirty = True
         return labels
 

@@ -2586,31 +2586,26 @@ class Dataset:
         except KeyError:
             raise Exception("Dataset._get_view() works only for virtual datasets.")
         ds = (
-            self._parent_dataset
+            self._parent_dataset[Index()]
             if (inherit_creds and self._parent_dataset)
             else deeplake.load(
                 self.info["source-dataset"], verbose=False, creds=creds, read_only=True
             )
         )
-        try:
-            orig_index = ds.index
-            ds.index = Index()
-            ds._checkout(commit_id, verbose=False)
-            first_index_subscriptable = self.info.get("first-index-subscriptable", True)
-            if first_index_subscriptable:
-                index_entries = [
-                    IndexEntry(self.VDS_INDEX.numpy().reshape(-1).tolist())
-                ]
-            else:
-                index_entries = [IndexEntry(int(self.VDS_INDEX.numpy()))]
-            sub_sample_index = self.info.get("sub-sample-index")
-            if sub_sample_index:
-                index_entries += Index.from_json(sub_sample_index).values
-            ret = ds[Index(index_entries)]
-            ret._vds = self
-            return ret
-        finally:
-            ds.index = orig_index
+
+        ds.index = Index()
+        ds._checkout(commit_id, verbose=False)
+        first_index_subscriptable = self.info.get("first-index-subscriptable", True)
+        if first_index_subscriptable:
+            index_entries = [IndexEntry(self.VDS_INDEX.numpy().reshape(-1).tolist())]
+        else:
+            index_entries = [IndexEntry(int(self.VDS_INDEX.numpy()))]
+        sub_sample_index = self.info.get("sub-sample-index")
+        if sub_sample_index:
+            index_entries += Index.from_json(sub_sample_index).values
+        ret = ds[Index(index_entries)]
+        ret._vds = self
+        return ret
 
     def _get_empty_vds(
         self,
