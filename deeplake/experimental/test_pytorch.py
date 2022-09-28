@@ -581,7 +581,8 @@ def test_indexes_transform_dict(local_ds, num_workers):
 @requires_torch
 @requires_libdeeplake
 @pytest.mark.parametrize("num_workers", [0, 2])
-def test_indexes_tensors(local_ds, shuffle, num_workers):
+def test_indexes_tensors(local_ds, num_workers):
+    shuffle = False
     with local_ds as ds:
         ds.create_tensor("xyz")
         for i in range(8):
