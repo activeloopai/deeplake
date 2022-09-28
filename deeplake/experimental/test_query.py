@@ -1,8 +1,8 @@
 from math import floor
-from deeplake.tests.common import requires_linux
+from deeplake.tests.common import requires_libdeeplake
 
 
-@requires_linux
+@requires_libdeeplake
 def test_query(local_ds):
     with local_ds as ds:
         ds.create_tensor("label")
