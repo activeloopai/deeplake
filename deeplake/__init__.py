@@ -75,7 +75,7 @@ __all__ = [
     "rename",
 ]
 
-__version__ = "3.0.2"
+__version__ = "3.0.4"
 warn_if_update_required(__version__)
 __encoded_version__ = np.array(__version__)
 config = {"s3": Config(max_pool_connections=50, connect_timeout=300, read_timeout=300)}
