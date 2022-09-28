@@ -653,9 +653,7 @@ class ChunkEngine:
     def _convert_class_labels(self, samples):
         tensor_info_path = get_tensor_info_key(self.key, self.commit_id)
         try:
-            tensor_info = self.cache.get_deeplake_object(
-                tensor_info_path, Info
-            )
+            tensor_info = self.cache.get_deeplake_object(tensor_info_path, Info)
         except KeyError:
             tensor_info = Info()
         self.cache.register_deeplake_object(tensor_info_path, tensor_info)
