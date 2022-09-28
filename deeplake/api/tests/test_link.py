@@ -209,7 +209,7 @@ def test_basic(local_ds_generator, cat_path, flower_path, create_shape_tensor, v
             htype="link[image]",
             create_shape_tensor=create_shape_tensor,
             verify=verify,
-            sample_compression="jpeg",
+            sample_compression="png",
         )
         with pytest.raises(TypeError):
             ds.linked_images.append(np.ones((100, 100, 3)))
@@ -217,6 +217,7 @@ def test_basic(local_ds_generator, cat_path, flower_path, create_shape_tensor, v
         for _ in range(10):
             sample = deeplake.link(flower_path)
             ds.linked_images.append(sample)
+        assert ds.linked_images.meta.sample_compression == "png"
 
         ds.linked_images.append(None)
 
@@ -231,7 +232,7 @@ def test_basic(local_ds_generator, cat_path, flower_path, create_shape_tensor, v
             htype="link[image]",
             create_shape_tensor=create_shape_tensor,
             verify=verify,
-            sample_compression="jpeg",
+            sample_compression="png",
         )
         ds.linked_images_2.extend(ds.linked_images)
         assert len(ds.linked_images_2) == 11
@@ -242,6 +243,7 @@ def test_basic(local_ds_generator, cat_path, flower_path, create_shape_tensor, v
             assert ds.linked_images_2[i].shape == shape_target
             assert ds.linked_images_2[i].numpy().shape == shape_target
 
+        assert ds.linked_images_2.meta.sample_compression == "png"
         assert ds.linked_images[10].shape == (0,)
         np.testing.assert_array_equal(ds.linked_images[10].numpy(), np.ones((0,)))
         assert ds.linked_images_2[10].shape == (0,)
@@ -418,6 +420,7 @@ def test_transform(local_ds, cat_path, flower_path):
                 deeplake.link(cat_path) if i % 2 == 0 else deeplake.link(flower_path)
             )
             ds.linked_images.append(sample)
+        assert ds.linked_images.meta.sample_compression == "jpeg"
 
     data_out = local_ds
     with data_out as ds:
@@ -428,6 +431,7 @@ def test_transform(local_ds, cat_path, flower_path):
             verify=True,
             sample_compression="jpeg",
         )
+        assert ds.linked_images.meta.sample_compression == "jpeg"
 
     identity().eval(data_in, data_out, num_workers=2)
     assert len(data_out.linked_images) == 10
