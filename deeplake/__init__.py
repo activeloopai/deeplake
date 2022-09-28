@@ -75,6 +75,7 @@ __all__ = [
     "rename",
 ]
 
+
 __version__ = "3.0.4"
 warn_if_update_required(__version__)
 __encoded_version__ = np.array(__version__)
