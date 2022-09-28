@@ -80,26 +80,21 @@ Deep Lake datasets are instantly visualized with bounding boxes, masks, annotati
 Deep Lake's core is efficiently built in C++ and can be quickly installed using pip.
 
 ```sh
-pip3 install hub
+pip3 install deeplake
 ```
 
-**By default, Deep Lake does not install dependencies for audio, video, and google-cloud (GCS) support. They can be installed using**:
-```sh
-pip3 install "hub[av]"          -> Audio and video support via PyAV
-pip3 install "hub[gcp]"         -> GCS support via google-* dependencies
-pip3 install "hub[all]"         -> Installs everything - audio, video and GCS support
-```
+**By default, Deep Lake does not install dependencies for audio, video, google-cloud, and other features. Details on all installation options are [available here](https://docs.deeplake.ai/en/latest/Installation.html).**
 
 ### 🧠 Training a PyTorch model on a Deep Lake dataset
 
 #### Load CIFAR 10, one of the readily available datasets in Deep Lake:
 
 ```python
-import hub
+import deeplake
 import torch
 from torchvision import transforms, models
 
-ds = hub.load('hub://activeloop/cifar10-train')
+ds = deeplake.load('hub://activeloop/cifar10-train')
 ```
 
 #### Inspect tensors in the dataset:
@@ -119,7 +114,7 @@ tform = transforms.Compose([
     transforms.Normalize([0.5, 0.5, 0.5], [0.5, 0.5, 0.5]),
 ])
 
-hub_loader = ds.pytorch(num_workers=0, batch_size=4, transform={
+deeplake_loader = ds.pytorch(num_workers=0, batch_size=4, transform={
                         'images': tform, 'labels': None}, shuffle=True)
 ```
 
@@ -138,7 +133,7 @@ Finally, the training loop for 2 epochs:
 ```python
 for epoch in range(2):
     running_loss = 0.0
-    for i, data in enumerate(hub_loader):
+    for i, data in enumerate(deeplake_loader):
         images, labels = data['images'], data['labels']
         
         # zero the parameter gradients
@@ -187,9 +182,9 @@ Password:
 Initialize an empty dataset in the Activeloop Cloud:
 
 ```python
-import hub
+import deeplake
 
-ds = hub.empty("hub://<USERNAME>/test-dataset")
+ds = deeplake.empty("hub://<USERNAME>/test-dataset")
 ```
 
 
@@ -229,17 +224,17 @@ with ds:
 You can load the dataset you just created with a single line of code:
 
 ```python
-import hub
+import deeplake
 
-ds = hub.load("hub://<USERNAME>/test-dataset")
+ds = deeplake.load("hub://<USERNAME>/test-dataset")
 ```
 
 You can also access one of the <a href="https://docs.activeloop.ai/datasets/?utm_source=github&utm_medium=github&utm_campaign=github_readme&utm_id=readme">100+ image, video and audio datasets in Deep Lake format</a>, not just the ones you created. Here is how you would load the [Objectron Bikes Dataset](https://github.com/google-research-datasets/Objectron):
 
 ```python
-import hub
+import deeplake
 
-ds = hub.load('hub://activeloop/objectron_bike_train')
+ds = deeplake.load('hub://activeloop/objectron_bike_train')
 ```
 
 To get the first image in the Objectron Bikes dataset in numpy format:
@@ -319,7 +314,7 @@ As always, thanks to our amazing contributors!
 
 Made with [contributors-img](https://contrib.rocks).
 
-Please read [CONTRIBUTING.md](CONTRIBUTING.md) to get started with making contributions to Hub.
+Please read [CONTRIBUTING.md](CONTRIBUTING.md) to get started with making contributions to Deep Lake.
 
 
 ## README Badge
