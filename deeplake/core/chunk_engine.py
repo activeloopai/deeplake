@@ -654,6 +654,7 @@ class ChunkEngine:
         tensor_info = self.cache.get_deeplake_object(
             get_tensor_info_key(self.key, self.commit_id), Info
         )
+        # tensor_info = self._info_f()
         tensor_name = self.tensor_meta.name or self.key
         class_names = tensor_info.class_names
         labels, additions = convert_to_idx(samples, class_names)
@@ -665,6 +666,7 @@ class ChunkEngine:
                 )
             tensor_info.class_names = class_names
             tensor_info.is_dirty = True
+            self.commit_diff.modify_info()
         return labels
 
     def _samples_to_chunks(
