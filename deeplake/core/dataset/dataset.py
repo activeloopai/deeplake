@@ -1532,7 +1532,6 @@ class Dataset:
 
 
         Args:
-            dataset: deeplake.Dataset object on which the query needs to be run
             query_string (str): An SQL string adjusted with new functionalities to run on the given :class:`deeplake.Dataset` object
 
 
