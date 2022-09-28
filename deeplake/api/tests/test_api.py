@@ -2135,3 +2135,15 @@ def test_copy_label_sync_disabled(local_ds, capsys):
     )
     captured = capsys.readouterr().out
     assert captured == ""
+
+
+def test_class_label_bug(memory_ds):
+    with memory_ds as ds:
+        ds.create_tensor("abc", htype="class_label", class_names=["a", "b"])
+        ds.abc.append([0, 1])
+        ds.abc.append([1, 0])
+        ds.commit()
+        ds.abc.append("c")
+        b = ds.commit()
+        ds.checkout(b)
+        assert ds.abc.info.class_names == ["a", "b", "c"]
