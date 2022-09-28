@@ -260,11 +260,8 @@ def test_basic(local_ds_generator, cat_path, flower_path, create_shape_tensor, v
     for v1, v2 in zip(view1_np, view2_np):
         np.testing.assert_array_equal(v1, v2)
 
-    view3 = ds[:10].save_view()
-    view3 = ds.load_view(
-        "4dedc0c36d35b5e85c3ab21e9508a16b61be91a63b6be39b7629139fc1c8613a",
-        optimize=True,
-    )
+    view_id = ds[:10].save_view().split("queries/")[1]
+    view3 = ds.load_view(view_id, optimize=True)
     assert view3.linked_images.meta.sample_compression == "png"
     assert view3.linked_images_2.meta.sample_compression == "png"
 
