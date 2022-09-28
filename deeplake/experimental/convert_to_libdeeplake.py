@@ -27,7 +27,7 @@ INDRA_INSTALLED = bool(importlib.util.find_spec("indra"))
 
 
 def dataset_to_libdeeplake(hub2_dataset):
-    """Convert a hub 2.x dataset object to a hub 3.x dataset object."""
+    """Convert a hub 2.x dataset object to a libdeeplake dataset object."""
     api = import_indra_api()
     try_flushing(hub2_dataset)
     path: str = hub2_dataset.path

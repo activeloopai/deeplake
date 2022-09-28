@@ -508,14 +508,6 @@ class Dataset:
         kwargs["is_sequence"] = kwargs.get("is_sequence") or is_sequence
         kwargs["is_link"] = kwargs.get("is_link") or is_link
         kwargs["verify"] = verify
-        if is_link and (
-            sample_compression != UNSPECIFIED or chunk_compression != UNSPECIFIED
-        ):
-            warnings.warn(
-                "Chunk_compression and sample_compression aren't valid for tensors with linked data. Ignoring these arguments."
-            )
-            sample_compression = UNSPECIFIED
-            chunk_compression = UNSPECIFIED
 
         if not self._is_root():
             return self.root.create_tensor(
@@ -1532,11 +1524,11 @@ class Dataset:
 
 
         Args:
-            query_string (str): An SQL string adjusted with new functionalities to run on the given :class:`deeplake.Dataset` object
+            query_string (str): An SQL string adjusted with new functionalities to run on the given :class:`~deeplake.core.dataset.Dataset` object
 
 
         Returns:
-            Dataset: A deeplake.Dataset object.
+            Dataset: A :class:`~deeplake.core.dataset.Dataset` object.
 
         Examples:
 

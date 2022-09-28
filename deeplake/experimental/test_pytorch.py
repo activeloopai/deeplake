@@ -8,7 +8,7 @@ from deeplake.util.exceptions import EmptyTensorError, TensorDoesNotExistError
 
 from deeplake.util.remove_cache import get_base_storage
 from deeplake.core.index.index import IndexEntry
-from deeplake.tests.common import requires_torch, requires_linux_mac
+from deeplake.tests.common import requires_torch, requires_libdeeplake
 from deeplake.core.dataset import Dataset
 from deeplake.core.storage import MemoryProvider, GCSProvider
 from deeplake.constants import KB
@@ -52,7 +52,7 @@ def index_transform(sample):
 
 @requires_torch
 @enabled_non_gdrive_datasets
-@requires_linux_mac
+@requires_libdeeplake
 def test_pytorch_small(ds):
     with ds:
         ds.create_tensor("image", max_chunk_size=PYTORCH_TESTS_MAX_CHUNK_SIZE)
@@ -116,7 +116,7 @@ def test_pytorch_small(ds):
 
 @requires_torch
 @enabled_non_gdrive_datasets
-@requires_linux_mac
+@requires_libdeeplake
 def test_pytorch_transform(ds):
     with ds:
         ds.create_tensor("image", max_chunk_size=PYTORCH_TESTS_MAX_CHUNK_SIZE)
@@ -144,7 +144,7 @@ def test_pytorch_transform(ds):
 
 @requires_torch
 @enabled_non_gdrive_datasets
-@requires_linux_mac
+@requires_libdeeplake
 def test_pytorch_transform_dict(ds):
     with ds:
         ds.create_tensor("image", max_chunk_size=PYTORCH_TESTS_MAX_CHUNK_SIZE)
@@ -183,7 +183,7 @@ def test_pytorch_transform_dict(ds):
 
 @requires_torch
 @enabled_non_gdrive_datasets
-@requires_linux_mac
+@requires_libdeeplake
 def test_pytorch_with_compression(ds: Dataset):
     # TODO: chunk-wise compression for labels (right now they are uncompressed)
     with ds:
@@ -219,7 +219,7 @@ def test_pytorch_with_compression(ds: Dataset):
 
 @requires_torch
 @enabled_non_gdrive_datasets
-@requires_linux_mac
+@requires_libdeeplake
 def test_custom_tensor_order(ds):
     with ds:
         tensors = ["a", "b", "c", "d"]
@@ -263,7 +263,7 @@ def test_custom_tensor_order(ds):
 
 
 @requires_torch
-@requires_linux_mac
+@requires_libdeeplake
 def test_readonly_with_two_workers(local_ds):
     local_ds.create_tensor("images", max_chunk_size=PYTORCH_TESTS_MAX_CHUNK_SIZE)
     local_ds.create_tensor("labels", max_chunk_size=PYTORCH_TESTS_MAX_CHUNK_SIZE)
@@ -292,7 +292,7 @@ def test_pytorch_local_cache():
 
 
 @requires_torch
-@requires_linux_mac
+@requires_libdeeplake
 def test_groups(local_ds, compressed_image_paths):
     img1 = deeplake.read(compressed_image_paths["jpeg"][0])
     img2 = deeplake.read(compressed_image_paths["png"][0])
@@ -315,7 +315,7 @@ def test_groups(local_ds, compressed_image_paths):
 
 
 @requires_torch
-@requires_linux_mac
+@requires_libdeeplake
 def test_string_tensors(local_ds):
     with local_ds:
         local_ds.create_tensor("strings", htype="text")
@@ -332,7 +332,7 @@ def test_pytorch_large():
 
 
 @requires_torch
-@requires_linux_mac
+@requires_libdeeplake
 @pytest.mark.parametrize(
     "index",
     [
@@ -370,7 +370,7 @@ def test_pytorch_view(local_ds, index):
 
 
 @requires_torch
-@requires_linux_mac
+@requires_libdeeplake
 @pytest.mark.parametrize("shuffle", [True, False])
 def test_pytorch_collate(local_ds, shuffle):
     with local_ds:
@@ -394,7 +394,7 @@ def test_pytorch_collate(local_ds, shuffle):
 
 
 @requires_torch
-@requires_linux_mac
+@requires_libdeeplake
 @pytest.mark.parametrize("shuffle", [True, False])
 def test_pytorch_transform_collate(local_ds, shuffle):
     with local_ds:
@@ -431,7 +431,7 @@ def test_pytorch_ddp():
 
 
 @requires_torch
-@requires_linux_mac
+@requires_libdeeplake
 @enabled_non_gdrive_datasets
 @pytest.mark.parametrize("compression", [None, "jpeg"])
 def test_pytorch_tobytes(ds, compressed_image_paths, compression):
@@ -462,7 +462,7 @@ def test_pytorch_tobytes(ds, compressed_image_paths, compression):
 
 
 @requires_torch
-@requires_linux_mac
+@requires_libdeeplake
 def test_rename(local_ds):
     with local_ds as ds:
         ds.create_tensor("abc")
@@ -481,7 +481,7 @@ def test_rename(local_ds):
 
 
 @requires_torch
-@requires_linux_mac
+@requires_libdeeplake
 def test_expiration_date_casting_to_string():
     ds = deeplake.dataset("hub://activeloop/cifar100-train")[0:10:2]
     loader = dataloader(ds).pytorch(return_index=False)
@@ -490,10 +490,10 @@ def test_expiration_date_casting_to_string():
 
 
 @requires_torch
-@requires_linux_mac
-@pytest.mark.parametrize("shuffle", [True, False])
+@requires_libdeeplake
 @pytest.mark.parametrize("num_workers", [0, 2])
-def test_indexes(local_ds, shuffle, num_workers):
+def test_indexes(local_ds, num_workers):
+    shuffle = False
     with local_ds as ds:
         ds.create_tensor("xyz")
         for i in range(8):
@@ -514,10 +514,10 @@ def test_indexes(local_ds, shuffle, num_workers):
 
 
 @requires_torch
-@requires_linux_mac
-@pytest.mark.parametrize("shuffle", [True, False])
+@requires_libdeeplake
 @pytest.mark.parametrize("num_workers", [0, 2])
-def test_indexes_transform(local_ds, shuffle, num_workers):
+def test_indexes_transform(local_ds, num_workers):
+    shuffle = False
     with local_ds as ds:
         ds.create_tensor("xyz")
         for i in range(8):
@@ -542,10 +542,10 @@ def test_indexes_transform(local_ds, shuffle, num_workers):
 
 
 @requires_torch
-@requires_linux_mac
-@pytest.mark.parametrize("shuffle", [True, False])
+@requires_libdeeplake
 @pytest.mark.parametrize("num_workers", [0, 2])
-def test_indexes_transform_dict(local_ds, shuffle, num_workers):
+def test_indexes_transform_dict(local_ds, num_workers):
+    shuffle = False
     with local_ds as ds:
         ds.create_tensor("xyz")
         for i in range(8):
@@ -579,10 +579,10 @@ def test_indexes_transform_dict(local_ds, shuffle, num_workers):
 
 
 @requires_torch
-@requires_linux_mac
-@pytest.mark.parametrize("shuffle", [True, False])
+@requires_libdeeplake
 @pytest.mark.parametrize("num_workers", [0, 2])
-def test_indexes_tensors(local_ds, shuffle, num_workers):
+def test_indexes_tensors(local_ds, num_workers):
+    shuffle = False
     with local_ds as ds:
         ds.create_tensor("xyz")
         for i in range(8):
@@ -609,7 +609,7 @@ def test_indexes_tensors(local_ds, shuffle, num_workers):
         assert batch.keys() == {"xyz", "index"}
 
 
-@requires_linux_mac
+@requires_libdeeplake
 @requires_torch
 def test_uneven_iteration(local_ds):
     with local_ds as ds:
@@ -624,7 +624,7 @@ def test_uneven_iteration(local_ds):
         np.testing.assert_equal(y, i)
 
 
-@requires_linux_mac
+@requires_libdeeplake
 @requires_torch
 def test_pytorch_error_handling(local_ds):
     with local_ds as ds:
