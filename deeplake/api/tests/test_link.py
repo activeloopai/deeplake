@@ -255,9 +255,18 @@ def test_basic(local_ds_generator, cat_path, flower_path, create_shape_tensor, v
     view2 = ds.get_views()[0].load()
     view1_np = view.linked_images.numpy(aslist=True)
     view2_np = view2.linked_images.numpy(aslist=True)
+
     assert len(view1_np) == len(view2_np)
     for v1, v2 in zip(view1_np, view2_np):
         np.testing.assert_array_equal(v1, v2)
+
+    view3 = ds[:10].save_view()
+    view3 = ds.load_view(
+        "4dedc0c36d35b5e85c3ab21e9508a16b61be91a63b6be39b7629139fc1c8613a",
+        optimize=True,
+    )
+    assert view3.linked_images.meta.sample_compression == "png"
+    assert view3.linked_images_2.meta.sample_compression == "png"
 
     # checking persistence
     ds = local_ds_generator()
