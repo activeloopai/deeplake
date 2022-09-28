@@ -1532,11 +1532,11 @@ class Dataset:
 
 
         Args:
-            query_string (str): An SQL string adjusted with new functionalities to run on the given :class:`deeplake.Dataset` object
+            query_string (str): An SQL string adjusted with new functionalities to run on the given :class:`~deeplake.core.dataset.Dataset` object
 
 
         Returns:
-            Dataset: A deeplake.Dataset object.
+            Dataset: A :class:`~deeplake.core.dataset.Dataset` object.
 
         Examples:
 

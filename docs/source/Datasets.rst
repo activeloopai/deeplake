@@ -55,6 +55,7 @@ Dataset Operations
     Dataset.summary
     Dataset.append
     Dataset.extend
+    Dataset.query
     Dataset.copy
     Dataset.delete
     Dataset.rename
@@ -120,26 +121,33 @@ Dataset Version Control
 Dataset Views
 ~~~~~~~~~~~~~
 A dataset view is a subset of a dataset that points to specific samples (indices) in an existing dataset. Dataset views
-can be created using indexing or querying a dataset using :func:`~Dataset.filter`. Dataset views can only be saved when a dataset
-has been committed and has no changes on the HEAD node, in order to preserve data lineage and prevent the underlying data from
-changing after the query or filter conditions have been evaluated.
+can be created by indexing a dataset, filtering a dataset with :meth:`Dataset.filter` or querying a dataset with :meth:`Dataset.query`.
+Filtering is done with user-defined functions or simplified expressions whereas query can perform SQL-like queries with our 
+Tensor Query Language. See the full TQL spec :ref:`here <tql>`.
 
-    >>> import deeplake
-    >>> # load dataset
-    >>> ds = deeplake.load("hub://activeloop/mnist-train")
-    >>> # filter dataset
-    >>> zeros = ds.filter("labels == 0")
-    >>> # save view
-    >>> zeros.save_view(id="zeros")
-    >>> # load_view
-    >>> zeros = ds.load_view(id="zeros")
-    >>> len(zeros)
-    5923
+
+Dataset views can only be saved when a dataset has been committed and has no changes on the HEAD node, 
+in order to preserve data lineage and prevent the underlying data from changing after the query or filter conditions have been evaluated.
+
+**Example**
+
+>>> import deeplake
+>>> # load dataset
+>>> ds = deeplake.load("hub://activeloop/mnist-train")
+>>> # filter dataset
+>>> zeros = ds.filter("labels == 0")
+>>> # save view
+>>> zeros.save_view(id="zeros")
+>>> # load_view
+>>> zeros = ds.load_view(id="zeros")
+>>> len(zeros)
+5923
 
 .. autosummary::
     :toctree:
     :nosignatures:
 
+    Dataset.query
     Dataset.filter
     Dataset.save_view
     Dataset.get_view
