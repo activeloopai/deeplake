@@ -464,7 +464,7 @@ class S3Provider(StorageProvider):
         This info is used to fetch new credentials when the temporary 12 hour credentials expire.
 
         Args:
-            hub_path (str): The deeplake cloud path to the dataset.
+            hub_path (str): The Deep Lake cloud path to the dataset.
             expiration (str): The time at which the credentials expire.
         """
         self.hub_path = hub_path

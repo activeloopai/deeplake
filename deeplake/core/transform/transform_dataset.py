@@ -5,7 +5,7 @@ from deeplake.util.exceptions import TensorDoesNotExistError
 class TransformDataset:
     def __init__(self, all_tensors=None, slice_list=None):
         """Creates a Dataset like object that supports "." access of tensors and appends/extends to the tensors.
-        This is used as sample_out in hub transforms.
+        This is used as sample_out in deeplake transforms.
         """
         self.tensors = all_tensors or {}
         self.slice_list = slice_list or []

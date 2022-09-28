@@ -179,7 +179,7 @@ def get_changes_commit_ids_for_node(
         else:
             diff_key = get_tensor_commit_diff_key(tensor_key, commit_id)
             try:
-                diff: Optional[CommitDiff] = dataset.storage.get_hub_object(
+                diff: Optional[CommitDiff] = dataset.storage.get_deeplake_object(
                     diff_key, CommitDiff
                 )
             except KeyError:

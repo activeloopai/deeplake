@@ -229,7 +229,7 @@ class Tensor:
             raise TensorDoesNotExistError(self.key)
 
         meta_key = get_tensor_meta_key(self.key, commit_id)
-        meta = self.storage.get_hub_object(meta_key, TensorMeta)
+        meta = self.storage.get_deeplake_object(meta_key, TensorMeta)
         if chunk_engine is not None:
             self.chunk_engine = chunk_engine
         elif meta.is_link:
@@ -335,7 +335,7 @@ class Tensor:
             path = get_tensor_info_key(self.key, commit_id)
             chunk_engine._info = load_info(path, self.dataset, self.key)
             chunk_engine._info_commit_id = commit_id
-            self.storage.register_hub_object(path, chunk_engine._info)
+            self.storage.register_deeplake_object(path, chunk_engine._info)
         return chunk_engine._info
 
     @info.setter

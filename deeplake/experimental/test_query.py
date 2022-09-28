@@ -1,6 +1,5 @@
 from math import floor
 from deeplake.tests.common import requires_linux
-from deeplake.experimental import query
 
 
 @requires_linux
@@ -10,7 +9,7 @@ def test_query(local_ds):
         for i in range(100):
             ds.label.append(floor(i / 20))
 
-    dsv = query(local_ds, "SELECT * WHERE CONTAINS(label, 2)")
+    dsv = local_ds.query("SELECT * WHERE CONTAINS(label, 2)")
     assert len(dsv) == 20
     for i in range(20):
         assert dsv.label[i].numpy() == 2

@@ -45,7 +45,7 @@ def test_json_with_numpy(memory_ds):
         )
 
 
-def test_json_with_hub_sample(memory_ds, compressed_image_paths):
+def test_json_with_deeplake_sample(memory_ds, compressed_image_paths):
     ds = memory_ds
     ds.create_tensor("json", htype="json")
     items = [
@@ -110,7 +110,7 @@ def test_list_with_numpy(memory_ds):
         assert actual[1:] == expected[1:]
 
 
-def test_list_with_hub_sample(memory_ds, compressed_image_paths):
+def test_list_with_deeplake_sample(memory_ds, compressed_image_paths):
     ds = memory_ds
     ds.create_tensor("list", htype="list")
     items = [

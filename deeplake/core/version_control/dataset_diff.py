@@ -117,8 +117,8 @@ def load_dataset_diff(dataset):
     storage: LRUCache = dataset.storage
     path = get_dataset_diff_key(dataset.version_state["commit_id"])
     try:
-        diff = storage.get_hub_object(path, DatasetDiff)
+        diff = storage.get_deeplake_object(path, DatasetDiff)
     except KeyError:
         diff = DatasetDiff()
-    storage.register_hub_object(path, diff)
+    storage.register_deeplake_object(path, diff)
     return diff

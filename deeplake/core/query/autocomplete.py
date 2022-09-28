@@ -255,7 +255,7 @@ def autocomplete(s: str, ds: deeplake.Dataset) -> dict:
 
     Args:
         s (str): The query string
-        ds (deeplake.Dataset): The hub dataset against which the query is to be run.
+        ds (deeplake.Dataset): The Deep Lake dataset against which the query is to be run.
 
     Returns:
         dict. Auto complete response.

@@ -16,7 +16,7 @@ def get_latest_version():
             if time_elapsed < seconds_in_a_day:
                 return latest_version
 
-    response = requests.get("https://pypi.org/pypi/hub/json")
+    response = requests.get("https://pypi.org/pypi/deeplake/json")
     latest_version = response.json()["info"]["version"]
     with open(HUB_PYPI_VERSION_PATH, "w") as f:
         json.dump((latest_version, time.time()), f)
@@ -30,5 +30,5 @@ def warn_if_update_required(current_version):
         return
     if version_compare(current_version, latest_version) < 0:
         warnings.warn(
-            f"A newer version of deeplake ({latest_version}) is available. It's recommended that you update to the latest version using `pip install -U hub`."
+            f"A newer version of deeplake ({latest_version}) is available. It's recommended that you update to the latest version using `pip install -U deeplake`."
         )

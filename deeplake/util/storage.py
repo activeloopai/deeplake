@@ -33,7 +33,7 @@ def storage_provider_from_path(
             This takes precedence over credentials present in the environment. Only used when url is provided. Currently only works with s3 urls.
         read_only (bool): Opens dataset in read only mode if this is passed as True. Defaults to False.
         token (str): token for authentication into activeloop.
-        is_hub_path (bool): whether the path points to a hub dataset.
+        is_hub_path (bool): whether the path points to a Deep Lake dataset.
 
     Returns:
         If given a path starting with s3:// returns the S3Provider.
@@ -123,7 +123,7 @@ def storage_provider_from_hub_path(
     url = posixpath.join(url, subdir)
 
     storage = storage_provider_from_path(
-        path=url, creds=creds, read_only=read_only, is_hub_path=True
+        path=url, creds=creds, read_only=read_only, is_hub_path=True, token=token
     )
     storage._set_hub_creds_info(path, expiration)
     return storage

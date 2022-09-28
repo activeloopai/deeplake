@@ -260,9 +260,9 @@ class ChunkEngine:
         commit_id = self.commit_id
         if self._tensor_meta is None or self._tensor_meta_commit_id != commit_id:
             key = get_tensor_meta_key(self.key, commit_id)
-            self._tensor_meta = self.meta_cache.get_hub_object(key, TensorMeta)
+            self._tensor_meta = self.meta_cache.get_deeplake_object(key, TensorMeta)
             self._tensor_meta_commit_id = commit_id
-            self.meta_cache.register_hub_object(key, self._tensor_meta)
+            self.meta_cache.register_deeplake_object(key, self._tensor_meta)
         return self._tensor_meta
 
     @property
@@ -295,10 +295,10 @@ class ChunkEngine:
                 except ReadOnlyModeError:
                     pass
             else:
-                enc = self.meta_cache.get_hub_object(key, ChunkIdEncoder)
+                enc = self.meta_cache.get_deeplake_object(key, ChunkIdEncoder)
             self._chunk_id_encoder = enc
             self._chunk_id_encoder_commit_id = commit_id
-            self.meta_cache.register_hub_object(key, enc)
+            self.meta_cache.register_deeplake_object(key, enc)
         return self._chunk_id_encoder
 
     @property
@@ -324,10 +324,10 @@ class ChunkEngine:
                 except ReadOnlyModeError:
                     pass
             else:
-                cset = self.meta_cache.get_hub_object(key, CommitChunkSet)
+                cset = self.meta_cache.get_deeplake_object(key, CommitChunkSet)
             self._commit_chunk_set = cset
             self._commit_chunk_set_commit_id = commit_id
-            self.meta_cache.register_hub_object(key, cset)
+            self.meta_cache.register_deeplake_object(key, cset)
         return self._commit_chunk_set
 
     @property
@@ -364,10 +364,10 @@ class ChunkEngine:
                 except ReadOnlyModeError:
                     pass
             else:
-                diff = self.meta_cache.get_hub_object(key, CommitDiff)
+                diff = self.meta_cache.get_deeplake_object(key, CommitDiff)
             self._commit_diff = diff
             self._commit_diff_commit_id = commit_id
-            self.meta_cache.register_hub_object(key, diff)
+            self.meta_cache.register_deeplake_object(key, diff)
         return self._commit_diff
 
     @property
@@ -413,10 +413,10 @@ class ChunkEngine:
                 except ReadOnlyModeError:
                     pass
             else:
-                enc = self.meta_cache.get_hub_object(key, TileEncoder)
+                enc = self.meta_cache.get_deeplake_object(key, TileEncoder)
             self._tile_encoder = enc
             self._tile_encoder_commit_id = commit_id
-            self.meta_cache.register_hub_object(key, enc)
+            self.meta_cache.register_deeplake_object(key, enc)
         return self._tile_encoder
 
     @property
@@ -467,10 +467,10 @@ class ChunkEngine:
     @active_appended_chunk.setter
     def active_appended_chunk(self, value):
         if self.active_appended_chunk is not None:
-            self.cache.remove_hub_object(self.active_appended_chunk.key)
+            self.cache.remove_deeplake_object(self.active_appended_chunk.key)
         self._active_appended_chunk = value
         if value is not None:
-            self.cache.register_hub_object(value.key, value)
+            self.cache.register_deeplake_object(value.key, value)
 
     @property
     def active_updated_chunk(self):
@@ -479,10 +479,10 @@ class ChunkEngine:
     @active_updated_chunk.setter
     def active_updated_chunk(self, value):
         if self.active_updated_chunk is not None:
-            self.cache.remove_hub_object(self.active_updated_chunk.key)
+            self.cache.remove_deeplake_object(self.active_updated_chunk.key)
         self._active_updated_chunk = value
         if value is not None:
-            self.cache.register_hub_object(value.key, value)
+            self.cache.register_deeplake_object(value.key, value)
 
     @property
     def last_appended_chunk_name(self) -> str:
@@ -513,7 +513,7 @@ class ChunkEngine:
         return chunk
 
     def get_chunk(self, chunk_key: str, partial_chunk_bytes=0) -> BaseChunk:
-        return self.cache.get_hub_object(
+        return self.cache.get_deeplake_object(
             chunk_key,
             self.chunk_class,
             self.chunk_args,
@@ -545,11 +545,11 @@ class ChunkEngine:
             chunk_size = base_storage.get_object_size(chunk_key)
             stream = chunk_size > self.min_chunk_size
             if stream:
-                chunk = self.cache.get_hub_object(
+                chunk = self.cache.get_deeplake_object(
                     chunk_key, self.chunk_class, meta=self.chunk_args, url=True
                 )
         if not stream:
-            chunk = self.cache.get_hub_object(
+            chunk = self.cache.get_deeplake_object(
                 chunk_key, self.chunk_class, meta=self.chunk_args
             )
         chunk.key = chunk_key  # type: ignore
@@ -583,7 +583,7 @@ class ChunkEngine:
                 if commit_id == FIRST_COMMIT_ID:
                     chunk_set = set()
                 else:
-                    chunk_set = self.meta_cache.get_hub_object(
+                    chunk_set = self.meta_cache.get_deeplake_object(
                         chunk_set_key, CommitChunkSet
                     ).chunks
             except Exception:
@@ -591,9 +591,9 @@ class ChunkEngine:
                 try:
                     self.meta_cache[chunk_set_key] = commit_chunk_set
                 except ReadOnlyModeError:
-                    # put CommitChunkSet in hub_objects to keep in cache temporarily, but won't write to storage
-                    # this shouldn't happen in latest version of hub, chunk set would always be present
-                    self.meta_cache.hub_objects[chunk_set_key] = commit_chunk_set
+                    # put CommitChunkSet in deeplake_objects to keep in cache temporarily, but won't write to storage
+                    # this shouldn't happen in latest version of deeplake, chunk set would always be present
+                    self.meta_cache.deeplake_objects[chunk_set_key] = commit_chunk_set
                 chunk_set = set()
             if chunk_name in chunk_set:
                 return commit_id
@@ -651,7 +651,7 @@ class ChunkEngine:
         return samples, verified_samples
 
     def _convert_class_labels(self, samples):
-        tensor_info = self.cache.get_hub_object(
+        tensor_info = self.cache.get_deeplake_object(
             get_tensor_info_key(self.key, self.commit_id), Info
         )
         tensor_name = self.tensor_meta.name or self.key
@@ -1862,10 +1862,10 @@ class ChunkEngine:
                 except ReadOnlyModeError:
                     pass
             else:
-                enc = self.meta_cache.get_hub_object(key, SequenceEncoder)
+                enc = self.meta_cache.get_deeplake_object(key, SequenceEncoder)
             self._sequence_encoder = enc
             self._sequence_encoder_commit_id = commit_id
-            self.meta_cache.register_hub_object(key, enc)
+            self.meta_cache.register_deeplake_object(key, enc)
         return self._sequence_encoder
 
     def _sequence_numpy(

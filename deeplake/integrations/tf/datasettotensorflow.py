@@ -19,7 +19,7 @@ def dataset_to_tensorflow(dataset, tensors, tobytes):
         )
 
     import tensorflow as tf  # type: ignore
-    from deeplake.integrations.tf.hubtensorflowdataset import HubTensorflowDataset  # type: ignore
+    from deeplake.integrations.tf.deeplake_tensorflow_dataset import DeepLakeTensorflowDataset  # type: ignore
 
     if not tensors:
         tensors = dataset.tensors
@@ -66,4 +66,6 @@ def dataset_to_tensorflow(dataset, tensors, tobytes):
         return signature
 
     signature = generate_signature()
-    return HubTensorflowDataset.from_generator(__iter__, output_signature=signature)
+    return DeepLakeTensorflowDataset.from_generator(
+        __iter__, output_signature=signature
+    )

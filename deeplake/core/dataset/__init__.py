@@ -9,7 +9,7 @@ FORCE_CLASS = None
 
 
 def dataset_factory(path, *args, **kwargs):
-    """Returns a Dataset object from the appropriate class. For example: If `path` is a hub
+    """Returns a Dataset object from the appropriate class. For example: If `path` is a Deep Lake
     cloud path (prefixed with `hub://`), the returned Dataset object will be of DeepLakeCloudDataset.
     """
     if FORCE_CLASS is not None:

@@ -413,7 +413,7 @@ class Sample:
         assert self.path is not None
         if GCSProvider is None:
             raise Exception(
-                "GCP dependencies not installed. Install them with pip install hub[gcs]"
+                "GCP dependencies not installed. Install them with pip install deeplake[gcs]"
             )
         if self.storage is not None:
             assert isinstance(self.storage, GCSProvider)
