@@ -215,6 +215,7 @@ class LinkCreds(DeepLakeMemoryObject):
 
     def fetch_managed_creds(self, creds_key: str):
         creds = self.client.get_managed_creds(self.org_id, creds_key)
+        print(f"Loaded credentials '{creds_key}' from Activeloop platform.")
         return creds
 
     def change_creds_management(self, creds_key: str, managed: bool) -> bool:
