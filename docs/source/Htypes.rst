@@ -1,7 +1,7 @@
 Htypes
 ======
 
-.. currentmodule:: hub.htype
+.. currentmodule:: deeplake.htype
 
 .. role:: blue
 
@@ -16,7 +16,7 @@ The htype of a tensor can be specified at its creation
 
 If not specified, the tensor's htype defaults to "generic".
 
-Specifying an htype allows for strict settings and error handling, and it is critical for increasing the performance of hub datasets containing rich data such as images and videos.
+Specifying an htype allows for strict settings and error handling, and it is critical for increasing the performance of Deep Lake datasets containing rich data such as images and videos.
 
 Supported htypes and their respective defaults are:
 
@@ -31,7 +31,7 @@ Image Htype
 
 - :bluebold:`Sample dimensions:` ``(height, width, # channels)`` :bluebold:`or` ``(height, width)``.
 
-Images can be stored in hub as compressed bytes or as raw arrays. Due to the high compression ratio for most image 
+Images can be stored in Deep Lake as compressed bytes or as raw arrays. Due to the high compression ratio for most image 
 formats, it is highly recommended to store compressed images using the ``sample_compression`` input to the create_tensor method.
 
 :blue:`Creating an image tensor`
@@ -55,7 +55,7 @@ OR
 :blue:`Appending image samples`
 -------------------------------
 
-- Image samples can be of type ``np.ndarray`` or hub :class:`~hub.core.sample.Sample` which can be created using :meth:`hub.read`.
+- Image samples can be of type ``np.ndarray`` or Deep Lake :class:`~deeplake.core.sample.Sample` which can be created using :meth:`deeplake.read`.
 
 :bluebold:`Examples`
 
@@ -63,17 +63,17 @@ Appending pixel data with array
 
 >>> ds.images.append(np.zeros((5, 5, 3), dtype=np.uint8))
 
-Appening hub image sample
+Appening Deep Lake image sample
 
->>> ds.images.append(hub.read("images/0001.jpg"))
+>>> ds.images.append(deeplake.read("images/0001.jpg"))
 
-You can append multiple samples at the same time using :meth:`~hub.core.tensor.Tensor.extend`.
+You can append multiple samples at the same time using :meth:`~deeplake.core.tensor.Tensor.extend`.
 
->>> ds.images.extend([hub.read(f"images/000{i}.jpg") for i in range(10)])
+>>> ds.images.extend([deeplake.read(f"images/000{i}.jpg") for i in range(10)])
 
 .. note::
     If the compression format of the input sample does not match the ``sample_compression`` of the tensor,
-    hub will decompress and recompress the image for storage, which may significantly slow down the upload
+    Deep Lake will decompress and recompress the image for storage, which may significantly slow down the upload
     process. The upload process is fastest when the image compression matches the ``sample_compression``.
 
 .. _image-rgb-and-gray:
@@ -82,8 +82,8 @@ You can append multiple samples at the same time using :meth:`~hub.core.tensor.T
 ---------------------------------------
 
 ``image.rgb`` and ``image.gray`` htypes can be used to force your samples to be of RGB or grayscale type.
-i.e., if RGB images are appened to an  ``image.gray`` tensor, hub will convert them to grayscale and if grayscale images
-are appended to an ``image.rgb`` tensor, hub will convert them to RGB format.
+i.e., if RGB images are appened to an  ``image.gray`` tensor, Deep Lake will convert them to grayscale and if grayscale images
+are appended to an ``image.rgb`` tensor, Deep Lake will convert them to RGB format.
 
 image.rgb and image.gray tensors can be created using
 
@@ -115,20 +115,20 @@ A video tensor can be created using
 :blue:`Appending video samples`
 -------------------------------
 
-- Video samples can be of type ``np.ndarray`` or :class:`~hub.core.sample.Sample` which is returned by :meth:`hub.read`.
-- Hub does not support compression of raw video frames. Therefore, array of raw frames can only be appended to tensors with
+- Video samples can be of type ``np.ndarray`` or :class:`~deeplake.core.sample.Sample` which is returned by :meth:`deeplake.read`.
+- Deep Lake does not support compression of raw video frames. Therefore, array of raw frames can only be appended to tensors with
   ``None`` compression.
-- Recompression of samples read with :meth:`hub.read <hub.read>` is also not supported.
+- Recompression of samples read with :meth:`deeplake.read <deeplake.read>` is also not supported.
 
 :bluebold:`Examples`
 
-Appending hub video sample
+Appending Deep Lake video sample
 
->>> ds.videos.append(hub.read("videos/0012.mp4"))
+>>> ds.videos.append(deeplake.read("videos/0012.mp4"))
 
 Extending with multiple videos
 
->>> ds.videos.extend([hub.read(f"videos/00{i}.mp4") for i in range(10)])
+>>> ds.videos.extend([deeplake.read(f"videos/00{i}.mp4") for i in range(10)])
 
 .. _audio-htype:
 
@@ -153,19 +153,19 @@ An audio tensor can be created using
 :blue:`Appending audio samples`
 -------------------------------
 
-- Audio samples can be of type ``np.ndarray`` or :class:`~hub.core.sample.Sample` which is returned by :meth:`hub.read`.
-- Like videos, Hub does not support compression or recompression of input audio samples. Thus, samples of type ``np.ndarray``
+- Audio samples can be of type ``np.ndarray`` or :class:`~deeplake.core.sample.Sample` which is returned by :meth:`deeplake.read`.
+- Like videos, Deep Lake does not support compression or recompression of input audio samples. Thus, samples of type ``np.ndarray``
   can only be appended to tensors with ``None`` compression.
 
 :bluebold:`Examples`
 
-Appending hub audio sample
+Appending Deep Lake audio sample
 
->>> ds.audios.append(hub.read("audios/001.mp3"))
+>>> ds.audios.append(deeplake.read("audios/001.mp3"))
 
-Extending with hub audio samples
+Extending with Deep Lake audio samples
 
->>> ds.audios.extend([hub.read(f"videos/00{i}.mp3") for i in range(10)])
+>>> ds.audios.extend([deeplake.read(f"videos/00{i}.mp3") for i in range(10)])
 
 .. _class-label-htype:
 
@@ -512,7 +512,7 @@ array([[[1],
         [6]]])
 
 >>> ds.create_tensor("image_seq", htype="sequence[image]", sample_compression="jpg")
->>> ds.image_seq.append([hub.read("img01.jpg"), hub.read("img02.jpg")])
+>>> ds.image_seq.append([deeplake.read("img01.jpg"), deeplake.read("img02.jpg")])
 
 .. _link-htype:
 
@@ -531,7 +531,7 @@ Link htype
 
 :bluebold:`Examples`
 
->>> ds = hub.dataset("......")
+>>> ds = deeplake.dataset("......")
 
 Add the names of the creds you want to use (not needed for http/local urls)
 
@@ -550,12 +550,12 @@ Create a tensor that can contain links
 
 Populate the tensor with links
 
->>> ds.img.append(hub.link("s3://abc/def.jpeg", creds_key="MY_S3_KEY"))
->>> ds.img.append(hub.link("gcs://ghi/jkl.png", creds_key="GCS_KEY"))
->>> ds.img.append(hub.link("https://picsum.photos/200/300")) # http path doesn’t need creds
->>> ds.img.append(hub.link("./path/to/cat.jpeg")) # local path doesn’t need creds
->>> ds.img.append(hub.link("s3://abc/def.jpeg"))  # this will throw an exception as cloud paths always need creds_key
->>> ds.img.append(hub.link("s3://abc/def.jpeg", creds_key="ENV"))  # this will use creds from environment
+>>> ds.img.append(deeplake.link("s3://abc/def.jpeg", creds_key="MY_S3_KEY"))
+>>> ds.img.append(deeplake.link("gcs://ghi/jkl.png", creds_key="GCS_KEY"))
+>>> ds.img.append(deeplake.link("https://picsum.photos/200/300")) # http path doesn’t need creds
+>>> ds.img.append(deeplake.link("./path/to/cat.jpeg")) # local path doesn’t need creds
+>>> ds.img.append(deeplake.link("s3://abc/def.jpeg"))  # this will throw an exception as cloud paths always need creds_key
+>>> ds.img.append(deeplake.link("s3://abc/def.jpeg", creds_key="ENV"))  # this will use creds from environment
 
 Accessing the data
 
@@ -565,4 +565,4 @@ Accessing the data
 
 Updating a sample
 
->>> ds.img[0] = hub.link("./data/cat.jpeg")
+>>> ds.img[0] = deeplake.link("./data/cat.jpeg")

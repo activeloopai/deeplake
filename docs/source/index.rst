@@ -1,14 +1,14 @@
-.. Hub documentation master file, created by
+.. deeplake documentation master file, created by
    sphinx-quickstart on Sun Jul 17 09:57:51 2022.
    You can adapt this file completely to your liking, but it should at least
    contain the root `toctree` directive.
 
-:github_url: https://github.com/activeloopai/Hub
+:github_url: https://github.com/activeloopai/deeplake
 
-Hub API Reference
-=================
+Deep Lake API Reference
+=======================
 
-Hub is an open-source database for AI.
+Deep Lake is an open-source database for AI.
 
 .. toctree::
    :maxdepth: 2
@@ -36,23 +36,21 @@ Hub is an open-source database for AI.
    :maxdepth: 1
    :caption: Experimental API
 
-   Dataloader & Query <Dataloader-and-Query>
+   Dataloader <Dataloader>
    Tensor Query Language <Tensor-Query-Language>
 
 .. toctree::
    :maxdepth: 1
    :caption: API Reference
 
-   hub
-   hub.core
-   hub.core.dataset
-   hub.core.tensor
-   hub.api
-   hub.auto
-   hub.util
-   hub.client.log
-   hub.experimental
-   hub.experimental.dataloader
+   deeplake
+   deeplake.core
+   deeplake.core.dataset
+   deeplake.core.tensor
+   deeplake.api
+   deeplake.auto
+   deeplake.util
+   deeplake.client.log
 
 
 Indices and tables
