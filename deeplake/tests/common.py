@@ -119,6 +119,11 @@ requires_linux = pytest.mark.skipif(
     reason="Thest should work only in linux",
 )
 
+requires_linux_mac = pytest.mark.skipif(
+    sys.platform in ["win32", "Win32"],
+    reason="Thest should work only in linux and mac",
+)
+
 
 class LinkTransformTestContext:
     def __init__(self, func: Callable, name: str):
