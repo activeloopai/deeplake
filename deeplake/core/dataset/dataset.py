@@ -24,6 +24,7 @@ from deeplake.constants import (
     FIRST_COMMIT_ID,
     DEFAULT_MEMORY_CACHE_SIZE,
     DEFAULT_LOCAL_CACHE_SIZE,
+    KB,
     MB,
     SAMPLE_INFO_TENSOR_MAX_CHUNK_SIZE,
     DEFAULT_READONLY,
@@ -301,6 +302,16 @@ class Dataset:
     def min_len(self):
         """Return the minimum length of the tensor"""
         return min([len(tensor) for tensor in self.tensors.values()])
+
+    @property
+    def average_samples_weight(self):
+        """Return the average weight of the samples in the dataset"""
+        tensors_weight_dict = {}
+        for tensor_name, tensor_value in self.tensors.items():
+            tensors_weight_dict[tensor_name] = sys.getsizeof(tensor_value) / len(
+                tensor_value
+            )        
+        return tensors_weight_dict
 
     def __getstate__(self) -> Dict[str, Any]:
         """Returns a dict that can be pickled and used to restore this dataset.
@@ -3099,18 +3110,28 @@ class Dataset:
                 )
                 if progressbar:
                     sys.stderr.write(f"Copying tensor: {tensor}.\n")
-                deeplake.compute(copy_f, name="tensor copy transform")(
-                    tensor_name=tensor
-                ).eval(
-                    self,
-                    dest_ds,
-                    num_workers=num_workers,
-                    scheduler=scheduler,
-                    progressbar=progressbar,
-                    skip_ok=True,
-                    check_lengths=False,
-                    disable_label_sync=True,
-                )
+
+                if self.average_samples_weight[tensor] > 10*KB:
+                    hub.compute(copy_f, name="tensor copy transform")(
+                        tensor_name=tensor
+                    ).eval(
+                        self,
+                        dest_ds,
+                        num_workers=num_workers,
+                        scheduler=scheduler,
+                        progressbar=progressbar,
+                        skip_ok=True,
+                        check_lengths=False,
+                        disable_label_sync=True,
+                    )
+                else:
+                    copy_f(
+                        self,
+                        dest_ds,
+                        tensor_name=tensor,
+                        use_extend=True,
+                        progressbar=progressbar,
+                    )
 
             dest_ds.flush()
             if create_vds_index_tensor:
@@ -3485,17 +3506,33 @@ class Dataset:
         return memoryview(b"")  # No-op context manager
 
 
-def _copy_tensor(sample_in, sample_out, tensor_name):
-    sample_out[tensor_name].append(sample_in[tensor_name])
+
+def _copy_tensor(
+    sample_in, sample_out, tensor_name, use_extend=False, progressbar=True
+):
+    if use_extend:
+        sample_out[tensor_name].extend(sample_in[tensor_name], progressbar=progressbar)
+    else:
+        sample_out[tensor_name].append(sample_in[tensor_name])
 
 
-def _copy_tensor_unlinked_full_sample(sample_in, sample_out, tensor_name):
-    sample_out[tensor_name].append(
-        sample_in[tensor_name].chunk_engine.get_deeplake_read_sample(
-            sample_in.index.values[0].value
+def _copy_tensor_unlinked_full_sample(sample_in, sample_out, tensor_name, use_extend=False, progressbar=True):
+    if use_extend:
+        sample_out[tensor_name].extend(
+            sample_in[tensor_name].chunk_engine.get_hub_read_sample(
+                sample_in.index.values[0].value
+        	), progressbar=progressbar,
+    	)
+    else:    
+        sample_out[tensor_name].append(
+            sample_in[tensor_name].chunk_engine.get_hub_read_sample(
+                sample_in.index.values[0].value
+            )
         )
-    )
 
 
-def _copy_tensor_unlinked_partial_sample(sample_in, sample_out, tensor_name):
-    sample_out[tensor_name].append(sample_in[tensor_name].numpy())
+def _copy_tensor_unlinked_partial_sample(sample_in, sample_out, tensor_name, use_extend=False, progressbar=True):
+    if use_extend:
+        sample_out[tensor_name].extend(sample_in[tensor_name].numpy(), progressbar=progressbar)
+    else:
+        sample_out[tensor_name].append(sample_in[tensor_name].numpy())

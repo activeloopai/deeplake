@@ -799,6 +799,7 @@ class ChunkEngine:
         samples,
         progressbar: bool = False,
         link_callback: Optional[Callable] = None,
+        append_meta_to_tensor_callback: Optional[Callable] = None,
     ):
         self.check_link_ready()
         self._write_initialization()
@@ -818,18 +819,20 @@ class ChunkEngine:
                 ls = verified_sample or sample
                 if link_callback:
                     link_callback(ls, flat=False)
+                    meta_link_dict = {}
                     for s in ls:
                         s = None if is_empty_list(s) else s
-                        link_callback(s, flat=True)
-
+                        link_callback(s, flat=True, meta_link_dict=meta_link_dict)
+                    append_meta_to_tensor_callback(meta_link_dict)
         else:
             verified_samples = self._extend(samples, progressbar)
             ls = verified_samples or samples
             if link_callback:
+                meta_link_dict = {}
                 for sample in ls:
                     sample = None if is_empty_list(sample) else sample
-                    link_callback(sample, flat=None)
-
+                    link_callback(sample, flat=None, meta_link_dict=meta_link_dict)
+                append_meta_to_tensor_callback(meta_link_dict)
         self.cache.autoflush = initial_autoflush
         self.cache.maybe_flush()
 
@@ -956,6 +959,8 @@ class ChunkEngine:
         value,
         append_link_callback=None,
         update_link_callback=None,
+        append_meta_to_tensor_callback=None,
+
     ):
         """Pads the tensor with empty samples and appends value at the end."""
         self.check_link_ready()
@@ -963,7 +968,7 @@ class ChunkEngine:
         if num_samples_to_pad > 0:
             if self.num_samples == 0:
                 # set htype, dtype, shape, we later update it with empty sample
-                self.extend([value], link_callback=append_link_callback)
+                self.extend([value], link_callback=append_link_callback, append_meta_to_tensor_callback=append_meta_to_tensor_callback)
                 num_samples_to_pad -= 1
                 update_first_sample = True
 
@@ -987,9 +992,9 @@ class ChunkEngine:
                 self.update(Index(0), empty_sample, link_callback=update_link_callback)
 
             # pad
-            self.extend(empty_samples, link_callback=append_link_callback)
+            self.extend(empty_samples, link_callback=append_link_callback, append_meta_to_tensor_callback=append_meta_to_tensor_callback)
 
-        self.extend([value], link_callback=append_link_callback)
+        self.extend([value], link_callback=append_link_callback, append_meta_to_tensor_callback=append_meta_to_tensor_callback)
 
     def update(
         self,
@@ -2048,7 +2053,7 @@ class ChunkEngine:
             if broadcast:
                 ls = repeat(ls)  # type: ignore
             for i, sample in zip(index.values[0].indices(seq_len), ls):  # type: ignore
-                link_callback(
+                link_callback( # we should optimize this
                     i, sub_index=Index(index.values[1:]), new_sample=sample, flat=False
                 )
 
