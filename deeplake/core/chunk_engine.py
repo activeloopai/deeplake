@@ -819,11 +819,13 @@ class ChunkEngine:
                 ls = verified_sample or sample
                 if link_callback:
                     link_callback(ls, flat=False)
-                    meta_link_dict = {}
+                    meta_link_dict = {}  # type: ignore
                     for s in ls:
                         s = None if is_empty_list(s) else s
                         link_callback(s, flat=True, meta_link_dict=meta_link_dict)
-                    append_meta_to_tensor_callback(meta_link_dict)
+
+                    if append_meta_to_tensor_callback:
+                        append_meta_to_tensor_callback(meta_link_dict)
         else:
             verified_samples = self._extend(samples, progressbar)
             ls = verified_samples or samples
@@ -832,7 +834,10 @@ class ChunkEngine:
                 for sample in ls:
                     sample = None if is_empty_list(sample) else sample
                     link_callback(sample, flat=None, meta_link_dict=meta_link_dict)
-                append_meta_to_tensor_callback(meta_link_dict)
+
+                if append_meta_to_tensor_callback:
+                    append_meta_to_tensor_callback(meta_link_dict)
+
         self.cache.autoflush = initial_autoflush
         self.cache.maybe_flush()
 
@@ -2187,7 +2192,7 @@ class ChunkEngine:
 
         return ShapeInterval(min_shape, max_shape)
 
-    def _transform_callback(self, sample, flat: Optional[bool]):
+    def _transform_callback(self, sample, flat: Optional[bool], **kwargs):
         """Used in transforms to handle linked tensors."""
         assert self._all_chunk_engines is not None
         for k, v in self.tensor_meta.links.items():

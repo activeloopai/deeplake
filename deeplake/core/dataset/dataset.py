@@ -3111,8 +3111,8 @@ class Dataset:
                 if progressbar:
                     sys.stderr.write(f"Copying tensor: {tensor}.\n")
 
-                if self.average_samples_weight[tensor] > 10 * KB:
-                    hub.compute(copy_f, name="tensor copy transform")(
+                if self.average_samples_weight[tensor] > 10 * KB or copy_f is _copy_tensor_unlinked_full_sample:
+                    deeplake.compute(copy_f, name="tensor copy transform")(
                         tensor_name=tensor
                     ).eval(
                         self,
@@ -3516,21 +3516,13 @@ def _copy_tensor(
 
 
 def _copy_tensor_unlinked_full_sample(
-    sample_in, sample_out, tensor_name, use_extend=False, progressbar=True
+    sample_in, sample_out, tensor_name, **kwargs
 ):
-    if use_extend:
-        sample_out[tensor_name].extend(
-            sample_in[tensor_name].chunk_engine.get_hub_read_sample(
-                sample_in.index.values[0].value
-            ),
-            progressbar=progressbar,
+    sample_out[tensor_name].append(
+        sample_in[tensor_name].chunk_engine.get_deeplake_read_sample(
+            sample_in.index.values[0].value
         )
-    else:
-        sample_out[tensor_name].append(
-            sample_in[tensor_name].chunk_engine.get_hub_read_sample(
-                sample_in.index.values[0].value
-            )
-        )
+    )
 
 
 def _copy_tensor_unlinked_partial_sample(

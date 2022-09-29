@@ -252,7 +252,17 @@ def test_basic(local_ds_generator, cat_path, flower_path, create_shape_tensor, v
     ds.commit()
     view = ds[:5]
     view.save_view(optimize=True)
+    assert view["_linked_images_id"].shape == (5, 1)
+    assert view["_linked_images_2_id"].shape == (5, 1)
+    assert view["_linked_images_info"].shape == (5, 1)
+    assert view["_linked_images_2_info"].shape == (5, 1)
+
     view2 = ds.get_views()[0].load()
+    assert view2["_linked_images_id"].shape == (5, 1)
+    assert view2["_linked_images_2_id"].shape == (5, 1)
+    assert view2["_linked_images_info"].shape == (5, 1)
+    assert view2["_linked_images_2_info"].shape == (5, 1)
+
     view1_np = view.linked_images.numpy(aslist=True)
     view2_np = view2.linked_images.numpy(aslist=True)
 
