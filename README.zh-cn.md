@@ -77,6 +77,7 @@ Deep Lake 是用 100% Python 编写的，可以使用 pip 快速安装。
 ```sh
 pip3 install deeplake
 ```
+默认情况下，Deep Lake 不安装音频、视频、google 和其他功能的依赖项。<a href="https://docs.deeplake.ai/en/latest/Installation.html">此处提供了有关所有安装选项的详细信息</a> 。
 
 ### 🧠 在 Hub 数据集上训练 PyTorch 模型
 
