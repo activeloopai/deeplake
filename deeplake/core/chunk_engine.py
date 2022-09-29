@@ -960,7 +960,6 @@ class ChunkEngine:
         append_link_callback=None,
         update_link_callback=None,
         append_meta_to_tensor_callback=None,
-
     ):
         """Pads the tensor with empty samples and appends value at the end."""
         self.check_link_ready()
@@ -968,7 +967,11 @@ class ChunkEngine:
         if num_samples_to_pad > 0:
             if self.num_samples == 0:
                 # set htype, dtype, shape, we later update it with empty sample
-                self.extend([value], link_callback=append_link_callback, append_meta_to_tensor_callback=append_meta_to_tensor_callback)
+                self.extend(
+                    [value],
+                    link_callback=append_link_callback,
+                    append_meta_to_tensor_callback=append_meta_to_tensor_callback,
+                )
                 num_samples_to_pad -= 1
                 update_first_sample = True
 
@@ -992,9 +995,17 @@ class ChunkEngine:
                 self.update(Index(0), empty_sample, link_callback=update_link_callback)
 
             # pad
-            self.extend(empty_samples, link_callback=append_link_callback, append_meta_to_tensor_callback=append_meta_to_tensor_callback)
+            self.extend(
+                empty_samples,
+                link_callback=append_link_callback,
+                append_meta_to_tensor_callback=append_meta_to_tensor_callback,
+            )
 
-        self.extend([value], link_callback=append_link_callback, append_meta_to_tensor_callback=append_meta_to_tensor_callback)
+        self.extend(
+            [value],
+            link_callback=append_link_callback,
+            append_meta_to_tensor_callback=append_meta_to_tensor_callback,
+        )
 
     def update(
         self,
@@ -2053,7 +2064,7 @@ class ChunkEngine:
             if broadcast:
                 ls = repeat(ls)  # type: ignore
             for i, sample in zip(index.values[0].indices(seq_len), ls):  # type: ignore
-                link_callback( # we should optimize this
+                link_callback(  # we should optimize this
                     i, sub_index=Index(index.values[1:]), new_sample=sample, flat=False
                 )
 
