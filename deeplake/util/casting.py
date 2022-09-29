@@ -34,7 +34,7 @@ def get_dtype(val: Union[np.ndarray, Sequence, Sample]) -> np.dtype:
     elif isinstance(val, bool):
         return np.dtype(bool)
     elif isinstance(val, Sequence):
-        return reduce(_get_bigger_dtype, map(get_dtype, val))
+        return get_dtype(val[0])
     else:
         raise TypeError(f"Cannot infer numpy dtype for {val}")
 
@@ -135,6 +135,9 @@ def get_incompatible_dtype(
             if np.can_cast(samples, dtype)
             else getattr(samples, "dtype", np.array(samples).dtype)
         )
+    elif isinstance(samples, (list, set, tuple)):
+        samples = np.array(samples)
+        return get_incompatible_dtype(samples, dtype)
     elif isinstance(samples, Sequence):
         for dt in map(lambda x: get_incompatible_dtype(x, dtype), samples):
             if dt:
