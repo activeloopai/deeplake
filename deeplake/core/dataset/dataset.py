@@ -310,7 +310,7 @@ class Dataset:
         for tensor_name, tensor_value in self.tensors.items():
             tensors_weight_dict[tensor_name] = sys.getsizeof(tensor_value) / len(
                 tensor_value
-            )        
+            )
         return tensors_weight_dict
 
     def __getstate__(self) -> Dict[str, Any]:
@@ -3111,7 +3111,7 @@ class Dataset:
                 if progressbar:
                     sys.stderr.write(f"Copying tensor: {tensor}.\n")
 
-                if self.average_samples_weight[tensor] > 10*KB:
+                if self.average_samples_weight[tensor] > 10 * KB:
                     hub.compute(copy_f, name="tensor copy transform")(
                         tensor_name=tensor
                     ).eval(
@@ -3506,7 +3506,6 @@ class Dataset:
         return memoryview(b"")  # No-op context manager
 
 
-
 def _copy_tensor(
     sample_in, sample_out, tensor_name, use_extend=False, progressbar=True
 ):
@@ -3516,14 +3515,17 @@ def _copy_tensor(
         sample_out[tensor_name].append(sample_in[tensor_name])
 
 
-def _copy_tensor_unlinked_full_sample(sample_in, sample_out, tensor_name, use_extend=False, progressbar=True):
+def _copy_tensor_unlinked_full_sample(
+    sample_in, sample_out, tensor_name, use_extend=False, progressbar=True
+):
     if use_extend:
         sample_out[tensor_name].extend(
             sample_in[tensor_name].chunk_engine.get_hub_read_sample(
                 sample_in.index.values[0].value
-        	), progressbar=progressbar,
-    	)
-    else:    
+            ),
+            progressbar=progressbar,
+        )
+    else:
         sample_out[tensor_name].append(
             sample_in[tensor_name].chunk_engine.get_hub_read_sample(
                 sample_in.index.values[0].value
@@ -3531,8 +3533,12 @@ def _copy_tensor_unlinked_full_sample(sample_in, sample_out, tensor_name, use_ex
         )
 
 
-def _copy_tensor_unlinked_partial_sample(sample_in, sample_out, tensor_name, use_extend=False, progressbar=True):
+def _copy_tensor_unlinked_partial_sample(
+    sample_in, sample_out, tensor_name, use_extend=False, progressbar=True
+):
     if use_extend:
-        sample_out[tensor_name].extend(sample_in[tensor_name].numpy(), progressbar=progressbar)
+        sample_out[tensor_name].extend(
+            sample_in[tensor_name].numpy(), progressbar=progressbar
+        )
     else:
         sample_out[tensor_name].append(sample_in[tensor_name].numpy())

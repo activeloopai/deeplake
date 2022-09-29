@@ -673,7 +673,9 @@ class Tensor:
                 )
             num_samples_to_pad = item - self.num_samples
             append_link_callback = self._append_to_links if self.meta.links else None
-            append_meta_to_tensor_callback = self._append_meta_to_tensor if self.meta.links else None
+            append_meta_to_tensor_callback = (
+                self._append_meta_to_tensor if self.meta.links else None
+            )
 
             self.chunk_engine.pad_and_append(
                 num_samples_to_pad,
@@ -976,7 +978,8 @@ class Tensor:
     def _append_meta_to_tensor(self, meta_link_dict):
         if meta_link_dict:
             for k, v in meta_link_dict.items():
-                self.dataset[k].extend(v)
+                tensor = Tensor(k, self.dataset)
+                tensor.extend(v)
 
     def _update_links(
         self,
