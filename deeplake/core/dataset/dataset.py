@@ -366,6 +366,7 @@ class Dataset:
         ],
         is_iteration: bool = False,
     ):
+        is_iteration = is_iteration or self.is_iteration
         if isinstance(item, str):
             fullpath = posixpath.join(self.group_index, item)
             enabled_tensors = self.enabled_tensors
