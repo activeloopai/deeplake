@@ -1,6 +1,5 @@
 import sys
 from collections import OrderedDict
-from deeplake.constants import KB
 from deeplake.core.partial_reader import PartialReader
 from deeplake.core.storage.deeplake_memory_object import DeepLakeMemoryObject
 from deeplake.core.chunk.base_chunk import BaseChunk
@@ -125,8 +124,8 @@ class LRUCache(StorageProvider):
             buff = self.get_bytes(path, 0, partial_bytes)
             obj = expected_class.frombuffer(buff, meta, partial=True)
             obj.data_bytes = PartialReader(self, path, header_offset=obj.header_bytes)
-            # if obj.nbytes <= self.cache_size:
-            #     self._insert_in_cache(path, obj)
+            if obj.nbytes <= self.cache_size:
+                self._insert_in_cache(path, obj)
             return obj
         if url:
             from deeplake.util.remove_cache import get_base_storage
@@ -147,7 +146,6 @@ class LRUCache(StorageProvider):
                 raise ValueError(
                     f"'{path}' was expected to have the class '{expected_class.__name__}'. Instead, got: '{type(item)}'."
                 )
-            return item
 
         if isinstance(item, (bytes, memoryview)):
             obj = (
