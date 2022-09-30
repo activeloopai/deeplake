@@ -594,7 +594,7 @@ class Tensor:
                 a, b = indexing_history
                 if item - b == b - a:
                     is_iteration = True
-                indexing_history = [b, item]
+                self._indexing_history = [b, item]
             else:
                 indexing_history.append(item)
         return Tensor(
