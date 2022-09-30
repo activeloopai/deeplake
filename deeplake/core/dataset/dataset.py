@@ -372,7 +372,10 @@ class Dataset:
             if enabled_tensors is None or fullpath in enabled_tensors:
                 tensor = self._get_tensor_from_root(fullpath)
                 if tensor is not None:
-                    return tensor[self.index]
+                    index = self.index
+                    if index.is_trivial() and is_iteration == tensor.is_iteration:
+                        return tensor
+                    return tensor.__getitem__(self.index, is_iteration=is_iteration)
             if self._has_group_in_root(fullpath):
                 ret = self.__class__(
                     storage=self.storage,

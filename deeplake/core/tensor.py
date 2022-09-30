@@ -708,7 +708,7 @@ class Tensor:
         ret = self.chunk_engine.numpy(
             self.index,
             aslist=aslist,
-            fetch_chunks=fetch_chunks,
+            fetch_chunks=fetch_chunks or self.is_iteration,
             pad_tensor=self.pad_tensor,
         )
         if self.htype == "point_cloud":
