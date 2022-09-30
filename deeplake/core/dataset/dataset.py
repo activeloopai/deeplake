@@ -304,7 +304,7 @@ class Dataset:
         """Return the minimum length of the tensor"""
         return min([len(tensor) for tensor in self.tensors.values()])
 
-    @property
+    # @property
     def average_samples_weight(self):
         """Return the average weight of the samples in the dataset, based on weights of several randomly selected samples"""
         average_weight_dict = {}
@@ -324,7 +324,7 @@ class Dataset:
             n_random_samples if n_random_samples < tensor_len else tensor_len
         )
         random_indices = self._rand_sample_indices_generator(
-            n_random_samples, start_index=0, end_index=tensor_len
+            n_random_samples, start_index=0, end_index=max(tensor_len - 1, 0)
         )
         return self.tensors[tensor_name][random_indices]
 
@@ -3133,7 +3133,7 @@ class Dataset:
                     sys.stderr.write(f"Copying tensor: {tensor}.\n")
 
                 if (
-                    self.average_samples_weight[tensor] > 10 * KB
+                    self.average_samples_weight()[tensor] > 10 * KB
                     or copy_f is _copy_tensor_unlinked_full_sample
                 ):
                     deeplake.compute(copy_f, name="tensor copy transform")(
