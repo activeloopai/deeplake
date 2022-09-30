@@ -280,13 +280,16 @@ class Dataset:
     def __len__(self):
         """Returns the length of the smallest tensor"""
         tensor_lengths = [len(tensor) for tensor in self.tensors.values()]
-        if min(tensor_lengths, default=0) != max(tensor_lengths, default=0):
+        pad_tensors = self._pad_tensors
+        if not pad_tensors and min(tensor_lengths, default=0) != max(
+            tensor_lengths, default=0
+        ):
             warning(
                 "The length of tensors in the dataset is different. The len(ds) returns the length of the "
                 "smallest tensor in the dataset. If you want the length of the longest tensor in the dataset use "
                 "ds.max_len."
             )
-        length_fn = max if self._pad_tensors else min
+        length_fn = max if pad_tensors else min
         return length_fn(tensor_lengths, default=0)
 
     @property
@@ -382,6 +385,7 @@ class Dataset:
                     path=self.path,
                     link_creds=self.link_creds,
                     pad_tensors=self._pad_tensors,
+                    enabled_tensors=self.enabled_tensors,
                 )
             elif "/" in item:
                 splt = posixpath.split(item)
@@ -440,6 +444,7 @@ class Dataset:
                     is_iteration=is_iteration,
                     link_creds=self.link_creds,
                     pad_tensors=self._pad_tensors,
+                    enabled_tensors=self.enabled_tensors,
                 )
         else:
             raise InvalidKeyTypeError(item)
@@ -3426,7 +3431,19 @@ class Dataset:
 
     @property
     def max_view(self):
-        pass
+        return self.__class__(
+            storage=self.storage,
+            index=self.index,
+            group_index=self.group_index,
+            read_only=self.read_only,
+            token=self._token,
+            verbose=False,
+            version_state=self.version_state,
+            path=self.path,
+            link_creds=self.link_creds,
+            pad_tensors=True,
+            enabled_tensors=self.enabled_tensors,
+        )
 
     def _temp_write_access(self):
         # Defined in DeepLakeCloudDataset
