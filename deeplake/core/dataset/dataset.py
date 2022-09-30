@@ -277,7 +277,7 @@ class Dataset:
         """Returns the client of the dataset."""
         return self._client
 
-    def __len__(self):
+    def __len__(self, warn: bool = True):
         """Returns the length of the smallest tensor"""
         tensor_lengths = [len(tensor) for tensor in self.tensors.values()]
         pad_tensors = self._pad_tensors
@@ -443,7 +443,8 @@ class Dataset:
                         a, b = indexing_history
                         if item - b == b - a:
                             is_iteration = True
-                        self._indexing_history = [b, item]
+                        if item < a or item > b:
+                            self._indexing_history = [b, item]
                     else:
                         indexing_history.append(item)
                 ret = self.__class__(
