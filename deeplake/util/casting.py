@@ -135,10 +135,6 @@ def get_incompatible_dtype(
             if np.can_cast(samples, dtype)
             else getattr(samples, "dtype", np.array(samples).dtype)
         )
-    elif isinstance(samples, (list, set, tuple)):
-        for sample in samples:
-            err = get_incompatible_dtype(sample, dtype)
-        return err
     elif isinstance(samples, Sequence):
         for dt in map(lambda x: get_incompatible_dtype(x, dtype), samples):
             if dt:
