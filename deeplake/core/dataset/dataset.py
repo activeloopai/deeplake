@@ -318,6 +318,7 @@ class Dataset:
         return average_weight_dict
 
     def _get_random_samples(self, tensor_name, n_random_samples=10):
+        """Return random samples"""
         tensor_len = len(self.tensors[tensor_name])
         n_random_samples = (
             n_random_samples if n_random_samples < tensor_len else tensor_len
@@ -329,6 +330,7 @@ class Dataset:
 
     @staticmethod
     def _rand_sample_indices_generator(count, start_index, end_index):
+        """Return random indices"""
         ri = partial(randint, start_index, end_index)
         return [ri() for _ in range(count)]
 
