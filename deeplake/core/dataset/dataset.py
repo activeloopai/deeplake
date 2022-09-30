@@ -444,7 +444,7 @@ class Dataset:
                 - May also modify the defaults for other parameters.
             dtype (str): Optionally override this tensor's ``dtype``. All subsequent samples are required to have this ``dtype``.
             sample_compression (str): All samples will be compressed in the provided format. If ``None``, samples are uncompressed. For ``link[]`` tensors, ``sample_compression`` is used only for optimizing dataset views.
-            chunk_compression (str): All chunks will be compressed in the provided format. If ``None``, chunks are uncompressed.
+            chunk_compression (str): All chunks will be compressed in the provided format. If ``None``, chunks are uncompressed. For ``link[]`` tensors, ``chunk_compression`` is used only for optimizing dataset views.
             hidden (bool): If ``True``, the tensor will be hidden from ds.tensors but can still be accessed via ``ds[tensor_name]``.
             create_sample_info_tensor (bool): If ``True``, meta data of individual samples will be saved in a hidden tensor. This data can be accessed via :attr:`tensor[i].sample_info <deeplake.core.tensor.Tensor.sample_info>`.
             create_shape_tensor (bool): If ``True``, an associated tensor containing shapes of each sample will be created.
