@@ -443,7 +443,7 @@ class Dataset:
                         a, b = indexing_history
                         if item - b == b - a:
                             is_iteration = True
-                        indexing_history = [b, item]
+                        self.indexing_history = [b, item]
                     else:
                         indexing_history.append(item)
                 ret = self.__class__(
