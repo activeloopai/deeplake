@@ -966,7 +966,7 @@ class Tensor:
                 ):
                     v = v.astype(tensor.dtype)  # bc
 
-                if meta_link_dict:
+                if meta_link_dict is None:
                     tensor.append(v)
                     continue
 
