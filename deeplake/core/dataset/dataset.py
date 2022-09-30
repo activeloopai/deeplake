@@ -7,6 +7,7 @@ import posixpath
 from logging import warning
 from typing import Any, Callable, Dict, List, Optional, Sequence, Tuple, Union
 from functools import partial
+from random import randint
 
 import pathlib
 import numpy as np
@@ -305,13 +306,31 @@ class Dataset:
 
     @property
     def average_samples_weight(self):
-        """Return the average weight of the samples in the dataset"""
-        tensors_weight_dict = {}
-        for tensor_name, tensor_value in self.tensors.items():
-            tensors_weight_dict[tensor_name] = sys.getsizeof(tensor_value) / len(
-                tensor_value
-            )
-        return tensors_weight_dict
+        """Return the average weight of the samples in the dataset, based on weights of several randomly selected samples"""
+        average_weight_dict = {}
+
+        for tensor_name, tensor_values in self.tensors.items():
+            average_weight = []
+            random_samples = self._get_random_samples(tensor_name)
+            for tensor in random_samples:
+                average_weight.append(sys.getsizeof(tensor.tobytes()))
+            average_weight_dict[tensor_name] = sum(average_weight) / len(average_weight)
+        return average_weight_dict
+
+    def _get_random_samples(self, tensor_name, n_random_samples=10):
+        tensor_len = len(self.tensors[tensor_name])
+        n_random_samples = (
+            n_random_samples if n_random_samples < tensor_len else tensor_len
+        )
+        random_indices = self._rand_sample_indices_generator(
+            n_random_samples, start_index=0, end_index=tensor_len
+        )
+        return self.tensors[tensor_name][random_indices]
+
+    @staticmethod
+    def _rand_sample_indices_generator(count, start_index, end_index):
+        ri = partial(randint, start_index, end_index)
+        return [ri() for _ in range(count)]
 
     def __getstate__(self) -> Dict[str, Any]:
         """Returns a dict that can be pickled and used to restore this dataset.
@@ -3094,8 +3113,7 @@ class Dataset:
         else:
             reset_index = False
         try:
-            # dest_ds.tensors
-            for tensor in ["images"]:
+            for tensor in dest_ds.tensors:
                 src = self[tensor]
                 copy_f = (
                     (
