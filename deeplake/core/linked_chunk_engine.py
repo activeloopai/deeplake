@@ -9,7 +9,11 @@ from deeplake.core.linked_sample import LinkedSample
 from deeplake.core.meta.encode.creds import CredsEncoder
 from deeplake.core.storage import LRUCache
 from deeplake.core.tensor_link import read_linked_sample
-from deeplake.util.exceptions import ReadOnlyModeError, UnableToReadFromUrlError
+from deeplake.util.exceptions import (
+    BadLinkError,
+    ReadOnlyModeError,
+    UnableToReadFromUrlError,
+)
 from deeplake.util.keys import get_creds_encoder_key
 from deeplake.util.link import get_path_creds_key, save_link_creds
 from deeplake.util.video import normalize_index
@@ -178,14 +182,17 @@ class LinkedChunkEngine(ChunkEngine):
             if sample is None or sample.path == "":
                 verified_samples.append(sample)
             else:
-                verified_samples.append(
-                    read_linked_sample(
-                        sample.path,
-                        sample.creds_key,
-                        self.link_creds,
-                        verify=self.verify,
+                try:
+                    verified_samples.append(
+                        read_linked_sample(
+                            sample.path,
+                            sample.creds_key,
+                            self.link_creds,
+                            verify=self.verify,
+                        )
                     )
-                )
+                except Exception as e:
+                    raise BadLinkError from e
         return verified_samples
 
     def register_new_creds(self, num_samples_added, samples):

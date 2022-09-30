@@ -15,6 +15,7 @@ from deeplake.tests.common import (
 from deeplake.tests.storage_fixtures import enabled_remote_storages
 from deeplake.core.storage import GCSProvider
 from deeplake.util.exceptions import (
+    BadLinkError,
     InvalidOperationError,
     TensorDtypeMismatchError,
     TensorDoesNotExistError,
@@ -2147,3 +2148,15 @@ def test_class_label_bug(memory_ds):
         b = ds.commit()
         ds.checkout(b)
         assert ds.abc.info.class_names == ["a", "b", "c"]
+
+
+@pytest.mark.parametrize("verify", [True, False])
+def test_bad_link(local_ds_generator, verify):
+    with local_ds_generator() as ds:
+        ds.create_tensor("images", htype="link[image]", verify=verify)
+        ds.images.append(deeplake.link("https://picsum.photos/200/200"))
+        with pytest.raises(BadLinkError):
+            ds.images.append(deeplake.link("https://picsum.photos/lalala"))
+
+    with local_ds_generator() as ds:
+        assert len(ds) == 1

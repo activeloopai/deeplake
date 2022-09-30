@@ -443,13 +443,14 @@ class Dataset:
                 - These defaults can be overridden by explicitly passing any of the other parameters to this function.
                 - May also modify the defaults for other parameters.
             dtype (str): Optionally override this tensor's ``dtype``. All subsequent samples are required to have this ``dtype``.
-            sample_compression (str): All samples will be compressed in the provided format. If ``None``, samples are uncompressed.
+            sample_compression (str): All samples will be compressed in the provided format. If ``None``, samples are uncompressed. For ``link[]`` tensors, ``sample_compression`` is used only for optimizing dataset views.
             chunk_compression (str): All chunks will be compressed in the provided format. If ``None``, chunks are uncompressed.
             hidden (bool): If ``True``, the tensor will be hidden from ds.tensors but can still be accessed via ``ds[tensor_name]``.
             create_sample_info_tensor (bool): If ``True``, meta data of individual samples will be saved in a hidden tensor. This data can be accessed via :attr:`tensor[i].sample_info <deeplake.core.tensor.Tensor.sample_info>`.
             create_shape_tensor (bool): If ``True``, an associated tensor containing shapes of each sample will be created.
             create_id_tensor (bool): If ``True``, an associated tensor containing unique ids for each sample will be created. This is useful for merge operations.
             verify (bool): Valid only for link htypes. If ``True``, all links will be verified before they are added to the tensor.
+                ``verify`` is always ``True`` even if specified as ``False`` if ``create_shape_tensor`` or ``create_sample_info_tensor`` is ``True``.
             exist_ok (bool): If ``True``, the group is created if it does not exist. if ``False``, an error is raised if the group already exists.
             **kwargs:
                 - ``htype`` defaults can be overridden by passing any of the compatible parameters.
@@ -507,7 +508,7 @@ class Dataset:
 
         kwargs["is_sequence"] = kwargs.get("is_sequence") or is_sequence
         kwargs["is_link"] = kwargs.get("is_link") or is_link
-        kwargs["verify"] = verify
+        kwargs["verify"] = create_shape_tensor or create_sample_info_tensor or verify
 
         if not self._is_root():
             return self.root.create_tensor(
