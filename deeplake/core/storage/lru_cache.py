@@ -146,6 +146,7 @@ class LRUCache(StorageProvider):
                 raise ValueError(
                     f"'{path}' was expected to have the class '{expected_class.__name__}'. Instead, got: '{type(item)}'."
                 )
+            return item
 
         if isinstance(item, (bytes, memoryview)):
             obj = (

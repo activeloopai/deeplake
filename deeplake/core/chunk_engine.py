@@ -521,7 +521,7 @@ class ChunkEngine:
             partial_bytes=partial_chunk_bytes,
         )
         if not partial_chunk_bytes and isinstance(chunk.data_bytes, PartialReader):
-            chunk.data_bytes = chunk._make_data_bytearray()
+            chunk._make_data_bytearray()
         return chunk
 
     def get_chunk_from_chunk_id(
