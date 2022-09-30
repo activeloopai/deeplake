@@ -2069,7 +2069,7 @@ class ChunkEngine:
             if broadcast:
                 ls = repeat(ls)  # type: ignore
             for i, sample in zip(index.values[0].indices(seq_len), ls):  # type: ignore
-                link_callback(  # we should optimize this
+                link_callback(  # TODO: optimize this
                     i, sub_index=Index(index.values[1:]), new_sample=sample, flat=False
                 )
 

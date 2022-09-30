@@ -250,11 +250,9 @@ class ChunkIdEncoder(Encoder, DeepLakeMemoryObject):
         Returns:
             Any: Either just a singular derived value, or a tuple with the derived value and the row index respectively.
         """
-        try:
-            if local_sample_index < 0:
-                local_sample_index += self.num_samples
-        except:
-            print()
+        if local_sample_index < 0:
+            local_sample_index += self.num_samples
+
         row_index = self.translate_index(local_sample_index)
         output: List[Any] = []
         value = self._derive_value(
