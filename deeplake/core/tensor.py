@@ -590,7 +590,7 @@ class Tensor:
             self.key,
             self.dataset,
             index=self.index[item],
-            is_iteration=is_iteration,
+            is_iteration=is_iteration or self.is_iteration,
             chunk_engine=self.chunk_engine,
         )
 

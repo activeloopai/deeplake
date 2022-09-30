@@ -375,7 +375,7 @@ class Dataset:
                     index = self.index
                     if index.is_trivial() and is_iteration == tensor.is_iteration:
                         return tensor
-                    return tensor.__getitem__(self.index, is_iteration=is_iteration)
+                    return tensor.__getitem__(index, is_iteration=is_iteration)
             if self._has_group_in_root(fullpath):
                 ret = self.__class__(
                     storage=self.storage,
