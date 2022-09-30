@@ -2147,3 +2147,25 @@ def test_class_label_bug(memory_ds):
         b = ds.commit()
         ds.checkout(b)
         assert ds.abc.info.class_names == ["a", "b", "c"]
+
+
+def test_columnar_views(memory_ds):
+    with memory_ds as ds:
+        ds.create_tensor("x")
+        ds.create_tensor("y")
+        ds.create_tensor("z")
+        ds.x.extend(list(range(2)))
+        ds.y.extend(list(range(3)))
+        ds.z.extend(list(range(2)))
+    view = ds[["x", "z"]]
+    assert list(view.tensors) == ["x", "z"]
+    ds.create_tensor("a/b")
+    ds.create_tensor("c/d")
+    view = ds[[("a", "b"), ("c", "d")]]
+    assert list(view.tensors) == ["a/b", "c/d"]
+    ds.create_tensor("a/c")
+    ds.create_tensor("a/d")
+    view = ds["a"][["b", "d"]]
+    print(view.enabled_tensors)
+    assert list(view.tensors) == ["b", "d"]
+    assert view.group_index == "a"
