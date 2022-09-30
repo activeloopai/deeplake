@@ -313,7 +313,10 @@ class Dataset:
             average_weight = []
             random_samples = self._get_random_samples(tensor_name)
             for tensor in random_samples:
-                average_weight.append(sys.getsizeof(tensor.tobytes()))
+                if tensor.meta.chunk_compression:
+                    average_weight.append(sys.getsizeof(tensor.numpy()))
+                else:
+                    average_weight.append(sys.getsizeof(tensor.tobytes()))
             average_weight_dict[tensor_name] = sum(average_weight) / len(average_weight)
         return average_weight_dict
 
