@@ -39,7 +39,7 @@ or :meth:`Tensor.numpy() <deeplake.core.tensor.Tensor.numpy>` on its tensors.
 """
 
 from typing import Dict, Set
-from deeplake.util.bugout_reporter import deeplake_reporter, feature_report_path
+from deeplake.util.bugout_reporter import feature_report_path
 from deeplake.util.tag import process_hub_path
 from deeplake.util.hash import hash_inputs
 from deeplake.constants import WANDB_JSON_FILENMAE
