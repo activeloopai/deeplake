@@ -39,6 +39,7 @@ or :meth:`Tensor.numpy() <deeplake.core.tensor.Tensor.numpy>` on its tensors.
 """
 
 from typing import Dict, Set
+from deeplake.util.bugout_reporter import deeplake_reporter, feature_report_path
 from deeplake.util.tag import process_hub_path
 from deeplake.util.hash import hash_inputs
 from deeplake.constants import WANDB_JSON_FILENMAE
@@ -190,6 +191,7 @@ def dataset_committed(ds):
     run = wandb_run()
     key = get_ds_key(ds)
     if run:
+        feature_report_path(ds.path, "wandb_dataset_committed", {})
         if run.id not in _WRITTEN_DATASETS:
             _WRITTEN_DATASETS.clear()
             _WRITTEN_DATASETS[run.id] = {}
@@ -250,6 +252,7 @@ def dataset_read(ds):
     run = wandb_run()
     if not run:
         return
+    feature_report_path(ds.path, "wandb_dataset_read", {})
     if run.id not in _READ_DATASETS:
         _READ_DATASETS.clear()
         _READ_DATASETS[run.id] = {}
