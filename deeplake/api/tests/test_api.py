@@ -1249,7 +1249,7 @@ def test_tobytes(memory_ds, compressed_image_paths, audio_paths):
 
 def test_tobytes_link(memory_ds):
     with memory_ds as ds:
-        ds.create_tensor("images", htype="link[image]")
+        ds.create_tensor("images", htype="link[image]", sample_compression="jpg")
         ds.images.append(deeplake.link("https://picsum.photos/id/237/200/300"))
         sample = deeplake.read("https://picsum.photos/id/237/200/300")
         assert ds.images[0].tobytes() == sample.buffer
@@ -2153,7 +2153,9 @@ def test_class_label_bug(memory_ds):
 @pytest.mark.parametrize("verify", [True, False])
 def test_bad_link(local_ds_generator, verify):
     with local_ds_generator() as ds:
-        ds.create_tensor("images", htype="link[image]", verify=verify)
+        ds.create_tensor(
+            "images", htype="link[image]", sample_compression="jpg", verify=verify
+        )
         ds.images.append(deeplake.link("https://picsum.photos/200/200"))
         with pytest.raises(BadLinkError):
             ds.images.append(deeplake.link("https://picsum.photos/lalala"))

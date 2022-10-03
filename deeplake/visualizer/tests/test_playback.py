@@ -32,7 +32,7 @@ def test_video_playback(local_ds_generator, video_paths):
 )
 def test_linked_video_playback(local_ds_generator, gcs_path):
     with local_ds_generator() as ds:
-        ds.create_tensor("video_links", htype="link[video]")
+        ds.create_tensor("video_links", htype="link[video]", sample_compression="mp4")
         ds.video_links.append(
             deeplake.link(
                 "http://commondatastorage.googleapis.com/gtv-videos-bucket/sample/ForBiggerJoyrides.mp4",
