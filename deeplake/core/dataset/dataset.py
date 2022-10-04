@@ -1608,6 +1608,7 @@ class Dataset:
         self,
         tensors: Optional[Sequence[str]] = None,
         tobytes: Union[bool, Sequence[str]] = False,
+        fetch_chunks: bool = True,
     ):
         """Converts the dataset into a tensorflow compatible format.
 
@@ -1616,12 +1617,15 @@ class Dataset:
         Args:
             tensors (List, Optional): Optionally provide a list of tensor names in the ordering that your training script expects. For example, if you have a dataset that has "image" and "label" tensors, if ``tensors=["image", "label"]``, your training script should expect each batch will be provided as a tuple of (image, label).
             tobytes (bool): If ``True``, samples will not be decompressed and their raw bytes will be returned instead of numpy arrays. Can also be a list of tensors, in which case those tensors alone will not be decompressed.
+            fetch_chunks: See fetch_chunks argument in deeplake.core.tensor.Tensor.numpy()
 
         Returns:
             tf.data.Dataset object that can be used for tensorflow training.
         """
         dataset_read(self)
-        return dataset_to_tensorflow(self, tensors=tensors, tobytes=tobytes)
+        return dataset_to_tensorflow(
+            self, tensors=tensors, tobytes=tobytes, fetch_chunks=fetch_chunks
+        )
 
     def flush(self):
         """Necessary operation after writes if caches are being used.

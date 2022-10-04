@@ -11,7 +11,7 @@ from deeplake.util.exceptions import (
 from deeplake.util.check_installation import tensorflow_installed
 
 
-def dataset_to_tensorflow(dataset, tensors, tobytes):
+def dataset_to_tensorflow(dataset, tensors, tobytes, fetch_chunks=True):
     """Converts the dataset into a tensorflow compatible format"""
     if not tensorflow_installed():
         raise ModuleNotInstalledException(
@@ -44,7 +44,7 @@ def dataset_to_tensorflow(dataset, tensors, tobytes):
                     if tobytes[key]:
                         value = [value.tobytes()]
                     else:
-                        value = value.numpy()
+                        value = value.numpy(fetch_chunks=fetch_chunks)
                     sample[key] = value
                 except SampleDecompressionError:
                     warnings.warn(
