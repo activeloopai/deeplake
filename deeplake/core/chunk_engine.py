@@ -19,6 +19,7 @@ from deeplake.core.meta.encode.base_encoder import LAST_SEEN_INDEX_COLUMN
 from deeplake.core.serialize import HEADER_SIZE_BYTES
 from deeplake.core.tensor_link import get_link_transform
 from deeplake.core.version_control.commit_diff import CommitDiff
+from deeplake.core.partial_reader import PartialReader
 from deeplake.core.version_control.commit_node import CommitNode  # type: ignore
 from deeplake.core.version_control.commit_chunk_set import CommitChunkSet  # type: ignore
 from typing import Any, Dict, List, Optional, Sequence, Union, Callable
@@ -513,12 +514,15 @@ class ChunkEngine:
         return chunk
 
     def get_chunk(self, chunk_key: str, partial_chunk_bytes=0) -> BaseChunk:
-        return self.cache.get_deeplake_object(
+        chunk = self.cache.get_deeplake_object(
             chunk_key,
             self.chunk_class,
             self.chunk_args,
             partial_bytes=partial_chunk_bytes,
         )
+        if not partial_chunk_bytes and isinstance(chunk.data_bytes, PartialReader):
+            chunk._make_data_bytearray()
+        return chunk
 
     def get_chunk_from_chunk_id(
         self, chunk_id, copy: bool = False, partial_chunk_bytes=0

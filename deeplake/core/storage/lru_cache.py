@@ -1,6 +1,5 @@
 import sys
 from collections import OrderedDict
-from deeplake.constants import KB
 from deeplake.core.partial_reader import PartialReader
 from deeplake.core.storage.deeplake_memory_object import DeepLakeMemoryObject
 from deeplake.core.chunk.base_chunk import BaseChunk

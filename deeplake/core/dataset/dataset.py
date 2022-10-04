@@ -57,7 +57,6 @@ from deeplake.util.merge import merge
 from deeplake.util.notebook import is_colab
 from deeplake.util.path import (
     convert_pathlib_to_string_if_needed,
-    get_org_id_and_ds_name,
 )
 from deeplake.util.logging import log_visualizer_link
 from deeplake.util.warnings import always_warn
@@ -231,6 +230,7 @@ class Dataset:
         self._initial_autoflush: List[
             bool
         ] = []  # This is a stack to support nested with contexts
+        self._indexing_history = []
 
     def _lock_lost_handler(self):
         """This is called when lock is acquired but lost later on due to slow update."""
@@ -277,7 +277,7 @@ class Dataset:
         """Returns the client of the dataset."""
         return self._client
 
-    def __len__(self):
+    def __len__(self, warn: bool = True):
         """Returns the length of the smallest tensor"""
         tensor_lengths = [len(tensor) for tensor in self.tensors.values()]
         pad_tensors = self._pad_tensors
@@ -358,6 +358,7 @@ class Dataset:
         # clear cache while restoring
         self.storage.clear_cache_without_flush()
         self._set_derived_attributes(verbose=False)
+        self._indexing_history = []
 
     def __getitem__(
         self,
@@ -366,13 +367,17 @@ class Dataset:
         ],
         is_iteration: bool = False,
     ):
+        is_iteration = is_iteration or self.is_iteration
         if isinstance(item, str):
             fullpath = posixpath.join(self.group_index, item)
             enabled_tensors = self.enabled_tensors
             if enabled_tensors is None or fullpath in enabled_tensors:
                 tensor = self._get_tensor_from_root(fullpath)
                 if tensor is not None:
-                    return tensor[self.index]
+                    index = self.index
+                    if index.is_trivial() and is_iteration == tensor.is_iteration:
+                        return tensor
+                    return tensor.__getitem__(index, is_iteration=is_iteration)
             if self._has_group_in_root(fullpath):
                 ret = self.__class__(
                     storage=self.storage,
@@ -432,6 +437,19 @@ class Dataset:
                     ret = self[x]
                 return ret
             else:
+                if not is_iteration and isinstance(item, int):
+                    indexing_history = self._indexing_history
+                    if len(indexing_history) == 2:
+                        a, b = indexing_history
+                        if item - b == b - a:
+                            is_iteration = True
+                            warnings.warn(
+                                "Indexing by integer in a for loop, like `for i in range(len(ds)): ... ds[i]` can be quite slow. Use `for i, sample in enumerate(ds)` instead."
+                            )
+                        if item < a or item > b:
+                            self._indexing_history = [b, item]
+                    else:
+                        indexing_history.append(item)
                 ret = self.__class__(
                     storage=self.storage,
                     index=self.index[item],
