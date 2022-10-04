@@ -992,7 +992,9 @@ class Dataset:
     def __iter__(self):
         dataset_read(self)
         for i in range(len(self)):
-            yield self.__getitem__(i, is_iteration=True)
+            yield self.__getitem__(
+                i, is_iteration=not isinstance(self.index.values[0], list)
+            )
 
     def _load_version_info(self):
         """Loads data from version_control_file otherwise assume it doesn't exist and load all empty"""

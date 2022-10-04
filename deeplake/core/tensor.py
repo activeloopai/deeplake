@@ -678,7 +678,9 @@ class Tensor:
 
     def __iter__(self):
         for i in range(len(self)):
-            yield self.__getitem__(i, is_iteration=True)
+            yield self.__getitem__(
+                i, is_iteration=not isinstance(self.index.values[0], list)
+            )
 
     def numpy(
         self, aslist=False, fetch_chunks=False
