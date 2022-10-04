@@ -267,19 +267,18 @@ def _validate_htype_overwrites(htype: str, htype_overwrite: dict):
     sc = htype_overwrite["sample_compression"]
     cc = htype_overwrite["chunk_compression"]
     compr = sc if cc in (None, UNSPECIFIED) else cc
+    actual_htype = f"link[{htype}]" if htype_overwrite["is_link"] else htype
     if htype.startswith("image") and sc == UNSPECIFIED and cc == UNSPECIFIED:
-        if not htype_overwrite["is_link"]:
-            raise TensorMetaMissingRequiredValue(
-                htype, ["chunk_compression", "sample_compression"]  # type: ignore
-            )
+        raise TensorMetaMissingRequiredValue(
+            actual_htype, ["chunk_compression", "sample_compression"]  # type: ignore
+        )
     if htype in ("audio", "video", "point_cloud"):
         if cc not in (UNSPECIFIED, None):
             raise UnsupportedCompressionError("Chunk compression", htype=htype)
         elif sc == UNSPECIFIED:
-            if not htype_overwrite["is_link"]:
-                raise TensorMetaMissingRequiredValue(
-                    htype, "sample_compression"  # type: ignore
-                )
+            raise TensorMetaMissingRequiredValue(
+                actual_htype, "sample_compression"  # type: ignore
+            )
     supported_compressions = HTYPE_SUPPORTED_COMPRESSIONS.get(htype)
     if (
         compr

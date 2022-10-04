@@ -23,7 +23,7 @@ def deeplake_compute_filter(sample_in, mod):
 def _populate_data_linked(ds, n, compressed_image_paths, labels):
     with ds:
         if "images" not in ds:
-            ds.create_tensor("images", htype="link[image]")
+            ds.create_tensor("images", htype="link[image]", sample_compression="png")
             if labels:
                 ds.create_tensor("labels", htype="class_label", class_names=class_names)
             for i in range(n):

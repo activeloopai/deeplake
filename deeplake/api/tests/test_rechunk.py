@@ -197,7 +197,7 @@ def test_rechunk_list(local_ds_generator):
 def test_rechunk_link(local_ds_generator, cat_path, flower_path, color_image_paths):
     dog_path = color_image_paths["jpeg"]
     with local_ds_generator() as ds:
-        ds.create_tensor("abc", "link[image]")
+        ds.create_tensor("abc", "link[image]", sample_compression="jpg")
         add_sample_in().eval(
             [
                 deeplake.link(dog_path),
@@ -230,6 +230,7 @@ def test_rechunk_cloud_link(local_ds_generator):
         ds.create_tensor(
             "abc",
             htype="link[image]",
+            sample_compression="jpeg",
             create_shape_tensor=False,
             create_sample_info_tensor=False,
             verify=False,
