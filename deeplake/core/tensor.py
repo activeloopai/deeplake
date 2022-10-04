@@ -246,6 +246,7 @@ class Tensor:
 
         # An optimization to skip multiple .numpy() calls when performing inplace ops on slices:
         self._skip_next_setitem = False
+        self._indexing_history = []
 
     @property
     def pad_tensor(self):
@@ -586,6 +587,19 @@ class Tensor:
             raise InvalidKeyTypeError(item)
         if isinstance(item, tuple) or item is Ellipsis:
             item = replace_ellipsis_with_slices(item, self.ndim)
+        if not is_iteration and isinstance(item, int):
+            indexing_history = self._indexing_history
+            if len(indexing_history) == 2:
+                a, b = indexing_history
+                if item - b == b - a:
+                    is_iteration = True
+                    warnings.warn(
+                        "Indexing by integer in a for loop, like `for i in range(len(ds)): ... ds.tensor[i]` can be quite slow. Use `for i, sample in enumerate(ds)` instead."
+                    )
+                if item < a or item > b:
+                    self._indexing_history = [b, item]
+            else:
+                indexing_history.append(item)
         return Tensor(
             self.key,
             self.dataset,
@@ -710,7 +724,7 @@ class Tensor:
         ret = self.chunk_engine.numpy(
             self.index,
             aslist=aslist,
-            fetch_chunks=fetch_chunks,
+            fetch_chunks=fetch_chunks or self.is_iteration,
             pad_tensor=self.pad_tensor,
         )
         if self.htype == "point_cloud":
