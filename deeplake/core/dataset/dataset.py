@@ -413,7 +413,7 @@ class Dataset:
         create_sample_info_tensor: bool = True,
         create_shape_tensor: bool = True,
         create_id_tensor: bool = True,
-        verify: bool = False,
+        verify: bool = True,
         exist_ok: bool = False,
         **kwargs,
     ):
@@ -508,6 +508,11 @@ class Dataset:
 
         kwargs["is_sequence"] = kwargs.get("is_sequence") or is_sequence
         kwargs["is_link"] = kwargs.get("is_link") or is_link
+        if not verify and (create_shape_tensor or create_sample_info_tensor):
+            warnings.warn(
+                """Setting `verify` to True. `verify`, `create_shape_tensor` and `create_sample_info_tensor` should all\
+            be False if you do not want to verify link samples."""
+            )
         kwargs["verify"] = create_shape_tensor or create_sample_info_tensor or verify
 
         if not self._is_root():
