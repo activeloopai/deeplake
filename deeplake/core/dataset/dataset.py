@@ -510,8 +510,7 @@ class Dataset:
         kwargs["is_link"] = kwargs.get("is_link") or is_link
         if not verify and (create_shape_tensor or create_sample_info_tensor):
             warnings.warn(
-                """Setting `verify` to True. `verify`, `create_shape_tensor` and `create_sample_info_tensor` should all\
-            be False if you do not want to verify link samples."""
+                "Setting `verify` to True. `verify`, `create_shape_tensor` and `create_sample_info_tensor` should all be False if you do not want to verify your link samples."
             )
         kwargs["verify"] = create_shape_tensor or create_sample_info_tensor or verify
 
