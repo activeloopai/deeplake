@@ -594,7 +594,7 @@ class Tensor:
                 if item - b == b - a:
                     is_iteration = True
                     warnings.warn(
-                        "Indexing by integer in a for loop, like `for i in range(len(ds)): ... ds[i]` can be quite slow. Use `for i, sample in enumerate(ds)` instead."
+                        "Indexing by integer in a for loop, like `for i in range(len(ds)): ... ds.tensor[i]` can be quite slow. Use `for i, sample in enumerate(ds)` instead."
                     )
                 if item < a or item > b:
                     self._indexing_history = [b, item]
