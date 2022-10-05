@@ -7,7 +7,6 @@ import posixpath
 from logging import warning
 from typing import Any, Callable, Dict, List, Optional, Sequence, Tuple, Union
 from functools import partial
-from random import randint
 
 import pathlib
 import numpy as np
@@ -25,7 +24,6 @@ from deeplake.constants import (
     FIRST_COMMIT_ID,
     DEFAULT_MEMORY_CACHE_SIZE,
     DEFAULT_LOCAL_CACHE_SIZE,
-    KB,
     MB,
     SAMPLE_INFO_TENSOR_MAX_CHUNK_SIZE,
     DEFAULT_READONLY,
