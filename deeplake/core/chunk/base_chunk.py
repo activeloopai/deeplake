@@ -107,6 +107,7 @@ class BaseChunk(DeepLakeMemoryObject):
         )
         self._item_size = None
         self._sample_size = None
+        self.write_initialization_done = False
 
     @property
     def is_fixed_shape(self):
@@ -267,7 +268,9 @@ class BaseChunk(DeepLakeMemoryObject):
             self.data_bytes = bytearray(self.data_bytes)
 
     def prepare_for_write(self):
-        ffw_chunk(self)
+        if not self.write_initialization_done:
+            ffw_chunk(self)
+            self.write_initialization_done = True
         self._make_data_bytearray()
         self.is_dirty = True
 
