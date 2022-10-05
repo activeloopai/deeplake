@@ -3533,16 +3533,11 @@ class Dataset:
         return memoryview(b"")  # No-op context manager
 
 
-def _copy_tensor(
-    sample_in, sample_out, tensor_name, use_extend=False, progressbar=True
-):
-    if use_extend:
-        sample_out[tensor_name].extend(sample_in[tensor_name], progressbar=progressbar)
-    else:
-        sample_out[tensor_name].append(sample_in[tensor_name])
+def _copy_tensor(sample_in, sample_out, tensor_name):
+     sample_out[tensor_name].append(sample_in[tensor_name])
 
 
-def _copy_tensor_unlinked_full_sample(sample_in, sample_out, tensor_name, **kwargs):
+def _copy_tensor_unlinked_full_sample(sample_in, sample_out, tensor_name):
     sample_out[tensor_name].append(
         sample_in[tensor_name].chunk_engine.get_deeplake_read_sample(
             sample_in.index.values[0].value
@@ -3550,12 +3545,5 @@ def _copy_tensor_unlinked_full_sample(sample_in, sample_out, tensor_name, **kwar
     )
 
 
-def _copy_tensor_unlinked_partial_sample(
-    sample_in, sample_out, tensor_name, use_extend=False, progressbar=True
-):
-    if use_extend:
-        sample_out[tensor_name].extend(
-            sample_in[tensor_name].numpy(), progressbar=progressbar
-        )
-    else:
-        sample_out[tensor_name].append(sample_in[tensor_name].numpy())
+def _copy_tensor_unlinked_partial_sample(sample_in, sample_out, tensor_name):
+     sample_out[tensor_name].append(sample_in[tensor_name].numpy())

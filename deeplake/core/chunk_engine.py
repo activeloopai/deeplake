@@ -497,10 +497,8 @@ class ChunkEngine:
         return self.chunk_id_encoder.get_id_for_chunk(-1)
 
     def last_appended_chunk(self) -> Optional[BaseChunk]:
-        if self.last_index == self.num_samples - 1:
-            return self.active_appended_chunk
-        self.last_index = self.num_samples - 1
-        if self.num_chunks == 0 or self.last_index in self.tile_encoder:
+        last_index = self.num_samples - 1
+        if self.num_chunks == 0 or last_index in self.tile_encoder:
             return None
         chunk_name = self.last_appended_chunk_name
         chunk_commit_id = self.get_chunk_commit(chunk_name)
@@ -681,7 +679,6 @@ class ChunkEngine:
         self.cache.maybe_flush()
         return labels
 
-    # @profile
     def _samples_to_chunks(
         self,
         samples,
@@ -788,7 +785,6 @@ class ChunkEngine:
     def update_creds(self, sample_index, sample):
         return
 
-    # @profile
     def _extend(self, samples, progressbar, update_commit_diff=True):
         if isinstance(samples, deeplake.Tensor):
             samples = tqdm(samples) if progressbar else samples
@@ -810,8 +806,6 @@ class ChunkEngine:
             use_cached_chunk=True,
         )
         return verified_samples
-
-    # @profile
 
     def extend(
         self,
@@ -943,9 +937,7 @@ class ChunkEngine:
             tile_enc.get_tile_layout_shape(global_sample_index)
         )
         tiles_index, sample_index = translate_slices(
-            [v.value for v in index.values[1:]],
-            sample_shape,
-            tile_shape,  # type: ignore
+            [v.value for v in index.values[1:]], sample_shape, tile_shape,  # type: ignore
         )
         required_tile_ids = ordered_tile_ids[tiles_index]
         tiles = np.vectorize(
@@ -986,10 +978,7 @@ class ChunkEngine:
         if num_samples_to_pad > 0:
             if self.num_samples == 0:
                 # set htype, dtype, shape, we later update it with empty sample
-                self.extend(
-                    [value],
-                    link_callback=append_link_callback,
-                )
+                self.extend([value], link_callback=append_link_callback)
                 num_samples_to_pad -= 1
                 update_first_sample = True
 
@@ -1013,15 +1002,9 @@ class ChunkEngine:
                 self.update(Index(0), empty_sample, link_callback=update_link_callback)
 
             # pad
-            self.extend(
-                empty_samples,
-                link_callback=append_link_callback,
-            )
+            self.extend(empty_samples, link_callback=append_link_callback)
 
-        self.extend(
-            [value],
-            link_callback=append_link_callback,
-        )
+        self.extend([value], link_callback=append_link_callback)
 
     def update(
         self,
@@ -1480,9 +1463,7 @@ class ChunkEngine:
         chunk_ids = enc[global_sample_index]
         local_sample_index = enc.translate_index_relative_to_chunks(global_sample_index)
         chunk, stream = self.get_video_chunk(chunk_ids[0])
-        sub_index = (
-            index.values[1].value if len(index.values) > 1 else None
-        )  # type: ignore
+        sub_index = index.values[1].value if len(index.values) > 1 else None  # type: ignore
         sample = chunk.read_sample(
             local_sample_index,
             sub_index=sub_index,
@@ -1567,9 +1548,7 @@ class ChunkEngine:
             tile_enc.get_tile_layout_shape(global_sample_index)
         )
         tiles_index, sample_index = translate_slices(
-            [v.value for v in index.values[1:]],
-            sample_shape,
-            tile_shape,  # type: ignore
+            [v.value for v in index.values[1:]], sample_shape, tile_shape,  # type: ignore
         )
         required_tile_ids = ordered_tile_ids[tiles_index]
         tiles = np.vectorize(
@@ -1946,9 +1925,7 @@ class ChunkEngine:
             else:
                 try:
                     return arr.reshape(  # type: ignore
-                        index.length_at(0, self._sequence_length),
-                        -1,
-                        *arr.shape[1:],  # type: ignore
+                        index.length_at(0, self._sequence_length), -1, *arr.shape[1:],  # type: ignore
                     )
                 except ValueError as ve:
                     raise DynamicTensorNumpyError(self.key, index, "shape") from ve
@@ -1985,8 +1962,7 @@ class ChunkEngine:
                 )
             )
             if _item_length is None
-            # type: ignore
-            else (lambda: x.length(self._sequence_length) * y.length(_item_length))
+            else (lambda: x.length(self._sequence_length) * y.length(_item_length))  # type: ignore
         )
         return IndexEntry(idx0_gen)  # type: ignore
 
@@ -2001,8 +1977,7 @@ class ChunkEngine:
         return Index(
             [
                 IndexEntry(
-                    # type: ignore
-                    self.sequence_encoder[index.values[0].value][0]
+                    self.sequence_encoder[index.values[0].value][0]  # type: ignore
                     + index.values[1].value
                 ),
                 *index.values[2:],
@@ -2018,8 +1993,7 @@ class ChunkEngine:
                     samples, diff = samples.reshape(samples.shape[-ndim:]), 0
                 if diff > 1:
                     return samples.reshape(1, *samples.shape).repeat(
-                        self._translate_2d_index(*index.values[:2]).length(None),
-                        0,  # type: ignore
+                        self._translate_2d_index(*index.values[:2]).length(None), 0,  # type: ignore
                     )
                 elif diff == 1:
                     return (
@@ -2089,9 +2063,8 @@ class ChunkEngine:
             seq_len = self._sequence_length
             if broadcast:
                 ls = repeat(ls)  # type: ignore
-            # type: ignore
-            for i, sample in zip(index.values[0].indices(seq_len), ls):
-                link_callback(  # TODO: optimize this
+            for i, sample in zip(index.values[0].indices(seq_len), ls):  # type: ignore
+                link_callback( 
                     i, sub_index=Index(index.values[1:]), new_sample=sample, flat=False
                 )
 
@@ -2142,31 +2115,24 @@ class ChunkEngine:
                             shape = sample_shape_provider(idxs[0].value)  # type: ignore
                             if self.is_sequence:
                                 if len(idxs) > 1 and not idxs[1].subscriptable():
-                                    # type: ignore
-                                    shape = tuple(shape[idxs[1].value].tolist())
+                                    shape = tuple(shape[idxs[1].value].tolist())  # type: ignore
                                     skip_dims += 1
                                 else:
                                     shape = (len(shape),) + (
                                         tuple(
                                             int(shape[0, i])  # type: ignore
-                                            # type: ignore
-                                            if np.all(shape[:, i] == shape[0, i])
+                                            if np.all(shape[:, i] == shape[0, i])  # type: ignore
                                             else None
-                                            # type: ignore
-                                            for i in range(shape.shape[1])
+                                            for i in range(shape.shape[1])  # type: ignore
                                         )
                                         or (1,)
                                     )
 
                         except IndexError:  # Happens during transforms, sample shape tensor is not populated yet
-                            shape = self.read_shape_for_sample(
-                                idxs[0].value
-                            )  # type: ignore
+                            shape = self.read_shape_for_sample(idxs[0].value)  # type: ignore
                     else:
                         self.check_link_ready()
-                        shape = self.read_shape_for_sample(
-                            idxs[0].value
-                        )  # type: ignore
+                        shape = self.read_shape_for_sample(idxs[0].value)  # type: ignore
                 skip_dims += 1
         elif not idxs[0].subscriptable():
             shape = shape[1:]
@@ -2221,7 +2187,7 @@ class ChunkEngine:
 
         return ShapeInterval(min_shape, max_shape)
 
-    def _transform_callback(self, sample, flat: Optional[bool], **kwargs):
+    def _transform_callback(self, sample, flat: Optional[bool]):
         """Used in transforms to handle linked tensors."""
         assert self._all_chunk_engines is not None
         for k, v in self.tensor_meta.links.items():
