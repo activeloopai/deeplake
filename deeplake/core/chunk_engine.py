@@ -937,7 +937,7 @@ class ChunkEngine:
             tile_enc.get_tile_layout_shape(global_sample_index)
         )
         tiles_index, sample_index = translate_slices(
-            [v.value for v in index.values[1:]], sample_shape, tile_shape,  # type: ignore
+            [v.value for v in index.values[1:]], sample_shape, tile_shape  # type: ignore
         )
         required_tile_ids = ordered_tile_ids[tiles_index]
         tiles = np.vectorize(
@@ -1548,7 +1548,7 @@ class ChunkEngine:
             tile_enc.get_tile_layout_shape(global_sample_index)
         )
         tiles_index, sample_index = translate_slices(
-            [v.value for v in index.values[1:]], sample_shape, tile_shape,  # type: ignore
+            [v.value for v in index.values[1:]], sample_shape, tile_shape  # type: ignore
         )
         required_tile_ids = ordered_tile_ids[tiles_index]
         tiles = np.vectorize(
