@@ -1151,7 +1151,6 @@ class dataset:
         return ds  # type: ignore
 
     @staticmethod
-    @deeplake_reporter.record_call
     def list(
         workspace: str = "",
         token: Optional[str] = None,
