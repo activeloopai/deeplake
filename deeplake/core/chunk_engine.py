@@ -1,5 +1,4 @@
 from collections import OrderedDict
-from token import OP
 from deeplake.client.log import logger
 import deeplake
 import numpy as np
