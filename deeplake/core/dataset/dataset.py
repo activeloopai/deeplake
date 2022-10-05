@@ -14,7 +14,7 @@ from time import time
 from tqdm import tqdm  # type: ignore
 
 import deeplake
-from deeplake.core.index.index import IndexEntry, replace_ellipsis_with_slices
+from deeplake.core.index.index import IndexEntry
 from deeplake.core.link_creds import LinkCreds
 from deeplake.util.invalid_view_op import invalid_view_op
 from deeplake.api.info import load_info
@@ -57,7 +57,6 @@ from deeplake.util.merge import merge
 from deeplake.util.notebook import is_colab
 from deeplake.util.path import (
     convert_pathlib_to_string_if_needed,
-    get_org_id_and_ds_name,
 )
 from deeplake.util.logging import log_visualizer_link
 from deeplake.util.warnings import always_warn
@@ -144,6 +143,7 @@ class Dataset:
         link_creds=None,
         pad_tensors: bool = False,
         lock: bool = True,
+        enabled_tensors: Optional[List[str]] = None,
         **kwargs,
     ):
         """Initializes a new or existing dataset.
@@ -164,7 +164,7 @@ class Dataset:
             pad_tensors (bool): If ``True``, shorter tensors will be padded to the length of the longest tensor.
             **kwargs: Passing subclass variables through without errors.
             lock (bool): Whether the dataset should be locked for writing. Only applicable for S3, Deep Lake storage and GCS datasets. No effect if read_only=True.
-
+            enabled_tensors (List[str], Optional): List of tensors that are enabled in this view. By default all tensors are enabled.
 
         Raises:
             ValueError: If an existing local path is given, it must be a directory.
@@ -209,8 +209,13 @@ class Dataset:
         d["_parent_dataset"] = None
         d["_pad_tensors"] = pad_tensors
         d["_locking_enabled"] = lock
-
-        self.__dict__.update(d)
+        dct = self.__dict__
+        dct.update(d)
+        dct["enabled_tensors"] = (
+            set(self._resolve_tensor_list(enabled_tensors, root=True))
+            if enabled_tensors
+            else None
+        )
         try:
             self._set_derived_attributes()
         except LockedException:
@@ -225,6 +230,7 @@ class Dataset:
         self._initial_autoflush: List[
             bool
         ] = []  # This is a stack to support nested with contexts
+        self._indexing_history: List[int] = []
 
     def _lock_lost_handler(self):
         """This is called when lock is acquired but lost later on due to slow update."""
@@ -271,16 +277,19 @@ class Dataset:
         """Returns the client of the dataset."""
         return self._client
 
-    def __len__(self):
+    def __len__(self, warn: bool = True):
         """Returns the length of the smallest tensor"""
         tensor_lengths = [len(tensor) for tensor in self.tensors.values()]
-        if min(tensor_lengths, default=0) != max(tensor_lengths, default=0):
+        pad_tensors = self._pad_tensors
+        if not pad_tensors and min(tensor_lengths, default=0) != max(
+            tensor_lengths, default=0
+        ):
             warning(
                 "The length of tensors in the dataset is different. The len(ds) returns the length of the "
                 "smallest tensor in the dataset. If you want the length of the longest tensor in the dataset use "
                 "ds.max_len."
             )
-        length_fn = max if self._pad_tensors else min
+        length_fn = max if pad_tensors else min
         return length_fn(tensor_lengths, default=0)
 
     @property
@@ -321,6 +330,7 @@ class Dataset:
             "_parent_dataset",
             "_pad_tensors",
             "_locking_enabled",
+            "enabled_tensors",
         ]
         state = {k: getattr(self, k) for k in keys}
         state["link_creds"] = self.link_creds
@@ -348,6 +358,7 @@ class Dataset:
         # clear cache while restoring
         self.storage.clear_cache_without_flush()
         self._set_derived_attributes(verbose=False)
+        self._indexing_history = []
 
     def __getitem__(
         self,
@@ -356,12 +367,18 @@ class Dataset:
         ],
         is_iteration: bool = False,
     ):
+        is_iteration = is_iteration or self.is_iteration
         if isinstance(item, str):
             fullpath = posixpath.join(self.group_index, item)
-            tensor = self._get_tensor_from_root(fullpath)
-            if tensor is not None:
-                return tensor[self.index]
-            elif self._has_group_in_root(fullpath):
+            enabled_tensors = self.enabled_tensors
+            if enabled_tensors is None or fullpath in enabled_tensors:
+                tensor = self._get_tensor_from_root(fullpath)
+                if tensor is not None:
+                    index = self.index
+                    if index.is_trivial() and is_iteration == tensor.is_iteration:
+                        return tensor
+                    return tensor.__getitem__(index, is_iteration=is_iteration)
+            if self._has_group_in_root(fullpath):
                 ret = self.__class__(
                     storage=self.storage,
                     index=self.index,
@@ -373,6 +390,7 @@ class Dataset:
                     path=self.path,
                     link_creds=self.link_creds,
                     pad_tensors=self._pad_tensors,
+                    enabled_tensors=self.enabled_tensors,
                 )
             elif "/" in item:
                 splt = posixpath.split(item)
@@ -380,19 +398,72 @@ class Dataset:
             else:
                 raise TensorDoesNotExistError(item)
         elif isinstance(item, (int, slice, list, tuple, Index, type(Ellipsis))):
-            ret = self.__class__(
-                storage=self.storage,
-                index=self.index[item],
-                group_index=self.group_index,
-                read_only=self._read_only,
-                token=self._token,
-                verbose=False,
-                version_state=self.version_state,
-                path=self.path,
-                is_iteration=is_iteration,
-                link_creds=self.link_creds,
-                pad_tensors=self._pad_tensors,
-            )
+            if (
+                isinstance(item, list)
+                and len(item)
+                and (
+                    isinstance(item[0], str)
+                    or (
+                        isinstance(item[0], (list, tuple))
+                        and len(item[0])
+                        and isinstance(item[0][0], str)
+                    )
+                )
+            ):
+                group_index = self.group_index
+                enabled_tensors = [
+                    posixpath.join(
+                        group_index, (x if isinstance(x, str) else "/".join(x))
+                    )
+                    for x in item
+                ]
+                ret = self.__class__(
+                    storage=self.storage,
+                    index=self.index,
+                    group_index=self.group_index,
+                    read_only=self._read_only,
+                    token=self._token,
+                    verbose=False,
+                    version_state=self.version_state,
+                    path=self.path,
+                    is_iteration=is_iteration,
+                    link_creds=self.link_creds,
+                    pad_tensors=self._pad_tensors,
+                    enabled_tensors=enabled_tensors,
+                )
+            elif isinstance(item, tuple) and len(item) and isinstance(item[0], str):
+                ret = self
+                for x in item:
+                    ret = self[x]
+                return ret
+            else:
+                if not is_iteration and isinstance(item, int):
+                    indexing_history = self._indexing_history
+                    if len(indexing_history) == 2:
+                        a, b = indexing_history
+                        if item - b == b - a:
+                            is_iteration = True
+                            warnings.warn(
+                                "Indexing by integer in a for loop, like `for i in range(len(ds)): ... ds[i]` can be quite slow. Use `for i, sample in enumerate(ds)` instead."
+                            )
+                        if item < a or item > b:
+                            self._indexing_history = [b, item]
+                    else:
+                        indexing_history.append(item)
+                ret = self.__class__(
+                    storage=self.storage,
+                    index=self.index[item],
+                    group_index=self.group_index,
+                    read_only=self._read_only,
+                    token=self._token,
+                    verbose=False,
+                    version_state=self.version_state,
+                    path=self.path,
+                    is_iteration=is_iteration,
+                    link_creds=self.link_creds,
+                    pad_tensors=self._pad_tensors,
+                    enabled_tensors=self.enabled_tensors,
+                )
         else:
             raise InvalidKeyTypeError(item)
         ret._view_base = self._view_base or self
@@ -944,7 +1015,9 @@ class Dataset:
     def __iter__(self):
         dataset_read(self)
         for i in range(len(self)):
-            yield self.__getitem__(i, is_iteration=True)
+            yield self.__getitem__(
+                i, is_iteration=not isinstance(self.index.values[0], list)
+            )
 
     def _load_version_info(self):
         """Loads data from version_control_file otherwise assume it doesn't exist and load all empty"""
@@ -1735,7 +1808,7 @@ class Dataset:
             f"group_index='{self.group_index}', " if self.group_index else ""
         )
 
-        return f"Dataset({path_str}{mode_str}{index_str}{group_index_str}tensors={self._all_tensors_filtered(include_hidden=False)})"
+        return f"Dataset({path_str}{mode_str}{index_str}{group_index_str}tensors={self._all_tensors_filtered(include_hidden=False, include_disabled=False)})"
 
     __repr__ = __str__
 
@@ -1766,30 +1839,40 @@ class Dataset:
             if posixpath.dirname(k) == self.group_index
         }
 
-    def _all_tensors_filtered(self, include_hidden: bool = True) -> List[str]:
+    def _all_tensors_filtered(
+        self, include_hidden: bool = True, include_disabled=True
+    ) -> List[str]:
         """Names of all tensors belonging to this group, including those within sub groups"""
         hidden_tensors = self.meta.hidden_tensors
         tensor_names = self.version_state["tensor_names"]
+        enabled_tensors = self.enabled_tensors
         return [
             posixpath.relpath(t, self.group_index)
             for t in tensor_names
             if (not self.group_index or t.startswith(self.group_index + "/"))
             and (include_hidden or tensor_names[t] not in hidden_tensors)
+            and (include_disabled or enabled_tensors is None or t in enabled_tensors)
         ]
 
-    def _tensors(self, include_hidden: bool = True) -> Dict[str, Tensor]:
+    def _tensors(
+        self, include_hidden: bool = True, include_disabled=True
+    ) -> Dict[str, Tensor]:
         """All tensors belonging to this group, including those within sub groups. Always returns the sliced tensors."""
+        version_state = self.version_state
+        index = self.index
+        group_index = self.group_index
+        all_tensors = self._all_tensors_filtered(include_hidden, include_disabled)
         return {
-            t: self.version_state["full_tensors"][
-                self.version_state["tensor_names"][posixpath.join(self.group_index, t)]
-            ][self.index]
-            for t in self._all_tensors_filtered(include_hidden)
+            t: version_state["full_tensors"][
+                version_state["tensor_names"][posixpath.join(group_index, t)]
+            ][index]
+            for t in all_tensors
         }
 
     @property
     def tensors(self) -> Dict[str, Tensor]:
         """All tensors belonging to this group, including those within sub groups. Always returns the sliced tensors."""
-        return self._tensors(include_hidden=False)
+        return self._tensors(include_hidden=False, include_disabled=False)
 
     @property
     def branches(self):
@@ -2889,21 +2972,24 @@ class Dataset:
         src_tensor.meta.add_link(dest_key, append_f, update_f, flatten_sequence)
         self.storage.maybe_flush()
 
-    def _resolve_tensor_list(self, keys: List[str]) -> List[str]:
+    def _resolve_tensor_list(self, keys: List[str], root: bool = False) -> List[str]:
         ret = []
         for k in keys:
-            fullpath = posixpath.join(self.group_index, k)
+            fullpath = k if root else posixpath.join(self.group_index, k)
             if (
                 self.version_state["tensor_names"].get(fullpath)
                 in self.version_state["full_tensors"]
             ):
                 ret.append(k)
             else:
+                enabled_tensors = self.enabled_tensors
                 if fullpath[-1] != "/":
                     fullpath = fullpath + "/"
                 hidden = self.meta.hidden_tensors
                 ret += filter(
-                    lambda t: t.startswith(fullpath) and t not in hidden,
+                    lambda t: t.startswith(fullpath)
+                    and t not in hidden
+                    and (enabled_tensors is None or t in enabled_tensors),
                     self.version_state["tensor_names"],
                 )
         return ret
@@ -3365,6 +3451,27 @@ class Dataset:
             not self.index.is_trivial()
             or hasattr(self, "_vds")
             or hasattr(self, "_view_entry")
+        )
+
+    @property
+    def min_view(self):
+        min_length = min(map(len, self.tensors.values()))
+        return self[:min_length]
+
+    @property
+    def max_view(self):
+        return self.__class__(
+            storage=self.storage,
+            index=self.index,
+            group_index=self.group_index,
+            read_only=self.read_only,
+            token=self._token,
+            verbose=False,
+            version_state=self.version_state,
+            path=self.path,
+            link_creds=self.link_creds,
+            pad_tensors=True,
+            enabled_tensors=self.enabled_tensors,
         )
 
     def _temp_write_access(self):
