@@ -955,7 +955,6 @@ class Tensor:
                     and v.dtype != tensor.dtype
                 ):
                     v = v.astype(tensor.dtype)  # bc
-
                 tensor.append(v)
 
     def _update_links(
