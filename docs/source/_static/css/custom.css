@@ -1,0 +1,182 @@
+@font-face {
+    font-family: IBMPlexMono;
+    src: url("../fonts/IBM_Plex_Mono/IBMPlexMono-SemiBold.ttf") format("truetype");
+}
+
+@font-face {
+    font-family: ProximaNova;
+    src: url("../fonts/Proxima_Nova/Proxima\ Nova\ Font.otf") format("opentype");
+}
+
+body {
+    font-family: ProximaNova;
+    background-color: #ffff;
+}
+
+.icon.icon-home {
+    color: #ff6d35;
+}
+
+.wy-side-nav-search>a img.logo {
+    width: 80%;
+    height: 80%;
+}
+
+.wy-side-nav-search>a {
+    color: #ff6d35;
+}
+
+/* internal references */
+a.reference.internal {
+    color: #ff6d35;
+}
+
+.section>h1 {
+    font-family: ProximaNova;
+}
+
+.caption-text {
+    font-size: smaller;
+    font-family: ProximaNova;
+}
+
+.section>h2 {
+    font-family: ProximaNova;
+}
+
+.section>h3 {
+    font-family: ProximaNova;
+}
+
+.pre {
+    color: rgb(66, 63, 63);
+}
+
+dt.sig {
+    font-family: IBMPlexMono;
+}
+
+.sig .pre {
+    font-size: 94%
+}
+
+.wy-side-nav-search input[type=text] {
+    border-color: #ff6d35;
+}
+
+html.writer-html5 .rst-content dl[class]:not(.option-list):not(.field-list):not(.footnote):not(.glossary):not(.simple)>dt {
+    display: table;
+    margin: 6px 0;
+    font-size: 100%;
+    line-height: normal;
+    background: #fcf6f4;
+    color: rgb(66, 63, 63);
+    border-top: 3px solid #ff6d35;
+    padding: 6px;
+    position: relative
+}
+
+html.writer-html4 .rst-content dl:not(.docutils) dl:not(.field-list)>dt,
+html.writer-html5 .rst-content dl[class]:not(.option-list):not(.field-list):not(.footnote):not(.glossary):not(.simple) dl:not(.field-list)>dt {
+    margin-bottom: 6px;
+    border: none;
+    border-left: 3px solid #51ced2;
+    background: #f0f0f0;
+    color: #555;
+}
+
+.wy-menu-vertical a:hover {
+    background-color: #cbcbcb;
+    cursor: pointer;
+}
+
+/* hover color for + button*/
+.wy-menu-vertical li.toctree-l2 a:hover button.toctree-expand,
+.wy-menu-vertical li.toctree-l3 a:hover button.toctree-expand,
+.wy-menu-vertical li.toctree-l4 a:hover button.toctree-expand,
+.wy-menu-vertical li.toctree-l5 a:hover button.toctree-expand,
+.wy-menu-vertical li.toctree-l6 a:hover button.toctree-expand,
+.wy-menu-vertical li.toctree-l7 a:hover button.toctree-expand,
+.wy-menu-vertical li.toctree-l8 a:hover button.toctree-expand,
+.wy-menu-vertical li.toctree-l9 a:hover button.toctree-expand,
+.wy-menu-vertical li.toctree-l10 a:hover button.toctree-expand {
+    color: #ff6d35;
+}
+
+/* right border for current selected section*/
+.wy-menu-vertical li.current a {
+    color: grey;
+    border-right: 1px solid #ff6d35;
+    padding: .4045em 2.427em
+}
+
+/* headings in main nav */
+.wy-menu-vertical header,
+.wy-menu-vertical p.caption {
+    color: #0b72d9;
+    height: 32px;
+    line-height: 32px;
+    padding: 0 1.618em;
+    margin: 12px 0 0;
+    display: block;
+    font-weight: 700;
+    text-transform: uppercase;
+    font-size: large;
+    white-space: nowrap
+}
+
+/* selected background */
+.wy-menu-vertical li.current {
+    background: #ffffff
+}
+
+.wy-menu-vertical li.toctree-l2.current>a,
+.wy-menu-vertical li.toctree-l2.current li.toctree-l3>a {
+    background: #ffffff
+}
+
+
+.wy-menu-vertical .reference.internal {
+    color: rgb(0, 0, 0);
+}
+
+/* Takes full width of screen */
+/* .wy-nav-content {
+    max-width: none;
+} */
+
+.wy-nav-content {
+    max-width: 80%;
+}
+
+.docutils.literal.notranslate .pre {
+    font-size: 120%;
+}
+
+/* Names of Parameters, Exceptions, etc in description */
+dl.field-list strong {
+    font-family: IBMPlexMono;
+}
+
+/* Render fix for paranthesis touching text eg: (read_only) */
+dl.field-list dd em {
+    padding-right: 2px;
+}
+
+.blue {
+    color: #0b72d9;
+}
+
+.bluebold {
+    color: #0b72d9;
+    font-weight: bold;
+}
+
+/* code block settings */
+.rst-content .linenodiv pre,
+.rst-content div[class^=highlight] pre,
+.rst-content pre.literal-block {
+    font-family: SFMono-Regular, Menlo, Monaco, Consolas, Liberation Mono, Courier New, Courier, monospace;
+    font-size: 14px;
+    line-height: 1.4
+}

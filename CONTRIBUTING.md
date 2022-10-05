@@ -19,9 +19,9 @@ We use [pytest](https://docs.pytest.org/en/6.2.x/) for our tests. In order to ma
 ### To install all dependencies run:
 
 ```
-pip3 install -r hub/requirements/common.txt
-pip3 install -r hub/requirements/plugins.txt
-pip3 install -r hub/requirements/tests.txt
+pip3 install -r deeplake/requirements/common.txt
+pip3 install -r deeplake/requirements/plugins.txt
+pip3 install -r deeplake/requirements/tests.txt
 ```
 
 
@@ -58,7 +58,7 @@ If you feel lost with any of these sections, try reading up on some of these top
 
 
 ### Fixture Usage Examples
-These are not all of the available fixtures. You can see all of them [here](hub/tests/).
+These are not all of the available fixtures. You can see all of them [here](/deeplake/tests/).
 
 Datasets
 ```python
