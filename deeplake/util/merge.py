@@ -1,7 +1,6 @@
 from collections import defaultdict
 from typing import Dict, List, Optional, Set, Tuple
 from deeplake.core.version_control.commit_diff import CommitDiff
-from deeplake.core.version_control.dataset_diff import DatasetDiff
 from deeplake.core.version_control.commit_node import CommitNode
 from deeplake.util.diff import get_lowest_common_ancestor, sanitize_commit
 from deeplake.util.exceptions import (
