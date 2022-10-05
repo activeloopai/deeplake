@@ -3100,7 +3100,6 @@ class Dataset:
                 )
                 if progressbar:
                     sys.stderr.write(f"Copying tensor: {tensor}.\n")
-
                 deeplake.compute(copy_f, name="tensor copy transform")(
                     tensor_name=tensor
                 ).eval(

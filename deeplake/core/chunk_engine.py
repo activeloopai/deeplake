@@ -837,7 +837,7 @@ class ChunkEngine:
                     for s in ls:
                         s = None if is_empty_list(s) else s
                         link_callback(s, flat=True)
-                        
+
         else:
             verified_samples = self._extend(samples, progressbar)
             ls = verified_samples or samples
