@@ -944,7 +944,7 @@ class Tensor:
         dataset_read(self.dataset)
         return ret
 
-    def _append_to_links(self, sample, flat: Optional[bool], meta_link_dict=None):
+    def _append_to_links(self, sample, flat: Optional[bool]):
         for k, v in self.meta.links.items():
             if flat is None or v["flatten_sequence"] == flat:
                 v = get_link_transform(v["append"])(sample, self.link_creds)
