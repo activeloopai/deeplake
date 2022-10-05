@@ -237,10 +237,12 @@ def merge_common_tensors(
     new_samples_dict: Dict[str, List[int]] = {}
     updated_samples_dict: Dict[str, List[Tuple[int, int]]] = {}
     conflict_samples_dict: Dict[str, List[Tuple[int, int]]] = {}
+    deleted_samples_dict: Dict[str, List[int]] = {}
 
     for tensor_name in tensor_names:
         (
             new_indexes,
+            deleted_indexes,
             updated_indexes,
             conflict_indexes,
         ) = find_new_updated_and_conflict_indexes(
@@ -250,6 +252,7 @@ def merge_common_tensors(
             nodes,
         )
         new_samples_dict[tensor_name] = new_indexes
+        deleted_samples_dict[tensor_name] = deleted_indexes
         updated_samples_dict[tensor_name] = updated_indexes
         if conflict_indexes:
             conflict_samples_dict[tensor_name] = conflict_indexes
@@ -264,6 +267,7 @@ def merge_common_tensors(
             dataset,
             target_dataset,
             new_samples_dict,
+            deleted_samples_dict,
             updated_samples_dict,
             conflict_samples_dict,
             conflict_resolution,
@@ -290,13 +294,13 @@ def check_common_tensor_mismatches(tensor_names: Set[str], dataset, target_datas
                 raise MergeMismatchError(tensor_name, key, value, target_details[key])
 
 
-def get_new_indexes(
-    new_elements_ids, target_id_changes_commit_map, target_id_to_index_map
+def get_indexes_from_ids(
+    elements_ids, id_changes_commit_map, id_to_index_map
 ) -> List[int]:
     new_indexes: List[int] = []
-    for id in new_elements_ids:
-        target_id_changes_commit_map.pop(id, None)
-        idx = target_id_to_index_map[id]
+    for id in elements_ids:
+        id_changes_commit_map.pop(id, None)
+        idx = id_to_index_map[id]
         new_indexes.append(idx)
     return new_indexes
 
@@ -351,7 +355,7 @@ def find_new_updated_and_conflict_indexes(
     dataset,
     target_dataset,
     nodes: Dict[str, CommitNode],
-) -> Tuple[List[int], List[Tuple[int, int]], List[Tuple[int, int]]]:
+) -> Tuple[List[int], List[int], List[Tuple[int, int]], List[Tuple[int, int]]]:
     """Finds the new and conflict indexes for a given tensor.
 
     Args:
@@ -363,6 +367,7 @@ def find_new_updated_and_conflict_indexes(
     Returns:
         A tuple of the form (new_indexes, updated_indexes, conflict_indexes), where
         - new_indexes is a list of indexes for new samples
+        - deleted_indexes is a list of indexes of deleted samples
         - updated_indexes is a list of tuples of the form (original_idx, target_idx)
         - conflict_indexes is a list of tuples of the form (original_idx, target_idx)
     """
@@ -390,8 +395,13 @@ def find_new_updated_and_conflict_indexes(
 
     new_elements_ids = set(target_ids) - set(original_ids)
 
-    new_indexes = get_new_indexes(
+    new_indexes = get_indexes_from_ids(
         new_elements_ids, target_id_changes_commit_map, target_id_to_index_map
+    )
+
+    deleted_elements_ids = set(original_ids) - set(target_ids)
+    deleted_indexes = get_indexes_from_ids(
+        deleted_elements_ids, original_id_changes_commit_map, original_id_to_index_map
     )
     conflict_indexes: List[Tuple[int, int]] = []
     updated_indexes: List[Tuple[int, int]] = []
@@ -401,7 +411,7 @@ def find_new_updated_and_conflict_indexes(
         original_id_to_index_map,
         target_id_to_index_map,
     )
-    return new_indexes, updated_indexes, conflict_indexes
+    return new_indexes, deleted_indexes, updated_indexes, conflict_indexes
 
 
 def merge_tensor_data(
@@ -409,6 +419,7 @@ def merge_tensor_data(
     dataset,
     target_dataset,
     new_samples_dict,
+    deleted_samples_dict,
     updated_samples_dict,
     conflict_samples_dict,
     conflict_resolution,
@@ -425,6 +436,11 @@ def merge_tensor_data(
     for index in new_indexes:
         original_tensor.append(target_tensor[index])
         original_id_tensor[-1] = target_id_tensor[index]
+
+    deleted_indexes = deleted_samples_dict[tensor_name]
+    deleted_indexes.sort(reverse=True)
+    for index in deleted_indexes:
+        original_tensor.pop(index)
 
     updated_indexes = updated_samples_dict[tensor_name]
     for original_idx, target_idx in updated_indexes:
