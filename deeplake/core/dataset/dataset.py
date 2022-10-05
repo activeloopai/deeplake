@@ -304,39 +304,6 @@ class Dataset:
         """Return the minimum length of the tensor"""
         return min([len(tensor) for tensor in self.tensors.values()])
 
-    # @property
-    def average_samples_weight(self):
-        """Return the average weight of the samples in the dataset, based on weights of several randomly selected samples"""
-        average_weight_dict = {}
-
-        for tensor_name, tensor_values in self.tensors.items():
-            average_weight = []
-            random_samples = self._get_random_samples(tensor_name)
-            for tensor in random_samples:
-                if tensor.meta.chunk_compression:
-                    average_weight.append(sys.getsizeof(tensor.numpy()))
-                else:
-                    average_weight.append(sys.getsizeof(tensor.tobytes()))
-            average_weight_dict[tensor_name] = sum(average_weight) / len(average_weight)
-        return average_weight_dict
-
-    def _get_random_samples(self, tensor_name, n_random_samples=10):
-        """Return random samples"""
-        tensor_len = len(self.tensors[tensor_name])
-        n_random_samples = (
-            n_random_samples if n_random_samples < tensor_len else tensor_len
-        )
-        random_indices = self._rand_sample_indices_generator(
-            n_random_samples, start_index=0, end_index=max(tensor_len - 1, 0)
-        )
-        return self.tensors[tensor_name][random_indices]
-
-    @staticmethod
-    def _rand_sample_indices_generator(count, start_index, end_index):
-        """Return random indices"""
-        ri = partial(randint, start_index, end_index)
-        return [ri() for _ in range(count)]
-
     def __getstate__(self) -> Dict[str, Any]:
         """Returns a dict that can be pickled and used to restore this dataset.
 
@@ -3135,29 +3102,17 @@ class Dataset:
                 if progressbar:
                     sys.stderr.write(f"Copying tensor: {tensor}.\n")
 
-                if (
-                    self.average_samples_weight()[tensor] > 0 * KB
-                    or copy_f is _copy_tensor_unlinked_full_sample
-                ):
-                    deeplake.compute(copy_f, name="tensor copy transform")(
-                        tensor_name=tensor
-                    ).eval(
-                        self,
-                        dest_ds,
-                        num_workers=num_workers,
-                        scheduler=scheduler,
-                        progressbar=progressbar,
-                        skip_ok=True,
-                        check_lengths=False,
-                        disable_label_sync=True,
-                    )
-                else:
-                    copy_f(
-                        self,
-                        dest_ds,
-                        tensor_name=tensor,
-                        use_extend=True,
-                        progressbar=progressbar,
+                deeplake.compute(copy_f, name="tensor copy transform")(
+                    tensor_name=tensor
+                ).eval(
+                    self,
+                    dest_ds,
+                    num_workers=num_workers,
+                    scheduler=scheduler,
+                    progressbar=progressbar,
+                    skip_ok=True,
+                    check_lengths=False,
+                    disable_label_sync=True,
                     )
 
             dest_ds.flush()
