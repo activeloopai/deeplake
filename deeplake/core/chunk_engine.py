@@ -1674,8 +1674,7 @@ class ChunkEngine:
                     )
                     self.cache_range = range(first_sample, last_sample + 1)
 
-                # type: ignore
-                sample = self.cached_data[global_sample_index - self.cache_range.start]
+                sample = self.cached_data[global_sample_index - self.cache_range.start]  # type: ignore
 
                 # need to copy if aslist otherwise user might modify the returned data
                 # if not aslist, we already do np.array(samples) while formatting which copies
@@ -1925,7 +1924,7 @@ class ChunkEngine:
             else:
                 try:
                     return arr.reshape(  # type: ignore
-                        index.length_at(0, self._sequence_length), -1, *arr.shape[1:],  # type: ignore
+                        index.length_at(0, self._sequence_length), -1, *arr.shape[1:]  # type: ignore
                     )
                 except ValueError as ve:
                     raise DynamicTensorNumpyError(self.key, index, "shape") from ve
@@ -1993,7 +1992,7 @@ class ChunkEngine:
                     samples, diff = samples.reshape(samples.shape[-ndim:]), 0
                 if diff > 1:
                     return samples.reshape(1, *samples.shape).repeat(
-                        self._translate_2d_index(*index.values[:2]).length(None), 0,  # type: ignore
+                        self._translate_2d_index(*index.values[:2]).length(None), 0  # type: ignore
                     )
                 elif diff == 1:
                     return (
@@ -2064,7 +2063,7 @@ class ChunkEngine:
             if broadcast:
                 ls = repeat(ls)  # type: ignore
             for i, sample in zip(index.values[0].indices(seq_len), ls):  # type: ignore
-                link_callback( 
+                link_callback(
                     i, sub_index=Index(index.values[1:]), new_sample=sample, flat=False
                 )
 
