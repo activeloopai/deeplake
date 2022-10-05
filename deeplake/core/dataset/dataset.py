@@ -230,7 +230,7 @@ class Dataset:
         self._initial_autoflush: List[
             bool
         ] = []  # This is a stack to support nested with contexts
-        self._indexing_history = []
+        self._indexing_history: List[int] = []
 
     def _lock_lost_handler(self):
         """This is called when lock is acquired but lost later on due to slow update."""

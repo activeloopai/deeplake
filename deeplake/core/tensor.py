@@ -246,7 +246,7 @@ class Tensor:
 
         # An optimization to skip multiple .numpy() calls when performing inplace ops on slices:
         self._skip_next_setitem = False
-        self._indexing_history = []
+        self._indexing_history: List[int] = []
 
     @property
     def pad_tensor(self):
