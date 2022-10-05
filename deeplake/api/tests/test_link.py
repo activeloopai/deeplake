@@ -185,7 +185,7 @@ def test_add_populate_creds(local_ds_generator):
 def test_none_used_key(local_ds_generator, cat_path):
     local_ds = local_ds_generator()
     with local_ds as ds:
-        ds.create_tensor("xyz", htype="link[image]")
+        ds.create_tensor("xyz", htype="link[image]", sample_compression="jpg")
         ds.add_creds_key("my_s3_key")
         ds.populate_creds("my_s3_key", {})
         ds.xyz.append(deeplake.link(cat_path))
@@ -277,7 +277,12 @@ def test_basic(local_ds_generator, cat_path, flower_path, create_shape_tensor, v
 
 def test_jwt_link(local_ds):
     with local_ds as ds:
-        ds.create_tensor("img", htype="link[image]", create_shape_tensor=False)
+        ds.create_tensor(
+            "img",
+            htype="link[image]",
+            sample_compression="jpg",
+            create_shape_tensor=False,
+        )
         auth = DeepLakeBackendClient().auth_header
         my_jwt = {"Authorization": auth}
         ds.add_creds_key("my_jwt_key")
@@ -310,6 +315,7 @@ def test_video(request, local_ds_generator, create_shape_tensor, verify):
         ds.create_tensor(
             "linked_videos",
             htype="link[video]",
+            sample_compression="mp4",
             create_shape_tensor=create_shape_tensor,
             verify=verify,
         )
@@ -347,6 +353,7 @@ def test_complex_creds(local_ds_generator):
         ds.create_tensor(
             "link",
             htype="link[image]",
+            sample_compression="jpg",
             verify=False,
             create_shape_tensor=False,
             create_sample_info_tensor=False,
@@ -462,7 +469,7 @@ def check_transformed_ds(ds):
 def test_transform_2(local_ds_generator, cat_path, flower_path):
     ds = local_ds_generator()
     with ds:
-        ds.create_tensor("images", htype="link[image]")
+        ds.create_tensor("images", htype="link[image]", sample_compression="jpg")
 
     transform_path_link().eval([cat_path, flower_path], ds)
 
@@ -477,6 +484,7 @@ def test_link_managed(hub_cloud_ds_generator, cat_path):
         ds.create_tensor(
             "img",
             htype="link[image]",
+            sample_compression="jpg",
             verify=False,
             create_shape_tensor=False,
             create_sample_info_tensor=False,
@@ -537,6 +545,7 @@ def test_link_ready(local_ds_generator, cat_path):
         ds.create_tensor(
             "img",
             htype="link[image]",
+            sample_compression="jpg",
             verify=False,
             create_shape_tensor=False,
             create_sample_info_tensor=False,

@@ -158,6 +158,8 @@ def get_storage_and_cache_chain(
     storage_chain = generate_chain(
         storage, memory_cache_size_bytes, local_cache_size_bytes, path
     )
+    if storage.read_only:
+        storage_chain.enable_readonly()
     return storage, storage_chain
 
 

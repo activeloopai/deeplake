@@ -15,6 +15,7 @@ from deeplake.tests.common import (
 from deeplake.tests.storage_fixtures import enabled_remote_storages
 from deeplake.core.storage import GCSProvider
 from deeplake.util.exceptions import (
+    BadLinkError,
     InvalidOperationError,
     TensorDtypeMismatchError,
     TensorDoesNotExistError,
@@ -1248,7 +1249,7 @@ def test_tobytes(memory_ds, compressed_image_paths, audio_paths):
 
 def test_tobytes_link(memory_ds):
     with memory_ds as ds:
-        ds.create_tensor("images", htype="link[image]")
+        ds.create_tensor("images", htype="link[image]", sample_compression="jpg")
         ds.images.append(deeplake.link("https://picsum.photos/id/237/200/300"))
         sample = deeplake.read("https://picsum.photos/id/237/200/300")
         assert ds.images[0].tobytes() == sample.buffer
@@ -2169,3 +2170,17 @@ def test_columnar_views(memory_ds):
     print(view.enabled_tensors)
     assert list(view.tensors) == ["b", "d"]
     assert view.group_index == "a"
+
+
+@pytest.mark.parametrize("verify", [True, False])
+def test_bad_link(local_ds_generator, verify):
+    with local_ds_generator() as ds:
+        ds.create_tensor(
+            "images", htype="link[image]", sample_compression="jpg", verify=verify
+        )
+        ds.images.append(deeplake.link("https://picsum.photos/200/200"))
+        with pytest.raises(BadLinkError):
+            ds.images.append(deeplake.link("https://picsum.photos/lalala"))
+
+    with local_ds_generator() as ds:
+        assert len(ds) == 1

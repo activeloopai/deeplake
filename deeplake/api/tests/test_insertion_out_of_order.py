@@ -153,7 +153,7 @@ def test_updation_bug(memory_ds):
 @pytest.mark.parametrize("insert_first", [False, True])
 def test_insertion_link(memory_ds, insert_first, cat_path, flower_path):
     with memory_ds as ds:
-        ds.create_tensor("abc", htype="link[image]")
+        ds.create_tensor("abc", htype="link[image]", sample_compression="jpg")
         first = deeplake.link(cat_path)
         tenth = deeplake.link(flower_path)
         empty_sample = np.ones((0,))
