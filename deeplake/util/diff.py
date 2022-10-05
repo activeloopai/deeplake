@@ -35,7 +35,7 @@ def get_changes_and_messages_compared_to_prev(
     msg_1 = f"Diff in {s} relative to the previous commit:\n"
     get_tensor_changes_for_id(commit_id, storage, tensor_changes, ds_changes)
     get_dataset_changes_for_id(commit_id, storage, ds_changes)
-    filter_renamed_diff(ds_changes)
+    # filter_renamed_diff(ds_changes)
     # Order: ds_changes_1, ds_changes_2, tensor_changes_1, tensor_changes_2, msg_0, msg_1, msg_2
     return ds_changes, None, tensor_changes, None, None, msg_1, None
 
@@ -112,7 +112,7 @@ def compare_commits(
             get_dataset_changes_for_id(commit_id, storage, dataset_changes)
             commit_node = commit_node.parent  # type: ignore
 
-        filter_renamed_diff(dataset_changes)
+        # filter_renamed_diff(dataset_changes)
 
     return (
         dataset_changes_1,
@@ -252,18 +252,20 @@ def get_dataset_changes_for_id(
     """Returns the changes made in the dataset for a commit."""
 
     dataset_diff_key = get_dataset_diff_key(commit_id)
-    dataset_change = {}
+
     try:
         dataset_diff = storage.get_deeplake_object(dataset_diff_key, DatasetDiff)
     except KeyError:
+        dataset_change = {"info_updated": False, "renamed": {}, "deleted": []}
         dataset_changes.append(dataset_change)
-        return 
+        return
 
-    dataset_change["info_updated"] = dataset_diff.info_updated
-    dataset_change["renamed"] = dataset_diff.renamed.copy()
-    dataset_change["deleted"] = dataset_diff.deleted.copy()
+    dataset_change = {
+        "info_updated": dataset_diff.info_updated,
+        "renamed": dataset_diff.renamed.copy(),
+        "deleted": dataset_diff.deleted.copy(),
+    }
     dataset_changes.append(dataset_change)
-    
 
 
 def get_tensor_changes_for_id(
@@ -286,22 +288,22 @@ def get_tensor_changes_for_id(
             )
         except KeyError:
             continue
-        renamed = dataset_changes.get("renamed")
-        deleted = dataset_changes.get("deleted")
+        # renamed = dataset_changes.get("renamed")
+        # deleted = dataset_changes.get("deleted")
 
-        if deleted and tensor in deleted:
-            if commit_diff.created:
-                deleted.remove(tensor)
-            continue
+        # if deleted and tensor in deleted:
+        #     if commit_diff.created:
+        #         deleted.remove(tensor)
+        #     continue
 
-        if renamed:
-            try:
-                new_name = renamed[tensor]
-                if commit_diff.created:
-                    renamed.pop(tensor, None)
-                tensor = new_name
-            except KeyError:
-                pass
+        # if renamed:
+        #     try:
+        #         new_name = renamed[tensor]
+        #         if commit_diff.created:
+        #             renamed.pop(tensor, None)
+        #         tensor = new_name
+        #     except KeyError:
+        #         pass
 
         change = {}
         change["created"] = commit_diff.created
@@ -329,18 +331,18 @@ def get_tensor_changes_for_id(
 #         change["data_updated"] = upd
 
 
-def filter_renamed_diff(dataset_changes):
-    """Remove deleted tensors and tensors renamed to same name from diff"""
-    rm = []
-    renamed = dataset_changes.get("renamed")
-    deleted = dataset_changes.get("deleted")
-    if renamed:
-        for old_name, new_name in renamed.items():
-            if old_name == new_name:
-                rm.append(old_name)
+# def filter_renamed_diff(dataset_changes):
+#     """Remove deleted tensors and tensors renamed to same name from diff"""
+#     rm = []
+#     renamed = dataset_changes.get("renamed")
+#     deleted = dataset_changes.get("deleted")
+#     if renamed:
+#         for old_name, new_name in renamed.items():
+#             if old_name == new_name:
+#                 rm.append(old_name)
 
-        for name in rm:
-            renamed.pop(name)
+#         for name in rm:
+#             renamed.pop(name)
 
 
 def compress_into_range_intervals(indexes: Set[int]) -> List[Tuple[int, int]]:
@@ -415,6 +417,7 @@ def convert_adds_to_string(index_range: List[int]) -> str:
         return ""
     sample_string = "sample" if num_samples == 1 else "samples"
     return f"* Added {num_samples} {sample_string}: [{index_range[0]}-{index_range[1]}]"
+
 
 # def merge_renamed_deleted():
 #     merge_renamed = OrderedDict()
