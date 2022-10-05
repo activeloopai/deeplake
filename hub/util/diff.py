@@ -30,7 +30,7 @@ def get_changes_and_messages_compared_to_prev(
     head = commit_node.is_head_node
 
     tensor_changes: Dict[str, List] = defaultdict(list)
-    ds_changes: Dict[str, Any] = {}
+    ds_changes = []
     s = "HEAD" if head else f"{commit_id} (current commit)"
     msg_1 = f"Diff in {s} relative to the previous commit:\n"
     get_tensor_changes_for_id(commit_id, storage, tensor_changes, ds_changes)
@@ -97,8 +97,8 @@ def compare_commits(
 
     tensor_changes_1: Dict[str, List] = defaultdict(list)
     tensor_changes_2: Dict[str, List] = defaultdict(list)
-    dataset_changes_1: Dict[str, Any] = {}
-    dataset_changes_2: Dict[str, Any] = {}
+    dataset_changes_1 = []
+    dataset_changes_2 = []
 
     for commit_node, tensor_changes, dataset_changes in [
         (commit_node_1, tensor_changes_1, dataset_changes_1),
@@ -252,39 +252,18 @@ def get_dataset_changes_for_id(
     """Returns the changes made in the dataset for a commit."""
 
     dataset_diff_key = get_dataset_diff_key(commit_id)
+    dataset_change = {}
     try:
         dataset_diff = storage.get_hub_object(dataset_diff_key, DatasetDiff)
-        dataset_changes["info_updated"] = (
-            dataset_changes.get("info_updated") or dataset_diff.info_updated
-        )
-
-        renamed = dataset_changes.get("renamed")
-        deleted = dataset_changes.get("deleted")
-        done = []
-
-        merge_renamed = OrderedDict()
-        for old, new in dataset_diff.renamed.items():
-            if deleted and new in deleted and new not in done:
-                deleted[deleted.index(new)] = old
-                done.append(old)
-                continue
-            if renamed and renamed.get(new):
-                merge_renamed[old] = renamed[new]
-                renamed.pop(new)
-            else:
-                merge_renamed[old] = new
-
-        try:
-            dataset_changes["renamed"].update(merge_renamed)
-        except KeyError:
-            dataset_changes["renamed"] = merge_renamed
-
-        if dataset_changes.get("deleted"):
-            dataset_changes["deleted"].extend(dataset_diff.deleted)
-        else:
-            dataset_changes["deleted"] = dataset_diff.deleted.copy()
     except KeyError:
-        pass
+        dataset_changes.append(dataset_change)
+        return 
+
+    dataset_change["info_updated"] = dataset_diff.info_updated
+    dataset_change["renamed"] = dataset_diff.renamed.copy()
+    dataset_change["deleted"] = dataset_diff.deleted.copy()
+    dataset_changes.append(dataset_change)
+    
 
 
 def get_tensor_changes_for_id(
@@ -436,3 +415,16 @@ def convert_adds_to_string(index_range: List[int]) -> str:
         return ""
     sample_string = "sample" if num_samples == 1 else "samples"
     return f"* Added {num_samples} {sample_string}: [{index_range[0]}-{index_range[1]}]"
+
+# def merge_renamed_deleted():
+#     merge_renamed = OrderedDict()
+#     for old, new in dataset_diff.renamed.items():
+#         if deleted and new in deleted and new not in done:
+#             deleted[deleted.index(new)] = old
+#             done.append(old)
+#             continue
+#         if renamed and renamed.get(new):
+#             merge_renamed[old] = renamed[new]
+#             renamed.pop(new)
+#         else:
+#             merge_renamed[old] = new
