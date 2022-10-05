@@ -231,7 +231,7 @@ class Dataset:
         self.read_only = True
         if self.verbose:
             always_warn(
-                "Unable to update dataset lock as another machine has locked it for writing. Switching to read only mode."
+                "Unable to update dataset lock as another machine has locked it for writing or deleted / overwriten it. Switching to read only mode."
             )
         self._locked_out = True
 
