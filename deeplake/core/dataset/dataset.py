@@ -3135,7 +3135,7 @@ class Dataset:
                     sys.stderr.write(f"Copying tensor: {tensor}.\n")
 
                 if (
-                    self.average_samples_weight()[tensor] > 10 * KB
+                    self.average_samples_weight()[tensor] > 0 * KB
                     or copy_f is _copy_tensor_unlinked_full_sample
                 ):
                     deeplake.compute(copy_f, name="tensor copy transform")(
