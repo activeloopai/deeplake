@@ -441,14 +441,16 @@ class TensorMetaInvalidHtypeOverwriteValue(MetaError):
 
 
 class TensorMetaMissingRequiredValue(MetaError):
-    def __init__(self, htype: str, key: str):
+    def __init__(self, htype: str, key: Union[str, List[str]]):
         extra = ""
         if key == "sample_compression":
             extra = f"`sample_compression` may be `None` if you want your '{htype}' data to be uncompressed. Available compressors: {deeplake.compressions}"
 
-        super().__init__(
-            f"Htype '{htype}' requires you to specify '{key}' inside the `create_tensor` method call. {extra}"
-        )
+        if isinstance(key, list):
+            message = f"Htype '{htype}' requires you to specify either one of {key} inside the `create_tensor` method call. {extra}"
+        else:
+            message = f"Htype '{htype}' requires you to specify '{key}' inside the `create_tensor` method call. {extra}"
+        super().__init__(message)
 
 
 class TensorMetaInvalidHtypeOverwriteKey(MetaError):
@@ -785,4 +787,10 @@ class DatasetTooLargeToDelete(Exception):
 class TensorTooLargeToDelete(Exception):
     def __init__(self, tensor_name):
         message = f"Tensor {tensor_name} was too large to delete. Try again with large_ok=True."
+        super().__init__(message)
+
+
+class BadLinkError(Exception):
+    def __init__(self):
+        message = "Verification of link failed. Make sure that the link you are trying to append is correct."
         super().__init__(message)

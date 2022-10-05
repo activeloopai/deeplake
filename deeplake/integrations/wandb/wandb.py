@@ -39,6 +39,7 @@ or :meth:`Tensor.numpy() <deeplake.core.tensor.Tensor.numpy>` on its tensors.
 """
 
 from typing import Dict, Set
+from deeplake.util.bugout_reporter import feature_report_path
 from deeplake.util.tag import process_hub_path
 from deeplake.util.hash import hash_inputs
 from deeplake.constants import WANDB_JSON_FILENMAE
@@ -211,6 +212,9 @@ def dataset_committed(ds):
             except KeyError:
                 commits = {}
                 wandb_info["commits"] = commits
+                feature_report_path(
+                    ds.path, "wandb_dataset_committed", {"artifact_created": True}
+                )
             info = {}
             commits[ds.commit_id] = info
             info["created-by"] = {
@@ -224,6 +228,10 @@ def dataset_committed(ds):
             }
             write_json(ds, wandb_info)
             run.log_artifact(artifact)
+        else:
+            feature_report_path(
+                ds.path, "wandb_dataset_committed", {"artifact_created": False}
+            )
 
 
 def _filter_input_datasets(input_datasets):
@@ -250,6 +258,7 @@ def dataset_read(ds):
     run = wandb_run()
     if not run:
         return
+    feature_report_path(ds.path, "wandb_dataset_read", {})
     if run.id not in _READ_DATASETS:
         _READ_DATASETS.clear()
         _READ_DATASETS[run.id] = {}
@@ -285,6 +294,9 @@ def dataset_read(ds):
                     f"{run_info['entity']}/{run_info['project']}/{artifact}:latest"
                 )
                 run.use_artifact(artifact_path)
+                feature_report_path(
+                    ds.path, "wandb_dataset_read", {"artifact_used": True}
+                )
             except Exception as e:
                 warnings.warn(
                     f"Wandb integration: Error while using wandb artifact: {e}"
@@ -296,7 +308,7 @@ def dataset_read(ds):
 
             # artifact = artifact_from_ds(ds)
             # run.use_artifact(artifact)
-            pass
+            feature_report_path(ds.path, "wandb_dataset_read", {"artifact_used": False})
 
 
 def _viz_html(hub_path: str):

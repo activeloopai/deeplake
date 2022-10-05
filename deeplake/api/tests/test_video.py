@@ -185,7 +185,7 @@ def test_video_data(local_ds, video_paths):
 )
 def test_linked_video_timestamps(local_ds):
     with local_ds as ds:
-        ds.create_tensor("videos", htype="link[video]")
+        ds.create_tensor("videos", htype="link[video]", sample_compression="mp4")
         ds.videos.append(
             deeplake.link(
                 "http://commondatastorage.googleapis.com/gtv-videos-bucket/sample/ForBiggerBlazes.mp4",
