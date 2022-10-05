@@ -1,4 +1,5 @@
 from collections import OrderedDict
+from token import OP
 from deeplake.client.log import logger
 import deeplake
 import numpy as np
@@ -210,7 +211,7 @@ class ChunkEngine:
         self._num_samples_per_chunk: Optional[int] = None
         self.write_initialization_done = False
         self.last_index = 0
-        self.start_chunk = None
+        self.start_chunk: Optional[BaseChunk] = None
 
     @property
     def is_data_cachable(self):
