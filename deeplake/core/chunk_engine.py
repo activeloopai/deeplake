@@ -703,6 +703,7 @@ class ChunkEngine:
             start_chunk_row (int, Optional): Parameter that shows the chunk row that needs to be updated, those params are needed only in rechunking phase.
             progressbar (bool): Parameter that shows if need to show sample insertion progress
             register_creds (bool): Parameter that shows if need to register the creds_key of the sample
+            use_cached_chunk (bool): Parameter that shows if need to use cached chunk data
 
         Returns:
             Tuple[List[BaseChunk], Dict[Any, Any]]
