@@ -24,6 +24,7 @@ from deeplake.util.exceptions import (
     TensorGroupAlreadyExistsError,
     TensorInvalidSampleShapeError,
     DatasetHandlerError,
+    TransformError,
     UnsupportedCompressionError,
     InvalidTensorNameError,
     InvalidTensorGroupNameError,
@@ -1998,6 +1999,33 @@ def test_text_labels_transform(local_ds_generator, num_workers):
             expected = convert_to_idx(seq_labels, label_idx_map)
             expected = [np.array(seq).reshape(-1, 1).tolist() for seq in expected]
         np.testing.assert_array_equal(arr, expected)
+
+
+@pytest.mark.parametrize("num_workers", [0, 2])
+def test_transform_upload_fail(local_ds_generator, num_workers):
+    @deeplake.compute
+    def upload(data, ds):
+        ds.append({"images": deeplake.link("lalala"), "labels": data})
+
+    with local_ds_generator() as ds:
+        ds.create_tensor("images", htype="link[image]", sample_compression="jpg")
+        ds.create_tensor("labels", htype="class_label")
+
+    with pytest.raises(TransformError):
+        upload().eval([0, 1, 2, 3], ds)
+
+    @deeplake.compute
+    def upload(data, ds):
+        ds.append(
+            {"images": deeplake.link("https://picsum.photos/20/20"), "labels": data}
+        )
+
+    with local_ds_generator() as ds:
+        assert list(ds.tensors) == ["images", "labels"]
+        upload().eval([0, 1, 2, 3], ds)
+        np.testing.assert_array_equal(
+            ds.labels.numpy().flatten(), np.array([0, 1, 2, 3])
+        )
 
 
 def test_empty_sample_partial_read(s3_ds):

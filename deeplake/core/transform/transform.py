@@ -288,16 +288,22 @@ class Pipeline:
         )
         map_inp = zip(slices, storages, repeat(args))
 
-        if progressbar:
-            desc = get_pbar_description(self.functions)
-            result = compute.map_with_progressbar(
-                store_data_slice_with_pbar,
-                map_inp,
-                total_length=len(data_in),
-                desc=desc,
-            )
-        else:
-            result = compute.map(store_data_slice, map_inp)
+        try:
+            if progressbar:
+                desc = get_pbar_description(self.functions)
+                result = compute.map_with_progressbar(
+                    store_data_slice_with_pbar,
+                    map_inp,
+                    total_length=len(data_in),
+                    desc=desc,
+                )
+            else:
+                result = compute.map(store_data_slice, map_inp)
+        except Exception as e:
+            for tensor in label_temp_tensors.values():
+                target_ds.delete_tensor(tensor)
+            raise e
+
         result = process_transform_result(result)
 
         all_num_samples, all_tensors_generated_length = get_lengths_generated(
