@@ -11,6 +11,7 @@ from deeplake.experimental.libdeeplake_query import query
 from deeplake.integrations.pytorch.common import PytorchTransformFunction, check_tensors
 from deeplake.util.bugout_reporter import deeplake_reporter
 from deeplake.util.dataset import map_tensor_keys
+from functools import partial
 import importlib
 
 
@@ -115,12 +116,17 @@ class DeepLakeDataLoader:
             all_vars["dataset"] = self.dataset[schedule]
         return self.__class__(**all_vars)
 
-    def transform(self, transform: Union[Callable, Dict[str, Optional[Callable]]]):
+    def transform(
+        self,
+        transform: Union[Callable, Dict[str, Optional[Callable]]],
+        **kwargs: Dict,
+    ):
         """Returns a transformed :class:`DeepLakeDataLoader` object.
 
 
         Args:
             transform (Callable or Dict[Callable]): A function or dictionary of functions to apply to the data.
+            kwargs: Additional arguments to be passed to `transform`. Only applicable if `transform` is a callable. Ignored if `transform` is a dictionary.
 
         Returns:
             DeepLakeDataLoader: A :class:`DeepLakeDataLoader` object.
@@ -141,6 +147,8 @@ class DeepLakeDataLoader:
             all_vars["_tensors"] = map_tensor_keys(self.dataset, tensors)
             transform = PytorchTransformFunction(transform_dict=transform)
         else:
+            if kwargs:
+                transform = partial(transform, **kwargs)
             transform = PytorchTransformFunction(composite_transform=transform)
         all_vars["_transform"] = transform
         return self.__class__(**all_vars)
