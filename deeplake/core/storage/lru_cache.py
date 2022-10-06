@@ -79,12 +79,9 @@ class LRUCache(StorageProvider):
         initial_autoflush = self.autoflush
         self.autoflush = False
         for path, obj in self.deeplake_objects.items():
-            try:
-                if obj.is_dirty:
-                    self[path] = obj
-                    obj.is_dirty = False
-            except:
-                obj
+            if obj.is_dirty:
+                self[path] = obj
+                obj.is_dirty = False
 
         if self.dirty_keys:
             for key in self.dirty_keys.copy():
