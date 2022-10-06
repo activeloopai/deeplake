@@ -824,6 +824,7 @@ class Tensor:
             - Value of dict["sample_info"] will be same as :attr:`sample_info`.
 
         - For class_label tensors, returns a dict with keys "value" and "text".
+        - For class_label tensors, returns a dict with keys "value" and "text".
 
             - Value of dict["value"] will be same as :meth:`numpy`.
             - Value of dict["text"] will be list of class labels as strings.

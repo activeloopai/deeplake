@@ -211,6 +211,10 @@ class ChunkEngine:
         self.write_initialization_done = False
         self.last_index = 0
         self.start_chunk: Optional[BaseChunk] = None
+        try:
+            self.start_chunk = self.cache.get_deeplake_object("start_chunk", deeplake.core.chunk.uncompressed_chunk.UncompressedChunk)
+        except:
+            self.start_chunk = None
 
     @property
     def is_data_cachable(self):
@@ -709,17 +713,23 @@ class ChunkEngine:
             Tuple[List[BaseChunk], Dict[Any, Any]]
         """
         current_chunk = start_chunk
-        if start_chunk:
-            self.start_chunk = start_chunk
 
-        if use_cached_chunk:
-            current_chunk = self.start_chunk
+        last_index = self.num_chunks-1
+        if self.num_chunks == 0 or last_index in self.tile_encoder:
+             current_chunk = None
+
+        if use_cached_chunk and start_chunk:
+            raise Exception("start_chunk and use_cached_chunk can not be used together. You need to either use_cached "
+                            "chunk or manually specify start_chunk")
+
+        # if use_cached_chunk:
+        #     current_chunk = self.start_chunk
 
         updated_chunks = []
         if current_chunk is None:
             current_chunk = self._create_new_chunk(register)
             updated_chunks.append(current_chunk)
-            self.start_chunk = current_chunk
+            # self.start_chunk = current_chunk
         enc = self.chunk_id_encoder
         tiles = {}
         nsamples = len(samples)
@@ -738,7 +748,7 @@ class ChunkEngine:
                 if start_chunk_row is not None:
                     start_chunk_row += 1
                 updated_chunks.append(current_chunk)
-                self.start_chunk = current_chunk
+                # self.start_chunk = current_chunk
             elif num_samples_added == PARTIAL_NUM_SAMPLES:
                 sample = samples[0]
                 if register and sample.is_first_write:
@@ -761,14 +771,17 @@ class ChunkEngine:
                     if start_chunk_row is not None:
                         start_chunk_row += 1
                     updated_chunks.append(current_chunk)
-                    self.start_chunk = current_chunk
+                    # self.start_chunk = current_chunk
             else:
                 if not updated_chunks:
                     updated_chunks.append(current_chunk)
-                    self.start_chunk = current_chunk
+                    # self.start_chunk = current_chunk
                 num = int(num_samples_added)
                 if register:
-                    enc.register_samples(num, row=start_chunk_row)
+                    try:
+                        enc.register_samples(num, row=start_chunk_row)
+                    except:
+                        enc.register_samples(num, row=start_chunk_row)
                     if update_commit_diff:
                         commit_diff.add_data(num)
                 samples = samples[num:]
@@ -776,6 +789,9 @@ class ChunkEngine:
                 pbar.update(num_samples_added)
         if progressbar:
             pbar.close()
+
+        self.start_chunk = current_chunk
+        self.cache.register_deeplake_object("start_chunk", self.start_chunk)
         if register:
             return updated_chunks
         return updated_chunks, tiles
@@ -804,7 +820,7 @@ class ChunkEngine:
             register=True,
             progressbar=progressbar,
             update_commit_diff=update_commit_diff,
-            use_cached_chunk=True,
+            start_chunk=self.start_chunk,
         )
         return verified_samples
 
