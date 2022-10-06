@@ -209,6 +209,7 @@ class Dataset:
         d["_parent_dataset"] = None
         d["_pad_tensors"] = pad_tensors
         d["_locking_enabled"] = lock
+        d["_temp_tensors"] = []
         dct = self.__dict__
         dct.update(d)
         dct["enabled_tensors"] = (
@@ -231,6 +232,9 @@ class Dataset:
             bool
         ] = []  # This is a stack to support nested with contexts
         self._indexing_history: List[int] = []
+
+        for temp_tensor in self._temp_tensors:
+            self.delete_tensor(temp_tensor)
 
     def _lock_lost_handler(self):
         """This is called when lock is acquired but lost later on due to slow update."""

@@ -248,7 +248,7 @@ class Pipeline:
         )
 
         for tensor in class_label_tensors:
-            temp_tensor = f"_{tensor}_{uuid4().hex[:4]}"
+            temp_tensor = f"__temp{tensor}_{uuid4().hex[:4]}"
             with target_ds:
                 temp_tensor_obj = target_ds.create_tensor(
                     temp_tensor,

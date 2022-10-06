@@ -1132,6 +1132,7 @@ def test_tensor_delete(local_ds_generator):
     ds.delete_group("x")
     assert list(ds.storage.keys()) == ["dataset_meta.json"]
     assert ds.tensors == {}
+    assert ds.meta.hidden_tensors == []
 
 
 def test_group_delete_bug(local_ds_generator):
@@ -2027,6 +2028,17 @@ def test_transform_upload_fail(local_ds_generator, num_workers):
             ds.labels.numpy().flatten(), np.array([0, 1, 2, 3])
         )
         assert list(ds.tensors) == ["images", "labels"]
+
+
+def test_ignore_temp_tensors(local_ds_generator):
+    with local_ds_generator() as ds:
+        ds.create_tensor("__temptensor")
+        ds.__temptensor.append(123)
+
+    with local_ds_generator() as ds:
+        assert list(ds.tensors) == []
+        assert ds.meta.hidden_tensors == []
+        assert list(ds.storage.keys()) == ["dataset_meta.json"]
 
 
 def test_empty_sample_partial_read(s3_ds):
