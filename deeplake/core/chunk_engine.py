@@ -682,113 +682,6 @@ class ChunkEngine:
         self.cache.maybe_flush()
         return labels
 
-    # def _samples_to_chunks(
-    #     self,
-    #     samples,
-    #     start_chunk: Optional[BaseChunk] = None,
-    #     register: bool = True,
-    #     update_commit_diff: bool = False,
-    #     update_tensor_meta: bool = True,
-    #     start_chunk_row: Optional[int] = None,
-    #     progressbar: bool = False,
-    #     register_creds: bool = True,
-    #     use_cached_chunk: bool = False,
-    # ):
-    #     """Add samples to chunks, in case if there is a space on the start_chunk,
-    #     othewise creating new chunk and append samples to newly created chunk
-    #
-    #     Args:
-    #         samples (List[Any]): Paramter that shows the list of samples to be added to the chunk
-    #         start_chunk (BaseChunk, Optional): Parameter that points to the chunk on which the samples should be added
-    #         register (bool): Parameter that shows if we need to register the chunk
-    #         update_commit_diff (bool): Parameter that shows if we need to update the commit diffs
-    #         update_tensor_meta (bool): Parameter that shows if it is needed to update tensor metas, this will be false in case of rechunking at the meta will not be changed
-    #         start_chunk_row (int, Optional): Parameter that shows the chunk row that needs to be updated, those params are needed only in rechunking phase.
-    #         progressbar (bool): Parameter that shows if need to show sample insertion progress
-    #         register_creds (bool): Parameter that shows if need to register the creds_key of the sample
-    #         use_cached_chunk (bool): Parameter that shows if need to use cached chunk data
-    #
-    #     Returns:
-    #         Tuple[List[BaseChunk], Dict[Any, Any]]
-    #     """
-    #     current_chunk = start_chunk
-    #
-    #     last_index = self.num_chunks-1
-    #     if self.num_chunks == 0 or last_index in self.tile_encoder:
-    #          current_chunk = None
-    #
-    #     if use_cached_chunk and start_chunk:
-    #         raise Exception("start_chunk and use_cached_chunk can not be used together. You need to either use_cached "
-    #                         "chunk or manually specify start_chunk")
-    #
-    #     # if use_cached_chunk:
-    #     #     current_chunk = self.start_chunk
-    #
-    #     updated_chunks = []
-    #     if current_chunk is None:
-    #         current_chunk = self._create_new_chunk(register)
-    #         updated_chunks.append(current_chunk)
-    #         self.start_chunk = current_chunk
-    #     enc = self.chunk_id_encoder
-    #     tiles = {}
-    #     nsamples = len(samples)
-    #     if register and update_commit_diff:
-    #         commit_diff = self.commit_diff
-    #     if progressbar:
-    #         pbar = tqdm(total=len(samples))
-    #     while len(samples) > 0:
-    #         num_samples_added = current_chunk.extend_if_has_space(
-    #             samples, update_tensor_meta=update_tensor_meta
-    #         )  # type: ignore
-    #         if register_creds:
-    #             self.register_new_creds(num_samples_added, samples)
-    #         if num_samples_added == 0:
-    #             current_chunk = self._create_new_chunk(register, row=start_chunk_row)
-    #             if start_chunk_row is not None:
-    #                 start_chunk_row += 1
-    #             updated_chunks.append(current_chunk)
-    #             self.start_chunk = current_chunk
-    #         elif num_samples_added == PARTIAL_NUM_SAMPLES:
-    #             sample = samples[0]
-    #             if register and sample.is_first_write:
-    #                 enc.register_samples(1)
-    #             if sample.is_last_write:
-    #                 if register:
-    #                     self.tile_encoder.register_sample(sample, self.num_samples - 1)
-    #                     if update_commit_diff:
-    #                         commit_diff.add_data(1)
-    #                 else:
-    #                     tiles[nsamples - len(samples)] = (
-    #                         sample.sample_shape,
-    #                         sample.tile_shape,
-    #                     )
-    #                 samples = samples[1:]
-    #             if len(samples) > 0:
-    #                 current_chunk = self._create_new_chunk(
-    #                     register, row=start_chunk_row
-    #                 )
-    #                 if start_chunk_row is not None:
-    #                     start_chunk_row += 1
-    #                 updated_chunks.append(current_chunk)
-    #                 self.start_chunk = current_chunk
-    #         else:
-    #             if not updated_chunks:
-    #                 updated_chunks.append(current_chunk)
-    #             num = int(num_samples_added)
-    #             if register:
-    #                 enc.register_samples(num, row=start_chunk_row)
-    #                 if update_commit_diff:
-    #                     commit_diff.add_data(num)
-    #             samples = samples[num:]
-    #         if progressbar:
-    #             pbar.update(num_samples_added)
-    #     if progressbar:
-    #         pbar.close()
-    #
-    #     if register:
-    #         return updated_chunks
-    #     return updated_chunks, tiles
-
     def _samples_to_chunks(
         self,
         samples,
@@ -799,9 +692,11 @@ class ChunkEngine:
         start_chunk_row: Optional[int] = None,
         progressbar: bool = False,
         register_creds: bool = True,
+        use_cached_chunk: bool = False,
     ):
         """Add samples to chunks, in case if there is a space on the start_chunk,
         othewise creating new chunk and append samples to newly created chunk
+
         Args:
             samples (List[Any]): Paramter that shows the list of samples to be added to the chunk
             start_chunk (BaseChunk, Optional): Parameter that points to the chunk on which the samples should be added
@@ -811,15 +706,29 @@ class ChunkEngine:
             start_chunk_row (int, Optional): Parameter that shows the chunk row that needs to be updated, those params are needed only in rechunking phase.
             progressbar (bool): Parameter that shows if need to show sample insertion progress
             register_creds (bool): Parameter that shows if need to register the creds_key of the sample
+            use_cached_chunk (bool): Parameter that shows if need to use cached chunk data
+
         Returns:
             Tuple[List[BaseChunk], Dict[Any, Any]]
         """
         current_chunk = start_chunk
 
+        last_index = self.num_chunks-1
+        if self.num_chunks == 0 or last_index in self.tile_encoder:
+             current_chunk = None
+
+        if use_cached_chunk and start_chunk:
+            raise Exception("start_chunk and use_cached_chunk can not be used together. You need to either use_cached "
+                            "chunk or manually specify start_chunk")
+
+        # if use_cached_chunk:
+        #     current_chunk = self.start_chunk
+
         updated_chunks = []
         if current_chunk is None:
             current_chunk = self._create_new_chunk(register)
             updated_chunks.append(current_chunk)
+            self.start_chunk = current_chunk
         enc = self.chunk_id_encoder
         tiles = {}
         nsamples = len(samples)
@@ -838,6 +747,7 @@ class ChunkEngine:
                 if start_chunk_row is not None:
                     start_chunk_row += 1
                 updated_chunks.append(current_chunk)
+                self.start_chunk = current_chunk
             elif num_samples_added == PARTIAL_NUM_SAMPLES:
                 sample = samples[0]
                 if register and sample.is_first_write:
@@ -860,6 +770,7 @@ class ChunkEngine:
                     if start_chunk_row is not None:
                         start_chunk_row += 1
                     updated_chunks.append(current_chunk)
+                    self.start_chunk = current_chunk
             else:
                 if not updated_chunks:
                     updated_chunks.append(current_chunk)
@@ -873,11 +784,10 @@ class ChunkEngine:
                 pbar.update(num_samples_added)
         if progressbar:
             pbar.close()
+
         if register:
             return updated_chunks
         return updated_chunks, tiles
-
-
 
     def register_new_creds(self, num_samples_added, samples):
         return
