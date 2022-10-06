@@ -813,7 +813,7 @@ class ChunkEngine:
             register=True,
             progressbar=progressbar,
             update_commit_diff=update_commit_diff,
-            start_chunk=self.last_appended_chunk(),
+            start_chunk=self.start_chunk,
         )
         return verified_samples
 
