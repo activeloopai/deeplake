@@ -748,7 +748,6 @@ class ChunkEngine:
                 if start_chunk_row is not None:
                     start_chunk_row += 1
                 updated_chunks.append(current_chunk)
-                # self.start_chunk = current_chunk
             elif num_samples_added == PARTIAL_NUM_SAMPLES:
                 sample = samples[0]
                 if register and sample.is_first_write:
@@ -771,17 +770,12 @@ class ChunkEngine:
                     if start_chunk_row is not None:
                         start_chunk_row += 1
                     updated_chunks.append(current_chunk)
-                    # self.start_chunk = current_chunk
             else:
                 if not updated_chunks:
                     updated_chunks.append(current_chunk)
-                    # self.start_chunk = current_chunk
                 num = int(num_samples_added)
                 if register:
-                    try:
-                        enc.register_samples(num, row=start_chunk_row)
-                    except:
-                        enc.register_samples(num, row=start_chunk_row)
+                    enc.register_samples(num, row=start_chunk_row)
                     if update_commit_diff:
                         commit_diff.add_data(num)
                 samples = samples[num:]
