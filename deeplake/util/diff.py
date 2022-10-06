@@ -437,15 +437,22 @@ def convert_adds_to_string(index_range: List[int]) -> str:
     return f"* Added {num_samples} {sample_string}: [{index_range[0]}-{index_range[1]}]"
 
 
-# def merge_renamed_deleted():
-#     merge_renamed = OrderedDict()
-#     for old, new in dataset_diff.renamed.items():
-#         if deleted and new in deleted and new not in done:
-#             deleted[deleted.index(new)] = old
-#             done.append(old)
-#             continue
-#         if renamed and renamed.get(new):
-#             merge_renamed[old] = renamed[new]
-#             renamed.pop(new)
-#         else:
-#             merge_renamed[old] = new
+def merge_renamed_deleted(dataset_changes):
+    rev_dataset_changes = list(reversed(dataset_changes))
+    deleted = []
+    renamed = OrderedDict()
+    done = set()
+    merge_renamed = {}
+    for dataset_change in rev_dataset_changes:
+        for old, new in dataset_change["renamed"].items():
+            if deleted and new in deleted and new not in done:
+                deleted[deleted.index(new)] = old
+                done.add(new)
+                continue
+            if renamed and renamed.get(new):
+                merge_renamed[old] = renamed[new]
+                renamed.pop(new)
+            else:
+                merge_renamed[old] = new
+        deleted.extend(dataset_change["deleted"])
+    return merge_renamed, deleted

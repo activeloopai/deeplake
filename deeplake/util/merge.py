@@ -2,7 +2,7 @@ from collections import defaultdict
 from typing import Dict, List, Optional, Set, Tuple
 from deeplake.core.version_control.commit_diff import CommitDiff
 from deeplake.core.version_control.commit_node import CommitNode
-from deeplake.util.diff import get_lowest_common_ancestor, sanitize_commit
+from deeplake.util.diff import get_lowest_common_ancestor, has_change, merge_renamed_deleted, sanitize_commit
 from deeplake.util.exceptions import (
     MergeConflictError,
     MergeMismatchError,
@@ -48,17 +48,15 @@ def merge(
         new_tensors,
         common_tensors,
         deleted_tensors,
-        cleared_tensors,
-    ) = get_new_common_deleted_and_cleared_tensors(dataset, target_ds, lca_id, force)
+    ) = get_new_common_deleted_tensors(dataset, target_ds, lca_id, force)
 
     merge_common_tensors(common_tensors, dataset, target_ds, nodes, conflict_resolution)
     copy_new_tensors(new_tensors, dataset, target_ds)
     delete_tensors(deleted_tensors, dataset, delete_removed_tensors)
-    clear_tensors(cleared_tensors, dataset)
     finalize_merge(dataset, nodes)
 
 
-def get_new_common_deleted_and_cleared_tensors(
+def get_new_common_deleted_tensors(
     dataset, target_ds, lca_id: str, force: bool
 ) -> Tuple[Set[str], Set[str], Set[str], Set[str]]:
     """Gets the names of tensors, that are new, common and deleted in the target commit"""
@@ -86,8 +84,8 @@ def get_new_common_deleted_and_cleared_tensors(
 
     original_dataset_diff, _ = dataset.diff(lca_id, as_dict=True)["dataset"]
 
-    target_renamed_tensors = target_dataset_diff.get("renamed") or {}
-    original_renamed_tensors = original_dataset_diff.get("renamed") or {}
+    target_renamed_tensors, _ = merge_renamed_deleted(target_dataset_diff)
+    original_renamed_tensors, _ = merge_renamed_deleted(original_dataset_diff)
     for old_tensor, new_tensor in target_renamed_tensors.items():
         if new_tensor in new_tensors:
             if not force:
@@ -115,21 +113,16 @@ def get_new_common_deleted_and_cleared_tensors(
         original_deleted_tensors.discard(old_tensor)
 
     for tensor in original_deleted_tensors:
-        diff = target_tensor_diff.get(tensor, None)
-
-        # target has tensor but with no changes since lca, no point in creating again
-        if not diff or not (diff["data_added"] or diff["data_updated"]):
+        tensor_changed = False
+        for commit_diff in target_tensor_diff:
+            diff = commit_diff[tensor]
+            if has_change(diff):
+                tensor_changed = True
+                break
+        if not tensor_changed:
             new_tensors.discard(tensor)
 
-    target_cleared_tensors: Set[str] = set()
-
-    for tensor in common_tensors:
-        diff = target_tensor_diff.get(tensor, None)
-
-        if diff and diff["cleared"]:
-            target_cleared_tensors.add(tensor)
-
-    return new_tensors, common_tensors, target_deleted_tensors, target_cleared_tensors
+    return new_tensors, common_tensors, target_deleted_tensors
 
 
 def finalize_merge(dataset, nodes: Dict[str, CommitNode]):
