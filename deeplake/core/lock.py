@@ -149,10 +149,16 @@ class PersistentLock(Lock):
                                     self.lock_lost_callback()
                                 self.acquired = False
                                 return
+                        elif not self._init:
+                            if self.lock_lost_callback:
+                                self.lock_lost_callback()
+                            self.acquired = False
+                            return
                     self._previous_update_timestamp = time.time()
                     self.storage[self.path] = _get_lock_bytes(self.username)
                 except Exception:
                     pass
+                self._init = False
                 time.sleep(deeplake.constants.DATASET_LOCK_UPDATE_INTERVAL)
         except Exception:  # Thread termination
             return
@@ -175,6 +181,7 @@ class PersistentLock(Lock):
                 elif time.time() - timestamp < deeplake.constants.DATASET_LOCK_VALIDITY:
                     raise LockedException()
 
+        self._init = True
         self._thread = threading.Thread(target=self._lock_loop, daemon=True)
         self._thread.start()
         self.acquired = True
