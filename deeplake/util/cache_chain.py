@@ -1,7 +1,7 @@
 from deeplake.constants import LOCAL_CACHE_PREFIX
 from typing import List, Optional
 from uuid import uuid1
-
+import os
 from deeplake.core.storage import StorageProvider, MemoryProvider, LocalProvider
 from deeplake.core.storage.lru_cache import LRUCache
 from deeplake.util.exceptions import ProviderSizeListMismatch, ProviderListEmptyError
@@ -75,8 +75,9 @@ def generate_chain(
     size_list.append(memory_cache_size)
 
     if local_cache_size > 0:
+        local_cache_prefix = os.getenv("LOCAL_CACHE_PREFIX", default=LOCAL_CACHE_PREFIX)
         storage_list.append(
-            LocalProvider(f"{LOCAL_CACHE_PREFIX}/{cached_dataset_name}")
+            LocalProvider(f"{local_cache_prefix}/{cached_dataset_name}")
         )
         size_list.append(local_cache_size)
     storage_list.append(base_storage)
