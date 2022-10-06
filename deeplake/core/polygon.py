@@ -52,11 +52,11 @@ class Polygons:
         self.dtype = dtype
         self._validate()
         # Note: here ndim is the number of dimensions of the polygon's space, not the ndim of data.
-        self.ndim = len(self.data[0][0]) if self.data else 0
+        self.ndim = len(self.data[0][0]) if len(self.data) else 0
         self.shape = (len(self.data), max(map(len, self.data), default=0), self.ndim)
 
     def _validate(self):
-        if self.data:
+        if len(self.data):
             ndim = self[0].ndim
             for p in self:
                 assert p.ndim == ndim
@@ -81,7 +81,7 @@ class Polygons:
             yield Polygon(c, self.dtype)
 
     def tobytes(self) -> memoryview:
-        if not self.data:
+        if not len(self.data):
             return memoryview(b"")
         ndim = self.ndim
         assert ndim < 256, "Maximum number of dimensions supported is 255."  # uint8
