@@ -1,5 +1,4 @@
 from typing import List, Union, Sequence, Any
-from functools import reduce
 import numpy as np
 from deeplake.core.linked_sample import LinkedSample
 from deeplake.util.exceptions import TensorDtypeMismatchError
