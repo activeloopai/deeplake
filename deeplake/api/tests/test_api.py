@@ -2026,6 +2026,7 @@ def test_transform_upload_fail(local_ds_generator, num_workers):
         np.testing.assert_array_equal(
             ds.labels.numpy().flatten(), np.array([0, 1, 2, 3])
         )
+         assert list(ds.tensors) == ["images", "labels"]
 
 
 def test_empty_sample_partial_read(s3_ds):
