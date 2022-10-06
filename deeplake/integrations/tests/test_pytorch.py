@@ -26,8 +26,8 @@ def double(sample):
     return sample * 2
 
 
-def to_tuple(sample):
-    return sample["image"], sample["image2"]
+def to_tuple(sample, t1, t2):
+    return sample[t1], sample[t2]
 
 
 def reorder_collate(batch):
@@ -156,7 +156,12 @@ def test_pytorch_transform(ds):
             dl = ds.pytorch(num_workers=0)
         return
 
-    dl = ds.pytorch(num_workers=2, transform=to_tuple, batch_size=1)
+    dl = ds.pytorch(
+        num_workers=2,
+        transform=to_tuple,
+        batch_size=1,
+        transform_kwargs={"t1": "image", "t2": "image2"},
+    )
 
     for _ in range(2):
         for i, batch in enumerate(dl):
@@ -167,7 +172,13 @@ def test_pytorch_transform(ds):
             np.testing.assert_array_equal(actual_image, expected_image)
             np.testing.assert_array_equal(actual_image2, expected_image2)
 
-    dls = ds.pytorch(num_workers=0, transform=to_tuple, batch_size=1, shuffle=True)
+    dls = ds.pytorch(
+        num_workers=0,
+        transform=to_tuple,
+        batch_size=1,
+        shuffle=True,
+        transform_kwargs={"t1": "image", "t2": "image2"},
+    )
 
     for _ in range(2):
         all_values = []
