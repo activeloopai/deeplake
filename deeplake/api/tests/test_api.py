@@ -6,7 +6,6 @@ import pytest
 import deeplake
 from deeplake.core.dataset import Dataset
 from deeplake.core.tensor import Tensor
-
 from deeplake.tests.common import (
     assert_array_lists_equal,
     is_opt_true,
@@ -46,7 +45,7 @@ from deeplake.client.config import REPORTING_CONFIG_FILE_PATH
 from click.testing import CliRunner
 from deeplake.cli.auth import login, logout
 from deeplake.util.bugout_reporter import feature_report_path
-
+from rich import print as rich_print
 
 # need this for 32-bit and 64-bit systems to have correct tests
 MAX_INT_DTYPE = np.int_.__name__
@@ -2184,3 +2183,12 @@ def test_bad_link(local_ds_generator, verify):
 
     with local_ds_generator() as ds:
         assert len(ds) == 1
+
+
+def test_rich(memory_ds):
+    with memory_ds as ds:
+        ds.create_tensor("x")
+        ds.x.extend(list(range(10)))
+    rich_print(ds)
+    rich_print(ds.info)
+    rich_print(ds.x.info)
