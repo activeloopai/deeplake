@@ -558,7 +558,7 @@ use them just by adding the keys to your dataset. For example if you have manage
 
 :bluebold:`Create a link tensor`
 
->>> ds.create_tensor("img", htype="link[image]", verify=True, create_shape_tensor=False, create_sample_info_tensor=False)
+>>> ds.create_tensor("img", htype="link[image]", sample_compression="jpg")
 
 
 :bluebold:`Populate the tensor with links`
