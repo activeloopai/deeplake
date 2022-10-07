@@ -523,9 +523,10 @@ Link htype
 - Moreover, there can be variations in this htype, such as ``link[image]``, ``link[video]``, ``link[audio]``, etc. that would enable the activeloop visualizer to correctly display the data.
 - No data is actually loaded until you try to read the sample from a dataset.
 - There are a few exceptions to this:-
-    - If ``verify=True`` was specified during ``create_tensor`` of the tensor to which this is being added, some metadata is read to verify the integrity of the sample.
-    - If ``create_shape_tensor=True`` was specified during ``create_tensor`` of the tensor to which this is being added, the shape of the sample is read.
-    - If ``create_sample_info_tensor=True`` was specified during ``create_tensor`` of the tensor to which this is being added, the sample info is read.
+    - If ``create_shape_tensor=True`` was specified during ``create_tensor`` of the tensor to which this is being added, the shape of the sample is read. This is ``True`` by default.
+    - If ``create_sample_info_tensor=True`` was specified during ``create_tensor`` of the tensor to which this is being added, the sample info is read. This is ``True`` by default.
+    - If ``verify=True`` was specified during ``create_tensor`` of the tensor to which this is being added, some metadata is read from them to verify the integrity of the link samples. This is ``True`` by default.
+    - If you do not want to verify your links, all three of ``verify``, ``create_shape_tensor`` and ``create_sample_info_tensor`` have to be set to ``False``.
 
 .. _linked_sample_examples:
 
