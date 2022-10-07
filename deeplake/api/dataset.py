@@ -1166,7 +1166,7 @@ class dataset:
         Returns:
             List: List of dataset names.
         """
-        feature_report_path(src, "list", parameters={"workspace": workspace}, token=token)
+        feature_report_path("", "list", parameters={"workspace": workspace}, token=token)
         client = DeepLakeBackendClient(token=token)
         datasets = client.get_datasets(workspace=workspace)
         return datasets
