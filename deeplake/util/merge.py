@@ -2,7 +2,12 @@ from collections import defaultdict
 from typing import Dict, List, Optional, Set, Tuple
 from deeplake.core.version_control.commit_diff import CommitDiff
 from deeplake.core.version_control.commit_node import CommitNode
-from deeplake.util.diff import get_lowest_common_ancestor, has_change, merge_renamed_deleted, sanitize_commit
+from deeplake.util.diff import (
+    get_lowest_common_ancestor,
+    has_change,
+    merge_renamed_deleted,
+    sanitize_commit,
+)
 from deeplake.util.exceptions import (
     MergeConflictError,
     MergeMismatchError,
@@ -32,12 +37,13 @@ def merge(
     auto_checkout(dataset)
     target_commit_id = sanitize_commit(target_id, version_state)
     target_commit_id = auto_commit_target_commit(dataset, target_commit_id)
-    target_ds = create_read_copy_dataset(dataset, target_commit_id)
 
     nodes: Dict[str, CommitNode] = {}
     nodes["original"] = original_node = version_state["commit_node"]
     nodes["target"] = target_node = commit_node_map[target_commit_id]
     lca_id = get_lowest_common_ancestor(original_node, target_node)
+    target_ds = create_read_copy_dataset(dataset, target_commit_id)
+    lca_ds = create_read_copy_dataset(dataset, lca_id)
 
     if lca_id == target_commit_id:
         print("No merge needed, target id is an ancestor of the current commit")
@@ -50,7 +56,9 @@ def merge(
         deleted_tensors,
     ) = get_new_common_deleted_tensors(dataset, target_ds, lca_id, force)
 
-    merge_common_tensors(common_tensors, dataset, target_ds, nodes, conflict_resolution)
+    merge_common_tensors(
+        common_tensors, dataset, target_ds, lca_ds, nodes, conflict_resolution
+    )
     copy_new_tensors(new_tensors, dataset, target_ds)
     delete_tensors(deleted_tensors, dataset, delete_removed_tensors)
     finalize_merge(dataset, nodes)
@@ -222,6 +230,7 @@ def merge_common_tensors(
     tensor_names: Set[str],
     dataset,
     target_dataset,
+    lca_dataset,
     nodes: Dict[str, CommitNode],
     conflict_resolution: Optional[str] = None,
 ):
@@ -241,6 +250,7 @@ def merge_common_tensors(
             tensor_name,
             dataset,
             target_dataset,
+            lca_dataset,
             nodes,
         )
         new_samples_dict[tensor_name] = new_indexes
@@ -346,6 +356,7 @@ def find_new_updated_and_conflict_indexes(
     tensor_name: str,
     dataset,
     target_dataset,
+    lca_dataset,
     nodes: Dict[str, CommitNode],
 ) -> Tuple[List[int], List[int], List[Tuple[int, int]], List[Tuple[int, int]]]:
     """Finds the new and conflict indexes for a given tensor.
@@ -354,6 +365,7 @@ def find_new_updated_and_conflict_indexes(
         tensor_name (str): The name of the tensor to find the new and conflict indexes for.
         dataset: The original state of the dataset.
         target_dataset: The target state of the dataset.
+        lca_dataset: The dataset at the lowest common ancestor of the original and target commits.
         nodes (dict): A dictionary containing original, target and lca nodes.
 
     Returns:
@@ -385,13 +397,23 @@ def find_new_updated_and_conflict_indexes(
     target_ids = target_id_tensor.numpy().flatten()
     target_id_to_index_map = {id: idx for idx, id in enumerate(target_ids)}
 
+    try:
+        lca_id_tensor = lca_dataset[id_tensor_name]
+    except Exception:
+        lca_id_tensor = None
+
+    if lca_id_tensor is not None:
+        lca_ids = lca_id_tensor.numpy().flatten()
+    else:
+        lca_ids = []
+
     new_elements_ids = set(target_ids) - set(original_ids)
 
     new_indexes = get_indexes_from_ids(
         new_elements_ids, target_id_changes_commit_map, target_id_to_index_map
     )
 
-    deleted_elements_ids = set(original_ids) - set(target_ids)
+    deleted_elements_ids = set(lca_ids) - set(target_ids)
     deleted_indexes = get_indexes_from_ids(
         deleted_elements_ids, original_id_changes_commit_map, original_id_to_index_map
     )
