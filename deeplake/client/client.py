@@ -241,9 +241,10 @@ class DeepLakeBackendClient:
                         raise UserNotLoggedInException()
                     raise TokenPermissionError()
             raise
-
         full_url = response.get("path")
         creds = response["creds"]
+        region = creds.pop("region", None)
+        creds["aws_region"] = region
         mode = response["mode"]
         expiration = creds["expiration"]
         return full_url, creds, mode, expiration
