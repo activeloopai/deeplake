@@ -106,9 +106,7 @@ def compare_commits(
     ]:
         while commit_node.commit_id != lca_node.commit_id:
             commit_id = commit_node.commit_id
-            get_tensor_changes_for_id(
-                commit_id, storage, tensor_changes
-            )
+            get_tensor_changes_for_id(commit_id, storage, tensor_changes)
             get_dataset_changes_for_id(commit_id, storage, dataset_changes)
             commit_node = commit_node.parent  # type: ignore
 
@@ -160,19 +158,24 @@ def get_all_changes_string(
     ds_changes_1, ds_changes_2, tensor_changes_1, tensor_changes_2, msg_0, msg_1, msg_2
 ):
     """Returns a string with all changes."""
-    all_changes = ["\n## Hub Diff"]
+    all_changes = ["\n## Deep Lake Diff"]
     if msg_0:
         all_changes.append(msg_0)
 
     separator = "-" * 120
     if tensor_changes_1 is not None:
-        changes1_str = get_changes_str(ds_changes_1, tensor_changes_1, colour_string_yellow(msg_1), separator)
+        changes1_str = get_changes_str(
+            ds_changes_1, tensor_changes_1, colour_string_yellow(msg_1), separator
+        )
         all_changes.append(changes1_str)
     if tensor_changes_2 is not None:
-        changes2_str = get_changes_str(ds_changes_2, tensor_changes_2, colour_string_yellow(msg_2), separator)
+        changes2_str = get_changes_str(
+            ds_changes_2, tensor_changes_2, colour_string_yellow(msg_2), separator
+        )
         all_changes.append(changes2_str)
     all_changes.append(separator)
     return "\n".join(all_changes)
+
 
 def colour_string_yellow(string: str) -> str:
     """Returns a coloured string."""
@@ -210,6 +213,7 @@ def get_dataset_changes_str_list(ds_change: Dict, all_changes_for_commit: List[s
             all_changes_for_commit.append(f"- Renamed:\t{old} -> {new}")
     if len(all_changes_for_commit) > 2:
         all_changes_for_commit.append("\n")
+
 
 def get_tensor_changes_str_list(tensor_change: Dict, all_changes_for_commit: List[str]):
     tensors = sorted(tensor_change.keys())
@@ -277,7 +281,12 @@ def get_dataset_changes_for_id(
     try:
         dataset_diff = storage.get_deeplake_object(dataset_diff_key, DatasetDiff)
     except KeyError:
-        dataset_change = {"commit_id": commit_id, "info_updated": False, "renamed": {}, "deleted": []}
+        dataset_change = {
+            "commit_id": commit_id,
+            "info_updated": False,
+            "renamed": {},
+            "deleted": [],
+        }
         dataset_changes.append(dataset_change)
         return
 
