@@ -365,4 +365,4 @@ def test_clear_merge(local_ds):
         d = ds.commit()
         ds.merge("alt")
 
-        np.testing.assert_array_equal(ds.abc.numpy(), np.array([]))
+        np.testing.assert_array_equal(ds.abc.numpy(), np.array([[5, 6, 3]]))
