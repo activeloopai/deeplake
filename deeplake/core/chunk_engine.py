@@ -690,6 +690,7 @@ class ChunkEngine:
     ):
         """Add samples to chunks, in case if there is a space on the start_chunk,
         othewise creating new chunk and append samples to newly created chunk
+
         Args:
             samples (List[Any]): Paramter that shows the list of samples to be added to the chunk
             start_chunk (BaseChunk, Optional): Parameter that points to the chunk on which the samples should be added
@@ -699,6 +700,7 @@ class ChunkEngine:
             start_chunk_row (int, Optional): Parameter that shows the chunk row that needs to be updated, those params are needed only in rechunking phase.
             progressbar (bool): Parameter that shows if need to show sample insertion progress
             register_creds (bool): Parameter that shows if need to register the creds_key of the sample
+
         Returns:
             Tuple[List[BaseChunk], Dict[Any, Any]]
         """
@@ -765,7 +767,6 @@ class ChunkEngine:
             return updated_chunks
         return updated_chunks, tiles
 
-
     def register_new_creds(self, num_samples_added, samples):
         return
 
@@ -787,10 +788,10 @@ class ChunkEngine:
         samples, verified_samples = self._sanitize_samples(samples)
         self._samples_to_chunks(
             samples,
+            start_chunk=self.last_appended_chunk(),
             register=True,
             progressbar=progressbar,
             update_commit_diff=update_commit_diff,
-            start_chunk=self.last_appended_chunk(),
         )
         return verified_samples
 
