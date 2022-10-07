@@ -209,6 +209,7 @@ class ChunkEngine:
         self._chunk_args = None
         self._num_samples_per_chunk: Optional[int] = None
         self.write_initialization_done = False
+        self.start_chunk = None
 
     @property
     def is_data_cachable(self):
@@ -700,11 +701,19 @@ class ChunkEngine:
             start_chunk_row (int, Optional): Parameter that shows the chunk row that needs to be updated, those params are needed only in rechunking phase.
             progressbar (bool): Parameter that shows if need to show sample insertion progress
             register_creds (bool): Parameter that shows if need to register the creds_key of the sample
+            use_cached_chunk (bool): Parameter that shows if need to use cached chunk data
 
         Returns:
             Tuple[List[BaseChunk], Dict[Any, Any]]
         """
         current_chunk = start_chunk
+        last_index = self.num_samples-1
+
+        if start_chunk is None:
+            current_chunk = self.last_appended_chunk()
+
+        if self.num_chunks == 0 or last_index in self.tile_encoder:
+            current_chunk = None
 
         updated_chunks = []
         if current_chunk is None:
@@ -763,6 +772,7 @@ class ChunkEngine:
                 pbar.update(num_samples_added)
         if progressbar:
             pbar.close()
+        self.start_chunk = current_chunk
         if register:
             return updated_chunks
         return updated_chunks, tiles
@@ -788,7 +798,7 @@ class ChunkEngine:
         samples, verified_samples = self._sanitize_samples(samples)
         self._samples_to_chunks(
             samples,
-            start_chunk=self.last_appended_chunk(),
+            start_chunk=self.start_chunk,
             register=True,
             progressbar=progressbar,
             update_commit_diff=update_commit_diff,
