@@ -707,7 +707,7 @@ class ChunkEngine:
             Tuple[List[BaseChunk], Dict[Any, Any]]
         """
         current_chunk = start_chunk
-        last_index = self.num_samples-1
+        last_index = self.num_samples - 1
 
         if start_chunk is None:
             current_chunk = self.last_appended_chunk()
