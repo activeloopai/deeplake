@@ -243,8 +243,7 @@ class DeepLakeBackendClient:
             raise
         full_url = response.get("path")
         creds = response["creds"]
-        region = creds.pop("region", None)
-        creds["aws_region"] = region
+        creds["aws_region"] = creds.pop("region", None)
         mode = response["mode"]
         expiration = creds["expiration"]
         return full_url, creds, mode, expiration
