@@ -3084,8 +3084,7 @@ class Dataset:
         else:
             reset_index = False
         try:
-            # dest_ds.tensors
-            for tensor in ["labels"]:
+            for tensor in dest_ds.tensors:
                 src = self[tensor]
                 copy_f = (
                     (
