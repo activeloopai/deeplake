@@ -708,9 +708,6 @@ class ChunkEngine:
         current_chunk = start_chunk
         last_index = self.num_samples - 1
 
-        if start_chunk is None:
-            current_chunk = self.last_appended_chunk()
-
         if self.num_chunks == 0 or last_index in self.tile_encoder:
             current_chunk = None
 
@@ -797,7 +794,7 @@ class ChunkEngine:
         samples, verified_samples = self._sanitize_samples(samples)
         self._samples_to_chunks(
             samples,
-            start_chunk=self.start_chunk,
+            start_chunk=self.start_chunk if self.start_chunk is not None else self.last_appended_chunk(),
             register=True,
             progressbar=progressbar,
             update_commit_diff=update_commit_diff,
