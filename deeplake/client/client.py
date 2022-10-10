@@ -241,7 +241,6 @@ class DeepLakeBackendClient:
                         raise UserNotLoggedInException()
                     raise TokenPermissionError()
             raise
-
         full_url = response.get("path")
         creds = response["creds"]
         mode = response["mode"]

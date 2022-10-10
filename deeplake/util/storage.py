@@ -53,7 +53,7 @@ def storage_provider_from_path(
         secret = creds.get("aws_secret_access_key")
         session_token = creds.get("aws_session_token")
         endpoint_url = creds.get("endpoint_url")
-        region = creds.get("aws_region")
+        region = creds.get("aws_region") or creds.get("region")
         profile = creds.get("profile_name")
         storage: StorageProvider = S3Provider(
             path,
