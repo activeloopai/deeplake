@@ -33,8 +33,8 @@ def get_changes_and_messages_compared_to_prev(
     ds_changes = []
     s = "HEAD" if head else f"{commit_id} (current commit)"
     msg_1 = f"Diff in {s} relative to the previous commit:\n"
-    get_tensor_changes_for_id(commit_id, storage, tensor_changes)
-    get_dataset_changes_for_id(commit_id, storage, ds_changes)
+    get_tensor_changes_for_id(commit_node, storage, tensor_changes)
+    get_dataset_changes_for_id(commit_node, storage, ds_changes)
     # filter_renamed_diff(ds_changes)
     # Order: ds_changes_1, ds_changes_2, tensor_changes_1, tensor_changes_2, msg_0, msg_1, msg_2
     return ds_changes, None, tensor_changes, None, None, msg_1, None
@@ -105,9 +105,8 @@ def compare_commits(
         (commit_node_2, tensor_changes_2, dataset_changes_2),
     ]:
         while commit_node.commit_id != lca_node.commit_id:
-            commit_id = commit_node.commit_id
-            get_tensor_changes_for_id(commit_id, storage, tensor_changes)
-            get_dataset_changes_for_id(commit_id, storage, dataset_changes)
+            get_tensor_changes_for_id(commit_node, storage, tensor_changes)
+            get_dataset_changes_for_id(commit_node, storage, dataset_changes)
             commit_node = commit_node.parent  # type: ignore
 
         # filter_renamed_diff(dataset_changes)
@@ -165,21 +164,24 @@ def get_all_changes_string(
     separator = "-" * 120
     if tensor_changes_1 is not None:
         changes1_str = get_changes_str(
-            ds_changes_1, tensor_changes_1, colour_string_yellow(msg_1), separator
+            ds_changes_1, tensor_changes_1, colour_string(msg_1, "blue"), separator
         )
         all_changes.append(changes1_str)
     if tensor_changes_2 is not None:
         changes2_str = get_changes_str(
-            ds_changes_2, tensor_changes_2, colour_string_yellow(msg_2), separator
+            ds_changes_2, tensor_changes_2, colour_string(msg_2, "blue"), separator
         )
         all_changes.append(changes2_str)
     all_changes.append(separator)
     return "\n".join(all_changes)
 
 
-def colour_string_yellow(string: str) -> str:
+def colour_string(string: str, colour: str) -> str:
     """Returns a coloured string."""
-    return "\033[93m" + string + "\033[0m"
+    if colour == "yellow":
+        return "\033[93m" + string + "\033[0m"
+    elif colour == "blue":
+        return "\033[94m" + string + "\033[0m"
 
 
 def get_changes_str(
@@ -190,15 +192,18 @@ def get_changes_str(
     local_separator = "*" * 80
     for ds_change, tensor_change in zip(ds_changes, tensor_changes):
         commit_id = ds_change["commit_id"]
+        author = ds_change["author"]
+        message = ds_change["message"]
+        date = str(ds_change["date"])[:-7]
         assert commit_id == tensor_change["commit_id"]
-        all_changes_for_commit = [local_separator, f"Commit ID: {commit_id}"]
+        all_changes_for_commit = [local_separator, colour_string(f"commit {commit_id}", "yellow"), f"Author: {author}", f"Date: {date}", f"Message: {message}"]
         get_dataset_changes_str_list(ds_change, all_changes_for_commit)
         get_tensor_changes_str_list(tensor_change, all_changes_for_commit)
-        if len(all_changes_for_commit) == 2:
+        if len(all_changes_for_commit) == 5:
             all_changes_for_commit.append("No changes were made in this commit.")
         all_changes.extend(all_changes_for_commit)
     if len(all_changes) == 2:
-        all_changes.append("No changes were made.")
+        all_changes.append("No changes were made.\n")
     return "\n".join(all_changes)
 
 
@@ -211,7 +216,7 @@ def get_dataset_changes_str_list(ds_change: Dict, all_changes_for_commit: List[s
     if ds_change.get("renamed"):
         for old, new in ds_change["renamed"].items():
             all_changes_for_commit.append(f"- Renamed:\t{old} -> {new}")
-    if len(all_changes_for_commit) > 2:
+    if len(all_changes_for_commit) > 5:
         all_changes_for_commit.append("\n")
 
 
@@ -270,12 +275,12 @@ def has_change(change: Dict):
 
 
 def get_dataset_changes_for_id(
-    commit_id: str,
+    commit_node,
     storage: LRUCache,
     dataset_changes,
 ):
     """Returns the changes made in the dataset for a commit."""
-
+    commit_id = commit_node.commit_id
     dataset_diff_key = get_dataset_diff_key(commit_id)
 
     try:
@@ -283,6 +288,9 @@ def get_dataset_changes_for_id(
     except KeyError:
         dataset_change = {
             "commit_id": commit_id,
+            "author": commit_node.commit_user_name,
+            "message": commit_node.commit_message,
+            "date": commit_node.commit_time,
             "info_updated": False,
             "renamed": {},
             "deleted": [],
@@ -300,11 +308,12 @@ def get_dataset_changes_for_id(
 
 
 def get_tensor_changes_for_id(
-    commit_id: str,
+    commit_node,
     storage: LRUCache,
     tensor_changes: List[Dict],
 ):
     """Identifies the changes made in the given commit_id and updates them in the changes dict."""
+    commit_id = commit_node.commit_id
     meta_key = get_dataset_meta_key(commit_id)
     meta: DatasetMeta = storage.get_deeplake_object(meta_key, DatasetMeta)
     tensors = meta.visible_tensors
