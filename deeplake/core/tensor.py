@@ -64,6 +64,7 @@ def create_tensor(
     sample_compression: str,
     chunk_compression: str,
     version_state: Dict[str, Any],
+    overwrite: bool = False,
     **kwargs,
 ):
     """If a tensor does not exist, create a new one with the provided meta.
@@ -75,15 +76,16 @@ def create_tensor(
         sample_compression (str): All samples will be compressed in the provided format. If `None`, samples are uncompressed.
         chunk_compression (str): All chunks will be compressed in the provided format. If `None`, chunks are uncompressed.
         version_state (Dict[str, Any]): The version state of the dataset, includes commit_id, commit_node, branch, branch_commit_map and commit_node_map.
+        overwrite (bool): If `True`, any existing data in the tensor's directory will be overwritten.
         **kwargs: `htype` defaults can be overridden by passing any of the compatible parameters.
             To see all `htype`s and their correspondent arguments, check out `/deeplake/htypes.py`.
 
     Raises:
-        TensorAlreadyExistsError: If a tensor defined with `key` already exists.
+        TensorAlreadyExistsError: If a tensor defined with `key` already exists and `overwrite` is False.
     """
 
     commit_id = version_state["commit_id"]
-    if tensor_exists(key, storage, commit_id):
+    if not overwrite and tensor_exists(key, storage, commit_id):
         raise TensorAlreadyExistsError(key)
 
     meta_key = get_tensor_meta_key(key, commit_id)
