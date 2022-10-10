@@ -808,7 +808,7 @@ class Tensor:
     def __ior__(self, other):
         pass
 
-    def data(self, aslist: bool = False) -> Any:
+    def data(self, aslist: bool = False, fetch_chunks: bool = False) -> Any:
         """Returns data in the tensor in a format based on the tensor's base htype.
 
         - Returns dict with dict["value"] = :meth:`Tensor.text() <text>` for tensors with base htype of 'text'.
@@ -837,14 +837,14 @@ class Tensor:
         """
         htype = self.base_htype
         if htype == "text":
-            return {"value": self.text()}
+            return {"value": self.text(fetch_chunks=fetch_chunks)}
         if htype == "json":
-            return {"value": self.dict()}
+            return {"value": self.dict(fetch_chunks=fetch_chunks)}
         if htype == "list":
-            return {"value": self.list()}
+            return {"value": self.list(fetch_chunks=fetch_chunks)}
         if self.htype == "video":
             data = {}
-            data["frames"] = self.numpy(aslist=aslist)
+            data["frames"] = self.numpy(aslist=aslist, fetch_chunks=fetch_chunks)
             index = self.index
             if index.values[0].subscriptable():
                 root = Tensor(self.key, self.dataset)
@@ -870,7 +870,7 @@ class Tensor:
             data["sample_info"] = self.sample_info  # type: ignore
             return data
         if htype == "class_label":
-            labels = self.numpy(aslist=aslist)
+            labels = self.numpy(aslist=aslist, fetch_chunks=fetch_chunks)
             data = {"value": labels}
             class_names = self.info.class_names
             if class_names:
@@ -878,7 +878,7 @@ class Tensor:
             return data
         if htype in ("image", "image.rgb", "image.gray", "dicom"):
             return {
-                "value": self.numpy(aslist=aslist),
+                "value": self.numpy(aslist=aslist, fetch_chunks=fetch_chunks),
                 "sample_info": self.sample_info or {},
             }
         elif htype == "point_cloud":
@@ -886,6 +886,7 @@ class Tensor:
                 self.index,
                 aslist=aslist,
                 pad_tensor=self.pad_tensor,
+                fetch_chunks=fetch_chunks,
             )
 
             if self.ndim == 2:
@@ -922,7 +923,9 @@ class Tensor:
 
         else:
             return {
-                "value": self.chunk_engine.numpy(index=self.index, aslist=aslist),
+                "value": self.chunk_engine.numpy(
+                    index=self.index, aslist=aslist, fetch_chunks=fetch_chunks
+                ),
             }
 
     def tobytes(self) -> bytes:
@@ -1188,29 +1191,29 @@ class Tensor:
         """Returns all the indices pointed to by this tensor in the dataset view."""
         return self.dataset._sample_indices(self.num_samples)
 
-    def _extract_value(self, htype):
+    def _extract_value(self, htype: str, fetch_chunks: bool = False):
         if self.base_htype != htype:
             raise Exception(f"Only supported for {htype} tensors.")
 
         if self.ndim == 1:
-            return self.numpy()[0]
+            return self.numpy(fetch_chunks=fetch_chunks)[0]
         else:
             return [sample[0] for sample in self.numpy(aslist=True)]
 
-    def text(self):
+    def text(self, fetch_chunks: bool = False):
         """Return text data. Only applicable for tensors with 'text' base htype."""
-        return self._extract_value("text")
+        return self._extract_value("text", fetch_chunks=fetch_chunks)
 
-    def dict(self):
+    def dict(self, fetch_chunks: bool = False):
         """Return json data. Only applicable for tensors with 'json' base htype."""
-        return self._extract_value("json")
+        return self._extract_value("json", fetch_chunks=fetch_chunks)
 
-    def list(self):
+    def list(self, fetch_chunks: bool = False):
         """Return list data. Only applicable for tensors with 'list' base htype."""
         if self.base_htype != "list":
             raise Exception(f"Only supported for list tensors.")
 
         if self.ndim == 1:
-            return list(self.numpy())
+            return list(self.numpy(fetch_chunks=fetch_chunks))
         else:
-            return list(map(list, self.numpy(aslist=True)))
+            return list(map(list, self.numpy(aslist=True, fetch_chunks=fetch_chunks)))
