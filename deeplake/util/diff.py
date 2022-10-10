@@ -447,12 +447,11 @@ def convert_adds_to_string(index_range: List[int]) -> str:
 
 
 def merge_renamed_deleted(dataset_changes):
-    rev_dataset_changes = list(reversed(dataset_changes))
     deleted = []
     renamed = OrderedDict()
     done = set()
     merge_renamed = {}
-    for dataset_change in rev_dataset_changes:
+    for dataset_change in dataset_changes:
         for old, new in dataset_change["renamed"].items():
             if deleted and new in deleted and new not in done:
                 deleted[deleted.index(new)] = old
