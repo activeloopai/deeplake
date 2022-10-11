@@ -274,6 +274,7 @@ def test_basic(local_ds_generator, cat_path, flower_path, create_shape_tensor, v
         assert ds.linked_images_2[i].shape == shape_target
         assert ds.linked_images_2[i].numpy().shape == shape_target
 
+
 @pytest.mark.xfail(reason="broken link")
 def test_jwt_link(local_ds):
     with local_ds as ds:
