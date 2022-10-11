@@ -1,23 +1,9 @@
 from typing import List, Union, Sequence, Any
-from functools import reduce
 import numpy as np
 from deeplake.core.linked_sample import LinkedSample
 from deeplake.util.exceptions import TensorDtypeMismatchError
 from deeplake.core.sample import Sample  # type: ignore
 import deeplake
-
-
-def _get_bigger_dtype(d1, d2):
-    if np.can_cast(d1, d2):
-        if np.can_cast(d2, d1):
-            return d1
-        else:
-            return d2
-    else:
-        if np.can_cast(d2, d1):
-            return d2
-        else:
-            return np.object
 
 
 def get_dtype(val: Union[np.ndarray, Sequence, Sample]) -> np.dtype:
@@ -34,7 +20,7 @@ def get_dtype(val: Union[np.ndarray, Sequence, Sample]) -> np.dtype:
     elif isinstance(val, bool):
         return np.dtype(bool)
     elif isinstance(val, Sequence):
-        return reduce(_get_bigger_dtype, map(get_dtype, val))
+        return get_dtype(next(iter(val)))
     else:
         raise TypeError(f"Cannot infer numpy dtype for {val}")
 

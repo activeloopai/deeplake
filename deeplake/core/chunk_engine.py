@@ -208,6 +208,8 @@ class ChunkEngine:
 
         self._chunk_args = None
         self._num_samples_per_chunk: Optional[int] = None
+        self.write_initialization_done = False
+        self.start_chunk = None
 
     @property
     def is_data_cachable(self):
@@ -762,6 +764,7 @@ class ChunkEngine:
                 pbar.update(num_samples_added)
         if progressbar:
             pbar.close()
+
         if register:
             return updated_chunks
         return updated_chunks, tiles
@@ -801,7 +804,10 @@ class ChunkEngine:
         link_callback: Optional[Callable] = None,
     ):
         self.check_link_ready()
-        self._write_initialization()
+        if not self.write_initialization_done:
+            self._write_initialization()
+            self.write_initialization_done = True
+
         initial_autoflush = self.cache.autoflush
         self.cache.autoflush = False
 
