@@ -807,6 +807,7 @@ class ChunkEngine:
 
         if self.is_sequence:
             samples = tqdm(samples) if progressbar else samples
+            verified_samples = []
             for sample in samples:
                 if sample is None:
                     sample = []
@@ -815,20 +816,18 @@ class ChunkEngine:
                 )
                 self.sequence_encoder.register_samples(len(sample), 1)
                 self.commit_diff.add_data(1)
-                ls = verified_sample or sample
-                if link_callback:
-                    link_callback(ls, flat=False)
-                    for s in ls:
-                        s = None if is_empty_list(s) else s
-                        link_callback(s, flat=True)
+                verified_samples.append(verified_sample or sample)
+            if link_callback:
+                samples = [None if is_empty_list(s) else s for s in verified_samples]
+                link_callback(verified_samples, flat=False)
+                for s in verified_samples:
+                    link_callback(s, flat=True)
 
         else:
-            verified_samples = self._extend(samples, progressbar)
-            ls = verified_samples or samples
+            verified_samples = self._extend(samples, progressbar) or samples
             if link_callback:
-                for sample in ls:
-                    sample = None if is_empty_list(sample) else sample
-                    link_callback(sample, flat=None)
+                samples = [None if is_empty_list(s) else s for s in verified_samples]
+                link_callback(samples, flat=None)
 
         self.cache.autoflush = initial_autoflush
         self.cache.maybe_flush()
@@ -954,7 +953,7 @@ class ChunkEngine:
         self,
         num_samples_to_pad: int,
         value,
-        append_link_callback=None,
+        extend_link_callback=None,
         update_link_callback=None,
     ):
         """Pads the tensor with empty samples and appends value at the end."""
@@ -963,7 +962,7 @@ class ChunkEngine:
         if num_samples_to_pad > 0:
             if self.num_samples == 0:
                 # set htype, dtype, shape, we later update it with empty sample
-                self.extend([value], link_callback=append_link_callback)
+                self.extend([value], link_callback=extend_link_callback)
                 num_samples_to_pad -= 1
                 update_first_sample = True
 
@@ -987,9 +986,9 @@ class ChunkEngine:
                 self.update(Index(0), empty_sample, link_callback=update_link_callback)
 
             # pad
-            self.extend(empty_samples, link_callback=append_link_callback)
+            self.extend(empty_samples, link_callback=extend_link_callback)
 
-        self.extend([value], link_callback=append_link_callback)
+        self.extend([value], link_callback=extend_link_callback)
 
     def update(
         self,
@@ -2173,11 +2172,10 @@ class ChunkEngine:
 
     def _transform_callback(self, sample, flat: Optional[bool]):
         """Used in transforms to handle linked tensors."""
-        assert self._all_chunk_engines is not None
         for k, v in self.tensor_meta.links.items():
             if flat is None or v["flatten_sequence"] == flat:
                 self._all_chunk_engines[k].extend(
-                    [get_link_transform(v["append"])(sample)]
+                    [get_link_transform(v["extend"])([sample])[0]]
                 )
 
     def get_empty_sample(self):

@@ -90,6 +90,13 @@ def ffw_tensor_meta(tensor_meta, version):
     tensor_meta._required_meta_keys = tuple(
         set(required_meta_keys + ("links", "is_link", "is_sequence"))
     )
+    if version_compare(version, "3.0.10") < 0:
+        links = tensor_meta.links
+        for k in links:
+            l = links[k]
+            if "append" in l:
+                l["extend"] = l["append"].replace("append", "extend")
+                del l["append"]
 
 
 @ffw

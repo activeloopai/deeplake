@@ -2166,7 +2166,6 @@ def test_columnar_views(memory_ds):
     ds.create_tensor("a/c")
     ds.create_tensor("a/d")
     view = ds["a"][["b", "d"]]
-    print(view.enabled_tensors)
     assert list(view.tensors) == ["b", "d"]
     assert view.group_index == "a"
 

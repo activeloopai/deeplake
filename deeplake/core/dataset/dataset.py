@@ -669,9 +669,18 @@ class Dataset:
             create_shape_tensor=False,
             max_chunk_size=SAMPLE_INFO_TENSOR_MAX_CHUNK_SIZE,
         )
-        f = "append_len" if htype == "list" else "append_shape"
+        if htype == "list":
+            extend_f = "extend_len"
+            update_f = "update_len"
+        else:
+            extend_f = "extend_shape"
+            update_f = "update_shape"
         self._link_tensors(
-            tensor, shape_tensor, append_f=f, update_f=f, flatten_sequence=True
+            tensor,
+            shape_tensor,
+            extend_f=extend_f,
+            update_f=update_f,
+            flatten_sequence=True,
         )
 
     def _create_sample_id_tensor(self, tensor: str):
@@ -686,7 +695,7 @@ class Dataset:
         self._link_tensors(
             tensor,
             id_tensor,
-            append_f="append_id",
+            extend_f="extend_id",
             flatten_sequence=False,
         )
 
@@ -704,7 +713,7 @@ class Dataset:
         self._link_tensors(
             tensor,
             sample_info_tensor,
-            "append_info",
+            "extend_info",
             "update_info",
             flatten_sequence=True,
         )
@@ -2943,7 +2952,7 @@ class Dataset:
         self,
         src: str,
         dest: str,
-        append_f: str,
+        extend_f: str,
         update_f: Optional[str] = None,
         flatten_sequence: Optional[bool] = None,
     ):
@@ -2952,7 +2961,7 @@ class Dataset:
         Args:
             src (str): Name of the source tensor.
             dest (str): Name of the destination tensor.
-            append_f (str): Name of the linked tensor transform to be used for appending items to the destination tensor. This transform should be defined in `deeplake.core.tensor_link` module.
+            extend_f (str): Name of the linked tensor transform to be used for extending the destination tensor. This transform should be defined in `deeplake.core.tensor_link` module.
             update_f (str): Name of the linked tensor transform to be used for updating items in the destination tensor. This transform should be defined in `deeplake.core.tensor_link` module.
             flatten_sequence (bool, Optional): Whether appends and updates should be done per item or per sequence if the source tensor is a sequence tensor.
 
@@ -2974,7 +2983,7 @@ class Dataset:
                     "`flatten_sequence` arg must be specified when linking a sequence tensor."
                 )
             flatten_sequence = False
-        src_tensor.meta.add_link(dest_key, append_f, update_f, flatten_sequence)
+        src_tensor.meta.add_link(dest_key, extend_f, update_f, flatten_sequence)
         self.storage.maybe_flush()
 
     def _resolve_tensor_list(self, keys: List[str], root: bool = False) -> List[str]:

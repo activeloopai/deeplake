@@ -71,11 +71,11 @@ class TensorMeta(Meta):
             self.htype = None  # type: ignore
 
     def add_link(
-        self, name, append_f: str, update_f: Optional[str], flatten_sequence: bool
+        self, name, extend_f: str, update_f: Optional[str], flatten_sequence: bool
     ):
         """Link this tensor with another."""
         link = {
-            "append": append_f,
+            "extend": extend_f,
             "flatten_sequence": flatten_sequence,
         }
         if update_f is not None:
@@ -203,30 +203,30 @@ class TensorMeta(Meta):
 def _validate_links(links: dict):
     if not isinstance(links, dict):
         raise InvalidTensorLinkError()
-    allowed_keys = ("append", "update", "flatten_sequence")
+    allowed_keys = ("extend", "update", "flatten_sequence")
     for out_tensor, args in links.items():
         if not isinstance(out_tensor, str):
             raise InvalidTensorLinkError()
         if not isinstance(args, dict):
             raise InvalidTensorLinkError()
-        if "append" not in args:
+        if "extend" not in args:
             raise InvalidTensorLinkError(
-                f"append transform not specified for link {out_tensor}"
+                f"extend transform not specified for link {out_tensor}"
             )
         if "flatten_sequence" not in args:
             raise InvalidTensorLinkError(
                 f"flatten_sequence arg not specified for link {out_tensor}"
             )
         try:
-            get_link_transform(args["append"])
+            get_link_transform(args["extend"])
         except KeyError:
-            raise InvalidTensorLinkError(f"Invalid append transform: {args['append']}")
+            raise InvalidTensorLinkError(f"Invalid extend transform: {args['extend']}")
         if "update" in args:
             try:
                 get_link_transform(args["update"])
             except KeyError:
                 raise InvalidTensorLinkError(
-                    f"Invalid update transform: {args['append']}"
+                    f"Invalid update transform: {args['extend']}"
                 )
         for k in args:
             if k not in allowed_keys:
