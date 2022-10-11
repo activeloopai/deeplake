@@ -196,10 +196,10 @@ def get_changes_str(
         message = ds_change["message"]
         date = str(ds_change["date"])[:-7]
         assert commit_id == tensor_change["commit_id"]
-        all_changes_for_commit = [local_separator, colour_string(f"commit {commit_id}", "yellow"), f"Author: {author}", f"Date: {date}", f"Message: {message}"]
+        all_changes_for_commit = [local_separator, colour_string(f"commit {commit_id}", "yellow"), f"Author: {author}", f"Date: {date}", f"Message: {message}", ""]
         get_dataset_changes_str_list(ds_change, all_changes_for_commit)
         get_tensor_changes_str_list(tensor_change, all_changes_for_commit)
-        if len(all_changes_for_commit) == 5:
+        if len(all_changes_for_commit) == 6:
             all_changes_for_commit.append("No changes were made in this commit.")
         all_changes.extend(all_changes_for_commit)
     if len(all_changes) == 2:
@@ -216,7 +216,7 @@ def get_dataset_changes_str_list(ds_change: Dict, all_changes_for_commit: List[s
     if ds_change.get("renamed"):
         for old, new in ds_change["renamed"].items():
             all_changes_for_commit.append(f"- Renamed:\t{old} -> {new}")
-    if len(all_changes_for_commit) > 5:
+    if len(all_changes_for_commit) > 6:
         all_changes_for_commit.append("\n")
 
 
@@ -283,27 +283,30 @@ def get_dataset_changes_for_id(
     commit_id = commit_node.commit_id
     dataset_diff_key = get_dataset_diff_key(commit_id)
 
+    dataset_change = {
+        "commit_id": commit_id,
+        "author": commit_node.commit_user_name,
+        "message": commit_node.commit_message,
+        "date": commit_node.commit_time,
+    }
     try:
         dataset_diff = storage.get_deeplake_object(dataset_diff_key, DatasetDiff)
     except KeyError:
-        dataset_change = {
-            "commit_id": commit_id,
-            "author": commit_node.commit_user_name,
-            "message": commit_node.commit_message,
-            "date": commit_node.commit_time,
+        changes = {
             "info_updated": False,
             "renamed": {},
-            "deleted": [],
+            "deleted": []
         }
+        dataset_change.update(changes)
         dataset_changes.append(dataset_change)
         return
 
-    dataset_change = {
-        "commit_id": commit_id,
+    changes = {
         "info_updated": dataset_diff.info_updated,
         "renamed": dataset_diff.renamed.copy(),
         "deleted": dataset_diff.deleted.copy(),
     }
+    dataset_change.update(changes)
     dataset_changes.append(dataset_change)
 
 
