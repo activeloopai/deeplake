@@ -1,5 +1,3 @@
-import os
-from deeplake.util.exceptions import InvalidPathException
 import numpy as np
 from .base import StructuredDataset
 from deeplake.core.dataset import Dataset
@@ -45,11 +43,9 @@ class DataFrame(StructuredDataset):
                 try:
                     dtype = self.source[key].dtype
                     if dtype == np.dtype("object"):
-                        self.source[key].fillna("", inplace=True)
-                        ds.create_tensor(key, dtype=str, htype="text")
+                        ds.create_tensor(key, htype="json")
                     else:
-                        self.source[key].fillna(0, inplace=True)
-                        ds.create_tensor(key)
+                        ds.create_tensor(key, dtype=dtype, shape=(1,))
                     ds[key].extend(self.source[key].values.tolist())
                 except Exception as e:
                     skipped_keys.append(key)
