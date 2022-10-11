@@ -451,14 +451,14 @@ def merge_tensor_data(
         original_tensor.append(target_tensor[index])
         original_id_tensor[-1] = target_id_tensor[index]
 
+    updated_indexes = updated_samples_dict[tensor_name]
+    for original_idx, target_idx in updated_indexes:
+        original_tensor[original_idx] = target_tensor[target_idx]
+
     deleted_indexes = deleted_samples_dict[tensor_name]
     deleted_indexes.sort(reverse=True)
     for index in deleted_indexes:
         original_tensor.pop(index)
-
-    updated_indexes = updated_samples_dict[tensor_name]
-    for original_idx, target_idx in updated_indexes:
-        original_tensor[original_idx] = target_tensor[target_idx]
 
     if conflict_resolution == "theirs" and tensor_name in conflict_samples_dict:
         conflict_indexes = conflict_samples_dict[tensor_name]
