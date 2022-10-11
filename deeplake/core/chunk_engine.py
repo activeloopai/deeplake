@@ -965,6 +965,7 @@ class ChunkEngine:
     ):
         """Pads the tensor with empty samples and appends value at the end."""
         self.check_link_ready()
+        self.start_chunk = self.last_appended_chunk()
         update_first_sample = False
         if num_samples_to_pad > 0:
             if self.num_samples == 0:
