@@ -631,7 +631,7 @@ class ChunkEngine:
         if tensor_meta.htype is None and not all_empty:
             tensor_meta.set_htype(get_htype(samples))
         if tensor_meta.dtype is None and not all_empty:
-            tensor_meta.set_dtype(get_dtype(samples))
+            tensor_meta.set_dtype(get_dtype(samples[0]))
         if self._convert_to_list(samples):
             samples = list(samples)
         if self._is_temp_label_tensor:
@@ -2176,12 +2176,12 @@ class ChunkEngine:
 
         return ShapeInterval(min_shape, max_shape)
 
-    def _transform_callback(self, sample, flat: Optional[bool]):
+    def _transform_callback(self, samples, flat: Optional[bool]):
         """Used in transforms to handle linked tensors."""
         for k, v in self.tensor_meta.links.items():
             if flat is None or v["flatten_sequence"] == flat:
                 self._all_chunk_engines[k].extend(
-                    [get_link_transform(v["extend"])([sample])[0]]
+                    get_link_transform(v["extend"])(samples)
                 )
 
     def get_empty_sample(self):

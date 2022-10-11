@@ -80,6 +80,12 @@ def ffw_tensor_meta(tensor_meta, version):
         tensor_meta.min_shape = [1]
         tensor_meta.max_shape = [1]
         tensor_meta.is_dirty = True
+    if not hasattr(tensor_meta, "chunk_compression"):
+        tensor_meta.chunk_compression = None
+    if not hasattr(tensor_meta, "hidden"):
+        tensor_meta.hidden = False
+    if not hasattr(tensor_meta, "sample_shape"):
+        tensor_meta.sample_shape = None
     if not hasattr(tensor_meta, "links"):
         tensor_meta.links = {}
     if not hasattr(tensor_meta, "is_link"):
@@ -88,7 +94,17 @@ def ffw_tensor_meta(tensor_meta, version):
         tensor_meta.is_sequence = False
     required_meta_keys = tensor_meta._required_meta_keys
     tensor_meta._required_meta_keys = tuple(
-        set(required_meta_keys + ("links", "is_link", "is_sequence"))
+        set(
+            required_meta_keys
+            + (
+                "chunk_compression",
+                "hidden",
+                "sample_shape",
+                "links",
+                "is_link",
+                "is_sequence",
+            )
+        )
     )
     if version_compare(version, "3.0.10") < 0:
         links = tensor_meta.links

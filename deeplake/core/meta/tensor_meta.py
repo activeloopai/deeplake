@@ -1,6 +1,6 @@
 import deeplake
 from deeplake.core.fast_forwarding import ffw_tensor_meta
-from typing import Any, Callable, Dict, List, Sequence, Union, Optional
+from typing import Any, Callable, Dict, List, Sequence, Union, Optional, Tuple
 import numpy as np
 from deeplake.util.exceptions import (
     TensorMetaInvalidHtype,
@@ -34,6 +34,7 @@ class TensorMeta(Meta):
     name: Optional[str] = None
     htype: str
     dtype: str
+    sample_shape: List[int]
     min_shape: List[int]
     max_shape: List[int]
     length: int
@@ -182,10 +183,6 @@ class TensorMeta(Meta):
         return d
 
     def __setstate__(self, state: Dict[str, Any]):
-        if "chunk_compression" not in state:
-            state["chunk_compression"] = None  # Backward compatibility
-        if "hidden" not in state:
-            state["hidden"] = False
         super().__setstate__(state)
         self._required_meta_keys = tuple(state.keys())
         ffw_tensor_meta(self)
@@ -287,6 +284,16 @@ def _validate_htype_overwrites(htype: str, htype_overwrite: dict):
         and compr not in supported_compressions
     ):
         raise UnsupportedCompressionError(compr, htype=htype)
+    sample_shape = htype_overwrite.get("sample_shape")
+    if (
+        sample_shape is not None
+        and not isinstance(sample_shape, tuple)
+        or sample_shape
+        and set(map(type, sample_shape)) - {type(None), int}
+    ):
+        raise TypeError(
+            f"Expected sample_shape to be None or tuple of ints and Nones. Received {sample_shape}"
+        )
 
 
 def _replace_unspecified_values(htype: str, htype_overwrite: dict):

@@ -439,11 +439,15 @@ class Tensor:
             use :attr:`shape_interval` instead.
         """
         sample_shape_tensor = self._sample_shape_tensor
-        sample_shape_provider = (
-            self._sample_shape_provider(sample_shape_tensor)
-            if sample_shape_tensor
-            else None
-        )
+        sample_shape = self.meta.sample_shape
+        if sample_shape and None not in sample_shape:
+            sample_shape_provider = lambda _: sample_shape
+        else:
+            sample_shape_provider = (
+                self._sample_shape_provider(sample_shape_tensor)
+                if sample_shape_tensor
+                else None
+            )
         shape: Tuple[Optional[int], ...]
         shape = self.chunk_engine.shape(
             self.index, sample_shape_provider=sample_shape_provider

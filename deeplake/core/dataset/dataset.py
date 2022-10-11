@@ -653,7 +653,12 @@ class Dataset:
             "point_cloud",
         ):
             self._create_sample_info_tensor(name)
-        if create_shape_tensor and htype not in ("text", "json"):
+        sample_shape = meta_kwargs.get("sample_shape")
+        if (
+            create_shape_tensor
+            and htype not in ("text", "json")
+            and (sample_shape is None or None in sample_shape)
+        ):
             self._create_sample_shape_tensor(name, htype=htype)
         if create_id_tensor:
             self._create_sample_id_tensor(name)
