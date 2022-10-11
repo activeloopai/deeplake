@@ -28,8 +28,8 @@ def double(sample):
     return sample * 2
 
 
-def to_tuple(sample):
-    return sample["image"], sample["image2"]
+def to_tuple(sample, t1, t2):
+    return sample[t1], sample[t2]
 
 
 def reorder_collate(batch):
@@ -130,7 +130,12 @@ def test_pytorch_transform(ds):
             dl = dataloader(ds)
         return
 
-    dl = dataloader(ds).batch(1).transform(to_tuple).pytorch(num_workers=2)
+    dl = (
+        dataloader(ds)
+        .batch(1)
+        .transform(to_tuple, t1="image", t2="image2")
+        .pytorch(num_workers=2)
+    )
 
     for _ in range(2):
         for i, batch in enumerate(dl):

@@ -49,15 +49,6 @@ class Info(DeepLakeMemoryObject):
     def __setstate__(self, state: Dict[str, Any]):
         self._info = state
 
-    def __getattribute__(self, name: str) -> Any:
-        """Allows access to info values using the `.` syntax. Example: ``info.description``."""
-
-        if name == "_info":
-            return super().__getattribute__(name)
-        if name in self._info:
-            return self.__getitem__(name)
-        return super().__getattribute__(name)
-
     # implement all the methods of dictionary
     def __getitem__(self, key: str):
         return self._info[key]
@@ -85,11 +76,15 @@ class Info(DeepLakeMemoryObject):
     def __getattr__(self, key):
         try:
             return object.__getattribute__(self, key)
-        except AttributeError:
+        except AttributeError as e:
             if key == "_info":
-                self._info = {}
-                return self._info
-            return self[key]
+                info = {}
+                self._info = info
+                return info
+            try:
+                return self._info[key]
+            except KeyError:
+                raise e
 
     def __setattr__(self, key: str, value):
         if key in {"_info", "_dataset", "_key", "is_dirty"}:

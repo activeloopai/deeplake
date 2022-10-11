@@ -1485,6 +1485,7 @@ class Dataset:
         use_progress_bar: bool = False,
         return_index: bool = True,
         pad_tensors: bool = False,
+        transform_kwargs: Optional[Dict[str, Any]] = None,
     ):
         """Converts the dataset into a pytorch Dataloader.
 
@@ -1507,6 +1508,7 @@ class Dataset:
             use_progress_bar (bool): If ``True``, tqdm will be wrapped around the returned dataloader. Default value is True.
             return_index (bool): If ``True``, the returned dataloader will have a key "index" that contains the index of the sample(s) in the original dataset. Default value is True.
             pad_tensors (bool): If ``True``, shorter tensors will be padded to the length of the longest tensor. Default value is False.
+            transform_kwargs (optional, Dict[str, Any]): Additional kwargs to be passed to `transform`.
 
         Returns:
             A torch.utils.data.DataLoader object.
@@ -1519,6 +1521,9 @@ class Dataset:
             This spins up it's own workers to fetch data.
         """
         from deeplake.integrations import dataset_to_pytorch as to_pytorch
+
+        if transform and transform_kwargs:
+            transform = partial(transform, **transform_kwargs)
 
         dataloader = to_pytorch(
             self,
