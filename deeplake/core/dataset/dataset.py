@@ -1836,10 +1836,12 @@ class Dataset:
         commit_node: CommitNode = self.version_state["commit_node_map"].get(commit_id)
         if commit_node is None:
             raise KeyError(f"Commit {commit_id} not found in dataset.")
+
+        time = str(commit_node.commit_time)[:-7] if commit_node.commit_time else None
         return {
             "commit": commit_node.commit_id,
             "author": commit_node.commit_user_name,
-            "time": str(commit_node.commit_time)[:-7],
+            "time": time,
             "message": commit_node.commit_message,
         }
 
