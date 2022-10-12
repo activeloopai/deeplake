@@ -23,6 +23,11 @@ from deeplake.util.exceptions import (
 import posixpath
 import time
 
+try:
+    import pandas as pd
+except ImportError:
+    pd = None
+
 
 def transform_sample(
     sample: Any,
@@ -193,6 +198,7 @@ def _transform_sample_and_update_chunk_engines(
     for tensor, value in result.items():
         chunk_engine = all_chunk_engines[label_temp_tensors.get(tensor) or tensor]
         callback = chunk_engine._transform_callback
+        import numpy as np
         chunk_engine.extend(value.numpy_compressed(), link_callback=callback)
         value.items.clear()
 
@@ -213,7 +219,11 @@ def transform_data_slice_and_append(
     n = len(data_slice)
     last_reported_time = time.time()
     last_reported_num_samples = 0
-    for i, sample in enumerate(data_slice):
+    for i, sample in enumerate(
+        (data_slice[i : i + 1] for i in range(n))
+        if pd and isinstance(data_slice, pd.DataFrame)
+        else data_slice
+    ):
         _transform_sample_and_update_chunk_engines(
             sample,
             pipeline,

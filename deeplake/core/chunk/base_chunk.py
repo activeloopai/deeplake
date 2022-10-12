@@ -392,6 +392,7 @@ class BaseChunk(DeepLakeMemoryObject):
                 shape += (1,)  # type: ignore[assignment]
         return shape
 
+
     def can_fit_sample(self, sample_nbytes, buffer_nbytes=0):
         if self.num_data_bytes == 0:
             if self.tiling_threshold < 0:  # tiling disabled
@@ -411,30 +412,32 @@ class BaseChunk(DeepLakeMemoryObject):
         self,
         incoming_num_bytes: Optional[int],
         sample_shape: Tuple[int],
+        num_samples: int = 1,
     ):
         """Registers a single sample to this chunk's header. A chunk should NOT exist without headers.
 
         Args:
             incoming_num_bytes (int): The length of the buffer that was used to
             sample_shape (Tuple[int]): Every sample that `num_samples` symbolizes is considered to have `sample_shape`.
-
+            num_samples (int): Number of incoming samples.
         Raises:
             ValueError: If `incoming_num_bytes` is not divisible by `num_samples`.
         """
         # incoming_num_bytes is not applicable for image compressions
         if incoming_num_bytes is not None:
-            self.byte_positions_encoder.register_samples(incoming_num_bytes, 1)
+            self.byte_positions_encoder.register_samples(incoming_num_bytes, num_samples)
         if sample_shape is not None:
             if self.shapes_encoder.is_empty():
-                num_samples = self.byte_positions_encoder.num_samples - 1
-                self._fill_empty_shapes(sample_shape, num_samples)
-            self.shapes_encoder.register_samples(sample_shape, 1)
+                padding = self.byte_positions_encoder.num_samples - num_samples
+                self._fill_empty_shapes(sample_shape, padding)
+            self.shapes_encoder.register_samples(sample_shape, num_samples)
 
     def register_in_meta_and_headers(
         self,
         sample_nbytes: Optional[int],
         shape,
         update_tensor_meta: bool = True,
+        num_samples: int = 1,
     ):
         """Registers a new sample in meta and headers
 
@@ -443,11 +446,12 @@ class BaseChunk(DeepLakeMemoryObject):
            shape (Any): Parameter that shows the shape of the added elements
            update_commit_diff (bool): Parameter that shows if we need to update the commit diffs
            update_tensor_meta (bool): Parameter that shows if it is need to update tensor metas, in case of rechunk we do not need to update meta as we do not add new elements
+           num_samples (int): Number of incoming samples.
         """
-        self.register_sample_to_headers(sample_nbytes, shape)
+        self.register_sample_to_headers(sample_nbytes, shape, num_samples)
         if update_tensor_meta:
             if self._update_tensor_meta_length:
-                self.tensor_meta.update_length(1)
+                self.tensor_meta.update_length(num_samples)
             if shape is not None:
                 self.tensor_meta.update_shape_interval(shape)
 

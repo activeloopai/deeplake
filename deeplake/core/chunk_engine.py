@@ -622,7 +622,8 @@ class ChunkEngine:
 
     def _sanitize_samples(self, samples, verify_creds_key_exists=True):
         check_samples_type(samples)
-        samples = [None if is_empty_list(sample) else sample for sample in samples]
+        if isinstance(samples, list):
+            samples = [None if is_empty_list(sample) else sample for sample in samples]
         verified_samples = self.check_each_sample(
             samples, verify_creds_key_exists=verify_creds_key_exists
         )
@@ -705,12 +706,20 @@ class ChunkEngine:
         Returns:
             Tuple[List[BaseChunk], Dict[Any, Any]]
         """
+        extending = start_chunk_row is None and register
+        if extending:
+            enc_ids = []
+            enc_count = [0]
         current_chunk = start_chunk
-
         updated_chunks = []
         if current_chunk is None:
-            current_chunk = self._create_new_chunk(register)
+            current_chunk = self._create_new_chunk(register and start_chunk_row is not None)
+            current_chunk._update_tensor_meta_length = extending
             updated_chunks.append(current_chunk)
+            if extending:
+                enc_ids.append(current_chunk.id)
+        elif extending:
+                enc_ids.append(None)
         enc = self.chunk_id_encoder
         tiles = {}
         nsamples = len(samples)
@@ -725,14 +734,22 @@ class ChunkEngine:
             if register_creds:
                 self.register_new_creds(num_samples_added, samples)
             if num_samples_added == 0:
-                current_chunk = self._create_new_chunk(register, row=start_chunk_row)
+                current_chunk = self._create_new_chunk(register and start_chunk_row is not None, row=start_chunk_row)
+                current_chunk._update_tensor_meta_length = extending
                 if start_chunk_row is not None:
                     start_chunk_row += 1
+                elif register:
+                    enc_ids.append(current_chunk.id)
+                    enc_count.append(0)
                 updated_chunks.append(current_chunk)
             elif num_samples_added == PARTIAL_NUM_SAMPLES:
                 sample = samples[0]
-                if register and sample.is_first_write:
-                    enc.register_samples(1)
+                if sample.is_first_write:
+                    if register:
+                        if start_chunk_row is not None:
+                            enc.register_samples(1)
+                        else:
+                            enc_count[-1] += 1
                 if sample.is_last_write:
                     if register:
                         self.tile_encoder.register_sample(sample, self.num_samples - 1)
@@ -746,25 +763,52 @@ class ChunkEngine:
                     samples = samples[1:]
                 if len(samples) > 0:
                     current_chunk = self._create_new_chunk(
-                        register, row=start_chunk_row
+                        register and start_chunk_row is not None, row=start_chunk_row
                     )
+                    current_chunk._update_tensor_meta_length = extending
                     if start_chunk_row is not None:
                         start_chunk_row += 1
+                    elif register:
+                        enc_ids.append(current_chunk.id)
+                        enc_count.append(0)
                     updated_chunks.append(current_chunk)
             else:
                 if not updated_chunks:
                     updated_chunks.append(current_chunk)
                 num = int(num_samples_added)
                 if register:
-                    enc.register_samples(num, row=start_chunk_row)
+                    if start_chunk_row is not None:
+                        enc.register_samples(num, row=start_chunk_row)
+                    else:
+                        enc_count[-1] += num
                     if update_commit_diff:
                         commit_diff.add_data(num)
                 samples = samples[num:]
             if progressbar:
                 pbar.update(num_samples_added)
+        if extending:
+            if enc_ids[0] is None:
+                enc_ids.pop(0)
+                start_chunk_incr = enc_count.pop(0)
+                enc._encoded[-1, 1] += start_chunk_incr
+            if enc_count:
+                enc_arr = enc._encoded
+                n = len(enc_arr)
+                if n:
+                    enc_count[0] += enc_arr[-1, 1]
+                    assert enc.num_samples
+                else:
+                    enc_count[0] -= 1
+                enc_last_seen = np.cumsum(enc_count, dtype=np.uint64)
+                arr = np.zeros((n + len(enc_ids), 2), dtype=np.uint64)
+                if n:
+                    arr[:n] = enc_arr
+                new = arr[n:]
+                new[:, 0] = enc_ids
+                new[:, 1] = enc_last_seen
+                enc._encoded = arr
         if progressbar:
             pbar.close()
-
         if register:
             return updated_chunks
         return updated_chunks, tiles
@@ -1654,7 +1698,6 @@ class ChunkEngine:
                     first_sample = int(0 if row == 0 else chunk_arr[row - 1][1] + 1)
                     last_sample = int(self.chunk_id_encoder.array[row][1])
                     num_samples = last_sample - first_sample + 1
-
                     full_shape = (num_samples,) + tuple(self.tensor_meta.max_shape)
                     dtype = self.tensor_meta.dtype
 

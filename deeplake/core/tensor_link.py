@@ -31,7 +31,7 @@ link = _TensorLinkTransform
 
 @link
 def extend_id(samples, link_creds=None):
-    return [generate_id(np.uint64) for _ in range(len(samples))]
+    return np.array([generate_id(np.uint64) for _ in range(len(samples))])
 
 
 @link
@@ -92,9 +92,9 @@ def extend_shape(samples, link_creds=None):
     if isinstance(samples, np.ndarray):
         return [np.array(samples.shape[1:])] * len(samples)
     return (
-        []
+        np.array([], dtype=np.int64)
         if samples is None
-        else [update_shape.f(sample, link_creds=link_creds) for sample in samples]
+        else np.array([update_shape.f(sample, link_creds=link_creds) for sample in samples])
     )
 
 

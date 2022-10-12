@@ -1,6 +1,6 @@
 import numpy as np
 from .base import StructuredDataset
-from deeplake.core.dataset import Dataset
+from deeplake import Dataset
 from tqdm import tqdm  # type: ignore
 
 
@@ -45,7 +45,7 @@ class DataFrame(StructuredDataset):
                     if dtype == np.dtype("object"):
                         ds.create_tensor(key, htype="json")
                     else:
-                        ds.create_tensor(key, dtype=dtype, shape=(1,))
+                        ds.create_tensor(key, dtype=dtype, sample_shape=(1,))
                     ds[key].extend(self.source[key].values.tolist())
                 except Exception as e:
                     skipped_keys.append(key)

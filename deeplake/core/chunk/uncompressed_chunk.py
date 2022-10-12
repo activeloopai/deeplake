@@ -23,6 +23,13 @@ class UncompressedChunk(BaseChunk):
                 return self._extend_if_has_space_numpy(
                     incoming_samples, update_tensor_meta
                 )
+        else:
+            pass
+            # dtypes = set(map(type, incoming_samples))
+            # if dtypes == {np.ndarray}:
+            #     return self._extend_if_has_space_numpy(
+            #         incoming_samples, update_tensor_meta
+            #     )
         return self._extend_if_has_space_list(incoming_samples, update_tensor_meta)
 
     def _extend_if_has_space_numpy(
@@ -30,34 +37,28 @@ class UncompressedChunk(BaseChunk):
         incoming_samples: np.ndarray,
         update_tensor_meta: bool = True,
     ) -> float:
-        num_samples: int = 0
-        buffer_size = 0
-
-        for sample in incoming_samples:
-            shape = self.normalize_shape(sample.shape)
-            self.num_dims = self.num_dims or len(shape)
-            sample_nbytes = sample.nbytes
-            check_sample_shape(shape, self.num_dims)
-            # no need to check sample size, this code is only reached when size smaller than chunk
-            if not self.can_fit_sample(sample_nbytes, buffer_size):
-                break
-            buffer_size += sample_nbytes
-            num_samples += 1
+        num_samples: int
+        elem = incoming_samples[0]
+        shape = elem.shape
+        size = elem.size
+        if not shape:
+            shape = (1,)
+        self.num_dims = self.num_dims or len(shape)
+        if size == 0:
+            num_samples = len(incoming_samples)
+        else:
+            num_data_bytes = self.num_data_bytes
+            num_samples = int((self.min_chunk_size - num_data_bytes) / elem.nbytes)
+            if num_samples == 0 and num_data_bytes == 0 and self.tiling_threshold < 0:
+                num_samples = 1
 
         samples = incoming_samples[:num_samples]
         samples = intelligent_cast(samples, self.dtype, self.htype)
 
-        assert isinstance(self.data_bytes, bytearray)
         self.data_bytes += samples.tobytes()
 
         if num_samples > 0:
-            shape = self.normalize_shape(samples[0].shape)
-            sample_nbytes = samples[0].nbytes
-            for _ in range(num_samples):
-                self.register_in_meta_and_headers(
-                    sample_nbytes, shape, update_tensor_meta=update_tensor_meta
-                )
-
+            self.register_in_meta_and_headers(incoming_samples[0].nbytes, shape, update_tensor_meta=update_tensor_meta, num_samples=num_samples)
         return float(num_samples)
 
     def _extend_if_has_space_list(
@@ -66,7 +67,6 @@ class UncompressedChunk(BaseChunk):
         update_tensor_meta: bool = True,
     ) -> float:
         num_samples: float = 0
-
         for i, incoming_sample in enumerate(incoming_samples):
             serialized_sample, shape = self.serialize_sample(incoming_sample)
             if shape is not None:

@@ -266,7 +266,8 @@ def serialize_chunkids(version: str, arr: np.ndarray) -> memoryview:
         Serialized chunk ids as memoryview.
     """
     len_version = len(version)
-    flatbuff = bytearray(2 + len_version + arr.nbytes)
+    write_dtype = version_compare(version, "2.7.6") >= 0
+    flatbuff = bytearray(1 + int(write_dtype) + len_version + arr.nbytes)
 
     # Write version
     len_version = len(version)
@@ -275,7 +276,7 @@ def serialize_chunkids(version: str, arr: np.ndarray) -> memoryview:
     offset = 1 + len_version
 
     # write encoder dtype
-    if version_compare(version, "2.7.6") >= 0:
+    if write_dtype:
         dtype = arr.dtype
         num_bytes = int(dtype.itemsize)
         flatbuff[offset] = num_bytes

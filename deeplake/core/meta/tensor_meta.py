@@ -158,7 +158,6 @@ class TensorMeta(Meta):
 
         if initial_min_shape != self.min_shape or initial_max_shape != self.max_shape:
             self.is_dirty = True
-
     def update_length(self, length: int):
         """Update length of tensor."""
         self.length += length
