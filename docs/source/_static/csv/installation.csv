@@ -1,0 +1,8 @@
+Install command, Description, Dependencies installed
+"``pip install ""deeplake[av]""``", Audio and video support via PyAV, av
+"``pip install ""deeplake[visualizer]""``", Visualize Deep Lake datasets within notebooks. This is required for :meth:`Dataset.visualize <deeplake.core.dataset.Dataset.visualize>` to work., "IPython, flask"
+"``pip install ""deeplake[gcp]""``", GCS support, "google-cloud-storage, google-auth, google-auth-oauthlib"
+"``pip install ""deeplake[dicom]""``", DICOM data support, pydicom
+"``pip install ""deeplake[gdrive]""``", Google Drive support, "google-api-python-client, oauth2client, google-auth, google-auth-oauthlib"
+"``pip install ""deeplake[point_cloud]""``", Support for LiDAR point cloud data, laspy
+"``pip install ""deeplake[all]""``", Installs all of the above,           
