@@ -207,14 +207,14 @@ class LinkCreds(DeepLakeMemoryObject):
     def missing_keys(self) -> list:
         return [key for key in self.creds_keys if key not in self.creds_dict]
 
-    def populate_all_managed_creds(self, verbose=True):
+    def populate_all_managed_creds(self, verbose: bool = True):
         assert self.client is not None
         assert self.org_id is not None
         for creds_key in self.managed_creds_keys:
             creds = self.fetch_managed_creds(creds_key, verbose=verbose)
             self.populate_creds(creds_key, creds)
 
-    def fetch_managed_creds(self, creds_key: str, verbose=True):
+    def fetch_managed_creds(self, creds_key: str, verbose: bool = True):
         creds = self.client.get_managed_creds(self.org_id, creds_key)
         if verbose:
             logger.info(f"Loaded credentials '{creds_key}' from Activeloop platform.")
