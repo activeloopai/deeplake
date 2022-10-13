@@ -5,7 +5,7 @@ from deeplake.core.serialize import check_sample_shape, bytes_to_text
 from deeplake.core.tiling.sample_tiles import SampleTiles
 from deeplake.core.polygon import Polygons
 from deeplake.util.casting import intelligent_cast
-from deeplake.util.exceptions import EmptyTensorError
+from deeplake.util.exceptions import EmptyTensorError,TensorDtypeMismatchError
 from .base_chunk import BaseChunk, InputSample
 
 
@@ -24,12 +24,26 @@ class UncompressedChunk(BaseChunk):
                     incoming_samples, update_tensor_meta
                 )
         else:
-            pass
-            # dtypes = set(map(type, incoming_samples))
-            # if dtypes == {np.ndarray}:
+            sample_shape = self.tensor_meta.sample_shape
+            if sample_shape and None not in sample_shape:
+                return self._extend_if_has_space_numpy(
+                    incoming_samples, update_tensor_meta
+                )
+            # types = set(map(type, incoming_samples))
+            # if types == {np.ndarray}:
+            #     dtypes = set((s.dtype for s in incoming_samples))
+            #     if len(dtypes) == 1:
+            #         shapes = set((s.shape for s in incoming_samples))
+            #         if len(shapes) == 1:
+            #             return self._extend_if_has_space_numpy(
+            #                 incoming_samples, update_tensor_meta
+            #             )
+            # elif all((isinstance(s, (int, float, bool)) or np.isscalar(s) for s in incoming_samples)):
             #     return self._extend_if_has_space_numpy(
-            #         incoming_samples, update_tensor_meta
+            #         np.array(incoming_samples, dtype=self.dtype), update_tensor_meta
             #     )
+            # TODO detect multidim uniform sequences
+        print(incoming_samples)
         return self._extend_if_has_space_list(incoming_samples, update_tensor_meta)
 
     def _extend_if_has_space_numpy(
@@ -53,9 +67,29 @@ class UncompressedChunk(BaseChunk):
                 num_samples = 1
 
         samples = incoming_samples[:num_samples]
-        samples = intelligent_cast(samples, self.dtype, self.htype)
-
-        self.data_bytes += samples.tobytes()
+        my_dtype = self.dtype
+        if isinstance(samples, np.ndarray):
+            if samples.dtype != my_dtype:
+                if not np.can_cast(samples.dtype, my_dtype):
+                    raise TensorDtypeMismatchError(
+                        my_dtype,
+                        samples.dtype,
+                        self.htype,
+                    )
+                samples = samples.astype(my_dtype)
+            self.data_bytes += samples.tobytes()
+        else:  # list
+            dtypes = set((s.dtype for s in samples))
+            if dtypes != {my_dtype}:
+                for dtype in dtypes:
+                    if not np.can_cast(dtype, my_dtype):
+                        raise TensorDtypeMismatchError(
+                            my_dtype,
+                            dtype,
+                            self.htype,
+                        )
+                samples = [s.astype(my_dtype) for s in samples]
+            self.data_bytes += b"".join([s.tobytes() for s in samples])
 
         if num_samples > 0:
             self.register_in_meta_and_headers(incoming_samples[0].nbytes, shape, update_tensor_meta=update_tensor_meta, num_samples=num_samples)
@@ -66,6 +100,7 @@ class UncompressedChunk(BaseChunk):
         incoming_samples: List[InputSample],
         update_tensor_meta: bool = True,
     ) -> float:
+        raise Exception()
         num_samples: float = 0
         for i, incoming_sample in enumerate(incoming_samples):
             serialized_sample, shape = self.serialize_sample(incoming_sample)

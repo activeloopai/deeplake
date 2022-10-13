@@ -696,6 +696,7 @@ class Dataset:
             create_id_tensor=False,
             create_sample_info_tensor=False,
             create_shape_tensor=False,
+            sample_shape=(1,),
         )
         self._link_tensors(
             tensor,

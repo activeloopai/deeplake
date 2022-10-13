@@ -1,3 +1,4 @@
+from random import sample
 import deeplake
 from deeplake.core.fast_forwarding import ffw_tensor_meta
 from typing import Any, Callable, Dict, List, Sequence, Union, Optional, Tuple
@@ -286,13 +287,15 @@ def _validate_htype_overwrites(htype: str, htype_overwrite: dict):
     sample_shape = htype_overwrite.get("sample_shape")
     if (
         sample_shape is not None
-        and not isinstance(sample_shape, tuple)
+        and not isinstance(sample_shape, (list, tuple))
         or sample_shape
         and set(map(type, sample_shape)) - {type(None), int}
     ):
         raise TypeError(
-            f"Expected sample_shape to be None or tuple of ints and Nones. Received {sample_shape}"
+            f"Expected sample_shape to be None or tuple/list of ints and Nones. Received {sample_shape}"
         )
+    if isinstance(sample_shape, list):
+        htype_overwrite["sample_shape"] = tuple(sample_shape)
 
 
 def _replace_unspecified_values(htype: str, htype_overwrite: dict):
