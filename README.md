@@ -213,7 +213,7 @@ import numpy as np
 
 with ds:
     for _ in range(1000):  # 1000 random images
-        random_image = np.random.randint(0, 256, (100, 100, 3))  # 100x100 image with 3 channels
+        random_image = np.random.randint(0, 256, (100, 100, 3), dtype=np.uint8)  # 100x100 image with 3 channels
         ds.images.append(random_image)
 ```
 
