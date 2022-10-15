@@ -201,7 +201,7 @@ Assuming you have a list of image file paths, let's upload them to the dataset:
 image_paths = ...
 with ds:
     for image_path in image_paths:
-        image = hub.read(image_path)
+        image = deeplake.read(image_path)
         ds.images.append(image)
 ```
 
