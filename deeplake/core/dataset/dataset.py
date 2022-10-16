@@ -119,6 +119,7 @@ from deeplake.util.version_control import (
 from deeplake.util.pretty_print import summary_dataset
 from deeplake.core.dataset.view_entry import ViewEntry
 from deeplake.hooks import dataset_read
+from deeplake.core.multi_view import MultiDatasetView
 from itertools import chain
 import warnings
 import jwt
@@ -291,6 +292,14 @@ class Dataset:
             )
         length_fn = max if pad_tensors else min
         return length_fn(tensor_lengths, default=0)
+
+    def __add__(self, x):
+        if MultiDatasetView.is_compatible(self, x):
+            return MultiDatasetView([self, x])
+        else:
+            raise
+
+    __radd__ = __add__
 
     @property
     def max_len(self):
