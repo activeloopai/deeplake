@@ -642,6 +642,7 @@ class Dataset:
             chunk_compression=chunk_compression,
             version_state=self.version_state,
             hidden=hidden,
+            overwrite=True,
             **meta_kwargs,
         )
         meta: DatasetMeta = self.meta
