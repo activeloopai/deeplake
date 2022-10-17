@@ -3,7 +3,11 @@ from functools import partial
 from tqdm import tqdm
 from deeplake.core.index import Index, IndexEntry
 from deeplake.hooks import dataset_read
-from deeplake.util.exceptions import TensorDoesNotExistError
+from deeplake.util.exceptions import (
+    IncompatibleDatasetException,
+    IncompatibleDatasetsException,
+    TensorDoesNotExistError,
+)
 
 import numpy as np
 
@@ -165,6 +169,13 @@ class MultiDatasetView(MultiView):
         for d in self.items:
             for x in d.max_view:
                 yield x
+
+    def __add__(self, item):
+        if len(self) > 1:
+            if self.is_compatible(self.items[-1], item):
+                return super().__add__(item)
+            raise IncompatibleDatasetsException(self, item)
+        return MultiDatasetView([item])
 
     def __str__(self):
         if not self.items:

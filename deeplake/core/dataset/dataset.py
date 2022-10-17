@@ -62,6 +62,7 @@ from deeplake.util.logging import log_visualizer_link
 from deeplake.util.warnings import always_warn
 from deeplake.util.exceptions import (
     CouldNotCreateNewDatasetException,
+    IncompatibleDatasetsException,
     InvalidKeyTypeError,
     MemoryDatasetCanNotBePickledError,
     PathNotEmptyException,
@@ -297,7 +298,7 @@ class Dataset:
         if MultiDatasetView.is_compatible(self, x):
             return MultiDatasetView([self, x])
         else:
-            raise
+            raise IncompatibleDatasetsException(self, x)
 
     __radd__ = __add__
 

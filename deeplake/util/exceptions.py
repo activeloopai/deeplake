@@ -794,3 +794,9 @@ class BadLinkError(Exception):
     def __init__(self):
         message = "Verification of link failed. Make sure that the link you are trying to append is correct."
         super().__init__(message)
+
+
+class IncompatibleDatasetsException(Exception):
+    def __init__(self, ds1, ds2):
+        message = f"Datasets {ds1.path} and {ds2.path} are incompatible for addition."
+        super().__init__(message)
