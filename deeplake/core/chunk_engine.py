@@ -1518,8 +1518,8 @@ class ChunkEngine:
         num_samples_in_chunk = -1
         if (
             not fetch_chunks
+            and self.chunk_class != ChunkCompressedChunk
             and isinstance(self.base_storage, (S3Provider, GCSProvider))
-            and not isinstance(self.chunk_class, ChunkCompressedChunk)
         ):
             prev = int(enc.array[row - 1][LAST_SEEN_INDEX_COLUMN]) if row > 0 else -1
             num_samples_in_chunk = int(enc.array[row][LAST_SEEN_INDEX_COLUMN]) - prev
