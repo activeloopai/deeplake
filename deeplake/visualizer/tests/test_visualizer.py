@@ -2,7 +2,7 @@ import numpy as np
 import requests
 from deeplake.visualizer.visualizer import visualizer
 from deeplake.tests.dataset_fixtures import *
-
+import deeplake as dp
 
 @pytest.mark.parametrize(
     "ds_generator",
@@ -43,7 +43,7 @@ def test_local_server(ds_generator):
     response = requests.request("GET", url + "images/chunks_index/unsharded")
     assert response.status_code == 206
     c1 = response.content
-    assert len(c1) == 23
+    assert len(c1) == 18 + len(dp.__version__)
     response = requests.request(
         "GET", url + "images/chunks_index/unsharded", headers={"Range": "bytes 2-3;"}
     )
