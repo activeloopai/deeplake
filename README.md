@@ -187,7 +187,7 @@ Initialize an empty dataset in the Activeloop Cloud:
 ```python
 import deeplake
 
-ds = deeplake.empty('hub://<ORG_NAME>/test-dataset')
+ds = deeplake.empty('hub://<ORGANIZATION_NAME>/test-dataset')
 ```
 
 
@@ -229,7 +229,7 @@ You can load the dataset you just created with a single line of code:
 ```python
 import deeplake
 
-ds = deeplake.load('hub://<ORG_NAME>/test-dataset')
+ds = deeplake.load('hub://<ORGANIZATION_NAME>/test-dataset')
 ```
 
 You can also access one of the <a href="https://docs.activeloop.ai/datasets/?utm_source=github&utm_medium=github&utm_campaign=github_readme&utm_id=readme">100+ image, video and audio datasets in Deep Lake format</a>, not just the ones you created. Here is how you would load the [Objectron Bikes Dataset](https://github.com/google-research-datasets/Objectron):
