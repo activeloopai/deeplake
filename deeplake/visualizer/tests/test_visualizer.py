@@ -43,7 +43,7 @@ def test_local_server(ds_generator):
     response = requests.request("GET", url + "images/chunks_index/unsharded")
     assert response.status_code == 206
     c1 = response.content
-    assert len(c1) == 23
+    assert len(c1) == 23 or len(c1) == 24
     response = requests.request(
         "GET", url + "images/chunks_index/unsharded", headers={"Range": "bytes 2-3;"}
     )
