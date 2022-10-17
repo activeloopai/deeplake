@@ -4,7 +4,6 @@ from tqdm import tqdm
 from deeplake.core.index import Index, IndexEntry
 from deeplake.hooks import dataset_read
 from deeplake.util.exceptions import (
-    IncompatibleDatasetException,
     IncompatibleDatasetsException,
     TensorDoesNotExistError,
 )
