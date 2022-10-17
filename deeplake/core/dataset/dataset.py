@@ -304,7 +304,7 @@ class Dataset:
     @property
     def max_len(self):
         """Return the maximum length of the tensor"""
-        return max([len(tensor) for tensor in self.tensors.values()])
+        return max([len(tensor) for tensor in self.tensors.values()], default=0)
 
     @property
     def min_len(self):

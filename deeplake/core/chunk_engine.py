@@ -1415,6 +1415,7 @@ class ChunkEngine:
         use_data_cache: bool = True,
         fetch_chunks: bool = False,
         pad_tensor: bool = False,
+        squeeze: bool = True,
     ) -> Union[np.ndarray, List[np.ndarray]]:
         """Reads samples from chunks and returns as a numpy array. If `aslist=True`, returns a sequence of numpy arrays.
 
@@ -1440,7 +1441,7 @@ class ChunkEngine:
         self.check_link_ready()
         fetch_chunks = fetch_chunks or self._get_full_chunk(index)
         return (self._sequence_numpy if self.is_sequence else self._numpy)(
-            index, aslist, use_data_cache, fetch_chunks, pad_tensor
+            index, aslist, use_data_cache, fetch_chunks, pad_tensor, squeeze
         )
 
     def get_video_sample(self, global_sample_index, index, decompress=True):
@@ -1574,6 +1575,7 @@ class ChunkEngine:
         use_data_cache: bool = True,
         fetch_chunks: bool = False,
         pad_tensor: bool = False,
+        squeeze: bool = True,
     ) -> Union[np.ndarray, List[np.ndarray]]:
         """Reads samples from chunks and returns as a numpy array. If `aslist=True`, returns a sequence of numpy arrays.
 
@@ -1586,6 +1588,7 @@ class ChunkEngine:
                 - The tensor is ChunkCompressed
                 - The chunk which is being accessed has more than 128 samples.
             pad_tensor (bool): If True, any index out of bounds will not throw an error, but instead will return an empty sample.
+            squeeze (bool): Squeezes output array if it has only one sample.
 
         Raises:
             DynamicTensorNumpyError: If shapes of the samples being read are not all the same.
@@ -1617,7 +1620,7 @@ class ChunkEngine:
         if aslist and all(map(np.isscalar, samples)):
             samples = list(arr.item() for arr in samples)
 
-        if not index.values[0].subscriptable():
+        if squeeze and not index.values[0].subscriptable():
             samples = samples[0]
 
         if aslist:
@@ -1885,6 +1888,7 @@ class ChunkEngine:
         use_data_cache: bool = True,
         fetch_chunks: bool = False,
         pad_tensor: bool = False,
+        squeeze: bool = True,
     ):
         arr = self._numpy(
             self._get_flat_index_from_sequence_index(index),

@@ -699,7 +699,10 @@ class Tensor:
             )
 
     def numpy(
-        self, aslist=False, fetch_chunks=False
+        self,
+        aslist=False,
+        fetch_chunks=False,
+        squeeze=True,
     ) -> Union[np.ndarray, List[np.ndarray]]:
         """Computes the contents of the tensor in numpy format.
 
@@ -712,6 +715,7 @@ class Tensor:
 
                 - The tensor is ChunkCompressed.
                 - The chunk which is being accessed has more than 128 samples.
+            squeeze (bool): If ``True`` squeezes the np.ndarray if only one sample is present in the array. Defaults to ``True``.
 
         Raises:
             DynamicTensorNumpyError: If reading a dynamically-shaped array slice without ``aslist=True``.
@@ -728,6 +732,7 @@ class Tensor:
             aslist=aslist,
             fetch_chunks=fetch_chunks or self.is_iteration,
             pad_tensor=self.pad_tensor,
+            squeeze=squeeze,
         )
         if self.htype == "point_cloud":
             if isinstance(ret, list):

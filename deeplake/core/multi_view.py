@@ -1,8 +1,9 @@
 from typing import Any, Callable, Dict, List, Optional, Sequence, Tuple, Union
 from functools import partial
 from tqdm import tqdm
-from deeplake.core.index import Index
+from deeplake.core.index import Index, IndexEntry
 from deeplake.hooks import dataset_read
+from deeplake.util.exceptions import TensorDoesNotExistError
 
 import numpy as np
 
@@ -10,15 +11,23 @@ import bisect
 
 
 class MultiView:
+    """Base class for stacking multiple datasets / tensors"""
+
     def __init__(self, items):
         self.items = items
         self.cumulative_sizes = self.cumsum(self.items)
 
-    def cumsum(self):
-        raise NotImplementedError
+    def cumsum(self, sequence: List):
+        """Returns list of cumulative sizes of items in given list"""
+        r, s = [], 0
+        for e in sequence:
+            l = self.item_len(e)
+            r.append(l + s)
+            s += l
+        return r
 
     def item_len(self, item):
-        raise NotImplementedError
+        return len(item)
 
     def get_ij(self, idx):
         if idx < 0:
@@ -39,7 +48,10 @@ class MultiView:
                 yield y
 
     def __len__(self):
-        return self.cumulative_sizes[-1]
+        try:
+            return self.cumulative_sizes[-1]
+        except IndexError:
+            return 0
 
     def __getitem__(
         self,
@@ -51,57 +63,77 @@ class MultiView:
             raise NotImplementedError
         else:
             idx_obj = Index(item)
-            sample_idx, rest = idx_obj.values[0], Index(idx_obj.values[1:])
+            sample_idx, rest = idx_obj.values[0], Index(
+                [IndexEntry(slice(None, None, None))]
+                + [IndexEntry(v.value) for v in idx_obj.values[1:]]
+            )
             sample_idx.validate(len(self))
             if sample_idx.is_trivial():
                 return self.__class__([item[rest] for item in self.items])
             elif sample_idx.subscriptable():
                 items = []
                 idx = sample_idx.value
-                if isinstance(idx, tuple):
+                if isinstance(idx, (tuple, list)):
                     for x in idx:
                         i, j = self.get_ij(x)
                         items.append(self.items[i][j][rest])
                     return self.__class__(items)
                 elif isinstance(idx, slice):
                     start, stop, step = idx.start, idx.stop, idx.step
+
+                    # handle Nones
                     if step is None:
                         step = 1
-                    if step >= 0:
+                    start_i, start_j = None, None
+                    stop_i, stop_j = None, None
+                    if step > 0:
                         if start is None:
-                            start = 0
+                            start_i, start_j = 0, None
                         if stop is None:
-                            stop = -1
-                        if start > stop:
-                            return self.__class__([])
+                            stop_i, stop_j = self.get_ij(-1)[0], None
                     else:
                         if start is None:
-                            start = -1
+                            start_i, start_j = self.get_ij(-1)[0], None
                         if stop is None:
-                            stop = 0
-                        if start < stop:
-                            return self.__class__([])
-                    start_i, start_j = self.get_ij(start)
-                    stop_i, stop_j = self.get_ij(stop)
+                            stop_i, stop_j = 0, None
+
+                    if start_i is None:
+                        start_i, start_j = self.get_ij(start)
+                    if stop_i is None:
+                        stop_i, stop_j = self.get_ij(stop)
+
+                    # only one dataset
                     if start_i == stop_i:
-                        return self.__class__([self.items[start_i][idx][rest]])
+                        print(start_i, idx)
+                        samples = self.items[start_i][idx]
+                        if self.item_len(samples) > 0:
+                            items.append(samples[rest])
+
+                    # multiple datasets, forward
                     elif stop_i > start_i:
-                        next_start = start_j
+                        next_start = start_j or 0
                         for i in range(start_i, stop_i):
-                            items.append(self.items[i][next_start::step][rest])
+                            samples = self.items[i][next_start::step]
+                            if self.item_len(samples) > 0:
+                                items.append(samples[rest])
                             next_start = step - (
                                 (self.item_len(self.items[i]) - next_start) % step
                             )
                             if next_start == step:
                                 next_start = 0
-                        items.append(self.items[stop_i][next_start:stop_j:step][rest])
+                        if next_start != stop_j:
+                            items.append(
+                                self.items[stop_i][next_start:stop_j:step][rest]
+                            )
+
+                    # multiple datsets, backward
                     else:
-                        next_start = start_j
+                        next_start = start_j or 0
                         for i in range(start_i, stop_i, -1):
-                            items.append(self.items[i][next_start::step][rest])
+                            samples = self.items[i][next_start::step]
+                            if self.item_len(samples) > 0:
+                                items.append(samples[rest])
                             next_start = step + (next_start % -step)
-                            if next_start == step:
-                                next_start = -1
                         items.append(self.items[stop_i][next_start:stop_j:step][rest])
                     return self.__class__(items)
             else:
@@ -110,16 +142,10 @@ class MultiView:
 
 
 class MultiDatasetView(MultiView):
+    """View containing multiple datasets"""
+
     def __init__(self, datasets):
         super().__init__(datasets)
-
-    def cumsum(self, sequence):
-        r, s = [], 0
-        for e in sequence:
-            l = e.max_len
-            r.append(l + s)
-            s += l
-        return r
 
     def item_len(self, item):
         return item.max_len
@@ -165,6 +191,14 @@ class MultiDatasetView(MultiView):
         if isinstance(item, str):
             return MultiTensorView([dataset[item] for dataset in self.items])
         return super().__getitem__(item)
+
+    def __getattr__(self, key):
+        try:
+            return self.__getitem__(key)
+        except TensorDoesNotExistError as ke:
+            raise AttributeError(
+                f"'{self.__class__}' object has no attribute '{key}'"
+            ) from ke
 
     def pytorch(
         self,
@@ -217,16 +251,10 @@ class MultiDatasetView(MultiView):
 
 
 class MultiTensorView(MultiView):
+    """View containing multiple tensors"""
+
     def __init__(self, tensors):
         super().__init__(tensors)
-
-    def cumsum(self, sequence):
-        r, s = [], 0
-        for e in sequence:
-            l = len(e)
-            r.append(l + s)
-            s += l
-        return r
 
     def item_len(self, item):
         return len(item)
@@ -246,11 +274,13 @@ class MultiTensorView(MultiView):
                 f", index={tensor.index}" if not tensor.index.is_trivial() else ""
             )
             res += f"\n\tTensor({ds_str}key={repr(tensor.meta.name or tensor.key)}{index_str}),"
-        return f"\n{res}])"
+        return f"{res}\n])"
 
     __repr__ = __str__
 
     def numpy(self, aslist=False):
         if not aslist:
-            return np.vstack([tensor.numpy() for tensor in self.items])
+            if len(self) == 1:
+                return self.items[0].numpy()
+            return np.vstack([tensor.numpy(squeeze=False) for tensor in self.items])
         return [tensor.numpy(aslist=True) for tensor in self.items]
