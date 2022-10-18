@@ -80,7 +80,6 @@ def dataset_to_libdeeplake(hub2_dataset):
     commit_id = hub2_dataset.pending_commit_id
     libdeeplake_dataset.checkout(commit_id)
     slice_ = hub2_dataset.index.values[0].value
-    slice_ = remove_tiled_samples(hub2_dataset, slice_)
 
     if slice_ != slice(None):
         if isinstance(slice_, tuple):
