@@ -686,9 +686,7 @@ def test_dataset_diff(local_ds, capsys):
     expected_tensor_diff = [expected_tensor_diff_from_a]
     expected_dataset_diff = [expected_dataset_diff_from_a]
 
-    compare_tensor_diff(tensor_diff[0], expected_tensor_diff[0])
-    compare_tensor_diff(tensor_diff[1], expected_tensor_diff[1])
-
+    compare_tensor_diff(tensor_diff, expected_tensor_diff)
     compare_dataset_diff(dataset_diff, expected_dataset_diff)
     target = get_diff_helper(dataset_diff, None, tensor_diff, None)
     local_ds.diff()
@@ -1065,11 +1063,44 @@ def test_delete_diff(local_ds, capsys):
 def test_rename_diff_single(local_ds, capsys):
     with local_ds:
         local_ds.create_tensor("abc")
+        expect_tensor_diff_from_start = {
+            "commit_id": local_ds.pending_commit_id,
+            "abc": get_default_tensor_diff(),
+        }
+        expect_tensor_diff_from_start["abc"]["created"] = True
+        expect_dataset_diff_from_start = get_defaut_dataset_diff(local_ds.pending_commit_id)
         local_ds.abc.append([1, 2, 3])
+        expect_tensor_diff_from_start["abc"]["data_added"] = [0, 1]
         local_ds.rename_tensor("abc", "xyz")
+        expect_dataset_diff_from_start["renamed"]["abc"] = "xyz"
+        expect_tensor_diff_from_start["xyz"] = expect_tensor_diff_from_start.pop("abc")
         local_ds.xyz.append([2, 3, 4])
+        expect_tensor_diff_from_start["xyz"]["data_added"] = [0, 2]
         local_ds.rename_tensor("xyz", "efg")
+        expect_dataset_diff_from_start["renamed"]["abc"] = "efg"
+        expect_tensor_diff_from_start["efg"] = expect_tensor_diff_from_start.pop("xyz")
         local_ds.create_tensor("red")
+        expect_tensor_diff_from_start["red"] = get_default_tensor_diff()
+        expect_tensor_diff_from_start["red"]["created"] = True
+
+    diff = local_ds.diff(as_dict=True)
+    tensor_diff = diff["tensor"]
+    dataset_diff = diff["dataset"]
+
+    expected_tensor_diff = [expect_tensor_diff_from_start]
+    expected_dataset_diff = [expect_dataset_diff_from_start]
+
+    compare_tensor_diff(tensor_diff, expected_tensor_diff)
+    compare_dataset_diff(dataset_diff, expected_dataset_diff)
+
+    local_ds.diff()
+    target = get_diff_helper(
+        dataset_diff, None, tensor_diff, None
+    )
+    captured = capsys.readouterr()
+    assert captured.out == target
+    raise Exception
+
 
     local_ds.diff()
     tensor_changes = {
