@@ -190,6 +190,9 @@ class MultiDatasetView(MultiView):
             )
             if not group_str:
                 index_str = index_str[:-2]  # remove comma
+
+                if not index_str:
+                    path_str = path_str[:-2]
             dataset_str = f"Dataset({path_str}{index_str}{group_str})"
             res += f"\n\t{dataset_str}, "
 
