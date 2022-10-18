@@ -495,10 +495,10 @@ Appending 2 3-D points
 Polygon Htype
 ~~~~~~~~~~~~~
 
-- :bluebold:`Sample dimensions:` ``(# polygons, # points, # co-ordinates)``
+- :bluebold:`Sample dimensions:` ``(# polygons, # points per polygon, # co-ordinates per point)``
 
 - Each sample in a tensor of ``polygon`` htype is a list of polygons.
-- Each polygon is a list of points.
+- Each polygon is a list / array of points.
 - All points in a sample should have the same number of co-ordinates (eg., cannot mix 2-D points with 3-D points).
 - Different samples can have different number of polygons.
 - Different polygons can have different number of points.
@@ -520,7 +520,7 @@ A polygon tensor can be created using
 :blue:`Appending polygons`
 --------------------------
 
-- Polygons can be appended as a ``list`` of ``list of tuples``.
+- Polygons can be appended as a ``list`` of ``list of tuples`` or ``np.ndarray``.
 
 :bluebold:`Examples`
 
@@ -538,6 +538,22 @@ Appending polygons with 3-D points
 >>> poly2 = [(10, 1, 8), (5, 17, 11)]
 >>> poly3 = [(33, 33, 31), (45, 76, 13), (60, 24, 17), (67, 87, 83)]
 >>> sample = [poly1, poly2, poly3]
+>>> ds.polygons.append(sample)
+
+Appending polygons with numpy array
+
+>>> sample
+array([[[4, 1],
+        [2, 4],
+        [4, 5]],
+       [[8, 9],
+        [3, 8],
+        [4, 7]],
+       [[6, 7],
+        [6, 2],
+        [2, 2]]])
+>>> sample.shape
+(3, 3, 2)
 >>> ds.polygons.append(sample)
 
 .. _sequence-htype:
