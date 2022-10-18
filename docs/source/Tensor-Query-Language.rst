@@ -108,7 +108,7 @@ UNION, INTERSECT, EXCEPT
 Query can contain multiple :sql:`SELECT` statements, combined by one of the set operations - :sql:`UNION`, :sql:`INTERSECT` and :sql:`EXCEPT`.
 
 
-EXAMPLES
+Examples
 ~~~~~~~~
 
 Querying for images containing 0 in `MNIST Train Dataset <https://app.activeloop.ai/activeloop/mnist-train>`_ with :meth:`ds.query <deeplake.core.dataset.Dataset.query>`.
