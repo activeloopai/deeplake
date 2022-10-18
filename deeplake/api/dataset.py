@@ -10,7 +10,12 @@ from deeplake.client.client import DeepLakeBackendClient
 from deeplake.client.log import logger
 from deeplake.core.dataset import Dataset, dataset_factory
 from deeplake.core.meta.dataset_meta import DatasetMeta
-from deeplake.util.path import convert_pathlib_to_string_if_needed
+from deeplake.util.path import (
+    convert_pathlib_to_string_if_needed,
+    get_org_id_and_ds_name,
+    get_path_type,
+    is_hub_cloud_path,
+)
 from deeplake.hooks import (
     dataset_created,
     dataset_loaded,
@@ -905,6 +910,39 @@ class dataset:
         if not ret.has_head_changes:
             dataset_committed(ret)
         return ret
+
+    @staticmethod
+    def connect(
+        src_path: str,
+        creds_key: str,
+        dest_path: Optional[str] = None,
+        org_id: Optional[str] = None,
+        ds_name: Optional[str] = None,
+        token: Optional[str] = None,
+    ) -> Dataset:
+        """Connects a dataset at the specified path to Deep Lake.
+
+        Args:
+            src_path (str): Cloud path to where the source dataset is stored. Can be:
+                - an s3 path of the form ``s3://bucketname/path/to/dataset``
+
+        Returns:
+            Dataset: The connected object.
+        """
+        if org_id is None:
+            if dest_path is None or not is_hub_cloud_path(dest_path):
+                raise Exception("Wrong destination path.")
+            org_id, ds_name = get_org_id_and_ds_name(dest_path)
+
+        if get_path_type(src_path) not in ("s3", "gcs"):
+            raise Exception("Source path is not connectable.")
+
+        client = DeepLakeBackendClient(token)
+        connected_id = client.connect_dataset_entry(
+            src_path=src_path, org_id=org_id, ds_name=ds_name, creds_key=creds_key
+        )
+
+        return dataset.load(f"hub://{connected_id}", token=token, verbose=True)
 
     @staticmethod
     def ingest(
