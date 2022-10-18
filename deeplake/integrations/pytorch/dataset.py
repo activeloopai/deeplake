@@ -535,10 +535,10 @@ class SubIterableDataset(torch.utils.data.IterableDataset):
                 next_batch = next(it)
                 for val in next_batch:
                     if buffer is not None:
+                        print(len(buffer.buffer))
                         result = buffer.exchange(val)
-                        yield val
-                        # if result:
-                        #     yield result
+                        if result:
+                            yield result
                     else:
                         yield val
 
