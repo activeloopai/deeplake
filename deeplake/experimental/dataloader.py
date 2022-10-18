@@ -94,10 +94,11 @@ class DeepLakeDataLoader:
         all_vars["_drop_last"] = drop_last
         return self.__class__(**all_vars)
 
-    def shuffle(self, buffer_size: int = 2048):
+    def shuffle(self, shuffle: bool = True, buffer_size: int = 2048):
         """Returns a shuffled :class:`DeepLakeDataLoader` object.
 
         Args:
+            shuffle(bool): shows wheter we need to shuffle elements or not. Defaults to True.
             buffer_size (int): The size of the buffer used to shuffle the data in MBs. Defaults to 2048 MB. Increasing the buffer_size will increase the extent of shuffling.
 
         Returns:
@@ -109,7 +110,7 @@ class DeepLakeDataLoader:
         if self._shuffle is not None:
             raise ValueError("shuffle is already set")
         all_vars = self.__dict__.copy()
-        all_vars["_shuffle"] = True
+        all_vars["_shuffle"] = shuffle
         all_vars["_buffer_size"] = buffer_size
         schedule = create_fetching_schedule(self.dataset, self._primary_tensor_name)
         if schedule is not None:
@@ -272,7 +273,9 @@ class DeepLakeDataLoader:
         if return_index is None:
             return_index = True
 
-        shuffle = self._shuffle or False
+        shuffle = self._shuffle
+        if shuffle is None:
+            shuffle = False
 
         transform_fn = self._transform
 

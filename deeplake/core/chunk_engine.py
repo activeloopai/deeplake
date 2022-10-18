@@ -208,6 +208,8 @@ class ChunkEngine:
 
         self._chunk_args = None
         self._num_samples_per_chunk: Optional[int] = None
+        self.write_initialization_done = False
+        self.start_chunk = None
 
     @property
     def is_data_cachable(self):
@@ -629,7 +631,7 @@ class ChunkEngine:
         if tensor_meta.htype is None and not all_empty:
             tensor_meta.set_htype(get_htype(samples))
         if tensor_meta.dtype is None and not all_empty:
-            tensor_meta.set_dtype(get_dtype(samples))
+            tensor_meta.set_dtype(get_dtype(samples[0]))
         if self._convert_to_list(samples):
             samples = list(samples)
         if self._is_temp_label_tensor:
@@ -762,6 +764,7 @@ class ChunkEngine:
                 pbar.update(num_samples_added)
         if progressbar:
             pbar.close()
+
         if register:
             return updated_chunks
         return updated_chunks, tiles
@@ -801,7 +804,10 @@ class ChunkEngine:
         link_callback: Optional[Callable] = None,
     ):
         self.check_link_ready()
-        self._write_initialization()
+        if not self.write_initialization_done:
+            self._write_initialization()
+            self.write_initialization_done = True
+
         initial_autoflush = self.cache.autoflush
         self.cache.autoflush = False
 
@@ -959,6 +965,7 @@ class ChunkEngine:
     ):
         """Pads the tensor with empty samples and appends value at the end."""
         self.check_link_ready()
+        self.start_chunk = self.last_appended_chunk()  # type: ignore
         update_first_sample = False
         if num_samples_to_pad > 0:
             if self.num_samples == 0:
@@ -1469,8 +1476,8 @@ class ChunkEngine:
         num_samples_in_chunk = -1
         if (
             not fetch_chunks
+            and self.chunk_class != ChunkCompressedChunk
             and isinstance(self.base_storage, (S3Provider, GCSProvider))
-            and not isinstance(self.chunk_class, ChunkCompressedChunk)
         ):
             prev = int(enc.array[row - 1][LAST_SEEN_INDEX_COLUMN]) if row > 0 else -1
             num_samples_in_chunk = int(enc.array[row][LAST_SEEN_INDEX_COLUMN]) - prev
