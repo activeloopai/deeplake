@@ -379,7 +379,7 @@ class SampleStreaming(Streaming):
             enc = engine.chunk_id_encoder
             try:
                 cids = enc[idx]
-                cnames = map(enc.name_from_id, cids)
+                cnames = list(map(enc.name_from_id, cids))
                 chunks.append(cnames)
             except Exception:
                 chunks.append([None])
