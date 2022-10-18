@@ -490,6 +490,56 @@ Appending 2 3-D points
 
 >>> ds.points.append(np.zeros((2, 3)))
 
+.. _polygon-htype:
+
+Polygon Htype
+~~~~~~~~~~~~~
+
+- :bluebold:`Sample dimensions:` ``(# polygons, # points, # co-ordinates)``
+
+- Each sample in a tensor of ``polygon`` htype is a list of polygons.
+- Each polygon is a list of points.
+- All points in a sample should have the same number of co-ordinates (eg., cannot mix 2-D points with 3-D points).
+- Different samples can have different number of polygons.
+- Different polygons can have different number of points.
+
+:blue:`Creating a polygon tensor`
+---------------------------------
+
+A polygon tensor can be created using
+
+>>> ds.create_tensor("polygons", htype="polygon", sample_compression=None)
+
+- Optional args:
+    - :ref:`sample_compression <sample_compression>` or :ref:`chunk_compression <chunk_compression>`
+    - dtype: Defaults to ``float32``. 
+- Supported compressions:
+
+>>> ["lz4"]
+
+:blue:`Appending polygons`
+--------------------------
+
+- Polygons can be appended as a ``list`` of ``list of tuples``.
+
+:bluebold:`Examples`
+
+Appending polygons with 2-D points
+
+>>> poly1 = [(1, 2), (2, 3), (3, 4)]
+>>> poly2 = [(10, 12), (14, 19)]
+>>> poly3 = [(33, 32), (54, 67), (67, 43), (56, 98)]
+>>> sample = [poly1, poly2, poly3]
+>>> ds.polygons.append(sample)
+
+Appending polygons with 3-D points
+
+>>> poly1 = [(10, 2, 9), (12, 3, 8), (12, 10, 4)]
+>>> poly2 = [(10, 1, 8), (5, 17, 11)]
+>>> poly3 = [(33, 33, 31), (45, 76, 13), (60, 24, 17), (67, 87, 83)]
+>>> sample = [poly1, poly2, poly3]
+>>> ds.polygons.append(sample)
+
 .. _sequence-htype:
 
 Sequence htype
