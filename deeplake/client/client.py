@@ -33,6 +33,7 @@ from deeplake.client.config import (
     SEND_EVENT_SUFFIX,
     UPDATE_SUFFIX,
     GET_PRESIGNED_URL_SUFFIX,
+    CONNECT_DATASET_SUFFIX,
 )
 from deeplake.client.log import logger
 import jwt  # should add it to requirements.txt
@@ -438,3 +439,35 @@ class DeepLakeBackendClient:
             endpoint=self.endpoint(),
         )
         return response.json()
+
+    def connect_dataset_entry(
+        self,
+        src_path: str,
+        org_id: str,
+        ds_name: Optional[str] = None,
+        creds_key: Optional[str] = None,
+    ) -> str:
+        """Creates a new dataset entry that can be accessed with a hub path, but points to the original `src_path`.
+
+        Args:
+            src_path (str): The path at which the source dataset resides.
+            org_id (str): The organization into which the dataset entry is put and where the credentials are searched.
+            ds_name (Optional[str]): Name of the dataset entry. Can be infered from the source path.
+            creds_key (Optional[str]): Name of the managed credentials that will be used to access the source path.
+
+        Returns:
+            str: The id of the dataset entry that was created.
+        """
+        response = self.request(
+            "POST",
+            CONNECT_DATASET_SUFFIX,
+            json={
+                "src_path": src_path,
+                "org_id": org_id,
+                "ds_name": ds_name,
+                "creds_key": creds_key,
+            },
+            endpoint=self.endpoint(),
+        ).json()
+        
+        return response["generated_id"]
