@@ -505,7 +505,7 @@ class SubIterableDataset(torch.utils.data.IterableDataset):
             use_local_cache,
             tensors,
             tobytes,
-            transform = None if buffer_size else transform,
+            transform=None if buffer_size else transform,
             num_workers=num_workers,
             shuffle=True,
             return_index=return_index,
