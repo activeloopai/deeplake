@@ -539,7 +539,6 @@ class SubIterableDataset(torch.utils.data.IterableDataset):
                 while True:
                     next_batch = next(it)
                     for val in next_batch:
-                        print(len(buffer.buffer))
                         result = buffer.exchange(val)
                         if result:
                             yield _process(result, self.transform)
