@@ -1528,20 +1528,39 @@ def test_rename_group(local_ds, capsys):
     with local_ds:
         local_ds.create_tensor("g1/g2/g3/t1")
         local_ds.create_tensor("g1/g2/t2")
-        local_ds.commit()
+        a = local_ds.commit()
+        expected_tensor_diff_from_a = {
+            "commit_id": local_ds.pending_commit_id,
+            "g1/g2/g3/t1": get_default_tensor_diff(),
+            "g1/g2/t2": get_default_tensor_diff(),
+        }
+        expected_dataset_diff_from_a = get_defaut_dataset_diff(
+            local_ds.pending_commit_id
+        )
         local_ds.rename_group("g1/g2", "g1/g4")
+        expected_dataset_diff_from_a["renamed"]["g1/g2/g3/t1"] = "g1/g4/g3/t1"
+        expected_dataset_diff_from_a["renamed"]["g1/g2/t2"] = "g1/g4/t2"
+        expected_tensor_diff_from_a["g1/g4/g3/t1"] = expected_tensor_diff_from_a.pop(
+            "g1/g2/g3/t1"
+        )
+        expected_tensor_diff_from_a["g1/g4/t2"] = expected_tensor_diff_from_a.pop(
+            "g1/g2/t2"
+        )
 
-    diff = local_ds.diff()
-    ds_changes = {
-        "deleted": [],
-        "info_updated": False,
-        "renamed": OrderedDict({"g1/g2/g3/t1": "g1/g4/g3/t1", "g1/g2/t2": "g1/g4/t2"}),
-    }
-    target = get_diff_helper(ds_changes, {}, {}, None)
+    diff = local_ds.diff(as_dict=True)
+    tensor_diff = diff["tensor"]
+    dataset_diff = diff["dataset"]
+
+    expected_tensor_diff = [expected_tensor_diff_from_a]
+    expected_dataset_diff = [expected_dataset_diff_from_a]
+
+    compare_tensor_diff(tensor_diff, expected_tensor_diff)
+    compare_dataset_diff(dataset_diff, expected_dataset_diff)
+
+    local_ds.diff()
+    target = get_diff_helper(dataset_diff, None, tensor_diff, None)
     captured = capsys.readouterr()
     assert captured.out == target
-    diff = local_ds.diff(as_dict=True)["dataset"]
-    assert diff == ds_changes
 
 
 def test_diff_linear(local_ds, capsys):
