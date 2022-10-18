@@ -31,7 +31,7 @@ class DeepLakeCloudDataset(Dataset):
                 warn(
                     f'Created a Deep Lake cloud dataset @ "{self.path}" which does not have the "hub://" prefix. Note: this dataset should only be used for testing!'
                 )
-            self.link_creds.populate_all_managed_creds()
+            self.link_creds.populate_all_managed_creds(verbose=self.verbose and verbose)
 
     @property
     def client(self):
