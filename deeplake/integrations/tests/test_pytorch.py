@@ -498,17 +498,17 @@ def view_tform(sample):
         (slice(None, 10), True),
         (slice(None, None, -1), False),
         (slice(None, None, -2), True),
-        ([2, 3, 4], True),
-        ([2, 4, 6, 8], False),
+        ([2, 3, 4], False),
+        ([2, 4, 6, 8], True),
         ([2, 2, 4, 4, 6, 6, 7, 7, 8, 8, 9, 9, 9], True),
         ([4, 3, 2, 1], False),
         (3, True),
-        (np.random.randint(0, 10, 100).tolist(), True),
+        (np.random.randint(0, 10, 100).tolist(), False),
     ],
 )
 def test_pytorch_view(local_ds, index, shuffle):
-    arr_list_1 = [np.random.randn(15, 15, i) for i in range(10)]
-    arr_list_2 = [np.random.randn(40, 15, 4, i) for i in range(10)]
+    arr_list_1 = [np.random.randn(15, 15, 5) for _ in range(10)]
+    arr_list_2 = [np.random.randn(40, 15, 4, 2) for _ in range(10)]
     label_list = list(range(10))
 
     with local_ds as ds:
@@ -521,12 +521,19 @@ def test_pytorch_view(local_ds, index, shuffle):
 
     ptds = local_ds[index].pytorch(transform=view_tform, shuffle=shuffle)
     idxs = list(IndexEntry(index).indices(len(local_ds)))
-    for idx, batch in enumerate(ptds):
-        idx = idxs[idx]
-        if not shuffle:
-            np.testing.assert_array_equal(batch["img1"][0], arr_list_1[idx])
-            np.testing.assert_array_equal(batch["img2"][0], arr_list_2[idx])
-            np.testing.assert_array_equal(batch["label"][0], idx)
+    for _ in range(2):
+        for idx, batch in enumerate(ptds):
+            idx = idxs[idx]
+            if not shuffle:
+                np.testing.assert_array_equal(batch["img1"][0], arr_list_1[idx])
+                np.testing.assert_array_equal(batch["img2"][0], arr_list_2[idx])
+                np.testing.assert_array_equal(batch["label"][0], idx)
+    ptds = local_ds[index].pytorch(
+        transform=view_tform, shuffle=shuffle, batch_size=2, drop_last=True
+    )
+    for _ in range(2):
+        for batch in ptds:
+            pass
 
 
 @requires_torch
