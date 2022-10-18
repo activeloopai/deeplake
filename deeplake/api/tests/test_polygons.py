@@ -42,3 +42,19 @@ def test_polygons(local_ds, ndim, args):
     view.save_view()
     materialized = deeplake.empty("mem://")
     deeplake.copy(view, materialized)
+
+
+def test_fixed_shape_bug(memory_ds):
+    arr = np.random.randint(
+        0,
+        10,
+        (
+            5,
+            7,
+            2,
+        ),
+    )
+    with memory_ds as ds:
+        ds.create_tensor("polygons", htype="polygon")
+        ds.polygons.append(arr)
+    np.testing.assert_array_equal(ds.polygons[0], arr)
