@@ -1,3 +1,4 @@
+from random import shuffle
 import deeplake
 import numpy as np
 import pickle
@@ -484,23 +485,28 @@ def test_pytorch_large(local_ds):
         np.testing.assert_array_equal(batch["label"][0], idx)
 
 
+def view_tform(sample):
+    return sample
+
+
 @requires_torch
 @pytest.mark.parametrize(
-    "index",
+    "index,shuffle",
     [
-        slice(2, 7),
-        slice(3, 10, 2),
-        slice(None, 10),
-        slice(None, None, -1),
-        slice(None, None, -2),
-        [2, 3, 4],
-        [2, 4, 6, 8],
-        [2, 2, 4, 4, 6, 6, 7, 7, 8, 8, 9, 9, 9],
-        [4, 3, 2, 1],
-        3,
+        (slice(2, 7), True),
+        (slice(3, 10, 2), False),
+        (slice(None, 10), True),
+        (slice(None, None, -1), False),
+        (slice(None, None, -2), True),
+        ([2, 3, 4], True),
+        ([2, 4, 6, 8], False),
+        ([2, 2, 4, 4, 6, 6, 7, 7, 8, 8, 9, 9, 9], True),
+        ([4, 3, 2, 1], False),
+        (3, True),
+        (np.random.randint(0, 10, 100).tolist(), True),
     ],
 )
-def test_pytorch_view(local_ds, index):
+def test_pytorch_view(local_ds, index, shuffle):
     arr_list_1 = [np.random.randn(15, 15, i) for i in range(10)]
     arr_list_2 = [np.random.randn(40, 15, 4, i) for i in range(10)]
     label_list = list(range(10))
@@ -513,13 +519,14 @@ def test_pytorch_view(local_ds, index):
         ds.img2.extend(arr_list_2)
         ds.label.extend(label_list)
 
-    ptds = local_ds[index].pytorch()
+    ptds = local_ds[index].pytorch(transform=view_tform, shuffle=shuffle)
     idxs = list(IndexEntry(index).indices(len(local_ds)))
     for idx, batch in enumerate(ptds):
         idx = idxs[idx]
-        np.testing.assert_array_equal(batch["img1"][0], arr_list_1[idx])
-        np.testing.assert_array_equal(batch["img2"][0], arr_list_2[idx])
-        np.testing.assert_array_equal(batch["label"][0], idx)
+        if not shuffle:
+            np.testing.assert_array_equal(batch["img1"][0], arr_list_1[idx])
+            np.testing.assert_array_equal(batch["img2"][0], arr_list_2[idx])
+            np.testing.assert_array_equal(batch["label"][0], idx)
 
 
 @requires_torch

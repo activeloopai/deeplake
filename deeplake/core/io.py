@@ -422,7 +422,10 @@ class SampleStreaming(Streaming):
                     start = low + bool(rm) * (step - rm)
                 return list(range(start, min(stop, high), step))
         elif isinstance(index, (list, tuple)):
-            return index[np.searchsorted(index, low) : np.searchsorted(index, high)]
+            ret = index[np.searchsorted(index, low) : np.searchsorted(index, high)]
+            if isinstance(ret, tuple):
+                ret = list(ret)
+            return ret
         elif isinstance(index, int):
             return [index] if index >= low and index < high else []
         else:
