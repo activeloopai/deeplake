@@ -43,12 +43,6 @@ class BytePositionsEncoder(Encoder):
 
         return start_byte + (num_bytes * delta)
 
-    def _validate_incoming_item(self, num_bytes: int, _):
-        if num_bytes < 0:
-            raise ValueError(f"`num_bytes` must be >= 0. Got {num_bytes}.")
-
-        super()._validate_incoming_item(num_bytes, _)
-
     def _combine_condition(self, num_bytes: int, compare_row_index: int = -1) -> bool:
         """Checks if `num_bytes` matches the `num_bytes` represented at row with index `compare_row_index`."""
 
