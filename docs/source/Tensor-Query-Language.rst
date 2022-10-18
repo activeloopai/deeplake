@@ -111,7 +111,7 @@ Query can contain multiple :sql:`SELECT` statements, combined by one of the set 
 EXAMPLES
 ~~~~~~~~
 
-Querying for images containing 0 in `MNIST Train Dataset <https://app.activeloop.ai/activeloop/mnist-train>`_.
+Querying for images containing 0 in `MNIST Train Dataset <https://app.activeloop.ai/activeloop/mnist-train>`_ with :meth:`ds.query <deeplake.core.dataset.Dataset.query>`.
 
 >>> import deeplake
 >>> ds = deeplake.load("hub://activeloop/mnist-train")
@@ -119,7 +119,7 @@ Querying for images containing 0 in `MNIST Train Dataset <https://app.activeloop
 >>> len(result)
 5923
 
-Querying for samples with ``car`` or ``motorcycle`` in ``categories`` of `COCO Train Dataset <https://app.activeloop.ai/activeloop/coco-train>`_ with :meth:`ds.query <deeplake.core.dataset.Dataset.query>`.
+Querying for samples with ``car`` or ``motorcycle`` in ``categories`` of `COCO Train Dataset <https://app.activeloop.ai/activeloop/coco-train>`_.
 
 >>> import deeplake
 >>> ds = deeplake.load("hub://activeloop/coco-train")
