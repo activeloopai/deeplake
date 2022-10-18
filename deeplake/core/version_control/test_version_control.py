@@ -1072,12 +1072,10 @@ def test_rename_diff_single(local_ds, capsys):
         local_ds.abc.append([1, 2, 3])
         expect_tensor_diff_from_start["abc"]["data_added"] = [0, 1]
         local_ds.rename_tensor("abc", "xyz")
-        expect_dataset_diff_from_start["renamed"]["abc"] = "xyz"
         expect_tensor_diff_from_start["xyz"] = expect_tensor_diff_from_start.pop("abc")
         local_ds.xyz.append([2, 3, 4])
         expect_tensor_diff_from_start["xyz"]["data_added"] = [0, 2]
         local_ds.rename_tensor("xyz", "efg")
-        expect_dataset_diff_from_start["renamed"]["abc"] = "efg"
         expect_tensor_diff_from_start["efg"] = expect_tensor_diff_from_start.pop("xyz")
         local_ds.create_tensor("red")
         expect_tensor_diff_from_start["red"] = get_default_tensor_diff()
@@ -1099,43 +1097,54 @@ def test_rename_diff_single(local_ds, capsys):
     )
     captured = capsys.readouterr()
     assert captured.out == target
-    raise Exception
-
-
-    local_ds.diff()
-    tensor_changes = {
-        "efg": tensor_diff_helper([0, 2], created=True),
-        "red": tensor_diff_helper(created=True),
-    }
-    target = get_diff_helper({}, {}, tensor_changes, None)
-    captured = capsys.readouterr()
-    assert captured.out == target
-    diff = local_ds.diff(as_dict=True)["tensor"]
-    assert diff == tensor_changes
 
     a = local_ds.commit()
+    expected_tensor_diff_from_a = {
+        "commit_id": local_ds.pending_commit_id,
+        "efg": get_default_tensor_diff(),
+        "red": get_default_tensor_diff(),
+    }
+    expected_dataset_diff_from_a = get_defaut_dataset_diff(local_ds.pending_commit_id)
+
     with local_ds:
         local_ds.rename_tensor("red", "blue")
+        expected_dataset_diff_from_a["renamed"]["red"] = "blue"
+        expected_tensor_diff_from_a["blue"] = expected_tensor_diff_from_a.pop("red")
+
         local_ds.efg.append([3, 4, 5])
+        expected_tensor_diff_from_a["efg"]["data_added"] = [2, 3]
         local_ds.rename_tensor("efg", "bcd")
+        expected_dataset_diff_from_a["renamed"]["efg"] = "bcd"
+        expected_tensor_diff_from_a["bcd"] = expected_tensor_diff_from_a.pop("efg")
         local_ds.bcd[1] = [2, 5, 4]
+        expected_tensor_diff_from_a["bcd"]["data_updated"].add(1)
         local_ds.rename_tensor("bcd", "red")
+        expected_dataset_diff_from_a["renamed"]["efg"] = "red"
+        expected_tensor_diff_from_a["red"] = expected_tensor_diff_from_a.pop("bcd")
         local_ds.red.append([1, 3, 4])
+        expected_tensor_diff_from_a["red"]["data_added"] = [2, 4]
         local_ds.blue.append([2, 3, 4])
+        expected_tensor_diff_from_a["blue"]["data_added"] = [0, 1]
         local_ds.rename_tensor("blue", "efg")
+        expected_dataset_diff_from_a["renamed"]["red"] = "efg"
+        expected_tensor_diff_from_a["efg"] = expected_tensor_diff_from_a.pop("blue")
+
+    diff = local_ds.diff(a, as_dict=True)
+    tensor_diff = diff["tensor"]
+    dataset_diff = diff["dataset"]
+
+    expected_tensor_diff = [[expected_tensor_diff_from_a], []]
+    expected_dataset_diff = [[expected_dataset_diff_from_a], []]
+
+    compare_tensor_diff(tensor_diff[0], expected_tensor_diff[0])
+    compare_dataset_diff(dataset_diff[0], expected_dataset_diff[0])
+
     local_ds.diff(a)
-    dataset_changes = {"renamed": OrderedDict({"red": "efg", "efg": "red"})}
-    tensor_changes = {
-        "red": tensor_diff_helper([2, 4], {1}),
-        "efg": tensor_diff_helper([0, 1]),
-    }
     target = get_diff_helper(
-        dataset_changes, {}, tensor_changes, {}, local_ds.version_state, a
+        dataset_diff[0], dataset_diff[1], tensor_diff[0], tensor_diff[1], local_ds.version_state, a
     )
     captured = capsys.readouterr()
     assert captured.out == target
-    diff = local_ds.diff(a, as_dict=True)["tensor"]
-    assert diff == (tensor_changes, {})
 
 
 def test_rename_diff_linear(local_ds, capsys):
@@ -1145,92 +1154,173 @@ def test_rename_diff_linear(local_ds, capsys):
         local_ds.create_tensor("xyz")
 
     a = local_ds.commit()
+    expected_tensor_diff_from_a = {
+        "commit_id": local_ds.pending_commit_id,
+        "abc": get_default_tensor_diff(),
+        "xyz": get_default_tensor_diff(),
+    }
+    expected_dataset_diff_from_a = get_defaut_dataset_diff(local_ds.pending_commit_id)
     with local_ds:
         local_ds.create_tensor("red")
+        expected_tensor_diff_from_a["red"] = get_default_tensor_diff()
+        expected_tensor_diff_from_a["red"]["created"] = True
         local_ds.xyz.append([3, 4, 5])
+        expected_tensor_diff_from_a["xyz"]["data_added"] = [0, 1]
         local_ds.rename_tensor("xyz", "efg")
+        expected_dataset_diff_from_a["renamed"]["xyz"] = "efg"
+        expected_tensor_diff_from_a["efg"] = expected_tensor_diff_from_a.pop("xyz")
         local_ds.rename_tensor("abc", "xyz")
+        expected_dataset_diff_from_a["renamed"]["abc"] = "xyz"
+        expected_tensor_diff_from_a["xyz"] = expected_tensor_diff_from_a.pop("abc")
         local_ds.xyz[0] = [2, 3, 4]
+        expected_tensor_diff_from_a["xyz"]["data_updated"].add(0)
 
     b = local_ds.commit()
+    expected_tensor_diff_from_b = {
+        "commit_id": local_ds.pending_commit_id,
+        "efg": get_default_tensor_diff(),
+        "xyz": get_default_tensor_diff(),
+        "red": get_default_tensor_diff(),
+    }
+
+    expected_dataset_diff_from_b = get_defaut_dataset_diff(local_ds.pending_commit_id)
     with local_ds:
         local_ds.rename_tensor("red", "blue")
+        expected_dataset_diff_from_b["renamed"]["red"] = "blue"
+        expected_tensor_diff_from_b["blue"] = expected_tensor_diff_from_b.pop("red")
         local_ds.xyz.append([5, 6, 7])
+        expected_tensor_diff_from_b["xyz"]["data_added"] = [1, 2]
         local_ds.xyz.info["hello"] = "world"
+        expected_tensor_diff_from_b["xyz"]["info_updated"] = True
         local_ds.rename_tensor("efg", "abc")
+        expected_dataset_diff_from_b["renamed"]["efg"] = "abc"
+        expected_tensor_diff_from_b["abc"] = expected_tensor_diff_from_b.pop("efg")
         local_ds.abc.append([6, 7, 8])
+        expected_tensor_diff_from_b["abc"]["data_added"] = [1, 2]
+
+    diff = local_ds.diff(a, as_dict=True)
+    tensor_diff = diff["tensor"]
+    dataset_diff = diff["dataset"]
+
+    expected_tensor_diff = [[expected_tensor_diff_from_b, expected_tensor_diff_from_a], []]
+    expected_dataset_diff = [[expected_dataset_diff_from_b, expected_dataset_diff_from_a], []]
+
+    compare_tensor_diff(tensor_diff[0], expected_tensor_diff[0])
+    compare_tensor_diff(tensor_diff[1], expected_tensor_diff[1])
+    compare_dataset_diff(dataset_diff[0], expected_dataset_diff[0])
+    compare_dataset_diff(dataset_diff[1], expected_dataset_diff[1])
 
     local_ds.diff(a)
-    ds_changes_from_a = {"renamed": OrderedDict({"xyz": "abc", "abc": "xyz"})}
-    tensor_changes_from_a = {
-        "xyz": tensor_diff_helper([1, 2], {0}, info_updated=True),
-        "abc": tensor_diff_helper([0, 2]),
-        "blue": tensor_diff_helper(created=True),
-    }
     target = get_diff_helper(
-        ds_changes_from_a, {}, tensor_changes_from_a, {}, local_ds.version_state, a
+        dataset_diff[0], dataset_diff[1], tensor_diff[0], tensor_diff[1], local_ds.version_state, a
     )
     captured = capsys.readouterr()
     assert captured.out == target
-    diff = local_ds.diff(a, as_dict=True)["tensor"]
-    assert diff == (tensor_changes_from_a, {})
 
     c = local_ds.commit()
+    expected_tensor_diff_from_c = {
+        "commit_id": local_ds.pending_commit_id,
+        "abc": get_default_tensor_diff(),
+        "xyz": get_default_tensor_diff(),
+        "blue": get_default_tensor_diff(),
+    }
+    expected_dataset_diff_from_c = get_defaut_dataset_diff(local_ds.pending_commit_id)
     with local_ds:
         local_ds.rename_tensor("abc", "bcd")
+        expected_dataset_diff_from_c["renamed"]["abc"] = "bcd"
+        expected_tensor_diff_from_c["bcd"] = expected_tensor_diff_from_c.pop("abc")
         local_ds.rename_tensor("xyz", "abc")
+        expected_dataset_diff_from_c["renamed"]["xyz"] = "abc"
+        expected_tensor_diff_from_c["abc"] = expected_tensor_diff_from_c.pop("xyz")
         local_ds.delete_tensor("blue")
+        expected_dataset_diff_from_c["deleted"].append("blue")
+        expected_tensor_diff_from_c.pop("blue")
+
+    diff = local_ds.diff(a, as_dict=True)
+    tensor_diff = diff["tensor"]
+    dataset_diff = diff["dataset"]
+
+    expected_tensor_diff = [[expected_tensor_diff_from_c, expected_tensor_diff_from_b, expected_tensor_diff_from_a], []]
+    expected_dataset_diff = [[expected_dataset_diff_from_c, expected_dataset_diff_from_b, expected_dataset_diff_from_a], []]
+
+    compare_tensor_diff(tensor_diff[0], expected_tensor_diff[0])
+    compare_tensor_diff(tensor_diff[1], expected_tensor_diff[1])
+    compare_dataset_diff(dataset_diff[0], expected_dataset_diff[0])
+    compare_dataset_diff(dataset_diff[1], expected_dataset_diff[1])
 
     local_ds.diff(a)
-    ds_changes_from_a = {"renamed": OrderedDict({"xyz": "bcd"})}
-    tensor_changes_from_a = {
-        "abc": tensor_diff_helper([1, 2], {0}, info_updated=True),
-        "bcd": tensor_diff_helper([0, 2]),
-    }
     target = get_diff_helper(
-        ds_changes_from_a, {}, tensor_changes_from_a, {}, local_ds.version_state, a
+        dataset_diff[0], dataset_diff[1], tensor_diff[0], tensor_diff[1], local_ds.version_state, a
     )
     captured = capsys.readouterr()
     assert captured.out == target
-    diff = local_ds.diff(a, as_dict=True)["tensor"]
-    assert diff == (tensor_changes_from_a, {})
 
     d = local_ds.commit()
+    expected_tensor_diff_from_d = {
+        "commit_id": local_ds.pending_commit_id,
+        "bcd": get_default_tensor_diff(),
+        "abc": get_default_tensor_diff(),
+    }
+    expected_dataset_diff_from_d = get_defaut_dataset_diff(local_ds.pending_commit_id)
     with local_ds:
         local_ds.delete_tensor("bcd")
+        expected_dataset_diff_from_d["deleted"].append("bcd")
+        expected_tensor_diff_from_d.pop("bcd")
+
         local_ds.rename_tensor("abc", "bcd")
+        expected_dataset_diff_from_d["renamed"]["abc"] = "bcd"
+        expected_tensor_diff_from_d["bcd"] = expected_tensor_diff_from_d.pop("abc")
         local_ds.bcd.append([4, 5, 6])
+        expected_tensor_diff_from_d["bcd"]["data_added"] = [2, 3]
+
+    diff = local_ds.diff(b, as_dict=True)
+    tensor_diff = diff["tensor"]
+    dataset_diff = diff["dataset"]
+
+    expected_tensor_diff = [[expected_tensor_diff_from_d, expected_tensor_diff_from_c, expected_tensor_diff_from_b], []]
+    expected_dataset_diff = [[expected_dataset_diff_from_d, expected_dataset_diff_from_c, expected_dataset_diff_from_b], []]
+
+    compare_tensor_diff(tensor_diff[0], expected_tensor_diff[0])
+    compare_tensor_diff(tensor_diff[1], expected_tensor_diff[1])
+    compare_dataset_diff(dataset_diff[0], expected_dataset_diff[0])
+    compare_dataset_diff(dataset_diff[1], expected_dataset_diff[1])
 
     local_ds.diff(b)
-    ds_changes_from_b = {
-        "renamed": OrderedDict({"xyz": "bcd"}),
-        "deleted": ["efg", "red"],
-    }
-    tensor_changes_from_b = {
-        "bcd": tensor_diff_helper([1, 3], info_updated=True),
-    }
     target = get_diff_helper(
-        ds_changes_from_b, {}, tensor_changes_from_b, {}, local_ds.version_state, b
+        dataset_diff[0], dataset_diff[1], tensor_diff[0], tensor_diff[1], local_ds.version_state, b
     )
     captured = capsys.readouterr()
     assert captured.out == target
-    diff = local_ds.diff(b, as_dict=True)["tensor"]
-    assert diff == (tensor_changes_from_b, {})
 
     e = local_ds.commit()
+    expected_tensor_diff_from_e = {
+        "commit_id": local_ds.pending_commit_id,
+        "bcd": get_default_tensor_diff(),
+    }
+    expected_dataset_diff_from_e = get_defaut_dataset_diff(local_ds.pending_commit_id)
     with local_ds:
         local_ds.rename_tensor("bcd", "abc")
+        expected_dataset_diff_from_e["renamed"]["bcd"] = "abc"
+        expected_tensor_diff_from_e["abc"] = expected_tensor_diff_from_e.pop("bcd")
+
+    diff = local_ds.diff(a, as_dict=True)
+    tensor_diff = diff["tensor"]
+    dataset_diff = diff["dataset"]
+
+    expected_tensor_diff = [[expected_tensor_diff_from_e, expected_tensor_diff_from_d, expected_tensor_diff_from_c, expected_tensor_diff_from_b, expected_tensor_diff_from_a], []]
+    expected_dataset_diff = [[expected_dataset_diff_from_e, expected_dataset_diff_from_d, expected_dataset_diff_from_c, expected_dataset_diff_from_b, expected_dataset_diff_from_a], []]
+
+    compare_tensor_diff(tensor_diff[0], expected_tensor_diff[0])
+    compare_tensor_diff(tensor_diff[1], expected_tensor_diff[1])
+    compare_dataset_diff(dataset_diff[0], expected_dataset_diff[0])
+    compare_dataset_diff(dataset_diff[1], expected_dataset_diff[1])
 
     local_ds.diff(a)
-    ds_changes_from_a = {"deleted": ["xyz"]}
-    tensor_changes_from_a = {"abc": tensor_diff_helper([1, 3], {0}, info_updated=True)}
     target = get_diff_helper(
-        ds_changes_from_a, {}, tensor_changes_from_a, {}, local_ds.version_state, a
+        dataset_diff[0], dataset_diff[1], tensor_diff[0], tensor_diff[1], local_ds.version_state, a
     )
     captured = capsys.readouterr()
     assert captured.out == target
-    diff = local_ds.diff(a, as_dict=True)["tensor"]
-    assert diff == (tensor_changes_from_a, {})
 
 
 def test_rename_diff_branch(local_ds, capsys):
