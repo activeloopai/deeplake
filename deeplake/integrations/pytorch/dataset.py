@@ -86,7 +86,8 @@ Alternatively, you can also exclude these tensors from training using the `tenso
 
 def _process(tensor, transform: PytorchTransformFunction):
     tensor = IterableOrderedDict((k, copy_tensor(tensor[k])) for k in tensor)
-    tensor = transform(tensor)
+    if transform:
+        tensor = transform(tensor)
     return tensor
 
 
@@ -504,13 +505,15 @@ class SubIterableDataset(torch.utils.data.IterableDataset):
             use_local_cache,
             tensors,
             tobytes,
-            transform,
+            transform = None if buffer_size else transform,
             num_workers=num_workers,
             shuffle=True,
             return_index=return_index,
             pad_tensors=pad_tensors,
         )
-
+        if buffer_size:
+            self.transform = transform
+        self.transform = transform
         self.num_workers = num_workers
         self.batch_size = batch_size
         self.buffer_size = buffer_size * MB
@@ -528,29 +531,25 @@ class SubIterableDataset(torch.utils.data.IterableDataset):
             collate_fn=identity,
         )
 
-        it = iter(sub_loader)
-
-        try:
-            while True:
-                next_batch = next(it)
-                for val in next_batch:
-                    if buffer is not None:
+        buffer_size = self.buffer_size
+        if buffer_size:
+            buffer_size = ShuffleBuffer(buffer_size)
+            it = iter(sub_loader)
+            try:
+                while True:
+                    next_batch = next(it)
+                    for val in next_batch:
                         print(len(buffer.buffer))
                         result = buffer.exchange(val)
                         if result:
-                            yield result
-                    else:
-                        yield val
-
-                del next_batch
-
-        except StopIteration:
-            pass
-
-        if buffer is not None:
+                            yield _process(result, self.transform)
+                    del next_batch
+            except StopIteration:
+                pass
             while not buffer.emtpy():
                 yield buffer.exchange(None)
-
+        else:
+            yield from sub_loader
         del sub_loader
 
     def __len__(self):
