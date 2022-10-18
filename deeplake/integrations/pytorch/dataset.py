@@ -84,11 +84,9 @@ Alternatively, you can also exclude these tensors from training using the `tenso
     return copy
 
 
-def _process(tensor, transform: PytorchTransformFunction):
+def _process(tensor, transform: Optional[PytorchTransformFunction]):
     tensor = IterableOrderedDict((k, copy_tensor(tensor[k])) for k in tensor)
-    if transform:
-        tensor = transform(tensor)
-    return tensor
+    return transform(tensor) if transform else tensor
 
 
 class _ContinueIteration:
@@ -416,7 +414,7 @@ class TorchDataset(torch.utils.data.IterableDataset):
         use_local_cache: bool = False,
         tensors: Sequence[str] = None,
         tobytes: Union[bool, Sequence[str]] = False,
-        transform: PytorchTransformFunction = PytorchTransformFunction(),
+        transform: Optional[PytorchTransformFunction] = PytorchTransformFunction(),
         num_workers: int = 1,
         shuffle: bool = False,
         buffer_size: int = 0,
