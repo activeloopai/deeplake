@@ -536,8 +536,9 @@ class SubIterableDataset(torch.utils.data.IterableDataset):
                 for val in next_batch:
                     if buffer is not None:
                         result = buffer.exchange(val)
-                        if result:
-                            yield result
+                        yield val
+                        # if result:
+                        #     yield result
                     else:
                         yield val
 
