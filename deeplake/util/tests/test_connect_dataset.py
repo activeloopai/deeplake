@@ -24,10 +24,16 @@ def test_destination_path():
     assert org_id == "org_id"
     assert ds_name == "ds_name"
 
+    org_id, ds_name = _get_org_id_and_ds_name(
+        dest_path="hub://another_org/some_dataset", ds_name="does_not_matter"
+    )
+    assert org_id == "another_org"
+    assert ds_name == "some_dataset"
+
     with pytest.raises(InvalidDestinationPathError):
         _get_org_id_and_ds_name()  # Make sure at least org_id is required
 
     with pytest.raises(InvalidDestinationPathError):
         _get_org_id_and_ds_name(
             dest_path="s3://bucket/dataset"
-        )  # Make sure that path can only be hub_cloud_path
+        )  # Make sure that path can only be a Deep Lake cloud path

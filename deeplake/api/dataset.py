@@ -921,14 +921,25 @@ class dataset:
         ds_name: Optional[str] = None,
         token: Optional[str] = None,
     ) -> Dataset:
-        """Connects a dataset at the specified path to Deep Lake.
+        """Connects a dataset at the specified source path to Deep Lake.
 
         Args:
             src_path (str): Cloud path to where the source dataset is stored. Can be:
                 - an s3 path of the form ``s3://bucketname/path/to/dataset``
+            creds_key (str): The managed credentials to be used for accessing the source path
+            dest_path (str, optional): The full path where the connected Deep Lake dataset will reside. Can be:
+                - a Deep Lake path of form ``hub://organization/dataset_name``
+            org_id (str, optional): The organization to where the connected Deep Lake dataset will be added.
+            ds_name (str, optional): The name of the connected Deep Lake dataset. Will be infered from `dest_path` or `src_path` if not provided.
+            token (str, optional): Activeloop token used to fetch the managed credentials.
 
         Returns:
-            Dataset: The connected object.
+            Dataset: The connected Deep Lake dataset.
+
+        Raises:
+            InvalidSourcePathError: If the `src_path` is not a valid s3 or gcs path.
+            InvalidDestinationPathError: If `dest_path`, `org_id` and `ds_name` do not form a valid Deep Lake cloud path.
+            UnprocessableEntityException
         """
         connected_id = connect_dataset_entry(
             src_path=src_path,
@@ -936,7 +947,7 @@ class dataset:
             dest_path=dest_path,
             org_id=org_id,
             ds_name=ds_name,
-            token=token
+            token=token,
         )
 
         return dataset.load(f"hub://{connected_id}", token=token, verbose=True)

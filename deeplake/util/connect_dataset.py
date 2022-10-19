@@ -19,7 +19,7 @@ def connect_dataset_entry(
 
     if not is_path_connectable(src_path):
         raise InvalidSourcePathError(
-            f"Source path may only be an s3 or gcs path. Got {src_path}"
+            f"Source path may only be an s3 or gcs path. Got {src_path}."
         )
 
     client = DeepLakeBackendClient(token)
@@ -48,7 +48,7 @@ def _get_org_id_and_ds_name(
     if org_id is None:
         if dest_path is None:
             raise InvalidDestinationPathError(
-                "Invalid destination path. Either the organization id or the destination path must be provided."
+                "Invalid destination path. Either the organization or the destination path must be provided."
             )
 
         if not is_hub_cloud_path(dest_path):
