@@ -43,7 +43,7 @@ def _get_org_id_and_ds_name(
     dest_path: Optional[str] = None,
     org_id: Optional[str] = None,
     ds_name: Optional[str] = None,
-) -> Tuple[str]:
+) -> Tuple[str, Optional[str]]:
     """Given the `dest_path`, `org_id` and `ds_name` parameters guarantees to return the `org_id`, while `ds_name` may remain `None`"""
     if org_id is None:
         if dest_path is None:

@@ -806,3 +806,11 @@ class InvalidSourcePathError(DatasetConnectError):
 
 class InvalidDestinationPathError(DatasetConnectError):
     pass
+
+
+class UnprocessableEntityException(Exception):
+    def __init__(self, message: Optional[str] = None) -> None:
+        if message is None or message == " ":
+            message = "Some request parameters were invalid."
+
+        super().__init__(message)

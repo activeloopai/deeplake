@@ -21,6 +21,7 @@ from deeplake.util.exceptions import (
     ServerException,
     UnexpectedStatusCodeException,
     EmptyTokenException,
+    UnprocessableEntityException,
 )
 
 
@@ -85,6 +86,8 @@ def check_response_status(response: requests.Response):
         if message != " ":
             raise ResourceNotFoundException(message)
         raise ResourceNotFoundException
+    elif response.status_code == 422:
+        raise UnprocessableEntityException(message)
     elif response.status_code == 423:
         raise LockedException
     elif response.status_code == 429:
