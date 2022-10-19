@@ -85,7 +85,7 @@ Alternatively, you can also exclude these tensors from training using the `tenso
 
 
 def _process(tensor, transform: Optional[PytorchTransformFunction]):
-    tensor = IterableOrderedDict((k, copy_tensor(tensor[k])) for k in tensor)
+    tensor = IterableOrderedDict((k, copy_tensor(tensor[k])) for k in tensor.keys())
     return transform(tensor) if transform else tensor
 
 
