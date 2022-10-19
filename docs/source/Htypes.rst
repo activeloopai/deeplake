@@ -540,20 +540,17 @@ Appending polygons with 3-D points
 >>> sample = [poly1, poly2, poly3]
 >>> ds.polygons.append(sample)
 
-Appending polygons with numpy array
+Appending polygons with numpy arrays
 
->>> sample
-array([[[4, 1],
-        [2, 4],
-        [4, 5]],
-       [[8, 9],
-        [3, 8],
-        [4, 7]],
-       [[6, 7],
-        [6, 2],
-        [2, 2]]])
->>> sample.shape
-(3, 3, 2)
+>>> import numpy as np
+>>> sample = np.random.randint(0, 10, (5, 7, 2))  # 5 polygons with 7 points
+>>> ds.polygons.append(sample)
+
+>>> import numpy as np
+>>> poly1 = np.random.randint(0, 10, (5, 2))
+>>> poly2 = np.random.randint(0, 10, (8, 2))
+>>> poly3 = np.random.randint(0, 10, (3, 2))
+>>> sample = [poly1, poly2, poly3]
 >>> ds.polygons.append(sample)
 
 .. _sequence-htype:
