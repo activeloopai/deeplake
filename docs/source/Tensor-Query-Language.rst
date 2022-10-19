@@ -6,7 +6,8 @@ Tensor Query Language
 .. role:: sql(code)
     :language: sql
 
-This page describes Tensor Query Language (TQL), defines SQL expressions we support as well as new expressions we add on top of SQL.
+This page describes the Tensor Query Language (TQL), an SQL-like language used for `Querying in Activeloop Platform <https://docs.activeloop.ai/tutorials/querying-datasets>`_
+as well as in :meth:`ds.query <deeplake.core.dataset.Dataset.query>` in our Python API.
 
 Language
 ~~~~~~~~
@@ -105,3 +106,23 @@ UNION, INTERSECT, EXCEPT
 ------------------------
 
 Query can contain multiple :sql:`SELECT` statements, combined by one of the set operations - :sql:`UNION`, :sql:`INTERSECT` and :sql:`EXCEPT`.
+
+
+Examples
+~~~~~~~~
+
+Querying for images containing 0 in `MNIST Train Dataset <https://app.activeloop.ai/activeloop/mnist-train>`_ with :meth:`ds.query <deeplake.core.dataset.Dataset.query>`.
+
+>>> import deeplake
+>>> ds = deeplake.load("hub://activeloop/mnist-train")
+>>> result = ds.query("select * where labels == 0")
+>>> len(result)
+5923
+
+Querying for samples with ``car`` or ``motorcycle`` in ``categories`` of `COCO Train Dataset <https://app.activeloop.ai/activeloop/coco-train>`_.
+
+>>> import deeplake
+>>> ds = deeplake.load("hub://activeloop/coco-train")
+>>> result = ds.query("(select * where contains(categories, 'car')) union (select * where contains(categories, 'motorcycle'))")
+>>> len(result)
+14376
