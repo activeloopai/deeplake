@@ -541,7 +541,8 @@ class SubIterableDataset(torch.utils.data.IterableDataset):
             except StopIteration:
                 pass
             while not buffer.emtpy():
-                yield buffer.exchange(None)
+                yield _process(buffer.exchange(None), self.transform)
+            del it
         else:
             yield from sub_loader
         del sub_loader
