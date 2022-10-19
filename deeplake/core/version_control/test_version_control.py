@@ -1938,38 +1938,165 @@ def test_complex_diff(local_ds, capsys):
         local_ds.xyz.extend([1, 2, 3])
     a = local_ds.commit()
     b = local_ds.checkout("alt", create=True)
+    expected_tensor_diff_from_a_on_alt = {
+        "commit_id": local_ds.pending_commit_id,
+        "xyz": get_default_tensor_diff(),
+    }
+    expected_dataset_diff_from_a_on_alt = get_defaut_dataset_diff(
+        local_ds.pending_commit_id
+    )
     with local_ds:
         local_ds.xyz.extend([4, 5, 6])
+        expected_tensor_diff_from_a_on_alt["xyz"]["data_added"] = [3, 6]
     local_ds.commit()
+    expected_tensor_diff_from_b_on_alt = {
+        "commit_id": local_ds.pending_commit_id,
+        "xyz": get_default_tensor_diff(),
+    }
+    expected_dataset_diff_from_b_on_alt = get_defaut_dataset_diff(
+        local_ds.pending_commit_id
+    )
     c = local_ds.pending_commit_id
     with local_ds:
         local_ds.xyz[4] = 7
         local_ds.xyz[0] = 0
+        expected_tensor_diff_from_b_on_alt["xyz"]["data_updated"] = {0, 4}
     local_ds.checkout("main")
+    expected_tensor_diff_from_a_on_main = {
+        "commit_id": local_ds.pending_commit_id,
+        "xyz": get_default_tensor_diff(),
+    }
+    expected_dataset_diff_from_a_on_main = get_defaut_dataset_diff(
+        local_ds.pending_commit_id
+    )
     d = local_ds.pending_commit_id
     with local_ds:
         local_ds.xyz[1] = 10
+        expected_tensor_diff_from_a_on_main["xyz"]["data_updated"] = {1}
         local_ds.create_tensor("pqr")
+        expected_tensor_diff_from_a_on_main["pqr"] = get_default_tensor_diff()
+        expected_tensor_diff_from_a_on_main["pqr"]["created"] = True
+
     local_ds.commit()
-    f = local_ds.checkout("another", create=True)
+    local_ds.checkout("another", create=True)
+    expected_tensor_diff_from_d_on_another = {
+        "commit_id": local_ds.pending_commit_id,
+        "xyz": get_default_tensor_diff(),
+        "pqr": get_default_tensor_diff(),
+    }
+    expected_dataset_diff_from_d_on_another = get_defaut_dataset_diff(
+        local_ds.pending_commit_id
+    )
     with local_ds:
         local_ds.create_tensor("tuv")
+        expected_tensor_diff_from_d_on_another["tuv"] = get_default_tensor_diff()
+        expected_tensor_diff_from_d_on_another["tuv"]["created"] = True
         local_ds.tuv.extend([1, 2, 3])
+        expected_tensor_diff_from_d_on_another["tuv"]["data_added"] = [0, 3]
         local_ds.pqr.append(5)
+        expected_tensor_diff_from_d_on_another["pqr"]["data_added"] = [0, 1]
     local_ds.commit()
+    expected_tensor_diff_from_f_on_another = {
+        "commit_id": local_ds.pending_commit_id,
+        "xyz": get_default_tensor_diff(),
+        "tuv": get_default_tensor_diff(),
+        "pqr": get_default_tensor_diff(),
+    }
+    expected_dataset_diff_from_f_on_another = get_defaut_dataset_diff(
+        local_ds.pending_commit_id
+    )
     g = local_ds.pending_commit_id
-    e = local_ds.checkout("main")
+    local_ds.checkout("main")
+    e = local_ds.pending_commit_id
+    expected_tensor_diff_from_d_on_main = {
+        "commit_id": local_ds.pending_commit_id,
+        "xyz": get_default_tensor_diff(),
+        "pqr": get_default_tensor_diff(),
+    }
+    expected_dataset_diff_from_d_on_main = get_defaut_dataset_diff(
+        local_ds.pending_commit_id
+    )
 
-    # x is LCA of a and g
     diff = local_ds.diff(c, g, as_dict=True)
+    tensor_diff = diff["tensor"]
+    dataset_diff = diff["dataset"]
+
+    expected_tensor_diff = [
+        [expected_tensor_diff_from_b_on_alt, expected_tensor_diff_from_a_on_alt],
+        [
+            expected_tensor_diff_from_f_on_another,
+            expected_tensor_diff_from_d_on_another,
+            expected_tensor_diff_from_a_on_main,
+        ],
+    ]
+    expected_dataset_diff = [
+        [expected_dataset_diff_from_b_on_alt, expected_dataset_diff_from_a_on_alt],
+        [
+            expected_dataset_diff_from_f_on_another,
+            expected_dataset_diff_from_d_on_another,
+            expected_dataset_diff_from_a_on_main,
+        ],
+    ]
+
+    compare_tensor_diff(tensor_diff[0], expected_tensor_diff[0])
+    compare_tensor_diff(tensor_diff[1], expected_tensor_diff[1])
+    compare_dataset_diff(dataset_diff[0], expected_dataset_diff[0])
+    compare_dataset_diff(dataset_diff[1], expected_dataset_diff[1])
 
     diff = local_ds.diff(e, d, as_dict=True)
+    tensor_diff = diff["tensor"]
+    dataset_diff = diff["dataset"]
+
+    expected_tensor_diff = [[expected_tensor_diff_from_d_on_main], []]
+
+    expected_dataset_diff = [[expected_dataset_diff_from_d_on_main], []]
+
+    compare_tensor_diff(tensor_diff[0], expected_tensor_diff[0])
+    compare_tensor_diff(tensor_diff[1], expected_tensor_diff[1])
+    compare_dataset_diff(dataset_diff[0], expected_dataset_diff[0])
+    compare_dataset_diff(dataset_diff[1], expected_dataset_diff[1])
 
     diff = local_ds.diff(e, e, as_dict=True)
+    tensor_diff = diff["tensor"]
+    dataset_diff = diff["dataset"]
+
+    expected_tensor_diff = [[], []]
+    expected_dataset_diff = [[], []]
+
+    compare_tensor_diff(tensor_diff[0], expected_tensor_diff[0])
+    compare_tensor_diff(tensor_diff[1], expected_tensor_diff[1])
+    compare_dataset_diff(dataset_diff[0], expected_dataset_diff[0])
+    compare_dataset_diff(dataset_diff[1], expected_dataset_diff[1])
 
     diff = local_ds.diff(c, "main", as_dict=True)
+    tensor_diff = diff["tensor"]
+    dataset_diff = diff["dataset"]
+
+    expected_tensor_diff = [
+        [expected_tensor_diff_from_b_on_alt, expected_tensor_diff_from_a_on_alt],
+        [expected_tensor_diff_from_d_on_main, expected_tensor_diff_from_a_on_main],
+    ]
+    expected_dataset_diff = [
+        [expected_dataset_diff_from_b_on_alt, expected_dataset_diff_from_a_on_alt],
+        [expected_dataset_diff_from_d_on_main, expected_dataset_diff_from_a_on_main],
+    ]
+
+    compare_tensor_diff(tensor_diff[0], expected_tensor_diff[0])
+    compare_tensor_diff(tensor_diff[1], expected_tensor_diff[1])
+    compare_dataset_diff(dataset_diff[0], expected_dataset_diff[0])
+    compare_dataset_diff(dataset_diff[1], expected_dataset_diff[1])
 
     diff = local_ds.diff("main", c, as_dict=True)
+    tensor_diff = diff["tensor"]
+    dataset_diff = diff["dataset"]
+
+    expected_tensor_diff = expected_tensor_diff[::-1]
+    expected_dataset_diff = expected_dataset_diff[::-1]
+
+    compare_tensor_diff(tensor_diff[0], expected_tensor_diff[0])
+    compare_tensor_diff(tensor_diff[1], expected_tensor_diff[1])
+    compare_dataset_diff(dataset_diff[0], expected_dataset_diff[0])
+    compare_dataset_diff(dataset_diff[1], expected_dataset_diff[1])
 
 
 def test_diff_not_exists(local_ds):
