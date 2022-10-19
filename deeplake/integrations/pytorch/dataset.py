@@ -511,7 +511,6 @@ class SubIterableDataset(torch.utils.data.IterableDataset):
         )
         if buffer_size:
             self.transform = transform
-        self.transform = transform
         self.num_workers = num_workers
         self.batch_size = batch_size
         self.buffer_size = buffer_size * MB
