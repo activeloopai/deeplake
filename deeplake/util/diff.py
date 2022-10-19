@@ -35,8 +35,6 @@ def get_changes_and_messages_compared_to_prev(
     msg_1 = f"Diff in {s} relative to the previous commit:\n"
     get_tensor_changes_for_id(commit_node, storage, tensor_changes)
     get_dataset_changes_for_id(commit_node, storage, ds_changes)
-    # filter_renamed_diff(ds_changes)
-    # Order: ds_changes_1, ds_changes_2, tensor_changes_1, tensor_changes_2, msg_0, msg_1, msg_2
     return ds_changes, None, tensor_changes, None, None, msg_1, None
 
 
@@ -108,8 +106,6 @@ def compare_commits(
             get_tensor_changes_for_id(commit_node, storage, tensor_changes)
             get_dataset_changes_for_id(commit_node, storage, dataset_changes)
             commit_node = commit_node.parent  # type: ignore
-
-        # filter_renamed_diff(dataset_changes)
 
     return (
         dataset_changes_1,
@@ -359,33 +355,6 @@ def get_tensor_changes_for_id(
 
     tensor_changes.append(commit_changes)
 
-
-# def filter_data_updated(changes: Dict[str, Dict]):
-#     """Removes the intersection of data added and data updated from data updated."""
-#     for change in changes.values():
-#         deleted_data = set(change.get("data_deleted", set()))
-#         # only show the elements in data_updated that are not in data_added
-#         data_added_range = range(change["data_added"][0], change["data_added"][1] + 1)
-#         upd = {
-#             data
-#             for data in change["data_updated"]
-#             if data not in data_added_range and data not in deleted_data
-#         }
-#         change["data_updated"] = upd
-
-
-# def filter_renamed_diff(dataset_changes):
-#     """Remove deleted tensors and tensors renamed to same name from diff"""
-#     rm = []
-#     renamed = dataset_changes.get("renamed")
-#     deleted = dataset_changes.get("deleted")
-#     if renamed:
-#         for old_name, new_name in renamed.items():
-#             if old_name == new_name:
-#                 rm.append(old_name)
-
-#         for name in rm:
-#             renamed.pop(name)
 
 
 def compress_into_range_intervals(indexes: Set[int]) -> List[Tuple[int, int]]:
