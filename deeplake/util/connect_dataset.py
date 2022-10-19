@@ -39,8 +39,12 @@ def is_path_connectable(path: str) -> bool:
 
 
 def _get_org_id_and_ds_name(
-    *, dest_path: Optional[str], org_id: Optional[str], ds_name: Optional[str]
+    *,
+    dest_path: Optional[str] = None,
+    org_id: Optional[str] = None,
+    ds_name: Optional[str] = None,
 ) -> Tuple[str]:
+    """Given the `dest_path`, `org_id` and `ds_name` parameters guarantees to return the `org_id`, while `ds_name` may remain `None`"""
     if org_id is None:
         if dest_path is None:
             raise InvalidDestinationPathError(
