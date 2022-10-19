@@ -18,6 +18,7 @@ from deeplake.core.index.index import IndexEntry
 from deeplake.core.link_creds import LinkCreds
 from deeplake.util.invalid_view_op import invalid_view_op
 from deeplake.api.info import load_info
+from deeplake.client.client import DeepLakeBackendClient
 from deeplake.client.log import logger
 from deeplake.client.utils import get_user_name
 from deeplake.constants import (
@@ -3237,6 +3238,34 @@ class Dataset:
                 del self.storage[key]
             except KeyError:
                 pass
+
+    def connect(
+        self,
+        org_id: str,
+        token: str,
+        ds_name: Optional[str] = None,
+        creds_key: Optional[str] = None,
+    ):
+        """Connect a Deep Lake cloud dataset through a deeplake path.
+
+        Examples:
+            >>> # create/load a dataset
+            >>> ds = deeplake.load("path/to/dataset")
+            >>> # connect the dataset
+            >>> ds.connect(org_id="my_organization", creds_key="my_managed_credentials_key")
+
+        Args:
+            org_id (str): The organization where the dataset will be added.
+            token (str): Deep Lake API token for authentication.
+            ds_name (Optional[str]): The name for the destination dataset. Will be infered from the source path if not provided.
+            creds_key (Optional[str]): The managed credentials to use when accessing source dataset, searched in the specified organization.
+        """
+        client = DeepLakeBackendClient(token)
+        id = client.connect_dataset_entry(
+            src_path=self.path, org_id=org_id, ds_name=ds_name, creds_key=creds_key
+        )
+
+        return deeplake.load(f"hub://{id}", token=token, verbose=False)
 
     def add_creds_key(self, creds_key: str, managed: bool = False):
         """Adds a new creds key to the dataset. These keys are used for tensors that are linked to external data.
