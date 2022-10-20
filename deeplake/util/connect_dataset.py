@@ -14,7 +14,7 @@ def connect_dataset_entry(
 ) -> str:
     if is_hub_cloud_path(src_path):
         raise InvalidSourcePathError(
-            "Source dataset is already a Deep Lake Cloud dataset."
+            "Source dataset is already accessible by a Deep Lake path."
         )
 
     if not is_path_connectable(src_path):
@@ -53,7 +53,7 @@ def _get_org_id_and_ds_name(
 
         if not is_hub_cloud_path(dest_path):
             raise InvalidDestinationPathError(
-                "Destination path must be a path like hub://organization/dataset_name"
+                "Destination path must be a Deep Lake path."
             )
 
         org_id, ds_name = get_org_id_and_ds_name(dest_path)

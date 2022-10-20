@@ -921,16 +921,16 @@ class dataset:
         ds_name: Optional[str] = None,
         token: Optional[str] = None,
     ) -> Dataset:
-        """Connects a dataset at the specified source path to Deep Lake.
+        """Connects dataset at ``src_path`` to Deep Lake via the provided path.
 
         Args:
-            src_path (str): Cloud path to where the source dataset is stored. Can be:
-                - an s3 path of the form ``s3://bucketname/path/to/dataset``
-            creds_key (str): The managed credentials to be used for accessing the source path
-            dest_path (str, optional): The full path where the connected Deep Lake dataset will reside. Can be:
-                - a Deep Lake path of form ``hub://organization/dataset_name``
+            src_path (str): Cloud path to the source dataset. Can be:
+                an s3 path like ``s3://bucket/path/to/dataset``.
+                a gcs path like ``gcs://bucket/path/to/dataset``.
+            creds_key (str): The managed credentials to be used for accessing the source path.
+            dest_path (str, optional): The full path to where the connected Deep Lake dataset will reside.
             org_id (str, optional): The organization to where the connected Deep Lake dataset will be added.
-            ds_name (str, optional): The name of the connected Deep Lake dataset. Will be infered from `dest_path` or `src_path` if not provided.
+            ds_name (str, optional): The name of the connected Deep Lake dataset. Will be infered from ``dest_path`` or ``src_path`` if not provided.
             token (str, optional): Activeloop token used to fetch the managed credentials.
 
         Returns:
@@ -938,8 +938,8 @@ class dataset:
 
         Raises:
             InvalidSourcePathError: If the `src_path` is not a valid s3 or gcs path.
-            InvalidDestinationPathError: If `dest_path`, `org_id` and `ds_name` do not form a valid Deep Lake cloud path.
-            UnprocessableEntityException
+            InvalidDestinationPathError: If `dest_path`, `org_id` and `ds_name` do not form a valid Deep Lake path.
+            UnprocessableEntityException:
         """
         connected_id = connect_dataset_entry(
             src_path=src_path,

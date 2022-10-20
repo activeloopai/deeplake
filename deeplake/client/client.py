@@ -469,6 +469,5 @@ class DeepLakeBackendClient:
             },
             endpoint=self.endpoint(),
         ).json()
-        check_response_status(response)
 
         return response["generated_id"]
