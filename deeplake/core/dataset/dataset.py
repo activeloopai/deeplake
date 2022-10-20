@@ -1104,6 +1104,7 @@ class Dataset:
         except Exception:  # python shutting down
             pass
 
+    @invalid_view_op
     def commit(self, message: Optional[str] = None, allow_empty=False) -> str:
         """Stores a snapshot of the current state of the dataset.
 
