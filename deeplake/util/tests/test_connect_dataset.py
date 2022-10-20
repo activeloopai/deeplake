@@ -1,9 +1,11 @@
 import pytest
-from deeplake.util.connect_dataset import _get_org_id_and_ds_name
+from deeplake.util.connect_dataset import _get_org_id_and_ds_name, is_path_connectable
 from deeplake.util.exceptions import InvalidDestinationPathError
 
 
-def test_destination_path():
+def test_source_and_destination_paths():
+    assert is_path_connectable("hub://org_id/ds_name")
+
     org_id, ds_name = _get_org_id_and_ds_name(dest_path="hub://org_id/ds_name")
     assert org_id == "org_id"
     assert ds_name == "ds_name"

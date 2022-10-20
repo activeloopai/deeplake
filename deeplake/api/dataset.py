@@ -11,12 +11,7 @@ from deeplake.client.log import logger
 from deeplake.core.dataset import Dataset, dataset_factory
 from deeplake.core.meta.dataset_meta import DatasetMeta
 from deeplake.util.connect_dataset import connect_dataset_entry
-from deeplake.util.path import (
-    convert_pathlib_to_string_if_needed,
-    get_org_id_and_ds_name,
-    get_path_type,
-    is_hub_cloud_path,
-)
+from deeplake.util.path import convert_pathlib_to_string_if_needed
 from deeplake.hooks import (
     dataset_created,
     dataset_loaded,
