@@ -543,7 +543,8 @@ class SubIterableDataset(torch.utils.data.IterableDataset):
                 yield _process(buffer.exchange(None), self.transform)
             del it
         else:
-            yield from sub_loader
+            for batch in sub_loader:
+                yield from batch
         del sub_loader
 
     def __len__(self):
