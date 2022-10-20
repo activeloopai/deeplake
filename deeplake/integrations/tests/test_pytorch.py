@@ -10,6 +10,7 @@ from deeplake.core.dataset import Dataset
 from deeplake.core.index.index import IndexEntry
 from deeplake.core.storage.memory import MemoryProvider
 from deeplake.constants import KB
+from deeplake.api.tests.test_multi_view import create_good_ds, create_ragged_ds
 
 from deeplake.tests.dataset_fixtures import enabled_non_gdrive_datasets
 
@@ -796,3 +797,38 @@ def test_uneven_iteration(local_ds):
             np.testing.assert_equal(x, i)
             target_y = i if i < 5 else []
             np.testing.assert_equal(y, target_y)
+
+
+@requires_torch
+@pytest.mark.parametrize("shuffle", [True, False])
+@pytest.mark.parametrize("num_workers", [0, 2])
+def test_multi_ds_pytorch(local_path, shuffle, num_workers):
+    ds1 = deeplake.empty(local_path, overwrite=True)
+    ds2 = deeplake.empty(f"{local_path}_2", overwrite=True)
+
+    ds1 = create_good_ds(ds1, random=False)  # 10 samples
+    ds2 = create_ragged_ds(ds2, random=False)  # 8 samples
+
+    multiview = ds1 + ds2
+
+    ptds = multiview.pytorch(
+        batch_size=4,
+        transform={"images": double, "labels": None, "index": None},
+        shuffle=shuffle,
+        num_workers=num_workers,
+        drop_last=True,
+    )
+
+    num_samples = 0
+    for batch in ptds:
+        assert batch.keys() == {"images", "labels", "index"}
+        for i in range(len(batch["images"])):
+            np.testing.assert_array_equal(
+                batch["images"][i], 2 * batch["index"][i] * np.ones((5, 5, 3))
+            )
+            num_samples += 1
+
+    assert num_samples == 16
+
+    ds1.delete()
+    ds2.delete()

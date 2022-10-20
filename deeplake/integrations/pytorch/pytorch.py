@@ -114,7 +114,6 @@ def create_dataloader_multiple(
                 tobytes=tobytes,
                 use_local_cache=use_local_cache,
                 transform=transform,
-                batch_size=batch_size,
                 num_workers=num_workers,
                 buffer_size=buffer_size,
                 return_index=return_index,

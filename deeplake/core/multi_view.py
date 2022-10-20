@@ -149,6 +149,12 @@ class MultiDatasetView(MultiView):
 
     def __init__(self, datasets):
         super().__init__(datasets)
+        if datasets:
+            self.tensors = list(datasets[0].tensors)
+            self.groups = list(datasets[0].groups)
+        else:
+            self.tensors = []
+            self.groups = []
 
     def item_len(self, item):
         return item.max_len
@@ -290,6 +296,10 @@ class MultiTensorView(MultiView):
         return f"{res}\n])"
 
     __repr__ = __str__
+
+    @property
+    def info(self):
+        return [item.info for item in self.items]
 
     def numpy(self, aslist=False):
         if not aslist:

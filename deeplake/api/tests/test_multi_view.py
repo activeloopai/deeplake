@@ -6,23 +6,35 @@ import deeplake
 import pytest
 
 
-def create_ragged_ds(ds):
+def create_ragged_ds(ds, random=True):
     with ds:
         ds.create_tensor("images", htype="image", sample_compression="jpg")
         ds.create_tensor("labels", htype="class_label")
 
-        ds.images.extend(np.random.randint(0, 255, (10, 5, 5, 3), dtype=np.uint8))
+        if random:
+            ds.images.extend(np.random.randint(0, 255, (10, 5, 5, 3), dtype=np.uint8))
+        else:
+            ds.images.extend(
+                np.ones((10, 5, 5, 3), dtype=np.uint8)
+                * np.arange(10, dtype=np.uint8).reshape((10, 1, 1, 1))
+            )
         ds.labels.extend(np.zeros((8,), dtype=np.uint32))
 
     return ds
 
 
-def create_good_ds(ds):
+def create_good_ds(ds, random=True):
     with ds:
         ds.create_tensor("images", htype="image", sample_compression="jpg")
         ds.create_tensor("labels", htype="class_label")
 
-        ds.images.extend(np.random.randint(0, 255, (10, 5, 5, 3), dtype=np.uint8))
+        if random:
+            ds.images.extend(np.random.randint(0, 255, (10, 5, 5, 3), dtype=np.uint8))
+        else:
+            ds.images.extend(
+                np.ones((10, 5, 5, 3), dtype=np.uint8)
+                * np.arange(10, dtype=np.uint8).reshape((10, 1, 1, 1))
+            )
         ds.labels.extend(np.zeros((10,), dtype=np.uint32))
 
     return ds
@@ -58,7 +70,11 @@ def test_dataset_add(local_path):
     ds1 = create_good_ds(ds1)
     ds2 = create_good_ds(ds2)
 
-    multiview = ds1 + ds2
+    ds1.images.info.update(filename="abc")
+    ds2.images.info.update(filename="xyz")
+
+    assert multiview.tensors == list(ds1.tensors)
+    assert multiview.groups == list(ds1.groups)
 
     assert len(multiview) == 20
 
@@ -130,6 +146,8 @@ def test_dataset_add(local_path):
         multiview.labels[5::2].numpy(),
         np.vstack([ds1.labels[5::2].numpy(), ds2[::2].labels.numpy()]),
     )
+
+    assert multiview.images.info == [ds1.images.info, ds2.images.info]
 
     ds1.delete()
     ds2.delete()
