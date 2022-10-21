@@ -64,6 +64,7 @@ def create_tensor(
     sample_compression: str,
     chunk_compression: str,
     version_state: Dict[str, Any],
+    overwrite: bool = False,
     **kwargs,
 ):
     """If a tensor does not exist, create a new one with the provided meta.
@@ -75,15 +76,16 @@ def create_tensor(
         sample_compression (str): All samples will be compressed in the provided format. If `None`, samples are uncompressed.
         chunk_compression (str): All chunks will be compressed in the provided format. If `None`, chunks are uncompressed.
         version_state (Dict[str, Any]): The version state of the dataset, includes commit_id, commit_node, branch, branch_commit_map and commit_node_map.
+        overwrite (bool): If `True`, any existing data in the tensor's directory will be overwritten.
         **kwargs: `htype` defaults can be overridden by passing any of the compatible parameters.
             To see all `htype`s and their correspondent arguments, check out `/deeplake/htypes.py`.
 
     Raises:
-        TensorAlreadyExistsError: If a tensor defined with `key` already exists.
+        TensorAlreadyExistsError: If a tensor defined with `key` already exists and `overwrite` is False.
     """
 
     commit_id = version_state["commit_id"]
-    if tensor_exists(key, storage, commit_id):
+    if not overwrite and tensor_exists(key, storage, commit_id):
         raise TensorAlreadyExistsError(key)
 
     meta_key = get_tensor_meta_key(key, commit_id)
@@ -246,6 +248,7 @@ class Tensor:
 
         # An optimization to skip multiple .numpy() calls when performing inplace ops on slices:
         self._skip_next_setitem = False
+        self._indexing_history: List[int] = []
 
     @property
     def pad_tensor(self):
@@ -586,6 +589,19 @@ class Tensor:
             raise InvalidKeyTypeError(item)
         if isinstance(item, tuple) or item is Ellipsis:
             item = replace_ellipsis_with_slices(item, self.ndim)
+        if not is_iteration and isinstance(item, int):
+            indexing_history = self._indexing_history
+            if len(indexing_history) == 2:
+                a, b = indexing_history
+                if item - b == b - a:
+                    is_iteration = True
+                    warnings.warn(
+                        "Indexing by integer in a for loop, like `for i in range(len(ds)): ... ds.tensor[i]` can be quite slow. Use `for i, sample in enumerate(ds)` instead."
+                    )
+                if item < a or item > b:
+                    self._indexing_history = [b, item]
+            else:
+                indexing_history.append(item)
         return Tensor(
             self.key,
             self.dataset,
@@ -678,7 +694,9 @@ class Tensor:
 
     def __iter__(self):
         for i in range(len(self)):
-            yield self.__getitem__(i, is_iteration=True)
+            yield self.__getitem__(
+                i, is_iteration=not isinstance(self.index.values[0], list)
+            )
 
     def numpy(
         self, aslist=False, fetch_chunks=False
@@ -708,7 +726,7 @@ class Tensor:
         ret = self.chunk_engine.numpy(
             self.index,
             aslist=aslist,
-            fetch_chunks=fetch_chunks,
+            fetch_chunks=fetch_chunks or self.is_iteration,
             pad_tensor=self.pad_tensor,
         )
         if self.htype == "point_cloud":
@@ -790,7 +808,7 @@ class Tensor:
     def __ior__(self, other):
         pass
 
-    def data(self, aslist: bool = False) -> Any:
+    def data(self, aslist: bool = False, fetch_chunks: bool = False) -> Any:
         """Returns data in the tensor in a format based on the tensor's base htype.
 
         - Returns dict with dict["value"] = :meth:`Tensor.text() <text>` for tensors with base htype of 'text'.
@@ -819,14 +837,14 @@ class Tensor:
         """
         htype = self.base_htype
         if htype == "text":
-            return {"value": self.text()}
+            return {"value": self.text(fetch_chunks=fetch_chunks)}
         if htype == "json":
-            return {"value": self.dict()}
+            return {"value": self.dict(fetch_chunks=fetch_chunks)}
         if htype == "list":
-            return {"value": self.list()}
+            return {"value": self.list(fetch_chunks=fetch_chunks)}
         if self.htype == "video":
             data = {}
-            data["frames"] = self.numpy(aslist=aslist)
+            data["frames"] = self.numpy(aslist=aslist, fetch_chunks=fetch_chunks)
             index = self.index
             if index.values[0].subscriptable():
                 root = Tensor(self.key, self.dataset)
@@ -852,7 +870,7 @@ class Tensor:
             data["sample_info"] = self.sample_info  # type: ignore
             return data
         if htype == "class_label":
-            labels = self.numpy(aslist=aslist)
+            labels = self.numpy(aslist=aslist, fetch_chunks=fetch_chunks)
             data = {"value": labels}
             class_names = self.info.class_names
             if class_names:
@@ -860,7 +878,7 @@ class Tensor:
             return data
         if htype in ("image", "image.rgb", "image.gray", "dicom"):
             return {
-                "value": self.numpy(aslist=aslist),
+                "value": self.numpy(aslist=aslist, fetch_chunks=fetch_chunks),
                 "sample_info": self.sample_info or {},
             }
         elif htype == "point_cloud":
@@ -868,6 +886,7 @@ class Tensor:
                 self.index,
                 aslist=aslist,
                 pad_tensor=self.pad_tensor,
+                fetch_chunks=fetch_chunks,
             )
 
             if self.ndim == 2:
@@ -904,7 +923,9 @@ class Tensor:
 
         else:
             return {
-                "value": self.chunk_engine.numpy(index=self.index, aslist=aslist),
+                "value": self.chunk_engine.numpy(
+                    index=self.index, aslist=aslist, fetch_chunks=fetch_chunks
+                ),
             }
 
     def tobytes(self) -> bytes:
@@ -1170,29 +1191,29 @@ class Tensor:
         """Returns all the indices pointed to by this tensor in the dataset view."""
         return self.dataset._sample_indices(self.num_samples)
 
-    def _extract_value(self, htype):
+    def _extract_value(self, htype: str, fetch_chunks: bool = False):
         if self.base_htype != htype:
             raise Exception(f"Only supported for {htype} tensors.")
 
         if self.ndim == 1:
-            return self.numpy()[0]
+            return self.numpy(fetch_chunks=fetch_chunks)[0]
         else:
             return [sample[0] for sample in self.numpy(aslist=True)]
 
-    def text(self):
+    def text(self, fetch_chunks: bool = False):
         """Return text data. Only applicable for tensors with 'text' base htype."""
-        return self._extract_value("text")
+        return self._extract_value("text", fetch_chunks=fetch_chunks)
 
-    def dict(self):
+    def dict(self, fetch_chunks: bool = False):
         """Return json data. Only applicable for tensors with 'json' base htype."""
-        return self._extract_value("json")
+        return self._extract_value("json", fetch_chunks=fetch_chunks)
 
-    def list(self):
+    def list(self, fetch_chunks: bool = False):
         """Return list data. Only applicable for tensors with 'list' base htype."""
         if self.base_htype != "list":
             raise Exception(f"Only supported for list tensors.")
 
         if self.ndim == 1:
-            return list(self.numpy())
+            return list(self.numpy(fetch_chunks=fetch_chunks))
         else:
-            return list(map(list, self.numpy(aslist=True)))
+            return list(map(list, self.numpy(aslist=True, fetch_chunks=fetch_chunks)))

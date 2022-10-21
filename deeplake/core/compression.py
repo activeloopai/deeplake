@@ -429,7 +429,7 @@ def verify_compressed_file(
         elif compression == "jpeg":
             return _verify_jpeg(file), "|u1"
         elif get_compression_type(compression) == AUDIO_COMPRESSION:
-            return _read_audio_shape(file, compression), "<f4"  # type: ignore
+            return _read_audio_shape(file), "<f4"  # type: ignore
         elif compression in ("mp4", "mkv", "avi"):
             if isinstance(file, (bytes, memoryview, str)):
                 return _read_video_shape(file), "|u1"  # type: ignore

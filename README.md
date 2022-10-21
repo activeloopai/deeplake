@@ -6,11 +6,11 @@
  </h1>
 <p align="center">
     <a href="https://github.com/activeloopai/Hub/actions/workflows/test-pr-on-label.yml"><img src="https://github.com/activeloopai/Hub/actions/workflows/test-push.yml/badge.svg" alt="PyPI version" height="18"></a>
-    <a href="https://pypi.org/project/deeplake/"><img src="https://badge.fury.io/py/hub.svg" alt="PyPI version" height="18"></a>
+    <a href="https://pypi.org/project/deeplake/"><img src="https://badge.fury.io/py/deeplake.svg" alt="PyPI version" height="18"></a>
     <a href='https://docs.deeplake.ai/en/latest/?badge=latest'>
      <img src='https://readthedocs.org/projects/deep-lake/badge/?version=latest' alt='Documentation Status' />
      </a>
-    <a href="https://pepy.tech/project/hub"><img src="https://static.pepy.tech/personalized-badge/deeplake?period=month&units=international_system&left_color=grey&right_color=orange&left_text=Downloads" alt="PyPI version" height="18"></a>
+    <a href="https://pepy.tech/project/deeplake"><img src="https://static.pepy.tech/personalized-badge/deeplake?period=month&units=international_system&left_color=grey&right_color=orange&left_text=Downloads" alt="PyPI version" height="18"></a>
      <a href="https://github.com/activeloopai/deeplake/issues">
     <img alt="GitHub issues" src="https://img.shields.io/github/issues/activeloopai/deeplake"> </a>
     <a href="https://codecov.io/gh/activeloopai/deeplake/branch/main"><img src="https://codecov.io/gh/activeloopai/deeplake/branch/main/graph/badge.svg" alt="codecov" height="18"></a>
@@ -170,7 +170,7 @@ A Deep Lake dataset can be created in various locations (Storage providers). Thi
 
 
 
-Let's create a dataset in the Activeloop cloud. Activeloop cloud provides free storage up to 300 GB per user (more info [here](#-for-students-and-educators)). Create a new account with Deep Lake from the terminal using `activeloop register` if you haven't already. You will be asked for a user name, email ID, and password. The user name you enter here will be used in the dataset path.
+Let's create a dataset in the Activeloop cloud. Activeloop cloud provides free storage up to 300 GB per user (more info [here](#-for-students-and-educators)). Create a new account with Deep Lake from the terminal using `activeloop register` or in the [Deep Lake UI](https://app.activeloop.ai/register/). You will be asked for a user name, email ID, and password.
 
 ```sh
 $ activeloop register
@@ -180,19 +180,21 @@ Email:
 Password:
 ```
 
+After registration, an ORGANIZATION is automatically created that shares your username. You can use it for creating and managing your datasets, or you can create a new one for your company or team.
+
 Initialize an empty dataset in the Activeloop Cloud:
 
 ```python
 import deeplake
 
-ds = deeplake.empty("hub://<USERNAME>/test-dataset")
+ds = deeplake.empty('hub://<ORGANIZATION_NAME>/test-dataset')
 ```
 
 
 Next, create a tensor to hold images in the dataset we just initialized:
 
 ```python
-images = ds.create_tensor("images", htype="image", sample_compression="jpg")
+images = ds.create_tensor('images', htype='image', sample_compression='jpg')
 ```
 
 Assuming you have a list of image file paths, let's upload them to the dataset:
@@ -201,11 +203,11 @@ Assuming you have a list of image file paths, let's upload them to the dataset:
 image_paths = ...
 with ds:
     for image_path in image_paths:
-        image = hub.read(image_path)
+        image = deeplake.read(image_path)
         ds.images.append(image)
 ```
 
-Alternatively, you can also upload numpy arrays. Since the `images` tensor was created with `sample_compression="jpg"`, the arrays will be compressed with jpeg compression.
+Alternatively, you can also upload numpy arrays. Since the `images` tensor was created with `sample_compression='jpg'`, the arrays will be compressed with jpeg compression.
 
 
 ```python
@@ -213,7 +215,7 @@ import numpy as np
 
 with ds:
     for _ in range(1000):  # 1000 random images
-        random_image = np.random.randint(0, 256, (100, 100, 3))  # 100x100 image with 3 channels
+        random_image = np.random.randint(0, 256, (100, 100, 3), dtype=np.uint8)  # 100x100 image with 3 channels
         ds.images.append(random_image)
 ```
 
@@ -227,7 +229,7 @@ You can load the dataset you just created with a single line of code:
 ```python
 import deeplake
 
-ds = deeplake.load("hub://<USERNAME>/test-dataset")
+ds = deeplake.load('hub://<ORGANIZATION_NAME>/test-dataset')
 ```
 
 You can also access one of the <a href="https://docs.activeloop.ai/datasets/?utm_source=github&utm_medium=github&utm_campaign=github_readme&utm_id=readme">100+ image, video and audio datasets in Deep Lake format</a>, not just the ones you created. Here is how you would load the [Objectron Bikes Dataset](https://github.com/google-research-datasets/Objectron):
