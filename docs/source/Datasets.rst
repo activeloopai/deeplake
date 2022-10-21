@@ -155,3 +155,5 @@ in order to preserve data lineage and prevent the underlying data from changing 
     Dataset.delete_view
     Dataset.get_views
     Dataset.is_view
+    Dataset.min_view
+    Dataset.max_view

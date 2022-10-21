@@ -3462,11 +3462,15 @@ class Dataset:
 
     @property
     def min_view(self):
+        """Returns a view of the dataset in which all tensors are sliced to have the same length as
+        the shortest tensor."""
         min_length = min(map(len, self.tensors.values()))
         return self[:min_length]
 
     @property
     def max_view(self):
+        """Returns a view of the dataset in which tensors are padded to have the same length as
+        the longest tensor."""
         return self.__class__(
             storage=self.storage,
             index=self.index,
