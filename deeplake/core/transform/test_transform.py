@@ -666,28 +666,23 @@ def test_inplace_transform(local_ds_generator):
             target = 2 if i % 2 == 0 else 3
             check_target_array(ds, i, target)
 
-        diff = ds.diff(as_dict=True)["tensor"]
-        change = {
-            "img": {
-                "created": False,
-                "cleared": False,
-                "data_added": [0, 20],
-                "data_updated": set(),
-                "data_transformed_in_place": True,
-                "info_updated": False,
-                "data_deleted": set(),
-            },
-            "label": {
-                "created": False,
-                "cleared": False,
-                "data_added": [0, 20],
-                "data_updated": set(),
-                "data_transformed_in_place": True,
-                "info_updated": False,
-                "data_deleted": set(),
-            },
+        expected_tensor_diff = {
+            "commit_id": ds.pending_commit_id,
+            "img": get_default_tensor_diff(),
+            "label": get_default_tensor_diff(),
         }
-        assert diff == change
+        expected_dataset_diff = get_defaut_dataset_diff(ds.pending_commit_id)
+        expected_tensor_diff["img"]["data_added"] = [0, 20]
+        expected_tensor_diff["img"]["data_transformed_in_place"] = True
+        expected_tensor_diff["label"]["data_added"] = [0, 20]
+        expected_tensor_diff["label"]["data_transformed_in_place"] = True
+
+        diff = ds.diff(as_dict=True)
+        tensor_diff = diff["tensor"]
+        dataset_diff = diff["dataset"]
+
+        compare_tensor_diff([expected_tensor_diff], tensor_diff)
+        compare_dataset_diff([expected_dataset_diff], dataset_diff)
 
         ds.checkout(b)
         assert len(ds) == 10
