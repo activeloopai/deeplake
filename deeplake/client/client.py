@@ -217,7 +217,7 @@ class DeepLakeBackendClient:
             ).json()
         except Exception as e:
             if isinstance(e, AuthorizationException):
-                authorization_exception_prompt = "You don't have permission to "
+                authorization_exception_prompt = "You don't have permissions to "
                 response_data = e.response.json()
                 code = response_data.get("code")
                 if code == 1:
@@ -235,7 +235,7 @@ class DeepLakeBackendClient:
                         raise InvalidTokenException
 
                     if (
-                        authorization_exception_prompt in response_data["description"]
+                        authorization_exception_prompt.lower() in response_data["description"].lower()
                         and decoded_token["id"] == "public"
                     ):
                         raise UserNotLoggedInException()
