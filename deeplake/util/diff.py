@@ -356,7 +356,6 @@ def get_tensor_changes_for_id(
     tensor_changes.append(commit_changes)
 
 
-
 def compress_into_range_intervals(indexes: Set[int]) -> List[Tuple[int, int]]:
     """Compresses the indexes into range intervals.
     Examples:
