@@ -392,7 +392,6 @@ class BaseChunk(DeepLakeMemoryObject):
                 shape += (1,)  # type: ignore[assignment]
         return shape
 
-
     def can_fit_sample(self, sample_nbytes, buffer_nbytes=0):
         if self.num_data_bytes == 0:
             if self.tiling_threshold < 0:  # tiling disabled
@@ -425,7 +424,9 @@ class BaseChunk(DeepLakeMemoryObject):
         """
         # incoming_num_bytes is not applicable for image compressions
         if incoming_num_bytes is not None:
-            self.byte_positions_encoder.register_samples(incoming_num_bytes, num_samples)
+            self.byte_positions_encoder.register_samples(
+                incoming_num_bytes, num_samples
+            )
         if sample_shape is not None:
             if self.shapes_encoder.is_empty():
                 padding = self.byte_positions_encoder.num_samples - num_samples

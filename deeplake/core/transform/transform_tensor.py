@@ -1,6 +1,8 @@
+import itertools
 from deeplake.core.linked_sample import LinkedSample
 from deeplake.core.sample import Sample  # type: ignore
 from deeplake.util.exceptions import TensorInvalidSampleShapeError
+from itertools import chain
 import numpy as np
 
 
@@ -13,24 +15,33 @@ class TransformTensor:
         self.length = None
         self._ndim = None
 
-    def numpy(self) -> None:
+    def _numpy(self):
         """Returns all the items stored in the slice of the tensor as numpy arrays. Even samples stored using :meth:`deeplake.read` are converted to numpy arrays in this."""
-        value = self.numpy_compressed()
-        if isinstance(value, list):
-            for i in range(len(value)):
-                if isinstance(value[i], Sample):
-                    value[i] = value[i].array
-        elif isinstance(value, Sample):
-            value = value.array
-        return value
+        items = self.numpy_compressed()
+        for i in range(len(items)):
+            if isinstance(items[i], list):
+                items[i] = [x.array if isinstance(x, Sample) else x for x in items[i]]
+            elif isinstance(items[i], Sample):
+                items[i] = items[i].array
+        return items
+
+    def numpy(self):
+        return list(itertools.chain(*self._numpy()))
+
+    @property
+    def flat_items(self):
+        return list(chain(*self.items))
 
     def numpy_compressed(self):
         """Returns all the items stored in the slice of the tensor. Samples stored using :meth:`deeplake.read` are not converted to numpy arrays in this."""
-        value = self.items
+        items = self.items[:]
         for slice_ in self.slice_list:
-            value = value[slice_]
-        self.length = len(value) if isinstance(value, list) else 1
-        return value
+            for i in range(len(items)):
+                items[i] = items[i][slice_]
+        self.length = sum(
+            map(lambda v: len(v) if isinstance(v, (np.ndarray, list)) else 1, items)
+        )
+        return items
 
     def __len__(self) -> int:
         if not self.slice_list:
@@ -75,9 +86,10 @@ class TransformTensor:
                 if len(shape) != self._ndim:
                     raise TensorInvalidSampleShapeError(shape, self._ndim)
 
-        self.items.append(item)
+        self.items.append([item])
 
     def extend(self, items):
         """Adds multiple items to the tensor."""
-        for item in items:
-            self.append(item)
+        if not isinstance(items, (np.ndarray, list)):
+            items = list(items)
+        self.items.append(items)

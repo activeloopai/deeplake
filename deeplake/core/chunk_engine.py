@@ -713,13 +713,15 @@ class ChunkEngine:
         current_chunk = start_chunk
         updated_chunks = []
         if current_chunk is None:
-            current_chunk = self._create_new_chunk(register and start_chunk_row is not None)
+            current_chunk = self._create_new_chunk(
+                register and start_chunk_row is not None
+            )
             current_chunk._update_tensor_meta_length = extending
             updated_chunks.append(current_chunk)
             if extending:
                 enc_ids.append(current_chunk.id)
         elif extending:
-                enc_ids.append(None)
+            enc_ids.append(None)
         enc = self.chunk_id_encoder
         tiles = {}
         nsamples = len(samples)
@@ -734,7 +736,9 @@ class ChunkEngine:
             if register_creds:
                 self.register_new_creds(num_samples_added, samples)
             if num_samples_added == 0:
-                current_chunk = self._create_new_chunk(register and start_chunk_row is not None, row=start_chunk_row)
+                current_chunk = self._create_new_chunk(
+                    register and start_chunk_row is not None, row=start_chunk_row
+                )
                 current_chunk._update_tensor_meta_length = extending
                 if start_chunk_row is not None:
                     start_chunk_row += 1

@@ -94,7 +94,9 @@ def extend_shape(samples, link_creds=None):
     return (
         np.array([], dtype=np.int64)
         if samples is None
-        else np.array([update_shape.f(sample, link_creds=link_creds) for sample in samples])
+        else np.array(
+            [update_shape.f(sample, link_creds=link_creds) for sample in samples]
+        )
     )
 
 

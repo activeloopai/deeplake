@@ -79,7 +79,8 @@ def combine_transform_datasets(datasets: List[TransformDataset]):
     final_ds = TransformDataset()
     for ds in datasets:
         for tensor in ds.tensors:
-            final_ds[tensor].extend(ds[tensor].numpy())
+            for batch in ds[tensor]._numpy():
+                final_ds[tensor].extend(batch)
     return final_ds
 
 
@@ -198,8 +199,8 @@ def _transform_sample_and_update_chunk_engines(
     for tensor, value in result.items():
         chunk_engine = all_chunk_engines[label_temp_tensors.get(tensor) or tensor]
         callback = chunk_engine._transform_callback
-        import numpy as np
-        chunk_engine.extend(value.numpy_compressed(), link_callback=callback)
+        for items in value.numpy_compressed():
+            chunk_engine.extend(items, link_callback=callback)
         value.items.clear()
 
 

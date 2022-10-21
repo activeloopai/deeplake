@@ -46,12 +46,11 @@ class DataFrame(StructuredDataset):
                         ds.create_tensor(key, htype="json")
                     else:
                         ds.create_tensor(key, dtype=dtype, sample_shape=(1,))
-                    ds[key].extend(self.source[key].values.tolist())
+                    ds[key].extend(self.source[key].values)
                 except Exception as e:
                     skipped_keys.append(key)
                     iterator.set_description(
                         "Ingesting... (%i keys skipped)" % (len(skipped_keys))
                     )
                     continue
-
         return ds

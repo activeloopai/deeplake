@@ -5,7 +5,7 @@ from deeplake.core.serialize import check_sample_shape, bytes_to_text
 from deeplake.core.tiling.sample_tiles import SampleTiles
 from deeplake.core.polygon import Polygons
 from deeplake.util.casting import intelligent_cast
-from deeplake.util.exceptions import EmptyTensorError,TensorDtypeMismatchError
+from deeplake.util.exceptions import EmptyTensorError, TensorDtypeMismatchError
 from .base_chunk import BaseChunk, InputSample
 
 
@@ -92,7 +92,12 @@ class UncompressedChunk(BaseChunk):
             self.data_bytes += b"".join([s.tobytes() for s in samples])
 
         if num_samples > 0:
-            self.register_in_meta_and_headers(incoming_samples[0].nbytes, shape, update_tensor_meta=update_tensor_meta, num_samples=num_samples)
+            self.register_in_meta_and_headers(
+                incoming_samples[0].nbytes,
+                shape,
+                update_tensor_meta=update_tensor_meta,
+                num_samples=num_samples,
+            )
         return float(num_samples)
 
     def _extend_if_has_space_list(
