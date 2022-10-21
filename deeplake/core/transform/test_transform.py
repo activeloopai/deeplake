@@ -126,6 +126,10 @@ def add_images(i, sample_out):
         image = deeplake.read(get_dummy_data_path("images/flower.png"))
         sample_out.append({"image": image})
 
+@deeplake.compute
+def small_transform(sample_in, samples_out):
+    samples_out.image.append(sample_in)
+
 
 def check_target_array(ds, index, target):
     np.testing.assert_array_equal(
@@ -1019,3 +1023,14 @@ def test_tensor_dataset_memory_leak(local_ds):
 
     n = retrieve_objects_from_memory()
     assert n == 0
+
+def test_transform_info(local_ds_generator):
+    ds = local_ds_generator()
+    with ds:
+        ds.create_tensor("image")
+        small_transform().eval(range(1), ds)
+        ds.info["test"] = 123
+        assert ds.info["test"] == 123
+    ds = local_ds_generator()
+    assert ds.info["test"] == 123
+    
