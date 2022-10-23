@@ -6,6 +6,7 @@ from typing import Dict, Optional, Union, List
 
 from deeplake.auto.unstructured.kaggle import download_kaggle_dataset
 from deeplake.auto.unstructured.image_classification import ImageClassification
+from deeplake.auto.unstructured.coco import CocoDataset
 from deeplake.client.client import DeepLakeBackendClient
 from deeplake.client.log import logger
 from deeplake.core.dataset import Dataset, dataset_factory
@@ -905,6 +906,38 @@ class dataset:
         if not ret.has_head_changes:
             dataset_committed(ret)
         return ret
+
+    @staticmethod
+    def ingest_coco(
+        src: Union[str, pathlib.Path],
+        dest: Union[str, pathlib.Path],
+        annotation_files: Union[str, List[str]],
+        key_to_tensor_mapping: dict = {},
+        file_to_group_mapping: dict = {},
+        ignore_one_group: bool = False,
+        progressbar: bool = True,
+        summary: bool = True,
+        **dataset_kwargs,
+    ) -> Dataset:
+        dest = convert_pathlib_to_string_if_needed(dest)
+        src = convert_pathlib_to_string_if_needed(src)
+
+        ds = deeplake.dataset(dest, **dataset_kwargs)
+
+        unstructured = CocoDataset(
+            source=src,
+            annotation_files=annotation_files,
+            key_to_tensor_mapping=key_to_tensor_mapping,
+            file_to_group_mapping=file_to_group_mapping,
+            ignore_one_group=ignore_one_group,
+        )
+
+        unstructured.structure(
+            ds,
+            use_progress_bar=progressbar,
+        )
+
+        return ds
 
     @staticmethod
     def ingest(
