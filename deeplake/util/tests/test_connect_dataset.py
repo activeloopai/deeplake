@@ -4,7 +4,8 @@ from deeplake.util.exceptions import InvalidDestinationPathError
 
 
 def test_source_and_destination_paths():
-    assert is_path_connectable("hub://org_id/ds_name")
+    assert not is_path_connectable("hub://org_id/ds_name")
+    assert is_path_connectable("s3://bucket/path/to/dataset")
 
     org_id, ds_name = _get_org_id_and_ds_name(dest_path="hub://org_id/ds_name")
     assert org_id == "org_id"
