@@ -111,7 +111,7 @@ class CocoDataset(UnstructuredDataset):
         # Iterate through each annotation file and inspect the keys to back our the tensors
         for ann_file in self.annotation_files:
             annotations = CocoDataset._get_annotations(ann_file)
-            file_name = Path(ann_file).name
+            file_name = Path(ann_file).stem
 
             keys_in_group = []
             for ann in annotations["annotations"][:inspect_limit]:
@@ -124,6 +124,7 @@ class CocoDataset(UnstructuredDataset):
             parsed_structure[group_name] = {
                 "file_path": ann_file,
                 "raw_keys": keys_in_group,
+                'ignore_group': False,
                 "renamed_tensors": [
                     self.key_to_tensor_mapping.get(k, k) for k in keys_in_group
                 ],
@@ -137,15 +138,12 @@ class CocoDataset(UnstructuredDataset):
             ds.create_tensor(parsed_structure["renamed_tensors"][i], **tensor_settings)
 
     def _create_groups(self, ds: Dataset, parsed_structure: dict):
-        if len(parsed_structure.keys()) == 1 and self.ignore_one_group:
-            self._create_tensors(
-                ds,
-                parsed_structure[next(iter(parsed_structure))],
-            )
-        else:
-            for key in parsed_structure.keys():
+        
+        for key in parsed_structure.keys():
+            if parsed_structure[key]['ignore_group']:
+                self._create_tensors(ds, parsed_structure[key]) 
+            else:
                 ds.create_group(key)
-
                 self._create_tensors(ds[key], parsed_structure[key])
 
     def structure(self, ds: Dataset, use_progress_bar: bool = True):
@@ -153,6 +151,8 @@ class CocoDataset(UnstructuredDataset):
         parsed = self._parse_tensors()
 
         self._create_groups(ds, parsed_structure=parsed)
+
+        if self.ignore_one_group and len(parsed.keys())==1: parsed[list(parsed.keys())[0]]['ignore_group'] = self.ignore_one_group
 
         with ds:
             for ann_file in self.annotation_files:
