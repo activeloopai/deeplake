@@ -97,6 +97,8 @@ Dataset Properties
     Dataset.num_samples
     Dataset.read_only
     Dataset.info
+    Dataset.max_len
+    Dataset.min_len
 
 Dataset Version Control
 ~~~~~~~~~~~~~~~~~~~~~~~
