@@ -16,10 +16,10 @@ GENERIC_TENSOR_CONFIG = {"htype": "generic", "sample_compression": "lz4"}
 TENSOR_SETTINGS_CONFIG = {
     "segmentation": {
         "htype": "polygon",
-        "sample_compression": "lz4",
+        "sample_compression": None,
     },
-    "category_id": {"htype": "class_label", "sample_compression": "lz4"},
-    "bbox": {"htype": "bbox", "sample_compression": "lz4"},
+    "category_id": {"htype": "class_label", "sample_compression": None},
+    "bbox": {"htype": "bbox", "sample_compression": None},
     "_other": GENERIC_TENSOR_CONFIG,
 }
 
@@ -45,8 +45,8 @@ def coco_2_deeplake(coco_key, value, tensor_meta, category_lookup=None):
         else:
             return category_lookup[str(value)]
 
-    else:
-        return value
+    elif coco_key == "keypoints":
+        return np.array(value).astype(dtype)
 
 
 class CocoDataset(UnstructuredDataset):
@@ -66,6 +66,7 @@ class CocoDataset(UnstructuredDataset):
         key_to_tensor_mapping: dict = {},
         file_to_group_mapping: dict = {},
         ignore_one_group: bool = False,
+        ignore_keys: Union[str, List[str]] = [],
     ):
         """
         Args:
@@ -73,8 +74,10 @@ class CocoDataset(UnstructuredDataset):
             annotation_files (Union[str, List[str]]): The path(s) to the annotation jsons.
             key_to_tensor_mapping (dict): The names to which the keys in the annotation json should be mapped to when creating tensors.
             file_to_group_mapping (dict): Map the annotation file names to groups.
-            ignore_one_group (bool): If there is only a single annotation file, wether the creation of group should be skipped.
+            ignore_one_group (bool): If there is only a single annotation file, whether the creation of group should be skipped.
+            ignore_one_group (bool): Which keys in the annotation file should be ignored and tensors/data should not be created.
         """
+
         super().__init__(source)
 
         self.annotation_files = (
@@ -86,6 +89,9 @@ class CocoDataset(UnstructuredDataset):
 
         self.key_to_tensor_mapping = key_to_tensor_mapping
         self.file_to_group_mapping = file_to_group_mapping
+
+        self.ignore_keys = ignore_keys
+        
         self._validate_key_mapping()
         self._validate_group_mapping()
 
@@ -116,7 +122,7 @@ class CocoDataset(UnstructuredDataset):
             keys_in_group = []
             for ann in annotations["annotations"][:inspect_limit]:
                 for key in ann.keys():
-                    if key not in keys_in_group:
+                    if key not in keys_in_group and key not in self.ignore_keys:
                         keys_in_group.append(key)
 
             group_name = self.file_to_group_mapping.get(file_name, file_name)
@@ -191,7 +197,7 @@ class CocoDataset(UnstructuredDataset):
                     ][0]
 
                     tensors = parsed[group_name]["raw_keys"]
-                    values = [[] for _ in range(len(tensors))]
+                    values = [[] for _ in range(len(tensors))] # Todo: Initialize empty arrays instead of lists. This should be much faster.
 
                     # Create the objects to which data will be appended. We need to know if it's a
                     if (
