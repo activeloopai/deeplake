@@ -707,6 +707,11 @@ class ChunkEngine:
         """
         current_chunk = start_chunk
 
+        last_index = self.num_samples - 1
+
+        if self.num_chunks == 0 or last_index in self.tile_encoder:
+            current_chunk = None
+
         updated_chunks = []
         if current_chunk is None:
             current_chunk = self._create_new_chunk(register)
@@ -764,7 +769,7 @@ class ChunkEngine:
                 pbar.update(num_samples_added)
         if progressbar:
             pbar.close()
-
+        self.start_chunk = current_chunk
         if register:
             return updated_chunks
         return updated_chunks, tiles
@@ -790,7 +795,7 @@ class ChunkEngine:
         samples, verified_samples = self._sanitize_samples(samples)
         self._samples_to_chunks(
             samples,
-            start_chunk=self.last_appended_chunk(),
+            start_chunk=self.start_chunk if self.start_chunk else self.last_appended_chunk(),
             register=True,
             progressbar=progressbar,
             update_commit_diff=update_commit_diff,
