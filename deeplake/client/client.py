@@ -217,7 +217,7 @@ class DeepLakeBackendClient:
             ).json()
         except Exception as e:
             if isinstance(e, AuthorizationException):
-                authorization_exception_prompt = "You don't have permissions to "
+                authorization_exception_prompt = "You don't have permission"
                 response_data = e.response.json()
                 code = response_data.get("code")
                 if code == 1:
