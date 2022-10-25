@@ -267,7 +267,7 @@ class DeepLakeDataLoader:
         tensors = self._tensors or map_tensor_keys(self.dataset, None)
 
         # uncompressed tensors will be uncompressed in the workers on python side
-        uncompressed_tensors = check_tensors(self.dataset, tensors)
+        compressed_tensors = check_tensors(self.dataset, tensors)
         dataset = dataset_to_libdeeplake(self.dataset)
         batch_size = self._batch_size or 1
         drop_last = self._drop_last or False
@@ -302,7 +302,7 @@ class DeepLakeDataLoader:
         else:
             raw_tensors = self._tobytes
 
-        uncompressed_tensors, raw_tensors = remove_intersections(uncompressed_tensors, raw_tensors)
+        compressed_tensors, raw_tensors = remove_intersections(compressed_tensors, raw_tensors)
         return iter(
             INDRA_LOADER(
                 dataset,
@@ -321,7 +321,7 @@ class DeepLakeDataLoader:
                 primary_tensor=primary_tensor_name,
                 buffer_size=buffer_size,
                 raw_tensors=raw_tensors,
-                uncompressed_tensors=uncompressed_tensors,
+                compressed_tensors=compressed_tensors,
             )
         )
 

@@ -57,7 +57,7 @@ class PytorchTransformFunction:
 
 
 def check_tensors(dataset, tensors):
-    uncompressed_tensors = []
+    compressed_tensors = []
     supported_compressions = {"png", "jpeg"}
     for tensor_name in tensors:
         tensor = dataset._get_tensor_from_root(tensor_name)
@@ -68,12 +68,12 @@ def check_tensors(dataset, tensors):
                 f" tensor."
             )
         if tensor.meta.sample_compression in supported_compressions:
-            uncompressed_tensors.append(tensor_name)
-    return uncompressed_tensors
+            compressed_tensors.append(tensor_name)
+    return compressed_tensors
 
-def remove_intersections(uncompressed_tensors: List[str], raw_tensors: List[str]):
-    uncompressed_tensors = [tensor for tensor in uncompressed_tensors if tensor not in raw_tensors]
-    raw_tensors.extend(uncompressed_tensors)
-    return uncompressed_tensors, raw_tensors
+def remove_intersections(compressed_tensors: List[str], raw_tensors: List[str]):
+    compressed_tensors = [tensor for tensor in compressed_tensors if tensor not in raw_tensors]
+    raw_tensors.extend(compressed_tensors)
+    return compressed_tensors, raw_tensors
 
         
