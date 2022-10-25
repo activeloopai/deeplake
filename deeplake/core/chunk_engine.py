@@ -216,7 +216,7 @@ class ChunkEngine:
         tensor_meta = self.tensor_meta
         return (
             self.chunk_class == UncompressedChunk
-            and tensor_meta.htype not in ["text", "json", "list"]
+            and tensor_meta.htype not in ["text", "json", "list", "polygon"]
             and tensor_meta.max_shape
             and (tensor_meta.max_shape == tensor_meta.min_shape)
             and (np.prod(tensor_meta.max_shape) < 20)
@@ -1442,7 +1442,7 @@ class ChunkEngine:
             Union[np.ndarray, List[np.ndarray]]: Either a list of numpy arrays or a single numpy array (depending on the `aslist` argument).
 
         Note:
-            For polygons, aslist is always True.
+            For polygons, ``aslist`` is always ``True``.
         """
         self.check_link_ready()
         fetch_chunks = fetch_chunks or self._get_full_chunk(index)
