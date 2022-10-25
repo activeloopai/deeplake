@@ -235,7 +235,8 @@ class DeepLakeBackendClient:
                         raise InvalidTokenException
 
                     if (
-                        authorization_exception_prompt.lower() in response_data["description"].lower()
+                        authorization_exception_prompt.lower()
+                        in response_data["description"].lower()
                         and decoded_token["id"] == "public"
                     ):
                         raise UserNotLoggedInException()
