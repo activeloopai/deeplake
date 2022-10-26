@@ -541,6 +541,8 @@ def load_meta(dataset):
     _tensor_names.update(meta.tensor_names)
 
     for tensor_key in _tensor_names.values():
+        if tensor_key.startswith("__temp"):
+            dataset._temp_tensors.append(tensor_key)
         _tensors[tensor_key] = Tensor(tensor_key, dataset)
 
 
