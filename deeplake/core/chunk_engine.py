@@ -795,7 +795,9 @@ class ChunkEngine:
         samples, verified_samples = self._sanitize_samples(samples)
         self._samples_to_chunks(
             samples,
-            start_chunk=self.start_chunk if self.start_chunk else self.last_appended_chunk(),
+            start_chunk=self.start_chunk
+            if self.start_chunk
+            else self.last_appended_chunk(),
             register=True,
             progressbar=progressbar,
             update_commit_diff=update_commit_diff,
