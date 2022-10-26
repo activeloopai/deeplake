@@ -1,7 +1,14 @@
 from typing import Tuple, Optional
 from deeplake.client.client import DeepLakeBackendClient
+from deeplake.client.log import logger
 from deeplake.util.path import is_hub_cloud_path, get_path_type, get_org_id_and_ds_name
 from deeplake.util.exceptions import InvalidDestinationPathError, InvalidSourcePathError
+from deeplake.util.logging import log_visualizer_link
+
+
+def log_dataset_connection_success(ds_path: str):
+    logger.info("Dataset connected successfully.")
+    log_visualizer_link(ds_path)
 
 
 def connect_dataset_entry(

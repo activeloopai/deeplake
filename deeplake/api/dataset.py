@@ -10,7 +10,10 @@ from deeplake.client.client import DeepLakeBackendClient
 from deeplake.client.log import logger
 from deeplake.core.dataset import Dataset, dataset_factory
 from deeplake.core.meta.dataset_meta import DatasetMeta
-from deeplake.util.connect_dataset import connect_dataset_entry
+from deeplake.util.connect_dataset import (
+    connect_dataset_entry,
+    log_dataset_connection_success,
+)
 from deeplake.util.path import convert_pathlib_to_string_if_needed
 from deeplake.hooks import (
     dataset_created,
@@ -918,12 +921,19 @@ class dataset:
     ) -> Dataset:
         """Connects dataset at ``src_path`` to Deep Lake via the provided path.
 
+        Examples:
+            >>> # Connect an s3 dataset
+            >>> ds = deeplake.connect(src_path="s3://bucket/dataset", dest_path="hub://my_org/dataset", creds_key="my_managed_credentials_key")
+            >>> # or
+            >>> ds = deeplake.connect(src_path="s3://bucket/dataset", org_id="my_org", creds_key="my_managed_credentials_key")
+
         Args:
             src_path (str): Cloud path to the source dataset. Can be:
                 an s3 path like ``s3://bucket/path/to/dataset``.
                 a gcs path like ``gcs://bucket/path/to/dataset``.
             creds_key (str): The managed credentials to be used for accessing the source path.
-            dest_path (str, optional): The full path to where the connected Deep Lake dataset will reside.
+            dest_path (str, optional): The full path to where the connected Deep Lake dataset will reside. Can be:
+                a Deep Lake path like ``hub://organization/dataset``
             org_id (str, optional): The organization to where the connected Deep Lake dataset will be added.
             ds_name (str, optional): The name of the connected Deep Lake dataset. Will be infered from ``dest_path`` or ``src_path`` if not provided.
             token (str, optional): Activeloop token used to fetch the managed credentials.
@@ -932,8 +942,8 @@ class dataset:
             Dataset: The connected Deep Lake dataset.
 
         Raises:
-            InvalidSourcePathError: If the `src_path` is not a valid s3 or gcs path.
-            InvalidDestinationPathError: If `dest_path`, `org_id` and `ds_name` do not form a valid Deep Lake path.
+            InvalidSourcePathError: If the ``src_path`` is not a valid s3 or gcs path.
+            InvalidDestinationPathError: If ``dest_path``, or ``org_id`` and ``ds_name`` do not form a valid Deep Lake path.
             UnprocessableEntityException:
         """
         connected_id = connect_dataset_entry(
@@ -944,8 +954,13 @@ class dataset:
             ds_name=ds_name,
             token=token,
         )
+        feature_report_path(
+            dest_path, "connect", parameters={"Connected_Id": connected_id}, token=token
+        )
 
-        return dataset.load(f"hub://{connected_id}", token=token, verbose=True)
+        ds = deeplake.dataset(f"hub://{connected_id}", token=token, verbose=False)
+        log_dataset_connection_success(ds.path)
+        return ds
 
     @staticmethod
     def ingest(
