@@ -8,7 +8,11 @@ from deeplake.experimental.util import (
 )
 from deeplake.experimental.util import collate_fn as default_collate  # type: ignore
 from deeplake.experimental.libdeeplake_query import query
-from deeplake.integrations.pytorch.common import PytorchTransformFunction, check_tensors, remove_intersections
+from deeplake.integrations.pytorch.common import (
+    PytorchTransformFunction,
+    check_tensors,
+    remove_intersections,
+)
 from deeplake.util.bugout_reporter import deeplake_reporter
 from deeplake.util.dataset import map_tensor_keys
 from functools import partial
@@ -302,7 +306,9 @@ class DeepLakeDataLoader:
         else:
             raw_tensors = self._tobytes
 
-        compressed_tensors, raw_tensors = remove_intersections(compressed_tensors, raw_tensors)
+        compressed_tensors, raw_tensors = remove_intersections(
+            compressed_tensors, raw_tensors
+        )
         return iter(
             INDRA_LOADER(
                 dataset,
