@@ -906,17 +906,15 @@ def test_dataset_deepcopy(path, hub_token, num_workers, progressbar):
             num_workers=num_workers,
             progressbar=progressbar,
         )
-    
-    
-    
+
     dest_ds = deeplake.deepcopy(
-            src_path,
-            dest_path,
-            overwrite=True,
-            token=hub_token,
-            num_workers=num_workers,
-            progressbar=progressbar,
-        )
+        src_path,
+        dest_path,
+        overwrite=True,
+        token=hub_token,
+        num_workers=num_workers,
+        progressbar=progressbar,
+    )
 
     assert list(dest_ds.tensors) == ["a", "b", "c", "d"]
     assert dest_ds.a.meta.htype == "image"
@@ -932,9 +930,7 @@ def test_dataset_deepcopy(path, hub_token, num_workers, progressbar):
         np.testing.assert_array_equal(src_ds[tensor].numpy(), dest_ds[tensor].numpy())
 
     with pytest.raises(DatasetHandlerError):
-        deeplake.deepcopy(
-            src_path, dest_path, token=hub_token
-        )
+        deeplake.deepcopy(src_path, dest_path, token=hub_token)
 
     deeplake.deepcopy(
         src_path,

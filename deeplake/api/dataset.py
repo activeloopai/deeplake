@@ -705,16 +705,20 @@ class dataset:
         """
 
         if src_token or dest_token:
-            warn("`src_token` and `dest_token` are going to be deprecated, better to use just single `token`", DeprecationWarning, stacklevel=2)
+            warn(
+                "`src_token` and `dest_token` are going to be deprecated, better to use just single `token`",
+                DeprecationWarning,
+                stacklevel=2,
+            )
 
         if (dest_token and token) or (src_token and token):
-            warnings("You are using `dest_token` or `src_token` with `token`. Only `token` will be executed")
+            warnings(
+                "You are using `dest_token` or `src_token` with `token`. Only `token` will be executed"
+            )
 
         if isinstance(src, (str, pathlib.Path)):
             src = convert_pathlib_to_string_if_needed(src)
-            src_ds = deeplake.load(
-                src, read_only=True, creds=src_creds, token=token
-            )
+            src_ds = deeplake.load(src, read_only=True, creds=src_creds, token=token)
         else:
             src_ds = src
             src_ds.path = str(src_ds.path)
@@ -781,7 +785,11 @@ class dataset:
         """
 
         if src_token or dest_token:
-            warn("`src_token` and `dest_token` are going to be deprecated, better to use single `token`", DeprecationWarning, stacklevel=2)
+            warn(
+                "`src_token` and `dest_token` are going to be deprecated, better to use single `token`",
+                DeprecationWarning,
+                stacklevel=2,
+            )
 
         src = convert_pathlib_to_string_if_needed(src)
         dest = convert_pathlib_to_string_if_needed(dest)
