@@ -523,6 +523,8 @@ def load_meta(dataset):
     version_state = dataset.version_state
     storage: LRUCache = dataset.storage
     storage.clear_deeplake_objects()
+    dataset._info = None
+    dataset._ds_diff = None
     meta_key = get_dataset_meta_key(version_state["commit_id"])
     meta = storage.get_deeplake_object(meta_key, DatasetMeta)
     if not meta.tensor_names:  # backward compatibility

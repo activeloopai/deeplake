@@ -3214,8 +3214,6 @@ class Dataset:
             create_commit_chunk_sets(dest_id, storage, version_state)
             self.checkout(dest_id)
         load_meta(self)
-        self._info = None
-        self._ds_diff = None
 
     def _delete_metas(self):
         """Deletes all metas in the dataset."""
