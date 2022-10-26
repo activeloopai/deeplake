@@ -27,11 +27,11 @@ deeplake.api.dataset
         
         See :func:`deeplake.like`.
     
-    .. staticmethod:: copy(src: Union[str, pathlib.Path, Dataset], dest: Union[str, pathlib.Path], tensors: Optional[List[str]] = None, overwrite: bool = False, src_creds=None, src_token=None, dest_creds=None, dest_token=None, num_workers: int = 0, scheduler="threaded", progressbar=True)
+    .. staticmethod:: copy(src: Union[str, pathlib.Path, Dataset], dest: Union[str, pathlib.Path], tensors: Optional[List[str]] = None, overwrite: bool = False, token=None, src_creds=None, src_token=None, dest_creds=None, dest_token=None, num_workers: int = 0, scheduler="threaded", progressbar=True)
         
         See :func:`deeplake.copy`.
     
-    .. staticmethod:: deepcopy(src: Union[str, pathlib.Path], dest: Union[str, pathlib.Path], tensors: Optional[List[str]] = None, overwrite: bool = False, src_creds=None, src_token=None, dest_creds=None, dest_token=None, num_workers: int = 0, scheduler="threaded", progressbar=True, public: bool = False, verbose: bool = True)
+    .. staticmethod:: deepcopy(src: Union[str, pathlib.Path], dest: Union[str, pathlib.Path], tensors: Optional[List[str]] = None, overwrite: bool = False, token=None, src_creds=None, src_token=None, dest_creds=None, dest_token=None, num_workers: int = 0, scheduler="threaded", progressbar=True, public: bool = False, verbose: bool = True)
 
         See :func:`deeplake.deepcopy`.
     

@@ -896,15 +896,27 @@ def test_dataset_deepcopy(path, hub_token, num_workers, progressbar):
         src_ds["a"].append(np.ones((28, 28), dtype="uint8"))
         src_ds["b"].append(0)
 
+    with pytest.warns(DeprecationWarning):
+        dest_ds = deeplake.deepcopy(
+            src_path,
+            dest_path,
+            overwrite=True,
+            src_token=hub_token,
+            dest_token=hub_token,
+            num_workers=num_workers,
+            progressbar=progressbar,
+        )
+    
+    
+    
     dest_ds = deeplake.deepcopy(
-        src_path,
-        dest_path,
-        overwrite=True,
-        src_token=hub_token,
-        dest_token=hub_token,
-        num_workers=num_workers,
-        progressbar=progressbar,
-    )
+            src_path,
+            dest_path,
+            overwrite=True,
+            token=hub_token,
+            num_workers=num_workers,
+            progressbar=progressbar,
+        )
 
     assert list(dest_ds.tensors) == ["a", "b", "c", "d"]
     assert dest_ds.a.meta.htype == "image"
@@ -921,15 +933,14 @@ def test_dataset_deepcopy(path, hub_token, num_workers, progressbar):
 
     with pytest.raises(DatasetHandlerError):
         deeplake.deepcopy(
-            src_path, dest_path, src_token=hub_token, dest_token=hub_token
+            src_path, dest_path, token=hub_token
         )
 
     deeplake.deepcopy(
         src_path,
         dest_path,
         overwrite=True,
-        src_token=hub_token,
-        dest_token=hub_token,
+        tokem=hub_token,
         num_workers=num_workers,
         progressbar=progressbar,
     )
@@ -948,8 +959,7 @@ def test_dataset_deepcopy(path, hub_token, num_workers, progressbar):
         src_path,
         dest_path,
         overwrite=True,
-        src_token=hub_token,
-        dest_token=hub_token,
+        token=hub_token,
         num_workers=num_workers,
         progressbar=progressbar,
     )
@@ -964,8 +974,7 @@ def test_dataset_deepcopy(path, hub_token, num_workers, progressbar):
         dest_path,
         tensors=["a", "d"],
         overwrite=True,
-        src_token=hub_token,
-        dest_token=hub_token,
+        token=hub_token,
         num_workers=num_workers,
         progressbar=progressbar,
     )
