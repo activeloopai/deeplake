@@ -574,6 +574,30 @@ def test_link_ready(local_ds_generator, cat_path):
     assert ds.img[0].numpy().shape == (900, 900, 3)
 
 
+def test_link_path(local_ds):
+    with local_ds as ds:
+        ds.create_tensor(
+            "a",
+            htype="link[image]",
+            verify=False,
+            create_shape_tensor=False,
+            create_sample_info_tensor=False,
+            sample_compression="jpeg",
+        )
+        ds.create_tensor("b", htype="text")
+        ds.a.append(deeplake.link("hello!!!!"))
+        ds.b.append("hello!!!!")
+        ds.a.append(deeplake.link("world"))
+        ds.b.append("world")
+        ds.a.append(deeplake.link("foo"))
+        ds.b.append("foo")
+
+        np.testing.assert_array_equal(ds.a[0].path(), ds.b[0].numpy())
+        np.testing.assert_array_equal(ds.a[1].path(), ds.b[1].numpy())
+        np.testing.assert_array_equal(ds.a[2].path(), ds.b[2].numpy())
+        np.testing.assert_array_equal(ds.a.path(), ds.b.numpy())
+
+
 @pytest.mark.parametrize("create_shape_tensor", [True, False])
 @pytest.mark.parametrize("verify", [True, False])
 def test_basic_sequence(local_ds, cat_path, flower_path, create_shape_tensor, verify):
