@@ -796,7 +796,7 @@ class BadLinkError(Exception):
         super().__init__(message)
 
 
-class GroupsNoInfoError(Exception):
+class GroupInfoNotSupportedError(Exception):
     def __init__(self):
         message = "Tensor groups does not have info attribute. Please use `dataset.info` or `dataset.tensor.info`."
         super().__init__(message)
