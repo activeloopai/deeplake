@@ -15,6 +15,7 @@ from deeplake.tests.storage_fixtures import enabled_remote_storages
 from deeplake.core.storage import GCSProvider
 from deeplake.util.exceptions import (
     BadLinkError,
+    GroupInfoNotSupportedError,
     InvalidOperationError,
     TensorDtypeMismatchError,
     TensorDoesNotExistError,
@@ -2233,3 +2234,12 @@ def test_rich(memory_ds):
     rich_print(ds)
     rich_print(ds.info)
     rich_print(ds.x.info)
+
+
+def test_groups_info(local_ds):
+    with local_ds as ds:
+        ds.create_tensor("group/tensor")
+        ds.group.tensor.extend([0, 1, 2])
+
+        with pytest.raises(GroupInfoNotSupportedError):
+            ds.group.info["a"] = 1

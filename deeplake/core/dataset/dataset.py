@@ -80,6 +80,7 @@ from deeplake.util.exceptions import (
     SampleAppendingError,
     DatasetTooLargeToDelete,
     TensorTooLargeToDelete,
+    GroupInfoNotSupportedError,
 )
 from deeplake.util.keys import (
     dataset_exists,
@@ -1673,6 +1674,8 @@ class Dataset:
     @property
     def info(self):
         """Returns the information about the dataset."""
+        if self.group_index:
+            raise GroupInfoNotSupportedError
         if self._info is None:
             path = get_dataset_info_key(self.version_state["commit_id"])
             self.__dict__["_info"] = load_info(path, self)  # type: ignore
