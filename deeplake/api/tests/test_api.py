@@ -2124,7 +2124,13 @@ def invalid_token_exception_check():
 def user_not_logged_in_exception_check(runner):
     runner.invoke(logout)
     with pytest.raises(UserNotLoggedInException):
-        ds = deeplake.load("hub://activeloop-test/sohas-weapons-train", read_only=True)
+        ds = deeplake.load("hub://adilkhan/demo", read_only=False)
+
+    with pytest.raises(UserNotLoggedInException):
+        ds = deeplake.dataset("hub://adilkhan/demo", read_only=False)
+
+    with pytest.raises(UserNotLoggedInException):
+        ds = deeplake.empty("hub://adilkhan/demo")
 
 
 def dataset_handler_error_check(runner, username, password):
