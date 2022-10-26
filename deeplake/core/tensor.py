@@ -1222,4 +1222,5 @@ class Tensor:
         """Return path data. Only applicable for linked tensors"""
         if not self.is_link:
             raise Exception(f"Only supported for linked tensors.")
+        assert isinstance(self.chunk_engine, LinkedChunkEngine)
         return self.chunk_engine.path(self.index, fetch_chunks=fetch_chunks)
