@@ -71,9 +71,10 @@ def check_tensors(dataset, tensors):
             compressed_tensors.append(tensor_name)
     return compressed_tensors
 
+
 def remove_intersections(compressed_tensors: List[str], raw_tensors: List[str]):
-    compressed_tensors = [tensor for tensor in compressed_tensors if tensor not in raw_tensors]
+    compressed_tensors = [
+        tensor for tensor in compressed_tensors if tensor not in raw_tensors
+    ]
     raw_tensors.extend(compressed_tensors)
     return compressed_tensors, raw_tensors
-
-        
