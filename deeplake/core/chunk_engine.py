@@ -191,14 +191,17 @@ class ChunkEngine:
         self._all_chunk_engines: Optional[Dict[str, ChunkEngine]] = None
         self._is_temp_label_tensor: bool = False
         self._hash_label_map: Dict[int, str] = OrderedDict()
+        self._sample_compression = None
+        self._chunk_compression = None
 
         tensor_meta = self.tensor_meta
 
         if tensor_meta.sample_compression:
-            self.compression = tensor_meta.sample_compression
+            self._sample_compression = self.compression = tensor_meta.sample_compression
             self.chunk_class = SampleCompressedChunk
+
         elif tensor_meta.chunk_compression:
-            self.compression = tensor_meta.chunk_compression
+            self._chunk_compression = self.compression = tensor_meta.chunk_compression
             self.chunk_class = ChunkCompressedChunk
         else:
             self.chunk_class = UncompressedChunk
@@ -210,6 +213,14 @@ class ChunkEngine:
         self._num_samples_per_chunk: Optional[int] = None
         self.write_initialization_done = False
         self.start_chunk = None
+
+    @property
+    def sample_compression(self):
+        return self._sample_compression
+
+    @property
+    def chunk_compression(self):
+        return self._chunk_compression
 
     @property
     def is_data_cachable(self):
@@ -1319,7 +1330,7 @@ class ChunkEngine:
         self._update(index1, arr)
 
     def read_bytes_for_sample(self, global_sample_index: int) -> bytes:
-        if self.tensor_meta.chunk_compression:
+        if self.chunk_compression:
             raise Exception(
                 "Cannot retreive original bytes for samples in chunk-wise compressed tensors."
             )
@@ -1380,7 +1391,7 @@ class ChunkEngine:
         decompress: bool = True,
     ) -> np.ndarray:
         enc = self.chunk_id_encoder
-        if self.is_fixed_shape and self.tensor_meta.sample_compression is None:
+        if self.is_fixed_shape and self.sample_compression is None:
             num_samples_per_chunk = self.num_samples_per_chunk
             local_sample_index = global_sample_index % num_samples_per_chunk
         else:
@@ -1487,7 +1498,7 @@ class ChunkEngine:
                 num_shape_entries = 1 * (len(self.tensor_meta.min_shape) + 1)
                 if self.is_text_like:
                     num_bytes_entries = num_samples_in_chunk * 3
-                elif self.tensor_meta.sample_compression is None:
+                elif self.sample_compression is None:
                     num_bytes_entries = 1 * 3
                 else:
                     num_bytes_entries = num_samples_in_chunk * 3
