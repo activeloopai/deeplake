@@ -769,7 +769,7 @@ class ChunkEngine:
                 pbar.update(num_samples_added)
         if progressbar:
             pbar.close()
-        self.start_chunk = current_chunk
+        self.start_chunk = current_chunk  # type: ignore
         if register:
             return updated_chunks
         return updated_chunks, tiles
