@@ -93,7 +93,7 @@ class CocoDataset(UnstructuredDataset):
         self.file_to_group_mapping = file_to_group_mapping
 
         self.ignore_keys = ignore_keys
-        
+
         self._validate_key_mapping()
         self._validate_group_mapping()
 
@@ -115,7 +115,9 @@ class CocoDataset(UnstructuredDataset):
     ) -> dict:
         """Return all the tensors and groups that should be created for this dataset"""
         # parsed_structure = {'images': {'type': 'tensor', 'params': {}}}
-        parsed_structure = [{'name': 'images', 'type': 'tensor', 'primary': True, 'params': {}}]
+        parsed_structure = [
+            {"name": "images", "type": "tensor", "primary": True, "params": {}}
+        ]
 
         # Iterate through each annotation file and inspect the keys to back our the tensors
         for ann_file in self.annotation_files:
@@ -128,63 +130,68 @@ class CocoDataset(UnstructuredDataset):
                 for key in ann.keys():
                     if key not in keys_in_group and key not in self.ignore_keys:
                         keys_in_group.append(key)
-            
+
             # Create a list of tensors and their properties
             tensor_list = []
             for key in keys_in_group:
-                tensor_list.append({'name': self.key_to_tensor_mapping.get(key, key),
-                                    'coco_key': key,
-                                    'type': 'tensor',
-                                    'params': TENSOR_SETTINGS_CONFIG.get(key, GENERIC_TENSOR_CONFIG)})
+                tensor_list.append(
+                    {
+                        "name": self.key_to_tensor_mapping.get(key, key),
+                        "coco_key": key,
+                        "type": "tensor",
+                        "params": TENSOR_SETTINGS_CONFIG.get(
+                            key, GENERIC_TENSOR_CONFIG
+                        ),
+                    }
+                )
 
             # assert file_name not in parsed_structure.keys()
 
-            parsed_structure.append({
-                'type': 'group',
-                'ann_file_path': ann_file,
-                'structure': tensor_list,
-                'ignore': False,
-                'name': self.file_to_group_mapping.get(file_name, file_name)
-            })
-        
-        if self.ignore_one_group and len(self.annotation_files)==1:
-            parsed_structure[-1]['ignore'] = True
+            parsed_structure.append(
+                {
+                    "type": "group",
+                    "ann_file_path": ann_file,
+                    "structure": tensor_list,
+                    "ignore": False,
+                    "name": self.file_to_group_mapping.get(file_name, file_name),
+                }
+            )
 
+        if self.ignore_one_group and len(self.annotation_files) == 1:
+            parsed_structure[-1]["ignore"] = True
 
         return parsed_structure
 
     def _create_tensor(self, ds: Dataset, tensor_structure: dict):
-        ds.create_tensor(tensor_structure['name'], **tensor_structure['params'])
+        ds.create_tensor(tensor_structure["name"], **tensor_structure["params"])
 
     def _parse_dataset(self, ds: Dataset, parsed_structure: dict):
-        print('------------------PARSING------------------')
+        print("------------------PARSING------------------")
 
         parsed_structure
-        if isinstance(parsed_structure, dict) and parsed_structure['type'] == 'tensor':
+        if isinstance(parsed_structure, dict) and parsed_structure["type"] == "tensor":
             # self._create_tensor(ds, parsed_structure)
-            ds.create_tensor(parsed_structure['name'], **parsed_structure['params'])
+            ds.create_tensor(parsed_structure["name"], **parsed_structure["params"])
 
         else:
             for ps in parsed_structure:
-                if isinstance(ps, dict) and ps['type'] == 'tensor':
-                    ds.create_tensor(ps['name'], **ps['params'])
+                if isinstance(ps, dict) and ps["type"] == "tensor":
+                    ds.create_tensor(ps["name"], **ps["params"])
                 else:
-                    if not ps['ignore']:
-                        ds.create_group(ps['name'])
-                        self._parse_dataset(ds[ps['name']], ps['structure'])
+                    if not ps["ignore"]:
+                        ds.create_group(ps["name"])
+                        self._parse_dataset(ds[ps["name"]], ps["structure"])
                     else:
-                        self._parse_dataset(ds, ps['structure'])                       
-                        
+                        self._parse_dataset(ds, ps["structure"])
 
     def structure(self, ds: Dataset, use_progress_bar: bool = True):
         img_files = []
         invalid_image_files = []
         for file in os.listdir(self.source):
-            if file.endswith(tuple(HTYPE_SUPPORTED_COMPRESSIONS['image']+['jpg'])):
+            if file.endswith(tuple(HTYPE_SUPPORTED_COMPRESSIONS["image"] + ["jpg"])):
                 img_files.append(file)
             else:
                 invalid_image_files.append(file)
-
 
         parsed = self._parse_tensors()
 
@@ -207,7 +214,7 @@ class CocoDataset(UnstructuredDataset):
                     id_2_label_mapping[str(item["id"])] = item["name"]
 
                 # Though logically less ideal, we have to iterate over the images, beucase there are multiple annotations per image, and thus mutliple annotations per row in the Deep Lake dataset
-                
+
                 for img_file in tqdm(img_files):
                     try:
                         index = img_files_anns.index(img_file)
@@ -223,30 +230,33 @@ class CocoDataset(UnstructuredDataset):
                     ]
 
                     # Find which group has this file
-                    group = [s for s in parsed if s['type']=='group' and s["ann_file_path"] == ann_file][0]
+                    group = [
+                        s
+                        for s in parsed
+                        if s["type"] == "group" and s["ann_file_path"] == ann_file
+                    ][0]
 
                     tensors = group["structure"]
-                    values = [[] for _ in range(len(tensors))] # Todo: Initialize empty arrays instead of lists. This should be much faster.
+                    values = [
+                        [] for _ in range(len(tensors))
+                    ]  # Todo: Initialize empty arrays instead of lists. This should be much faster.
 
                     # Create the objects to which data will be appended. We need to know if it's a
-                    if (
-                        "ignore" in group.keys()
-                        and group["ignore"]
-                    ):
+                    if "ignore" in group.keys() and group["ignore"]:
                         append_obj = ds
                     else:
-                        append_obj = ds[group['name']]
+                        append_obj = ds[group["name"]]
 
                     # Create a list of lists with all the data
                     for ann in matching_anns:
 
                         for i, tensor in enumerate(tensors):
-                            
-                            coco_key = tensor['coco_key']
+
+                            coco_key = tensor["coco_key"]
                             value = coco_2_deeplake(
                                 coco_key,
                                 ann[coco_key],
-                                append_obj[tensor['name']].meta,
+                                append_obj[tensor["name"]].meta,
                                 category_lookup=id_2_label_mapping,
                             )
 
@@ -254,15 +264,20 @@ class CocoDataset(UnstructuredDataset):
 
                     # Append the annotation data
                     for i, tensor in enumerate(tensors):
-                        append_obj[tensor['name']].append(values[i])
+                        append_obj[tensor["name"]].append(values[i])
 
+            primary_tensor = [
+                structure
+                for structure in parsed
+                if "primary" in structure.keys()
+                and structure["primary"] == True
+                and structure["type"] == "tensor"
+            ]
 
+            assert len(primary_tensor) == 1
 
-            primary_tensor = [structure for structure in parsed if 'primary' in structure.keys() and structure['primary']==True and structure['type']=='tensor']
-
-            assert len(primary_tensor)==1
-            
             for img_file in img_files:
                 # Append the image data
-                ds[primary_tensor[0]['name']].append(deeplake.read(os.path.join(self.source, img_file)))
-
+                ds[primary_tensor[0]["name"]].append(
+                    deeplake.read(os.path.join(self.source, img_file))
+                )

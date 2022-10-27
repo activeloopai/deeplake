@@ -931,7 +931,7 @@ class dataset:
             key_to_tensor_mapping=key_to_tensor_mapping,
             file_to_group_mapping=file_to_group_mapping,
             ignore_one_group=ignore_one_group,
-            ignore_keys=ignore_keys
+            ignore_keys=ignore_keys,
         )
 
         unstructured.structure(
