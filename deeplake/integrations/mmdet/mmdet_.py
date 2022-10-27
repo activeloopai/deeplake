@@ -47,7 +47,7 @@ def _find_tensor_with_htype(ds: dp.Dataset, htype: str):
         raise ValueError("No tensor found with htype='{htype}'")
     t = tensors[0]
     if len(tensors) > 1:
-        always_warn(f"Multiple tensors with htype='{htype}' found. Chosing '{t}'.")
+        always_warn(f"Multiple tensors with htype='{htype}' found. choosing '{t}'.")
     return t
 
 
