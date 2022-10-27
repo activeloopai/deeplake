@@ -55,7 +55,7 @@ def transform(
     masks_tensor: str,
     boxes_tensor: str,
     labels_tensor: str,
-    pipleline: Callable,
+    pipeline: Callable,
 ):
     img = sample_in[images_tensor]
     masks = sample_in[masks_tensor]
