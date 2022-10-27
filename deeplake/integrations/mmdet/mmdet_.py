@@ -1,4 +1,4 @@
-from pickletools import string1
+from typing import Callable
 from mmdet.apis.train import *
 from mmdet.datasets import build_dataloader as mmdet_build_dataloader
 from mmcv.utils import build_from_cfg, Registry
