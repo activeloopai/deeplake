@@ -781,12 +781,6 @@ class dataset:
             src_token, dest_token, token
         )
 
-        if token is None:
-            if src_token is not None:
-                token = src_token
-            elif dest_token is not None:
-                token = dest_token
-
         src = convert_pathlib_to_string_if_needed(src)
         dest = convert_pathlib_to_string_if_needed(dest)
 
@@ -799,17 +793,17 @@ class dataset:
         }
         if dest.startswith("hub://"):
             report_params["Dest"] = dest
-        feature_report_path(src, "deepcopy", report_params, token=token)
+        feature_report_path(src, "deepcopy", report_params, token=dest_token)
 
         src_ds = deeplake.load(
-            src, read_only=True, creds=src_creds, token=token, verbose=False
+            src, read_only=True, creds=src_creds, token=src_token, verbose=False
         )
         src_storage = get_base_storage(src_ds.storage)
 
         dest_storage, cache_chain = get_storage_and_cache_chain(
             dest,
             creds=dest_creds,
-            token=token,
+            token=dest_token,
             read_only=False,
             memory_cache_size=DEFAULT_MEMORY_CACHE_SIZE,
             local_cache_size=DEFAULT_LOCAL_CACHE_SIZE,
@@ -921,7 +915,7 @@ class dataset:
             path=dest,
             storage=cache_chain,
             public=public,
-            token=token,
+            token=dest_token,
             verbose=verbose,
         )
         ret._register_dataset()
