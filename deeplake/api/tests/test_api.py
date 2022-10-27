@@ -877,7 +877,25 @@ def test_dataset_rename(ds_generator, path, hub_token, convert_to_pathlib):
 )
 @pytest.mark.parametrize("num_workers", [0, 2])
 @pytest.mark.parametrize("progressbar", [True, False])
+def test_dataset_copy(path, hub_token, num_workers, progressbar):
+    copy_func_tester(deeplake.copy, path, hub_token, num_workers, progressbar)
+
+
+@pytest.mark.parametrize(
+    "path,hub_token",
+    [
+        ["local_path", "hub_cloud_dev_token"],
+        ["hub_cloud_path", "hub_cloud_dev_token"],
+    ],
+    indirect=True,
+)
+@pytest.mark.parametrize("num_workers", [0, 2])
+@pytest.mark.parametrize("progressbar", [True, False])
 def test_dataset_deepcopy(path, hub_token, num_workers, progressbar):
+    copy_func_tester(deeplake.deepcopy, path, hub_token, num_workers, progressbar)
+
+
+def copy_func_tester(copy_fn, path, hub_token, num_workers, progressbar):
     src_path = "_".join((path, "src"))
     dest_path = "_".join((path, "dest"))
 
@@ -898,7 +916,7 @@ def test_dataset_deepcopy(path, hub_token, num_workers, progressbar):
 
     if hub_token:
         with pytest.warns(UserWarning):
-            dest_ds = deeplake.deepcopy(
+            dest_ds = copy_fn(
                 src_path,
                 dest_path,
                 overwrite=True,
@@ -910,7 +928,7 @@ def test_dataset_deepcopy(path, hub_token, num_workers, progressbar):
             )
 
         with pytest.warns(FutureWarning):
-            dest_ds = deeplake.deepcopy(
+            dest_ds = copy_fn(
                 src_path,
                 dest_path,
                 overwrite=True,
@@ -921,7 +939,7 @@ def test_dataset_deepcopy(path, hub_token, num_workers, progressbar):
             )
 
         with pytest.warns(UserWarning):
-            dest_ds = deeplake.deepcopy(
+            dest_ds = copy_fn(
                 src_path,
                 dest_path,
                 overwrite=True,
@@ -932,7 +950,7 @@ def test_dataset_deepcopy(path, hub_token, num_workers, progressbar):
             )
 
         with pytest.warns(UserWarning):
-            dest_ds = deeplake.deepcopy(
+            dest_ds = copy_fn(
                 src_path,
                 dest_path,
                 overwrite=True,
@@ -942,7 +960,7 @@ def test_dataset_deepcopy(path, hub_token, num_workers, progressbar):
                 progressbar=progressbar,
             )
 
-    dest_ds = deeplake.deepcopy(
+    dest_ds = copy_fn(
         src_path,
         dest_path,
         overwrite=True,
@@ -965,9 +983,9 @@ def test_dataset_deepcopy(path, hub_token, num_workers, progressbar):
         np.testing.assert_array_equal(src_ds[tensor].numpy(), dest_ds[tensor].numpy())
 
     with pytest.raises(DatasetHandlerError):
-        deeplake.deepcopy(src_path, dest_path, token=hub_token)
+        copy_fn(src_path, dest_path, token=hub_token)
 
-    deeplake.deepcopy(
+    copy_fn(
         src_path,
         dest_path,
         overwrite=True,
@@ -986,7 +1004,7 @@ def test_dataset_deepcopy(path, hub_token, num_workers, progressbar):
     for tensor in dest_ds.tensors.keys():
         np.testing.assert_array_equal(src_ds[tensor].numpy(), dest_ds[tensor].numpy())
 
-    deeplake.deepcopy(
+    copy_fn(
         src_path,
         dest_path,
         overwrite=True,
@@ -1000,7 +1018,7 @@ def test_dataset_deepcopy(path, hub_token, num_workers, progressbar):
     for tensor in dest_ds.tensors:
         np.testing.assert_array_equal(src_ds[tensor].numpy(), dest_ds[tensor].numpy())
 
-    deeplake.deepcopy(
+    copy_fn(
         src_path,
         dest_path,
         tensors=["a", "d"],
