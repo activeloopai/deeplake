@@ -79,7 +79,7 @@ def libdeeplake_availabe():
 
 
 if libdeeplake_availabe():
-    install_requires.insert(0, "libdeeplake==0.0.22")
+    install_requires.insert(0, "libdeeplake==0.0.23")
 install_requires.append("hub>=2.8.7")
 
 
