@@ -1,3 +1,5 @@
+from cProfile import label
+from dataclasses import make_dataclass
 from typing import Callable, Optional
 from mmdet.apis.train import *
 from mmdet.datasets import build_dataloader as mmdet_build_dataloader
@@ -115,6 +117,10 @@ def build_dataloader(
 ):
     if isinstance(ds, dp.Dataset):
         pipeline = build_pipeline(cfg.train_pipeline)
+        images_tensor = images_tensor or _find_tensor_with_htype(ds, "image")
+        masks_tensor = masks_tensor or _find_tensor_with_htype(ds, "binary_mask")
+        boxes_tensor = boxes_tensor or _find_tensor_with_htype(ds, "bbox")
+        labels_tensor = labels_tensor or _find_tensor_with_htype(ds, "class_label")
         transform_fn = partial(
             transform,
             images_tensor=images_tensor,
