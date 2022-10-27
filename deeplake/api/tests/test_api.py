@@ -2106,8 +2106,8 @@ def test_uneven_iteration(memory_ds):
 def token_permission_error_check(
     username,
     password,
-    runner,
 ):
+    runner = CliRunner()
     result = runner.invoke(login, f"-u {username} -p {password}")
     with pytest.raises(TokenPermissionError):
         deeplake.empty("hub://activeloop-test/sohas-weapons-train")
@@ -2121,7 +2121,8 @@ def invalid_token_exception_check():
         ds = deeplake.empty("hub://adilkhan/demo", token="invalid_token")
 
 
-def user_not_logged_in_exception_check(runner):
+def user_not_logged_in_exception_check():
+    runner = CliRunner()
     runner.invoke(logout)
     with pytest.raises(UserNotLoggedInException):
         ds = deeplake.load("hub://adilkhan/demo", read_only=False)
@@ -2133,7 +2134,8 @@ def user_not_logged_in_exception_check(runner):
         ds = deeplake.empty("hub://adilkhan/demo")
 
 
-def dataset_handler_error_check(runner, username, password):
+def dataset_handler_error_check(username, password):
+    runner = CliRunner()
     result = runner.invoke(login, f"-u {username} -p {password}")
     with pytest.raises(DatasetHandlerError):
         ds = deeplake.load(f"hub://{username}/wrong-path")
@@ -2143,16 +2145,14 @@ def test_hub_related_permission_exceptions(
     hub_cloud_dev_credentials, hub_cloud_dev_token, hub_dev_token
 ):
     username, password = hub_cloud_dev_credentials
-    runner = CliRunner()
 
     token_permission_error_check(
         username,
         password,
-        runner,
     )
     invalid_token_exception_check()
-    user_not_logged_in_exception_check(runner)
-    dataset_handler_error_check(runner, username, password)
+    user_not_logged_in_exception_check()
+    dataset_handler_error_check(username, password)
 
 
 def test_incompat_dtype_msg(local_ds, capsys):
