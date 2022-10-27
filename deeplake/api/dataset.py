@@ -2,9 +2,7 @@ import os
 import deeplake
 import pathlib
 import posixpath
-from typing import Dict, Optional, Union, List
-from warnings import warn
-from logging import warnings
+from typing import Any, Dict, Optional, Union, List
 
 from deeplake.auto.unstructured.kaggle import download_kaggle_dataset
 from deeplake.auto.unstructured.image_classification import ImageClassification
@@ -53,6 +51,7 @@ from deeplake.util.compute import get_compute_provider
 from deeplake.util.remove_cache import get_base_storage
 from deeplake.util.cache_chain import generate_chain
 from deeplake.core.storage.deeplake_memory_object import DeepLakeMemoryObject
+from deeplake.util.token import src_token_and_dest_token_deprecation_warning
 
 
 class dataset:
@@ -666,11 +665,11 @@ class dataset:
         dest: Union[str, pathlib.Path],
         tensors: Optional[List[str]] = None,
         overwrite: bool = False,
-        token: str = None,
-        src_creds: str = None,
-        src_token: str = None,
-        dest_creds: str = None,
-        dest_token: str = None,
+        token: Optional[str] = None,
+        src_creds: Optional[Dict[Any, Any]] = None,
+        src_token: Optional[str] = None,
+        dest_creds: Optional[Dict[Any, Any]] = None,
+        dest_token: Optional[str] = None,
         num_workers: int = 0,
         scheduler: str = "threaded",
         progressbar: bool = True,
@@ -701,24 +700,18 @@ class dataset:
             DatasetHandlerError: If a dataset already exists at destination path and overwrite is False.
 
         Warning:
-            Warns of deprecated arguments
+            Warns when deprecated arguments are used
         """
 
-        if src_token or dest_token:
-            warn(
-                "`src_token` and `dest_token` are going to be deprecated, better to use just single `token`",
-                DeprecationWarning,
-                stacklevel=2,
-            )
-
-        if (dest_token and token) or (src_token and token):
-            warnings(
-                "You are using `dest_token` or `src_token` with `token`. Only `token` will be executed"
-            )
+        src_token, dest_token = src_token_and_dest_token_deprecation_warning(
+            src_token, dest_token, token
+        )
 
         if isinstance(src, (str, pathlib.Path)):
             src = convert_pathlib_to_string_if_needed(src)
-            src_ds = deeplake.load(src, read_only=True, creds=src_creds, token=token)
+            src_ds = deeplake.load(
+                src, read_only=True, creds=src_creds, token=src_token
+            )
         else:
             src_ds = src
             src_ds.path = str(src_ds.path)
@@ -730,7 +723,7 @@ class dataset:
             tensors=tensors,
             overwrite=overwrite,
             creds=dest_creds,
-            token=token,
+            token=dest_token,
             num_workers=num_workers,
             scheduler=scheduler,
             progressbar=progressbar,
@@ -743,9 +736,9 @@ class dataset:
         tensors: Optional[List[str]] = None,
         overwrite: bool = False,
         token: str = None,
-        src_creds: str = None,
+        src_creds: Optional[Dict[Any, Any]] = None,
         src_token: str = None,
-        dest_creds: str = None,
+        dest_creds: Optional[Dict[Any, Any]] = None,
         dest_token: str = None,
         num_workers: int = 0,
         scheduler: str = "threaded",
@@ -781,15 +774,18 @@ class dataset:
             DatasetHandlerError: If a dataset already exists at destination path and overwrite is False.
 
         Warning:
-            Warns of deprecated arguments
+            Warns when deprecated arguments are used
         """
 
-        if src_token or dest_token:
-            warn(
-                "`src_token` and `dest_token` are going to be deprecated, better to use single `token`",
-                DeprecationWarning,
-                stacklevel=2,
-            )
+        src_token, dest_token = src_token_and_dest_token_deprecation_warning(
+            src_token, dest_token, token
+        )
+
+        if token is None:
+            if src_token is not None:
+                token = src_token
+            elif dest_token is not None:
+                token = dest_token
 
         src = convert_pathlib_to_string_if_needed(src)
         dest = convert_pathlib_to_string_if_needed(dest)

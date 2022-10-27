@@ -896,16 +896,51 @@ def test_dataset_deepcopy(path, hub_token, num_workers, progressbar):
         src_ds["a"].append(np.ones((28, 28), dtype="uint8"))
         src_ds["b"].append(0)
 
-    with pytest.warns(DeprecationWarning):
-        dest_ds = deeplake.deepcopy(
-            src_path,
-            dest_path,
-            overwrite=True,
-            src_token=hub_token,
-            dest_token=hub_token,
-            num_workers=num_workers,
-            progressbar=progressbar,
-        )
+    if hub_token:
+        with pytest.warns(UserWarning):
+            dest_ds = deeplake.deepcopy(
+                src_path,
+                dest_path,
+                overwrite=True,
+                token=hub_token,
+                src_token=hub_token,
+                dest_token=hub_token,
+                num_workers=num_workers,
+                progressbar=progressbar,
+            )
+
+        with pytest.warns(FutureWarning):
+            dest_ds = deeplake.deepcopy(
+                src_path,
+                dest_path,
+                overwrite=True,
+                src_token=hub_token,
+                dest_token=hub_token,
+                num_workers=num_workers,
+                progressbar=progressbar,
+            )
+
+        with pytest.warns(UserWarning):
+            dest_ds = deeplake.deepcopy(
+                src_path,
+                dest_path,
+                overwrite=True,
+                token=hub_token,
+                src_token=hub_token,
+                num_workers=num_workers,
+                progressbar=progressbar,
+            )
+
+        with pytest.warns(UserWarning):
+            dest_ds = deeplake.deepcopy(
+                src_path,
+                dest_path,
+                overwrite=True,
+                token=hub_token,
+                dest_token=hub_token,
+                num_workers=num_workers,
+                progressbar=progressbar,
+            )
 
     dest_ds = deeplake.deepcopy(
         src_path,
@@ -936,7 +971,7 @@ def test_dataset_deepcopy(path, hub_token, num_workers, progressbar):
         src_path,
         dest_path,
         overwrite=True,
-        tokem=hub_token,
+        token=hub_token,
         num_workers=num_workers,
         progressbar=progressbar,
     )
