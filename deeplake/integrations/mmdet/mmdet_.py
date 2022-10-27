@@ -90,7 +90,7 @@ def transform(
     else:
         masks = np.empty((0, shape[0], shape[1]), dtype=bool)
 
-    return pipleline(
+    return pipeline(
         {
             "img": img,
             "img_fields": ["img"],
