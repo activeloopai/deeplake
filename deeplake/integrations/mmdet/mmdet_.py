@@ -123,7 +123,7 @@ def build_dataloader(
             labels_tensor=labels_tensor,
             pipeline=pipeline,
         )
-        num_workers = train_loader_config["num_workers_per_gpu"]
+        num_workers = train_loader_config["workers_per_gpu"]
         shuffle = train_loader_config.get("shuffle", True)
         loader = ds.pytorch(
             num_workers=num_workers,
