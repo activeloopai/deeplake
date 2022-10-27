@@ -918,6 +918,7 @@ class dataset:
         progressbar: bool = True,
         summary: bool = True,
         ignore_keys: List[str] = [],
+        image_settings: dict = {},
         **dataset_kwargs,
     ) -> Dataset:
         dest = convert_pathlib_to_string_if_needed(dest)
@@ -932,6 +933,7 @@ class dataset:
             file_to_group_mapping=file_to_group_mapping,
             ignore_one_group=ignore_one_group,
             ignore_keys=ignore_keys,
+            image_settings=image_settings,
         )
 
         unstructured.structure(

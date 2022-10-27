@@ -12,8 +12,8 @@ from deeplake.htype import HTYPE_SUPPORTED_COMPRESSIONS
 
 from .base import UnstructuredDataset
 
-GENERIC_TENSOR_CONFIG = {"htype": "generic", "sample_compression": "lz4"}
-IMAGE_TENSOR_CONFIG = {"htype": "image", "sample_compression": "jpg"}
+GENERIC_TENSOR_CONFIG = {"htype": "generic", "sample_compression": None}
+IMAGE_TENSOR_CONFIG = {"htype": "image", "sample_compression": "jpeg"}
 
 TENSOR_SETTINGS_CONFIG = {
     "segmentation": {
@@ -69,6 +69,7 @@ class CocoDataset(UnstructuredDataset):
         file_to_group_mapping: dict = {},
         ignore_one_group: bool = False,
         ignore_keys: Union[str, List[str]] = [],
+        image_settings: dict = {},
     ):
         """
         Args:
@@ -91,8 +92,8 @@ class CocoDataset(UnstructuredDataset):
 
         self.key_to_tensor_mapping = key_to_tensor_mapping
         self.file_to_group_mapping = file_to_group_mapping
-
         self.ignore_keys = ignore_keys
+        self.image_settings = image_settings
 
         self._validate_key_mapping()
         self._validate_group_mapping()
@@ -114,9 +115,17 @@ class CocoDataset(UnstructuredDataset):
         inspect_limit: int = 1000000,
     ) -> dict:
         """Return all the tensors and groups that should be created for this dataset"""
-        # parsed_structure = {'images': {'type': 'tensor', 'params': {}}}
+
+        img_config = IMAGE_TENSOR_CONFIG.copy()
+
+        # Change the htype if linked tensors are specified
+        if "link" in self.image_settings.keys() and self.image_settings["link"]:
+            img_config["htype"] = "link[image]"
+
+        img_config["sample_compression"] = self.image_settings["sample_compression"]
+
         parsed_structure = [
-            {"name": "images", "type": "tensor", "primary": True, "params": {}}
+            {"name": "images", "type": "tensor", "primary": True, "params": img_config}
         ]
 
         # Iterate through each annotation file and inspect the keys to back our the tensors
@@ -166,9 +175,7 @@ class CocoDataset(UnstructuredDataset):
         ds.create_tensor(tensor_structure["name"], **tensor_structure["params"])
 
     def _parse_dataset(self, ds: Dataset, parsed_structure: dict):
-        print("------------------PARSING------------------")
-
-        parsed_structure
+        """Recursively creates groups and tensors from the parsed_structure dictionary"""
         if isinstance(parsed_structure, dict) and parsed_structure["type"] == "tensor":
             # self._create_tensor(ds, parsed_structure)
             ds.create_tensor(parsed_structure["name"], **parsed_structure["params"])
@@ -184,17 +191,45 @@ class CocoDataset(UnstructuredDataset):
                     else:
                         self._parse_dataset(ds, ps["structure"])
 
-    def structure(self, ds: Dataset, use_progress_bar: bool = True):
+    def _get_image_files(self):
+        """Returns a list of image files that can be appended to Deeplake, a list of invalid image files that cannot be appended, the number of different compressions, and the most common compression."""
+        # Create a list of valid image files
         img_files = []
+        img_file_extentions = []
         invalid_image_files = []
         for file in os.listdir(self.source):
             if file.endswith(tuple(HTYPE_SUPPORTED_COMPRESSIONS["image"] + ["jpg"])):
                 img_files.append(file)
+                img_file_extentions.append(Path(file).suffix.replace(".", ""))
             else:
                 invalid_image_files.append(file)
 
+        unique_file_extentions = set(img_file_extentions)
+
+        return (
+            img_files,
+            invalid_image_files,
+            len(unique_file_extentions),
+            max(unique_file_extentions, key=img_file_extentions.count),
+        )
+
+    def structure(self, ds: Dataset, use_progress_bar: bool = True):
+
+        # Create a list of valid image files
+        (
+            img_files,
+            invalid_image_files,
+            num_compressions,
+            most_common_compression,
+        ) = self._get_image_files()
+
+        if "sample_compression" not in self.image_settings.keys():
+            self.image_settings["sample_compression"] = most_common_compression
+
+        # Parse the dataset structure based on the user inputs and the input data
         parsed = self._parse_tensors()
 
+        # Populate the tensors and groups based on the dataset structure
         self._parse_dataset(ds, parsed_structure=parsed)
 
         with ds:
