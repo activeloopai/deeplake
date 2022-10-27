@@ -877,7 +877,7 @@ def test_dataset_rename(ds_generator, path, hub_token, convert_to_pathlib):
 )
 @pytest.mark.parametrize("num_workers", [0, 2])
 @pytest.mark.parametrize("progressbar", [True, False])
-def test_dataset_copy(path, hub_token, num_workers, progressbar):
+def test_copy(path, hub_token, num_workers, progressbar):
     copy_func_tester(deeplake.copy, path, hub_token, num_workers, progressbar)
 
 
