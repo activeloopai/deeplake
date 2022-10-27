@@ -115,7 +115,7 @@ def build_dataloader(
 ):
     if isinstance(ds, dp.Dataset):
         pipeline = build_pipeline(cfg.train_pipeline)
-        transform = partial(
+        transform_fn = partial(
             transform,
             images_tensor=images_tensor,
             masks_tensor=masks_tensor,
@@ -128,7 +128,7 @@ def build_dataloader(
         loader = ds.pytorch(
             num_workers=num_workers,
             shuffle=shuffle,
-            transform=transform,
+            transform=transform_fn,
             tensors=["images", "categories", "boxes", "masks"],
             collate_fn=partial(
                 collate, samples_per_gpu=train_loader_config["samples_per_gpu"]
