@@ -135,7 +135,7 @@ def build_dataloader(
             num_workers=num_workers,
             shuffle=shuffle,
             transform=transform_fn,
-            tensors=["images", "categories", "boxes", "masks"],
+            tensors=[images_tensor, labels_tensor, boxes_tensor, masks_tensor],
             collate_fn=partial(
                 collate, samples_per_gpu=train_loader_config["samples_per_gpu"]
             ),
