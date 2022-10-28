@@ -17,6 +17,7 @@ import deeplake
 from deeplake.core.index.index import IndexEntry
 from deeplake.core.link_creds import LinkCreds
 from deeplake.util.invalid_view_op import invalid_view_op
+from deeplake.util.iteration_warning import suppress_iteration_warning
 from deeplake.api.info import load_info
 from deeplake.client.log import logger
 from deeplake.client.utils import get_user_name
@@ -1131,6 +1132,8 @@ class Dataset:
         return self._commit(message)
 
     @deeplake_reporter.record_call
+    @invalid_view_op
+    @suppress_iteration_warning
     def merge(
         self,
         target_id: str,
