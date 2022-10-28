@@ -115,8 +115,8 @@ requires_tfds = pytest.mark.skipif(
 
 
 requires_linux = pytest.mark.skipif(
-    sys.platform in ["Darwin", "darwin", "win32", "Win32"],
-    reason="These should work only in linux",
+    sys.platform in ["win32", "Win32"],
+    reason="These should work only in linux or macos",
 )
 
 
