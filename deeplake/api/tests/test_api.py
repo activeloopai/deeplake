@@ -877,25 +877,7 @@ def test_dataset_rename(ds_generator, path, hub_token, convert_to_pathlib):
 )
 @pytest.mark.parametrize("num_workers", [0, 2])
 @pytest.mark.parametrize("progressbar", [True, False])
-def test_copy(path, hub_token, num_workers, progressbar):
-    copy_func_tester(deeplake.copy, path, hub_token, num_workers, progressbar)
-
-
-@pytest.mark.parametrize(
-    "path,hub_token",
-    [
-        ["local_path", "hub_cloud_dev_token"],
-        ["hub_cloud_path", "hub_cloud_dev_token"],
-    ],
-    indirect=True,
-)
-@pytest.mark.parametrize("num_workers", [0, 2])
-@pytest.mark.parametrize("progressbar", [True, False])
-def test_dataset_deepcopy(path, hub_token, num_workers, progressbar):
-    copy_func_tester(deeplake.deepcopy, path, hub_token, num_workers, progressbar)
-
-
-def copy_func_tester(copy_fn, path, hub_token, num_workers, progressbar):
+def test_dataset_copy_deprecation_warning(path, hub_token, num_workers, progressbar):
     src_path = "_".join((path, "src"))
     dest_path = "_".join((path, "dest"))
 
@@ -914,6 +896,117 @@ def copy_func_tester(copy_fn, path, hub_token, num_workers, progressbar):
         src_ds["a"].append(np.ones((28, 28), dtype="uint8"))
         src_ds["b"].append(0)
 
+    deprecation_warning_tester(deeplake.deepcopy, src_path, dest_path, hub_token, num_workers, progressbar)
+    deeplake.delete(src_path, token=hub_token)
+    deeplake.delete(dest_path, token=hub_token)
+
+
+@pytest.mark.parametrize(
+    "path,hub_token",
+    [
+        ["local_path", "hub_cloud_dev_token"],
+        ["hub_cloud_path", "hub_cloud_dev_token"],
+    ],
+    indirect=True,
+)
+@pytest.mark.parametrize("num_workers", [0, 2])
+@pytest.mark.parametrize("progressbar", [True, False])
+def test_dataset_deepcopy(path, hub_token, num_workers, progressbar):
+    src_path = "_".join((path, "src"))
+    dest_path = "_".join((path, "dest"))
+
+    src_ds = deeplake.empty(src_path, overwrite=True, token=hub_token)
+
+    with src_ds:
+        src_ds.info.update(key=0)
+
+        src_ds.create_tensor("a", htype="image", sample_compression="png")
+        src_ds.create_tensor("b", htype="class_label")
+        src_ds.create_tensor("c")
+        src_ds.create_tensor("d", dtype=bool)
+
+        src_ds.d.info.update(key=1)
+
+        src_ds["a"].append(np.ones((28, 28), dtype="uint8"))
+        src_ds["b"].append(0)
+
+    deprecation_warning_tester(deeplake.deepcopy, src_path, dest_path, hub_token, num_workers, progressbar)
+    dest_ds = deeplake.deepcopy(
+        src_path,
+        dest_path,
+        overwrite=True,
+        token=hub_token,
+        num_workers=num_workers,
+        progressbar=progressbar,
+    )
+
+    assert list(dest_ds.tensors) == ["a", "b", "c", "d"]
+    assert dest_ds.a.meta.htype == "image"
+    assert dest_ds.a.meta.sample_compression == "png"
+    assert dest_ds.b.meta.htype == "class_label"
+    assert dest_ds.c.meta.htype == None
+    assert dest_ds.d.dtype == bool
+
+    assert dest_ds.info.key == 0
+    assert dest_ds.d.info.key == 1
+
+    for tensor in dest_ds.meta.tensors:
+        np.testing.assert_array_equal(src_ds[tensor].numpy(), dest_ds[tensor].numpy())
+
+    with pytest.raises(DatasetHandlerError):
+        deeplake.deepcopy(src_path, dest_path, token=hub_token)
+
+    deeplake.deepcopy(
+        src_path,
+        dest_path,
+        overwrite=True,
+        token=hub_token,
+        num_workers=num_workers,
+        progressbar=progressbar,
+    )
+
+    assert list(dest_ds.tensors) == ["a", "b", "c", "d"]
+    for tensor in dest_ds.tensors:
+        np.testing.assert_array_equal(src_ds[tensor].numpy(), dest_ds[tensor].numpy())
+
+    # test fot dataset.load:
+    dest_ds = deeplake.load(dest_path, token=hub_token)
+    assert list(dest_ds.tensors) == ["a", "b", "c", "d"]
+    for tensor in dest_ds.tensors.keys():
+        np.testing.assert_array_equal(src_ds[tensor].numpy(), dest_ds[tensor].numpy())
+
+    deeplake.deepcopy(
+        src_path,
+        dest_path,
+        overwrite=True,
+        token=hub_token,
+        num_workers=num_workers,
+        progressbar=progressbar,
+    )
+    dest_ds = deeplake.load(dest_path, token=hub_token)
+
+    assert list(dest_ds.tensors) == ["a", "b", "c", "d"]
+    for tensor in dest_ds.tensors:
+        np.testing.assert_array_equal(src_ds[tensor].numpy(), dest_ds[tensor].numpy())
+
+    deeplake.deepcopy(
+        src_path,
+        dest_path,
+        tensors=["a", "d"],
+        overwrite=True,
+        token=hub_token,
+        num_workers=num_workers,
+        progressbar=progressbar,
+    )
+    dest_ds = deeplake.load(dest_path, token=hub_token)
+    assert list(dest_ds.tensors) == ["a", "d"]
+    for tensor in dest_ds.tensors:
+        np.testing.assert_array_equal(src_ds[tensor].numpy(), dest_ds[tensor].numpy())
+    deeplake.delete(src_path, token=hub_token)
+    deeplake.delete(dest_path, token=hub_token)
+
+
+def deprecation_warning_tester(copy_fn, src_path, dest_path, hub_token, num_workers, progressbar):
     if hub_token:
         with pytest.warns(UserWarning):
             dest_ds = copy_fn(
@@ -959,80 +1052,6 @@ def copy_func_tester(copy_fn, path, hub_token, num_workers, progressbar):
                 num_workers=num_workers,
                 progressbar=progressbar,
             )
-
-    dest_ds = copy_fn(
-        src_path,
-        dest_path,
-        overwrite=True,
-        token=hub_token,
-        num_workers=num_workers,
-        progressbar=progressbar,
-    )
-
-    assert list(dest_ds.tensors) == ["a", "b", "c", "d"]
-    assert dest_ds.a.meta.htype == "image"
-    assert dest_ds.a.meta.sample_compression == "png"
-    assert dest_ds.b.meta.htype == "class_label"
-    assert dest_ds.c.meta.htype == None
-    assert dest_ds.d.dtype == bool
-
-    assert dest_ds.info.key == 0
-    assert dest_ds.d.info.key == 1
-
-    for tensor in dest_ds.meta.tensors:
-        np.testing.assert_array_equal(src_ds[tensor].numpy(), dest_ds[tensor].numpy())
-
-    with pytest.raises(DatasetHandlerError):
-        copy_fn(src_path, dest_path, token=hub_token)
-
-    copy_fn(
-        src_path,
-        dest_path,
-        overwrite=True,
-        token=hub_token,
-        num_workers=num_workers,
-        progressbar=progressbar,
-    )
-
-    assert list(dest_ds.tensors) == ["a", "b", "c", "d"]
-    for tensor in dest_ds.tensors:
-        np.testing.assert_array_equal(src_ds[tensor].numpy(), dest_ds[tensor].numpy())
-
-    # test fot dataset.load:
-    dest_ds = deeplake.load(dest_path, token=hub_token)
-    assert list(dest_ds.tensors) == ["a", "b", "c", "d"]
-    for tensor in dest_ds.tensors.keys():
-        np.testing.assert_array_equal(src_ds[tensor].numpy(), dest_ds[tensor].numpy())
-
-    copy_fn(
-        src_path,
-        dest_path,
-        overwrite=True,
-        token=hub_token,
-        num_workers=num_workers,
-        progressbar=progressbar,
-    )
-    dest_ds = deeplake.load(dest_path, token=hub_token)
-
-    assert list(dest_ds.tensors) == ["a", "b", "c", "d"]
-    for tensor in dest_ds.tensors:
-        np.testing.assert_array_equal(src_ds[tensor].numpy(), dest_ds[tensor].numpy())
-
-    copy_fn(
-        src_path,
-        dest_path,
-        tensors=["a", "d"],
-        overwrite=True,
-        token=hub_token,
-        num_workers=num_workers,
-        progressbar=progressbar,
-    )
-    dest_ds = deeplake.load(dest_path, token=hub_token)
-    assert list(dest_ds.tensors) == ["a", "d"]
-    for tensor in dest_ds.tensors:
-        np.testing.assert_array_equal(src_ds[tensor].numpy(), dest_ds[tensor].numpy())
-    deeplake.delete(src_path, token=hub_token)
-    deeplake.delete(dest_path, token=hub_token)
 
 
 def test_cloud_delete_doesnt_exist(hub_cloud_path, hub_cloud_dev_token):
