@@ -5,7 +5,11 @@ from deeplake.constants import HUB_CLOUD_DEV_USERNAME
 from deeplake.core.dataset import Dataset
 from deeplake.client.client import DeepLakeBackendClient
 from deeplake.util.bugout_reporter import deeplake_reporter
-from deeplake.util.exceptions import RenameError, ReadOnlyModeError
+from deeplake.util.exceptions import (
+    InvalidSourcePathError,
+    RenameError,
+    ReadOnlyModeError,
+)
 from deeplake.util.link import save_link_creds
 from deeplake.util.path import is_hub_cloud_path
 from deeplake.util.tag import process_hub_path
@@ -351,3 +355,8 @@ class DeepLakeCloudDataset(Dataset):
                 self.base_storage = self2.orig_storage
 
         return _TmpWriteAccess()
+
+    def connect(self, *args, **kwargs):
+        raise InvalidSourcePathError(
+            f"This dataset is already available via Deep Lake path {self.path}"
+        )
