@@ -38,9 +38,7 @@ from deeplake.util.exceptions import (
     TensorAlreadyExistsError,
 )
 from deeplake.hooks import dataset_read, dataset_written
-from deeplake.util.pretty_print import (
-    summary_tensor,
-)
+from deeplake.util.pretty_print import summary_tensor
 from deeplake.constants import FIRST_COMMIT_ID, _NO_LINK_UPDATE, UNSPECIFIED
 
 

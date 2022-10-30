@@ -17,9 +17,7 @@ from deeplake.constants import (
     REQUIRE_USER_SPECIFICATION,
     UNSPECIFIED,
 )
-from deeplake.compression import (
-    COMPRESSION_ALIASES,
-)
+from deeplake.compression import COMPRESSION_ALIASES
 from deeplake.htype import (
     HTYPE_CONFIGURATIONS,
     HTYPE_SUPPORTED_COMPRESSIONS,
