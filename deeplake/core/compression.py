@@ -661,7 +661,7 @@ def read_meta_from_compressed_file(
                 raise CorruptedSampleError(compression)
         elif compression in ("las", "ply"):
             try:
-                shape, typestr = _read_3d_data_shape_and_dtype(file)  # type: ignore
+                shape, typestr = _read_3d_data_shape_and_dtype(file)
             except Exception as e:
                 raise CorruptedSampleError(compression) from e
         else:
@@ -1115,7 +1115,7 @@ def _decompress_3d_data(file: Union[bytes, memoryview, str]):
     return point_cloud.decompressed_3d_data
 
 
-def _read_3d_data_shape_and_dtype(file: Union[bytes, memoryview, str]):
+def _read_3d_data_shape_and_dtype(file: Union[bytes, BinaryIO]):
     point_cloud = _open_3d_data(file)
     return point_cloud.shape, point_cloud.dtype
 
