@@ -6,13 +6,16 @@ from deeplake.util.exceptions import (
     UnsupportedCompressionError,
     CorruptedSampleError,
 )
-from deeplake.util.point_cloud import LAS_HEADER_FILED_NAME_TO_PARSER
+from deeplake.util.object_3d.read_3d_data import (
+    read_3d_data,
+)
 from deeplake.compression import (
     get_compression_type,
     BYTE_COMPRESSION,
     VIDEO_COMPRESSION,
     AUDIO_COMPRESSION,
     POINT_CLOUD_COMPRESSION,
+    MESH_COMPRESSION,
 )
 from typing import Union, Tuple, Sequence, List, Optional, BinaryIO
 import numpy as np
@@ -27,6 +30,7 @@ import re
 import numcodecs.lz4  # type: ignore
 from numpy.core.fromnumeric import compress  # type: ignore
 import math
+from pathlib import Path
 
 try:
     import av  # type: ignore
@@ -219,6 +223,10 @@ def compress_array(array: np.ndarray, compression: Optional[str]) -> bytes:
         raise NotImplementedError(
             "In order to store point cloud data, you should use `deeplake.read(path_to_file)`. Compressing raw data is not yet supported."
         )
+    elif compr_type == MESH_COMPRESSION:
+        raise NotImplementedError(
+            "In order to store mesh data, you should use `deeplake.read(path_to_file)`. Compressing raw data is not yet supported."
+        )
     if compression == "apng":
         return _compress_apng(array)
     try:
@@ -287,8 +295,8 @@ def decompress_array(
         return _decompress_audio(buffer)
     elif compr_type == VIDEO_COMPRESSION:
         return _decompress_video(buffer, start_idx, end_idx, step, reverse)  # type: ignore
-    elif compr_type == POINT_CLOUD_COMPRESSION:
-        return _decompress_full_point_cloud(buffer)
+    elif compr_type in [POINT_CLOUD_COMPRESSION, MESH_COMPRESSION]:
+        return _decompress_3d_data(buffer)
 
     if compression == "apng":
         return _decompress_apng(buffer)  # type: ignore
@@ -366,6 +374,8 @@ def compress_multiple(
         raise NotImplementedError(
             "compress_multiple does not support point cloud samples."
         )
+    elif compr_type == MESH_COMPRESSION:
+        raise NotImplementedError("compress_multiple does not support mesh samples.")
     elif compression == "apng":
         raise NotImplementedError("compress_multiple does not support apng samples.")
     canvas = np.zeros(_get_bounding_shape([arr.shape for arr in arrays]), dtype=dtype)
@@ -438,8 +448,8 @@ def verify_compressed_file(
                 return _read_video_shape(file), "|u1"  # type: ignore
         elif compression == "dcm":
             return _read_dicom_shape_and_dtype(file)
-        elif compression == "las":
-            return _read_point_cloud_shape_and_dtype(file)
+        elif compression in ("las", "ply"):
+            return _read_3d_data_shape_and_dtype(file)
         else:
             return _fast_decompress(file)
     except Exception as e:
@@ -463,6 +473,7 @@ def get_compression(header=None, path=None):
             ".avi",
             ".dcm",
             ".las",
+            ".ply",
         ]
         path = str(path).lower()
         for fmt in file_formats:
@@ -648,9 +659,9 @@ def read_meta_from_compressed_file(
                 shape, typestr = _read_video_shape(file), "|u1"  # type: ignore
             except Exception as e:
                 raise CorruptedSampleError(compression)
-        elif compression == "las":
+        elif compression in ("las", "ply"):
             try:
-                shape, typestr = _read_point_cloud_shape_and_dtype(file)
+                shape, typestr = _read_3d_data_shape_and_dtype(file)
             except Exception as e:
                 raise CorruptedSampleError(compression) from e
         else:
@@ -1090,86 +1101,25 @@ def _decompress_audio(
     return audio
 
 
-def _open_lidar_file(file):
-    try:
-        import laspy as lp  # type: ignore
-    except:
-        raise ModuleNotFoundError("laspy not found. Install using `pip install laspy`")
-    return lp.read(file)
-
-
-def _load_lidar_point_cloud_data(file):
-    point_cloud = _open_lidar_file(file)
-    dimension_names = list(point_cloud.point_format.dimension_names)
-    return point_cloud, dimension_names
-
-
-def _open_point_cloud_data(file: Union[bytes, memoryview, str]):
+def _open_3d_data(file: Union[bytes, memoryview, str]):
     if isinstance(file, str):
-        point_cloud, dimension_names = _load_lidar_point_cloud_data(file)
-        return point_cloud, dimension_names
+        point_cloud = read_3d_data(file)
+        return point_cloud
 
-    point_cloud, dimension_names = _load_lidar_point_cloud_data(BytesIO(file))
-    return point_cloud, dimension_names
-
-
-def _read_point_cloud_meta(file):
-    point_cloud, dimension_names = _open_point_cloud_data(file)
-    meta_data = {
-        "dimension_names": dimension_names,
-    }
-    if type(point_cloud) != np.ndarray:
-        meta_data.update(
-            {
-                "las_header": {
-                    "DEFAULT_VERSION": LAS_HEADER_FILED_NAME_TO_PARSER[
-                        "DEFAULT_VERSION"
-                    ](point_cloud),
-                    "file_source_id": point_cloud.header.file_source_id,
-                    "system_identifier": point_cloud.header.system_identifier,
-                    "generating_software": point_cloud.header.generating_software,
-                    "creation_date": LAS_HEADER_FILED_NAME_TO_PARSER["creation_date"](
-                        point_cloud
-                    ),
-                    "point_count": point_cloud.header.point_count,
-                    "scales": point_cloud.header.scales.tolist(),
-                    "offsets": point_cloud.header.offsets.tolist(),
-                    "number_of_points_by_return": point_cloud.header.number_of_points_by_return.tolist(),
-                    "start_of_waveform_data_packet_record": point_cloud.header.start_of_waveform_data_packet_record,
-                    "start_of_first_evlr": point_cloud.header.start_of_first_evlr,
-                    "number_of_evlrs": point_cloud.header.number_of_evlrs,
-                    "version": LAS_HEADER_FILED_NAME_TO_PARSER["version"](point_cloud),
-                    "maxs": point_cloud.header.maxs.tolist(),
-                    "mins": point_cloud.header.mins.tolist(),
-                    "major_version": point_cloud.header.major_version,
-                    "minor_version": point_cloud.header.minor_version,
-                    "global_encoding": LAS_HEADER_FILED_NAME_TO_PARSER[
-                        "global_encoding"
-                    ](point_cloud),
-                    "uuid": str(point_cloud.header.uuid),
-                },
-                "vlrs": point_cloud.vlrs,
-            }
-        )
-    return meta_data
+    point_cloud = read_3d_data(BytesIO(file))
+    return point_cloud
 
 
-def _read_point_cloud_shape_and_dtype(file):
-    point_cloud = _decompress_full_point_cloud(file)
-    shape = point_cloud.shape
-    return shape, point_cloud.dtype
+def _decompress_3d_data(file: Union[bytes, memoryview, str]):
+    point_cloud = _open_3d_data(file)
+    return point_cloud.decompressed_3d_data
 
 
-def _decompress_full_point_cloud(file: Union[bytes, memoryview, str]):
-    decompressed_point_cloud, _ = _open_point_cloud_data(file)
-    meta = _read_point_cloud_meta(file)
+def _read_3d_data_shape_and_dtype(file: Union[bytes, memoryview, str]):
+    point_cloud = _open_3d_data(file)
+    return point_cloud.shape, point_cloud.dtype
 
-    decompressed_point_cloud = np.concatenate(
-        [
-            np.expand_dims(decompressed_point_cloud[dim_name], -1)
-            for dim_name in meta["dimension_names"]
-        ],
-        axis=1,
-    )
-    decompressed_point_cloud = decompressed_point_cloud.astype(np.float32)
-    return decompressed_point_cloud
+
+def _read_3d_data_meta(file: Union[bytes, memoryview, str]):
+    point_cloud = _open_3d_data(file)
+    return point_cloud.meta_data
