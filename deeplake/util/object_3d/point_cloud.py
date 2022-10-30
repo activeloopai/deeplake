@@ -5,7 +5,7 @@ import numpy as np
 import pandas as pd  # type: ignore
 
 try:
-    import laspy as lp
+    import laspy as lp  # type: ignore
     from laspy import LasData
 
     _LASPY_INSTALLED = True

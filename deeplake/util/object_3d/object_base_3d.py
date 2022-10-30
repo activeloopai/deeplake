@@ -1,14 +1,4 @@
-from pathlib import Path
-
 import pandas as pd  # type: ignore
-
-try:
-    import laspy as lp
-    from laspy import LasData
-
-    _LASPY_INSTALLED = True
-except ImportError:
-    _LASPY_INSTALLED = False
 
 
 class ObjectBase3D(object):

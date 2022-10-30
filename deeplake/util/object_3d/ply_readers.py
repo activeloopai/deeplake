@@ -2,7 +2,7 @@ import sys
 from io import BytesIO, StringIO
 
 import numpy as np
-import pandas as pd
+import pandas as pd  # type: ignore
 
 from deeplake.util.exceptions import DynamicTensorNumpyError  # type: ignore
 from deeplake.util.object_3d import ply_reader_base

@@ -661,7 +661,7 @@ def read_meta_from_compressed_file(
                 raise CorruptedSampleError(compression)
         elif compression in ("las", "ply"):
             try:
-                shape, typestr = _read_3d_data_shape_and_dtype(file)
+                shape, typestr = _read_3d_data_shape_and_dtype(file)  # type: ignore
             except Exception as e:
                 raise CorruptedSampleError(compression) from e
         else:

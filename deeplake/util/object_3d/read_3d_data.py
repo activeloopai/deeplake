@@ -1,7 +1,7 @@
 from pathlib import Path
 
 try:
-    import laspy as lp
+    import laspy as lp  # type: ignore
     from laspy import LasData
 
     _LASPY_INSTALLED = True
