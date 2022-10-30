@@ -8,7 +8,11 @@ from deeplake.experimental.util import (
 )
 from deeplake.experimental.util import collate_fn as default_collate  # type: ignore
 from deeplake.experimental.libdeeplake_query import query
-from deeplake.integrations.pytorch.common import PytorchTransformFunction, check_tensors
+from deeplake.integrations.pytorch.common import (
+    PytorchTransformFunction,
+    check_tensors,
+    remove_intersections,
+)
 from deeplake.util.bugout_reporter import deeplake_reporter
 from deeplake.util.dataset import map_tensor_keys
 from functools import partial
@@ -94,10 +98,11 @@ class DeepLakeDataLoader:
         all_vars["_drop_last"] = drop_last
         return self.__class__(**all_vars)
 
-    def shuffle(self, buffer_size: int = 2048):
+    def shuffle(self, shuffle: bool = True, buffer_size: int = 2048):
         """Returns a shuffled :class:`DeepLakeDataLoader` object.
 
         Args:
+            shuffle(bool): shows wheter we need to shuffle elements or not. Defaults to True.
             buffer_size (int): The size of the buffer used to shuffle the data in MBs. Defaults to 2048 MB. Increasing the buffer_size will increase the extent of shuffling.
 
         Returns:
@@ -109,7 +114,7 @@ class DeepLakeDataLoader:
         if self._shuffle is not None:
             raise ValueError("shuffle is already set")
         all_vars = self.__dict__.copy()
-        all_vars["_shuffle"] = True
+        all_vars["_shuffle"] = shuffle
         all_vars["_buffer_size"] = buffer_size
         schedule = create_fetching_schedule(self.dataset, self._primary_tensor_name)
         if schedule is not None:
@@ -264,7 +269,9 @@ class DeepLakeDataLoader:
 
     def __iter__(self):
         tensors = self._tensors or map_tensor_keys(self.dataset, None)
-        check_tensors(self.dataset, tensors, self._mode)
+
+        # uncompressed tensors will be uncompressed in the workers on python side
+        compressed_tensors = check_tensors(self.dataset, tensors)
         dataset = dataset_to_libdeeplake(self.dataset)
         batch_size = self._batch_size or 1
         drop_last = self._drop_last or False
@@ -272,7 +279,9 @@ class DeepLakeDataLoader:
         if return_index is None:
             return_index = True
 
-        shuffle = self._shuffle or False
+        shuffle = self._shuffle
+        if shuffle is None:
+            shuffle = False
 
         transform_fn = self._transform
 
@@ -296,6 +305,10 @@ class DeepLakeDataLoader:
             raw_tensors = []
         else:
             raw_tensors = self._tobytes
+
+        compressed_tensors, raw_tensors = remove_intersections(
+            compressed_tensors, raw_tensors
+        )
         return iter(
             INDRA_LOADER(
                 dataset,
@@ -314,6 +327,7 @@ class DeepLakeDataLoader:
                 primary_tensor=primary_tensor_name,
                 buffer_size=buffer_size,
                 raw_tensors=raw_tensors,
+                compressed_tensors=compressed_tensors,
             )
         )
 

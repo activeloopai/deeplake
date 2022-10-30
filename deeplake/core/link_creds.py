@@ -6,6 +6,7 @@ from deeplake.core.storage.deeplake_memory_object import DeepLakeMemoryObject
 from deeplake.core.storage.provider import StorageProvider
 from deeplake.core.storage.s3 import S3Provider
 from deeplake.util.token import expires_in_to_expires_at, is_expired_token
+from deeplake.client.log import logger
 
 
 class LinkCreds(DeepLakeMemoryObject):
@@ -206,15 +207,17 @@ class LinkCreds(DeepLakeMemoryObject):
     def missing_keys(self) -> list:
         return [key for key in self.creds_keys if key not in self.creds_dict]
 
-    def populate_all_managed_creds(self):
+    def populate_all_managed_creds(self, verbose: bool = True):
         assert self.client is not None
         assert self.org_id is not None
         for creds_key in self.managed_creds_keys:
-            creds = self.fetch_managed_creds(creds_key)
+            creds = self.fetch_managed_creds(creds_key, verbose=verbose)
             self.populate_creds(creds_key, creds)
 
-    def fetch_managed_creds(self, creds_key: str):
+    def fetch_managed_creds(self, creds_key: str, verbose: bool = True):
         creds = self.client.get_managed_creds(self.org_id, creds_key)
+        if verbose:
+            logger.info(f"Loaded credentials '{creds_key}' from Activeloop platform.")
         return creds
 
     def change_creds_management(self, creds_key: str, managed: bool) -> bool:

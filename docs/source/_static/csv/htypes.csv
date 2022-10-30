@@ -11,6 +11,7 @@ generic, None, None
 :ref:`binary_mask <binary-mask-htype>`, bool, None
 :ref:`keypoints_coco <keypoints-coco-htype>`, int32, None
 :ref:`point <point-htype>`, int32, None
+:ref:`polygon <polygon-htype>`,float32,None
 text, str, None
 json, Any, None
 list, List, None
