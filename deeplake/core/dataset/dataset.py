@@ -3255,7 +3255,7 @@ class Dataset:
         org_id: Optional[str] = None,
         ds_name: Optional[str] = None,
         token: Optional[str] = None,
-    ) -> Dataset:
+    ):
         """Connect a Deep Lake cloud dataset through a deeplake path.
 
         Examples:
