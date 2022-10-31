@@ -1,4 +1,6 @@
 import os
+
+from numpy import result_type
 import deeplake
 import pathlib
 import posixpath
@@ -954,11 +956,15 @@ class dataset:
             ds_name=ds_name,
             token=token,
         )
+        result_path = f"hub://{connected_id}"
         feature_report_path(
-            dest_path, "connect", parameters={"Connected_Id": connected_id}, token=token
+            result_path,
+            "connect",
+            parameters={"Connected_Id": connected_id},
+            token=token,
         )
 
-        ds = deeplake.dataset(f"hub://{connected_id}", token=token, verbose=False)
+        ds = deeplake.dataset(result_path, token=token, verbose=False)
         log_dataset_connection_success(ds.path)
         return ds
 
