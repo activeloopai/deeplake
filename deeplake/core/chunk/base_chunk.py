@@ -111,6 +111,10 @@ class BaseChunk(DeepLakeMemoryObject):
 
     @property
     def is_fixed_shape(self):
+        meta = self.tensor_meta
+        sample_shape = meta.sample_shape
+        if sample_shape and None not in sample_shape:
+            return True
         return (
             self.tensor_meta.min_shape == self.tensor_meta.max_shape
             and not self.is_text_like

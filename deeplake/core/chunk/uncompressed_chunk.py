@@ -9,6 +9,8 @@ from deeplake.util.exceptions import EmptyTensorError, TensorDtypeMismatchError
 from .base_chunk import BaseChunk, InputSample
 
 
+_SENTINEL = object()
+
 class UncompressedChunk(BaseChunk):
     def extend_if_has_space(  # type: ignore
         self,
@@ -24,26 +26,10 @@ class UncompressedChunk(BaseChunk):
                     incoming_samples, update_tensor_meta
                 )
         else:
-            sample_shape = self.tensor_meta.sample_shape
-            if sample_shape and None not in sample_shape:
+            if self.is_fixed_shape and next(filter(lambda x: not isinstance(x, np.ndarray), incoming_samples), _SENTINEL) is _SENTINEL:
                 return self._extend_if_has_space_numpy(
                     incoming_samples, update_tensor_meta
                 )
-            # types = set(map(type, incoming_samples))
-            # if types == {np.ndarray}:
-            #     dtypes = set((s.dtype for s in incoming_samples))
-            #     if len(dtypes) == 1:
-            #         shapes = set((s.shape for s in incoming_samples))
-            #         if len(shapes) == 1:
-            #             return self._extend_if_has_space_numpy(
-            #                 incoming_samples, update_tensor_meta
-            #             )
-            # elif all((isinstance(s, (int, float, bool)) or np.isscalar(s) for s in incoming_samples)):
-            #     return self._extend_if_has_space_numpy(
-            #         np.array(incoming_samples, dtype=self.dtype), update_tensor_meta
-            #     )
-            # TODO detect multidim uniform sequences
-        print(incoming_samples)
         return self._extend_if_has_space_list(incoming_samples, update_tensor_meta)
 
     def _extend_if_has_space_numpy(
@@ -62,10 +48,11 @@ class UncompressedChunk(BaseChunk):
             num_samples = len(incoming_samples)
         else:
             num_data_bytes = self.num_data_bytes
-            num_samples = int((self.min_chunk_size - num_data_bytes) / elem.nbytes)
-            if num_samples == 0 and num_data_bytes == 0 and self.tiling_threshold < 0:
+            num_samples = max(0, min(len(incoming_samples), (self.min_chunk_size - num_data_bytes) // elem.nbytes))
+            if num_samples == 0 and num_data_bytes == 0 and (self.tiling_threshold < 0 or elem.nbytes < self.tiling_threshold):
                 num_samples = 1
-
+        if not num_samples:
+            return 0.
         samples = incoming_samples[:num_samples]
         my_dtype = self.dtype
         if isinstance(samples, np.ndarray):
@@ -105,7 +92,6 @@ class UncompressedChunk(BaseChunk):
         incoming_samples: List[InputSample],
         update_tensor_meta: bool = True,
     ) -> float:
-        raise Exception()
         num_samples: float = 0
         for i, incoming_sample in enumerate(incoming_samples):
             serialized_sample, shape = self.serialize_sample(incoming_sample)
