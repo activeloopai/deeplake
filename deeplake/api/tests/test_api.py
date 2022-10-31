@@ -896,9 +896,6 @@ def test_dataset_deepcopy(path, hub_token, num_workers, progressbar):
         src_ds["a"].append(np.ones((28, 28), dtype="uint8"))
         src_ds["b"].append(0)
 
-    deprecation_warning_tester(
-        deeplake.deepcopy, src_path, dest_path, hub_token, num_workers, progressbar
-    )
     dest_ds = deeplake.deepcopy(
         src_path,
         dest_path,
