@@ -3347,7 +3347,7 @@ class Dataset:
         if is_colab():
             raise Exception("Cannot visualize non Deep Lake cloud dataset in Colab.")
         else:
-            visualize(self.storage, width=width, height=height)
+            visualize(self.storage, link_creds=self.link_creds, width=width, height=height)
 
     def __contains__(self, tensor: str):
         return tensor in self.tensors

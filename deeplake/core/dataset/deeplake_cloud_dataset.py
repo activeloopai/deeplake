@@ -254,7 +254,7 @@ class DeepLakeCloudDataset(Dataset):
         from deeplake.visualizer import visualize
 
         deeplake_reporter.feature_report(feature_name="visualize", parameters={})
-        visualize(self.path, self.token, width=width, height=height)
+        visualize(self.path, token=self.token, width=width, height=height)
 
     def add_creds_key(self, creds_key: str, managed: bool = False):
         """Adds a new creds key to the dataset. These keys are used for tensors that are linked to external data.

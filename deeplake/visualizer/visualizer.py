@@ -1,6 +1,7 @@
 from typing import Dict, Optional, Union
 import uuid
-from flask import Flask, request, Response  # type: ignore
+from flask import Flask, request, Response
+from deeplake.core.link_creds import LinkCreds  # type: ignore
 from deeplake.core.storage.provider import StorageProvider
 from deeplake.util.threading import terminate_thread
 from deeplake.client.config import (
@@ -44,6 +45,7 @@ class _Visualizer:
 
     _port: Optional[int] = None
     _storages: Dict = {}
+    _link_creds_storage: Dict = {}
 
     def __init__(self):
         self.start_server()
@@ -56,6 +58,14 @@ class _Visualizer:
 
     def get(self, id: str) -> StorageProvider:
         return self._storages[id]
+
+    def add_link_creds(self, link_creds: LinkCreds):
+        id = str(uuid.uuid4())
+        self._link_creds_storage[id] = link_creds
+        return id
+
+    def get_link_creds(self, id: str) -> LinkCreds:
+        return self._link_creds_storage[id]
 
     @property
     def port(self):
@@ -108,6 +118,7 @@ def _get_visualizer_backend_url():
 
 def visualize(
     source: Union[StorageProvider, str],
+    link_creds: Union[LinkCreds, None] = None,
     token: Union[str, None] = None,
     width: Union[int, str, None] = None,
     height: Union[int, str, None] = None,
@@ -128,6 +139,11 @@ def visualize(
         params = f"url={source}"
     else:
         params = f"url={source}&token={token}"
+
+    if link_creds is not None:
+        link_creds_id = visualizer.add_link_creds(link_creds)
+        params += f"&link_creds_url=http://localhost:{visualizer.port}/creds/{link_creds_id}/"
+
     iframe = IFrame(
         f"{_get_visualizer_backend_url()}/visualizer/hub?{params}",
         width=width or "90%",
@@ -135,6 +151,13 @@ def visualize(
     )
     display(iframe)
 
+@_APP.route("/creds/<path:path>")
+def access_creds(path: str):
+    paths = path.split("/", 1)
+    id = paths[0]
+    creds_key = paths[1]
+    visualizer.get_link_creds(id).creds_keys
+    return visualizer.get_link_creds(id).get_creds(creds_key)
 
 @_APP.route("/<path:path>")
 def access_data(path):
