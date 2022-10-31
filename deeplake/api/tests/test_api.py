@@ -1804,8 +1804,11 @@ def test_access_method(s3_ds_generator):
 
 def test_local_storage_path(local_ds):
     path = "/tmp/deeplake/"
-    dataset_name = "hub://mnist-train"
-    assert get_local_storage_path(dataset_name, path) == "/tmp/deeplake/hub_mnist-train"
+    dataset_name = "hub://activeloop/mnist-train"
+    assert (
+        get_local_storage_path(dataset_name, path)
+        == "/tmp/deeplake/hub_activeloop_mnist-train"
+    )
 
 
 def test_partial_read_then_write(s3_ds_generator):
