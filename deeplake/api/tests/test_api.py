@@ -877,40 +877,6 @@ def test_dataset_rename(ds_generator, path, hub_token, convert_to_pathlib):
 )
 @pytest.mark.parametrize("num_workers", [0, 2])
 @pytest.mark.parametrize("progressbar", [True, False])
-def test_dataset_copy_deprecation_warning(path, hub_token, num_workers, progressbar):
-    src_path = "_".join((path, "src"))
-    dest_path = "_".join((path, "dest"))
-
-    src_ds = deeplake.empty(src_path, overwrite=True, token=hub_token)
-
-    with src_ds:
-        src_ds.info.update(key=0)
-
-        src_ds.create_tensor("a", htype="image", sample_compression="png")
-        src_ds.create_tensor("b", htype="class_label")
-        src_ds.create_tensor("c")
-        src_ds.create_tensor("d", dtype=bool)
-
-        src_ds.d.info.update(key=1)
-
-        src_ds["a"].append(np.ones((28, 28), dtype="uint8"))
-        src_ds["b"].append(0)
-
-    deprecation_warning_tester(deeplake.deepcopy, src_path, dest_path, hub_token, num_workers, progressbar)
-    deeplake.delete(src_path, token=hub_token)
-    deeplake.delete(dest_path, token=hub_token)
-
-
-@pytest.mark.parametrize(
-    "path,hub_token",
-    [
-        ["local_path", "hub_cloud_dev_token"],
-        ["hub_cloud_path", "hub_cloud_dev_token"],
-    ],
-    indirect=True,
-)
-@pytest.mark.parametrize("num_workers", [0, 2])
-@pytest.mark.parametrize("progressbar", [True, False])
 def test_dataset_deepcopy(path, hub_token, num_workers, progressbar):
     src_path = "_".join((path, "src"))
     dest_path = "_".join((path, "dest"))
@@ -1006,8 +972,33 @@ def test_dataset_deepcopy(path, hub_token, num_workers, progressbar):
     deeplake.delete(dest_path, token=hub_token)
 
 
-def deprecation_warning_tester(copy_fn, src_path, dest_path, hub_token, num_workers, progressbar):
-    if hub_token:
+@pytest.mark.parametrize(
+    "path,hub_token",
+    [
+        ["hub_cloud_path", "hub_cloud_dev_token"],
+    ],
+    indirect=True,
+)
+@pytest.mark.parametrize("copy_fn", [deeplake.copy, deeplake.deepcopy])
+def test_unecessary_tokens_deprecation_warning(copy_fn, path, hub_token):
+    src_path = "_".join((path, "src"))
+    dest_path = "_".join((path, "dest"))
+
+    src_ds = deeplake.empty(src_path, overwrite=True, token=hub_token)
+
+    with src_ds:
+        src_ds.info.update(key=0)
+
+        src_ds.create_tensor("a", htype="image", sample_compression="png")
+        src_ds.create_tensor("b", htype="class_label")
+        src_ds.create_tensor("c")
+        src_ds.create_tensor("d", dtype=bool)
+
+        src_ds.d.info.update(key=1)
+
+        src_ds["a"].append(np.ones((28, 28), dtype="uint8"))
+        src_ds["b"].append(0)
+
         with pytest.warns(UserWarning):
             dest_ds = copy_fn(
                 src_path,
@@ -1016,8 +1007,6 @@ def deprecation_warning_tester(copy_fn, src_path, dest_path, hub_token, num_work
                 token=hub_token,
                 src_token=hub_token,
                 dest_token=hub_token,
-                num_workers=num_workers,
-                progressbar=progressbar,
             )
 
         with pytest.warns(FutureWarning):
@@ -1027,8 +1016,6 @@ def deprecation_warning_tester(copy_fn, src_path, dest_path, hub_token, num_work
                 overwrite=True,
                 src_token=hub_token,
                 dest_token=hub_token,
-                num_workers=num_workers,
-                progressbar=progressbar,
             )
 
         with pytest.warns(UserWarning):
@@ -1038,8 +1025,6 @@ def deprecation_warning_tester(copy_fn, src_path, dest_path, hub_token, num_work
                 overwrite=True,
                 token=hub_token,
                 src_token=hub_token,
-                num_workers=num_workers,
-                progressbar=progressbar,
             )
 
         with pytest.warns(UserWarning):
@@ -1049,8 +1034,6 @@ def deprecation_warning_tester(copy_fn, src_path, dest_path, hub_token, num_work
                 overwrite=True,
                 token=hub_token,
                 dest_token=hub_token,
-                num_workers=num_workers,
-                progressbar=progressbar,
             )
 
 
