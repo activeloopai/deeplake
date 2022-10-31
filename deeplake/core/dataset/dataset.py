@@ -3345,7 +3345,25 @@ class Dataset:
 
         deeplake_reporter.feature_report(feature_name="visualize", parameters={})
         if is_colab():
-            raise Exception("Cannot visualize non Deep Lake cloud dataset in Colab.")
+            provider = self.storage.next_storage
+            if isinstance(provider, S3Provider):
+                creds = {
+                    "aws_access_key_id": provider.aws_access_key_id,
+                    "aws_secret_access_key": provider.aws_secret_access_key,
+                    "aws_session_token": provider.aws_session_token,
+                    "aws_region": provider.aws_region,
+                    "endpoint_url": provider.endpoint_url,
+                }
+                visualize(
+                    provider.path,
+                    link_creds=self.link_creds,
+                    token=self.token,
+                    creds=creds,
+                )
+            else:
+                raise Exception(
+                    "Cannot visualize non Deep Lake cloud dataset in Colab."
+                )
         else:
             visualize(
                 self.storage, link_creds=self.link_creds, width=width, height=height

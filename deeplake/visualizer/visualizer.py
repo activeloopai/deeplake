@@ -4,7 +4,6 @@ import uuid
 from flask import Flask, request, Response
 from deeplake.core.link_creds import LinkCreds  # type: ignore
 from deeplake.core.storage.provider import StorageProvider
-from deeplake.core.storage.s3 import S3Provider
 from deeplake.util.threading import terminate_thread
 from deeplake.client.config import (
     USE_DEV_ENVIRONMENT,
@@ -122,6 +121,7 @@ def visualize(
     source: Union[StorageProvider, str],
     link_creds: Union[LinkCreds, None] = None,
     token: Union[str, None] = None,
+    creds: Union[dict, None] = None,
     width: Union[int, str, None] = None,
     height: Union[int, str, None] = None,
 ):
@@ -132,25 +132,21 @@ def visualize(
         source: Union[StorageProvider, str] The storage or the path of the dataset.
         link_creds: Union[LinkCreds, None] The link creds to serve visualizer frontend.
         token: Union[str, None] Optional token to use in the backend call.
+        creds: Union[dict, None] Optional credentials dictionary.
         width: Union[int, str, None] Optional width of the visualizer canvas.
         height: Union[int, str, None] Optional height of the visualizer canvas.
     """
     if isinstance(source, StorageProvider):
         id = visualizer.add(source)
         params = f"url=http://localhost:{visualizer.port}/{id}/"
-        if isinstance(source, S3Provider):
-            creds: Dict = {
-                "aws_access_key_id": source.aws_access_key_id,
-                "aws_secret_access_key": source.aws_secret_access_key,
-                "aws_session_token": source.aws_session_token,
-                "aws_region": source.aws_region,
-                "endpoint_url": source.endpoint_url,
-            }
-            params += f"&creds={json.dumps(creds)}"
-    elif token is None:
-        params = f"url={source}"
     else:
-        params = f"url={source}&token={token}"
+        params = f"url={source}"
+
+    if token is not None:
+        params += f"&token={token}"
+
+    if creds is not None:
+        params += f"&creds={json.dumps(creds)}"
 
     if link_creds is not None:
         link_creds_id = visualizer.add_link_creds(link_creds)
