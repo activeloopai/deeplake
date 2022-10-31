@@ -1,7 +1,9 @@
+from abc import ABC, abstractmethod
+
 import pandas as pd  # type: ignore
 
 
-class ObjectBase3D(object):
+class ObjectBase3D(ABC):
     """Represents a base class for working with 3d data.
 
     Args:
@@ -18,14 +20,17 @@ class ObjectBase3D(object):
         self.headers = []
         self.meta_data = self._parse_meta_data()
 
+    @abstractmethod
     def _parse_3d_data(self, path):
         raise NotImplementedError("PointCloudBase._parse_3d_data is not implemented")
 
+    @abstractmethod
     def _parse_dimensions_names(self):
         raise NotImplementedError(
             "PointCloudBase._parse_dimensions_names is not implemented"
         )
 
+    @abstractmethod
     def _parse_meta_data(self):
         raise NotImplementedError("PointCloudBase._parse_meta_data is not implemented")
 
