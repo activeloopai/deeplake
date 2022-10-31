@@ -146,7 +146,7 @@ def visualize(
                 "aws_region": source.aws_region,
                 "endpoint_url": source.endpoint_url,
             }
-            params += f"&creds={json.dump(creds)}"
+            params += f"&creds={json.dumps(creds)}"
     elif token is None:
         params = f"url={source}"
     else:
