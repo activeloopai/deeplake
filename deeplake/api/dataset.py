@@ -1,6 +1,5 @@
 import os
 
-from numpy import result_type
 import deeplake
 import pathlib
 import posixpath
@@ -946,7 +945,6 @@ class dataset:
         Raises:
             InvalidSourcePathError: If the ``src_path`` is not a valid s3 or gcs path.
             InvalidDestinationPathError: If ``dest_path``, or ``org_id`` and ``ds_name`` do not form a valid Deep Lake path.
-            UnprocessableEntityException:
         """
         connected_id = connect_dataset_entry(
             src_path=src_path,

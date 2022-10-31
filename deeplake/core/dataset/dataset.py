@@ -3255,7 +3255,7 @@ class Dataset:
         org_id: Optional[str] = None,
         ds_name: Optional[str] = None,
         token: Optional[str] = None,
-    ):
+    ) -> Dataset:
         """Connect a Deep Lake cloud dataset through a deeplake path.
 
         Examples:
@@ -3279,7 +3279,6 @@ class Dataset:
         Raises:
             InvalidSourcePathError: If the dataset's path is not a valid s3 or gcs path.
             InvalidDestinationPathError: If ``dest_path``, or ``org_id`` and ``ds_name`` do not form a valid Deep Lake path.
-            UnprocessableEntityException:
         """
         connected_id = connect_dataset_entry(
             src_path=self.path,
