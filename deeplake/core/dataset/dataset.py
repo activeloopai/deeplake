@@ -84,6 +84,7 @@ from deeplake.util.exceptions import (
     SampleAppendingError,
     DatasetTooLargeToDelete,
     TensorTooLargeToDelete,
+    GroupInfoNotSupportedError,
 )
 from deeplake.util.keys import (
     dataset_exists,
@@ -213,6 +214,7 @@ class Dataset:
         d["_parent_dataset"] = None
         d["_pad_tensors"] = pad_tensors
         d["_locking_enabled"] = lock
+        d["_temp_tensors"] = []
         dct = self.__dict__
         dct.update(d)
         dct["enabled_tensors"] = (
@@ -235,6 +237,9 @@ class Dataset:
             bool
         ] = []  # This is a stack to support nested with contexts
         self._indexing_history: List[int] = []
+
+        for temp_tensor in self._temp_tensors:
+            self.delete_tensor(temp_tensor)
 
     def _lock_lost_handler(self):
         """This is called when lock is acquired but lost later on due to slow update."""
@@ -1108,6 +1113,7 @@ class Dataset:
         except Exception:  # python shutting down
             pass
 
+    @invalid_view_op
     def commit(self, message: Optional[str] = None, allow_empty=False) -> str:
         """Stores a snapshot of the current state of the dataset.
 
@@ -1672,6 +1678,8 @@ class Dataset:
     @property
     def info(self):
         """Returns the information about the dataset."""
+        if self.group_index:
+            raise GroupInfoNotSupportedError
         if self._info is None:
             path = get_dataset_info_key(self.version_state["commit_id"])
             self.__dict__["_info"] = load_info(path, self)  # type: ignore
@@ -3217,8 +3225,6 @@ class Dataset:
             create_commit_chunk_sets(dest_id, storage, version_state)
             self.checkout(dest_id)
         load_meta(self)
-        self._info = None
-        self._ds_diff = None
 
     def _delete_metas(self):
         """Deletes all metas in the dataset."""

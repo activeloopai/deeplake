@@ -84,10 +84,9 @@ Alternatively, you can also exclude these tensors from training using the `tenso
     return copy
 
 
-def _process(tensor, transform: PytorchTransformFunction):
-    tensor = IterableOrderedDict((k, copy_tensor(tensor[k])) for k in tensor)
-    tensor = transform(tensor)
-    return tensor
+def _process(tensor, transform: Optional[PytorchTransformFunction]):
+    tensor = IterableOrderedDict((k, copy_tensor(tensor[k])) for k in tensor.keys())
+    return transform(tensor) if transform else tensor
 
 
 class _ContinueIteration:
@@ -415,7 +414,7 @@ class TorchDataset(torch.utils.data.IterableDataset):
         use_local_cache: bool = False,
         tensors: Sequence[str] = None,
         tobytes: Union[bool, Sequence[str]] = False,
-        transform: PytorchTransformFunction = PytorchTransformFunction(),
+        transform: Optional[PytorchTransformFunction] = PytorchTransformFunction(),
         num_workers: int = 1,
         shuffle: bool = False,
         buffer_size: int = 0,
@@ -504,13 +503,14 @@ class SubIterableDataset(torch.utils.data.IterableDataset):
             use_local_cache,
             tensors,
             tobytes,
-            transform,
+            transform=None if buffer_size else transform,
             num_workers=num_workers,
             shuffle=True,
             return_index=return_index,
             pad_tensors=pad_tensors,
         )
-
+        if buffer_size:
+            self.transform = transform
         self.num_workers = num_workers
         self.batch_size = batch_size
         self.buffer_size = buffer_size * MB
@@ -519,37 +519,32 @@ class SubIterableDataset(torch.utils.data.IterableDataset):
             warn("setting buffer_size = 0 will result in poor shuffling distribution")
 
     def __iter__(self):
-        buffer = ShuffleBuffer(self.buffer_size) if self.buffer_size > 0 else None
-
         sub_loader = DataLoader(
             self.torch_datset,
             batch_size=self.batch_size,
             num_workers=self.num_workers,
             collate_fn=identity,
         )
-
-        it = iter(sub_loader)
-
-        try:
-            while True:
-                next_batch = next(it)
-                for val in next_batch:
-                    if buffer is not None:
+        buffer_size = self.buffer_size
+        if buffer_size:
+            buffer = ShuffleBuffer(buffer_size)
+            it = iter(sub_loader)
+            try:
+                while True:
+                    next_batch = next(it)
+                    for val in next_batch:
                         result = buffer.exchange(val)
                         if result:
-                            yield result
-                    else:
-                        yield val
-
-                del next_batch
-
-        except StopIteration:
-            pass
-
-        if buffer is not None:
+                            yield _process(result, self.transform)
+                    del next_batch
+            except StopIteration:
+                pass
             while not buffer.emtpy():
-                yield buffer.exchange(None)
-
+                yield _process(buffer.exchange(None), self.transform)
+            del it
+        else:
+            for batch in sub_loader:
+                yield from batch
         del sub_loader
 
     def __len__(self):

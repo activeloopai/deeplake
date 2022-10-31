@@ -126,7 +126,7 @@ def dataset_to_pytorch(
     else:
         transform = PytorchTransformFunction(composite_transform=transform)
 
-    check_tensors(dataset, tensors, "pytorch")
+    check_tensors(dataset, tensors)
 
     if shuffle and num_workers > 0:
         return create_dataloader(
