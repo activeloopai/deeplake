@@ -128,6 +128,7 @@ def visualize(
 
     Args:
         source: Union[StorageProvider, str] The storage or the path of the dataset.
+        link_creds: Union[LinkCreds, None] The link creds to serve visualizer frontend.
         token: Union[str, None] Optional token to use in the backend call.
         width: Union[int, str, None] Optional width of the visualizer canvas.
         height: Union[int, str, None] Optional height of the visualizer canvas.
@@ -142,7 +143,9 @@ def visualize(
 
     if link_creds is not None:
         link_creds_id = visualizer.add_link_creds(link_creds)
-        params += f"&link_creds_url=http://localhost:{visualizer.port}/creds/{link_creds_id}/"
+        params += (
+            f"&link_creds_url=http://localhost:{visualizer.port}/creds/{link_creds_id}/"
+        )
 
     iframe = IFrame(
         f"{_get_visualizer_backend_url()}/visualizer/hub?{params}",
@@ -151,6 +154,7 @@ def visualize(
     )
     display(iframe)
 
+
 @_APP.route("/creds/<path:path>")
 def access_creds(path: str):
     paths = path.split("/", 1)
@@ -158,6 +162,7 @@ def access_creds(path: str):
     creds_key = paths[1]
     visualizer.get_link_creds(id).creds_keys
     return visualizer.get_link_creds(id).get_creds(creds_key)
+
 
 @_APP.route("/<path:path>")
 def access_data(path):
