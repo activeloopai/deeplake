@@ -58,7 +58,7 @@ class ChunkCompressedChunk(BaseChunk):
         while True:
             expected_compressed_bytes = (len(decompressed_bytes) + sample_nbytes * num_samples) * self._compression_ratio
             if expected_compressed_bytes <= min_chunk_size:
-                self.decompressed_bytes = self.decompressed_bytes + incoming_samples[:num_samples].tobytes()
+                self.decompressed_bytes = decompressed_bytes + incoming_samples[:num_samples].tobytes()
                 self._changed = True
                 break
             new_decompressed = decompressed_bytes + incoming_samples[:num_samples].tobytes()
@@ -71,11 +71,12 @@ class ChunkCompressedChunk(BaseChunk):
                 break
             num_samples //= 2
             if not num_samples:
+                tiling_threshold = self.tiling_threshold
+                if not self.decompressed_bytes and (tiling_threshold < 0 or len(compressed_bytes) < tiling_threshold):
+                    num_samples = 1
+                    self.decompressed_bytes = decompressed_bytes + incoming_samples[0].tobytes()
+                    self._changed = True
                 break
-        if not num_samples:
-            tiling_threshold = self.tiling_threshold
-            if not self.decompressed_bytes and (tiling_threshold < 0 or len(compressed_bytes) < tiling_threshold):
-                num_samples = 1
         if num_samples:
             self.register_in_meta_and_headers(
                 sample_nbytes, sample.shape, update_tensor_meta=update_tensor_meta, num_samples=num_samples

@@ -150,19 +150,19 @@ def test_populate_dataset(local_ds):
     assert len(local_ds) == 4
     assert len(local_ds.image) == 4
 
-    # for _ in range(10):
-    #     local_ds.image.append(np.ones((28, 28)))
-    # assert len(local_ds.image) == 14
+    for _ in range(10):
+        local_ds.image.append(np.ones((28, 28)))
+    assert len(local_ds.image) == 14
 
-    # local_ds.image.extend([np.ones((28, 28)), np.ones((28, 28))])
-    # assert len(local_ds.image) == 16
-    # assert len(local_ds.image.numpy()) == 16
-    # assert len(local_ds.image[0:5].numpy()) == 5
-    # assert len(local_ds.image[:-1].numpy()) == 15
-    # assert len(local_ds.image[-5:].numpy()) == 5
+    local_ds.image.extend([np.ones((28, 28)), np.ones((28, 28))])
+    assert len(local_ds.image) == 16
+    assert len(local_ds.image.numpy()) == 16
+    assert len(local_ds.image[0:5].numpy()) == 5
+    assert len(local_ds.image[:-1].numpy()) == 15
+    assert len(local_ds.image[-5:].numpy()) == 5
 
-    # assert local_ds.meta.tensors == ["image", "_image_shape", "_image_id"]
-    # assert local_ds.meta.version == deeplake.__version__
+    assert local_ds.meta.tensors == ["image", "_image_shape", "_image_id"]
+    assert local_ds.meta.version == deeplake.__version__
 
 
 def test_larger_data_memory(memory_ds):
@@ -1408,19 +1408,18 @@ def test_ds_extend():
 
 
 @pytest.mark.parametrize(
-    "src_args", [{}]
+    "src_args", [{}, {"sample_compression": "png"}, {"chunk_compression": "png"}]
 )
 @pytest.mark.parametrize(
-    "dest_args", [{"chunk_compression": "png"}]
+    "dest_args", [{}, {"sample_compression": "png"}, {"chunk_compression": "png"}]
 )
-@pytest.mark.parametrize("size", [ (1261, 759, 3)])
+@pytest.mark.parametrize("size", [(30, 40, 3), (1261, 759, 3)])
 def test_append_with_tensor(src_args, dest_args, size):
     ds1 = deeplake.dataset("mem://ds1")
     ds2 = deeplake.dataset("mem://ds2")
     ds1.create_tensor("x", **src_args, max_chunk_size=2 * MB, tiling_threshold=2 * MB)
     x = np.random.randint(0, 256, size, dtype=np.uint8)
     ds1.x.append(x)
-    print("ok")
     ds2.create_tensor("y", max_chunk_size=3 * MB, tiling_threshold=2 * MB, **dest_args)
     ds2.y.append(ds1.x[0])
     np.testing.assert_array_equal(ds1.x.numpy(), ds2.y.numpy())

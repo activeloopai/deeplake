@@ -797,12 +797,12 @@ class ChunkEngine:
                 enc_ids.pop(0)
                 start_chunk_incr = enc_count.pop(0)
                 enc._encoded[-1, 1] += start_chunk_incr
+                enc.is_dirty = True
             if enc_count:
                 enc_arr = enc._encoded
                 n = len(enc_arr)
                 if n:
                     enc_count[0] += enc_arr[-1, 1]
-                    assert enc.num_samples
                 else:
                     enc_count[0] -= 1
                 enc_last_seen = np.cumsum(enc_count, dtype=np.uint64)
@@ -813,6 +813,7 @@ class ChunkEngine:
                 new[:, 0] = enc_ids
                 new[:, 1] = enc_last_seen
                 enc._encoded = arr
+                enc.is_dirty = True
         if progressbar:
             pbar.close()
 
