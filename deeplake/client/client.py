@@ -447,7 +447,7 @@ class DeepLakeBackendClient:
         ds_name: Optional[str] = None,
         creds_key: Optional[str] = None,
     ) -> str:
-        """Creates a new dataset entry that can be accessed with a hub path, but points to the original `src_path`.
+        """Creates a new dataset entry that can be accessed with a hub path, but points to the original ``src_path``.
 
         Args:
             src_path (str): The path at which the source dataset resides.
