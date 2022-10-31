@@ -1806,12 +1806,16 @@ class ChunkEngine:
                 self.write_chunk_to_storage(self.active_updated_chunk)
             self.active_updated_chunk = chunk_to_update
         if delete:
-            for chunk_key in map(self.get_chunk_key_for_id, chunk_ids):
-                self.check_remove_active_chunks(chunk_key)
-                try:
-                    del self.cache[chunk_key]
-                except KeyError:
-                    pass
+            for chunk_id in chunk_ids:
+                chunk_name = ChunkIdEncoder.name_from_id(chunk_id)
+                commit_id = self.get_chunk_commit(chunk_name)
+                if commit_id == self.commit_id:
+                    chunk_key = get_chunk_key(self.key, chunk_name, commit_id)
+                    self.check_remove_active_chunks(chunk_key)
+                    try:
+                        del self.cache[chunk_key]
+                    except KeyError:
+                        pass
 
         self.tensor_meta.pop(global_sample_index)
 
