@@ -41,6 +41,7 @@ from deeplake.util.exceptions import (
 )
 from deeplake.util.path import convert_string_to_pathlib_if_needed
 from deeplake.util.pretty_print import summary_tensor, summary_dataset
+from deeplake.util.storage import get_local_storage_path
 from deeplake.constants import GDRIVE_OPT, MB
 from deeplake.client.config import REPORTING_CONFIG_FILE_PATH
 
@@ -1799,6 +1800,12 @@ def test_access_method(s3_ds_generator):
         assert ds.x[i].numpy() == i
 
     ds.delete()
+
+
+def test_local_storage_path(local_ds):
+    path = "/tmp/deeplake/"
+    dataset_name = "hub://mnist-train"
+    assert get_local_storage_path(dataset_name, path) == "/tmp/deeplake/hub_mnist-train"
 
 
 def test_partial_read_then_write(s3_ds_generator):
