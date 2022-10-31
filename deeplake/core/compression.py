@@ -1101,7 +1101,7 @@ def _decompress_audio(
     return audio
 
 
-def _open_3d_data(file: Union[bytes, BinaryIO]):
+def _open_3d_data(file):
     if isinstance(file, str):
         point_cloud = read_3d_data(file)
         return point_cloud
