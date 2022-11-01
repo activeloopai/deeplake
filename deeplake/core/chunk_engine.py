@@ -703,9 +703,20 @@ class ChunkEngine:
             Tuple[List[BaseChunk], Dict[Any, Any]]
         """
         extending = start_chunk_row is None and register
+        lengths = None
         if extending:
             enc_ids = []
             enc_count = [0]
+            if (
+                self.tensor_meta.htype == "text"
+                and self.chunk_class == UncompressedChunk
+                and isinstance(samples, np.ndarray)
+            ):
+                lengths = [s.__len__() for s in samples]
+        if lengths is None:
+            extra_args = {}
+        else:
+            extra_args = {"lengths": lengths}
         current_chunk = start_chunk
         updated_chunks = []
         if current_chunk is None:
@@ -727,7 +738,7 @@ class ChunkEngine:
             pbar = tqdm(total=len(samples))
         while len(samples) > 0:
             num_samples_added = current_chunk.extend_if_has_space(
-                samples, update_tensor_meta=update_tensor_meta
+                samples, update_tensor_meta=update_tensor_meta, **extra_args
             )  # type: ignore
             if register_creds:
                 self.register_new_creds(num_samples_added, samples)
@@ -784,6 +795,8 @@ class ChunkEngine:
                     if update_commit_diff:
                         commit_diff.add_data(num)
                 samples = samples[num:]
+                if lengths is not None:
+                    lengths = lengths[num:]
             if progressbar:
                 pbar.update(num_samples_added)
         if extending:

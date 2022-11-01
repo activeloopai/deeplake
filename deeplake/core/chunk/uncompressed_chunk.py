@@ -1,7 +1,5 @@
-import enum
-from io import BufferedWriter
 import numpy as np
-from typing import List, Union
+from typing import List, Union, Optional
 from deeplake.core.serialize import check_sample_shape, bytes_to_text
 from deeplake.core.tiling.sample_tiles import SampleTiles
 from deeplake.core.polygon import Polygons
@@ -15,20 +13,18 @@ _SENTINEL = object()
 
 
 class UncompressedChunk(BaseChunk):
-    # def _is_uniform_array_list(self, arr_list):
-    #     shape =
-    #     return next(filter(lambda x: not isinstance(x, np.ndarray), incoming_samples), _SENTINEL) is _SENTINEL
     def extend_if_has_space(  # type: ignore
         self,
         incoming_samples: Union[List[InputSample], np.ndarray],
         update_tensor_meta: bool = True,
+        lengths: Optional[List[int]] = None,
     ) -> float:
         self.prepare_for_write()
         if isinstance(incoming_samples, np.ndarray):
             if incoming_samples.dtype == object:
                 if self.htype == "text":
                     return self._extend_if_has_space_text(
-                        incoming_samples, update_tensor_meta
+                        incoming_samples, update_tensor_meta, lengths
                     )
                 incoming_samples = list(incoming_samples)
             else:
@@ -41,10 +37,12 @@ class UncompressedChunk(BaseChunk):
         self,
         incoming_samples,
         update_tensor_meta: bool = True,
+        lengths=None,
     ) -> float:
-        lengths = np.zeros(len(incoming_samples), dtype=np.uint32)
-        for i, sample in enumerate(incoming_samples):
-            lengths[i] = sample.__len__()  # assume ~1 bytes per char
+        if lengths is None:
+            lengths = np.zeros(len(incoming_samples), dtype=np.uint32)
+            for i, sample in enumerate(incoming_samples):
+                lengths[i] = sample.__len__()  # assume ~1 bytes per char
         csum = np.cumsum(lengths)
         min_chunk_size = self.min_chunk_size
         num_data_bytes = self.num_data_bytes
@@ -70,10 +68,10 @@ class UncompressedChunk(BaseChunk):
             offset = 0
         bps[:, 2] = np.arange(last_seen, num_samples + last_seen)
         bps[0, 1] = offset
-        lview = lengths[:num_samples]
         for i, b in enumerate(bts):
             lengths[i] = len(b)
-        csum = np.cumsum(lengths[:num_samples - 1])
+        lview = lengths[:num_samples]
+        csum = np.cumsum(lengths[: num_samples - 1])
         bps[:, 0] = lview
         csum += offset
         bps[1:, 1] = csum
