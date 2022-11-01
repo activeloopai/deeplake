@@ -20,12 +20,12 @@ class DataFrame(StructuredDataset):
         if not isinstance(self.source, pd.DataFrame):
             raise Exception("Source is not a pandas dataframe object.")
 
-    def fill_dataset(self, ds: Dataset, use_progress_bar: bool = True) -> Dataset:
+    def fill_dataset(self, ds: Dataset, progressbar: bool = True) -> Dataset:
         """Fill dataset with data from the dataframe - one tensor per column
 
         Args:
             ds (Dataset) : A Deep Lake dataset object.
-            use_progress_bar (bool) : Defines if the method uses a progress bar. Defaults to True.
+            progressbar (bool) : Defines if the method uses a progress bar. Defaults to True.
 
         Returns:
             A Deep Lake dataset.
@@ -36,7 +36,7 @@ class DataFrame(StructuredDataset):
         iterator = tqdm(
             keys,
             desc="Ingesting... (%i keys skipped)" % (len(skipped_keys)),
-            disable=not use_progress_bar,
+            disable=not progressbar,
         )
         with ds, iterator:
             for key in iterator:
@@ -54,5 +54,6 @@ class DataFrame(StructuredDataset):
                     iterator.set_description(
                         "Ingesting... (%i keys skipped)" % (len(skipped_keys))
                     )
+                    raise e
                     continue
         return ds
