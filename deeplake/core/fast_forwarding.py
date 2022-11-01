@@ -84,8 +84,6 @@ def ffw_tensor_meta(tensor_meta, version):
         tensor_meta.chunk_compression = None
     if not hasattr(tensor_meta, "hidden"):
         tensor_meta.hidden = False
-    if not hasattr(tensor_meta, "sample_shape"):
-        tensor_meta.sample_shape = None
     if not hasattr(tensor_meta, "links"):
         tensor_meta.links = {}
     if not hasattr(tensor_meta, "is_link"):
@@ -99,7 +97,6 @@ def ffw_tensor_meta(tensor_meta, version):
             + (
                 "chunk_compression",
                 "hidden",
-                "sample_shape",
                 "links",
                 "is_link",
                 "is_sequence",

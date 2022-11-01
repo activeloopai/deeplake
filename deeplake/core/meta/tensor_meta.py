@@ -35,7 +35,6 @@ class TensorMeta(Meta):
     name: Optional[str] = None
     htype: str
     dtype: str
-    sample_shape: List[int]
     min_shape: List[int]
     max_shape: List[int]
     length: int
@@ -285,18 +284,6 @@ def _validate_htype_overwrites(htype: str, htype_overwrite: dict):
         and compr not in supported_compressions
     ):
         raise UnsupportedCompressionError(compr, htype=htype)
-    sample_shape = htype_overwrite.get("sample_shape")
-    if (
-        sample_shape is not None
-        and not isinstance(sample_shape, (list, tuple))
-        or sample_shape
-        and set(map(type, sample_shape)) - {type(None), int}
-    ):
-        raise TypeError(
-            f"Expected sample_shape to be None or tuple/list of ints and Nones. Received {sample_shape}"
-        )
-    if isinstance(sample_shape, list):
-        htype_overwrite["sample_shape"] = tuple(sample_shape)
 
 
 def _replace_unspecified_values(htype: str, htype_overwrite: dict):

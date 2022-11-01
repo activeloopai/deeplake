@@ -119,7 +119,6 @@ COMMON_CONFIGS = {
     "hidden": False,
     "links": None,
     "verify": False,
-    "sample_shape": None,
 }
 
 

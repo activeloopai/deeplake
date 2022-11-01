@@ -29,13 +29,6 @@ class UncompressedChunk(BaseChunk):
                 return self._extend_if_has_space_numpy(
                     incoming_samples, update_tensor_meta
                 )
-        else:
-            pass
-            # sample_shape = self.tensor_meta.sample_shape
-            # if sample_shape and None not in sample_shape:
-            #     return self._extend_if_has_space_numpy(
-            #         incoming_samples, update_tensor_meta
-            #     )
         return self._extend_if_has_space_list(incoming_samples, update_tensor_meta)
 
     def _extend_if_has_space_numpy(

@@ -45,7 +45,7 @@ class DataFrame(StructuredDataset):
                     if dtype == np.dtype("object"):
                         ds.create_tensor(key, htype="json")
                     else:
-                        ds.create_tensor(key, dtype=dtype, sample_shape=(1,))
+                        ds.create_tensor(key, dtype=dtype)
                     ds[key].extend(self.source[key].values)
                 except Exception as e:
                     skipped_keys.append(key)
