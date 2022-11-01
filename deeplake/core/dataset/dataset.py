@@ -16,10 +16,7 @@ from tqdm import tqdm  # type: ignore
 import deeplake
 from deeplake.core.index.index import IndexEntry
 from deeplake.core.link_creds import LinkCreds
-from deeplake.util.connect_dataset import (
-    connect_dataset_entry,
-    log_dataset_connection_success,
-)
+from deeplake.util.connect_dataset import connect_dataset_entry
 from deeplake.util.invalid_view_op import invalid_view_op
 from deeplake.api.info import load_info
 from deeplake.client.log import logger
@@ -3280,7 +3277,7 @@ class Dataset:
             InvalidSourcePathError: If the dataset's path is not a valid s3 or gcs path.
             InvalidDestinationPathError: If ``dest_path``, or ``org_id`` and ``ds_name`` do not form a valid Deep Lake path.
         """
-        connected_id = connect_dataset_entry(
+        return connect_dataset_entry(
             src_path=self.path,
             creds_key=creds_key,
             dest_path=dest_path,
@@ -3288,17 +3285,6 @@ class Dataset:
             ds_name=ds_name,
             token=token,
         )
-        result_path = f"hub://{connected_id}"
-        feature_report_path(
-            result_path,
-            "connect",
-            parameters={"Connected_Id": connected_id},
-            token=token,
-        )
-
-        ds = deeplake.dataset(result_path, token=token, verbose=False)
-        log_dataset_connection_success(ds.path)
-        return ds
 
     def add_creds_key(self, creds_key: str, managed: bool = False):
         """Adds a new creds key to the dataset. These keys are used for tensors that are linked to external data.

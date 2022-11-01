@@ -11,10 +11,7 @@ from deeplake.client.client import DeepLakeBackendClient
 from deeplake.client.log import logger
 from deeplake.core.dataset import Dataset, dataset_factory
 from deeplake.core.meta.dataset_meta import DatasetMeta
-from deeplake.util.connect_dataset import (
-    connect_dataset_entry,
-    log_dataset_connection_success,
-)
+from deeplake.util.connect_dataset import connect_dataset_entry
 from deeplake.util.path import convert_pathlib_to_string_if_needed
 from deeplake.hooks import (
     dataset_created,
@@ -946,7 +943,7 @@ class dataset:
             InvalidSourcePathError: If the ``src_path`` is not a valid s3 or gcs path.
             InvalidDestinationPathError: If ``dest_path``, or ``org_id`` and ``ds_name`` do not form a valid Deep Lake path.
         """
-        connected_id = connect_dataset_entry(
+        return connect_dataset_entry(
             src_path=src_path,
             creds_key=creds_key,
             dest_path=dest_path,
@@ -954,17 +951,6 @@ class dataset:
             ds_name=ds_name,
             token=token,
         )
-        result_path = f"hub://{connected_id}"
-        feature_report_path(
-            result_path,
-            "connect",
-            parameters={"Connected_Id": connected_id},
-            token=token,
-        )
-
-        ds = deeplake.dataset(result_path, token=token, verbose=False)
-        log_dataset_connection_success(ds.path)
-        return ds
 
     @staticmethod
     def ingest(
