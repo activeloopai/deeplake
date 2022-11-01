@@ -451,10 +451,13 @@ class BaseChunk(DeepLakeMemoryObject):
         """
         self.register_sample_to_headers(sample_nbytes, shape, num_samples)
         if update_tensor_meta:
-            if self._update_tensor_meta_length:
-                self.tensor_meta.update_length(num_samples)
-            if shape is not None:
-                self.tensor_meta.update_shape_interval(shape)
+            self.update_tensor_meta(shape, num_samples)
+
+    def update_tensor_meta(self, shape, num_samples):
+        if self._update_tensor_meta_length:
+            self.tensor_meta.update_length(num_samples)
+        if shape is not None:
+            self.tensor_meta.update_shape_interval(shape)
 
     def update_in_meta_and_headers(
         self, local_index: int, sample_nbytes: Optional[int], shape

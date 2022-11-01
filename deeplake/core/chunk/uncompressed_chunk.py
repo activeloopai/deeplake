@@ -1,3 +1,4 @@
+import enum
 from io import BufferedWriter
 import numpy as np
 from typing import List, Union
@@ -6,6 +7,7 @@ from deeplake.core.tiling.sample_tiles import SampleTiles
 from deeplake.core.polygon import Polygons
 from deeplake.util.casting import intelligent_cast
 from deeplake.util.exceptions import EmptyTensorError, TensorDtypeMismatchError
+from deeplake.constants import ENCODING_DTYPE
 from .base_chunk import BaseChunk, InputSample
 
 
@@ -24,12 +26,64 @@ class UncompressedChunk(BaseChunk):
         self.prepare_for_write()
         if isinstance(incoming_samples, np.ndarray):
             if incoming_samples.dtype == object:
+                if self.htype == "text":
+                    return self._extend_if_has_space_text(incoming_samples, update_tensor_meta)
                 incoming_samples = list(incoming_samples)
             else:
                 return self._extend_if_has_space_numpy(
                     incoming_samples, update_tensor_meta
                 )
         return self._extend_if_has_space_list(incoming_samples, update_tensor_meta)
+
+    def _extend_if_has_space_text(
+        self,
+        incoming_samples,
+        update_tensor_meta: bool = True,
+    ) -> float:
+        lengths = np.zeros(len(incoming_samples), dtype=np.uint32)
+        for i, sample in enumerate(incoming_samples):
+            lengths[i] = sample.__len__() # assume ~1 bytes per char
+        csum = np.cumsum(lengths)
+        min_chunk_size = self.min_chunk_size
+        num_data_bytes = self.num_data_bytes
+        space_left = min_chunk_size - num_data_bytes
+        idx = np.searchsorted(csum, space_left)
+        if not idx and csum[0] > space_left:
+            if self.data_bytes:
+                return 0
+        num_samples = int(min(len(incoming_samples), idx + 1))
+        bts = [s.encode('utf-8') for s in incoming_samples[:num_samples]]
+        self.data_bytes += b"".join(bts)
+        bps = np.zeros((num_samples, 3), dtype=ENCODING_DTYPE)
+        enc = self.byte_positions_encoder
+        arr = enc._encoded
+        if len(arr):
+            last_seen = arr[-1, 2] + 1
+            if len(arr) == 1:
+                offset = (arr[0, 2] + 1) * arr[0, 0]
+            else:
+                offset = (arr[-1, 2] - arr[-2, 2]) * arr[-1, 0]
+        else:
+            last_seen = 0
+            offset = 0
+        bps[:, 2] = np.arange(last_seen, num_samples + last_seen)
+        bps[0, 1] = offset
+        lview = lengths[:num_samples]
+        bps[:, 0] = lview
+        lview = lview[:-1]
+        lview += offset
+        bps[1:, 1] = lview
+        if len(arr):
+            arr = np.concatenate([arr, bps], 0)
+        else:
+            arr = bps
+        enc._encoded = arr
+        # for i in range(num_samples):
+        #     self.byte_positions_encoder.register_samples(len(bts[i]), 1)
+        shape = (1,)
+        self.register_sample_to_headers(None, shape, num_samples=num_samples)
+        self.update_tensor_meta(shape, num_samples)
+        return num_samples
 
     def _extend_if_has_space_numpy(
         self,

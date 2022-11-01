@@ -732,8 +732,6 @@ class ChunkEngine:
             if register_creds:
                 self.register_new_creds(num_samples_added, samples)
             if num_samples_added == 0:
-                if isinstance(samples, np.ndarray):
-                    samples = list(samples)
                 current_chunk = self._create_new_chunk(
                     register and start_chunk_row is not None, row=start_chunk_row
                 )

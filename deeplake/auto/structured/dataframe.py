@@ -46,7 +46,7 @@ class DataFrame(StructuredDataset):
                     dtype = self.source[key].dtype
                     if dtype == np.dtype("object"):
                         if key not in ds.tensors:
-                            ds.create_tensor(key, htype="json")
+                            ds.create_tensor(key, htype="text")
                     else:
                         if key not in ds.tensors:
                             ds.create_tensor(
