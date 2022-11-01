@@ -611,11 +611,7 @@ class ChunkEngine:
         ffw_chunk_id_encoder(self.chunk_id_encoder)
 
     def _convert_to_list(self, samples):
-        if self.chunk_class != UncompressedChunk:
-            return True
-        elif isinstance(samples, np.ndarray):
-            return samples[0].nbytes >= self.min_chunk_size
-        return True
+        return False
 
     def check_each_sample(self, samples, verify_creds_key_exists=True):
         return

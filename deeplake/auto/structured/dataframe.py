@@ -40,6 +40,8 @@ class DataFrame(StructuredDataset):
         )
         with ds, iterator:
             for key in iterator:
+                if progressbar:
+                    print(f"\nkey={key}, dtype={self.source[key].dtype}")
                 try:
                     dtype = self.source[key].dtype
                     if dtype == np.dtype("object"):
@@ -47,7 +49,9 @@ class DataFrame(StructuredDataset):
                             ds.create_tensor(key, htype="json")
                     else:
                         if key not in ds.tensors:
-                            ds.create_tensor(key, dtype=dtype)
+                            ds.create_tensor(
+                                key, dtype=dtype, create_shape_tensor=False
+                            )
                     ds[key].extend(self.source[key].values, progressbar=progressbar)
                 except Exception as e:
                     skipped_keys.append(key)
