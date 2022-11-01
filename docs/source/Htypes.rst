@@ -643,3 +643,92 @@ use them just by adding the keys to your dataset. For example if you have manage
 :bluebold:`Updating a sample`
 
 >>> ds.img[0] = deeplake.link("./data/cat.jpeg")
+
+.. _point_cloud-htype:
+
+Point Cloud Htype
+~~~~~~~~~~~
+
+- :bluebold:`Sample dimensions:` ``(#num_points, 3)``
+- Point CLoud samples can be of type ``np.ndarray`` or :class:`~deeplake.core.sample.Sample` which is returned by :meth:`deeplake.read`.
+- Each sample in a tensor of ``point_cloud`` htype is a point cloud array.
+- Each point_cloud is a list / array of points.
+- All points in a sample should have the same number of co-ordinates (eg., cannot mix 2-D points with 3-D points).
+- Different point_clouds can have different number of points.
+
+:blue:`Creating a point cloud tensor`
+-------------------------------
+
+A point cloud tensor can be created using
+
+>>> ds.create_tensor("point_clouds", htype="point_cloud", sample_compression="las")
+
+- Optional args:
+    - :ref:`sample_compression <sample_compression>`
+- Supported compressions:
+
+>>> [None, "las"]
+
+:blue:`Appending point clouds`
+--------------------------
+
+- Point clouds can be appended as a ``np.ndarray``.
+
+:bluebold:`Examples`
+
+Appending point clouds with numpy arrays
+
+>>> import numpy as np
+>>> point_cloud1 = np.random.randint(0, 10, (5, 3))
+>>> ds.point_clouds.append(point_cloud1)
+>>> point_cloud2 = np.random.randint(0, 10, (15, 3))
+>>> ds.point_clouds.append(point_cloud2)
+>>> ds.point_clouds.shape
+>>> (2, None, 3)
+
+Or we can use deeplake.read method to add samples
+
+>>> import deeplake as dp
+>>> sample = dp.read("example") # point cloud with 100 points
+>>> ds.point_cloud.append(sample)
+>>> ds.point_cloud.shape
+>>> (1, 100, 3)
+
+
+.. _mesh-htype:
+
+Mesh Htype
+~~~~~~~~~~~
+
+- :bluebold:`Sample dimensions:` ``(#num_points, 3)``
+- Mesh samples can be of type ``np.ndarray`` or :class:`~deeplake.core.sample.Sample` which is returned by :meth:`deeplake.read`.
+- Each sample in a tensor of ``mesh`` htype is a mesh array (3d object data).
+- Each point_cloud is a list / array of points.
+- Different meshes can have different number of points.
+
+:blue:`Creating a mesh tensor`
+-------------------------------
+
+A mesh tensor can be created using
+
+>>> ds.create_tensor("mesh", htype="mesh", sample_compression="ply")
+
+- Optional args:
+    - :ref:`sample_compression <sample_compression>`
+- Supported compressions:
+
+>>> ["ply"]
+
+:blue:`Appending meshes`
+--------------------------
+
+:bluebold:`Examples`
+
+Appending point clouds with numpy arrays
+
+>>> import deeplake as dp
+>>> sample = dp.read("example.ply")  # mesh with 100 points and 200 faces
+>>> ds.mesh.append(sample)
+
+>>> ds.mesh.shape
+>>> (1, 100, 3)
