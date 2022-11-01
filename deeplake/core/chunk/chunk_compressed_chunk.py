@@ -104,7 +104,10 @@ class ChunkCompressedChunk(BaseChunk):
         update_tensor_meta: bool = True,
     ):
 
-        if isinstance(incoming_samples, np.ndarray):
+        if (
+            isinstance(incoming_samples, np.ndarray)
+            and incoming_samples.dtype != object
+        ):
             return self.extend_if_has_space_byte_compression_numpy(
                 incoming_samples, update_tensor_meta
             )

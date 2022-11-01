@@ -294,7 +294,6 @@ def create_worker_chunk_engines(
                     is_link=existing_meta.is_link,
                     hidden=existing_meta.hidden,
                     verify=existing_meta.verify,
-                    sample_shape=existing_meta.sample_shape,
                 )
                 meta_key = get_tensor_meta_key(tensor, version_state["commit_id"])
                 memory_cache[meta_key] = new_tensor_meta  # type: ignore
