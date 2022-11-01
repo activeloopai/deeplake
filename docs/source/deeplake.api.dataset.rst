@@ -34,6 +34,10 @@ deeplake.api.dataset
     .. staticmethod:: deepcopy(src: Union[str, pathlib.Path], dest: Union[str, pathlib.Path], tensors: Optional[List[str]] = None, overwrite: bool = False, src_creds=None, src_token=None, dest_creds=None, dest_token=None, num_workers: int = 0, scheduler="threaded", progressbar=True, public: bool = False, verbose: bool = True)
 
         See :func:`deeplake.deepcopy`.
+
+    .. staticmethod:: connect(src_path: str, creds_key: str, dest_path: Optional[str], org_id: Optional[str], ds_name: Optional[str], token: Optional[str])
+
+        See :func:`deeplake.connect`.
     
     .. staticmethod:: ingest(src: Union[str, pathlib.Path], dest: Union[str, pathlib.Path], images_compression: str = "auto", dest_creds: dict = None, progressbar: bool = True, summary: bool = True, **dataset_kwargs) -> Dataset
 

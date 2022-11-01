@@ -794,3 +794,27 @@ class BadLinkError(Exception):
     def __init__(self):
         message = "Verification of link failed. Make sure that the link you are trying to append is correct."
         super().__init__(message)
+
+
+class DatasetConnectError(Exception):
+    pass
+
+
+class InvalidSourcePathError(DatasetConnectError):
+    pass
+
+
+class InvalidDestinationPathError(DatasetConnectError):
+    pass
+
+
+class UnprocessableEntityException(Exception):
+    def __init__(self, message: Optional[str] = None) -> None:
+        if message is None or message == " ":
+            message = "Some request parameters were invalid."
+
+
+class GroupInfoNotSupportedError(Exception):
+    def __init__(self):
+        message = "Tensor groups does not have info attribute. Please use `dataset.info` or `dataset.tensor.info`."
+        super().__init__(message)

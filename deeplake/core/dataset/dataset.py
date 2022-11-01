@@ -16,6 +16,7 @@ from tqdm import tqdm  # type: ignore
 import deeplake
 from deeplake.core.index.index import IndexEntry
 from deeplake.core.link_creds import LinkCreds
+from deeplake.util.connect_dataset import connect_dataset_entry
 from deeplake.util.invalid_view_op import invalid_view_op
 from deeplake.api.info import load_info
 from deeplake.client.log import logger
@@ -80,6 +81,7 @@ from deeplake.util.exceptions import (
     SampleAppendingError,
     DatasetTooLargeToDelete,
     TensorTooLargeToDelete,
+    GroupInfoNotSupportedError,
 )
 from deeplake.util.keys import (
     dataset_exists,
@@ -209,6 +211,7 @@ class Dataset:
         d["_parent_dataset"] = None
         d["_pad_tensors"] = pad_tensors
         d["_locking_enabled"] = lock
+        d["_temp_tensors"] = []
         dct = self.__dict__
         dct.update(d)
         dct["enabled_tensors"] = (
@@ -231,6 +234,9 @@ class Dataset:
             bool
         ] = []  # This is a stack to support nested with contexts
         self._indexing_history: List[int] = []
+
+        for temp_tensor in self._temp_tensors:
+            self.delete_tensor(temp_tensor)
 
     def _lock_lost_handler(self):
         """This is called when lock is acquired but lost later on due to slow update."""
@@ -1676,6 +1682,8 @@ class Dataset:
     @property
     def info(self):
         """Returns the information about the dataset."""
+        if self.group_index:
+            raise GroupInfoNotSupportedError
         if self._info is None:
             path = get_dataset_info_key(self.version_state["commit_id"])
             self.__dict__["_info"] = load_info(path, self)  # type: ignore
@@ -3221,8 +3229,6 @@ class Dataset:
             create_commit_chunk_sets(dest_id, storage, version_state)
             self.checkout(dest_id)
         load_meta(self)
-        self._info = None
-        self._ds_diff = None
 
     def _delete_metas(self):
         """Deletes all metas in the dataset."""
@@ -3245,6 +3251,47 @@ class Dataset:
                 del self.storage[key]
             except KeyError:
                 pass
+
+    def connect(
+        self,
+        creds_key: str,
+        dest_path: Optional[str] = None,
+        org_id: Optional[str] = None,
+        ds_name: Optional[str] = None,
+        token: Optional[str] = None,
+    ):
+        """Connect a Deep Lake cloud dataset through a deeplake path.
+
+        Examples:
+            >>> # create/load an s3 dataset
+            >>> s3_ds = deeplake.dataset("s3://bucket/dataset")
+            >>> ds = s3_ds.connect(dest_path="hub://my_org/dataset", creds_key="my_managed_credentials_key")
+            >>> # or
+            >>> ds = s3_ds.connect(org_id="my_org", creds_key="my_managed_credentials_key")
+
+        Args:
+            creds_key (str): The managed credentials to be used for accessing the source path.
+            dest_path (str, optional): The full path to where the connected Deep Lake dataset will reside. Can be:
+                a Deep Lake path like ``hub://organization/dataset``
+            org_id (str, optional): The organization to where the connected Deep Lake dataset will be added.
+            ds_name (str, optional): The name of the connected Deep Lake dataset. Will be infered from ``dest_path`` or ``src_path`` if not provided.
+            token (str, optional): Activeloop token used to fetch the managed credentials.
+
+        Returns:
+            Dataset: The connected Deep Lake dataset.
+
+        Raises:
+            InvalidSourcePathError: If the dataset's path is not a valid s3 or gcs path.
+            InvalidDestinationPathError: If ``dest_path``, or ``org_id`` and ``ds_name`` do not form a valid Deep Lake path.
+        """
+        return connect_dataset_entry(
+            src_path=self.path,
+            creds_key=creds_key,
+            dest_path=dest_path,
+            org_id=org_id,
+            ds_name=ds_name,
+            token=token,
+        )
 
     def add_creds_key(self, creds_key: str, managed: bool = False):
         """Adds a new creds key to the dataset. These keys are used for tensors that are linked to external data.

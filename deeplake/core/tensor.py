@@ -1220,3 +1220,10 @@ class Tensor:
             return list(self.numpy(fetch_chunks=fetch_chunks))
         else:
             return list(map(list, self.numpy(aslist=True, fetch_chunks=fetch_chunks)))
+
+    def path(self, fetch_chunks: bool = False):
+        """Return path data. Only applicable for linked tensors"""
+        if not self.is_link:
+            raise Exception(f"Only supported for linked tensors.")
+        assert isinstance(self.chunk_engine, LinkedChunkEngine)
+        return self.chunk_engine.path(self.index, fetch_chunks=fetch_chunks)

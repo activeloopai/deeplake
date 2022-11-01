@@ -65,6 +65,10 @@ class DatasetMeta(Meta):
         """Reflect tensor deletion in dataset's meta."""
         key = self.tensor_names.pop(name)
         self.tensors.remove(key)
+        try:
+            self.hidden_tensors.remove(key)
+        except ValueError:
+            pass
         self.is_dirty = True
 
     def delete_group(self, name):
