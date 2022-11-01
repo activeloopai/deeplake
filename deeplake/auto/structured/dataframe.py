@@ -48,7 +48,7 @@ class DataFrame(StructuredDataset):
                     else:
                         if key not in ds.tensors:
                             ds.create_tensor(key, dtype=dtype)
-                    ds[key].extend(self.source[key].values, progressbar=True)
+                    ds[key].extend(self.source[key].values, progressbar=progressbar)
                 except Exception as e:
                     skipped_keys.append(key)
                     iterator.set_description(
