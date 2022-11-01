@@ -628,15 +628,13 @@ class ChunkEngine:
             return samples[0].nbytes >= self.min_chunk_size
         return True
 
-    def check_each_sample(self, samples, verify_creds_key_exists=True):
+    def check_each_sample(self, samples, verify=True):
         return
 
-    def _sanitize_samples(self, samples, verify_creds_key_exists=True):
+    def _sanitize_samples(self, samples, verify=True):
         check_samples_type(samples)
         samples = [None if is_empty_list(sample) else sample for sample in samples]
-        verified_samples = self.check_each_sample(
-            samples, verify_creds_key_exists=verify_creds_key_exists
-        )
+        verified_samples = self.check_each_sample(samples, verify=verify)
         tensor_meta = self.tensor_meta
         all_empty = all(sample is None for sample in samples)
         if tensor_meta.htype is None and not all_empty:
@@ -1092,9 +1090,7 @@ class ChunkEngine:
             row=new_chunk_row, num_samples=num_samples
         )
         chunk.pop_multiple(num_samples=len(samples_to_move))
-        samples, _ = self._sanitize_samples(
-            samples_to_move, verify_creds_key_exists=False
-        )
+        samples, _ = self._sanitize_samples(samples_to_move, verify=False)
         self._samples_to_chunks(
             samples,
             start_chunk=new_chunk,
@@ -1118,9 +1114,7 @@ class ChunkEngine:
             return True
 
         from_chunk.pop_multiple(num_samples=num_samples)
-        samples, _ = self._sanitize_samples(
-            samples_to_move, verify_creds_key_exists=False
-        )
+        samples, _ = self._sanitize_samples(samples_to_move, verify=False)
         to_chunk.is_dirty = True
         self.active_updated_chunk = to_chunk
         self._samples_to_chunks(
