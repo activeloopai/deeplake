@@ -494,7 +494,7 @@ class S3Provider(StorageProvider):
                 org_id,
                 ds_name,
                 mode,
-                force,
+                True,
             )
             self.expiration = expiration
             self._set_s3_client_and_resource(
