@@ -126,7 +126,7 @@ def feature_report_path(
     feature_name: str,
     parameters: dict,
     starts_with: str = "hub://",
-    token: str = None,
+    token: Optional[str] = None,
 ):
     """Helper function for generating humbug feature reports depending on the path"""
     if not isinstance(path, str):
