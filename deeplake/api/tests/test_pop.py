@@ -8,6 +8,7 @@ import pytest
 def pop_fn(sample_in, samples_out):
     samples_out.x.append(sample_in)
 
+
 def pop_helper_basic(ds, pop_count):
     for i in range(len(ds.xyz)):
         ofs = 1 if i < 5 else 1 + pop_count
@@ -217,6 +218,7 @@ def test_ds_pop(local_ds):
 
         with pytest.raises(IndexError):
             ds.pop(-5)
+
 
 def test_pop_bug(local_ds_generator):
     ds = local_ds_generator()
