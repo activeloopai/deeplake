@@ -6,6 +6,7 @@ import deeplake
 import inspect
 from deeplake.util.generate_id import generate_id
 import numpy as np
+from uuid import uuid4
 
 
 class _TensorLinkTransform:
@@ -31,7 +32,10 @@ link = _TensorLinkTransform
 
 @link
 def extend_id(samples, link_creds=None):
-    return np.array([generate_id(np.uint64) for _ in range(len(samples))])
+    ret = np.zeros(len(samples), dtype=np.uint64)
+    for i in range(len(samples)):
+        ret[i] = uuid4().int >> 64
+    return ret
 
 
 @link
