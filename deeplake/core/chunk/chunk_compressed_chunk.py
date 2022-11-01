@@ -56,13 +56,21 @@ class ChunkCompressedChunk(BaseChunk):
         min_chunk_size = self.min_chunk_size
         decompressed_bytes = self.decompressed_bytes
         while True:
-            expected_compressed_bytes = (len(decompressed_bytes) + sample_nbytes * num_samples) * self._compression_ratio
+            expected_compressed_bytes = (
+                len(decompressed_bytes) + sample_nbytes * num_samples
+            ) * self._compression_ratio
             if expected_compressed_bytes <= min_chunk_size:
-                self.decompressed_bytes = decompressed_bytes + incoming_samples[:num_samples].tobytes()
+                self.decompressed_bytes = (
+                    decompressed_bytes + incoming_samples[:num_samples].tobytes()
+                )
                 self._changed = True
                 break
-            new_decompressed = decompressed_bytes + incoming_samples[:num_samples].tobytes()
-            compressed_bytes = compress_bytes(new_decompressed, compression=self.compression)
+            new_decompressed = (
+                decompressed_bytes + incoming_samples[:num_samples].tobytes()
+            )
+            compressed_bytes = compress_bytes(
+                new_decompressed, compression=self.compression
+            )
             if len(compressed_bytes) <= min_chunk_size:
                 self._compression_ratio /= 2
                 self.decompressed_bytes = new_decompressed
@@ -72,15 +80,22 @@ class ChunkCompressedChunk(BaseChunk):
             num_samples //= 2
             if not num_samples:
                 tiling_threshold = self.tiling_threshold
-                if not self.decompressed_bytes and (tiling_threshold < 0 or len(compressed_bytes) < tiling_threshold):
+                if not self.decompressed_bytes and (
+                    tiling_threshold < 0 or len(compressed_bytes) < tiling_threshold
+                ):
                     num_samples = 1
-                    self.decompressed_bytes = decompressed_bytes + incoming_samples[0].tobytes()
+                    self.decompressed_bytes = (
+                        decompressed_bytes + incoming_samples[0].tobytes()
+                    )
                     self._changed = True
                 break
         if num_samples:
             self.register_in_meta_and_headers(
-                sample_nbytes, sample.shape, update_tensor_meta=update_tensor_meta, num_samples=num_samples
-            )    
+                sample_nbytes,
+                sample.shape,
+                update_tensor_meta=update_tensor_meta,
+                num_samples=num_samples,
+            )
         return num_samples
 
     def extend_if_has_space_byte_compression(
@@ -90,7 +105,9 @@ class ChunkCompressedChunk(BaseChunk):
     ):
 
         if isinstance(incoming_samples, np.ndarray):
-            return self.extend_if_has_space_byte_compression_numpy(incoming_samples, update_tensor_meta)
+            return self.extend_if_has_space_byte_compression_numpy(
+                incoming_samples, update_tensor_meta
+            )
 
         num_samples = 0
 

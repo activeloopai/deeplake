@@ -11,9 +11,10 @@ from .base_chunk import BaseChunk, InputSample
 
 _SENTINEL = object()
 
+
 class UncompressedChunk(BaseChunk):
     # def _is_uniform_array_list(self, arr_list):
-    #     shape = 
+    #     shape =
     #     return next(filter(lambda x: not isinstance(x, np.ndarray), incoming_samples), _SENTINEL) is _SENTINEL
     def extend_if_has_space(  # type: ignore
         self,
@@ -58,16 +59,24 @@ class UncompressedChunk(BaseChunk):
             num_samples = len(incoming_samples)
         else:
             num_data_bytes = self.num_data_bytes
-            num_samples = max(0, min(len(incoming_samples), (self.min_chunk_size - num_data_bytes) // elem.nbytes))
+            num_samples = max(
+                0,
+                min(
+                    len(incoming_samples),
+                    (self.min_chunk_size - num_data_bytes) // elem.nbytes,
+                ),
+            )
             if not num_samples:
                 if num_data_bytes:
-                    return 0.
+                    return 0.0
                 else:
                     tiling_threshold = self.tiling_threshold
                     if tiling_threshold < 0 or elem.nbytes < tiling_threshold:
                         num_samples = 1
                     else:
-                        return self._extend_if_has_space_list(incoming_samples, update_tensor_meta)
+                        return self._extend_if_has_space_list(
+                            list(incoming_samples), update_tensor_meta
+                        )
         samples = incoming_samples[:num_samples]
         chunk_dtype = self.dtype
         samples_dtype = incoming_samples.dtype
