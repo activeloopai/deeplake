@@ -43,10 +43,12 @@ class DataFrame(StructuredDataset):
                 try:
                     dtype = self.source[key].dtype
                     if dtype == np.dtype("object"):
-                        ds.create_tensor(key, htype="json")
+                        if key not in ds.tensors:
+                            ds.create_tensor(key, htype="json")
                         ds[key].extend(self.source[key].values.tolist())
                     else:
-                        ds.create_tensor(key, dtype=dtype)
+                        if key not in ds.tensors:
+                            ds.create_tensor(key, dtype=dtype)
                         ds[key].extend(self.source[key].values)
                 except Exception as e:
                     skipped_keys.append(key)
