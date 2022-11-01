@@ -71,10 +71,12 @@ class UncompressedChunk(BaseChunk):
         bps[:, 2] = np.arange(last_seen, num_samples + last_seen)
         bps[0, 1] = offset
         lview = lengths[:num_samples]
+        for i, b in enumerate(bts):
+            lengths[i] = len(b)
+        csum = np.cumsum(lengths[:num_samples - 1])
         bps[:, 0] = lview
-        lview = lview[:-1]
-        lview += offset
-        bps[1:, 1] = lview
+        csum += offset
+        bps[1:, 1] = csum
         if len(arr):
             arr = np.concatenate([arr, bps], 0)
         else:
