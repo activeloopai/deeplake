@@ -27,7 +27,9 @@ class UncompressedChunk(BaseChunk):
         if isinstance(incoming_samples, np.ndarray):
             if incoming_samples.dtype == object:
                 if self.htype == "text":
-                    return self._extend_if_has_space_text(incoming_samples, update_tensor_meta)
+                    return self._extend_if_has_space_text(
+                        incoming_samples, update_tensor_meta
+                    )
                 incoming_samples = list(incoming_samples)
             else:
                 return self._extend_if_has_space_numpy(
@@ -42,7 +44,7 @@ class UncompressedChunk(BaseChunk):
     ) -> float:
         lengths = np.zeros(len(incoming_samples), dtype=np.uint32)
         for i, sample in enumerate(incoming_samples):
-            lengths[i] = sample.__len__() # assume ~1 bytes per char
+            lengths[i] = sample.__len__()  # assume ~1 bytes per char
         csum = np.cumsum(lengths)
         min_chunk_size = self.min_chunk_size
         num_data_bytes = self.num_data_bytes
@@ -52,7 +54,7 @@ class UncompressedChunk(BaseChunk):
             if self.data_bytes:
                 return 0
         num_samples = int(min(len(incoming_samples), idx + 1))
-        bts = [s.encode('utf-8') for s in incoming_samples[:num_samples]]
+        bts = [s.encode("utf-8") for s in incoming_samples[:num_samples]]
         self.data_bytes += b"".join(bts)
         bps = np.zeros((num_samples, 3), dtype=ENCODING_DTYPE)
         enc = self.byte_positions_encoder
