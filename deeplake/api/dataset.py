@@ -66,6 +66,7 @@ class dataset:
         token: Optional[str] = None,
         verbose: bool = True,
         access_method: str = "stream",
+        download: Union[bool, str] = False,
     ):
         """Returns a :class:`~deeplake.core.dataset.Dataset` object referencing either a new or existing dataset.
 
@@ -98,18 +99,17 @@ class dataset:
 
                         - Streams the data from the dataset i.e. only fetches data when required. This is the default value.
 
-                    - 'download'
-
-                        - Downloads the data to the local filesystem to the path specified in environment variable ``DEEPLAKE_DOWNLOAD_PATH``.
-                        - Raises an exception if the environment variable is not set, or if the path is not empty.
-                        - Will also raise an exception if the dataset does not exist. The 'download' access method can also be modified to specify num_workers and/or scheduler.
-                        - For example: 'download:2:processed', will use 2 workers and use processed scheduler, while 'download:3' will use 3 workers and default scheduler (threaded), and 'download:processed' will use a single worker and use processed scheduler.
-
                     - 'local'
 
-                        - Used when download was already done in a previous run.
-                        - Doesn't download the data again.
+                        - Loads the local dataset if it was downloaded in a previous run.
+                        - Downloads the dataset to the local filesystem to the path specified by the environment variable ``DEEPLAKE_DOWNLOAD_PATH``
+                          if it doesn't already exist.
                         - Raises an exception if ``DEEPLAKE_DOWNLOAD_PATH`` environment variable is not set or the dataset is not found in ``DEEPLAKE_DOWNLOAD_PATH``.
+
+            download (Union[bool, str]): Downloads the dataset to the local filesystem to the path specified by the environment variable ``DEEPLAKE_DOWNLOAD_PATH`` if True.
+                It can also be a string specifying the number of workers and/or scheduler to be used for the download process.
+                For example: '2:processed', will use 2 workers and use processed scheduler, while '3' will use 3 workers and default scheduler (threaded), and
+                'processed' will use a single worker and use processed scheduler.
 
         Returns:
             Dataset: Dataset created using the arguments provided.
@@ -123,9 +123,16 @@ class dataset:
         Danger:
             Setting ``overwrite`` to ``True`` will delete all of your data if it exists! Be very careful when setting this parameter.
 
+        Warning:
+            Setting ``download`` parameter will overwrite the local copy of the dataset if it was previously downloaded.
+
         Note:
             Any changes made to the dataset in download / local mode will only be made to the local copy and will not be reflected in the original dataset.
         """
+        if download:
+            access_method = "download"
+            if isinstance(download, str):
+                access_method += f":{download}"
         access_method, num_workers, scheduler = parse_access_method(access_method)
         check_access_method(access_method, overwrite)
         path = convert_pathlib_to_string_if_needed(path)
