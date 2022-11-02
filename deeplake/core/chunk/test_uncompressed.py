@@ -117,6 +117,8 @@ def test_read_write_numpy_big():
             data_out = np.array([chunk.read_sample(i) for i in range(num_samples)])
             if num_samples > 0:
                 np.testing.assert_array_equal(data_out, data_in[:num_samples])
+            if num_samples < 0:
+                data_in = list(data_in)
             data_in = data_in[num_samples:]
             prev_num_samples = num_samples
 

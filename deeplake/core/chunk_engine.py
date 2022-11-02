@@ -695,6 +695,9 @@ class ChunkEngine:
         self.cache.maybe_flush()
         return labels
 
+    def _precompute_lengths(self, samples) -> bool:
+        return self.tensor_meta.htype == "text" or (self.chunk_class != SampleCompressedChunk and isinstance(samples, np.ndarray) and samples.dtype != object)
+
     def _samples_to_chunks(
         self,
         samples,
@@ -727,18 +730,11 @@ class ChunkEngine:
         if extending:
             enc_ids = []
             enc_count = [0]
-            if (
-                self.tensor_meta.htype == "text"
-                and self.chunk_class != SampleCompressedChunk
-                and isinstance(samples, np.ndarray)
-            ):
+            if self._precompute_lengths(samples):
                 lengths = np.zeros(len(samples), dtype=np.uint32)
                 for i, s in enumerate(samples):
                     lengths[i] = s.__len__()
-        if lengths is None:
-            extra_args = {}
-        else:
-            extra_args = {"lengths": lengths}
+        extra_args = {"lengths": lengths}
         current_chunk = start_chunk
         updated_chunks = []
         if current_chunk is None:

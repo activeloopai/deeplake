@@ -38,12 +38,12 @@ class ChunkCompressedChunk(BaseChunk):
 
     def extend_if_has_space(self, incoming_samples: List[InputSample], update_tensor_meta: bool = True, lengths: Optional[List[int]] = None) -> float:  # type: ignore
         self.prepare_for_write()
+        if lengths is not None:  # this is triggered only for htype == "text"
+            return self.extend_if_has_space_byte_compression_text(
+                incoming_samples, update_tensor_meta, lengths
+            )
         if self.is_byte_compression:
             if isinstance(incoming_samples, np.ndarray):
-                if incoming_samples.dtype == object and self.htype == "text":
-                    return self.extend_if_has_space_byte_compression_text(
-                        incoming_samples, update_tensor_meta, lengths
-                    )
                 return self.extend_if_has_space_byte_compression_numpy(
                     incoming_samples, update_tensor_meta
                 )

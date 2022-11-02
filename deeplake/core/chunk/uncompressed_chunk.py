@@ -8,9 +8,6 @@ from deeplake.constants import ENCODING_DTYPE
 from .base_chunk import BaseChunk, InputSample
 
 
-_SENTINEL = object()
-
-
 class UncompressedChunk(BaseChunk):
     def extend_if_has_space(  # type: ignore
         self,
@@ -19,12 +16,12 @@ class UncompressedChunk(BaseChunk):
         lengths: Optional[List[int]] = None,
     ) -> float:
         self.prepare_for_write()
+        if lengths is not None:  # this is triggered only for htype == "text"
+            return self._extend_if_has_space_text(
+                incoming_samples, update_tensor_meta, lengths
+            )
         if isinstance(incoming_samples, np.ndarray):
             if incoming_samples.dtype == object:
-                if self.htype == "text":
-                    return self._extend_if_has_space_text(
-                        incoming_samples, update_tensor_meta, lengths
-                    )
                 incoming_samples = list(incoming_samples)
             else:
                 return self._extend_if_has_space_numpy(
