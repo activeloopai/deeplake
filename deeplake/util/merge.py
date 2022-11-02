@@ -375,7 +375,14 @@ def find_new_updated_deleted_and_conflict_indexes(
     target_dataset,
     lca_dataset,
     nodes: Dict[str, CommitNode],
-) -> Tuple[List[int], List[int], List[Tuple[int, int]], List[Tuple[int, int]], List[int], List[int]]:
+) -> Tuple[
+    List[int],
+    List[int],
+    List[Tuple[int, int]],
+    List[Tuple[int, int]],
+    List[int],
+    List[int],
+]:
     """Finds the new, deleted, updated and conflict indexes between the original commit and target commit.
 
     Args:
@@ -432,7 +439,9 @@ def find_new_updated_deleted_and_conflict_indexes(
         new_elements_ids, target_id_changes_commit_map, target_id_to_index_map
     )
 
-    deleted_ids_in_original, deleted_ids_in_target = get_deleted_ids(original_ids, target_ids, lca_ids)
+    deleted_ids_in_original, deleted_ids_in_target = get_deleted_ids(
+        original_ids, target_ids, lca_ids
+    )
 
     updated_ids_in_original = set(original_id_changes_commit_map.keys())
     updated_ids_in_target = set(target_id_changes_commit_map.keys())
@@ -475,6 +484,7 @@ def find_new_updated_deleted_and_conflict_indexes(
         indexes_updated_in_target_and_deleted_in_original,
     )
 
+
 def get_deleted_ids(original_ids, target_ids, lca_ids):
     deleted_ids_in_target = set(lca_ids) - set(target_ids)
     deleted_ids_in_original = set(lca_ids) - set(original_ids)
@@ -482,6 +492,7 @@ def get_deleted_ids(original_ids, target_ids, lca_ids):
     deleted_ids_in_original = deleted_ids_in_original - deleted_in_both
     deleted_ids_in_target = deleted_ids_in_target - deleted_in_both
     return deleted_ids_in_original, deleted_ids_in_target
+
 
 def merge_tensor_data(
     tensor_name: str,
