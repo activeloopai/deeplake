@@ -60,13 +60,10 @@ class ChunkCompressedChunk(BaseChunk):
         update_tensor_meta: bool = True,
         lengths: Optional[List[int]] = None,
     ):
-        if lengths is None:
-            lengths = np.zeros(len(incoming_samples), dtype=np.uint32)
-            for i, sample in enumerate(incoming_samples):
-                lengths[i] = sample.__len__()  # assume ~1 bytes per char
         sample_nbytes = np.mean(lengths)
         min_chunk_size = self.min_chunk_size
         decompressed_bytes = self.decompressed_bytes
+        empty_bts = lambda *_: b""
         while True:
             if sample_nbytes:
                 num_samples = int(
@@ -87,7 +84,7 @@ class ChunkCompressedChunk(BaseChunk):
             if not num_samples:
 
                 # Check if compression ratio is actually better
-                s = incoming_samples[0].encode("utf-8")
+                s = self._text_sample_to_byte_string(incoming_samples[0])
                 new_decompressed = decompressed_bytes + s
                 compressed_bytes = compress_bytes(
                     new_decompressed, compression=self.compression
@@ -108,7 +105,7 @@ class ChunkCompressedChunk(BaseChunk):
                         break
             else:
                 samples_to_chunk = incoming_samples[:num_samples]
-                bts = [s.encode("utf-8") for s in samples_to_chunk]
+                bts = list(map(self._text_sample_to_byte_string, samples_to_chunk))
                 for i, b in enumerate(bts):
                     lengths[i] = len(b)
                 self.decompressed_bytes = b"".join([decompressed_bytes, *bts])
@@ -126,7 +123,7 @@ class ChunkCompressedChunk(BaseChunk):
                 if len(arr) == 1:
                     offset = (arr[0, 2] + 1) * arr[0, 0]
                 else:
-                    offset = (arr[-1, 2] - arr[-2, 2]) * arr[-1, 0]
+                    offset = (arr[-1, 2] - arr[-2, 2]) * arr[-1, 0] + arr[-1, 1]
             else:
                 last_seen = 0
                 offset = 0

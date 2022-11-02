@@ -732,7 +732,12 @@ class ChunkEngine:
             ):
                 lengths = np.zeros(len(samples), dtype=np.uint32)
                 for i, s in enumerate(samples):
-                    lengths[i] = s.__len__()
+                    try:
+                        lengths[i] = s.__len__()
+                    except AttributeError:  # None
+                        lengths[i] = 0
+                    except TypeError:  # Numpy scalar str
+                        lengths[i] = str(s).__len__()
         extra_args = {"lengths": lengths}
         current_chunk = start_chunk
         updated_chunks = []
@@ -794,6 +799,8 @@ class ChunkEngine:
                             sample.tile_shape,
                         )
                     samples = samples[1:]
+                    if lengths is not None:
+                        lengths = lengths[1:]
                     num_samples_added = 1
                 else:
                     num_samples_added = 0

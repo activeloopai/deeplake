@@ -35,10 +35,6 @@ class UncompressedChunk(BaseChunk):
         update_tensor_meta: bool = True,
         lengths=None,
     ) -> float:
-        if lengths is None:
-            lengths = np.zeros(len(incoming_samples), dtype=np.uint32)
-            for i, sample in enumerate(incoming_samples):
-                lengths[i] = sample.__len__()  # assume ~1 bytes per char
         csum = np.cumsum(lengths)
         min_chunk_size = self.min_chunk_size
         num_data_bytes = self.num_data_bytes
@@ -48,7 +44,9 @@ class UncompressedChunk(BaseChunk):
             if self.data_bytes:
                 return 0
         num_samples = int(min(len(incoming_samples), idx + 1))
-        bts = [s.encode("utf-8") for s in incoming_samples[:num_samples]]
+        bts = list(
+            map(self._text_sample_to_byte_string, incoming_samples[:num_samples])
+        )
         self.data_bytes += b"".join(bts)
         bps = np.zeros((num_samples, 3), dtype=ENCODING_DTYPE)
         enc = self.byte_positions_encoder
@@ -58,7 +56,7 @@ class UncompressedChunk(BaseChunk):
             if len(arr) == 1:
                 offset = (arr[0, 2] + 1) * arr[0, 0]
             else:
-                offset = (arr[-1, 2] - arr[-2, 2]) * arr[-1, 0]
+                offset = (arr[-1, 2] - arr[-2, 2]) * arr[-1, 0] + arr[-1, 1]
         else:
             last_seen = 0
             offset = 0
