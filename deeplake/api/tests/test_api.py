@@ -1487,13 +1487,14 @@ def test_auto_htype(memory_ds):
     assert ds.f.htype == "json"
 
 
-def test_sample_shape(memory_ds):
+@pytest.mark.parametrize("args", [{}, {"sample_compression": "lz4"}, {"chunk_compression": "lz4"}])
+def test_sample_shape(memory_ds, args):
     ds = memory_ds
     with ds:
-        ds.create_tensor("w")
-        ds.create_tensor("x")
-        ds.create_tensor("y")
-        ds.create_tensor("z")
+        ds.create_tensor("w", **args)
+        ds.create_tensor("x", **args)
+        ds.create_tensor("y", **args)
+        ds.create_tensor("z", **args)
         ds.w.extend(np.zeros((5, 4, 3, 2)))
         ds.x.extend(np.ones((5, 4000, 5000)))
         ds.y.extend([np.zeros((2, 3)), np.ones((3, 2))])

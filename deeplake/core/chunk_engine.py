@@ -40,6 +40,7 @@ from deeplake.constants import (
     DEFAULT_MAX_CHUNK_SIZE,
     FIRST_COMMIT_ID,
     PARTIAL_NUM_SAMPLES,
+    FAST_EXTEND_BAIL,
     RANDOM_MAX_ALLOWED_CHUNK_SIZE,
     RANDOM_MINIMAL_CHUNK_SIZE,
     DEFAULT_MAX_CHUNK_SIZE,
@@ -85,7 +86,7 @@ from deeplake.util.exceptions import (
 from deeplake.util.remove_cache import get_base_storage
 from deeplake.util.image import convert_sample, convert_img_arr
 from deeplake.util.class_label import convert_to_idx, convert_to_hash
-from deeplake.compression import VIDEO_COMPRESSIONS
+from deeplake.compression import BYTE_COMPRESSION, VIDEO_COMPRESSIONS, get_compression_type
 from deeplake.core.sample import Sample
 from itertools import chain, repeat
 from collections.abc import Iterable
@@ -191,17 +192,26 @@ class ChunkEngine:
         self._all_chunk_engines: Optional[Dict[str, ChunkEngine]] = None
         self._is_temp_label_tensor: bool = False
         self._hash_label_map: Dict[int, str] = OrderedDict()
+        self._sample_compression = None
+        self._chunk_compression = None
 
         tensor_meta = self.tensor_meta
+        numpy_extend_optimization_enabled = False
 
         if tensor_meta.sample_compression:
-            self.compression = tensor_meta.sample_compression
+            self._sample_compression = self.compression = tensor_meta.sample_compression
             self.chunk_class = SampleCompressedChunk
+
         elif tensor_meta.chunk_compression:
-            self.compression = tensor_meta.chunk_compression
+            self._chunk_compression = self.compression = tensor_meta.chunk_compression
             self.chunk_class = ChunkCompressedChunk
+            if get_compression_type(tensor_meta.chunk_compression) == BYTE_COMPRESSION:
+                numpy_extend_optimization_enabled = True
         else:
             self.chunk_class = UncompressedChunk
+            numpy_extend_optimization_enabled = True
+
+        self._numpy_extend_optimization_enabled = numpy_extend_optimization_enabled
 
         self.cached_data: Optional[np.ndarray] = None
         self.cache_range: range = range(0)
@@ -210,6 +220,14 @@ class ChunkEngine:
         self._num_samples_per_chunk: Optional[int] = None
         self.write_initialization_done = False
         self.start_chunk = None
+
+    @property
+    def sample_compression(self):
+        return self._sample_compression
+
+    @property
+    def chunk_compression(self):
+        return self._chunk_compression
 
     @property
     def is_data_cachable(self):
@@ -613,16 +631,14 @@ class ChunkEngine:
     def _convert_to_list(self, samples):
         return False
 
-    def check_each_sample(self, samples, verify_creds_key_exists=True):
+    def check_each_sample(self, samples, verify=True):
         return
 
-    def _sanitize_samples(self, samples, verify_creds_key_exists=True):
+    def _sanitize_samples(self, samples, verify=True):
         check_samples_type(samples)
         if isinstance(samples, list):
             samples = [None if is_empty_list(sample) else sample for sample in samples]
-        verified_samples = self.check_each_sample(
-            samples, verify_creds_key_exists=verify_creds_key_exists
-        )
+        verified_samples = self.check_each_sample(samples, verify=verify)
         tensor_meta = self.tensor_meta
         all_empty = all(sample is None for sample in samples)
         if tensor_meta.htype is None and not all_empty:
@@ -712,7 +728,9 @@ class ChunkEngine:
                 and self.chunk_class == UncompressedChunk
                 and isinstance(samples, np.ndarray)
             ):
-                lengths = [s.__len__() for s in samples]
+                lengths = np.zeros(len(samples), dtype=np.uint32)
+                for i, s in enumerate(samples):
+                    lengths[i] = s.__len__()
         if lengths is None:
             extra_args = {}
         else:
@@ -736,6 +754,9 @@ class ChunkEngine:
             commit_diff = self.commit_diff
         if progressbar:
             pbar = tqdm(total=len(samples))
+        if not isinstance(samples, list) and not (isinstance(samples, np.ndarray) and self._numpy_extend_optimization_enabled):
+            # Note: in the future we can get rid of this conversion of sample compressed chunks too by predicting the compression ratio.
+            samples = list(samples)
         while len(samples) > 0:
             num_samples_added = current_chunk.extend_if_has_space(
                 samples, update_tensor_meta=update_tensor_meta, **extra_args
@@ -772,6 +793,9 @@ class ChunkEngine:
                             sample.tile_shape,
                         )
                     samples = samples[1:]
+                    num_samples_added = 1
+                else:
+                    num_samples_added = 0
                 if len(samples) > 0:
                     current_chunk = self._create_new_chunk(
                         register and start_chunk_row is not None, row=start_chunk_row
@@ -783,6 +807,9 @@ class ChunkEngine:
                         enc_ids.append(current_chunk.id)
                         enc_count.append(0)
                     updated_chunks.append(current_chunk)
+            elif num_samples_added == FAST_EXTEND_BAIL:
+                num_samples_added = 0
+                samples = list(samples)
             else:
                 if not updated_chunks:
                     updated_chunks.append(current_chunk)
@@ -1139,9 +1166,7 @@ class ChunkEngine:
             row=new_chunk_row, num_samples=num_samples
         )
         chunk.pop_multiple(num_samples=len(samples_to_move))
-        samples, _ = self._sanitize_samples(
-            samples_to_move, verify_creds_key_exists=False
-        )
+        samples, _ = self._sanitize_samples(samples_to_move, verify=False)
         self._samples_to_chunks(
             samples,
             start_chunk=new_chunk,
@@ -1165,9 +1190,7 @@ class ChunkEngine:
             return True
 
         from_chunk.pop_multiple(num_samples=num_samples)
-        samples, _ = self._sanitize_samples(
-            samples_to_move, verify_creds_key_exists=False
-        )
+        samples, _ = self._sanitize_samples(samples_to_move, verify=False)
         to_chunk.is_dirty = True
         self.active_updated_chunk = to_chunk
         self._samples_to_chunks(
@@ -1377,7 +1400,7 @@ class ChunkEngine:
         self._update(index1, arr)
 
     def read_bytes_for_sample(self, global_sample_index: int) -> bytes:
-        if self.tensor_meta.chunk_compression:
+        if self.chunk_compression:
             raise Exception(
                 "Cannot retreive original bytes for samples in chunk-wise compressed tensors."
             )
@@ -1438,7 +1461,7 @@ class ChunkEngine:
         decompress: bool = True,
     ) -> np.ndarray:
         enc = self.chunk_id_encoder
-        if self.is_fixed_shape and self.tensor_meta.sample_compression is None:
+        if self.is_fixed_shape and self.sample_compression is None:
             num_samples_per_chunk = self.num_samples_per_chunk
             local_sample_index = global_sample_index % num_samples_per_chunk
         else:
@@ -1545,7 +1568,7 @@ class ChunkEngine:
                 num_shape_entries = 1 * (len(self.tensor_meta.min_shape) + 1)
                 if self.is_text_like:
                     num_bytes_entries = num_samples_in_chunk * 3
-                elif self.tensor_meta.sample_compression is None:
+                elif self.sample_compression is None:
                     num_bytes_entries = 1 * 3
                 else:
                     num_bytes_entries = num_samples_in_chunk * 3
@@ -1863,12 +1886,16 @@ class ChunkEngine:
                 self.write_chunk_to_storage(self.active_updated_chunk)
             self.active_updated_chunk = chunk_to_update
         if delete:
-            for chunk_key in map(self.get_chunk_key_for_id, chunk_ids):
-                self.check_remove_active_chunks(chunk_key)
-                try:
-                    del self.cache[chunk_key]
-                except KeyError:
-                    pass
+            for chunk_id in chunk_ids:
+                chunk_name = ChunkIdEncoder.name_from_id(chunk_id)
+                commit_id = self.get_chunk_commit(chunk_name)
+                if commit_id == self.commit_id:
+                    chunk_key = get_chunk_key(self.key, chunk_name, commit_id)
+                    self.check_remove_active_chunks(chunk_key)
+                    try:
+                        del self.cache[chunk_key]
+                    except KeyError:
+                        pass
 
         self.tensor_meta.pop(global_sample_index)
 

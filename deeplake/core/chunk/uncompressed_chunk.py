@@ -123,9 +123,7 @@ class UncompressedChunk(BaseChunk):
                     if tiling_threshold < 0 or elem.nbytes < tiling_threshold:
                         num_samples = 1
                     else:
-                        return self._extend_if_has_space_list(
-                            list(incoming_samples), update_tensor_meta
-                        )
+                        return -1  # Bail. Chunk engine will try again with incoming_samples as list.
         samples = incoming_samples[:num_samples]
         chunk_dtype = self.dtype
         samples_dtype = incoming_samples.dtype

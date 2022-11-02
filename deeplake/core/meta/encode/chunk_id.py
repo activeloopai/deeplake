@@ -302,6 +302,7 @@ class ChunkIdEncoder(Encoder, DeepLakeMemoryObject):
 
             if num_samples_in_chunk == 1:
                 self._encoded = np.delete(self._encoded, row, axis=0)
+                self._encoded[row:, LAST_SEEN_INDEX_COLUMN] -= 1
                 to_delete = True
             elif num_samples_in_chunk > 1:
                 self._encoded[row:, LAST_SEEN_INDEX_COLUMN] -= 1

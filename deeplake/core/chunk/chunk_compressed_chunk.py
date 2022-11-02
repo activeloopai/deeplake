@@ -14,7 +14,7 @@ from deeplake.core.tiling.sample_tiles import SampleTiles
 from deeplake.core.polygon import Polygons
 from deeplake.util.casting import intelligent_cast
 from deeplake.util.compression import get_compression_ratio
-from deeplake.util.exceptions import EmptyTensorError
+from deeplake.util.exceptions import EmptyTensorError, TensorDtypeMismatchError
 from .base_chunk import BaseChunk, InputSample
 from deeplake.core.serialize import infer_chunk_num_bytes
 import deeplake
@@ -51,6 +51,19 @@ class ChunkCompressedChunk(BaseChunk):
         update_tensor_meta: bool = True,
     ):
         sample = incoming_samples[0]
+        chunk_dtype = self.dtype
+        sample_dtype = sample.dtype
+        if chunk_dtype == sample_dtype:
+            cast = False
+        else:
+            if sample.size:
+                if not np.can_cast(sample_dtype, chunk_dtype):
+                    raise TensorDtypeMismatchError(
+                        chunk_dtype,
+                        sample_dtype,
+                        self.htype,
+                    )
+            cast = True
         sample_nbytes = sample.nbytes
         num_samples = len(incoming_samples)
         min_chunk_size = self.min_chunk_size
@@ -59,14 +72,17 @@ class ChunkCompressedChunk(BaseChunk):
             expected_compressed_bytes = (
                 len(decompressed_bytes) + sample_nbytes * num_samples
             ) * self._compression_ratio
+            samples_to_chunk = incoming_samples[:num_samples]
+            if cast:
+                samples_to_chunk = samples_to_chunk.astype(chunk_dtype)
             if expected_compressed_bytes <= min_chunk_size:
                 self.decompressed_bytes = (
-                    decompressed_bytes + incoming_samples[:num_samples].tobytes()
+                    decompressed_bytes + samples_to_chunk.tobytes()
                 )
                 self._changed = True
                 break
             new_decompressed = (
-                decompressed_bytes + incoming_samples[:num_samples].tobytes()
+                decompressed_bytes + samples_to_chunk.tobytes()
             )
             compressed_bytes = compress_bytes(
                 new_decompressed, compression=self.compression
@@ -84,8 +100,11 @@ class ChunkCompressedChunk(BaseChunk):
                     tiling_threshold < 0 or len(compressed_bytes) < tiling_threshold
                 ):
                     num_samples = 1
+                    samples_to_chunk = incoming_samples[:1]
+                    if cast:
+                        samples_to_chunk = samples_to_chunk.astype(chunk_dtype)
                     self.decompressed_bytes = (
-                        decompressed_bytes + incoming_samples[0].tobytes()
+                        decompressed_bytes + samples_to_chunk.tobytes()
                     )
                     self._changed = True
                 break
