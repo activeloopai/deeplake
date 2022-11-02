@@ -1639,7 +1639,7 @@ class Dataset:
         Querying datasets is part of our Growth and Enterprise Plan .
 
         - Users of our Community plan can only perform queries on Activeloop datasets ("hub://activeloop/..." datasets).
-        - To run queries on your own datasets, `upgrade your organization's plan <https://app.activeloop.ai/pricing>`_.
+        - To run queries on your own datasets, `upgrade your organization's plan <https://www.activeloop.ai/pricing/>`_.
         """
         from deeplake.experimental import query
 
@@ -3548,7 +3548,7 @@ class Dataset:
 
     @property
     def max_view(self):
-        """Returns a view of the dataset in which tensors are padded to have the same length as
+        """Returns a view of the dataset in which shorter tensors are padded with ``None`` s to have the same length as
         the longest tensor.
 
         Example:

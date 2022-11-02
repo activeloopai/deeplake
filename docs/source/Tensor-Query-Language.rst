@@ -11,7 +11,7 @@ as well as in :meth:`ds.query <deeplake.core.dataset.Dataset.query>` in our Pyth
 
 Querying datasets is part of our Growth and Enterprise Plan.
     - Users of our Community plan can only perform queries on Activeloop datasets ("hub://activeloop/..." datasets).
-    - To run queries on your own datasets, `upgrade your organization's plan <https://app.activeloop.ai/pricing>`_.
+    - To run queries on your own datasets, `upgrade your organization's plan <https://www.activeloop.ai/pricing/>`_.
 
 Language
 ~~~~~~~~
