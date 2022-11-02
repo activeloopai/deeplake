@@ -86,7 +86,11 @@ from deeplake.util.exceptions import (
 from deeplake.util.remove_cache import get_base_storage
 from deeplake.util.image import convert_sample, convert_img_arr
 from deeplake.util.class_label import convert_to_idx, convert_to_hash
-from deeplake.compression import BYTE_COMPRESSION, VIDEO_COMPRESSIONS, get_compression_type
+from deeplake.compression import (
+    BYTE_COMPRESSION,
+    VIDEO_COMPRESSIONS,
+    get_compression_type,
+)
 from deeplake.core.sample import Sample
 from itertools import chain, repeat
 from collections.abc import Iterable
@@ -725,7 +729,7 @@ class ChunkEngine:
             enc_count = [0]
             if (
                 self.tensor_meta.htype == "text"
-                and self.chunk_class == UncompressedChunk
+                and self.chunk_class != SampleCompressedChunk
                 and isinstance(samples, np.ndarray)
             ):
                 lengths = np.zeros(len(samples), dtype=np.uint32)
@@ -754,7 +758,9 @@ class ChunkEngine:
             commit_diff = self.commit_diff
         if progressbar:
             pbar = tqdm(total=len(samples))
-        if not isinstance(samples, list) and not (isinstance(samples, np.ndarray) and self._numpy_extend_optimization_enabled):
+        if not isinstance(samples, list) and not (
+            isinstance(samples, np.ndarray) and self._numpy_extend_optimization_enabled
+        ):
             # Note: in the future we can get rid of this conversion of sample compressed chunks too by predicting the compression ratio.
             samples = list(samples)
         while len(samples) > 0:

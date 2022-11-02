@@ -1,5 +1,5 @@
 import numpy as np
-from typing import List
+from typing import List, Optional
 from deeplake.core.compression import (
     compress_bytes,
     compress_multiple,
@@ -17,6 +17,7 @@ from deeplake.util.compression import get_compression_ratio
 from deeplake.util.exceptions import EmptyTensorError, TensorDtypeMismatchError
 from .base_chunk import BaseChunk, InputSample
 from deeplake.core.serialize import infer_chunk_num_bytes
+from deeplake.constants import ENCODING_DTYPE
 import deeplake
 
 
@@ -35,15 +36,115 @@ class ChunkCompressedChunk(BaseChunk):
         self._changed = False
         self._compression_ratio = 0.5
 
-    def extend_if_has_space(self, incoming_samples: List[InputSample], update_tensor_meta: bool = True) -> float:  # type: ignore
+    def extend_if_has_space(self, incoming_samples: List[InputSample], update_tensor_meta: bool = True, lengths: Optional[List[int]] = None) -> float:  # type: ignore
         self.prepare_for_write()
         if self.is_byte_compression:
+            if isinstance(incoming_samples, np.ndarray):
+                if incoming_samples.dtype == object and self.htype == "text":
+                    return self.extend_if_has_space_byte_compression_text(
+                        incoming_samples, update_tensor_meta, lengths
+                    )
+                return self.extend_if_has_space_byte_compression_numpy(
+                    incoming_samples, update_tensor_meta
+                )
             return self.extend_if_has_space_byte_compression(
                 incoming_samples, update_tensor_meta=update_tensor_meta
             )
         return self.extend_if_has_space_image_compression(
             incoming_samples, update_tensor_meta=update_tensor_meta
         )
+
+    def extend_if_has_space_byte_compression_text(
+        self,
+        incoming_samples: np.ndarray,
+        update_tensor_meta: bool = True,
+        lengths: Optional[List[int]] = None,
+    ):
+        if lengths is None:
+            lengths = np.zeros(len(incoming_samples), dtype=np.uint32)
+            for i, sample in enumerate(incoming_samples):
+                lengths[i] = sample.__len__()  # assume ~1 bytes per char
+        sample_nbytes = np.mean(lengths)
+        min_chunk_size = self.min_chunk_size
+        decompressed_bytes = self.decompressed_bytes
+        while True:
+            if sample_nbytes:
+                num_samples = int(
+                    max(
+                        0,
+                        min(
+                            len(incoming_samples),
+                            (
+                                (min_chunk_size / self._compression_ratio)
+                                - len(decompressed_bytes)
+                            )
+                            // sample_nbytes,
+                        ),
+                    )
+                )
+            else:
+                num_samples = len(incoming_samples)
+            if not num_samples:
+
+                # Check if compression ratio is actually better
+                s = incoming_samples[0].encode("utf-8")
+                new_decompressed = decompressed_bytes + s
+                compressed_bytes = compress_bytes(
+                    new_decompressed, compression=self.compression
+                )
+
+                if len(compressed_bytes) <= min_chunk_size:
+                    self._compression_ratio /= 2
+                    continue
+                else:
+                    if self.decompressed_bytes:
+                        break
+                    else:
+                        self.decompressed_bytes = new_decompressed
+                        self._data_bytes = compressed_bytes
+                        self._changed = False
+                        num_samples = 1
+                        lengths[0] = len(s)
+                        break
+            else:
+                samples_to_chunk = incoming_samples[:num_samples]
+                bts = [s.encode("utf-8") for s in samples_to_chunk]
+                for i, b in enumerate(bts):
+                    lengths[i] = len(b)
+                self.decompressed_bytes = b"".join([decompressed_bytes, *bts])
+                del bts
+                self._changed = True
+                break
+        if num_samples:
+            lview = lengths[:num_samples]
+            csum = np.cumsum(lengths[: num_samples - 1])
+            bps = np.zeros((num_samples, 3), dtype=ENCODING_DTYPE)
+            enc = self.byte_positions_encoder
+            arr = enc._encoded
+            if len(arr):
+                last_seen = arr[-1, 2] + 1
+                if len(arr) == 1:
+                    offset = (arr[0, 2] + 1) * arr[0, 0]
+                else:
+                    offset = (arr[-1, 2] - arr[-2, 2]) * arr[-1, 0]
+            else:
+                last_seen = 0
+                offset = 0
+            bps[:, 2] = np.arange(last_seen, num_samples + last_seen)
+            bps[0, 1] = offset
+            bps[:, 0] = lview
+            csum += offset
+            bps[1:, 1] = csum
+            if len(arr):
+                arr = np.concatenate([arr, bps], 0)
+            else:
+                arr = bps
+            enc._encoded = arr
+            shape = (1,)
+            self.register_sample_to_headers(None, shape, num_samples=num_samples)
+            if update_tensor_meta:
+                self.update_tensor_meta(shape, num_samples)
+        return num_samples
 
     def extend_if_has_space_byte_compression_numpy(
         self,
@@ -55,6 +156,7 @@ class ChunkCompressedChunk(BaseChunk):
         sample_dtype = sample.dtype
         if chunk_dtype == sample_dtype:
             cast = False
+            sample_nbytes = sample.nbytes
         else:
             if sample.size:
                 if not np.can_cast(sample_dtype, chunk_dtype):
@@ -64,49 +166,58 @@ class ChunkCompressedChunk(BaseChunk):
                         self.htype,
                     )
             cast = True
-        sample_nbytes = sample.nbytes
-        num_samples = len(incoming_samples)
+            sample_nbytes = np.dtype(chunk_dtype).itemsize * sample.size
         min_chunk_size = self.min_chunk_size
         decompressed_bytes = self.decompressed_bytes
         while True:
-            expected_compressed_bytes = (
-                len(decompressed_bytes) + sample_nbytes * num_samples
-            ) * self._compression_ratio
-            samples_to_chunk = incoming_samples[:num_samples]
-            if cast:
-                samples_to_chunk = samples_to_chunk.astype(chunk_dtype)
-            if expected_compressed_bytes <= min_chunk_size:
+            if sample_nbytes:
+                num_samples = int(
+                    max(
+                        0,
+                        min(
+                            len(incoming_samples),
+                            (
+                                (min_chunk_size / self._compression_ratio)
+                                - len(decompressed_bytes)
+                            )
+                            // sample_nbytes,
+                        ),
+                    )
+                )
+            else:
+                num_samples = len(incoming_samples)
+            if not num_samples:
+
+                # Check if compression ratio is actually better
+                samples_to_chunk = incoming_samples[:1]
+                if cast:
+                    samples_to_chunk = samples_to_chunk.astype(chunk_dtype)
+
+                new_decompressed = decompressed_bytes + samples_to_chunk.tobytes()
+                compressed_bytes = compress_bytes(
+                    new_decompressed, compression=self.compression
+                )
+
+                if len(compressed_bytes) <= min_chunk_size:
+                    self._compression_ratio /= 2
+                    continue
+                else:
+                    if self.decompressed_bytes:
+                        break
+                    else:
+                        self.decompressed_bytes = new_decompressed
+                        self._data_bytes = compressed_bytes
+                        self._changed = False
+                        num_samples = 1
+                        break
+            else:
+                samples_to_chunk = incoming_samples[:num_samples]
+                if cast:
+                    samples_to_chunk = samples_to_chunk.astype(chunk_dtype)
                 self.decompressed_bytes = (
                     decompressed_bytes + samples_to_chunk.tobytes()
                 )
                 self._changed = True
-                break
-            new_decompressed = (
-                decompressed_bytes + samples_to_chunk.tobytes()
-            )
-            compressed_bytes = compress_bytes(
-                new_decompressed, compression=self.compression
-            )
-            if len(compressed_bytes) <= min_chunk_size:
-                self._compression_ratio /= 2
-                self.decompressed_bytes = new_decompressed
-                self._data_bytes = compressed_bytes
-                self._changed = False
-                break
-            num_samples //= 2
-            if not num_samples:
-                tiling_threshold = self.tiling_threshold
-                if not self.decompressed_bytes and (
-                    tiling_threshold < 0 or len(compressed_bytes) < tiling_threshold
-                ):
-                    num_samples = 1
-                    samples_to_chunk = incoming_samples[:1]
-                    if cast:
-                        samples_to_chunk = samples_to_chunk.astype(chunk_dtype)
-                    self.decompressed_bytes = (
-                        decompressed_bytes + samples_to_chunk.tobytes()
-                    )
-                    self._changed = True
                 break
         if num_samples:
             self.register_in_meta_and_headers(
@@ -122,15 +233,6 @@ class ChunkCompressedChunk(BaseChunk):
         incoming_samples: List[InputSample],
         update_tensor_meta: bool = True,
     ):
-
-        if (
-            isinstance(incoming_samples, np.ndarray)
-            and incoming_samples.dtype != object
-        ):
-            return self.extend_if_has_space_byte_compression_numpy(
-                incoming_samples, update_tensor_meta
-            )
-
         num_samples = 0
 
         for i, incoming_sample in enumerate(incoming_samples):

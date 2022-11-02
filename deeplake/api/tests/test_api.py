@@ -1487,7 +1487,9 @@ def test_auto_htype(memory_ds):
     assert ds.f.htype == "json"
 
 
-@pytest.mark.parametrize("args", [{}, {"sample_compression": "lz4"}, {"chunk_compression": "lz4"}])
+@pytest.mark.parametrize(
+    "args", [{}, {"sample_compression": "lz4"}, {"chunk_compression": "lz4"}]
+)
 def test_sample_shape(memory_ds, args):
     ds = memory_ds
     with ds:

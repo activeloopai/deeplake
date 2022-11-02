@@ -3,7 +3,6 @@ from typing import List, Union, Optional
 from deeplake.core.serialize import check_sample_shape, bytes_to_text
 from deeplake.core.tiling.sample_tiles import SampleTiles
 from deeplake.core.polygon import Polygons
-from deeplake.util.casting import intelligent_cast
 from deeplake.util.exceptions import EmptyTensorError, TensorDtypeMismatchError
 from deeplake.constants import ENCODING_DTYPE
 from .base_chunk import BaseChunk, InputSample
@@ -80,11 +79,10 @@ class UncompressedChunk(BaseChunk):
         else:
             arr = bps
         enc._encoded = arr
-        # for i in range(num_samples):
-        #     self.byte_positions_encoder.register_samples(len(bts[i]), 1)
         shape = (1,)
         self.register_sample_to_headers(None, shape, num_samples=num_samples)
-        self.update_tensor_meta(shape, num_samples)
+        if update_tensor_meta:
+            self.update_tensor_meta(shape, num_samples)
         return num_samples
 
     def _extend_if_has_space_numpy(
@@ -123,7 +121,9 @@ class UncompressedChunk(BaseChunk):
                     if tiling_threshold < 0 or elem.nbytes < tiling_threshold:
                         num_samples = 1
                     else:
-                        return -1  # Bail. Chunk engine will try again with incoming_samples as list.
+                        return (
+                            -1
+                        )  # Bail. Chunk engine will try again with incoming_samples as list.
         samples = incoming_samples[:num_samples]
         chunk_dtype = self.dtype
         samples_dtype = incoming_samples.dtype
