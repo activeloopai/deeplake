@@ -63,7 +63,6 @@ class ChunkCompressedChunk(BaseChunk):
         sample_nbytes = np.mean(lengths)
         min_chunk_size = self.min_chunk_size
         decompressed_bytes = self.decompressed_bytes
-        empty_bts = lambda *_: b""
         while True:
             if sample_nbytes:
                 num_samples = int(
