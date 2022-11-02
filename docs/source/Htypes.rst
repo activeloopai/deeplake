@@ -649,8 +649,8 @@ use them just by adding the keys to your dataset. For example if you have manage
 Point Cloud Htype
 ~~~~~~~~~~~
 
-- :bluebold:`Sample dimensions:` ``(#num_points, 3)``
-- Point CLoud samples can be of type ``np.ndarray`` or :class:`~deeplake.core.sample.Sample` which is returned by :meth:`deeplake.read`.
+- :bluebold:`Sample dimensions:` ``(# num_points, 3)``
+- Point Cloud samples can be of type ``np.ndarray`` or :class:`~deeplake.core.sample.Sample` which is returned by :meth:`deeplake.read`.
 - Each sample in a tensor of ``point_cloud`` htype is a point cloud array.
 - Each point_cloud is a list / array of points.
 - All points in a sample should have the same number of co-ordinates (eg., cannot mix 2-D points with 3-D points).
