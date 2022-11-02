@@ -1,8 +1,7 @@
-
-
 from functools import wraps
 from typing import Callable
 import deeplake
+
 
 def suppress_iteration_warning(callable: Callable):
     @wraps(callable)
