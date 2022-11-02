@@ -16,8 +16,8 @@ text, str, None
 json, Any, None
 list, List, None
 dicom, None, dcm
-:ref: `point_cloud <point-cloud-htype>, None, las
-:ref: `mesh <mesh-htype>`, None, ply
+:ref:`point_cloud <point-cloud-htype>`, None, las
+:ref:`mesh <mesh-htype>`, None, ply
 instance_label, uint32, None
 :ref:`link <link-htype>`, str, None
 :ref:`sequence <sequence-htype>`, None, None
