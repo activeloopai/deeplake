@@ -727,7 +727,9 @@ class ChunkEngine:
         if extending:
             enc_ids = []
             enc_count = [0]
-            if self.tensor_meta.htype == "text" and (self.chunk_class != SampleCompressedChunk):
+            if self.tensor_meta.htype == "text" and (
+                self.chunk_class != SampleCompressedChunk
+            ):
                 lengths = np.zeros(len(samples), dtype=np.uint32)
                 for i, s in enumerate(samples):
                     lengths[i] = s.__len__()
