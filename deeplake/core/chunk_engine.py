@@ -753,8 +753,10 @@ class ChunkEngine:
             updated_chunks.append(current_chunk)
             if extending:
                 enc_ids.append(current_chunk.id)
-        elif extending:
-            enc_ids.append(None)
+        else:
+            current_chunk._update_tensor_meta_length = False
+            if extending:
+                enc_ids.append(None)
         enc = self.chunk_id_encoder
         tiles = {}
         if register and update_commit_diff:
