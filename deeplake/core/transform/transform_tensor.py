@@ -130,7 +130,9 @@ class TransformTensor:
     def extend(self, items):
         """Adds multiple items to the tensor."""
         if self._numpy_only:
-            if isinstance(items, np.ndarray):
+            if isinstance(items, np.ndarray) or (
+                isinstance(items, list) and set(map(type, items)) in {{}, {np.ndarray}}
+            ):
                 try:
                     incoming_ndim = items.ndim
                     incoming_shape = items.shape

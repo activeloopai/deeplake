@@ -419,6 +419,7 @@ class BaseChunk(DeepLakeMemoryObject):
             incoming_num_bytes (int): The length of the buffer that was used to
             sample_shape (Tuple[int]): Every sample that `num_samples` symbolizes is considered to have `sample_shape`.
             num_samples (int): Number of incoming samples.
+
         Raises:
             ValueError: If `incoming_num_bytes` is not divisible by `num_samples`.
         """
