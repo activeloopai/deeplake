@@ -794,3 +794,7 @@ class BadLinkError(Exception):
     def __init__(self):
         message = "Verification of link failed. Make sure that the link you are trying to append is correct."
         super().__init__(message)
+
+
+class IngestionError(Exception):
+    pass
