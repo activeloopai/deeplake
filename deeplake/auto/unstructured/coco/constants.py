@@ -9,5 +9,6 @@ DEFAULT_COCO_TENSOR_PARAMS = {
     },
     "category_id": {"htype": "class_label", "sample_compression": None},
     "bbox": {"htype": "bbox", "sample_compression": None},
+    "keypoints": {"htype": "keypoints_coco" },
     "_other": DEFAULT_GENERIC_TENSOR_PARAMS,
 }
