@@ -56,15 +56,15 @@ class ChunkCompressedChunk(BaseChunk):
 
     def extend_if_has_space_byte_compression_text(
         self,
-        incoming_samples: np.ndarray,
+        incoming_samples: List[InputSample],
         update_tensor_meta: bool = True,
-        lengths: Optional[List[int]] = None,
+        lengths: List[int] = [],
     ):
         sample_nbytes = np.mean(lengths)
         min_chunk_size = self.min_chunk_size
         decompressed_bytes = self.decompressed_bytes
         while True:
-            if sample_nbytes:
+            if sample_nbytes and decompressed_bytes:
                 num_samples = int(
                     max(
                         0,
@@ -102,7 +102,7 @@ class ChunkCompressedChunk(BaseChunk):
                         num_samples = 1
                         lengths[0] = len(s)
                         break
-            else:
+            elif decompressed_bytes:
                 samples_to_chunk = incoming_samples[:num_samples]
                 bts = list(map(self._text_sample_to_byte_string, samples_to_chunk))
                 for i, b in enumerate(bts):
@@ -166,7 +166,7 @@ class ChunkCompressedChunk(BaseChunk):
         min_chunk_size = self.min_chunk_size
         decompressed_bytes = self.decompressed_bytes
         while True:
-            if sample_nbytes:
+            if sample_nbytes and decompressed_bytes:
                 num_samples = int(
                     max(
                         0,
@@ -182,7 +182,7 @@ class ChunkCompressedChunk(BaseChunk):
                 )
             else:
                 num_samples = len(incoming_samples)
-            if not num_samples:
+            if not num_samples and decompressed_bytes:
 
                 # Check if compression ratio is actually better
                 samples_to_chunk = incoming_samples[:1]
@@ -206,7 +206,7 @@ class ChunkCompressedChunk(BaseChunk):
                         self._changed = False
                         num_samples = 1
                         break
-            else:
+            elif decompressed_bytes:
                 samples_to_chunk = incoming_samples[:num_samples]
                 if cast:
                     samples_to_chunk = samples_to_chunk.astype(chunk_dtype)

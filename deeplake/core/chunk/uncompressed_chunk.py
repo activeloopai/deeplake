@@ -43,11 +43,11 @@ class UncompressedChunk(BaseChunk):
         if not idx and csum[0] > space_left:
             if self.data_bytes:
                 return 0
-        num_samples = int(min(len(incoming_samples), idx + 1))
+        num_samples = int(min(len(incoming_samples), idx + 1))  # type: ignore
         bts = list(
             map(self._text_sample_to_byte_string, incoming_samples[:num_samples])
         )
-        self.data_bytes += b"".join(bts)
+        self.data_bytes += b"".join(bts)  # type: ignore
         bps = np.zeros((num_samples, 3), dtype=ENCODING_DTYPE)
         enc = self.byte_positions_encoder
         arr = enc._encoded
@@ -131,7 +131,7 @@ class UncompressedChunk(BaseChunk):
                         self.htype,
                     )
             samples = samples.astype(chunk_dtype)
-        self.data_bytes += samples.tobytes()
+        self.data_bytes += samples.tobytes()  # type: ignore
         self.register_in_meta_and_headers(
             samples[0].nbytes,
             shape,

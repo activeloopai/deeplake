@@ -752,7 +752,7 @@ class ChunkEngine:
             current_chunk._update_tensor_meta_length = False
             updated_chunks.append(current_chunk)
             if extending:
-                enc_ids.append(current_chunk.id)
+                enc_ids.append(current_chunk.id)  # type: ignore
         else:
             current_chunk._update_tensor_meta_length = False
             if extending:
@@ -770,7 +770,7 @@ class ChunkEngine:
             samples = list(samples)
         while len(samples) > 0:
             num_samples_added = current_chunk.extend_if_has_space(
-                samples, update_tensor_meta=update_tensor_meta, **extra_args
+                samples, update_tensor_meta=update_tensor_meta, **extra_args  # type: ignore
             )  # type: ignore
             if register_creds:
                 self.register_new_creds(num_samples_added, samples)
@@ -782,7 +782,7 @@ class ChunkEngine:
                 if start_chunk_row is not None:
                     start_chunk_row += 1
                 elif register:
-                    enc_ids.append(current_chunk.id)
+                    enc_ids.append(current_chunk.id)  # type: ignore
                     enc_count.append(0)
                 updated_chunks.append(current_chunk)
             elif num_samples_added == PARTIAL_NUM_SAMPLES:
@@ -817,7 +817,7 @@ class ChunkEngine:
                     if start_chunk_row is not None:
                         start_chunk_row += 1
                     elif register:
-                        enc_ids.append(current_chunk.id)
+                        enc_ids.append(current_chunk.id)  # type: ignore
                         enc_count.append(0)
                     updated_chunks.append(current_chunk)
             elif num_samples_added == FAST_EXTEND_BAIL:
@@ -2284,7 +2284,9 @@ class ChunkEngine:
     def _transform_callback(self, samples, flat: Optional[bool]):
         """Used in transforms to handle linked tensors."""
         for k, v in self.tensor_meta.links.items():
-            if flat is None or v["flatten_sequence"] == flat:
+            if self._all_chunk_engines and (
+                flat is None or v["flatten_sequence"] == flat
+            ):
                 self._all_chunk_engines[k].extend(
                     get_link_transform(v["extend"])(samples)
                 )

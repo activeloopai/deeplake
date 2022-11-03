@@ -239,7 +239,7 @@ class BaseChunk(DeepLakeMemoryObject):
 
     @abstractmethod
     def extend_if_has_space(
-        self, incoming_samples, update_meta: bool = True, end: bool = True
+        self, incoming_samples, update_meta: bool = True, end: bool = True, **kwargs
     ) -> float:
         """Extends the chunk with the incoming samples."""
 

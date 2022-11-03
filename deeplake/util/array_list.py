@@ -10,9 +10,9 @@ def slice_array_list(arrays: List[np.ndarray], index: Union[slice, int, List[int
     if isinstance(index, list):
         return list(map(partial(slice_array_list, arrays=arrays), index))
     n = sum(map(len, arrays))
-    start = slice.start or 0
-    stop = slice.stop or n
-    step = slice.step or 1
+    start = index.start or 0
+    stop = index.stop or n
+    step = index.step or 1
     if step != 1:
         raise NotImplementedError("Stepped indexing is not supported here yet.")
     if start < 0:
