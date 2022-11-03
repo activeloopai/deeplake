@@ -257,7 +257,7 @@ def _validate_htype_overwrites(htype: str, htype_overwrite: dict):
         if key not in defaults:
             raise TensorMetaInvalidHtypeOverwriteKey(htype, key, list(defaults.keys()))
 
-        if value == UNSPECIFIED:
+        if isinstance(value, str) and value == UNSPECIFIED:
             if defaults[key] == REQUIRE_USER_SPECIFICATION:
                 raise TensorMetaMissingRequiredValue(htype, key)
 

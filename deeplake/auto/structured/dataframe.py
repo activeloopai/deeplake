@@ -58,6 +58,5 @@ class DataFrame(StructuredDataset):
                     iterator.set_description(
                         "Ingesting... (%i keys skipped)" % (len(skipped_keys))
                     )
-                    raise e
                     continue
         return ds
