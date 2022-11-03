@@ -94,6 +94,31 @@ def get_new_common_deleted_tensors(
 
     target_renamed_tensors, _ = merge_renamed_deleted(target_dataset_diff)
     original_renamed_tensors, _ = merge_renamed_deleted(original_dataset_diff)
+
+    process_renamed_tensors(
+        dataset,
+        force,
+        new_tensors,
+        common_tensors,
+        original_deleted_tensors,
+        target_deleted_tensors,
+        original_renamed_tensors,
+        target_renamed_tensors,
+    )
+    process_deleted_tensors(new_tensors, original_deleted_tensors, target_tensor_diff)
+    return new_tensors, common_tensors, target_deleted_tensors
+
+
+def process_renamed_tensors(
+    dataset,
+    force,
+    new_tensors,
+    common_tensors,
+    original_deleted_tensors,
+    target_deleted_tensors,
+    original_renamed_tensors,
+    target_renamed_tensors,
+):
     for old_tensor, new_tensor in target_renamed_tensors.items():
         if new_tensor in new_tensors:
             if not force:
@@ -112,7 +137,7 @@ def get_new_common_deleted_tensors(
 
         elif new_tensor in common_tensors:
             # no merge conflict if same tensor was renamed to same name on both branches
-            if not original_renamed_tensors.get(old_tensor) == new_tensor and not force:
+            if original_renamed_tensors.get(old_tensor) != new_tensor and not force:
                 raise MergeConflictError(
                     message=f"{old_tensor} was renamed to {new_tensor} in target but another {new_tensor} exists on the current branch. Rename tensors to resolve the conflict or use `force=True` to merge {new_tensor} of target with {new_tensor} of current branch."
                 )
@@ -120,6 +145,8 @@ def get_new_common_deleted_tensors(
         target_deleted_tensors.discard(old_tensor)
         original_deleted_tensors.discard(old_tensor)
 
+
+def process_deleted_tensors(new_tensors, original_deleted_tensors, target_tensor_diff):
     for tensor in original_deleted_tensors:
         tensor_changed = False
         for commit_diff in target_tensor_diff:
@@ -129,8 +156,6 @@ def get_new_common_deleted_tensors(
                 break
         if not tensor_changed:
             new_tensors.discard(tensor)
-
-    return new_tensors, common_tensors, target_deleted_tensors
 
 
 def finalize_merge(dataset, nodes: Dict[str, CommitNode]):
