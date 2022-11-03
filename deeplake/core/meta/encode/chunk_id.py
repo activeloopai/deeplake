@@ -182,7 +182,6 @@ class ChunkIdEncoder(Encoder, DeepLakeMemoryObject):
         """
 
         ls = self.__getitem__(global_sample_index, return_row_index=True)  # type: ignore
-
         assert len(ls) == 1, len(
             ls
         )  # this method should only be called for non tiled samples

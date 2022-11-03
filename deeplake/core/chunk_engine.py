@@ -724,7 +724,11 @@ class ChunkEngine:
         """
         extending = start_chunk_row is None and register
         lengths = None
+        num_samples = self.num_samples
+        orig_meta_length = self.tensor_meta.length
+        incoming_num_samples = len(samples)
         if extending:
+            num_samples = len(samples)
             enc_ids = []
             enc_count = [0]
             if self.tensor_meta.htype == "text" and (
@@ -745,7 +749,7 @@ class ChunkEngine:
             current_chunk = self._create_new_chunk(
                 register and start_chunk_row is not None
             )
-            current_chunk._update_tensor_meta_length = extending
+            current_chunk._update_tensor_meta_length = False
             updated_chunks.append(current_chunk)
             if extending:
                 enc_ids.append(current_chunk.id)
@@ -753,7 +757,6 @@ class ChunkEngine:
             enc_ids.append(None)
         enc = self.chunk_id_encoder
         tiles = {}
-        nsamples = len(samples)
         if register and update_commit_diff:
             commit_diff = self.commit_diff
         if progressbar:
@@ -773,7 +776,7 @@ class ChunkEngine:
                 current_chunk = self._create_new_chunk(
                     register and start_chunk_row is not None, row=start_chunk_row
                 )
-                current_chunk._update_tensor_meta_length = extending
+                current_chunk._update_tensor_meta_length = False
                 if start_chunk_row is not None:
                     start_chunk_row += 1
                 elif register:
@@ -789,26 +792,26 @@ class ChunkEngine:
                         else:
                             enc_count[-1] += 1
                 if sample.is_last_write:
-                    if register:
-                        self.tile_encoder.register_sample(sample, self.num_samples - 1)
-                        if update_commit_diff:
-                            commit_diff.add_data(1)
-                    else:
-                        tiles[nsamples - len(samples)] = (
-                            sample.sample_shape,
-                            sample.tile_shape,
-                        )
+                    tiles[
+                        incoming_num_samples
+                        - len(samples)
+                        + bool(register) * orig_meta_length
+                    ] = (
+                        sample.sample_shape,
+                        sample.tile_shape,
+                    )
                     samples = samples[1:]
                     if lengths is not None:
                         lengths = lengths[1:]
                     num_samples_added = 1
+                    num_samples += 1
                 else:
                     num_samples_added = 0
                 if len(samples) > 0:
                     current_chunk = self._create_new_chunk(
                         register and start_chunk_row is not None, row=start_chunk_row
                     )
-                    current_chunk._update_tensor_meta_length = extending
+                    current_chunk._update_tensor_meta_length = False
                     if start_chunk_row is not None:
                         start_chunk_row += 1
                     elif register:
@@ -827,11 +830,10 @@ class ChunkEngine:
                         enc.register_samples(num, row=start_chunk_row)
                     else:
                         enc_count[-1] += num
-                    if update_commit_diff:
-                        commit_diff.add_data(num)
                 samples = samples[num:]
                 if lengths is not None:
                     lengths = lengths[num:]
+                num_samples += num
             if progressbar:
                 pbar.update(num_samples_added)
         if extending:
@@ -856,6 +858,13 @@ class ChunkEngine:
                 new[:, 1] = enc_last_seen
                 enc._encoded = arr
                 enc.is_dirty = True
+            self.tensor_meta.update_length(incoming_num_samples)
+        if register:
+            if update_commit_diff:
+                commit_diff.add_data(incoming_num_samples)
+            tenc = self.tile_encoder
+            tenc.entries.update(tiles)
+            tenc.is_dirty = True
         if progressbar:
             pbar.close()
 
