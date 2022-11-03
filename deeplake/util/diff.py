@@ -15,7 +15,13 @@ from deeplake.util.keys import (
 def get_changes_and_messages(
     version_state, storage, id_1, id_2
 ) -> Tuple[
-    List[dict], Optional[List[dict]], List[dict], Optional[List[dict]], Optional[str], str, Optional[str]
+    List[dict],
+    Optional[List[dict]],
+    List[dict],
+    Optional[List[dict]],
+    Optional[str],
+    str,
+    Optional[str],
 ]:
     if id_1 is None and id_2 is None:
         return get_changes_and_messages_compared_to_prev(version_state, storage)

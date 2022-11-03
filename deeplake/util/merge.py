@@ -177,14 +177,7 @@ def get_changes_commit_ids_for_node(
             for idx in changes:
                 changes_commit_map[idx].extend(changes[idx])
         else:
-            diff_key = get_tensor_commit_diff_key(tensor_key, commit_id)
-            try:
-                diff: Optional[CommitDiff] = dataset.storage.get_deeplake_object(
-                    diff_key, CommitDiff
-                )
-            except KeyError:
-                diff = None
-
+            diff = get_tensor_commit_diff(dataset, tensor_key, commit_id)
             if diff is not None:
                 data_updated = sorted(diff.data_updated)
                 id_tensor_key = get_sample_id_tensor_key(tensor_name)
@@ -194,6 +187,16 @@ def get_changes_commit_ids_for_node(
                     changes_commit_map[sample_id].append(commit_id)
         current_node = current_node.parent
     return changes_commit_map
+
+
+def get_tensor_commit_diff(dataset, tensor_key, commit_id):
+    diff_key = get_tensor_commit_diff_key(tensor_key, commit_id)
+    diff: Optional[CommitDiff]
+    try:
+        diff = dataset.storage.get_deeplake_object(diff_key, CommitDiff)
+    except KeyError:
+        diff = None
+    return diff
 
 
 def delete_tensors(tensor_names: Set[str], dataset, delete_removed_tensors: bool):
