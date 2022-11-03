@@ -167,8 +167,10 @@ def access_creds(path: str):
     paths = path.split("/", 1)
     id = paths[0]
     creds_key = paths[1]
-    visualizer.get_link_creds(id).creds_keys
-    return visualizer.get_link_creds(id).get_creds(creds_key)
+    if creds_key in visualizer.get_link_creds(id).creds_keys:
+        return visualizer.get_link_creds(id).get_creds(creds_key)
+
+    return Response("", 404)
 
 
 @_APP.route("/<path:path>")
