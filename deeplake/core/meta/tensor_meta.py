@@ -292,7 +292,7 @@ def _replace_unspecified_values(htype: str, htype_overwrite: dict):
     defaults = HTYPE_CONFIGURATIONS[htype]
 
     for k, v in htype_overwrite.items():
-        if v == UNSPECIFIED:
+        if isinstance(v, str) and v == UNSPECIFIED:
             htype_overwrite[k] = defaults[k]
 
     if (
