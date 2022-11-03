@@ -366,3 +366,23 @@ def test_clear_merge(local_ds):
         ds.merge("alt")
 
         np.testing.assert_array_equal(ds.abc.numpy(), np.array([[5, 6, 3]]))
+
+
+def test_merge_pop(local_ds):
+    with local_ds as ds:
+        ds.create_tensor("abc")
+        ds.abc.extend([1, 2])
+        a = ds.commit()
+
+        ds.checkout("alt", create=True)
+        ds.abc.extend([3, 4])
+        b = ds.commit()
+        ds.abc.pop(1)
+        c = ds.commit()
+
+        ds.checkout("main")
+        ds.abc.append(5)
+        d = ds.commit()
+        ds.merge("alt")
+
+        np.testing.assert_array_equal(ds.abc.numpy().squeeze(), np.array([1, 5, 3, 4]))
