@@ -1,5 +1,5 @@
-from collections import defaultdict, OrderedDict
-from typing import Any, DefaultDict, Dict, List, Optional, Set, Tuple
+from collections import OrderedDict
+from typing import Any, Dict, List, Optional, Set, Tuple
 from deeplake.core.meta.dataset_meta import DatasetMeta
 from deeplake.core.version_control.commit_diff import CommitDiff
 from deeplake.core.version_control.commit_node import CommitNode  # type: ignore
@@ -15,7 +15,7 @@ from deeplake.util.keys import (
 def get_changes_and_messages(
     version_state, storage, id_1, id_2
 ) -> Tuple[
-    dict, Optional[dict], dict, Optional[dict], Optional[str], str, Optional[str]
+    List[dict], Optional[List[dict]], List[dict], Optional[List[dict]], Optional[str], str, Optional[str]
 ]:
     if id_1 is None and id_2 is None:
         return get_changes_and_messages_compared_to_prev(version_state, storage)
@@ -24,13 +24,13 @@ def get_changes_and_messages(
 
 def get_changes_and_messages_compared_to_prev(
     version_state, storage
-) -> Tuple[dict, None, dict, None, None, str, None]:
+) -> Tuple[List[dict], None, List[dict], None, None, str, None]:
     commit_node = version_state["commit_node"]
     commit_id = commit_node.commit_id
     head = commit_node.is_head_node
 
     tensor_changes: List[dict] = []
-    ds_changes = []
+    ds_changes: List[dict] = []
     s = "HEAD" if head else f"{commit_id} (current commit)"
     msg_1 = f"Diff in {s} relative to the previous commit:\n"
     get_tensor_changes_for_id(commit_node, storage, tensor_changes)
@@ -40,7 +40,7 @@ def get_changes_and_messages_compared_to_prev(
 
 def get_changes_and_message_2_ids(
     version_state, storage, id_1, id_2
-) -> Tuple[dict, dict, dict, dict, str, str, str]:
+) -> Tuple[List[dict], List[dict], List[dict], List[dict], str, str, str]:
     commit_node = version_state["commit_node"]
     if id_1 is None:
         raise ValueError("Can't specify id_2 without specifying id_1")
@@ -73,7 +73,7 @@ def get_changes_and_message_2_ids(
 
 def compare_commits(
     id_1: str, id_2: str, version_state: Dict[str, Any], storage: LRUCache
-) -> Tuple[dict, dict, dict, dict, str]:
+) -> Tuple[List[dict], List[dict], List[dict], List[dict], str]:
     """Compares two commits and returns the differences.
 
     Args:
@@ -83,7 +83,7 @@ def compare_commits(
         storage (LRUCache): The underlying storage of the dataset.
 
     Returns:
-        Tuple[dict, dict, dict, dict, str]: The changes made in the first commit and second commit respectively, followed by lca_id.
+        Tuple[List[dict], List[dict], List[dict], List[dict], str]: The differences between the two commits and the id of the lowest common ancestor.
     """
     id_1 = sanitize_commit(id_1, version_state)
     id_2 = sanitize_commit(id_2, version_state)
@@ -95,8 +95,8 @@ def compare_commits(
 
     tensor_changes_1: List[dict] = []
     tensor_changes_2: List[dict] = []
-    dataset_changes_1 = []
-    dataset_changes_2 = []
+    dataset_changes_1: List[dict] = []
+    dataset_changes_2: List[dict] = []
 
     for commit_node, tensor_changes, dataset_changes in [
         (commit_node_1, tensor_changes_1, dataset_changes_1),
@@ -178,6 +178,7 @@ def colour_string(string: str, colour: str) -> str:
         return "\033[93m" + string + "\033[0m"
     elif colour == "blue":
         return "\033[94m" + string + "\033[0m"
+    return string
 
 
 def get_changes_str(
