@@ -11,6 +11,11 @@ from deeplake.core.version_control.test_version_control import (
 )
 
 
+@deeplake.compute
+def pop_fn(sample_in, samples_out):
+    samples_out.x.append(sample_in)
+
+
 def pop_helper_basic(ds, pop_count):
     for i in range(len(ds.xyz)):
         ofs = 1 if i < 5 else 1 + pop_count
@@ -252,3 +257,23 @@ def test_ds_pop(local_ds):
 
         with pytest.raises(IndexError):
             ds.pop(-5)
+
+
+def test_pop_bug(local_ds_generator):
+    ds = local_ds_generator()
+    with ds:
+        ds.create_tensor("x")
+
+    pop_fn().eval([1, 2, 3, 4], ds, num_workers=4),
+
+    np.testing.assert_array_equal(ds.x.numpy().squeeze(), [1, 2, 3, 4])
+    a = ds.commit()
+    ds.pop(2)
+    np.testing.assert_array_equal(ds.x.numpy().squeeze(), [1, 2, 4])
+    ds.checkout(a)
+    np.testing.assert_array_equal(ds.x.numpy().squeeze(), [1, 2, 3, 4])
+
+    ds = local_ds_generator()
+    np.testing.assert_array_equal(ds.x.numpy().squeeze(), [1, 2, 4])
+    ds.checkout(a)
+    np.testing.assert_array_equal(ds.x.numpy().squeeze(), [1, 2, 3, 4])

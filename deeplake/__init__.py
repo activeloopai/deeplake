@@ -42,6 +42,7 @@ rename = api_dataset.rename
 copy = api_dataset.copy
 deepcopy = api_dataset.deepcopy
 ingest = api_dataset.ingest
+connect = api_dataset.connect
 ingest_kaggle = api_dataset.ingest_kaggle
 ingest_dataframe = api_dataset.ingest_dataframe
 ingest_huggingface = huggingface.ingest_huggingface
@@ -76,7 +77,7 @@ __all__ = [
 ]
 
 
-__version__ = "3.0.11"
+__version__ = "3.0.15"
 warn_if_update_required(__version__)
 __encoded_version__ = np.array(__version__)
 config = {"s3": Config(max_pool_connections=50, connect_timeout=300, read_timeout=300)}

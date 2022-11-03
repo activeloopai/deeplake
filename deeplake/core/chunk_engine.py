@@ -191,14 +191,17 @@ class ChunkEngine:
         self._all_chunk_engines: Optional[Dict[str, ChunkEngine]] = None
         self._is_temp_label_tensor: bool = False
         self._hash_label_map: Dict[int, str] = OrderedDict()
+        self._sample_compression = None
+        self._chunk_compression = None
 
         tensor_meta = self.tensor_meta
 
         if tensor_meta.sample_compression:
-            self.compression = tensor_meta.sample_compression
+            self._sample_compression = self.compression = tensor_meta.sample_compression
             self.chunk_class = SampleCompressedChunk
+
         elif tensor_meta.chunk_compression:
-            self.compression = tensor_meta.chunk_compression
+            self._chunk_compression = self.compression = tensor_meta.chunk_compression
             self.chunk_class = ChunkCompressedChunk
         else:
             self.chunk_class = UncompressedChunk
@@ -212,11 +215,19 @@ class ChunkEngine:
         self.start_chunk = None
 
     @property
+    def sample_compression(self):
+        return self._sample_compression
+
+    @property
+    def chunk_compression(self):
+        return self._chunk_compression
+
+    @property
     def is_data_cachable(self):
         tensor_meta = self.tensor_meta
         return (
             self.chunk_class == UncompressedChunk
-            and tensor_meta.htype not in ["text", "json", "list"]
+            and tensor_meta.htype not in ["text", "json", "list", "polygon"]
             and tensor_meta.max_shape
             and (tensor_meta.max_shape == tensor_meta.min_shape)
             and (np.prod(tensor_meta.max_shape) < 20)
@@ -617,15 +628,13 @@ class ChunkEngine:
             return samples[0].nbytes >= self.min_chunk_size
         return True
 
-    def check_each_sample(self, samples, verify_creds_key_exists=True):
+    def check_each_sample(self, samples, verify=True):
         return
 
-    def _sanitize_samples(self, samples, verify_creds_key_exists=True):
+    def _sanitize_samples(self, samples, verify=True):
         check_samples_type(samples)
         samples = [None if is_empty_list(sample) else sample for sample in samples]
-        verified_samples = self.check_each_sample(
-            samples, verify_creds_key_exists=verify_creds_key_exists
-        )
+        verified_samples = self.check_each_sample(samples, verify=verify)
         tensor_meta = self.tensor_meta
         all_empty = all(sample is None for sample in samples)
         if tensor_meta.htype is None and not all_empty:
@@ -1081,9 +1090,7 @@ class ChunkEngine:
             row=new_chunk_row, num_samples=num_samples
         )
         chunk.pop_multiple(num_samples=len(samples_to_move))
-        samples, _ = self._sanitize_samples(
-            samples_to_move, verify_creds_key_exists=False
-        )
+        samples, _ = self._sanitize_samples(samples_to_move, verify=False)
         self._samples_to_chunks(
             samples,
             start_chunk=new_chunk,
@@ -1107,9 +1114,7 @@ class ChunkEngine:
             return True
 
         from_chunk.pop_multiple(num_samples=num_samples)
-        samples, _ = self._sanitize_samples(
-            samples_to_move, verify_creds_key_exists=False
-        )
+        samples, _ = self._sanitize_samples(samples_to_move, verify=False)
         to_chunk.is_dirty = True
         self.active_updated_chunk = to_chunk
         self._samples_to_chunks(
@@ -1319,7 +1324,7 @@ class ChunkEngine:
         self._update(index1, arr)
 
     def read_bytes_for_sample(self, global_sample_index: int) -> bytes:
-        if self.tensor_meta.chunk_compression:
+        if self.chunk_compression:
             raise Exception(
                 "Cannot retreive original bytes for samples in chunk-wise compressed tensors."
             )
@@ -1380,7 +1385,7 @@ class ChunkEngine:
         decompress: bool = True,
     ) -> np.ndarray:
         enc = self.chunk_id_encoder
-        if self.is_fixed_shape and self.tensor_meta.sample_compression is None:
+        if self.is_fixed_shape and self.sample_compression is None:
             num_samples_per_chunk = self.num_samples_per_chunk
             local_sample_index = global_sample_index % num_samples_per_chunk
         else:
@@ -1442,7 +1447,7 @@ class ChunkEngine:
             Union[np.ndarray, List[np.ndarray]]: Either a list of numpy arrays or a single numpy array (depending on the `aslist` argument).
 
         Note:
-            For polygons, aslist is always True.
+            For polygons, ``aslist`` is always ``True``.
         """
         self.check_link_ready()
         fetch_chunks = fetch_chunks or self._get_full_chunk(index)
@@ -1487,7 +1492,7 @@ class ChunkEngine:
                 num_shape_entries = 1 * (len(self.tensor_meta.min_shape) + 1)
                 if self.is_text_like:
                     num_bytes_entries = num_samples_in_chunk * 3
-                elif self.tensor_meta.sample_compression is None:
+                elif self.sample_compression is None:
                     num_bytes_entries = 1 * 3
                 else:
                     num_bytes_entries = num_samples_in_chunk * 3
@@ -1806,12 +1811,16 @@ class ChunkEngine:
                 self.write_chunk_to_storage(self.active_updated_chunk)
             self.active_updated_chunk = chunk_to_update
         if delete:
-            for chunk_key in map(self.get_chunk_key_for_id, chunk_ids):
-                self.check_remove_active_chunks(chunk_key)
-                try:
-                    del self.cache[chunk_key]
-                except KeyError:
-                    pass
+            for chunk_id in chunk_ids:
+                chunk_name = ChunkIdEncoder.name_from_id(chunk_id)
+                commit_id = self.get_chunk_commit(chunk_name)
+                if commit_id == self.commit_id:
+                    chunk_key = get_chunk_key(self.key, chunk_name, commit_id)
+                    self.check_remove_active_chunks(chunk_key)
+                    try:
+                        del self.cache[chunk_key]
+                    except KeyError:
+                        pass
 
         self.tensor_meta.pop(global_sample_index)
 

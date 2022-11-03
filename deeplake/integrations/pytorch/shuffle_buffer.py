@@ -92,6 +92,8 @@ class ShuffleBuffer:
         return len(self.buffer) == 0
 
     def _sample_size(self, sample):
+        if isinstance(sample, bytes):
+            return len(sample)
         if isinstance(sample, dict):
             return sum(self._sample_size(tensor) for tensor in sample.values())
         elif isinstance(sample, Sequence):
@@ -101,7 +103,7 @@ class ShuffleBuffer:
         elif isinstance(sample, np.ndarray):
             return sample.nbytes
         raise ValueError(
-            f"Expected input of type Tensor, dict or Sequence, got: {type(sample)}"
+            f"Expected input of type bytes, dict, Sequence, torch.Tensor or np.ndarray, got: {type(sample)}"
         )
 
     def __len__(self):
