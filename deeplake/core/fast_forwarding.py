@@ -111,7 +111,7 @@ def ffw_tensor_meta(tensor_meta, version):
                 l["extend"] = l["append"].replace("append", "extend")
                 del l["append"]
             if "update" in l:
-                l["update"] = l["update"].replace("append", "extend")
+                l["update"] = l["update"].replace("append", "update")
 
 
 @ffw
