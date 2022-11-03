@@ -103,7 +103,7 @@ def ffw_tensor_meta(tensor_meta, version):
             )
         )
     )
-    if version_compare(version, "3.0.10") < 0:
+    if version_compare(version, "3.0.15") < 0:
         links = tensor_meta.links
         for k in links:
             l = links[k]
