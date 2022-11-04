@@ -499,8 +499,8 @@ Polygon Htype
 
 - Each sample in a tensor of ``polygon`` htype is a list of polygons.
 - Each polygon is a list / array of points.
-- All points in a sample should have the same number of co-ordinates.
-- Different samples can have different number of polygons.
+- All points in a sample should have the same number of co-ordinates (eg., cannot mix 2-D points with 3-D points).
+- Different samples can have different number of polygons. 
 - Different polygons can have different number of points.
 
 :blue:`Creating a polygon tensor`
@@ -561,7 +561,7 @@ Point Cloud Htype
 - :bluebold:`Sample dimensions:` ``(# num_points, 3)``
 - Point cloud samples can be of type ``np.ndarray`` or :class:`~deeplake.core.sample.Sample` which is returned by :meth:`deeplake.read`.
 - Each point cloud is a list / array of points.
-- All points in a sample should have the same number of co-ordinates (eg., cannot mix 2-D points with 3-D points).
+- All points in a sample should have the same number of co-ordinates.
 - Different point clouds can have different number of points.
 
 :blue:`Creating a point cloud tensor`
