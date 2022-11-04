@@ -1633,13 +1633,6 @@ class Dataset:
 
             >>> ds_train = deeplake.load('hub://activeloop/coco-train')
             >>> query_ds_train = ds_train.query("(select * where contains(categories, 'car') limit 1000) union (select * where contains(categories, 'motorcycle') limit 1000)")
-
-        **Restrictions**
-
-        Querying datasets is part of our Growth and Enterprise Plan .
-
-        - Users of our Community plan can only perform queries on Activeloop datasets ("hub://activeloop/..." datasets).
-        - To run queries on your own datasets, `upgrade your organization's plan <https://www.activeloop.ai/pricing/>`_.
         """
         from deeplake.experimental import query
 
