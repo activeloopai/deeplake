@@ -500,7 +500,7 @@ Polygon Htype
 - Each sample in a tensor of ``polygon`` htype is a list of polygons.
 - Each polygon is a list / array of points.
 - All points in a sample should have the same number of co-ordinates (eg., cannot mix 2-D points with 3-D points).
-- Different samples can have different number of polygons. 
+- Different samples can have different number of polygons.
 - Different polygons can have different number of points.
 
 :blue:`Creating a polygon tensor`
