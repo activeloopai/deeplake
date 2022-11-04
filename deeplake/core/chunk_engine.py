@@ -40,6 +40,7 @@ from deeplake.constants import (
     DEFAULT_MAX_CHUNK_SIZE,
     FIRST_COMMIT_ID,
     PARTIAL_NUM_SAMPLES,
+    FAST_EXTEND_BAIL,
     RANDOM_MAX_ALLOWED_CHUNK_SIZE,
     RANDOM_MINIMAL_CHUNK_SIZE,
     DEFAULT_MAX_CHUNK_SIZE,
@@ -85,7 +86,11 @@ from deeplake.util.exceptions import (
 from deeplake.util.remove_cache import get_base_storage
 from deeplake.util.image import convert_sample, convert_img_arr
 from deeplake.util.class_label import convert_to_idx, convert_to_hash
-from deeplake.compression import VIDEO_COMPRESSIONS
+from deeplake.compression import (
+    BYTE_COMPRESSION,
+    VIDEO_COMPRESSIONS,
+    get_compression_type,
+)
 from deeplake.core.sample import Sample
 from itertools import chain, repeat
 from collections.abc import Iterable
@@ -195,6 +200,7 @@ class ChunkEngine:
         self._chunk_compression = None
 
         tensor_meta = self.tensor_meta
+        numpy_extend_optimization_enabled = False
 
         if tensor_meta.sample_compression:
             self._sample_compression = self.compression = tensor_meta.sample_compression
@@ -203,8 +209,13 @@ class ChunkEngine:
         elif tensor_meta.chunk_compression:
             self._chunk_compression = self.compression = tensor_meta.chunk_compression
             self.chunk_class = ChunkCompressedChunk
+            if get_compression_type(tensor_meta.chunk_compression) == BYTE_COMPRESSION:
+                numpy_extend_optimization_enabled = True
         else:
             self.chunk_class = UncompressedChunk
+            numpy_extend_optimization_enabled = True
+
+        self._numpy_extend_optimization_enabled = numpy_extend_optimization_enabled
 
         self.cached_data: Optional[np.ndarray] = None
         self.cache_range: range = range(0)
@@ -622,18 +633,15 @@ class ChunkEngine:
         ffw_chunk_id_encoder(self.chunk_id_encoder)
 
     def _convert_to_list(self, samples):
-        if self.chunk_class != UncompressedChunk:
-            return True
-        elif isinstance(samples, np.ndarray):
-            return samples[0].nbytes >= self.min_chunk_size
-        return True
+        return False
 
     def check_each_sample(self, samples, verify=True):
         return
 
     def _sanitize_samples(self, samples, verify=True):
         check_samples_type(samples)
-        samples = [None if is_empty_list(sample) else sample for sample in samples]
+        if isinstance(samples, list):
+            samples = [None if is_empty_list(sample) else sample for sample in samples]
         verified_samples = self.check_each_sample(samples, verify=verify)
         tensor_meta = self.tensor_meta
         all_empty = all(sample is None for sample in samples)
@@ -714,63 +722,151 @@ class ChunkEngine:
         Returns:
             Tuple[List[BaseChunk], Dict[Any, Any]]
         """
+        extending = start_chunk_row is None and register
+        lengths = None
+        num_samples = self.num_samples
+        orig_meta_length = self.tensor_meta.length
+        incoming_num_samples = len(samples)
+        if extending:
+            num_samples = len(samples)
+            enc_ids = []
+            enc_count = [0]
+            if self.tensor_meta.htype == "text" and (
+                self.chunk_class != SampleCompressedChunk
+            ):
+                lengths = np.zeros(len(samples), dtype=np.uint32)
+                for i, s in enumerate(samples):
+                    try:
+                        lengths[i] = s.__len__()
+                    except AttributeError:  # None
+                        lengths[i] = 0
+                    except TypeError:  # Numpy scalar str
+                        lengths[i] = str(s).__len__()
+        extra_args = {"lengths": lengths}
         current_chunk = start_chunk
-
         updated_chunks = []
         if current_chunk is None:
-            current_chunk = self._create_new_chunk(register)
+            current_chunk = self._create_new_chunk(
+                register and start_chunk_row is not None
+            )
+            current_chunk._update_tensor_meta_length = False
             updated_chunks.append(current_chunk)
+            if extending:
+                enc_ids.append(current_chunk.id)  # type: ignore
+        else:
+            current_chunk._update_tensor_meta_length = False
+            if extending:
+                enc_ids.append(None)
         enc = self.chunk_id_encoder
         tiles = {}
-        nsamples = len(samples)
         if register and update_commit_diff:
             commit_diff = self.commit_diff
         if progressbar:
             pbar = tqdm(total=len(samples))
+        if not isinstance(samples, list) and not (
+            isinstance(samples, np.ndarray) and self._numpy_extend_optimization_enabled
+        ):
+            # Note: in the future we can get rid of this conversion of sample compressed chunks too by predicting the compression ratio.
+            samples = list(samples)
         while len(samples) > 0:
             num_samples_added = current_chunk.extend_if_has_space(
-                samples, update_tensor_meta=update_tensor_meta
+                samples, update_tensor_meta=update_tensor_meta, **extra_args  # type: ignore
             )  # type: ignore
             if register_creds:
                 self.register_new_creds(num_samples_added, samples)
             if num_samples_added == 0:
-                current_chunk = self._create_new_chunk(register, row=start_chunk_row)
+                current_chunk = self._create_new_chunk(
+                    register and start_chunk_row is not None, row=start_chunk_row
+                )
+                current_chunk._update_tensor_meta_length = False
                 if start_chunk_row is not None:
                     start_chunk_row += 1
+                elif register:
+                    enc_ids.append(current_chunk.id)  # type: ignore
+                    enc_count.append(0)
                 updated_chunks.append(current_chunk)
             elif num_samples_added == PARTIAL_NUM_SAMPLES:
                 sample = samples[0]
-                if register and sample.is_first_write:
-                    enc.register_samples(1)
-                if sample.is_last_write:
+                if sample.is_first_write:
                     if register:
-                        self.tile_encoder.register_sample(sample, self.num_samples - 1)
-                        if update_commit_diff:
-                            commit_diff.add_data(1)
-                    else:
-                        tiles[nsamples - len(samples)] = (
-                            sample.sample_shape,
-                            sample.tile_shape,
-                        )
+                        if start_chunk_row is not None:
+                            enc.register_samples(1)
+                        else:
+                            enc_count[-1] += 1
+                if sample.is_last_write:
+                    tiles[
+                        incoming_num_samples
+                        - len(samples)
+                        + bool(register) * orig_meta_length
+                    ] = (
+                        sample.sample_shape,
+                        sample.tile_shape,
+                    )
                     samples = samples[1:]
+                    if lengths is not None:
+                        lengths = lengths[1:]
+                    num_samples_added = 1
+                    num_samples += 1
+                else:
+                    num_samples_added = 0
                 if len(samples) > 0:
                     current_chunk = self._create_new_chunk(
-                        register, row=start_chunk_row
+                        register and start_chunk_row is not None, row=start_chunk_row
                     )
+                    current_chunk._update_tensor_meta_length = False
                     if start_chunk_row is not None:
                         start_chunk_row += 1
+                    elif register:
+                        enc_ids.append(current_chunk.id)  # type: ignore
+                        enc_count.append(0)
                     updated_chunks.append(current_chunk)
+            elif num_samples_added == FAST_EXTEND_BAIL:
+                num_samples_added = 0
+                samples = list(samples)
             else:
                 if not updated_chunks:
                     updated_chunks.append(current_chunk)
                 num = int(num_samples_added)
                 if register:
-                    enc.register_samples(num, row=start_chunk_row)
-                    if update_commit_diff:
-                        commit_diff.add_data(num)
+                    if start_chunk_row is not None:
+                        enc.register_samples(num, row=start_chunk_row)
+                    else:
+                        enc_count[-1] += num
                 samples = samples[num:]
+                if lengths is not None:
+                    lengths = lengths[num:]
+                num_samples += num
             if progressbar:
                 pbar.update(num_samples_added)
+        if extending:
+            if enc_ids[0] is None:
+                enc_ids.pop(0)
+                start_chunk_incr = enc_count.pop(0)
+                enc._encoded[-1, 1] += start_chunk_incr
+                enc.is_dirty = True
+            if enc_count:
+                enc_arr = enc._encoded
+                n = len(enc_arr)
+                if n:
+                    enc_count[0] += enc_arr[-1, 1]
+                else:
+                    enc_count[0] -= 1
+                enc_last_seen = np.cumsum(enc_count, dtype=np.uint64)
+                arr = np.zeros((n + len(enc_ids), 2), dtype=np.uint64)
+                if n:
+                    arr[:n] = enc_arr
+                new = arr[n:]
+                new[:, 0] = enc_ids
+                new[:, 1] = enc_last_seen
+                enc._encoded = arr
+                enc.is_dirty = True
+            self.tensor_meta.update_length(incoming_num_samples)
+        if register:
+            if update_commit_diff:
+                commit_diff.add_data(incoming_num_samples)
+            tenc = self.tile_encoder
+            tenc.entries.update(tiles)
+            tenc.is_dirty = True
         if progressbar:
             pbar.close()
 
@@ -822,6 +918,7 @@ class ChunkEngine:
 
         if self.is_sequence:
             samples = tqdm(samples) if progressbar else samples
+            verified_samples = []
             for sample in samples:
                 if sample is None:
                     sample = []
@@ -830,20 +927,18 @@ class ChunkEngine:
                 )
                 self.sequence_encoder.register_samples(len(sample), 1)
                 self.commit_diff.add_data(1)
-                ls = verified_sample or sample
-                if link_callback:
-                    link_callback(ls, flat=False)
-                    for s in ls:
-                        s = None if is_empty_list(s) else s
-                        link_callback(s, flat=True)
+                verified_samples.append(verified_sample or sample)
+            if link_callback:
+                samples = [None if is_empty_list(s) else s for s in verified_samples]
+                link_callback(verified_samples, flat=False)
+                for s in verified_samples:
+                    link_callback(s, flat=True)
 
         else:
-            verified_samples = self._extend(samples, progressbar)
-            ls = verified_samples or samples
+            verified_samples = self._extend(samples, progressbar) or samples
             if link_callback:
-                for sample in ls:
-                    sample = None if is_empty_list(sample) else sample
-                    link_callback(sample, flat=None)
+                samples = [None if is_empty_list(s) else s for s in verified_samples]
+                link_callback(samples, flat=None)
 
         self.cache.autoflush = initial_autoflush
         self.cache.maybe_flush()
@@ -969,7 +1064,7 @@ class ChunkEngine:
         self,
         num_samples_to_pad: int,
         value,
-        append_link_callback=None,
+        extend_link_callback=None,
         update_link_callback=None,
     ):
         """Pads the tensor with empty samples and appends value at the end."""
@@ -979,7 +1074,7 @@ class ChunkEngine:
         if num_samples_to_pad > 0:
             if self.num_samples == 0:
                 # set htype, dtype, shape, we later update it with empty sample
-                self.extend([value], link_callback=append_link_callback)
+                self.extend([value], link_callback=extend_link_callback)
                 num_samples_to_pad -= 1
                 update_first_sample = True
 
@@ -1003,9 +1098,9 @@ class ChunkEngine:
                 self.update(Index(0), empty_sample, link_callback=update_link_callback)
 
             # pad
-            self.extend(empty_samples, link_callback=append_link_callback)
+            self.extend(empty_samples, link_callback=extend_link_callback)
 
-        self.extend([value], link_callback=append_link_callback)
+        self.extend([value], link_callback=extend_link_callback)
 
     def update(
         self,
@@ -1661,7 +1756,6 @@ class ChunkEngine:
                     first_sample = int(0 if row == 0 else chunk_arr[row - 1][1] + 1)
                     last_sample = int(self.chunk_id_encoder.array[row][1])
                     num_samples = last_sample - first_sample + 1
-
                     full_shape = (num_samples,) + tuple(self.tensor_meta.max_shape)
                     dtype = self.tensor_meta.dtype
 
@@ -2187,13 +2281,14 @@ class ChunkEngine:
 
         return ShapeInterval(min_shape, max_shape)
 
-    def _transform_callback(self, sample, flat: Optional[bool]):
+    def _transform_callback(self, samples, flat: Optional[bool]):
         """Used in transforms to handle linked tensors."""
-        assert self._all_chunk_engines is not None
         for k, v in self.tensor_meta.links.items():
-            if flat is None or v["flatten_sequence"] == flat:
+            if self._all_chunk_engines and (
+                flat is None or v["flatten_sequence"] == flat
+            ):
                 self._all_chunk_engines[k].extend(
-                    [get_link_transform(v["append"])(sample)]
+                    get_link_transform(v["extend"])(samples)
                 )
 
     def get_empty_sample(self):

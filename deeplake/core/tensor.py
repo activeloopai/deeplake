@@ -307,7 +307,7 @@ class Tensor:
         self.chunk_engine.extend(
             samples,
             progressbar=progressbar,
-            link_callback=self._append_to_links if self.meta.links else None,
+            link_callback=self._extend_links if self.meta.links else None,
         )
         dataset_written(self.dataset)
 
@@ -671,12 +671,12 @@ class Tensor:
                     "Random assignment is not supported for sequences yet."
                 )
             num_samples_to_pad = item - self.num_samples
-            append_link_callback = self._append_to_links if self.meta.links else None
+            extend_link_callback = self._extend_links if self.meta.links else None
 
             self.chunk_engine.pad_and_append(
                 num_samples_to_pad,
                 value,
-                append_link_callback=append_link_callback,
+                extend_link_callback=extend_link_callback,
                 update_link_callback=update_link_callback,
             )
         else:
@@ -949,18 +949,20 @@ class Tensor:
         dataset_read(self.dataset)
         return ret
 
-    def _append_to_links(self, sample, flat: Optional[bool]):
+    def _extend_links(self, samples, flat: Optional[bool]):
         for k, v in self.meta.links.items():
             if flat is None or v["flatten_sequence"] == flat:
-                v = get_link_transform(v["append"])(sample, self.link_creds)
                 tensor = Tensor(k, self.dataset)
-                if (
-                    isinstance(v, np.ndarray)
-                    and tensor.dtype
-                    and v.dtype != tensor.dtype
-                ):
-                    v = v.astype(tensor.dtype)  # bc
-                tensor.append(v)
+                tdt = tensor.dtype
+                vs = get_link_transform(v["extend"])(samples, self.link_creds)
+                if tdt:
+                    vs = [
+                        v.astype(tdt)
+                        if isinstance(v, np.ndarray) and v.dtype != tdt
+                        else v
+                        for v in vs
+                    ]
+                tensor.extend(vs)
 
     def _update_links(
         self,

@@ -1157,7 +1157,7 @@ class dataset:
     @staticmethod
     def ingest_dataframe(
         src,
-        dest: Union[str, pathlib.Path],
+        dest: Union[str, pathlib.Path, Dataset],
         dest_creds: Optional[Dict] = None,
         progressbar: bool = True,
         **dataset_kwargs,
@@ -1166,8 +1166,8 @@ class dataset:
 
         Args:
             src (pd.DataFrame): The pandas dataframe to be converted.
-            dest (str, pathlib.Path):
-                - The full path to the dataset. Can be:
+            dest (str, pathlib.Path, Dataset):
+                - A Dataset or The full path to the dataset. Can be:
                 - a Deep Lake cloud path of the form ``hub://username/datasetname``. To write to Deep Lake cloud datasets, ensure that you are logged in to Deep Lake (use 'activeloop login' from command line)
                 - an s3 path of the form ``s3://bucketname/path/to/dataset``. Credentials are required in either the environment or passed to the creds argument.
                 - a local file system path of the form ``./path/to/dataset`` or ``~/path/to/dataset`` or ``path/to/dataset``.
@@ -1188,9 +1188,11 @@ class dataset:
         if not isinstance(src, pd.DataFrame):
             raise Exception("Source provided is not a valid pandas dataframe object")
 
-        dest = convert_pathlib_to_string_if_needed(dest)
-
-        ds = deeplake.dataset(dest, creds=dest_creds, **dataset_kwargs)
+        if isinstance(dest, Dataset):
+            ds = dest
+        else:
+            dest = convert_pathlib_to_string_if_needed(dest)
+            ds = deeplake.dataset(dest, creds=dest_creds, **dataset_kwargs)
 
         structured = DataFrame(src)
         structured.fill_dataset(ds, progressbar)  # type: ignore
