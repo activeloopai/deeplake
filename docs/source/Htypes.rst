@@ -562,7 +562,7 @@ Point Cloud Htype
 - Point cloud samples can be of type ``np.ndarray`` or :class:`~deeplake.core.sample.Sample` which is returned by :meth:`deeplake.read`.
 - Each point cloud is a list / array of points.
 - All points in a sample should have the same number of co-ordinates (eg., cannot mix 2-D points with 3-D points).
-- Different point_clouds can have different number of points.
+- Different point clouds can have different number of points.
 
 :blue:`Creating a point cloud tensor`
 -------------------------------
@@ -594,7 +594,7 @@ Appending point clouds with numpy arrays
 >>> ds.point_clouds.shape
 >>> (2, None, 3)
 
-Or we can use deeplake.read method to add samples
+Or we can use :meth:`deeplake.read` method to add samples
 
 >>> import deeplake as dp
 >>> sample = dp.read("example.las") # point cloud with 100 points
@@ -609,7 +609,7 @@ Mesh Htype
 
 - :bluebold:`Sample dimensions:` ``(# num_points, 3)``
 - Mesh samples can be of type ``np.ndarray`` or :class:`~deeplake.core.sample.Sample` which is returned by :meth:`deeplake.read`.
-- Each sample in a tensor of ``mesh`` htype is a mesh array (3d object data).
+- Each sample in a tensor of ``mesh`` htype is a mesh array (3-D object data).
 - Each mesh is a list / array of points.
 - Different meshes can have different number of points.
 
