@@ -19,7 +19,11 @@ def test_local_server(ds_generator):
     ds = ds_generator()
     ds.create_tensor("images", htype="image", sample_compression="jpg")
     ds.images.append(np.random.randint(0, 255, size=(400, 400, 3), dtype="uint8"))
+    ds.add_creds_key("my_creds")
+    temp_creds = {"access_key": "serious_stuff", "secret": "very_secret_stuff"}
+    ds.populate_creds("my_creds", temp_creds)
     id = visualizer.add(ds.storage)
+    link_creds_id = visualizer.add_link_creds(ds.link_creds)
     assert visualizer.start_server() == f"http://localhost:{visualizer.port}/"
     assert visualizer.is_server_running
     url = f"http://localhost:{visualizer.port}/{id}/"
@@ -55,4 +59,14 @@ def test_local_server(ds_generator):
     assert c1[3] == c2[1]
 
     response = requests.request("GET", url + "not_exists/not_exists")
+    assert response.status_code == 404
+
+    creds_url = f"http://localhost:{visualizer.port}/creds/{link_creds_id}/"
+    response = requests.request("GET", creds_url + "my_creds")
+    r = response.json()
+    assert len(r.keys()) == len(temp_creds.keys())
+    for k in r.keys():
+        assert r[k] == temp_creds[k]
+
+    response = requests.request("GET", creds_url + "not_my_creds")
     assert response.status_code == 404
