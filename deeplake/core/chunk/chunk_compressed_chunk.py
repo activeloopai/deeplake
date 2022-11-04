@@ -60,7 +60,7 @@ class ChunkCompressedChunk(BaseChunk):
         update_tensor_meta: bool = True,
         lengths: Optional[List[int]] = None,
     ):
-        sample_nbytes = np.mean(lengths)    # type: ignore
+        sample_nbytes = np.mean(lengths)  # type: ignore
         min_chunk_size = self.min_chunk_size
         decompressed_bytes = self.decompressed_bytes
         while True:
@@ -72,7 +72,7 @@ class ChunkCompressedChunk(BaseChunk):
                             len(incoming_samples),
                             (
                                 (min_chunk_size / self._compression_ratio)
-                                - len(decompressed_bytes)   # type: ignore
+                                - len(decompressed_bytes)  # type: ignore
                             )
                             // sample_nbytes,
                         ),
@@ -100,20 +100,20 @@ class ChunkCompressedChunk(BaseChunk):
                         self._data_bytes = compressed_bytes
                         self._changed = False
                         num_samples = 1
-                        lengths[0] = len(s) # type: ignore
+                        lengths[0] = len(s)  # type: ignore
                         break
             else:
                 samples_to_chunk = incoming_samples[:num_samples]
                 bts = list(map(self._text_sample_to_byte_string, samples_to_chunk))
                 for i, b in enumerate(bts):
-                    lengths[i] = len(b) # type: ignore
+                    lengths[i] = len(b)  # type: ignore
                 self.decompressed_bytes = b"".join([decompressed_bytes, *bts])  # type: ignore
                 del bts
                 self._changed = True
                 break
         if num_samples:
-            lview = lengths[:num_samples]   # type: ignore
-            csum = np.cumsum(lengths[: num_samples - 1])    # type: ignore
+            lview = lengths[:num_samples]  # type: ignore
+            csum = np.cumsum(lengths[: num_samples - 1])  # type: ignore
             bps = np.zeros((num_samples, 3), dtype=ENCODING_DTYPE)
             enc = self.byte_positions_encoder
             arr = enc._encoded
@@ -174,7 +174,7 @@ class ChunkCompressedChunk(BaseChunk):
                             len(incoming_samples),
                             (
                                 (min_chunk_size / self._compression_ratio)
-                                - len(decompressed_bytes)   # type: ignore
+                                - len(decompressed_bytes)  # type: ignore
                             )
                             // sample_nbytes,
                         ),
