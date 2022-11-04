@@ -1,7 +1,16 @@
 import deeplake
 import pytest
 from deeplake.util.exceptions import DatasetHandlerError
-from deeplake.util.access_method import parse_access_method
+from deeplake.util.access_method import parse_access_method, get_local_storage_path
+
+
+def test_local_storage_path():
+    path = "/tmp/deeplake/"
+    dataset_name = "hub://activeloop/mnist-train"
+    assert (
+        get_local_storage_path(dataset_name, path)
+        == "/tmp/deeplake/hub_activeloop_mnist-train"
+    )
 
 
 def test_access_method_parsing():
@@ -18,25 +27,33 @@ def test_access_method_parsing():
         parse_access_method("download:processed:5:processed")
 
 
-def test_access_method(s3_ds_generator):
+def test_access_method(gcs_ds_generator):
+    s3_ds_generator = gcs_ds_generator
     with pytest.raises(DatasetHandlerError):
         deeplake.dataset("./some_non_existent_path", access_method="download")
 
     with pytest.raises(DatasetHandlerError):
         deeplake.dataset("./some_non_existent_path", access_method="local")
 
-    ds = s3_ds_generator()
-    with ds:
+    with s3_ds_generator() as ds:
         ds.create_tensor("x")
-        for i in range(10):
-            ds.x.append(i)
+        ds.x.extend(list(range(10)))
 
-    ds = s3_ds_generator(access_method="download")
-    with pytest.raises(DatasetHandlerError):
-        # second time download is not allowed
-        s3_ds_generator(access_method="download")
+    ds = s3_ds_generator(access_method="local")  # downloads automatically
     assert not ds.path.startswith("s3://")
     for i in range(10):
+        assert ds.x[i].numpy() == i
+
+    with s3_ds_generator() as ds:
+        ds.x.extend(list(range(10, 20)))
+
+    ds = s3_ds_generator(access_method="local")  # load downloaded
+    assert not ds.path.startswith("s3://")
+    assert len(ds.x) == 10
+
+    ds = s3_ds_generator(access_method="download")  # download again
+    assert len(ds.x) == 20
+    for i in range(20):
         assert ds.x[i].numpy() == i
 
     with pytest.raises(ValueError):
@@ -47,10 +64,5 @@ def test_access_method(s3_ds_generator):
 
     with pytest.raises(ValueError):
         s3_ds_generator(access_method="local", overwrite=True)
-
-    ds = s3_ds_generator(access_method="local")
-    assert not ds.path.startswith("s3://")
-    for i in range(10):
-        assert ds.x[i].numpy() == i
 
     ds.delete()
