@@ -386,3 +386,16 @@ def test_merge_pop(local_ds):
         ds.merge("alt")
 
         np.testing.assert_array_equal(ds.abc.numpy().squeeze(), np.array([1, 5, 3, 4]))
+
+        ds.checkout("alt")
+        ds.abc[2] = 8 # change value from 4 to 8
+        print(ds.abc.numpy())
+        e = ds.commit()
+
+        ds.checkout("main")
+        ds.abc.pop(3) # remove value 4
+
+        # with pytest.raises(MergeConflictError):
+        print(ds.abc.numpy())
+        ds.merge("alt")
+        print(ds.abc.numpy())

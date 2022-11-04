@@ -278,7 +278,7 @@ def merge_common_tensors(
             conflict_indexes,
             indexes_updated_in_original_and_deleted_in_target,
             indexes_updated_in_target_and_deleted_in_original,
-        ) = find_new_updated_deleted_and_conflict_indexes(
+        ) = res = find_new_updated_deleted_and_conflict_indexes(
             tensor_name,
             dataset,
             target_dataset,
@@ -305,6 +305,8 @@ def merge_common_tensors(
     if conflict_tensors and conflict_resolution is None:
         # There are conflicts and a conflict resolution strategy has not been specified, unable to merge
         raise MergeConflictError(conflict_tensors)
+
+    print(res)
 
     for tensor_name in tensor_names:
         merge_tensor_data(
@@ -461,14 +463,14 @@ def find_new_updated_deleted_and_conflict_indexes(
     else:
         lca_ids = []
 
-    new_elements_ids = set(target_ids) - set(original_ids)
+    deleted_ids_in_original, deleted_ids_in_target= get_deleted_ids(
+        original_ids, target_ids, lca_ids
+    )
+
+    new_elements_ids = set(target_ids) - set(original_ids) - set(deleted_ids_in_original)
 
     new_indexes = get_indexes_from_ids(
         new_elements_ids, target_id_changes_commit_map, target_id_to_index_map
-    )
-
-    deleted_ids_in_original, deleted_ids_in_target = get_deleted_ids(
-        original_ids, target_ids, lca_ids
     )
 
     updated_ids_in_original = set(original_id_changes_commit_map.keys())
@@ -556,7 +558,7 @@ def merge_tensor_data(
     new_indexes = new_samples_dict[tensor_name]
     new_indexes.sort()
     for index in new_indexes:
-        original_tensor.append(target_tensor[index])
+        original_tensor.append(target_tensor[index].numpy())
         original_id_tensor[-1] = target_id_tensor[index]
 
     updated_indexes = updated_samples_dict[tensor_name]
