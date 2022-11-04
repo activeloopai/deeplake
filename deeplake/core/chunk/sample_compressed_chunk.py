@@ -16,7 +16,7 @@ import numpy as np
 
 
 class SampleCompressedChunk(BaseChunk):
-    def extend_if_has_space(self, incoming_samples: List[InputSample], update_tensor_meta: bool = True) -> float:  # type: ignore
+    def extend_if_has_space(self, incoming_samples: List[InputSample], update_tensor_meta: bool = True, **kwargs) -> float:  # type: ignore
         self.prepare_for_write()
         num_samples: float = 0
         dtype = self.dtype if self.is_byte_compression else None

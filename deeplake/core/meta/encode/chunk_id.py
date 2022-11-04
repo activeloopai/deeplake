@@ -32,7 +32,6 @@ class ChunkIdEncoder(Encoder, DeepLakeMemoryObject):
     def get_name_for_chunk(self, chunk_index: int) -> str:
         """Gets the name for the chunk at index `chunk_index`. If you need to get the name for a chunk from a sample index, instead
         use `__getitem__`, then `name_from_id`."""
-
         chunk_id = self._encoded[:, CHUNK_ID_COLUMN][chunk_index]
         return ChunkIdEncoder.name_from_id(chunk_id)
 
@@ -119,7 +118,6 @@ class ChunkIdEncoder(Encoder, DeepLakeMemoryObject):
         chunk_id = generate_id(self.dtype)
         if register:
             if self.num_samples == 0:
-                assert row is None
                 self._encoded = np.array([[chunk_id, -1]], dtype=self.dtype)
 
             else:
@@ -184,7 +182,6 @@ class ChunkIdEncoder(Encoder, DeepLakeMemoryObject):
         """
 
         ls = self.__getitem__(global_sample_index, return_row_index=True)  # type: ignore
-
         assert len(ls) == 1, len(
             ls
         )  # this method should only be called for non tiled samples
