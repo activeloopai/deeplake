@@ -7,6 +7,7 @@ from .common import (
     convert_fn as default_convert_fn,
     collate_fn as default_collate_fn,
 )
+from deeplake.integrations.pytorch.dataset import TorchDataset
 
 
 def create_dataloader_nesteddataloader(
@@ -104,10 +105,11 @@ def dataset_to_pytorch(
     tobytes: Union[bool, Sequence[str]] = False,
     return_index: bool = True,
     pad_tensors: bool = True,
+    torch_dataset=TorchDataset,
+    **kwargs,
 ):
 
     import torch
-    from deeplake.integrations.pytorch.dataset import TorchDataset
 
     try_flushing(dataset)
 
@@ -146,7 +148,7 @@ def dataset_to_pytorch(
         )
     else:
         return torch.utils.data.DataLoader(
-            TorchDataset(
+            torch_dataset(
                 dataset,
                 tensors=tensors,
                 tobytes=tobytes,
@@ -157,6 +159,7 @@ def dataset_to_pytorch(
                 buffer_size=buffer_size,
                 return_index=return_index,
                 pad_tensors=pad_tensors,
+                **kwargs,
             ),
             batch_size=batch_size,
             collate_fn=collate_fn,

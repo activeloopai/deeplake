@@ -123,6 +123,7 @@ from deeplake.hooks import dataset_read
 from itertools import chain
 import warnings
 import jwt
+from deeplake.integrations.pytorch.dataset import TorchDataset
 
 
 _LOCKABLE_STORAGES = {S3Provider, GCSProvider}
@@ -1493,6 +1494,8 @@ class Dataset:
         return_index: bool = True,
         pad_tensors: bool = False,
         transform_kwargs: Optional[Dict[str, Any]] = None,
+        torch_dataset=TorchDataset,
+        **kwargs,
     ):
         """Converts the dataset into a pytorch Dataloader.
 
@@ -1547,6 +1550,8 @@ class Dataset:
             use_local_cache=use_local_cache,
             return_index=return_index,
             pad_tensors=pad_tensors,
+            torch_dataset=torch_dataset,
+            **kwargs,
         )
 
         if use_progress_bar:
