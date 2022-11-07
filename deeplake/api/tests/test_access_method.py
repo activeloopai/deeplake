@@ -19,12 +19,23 @@ def test_access_method_parsing():
     assert parse_access_method("download:5") == ("download", 5, "threaded")
     assert parse_access_method("download:processed:5") == ("download", 5, "processed")
     assert parse_access_method("download:5:processed") == ("download", 5, "processed")
+    assert parse_access_method("local") == ("local", 0, "threaded")
+    assert parse_access_method("local:processed") == ("local", 0, "processed")
+    assert parse_access_method("local:5") == ("local", 5, "threaded")
+    assert parse_access_method("local:processed:5") == ("local", 5, "processed")
+    assert parse_access_method("local:5:processed") == ("local", 5, "processed")
     with pytest.raises(ValueError):
         parse_access_method("download:5:processed:5")
     with pytest.raises(ValueError):
         parse_access_method("download:processed:processed")
     with pytest.raises(ValueError):
         parse_access_method("download:processed:5:processed")
+    with pytest.raises(ValueError):
+        parse_access_method("local:5:processed:5")
+    with pytest.raises(ValueError):
+        parse_access_method("local:processed:processed")
+    with pytest.raises(ValueError):
+        parse_access_method("local:processed:5:processed")
 
 
 def test_access_method(s3_ds_generator):
@@ -38,7 +49,7 @@ def test_access_method(s3_ds_generator):
         ds.create_tensor("x")
         ds.x.extend(list(range(10)))
 
-    ds = s3_ds_generator(access_method="local")  # downloads automatically
+    ds = s3_ds_generator(access_method="local:2")  # downloads automatically
     assert not ds.path.startswith("s3://")
     for i in range(10):
         assert ds.x[i].numpy() == i

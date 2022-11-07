@@ -103,13 +103,19 @@ class dataset:
                     - 'download'
 
                         - Downloads the data to the local filesystem to the path specified in environment variable ``DEEPLAKE_DOWNLOAD_PATH``.
-                        - Will also raise an exception if the dataset does not exist. The 'download' access method can also be modified to specify num_workers and/or scheduler.
-                        - For example: 'download:2:processed', will use 2 workers and use processed scheduler, while 'download:3' will use 3 workers and default scheduler (threaded), and 'download:processed' will use a single worker and use processed scheduler.
+                          This will overwrite ``DEEPLAKE_DOWNLOAD_PATH``.
+                        - Raises an exception if ``DEEPLAKE_DOWNLOAD_PATH`` environment variable is not set or if the dataset does not exist.
+                        - The 'download' access method can be modified to specify num_workers and/or scheduler.
+                          For example: 'download:2:processed' will use 2 workers and use processed scheduler, while 'download:3' will use 3 workers and
+                          default scheduler (threaded), and 'download:processed' will use a single worker and use processed scheduler.
 
                     - 'local'
 
                         - Downloads dataset if it doesn't already exist, otherwise loads from local storage.
                         - Raises an exception if ``DEEPLAKE_DOWNLOAD_PATH`` environment variable is not set or the dataset is not found in ``DEEPLAKE_DOWNLOAD_PATH``.
+                        - The 'local' access method can be modified to specify num_workers and/or scheduler to be used in case dataset needs to be downloaded.
+                          If dataset needs to be downloaded, 'local:2:processed' will use 2 workers and use processed scheduler, while 'local:3' will use 3 workers
+                          and default scheduler (threaded), and 'local:processed' will use a single worker and use processed scheduler.
 
         Returns:
             Dataset: Dataset created using the arguments provided.
@@ -358,13 +364,19 @@ class dataset:
                     - 'download'
 
                         - Downloads the data to the local filesystem to the path specified in environment variable ``DEEPLAKE_DOWNLOAD_PATH``.
-                        - Will also raise an exception if the dataset does not exist. The 'download' access method can also be modified to specify num_workers and/or scheduler.
-                        - For example: 'download:2:processed', will use 2 workers and use processed scheduler, while 'download:3' will use 3 workers and default scheduler (threaded), and 'download:processed' will use a single worker and use processed scheduler.
+                          This will overwrite ``DEEPLAKE_DOWNLOAD_PATH``.
+                        - Raises an exception if ``DEEPLAKE_DOWNLOAD_PATH`` environment variable is not set or if the dataset does not exist.
+                        - The 'download' access method can be modified to specify num_workers and/or scheduler.
+                          For example: 'download:2:processed' will use 2 workers and use processed scheduler, while 'download:3' will use 3 workers and
+                          default scheduler (threaded), and 'download:processed' will use a single worker and use processed scheduler.
 
                     - 'local'
 
                         - Downloads dataset if it doesn't already exist, otherwise loads from local storage.
                         - Raises an exception if ``DEEPLAKE_DOWNLOAD_PATH`` environment variable is not set or the dataset is not found in ``DEEPLAKE_DOWNLOAD_PATH``.
+                        - The 'local' access method can be modified to specify num_workers and/or scheduler to be used in case dataset needs to be downloaded.
+                          If dataset needs to be downloaded, 'local:2:processed' will use 2 workers and use processed scheduler, while 'local:3' will use 3 workers
+                          and default scheduler (threaded), and 'local:processed' will use a single worker and use processed scheduler.
 
         Returns:
             Dataset: Dataset loaded using the arguments provided.

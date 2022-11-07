@@ -25,7 +25,9 @@ def check_access_method(access_method: str, overwrite: bool):
 def parse_access_method(access_method: str):
     num_workers = 0
     scheduler = "threaded"
-    if access_method.startswith("download"):
+    download = access_method.startswith("download")
+    local = access_method.startswith("local")
+    if download or local:
         split = access_method.split(":")
         if len(split) == 1:
             split.extend(("threaded", "0"))
@@ -38,7 +40,7 @@ def parse_access_method(access_method: str):
                     "Invalid access_method format. Expected format is one of the following: {download, download:scheduler, download:num_workers, download:scheduler:num_workers, download:num_workers:scheduler}"
                 )
 
-        access_method = "download"
+        access_method = "download" if download else "local"
         num_worker_index = 1 if split[1].isnumeric() else 2
         scheduler_index = 3 - num_worker_index
         num_workers = int(split[num_worker_index])
