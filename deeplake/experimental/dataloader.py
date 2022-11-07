@@ -7,7 +7,7 @@ from deeplake.experimental.util import (
     verify_base_storage,
 )
 from deeplake.experimental.util import collate_fn as default_collate  # type: ignore
-from deeplake.experimental.libdeeplake_query import query, sample
+from deeplake.experimental.libdeeplake_query import query, sampler
 from deeplake.integrations.pytorch.common import (
     PytorchTransformFunction,
     check_tensors,
@@ -188,7 +188,7 @@ class DeepLakeDataLoader:
         all_vars["dataset"] = query(self.dataset, query_string)
         return self.__class__(**all_vars)
 
-    def sample(
+    def sampler(
         self,
         weights: Union[str, list, tuple],
         replace: Optional[bool] = True,
@@ -209,7 +209,7 @@ class DeepLakeDataLoader:
 
         """
         all_vars = self.__dict__.copy()
-        all_vars["dataset"] = sample(self.dataset, weights, replace=replace, size=size)
+        all_vars["dataset"] = sampler(self.dataset, weights, replace=replace, size=size)
         return self.__class__(**all_vars)
 
     @deeplake_reporter.record_call
@@ -234,7 +234,7 @@ class DeepLakeDataLoader:
             num_threads (int, Optional): Number of threads to use for fetching and decompressing the data. If None, the number of threads is automatically determined. Defaults to None.
             prefetch_factor (int): Number of batches to transform and collate in advance per worker. Defaults to 2.
             distributed (bool): Used for DDP training. Distributes different sections of the dataset to different ranks. Defaults to False.
-            return_index (bool): Used to idnetify where loader needs to retur sample index or not. Defaults to True.
+            return_index (bool): Used to identify where loader needs to return sample index or not. Defaults to True.
             tobytes (bool, Sequence[str]): If ``True``, samples will not be decompressed and their raw bytes will be returned instead of numpy arrays. Can also be a list of tensors, in which case those tensors alone will not be decompressed.
 
         Returns:

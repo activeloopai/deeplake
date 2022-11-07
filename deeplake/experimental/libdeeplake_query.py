@@ -40,7 +40,7 @@ def query(dataset, query_string: str):
 
 
 @deeplake_reporter.record_call
-def sample(
+def sampler(
     dataset,
     weights: Union[str, list, tuple],
     replace: Optional[bool] = True,
