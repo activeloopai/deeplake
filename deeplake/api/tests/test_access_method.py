@@ -27,8 +27,7 @@ def test_access_method_parsing():
         parse_access_method("download:processed:5:processed")
 
 
-def test_access_method(gcs_ds_generator):
-    s3_ds_generator = gcs_ds_generator
+def test_access_method(s3_ds_generator):
     with pytest.raises(DatasetHandlerError):
         deeplake.dataset("./some_non_existent_path", access_method="download")
 
