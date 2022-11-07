@@ -2,7 +2,7 @@ import os
 import deeplake
 
 from pathlib import Path
-from typing import List, Union
+from typing import List, Union, Dict
 from tqdm import tqdm
 from itertools import chain
 
@@ -13,6 +13,7 @@ from deeplake.client.log import logger
 from ..base import UnstructuredDataset
 from ..util import DatasetStructure, GroupStructure, TensorStructure
 from .convert import coco_2_deeplake, CocoAnnotation, CocoImages
+
 from .constants import (
     DEFAULT_GENERIC_TENSOR_PARAMS,
     DEFAULT_COCO_TENSOR_PARAMS,
@@ -25,11 +26,11 @@ class CocoDataset(UnstructuredDataset):
         self,
         source: str,
         annotation_files: Union[str, List[str]],
-        key_to_tensor_mapping: dict = {},
-        file_to_group_mapping: dict = {},
+        key_to_tensor_mapping: Dict = {},
+        file_to_group_mapping: Dict = {},
         ignore_one_group: bool = False,
         ignore_keys: Union[str, List[str]] = [],
-        image_settings: dict = {},
+        image_settings: Dict = {},
     ):
         """
         Args:
@@ -79,7 +80,6 @@ class CocoDataset(UnstructuredDataset):
         """Return all the tensors and groups that should be created for this dataset"""
         dataset_structure = DatasetStructure(ignore_one_group=self.ignore_one_group)
 
-        # Iterate through each annotation file and inspect the keys to get Deep Lake tensor structure
         for ann_file in self.annotation_files:
             coco_file = CocoAnnotation(file_path=ann_file)
             file_name = Path(ann_file).stem
@@ -93,6 +93,9 @@ class CocoDataset(UnstructuredDataset):
             keys_in_group = set(chain.from_iterable(annotations[:inspect_limit]))
 
             for key in keys_in_group:
+                if key in self.ignore_keys:
+                    continue
+
                 tensor = TensorStructure(
                     name=self.key_to_tensor_mapping.get(key, key),
                     params=DEFAULT_COCO_TENSOR_PARAMS.get(
@@ -131,7 +134,6 @@ class CocoDataset(UnstructuredDataset):
         if "sample_compression" not in self.image_settings.keys():
             self.image_settings["sample_compression"] = most_common_compression
 
-        # Parse the dataset structure based on the user inputs and the input data
         parsed = self._parse_annotation_tensors()
 
         self._parse_images_tensor(
@@ -149,7 +151,7 @@ class CocoDataset(UnstructuredDataset):
                 image_name_to_id = coco_file.image_name_to_id_mapping
 
                 # Though logically less ideal, we have to iterate over the images, because there are multiple annotations per image,
-                # and thus mutliple annotations per row in the Deep Lake dataset
+                # and thus multiple annotations per row in the Deep Lake dataset
                 for img_file in tqdm(img_files):
                     try:
                         img_id = image_name_to_id[img_file]
