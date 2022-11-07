@@ -7,6 +7,7 @@ import inspect
 from deeplake.util.generate_id import generate_id
 import numpy as np
 from uuid import uuid4
+from os import urandom
 
 
 class _TensorLinkTransform:
@@ -32,10 +33,7 @@ link = _TensorLinkTransform
 
 @link
 def extend_id(samples, link_creds=None):
-    ret = np.zeros(len(samples), dtype=np.uint64)
-    for i in range(len(samples)):
-        ret[i] = uuid4().int >> 64
-    return ret
+    return np.frombuffer(urandom(8 * len(samples)), dtype=np.uint64).reshape(-1)
 
 
 @link
