@@ -445,15 +445,18 @@ class Dataset:
             else:
                 if not is_iteration and isinstance(item, int):
                     indexing_history = self._indexing_history
-                    if len(indexing_history) == 2:
-                        a, b = indexing_history
-                        if item - b == b - a:
+                    if len(indexing_history) == 10:
+                        step = indexing_history[1] - indexing_history[0]
+                        for i in range(2, len(indexing_history), 2):
+                            if indexing_history[i] - indexing_history[i - 1] != step:
+                                self._indexing_history.pop(0)
+                                self._indexing_history.append(item)
+                                break
+                        else:
                             is_iteration = True
                             warnings.warn(
                                 "Indexing by integer in a for loop, like `for i in range(len(ds)): ... ds[i]` can be quite slow. Use `for i, sample in enumerate(ds)` instead."
                             )
-                        if item < a or item > b:
-                            self._indexing_history = [b, item]
                     else:
                         indexing_history.append(item)
                 ret = self.__class__(
