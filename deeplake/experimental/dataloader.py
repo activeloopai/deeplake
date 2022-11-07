@@ -209,7 +209,9 @@ class DeepLakeDataLoader:
 
         """
         all_vars = self.__dict__.copy()
-        all_vars["dataset"] = sample_by(self.dataset, weights, replace=replace, size=size)
+        all_vars["dataset"] = sample_by(
+            self.dataset, weights, replace=replace, size=size
+        )
         return self.__class__(**all_vars)
 
     @deeplake_reporter.record_call
