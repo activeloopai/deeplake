@@ -72,9 +72,35 @@ def check_tensors(dataset, tensors):
     return compressed_tensors
 
 
-def remove_intersections(compressed_tensors: List[str], raw_tensors: List[str]):
-    compressed_tensors = [
-        tensor for tensor in compressed_tensors if tensor not in raw_tensors
-    ]
-    raw_tensors.extend(compressed_tensors)
-    return compressed_tensors, raw_tensors
+def validate_decode_method(decode_method, all_tensor_keys, jpeg_png_compressed_tensors):
+    jpeg_png_compressed_tensors_set = set(jpeg_png_compressed_tensors)
+    generic_supported_decode_methods = {"numpy", "tobytes"}
+    jpeg_png_supported_decode_methods = {"numpy", "tobytes", "pil"}
+    raw_tensors = []
+    compressed_tensors = []
+    for tensor_name, decode_method in decode_method.items():
+        if tensor_name not in all_tensor_keys:
+            raise ValueError(
+                f"decode_method tensor {tensor_name} not found in tensors."
+            )
+        if tensor_name in jpeg_png_compressed_tensors_set:
+            if decode_method not in jpeg_png_supported_decode_methods:
+                raise ValueError(
+                    f"decode_method {decode_method} not supported for tensor {tensor_name}. Supported methods are {jpeg_png_supported_decode_methods}"
+                )
+        elif decode_method not in generic_supported_decode_methods:
+            raise ValueError(
+                f"decode_method {decode_method} not supported for tensor {tensor_name}. Supported methods are {generic_supported_decode_methods}"
+            )
+        if decode_method == "tobytes":
+            raw_tensors.append(tensor_name)
+        elif decode_method == "pil":
+            compressed_tensors.append(tensor_name)
+
+    return raw_tensors, compressed_tensors
+
+
+def get_collate_fn(collate, mode):
+    if collate is None and mode == "pytorch":
+        return default_collate
+    return collate

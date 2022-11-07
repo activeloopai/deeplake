@@ -1,4 +1,4 @@
-from typing import Callable, Dict, List, Optional, Union, Sequence
+from typing import Callable, Dict, List, Optional, Union
 from deeplake.experimental.convert_to_libdeeplake import dataset_to_libdeeplake  # type: ignore
 from deeplake.experimental.util import (
     create_fetching_schedule,
@@ -11,7 +11,8 @@ from deeplake.experimental.libdeeplake_query import query
 from deeplake.integrations.pytorch.common import (
     PytorchTransformFunction,
     check_tensors,
-    remove_intersections,
+    get_collate_fn,
+    validate_decode_method,
 )
 from deeplake.util.bugout_reporter import deeplake_reporter
 from deeplake.util.dataset import map_tensor_keys
@@ -57,7 +58,7 @@ class DeepLakeDataLoader:
         _return_index=None,
         _primary_tensor_name=None,
         _buffer_size=None,
-        _tobytes=None,
+        _decode_method=None,
     ):
         import_indra_loader()
         self.dataset = dataset
@@ -75,7 +76,7 @@ class DeepLakeDataLoader:
         self._return_index = _return_index
         self._primary_tensor_name = _primary_tensor_name or find_primary_tensor(dataset)
         self._buffer_size = _buffer_size
-        self._tobytes = _tobytes
+        self._decode_method = _decode_method
 
     def batch(self, batch_size: int, drop_last: bool = False):
         """Returns a batched :class:`DeepLakeDataLoader` object.
@@ -194,7 +195,7 @@ class DeepLakeDataLoader:
         prefetch_factor: int = 2,
         distributed: bool = False,
         return_index: bool = True,
-        tobytes: Union[bool, Sequence[str]] = False,
+        decode_method: Optional[Dict[str, str]] = False,
     ):
         """Returns a :class:`DeepLakeDataLoader` object.
 
@@ -207,22 +208,23 @@ class DeepLakeDataLoader:
             prefetch_factor (int): Number of batches to transform and collate in advance per worker. Defaults to 2.
             distributed (bool): Used for DDP training. Distributes different sections of the dataset to different ranks. Defaults to False.
             return_index (bool): Used to idnetify where loader needs to retur sample index or not. Defaults to True.
-            tobytes (bool, Sequence[str]): If ``True``, samples will not be decompressed and their raw bytes will be returned instead of numpy arrays. Can also be a list of tensors, in which case those tensors alone will not be decompressed.
+            decode_method (Dict[str, str], Optional): A dictionary of decode methods for each tensor. Defaults to None.
 
         Returns:
             DeepLakeDataLoader: A :class:`DeepLakeDataLoader` object.
 
         Raises:
-            ValueError: If .to_pytorch() or .to_numpy() has already been called.
+            ValueError: If .pytorch() or .numpy() has already been called.
         """
         if self._mode is not None:
             if self._mode == "numpy":
-                raise ValueError("Can't call .to_pytorch after .to_numpy()")
-            raise ValueError("already called .to_pytorch()")
+                raise ValueError("Can't call .pytorch after .numpy()")
+            raise ValueError("already called .pytorch()")
         all_vars = self.__dict__.copy()
         all_vars["_num_workers"] = num_workers
         all_vars["_collate"] = collate_fn
-        handle_tensors_and_tobytes(tensors, tobytes, self.dataset, all_vars)
+        validate_tensors(tensors, self.dataset, all_vars)
+        all_vars["_decode_method"] = decode_method
         all_vars["_num_threads"] = num_threads
         all_vars["_prefetch_factor"] = prefetch_factor
         all_vars["_distributed"] = distributed
@@ -237,7 +239,7 @@ class DeepLakeDataLoader:
         tensors: Optional[List[str]] = None,
         num_threads: Optional[int] = None,
         prefetch_factor: int = 2,
-        tobytes: Union[bool, Sequence[str]] = False,
+        decode_method: Optional[Dict[str, str]] = False,
     ):
         """Returns a :class:`DeepLakeDataLoader` object.
 
@@ -246,21 +248,22 @@ class DeepLakeDataLoader:
             tensors (List[str], Optional): List of tensors to load. If None, all tensors are loaded. Defaults to None.
             num_threads (int, Optional): Number of threads to use for fetching and decompressing the data. If None, the number of threads is automatically determined. Defaults to None.
             prefetch_factor (int): Number of batches to transform and collate in advance per worker. Defaults to 2.
-            tobytes (bool, Sequence[str]): If ``True``, samples will not be decompressed and their raw bytes will be returned instead of numpy arrays. Can also be a list of tensors, in which case those tensors alone will not be decompressed.
+            decode_method (Dict[str, str], Optional): A dictionary of decode methods for each tensor. Defaults to None.
 
         Returns:
             DeepLakeDataLoader: A :class:`DeepLakeDataLoader` object.
 
         Raises:
-            ValueError: If .to_pytorch() or .to_numpy() has already been called.
+            ValueError: If .pytorch() or .numpy() has already been called.
         """
         if self._mode is not None:
             if self._mode == "pytorch":
-                raise ValueError("Can't call .to_numpy after .to_pytorch()")
-            raise ValueError("already called .to_numpy()")
+                raise ValueError("Can't call .numpy after .pytorch()")
+            raise ValueError("already called .numpy()")
         all_vars = self.__dict__.copy()
         all_vars["_num_workers"] = num_workers
-        handle_tensors_and_tobytes(tensors, tobytes, self.dataset, all_vars)
+        validate_tensors(tensors, self.dataset, all_vars)
+        all_vars["_decode_method"] = decode_method
         all_vars["_tensors"] = self._tensors or tensors
         all_vars["_num_threads"] = num_threads
         all_vars["_prefetch_factor"] = prefetch_factor
@@ -268,62 +271,36 @@ class DeepLakeDataLoader:
         return self.__class__(**all_vars)
 
     def __iter__(self):
-        tensors = self._tensors or map_tensor_keys(self.dataset, None)
-
-        # uncompressed tensors will be uncompressed in the workers on python side
-        compressed_tensors = check_tensors(self.dataset, tensors)
-        dataset = dataset_to_libdeeplake(self.dataset)
-        batch_size = self._batch_size or 1
-        drop_last = self._drop_last or False
-        return_index = self._return_index
-        if return_index is None:
-            return_index = True
-
-        shuffle = self._shuffle
-        if shuffle is None:
-            shuffle = False
-
-        transform_fn = self._transform
-
-        num_workers = self._num_workers or 0
-        if self._collate is None and self._mode == "pytorch":
-            collate_fn = default_collate
-        else:
-            collate_fn = self._collate
-        num_threads = self._num_threads
-        prefetch_factor = self._prefetch_factor
-        distributed = self._distributed or False
-
-        # only upcast for pytorch, this handles unsupported dtypes
-        upcast = self._mode == "pytorch"
+        collate_fn = get_collate_fn(self._collate, self._mode)
+        upcast = self._mode == "pytorch"  # upcast to handle unsupported dtypes
 
         primary_tensor_name = self._primary_tensor_name
         buffer_size = self._buffer_size
-        if self._tobytes is True:
-            raw_tensors = tensors
-        elif self._tobytes is False:
-            raw_tensors = []
-        else:
-            raw_tensors = self._tobytes
 
-        compressed_tensors, raw_tensors = remove_intersections(
-            compressed_tensors, raw_tensors
+        tensors = self._tensors or map_tensor_keys(self.dataset, None)
+        dataset = dataset_to_libdeeplake(self.dataset)
+        decode_method = self._decode_method or {}
+
+        jpeg_png_compressed_tensors = check_tensors(self.dataset, tensors)
+        raw_tensors, compressed_tensors = validate_decode_method(
+            decode_method, tensors, jpeg_png_compressed_tensors
         )
+
         return iter(
             INDRA_LOADER(
                 dataset,
-                batch_size=batch_size,
-                num_threads=num_threads,
-                shuffle=shuffle,
-                num_workers=num_workers,
+                batch_size=self._batch_size,
+                num_threads=self._num_threads,
+                shuffle=self._shuffle,
+                num_workers=self._num_workers,
                 collate_fn=collate_fn,
-                transform_fn=transform_fn,
-                distributed=distributed,
-                prefetch_factor=prefetch_factor,
+                transform_fn=self._transform,
+                distributed=self._distributed,
+                prefetch_factor=self._prefetch_factor,
                 tensors=tensors,
-                drop_last=drop_last,
+                drop_last=self._drop_last,
                 upcast=upcast,
-                return_index=return_index,
+                return_index=self._return_index,
                 primary_tensor=primary_tensor_name,
                 buffer_size=buffer_size,
                 raw_tensors=raw_tensors,
@@ -402,7 +379,7 @@ def dataloader(dataset) -> DeepLakeDataLoader:
     return DeepLakeDataLoader(dataset)
 
 
-def handle_tensors_and_tobytes(tensors, tobytes, dataset, all_vars):
+def validate_tensors(tensors, dataset, all_vars):
     existing_tensors = all_vars["_tensors"]
     if tensors:
         if "index" in tensors:
@@ -415,11 +392,3 @@ def handle_tensors_and_tobytes(tensors, tobytes, dataset, all_vars):
                 "Tensors have already been specified by passing a dictionary to .transform() method"
             )
     all_vars["_tensors"] = existing_tensors or tensors
-    if isinstance(tobytes, Sequence):
-        tobytes = map_tensor_keys(dataset, tobytes)
-        if tobytes and all_vars["_tensors"]:
-            tensor_set = set(all_vars["_tensors"])
-            for tensor in tobytes:
-                if tensor not in tensor_set:
-                    raise ValueError(f"tobytes tensor {tensor} not found in tensors.")
-    all_vars["_tobytes"] = tobytes
