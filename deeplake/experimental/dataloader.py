@@ -7,7 +7,7 @@ from deeplake.experimental.util import (
     verify_base_storage,
 )
 from deeplake.experimental.util import collate_fn as default_collate  # type: ignore
-from deeplake.experimental.libdeeplake_query import query
+from deeplake.experimental.libdeeplake_query import query, sample
 from deeplake.integrations.pytorch.common import (
     PytorchTransformFunction,
     check_tensors,
@@ -186,6 +186,30 @@ class DeepLakeDataLoader:
         """
         all_vars = self.__dict__.copy()
         all_vars["dataset"] = query(self.dataset, query_string)
+        return self.__class__(**all_vars)
+
+    def sample(
+        self,
+        weights: Union[str, list, tuple],
+        replace: Optional[bool] = True,
+        size: Optional[int] = None,
+    ):
+        """Returns a sliced :class:`DeepLakeDataLoader` with given weighted sampler applied
+
+        Args:
+            weights: (Union[str, list, tuple]): If it's string then tql will be run to calculate the weights based on the expression. list and tuple will be treated as the list of the weights per sample
+            replace: Optional[bool] If true the samples can be repeated in the result view.
+                (default: ``True``).
+            size: Optional[int] The length of the result view.
+                (default: ``len(dataset)``)
+
+
+        Returns:
+            Dataset: A deeplake.Dataset object.
+
+        """
+        all_vars = self.__dict__.copy()
+        all_vars["dataset"] = sample(self.dataset, weights, replace=replace, size=size)
         return self.__class__(**all_vars)
 
     @deeplake_reporter.record_call
