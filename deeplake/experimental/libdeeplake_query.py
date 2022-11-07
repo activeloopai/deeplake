@@ -40,7 +40,7 @@ def query(dataset, query_string: str):
 
 
 @deeplake_reporter.record_call
-def sampler(
+def sample_by(
     dataset,
     weights: Union[str, list, tuple],
     replace: Optional[bool] = True,
@@ -68,7 +68,7 @@ def sampler(
         >>> import deeplake
         >>> from deeplake.experimental import query
         >>> ds = deeplake.load('hub://activeloop/fashion-mnist-train')
-        >>> sampled_ds = sample(ds_train, "max_weight(labels == 5: 10, labels == 6: 5)")
+        >>> sampled_ds = sample_by(ds_train, "max_weight(labels == 5: 10, labels == 6: 5)")
 
         Sample the dataset with the given weights;
 
@@ -76,7 +76,7 @@ def sampler(
         >>> weights = list()
         >>> for i in range(0, len(ds_train)):
         >>>     weights.append(i % 5)
-        >>> sampled_ds = sample(ds_train, weights, replace=False)
+        >>> sampled_ds = sample_by(ds_train, weights, replace=False)
     """
     ds = dataset_to_libdeeplake(dataset)
     if size is None:

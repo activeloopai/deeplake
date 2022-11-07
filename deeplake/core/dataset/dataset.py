@@ -1647,7 +1647,7 @@ class Dataset:
 
         return query(self, query_string)
 
-    def sampler(
+    def sample_by(
         self,
         weights: Union[str, list, tuple],
         replace: Optional[bool] = True,
@@ -1681,11 +1681,11 @@ class Dataset:
             >>> weights = list()
             >>> for i in range(0, len(ds_train)):
             >>>     weights.append(i % 5)
-            >>> sampled_ds = sample(ds_train, weights, replace=False)
+            >>> sampled_ds = sample_by(ds_train, weights, replace=False)
         """
-        from deeplake.experimental import sampler
+        from deeplake.experimental import sample_by
 
-        return sampler(self, weights, replace, size)
+        return sample_by(self, weights, replace, size)
 
     def _get_total_meta(self):
         """Returns tensor metas all together"""

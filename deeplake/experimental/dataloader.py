@@ -7,7 +7,7 @@ from deeplake.experimental.util import (
     verify_base_storage,
 )
 from deeplake.experimental.util import collate_fn as default_collate  # type: ignore
-from deeplake.experimental.libdeeplake_query import query, sampler
+from deeplake.experimental.libdeeplake_query import query, sample_by
 from deeplake.integrations.pytorch.common import (
     PytorchTransformFunction,
     check_tensors,
@@ -188,7 +188,7 @@ class DeepLakeDataLoader:
         all_vars["dataset"] = query(self.dataset, query_string)
         return self.__class__(**all_vars)
 
-    def sampler(
+    def sample_by(
         self,
         weights: Union[str, list, tuple],
         replace: Optional[bool] = True,
@@ -209,7 +209,7 @@ class DeepLakeDataLoader:
 
         """
         all_vars = self.__dict__.copy()
-        all_vars["dataset"] = sampler(self.dataset, weights, replace=replace, size=size)
+        all_vars["dataset"] = sample_by(self.dataset, weights, replace=replace, size=size)
         return self.__class__(**all_vars)
 
     @deeplake_reporter.record_call
