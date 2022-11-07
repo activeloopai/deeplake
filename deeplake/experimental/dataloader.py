@@ -209,6 +209,13 @@ class DeepLakeDataLoader:
             distributed (bool): Used for DDP training. Distributes different sections of the dataset to different ranks. Defaults to False.
             return_index (bool): Used to idnetify where loader needs to retur sample index or not. Defaults to True.
             decode_method (Dict[str, str], Optional): A dictionary of decode methods for each tensor. Defaults to None.
+            Supported decode methods are:-
+
+            - 'numpy': Default behaviour. Returns samples as numpy arrays.
+
+            - 'tobytes': Returns raw bytes of the samples.
+
+            - 'pil': Returns samples as PIL images. Especially useful when transformation use torchvision transforms, that require PIL images as input. Only supported for tensors with sample_compression='jpeg' or 'png'.
 
         Returns:
             DeepLakeDataLoader: A :class:`DeepLakeDataLoader` object.
@@ -249,6 +256,13 @@ class DeepLakeDataLoader:
             num_threads (int, Optional): Number of threads to use for fetching and decompressing the data. If None, the number of threads is automatically determined. Defaults to None.
             prefetch_factor (int): Number of batches to transform and collate in advance per worker. Defaults to 2.
             decode_method (Dict[str, str], Optional): A dictionary of decode methods for each tensor. Defaults to None.
+            Supported decode methods are:-
+
+            - 'numpy': Default behaviour. Returns samples as numpy arrays.
+
+            - 'tobytes': Returns raw bytes of the samples.
+
+            - 'pil': Returns samples as PIL images. Especially useful when transformation use torchvision transforms, that require PIL images as input. Only supported for tensors with sample_compression='jpeg' or 'png'.
 
         Returns:
             DeepLakeDataLoader: A :class:`DeepLakeDataLoader` object.
@@ -279,11 +293,10 @@ class DeepLakeDataLoader:
 
         tensors = self._tensors or map_tensor_keys(self.dataset, None)
         dataset = dataset_to_libdeeplake(self.dataset)
-        decode_method = self._decode_method or {}
 
         jpeg_png_compressed_tensors = check_tensors(self.dataset, tensors)
         raw_tensors, compressed_tensors = validate_decode_method(
-            decode_method, tensors, jpeg_png_compressed_tensors
+            self._decode_method, tensors, jpeg_png_compressed_tensors
         )
 
         return iter(
