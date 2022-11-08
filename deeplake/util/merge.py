@@ -268,7 +268,7 @@ def merge_common_tensors(
             new_indexes,
             updated_indexes,
             conflict_indexes,
-        ) = find_new_updated_deleted_and_conflict_indexes(
+        ) = find_new_updated_and_conflict_indexes(
             tensor_name,
             dataset,
             target_dataset,
@@ -372,19 +372,12 @@ def find_updated_and_conflicts(
     return updated_indexes, conflict_indexes
 
 
-def find_new_updated_deleted_and_conflict_indexes(
+def find_new_updated_and_conflict_indexes(
     tensor_name: str,
     dataset,
     target_dataset,
     nodes: Dict[str, CommitNode],
-) -> Tuple[
-    List[int],
-    List[int],
-    List[Tuple[int, int]],
-    List[Tuple[int, int]],
-    List[int],
-    List[int],
-]:
+) -> Tuple[List[int], List[Tuple[int, int]], List[Tuple[int, int]]]:
     """Finds the new, deleted, updated and conflict indexes between the original commit and target commit.
 
     Args:
@@ -394,13 +387,10 @@ def find_new_updated_deleted_and_conflict_indexes(
         nodes (dict): A dictionary containing original, target and lca nodes.
 
     Returns:
-        A tuple of the form (new_indexes, deleted_indexes_in_target, updated_indexes, conflict_indexes, indexes_updated_in_original_and_deleted_in_target, indexes_updated_in_target_and_deleted_in_original)
+        A tuple of the form (new_indexes, updated_indexes, conflict_indexes)
         - new_indexes is a list of indexes for new samples
-        - deleted_indexes_in_target is a list of indexes of deleted samples
         - updated_indexes is a list of tuples of the form (original_idx, target_idx)
         - conflict_indexes is a list of tuples of the form (original_idx, target_idx)
-        - indexes_updated_in_original_and_deleted_in_target is a list of indexes of samples that were updated in the original commit and deleted in the target commit
-        - indexes_updated_in_target_and_deleted_in_original is a list of indexes of samples that were updated in the target commit and deleted in the original commit
     """
     id_tensor_name = get_sample_id_tensor_key(tensor_name)
     target_id_tensor = target_dataset[id_tensor_name]
