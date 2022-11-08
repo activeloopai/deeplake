@@ -1329,9 +1329,7 @@ class Dataset:
         Args:
             id_1 (str, Optional): The first commit_id or branch name.
             id_2 (str, Optional): The second commit_id or branch name.
-            as_dict (bool, Optional): If ``True``, returns a dictionary of the differences instead of printing them.
-                This dictionary will have two keys - "tensor" and "dataset" which represents tensor level and dataset level changes, respectively.
-                Defaults to False.
+            as_dict (bool, Optional): If ``True``, returns the diff as lists of commit wise dictionaries.
 
         Returns:
             Optional[Dict]
@@ -1347,37 +1345,14 @@ class Dataset:
 
         Note:
             A dictionary of the differences between the commits/branches is returned if ``as_dict`` is ``True``.
+            The dictionary will always have 2 keys, "dataset" and "tensors". The values corresponding to these keys are detailed below:
 
-                - If ``id_1`` and ``id_2`` are None, a dictionary containing the differences between the current state and the previous commit will be returned.
-                - If only ``id_1`` is provided, a dictionary containing the differences in the current state and ``id_1`` respectively will be returned.
+                - If ``id_1`` and ``id_2`` are None, both the keys will have a single list as their value. This list will contain a dictionary describing changes compared to the previous commit.
+                - If only ``id_1`` is provided, both keys will have a tuple of 2 lists as their value. The lists will contain dictionaries describing commitwise differences between commits. The 2 lists will range from current state and ``id_1` to most recent common ancestor the commits respectively.
                 - If only ``id_2`` is provided, a ValueError will be raised.
-                - If both ``id_1`` and ``id_2`` are provided, a dictionary containing the differences in ``id_1`` and ``id_2`` respectively will be returned.
+                - If both ``id_1`` and ``id_2`` are provided, both keys will have a tuple of 2 lists as their value. The lists will contain dictionaries describing commitwise differences between commits. The 2 lists will range from ``id_1`` and ``id_2`` to most recent common ancestor the commits respectively.
 
             ``None`` is returned if ``as_dict`` is ``False``.
-
-            Example of a dict returned:
-
-            >>> {
-            ...    "image": {"data_added": [3, 6], "data_updated": {0, 2}, "created": False, "info_updated": False, "data_transformed_in_place": False},
-            ...    "label": {"data_added": [0, 3], "data_updated": {}, "created": True, "info_updated": False, "data_transformed_in_place": False},
-            ...    "other/stuff" : {"data_added": [3, 3], "data_updated": {1, 2}, "created": True, "info_updated": False, "data_transformed_in_place": False},
-            ... }
-
-
-            - Here, "data_added" is a range of sample indexes that were added to the tensor.
-
-                - For example [3, 6] means that sample 3, 4 and 5 were added.
-                - Another example [3, 3] means that no samples were added as the range is empty.
-
-            - "data_updated" is a set of sample indexes that were updated.
-
-                - For example {0, 2} means that sample 0 and 2 were updated.
-
-            - "created" is a boolean that is ``True`` if the tensor was created.
-
-            - "info_updated" is a boolean that is ``True`` if the info of the tensor was updated.
-
-            - "data_transformed_in_place" is a boolean that is ``True`` if the data of the tensor was transformed in place.
         """
         version_state, storage = self.version_state, self.storage
         res = get_changes_and_messages(version_state, storage, id_1, id_2)
