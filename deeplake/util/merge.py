@@ -43,7 +43,6 @@ def merge(
     nodes["target"] = target_node = commit_node_map[target_commit_id]
     lca_id = get_lowest_common_ancestor(original_node, target_node)
     target_ds = create_read_copy_dataset(dataset, target_commit_id)
-    lca_ds = create_read_copy_dataset(dataset, lca_id)
 
     if lca_id == target_commit_id:
         print("No merge needed, target id is an ancestor of the current commit")
@@ -56,9 +55,7 @@ def merge(
         deleted_tensors,
     ) = get_new_common_deleted_tensors(dataset, target_ds, lca_id, force)
 
-    merge_common_tensors(
-        common_tensors, dataset, target_ds, lca_ds, nodes, conflict_resolution
-    )
+    merge_common_tensors(common_tensors, dataset, target_ds, nodes, conflict_resolution)
     copy_new_tensors(new_tensors, dataset, target_ds)
     delete_tensors(deleted_tensors, dataset, delete_removed_tensors)
     finalize_merge(dataset, nodes)
@@ -258,7 +255,6 @@ def merge_common_tensors(
     tensor_names: Set[str],
     dataset,
     target_dataset,
-    lca_dataset,
     nodes: Dict[str, CommitNode],
     conflict_resolution: Optional[str] = None,
 ):
@@ -266,47 +262,27 @@ def merge_common_tensors(
     new_samples_dict: Dict[str, List[int]] = {}
     updated_samples_dict: Dict[str, List[Tuple[int, int]]] = {}
     conflict_samples_dict: Dict[str, List[Tuple[int, int]]] = {}
-    deleted_samples_dict: Dict[str, List[int]] = {}
-    updated_in_original_deleted_in_target_dict: Dict[str, List[int]] = {}
-    updated_in_target_deleted_in_original_dict: Dict[str, List[int]] = {}
     conflict_tensors = set()
     for tensor_name in tensor_names:
         (
             new_indexes,
-            deleted_indexes,
             updated_indexes,
             conflict_indexes,
-            indexes_updated_in_original_and_deleted_in_target,
-            indexes_updated_in_target_and_deleted_in_original,
-        ) = res = find_new_updated_deleted_and_conflict_indexes(
+        ) = find_new_updated_deleted_and_conflict_indexes(
             tensor_name,
             dataset,
             target_dataset,
-            lca_dataset,
             nodes,
         )
         new_samples_dict[tensor_name] = new_indexes
-        deleted_samples_dict[tensor_name] = deleted_indexes
         updated_samples_dict[tensor_name] = updated_indexes
         if conflict_indexes:
             conflict_samples_dict[tensor_name] = conflict_indexes
-            conflict_tensors.add(tensor_name)
-        if indexes_updated_in_original_and_deleted_in_target:
-            updated_in_original_deleted_in_target_dict[
-                tensor_name
-            ] = indexes_updated_in_original_and_deleted_in_target
-            conflict_tensors.add(tensor_name)
-        if indexes_updated_in_target_and_deleted_in_original:
-            updated_in_target_deleted_in_original_dict[
-                tensor_name
-            ] = indexes_updated_in_target_and_deleted_in_original
             conflict_tensors.add(tensor_name)
 
     if conflict_tensors and conflict_resolution is None:
         # There are conflicts and a conflict resolution strategy has not been specified, unable to merge
         raise MergeConflictError(conflict_tensors)
-
-    print(res)
 
     for tensor_name in tensor_names:
         merge_tensor_data(
@@ -314,11 +290,8 @@ def merge_common_tensors(
             dataset,
             target_dataset,
             new_samples_dict,
-            deleted_samples_dict,
             updated_samples_dict,
             conflict_samples_dict,
-            updated_in_original_deleted_in_target_dict,
-            updated_in_target_deleted_in_original_dict,
             conflict_resolution,
         )
 
@@ -403,7 +376,6 @@ def find_new_updated_deleted_and_conflict_indexes(
     tensor_name: str,
     dataset,
     target_dataset,
-    lca_dataset,
     nodes: Dict[str, CommitNode],
 ) -> Tuple[
     List[int],
@@ -419,7 +391,6 @@ def find_new_updated_deleted_and_conflict_indexes(
         tensor_name (str): The name of the tensor to find the new and conflict indexes for.
         dataset: The original state of the dataset.
         target_dataset: The target state of the dataset.
-        lca_dataset: The dataset at the lowest common ancestor of the original and target commits.
         nodes (dict): A dictionary containing original, target and lca nodes.
 
     Returns:
@@ -453,49 +424,11 @@ def find_new_updated_deleted_and_conflict_indexes(
     target_ids = target_id_tensor.numpy().flatten()
     target_id_to_index_map = {id: idx for idx, id in enumerate(target_ids)}
 
-    try:
-        lca_id_tensor = lca_dataset[id_tensor_name]
-    except Exception:
-        lca_id_tensor = None
-
-    if lca_id_tensor is not None:
-        lca_ids = lca_id_tensor.numpy().flatten()
-    else:
-        lca_ids = []
-
-    deleted_ids_in_original, deleted_ids_in_target= get_deleted_ids(
-        original_ids, target_ids, lca_ids
-    )
-
-    new_elements_ids = set(target_ids) - set(original_ids) - set(deleted_ids_in_original)
+    new_elements_ids = set(target_ids) - set(original_ids)
 
     new_indexes = get_indexes_from_ids(
         new_elements_ids, target_id_changes_commit_map, target_id_to_index_map
     )
-
-    updated_ids_in_original = set(original_id_changes_commit_map.keys())
-    updated_ids_in_target = set(target_id_changes_commit_map.keys())
-
-    ids_updated_in_original_and_deleted_in_target = (
-        updated_ids_in_original.intersection(deleted_ids_in_target)
-    )
-    indexes_updated_in_original_and_deleted_in_target = [
-        original_id_to_index_map[id]
-        for id in ids_updated_in_original_and_deleted_in_target
-    ]
-    ids_updated_in_target_and_deleted_in_original = updated_ids_in_target.intersection(
-        deleted_ids_in_original
-    )
-    indexes_updated_in_target_and_deleted_in_original = [
-        target_id_to_index_map[id]
-        for id in ids_updated_in_target_and_deleted_in_original
-    ]
-
-    deleted_indexes_in_target = [
-        original_id_to_index_map[id]
-        for id in deleted_ids_in_target
-        if id not in original_id_changes_commit_map
-    ]
 
     conflict_indexes: List[Tuple[int, int]] = []
     updated_indexes: List[Tuple[int, int]] = []
@@ -505,14 +438,7 @@ def find_new_updated_deleted_and_conflict_indexes(
         original_id_to_index_map,
         target_id_to_index_map,
     )
-    return (
-        new_indexes,
-        deleted_indexes_in_target,
-        updated_indexes,
-        conflict_indexes,
-        indexes_updated_in_original_and_deleted_in_target,
-        indexes_updated_in_target_and_deleted_in_original,
-    )
+    return new_indexes, updated_indexes, conflict_indexes
 
 
 def get_deleted_ids(original_ids, target_ids, lca_ids):
@@ -529,25 +455,13 @@ def merge_tensor_data(
     dataset,
     target_dataset,
     new_samples_dict,
-    deleted_samples_dict,
     updated_samples_dict,
     conflict_samples_dict,
-    updated_in_original_and_deleted_in_target_dict,
-    updated_in_target_and_deleted_in_original_dict,
     conflict_resolution,
 ):
     """Merges actual data present in 2 versions of a common tensor."""
-    if conflict_resolution == "theirs":
-        if tensor_name in conflict_samples_dict:
-            updated_samples_dict[tensor_name].extend(conflict_samples_dict[tensor_name])
-        if tensor_name in updated_in_original_and_deleted_in_target_dict:
-            deleted_samples_dict[tensor_name].extend(
-                updated_in_original_and_deleted_in_target_dict[tensor_name]
-            )
-        if tensor_name in updated_in_target_and_deleted_in_original_dict:
-            new_samples_dict[tensor_name].extend(
-                updated_in_target_and_deleted_in_original_dict[tensor_name]
-            )
+    if conflict_resolution == "theirs" and tensor_name in conflict_samples_dict:
+        updated_samples_dict[tensor_name].extend(conflict_samples_dict[tensor_name])
 
     original_tensor = dataset[tensor_name]
     target_tensor = target_dataset[tensor_name]
@@ -564,11 +478,6 @@ def merge_tensor_data(
     updated_indexes = updated_samples_dict[tensor_name]
     for original_idx, target_idx in updated_indexes:
         original_tensor[original_idx] = target_tensor[target_idx]
-
-    deleted_indexes = deleted_samples_dict[tensor_name]
-    deleted_indexes.sort(reverse=True)
-    for index in deleted_indexes:
-        original_tensor.pop(index)
 
 
 def check_id_tensors_exist(visible_tensors: Set[str], all_tensors: Set[str]):
