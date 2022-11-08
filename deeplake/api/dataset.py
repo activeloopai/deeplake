@@ -778,6 +778,9 @@ class dataset:
             DatasetHandlerError: If a dataset already exists at destination path and overwrite is False.
         """
 
+        if not isinstance(src, (str, pathlib.Path)):
+            raise TypeError(f"Source should be path to a dataset. Got {type(src)}.")
+
         src = convert_pathlib_to_string_if_needed(src)
         dest = convert_pathlib_to_string_if_needed(dest)
 

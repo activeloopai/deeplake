@@ -357,6 +357,7 @@ class BaseChunk(DeepLakeMemoryObject):
                 break_into_tiles,
                 store_uncompressed_tiles,
             )
+            shape = self.convert_to_rgb(shape)
         elif isinstance(
             incoming_sample,
             (np.ndarray, list, int, float, bool, np.integer, np.floating, np.bool_),
