@@ -37,7 +37,9 @@ def _remove_protocol_from_path(path: str) -> str:
 
 
 class GCloudCredentials:
-    def __init__(self, token: Union[str, Dict] = None, project: str = None):
+    def __init__(
+        self, token: Optional[Union[str, Dict]] = None, project: Optional[str] = None
+    ):
         self.scope = "https://www.googleapis.com/auth/cloud-platform"
         self.project = project
         self.credentials = None
@@ -96,7 +98,7 @@ class GCloudCredentials:
             json.dump(token, f)
         return token_file.name
 
-    def _connect_token(self, token: Union[str, Dict] = None):
+    def _connect_token(self, token: Optional[Union[str, Dict]] = None):
         """
         Connect using a concrete token.
 
@@ -171,7 +173,7 @@ class GCloudCredentials:
         """Use provider without specific credentials. Applicable for public projects/buckets."""
         self.credentials = None
 
-    def connect(self, method: Union[str, Dict] = None):
+    def connect(self, method: Optional[Union[str, Dict]] = None):
         """
         Establish session token. A new token will be requested if the current
         one is within 100s of expiry.
@@ -205,7 +207,12 @@ class GCloudCredentials:
 class GCSProvider(StorageProvider):
     """Provider class for using GC storage."""
 
-    def __init__(self, root: str, token: Union[str, Dict] = None, project: str = None):
+    def __init__(
+        self,
+        root: str,
+        token: Optional[Union[str, Dict]] = None,
+        project: Optional[str] = None,
+    ):
         """Initializes the GCSProvider.
 
         Example:

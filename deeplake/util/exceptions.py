@@ -122,7 +122,10 @@ class DynamicTensorNumpyError(Exception):
 
 class InvalidShapeIntervalError(Exception):
     def __init__(
-        self, message: str, lower: Sequence[int] = None, upper: Sequence[int] = None
+        self,
+        message: str,
+        lower: Optional[Sequence[int]] = None,
+        upper: Optional[Sequence[int]] = None,
     ):
         s = message
 
@@ -491,7 +494,7 @@ class TensorMetaMutuallyExclusiveKeysError(MetaError):
 
 
 class ReadOnlyModeError(Exception):
-    def __init__(self, custom_message: str = None):
+    def __init__(self, custom_message: Optional[str] = None):
         if custom_message is None:
             custom_message = "Modification when in read-only mode is not supported!"
         super().__init__(custom_message)
