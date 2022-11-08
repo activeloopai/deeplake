@@ -197,8 +197,13 @@ def get_changes_str(
         commit_id = ds_change["commit_id"]
         author = ds_change["author"]
         message = ds_change["message"]
-        date = str(ds_change["date"])[:-7]
+        date = ds_change["date"]
         assert commit_id == tensor_change["commit_id"]
+        if date is None:
+            commit_id = "UNCOMMITTED HEAD"
+        else:
+            date = str(date)
+
         all_changes_for_commit = [
             local_separator,
             colour_string(f"commit {commit_id}", "yellow"),
