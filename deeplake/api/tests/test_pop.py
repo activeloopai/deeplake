@@ -3,6 +3,13 @@ import deeplake
 from deeplake.api.tests.test_api_tiling import compressions_paremetrized
 import pytest
 
+from deeplake.core.version_control.test_version_control import (
+    compare_dataset_diff,
+    compare_tensor_diff,
+    get_default_tensor_diff,
+    get_default_dataset_diff,
+)
+
 
 @deeplake.compute
 def pop_fn(sample_in, samples_out):
@@ -162,33 +169,65 @@ def test_diff_pop(local_ds_generator):
     with local_ds_generator() as ds:
         ds.create_tensor("abc")
         a = ds.commit("first commit")
+        expected_tensor_diff_from_a = {
+            "commit_id": ds.pending_commit_id,
+            "abc": get_default_tensor_diff(),
+        }
+        expected_dataset_diff_from_a = get_default_dataset_diff(ds.pending_commit_id)
         for i in range(5):
             ds.abc.append(i)
+        expected_tensor_diff_from_a["abc"]["data_added"] = [0, 5]
 
         b = ds.commit("added 5 samples")
+        expected_tensor_diff_from_b = {
+            "commit_id": ds.pending_commit_id,
+            "abc": get_default_tensor_diff(),
+        }
+        expected_dataset_diff_from_b = get_default_dataset_diff(ds.pending_commit_id)
 
         ds.abc[2] = -2
         ds.abc[3] = -3
+        expected_tensor_diff_from_b["abc"]["data_updated"] = {2, 3}
         ds.abc.pop(3)
+        expected_tensor_diff_from_b["abc"]["data_deleted"] = {3}
+        expected_tensor_diff_from_b["abc"]["data_updated"] = {2}
         ds.abc.append(5)
         ds.abc.append(6)
+        expected_tensor_diff_from_b["abc"]["data_added"] = [4, 6]
 
         c = ds.commit("second commit")
-        ds.abc.pop(2)
-
-        diff1, diff2 = ds.diff(b, as_dict=True)["tensor"]
-        assert diff1 == {
-            "abc": {
-                "created": False,
-                "cleared": False,
-                "info_updated": False,
-                "data_transformed_in_place": False,
-                "data_added": [3, 5],
-                "data_updated": set(),
-                "data_deleted": {2, 3},
-            }
+        expected_tensor_diff_from_c = {
+            "commit_id": ds.pending_commit_id,
+            "abc": get_default_tensor_diff(),
         }
-        assert diff2 == {}
+        expected_dataset_diff_from_c = get_default_dataset_diff(ds.pending_commit_id)
+        ds.abc.pop(2)
+        expected_tensor_diff_from_c["abc"]["data_deleted"] = {2}
+
+        diff = ds.diff(a, as_dict=True)
+        tensor_diff = diff["tensor"]
+        dataset_diff = diff["dataset"]
+        expected_tensor_diff = [
+            [
+                expected_tensor_diff_from_c,
+                expected_tensor_diff_from_b,
+                expected_tensor_diff_from_a,
+            ],
+            [],
+        ]
+        expected_dataset_diff = [
+            [
+                expected_dataset_diff_from_c,
+                expected_dataset_diff_from_b,
+                expected_dataset_diff_from_a,
+            ],
+            [],
+        ]
+
+        compare_tensor_diff(expected_tensor_diff[0], tensor_diff[0])
+        compare_tensor_diff(expected_tensor_diff[1], tensor_diff[1])
+        compare_dataset_diff(expected_dataset_diff[0], dataset_diff[0])
+        compare_dataset_diff(expected_dataset_diff[1], dataset_diff[1])
 
 
 def test_ds_pop(local_ds):
