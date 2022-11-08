@@ -462,7 +462,7 @@ def merge_tensor_data(
     new_indexes = new_samples_dict[tensor_name]
     new_indexes.sort()
     for index in new_indexes:
-        original_tensor.append(target_tensor[index].numpy())
+        original_tensor.append(target_tensor[index])
         original_id_tensor[-1] = target_id_tensor[index]
 
     updated_indexes = updated_samples_dict[tensor_name]
