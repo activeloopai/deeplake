@@ -47,7 +47,7 @@ def get_default_tensor_diff():
     }
 
 
-def get_defaut_dataset_diff(commit_id):
+def get_default_dataset_diff(commit_id):
     return {
         "commit_id": commit_id,
         "info_updated": False,
@@ -674,7 +674,7 @@ def test_dataset_diff(local_ds, capsys):
         "commit_id": local_ds.pending_commit_id,
         "xyz": get_default_tensor_diff(),
     }
-    expected_dataset_diff_from_a = get_defaut_dataset_diff(local_ds.pending_commit_id)
+    expected_dataset_diff_from_a = get_default_dataset_diff(local_ds.pending_commit_id)
     local_ds.rename_tensor("abc", "xyz")
     expected_dataset_diff_from_a["renamed"] = OrderedDict({"abc": "xyz"})
     local_ds.info["hello"] = "world"
@@ -698,7 +698,7 @@ def test_dataset_diff(local_ds, capsys):
         "commit_id": local_ds.pending_commit_id,
         "xyz": get_default_tensor_diff(),
     }
-    expected_dataset_diff_from_b = get_defaut_dataset_diff(local_ds.pending_commit_id)
+    expected_dataset_diff_from_b = get_default_dataset_diff(local_ds.pending_commit_id)
     local_ds.delete_tensor("xyz")
     expected_tensor_diff_from_b.pop("xyz")
     expected_dataset_diff_from_b["deleted"].append("xyz")
@@ -751,7 +751,7 @@ def test_clear_diff(local_ds, capsys):
             "commit_id": local_ds.pending_commit_id,
             "abc": get_default_tensor_diff(),
         }
-        expected_dataset_diff_from_start = get_defaut_dataset_diff(
+        expected_dataset_diff_from_start = get_default_dataset_diff(
             local_ds.pending_commit_id
         )
         local_ds.create_tensor("abc")
@@ -786,7 +786,7 @@ def test_clear_diff(local_ds, capsys):
         "abc": get_default_tensor_diff(),
     }
 
-    expected_dataset_diff_from_a = get_defaut_dataset_diff(local_ds.pending_commit_id)
+    expected_dataset_diff_from_a = get_default_dataset_diff(local_ds.pending_commit_id)
 
     with local_ds:
         local_ds.abc.append([3, 4, 5])
@@ -831,7 +831,7 @@ def test_clear_diff(local_ds, capsys):
         "abc": get_default_tensor_diff(),
         "xyz": get_default_tensor_diff(),
     }
-    expected_dataset_diff_from_b = get_defaut_dataset_diff(local_ds.pending_commit_id)
+    expected_dataset_diff_from_b = get_default_dataset_diff(local_ds.pending_commit_id)
 
     with local_ds:
         local_ds.xyz.append([0, 0, 1])
@@ -886,7 +886,7 @@ def test_delete_diff(local_ds, capsys):
         "commit_id": local_ds.pending_commit_id,
         "x/y/z": get_default_tensor_diff(),
     }
-    expected_dataset_diff_from_a = get_defaut_dataset_diff(local_ds.pending_commit_id)
+    expected_dataset_diff_from_a = get_default_dataset_diff(local_ds.pending_commit_id)
     local_ds.create_tensor("a/b/c")
     expected_tensor_diff_from_a["a/b/c"] = get_default_tensor_diff()
     expected_tensor_diff_from_a["a/b/c"]["created"] = True
@@ -896,7 +896,7 @@ def test_delete_diff(local_ds, capsys):
         "a/b/c": get_default_tensor_diff(),
         "x/y/z": get_default_tensor_diff(),
     }
-    expected_dataset_diff_from_b = get_defaut_dataset_diff(local_ds.pending_commit_id)
+    expected_dataset_diff_from_b = get_default_dataset_diff(local_ds.pending_commit_id)
     local_ds["a/b/c"].append([1, 2, 3])
     expected_tensor_diff_from_b["a/b/c"]["data_added"] = [0, 1]
     c = local_ds.commit()
@@ -905,7 +905,7 @@ def test_delete_diff(local_ds, capsys):
         "a/b/c": get_default_tensor_diff(),
         "x/y/z": get_default_tensor_diff(),
     }
-    expected_dataset_diff_from_c = get_defaut_dataset_diff(local_ds.pending_commit_id)
+    expected_dataset_diff_from_c = get_default_dataset_diff(local_ds.pending_commit_id)
     local_ds.delete_tensor("a/b/c")
     expected_dataset_diff_from_c["deleted"].append("a/b/c")
     expected_tensor_diff_from_c.pop("a/b/c")
@@ -952,7 +952,7 @@ def test_delete_diff(local_ds, capsys):
         "commit_id": local_ds.pending_commit_id,
         "x/y/z": get_default_tensor_diff(),
     }
-    expected_dataset_diff_from_d = get_defaut_dataset_diff(local_ds.pending_commit_id)
+    expected_dataset_diff_from_d = get_default_dataset_diff(local_ds.pending_commit_id)
     local_ds["x/y/z"][0] = [1, 3, 4]
     expected_tensor_diff_from_d["x/y/z"]["data_updated"] = {0}
     e = local_ds.commit()
@@ -960,7 +960,7 @@ def test_delete_diff(local_ds, capsys):
         "commit_id": local_ds.pending_commit_id,
         "x/y/z": get_default_tensor_diff(),
     }
-    expected_dataset_diff_from_e = get_defaut_dataset_diff(local_ds.pending_commit_id)
+    expected_dataset_diff_from_e = get_default_dataset_diff(local_ds.pending_commit_id)
     local_ds.create_tensor("a/b/c")
     expected_tensor_diff_from_e["a/b/c"] = get_default_tensor_diff()
     expected_tensor_diff_from_e["a/b/c"]["created"] = True
@@ -1068,7 +1068,7 @@ def test_rename_diff_single(local_ds, capsys):
             "abc": get_default_tensor_diff(),
         }
         expect_tensor_diff_from_start["abc"]["created"] = True
-        expect_dataset_diff_from_start = get_defaut_dataset_diff(
+        expect_dataset_diff_from_start = get_default_dataset_diff(
             local_ds.pending_commit_id
         )
         local_ds.abc.append([1, 2, 3])
@@ -1104,7 +1104,7 @@ def test_rename_diff_single(local_ds, capsys):
         "efg": get_default_tensor_diff(),
         "red": get_default_tensor_diff(),
     }
-    expected_dataset_diff_from_a = get_defaut_dataset_diff(local_ds.pending_commit_id)
+    expected_dataset_diff_from_a = get_default_dataset_diff(local_ds.pending_commit_id)
 
     with local_ds:
         local_ds.rename_tensor("red", "blue")
@@ -1164,7 +1164,7 @@ def test_rename_diff_linear(local_ds, capsys):
         "abc": get_default_tensor_diff(),
         "xyz": get_default_tensor_diff(),
     }
-    expected_dataset_diff_from_a = get_defaut_dataset_diff(local_ds.pending_commit_id)
+    expected_dataset_diff_from_a = get_default_dataset_diff(local_ds.pending_commit_id)
     with local_ds:
         local_ds.create_tensor("red")
         expected_tensor_diff_from_a["red"] = get_default_tensor_diff()
@@ -1188,7 +1188,7 @@ def test_rename_diff_linear(local_ds, capsys):
         "red": get_default_tensor_diff(),
     }
 
-    expected_dataset_diff_from_b = get_defaut_dataset_diff(local_ds.pending_commit_id)
+    expected_dataset_diff_from_b = get_default_dataset_diff(local_ds.pending_commit_id)
     with local_ds:
         local_ds.rename_tensor("red", "blue")
         expected_dataset_diff_from_b["renamed"]["red"] = "blue"
@@ -1240,7 +1240,7 @@ def test_rename_diff_linear(local_ds, capsys):
         "xyz": get_default_tensor_diff(),
         "blue": get_default_tensor_diff(),
     }
-    expected_dataset_diff_from_c = get_defaut_dataset_diff(local_ds.pending_commit_id)
+    expected_dataset_diff_from_c = get_default_dataset_diff(local_ds.pending_commit_id)
     with local_ds:
         local_ds.rename_tensor("abc", "bcd")
         expected_dataset_diff_from_c["renamed"]["abc"] = "bcd"
@@ -1296,7 +1296,7 @@ def test_rename_diff_linear(local_ds, capsys):
         "bcd": get_default_tensor_diff(),
         "abc": get_default_tensor_diff(),
     }
-    expected_dataset_diff_from_d = get_defaut_dataset_diff(local_ds.pending_commit_id)
+    expected_dataset_diff_from_d = get_default_dataset_diff(local_ds.pending_commit_id)
     with local_ds:
         local_ds.delete_tensor("bcd")
         expected_dataset_diff_from_d["deleted"].append("bcd")
@@ -1351,7 +1351,7 @@ def test_rename_diff_linear(local_ds, capsys):
         "commit_id": local_ds.pending_commit_id,
         "bcd": get_default_tensor_diff(),
     }
-    expected_dataset_diff_from_e = get_defaut_dataset_diff(local_ds.pending_commit_id)
+    expected_dataset_diff_from_e = get_default_dataset_diff(local_ds.pending_commit_id)
     with local_ds:
         local_ds.rename_tensor("bcd", "abc")
         expected_dataset_diff_from_e["renamed"]["bcd"] = "abc"
@@ -1411,7 +1411,7 @@ def test_rename_diff_branch(local_ds, capsys):
         "commit_id": local_ds.pending_commit_id,
         "abc": get_default_tensor_diff(),
     }
-    expected_dataset_diff_from_a_on_alt = get_defaut_dataset_diff(
+    expected_dataset_diff_from_a_on_alt = get_default_dataset_diff(
         local_ds.pending_commit_id
     )
 
@@ -1430,7 +1430,7 @@ def test_rename_diff_branch(local_ds, capsys):
         "commit_id": local_ds.pending_commit_id,
         "abc": get_default_tensor_diff(),
     }
-    expected_dataset_diff_from_a_on_main = get_defaut_dataset_diff(
+    expected_dataset_diff_from_a_on_main = get_default_dataset_diff(
         local_ds.pending_commit_id
     )
 
@@ -1448,7 +1448,7 @@ def test_rename_diff_branch(local_ds, capsys):
         "abc": get_default_tensor_diff(),
         "red": get_default_tensor_diff(),
     }
-    expected_dataset_diff_from_c_on_alt2 = get_defaut_dataset_diff(
+    expected_dataset_diff_from_c_on_alt2 = get_default_dataset_diff(
         local_ds.pending_commit_id
     )
 
@@ -1474,7 +1474,7 @@ def test_rename_diff_branch(local_ds, capsys):
         "blue": get_default_tensor_diff(),
         "efg": get_default_tensor_diff(),
     }
-    expected_dataset_diff_from_d_on_alt2 = get_defaut_dataset_diff(
+    expected_dataset_diff_from_d_on_alt2 = get_default_dataset_diff(
         local_ds.pending_commit_id
     )
 
@@ -1534,7 +1534,7 @@ def test_rename_group(local_ds, capsys):
             "g1/g2/g3/t1": get_default_tensor_diff(),
             "g1/g2/t2": get_default_tensor_diff(),
         }
-        expected_dataset_diff_from_a = get_defaut_dataset_diff(
+        expected_dataset_diff_from_a = get_default_dataset_diff(
             local_ds.pending_commit_id
         )
         local_ds.rename_group("g1/g2", "g1/g4")
@@ -1576,7 +1576,7 @@ def test_diff_linear(local_ds, capsys):
             "xyz": get_default_tensor_diff(),
             "pqr": get_default_tensor_diff(),
         }
-        expected_dataset_diff_from_a = get_defaut_dataset_diff(
+        expected_dataset_diff_from_a = get_default_dataset_diff(
             local_ds.pending_commit_id
         )
         local_ds.xyz[0] = 10
@@ -1614,7 +1614,7 @@ def test_diff_linear(local_ds, capsys):
         "abc": get_default_tensor_diff(),
     }
 
-    expected_dataset_diff_from_b = get_defaut_dataset_diff(local_ds.pending_commit_id)
+    expected_dataset_diff_from_b = get_default_dataset_diff(local_ds.pending_commit_id)
 
     diff = local_ds.diff(as_dict=True)
     tensor_diff = diff["tensor"]
@@ -1753,7 +1753,7 @@ def test_diff_branch(local_ds, capsys):
         "commit_id": local_ds.pending_commit_id,
         "xyz": get_default_tensor_diff(),
     }
-    expected_dataset_diff_from_a_on_alt = get_defaut_dataset_diff(
+    expected_dataset_diff_from_a_on_alt = get_default_dataset_diff(
         local_ds.pending_commit_id
     )
     with local_ds:
@@ -1775,7 +1775,7 @@ def test_diff_branch(local_ds, capsys):
         "commit_id": local_ds.pending_commit_id,
         "xyz": get_default_tensor_diff(),
     }
-    expected_dataset_diff_from_a_on_main = get_defaut_dataset_diff(
+    expected_dataset_diff_from_a_on_main = get_default_dataset_diff(
         local_ds.pending_commit_id
     )
     with local_ds:
@@ -1800,7 +1800,7 @@ def test_diff_branch(local_ds, capsys):
         "commit_id": local_ds.pending_commit_id,
         "xyz": get_default_tensor_diff(),
     }
-    expected_dataset_diff_from_c_on_main = get_defaut_dataset_diff(
+    expected_dataset_diff_from_c_on_main = get_default_dataset_diff(
         local_ds.pending_commit_id
     )
     diff = local_ds.diff(as_dict=True)
@@ -1942,7 +1942,7 @@ def test_complex_diff(local_ds, capsys):
         "commit_id": local_ds.pending_commit_id,
         "xyz": get_default_tensor_diff(),
     }
-    expected_dataset_diff_from_a_on_alt = get_defaut_dataset_diff(
+    expected_dataset_diff_from_a_on_alt = get_default_dataset_diff(
         local_ds.pending_commit_id
     )
     with local_ds:
@@ -1953,7 +1953,7 @@ def test_complex_diff(local_ds, capsys):
         "commit_id": local_ds.pending_commit_id,
         "xyz": get_default_tensor_diff(),
     }
-    expected_dataset_diff_from_b_on_alt = get_defaut_dataset_diff(
+    expected_dataset_diff_from_b_on_alt = get_default_dataset_diff(
         local_ds.pending_commit_id
     )
     c = local_ds.pending_commit_id
@@ -1966,7 +1966,7 @@ def test_complex_diff(local_ds, capsys):
         "commit_id": local_ds.pending_commit_id,
         "xyz": get_default_tensor_diff(),
     }
-    expected_dataset_diff_from_a_on_main = get_defaut_dataset_diff(
+    expected_dataset_diff_from_a_on_main = get_default_dataset_diff(
         local_ds.pending_commit_id
     )
     d = local_ds.pending_commit_id
@@ -1984,7 +1984,7 @@ def test_complex_diff(local_ds, capsys):
         "xyz": get_default_tensor_diff(),
         "pqr": get_default_tensor_diff(),
     }
-    expected_dataset_diff_from_d_on_another = get_defaut_dataset_diff(
+    expected_dataset_diff_from_d_on_another = get_default_dataset_diff(
         local_ds.pending_commit_id
     )
     with local_ds:
@@ -2002,7 +2002,7 @@ def test_complex_diff(local_ds, capsys):
         "tuv": get_default_tensor_diff(),
         "pqr": get_default_tensor_diff(),
     }
-    expected_dataset_diff_from_f_on_another = get_defaut_dataset_diff(
+    expected_dataset_diff_from_f_on_another = get_default_dataset_diff(
         local_ds.pending_commit_id
     )
     g = local_ds.pending_commit_id
@@ -2013,7 +2013,7 @@ def test_complex_diff(local_ds, capsys):
         "xyz": get_default_tensor_diff(),
         "pqr": get_default_tensor_diff(),
     }
-    expected_dataset_diff_from_d_on_main = get_defaut_dataset_diff(
+    expected_dataset_diff_from_d_on_main = get_default_dataset_diff(
         local_ds.pending_commit_id
     )
 

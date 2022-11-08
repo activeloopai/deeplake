@@ -7,7 +7,7 @@ from deeplake.core.version_control.test_version_control import (
     compare_dataset_diff,
     compare_tensor_diff,
     get_default_tensor_diff,
-    get_defaut_dataset_diff,
+    get_default_dataset_diff,
 )
 
 
@@ -173,7 +173,7 @@ def test_diff_pop(local_ds_generator):
             "commit_id": ds.pending_commit_id,
             "abc": get_default_tensor_diff(),
         }
-        expected_dataset_diff_from_a = get_defaut_dataset_diff(ds.pending_commit_id)
+        expected_dataset_diff_from_a = get_default_dataset_diff(ds.pending_commit_id)
         for i in range(5):
             ds.abc.append(i)
         expected_tensor_diff_from_a["abc"]["data_added"] = [0, 5]
@@ -183,7 +183,7 @@ def test_diff_pop(local_ds_generator):
             "commit_id": ds.pending_commit_id,
             "abc": get_default_tensor_diff(),
         }
-        expected_dataset_diff_from_b = get_defaut_dataset_diff(ds.pending_commit_id)
+        expected_dataset_diff_from_b = get_default_dataset_diff(ds.pending_commit_id)
 
         ds.abc[2] = -2
         ds.abc[3] = -3
@@ -200,7 +200,7 @@ def test_diff_pop(local_ds_generator):
             "commit_id": ds.pending_commit_id,
             "abc": get_default_tensor_diff(),
         }
-        expected_dataset_diff_from_c = get_defaut_dataset_diff(ds.pending_commit_id)
+        expected_dataset_diff_from_c = get_default_dataset_diff(ds.pending_commit_id)
         ds.abc.pop(2)
         expected_tensor_diff_from_c["abc"]["data_deleted"] = {2}
 

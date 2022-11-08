@@ -8,7 +8,7 @@ from deeplake.core.version_control.test_version_control import (
     compare_dataset_diff,
     compare_tensor_diff,
     get_default_tensor_diff,
-    get_defaut_dataset_diff,
+    get_default_dataset_diff,
 )
 from deeplake.util.remove_cache import remove_memory_cache
 from deeplake.util.check_installation import ray_installed
@@ -398,7 +398,7 @@ def test_add_to_non_empty_dataset(local_ds, scheduler, do_commit):
         "label": get_default_tensor_diff(),
     }
 
-    expected_dataset_diff = get_defaut_dataset_diff(local_ds.pending_commit_id)
+    expected_dataset_diff = get_default_dataset_diff(local_ds.pending_commit_id)
 
     if do_commit:
         expected_tensor_diff["image"]["data_added"] = [10, 610]
@@ -676,7 +676,7 @@ def test_inplace_transform(local_ds_generator):
             "img": get_default_tensor_diff(),
             "label": get_default_tensor_diff(),
         }
-        expected_dataset_diff = get_defaut_dataset_diff(ds.pending_commit_id)
+        expected_dataset_diff = get_default_dataset_diff(ds.pending_commit_id)
         expected_tensor_diff["img"]["data_added"] = [0, 20]
         expected_tensor_diff["img"]["data_transformed_in_place"] = True
         expected_tensor_diff["label"]["data_added"] = [0, 20]
