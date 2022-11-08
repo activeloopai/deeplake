@@ -6,6 +6,7 @@ import deeplake
 import inspect
 from deeplake.util.generate_id import generate_id
 import numpy as np
+from uuid import uuid4
 
 
 class _TensorLinkTransform:
@@ -30,13 +31,16 @@ link = _TensorLinkTransform
 
 
 @link
-def append_id(sample, link_creds=None):
-    return generate_id(np.uint64)
+def extend_id(samples, link_creds=None):
+    ret = np.zeros(len(samples), dtype=np.uint64)
+    for i in range(len(samples)):
+        ret[i] = uuid4().int >> 64
+    return ret
 
 
 @link
-def append_test(sample, link_creds=None):
-    return sample
+def extend_test(samples, link_creds=None):
+    return samples
 
 
 @link
@@ -47,16 +51,19 @@ def update_test(
 
 
 @link
-def append_info(sample, link_creds=None):
-    meta = {}
-    if isinstance(sample, deeplake.core.linked_sample.LinkedSample):
-        sample = read_linked_sample(
-            sample.path, sample.creds_key, link_creds, verify=False
-        )
-    if isinstance(sample, deeplake.core.sample.Sample):
-        meta = sample.meta
-        meta["modified"] = False
-    return meta
+def extend_info(samples, link_creds=None):
+    metas = []
+    for sample in samples:
+        meta = {}
+        if isinstance(sample, deeplake.core.linked_sample.LinkedSample):
+            sample = read_linked_sample(
+                sample.path, sample.creds_key, link_creds, verify=False
+            )
+        if isinstance(sample, deeplake.core.sample.Sample):
+            meta = sample.meta
+            meta["modified"] = False
+        metas.append(meta)
+    return metas
 
 
 @link
@@ -69,12 +76,12 @@ def update_info(
             meta["modified"] = True
             return meta
     else:
-        return append_info.f(new_sample, link_creds)
+        return extend_info.f([new_sample], link_creds)[0]
     return _NO_LINK_UPDATE
 
 
 @link
-def append_shape(sample, link_creds=None):
+def update_shape(sample, link_creds=None):
     if isinstance(sample, deeplake.core.linked_sample.LinkedSample):
         sample = read_linked_sample(
             sample.path, sample.creds_key, link_creds, verify=False
@@ -87,7 +94,25 @@ def append_shape(sample, link_creds=None):
 
 
 @link
-def append_len(sample, link_creds=None):
+def extend_shape(samples, link_creds=None):
+    if isinstance(samples, np.ndarray):
+        return [np.array(samples.shape[1:])] * len(samples)
+    return (
+        np.array([], dtype=np.int64)
+        if samples is None
+        else np.array(
+            [update_shape.f(sample, link_creds=link_creds) for sample in samples]
+        )
+    )
+
+
+@link
+def extend_len(samples, link_creds=None):
+    return [0 if sample is None else len(sample) for sample in samples]
+
+
+@link
+def update_len(sample, link_creds=None):
     return 0 if sample is None else len(sample)
 
 

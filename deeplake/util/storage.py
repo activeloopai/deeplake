@@ -167,7 +167,7 @@ def get_local_storage_path(path: str, prefix: str):
     local_cache_name = path.replace("://", "_")
     local_cache_name = local_cache_name.replace("/", "_")
     local_cache_name = local_cache_name.replace("\\", "_")
-    return f"{prefix}/{local_cache_name}"
+    return os.path.join(prefix, local_cache_name)
 
 
 def get_pytorch_local_storage(dataset):

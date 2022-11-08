@@ -27,7 +27,6 @@ class SampleTiles:
         sample_shape: Optional[Tuple[int, ...]] = None,
         dtype: Optional[Union[np.dtype, str]] = None,
     ):
-        self.registered = False
         self.tiles_yielded = 0
         if arr is not None:
             self._init_from_array(
