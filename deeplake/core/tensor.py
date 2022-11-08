@@ -956,7 +956,10 @@ class Tensor:
                 tdt = tensor.dtype
                 vs = get_link_transform(v["extend"])(samples, self.link_creds)
                 if tdt:
-                    if not isinstance(vs, np.ndarray):
+                    if isinstance(vs, np.ndarray):
+                        if vs.dtype != tdt:
+                            vs = vs.astype(tdt)
+                    else:
                         vs = [
                             v.astype(tdt)
                             if isinstance(v, np.ndarray) and v.dtype != tdt
