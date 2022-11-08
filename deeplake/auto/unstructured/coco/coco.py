@@ -82,15 +82,14 @@ class CocoDataset(UnstructuredDataset):
 
         for ann_file in self.annotation_files:
             coco_file = CocoAnnotation(file_path=ann_file)
+            annotations = coco_file.annotations
             file_name = Path(ann_file).stem
+            keys_in_group = set(chain.from_iterable(annotations[:inspect_limit]))
+
             group = GroupStructure(
                 self.file_to_group_mapping.get(file_name, file_name),
                 meta_data={"annotation_file_path": ann_file},
             )
-            dataset_structure.add_group(group)
-
-            annotations = coco_file.annotations
-            keys_in_group = set(chain.from_iterable(annotations[:inspect_limit]))
 
             for key in keys_in_group:
                 if key in self.ignore_keys:
@@ -103,7 +102,9 @@ class CocoDataset(UnstructuredDataset):
                     ),
                     meta_data={"coco_key": key},
                 )
-                dataset_structure.add_tensor_to_group(group.name, tensor)
+                group.add_item(tensor)
+
+            dataset_structure.add_group(group)
 
         return dataset_structure
 
@@ -165,9 +166,8 @@ class CocoDataset(UnstructuredDataset):
 
                     group = [
                         g
-                        for g in parsed.structure
-                        if isinstance(g, GroupStructure)
-                        and g.meta_data["annotation_file_path"] == ann_file
+                        for g in parsed.groups
+                        if g.meta_data["annotation_file_path"] == ann_file
                     ][0]
 
                     # Get the object to which data will be appended. We need to know if it's first-level tensor, or a group
@@ -194,11 +194,7 @@ class CocoDataset(UnstructuredDataset):
 
                     append_obj.append(values)
 
-            primary_tensor = [
-                t
-                for t in parsed.structure
-                if isinstance(t, TensorStructure) and t.primary
-            ]
+            primary_tensor = [t for t in parsed.tensors if t.primary]
 
             assert len(primary_tensor) == 1
 

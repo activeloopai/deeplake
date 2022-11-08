@@ -17,7 +17,7 @@ class TensorStructure:
         self.primary = primary
         self.meta_data = meta_data
 
-    def create(self, ds: Dataset):
+    def create(self, ds: Union[Dataset, Tensor]):
         ds.create_tensor(self.name, **self.params)
 
 
@@ -25,21 +25,29 @@ class GroupStructure:
     def __init__(
         self,
         name: str,
-        tensors: Optional[List[TensorStructure]] = None,
+        items: Optional[List[Union[TensorStructure, "GroupStructure"]]] = None,
         meta_data: Optional[Dict] = None,
     ):
         self.name = name
-        self.tensors = tensors if tensors is not None else []
+        self.items = items if items is not None else []
         self.meta_data = meta_data
 
-    def add_tensor(self, tensor: TensorStructure):
-        self.tensors.append(tensor)
+    @property
+    def groups(self):
+        return [g for g in self.items if isinstance(g, GroupStructure)]
 
-    def create(self, ds: Dataset, create_tensors: bool = False):
+    @property
+    def tensors(self):
+        return [t for t in self.items if isinstance(t, TensorStructure)]
+
+    def add_item(self, item: Union[TensorStructure, "GroupStructure"]):
+        self.items.append(item)
+
+    def create(self, ds: Union[Dataset, Tensor]):
         ds.create_group(self.name)
-        if create_tensors:
-            for tensor in self.tensors:
-                tensor.create(ds=ds[self.name])
+
+        for item in self.items:
+            item.create(ds=ds[self.name])
 
 
 class DatasetStructure:
@@ -52,25 +60,22 @@ class DatasetStructure:
         self.ignore_one_group = ignore_one_group
 
     def add_first_level_tensor(self, tensor: TensorStructure):
-        # TODO: Handle validation
         self.structure.append(tensor)
 
     def add_group(self, group: GroupStructure):
-        # TODO: Handle validation
         self.structure.append(group)
 
-    def add_tensor_to_group(self, group: str, tensor: TensorStructure):
-        # TODO: Handle validation
-        group = [g for g in self.structure if g.name == group][0]
-        group.add_tensor(tensor)
+    @property
+    def groups(self):
+        return [g for g in self.structure if isinstance(g, GroupStructure)]
+
+    @property
+    def tensors(self):
+        return [t for t in self.structure if isinstance(t, TensorStructure)]
 
     def create_structure(self, ds: Dataset):
-        first_level_tensors: List[TensorStructure] = []
-        groups = [
-            g
-            for g in self.structure
-            if isinstance(g, GroupStructure) or first_level_tensors.append(g)
-        ]
+        first_level_tensors = self.tensors
+        groups = self.groups
 
         for tensor in first_level_tensors:
             tensor.create(ds)
@@ -78,7 +83,7 @@ class DatasetStructure:
         if self.ignore_one_group and len(groups) == 1:
             for tensor in groups[0].tensors:
                 tensor.create(ds)
-                return
+            return
 
         for group in groups:
-            group.create(ds, create_tensors=True)
+            group.create(ds)

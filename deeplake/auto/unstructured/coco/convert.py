@@ -20,11 +20,18 @@ def coco_2_deeplake(coco_key, value, tensor_meta, category_lookup=None):
     if coco_key == "bbox":
         return np.array(value).astype(dtype)
     elif coco_key == "segmentation":
+        if len(value) == 0:
+            return np.array([]).astype(dtype)
+
         # Make sure there aren't multiple segementations per single value, because multiple things will break
         if len(value) > 1:
             print("MULTIPLE SEGMENTATIONS PER OBJECT")
 
-        return np.array(value[0]).reshape(((int(len(value[0]) / 2)), 2)).astype(dtype)
+        try:
+            return np.array(value[0]).reshape((len(value[0]) // 2), 2).astype(dtype)
+        except KeyError:
+            print("KEY ERROR", value)
+            return np.array([]).astype(dtype)
 
     elif coco_key == "category_id":
         if category_lookup is None:

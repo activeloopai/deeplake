@@ -18,19 +18,24 @@ def test_dataset_structure(local_ds):
     )
 
     group = GroupStructure(
-        "annotations", tensors=[TensorStructure("bboxes", params={"htype": "bbox"})]
+        "annotations", items=[TensorStructure("bboxes", params={"htype": "bbox"})]
     )
-    group.add_tensor(TensorStructure("keypoints", params={"htype": "keypoints_coco"}))
+    group.add_item(TensorStructure("keypoints", params={"htype": "keypoints_coco"}))
+    group.add_item(TensorStructure("masks", params={"htype": "binary_mask"}))
+
+    sub_group = GroupStructure("sub_annotations")
+    sub_group.add_item(TensorStructure("sub_tensor1", params={"htype": "generic"}))
+    sub_group.add_item(TensorStructure("sub_tensor2", params={"htype": "generic"}))
+    group.add_item(sub_group)
+
     dataset_structure.add_group(group)
-    dataset_structure.add_tensor_to_group(
-        "annotations", tensor=TensorStructure("masks", params={"htype": "binary_mask"})
-    )
 
     dataset_structure.create_structure(local_ds)
 
     tensors = local_ds.tensors
-    assert len(tensors) == 5
+    assert len(tensors) == 7
     assert "tensor1" in tensors
+    assert "annotations/sub_annotations/sub_tensor1" in tensors
 
 
 def test_minimal_coco_ingestion(local_path):
