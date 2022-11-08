@@ -1479,6 +1479,7 @@ class Dataset:
     @deeplake_reporter.record_call
     def pytorch(
         self,
+        *args,
         transform: Optional[Callable] = None,
         tensors: Optional[Sequence[str]] = None,
         tobytes: Union[bool, Sequence[str]] = False,
@@ -1537,6 +1538,7 @@ class Dataset:
 
         dataloader = to_pytorch(
             self,
+            *args,
             transform=transform,
             tensors=tensors,
             tobytes=tobytes,

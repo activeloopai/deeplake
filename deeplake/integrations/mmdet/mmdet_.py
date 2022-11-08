@@ -1,5 +1,6 @@
-from collections import OrderedDict
+from collections import OrderedDict, defaultdict
 import mmcv
+import tqdm
 from cProfile import label
 from dataclasses import make_dataclass
 from typing import Callable, Optional
@@ -32,32 +33,37 @@ from terminaltables import AsciiTable
 from torch.utils.data import Dataset
 
 from mmdet.core import eval_map, eval_recalls
+from mmdet.datasets import CustomDataset
 from mmdet.datasets.builder import DATASETS
 from mmdet.datasets.pipelines import Compose
+import tempfile
+from torchmetrics.detection.mean_ap import MeanAveragePrecision
 
 
 class MMDetDataset(TorchDataset):
     def __init__(
         self,
         *args,
-        images_tensor=None,
-        masks_tensor=None,
-        boxes_tensor=None,
-        labels_tensor=None,
+        tensors_dict=None,
+        bbox_format="PascalVOC",
         **kwargs,
     ):
         super().__init__(*args, **kwargs)
         self.CLASSES = self.get_classes()
-        self.images = self._get_images(images_tensor)
-        self.masks = self._get_masks(masks_tensor)
-        self.bboxes = self._get_bboxes(boxes_tensor)
-        self.labels = self._get_labels(labels_tensor)
+        self.images = self._get_images(tensors_dict["images_tensor"])
+        self.masks = self._get_masks(tensors_dict.get("masks_tensor", None))
+        self.bbox_format = bbox_format
+        self.bboxes = self._get_bboxes(tensors_dict["boxes_tensor"])
+        self.labels = self._get_labels(tensors_dict["labels_tensor"])
 
     def _get_images(self, images_tensor):
         images_tensor = images_tensor or _find_tensor_with_htype(self.dataset, "image")
         return self.dataset[images_tensor].numpy(aslist=True)
 
     def _get_masks(self, masks_tensor):
+        if masks_tensor is None:
+            return None
+
         masks_tensor = masks_tensor or _find_tensor_with_htype(
             self.dataset, "binary_mask"
         )
@@ -79,25 +85,36 @@ class MMDetDataset(TorchDataset):
         Args:
             idx (int): Index of data.
 
+        Raises:
+            ValueError: when ``self.bbox_format`` is not valid.
+
         Returns:
             dict: Annotation info of specified index.
         """
+        if self.bbox_format == "PascalVOC":
+            bboxes = self.bboxes[idx]
+        elif self.bbox_format == "COCO":
+            bboxes = self._coco_2_pascal(self.bboxes[idx])
+        else:
+            raise ValueError(f"Bounding boxes in {self.bbox_format} are not supported")
         return {
-            "bboxes": self.bboxes[idx],
+            "bboxes": bboxes,
             "labels": self.labels[idx],
         }
 
-    # def get_cat_ids(self, idx):
-    #     """Get category ids by index.
+    def get_cat_ids(self, idx):
+        """Get category ids by index.
 
-    #     Args:
-    #         idx (int): Index of data.
+        Args:
+            idx (int): Index of data.
 
-    #     Returns:
-    #         list[int]: All categories in the image of specified index.
-    #     """
+        Returns:
+            list[int]: All categories in the image of specified index.
+        """
 
-    #     return self.data_infos[idx]["ann"]["labels"].astype(np.int).tolist()
+        cat_ids = self.labels[idx].astype(np.int).tolist()
+
+        return cat_ids
 
     # def pre_pipeline(self, results):
     #     """Prepare results dict for pipeline."""
@@ -211,47 +228,167 @@ class MMDetDataset(TorchDataset):
             scale_ranges (list[tuple] | None): Scale ranges for evaluating mAP.
                 Default: None.
         """
-
-        if not isinstance(metric, str):
-            assert len(metric) == 1
-            metric = metric[0]
-        allowed_metrics = ["mAP", "recall"]
-        if metric not in allowed_metrics:
-            raise KeyError(f"metric {metric} is not supported")
-        annotations = [
-            self.get_ann_info(i) for i in range(len(self))
-        ]  # directly evaluate from hub
-        eval_results = OrderedDict()
-        iou_thrs = [iou_thr] if isinstance(iou_thr, float) else iou_thr
-        if metric == "mAP":
-            assert isinstance(iou_thrs, list)
-            mean_aps = []
-            for iou_thr in iou_thrs:
-                print_log(f'\n{"-" * 15}iou_thr: {iou_thr}{"-" * 15}')
-                mean_ap, _ = eval_map(
-                    results,
-                    annotations,
-                    scale_ranges=scale_ranges,
-                    iou_thr=iou_thr,
-                    dataset=self.CLASSES,
-                    logger=logger,
+        if self.bbox_format == "PascalVOC":
+            if not isinstance(metric, str):
+                assert len(metric) == 1
+                metric = metric[0]
+            allowed_metrics = ["mAP", "recall"]
+            if metric not in allowed_metrics:
+                raise KeyError(f"metric {metric} is not supported")
+            annotations = [
+                self.get_ann_info(i) for i in range(len(self))
+            ]  # directly evaluate from hub
+            eval_results = OrderedDict()
+            iou_thrs = [iou_thr] if isinstance(iou_thr, float) else iou_thr
+            if metric == "mAP":
+                assert isinstance(iou_thrs, list)
+                mean_aps = []
+                for iou_thr in iou_thrs:
+                    print_log(f'\n{"-" * 15}iou_thr: {iou_thr}{"-" * 15}')
+                    mean_ap, _ = eval_map(
+                        results,
+                        annotations,
+                        scale_ranges=scale_ranges,
+                        iou_thr=iou_thr,
+                        dataset=self.CLASSES,
+                        logger=logger,
+                    )
+                    mean_aps.append(mean_ap)
+                    eval_results[f"AP{int(iou_thr * 100):02d}"] = round(mean_ap, 3)
+                eval_results["mAP"] = sum(mean_aps) / len(mean_aps)
+            elif metric == "recall":
+                gt_bboxes = [ann["bboxes"] for ann in annotations]  # evaluate from hub
+                recalls = eval_recalls(
+                    gt_bboxes, results, proposal_nums, iou_thr, logger=logger
                 )
-                mean_aps.append(mean_ap)
-                eval_results[f"AP{int(iou_thr * 100):02d}"] = round(mean_ap, 3)
-            eval_results["mAP"] = sum(mean_aps) / len(mean_aps)
-        elif metric == "recall":
-            gt_bboxes = [ann["bboxes"] for ann in annotations]  # evaluate from hub
-            recalls = eval_recalls(
-                gt_bboxes, results, proposal_nums, iou_thr, logger=logger
-            )
-            for i, num in enumerate(proposal_nums):
-                for j, iou in enumerate(iou_thrs):
-                    eval_results[f"recall@{num}@{iou}"] = recalls[i, j]
-            if recalls.shape[1] > 1:
-                ar = recalls.mean(axis=1)
                 for i, num in enumerate(proposal_nums):
-                    eval_results[f"AR@{num}"] = ar[i]
-        return eval_results
+                    for j, iou in enumerate(iou_thrs):
+                        eval_results[f"recall@{num}@{iou}"] = recalls[i, j]
+                if recalls.shape[1] > 1:
+                    ar = recalls.mean(axis=1)
+                    for i, num in enumerate(proposal_nums):
+                        eval_results[f"AR@{num}"] = ar[i]
+            return eval_results
+        return self.evaluate_coco(results, metric, proposal_nums)
+
+    def evaluate_coco(
+        self,
+        results,
+        metric="bbox",
+        logger=None,
+        jsonfile_prefix=None,
+        classwise=False,
+        proposal_nums=(100, 300, 1000),
+        iou_thrs=None,
+        metric_items=None,
+    ): # TO DO: Optimize this
+        metrics = metric if isinstance(metric, list) else [metric]
+        allowed_metrics = ["bbox", "segm", "proposal", "proposal_fast"]
+        for metric in metrics:
+            if metric not in allowed_metrics:
+                raise KeyError(f"metric {metric} is not supported")
+
+        results_dict = self.convert_result_to_dict(results)
+        targets_dict = self.convert_targets_to_dict()
+        mAP_fn = MeanAveragePrecision(max_detection_thresholds=proposal_nums)
+        mAP_fn.update(results_dict, targets_dict)
+        s = mAP_fn.compute()
+        eval_result = [(s_i, s[s_i].item()) for s_i in s]
+        self._log_results(eval_result, proposal_nums)
+        # for item in eval_result:
+        #     print("")
+        return OrderedDict(eval_result)
+
+    def _log_results(self, results, proposal_nums):
+        out_str = "\n"
+        for i, result in enumerate(results):
+            if "map" in result[0]:
+                if i == 0:
+                    dets=proposal_nums[0]
+                else:
+                    dets=proposal_nums[2]
+                
+                
+                if result[0] == "map":
+                    out_str += f"Average Precision (AP) @[ IoU=0.50:0.95 | area=   all | maxDets={dets}  ] = {result[1]:0.3f}\n"
+                elif "50" in result[0] or "75" in result[0]:
+                    result_int = result[0].split("_")[1]
+                    out_str += f"Average Precision (AP) @[ IoU=0.{result_int}      | area=   all | maxDets={dets} ] = {result[1]:0.3f}\n"
+                elif "small" in result[0]:
+                    out_str += f"Average Precision (AP) @[ IoU=0.50:0.95 | area= small | maxDets={dets} ] = {result[1]:0.3f}\n"
+                elif "medium" in result[0]:
+                    out_str += f"Average Precision (AP) @[ IoU=0.50:0.95 | area=medium | maxDets={dets} ] = {result[1]:0.3f}\n"
+                elif "large" in result[0]:
+                    out_str += f"Average Precision (AP) @[ IoU=0.50:0.95 | area= large | maxDets={dets} ] = {result[1]:0.3f}\n"
+            else:
+                if "per_class" not in result[0]:
+                    out_str += "Average Recall    (AP) @[ IoU=0.50:0.95 | area="
+                    if str(proposal_nums[0]) in result[0] \
+                        or str(proposal_nums[0]) in result[0] \
+                        or str(proposal_nums[1]) in result[0]:
+                    
+                        result_int = result[0].split("_")[1]
+                        int_len = len(result_int)
+                        out_str += f'''   all | maxDets={result[0].split("_")[1]}{(5-int_len)*" "}] = {result[1]:0.3f}\n'''
+                        
+                    elif "small" in result[0]:
+                        out_str += f''' small | maxDets={dets} ] = {result[1]:0.3f}\n'''
+                    elif "medium" in result[0]:
+                        out_str += f'''medium | maxDets={dets} ] = {result[1]:0.3f}\n'''
+                    elif "large" in result[0]:
+                        out_str += f''' large | maxDets={dets} ] = {result[1]:0.3f}\n'''                    
+        print_log(out_str)
+
+    def convert_result_to_dict(self, results): # TO DO: optimize this
+        result_list = []
+        for image_ann in tqdm.tqdm(results):
+            result_dict = defaultdict(list)
+            for class_id, (bboxes, masks) in enumerate(zip(image_ann[0], image_ann[1])):
+                if bboxes.shape[0] > 1:
+                    for i in range(bboxes.shape[0]):
+                        result_dict["boxes"].append(bboxes[i][:4])
+                        result_dict["scores"].append(bboxes[i][4])
+                        result_dict["labels"].append(class_id)
+                        result_dict["masks"].append(masks[i])
+                elif bboxes.shape[0] == 1:
+                    result_dict["boxes"].append(bboxes[0][:4])
+                    result_dict["scores"].append(bboxes[0][4])
+                    result_dict["labels"].append(class_id)
+                    result_dict["masks"].append(masks)
+            result_dict["boxes"] = torch.FloatTensor(np.array(result_dict["boxes"]))
+            result_dict["scores"] = torch.FloatTensor(np.array(result_dict["scores"]))
+            result_dict["labels"] = torch.LongTensor(
+                np.array(result_dict["labels"], dtype=np.uint8)
+            )
+            result_list.append(result_dict)
+        return result_list
+
+    def convert_targets_to_dict(self): # TO DO: Optimize this
+        targets_list = []
+        for image_labels, image_boxes in tqdm.tqdm(zip(self.labels, self.bboxes)):
+            targets_dict = defaultdict(list)
+            for label, box in zip(image_labels, image_boxes):
+                targets_dict["labels"].append(label)
+                targets_dict["boxes"].append(box)
+            targets_dict["boxes"] = torch.FloatTensor(np.array(targets_dict["boxes"]))
+            targets_dict["labels"] = torch.LongTensor(
+                np.array(targets_dict["labels"], dtype=np.uint8)
+            )
+            targets_list.append(targets_dict)
+        return targets_list
+
+    @staticmethod
+    def _coco_2_pascal(boxes):
+        # Convert bounding boxes to Pascal VOC format and clip bounding boxes to make sure they have non-negative width and height
+        return np.stack(
+            (
+                boxes[:, 0],
+                boxes[:, 1],
+                boxes[:, 0] + np.clip(boxes[:, 2], 1, None),
+                boxes[:, 1] + np.clip(boxes[:, 3], 1, None),
+            ),
+            axis=1,
+        )
 
     def __repr__(self):
         """Print the number of instance number."""
@@ -298,26 +435,49 @@ class MMDetDataset(TorchDataset):
         result += table.table
         return result
 
+    def format_results(self, results, jsonfile_prefix=None, **kwargs):
+        """Format the results to json (standard format for COCO evaluation).
+
+        Args:
+            results (list[tuple | numpy.ndarray]): Testing results of the
+                dataset.
+            jsonfile_prefix (str | None): The prefix of json files. It includes
+                the file path and the prefix of filename, e.g., "a/b/prefix".
+                If not specified, a temp file will be created. Default: None.
+
+        Returns:
+            tuple: (result_files, tmp_dir), result_files is a dict containing
+                the json filepaths, tmp_dir is the temporal directory created
+                for saving json files when jsonfile_prefix is not specified.
+        """
+        assert isinstance(results, list), "results must be a list"
+        assert len(results) == len(
+            self
+        ), "The length of results is not equal to the dataset len: {} != {}".format(
+            len(results), len(self)
+        )
+
+        if jsonfile_prefix is None:
+            tmp_dir = tempfile.TemporaryDirectory()
+            jsonfile_prefix = osp.join(tmp_dir.name, "results")
+        else:
+            tmp_dir = None
+        result_files = self.results2json(results, jsonfile_prefix)
+        return result_files, tmp_dir
+
 
 class HubDatasetCLass:
-    def __init__(self, cfg):
-        self.ds = dp.load(cfg.deeplake_path)
+    def __init__(self, cfg, ds_path=None):
+        username = cfg.deeplake_credentials.username
+        password = cfg.deeplake_credentials.password
+        if username is not None:
+            runner = CliRunner()
+            runner.invoke(login, f"-u {username} -p {password}")
+        ds_path = ds_path or cfg.deeplake_path
+        self.ds = dp.load(ds_path, token=cfg.deeplake_credentials.token)
         labels_tensor = _find_tensor_with_htype(self.ds, "class_label")
         self.CLASSES = self.ds[labels_tensor].info.class_names
         self.pipeline = cfg.pipeline
-
-
-def _coco_2_pascal(boxes):
-    # Convert bounding boxes to Pascal VOC format and clip bounding boxes to make sure they have non-negative width and height
-    return np.stack(
-        (
-            boxes[:, 0],
-            boxes[:, 1],
-            boxes[:, 0] + np.clip(boxes[:, 2], 1, None),
-            boxes[:, 1] + np.clip(boxes[:, 3], 1, None),
-        ),
-        axis=1,
-    )  # we shouldn't be always doing this because some datasets can be in a different format
 
 
 rand_crop = A.Compose(
@@ -336,7 +496,8 @@ rand_crop = A.Compose(
 def _find_tensor_with_htype(ds: dp.Dataset, htype: str):
     tensors = [k for k, v in ds.tensors.items() if v.meta.htype == htype]
     if not tensors:
-        raise ValueError("No tensor found with htype='{htype}'")
+        always_warn(f"No tensor found with htype='{htype}'")
+        return None
     t = tensors[0]
     if len(tensors) > 1:
         always_warn(f"Multiple tensors with htype='{htype}' found. choosing '{t}'.")
@@ -352,15 +513,19 @@ def transform(
     pipeline: Callable,
 ):
     img = sample_in[images_tensor]
-    masks = sample_in[masks_tensor]
+    if masks_tensor:
+        masks = sample_in[masks_tensor]
+    else:
+        masks = None
     bboxes = sample_in[boxes_tensor]
     labels = sample_in[labels_tensor]
 
     img = img[..., ::-1]
     if img.shape[2] == 1:
         img = np.repeat(img, 3, axis=2)
-    masks = masks.transpose((2, 0, 1)).astype(np.uint8)
-    bboxes = _coco_2_pascal(bboxes)
+    if masks is not None:
+        masks = masks.transpose((2, 0, 1)).astype(np.uint8)
+    # bboxes = _coco_2_pascal(bboxes)
 
     # transformed = rand_crop(
     #     image=img,
@@ -384,6 +549,11 @@ def transform(
     if isinstance(pipeline, list):
         pipeline = pipeline[0]
 
+    if masks is not None:
+        gt_masks = BitmapMasks(masks, *shape[:2])
+    else:
+        gt_masks = None
+
     return pipeline(
         {
             "img": img,
@@ -392,7 +562,7 @@ def transform(
             "ori_filename": None,
             "img_shape": shape,
             "ori_shape": shape,
-            "gt_masks": BitmapMasks(masks, *shape[:2]),
+            "gt_masks": gt_masks,
             "gt_bboxes": bboxes,
             "gt_labels": labels,
             "bbox_fields": ["gt_bboxes"],
@@ -400,14 +570,10 @@ def transform(
     )
 
 
-def build_dataset(cfg, *args, **kwargs):
+def build_dataset(cfg, *args, ds_path=None, **kwargs):
     if "deeplake_path" in cfg:
-        runner = CliRunner()
-        username = "adilkhan"
-        password = "142508Adoha"
-        runner.invoke(login, f"-u {username} -p {password}")
         # TO DO: add preprocessing functions related to mmdet dataset classes like RepeatDataset etc...
-        return HubDatasetCLass(cfg)
+        return HubDatasetCLass(cfg, ds_path=ds_path)
     return mmdet_build_dataset(cfg, *args, **kwargs)
 
 
@@ -440,20 +606,36 @@ def build_dataloader(
         )
         num_workers = train_loader_config["workers_per_gpu"]
         shuffle = train_loader_config.get("shuffle", True)
+        # shuffle = False
+        tensors_dict = {
+            "images_tensor": images_tensor,
+            "boxes_tensor": boxes_tensor,
+            "labels_tensor": labels_tensor,
+        }
+        tensors = [images_tensor, labels_tensor, boxes_tensor]
+        if masks_tensor is not None:
+            tensors.append(masks_tensor)
+            tensors_dict["masks_tensor"] = masks_tensor
+
         loader = dataset.ds.pytorch(
+            tensors_dict=tensors_dict,
             num_workers=num_workers,
             shuffle=shuffle,
             transform=transform_fn,
-            tensors=[images_tensor, labels_tensor, boxes_tensor, masks_tensor],
+            tensors=tensors,
             collate_fn=partial(
                 collate, samples_per_gpu=train_loader_config["samples_per_gpu"]
             ),
             torch_dataset=MMDetDataset,
+            bbox_format=train_loader_config["bbox_format"],
             # torch_dataset=TorchDataset,
         )
-        loader.dataset.CLASSES = [
-            c["name"] for c in dataset.ds.categories.info["category_info"]
-        ]
+        # loader.dataset.CLASSES = [
+        #     c["name"] for c in dataset.ds.categories.info["category_info"]
+        # ]
+
+        labels_tensor = _find_tensor_with_htype(dataset.ds, "class_label")
+        loader.dataset.CLASSES = dataset.ds[labels_tensor].info.class_names
         return loader
 
     return mmdet_build_dataloader(dataset, **train_loader_config)
@@ -481,6 +663,7 @@ def train_detector(
     masks_tensor: Optional[str] = None,
     boxes_tensor: Optional[str] = None,
     labels_tensor: Optional[str] = None,
+    bbox_format="PascalVOC",
 ):
 
     cfg = compat_cfg(cfg)
@@ -500,6 +683,7 @@ def train_detector(
         seed=cfg.seed,
         runner_type=runner_type,
         persistent_workers=False,
+        bbox_format=bbox_format,
     )
 
     train_loader_cfg = {
@@ -585,6 +769,7 @@ def train_detector(
             dist=distributed,
             shuffle=False,
             persistent_workers=False,
+            bbox_format=bbox_format,
         )
 
         val_dataloader_args = {

@@ -95,6 +95,7 @@ def dataset_to_pytorch(
     num_workers: int,
     batch_size: int,
     drop_last: bool,
+    *args,
     collate_fn: Optional[Callable],
     pin_memory: bool,
     shuffle: bool,
@@ -150,6 +151,7 @@ def dataset_to_pytorch(
         return torch.utils.data.DataLoader(
             torch_dataset(
                 dataset,
+                *args,
                 tensors=tensors,
                 tobytes=tobytes,
                 use_local_cache=use_local_cache,
