@@ -400,3 +400,33 @@ def test_merge_pop(local_ds):
         np.testing.assert_array_equal(
             ds.abc.numpy().squeeze(), np.array([1, 2, 5, 3, 8])
         )
+
+
+def test_merge_class_labels(local_ds):
+    with local_ds as ds:
+        ds.create_tensor("labels", "class_label")
+        ds.labels.extend(["a", "b", "c", "d"])
+        ds.commit()
+
+        ds.checkout("alt", create=True)
+        ds.labels.extend(["e", "f", "a"])
+        ds.commit()
+
+        ds.checkout("main")
+        ds.labels.extend(["g", "f", "h"])
+        ds.merge("alt")
+
+        np.testing.assert_array_equal(
+            np.array(ds.labels.data()["text"]).squeeze(),
+            ["a", "b", "c", "d", "g", "f", "h", "e", "f", "a"],
+        )
+        assert set(ds.labels.info["class_names"]) == {
+            "a",
+            "b",
+            "c",
+            "d",
+            "e",
+            "f",
+            "g",
+            "h",
+        }
