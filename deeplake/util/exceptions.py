@@ -122,7 +122,10 @@ class DynamicTensorNumpyError(Exception):
 
 class InvalidShapeIntervalError(Exception):
     def __init__(
-        self, message: str, lower: Optional[Sequence[int]] = None, upper: Optional[Sequence[int]] = None
+        self,
+        message: str,
+        lower: Optional[Sequence[int]] = None,
+        upper: Optional[Sequence[int]] = None,
     ):
         s = message
 

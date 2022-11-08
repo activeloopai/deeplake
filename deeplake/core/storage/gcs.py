@@ -37,7 +37,9 @@ def _remove_protocol_from_path(path: str) -> str:
 
 
 class GCloudCredentials:
-    def __init__(self, token: Optional[Union[str, Dict]] = None, project: Optional[str] = None):
+    def __init__(
+        self, token: Optional[Union[str, Dict]] = None, project: Optional[str] = None
+    ):
         self.scope = "https://www.googleapis.com/auth/cloud-platform"
         self.project = project
         self.credentials = None
@@ -205,7 +207,12 @@ class GCloudCredentials:
 class GCSProvider(StorageProvider):
     """Provider class for using GC storage."""
 
-    def __init__(self, root: str, token: Optional[Union[str, Dict]] = None, project: Optional[str] = None):
+    def __init__(
+        self,
+        root: str,
+        token: Optional[Union[str, Dict]] = None,
+        project: Optional[str] = None,
+    ):
         """Initializes the GCSProvider.
 
         Example:
