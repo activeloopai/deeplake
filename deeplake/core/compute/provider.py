@@ -1,4 +1,5 @@
 from abc import ABC, abstractmethod
+from typing import Optional
 
 
 class ComputeProvider(ABC):
@@ -7,7 +8,7 @@ class ComputeProvider(ABC):
     def __init__(self, workers):
         self.workers = workers
 
-    def map_with_progressbar(self, func, iterable, total_length: int, desc: str = None):
+    def map_with_progressbar(self, func, iterable, total_length: int, desc: Optional[str] = None):
         from tqdm.std import tqdm  # type: ignore
         import threading
         from threading import Thread
