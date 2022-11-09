@@ -21,7 +21,8 @@ def coco_2_deeplake(coco_key, value, tensor_meta, category_lookup=None):
         return np.array(value).astype(dtype)
     elif coco_key == "segmentation":
         if len(value) == 0:
-            return np.array([]).astype(dtype)
+            # Can not return None, because something about polygons erroring out
+            return np.array([[0, 0]]).astype(dtype)
 
         # Make sure there aren't multiple segementations per single value, because multiple things will break
         if len(value) > 1:
@@ -30,8 +31,8 @@ def coco_2_deeplake(coco_key, value, tensor_meta, category_lookup=None):
         try:
             return np.array(value[0]).reshape((len(value[0]) // 2), 2).astype(dtype)
         except KeyError:
-            print("KEY ERROR", value)
-            return np.array([]).astype(dtype)
+            # Can not return None, because something about polygons erroring out
+            return np.array([[0, 0]]).astype(dtype)
 
     elif coco_key == "category_id":
         if category_lookup is None:

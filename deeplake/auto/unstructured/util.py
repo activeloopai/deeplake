@@ -10,12 +10,10 @@ class TensorStructure:
         name: str,
         params: Optional[Dict] = None,
         primary: bool = False,
-        meta_data: Optional[Dict] = None,
     ) -> None:
         self.name = name
         self.params = params if params is not None else dict()
         self.primary = primary
-        self.meta_data = meta_data
 
     def create(self, ds: Union[Dataset, Tensor]):
         ds.create_tensor(self.name, **self.params)
@@ -26,11 +24,9 @@ class GroupStructure:
         self,
         name: str,
         items: Optional[List[Union[TensorStructure, "GroupStructure"]]] = None,
-        meta_data: Optional[Dict] = None,
     ):
         self.name = name
         self.items = items if items is not None else []
-        self.meta_data = meta_data
 
     @property
     def groups(self):
@@ -58,6 +54,12 @@ class DatasetStructure:
     ) -> None:
         self.structure = structure if structure is not None else []
         self.ignore_one_group = ignore_one_group
+
+    def __getitem__(self, key):
+        try:
+            return [i for i in self.structure if i.name == key][0]
+        except IndexError:
+            raise KeyError(f"Key {key} not found in structure.")
 
     def add_first_level_tensor(self, tensor: TensorStructure):
         self.structure.append(tensor)

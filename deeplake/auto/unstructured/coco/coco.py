@@ -51,26 +51,22 @@ class CocoDataset(UnstructuredDataset):
         )
         self.ignore_one_group = ignore_one_group
 
-        self.key_to_tensor_mapping = key_to_tensor_mapping
-        self.file_to_group_mapping = {
-            Path(k).stem: v for k, v in file_to_group_mapping.items()
-        }
+        self.key_to_tensor = key_to_tensor_mapping
+        self._validate_key_mapping()
+        self.tensor_to_key = {v: k for k, v in key_to_tensor_mapping.items()}
+
+        self.file_to_group = {Path(k).stem: v for k, v in file_to_group_mapping.items()}
+        self._validate_group_mapping()
+
         self.ignore_keys = ignore_keys
         self.image_settings = image_settings
 
-        self._validate_key_mapping()
-        self._validate_group_mapping()
-
     def _validate_key_mapping(self):
-        if len(self.key_to_tensor_mapping.values()) != len(
-            set(self.key_to_tensor_mapping.values())
-        ):
+        if len(self.key_to_tensor.values()) != len(set(self.key_to_tensor.values())):
             raise IngestionError("Keys must be mapped to unique tensor names.")
 
     def _validate_group_mapping(self):
-        if len(self.file_to_group_mapping.values()) != len(
-            set(self.file_to_group_mapping.values())
-        ):
+        if len(self.file_to_group.values()) != len(set(self.file_to_group.values())):
             raise IngestionError("File names must be mapped to unique group names.")
 
     def _parse_annotation_tensors(
@@ -87,8 +83,7 @@ class CocoDataset(UnstructuredDataset):
             keys_in_group = set(chain.from_iterable(annotations[:inspect_limit]))
 
             group = GroupStructure(
-                self.file_to_group_mapping.get(file_name, file_name),
-                meta_data={"annotation_file_path": ann_file},
+                self.file_to_group.get(file_name, file_name),
             )
 
             for key in keys_in_group:
@@ -96,11 +91,10 @@ class CocoDataset(UnstructuredDataset):
                     continue
 
                 tensor = TensorStructure(
-                    name=self.key_to_tensor_mapping.get(key, key),
+                    name=self.key_to_tensor.get(key, key),
                     params=DEFAULT_COCO_TENSOR_PARAMS.get(
                         key, DEFAULT_GENERIC_TENSOR_PARAMS
                     ),
-                    meta_data={"coco_key": key},
                 )
                 group.add_item(tensor)
 
@@ -119,10 +113,9 @@ class CocoDataset(UnstructuredDataset):
         img_config["sample_compression"] = self.image_settings.get(
             "sample_compression", sample_compression
         )
+        name = self.image_settings.get("name", "images")
 
-        structure.add_first_level_tensor(
-            TensorStructure(name="images", primary=True, params=img_config)
-        )
+        return TensorStructure(name=name, primary=True, params=img_config)
 
     def structure(self, ds: Dataset, use_progress_bar: bool = True):
         (
@@ -136,24 +129,20 @@ class CocoDataset(UnstructuredDataset):
             self.image_settings["sample_compression"] = most_common_compression
 
         parsed = self._parse_annotation_tensors()
-
-        self._parse_images_tensor(
+        images_tensor = self._parse_images_tensor(
             structure=parsed, sample_compression=most_common_compression
         )
 
+        parsed.add_first_level_tensor(images_tensor)
         parsed.create_structure(ds)
 
-        # Logic is: iterate over images in our images folder -> for each image pull the the image id ->
-        # -> for each id pull the annotations -> parse data -> append data
         with ds:
             for ann_file in self.annotation_files:
                 coco_file = CocoAnnotation(ann_file)
                 id_2_label_mapping = coco_file.id_to_label_mapping
                 image_name_to_id = coco_file.image_name_to_id_mapping
 
-                # Though logically less ideal, we have to iterate over the images, because there are multiple annotations per image,
-                # and thus multiple annotations per row in the Deep Lake dataset
-                for img_file in tqdm(img_files):
+                for img_file in tqdm(img_files, disable=not use_progress_bar):
                     try:
                         img_id = image_name_to_id[img_file]
                     except KeyError:
@@ -163,12 +152,9 @@ class CocoDataset(UnstructuredDataset):
                         continue
 
                     matching_anns = coco_file.get_annotations_for_image(img_id)
-
-                    group = [
-                        g
-                        for g in parsed.groups
-                        if g.meta_data["annotation_file_path"] == ann_file
-                    ][0]
+                    group = parsed[
+                        self.file_to_group.get(Path(ann_file).stem, Path(ann_file).stem)
+                    ]
 
                     # Get the object to which data will be appended. We need to know if it's first-level tensor, or a group
                     if self.ignore_one_group and len(parsed.structure) == 1:
@@ -182,7 +168,7 @@ class CocoDataset(UnstructuredDataset):
                     # Create a list of lists with all the data
                     for ann in matching_anns:
                         for i, tensor in enumerate(tensors):
-                            coco_key = tensor.meta_data["coco_key"]
+                            coco_key = self.tensor_to_key.get(tensor.name, tensor.name)
                             value = coco_2_deeplake(
                                 coco_key,
                                 ann[coco_key],
@@ -194,12 +180,6 @@ class CocoDataset(UnstructuredDataset):
 
                     append_obj.append(values)
 
-            primary_tensor = [t for t in parsed.tensors if t.primary]
-
-            assert len(primary_tensor) == 1
-
-            for img_file in img_files:
-                # Append the image data
-                ds[primary_tensor[0].name].append(
-                    deeplake.read(os.path.join(self.source, img_file))
-                )
+                    ds[images_tensor.name].append(
+                        deeplake.read(os.path.join(self.source, img_file))
+                    )
