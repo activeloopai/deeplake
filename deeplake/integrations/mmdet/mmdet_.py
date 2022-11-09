@@ -562,7 +562,7 @@ def transform(
     else:
         gt_masks = None
 
-    return pipeline(
+    ret = pipeline(
         {
             "img": img,
             "img_fields": ["img"],
@@ -576,6 +576,8 @@ def transform(
             "bbox_fields": ["gt_bboxes"],
         }
     )
+    print("transform()")
+    return ret
 
 
 def build_dataset(cfg, tensors=None, *args, **kwargs):
