@@ -1,5 +1,5 @@
 import posixpath
-from typing import Optional, Any, Dict, Union
+from typing import Any, Dict, Optional, Union
 from deeplake.client.utils import get_user_name
 from deeplake.constants import HUB_CLOUD_DEV_USERNAME
 from deeplake.core.dataset import Dataset

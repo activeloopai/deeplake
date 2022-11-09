@@ -1,4 +1,5 @@
 from threading import local
+from typing import Optional
 import deeplake
 import glob
 import os

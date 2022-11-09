@@ -101,7 +101,7 @@ class CommitDiff(DeepLakeMemoryObject):
     def update_data(self, global_index: int) -> None:
         """Adds new indexes to data updated"""
         global_index = self.translate_index(global_index)
-        if global_index not in self.data_added:
+        if global_index not in range(*self.data_added):
             self.data_updated.add(global_index)
             self.is_dirty = True
 

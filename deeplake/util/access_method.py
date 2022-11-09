@@ -23,9 +23,11 @@ def check_access_method(access_method: str, overwrite: bool):
 
 
 def parse_access_method(access_method: str):
-    num_workers = None
-    scheduler = None
-    if access_method.startswith("download"):
+    num_workers = 0
+    scheduler = "threaded"
+    download = access_method.startswith("download")
+    local = access_method.startswith("local")
+    if download or local:
         split = access_method.split(":")
         if len(split) == 1:
             split.extend(("threaded", "0"))
@@ -38,7 +40,7 @@ def parse_access_method(access_method: str):
                     "Invalid access_method format. Expected format is one of the following: {download, download:scheduler, download:num_workers, download:scheduler:num_workers, download:num_workers:scheduler}"
                 )
 
-        access_method = "download"
+        access_method = "download" if download else "local"
         num_worker_index = 1 if split[1].isnumeric() else 2
         scheduler_index = 3 - num_worker_index
         num_workers = int(split[num_worker_index])
@@ -60,14 +62,13 @@ def get_local_dataset(
     scheduler,
 ):
     local_path = get_local_storage_path(path, os.environ["DEEPLAKE_DOWNLOAD_PATH"])
-    if access_method == "download":
+    download = access_method == "download" or (
+        access_method == "local" and not deeplake.exists(local_path)
+    )
+    if download:
         if not ds_exists:
             raise DatasetHandlerError(
                 f"Dataset {path} does not exist. Cannot use access method 'download'"
-            )
-        elif deeplake.exists(local_path):
-            raise DatasetHandlerError(
-                f"A dataset already exists at the download location {local_path}. To reuse the dataset, use access method 'local'. If you want to download the dataset again, delete the dataset at the download location and try again."
             )
         deeplake.deepcopy(
             path,
@@ -78,10 +79,7 @@ def get_local_dataset(
             scheduler=scheduler,
             progressbar=True,
             verbose=False,
-        )
-    elif not deeplake.exists(local_path):
-        raise DatasetHandlerError(
-            f"A dataset does not exist at the download location {local_path}. Cannot use access method 'local'. Use access method 'download' to first download the dataset and then use access method 'local' in subsequent runs."
+            overwrite=True,
         )
 
     ds = deeplake.load(
@@ -91,7 +89,7 @@ def get_local_dataset(
         memory_cache_size=memory_cache_size,
         local_cache_size=local_cache_size,
     )
-    if access_method == "download":
+    if download:
         ds.storage.next_storage[TIMESTAMP_FILENAME] = time.ctime().encode("utf-8")
     else:
         timestamp = ds.storage.next_storage[TIMESTAMP_FILENAME].decode("utf-8")
