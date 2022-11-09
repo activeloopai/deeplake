@@ -655,6 +655,7 @@ def build_dataloader(
                 bbox_format=bbox_format,
                 pipeline=pipeline,
                 tensors_dict=tensors_dict,
+                tensors=tensors,
             )
             loader.dataset = mmdet_ds
         loader.dataset.CLASSES = classes
