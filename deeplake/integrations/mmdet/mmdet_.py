@@ -594,6 +594,7 @@ def build_dataloader(
     boxes_tensor,
     labels_tensor,
     implementation,
+    bbox_format,
     pipeline,
     **train_loader_config,
 ):
@@ -618,6 +619,7 @@ def build_dataloader(
             boxes_tensor=boxes_tensor,
             labels_tensor=labels_tensor,
             pipeline=pipeline,
+            bbox_format=bbox_format,
         )
         num_workers = train_loader_config["workers_per_gpu"]
         shuffle = train_loader_config.get("shuffle", True)
@@ -698,7 +700,7 @@ def train_detector(
     masks_tensor: Optional[str] = None,
     boxes_tensor: Optional[str] = None,
     labels_tensor: Optional[str] = None,
-    bbox_format="PascalVOC",
+    bbox_format=None,
 ):
 
     cfg = compat_cfg(cfg)
@@ -720,6 +722,8 @@ def train_detector(
     masks_tensor = masks_tensor or tensors.get("gt_masks")
     boxes_tensor = boxes_tensor or tensors.get("gt_bboxes")
     labels_tensor = labels_tensor or tensors.get("gt_labels")
+
+    bbox_format = bbox_format or cfg.get("bbox_format") or PascalVOC
 
     logger = get_root_logger(log_level=cfg.log_level)
 
