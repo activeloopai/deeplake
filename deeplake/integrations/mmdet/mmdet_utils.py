@@ -69,7 +69,6 @@ class _COCO(pycocotools_coco.COCO):
                 "width": masks.shape[1],
             }
             imgs[row_index] = img
-            print("stared converting masks")
             for bbox_index, bbox in tqdm.tqdm(enumerate(bboxes)):
                 ann = {
                     "image_id": row_index,
@@ -86,7 +85,6 @@ class _COCO(pycocotools_coco.COCO):
                 imgToAnns[row_index].append(ann)
                 anns[absolute_id] = ann
                 absolute_id += 1
-            print("ended converting masks")
         category_names = self.dataset[
             "categories"
         ].info.class_names  # TO DO: add super category names
