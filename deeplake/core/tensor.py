@@ -593,7 +593,7 @@ class Tensor:
             indexing_history = self._indexing_history
             if len(indexing_history) == 10:
                 step = indexing_history[1] - indexing_history[0]
-                for i in range(2, len(indexing_history), 2):
+                for i in range(2, len(indexing_history)):
                     if indexing_history[i] - indexing_history[i - 1] != step:
                         self._indexing_history.pop(0)
                         self._indexing_history.append(item)
