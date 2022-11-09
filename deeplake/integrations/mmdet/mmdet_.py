@@ -33,6 +33,12 @@ from deeplake.experimental.dataloader import indra_available, dataloader
 import os
 
 
+def coco_2_pascal(boxes, shape):
+    # Convert bounding boxes to Pascal VOC format and clip bounding boxes to make sure they have non-negative width and height
+    
+    return np.stack((np.clip(boxes[:,0], 0, None), np.clip(boxes[:,1], 0, None), np.clip(boxes[:,0]+np.clip(boxes[:,2], 1, None), 0, shape[1]), np.clip(boxes[:,1]+np.clip(boxes[:,3], 1, None), 0, shape[0])), axis = 1)
+
+
 class MMDetDataset(TorchDataset):
     def __init__(
         self,
@@ -95,7 +101,7 @@ class MMDetDataset(TorchDataset):
         if self.bbox_format == "PascalVOC":
             bboxes = self.bboxes[idx]
         elif self.bbox_format == "COCO":
-            bboxes = self._coco_2_pascal(self.bboxes[idx])
+            bboxes = coco_2_pascal(self.bboxes[idx], self.images[idx].shape)
         else:
             raise ValueError(f"Bounding boxes in {self.bbox_format} are not supported")
         return {
@@ -527,6 +533,7 @@ def transform(
     boxes_tensor: str,
     labels_tensor: str,
     pipeline: Callable,
+    bbox_format: str
 ):
     img = sample_in[images_tensor]
     if not isinstance(img, np.ndarray):
@@ -538,6 +545,8 @@ def transform(
     else:
         masks = None
     bboxes = sample_in[boxes_tensor]
+    if bbox_format == "COCO":
+        bboxes = coco_2_pascal(bboxes, img.shape)
     labels = sample_in[labels_tensor]
 
     img = img[..., ::-1]  # rgb_to_bgr should be optional
