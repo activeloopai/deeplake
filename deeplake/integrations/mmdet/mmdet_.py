@@ -1,45 +1,35 @@
-from collections import OrderedDict, defaultdict
-import mmcv
-import tqdm
-from cProfile import label
-from dataclasses import make_dataclass
+from collections import OrderedDict
+
 from typing import Callable, Optional
 from mmdet.apis.train import *
 from mmdet.datasets import build_dataloader as mmdet_build_dataloader
 from mmdet.datasets import build_dataset as mmdet_build_dataset
-from mmcv.utils import build_from_cfg, Registry
+from mmcv.utils import build_from_cfg
 from mmdet.datasets.builder import PIPELINES
 from mmdet.datasets.pipelines import Compose
 from mmcv.parallel import collate
 from functools import partial
-from typing import Optional, Sequence, Union
-from deeplake.integrations.pytorch.common import PytorchTransformFunction
+from typing import Optional
 from deeplake.integrations.pytorch.dataset import TorchDataset
-from deeplake.integrations.mmdet.mmdet_utils import HubCOCO
 
 from mmdet.core import BitmapMasks
 import albumentations as A
 import deeplake as dp
 from deeplake.util.warnings import always_warn
 from click.testing import CliRunner
-from deeplake.cli.auth import login, logout
+from deeplake.cli.auth import login
 import os.path as osp
 import warnings
 from collections import OrderedDict
 
-import mmcv
 import numpy as np
 from mmcv.utils import print_log
 from terminaltables import AsciiTable
-from torch.utils.data import Dataset
-
 from mmdet.core import eval_map, eval_recalls
-from mmdet.datasets import CustomDataset
-from mmdet.datasets.builder import DATASETS
 from mmdet.datasets.pipelines import Compose
 import tempfile
-from torchmetrics.detection.mean_ap import MeanAveragePrecision
 from deeplake.integrations.mmdet import mmdet_utils
+import os
 
 
 class MMDetDataset(TorchDataset):
@@ -485,14 +475,17 @@ class MMDetDataset(TorchDataset):
 
 
 class HubDatasetCLass:
-    def __init__(self, cfg, ds_path=None):
-        username = cfg.deeplake_credentials.username
-        password = cfg.deeplake_credentials.password
-        if username is not None:
-            runner = CliRunner()
-            runner.invoke(login, f"-u {username} -p {password}")
-        ds_path = ds_path or cfg.deeplake_path
-        self.ds = dp.load(ds_path, token=cfg.deeplake_credentials.token)
+    def __init__(self, cfg=None, ds=None):
+        if ds:
+            self.ds = ds
+        else:
+            username = cfg.deeplake_credentials.username
+            password = cfg.deeplake_credentials.password
+            if username is not None:
+                runner = CliRunner()
+                runner.invoke(login, f"-u {username} -p {password}")
+            ds_path = cfg.deeplake_path
+            self.ds = dp.load(ds_path, token=cfg.deeplake_credentials.token)
         labels_tensor = _find_tensor_with_htype(self.ds, "class_label")
         self.CLASSES = self.ds[labels_tensor].info.class_names
         self.pipeline = cfg.pipeline
@@ -570,10 +563,12 @@ def transform(
     )
 
 
-def build_dataset(cfg, *args, ds_path=None, **kwargs):
+def build_dataset(cfg, *args, **kwargs):
+    if isinstance(cfg, dp.Dataset):
+        return HubDatasetCLass(ds=cfg)
     if "deeplake_path" in cfg:
         # TO DO: add preprocessing functions related to mmdet dataset classes like RepeatDataset etc...
-        return HubDatasetCLass(cfg, ds_path=ds_path)
+        return HubDatasetCLass(cfg=cfg)
     return mmdet_build_dataset(cfg, *args, **kwargs)
 
 
@@ -585,6 +580,8 @@ def build_dataloader(
     labels_tensor,
     **train_loader_config,
 ):
+    if isinstance(dataset, dp.Dataset):
+        dataset = HubDatasetCLass(ds=dataset)
     if isinstance(dataset, HubDatasetCLass):
         images_tensor = images_tensor or _find_tensor_with_htype(dataset.ds, "image")
         masks_tensor = masks_tensor or _find_tensor_with_htype(
