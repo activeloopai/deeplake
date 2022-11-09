@@ -97,7 +97,7 @@ class ShuffleBuffer:
         elif isinstance(sample, bool):
             return 1
         elif isinstance(sample, (str, bytes)):
-            return len(str)
+            return len(sample)
         elif isinstance(sample, dict):
             return sum(self._sample_size(tensor) for tensor in sample.values())
         elif isinstance(sample, Sequence):
