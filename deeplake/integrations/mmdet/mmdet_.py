@@ -68,9 +68,6 @@ class MMDetDataset(TorchDataset):
         return self.dataset[images_tensor].numpy(aslist=True)
 
     def _get_masks(self, masks_tensor):
-        if masks_tensor is None:
-            return None
-
         masks_tensor = masks_tensor or _find_tensor_with_htype(
             self.dataset, "binary_mask"
         )
@@ -656,6 +653,7 @@ def build_dataloader(
             #     c["name"] for c in dataset.ds.categories.info["category_info"]
             # ]
         else:
+            assert num_workers < 2,  num_workers
             loader = (
                 dataloader(dataset.ds)
                 .transform(transform_fn)
