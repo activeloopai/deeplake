@@ -85,6 +85,9 @@ class DeepLakeDataLoader:
         self._buffer_size = _buffer_size
         self._tobytes = _tobytes
 
+    def __len__(self):
+        return len(self.dataset)
+
     def batch(self, batch_size: int, drop_last: bool = False):
         """Returns a batched :class:`DeepLakeDataLoader` object.
 
