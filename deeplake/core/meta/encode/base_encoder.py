@@ -1,6 +1,6 @@
 import deeplake
 from abc import ABC
-from typing import Any, List, Sequence, Optional
+from typing import Any, Sequence, Optional
 from deeplake.constants import ENCODING_DTYPE
 import numpy as np
 
@@ -20,7 +20,7 @@ class Encoder(ABC):
 
     def check_last_row(self, global_sample_index: int):
         """Takes a look at self.last_row and tries to find chunk id without binary search by looking at the current and next row."""
-        arr = self.array
+        arr = self._encoded
         if self.last_row < len(arr) and self.is_index_in_last_row(
             arr, global_sample_index
         ):
@@ -214,6 +214,7 @@ class Encoder(ABC):
 
     def _combine_condition(self, item: Any, compare_row_index: int = -1) -> bool:
         """Should determine if `item` can be combined with a row in `self._encoded`."""
+        return False
 
     def _derive_next_last_index(self, last_index, num_samples: int):
         """Calculates what the next last index should be."""
@@ -228,6 +229,7 @@ class Encoder(ABC):
         self, row: np.ndarray, row_index: int, local_sample_index: int
     ) -> np.ndarray:
         """Given a row of `self._encoded`, this method should implement how `__getitem__` hands a value to the caller."""
+        return np.ndarray([])
 
     def __getitem__(
         self, local_sample_index: int, return_row_index: bool = False

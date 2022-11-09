@@ -16,7 +16,9 @@ from tqdm import tqdm  # type: ignore
 import deeplake
 from deeplake.core.index.index import IndexEntry
 from deeplake.core.link_creds import LinkCreds
+from deeplake.util.connect_dataset import connect_dataset_entry
 from deeplake.util.invalid_view_op import invalid_view_op
+from deeplake.util.iteration_warning import suppress_iteration_warning
 from deeplake.api.info import load_info
 from deeplake.client.log import logger
 from deeplake.client.utils import get_user_name
@@ -676,9 +678,18 @@ class Dataset:
             create_shape_tensor=False,
             max_chunk_size=SAMPLE_INFO_TENSOR_MAX_CHUNK_SIZE,
         )
-        f = "append_len" if htype == "list" else "append_shape"
+        if htype == "list":
+            extend_f = "extend_len"
+            update_f = "update_len"
+        else:
+            extend_f = "extend_shape"
+            update_f = "update_shape"
         self._link_tensors(
-            tensor, shape_tensor, append_f=f, update_f=f, flatten_sequence=True
+            tensor,
+            shape_tensor,
+            extend_f=extend_f,
+            update_f=update_f,
+            flatten_sequence=True,
         )
 
     def _create_sample_id_tensor(self, tensor: str):
@@ -693,7 +704,7 @@ class Dataset:
         self._link_tensors(
             tensor,
             id_tensor,
-            append_f="append_id",
+            extend_f="extend_id",
             flatten_sequence=False,
         )
 
@@ -711,7 +722,7 @@ class Dataset:
         self._link_tensors(
             tensor,
             sample_info_tensor,
-            "append_info",
+            "extend_info",
             "update_info",
             flatten_sequence=True,
         )
@@ -1137,6 +1148,8 @@ class Dataset:
         return self._commit(message)
 
     @deeplake_reporter.record_call
+    @invalid_view_op
+    @suppress_iteration_warning
     def merge(
         self,
         target_id: str,
@@ -1317,9 +1330,7 @@ class Dataset:
         Args:
             id_1 (str, Optional): The first commit_id or branch name.
             id_2 (str, Optional): The second commit_id or branch name.
-            as_dict (bool, Optional): If ``True``, returns a dictionary of the differences instead of printing them.
-                This dictionary will have two keys - "tensor" and "dataset" which represents tensor level and dataset level changes, respectively.
-                Defaults to False.
+            as_dict (bool, Optional): If ``True``, returns the diff as lists of commit wise dictionaries.
 
         Returns:
             Optional[Dict]
@@ -1335,37 +1346,14 @@ class Dataset:
 
         Note:
             A dictionary of the differences between the commits/branches is returned if ``as_dict`` is ``True``.
+            The dictionary will always have 2 keys, "dataset" and "tensors". The values corresponding to these keys are detailed below:
 
-                - If ``id_1`` and ``id_2`` are None, a dictionary containing the differences between the current state and the previous commit will be returned.
-                - If only ``id_1`` is provided, a dictionary containing the differences in the current state and ``id_1`` respectively will be returned.
+                - If ``id_1`` and ``id_2`` are None, both the keys will have a single list as their value. This list will contain a dictionary describing changes compared to the previous commit.
+                - If only ``id_1`` is provided, both keys will have a tuple of 2 lists as their value. The lists will contain dictionaries describing commitwise differences between commits. The 2 lists will range from current state and ``id_1` to most recent common ancestor the commits respectively.
                 - If only ``id_2`` is provided, a ValueError will be raised.
-                - If both ``id_1`` and ``id_2`` are provided, a dictionary containing the differences in ``id_1`` and ``id_2`` respectively will be returned.
+                - If both ``id_1`` and ``id_2`` are provided, both keys will have a tuple of 2 lists as their value. The lists will contain dictionaries describing commitwise differences between commits. The 2 lists will range from ``id_1`` and ``id_2`` to most recent common ancestor the commits respectively.
 
             ``None`` is returned if ``as_dict`` is ``False``.
-
-            Example of a dict returned:
-
-            >>> {
-            ...    "image": {"data_added": [3, 6], "data_updated": {0, 2}, "created": False, "info_updated": False, "data_transformed_in_place": False},
-            ...    "label": {"data_added": [0, 3], "data_updated": {}, "created": True, "info_updated": False, "data_transformed_in_place": False},
-            ...    "other/stuff" : {"data_added": [3, 3], "data_updated": {1, 2}, "created": True, "info_updated": False, "data_transformed_in_place": False},
-            ... }
-
-
-            - Here, "data_added" is a range of sample indexes that were added to the tensor.
-
-                - For example [3, 6] means that sample 3, 4 and 5 were added.
-                - Another example [3, 3] means that no samples were added as the range is empty.
-
-            - "data_updated" is a set of sample indexes that were updated.
-
-                - For example {0, 2} means that sample 0 and 2 were updated.
-
-            - "created" is a boolean that is ``True`` if the tensor was created.
-
-            - "info_updated" is a boolean that is ``True`` if the info of the tensor was updated.
-
-            - "data_transformed_in_place" is a boolean that is ``True`` if the data of the tensor was transformed in place.
         """
         version_state, storage = self.version_state, self.storage
         res = get_changes_and_messages(version_state, storage, id_1, id_2)
@@ -1643,6 +1631,46 @@ class Dataset:
         from deeplake.experimental import query
 
         return query(self, query_string)
+
+    def sample_by(
+        self,
+        weights: Union[str, list, tuple],
+        replace: Optional[bool] = True,
+        size: Optional[int] = None,
+    ):
+        """Returns a sliced :class:`~deeplake.core.dataset.Dataset` with given weighted sampler applied
+
+        Args:
+            weights: (Union[str, list, tuple]): If it's string then tql will be run to calculate the weights based on the expression. list and tuple will be treated as the list of the weights per sample
+            replace: Optional[bool] If true the samples can be repeated in the result view.
+                (default: ``True``).
+            size: Optional[int] The length of the result view.
+                (default: ``len(dataset)``)
+
+
+        Returns:
+            Dataset: A deeplake.Dataset object.
+
+        Examples:
+
+            Sample the dataset with ``labels == 5`` twice more than ``labels == 6``
+
+            >>> import deeplake
+            >>> from deeplake.experimental import query
+            >>> ds = deeplake.load('hub://activeloop/fashion-mnist-train')
+            >>> sampled_ds = sample(ds_train, "max_weight(labels == 5: 10, labels == 6: 5)")
+
+            Sample the dataset with the given weights;
+
+            >>> ds_train = deeplake.load('hub://activeloop/coco-train')
+            >>> weights = list()
+            >>> for i in range(0, len(ds_train)):
+            >>>     weights.append(i % 5)
+            >>> sampled_ds = sample_by(ds_train, weights, replace=False)
+        """
+        from deeplake.experimental import sample_by
+
+        return sample_by(self, weights, replace, size)
 
     def _get_total_meta(self):
         """Returns tensor metas all together"""
@@ -1940,10 +1968,12 @@ class Dataset:
         commit_node: CommitNode = self.version_state["commit_node_map"].get(commit_id)
         if commit_node is None:
             raise KeyError(f"Commit {commit_id} not found in dataset.")
+
+        time = str(commit_node.commit_time)[:-7] if commit_node.commit_time else None
         return {
             "commit": commit_node.commit_id,
             "author": commit_node.commit_user_name,
-            "time": str(commit_node.commit_time)[:-7],
+            "time": time,
             "message": commit_node.commit_message,
         }
 
@@ -2959,7 +2989,7 @@ class Dataset:
         self,
         src: str,
         dest: str,
-        append_f: str,
+        extend_f: str,
         update_f: Optional[str] = None,
         flatten_sequence: Optional[bool] = None,
     ):
@@ -2968,7 +2998,7 @@ class Dataset:
         Args:
             src (str): Name of the source tensor.
             dest (str): Name of the destination tensor.
-            append_f (str): Name of the linked tensor transform to be used for appending items to the destination tensor. This transform should be defined in `deeplake.core.tensor_link` module.
+            extend_f (str): Name of the linked tensor transform to be used for extending the destination tensor. This transform should be defined in `deeplake.core.tensor_link` module.
             update_f (str): Name of the linked tensor transform to be used for updating items in the destination tensor. This transform should be defined in `deeplake.core.tensor_link` module.
             flatten_sequence (bool, Optional): Whether appends and updates should be done per item or per sequence if the source tensor is a sequence tensor.
 
@@ -2990,7 +3020,7 @@ class Dataset:
                     "`flatten_sequence` arg must be specified when linking a sequence tensor."
                 )
             flatten_sequence = False
-        src_tensor.meta.add_link(dest_key, append_f, update_f, flatten_sequence)
+        src_tensor.meta.add_link(dest_key, extend_f, update_f, flatten_sequence)
         self.storage.maybe_flush()
 
     def _resolve_tensor_list(self, keys: List[str], root: bool = False) -> List[str]:
@@ -3251,6 +3281,47 @@ class Dataset:
             except KeyError:
                 pass
 
+    def connect(
+        self,
+        creds_key: str,
+        dest_path: Optional[str] = None,
+        org_id: Optional[str] = None,
+        ds_name: Optional[str] = None,
+        token: Optional[str] = None,
+    ):
+        """Connect a Deep Lake cloud dataset through a deeplake path.
+
+        Examples:
+            >>> # create/load an s3 dataset
+            >>> s3_ds = deeplake.dataset("s3://bucket/dataset")
+            >>> ds = s3_ds.connect(dest_path="hub://my_org/dataset", creds_key="my_managed_credentials_key")
+            >>> # or
+            >>> ds = s3_ds.connect(org_id="my_org", creds_key="my_managed_credentials_key")
+
+        Args:
+            creds_key (str): The managed credentials to be used for accessing the source path.
+            dest_path (str, optional): The full path to where the connected Deep Lake dataset will reside. Can be:
+                a Deep Lake path like ``hub://organization/dataset``
+            org_id (str, optional): The organization to where the connected Deep Lake dataset will be added.
+            ds_name (str, optional): The name of the connected Deep Lake dataset. Will be infered from ``dest_path`` or ``src_path`` if not provided.
+            token (str, optional): Activeloop token used to fetch the managed credentials.
+
+        Returns:
+            Dataset: The connected Deep Lake dataset.
+
+        Raises:
+            InvalidSourcePathError: If the dataset's path is not a valid s3 or gcs path.
+            InvalidDestinationPathError: If ``dest_path``, or ``org_id`` and ``ds_name`` do not form a valid Deep Lake path.
+        """
+        return connect_dataset_entry(
+            src_path=self.path,
+            creds_key=creds_key,
+            dest_path=dest_path,
+            org_id=org_id,
+            ds_name=ds_name,
+            token=token,
+        )
+
     def add_creds_key(self, creds_key: str, managed: bool = False):
         """Adds a new creds key to the dataset. These keys are used for tensors that are linked to external data.
 
@@ -3352,9 +3423,29 @@ class Dataset:
 
         deeplake_reporter.feature_report(feature_name="visualize", parameters={})
         if is_colab():
-            raise Exception("Cannot visualize non Deep Lake cloud dataset in Colab.")
+            provider = self.storage.next_storage
+            if isinstance(provider, S3Provider):
+                creds = {
+                    "aws_access_key_id": provider.aws_access_key_id,
+                    "aws_secret_access_key": provider.aws_secret_access_key,
+                    "aws_session_token": provider.aws_session_token,
+                    "aws_region": provider.aws_region,
+                    "endpoint_url": provider.endpoint_url,
+                }
+                visualize(
+                    provider.path,
+                    link_creds=self.link_creds,
+                    token=self.token,
+                    creds=creds,
+                )
+            else:
+                raise Exception(
+                    "Cannot visualize non Deep Lake cloud dataset in Colab."
+                )
         else:
-            visualize(self.storage, width=width, height=height)
+            visualize(
+                self.storage, link_creds=self.link_creds, width=width, height=height
+            )
 
     def __contains__(self, tensor: str):
         return tensor in self.tensors

@@ -18,12 +18,9 @@ class TileEncoder(DeepLakeMemoryObject):
             sample: The sample to be registered.
             idx: The global sample index.
         """
-        if sample.registered:
-            return
         ss: Tuple[int, ...] = sample.sample_shape  # type: ignore
         ts: Tuple[int, ...] = sample.tile_shape
         self.entries[idx] = (ss, ts)
-        sample.registered = True
         self.is_dirty = True
 
     def __delitem__(self, global_sample_index: int):

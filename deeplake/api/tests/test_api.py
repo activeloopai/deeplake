@@ -1487,13 +1487,16 @@ def test_auto_htype(memory_ds):
     assert ds.f.htype == "json"
 
 
-def test_sample_shape(memory_ds):
+@pytest.mark.parametrize(
+    "args", [{}, {"sample_compression": "lz4"}, {"chunk_compression": "lz4"}]
+)
+def test_sample_shape(memory_ds, args):
     ds = memory_ds
     with ds:
-        ds.create_tensor("w")
-        ds.create_tensor("x")
-        ds.create_tensor("y")
-        ds.create_tensor("z")
+        ds.create_tensor("w", **args)
+        ds.create_tensor("x", **args)
+        ds.create_tensor("y", **args)
+        ds.create_tensor("z", **args)
         ds.w.extend(np.zeros((5, 4, 3, 2)))
         ds.x.extend(np.ones((5, 4000, 5000)))
         ds.y.extend([np.zeros((2, 3)), np.ones((3, 2))])
@@ -1761,44 +1764,6 @@ def test_create_branch_when_locked_out(local_ds):
     local_ds.checkout("branch", create=True)
     assert local_ds.branch == "branch"
     local_ds.create_tensor("x")
-
-
-def test_access_method(s3_ds_generator):
-    with pytest.raises(DatasetHandlerError):
-        deeplake.dataset("./some_non_existent_path", access_method="download")
-
-    with pytest.raises(DatasetHandlerError):
-        deeplake.dataset("./some_non_existent_path", access_method="local")
-
-    ds = s3_ds_generator()
-    with ds:
-        ds.create_tensor("x")
-        for i in range(10):
-            ds.x.append(i)
-
-    ds = s3_ds_generator(access_method="download")
-    with pytest.raises(DatasetHandlerError):
-        # second time download is not allowed
-        s3_ds_generator(access_method="download")
-    assert not ds.path.startswith("s3://")
-    for i in range(10):
-        assert ds.x[i].numpy() == i
-
-    with pytest.raises(ValueError):
-        s3_ds_generator(access_method="invalid")
-
-    with pytest.raises(ValueError):
-        s3_ds_generator(access_method="download", overwrite=True)
-
-    with pytest.raises(ValueError):
-        s3_ds_generator(access_method="local", overwrite=True)
-
-    ds = s3_ds_generator(access_method="local")
-    assert not ds.path.startswith("s3://")
-    for i in range(10):
-        assert ds.x[i].numpy() == i
-
-    ds.delete()
 
 
 def test_partial_read_then_write(s3_ds_generator):
@@ -2214,7 +2179,6 @@ def test_columnar_views(memory_ds):
     ds.create_tensor("a/c")
     ds.create_tensor("a/d")
     view = ds["a"][["b", "d"]]
-    print(view.enabled_tensors)
     assert list(view.tensors) == ["b", "d"]
     assert view.group_index == "a"
 

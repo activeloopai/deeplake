@@ -7,7 +7,7 @@ from deeplake.experimental.util import (
     verify_base_storage,
 )
 from deeplake.experimental.util import collate_fn as default_collate  # type: ignore
-from deeplake.experimental.libdeeplake_query import query
+from deeplake.experimental.libdeeplake_query import query, sample_by
 from deeplake.integrations.pytorch.common import (
     PytorchTransformFunction,
     check_tensors,
@@ -123,15 +123,19 @@ class DeepLakeDataLoader:
 
         Raises:
             ValueError: If .shuffle() has already been called.
+            ValueError: If dataset is view and shuffle is True
         """
+        if shuffle and isinstance(self.dataset.index.values[0].value, tuple):
+            raise ValueError("Can't shuffle dataset view")
         if self._shuffle is not None:
             raise ValueError("shuffle is already set")
         all_vars = self.__dict__.copy()
         all_vars["_shuffle"] = shuffle
         all_vars["_buffer_size"] = buffer_size
-        schedule = create_fetching_schedule(self.dataset, self._primary_tensor_name)
-        if schedule is not None:
-            all_vars["dataset"] = self.dataset[schedule]
+        if shuffle:
+            schedule = create_fetching_schedule(self.dataset, self._primary_tensor_name)
+            if schedule is not None:
+                all_vars["dataset"] = self.dataset[schedule]
         return self.__class__(**all_vars)
 
     def transform(
@@ -197,6 +201,32 @@ class DeepLakeDataLoader:
         all_vars["dataset"] = query(self.dataset, query_string)
         return self.__class__(**all_vars)
 
+    def sample_by(
+        self,
+        weights: Union[str, list, tuple],
+        replace: Optional[bool] = True,
+        size: Optional[int] = None,
+    ):
+        """Returns a sliced :class:`DeepLakeDataLoader` with given weighted sampler applied
+
+        Args:
+            weights: (Union[str, list, tuple]): If it's string then tql will be run to calculate the weights based on the expression. list and tuple will be treated as the list of the weights per sample
+            replace: Optional[bool] If true the samples can be repeated in the result view.
+                (default: ``True``).
+            size: Optional[int] The length of the result view.
+                (default: ``len(dataset)``)
+
+
+        Returns:
+            Dataset: A deeplake.Dataset object.
+
+        """
+        all_vars = self.__dict__.copy()
+        all_vars["dataset"] = sample_by(
+            self.dataset, weights, replace=replace, size=size
+        )
+        return self.__class__(**all_vars)
+
     @deeplake_reporter.record_call
     def pytorch(
         self,
@@ -219,7 +249,7 @@ class DeepLakeDataLoader:
             num_threads (int, Optional): Number of threads to use for fetching and decompressing the data. If None, the number of threads is automatically determined. Defaults to None.
             prefetch_factor (int): Number of batches to transform and collate in advance per worker. Defaults to 2.
             distributed (bool): Used for DDP training. Distributes different sections of the dataset to different ranks. Defaults to False.
-            return_index (bool): Used to idnetify where loader needs to retur sample index or not. Defaults to True.
+            return_index (bool): Used to identify where loader needs to return sample index or not. Defaults to True.
             tobytes (bool, Sequence[str]): If ``True``, samples will not be decompressed and their raw bytes will be returned instead of numpy arrays. Can also be a list of tensors, in which case those tensors alone will not be decompressed.
 
         Returns:

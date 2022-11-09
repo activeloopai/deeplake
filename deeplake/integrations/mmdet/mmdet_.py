@@ -49,12 +49,13 @@ class MMDetDataset(TorchDataset):
         **kwargs,
     ):
         super().__init__(*args, **kwargs)
-        self.CLASSES = self.get_classes()
         self.images = self._get_images(tensors_dict["images_tensor"])
         self.masks = self._get_masks(tensors_dict.get("masks_tensor", None))
         self.bbox_format = bbox_format
         self.bboxes = self._get_bboxes(tensors_dict["boxes_tensor"])
         self.labels = self._get_labels(tensors_dict["labels_tensor"])
+        self._classes = self.dataset[tensors_dict["labels_tensor"]].info.class_names
+        self.CLASSES = self.get_classes(tensors_dict["labels_tensor"])
         self.evaluator = (
             mmdet_utils.COCODatasetEvaluater(
                 pipeline, classes=self.CLASSES, hub_dataset=self.dataset
@@ -64,23 +65,20 @@ class MMDetDataset(TorchDataset):
         )  # TO DO: read from htype info
 
     def _get_images(self, images_tensor):
-        images_tensor = images_tensor or _find_tensor_with_htype(self.dataset, "image")
         return self.dataset[images_tensor].numpy(aslist=True)
 
     def _get_masks(self, masks_tensor):
+        if masks_tensor is None:
+            return []
         masks_tensor = masks_tensor or _find_tensor_with_htype(
             self.dataset, "binary_mask"
         )
         return self.dataset[masks_tensor].numpy(aslist=True)
 
     def _get_bboxes(self, boxes_tensor):
-        boxes_tensor = boxes_tensor or _find_tensor_with_htype(self.dataset, "bbox")
         return self.dataset[boxes_tensor].numpy(aslist=True)
 
     def _get_labels(self, labels_tensor):
-        labels_tensor = labels_tensor or _find_tensor_with_htype(
-            self.dataset, "class_label"
-        )
         return self.dataset[labels_tensor].numpy(aslist=True)
 
     def get_ann_info(self, idx):
@@ -206,8 +204,7 @@ class MMDetDataset(TorchDataset):
         Returns:
             tuple[str] or list[str]: Names of categories of the dataset.
         """
-        labels_tensor = _find_tensor_with_htype(self.dataset, "class_label")
-        return self.dataset[labels_tensor].info.class_names
+        return self._classes
 
     def evaluate(
         self,

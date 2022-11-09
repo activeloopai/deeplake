@@ -42,7 +42,7 @@ except ImportError:
     pass
 
 
-class S3ReloadCredentialsManager:
+class S3ResetReloadCredentialsManager:
     """Tries to reload the credentials if the error is due to expired token, if error still occurs, it raises it."""
 
     def __init__(self, s3p, error_class: S3Error):
@@ -50,25 +50,11 @@ class S3ReloadCredentialsManager:
         self.s3p = s3p
 
     def __enter__(self):
-        self.s3p._locate_and_load_creds()
-        self.s3p._set_s3_client_and_resource()
-        return self
-
-    def __exit__(self, exc_type, exc_value, exc_traceback):
-        if exc_type is not None:
-            raise self.error_class(exc_value).with_traceback(exc_traceback)
-
-
-class S3ResetClientManager:
-    """Resets the client, if error still occurs, it raises it."""
-
-    def __init__(self, s3p, error_class: S3Error):
-        self.error_class = error_class
-        self.s3p = s3p
-
-    def __enter__(self):
-        self.s3p._check_update_creds(force=True)
-        self.s3p._initialize_s3_parameters()
+        if self.s3p.expiration:
+            self.s3p._check_update_creds(force=True)
+        else:
+            self.s3p._locate_and_load_creds()
+            self.s3p._set_s3_client_and_resource()
         return self
 
     def __exit__(self, exc_type, exc_value, exc_traceback):
@@ -166,9 +152,7 @@ class S3Provider(StorageProvider):
         try:
             self._set(path, content)
         except botocore.exceptions.ClientError as err:
-            reload = self.need_to_reload_creds(err)
-            manager = S3ReloadCredentialsManager if reload else S3ResetClientManager
-            with manager(self, S3SetError):
+            with S3ResetReloadCredentialsManager(self, S3SetError):
                 self._set(path, content)
         except CONNECTION_ERRORS as err:
             tries = self.num_tries
@@ -209,7 +193,9 @@ class S3Provider(StorageProvider):
         """
         return self.get_bytes(path)
 
-    def _get_bytes(self, path, start_byte: int = None, end_byte: int = None):
+    def _get_bytes(
+        self, path, start_byte: Optional[int] = None, end_byte: Optional[int] = None
+    ):
         if start_byte is not None and end_byte is not None:
             if start_byte == end_byte:
                 return b""
@@ -251,9 +237,7 @@ class S3Provider(StorageProvider):
         except botocore.exceptions.ClientError as err:
             if err.response["Error"]["Code"] == "NoSuchKey":
                 raise KeyError(err) from err
-            reload = self.need_to_reload_creds(err)
-            manager = S3ReloadCredentialsManager if reload else S3ResetClientManager  # type: ignore
-            with manager(self, S3GetError):  # type: ignore
+            with S3ResetReloadCredentialsManager(self, S3GetError):  # type: ignore
                 return self._get_bytes(path, start_byte, end_byte)
         except CONNECTION_ERRORS as err:
             tries = self.num_tries
@@ -293,9 +277,7 @@ class S3Provider(StorageProvider):
         try:
             self._del(path)
         except botocore.exceptions.ClientError as err:
-            reload = self.need_to_reload_creds(err)
-            manager = S3ReloadCredentialsManager if reload else S3ResetClientManager
-            with manager(self, S3DeletionError):
+            with S3ResetReloadCredentialsManager(self, S3DeletionError):
                 self._del(path)
         except CONNECTION_ERRORS as err:
             tries = self.num_tries
@@ -379,9 +361,7 @@ class S3Provider(StorageProvider):
                 bucket = self.resource.Bucket(self.bucket)
                 bucket.objects.filter(Prefix=path).delete()
             except Exception as err:
-                reload = self.need_to_reload_creds(err)
-                manager = S3ReloadCredentialsManager if reload else S3ResetClientManager
-                with manager(self, S3DeletionError):
+                with S3ResetReloadCredentialsManager(self, S3DeletionError):
                     bucket = self.resource.Bucket(self.bucket)
                     bucket.objects.filter(Prefix=self.path).delete()
 
@@ -494,14 +474,13 @@ class S3Provider(StorageProvider):
                 org_id,
                 ds_name,
                 mode,
-                force,
+                True,
             )
             self.expiration = expiration
-            self._set_s3_client_and_resource(
-                creds.get("aws_access_key_id"),
-                creds.get("aws_secret_access_key"),
-                creds.get("aws_session_token"),
-            )
+            self.aws_access_key_id = creds.get("aws_access_key_id")
+            self.aws_secret_access_key = creds.get("aws_secret_access_key")
+            self.aws_session_token = creds.get("aws_session_token")
+            self._set_s3_client_and_resource()
 
     def _locate_and_load_creds(self):
         session = boto3.session.Session(profile_name=self.profile_name)._session
@@ -520,16 +499,11 @@ class S3Provider(StorageProvider):
                 self.aws_region, self.client_config
             )
 
-    def _set_s3_client_and_resource(
-        self, aws_access_key_id=None, aws_secret_access_key=None, aws_session_token=None
-    ):
-        key = aws_access_key_id or self.aws_access_key_id
-        secret = aws_secret_access_key or self.aws_secret_access_key
-        token = aws_session_token or self.aws_session_token
+    def _set_s3_client_and_resource(self):
         args = {
-            "aws_access_key_id": key,
-            "aws_secret_access_key": secret,
-            "aws_session_token": token,
+            "aws_access_key_id": self.aws_access_key_id,
+            "aws_secret_access_key": self.aws_secret_access_key,
+            "aws_session_token": self.aws_session_token,
             "region_name": self.aws_region,
             "endpoint_url": self.endpoint_url,
             "config": self.client_config,
@@ -596,9 +570,7 @@ class S3Provider(StorageProvider):
         except botocore.exceptions.ClientError as err:
             if err.response["Error"]["Code"] == "NoSuchKey":
                 raise KeyError(err) from err
-            reload = self.need_to_reload_creds(err)
-            manager = S3ReloadCredentialsManager if reload else S3ResetClientManager  # type: ignore
-            with manager(self, S3GetError):  # type: ignore
+            with S3ResetReloadCredentialsManager(self, S3GetError):  # type: ignore
                 return self._get(path, bucket)
         except CONNECTION_ERRORS as err:
             tries = self.num_tries

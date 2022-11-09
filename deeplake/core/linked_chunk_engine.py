@@ -42,6 +42,13 @@ def retry_refresh_managed_creds(fn):
     return wrapper
 
 
+def remove_chunk_engine_compression(chunk_engine):
+    chunk_engine.chunk_class = UncompressedChunk
+    chunk_engine.compression = None
+    chunk_engine._sample_compression = None
+    chunk_engine._chunk_compression = None
+
+
 class LinkedChunkEngine(ChunkEngine):
     def __init__(
         self,
@@ -49,14 +56,15 @@ class LinkedChunkEngine(ChunkEngine):
         cache: LRUCache,
         version_state: Dict[str, Any],
         link_creds: LinkCreds,
-        meta_cache: LRUCache = None,
+        meta_cache: Optional[LRUCache] = None,
     ):
         super().__init__(key, cache, version_state, meta_cache)
+        self.path_chunk_engine = ChunkEngine(key, cache, version_state, meta_cache)
+        remove_chunk_engine_compression(self)
+        remove_chunk_engine_compression(self.path_chunk_engine)
         self.link_creds = link_creds
         self._creds_encoder: Optional[CredsEncoder] = None
         self._creds_encoder_commit_id: Optional[str] = None
-        self.chunk_class = UncompressedChunk
-        self.compression = None
 
     @property
     def creds_encoder(self) -> CredsEncoder:
@@ -161,7 +169,7 @@ class LinkedChunkEngine(ChunkEngine):
     def verify(self):
         return self.tensor_meta.is_link and self.tensor_meta.verify
 
-    def check_each_sample(self, samples, verify_creds_key_exists=True):
+    def check_each_sample(self, samples, verify=True):
         link_creds = self.link_creds
         verified_samples = []
         for i, sample in enumerate(samples):
@@ -176,7 +184,7 @@ class LinkedChunkEngine(ChunkEngine):
             path, creds_key = get_path_creds_key(sample)
 
             # verifies existence of creds_key
-            if verify_creds_key_exists:
+            if verify:
                 link_creds.get_encoding(creds_key, path)
 
             if sample is None or sample.path == "":
@@ -188,7 +196,7 @@ class LinkedChunkEngine(ChunkEngine):
                             sample.path,
                             sample.creds_key,
                             self.link_creds,
-                            verify=self.verify,
+                            verify=verify and self.verify,
                         )
                     )
                 except Exception as e:
@@ -265,3 +273,8 @@ class LinkedChunkEngine(ChunkEngine):
     def read_bytes_for_sample(self, global_sample_index: int) -> bytes:
         sample = self.get_deeplake_read_sample(global_sample_index)
         return sample.buffer
+
+    def path(self, index, fetch_chunks):
+        return self.path_chunk_engine.numpy(
+            index, fetch_chunks=fetch_chunks, use_data_cache=False
+        )

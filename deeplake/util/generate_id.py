@@ -1,5 +1,4 @@
 from uuid import uuid4
-import numpy as np
 
 
 def generate_id(dtype: type):
