@@ -554,15 +554,12 @@ def transform(
 
     shape = img.shape
 
-    if isinstance(pipeline, list):
-        pipeline = pipeline[0]
-
     if masks is not None:
         gt_masks = BitmapMasks(masks, *shape[:2])
     else:
         gt_masks = None
 
-    ret = pipeline(
+    return pipeline(
         {
             "img": img,
             "img_fields": ["img"],
@@ -576,9 +573,6 @@ def transform(
             "bbox_fields": ["gt_bboxes"],
         }
     )
-    print("transform()")
-    return ret
-
 
 def build_dataset(cfg, tensors=None, *args, **kwargs):
     if isinstance(cfg, dp.Dataset):
@@ -727,7 +721,7 @@ def train_detector(
     boxes_tensor = boxes_tensor or tensors.get("gt_bboxes")
     labels_tensor = labels_tensor or tensors.get("gt_labels")
 
-    bbox_format = bbox_format or cfg.get("bbox_format") or PascalVOC
+    bbox_format = bbox_format or cfg.get("bbox_format") or "PascalVOC"
 
     logger = get_root_logger(log_level=cfg.log_level)
 
@@ -737,10 +731,10 @@ def train_detector(
     runner_type = "EpochBasedRunner" if "runner" not in cfg else cfg.runner["type"]
 
     train_dataloader_default_args = dict(
-        samples_per_gpu=256,
-        workers_per_gpu=8,
+        samples_per_gpu=cfg.data.get("samples_per_gpu", 256),
+        workers_per_gpu=cfg.data.get("workers_per_gpu", 8),
         # `num_gpus` will be ignored if distributed
-        num_gpuddes=len(cfg.gpu_ids),
+        num_gpus=len(cfg.gpu_ids),
         dist=distributed,
         seed=cfg.seed,
         runner_type=runner_type,
@@ -829,7 +823,7 @@ def train_detector(
     if validate:
         val_dataloader_default_args = dict(
             samples_per_gpu=1,
-            workers_per_gpu=2,
+            workers_per_gpu=1,
             dist=distributed,
             shuffle=False,
             persistent_workers=False,
