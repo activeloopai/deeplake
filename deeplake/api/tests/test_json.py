@@ -91,7 +91,7 @@ def test_json_with_bytes(memory_ds):
         for x in items:
             ds.json.append(x)
         ds.json.extend(items)
-
+    assert ds.json.shape == (4, 1)
     for i in range(4):
         assert ds.json[i].data()["value"] == items[i % 2]
 
