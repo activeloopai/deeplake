@@ -529,8 +529,12 @@ def transform(
     pipeline: Callable,
 ):
     img = sample_in[images_tensor]
+    if not isinstance(img, np.ndarray):
+        img = np.array(img)
     if masks_tensor:
         masks = sample_in[masks_tensor]
+        if not isinstance(masks, np.ndarray):
+            masks = np.array(masks)
     else:
         masks = None
     bboxes = sample_in[boxes_tensor]
