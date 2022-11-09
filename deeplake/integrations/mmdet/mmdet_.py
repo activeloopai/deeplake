@@ -657,7 +657,7 @@ def build_dataloader(
                 dataloader(dataset.ds)
                 .transform(transform_fn)
                 .shuffle(shuffle)
-                .batch_size(batch_size)
+                .batch(batch_size)
                 .pytorch(
                     num_workers=num_workers, collate_fn=collate_fn, tensors=tensors
                 )
@@ -698,12 +698,13 @@ def train_detector(
     masks_tensor: Optional[str] = None,
     boxes_tensor: Optional[str] = None,
     labels_tensor: Optional[str] = None,
+    dataloader: str = None,
     bbox_format=None,
 ):
 
     cfg = compat_cfg(cfg)
 
-    dl_impl = cfg.get("deeplake_dataloader", "auto").lower()
+    dl_impl = dataloader or cfg.get("deeplake_dataloader", "auto").lower()
 
     if dl_impl == "auto":
         dl_impl = "c++" if indra_available() else "python"
