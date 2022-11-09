@@ -493,7 +493,7 @@ class HubDatasetCLass:
         tensors = tensors or {}
         labels_tensor = tensors.get("gt_labels") or _find_tensor_with_htype(self.ds, "class_label")
         self.CLASSES = self.ds[labels_tensor].info.class_names
-        self.pipeline = cfg.pipeline
+        # self.pipeline = cfg.pipeline
 
 
 rand_crop = A.Compose(
@@ -584,6 +584,7 @@ def build_dataloader(
     boxes_tensor,
     labels_tensor,
     implementation,
+    pipeline,
     **train_loader_config,
 ):
     if isinstance(dataset, dp.Dataset):
@@ -598,7 +599,7 @@ def build_dataloader(
         labels_tensor = labels_tensor or _find_tensor_with_htype(
             dataset.ds, "class_label"
         )
-        pipeline = build_pipeline(dataset.pipeline)
+        pipeline = build_pipeline(pipeline)
 
         transform_fn = partial(
             transform,
@@ -740,6 +741,7 @@ def train_detector(
             masks_tensor,
             boxes_tensor,
             labels_tensor,
+            pipeline=cfg.get("train_pipeline", []),
             implementation=dl_impl,
             **train_loader_cfg,
         )
@@ -832,6 +834,7 @@ def train_detector(
             masks_tensor,
             boxes_tensor,
             labels_tensor,
+            pipeline=cfg.get("test_pipeline", []),
             implementation=dl_impl,
             **val_dataloader_args,
         )
