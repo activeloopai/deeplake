@@ -634,8 +634,10 @@ def build_dataloader(
             tensors.append(masks_tensor)
             tensors_dict["masks_tensor"] = masks_tensor
 
+        batch_size = train_loader_config.get("samples_per_gpu", 1)
+
         collate_fn = partial(
-            collate, samples_per_gpu=train_loader_config["samples_per_gpu"]
+            collate, samples_per_gpu=batch_size
         )
 
         if implementation == "python":
@@ -649,6 +651,7 @@ def build_dataloader(
                 torch_dataset=MMDetDataset,
                 bbox_format=bbox_format,
                 pipeline=dataset.pipeline,
+                batch_size=batch_size,
                 # torch_dataset=TorchDataset,
             )
             # loader.dataset.CLASSES = [
@@ -660,6 +663,7 @@ def build_dataloader(
                 dataloader(dataset.ds)
                 .transform(transform_fn)
                 .shuffle(shuffle)
+                .batch_size(batch_size)
                 .pytorch(
                     num_workers=num_workers, collate_fn=collate_fn, tensors=tensors
                 )
