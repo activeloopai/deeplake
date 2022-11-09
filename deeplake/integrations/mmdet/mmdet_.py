@@ -11,7 +11,7 @@ from mmcv.parallel import collate
 from functools import partial
 from typing import Optional
 from deeplake.integrations.pytorch.dataset import TorchDataset
-
+from deeplake.client.client import DeepLakeBackendClient
 from mmdet.core import BitmapMasks
 import albumentations as A
 import deeplake as dp
@@ -480,13 +480,16 @@ class HubDatasetCLass:
         if ds:
             self.ds = ds
         else:
-            username = cfg.deeplake_credentials.username
-            password = cfg.deeplake_credentials.password
-            if username is not None:
-                runner = CliRunner()
-                runner.invoke(login, f"-u {username} -p {password}")
+            creds = cfg.get("deeplake_credentials", {})
+            token = creds.get("token", None)
+            if token is None:
+                uname = creds.get("username")
+                if uname is not None:
+                    pword = creds["password"]
+                    client = DeepLakeBackendClient()
+                    token = client.request_auth_token(username=uname, password=pword)
             ds_path = cfg.deeplake_path
-            self.ds = dp.load(ds_path, token=cfg.deeplake_credentials.token)
+            self.ds = dp.load(ds_path, token=token)
         labels_tensor = _find_tensor_with_htype(self.ds, "class_label")
         self.CLASSES = self.ds[labels_tensor].info.class_names
         self.pipeline = cfg.pipeline
