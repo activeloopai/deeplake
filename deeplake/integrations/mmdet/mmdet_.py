@@ -15,6 +15,7 @@ from functools import partial
 from typing import Optional, Sequence, Union
 from deeplake.integrations.pytorch.common import PytorchTransformFunction
 from deeplake.integrations.pytorch.dataset import TorchDataset
+from deeplake.integrations.mmdet.mmdet_utils import HubCOCO
 
 from mmdet.core import BitmapMasks
 import albumentations as A
@@ -38,7 +39,7 @@ from mmdet.datasets.builder import DATASETS
 from mmdet.datasets.pipelines import Compose
 import tempfile
 from torchmetrics.detection.mean_ap import MeanAveragePrecision
-
+from deeplake.integrations.mmdet import mmdet_utils
 
 class MMDetDataset(TorchDataset):
     def __init__(
@@ -46,6 +47,7 @@ class MMDetDataset(TorchDataset):
         *args,
         tensors_dict=None,
         bbox_format="PascalVOC",
+        pipeline=None,
         **kwargs,
     ):
         super().__init__(*args, **kwargs)
@@ -55,6 +57,7 @@ class MMDetDataset(TorchDataset):
         self.bbox_format = bbox_format
         self.bboxes = self._get_bboxes(tensors_dict["boxes_tensor"])
         self.labels = self._get_labels(tensors_dict["labels_tensor"])
+        self.evaluator = mmdet_utils.COCODatasetEvaluater(pipeline, classes=self.CLASSES, hub_dataset=self.dataset) if bbox_format == "COCO" else None # TO DO: read from htype info
 
     def _get_images(self, images_tensor):
         images_tensor = images_tensor or _find_tensor_with_htype(self.dataset, "image")
@@ -211,8 +214,9 @@ class MMDetDataset(TorchDataset):
         metric="mAP",
         logger=None,
         proposal_nums=(100, 300, 1000),
-        iou_thr=0.5,
+        iou_thr=0.5, # 
         scale_ranges=None,
+        **kwargs,
     ):
         """Evaluate the dataset.
 
@@ -228,7 +232,7 @@ class MMDetDataset(TorchDataset):
             scale_ranges (list[tuple] | None): Scale ranges for evaluating mAP.
                 Default: None.
         """
-        if self.bbox_format == "PascalVOC":
+        if self.evaluator is None:
             if not isinstance(metric, str):
                 assert len(metric) == 1
                 metric = metric[0]
@@ -269,113 +273,121 @@ class MMDetDataset(TorchDataset):
                     for i, num in enumerate(proposal_nums):
                         eval_results[f"AR@{num}"] = ar[i]
             return eval_results
-        return self.evaluate_coco(results, metric, proposal_nums)
 
-    def evaluate_coco(
-        self,
-        results,
-        metric="bbox",
-        logger=None,
-        jsonfile_prefix=None,
-        classwise=False,
-        proposal_nums=(100, 300, 1000),
-        iou_thrs=None,
-        metric_items=None,
-    ): # TO DO: Optimize this
-        metrics = metric if isinstance(metric, list) else [metric]
-        allowed_metrics = ["bbox", "segm", "proposal", "proposal_fast"]
-        for metric in metrics:
-            if metric not in allowed_metrics:
-                raise KeyError(f"metric {metric} is not supported")
+        self.evaluator.createHubIndex()
+        return self.evaluator.evaluate(
+                    results,
+                    metric=metric,
+                    logger=logger,
+                    proposal_nums=proposal_nums,
+                    **kwargs,
+                )
 
-        results_dict = self.convert_result_to_dict(results)
-        targets_dict = self.convert_targets_to_dict()
-        mAP_fn = MeanAveragePrecision(max_detection_thresholds=proposal_nums)
-        mAP_fn.update(results_dict, targets_dict)
-        s = mAP_fn.compute()
-        eval_result = [(s_i, s[s_i].item()) for s_i in s]
-        self._log_results(eval_result, proposal_nums)
-        # for item in eval_result:
-        #     print("")
-        return OrderedDict(eval_result)
+    # def evaluate_coco(
+    #     self,
+    #     results,
+    #     metric="bbox",
+    #     logger=None,
+    #     jsonfile_prefix=None,
+    #     classwise=False,
+    #     proposal_nums=(100, 300, 1000),
+    #     iou_thrs=None,
+    #     metric_items=None,
+    # ): # TO DO: Optimize this
+    #     metrics = metric if isinstance(metric, list) else [metric]
+    #     allowed_metrics = ["bbox", "segm", "proposal", "proposal_fast"]
+    #     for metric in metrics:
+    #         if metric not in allowed_metrics:
+    #             raise KeyError(f"metric {metric} is not supported")
 
-    def _log_results(self, results, proposal_nums):
-        out_str = "\n"
-        for i, result in enumerate(results):
-            if "map" in result[0]:
-                if i == 0:
-                    dets=proposal_nums[0]
-                else:
-                    dets=proposal_nums[2]
+    #     results_dict = self.convert_result_to_dict(results)
+    #     targets_dict = self.convert_targets_to_dict()
+    #     mAP_fn = MeanAveragePrecision(max_detection_thresholds=proposal_nums)
+    #     mAP_fn.update(results_dict, targets_dict)
+    #     s = mAP_fn.compute()
+    #     eval_result = [(s_i, s[s_i].item()) for s_i in s]
+    #     self._log_results(eval_result, proposal_nums)
+    #     # for item in eval_result:
+    #     #     print("")
+    #     return OrderedDict(eval_result)
+
+    # def _log_results(self, results, proposal_nums):
+    #     out_str = "\n"
+    #     for i, result in enumerate(results):
+    #         if "map" in result[0]:
+    #             if i == 0:
+    #                 dets=proposal_nums[0]
+    #             else:
+    #                 dets=proposal_nums[2]
                 
                 
-                if result[0] == "map":
-                    out_str += f"Average Precision (AP) @[ IoU=0.50:0.95 | area=   all | maxDets={dets}  ] = {result[1]:0.3f}\n"
-                elif "50" in result[0] or "75" in result[0]:
-                    result_int = result[0].split("_")[1]
-                    out_str += f"Average Precision (AP) @[ IoU=0.{result_int}      | area=   all | maxDets={dets} ] = {result[1]:0.3f}\n"
-                elif "small" in result[0]:
-                    out_str += f"Average Precision (AP) @[ IoU=0.50:0.95 | area= small | maxDets={dets} ] = {result[1]:0.3f}\n"
-                elif "medium" in result[0]:
-                    out_str += f"Average Precision (AP) @[ IoU=0.50:0.95 | area=medium | maxDets={dets} ] = {result[1]:0.3f}\n"
-                elif "large" in result[0]:
-                    out_str += f"Average Precision (AP) @[ IoU=0.50:0.95 | area= large | maxDets={dets} ] = {result[1]:0.3f}\n"
-            else:
-                if "per_class" not in result[0]:
-                    out_str += "Average Recall    (AP) @[ IoU=0.50:0.95 | area="
-                    if str(proposal_nums[0]) in result[0] \
-                        or str(proposal_nums[0]) in result[0] \
-                        or str(proposal_nums[1]) in result[0]:
+    #             if result[0] == "map":
+    #                 out_str += f"Average Precision (AP) @[ IoU=0.50:0.95 | area=   all | maxDets={dets}  ] = {result[1]:0.3f}\n"
+    #             elif "50" in result[0] or "75" in result[0]:
+    #                 result_int = result[0].split("_")[1]
+    #                 out_str += f"Average Precision (AP) @[ IoU=0.{result_int}      | area=   all | maxDets={dets} ] = {result[1]:0.3f}\n"
+    #             elif "small" in result[0]:
+    #                 out_str += f"Average Precision (AP) @[ IoU=0.50:0.95 | area= small | maxDets={dets} ] = {result[1]:0.3f}\n"
+    #             elif "medium" in result[0]:
+    #                 out_str += f"Average Precision (AP) @[ IoU=0.50:0.95 | area=medium | maxDets={dets} ] = {result[1]:0.3f}\n"
+    #             elif "large" in result[0]:
+    #                 out_str += f"Average Precision (AP) @[ IoU=0.50:0.95 | area= large | maxDets={dets} ] = {result[1]:0.3f}\n"
+    #         else:
+    #             if "per_class" not in result[0]:
+    #                 out_str += "Average Recall    (AP) @[ IoU=0.50:0.95 | area="
+    #                 if str(proposal_nums[0]) in result[0] \
+    #                     or str(proposal_nums[0]) in result[0] \
+    #                     or str(proposal_nums[1]) in result[0]:
                     
-                        result_int = result[0].split("_")[1]
-                        int_len = len(result_int)
-                        out_str += f'''   all | maxDets={result[0].split("_")[1]}{(5-int_len)*" "}] = {result[1]:0.3f}\n'''
+    #                     result_int = result[0].split("_")[1]
+    #                     int_len = len(result_int)
+    #                     out_str += f'''   all | maxDets={result[0].split("_")[1]}{(5-int_len)*" "}] = {result[1]:0.3f}\n'''
                         
-                    elif "small" in result[0]:
-                        out_str += f''' small | maxDets={dets} ] = {result[1]:0.3f}\n'''
-                    elif "medium" in result[0]:
-                        out_str += f'''medium | maxDets={dets} ] = {result[1]:0.3f}\n'''
-                    elif "large" in result[0]:
-                        out_str += f''' large | maxDets={dets} ] = {result[1]:0.3f}\n'''                    
-        print_log(out_str)
+    #                 elif "small" in result[0]:
+    #                     out_str += f''' small | maxDets={dets} ] = {result[1]:0.3f}\n'''
+    #                 elif "medium" in result[0]:
+    #                     out_str += f'''medium | maxDets={dets} ] = {result[1]:0.3f}\n'''
+    #                 elif "large" in result[0]:
+    #                     out_str += f''' large | maxDets={dets} ] = {result[1]:0.3f}\n'''                    
+    #     print_log(out_str)
 
-    def convert_result_to_dict(self, results): # TO DO: optimize this
-        result_list = []
-        for image_ann in tqdm.tqdm(results):
-            result_dict = defaultdict(list)
-            for class_id, (bboxes, masks) in enumerate(zip(image_ann[0], image_ann[1])):
-                if bboxes.shape[0] > 1:
-                    for i in range(bboxes.shape[0]):
-                        result_dict["boxes"].append(bboxes[i][:4])
-                        result_dict["scores"].append(bboxes[i][4])
-                        result_dict["labels"].append(class_id)
-                        result_dict["masks"].append(masks[i])
-                elif bboxes.shape[0] == 1:
-                    result_dict["boxes"].append(bboxes[0][:4])
-                    result_dict["scores"].append(bboxes[0][4])
-                    result_dict["labels"].append(class_id)
-                    result_dict["masks"].append(masks)
-            result_dict["boxes"] = torch.FloatTensor(np.array(result_dict["boxes"]))
-            result_dict["scores"] = torch.FloatTensor(np.array(result_dict["scores"]))
-            result_dict["labels"] = torch.LongTensor(
-                np.array(result_dict["labels"], dtype=np.uint8)
-            )
-            result_list.append(result_dict)
-        return result_list
+    # def convert_result_to_dict(self, results): # TO DO: optimize this
+    #     result_list = []
+    #     for image_ann in tqdm.tqdm(results):
+    #         result_dict = defaultdict(list)
+    #         for class_id, (bboxes, masks) in enumerate(zip(image_ann[0], image_ann[1])):
+    #             if bboxes.shape[0] > 1:
+    #                 for i in range(bboxes.shape[0]):
+    #                     result_dict["boxes"].append(bboxes[i][:4])
+    #                     result_dict["scores"].append(bboxes[i][4])
+    #                     result_dict["labels"].append(class_id)
+    #                     result_dict["masks"].append(masks[i])
+    #             elif bboxes.shape[0] == 1:
+    #                 result_dict["boxes"].append(bboxes[0][:4])
+    #                 result_dict["scores"].append(bboxes[0][4])
+    #                 result_dict["labels"].append(class_id)
+    #                 result_dict["masks"].append(masks)
+    #         result_dict["boxes"] = torch.FloatTensor(np.array(result_dict["boxes"]))
+    #         result_dict["scores"] = torch.FloatTensor(np.array(result_dict["scores"]))
+    #         result_dict["labels"] = torch.LongTensor(
+    #             np.array(result_dict["labels"], dtype=np.uint8)
+    #         )
+    #         result_list.append(result_dict)
+    #     return result_list
 
-    def convert_targets_to_dict(self): # TO DO: Optimize this
-        targets_list = []
-        for image_labels, image_boxes in tqdm.tqdm(zip(self.labels, self.bboxes)):
-            targets_dict = defaultdict(list)
-            for label, box in zip(image_labels, image_boxes):
-                targets_dict["labels"].append(label)
-                targets_dict["boxes"].append(box)
-            targets_dict["boxes"] = torch.FloatTensor(np.array(targets_dict["boxes"]))
-            targets_dict["labels"] = torch.LongTensor(
-                np.array(targets_dict["labels"], dtype=np.uint8)
-            )
-            targets_list.append(targets_dict)
-        return targets_list
+    # def convert_targets_to_dict(self): # TO DO: Optimize this
+    #     targets_list = []
+    #     for image_labels, image_boxes in tqdm.tqdm(zip(self.labels, self.bboxes)):
+    #         targets_dict = defaultdict(list)
+    #         for label, box in zip(image_labels, image_boxes):
+    #             targets_dict["labels"].append(label)
+    #             targets_dict["boxes"].append(box)
+    #         targets_dict["boxes"] = torch.FloatTensor(np.array(targets_dict["boxes"]))
+    #         targets_dict["labels"] = torch.LongTensor(
+    #             np.array(targets_dict["labels"], dtype=np.uint8)
+    #         )
+    #         targets_list.append(targets_dict)
+    #     return targets_list
 
     @staticmethod
     def _coco_2_pascal(boxes):
@@ -520,32 +532,14 @@ def transform(
     bboxes = sample_in[boxes_tensor]
     labels = sample_in[labels_tensor]
 
-    img = img[..., ::-1]
+    img = img[..., ::-1] # rgb_to_bgr should be optional
     if img.shape[2] == 1:
         img = np.repeat(img, 3, axis=2)
     if masks is not None:
         masks = masks.transpose((2, 0, 1)).astype(np.uint8)
-    # bboxes = _coco_2_pascal(bboxes)
 
-    # transformed = rand_crop(
-    #     image=img,
-    #     masks=list(masks),
-    #     bboxes=bboxes,
-    #     bbox_ids=np.arange(len(bboxes)),
-    #     labels=labels,
-    # )  # why are we doing random crop?
-
-    # img = transformed["image"].astype(np.uint8)
     shape = img.shape
-    # labels = np.array(transformed["labels"], dtype=np.int64)
-    # bboxes = np.array(transformed["bboxes"], dtype=np.float32).reshape(-1, 4)
 
-    # bbox_ids = transformed["bbox_ids"]
-    # masks = [transformed["masks"][i] for i in transformed["bbox_ids"]]
-    # if masks:
-    #     masks = np.stack(masks, axis=0).astype(bool)
-    # else:
-    #     masks = np.empty((0, shape[0], shape[1]), dtype=bool)
     if isinstance(pipeline, list):
         pipeline = pipeline[0]
 
@@ -628,6 +622,7 @@ def build_dataloader(
             ),
             torch_dataset=MMDetDataset,
             bbox_format=train_loader_config["bbox_format"],
+            pipeline=dataset.pipeline,
             # torch_dataset=TorchDataset,
         )
         # loader.dataset.CLASSES = [
@@ -659,7 +654,7 @@ def train_detector(
     validate=False,
     timestamp=None,
     meta=None,
-    images_tensor: Optional[str] = None,
+    images_tensor: Optional[str] = None, # from config file
     masks_tensor: Optional[str] = None,
     boxes_tensor: Optional[str] = None,
     labels_tensor: Optional[str] = None,
