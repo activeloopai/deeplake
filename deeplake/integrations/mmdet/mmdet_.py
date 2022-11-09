@@ -594,7 +594,6 @@ def build_dataloader(
     boxes_tensor,
     labels_tensor,
     implementation,
-    bbox_format,
     pipeline,
     **train_loader_config,
 ):
@@ -611,7 +610,7 @@ def build_dataloader(
             dataset.ds, "class_label"
         )
         pipeline = build_pipeline(pipeline)
-
+        bbox_format = train_loader_config["bbox_format"]
         transform_fn = partial(
             transform,
             images_tensor=images_tensor,
@@ -636,7 +635,6 @@ def build_dataloader(
         collate_fn = partial(
             collate, samples_per_gpu=train_loader_config["samples_per_gpu"]
         )
-        bbox_format = train_loader_config["bbox_format"]
 
         if implementation == "python":
             loader = dataset.ds.pytorch(
