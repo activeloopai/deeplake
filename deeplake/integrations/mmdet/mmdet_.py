@@ -41,6 +41,7 @@ import tempfile
 from torchmetrics.detection.mean_ap import MeanAveragePrecision
 from deeplake.integrations.mmdet import mmdet_utils
 
+
 class MMDetDataset(TorchDataset):
     def __init__(
         self,
@@ -57,7 +58,13 @@ class MMDetDataset(TorchDataset):
         self.bbox_format = bbox_format
         self.bboxes = self._get_bboxes(tensors_dict["boxes_tensor"])
         self.labels = self._get_labels(tensors_dict["labels_tensor"])
-        self.evaluator = mmdet_utils.COCODatasetEvaluater(pipeline, classes=self.CLASSES, hub_dataset=self.dataset) if bbox_format == "COCO" else None # TO DO: read from htype info
+        self.evaluator = (
+            mmdet_utils.COCODatasetEvaluater(
+                pipeline, classes=self.CLASSES, hub_dataset=self.dataset
+            )
+            if bbox_format == "COCO"
+            else None
+        )  # TO DO: read from htype info
 
     def _get_images(self, images_tensor):
         images_tensor = images_tensor or _find_tensor_with_htype(self.dataset, "image")
@@ -214,7 +221,7 @@ class MMDetDataset(TorchDataset):
         metric="mAP",
         logger=None,
         proposal_nums=(100, 300, 1000),
-        iou_thr=0.5, # 
+        iou_thr=0.5,  #
         scale_ranges=None,
         **kwargs,
     ):
@@ -276,12 +283,12 @@ class MMDetDataset(TorchDataset):
 
         self.evaluator.createHubIndex()
         return self.evaluator.evaluate(
-                    results,
-                    metric=metric,
-                    logger=logger,
-                    proposal_nums=proposal_nums,
-                    **kwargs,
-                )
+            results,
+            metric=metric,
+            logger=logger,
+            proposal_nums=proposal_nums,
+            **kwargs,
+        )
 
     # def evaluate_coco(
     #     self,
@@ -319,8 +326,7 @@ class MMDetDataset(TorchDataset):
     #                 dets=proposal_nums[0]
     #             else:
     #                 dets=proposal_nums[2]
-                
-                
+
     #             if result[0] == "map":
     #                 out_str += f"Average Precision (AP) @[ IoU=0.50:0.95 | area=   all | maxDets={dets}  ] = {result[1]:0.3f}\n"
     #             elif "50" in result[0] or "75" in result[0]:
@@ -338,17 +344,17 @@ class MMDetDataset(TorchDataset):
     #                 if str(proposal_nums[0]) in result[0] \
     #                     or str(proposal_nums[0]) in result[0] \
     #                     or str(proposal_nums[1]) in result[0]:
-                    
+
     #                     result_int = result[0].split("_")[1]
     #                     int_len = len(result_int)
     #                     out_str += f'''   all | maxDets={result[0].split("_")[1]}{(5-int_len)*" "}] = {result[1]:0.3f}\n'''
-                        
+
     #                 elif "small" in result[0]:
     #                     out_str += f''' small | maxDets={dets} ] = {result[1]:0.3f}\n'''
     #                 elif "medium" in result[0]:
     #                     out_str += f'''medium | maxDets={dets} ] = {result[1]:0.3f}\n'''
     #                 elif "large" in result[0]:
-    #                     out_str += f''' large | maxDets={dets} ] = {result[1]:0.3f}\n'''                    
+    #                     out_str += f''' large | maxDets={dets} ] = {result[1]:0.3f}\n'''
     #     print_log(out_str)
 
     # def convert_result_to_dict(self, results): # TO DO: optimize this
@@ -532,7 +538,7 @@ def transform(
     bboxes = sample_in[boxes_tensor]
     labels = sample_in[labels_tensor]
 
-    img = img[..., ::-1] # rgb_to_bgr should be optional
+    img = img[..., ::-1]  # rgb_to_bgr should be optional
     if img.shape[2] == 1:
         img = np.repeat(img, 3, axis=2)
     if masks is not None:
@@ -654,7 +660,7 @@ def train_detector(
     validate=False,
     timestamp=None,
     meta=None,
-    images_tensor: Optional[str] = None, # from config file
+    images_tensor: Optional[str] = None,  # from config file
     masks_tensor: Optional[str] = None,
     boxes_tensor: Optional[str] = None,
     labels_tensor: Optional[str] = None,
@@ -662,6 +668,13 @@ def train_detector(
 ):
 
     cfg = compat_cfg(cfg)
+
+    tensors = cfg.get("tensors", {})
+    images_tensor = images_tensor or tensors.get("img")
+    masks_tensor = masks_tensor or tensors.get("gt_masks")
+    boxes_tensor = boxes_tensor or tensors.get("gt_bboxes")
+    labels_tensor = labels_tensor or tensors.get("gt_labels")
+
     logger = get_root_logger(log_level=cfg.log_level)
 
     # prepare data loaders
