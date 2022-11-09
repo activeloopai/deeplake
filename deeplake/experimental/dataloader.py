@@ -69,6 +69,7 @@ class DeepLakeDataLoader:
     ):
         import_indra_loader()
         self.dataset = dataset
+        self.orig_dataset = dataset
         self._batch_size = _batch_size
         self._shuffle = _shuffle
         self._num_threads = _num_threads
@@ -282,8 +283,8 @@ class DeepLakeDataLoader:
         tensors = self._tensors or map_tensor_keys(self.dataset, None)
 
         # uncompressed tensors will be uncompressed in the workers on python side
-        compressed_tensors = check_tensors(self.dataset, tensors)
-        dataset = dataset_to_libdeeplake(self.dataset)
+        compressed_tensors = check_tensors(self.orig_dataset, tensors)
+        dataset = dataset_to_libdeeplake(self.orig_dataset)
         batch_size = self._batch_size or 1
         drop_last = self._drop_last or False
         return_index = self._return_index
