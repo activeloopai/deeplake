@@ -476,7 +476,7 @@ class MMDetDataset(TorchDataset):
 
 
 class HubDatasetCLass:
-    def __init__(self, cfg=None, ds=None):
+    def __init__(self, cfg=None, ds=None, tensors=None):
         if ds:
             self.ds = ds
         else:
@@ -490,7 +490,8 @@ class HubDatasetCLass:
                     token = client.request_auth_token(username=uname, password=pword)
             ds_path = cfg.deeplake_path
             self.ds = dp.load(ds_path, token=token)
-        labels_tensor = _find_tensor_with_htype(self.ds, "class_label")
+        tensors = tensors or {}
+        labels_tensor = tensors.get("gt_labels") or _find_tensor_with_htype(self.ds, "class_label")
         self.CLASSES = self.ds[labels_tensor].info.class_names
         self.pipeline = cfg.pipeline
 
@@ -567,9 +568,9 @@ def transform(
     )
 
 
-def build_dataset(cfg, *args, **kwargs):
+def build_dataset(cfg, tensors=None, *args, **kwargs):
     if isinstance(cfg, dp.Dataset):
-        return HubDatasetCLass(ds=cfg)
+        return HubDatasetCLass(ds=cfg, tensors=tensors)
     if "deeplake_path" in cfg:
         # TO DO: add preprocessing functions related to mmdet dataset classes like RepeatDataset etc...
         return HubDatasetCLass(cfg=cfg)
@@ -586,8 +587,9 @@ def build_dataloader(
     **train_loader_config,
 ):
     if isinstance(dataset, dp.Dataset):
-        dataset = HubDatasetCLass(ds=dataset)
+        dataset = HubDatasetCLass(ds=dataset, tensors={"gt_labels": labels_tensor})
     if isinstance(dataset, HubDatasetCLass):
+        classes = dataset.CLASSES
         images_tensor = images_tensor or _find_tensor_with_htype(dataset.ds, "image")
         masks_tensor = masks_tensor or _find_tensor_with_htype(
             dataset.ds, "binary_mask"
@@ -641,7 +643,7 @@ def build_dataloader(
             # ]
         else:
             loader = (
-                dataloader(dataset)
+                dataloader(dataset.ds)
                 .transform(transform_fn)
                 .shuffle(shuffle)
                 .pytorch(
@@ -649,13 +651,13 @@ def build_dataloader(
                 )
             )
             mmdet_ds = MMDetDataset(
-                dataset=dataset,
+                dataset=dataset.ds,
                 bbox_format=bbox_format,
                 pipeline=pipeline,
                 tensors_dict=tensors_dict,
             )
             loader.dataset = mmdet_ds
-        loader.dataset.CLASSES = dataset.ds[labels_tensor].info.class_names
+        loader.dataset.CLASSES = classes
         return loader
 
     return mmdet_build_dataloader(dataset, **train_loader_config)
@@ -821,7 +823,7 @@ def train_detector(
         if val_dataloader_args["samples_per_gpu"] > 1:
             # Replace 'ImageToTensor' to 'DefaultFormatBundle'
             cfg.data.val.pipeline = replace_ImageToTensor(cfg.data.val.pipeline)
-        val_dataset = build_dataset(cfg.data.val, dict(test_mode=True))
+        val_dataset = build_dataset(cfg.data.val, tensors=tensors)
 
         val_dataloader = build_dataloader(
             val_dataset,
