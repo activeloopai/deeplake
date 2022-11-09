@@ -650,7 +650,7 @@ def build_dataloader(
                 collate_fn=collate_fn,
                 torch_dataset=MMDetDataset,
                 bbox_format=bbox_format,
-                pipeline=dataset.pipeline,
+                pipeline=pipeline,
                 batch_size=batch_size,
                 # torch_dataset=TorchDataset,
             )
