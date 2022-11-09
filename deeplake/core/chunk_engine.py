@@ -102,7 +102,7 @@ class ChunkEngine:
         key: str,
         cache: LRUCache,
         version_state: Dict[str, Any],
-        meta_cache: LRUCache = None,
+        meta_cache: Optional[LRUCache] = None,
     ):
         """Handles creating `Chunk`s and filling them with incoming samples.
 

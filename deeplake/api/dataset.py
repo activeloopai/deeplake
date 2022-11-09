@@ -1085,7 +1085,7 @@ class dataset:
         exist_ok: bool = False,
         images_compression: str = "auto",
         dest_creds: Optional[Dict] = None,
-        kaggle_credentials: dict = None,
+        kaggle_credentials: Optional[dict] = None,
         progressbar: bool = True,
         summary: bool = True,
         **dataset_kwargs,

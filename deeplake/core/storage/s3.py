@@ -193,7 +193,7 @@ class S3Provider(StorageProvider):
         """
         return self.get_bytes(path)
 
-    def _get_bytes(self, path, start_byte: int = None, end_byte: int = None):
+    def _get_bytes(self, path, start_byte: Optional[int] = None, end_byte: Optional[int] = None):
         if start_byte is not None and end_byte is not None:
             if start_byte == end_byte:
                 return b""

@@ -1,5 +1,5 @@
 import posixpath
-from typing import Any, Dict, Union
+from typing import Optional, Any, Dict, Union
 from deeplake.client.utils import get_user_name
 from deeplake.constants import HUB_CLOUD_DEV_USERNAME
 from deeplake.core.dataset import Dataset
@@ -94,7 +94,7 @@ class DeepLakeCloudDataset(Dataset):
         event_id: str,
         event_group: str,
         deeplake_meta: Dict[str, Any],
-        has_head_changes: bool = None,
+        has_head_changes: Optional[bool] = None,
     ):
         username = get_user_name()
         has_head_changes = (
