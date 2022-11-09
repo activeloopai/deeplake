@@ -29,6 +29,7 @@ from mmdet.core import eval_map, eval_recalls
 from mmdet.datasets.pipelines import Compose
 import tempfile
 from deeplake.integrations.mmdet import mmdet_utils
+from deeplake.experimental.dataloader import indra_available, dataloader
 import os
 
 
@@ -578,6 +579,7 @@ def build_dataloader(
     masks_tensor,
     boxes_tensor,
     labels_tensor,
+    implementation,
     **train_loader_config,
 ):
     if isinstance(dataset, dp.Dataset):
@@ -603,7 +605,6 @@ def build_dataloader(
         )
         num_workers = train_loader_config["workers_per_gpu"]
         shuffle = train_loader_config.get("shuffle", True)
-        # shuffle = False
         tensors_dict = {
             "images_tensor": images_tensor,
             "boxes_tensor": boxes_tensor,
@@ -614,23 +615,43 @@ def build_dataloader(
             tensors.append(masks_tensor)
             tensors_dict["masks_tensor"] = masks_tensor
 
-        loader = dataset.ds.pytorch(
-            tensors_dict=tensors_dict,
-            num_workers=num_workers,
-            shuffle=shuffle,
-            transform=transform_fn,
-            tensors=tensors,
-            collate_fn=partial(
-                collate, samples_per_gpu=train_loader_config["samples_per_gpu"]
-            ),
-            torch_dataset=MMDetDataset,
-            bbox_format=train_loader_config["bbox_format"],
-            pipeline=dataset.pipeline,
-            # torch_dataset=TorchDataset,
+        collate_fn = partial(
+            collate, samples_per_gpu=train_loader_config["samples_per_gpu"]
         )
-        # loader.dataset.CLASSES = [
-        #     c["name"] for c in dataset.ds.categories.info["category_info"]
-        # ]
+        bbox_format = train_loader_config["bbox_format"]
+
+        if implementation == "python":
+            loader = dataset.ds.pytorch(
+                tensors_dict=tensors_dict,
+                num_workers=num_workers,
+                shuffle=shuffle,
+                transform=transform_fn,
+                tensors=tensors,
+                collate_fn=collate_fn,
+                torch_dataset=MMDetDataset,
+                bbox_format=bbox_format,
+                pipeline=dataset.pipeline,
+                # torch_dataset=TorchDataset,
+            )
+            # loader.dataset.CLASSES = [
+            #     c["name"] for c in dataset.ds.categories.info["category_info"]
+            # ]
+        else:
+            loader = (
+                dataloader(dataset)
+                .transform(transform_fn)
+                .shuffle(shuffle)
+                .pytorch(
+                    num_workers=num_workers, collate_fn=collate_fn, tensors=tensors
+                )
+            )
+            mmdet_ds = MMDetDataset(
+                dataset=dataset,
+                bbox_format=bbox_format,
+                pipeline=pipeline,
+                tensors_dict=tensors_dict,
+            )
+            loader.dataset = mmdet_ds
         loader.dataset.CLASSES = dataset.ds[labels_tensor].info.class_names
         return loader
 
@@ -663,6 +684,18 @@ def train_detector(
 ):
 
     cfg = compat_cfg(cfg)
+
+    dl_impl = cfg.get("deeplake_dataloader", "auto").lower()
+
+    if dl_impl == "auto":
+        dl_impl = "c++" if indra_available() else "python"
+    elif dl_impl == "cpp":
+        dl_impl = "c++"
+
+    if dl_impl not in {"c++", "python"}:
+        raise ValueError(
+            "`deeplake_dataloader` should be one of ['auto', 'c++', 'python']."
+        )
 
     tensors = cfg.get("deeplake_tensors", {})
     images_tensor = images_tensor or tensors.get("img")
@@ -701,6 +734,7 @@ def train_detector(
             masks_tensor,
             boxes_tensor,
             labels_tensor,
+            implementation=dl_impl,
             **train_loader_cfg,
         )
         for ds in dataset
@@ -792,6 +826,7 @@ def train_detector(
             masks_tensor,
             boxes_tensor,
             labels_tensor,
+            implementation=dl_impl,
             **val_dataloader_args,
         )
         eval_cfg = cfg.get("evaluation", {})

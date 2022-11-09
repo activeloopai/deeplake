@@ -23,6 +23,14 @@ import importlib
 INDRA_LOADER = None
 
 
+def indra_available() -> bool:
+    try:
+        import_indra_loader()
+        return True
+    except ImportError:
+        return False
+
+
 def import_indra_loader():
     global INDRA_LOADER
     if INDRA_LOADER:
