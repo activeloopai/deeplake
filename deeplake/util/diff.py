@@ -1,5 +1,5 @@
-from collections import defaultdict, OrderedDict
-from typing import Any, DefaultDict, Dict, List, Optional, Set, Tuple
+from collections import OrderedDict
+from typing import Any, Dict, List, Optional, Set, Tuple
 from deeplake.core.meta.dataset_meta import DatasetMeta
 from deeplake.core.version_control.commit_diff import CommitDiff
 from deeplake.core.version_control.commit_node import CommitNode  # type: ignore
@@ -15,7 +15,13 @@ from deeplake.util.keys import (
 def get_changes_and_messages(
     version_state, storage, id_1, id_2
 ) -> Tuple[
-    dict, Optional[dict], dict, Optional[dict], Optional[str], str, Optional[str]
+    List[dict],
+    Optional[List[dict]],
+    List[dict],
+    Optional[List[dict]],
+    Optional[str],
+    str,
+    Optional[str],
 ]:
     if id_1 is None and id_2 is None:
         return get_changes_and_messages_compared_to_prev(version_state, storage)
@@ -24,31 +30,23 @@ def get_changes_and_messages(
 
 def get_changes_and_messages_compared_to_prev(
     version_state, storage
-) -> Tuple[dict, None, dict, None, None, str, None]:
+) -> Tuple[List[dict], None, List[dict], None, None, str, None]:
     commit_node = version_state["commit_node"]
     commit_id = commit_node.commit_id
     head = commit_node.is_head_node
 
-    tensor_changes: Dict[str, Dict] = defaultdict(dict)
-    ds_changes: Dict[str, Any] = {}
+    tensor_changes: List[dict] = []
+    ds_changes: List[dict] = []
     s = "HEAD" if head else f"{commit_id} (current commit)"
     msg_1 = f"Diff in {s} relative to the previous commit:\n"
-    get_tensor_changes_for_id(commit_id, storage, tensor_changes, ds_changes)
-    get_dataset_changes_for_id(commit_id, storage, ds_changes)
-
-    combine_data_deleted(tensor_changes)
-    filter_cleared(tensor_changes)
-    filter_data_updated(tensor_changes)
-    filter_renamed_diff(ds_changes)
-    remove_empty_changes(tensor_changes)
-
-    # Order: ds_changes_1, ds_changes_2, tensor_changes_1, tensor_changes_2, msg_0, msg_1, msg_2
+    get_tensor_changes_for_id(commit_node, storage, tensor_changes)
+    get_dataset_changes_for_id(commit_node, storage, ds_changes)
     return ds_changes, None, tensor_changes, None, None, msg_1, None
 
 
 def get_changes_and_message_2_ids(
     version_state, storage, id_1, id_2
-) -> Tuple[dict, dict, dict, dict, str, str, str]:
+) -> Tuple[List[dict], List[dict], List[dict], List[dict], str, str, str]:
     commit_node = version_state["commit_node"]
     if id_1 is None:
         raise ValueError("Can't specify id_2 without specifying id_1")
@@ -68,8 +66,6 @@ def get_changes_and_message_2_ids(
     ret = compare_commits(id_1, id_2, version_state, storage)
     ds_changes_1, ds_changes_2, tensor_changes_1, tensor_changes_2, lca_id = ret
     msg_0 %= lca_id
-    remove_empty_changes(tensor_changes_1)
-    remove_empty_changes(tensor_changes_2)
     return (
         ds_changes_1,
         ds_changes_2,
@@ -83,7 +79,7 @@ def get_changes_and_message_2_ids(
 
 def compare_commits(
     id_1: str, id_2: str, version_state: Dict[str, Any], storage: LRUCache
-) -> Tuple[dict, dict, dict, dict, str]:
+) -> Tuple[List[dict], List[dict], List[dict], List[dict], str]:
     """Compares two commits and returns the differences.
 
     Args:
@@ -93,7 +89,7 @@ def compare_commits(
         storage (LRUCache): The underlying storage of the dataset.
 
     Returns:
-        Tuple[dict, dict, dict, dict, str]: The changes made in the first commit and second commit respectively, followed by lca_id.
+        Tuple[List[dict], List[dict], List[dict], List[dict], str]: The differences between the two commits and the id of the lowest common ancestor.
     """
     id_1 = sanitize_commit(id_1, version_state)
     id_2 = sanitize_commit(id_2, version_state)
@@ -103,28 +99,19 @@ def compare_commits(
     lca_id = get_lowest_common_ancestor(commit_node_1, commit_node_2)
     lca_node: CommitNode = mp[lca_id]
 
-    tensor_changes_1: Dict[str, Dict] = defaultdict(dict)
-    tensor_changes_2: Dict[str, Dict] = defaultdict(dict)
-    dataset_changes_1: Dict[str, Any] = {}
-    dataset_changes_2: Dict[str, Any] = {}
+    tensor_changes_1: List[dict] = []
+    tensor_changes_2: List[dict] = []
+    dataset_changes_1: List[dict] = []
+    dataset_changes_2: List[dict] = []
 
     for commit_node, tensor_changes, dataset_changes in [
         (commit_node_1, tensor_changes_1, dataset_changes_1),
         (commit_node_2, tensor_changes_2, dataset_changes_2),
     ]:
         while commit_node.commit_id != lca_node.commit_id:
-            commit_id = commit_node.commit_id
-            get_tensor_changes_for_id(
-                commit_id, storage, tensor_changes, dataset_changes
-            )
-            get_dataset_changes_for_id(commit_id, storage, dataset_changes)
+            get_tensor_changes_for_id(commit_node, storage, tensor_changes)
+            get_dataset_changes_for_id(commit_node, storage, dataset_changes)
             commit_node = commit_node.parent  # type: ignore
-
-        combine_data_deleted(tensor_changes)
-        filter_cleared(tensor_changes)
-        filter_data_updated(tensor_changes)
-        filter_renamed_diff(dataset_changes)
-        remove_empty_changes(tensor_changes)
 
     return (
         dataset_changes_1,
@@ -172,70 +159,116 @@ def get_all_changes_string(
     ds_changes_1, ds_changes_2, tensor_changes_1, tensor_changes_2, msg_0, msg_1, msg_2
 ):
     """Returns a string with all changes."""
-    all_changes = ["\n## Hub Diff"]
+    all_changes = ["\n## Deep Lake Diff"]
     if msg_0:
         all_changes.append(msg_0)
 
     separator = "-" * 120
     if tensor_changes_1 is not None:
-        changes1_str = get_changes_str(ds_changes_1, tensor_changes_1, msg_1, separator)
+        changes1_str = get_changes_str(
+            ds_changes_1, tensor_changes_1, colour_string(msg_1, "blue"), separator
+        )
         all_changes.append(changes1_str)
     if tensor_changes_2 is not None:
-        changes2_str = get_changes_str(ds_changes_2, tensor_changes_2, msg_2, separator)
+        changes2_str = get_changes_str(
+            ds_changes_2, tensor_changes_2, colour_string(msg_2, "blue"), separator
+        )
         all_changes.append(changes2_str)
     all_changes.append(separator)
     return "\n".join(all_changes)
 
 
-def get_changes_str(ds_changes, tensor_changes: Dict, message: str, separator: str):
+def colour_string(string: str, colour: str) -> str:
+    """Returns a coloured string."""
+    if colour == "yellow":
+        return "\033[93m" + string + "\033[0m"
+    elif colour == "blue":
+        return "\033[94m" + string + "\033[0m"
+    return string
+
+
+def get_changes_str(
+    ds_changes: List, tensor_changes: List, message: str, separator: str
+):
     """Returns a string with changes made."""
     all_changes = [separator, message]
-    if ds_changes.get("info_updated", False):
-        all_changes.append("- Updated dataset info \n")
-    if ds_changes.get("deleted"):
-        for name in ds_changes["deleted"]:
-            all_changes.append(f"- Deleted:\t{name}")
-    if ds_changes.get("renamed"):
-        for old, new in ds_changes["renamed"].items():
-            all_changes.append(f"- Renamed:\t{old} -> {new}")
-    if len(all_changes) > 2:
-        all_changes.append("\n")
+    local_separator = "*" * 80
+    for ds_change, tensor_change in zip(ds_changes, tensor_changes):
+        commit_id = ds_change["commit_id"]
+        author = ds_change["author"]
+        message = ds_change["message"]
+        date = ds_change["date"]
+        assert commit_id == tensor_change["commit_id"]
+        if date is None:
+            commit_id = "UNCOMMITTED HEAD"
+        else:
+            date = str(date)
 
-    tensors = sorted(tensor_changes.keys())
+        all_changes_for_commit = [
+            local_separator,
+            colour_string(f"commit {commit_id}", "yellow"),
+            f"Author: {author}",
+            f"Date: {date}",
+            f"Message: {message}",
+            "",
+        ]
+        get_dataset_changes_str_list(ds_change, all_changes_for_commit)
+        get_tensor_changes_str_list(tensor_change, all_changes_for_commit)
+        if len(all_changes_for_commit) == 6:
+            all_changes_for_commit.append("No changes were made in this commit.")
+        all_changes.extend(all_changes_for_commit)
+    if len(all_changes) == 2:
+        all_changes.append("No changes were made.\n")
+    return "\n".join(all_changes)
+
+
+def get_dataset_changes_str_list(ds_change: Dict, all_changes_for_commit: List[str]):
+    if ds_change.get("info_updated", False):
+        all_changes_for_commit.append("- Updated dataset info \n")
+    if ds_change.get("deleted"):
+        for name in ds_change["deleted"]:
+            all_changes_for_commit.append(f"- Deleted:\t{name}")
+    if ds_change.get("renamed"):
+        for old, new in ds_change["renamed"].items():
+            all_changes_for_commit.append(f"- Renamed:\t{old} -> {new}")
+    if len(all_changes_for_commit) > 6:
+        all_changes_for_commit.append("\n")
+
+
+def get_tensor_changes_str_list(tensor_change: Dict, all_changes_for_commit: List[str]):
+    tensors = sorted(tensor_change.keys())
     for tensor in tensors:
-        change = tensor_changes[tensor]
-        created = change.get("created", False)
-        cleared = change.get("cleared", False)
+        if tensor == "commit_id":
+            continue
+        change = tensor_change[tensor]
+        if not has_change(change):
+            continue
+        all_changes_for_commit.append(tensor)
+        if change["created"]:
+            all_changes_for_commit.append("* Created tensor")
+
+        if change["cleared"]:
+            all_changes_for_commit.append("* Cleared tensor")
+
         data_added = change.get("data_added", [0, 0])
         data_added_str = convert_adds_to_string(data_added)
-        data_updated = change.get("data_updated", set())
-        info_updated = change.get("info_updated", False)
-
-        data_deleted = change.get("data_deleted", set())
-        all_changes.append(tensor)
-        if created:
-            all_changes.append("* Created tensor")
-
-        if cleared:
-            all_changes.append("* Cleared tensor")
-
         if data_added_str:
-            all_changes.append(data_added_str)
+            all_changes_for_commit.append(data_added_str)
 
+        data_updated = change["data_updated"]
         if data_updated:
             output = convert_updates_deletes_to_string(data_updated, "Updated")
-            all_changes.append(output)
+            all_changes_for_commit.append(output)
 
+        data_deleted = change["data_deleted"]
         if data_deleted:
             output = convert_updates_deletes_to_string(data_deleted, "Deleted")
-            all_changes.append(output)
+            all_changes_for_commit.append(output)
 
+        info_updated = change["info_updated"]
         if info_updated:
-            all_changes.append("* Updated tensor info")
-        all_changes.append("")
-    if len(all_changes) == 2:
-        all_changes.append("No changes were made.")
-    return "\n".join(all_changes)
+            all_changes_for_commit.append("* Updated tensor info")
+        all_changes_for_commit.append("")
 
 
 def has_change(change: Dict):
@@ -257,168 +290,82 @@ def has_change(change: Dict):
 
 
 def get_dataset_changes_for_id(
-    commit_id: str,
+    commit_node,
     storage: LRUCache,
     dataset_changes,
 ):
     """Returns the changes made in the dataset for a commit."""
-
+    commit_id = commit_node.commit_id
     dataset_diff_key = get_dataset_diff_key(commit_id)
+
+    time = str(commit_node.commit_time)[:-7] if commit_node.commit_time else None
+    dataset_change = {
+        "commit_id": commit_id,
+        "author": commit_node.commit_user_name,
+        "message": commit_node.commit_message,
+        "date": time,
+    }
     try:
         dataset_diff = storage.get_deeplake_object(dataset_diff_key, DatasetDiff)
-        dataset_changes["info_updated"] = (
-            dataset_changes.get("info_updated") or dataset_diff.info_updated
-        )
-
-        renamed = dataset_changes.get("renamed")
-        deleted = dataset_changes.get("deleted")
-        done = []
-
-        merge_renamed = OrderedDict()
-        for old, new in dataset_diff.renamed.items():
-            if deleted and new in deleted and new not in done:
-                deleted[deleted.index(new)] = old
-                done.append(old)
-                continue
-            if renamed and renamed.get(new):
-                merge_renamed[old] = renamed[new]
-                renamed.pop(new)
-            else:
-                merge_renamed[old] = new
-
-        try:
-            dataset_changes["renamed"].update(merge_renamed)
-        except KeyError:
-            dataset_changes["renamed"] = merge_renamed
-
-        if dataset_changes.get("deleted"):
-            dataset_changes["deleted"].extend(dataset_diff.deleted)
-        else:
-            dataset_changes["deleted"] = dataset_diff.deleted.copy()
     except KeyError:
-        pass
+        changes = {"info_updated": False, "renamed": {}, "deleted": []}
+        dataset_change.update(changes)
+        dataset_changes.append(dataset_change)
+        return
+
+    changes = {
+        "info_updated": dataset_diff.info_updated,
+        "renamed": dataset_diff.renamed.copy(),
+        "deleted": dataset_diff.deleted.copy(),
+    }
+    dataset_change.update(changes)
+    dataset_changes.append(dataset_change)
 
 
 def get_tensor_changes_for_id(
-    commit_id: str,
+    commit_node,
     storage: LRUCache,
-    tensor_changes: Dict[str, Dict],
-    dataset_changes,
+    tensor_changes: List[Dict],
 ):
     """Identifies the changes made in the given commit_id and updates them in the changes dict."""
+    commit_id = commit_node.commit_id
     meta_key = get_dataset_meta_key(commit_id)
-    meta = storage.get_deeplake_object(meta_key, DatasetMeta)
+    meta: DatasetMeta = storage.get_deeplake_object(meta_key, DatasetMeta)
     tensors = meta.visible_tensors
 
+    commit_changes = {"commit_id": commit_id}
     for tensor in tensors:
         key = meta.tensor_names[tensor]
+        commit_diff_key = get_tensor_commit_diff_key(key, commit_id)
         try:
-            commit_diff: CommitDiff
-            commit_diff_key = get_tensor_commit_diff_key(key, commit_id)
-            commit_diff = storage.get_deeplake_object(commit_diff_key, CommitDiff)
-            renamed = dataset_changes.get("renamed")
-            deleted = dataset_changes.get("deleted")
-
-            if deleted and tensor in deleted:
-                if commit_diff.created:
-                    deleted.remove(tensor)
-                continue
-
-            if renamed:
-                try:
-                    new_name = renamed[tensor]
-                    if commit_diff.created:
-                        renamed.pop(tensor, None)
-                    tensor = new_name
-                except KeyError:
-                    pass
-
-            change = tensor_changes[tensor]
-
-            change["created"] = change.get("created") or commit_diff.created
-            # ignore older diffs if tensor was cleared
-            if change.get("cleared"):
-                continue
-
-            change["cleared"] = change.get("cleared") or commit_diff.cleared
-
-            change["info_updated"] = (
-                change.get("info_updated") or commit_diff.info_updated
+            commit_diff: CommitDiff = storage.get_deeplake_object(
+                commit_diff_key, CommitDiff
             )
-
-            # this means that the data was transformed inplace in a newer commit, so we can ignore older diffs
-            if change.get("data_transformed_in_place", False):
-                continue
-
-            if "data_added" not in change:
-                change["data_added"] = commit_diff.data_added.copy()
-            else:
-                change["data_added"][0] = (
-                    change["data_added"][0] - commit_diff.num_samples_added
-                )
-
-            if "data_updated" not in change:
-                change["data_updated"] = commit_diff.data_updated.copy()
-            else:
-                change["data_updated"].update(commit_diff.data_updated)
-            change["data_transformed_in_place"] = (
-                change.get("data_transformed_in_place") or commit_diff.data_transformed
-            )
-
-            if "data_deleted_list" not in change:
-                change["data_deleted_list"] = [commit_diff.data_deleted]
-            else:
-                change["data_deleted_list"].append(commit_diff.data_deleted)
-
         except KeyError:
-            pass
+            tensor_change = {
+                "created": False,
+                "cleared": False,
+                "info_updated": False,
+                "data_added": [0, 0],
+                "data_updated": set(),
+                "data_deleted": set(),
+                "data_transformed_in_place": False,
+            }
 
-
-def combine_data_deleted(changes: Dict[str, Dict]):
-    """Combines the data deleted list into a single set."""
-    for change in changes.values():
-        data_deleted: Set[int] = set()
-        data_deleted_list = change.pop("data_deleted_list", [])
-        for deleted_list in reversed(data_deleted_list):
-            for index in deleted_list:
-                offset = sum(i < index for i in data_deleted)
-                data_deleted.add(index + offset)
-        change["data_deleted"] = data_deleted
-
-
-def filter_data_updated(changes: Dict[str, Dict]):
-    """Removes the intersection of data added and data updated from data updated."""
-    for change in changes.values():
-        deleted_data = set(change.get("data_deleted", set()))
-        # only show the elements in data_updated that are not in data_added
-        data_added_range = range(change["data_added"][0], change["data_added"][1] + 1)
-        upd = {
-            data
-            for data in change["data_updated"]
-            if data not in data_added_range and data not in deleted_data
+            commit_changes[tensor] = tensor_change
+            continue
+        tensor_change = {
+            "created": commit_diff.created,
+            "cleared": commit_diff.cleared,
+            "info_updated": commit_diff.info_updated,
+            "data_added": commit_diff.data_added.copy(),
+            "data_updated": commit_diff.data_updated.copy(),
+            "data_deleted": commit_diff.data_deleted.copy(),
+            "data_transformed_in_place": commit_diff.data_transformed,
         }
-        change["data_updated"] = upd
+        commit_changes[tensor] = tensor_change
 
-
-def filter_renamed_diff(dataset_changes):
-    """Remove deleted tensors and tensors renamed to same name from diff"""
-    rm = []
-    renamed = dataset_changes.get("renamed")
-    deleted = dataset_changes.get("deleted")
-    if renamed:
-        for old_name, new_name in renamed.items():
-            if old_name == new_name:
-                rm.append(old_name)
-
-        for name in rm:
-            renamed.pop(name)
-
-
-def filter_cleared(changes: Dict[str, Dict]):
-    """Removes cleared flag if created flag is true."""
-    for change in changes.values():
-        if change["created"] and change["cleared"]:
-            change["cleared"] = False
+    tensor_changes.append(commit_changes)
 
 
 def compress_into_range_intervals(indexes: Set[int]) -> List[Tuple[int, int]]:
@@ -495,11 +442,21 @@ def convert_adds_to_string(index_range: List[int]) -> str:
     return f"* Added {num_samples} {sample_string}: [{index_range[0]}-{index_range[1]}]"
 
 
-def remove_empty_changes(changes: Dict):
-    if not changes:
-        return
-    tensors = list(changes.keys())
-    for tensor in tensors:
-        change = changes[tensor]
-        if not has_change(change):
-            del changes[tensor]
+def merge_renamed_deleted(dataset_changes):
+    deleted = []
+    renamed = OrderedDict()
+    done = set()
+    merge_renamed = {}
+    for dataset_change in dataset_changes:
+        for old, new in dataset_change["renamed"].items():
+            if deleted and new in deleted and new not in done:
+                deleted[deleted.index(new)] = old
+                done.add(new)
+                continue
+            if renamed and renamed.get(new):
+                merge_renamed[old] = renamed[new]
+                renamed.pop(new)
+            else:
+                merge_renamed[old] = new
+        deleted.extend(dataset_change["deleted"])
+    return merge_renamed, deleted

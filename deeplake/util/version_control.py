@@ -91,7 +91,7 @@ def generate_hash() -> str:
     return hsh.hexdigest()
 
 
-def commit(dataset, message: str = None, hash: Optional[str] = None) -> None:
+def commit(dataset, message: Optional[str] = None, hash: Optional[str] = None) -> None:
     """Modifies the version state to reflect the commit and also copies required data to the new commit directory."""
     storage = dataset.storage
     version_state = dataset.version_state

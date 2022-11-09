@@ -600,9 +600,10 @@ class Tensor:
                         break
                 else:
                     is_iteration = True
-                    warnings.warn(
-                        "Indexing by integer in a for loop, like `for i in range(len(ds)): ... ds.tensor[i]` can be quite slow. Use `for i, sample in enumerate(ds)` instead."
-                    )
+                    if deeplake.constants.SHOW_ITERATION_WARNING:
+                        warnings.warn(
+                            "Indexing by integer in a for loop, like `for i in range(len(ds)): ... ds.tensor[i]` can be quite slow. Use `for i, sample in enumerate(ds)` instead."
+                        )
             else:
                 indexing_history.append(item)
         return Tensor(
