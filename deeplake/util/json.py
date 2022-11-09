@@ -201,6 +201,12 @@ class HubJsonEncoder(json.JSONEncoder):
                 }
             else:
                 return self.default(obj.array)
+        elif isinstance(obj, bytes):
+            return {
+                "_hub_custom_type": "bytes",
+                "data": base64.b64encode(obj).decode(),
+            }
+
         return obj
 
 
@@ -218,4 +224,6 @@ class HubJsonDecoder(json.JSONDecoder):
             return Sample(
                 buffer=base64.b64decode(obj["data"]), compression=obj["compression"]
             )
+        elif hub_custom_type == "bytes":
+            return base64.b64decode(obj["data"])
         return obj
