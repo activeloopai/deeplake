@@ -66,10 +66,11 @@ class DeepLakeDataLoader:
         _primary_tensor_name=None,
         _buffer_size=None,
         _tobytes=None,
+        orig_dataset=None,
     ):
         import_indra_loader()
         self.dataset = dataset
-        self.orig_dataset = dataset
+        self.orig_dataset = orig_dataset or dataset
         self._batch_size = _batch_size
         self._shuffle = _shuffle
         self._num_threads = _num_threads
