@@ -634,8 +634,6 @@ def build_dataloader(
         # loader.dataset.CLASSES = [
         #     c["name"] for c in dataset.ds.categories.info["category_info"]
         # ]
-
-        labels_tensor = _find_tensor_with_htype(dataset.ds, "class_label")
         loader.dataset.CLASSES = dataset.ds[labels_tensor].info.class_names
         return loader
 
@@ -669,7 +667,7 @@ def train_detector(
 
     cfg = compat_cfg(cfg)
 
-    tensors = cfg.get("tensors", {})
+    tensors = cfg.get("deeplake_tensors", {})
     images_tensor = images_tensor or tensors.get("img")
     masks_tensor = masks_tensor or tensors.get("gt_masks")
     boxes_tensor = boxes_tensor or tensors.get("gt_bboxes")
