@@ -63,6 +63,9 @@ def sample_by(
     Returns:
         Dataset: A deeplake.Dataset object.
 
+    Raises:
+        ValueError: When the given np.ndarray is multidimensional
+
     Examples:
 
         Sample the dataset with ``labels == 5`` twice more than ``labels == 6``
