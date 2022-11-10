@@ -285,7 +285,7 @@ class Dataset:
         return self._client
 
     def __len__(self, warn: bool = True):
-        """Returns the length of the smallest tensor"""
+        """Returns the length of the smallest tensor."""
         tensor_lengths = [len(tensor) for tensor in self.tensors.values()]
         pad_tensors = self._pad_tensors
         if not pad_tensors and min(tensor_lengths, default=0) != max(
@@ -301,12 +301,12 @@ class Dataset:
 
     @property
     def max_len(self):
-        """Return the maximum length of the tensor"""
+        """Return the maximum length of the tensor."""
         return max([len(tensor) for tensor in self.tensors.values()])
 
     @property
     def min_len(self):
-        """Return the minimum length of the tensor"""
+        """Return the minimum length of the tensor."""
         return min([len(tensor) for tensor in self.tensors.values()])
 
     def __getstate__(self) -> Dict[str, Any]:
@@ -3558,11 +3558,65 @@ class Dataset:
 
     @property
     def min_view(self):
+        """Returns a view of the dataset in which all tensors are sliced to have the same length as
+        the shortest tensor.
+
+        Example:
+
+            Creating a dataset with 5 images and 4 labels. ``ds.min_view`` will return a view in which tensors are
+            sliced to have 4 samples.
+
+            >>> import deeplake
+            >>> ds = deeplake.dataset("../test/test_ds", overwrite=True)
+            >>> ds.create_tensor("images", htype="link[image]", sample_compression="jpg")
+            >>> ds.create_tensor("labels", htype="class_label")
+            >>> ds.images.extend([deeplake.link("https://picsum.photos/20/20") for _ in range(5)])
+            >>> ds.labels.extend([0, 1, 2, 1])
+            >>> len(ds.images)
+            5
+            >>> len(ds.labels)
+            4
+            >>> for i, sample in enumerate(ds.max_view):
+            ...     print(sample["images"].shape, sample["labels"].numpy())
+            ...
+            (20, 20, 3) [0]
+            (20, 20, 3) [1]
+            (20, 20, 3) [2]
+            (20, 20, 3) [1]
+
+        """
         min_length = min(map(len, self.tensors.values()))
         return self[:min_length]
 
     @property
     def max_view(self):
+        """Returns a view of the dataset in which shorter tensors are padded with ``None`` s to have the same length as
+        the longest tensor.
+
+        Example:
+
+            Creating a dataset with 5 images and 4 labels. ``ds.max_view`` will return a view with ``labels`` tensor
+            padded to have 5 samples.
+
+            >>> import deeplake
+            >>> ds = deeplake.dataset("../test/test_ds", overwrite=True)
+            >>> ds.create_tensor("images", htype="link[image]", sample_compression="jpg")
+            >>> ds.create_tensor("labels", htype="class_label")
+            >>> ds.images.extend([deeplake.link("https://picsum.photos/20/20") for _ in range(5)])
+            >>> ds.labels.extend([0, 1, 2, 1])
+            >>> len(ds.images)
+            5
+            >>> len(ds.labels)
+            4
+            >>> for i, sample in enumerate(ds.max_view):
+            ...     print(sample["images"].shape, sample["labels"].numpy())
+            ...
+            (20, 20, 3) [0]
+            (20, 20, 3) [1]
+            (20, 20, 3) [2]
+            (20, 20, 3) [1]
+            (20, 20, 3) [None]
+        """
         return self.__class__(
             storage=self.storage,
             index=self.index,

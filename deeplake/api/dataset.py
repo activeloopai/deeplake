@@ -111,8 +111,8 @@ class dataset:
 
                     - 'local'
 
-                        - Downloads dataset if it doesn't already exist, otherwise loads from local storage.
-                        - Raises an exception if ``DEEPLAKE_DOWNLOAD_PATH`` environment variable is not set or the dataset is not found in ``DEEPLAKE_DOWNLOAD_PATH``.
+                        - Downloads the dataset if it doesn't already exist, otherwise loads from local storage.
+                        - Raises an exception if ``DEEPLAKE_DOWNLOAD_PATH`` environment variable is not set.
                         - The 'local' access method can be modified to specify num_workers and/or scheduler to be used in case dataset needs to be downloaded.
                           If dataset needs to be downloaded, 'local:2:processed' will use 2 workers and use processed scheduler, while 'local:3' will use 3 workers
                           and default scheduler (threaded), and 'local:processed' will use a single worker and use processed scheduler.
@@ -372,8 +372,8 @@ class dataset:
 
                     - 'local'
 
-                        - Downloads dataset if it doesn't already exist, otherwise loads from local storage.
-                        - Raises an exception if ``DEEPLAKE_DOWNLOAD_PATH`` environment variable is not set or the dataset is not found in ``DEEPLAKE_DOWNLOAD_PATH``.
+                        - Downloads the dataset if it doesn't already exist, otherwise loads from local storage.
+                        - Raises an exception if ``DEEPLAKE_DOWNLOAD_PATH`` environment variable is not set.
                         - The 'local' access method can be modified to specify num_workers and/or scheduler to be used in case dataset needs to be downloaded.
                           If dataset needs to be downloaded, 'local:2:processed' will use 2 workers and use processed scheduler, while 'local:3' will use 3 workers
                           and default scheduler (threaded), and 'local:processed' will use a single worker and use processed scheduler.
