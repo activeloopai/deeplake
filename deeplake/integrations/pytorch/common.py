@@ -3,6 +3,7 @@ from deeplake.util.exceptions import EmptyTensorError
 from deeplake.util.iterable_ordered_dict import IterableOrderedDict
 from deeplake.core.polygon import Polygons
 import numpy as np
+import warnings
 
 
 def collate_fn(batch):
@@ -58,6 +59,7 @@ class PytorchTransformFunction:
 
 def check_tensors(dataset, tensors):
     compressed_tensors = []
+    json_list_tensors = []
     supported_compressions = {"png", "jpeg"}
     for tensor_name in tensors:
         tensor = dataset._get_tensor_from_root(tensor_name)
@@ -69,6 +71,14 @@ def check_tensors(dataset, tensors):
             )
         if tensor.meta.sample_compression in supported_compressions:
             compressed_tensors.append(tensor_name)
+        if tensor.meta.htype in {"list", "json"}:
+            json_list_tensors.append(tensor_name)
+
+    if json_list_tensors:
+        warnings.warn(
+            f" The following tensors are of type json or list: {json_list_tensors}. Collation of these tensors will fail by default. Transform these tensors by specifying a transform_fn or specify a custom collate_fn to handle these tensors.",
+        )
+
     return compressed_tensors
 
 
