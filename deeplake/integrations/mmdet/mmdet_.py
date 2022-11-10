@@ -13,7 +13,6 @@ from typing import Optional
 from deeplake.integrations.pytorch.dataset import TorchDataset
 from deeplake.client.client import DeepLakeBackendClient
 from mmdet.core import BitmapMasks
-import albumentations as A
 import deeplake as dp
 from deeplake.util.warnings import always_warn
 from click.testing import CliRunner
@@ -494,19 +493,6 @@ class HubDatasetCLass:
         labels_tensor = tensors.get("gt_labels") or _find_tensor_with_htype(self.ds, "class_label")
         self.CLASSES = self.ds[labels_tensor].info.class_names
         # self.pipeline = cfg.pipeline
-
-
-rand_crop = A.Compose(
-    [
-        A.RandomSizedBBoxSafeCrop(width=128, height=128, erosion_rate=0.2),
-    ],
-    bbox_params=A.BboxParams(
-        format="pascal_voc",
-        label_fields=["labels", "bbox_ids"],
-        min_area=25,
-        min_visibility=0.6,
-    ),
-)
 
 
 def _find_tensor_with_htype(ds: dp.Dataset, htype: str):
