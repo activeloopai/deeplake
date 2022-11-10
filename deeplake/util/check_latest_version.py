@@ -16,7 +16,7 @@ def get_latest_version():
             if time_elapsed < seconds_in_a_day:
                 return latest_version
 
-    response = requests.get("https://pypi.org/pypi/deeplake/json")
+    response = requests.get("https://pypi.org/pypi/deeplake/json", timeout=2)
     latest_version = response.json()["info"]["version"]
     with open(HUB_PYPI_VERSION_PATH, "w") as f:
         json.dump((latest_version, time.time()), f)
