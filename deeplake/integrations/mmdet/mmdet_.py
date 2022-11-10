@@ -34,8 +34,16 @@ import os
 
 def coco_2_pascal(boxes, shape):
     # Convert bounding boxes to Pascal VOC format and clip bounding boxes to make sure they have non-negative width and height
-    
-    return np.stack((np.clip(boxes[:,0], 0, None), np.clip(boxes[:,1], 0, None), np.clip(boxes[:,0]+np.clip(boxes[:,2], 1, None), 0, shape[1]), np.clip(boxes[:,1]+np.clip(boxes[:,3], 1, None), 0, shape[0])), axis = 1)
+
+    return np.stack(
+        (
+            np.clip(boxes[:, 0], 0, None),
+            np.clip(boxes[:, 1], 0, None),
+            np.clip(boxes[:, 0] + np.clip(boxes[:, 2], 1, None), 0, shape[1]),
+            np.clip(boxes[:, 1] + np.clip(boxes[:, 3], 1, None), 0, shape[0]),
+        ),
+        axis=1,
+    )
 
 
 class MMDetDataset(TorchDataset):
@@ -60,14 +68,14 @@ class MMDetDataset(TorchDataset):
 
         if self.metrics_format == "COCO" and self.mode == "val":
             self.evaluator = mmdet_utils.COCODatasetEvaluater(
-                    pipeline, 
-                    classes=self.CLASSES, 
-                    hub_dataset=self.dataset,
-                    imgs=self.images,
-                    masks=self.masks,
-                    bboxes=self.bboxes,
-                    labels=self.labels,
-                )
+                pipeline,
+                classes=self.CLASSES,
+                hub_dataset=self.dataset,
+                imgs=self.images,
+                masks=self.masks,
+                bboxes=self.bboxes,
+                labels=self.labels,
+            )
         else:
             self.evaluator = None
 
@@ -500,7 +508,9 @@ class HubDatasetCLass:
             ds_path = cfg.deeplake_path
             self.ds = dp.load(ds_path, token=token)
         tensors = tensors or {}
-        labels_tensor = tensors.get("gt_labels") or _find_tensor_with_htype(self.ds, "class_label")
+        labels_tensor = tensors.get("gt_labels") or _find_tensor_with_htype(
+            self.ds, "class_label"
+        )
         self.CLASSES = self.ds[labels_tensor].info.class_names
         # self.pipeline = cfg.pipeline
 
@@ -523,7 +533,7 @@ def transform(
     boxes_tensor: str,
     labels_tensor: str,
     pipeline: Callable,
-    metrics_format: str
+    metrics_format: str,
 ):
     img = sample_in[images_tensor]
     if not isinstance(img, np.ndarray):
@@ -569,6 +579,7 @@ def transform(
             "bbox_fields": ["gt_bboxes"],
         }
     )
+
 
 def build_dataset(cfg, tensors=None, *args, **kwargs):
     if isinstance(cfg, dp.Dataset):
@@ -627,9 +638,7 @@ def build_dataloader(
 
         batch_size = train_loader_config.get("samples_per_gpu", 1)
 
-        collate_fn = partial(
-            collate, samples_per_gpu=batch_size
-        )
+        collate_fn = partial(collate, samples_per_gpu=batch_size)
 
         if implementation == "python":
             loader = dataset.ds.pytorch(
@@ -650,7 +659,6 @@ def build_dataloader(
             #     c["name"] for c in dataset.ds.categories.info["category_info"]
             # ]
         else:
-            assert num_workers < 2,  num_workers
             loader = (
                 dataloader(dataset.ds)
                 .transform(transform_fn)
