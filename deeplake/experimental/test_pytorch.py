@@ -650,3 +650,49 @@ def test_pytorch_error_handling(local_ds):
     ptds = dataloader(ds).pytorch(tensors=["x"])
     for _ in ptds:
         pass
+
+
+def json_collate_fn(batch):
+    import torch
+
+    batch = [it["a"][0]["x"] for it in batch]
+    return torch.utils.data._utils.collate.default_collate(batch)
+
+
+def list_collate_fn(batch):
+    import torch
+
+    batch = [np.array([it["a"][0], it["a"][1]]) for it in batch]
+    return torch.utils.data._utils.collate.default_collate(batch)
+
+
+def test_pytorch_json(local_ds):
+    ds = local_ds
+    with ds:
+        ds.create_tensor("a", htype="json")
+        ds.a.append({"x": 1})
+        ds.a.append({"x": 2})
+
+    ptds = ds.pytorch(transform={"a": lambda x: x[0]["x"]}, batch_size=2)
+    batch = next(iter(ptds))
+    np.testing.assert_equal(batch["a"], np.array([1, 2]))
+
+    ptds = ds.pytorch(collate_fn=json_collate_fn, batch_size=2)
+    batch = next(iter(ptds))
+    np.testing.assert_equal(batch, np.array([1, 2]))
+
+
+def test_pytorch_list(local_ds):
+    ds = local_ds
+    with ds:
+        ds.create_tensor("a", htype="list")
+        ds.a.append([1, 2])
+        ds.a.append([3, 4])
+
+    ptds = ds.pytorch(transform={"a": lambda x: np.array([x[0], x[1]])}, batch_size=2)
+    batch = next(iter(ptds))
+    np.testing.assert_equal(batch["a"], np.array([[1, 2], [3, 4]]))
+
+    ptds = ds.pytorch(collate_fn=list_collate_fn, batch_size=2)
+    batch = next(iter(ptds))
+    np.testing.assert_equal(batch, np.array([[1, 2], [3, 4]]))

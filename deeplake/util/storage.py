@@ -91,7 +91,7 @@ def storage_provider_from_path(
 
 
 def storage_provider_from_hub_path(
-    path: str, read_only: bool = False, token: str = None
+    path: str, read_only: bool = False, token: Optional[str] = None
 ):
     path, org_id, ds_name, subdir = process_hub_path(path)
     client = DeepLakeBackendClient(token=token)
