@@ -539,6 +539,9 @@ def transform(
         bboxes = coco_2_pascal(bboxes, img.shape)
     labels = sample_in[labels_tensor]
 
+    if img.ndim == 2:
+        img = np.expand_dims(img, -1)
+
     img = img[..., ::-1]  # rgb_to_bgr should be optional
     if img.shape[2] == 1:
         img = np.repeat(img, 3, axis=2)
