@@ -76,7 +76,7 @@ def check_tensors(dataset, tensors):
 
     if json_list_tensors:
         warnings.warn(
-            f" The following tensors are of type json or list: {json_list_tensors}. Collation of these tensors will fail by default. Transform these tensors by specifying a transform_fn or specify a custom collate_fn to handle these tensors.",
+            f"The following tensors are of type json or list: {json_list_tensors}. Collation of these tensors will fail by default. Ensure that these tensors are either transformed by specifying a transform_fn or a custom collate_fn is specified to handle them."
         )
 
     return compressed_tensors
