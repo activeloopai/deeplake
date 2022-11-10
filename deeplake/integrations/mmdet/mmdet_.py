@@ -43,28 +43,38 @@ class MMDetDataset(TorchDataset):
         self,
         *args,
         tensors_dict=None,
-        bbox_format="PascalVOC",
+        mode="train",
+        metrics_format="PascalVOC",
         pipeline=None,
         **kwargs,
     ):
         super().__init__(*args, **kwargs)
         self.images = self._get_images(tensors_dict["images_tensor"])
         self.masks = self._get_masks(tensors_dict.get("masks_tensor", None))
-        self.bbox_format = bbox_format
         self.bboxes = self._get_bboxes(tensors_dict["boxes_tensor"])
         self.labels = self._get_labels(tensors_dict["labels_tensor"])
         self._classes = self.dataset[tensors_dict["labels_tensor"]].info.class_names
         self.CLASSES = self.get_classes(tensors_dict["labels_tensor"])
-        self.evaluator = (
-            mmdet_utils.COCODatasetEvaluater(
-                pipeline, classes=self.CLASSES, hub_dataset=self.dataset
-            )
-            if bbox_format == "COCO"
-            else None
-        )  # TO DO: read from htype info
+        self.mode = mode
+        self.metrics_format = metrics_format
+
+        if self.metrics_format == "COCO" and self.mode == "val":
+            self.evaluator = mmdet_utils.COCODatasetEvaluater(
+                    pipeline, 
+                    classes=self.CLASSES, 
+                    hub_dataset=self.dataset,
+                    imgs=self.images,
+                    masks=self.masks,
+                    bboxes=self.bboxes,
+                    labels=self.labels,
+                )
+        else:
+            self.evaluator = None
 
     def _get_images(self, images_tensor):
-        return self.dataset[images_tensor].numpy(aslist=True)
+        image_tensor = self.dataset[images_tensor]
+        image_list = [image.shape for image in image_tensor]
+        return image_list
 
     def _get_masks(self, masks_tensor):
         if masks_tensor is None:
@@ -87,17 +97,17 @@ class MMDetDataset(TorchDataset):
             idx (int): Index of data.
 
         Raises:
-            ValueError: when ``self.bbox_format`` is not valid.
+            ValueError: when ``self.metrics`` is not valid.
 
         Returns:
             dict: Annotation info of specified index.
         """
-        if self.bbox_format == "PascalVOC":
+        if self.metrics == "PascalVOC":
             bboxes = self.bboxes[idx]
-        elif self.bbox_format == "COCO":
+        elif self.metrics == "COCO":
             bboxes = coco_2_pascal(self.bboxes[idx], self.images[idx].shape)
         else:
-            raise ValueError(f"Bounding boxes in {self.bbox_format} are not supported")
+            raise ValueError(f"Bounding boxes in {self.metrics} are not supported")
         return {
             "bboxes": bboxes,
             "labels": self.labels[idx],
@@ -209,6 +219,7 @@ class MMDetDataset(TorchDataset):
         self,
         results,
         metric="mAP",
+        metrics_format="PascalVOC",
         logger=None,
         proposal_nums=(100, 300, 1000),
         iou_thr=0.5,  #
@@ -271,7 +282,6 @@ class MMDetDataset(TorchDataset):
                         eval_results[f"AR@{num}"] = ar[i]
             return eval_results
 
-        self.evaluator.createHubIndex()
         return self.evaluator.evaluate(
             results,
             metric=metric,
@@ -513,7 +523,7 @@ def transform(
     boxes_tensor: str,
     labels_tensor: str,
     pipeline: Callable,
-    bbox_format: str
+    metrics_format: str
 ):
     img = sample_in[images_tensor]
     if not isinstance(img, np.ndarray):
@@ -525,7 +535,7 @@ def transform(
     else:
         masks = None
     bboxes = sample_in[boxes_tensor]
-    if bbox_format == "COCO":
+    if metrics_format == "COCO":
         bboxes = coco_2_pascal(bboxes, img.shape)
     labels = sample_in[labels_tensor]
 
@@ -574,6 +584,7 @@ def build_dataloader(
     labels_tensor,
     implementation,
     pipeline,
+    mode="train",
     **train_loader_config,
 ):
     if isinstance(dataset, dp.Dataset):
@@ -589,7 +600,7 @@ def build_dataloader(
             dataset.ds, "class_label"
         )
         pipeline = build_pipeline(pipeline)
-        bbox_format = train_loader_config["bbox_format"]
+        metrics_format = train_loader_config.get("metrics_format")
         transform_fn = partial(
             transform,
             images_tensor=images_tensor,
@@ -597,7 +608,7 @@ def build_dataloader(
             boxes_tensor=boxes_tensor,
             labels_tensor=labels_tensor,
             pipeline=pipeline,
-            bbox_format=bbox_format,
+            metrics_format=metrics_format,
         )
         num_workers = train_loader_config["workers_per_gpu"]
         shuffle = train_loader_config.get("shuffle", True)
@@ -626,9 +637,10 @@ def build_dataloader(
                 tensors=tensors,
                 collate_fn=collate_fn,
                 torch_dataset=MMDetDataset,
-                bbox_format=bbox_format,
+                metrics_format=metrics_format,
                 pipeline=pipeline,
                 batch_size=batch_size,
+                mode=mode,
                 # torch_dataset=TorchDataset,
             )
             # loader.dataset.CLASSES = [
@@ -647,10 +659,11 @@ def build_dataloader(
             )
             mmdet_ds = MMDetDataset(
                 dataset=dataset.ds,
-                bbox_format=bbox_format,
+                metrics_format=metrics_format,
                 pipeline=pipeline,
                 tensors_dict=tensors_dict,
                 tensors=tensors,
+                mode=mode,
             )
             loader.dataset = mmdet_ds
         loader.dataset.CLASSES = classes
@@ -682,11 +695,11 @@ def train_detector(
     boxes_tensor: Optional[str] = None,
     labels_tensor: Optional[str] = None,
     dataloader: str = None,
-    bbox_format=None,
+    metrics_format=None,
 ):
 
     cfg = compat_cfg(cfg)
-
+    eval_cfg = cfg.get("evaluation", {})
     dl_impl = dataloader or cfg.get("deeplake_dataloader", "auto").lower()
 
     if dl_impl == "auto":
@@ -705,7 +718,7 @@ def train_detector(
     boxes_tensor = boxes_tensor or tensors.get("gt_bboxes")
     labels_tensor = labels_tensor or tensors.get("gt_labels")
 
-    bbox_format = bbox_format or cfg.get("bbox_format") or "PascalVOC"
+    metrics_format = eval_cfg.get("metrics_format", "PascalVOC")
 
     logger = get_root_logger(log_level=cfg.log_level)
 
@@ -723,7 +736,7 @@ def train_detector(
         seed=cfg.seed,
         runner_type=runner_type,
         persistent_workers=False,
-        bbox_format=bbox_format,
+        metrics_format=metrics_format,
     )
 
     train_loader_cfg = {
@@ -811,7 +824,8 @@ def train_detector(
             dist=distributed,
             shuffle=False,
             persistent_workers=False,
-            bbox_format=bbox_format,
+            mode="val",
+            metrics_format=metrics_format,
         )
 
         val_dataloader_args = {
@@ -835,7 +849,6 @@ def train_detector(
             implementation=dl_impl,
             **val_dataloader_args,
         )
-        eval_cfg = cfg.get("evaluation", {})
         eval_cfg["by_epoch"] = cfg.runner["type"] != "IterBasedRunner"
         eval_hook = DistEvalHook if distributed else EvalHook
         # In this PR (https://github.com/open-mmlab/mmcv/pull/1193), the
