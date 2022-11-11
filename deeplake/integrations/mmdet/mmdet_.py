@@ -599,6 +599,7 @@ def build_dataloader(
     implementation,
     pipeline,
     mode="train",
+    shuffle=None,
     **train_loader_config,
 ):
     if isinstance(dataset, dp.Dataset):
@@ -625,7 +626,8 @@ def build_dataloader(
             metrics_format=metrics_format,
         )
         num_workers = train_loader_config["workers_per_gpu"]
-        shuffle = train_loader_config.get("shuffle", True)
+        if shuffle is None:
+            shuffle = train_loader_config.get("shuffle", True)
         tensors_dict = {
             "images_tensor": images_tensor,
             "boxes_tensor": boxes_tensor,
@@ -707,6 +709,7 @@ def train_detector(
     labels_tensor: Optional[str] = None,
     dataloader: str = None,
     metrics_format=None,
+    shuffle=None,
 ):
 
     cfg = compat_cfg(cfg)
@@ -764,6 +767,7 @@ def train_detector(
             labels_tensor,
             pipeline=cfg.get("train_pipeline", []),
             implementation=dl_impl,
+            shuffle=shuffle,
             **train_loader_cfg,
         )
         for ds in dataset
@@ -837,6 +841,7 @@ def train_detector(
             persistent_workers=False,
             mode="val",
             metrics_format=metrics_format,
+            shuffle=False,
         )
 
         val_dataloader_args = {
