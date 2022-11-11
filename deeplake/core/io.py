@@ -24,6 +24,7 @@ from deeplake.core.storage import (
     LocalProvider,
 )
 from deeplake.core.tiling.deserialize import combine_chunks
+from deeplake.integrations.pytorch.common import check_tensors, validate_decode_method
 from deeplake.util.exceptions import (
     DatasetUnsupportedPytorch,
     SampleDecompressionError,
@@ -31,6 +32,7 @@ from deeplake.util.exceptions import (
 from deeplake.util.keys import get_chunk_key, get_tensor_meta_key
 from deeplake.util.remove_cache import get_base_storage
 from deeplake.util.storage import get_pytorch_local_storage
+from PIL import Image
 
 
 ChunkEngineMap = Dict[str, ChunkEngine]
@@ -261,10 +263,10 @@ class SampleStreaming(Streaming):
         self,
         dataset,
         tensors: Sequence[str],
-        tobytes: Union[bool, Sequence[str]] = False,
         use_local_cache: bool = False,
         return_index: bool = True,
         pad_tensors: bool = False,
+        decode_method: Optional[Dict[str, str]] = None,
     ) -> None:
         super().__init__()
 
@@ -282,15 +284,15 @@ class SampleStreaming(Streaming):
 
         self.tensors = tensors
         self.pad_tensors = pad_tensors
-        if isinstance(tobytes, bool):
-            self.tobytes = {k: tobytes for k in self.tensors}
-        else:
-            for k in tobytes:
-                if k not in tensors:
-                    raise Exception(
-                        f"Tensor {k} is not present in the list of provided tensors: {tensors}."
-                    )
-            self.tobytes = {k: k in tobytes for k in tensors}
+        self.decode_method = decode_method
+        self.return_index = return_index
+
+        jpeg_png_compressed_tensors = check_tensors(self.dataset, tensors)
+        raw_tensors, compressed_tensors = validate_decode_method(
+            self.decode_method, tensors, jpeg_png_compressed_tensors
+        )
+        self.raw_tensors = set(raw_tensors)
+        self.compressed_tensors = set(compressed_tensors)
 
         self.chunk_engines: ChunkEngineMap = self._map_chunk_engines(self.tensors)
 
@@ -299,8 +301,6 @@ class SampleStreaming(Streaming):
             if self.local_storage is not None
             else None
         )
-
-        self.return_index = return_index
 
     def read(self, schedule: Schedule) -> Iterator:
         for block in schedule._blocks:
@@ -313,7 +313,8 @@ class SampleStreaming(Streaming):
             valid_sample_flag = True
 
             for keyid, (key, engine) in enumerate(self.chunk_engines.items()):
-                decompress = not self.tobytes[key]
+                decompress = key in self.raw_tensors
+                to_pil = key in self.compressed_tensors
                 chunk_class = engine.chunk_class
                 try:
 
@@ -347,7 +348,7 @@ class SampleStreaming(Streaming):
                         chunks.append(chunk)
                     if len(chunks) == 1:
                         data = engine.read_sample_from_chunk(
-                            idx, chunk, decompress=decompress
+                            idx, chunk, decompress=decompress, to_pil=to_pil
                         )
                     else:
                         if not decompress:
@@ -355,6 +356,8 @@ class SampleStreaming(Streaming):
                                 "`tobytes=True` is not supported by tiled samples as it can cause recompression."
                             )
                         data = combine_chunks(chunks, idx, engine.tile_encoder)
+                        if to_pil:
+                            data = Image.fromarray(data)  # type: ignore
 
                     if data is not None:
                         sample[key] = data

@@ -195,7 +195,7 @@ class DeepLakeDataLoader:
         prefetch_factor: int = 2,
         distributed: bool = False,
         return_index: bool = True,
-        decode_method: Optional[Dict[str, str]] = False,
+        decode_method: Optional[Dict[str, str]] = None,
     ):
         """Returns a :class:`DeepLakeDataLoader` object.
 
@@ -246,7 +246,7 @@ class DeepLakeDataLoader:
         tensors: Optional[List[str]] = None,
         num_threads: Optional[int] = None,
         prefetch_factor: int = 2,
-        decode_method: Optional[Dict[str, str]] = False,
+        decode_method: Optional[Dict[str, str]] = None,
     ):
         """Returns a :class:`DeepLakeDataLoader` object.
 

@@ -1478,6 +1478,7 @@ class ChunkEngine:
         cast: bool = True,
         copy: bool = False,
         decompress: bool = True,
+        to_pil: bool = False,
     ) -> np.ndarray:
         enc = self.chunk_id_encoder
         if self.is_fixed_shape and self.sample_compression is None:
@@ -1487,6 +1488,15 @@ class ChunkEngine:
             local_sample_index = enc.translate_index_relative_to_chunks(
                 global_sample_index
             )
+        if to_pil:
+            return chunk.read_sample(
+                local_sample_index,
+                cast=cast,
+                copy=copy,
+                decompress=decompress,
+                to_pil=True,
+            )
+
         return chunk.read_sample(
             local_sample_index, cast=cast, copy=copy, decompress=decompress
         )
