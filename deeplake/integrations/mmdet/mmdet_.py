@@ -33,10 +33,71 @@ from deeplake.experimental.dataloader import indra_available, dataloader
 import os
 
 
-def coco_2_pascal(boxes, shape):
+def coco_pixel_2_pascal_pixel(boxes, shape):
     # Convert bounding boxes to Pascal VOC format and clip bounding boxes to make sure they have non-negative width and height
     
     return np.stack((np.clip(boxes[:,0], 0, None), np.clip(boxes[:,1], 0, None), np.clip(boxes[:,0]+np.clip(boxes[:,2], 1, None), 0, shape[1]), np.clip(boxes[:,1]+np.clip(boxes[:,3], 1, None), 0, shape[0])), axis = 1)
+
+
+def coco_frac_2_pascal_pixel(boxes, shape):
+    x = boxes[:,0] * shape[1]
+    y = boxes[:,1] * shape[0]
+    w = boxes[:,2] * shape[1]
+    h = boxes[:,3] * shape[0]
+    bbox = np.stack((x, y, w, h), axis=1)
+    return coco_pixel_2_pascal_pixel(bbox, shape)
+
+
+def pascal_frac_2_pascal_pixel(boxes, shape):
+    x_top = boxes[:,0] * shape[1]
+    y_top = boxes[:,1] * shape[0]
+    x_bottom = boxes[:,2] * shape[1]
+    y_bottom = boxes[:,3] * shape[0]
+    return np.stack((x_top, y_top, x_bottom, y_bottom), axis=1)
+
+
+def yolo_pixel_2_pascal_pixel(boxes, shape):
+    x_top = np.clip(np.array(boxes[:,0]) - np.floor(np.array(boxes[:,2])/2), 0, shape[1])
+    y_top = np.clip(np.array(boxes[:,1]) - np.floor(np.array(boxes[:,3])/2), 0, shape[0])
+    x_bottom = np.clip(np.array(boxes[:,0]) + np.floor(np.array(boxes[:,2])/2), 0, shape[1])
+    y_bottom = np.clip(np.array(boxes[:,1]) + np.floor(np.array(boxes[:,3])/2), 0, shape[0])
+    return np.stack((x_top, y_top, x_bottom, y_bottom), axis=1)
+
+
+def yolo_frac_2_pascal_pixel(boxes, shape):
+    x_center = boxes[:,0] * shape[1]
+    y_center = boxes[:,1] * shape[0]
+    width = boxes[:, 2] * shape[1]
+    height = boxes[:, 3] * shape[0]
+    bbox = np.stack((x_center, y_center, width, height), axis=1)
+    return yolo_pixel_2_pascal_pixel(bbox, shape)
+
+
+def get_bbox_format(bbox, bbox_info):
+    bbox_info = bbox_info.coords
+    mode = bbox_info.get("mode", "LTWH")
+    type = bbox_info.get("type", "pixel")
+
+    if len(bbox_info) == 0 and np.mean(bbox) < 1:
+        mode = "CCWH"
+        type = "fractional"
+    return (mode, type)
+
+
+BBOX_FORMAT_TO_CONVERTER = {
+    ("LTWH", "pixel"): coco_pixel_2_pascal_pixel,
+    ("LTWH", "fractional"): coco_frac_2_pascal_pixel,
+    ("LTRB", "pixel"): lambda x: x,
+    ("LTRB", "fractional"): pascal_frac_2_pascal_pixel,
+    ("CCWH", "pixel"): yolo_pixel_2_pascal_pixel,
+    ("CCWH", "fractional"): yolo_frac_2_pascal_pixel,
+}
+
+
+def convert_to_pascal_format(bbox, bbox_info, shape):
+    bbox_format = get_bbox_format(bbox, bbox_info)
+    converter = BBOX_FORMAT_TO_CONVERTER[bbox_format]
+    return converter(bbox, shape)
 
 
 class MMDetDataset(TorchDataset):
@@ -46,14 +107,18 @@ class MMDetDataset(TorchDataset):
         tensors_dict=None,
         mode="train",
         metrics_format="PascalVOC",
+        bbox_info=None,
         pipeline=None,
         **kwargs,
     ):
         super().__init__(*args, **kwargs)
+        self.bbox_info = bbox_info
         self.images = self._get_images(tensors_dict["images_tensor"])
         self.masks = self._get_masks(tensors_dict.get("masks_tensor", None))
         self.bboxes = self._get_bboxes(tensors_dict["boxes_tensor"])
         self.labels = self._get_labels(tensors_dict["labels_tensor"])
+        self.iscrowds = self._get_iscrowds(tensors_dict.get("iscrowds"))
+
         self._classes = self.dataset[tensors_dict["labels_tensor"]].info.class_names
         self.CLASSES = self.get_classes(tensors_dict["labels_tensor"])
         self.mode = mode
@@ -68,6 +133,7 @@ class MMDetDataset(TorchDataset):
                     masks=self.masks,
                     bboxes=self.bboxes,
                     labels=self.labels,
+                    iscrowds=self.iscrowds,
                 )
         else:
             self.evaluator = None
@@ -84,6 +150,16 @@ class MMDetDataset(TorchDataset):
             self.dataset, "binary_mask"
         )
         return self.dataset[masks_tensor].numpy(aslist=True)
+
+    def _get_iscrowds(self, iscrowds_tensor):
+        if iscrowds_tensor is not None:
+            return iscrowds_tensor
+        
+        if "iscrowds" in self.dataset:
+            always_warn("Iscrowds was not specified, searching for iscrowds tensor in the dataset.")
+            return self.dataset["iscrowds"].numpy(aslist=True)
+        always_warn("iscrowds tensor was not found, setting its value to 0.")
+        return iscrowds_tensor
 
     def _get_bboxes(self, boxes_tensor):
         return self.dataset[boxes_tensor].numpy(aslist=True)
@@ -103,12 +179,7 @@ class MMDetDataset(TorchDataset):
         Returns:
             dict: Annotation info of specified index.
         """
-        if self.metrics == "PascalVOC":
-            bboxes = self.bboxes[idx]
-        elif self.metrics == "COCO":
-            bboxes = coco_2_pascal(self.bboxes[idx], self.images[idx].shape)
-        else:
-            raise ValueError(f"Bounding boxes in {self.metrics} are not supported")
+        bboxes = convert_to_pascal_format(self.bboxes[idx], self.bbox_info, self.images[idx].shape)
         return {
             "bboxes": bboxes,
             "labels": self.labels[idx],
@@ -128,15 +199,6 @@ class MMDetDataset(TorchDataset):
 
         return cat_ids
 
-    # def pre_pipeline(self, results):
-    #     """Prepare results dict for pipeline."""
-    #     results["img_prefix"] = self.img_prefix
-    #     results["seg_prefix"] = self.seg_prefix
-    #     results["proposal_file"] = self.proposal_file
-    #     results["bbox_fields"] = []
-    #     results["mask_fields"] = []
-    #     results["seg_fields"] = []
-
     def _filter_imgs(self, min_size=32):
         """Filter images too small."""
         if self.filter_empty_gt:
@@ -146,60 +208,6 @@ class MMDetDataset(TorchDataset):
             if min(img_info["width"], img_info["height"]) >= min_size:
                 valid_inds.append(i)
         return valid_inds
-
-    # def _set_group_flag(self):
-    #     """Set flag according to image aspect ratio.
-
-    #     Images with aspect ratio greater than 1 will be set as group 1,
-    #     otherwise group 0.
-    #     """
-    #     self.flag = np.zeros(len(self), dtype=np.uint8)
-    #     for i in range(len(self)):
-    #         img_info = self.data_infos[i]
-    #         if img_info["width"] / img_info["height"] > 1:
-    #             self.flag[i] = 1
-
-    # def _rand_another(self, idx):
-    #     """Get another random index from the same group as the given index."""
-    #     pool = np.where(self.flag == self.flag[idx])[0]
-    #     return np.random.choice(pool)
-
-    # def prepare_train_img(self, idx):
-    #     """Get training data and annotations after pipeline.
-
-    #     Args:
-    #         idx (int): Index of data.
-
-    #     Returns:
-    #         dict: Training data and annotation after pipeline with new keys \
-    #             introduced by pipeline.
-    #     """
-
-    #     img_info = self.data_infos[idx]
-    #     ann_info = self.get_ann_info(idx)
-    #     results = dict(img_info=img_info, ann_info=ann_info)
-    #     if self.proposals is not None:
-    #         results["proposals"] = self.proposals[idx]
-    #     self.pre_pipeline(results)
-    #     return self.pipeline(results)
-
-    # def prepare_test_img(self, idx):
-    #     """Get testing data after pipeline.
-
-    #     Args:
-    #         idx (int): Index of data.
-
-    #     Returns:
-    #         dict: Testing data after pipeline with new keys introduced by \
-    #             pipeline.
-    #     """
-
-    #     img_info = self.data_infos[idx]
-    #     results = dict(img_info=img_info)
-    #     if self.proposals is not None:
-    #         results["proposals"] = self.proposals[idx]
-    #     self.pre_pipeline(results)
-    #     return self.pipeline(results)
 
     def get_classes(self, classes=None):
         """Get class names of current dataset.
@@ -290,111 +298,6 @@ class MMDetDataset(TorchDataset):
             proposal_nums=proposal_nums,
             **kwargs,
         )
-
-    # def evaluate_coco(
-    #     self,
-    #     results,
-    #     metric="bbox",
-    #     logger=None,
-    #     jsonfile_prefix=None,
-    #     classwise=False,
-    #     proposal_nums=(100, 300, 1000),
-    #     iou_thrs=None,
-    #     metric_items=None,
-    # ): # TO DO: Optimize this
-    #     metrics = metric if isinstance(metric, list) else [metric]
-    #     allowed_metrics = ["bbox", "segm", "proposal", "proposal_fast"]
-    #     for metric in metrics:
-    #         if metric not in allowed_metrics:
-    #             raise KeyError(f"metric {metric} is not supported")
-
-    #     results_dict = self.convert_result_to_dict(results)
-    #     targets_dict = self.convert_targets_to_dict()
-    #     mAP_fn = MeanAveragePrecision(max_detection_thresholds=proposal_nums)
-    #     mAP_fn.update(results_dict, targets_dict)
-    #     s = mAP_fn.compute()
-    #     eval_result = [(s_i, s[s_i].item()) for s_i in s]
-    #     self._log_results(eval_result, proposal_nums)
-    #     # for item in eval_result:
-    #     #     print("")
-    #     return OrderedDict(eval_result)
-
-    # def _log_results(self, results, proposal_nums):
-    #     out_str = "\n"
-    #     for i, result in enumerate(results):
-    #         if "map" in result[0]:
-    #             if i == 0:
-    #                 dets=proposal_nums[0]
-    #             else:
-    #                 dets=proposal_nums[2]
-
-    #             if result[0] == "map":
-    #                 out_str += f"Average Precision (AP) @[ IoU=0.50:0.95 | area=   all | maxDets={dets}  ] = {result[1]:0.3f}\n"
-    #             elif "50" in result[0] or "75" in result[0]:
-    #                 result_int = result[0].split("_")[1]
-    #                 out_str += f"Average Precision (AP) @[ IoU=0.{result_int}      | area=   all | maxDets={dets} ] = {result[1]:0.3f}\n"
-    #             elif "small" in result[0]:
-    #                 out_str += f"Average Precision (AP) @[ IoU=0.50:0.95 | area= small | maxDets={dets} ] = {result[1]:0.3f}\n"
-    #             elif "medium" in result[0]:
-    #                 out_str += f"Average Precision (AP) @[ IoU=0.50:0.95 | area=medium | maxDets={dets} ] = {result[1]:0.3f}\n"
-    #             elif "large" in result[0]:
-    #                 out_str += f"Average Precision (AP) @[ IoU=0.50:0.95 | area= large | maxDets={dets} ] = {result[1]:0.3f}\n"
-    #         else:
-    #             if "per_class" not in result[0]:
-    #                 out_str += "Average Recall    (AP) @[ IoU=0.50:0.95 | area="
-    #                 if str(proposal_nums[0]) in result[0] \
-    #                     or str(proposal_nums[0]) in result[0] \
-    #                     or str(proposal_nums[1]) in result[0]:
-
-    #                     result_int = result[0].split("_")[1]
-    #                     int_len = len(result_int)
-    #                     out_str += f'''   all | maxDets={result[0].split("_")[1]}{(5-int_len)*" "}] = {result[1]:0.3f}\n'''
-
-    #                 elif "small" in result[0]:
-    #                     out_str += f''' small | maxDets={dets} ] = {result[1]:0.3f}\n'''
-    #                 elif "medium" in result[0]:
-    #                     out_str += f'''medium | maxDets={dets} ] = {result[1]:0.3f}\n'''
-    #                 elif "large" in result[0]:
-    #                     out_str += f''' large | maxDets={dets} ] = {result[1]:0.3f}\n'''
-    #     print_log(out_str)
-
-    # def convert_result_to_dict(self, results): # TO DO: optimize this
-    #     result_list = []
-    #     for image_ann in tqdm.tqdm(results):
-    #         result_dict = defaultdict(list)
-    #         for class_id, (bboxes, masks) in enumerate(zip(image_ann[0], image_ann[1])):
-    #             if bboxes.shape[0] > 1:
-    #                 for i in range(bboxes.shape[0]):
-    #                     result_dict["boxes"].append(bboxes[i][:4])
-    #                     result_dict["scores"].append(bboxes[i][4])
-    #                     result_dict["labels"].append(class_id)
-    #                     result_dict["masks"].append(masks[i])
-    #             elif bboxes.shape[0] == 1:
-    #                 result_dict["boxes"].append(bboxes[0][:4])
-    #                 result_dict["scores"].append(bboxes[0][4])
-    #                 result_dict["labels"].append(class_id)
-    #                 result_dict["masks"].append(masks)
-    #         result_dict["boxes"] = torch.FloatTensor(np.array(result_dict["boxes"]))
-    #         result_dict["scores"] = torch.FloatTensor(np.array(result_dict["scores"]))
-    #         result_dict["labels"] = torch.LongTensor(
-    #             np.array(result_dict["labels"], dtype=np.uint8)
-    #         )
-    #         result_list.append(result_dict)
-    #     return result_list
-
-    # def convert_targets_to_dict(self): # TO DO: Optimize this
-    #     targets_list = []
-    #     for image_labels, image_boxes in tqdm.tqdm(zip(self.labels, self.bboxes)):
-    #         targets_dict = defaultdict(list)
-    #         for label, box in zip(image_labels, image_boxes):
-    #             targets_dict["labels"].append(label)
-    #             targets_dict["boxes"].append(box)
-    #         targets_dict["boxes"] = torch.FloatTensor(np.array(targets_dict["boxes"]))
-    #         targets_dict["labels"] = torch.LongTensor(
-    #             np.array(targets_dict["labels"], dtype=np.uint8)
-    #         )
-    #         targets_list.append(targets_dict)
-    #     return targets_list
 
     @staticmethod
     def _coco_2_pascal(boxes):
@@ -537,7 +440,7 @@ def transform(
     boxes_tensor: str,
     labels_tensor: str,
     pipeline: Callable,
-    metrics_format: str
+    bbox_info: str
 ):
     img = sample_in[images_tensor]
     if not isinstance(img, np.ndarray):
@@ -549,8 +452,7 @@ def transform(
     else:
         masks = None
     bboxes = sample_in[boxes_tensor]
-    if metrics_format == "COCO":
-        bboxes = coco_2_pascal(bboxes, img.shape)
+    bboxes = convert_to_pascal_format(bboxes, bbox_info, img.shape)
     labels = sample_in[labels_tensor]
 
     img = img[..., ::-1]  # rgb_to_bgr should be optional
@@ -568,6 +470,7 @@ def transform(
 
     return pipeline(
         {
+            "mix_results": True,
             "img": img,
             "img_fields": ["img"],
             "filename": None,
@@ -610,6 +513,7 @@ def build_dataloader(
             dataset.ds, "binary_mask"
         )
         boxes_tensor = boxes_tensor or _find_tensor_with_htype(dataset.ds, "bbox")
+        bbox_info = dataset.ds[boxes_tensor].info
         labels_tensor = labels_tensor or _find_tensor_with_htype(
             dataset.ds, "class_label"
         )
@@ -622,7 +526,7 @@ def build_dataloader(
             boxes_tensor=boxes_tensor,
             labels_tensor=labels_tensor,
             pipeline=pipeline,
-            metrics_format=metrics_format,
+            bbox_info=bbox_info,
         )
         num_workers = train_loader_config["workers_per_gpu"]
         shuffle = train_loader_config.get("shuffle", True)
@@ -655,11 +559,9 @@ def build_dataloader(
                 pipeline=pipeline,
                 batch_size=batch_size,
                 mode=mode,
-                # torch_dataset=TorchDataset,
+                bbox_info=bbox_info,
             )
-            # loader.dataset.CLASSES = [
-            #     c["name"] for c in dataset.ds.categories.info["category_info"]
-            # ]
+
         else:
             assert num_workers < 2,  num_workers
             loader = (
@@ -678,6 +580,7 @@ def build_dataloader(
                 tensors_dict=tensors_dict,
                 tensors=tensors,
                 mode=mode,
+                bbox_info=bbox_info,
             )
             loader.dataset = mmdet_ds
         loader.dataset.CLASSES = classes
