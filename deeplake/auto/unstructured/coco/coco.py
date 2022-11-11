@@ -103,7 +103,7 @@ class CocoDataset(UnstructuredDataset):
         return dataset_structure
 
     def _parse_images_tensor(
-        self, structure: DatasetStructure, sample_compression: str
+        self, sample_compression: str
     ):
         img_config = DEFAULT_IMAGE_TENSOR_PARAMS.copy()
 
@@ -130,7 +130,7 @@ class CocoDataset(UnstructuredDataset):
 
         parsed = self._parse_annotation_tensors()
         images_tensor = self._parse_images_tensor(
-            structure=parsed, sample_compression=most_common_compression
+            sample_compression=most_common_compression
         )
 
         parsed.add_first_level_tensor(images_tensor)
@@ -181,5 +181,5 @@ class CocoDataset(UnstructuredDataset):
                     append_obj.append(values)
 
                     ds[images_tensor.name].append(
-                        deeplake.read(os.path.join(self.source, img_file))
+                        deeplake.read(self.images.get_full_path(img_file))
                     )

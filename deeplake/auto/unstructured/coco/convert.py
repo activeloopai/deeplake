@@ -10,6 +10,7 @@ from collections import defaultdict
 from deeplake.htype import HTYPE_SUPPORTED_COMPRESSIONS
 from deeplake.util.exceptions import IngestionError
 from deeplake.client.log import logger
+from deeplake.core.storage import LocalProvider
 
 
 def coco_2_deeplake(coco_key, value, tensor_meta, category_lookup=None):
@@ -55,12 +56,15 @@ class CocoAnnotation:
 
     def __init__(self, file_path: str) -> None:
         self.file_path = file_path
+        self.root = Path(file_path).parent
+        self.file = Path(file_path).name
+        self.provider = LocalProvider(self.root)
+
         self.data = self._load_annotation_data()
 
     def _load_annotation_data(self):
         """Validates and loads the COCO annotation file."""
-        with open(self.file_path, "r") as f:
-            data = json.load(f)
+        data = json.loads(self.provider.get_bytes(self.file))
 
         for key in self.COCO_REQUIRED_KEYS:
             if key not in data:
@@ -102,6 +106,7 @@ class CocoAnnotation:
 class CocoImages:
     def __init__(self, images_directory: str) -> None:
         self.root = images_directory
+        self.provider = LocalProvider(self.root)
 
     def parse_images(self) -> Tuple[List[str], List[str], List[str], str]:
         """Parses the given directory to generate a list of image paths.
@@ -114,7 +119,9 @@ class CocoImages:
         supported_images = []
         invalid_files = []
         extensions = defaultdict(int)
-        for file in os.listdir(self.root):
+
+        for file in self.provider:
+            # for file in os.listdir(self.root):
             if file.endswith(supported_image_extensions):
                 supported_images.append(file)
                 ext = Path(file).suffix[1:]  # Get extension without the . symbol
@@ -133,3 +140,6 @@ class CocoImages:
             list(extensions.keys()),
             max(extensions, key=lambda k: extensions[k]),
         )
+
+    def get_full_path(self, image_name: str) -> str:
+        return os.path.join(self.root, image_name)
