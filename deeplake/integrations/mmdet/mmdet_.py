@@ -67,7 +67,9 @@ class MMDetDataset(TorchDataset):
     ):
         super().__init__(*args, **kwargs)
         self.images = self._get_images(tensors_dict["images_tensor"])
-        self.masks = self._get_masks(tensors_dict.get("masks_tensor", None), shape=self.images[0].shape)
+        self.masks = self._get_masks(
+            tensors_dict.get("masks_tensor", None), shape=self.images[0].shape
+        )
         self.bboxes = self._get_bboxes(tensors_dict["boxes_tensor"])
         self.labels = self._get_labels(tensors_dict["labels_tensor"])
         self._classes = self.dataset[tensors_dict["labels_tensor"]].info.class_names
@@ -572,7 +574,6 @@ def transform(
     else:
         gt_masks = None
 
-
     return pipeline(
         {
             "img": img,
@@ -623,6 +624,8 @@ def build_dataloader(
             masks_tensor = _find_tensor_with_htype(dataset.ds, "polygon")
             if masks_tensor is not None:
                 poly2mask = True
+        elif dataset.ds[masks_tensor].htype == "polygon":
+            poly2mask = True
         boxes_tensor = boxes_tensor or _find_tensor_with_htype(dataset.ds, "bbox")
         labels_tensor = labels_tensor or _find_tensor_with_htype(
             dataset.ds, "class_label"
