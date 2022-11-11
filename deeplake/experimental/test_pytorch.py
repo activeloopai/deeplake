@@ -671,7 +671,7 @@ def list_collate_fn(batch):
 
 
 def list_transform_fn(sample):
-    return np.array([sample[0], sample[1]])
+    return np.array([sample["a"][0], sample["a"][1]])
 
 
 def test_pytorch_json(local_ds):
