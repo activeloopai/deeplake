@@ -13,11 +13,8 @@ from typing import Optional
 from deeplake.integrations.pytorch.dataset import TorchDataset
 from deeplake.client.client import DeepLakeBackendClient
 from mmdet.core import BitmapMasks
-import albumentations as A
 import deeplake as dp
 from deeplake.util.warnings import always_warn
-from click.testing import CliRunner
-from deeplake.cli.auth import login
 import os.path as osp
 import warnings
 from collections import OrderedDict
@@ -30,13 +27,94 @@ from mmdet.datasets.pipelines import Compose
 import tempfile
 from deeplake.integrations.mmdet import mmdet_utils
 from deeplake.experimental.dataloader import indra_available, dataloader
+from PIL import Image, ImageDraw
 import os
 
 
 def coco_pixel_2_pascal_pixel(boxes, shape):
     # Convert bounding boxes to Pascal VOC format and clip bounding boxes to make sure they have non-negative width and height
-    
-    return np.stack((np.clip(boxes[:,0], 0, None), np.clip(boxes[:,1], 0, None), np.clip(boxes[:,0]+np.clip(boxes[:,2], 1, None), 0, shape[1]), np.clip(boxes[:,1]+np.clip(boxes[:,3], 1, None), 0, shape[0])), axis = 1)
+
+    return np.stack(
+        (
+            np.clip(boxes[:, 0], 0, None),
+            np.clip(boxes[:, 1], 0, None),
+            np.clip(boxes[:, 0] + np.clip(boxes[:, 2], 1, None), 0, shape[1]),
+            np.clip(boxes[:, 1] + np.clip(boxes[:, 3], 1, None), 0, shape[0]),
+        ),
+        axis=1,
+    )
+
+
+def poly_2_mask(polygons, shape):
+    # TODO This doesnt fill the array inplace.
+    out = np.zeros(shape + (len(polygons),), dtype=np.uint8)
+    for i, polygon in enumerate(polygons):
+        im = Image.fromarray(out[..., i])
+        d = ImageDraw.Draw(im)
+        d.polygon(polygon, fill=1)
+        out[..., i] = np.asarray(im)
+    return out
+
+
+def coco_frac_2_pascal_pixel(boxes, shape):
+    x = boxes[:,0] * shape[1]
+    y = boxes[:,1] * shape[0]
+    w = boxes[:,2] * shape[1]
+    h = boxes[:,3] * shape[0]
+    bbox = np.stack((x, y, w, h), axis=1)
+    return coco_pixel_2_pascal_pixel(bbox, shape)
+
+
+def pascal_frac_2_pascal_pixel(boxes, shape):
+    x_top = boxes[:,0] * shape[1]
+    y_top = boxes[:,1] * shape[0]
+    x_bottom = boxes[:,2] * shape[1]
+    y_bottom = boxes[:,3] * shape[0]
+    return np.stack((x_top, y_top, x_bottom, y_bottom), axis=1)
+
+
+def yolo_pixel_2_pascal_pixel(boxes, shape):
+    x_top = np.clip(np.array(boxes[:,0]) - np.floor(np.array(boxes[:,2])/2), 0, shape[1])
+    y_top = np.clip(np.array(boxes[:,1]) - np.floor(np.array(boxes[:,3])/2), 0, shape[0])
+    x_bottom = np.clip(np.array(boxes[:,0]) + np.floor(np.array(boxes[:,2])/2), 0, shape[1])
+    y_bottom = np.clip(np.array(boxes[:,1]) + np.floor(np.array(boxes[:,3])/2), 0, shape[0])
+    return np.stack((x_top, y_top, x_bottom, y_bottom), axis=1)
+
+
+def yolo_frac_2_pascal_pixel(boxes, shape):
+    x_center = boxes[:,0] * shape[1]
+    y_center = boxes[:,1] * shape[0]
+    width = boxes[:, 2] * shape[1]
+    height = boxes[:, 3] * shape[0]
+    bbox = np.stack((x_center, y_center, width, height), axis=1)
+    return yolo_pixel_2_pascal_pixel(bbox, shape)
+
+
+def get_bbox_format(bbox, bbox_info):
+    bbox_info = bbox_info.coords
+    mode = bbox_info.get("mode", "LTWH")
+    type = bbox_info.get("type", "pixel")
+
+    if len(bbox_info) == 0 and np.mean(bbox) < 1:
+        mode = "CCWH"
+        type = "fractional"
+    return (mode, type)
+
+
+BBOX_FORMAT_TO_CONVERTER = {
+    ("LTWH", "pixel"): coco_pixel_2_pascal_pixel,
+    ("LTWH", "fractional"): coco_frac_2_pascal_pixel,
+    ("LTRB", "pixel"): lambda x: x,
+    ("LTRB", "fractional"): pascal_frac_2_pascal_pixel,
+    ("CCWH", "pixel"): yolo_pixel_2_pascal_pixel,
+    ("CCWH", "fractional"): yolo_frac_2_pascal_pixel,
+}
+
+
+def convert_to_pascal_format(bbox, bbox_info, shape):
+    bbox_format = get_bbox_format(bbox, bbox_info)
+    converter = BBOX_FORMAT_TO_CONVERTER[bbox_format]
+    return converter(bbox, shape)
 
 
 def coco_frac_2_pascal_pixel(boxes, shape):
@@ -114,7 +192,9 @@ class MMDetDataset(TorchDataset):
         super().__init__(*args, **kwargs)
         self.bbox_info = bbox_info
         self.images = self._get_images(tensors_dict["images_tensor"])
-        self.masks = self._get_masks(tensors_dict.get("masks_tensor", None))
+        self.masks = self._get_masks(
+            tensors_dict.get("masks_tensor", None), shape=self.images[0].shape
+        )
         self.bboxes = self._get_bboxes(tensors_dict["boxes_tensor"])
         self.labels = self._get_labels(tensors_dict["labels_tensor"])
         self.iscrowds = self._get_iscrowds(tensors_dict.get("iscrowds"))
@@ -126,6 +206,7 @@ class MMDetDataset(TorchDataset):
 
         if self.metrics_format == "COCO" and self.mode == "val":
             self.evaluator = mmdet_utils.COCODatasetEvaluater(
+<<<<<<< HEAD
                     pipeline, 
                     classes=self.CLASSES, 
                     hub_dataset=self.dataset,
@@ -135,6 +216,16 @@ class MMDetDataset(TorchDataset):
                     labels=self.labels,
                     iscrowds=self.iscrowds,
                 )
+=======
+                pipeline,
+                classes=self.CLASSES,
+                hub_dataset=self.dataset,
+                imgs=self.images,
+                masks=self.masks,
+                bboxes=self.bboxes,
+                labels=self.labels,
+            )
+>>>>>>> c29d332f7d226feb2a808595a32505bc501ab48d
         else:
             self.evaluator = None
 
@@ -143,13 +234,23 @@ class MMDetDataset(TorchDataset):
         image_list = [image.shape for image in image_tensor]
         return image_list
 
-    def _get_masks(self, masks_tensor):
+    def _get_masks(self, masks_tensor, shape):
         if masks_tensor is None:
             return []
-        masks_tensor = masks_tensor or _find_tensor_with_htype(
-            self.dataset, "binary_mask"
-        )
-        return self.dataset[masks_tensor].numpy(aslist=True)
+        ret = self.dataset[masks_tensor].numpy(aslist=True)
+        if self.dataset[masks_tensor].htype == "polygon":
+            ret = map(partial(poly_2_mask, shape=shape), ret)
+        return ret
+
+    def _get_iscrowds(self, iscrowds_tensor):
+        if iscrowds_tensor is not None:
+            return iscrowds_tensor
+        
+        if "iscrowds" in self.dataset:
+            always_warn("Iscrowds was not specified, searching for iscrowds tensor in the dataset.")
+            return self.dataset["iscrowds"].numpy(aslist=True)
+        always_warn("iscrowds tensor was not found, setting its value to 0.")
+        return iscrowds_tensor
 
     def _get_iscrowds(self, iscrowds_tensor):
         if iscrowds_tensor is not None:
@@ -404,22 +505,11 @@ class HubDatasetCLass:
             ds_path = cfg.deeplake_path
             self.ds = dp.load(ds_path, token=token)
         tensors = tensors or {}
-        labels_tensor = tensors.get("gt_labels") or _find_tensor_with_htype(self.ds, "class_label")
+        labels_tensor = tensors.get("gt_labels") or _find_tensor_with_htype(
+            self.ds, "class_label"
+        )
         self.CLASSES = self.ds[labels_tensor].info.class_names
         # self.pipeline = cfg.pipeline
-
-
-rand_crop = A.Compose(
-    [
-        A.RandomSizedBBoxSafeCrop(width=128, height=128, erosion_rate=0.2),
-    ],
-    bbox_params=A.BboxParams(
-        format="pascal_voc",
-        label_fields=["labels", "bbox_ids"],
-        min_area=25,
-        min_visibility=0.6,
-    ),
-)
 
 
 def _find_tensor_with_htype(ds: dp.Dataset, htype: str):
@@ -440,37 +530,39 @@ def transform(
     boxes_tensor: str,
     labels_tensor: str,
     pipeline: Callable,
-    bbox_info: str
+    bbox_info: str,
+    metrics_format: str,
+    poly2mask: bool,
 ):
     img = sample_in[images_tensor]
     if not isinstance(img, np.ndarray):
         img = np.array(img)
-    if masks_tensor:
-        masks = sample_in[masks_tensor]
-        if not isinstance(masks, np.ndarray):
-            masks = np.array(masks)
-    else:
-        masks = None
+
     bboxes = sample_in[boxes_tensor]
     bboxes = convert_to_pascal_format(bboxes, bbox_info, img.shape)
     labels = sample_in[labels_tensor]
 
+    if img.ndim == 2:
+        img = np.expand_dims(img, -1)
+
     img = img[..., ::-1]  # rgb_to_bgr should be optional
     if img.shape[2] == 1:
         img = np.repeat(img, 3, axis=2)
-    if masks is not None:
-        masks = masks.transpose((2, 0, 1)).astype(np.uint8)
-
     shape = img.shape
 
-    if masks is not None:
+    if masks_tensor:
+        masks = sample_in[masks_tensor]
+        if poly2mask:
+            masks = poly_2_mask(masks, shape)
+        elif masks.dtype != np.uint8:
+            masks = masks.astype(np.uint8)
+        masks = masks.transpose((2, 0, 1))
         gt_masks = BitmapMasks(masks, *shape[:2])
     else:
         gt_masks = None
 
     return pipeline(
         {
-            "mix_results": True,
             "img": img,
             "img_fields": ["img"],
             "filename": None,
@@ -483,6 +575,7 @@ def transform(
             "bbox_fields": ["gt_bboxes"],
         }
     )
+
 
 def build_dataset(cfg, tensors=None, *args, **kwargs):
     if isinstance(cfg, dp.Dataset):
@@ -502,6 +595,7 @@ def build_dataloader(
     implementation,
     pipeline,
     mode="train",
+    shuffle=None,
     **train_loader_config,
 ):
     if isinstance(dataset, dp.Dataset):
@@ -509,9 +603,16 @@ def build_dataloader(
     if isinstance(dataset, HubDatasetCLass):
         classes = dataset.CLASSES
         images_tensor = images_tensor or _find_tensor_with_htype(dataset.ds, "image")
+        poly2mask = False
         masks_tensor = masks_tensor or _find_tensor_with_htype(
             dataset.ds, "binary_mask"
         )
+        if masks_tensor is None:
+            masks_tensor = _find_tensor_with_htype(dataset.ds, "polygon")
+            if masks_tensor is not None:
+                poly2mask = True
+        elif dataset.ds[masks_tensor].htype == "polygon":
+            poly2mask = True
         boxes_tensor = boxes_tensor or _find_tensor_with_htype(dataset.ds, "bbox")
         bbox_info = dataset.ds[boxes_tensor].info
         labels_tensor = labels_tensor or _find_tensor_with_htype(
@@ -527,9 +628,11 @@ def build_dataloader(
             labels_tensor=labels_tensor,
             pipeline=pipeline,
             bbox_info=bbox_info,
+            poly2mask=poly2mask,
         )
         num_workers = train_loader_config["workers_per_gpu"]
-        shuffle = train_loader_config.get("shuffle", True)
+        if shuffle is None:
+            shuffle = train_loader_config.get("shuffle", True)
         tensors_dict = {
             "images_tensor": images_tensor,
             "boxes_tensor": boxes_tensor,
@@ -542,9 +645,7 @@ def build_dataloader(
 
         batch_size = train_loader_config.get("samples_per_gpu", 1)
 
-        collate_fn = partial(
-            collate, samples_per_gpu=batch_size
-        )
+        collate_fn = partial(collate, samples_per_gpu=batch_size)
 
         if implementation == "python":
             loader = dataset.ds.pytorch(
@@ -563,7 +664,6 @@ def build_dataloader(
             )
 
         else:
-            assert num_workers < 2,  num_workers
             loader = (
                 dataloader(dataset.ds)
                 .transform(transform_fn)
@@ -613,6 +713,7 @@ def train_detector(
     labels_tensor: Optional[str] = None,
     dataloader: str = None,
     metrics_format=None,
+    shuffle=None,
 ):
 
     cfg = compat_cfg(cfg)
@@ -670,6 +771,7 @@ def train_detector(
             labels_tensor,
             pipeline=cfg.get("train_pipeline", []),
             implementation=dl_impl,
+            shuffle=shuffle,
             **train_loader_cfg,
         )
         for ds in dataset
@@ -743,6 +845,7 @@ def train_detector(
             persistent_workers=False,
             mode="val",
             metrics_format=metrics_format,
+            shuffle=False,
         )
 
         val_dataloader_args = {
