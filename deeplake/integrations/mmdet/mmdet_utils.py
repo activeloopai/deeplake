@@ -27,13 +27,8 @@ def _isArrayLike(obj):
 
 
 class _COCO(pycocotools_coco.COCO):
-<<<<<<< HEAD
-    def __init__(
-        self, hub_dataset=None, imgs=None, masks=None, bboxes=None, labels=None
-    ):
-=======
+
     def __init__(self, hub_dataset=None, imgs=None, masks=None, bboxes=None, labels=None, iscrowds=None):
->>>>>>> new_branch
         """
         Constructor of Microsoft COCO helper class for reading and visualizing annotations.
         :param annotation_file (str): location of annotation file
@@ -287,20 +282,8 @@ class HubCOCO(_COCO):
         if getattr(pycocotools, "__version__", "0") >= "12.0.2":
             warnings.warn(
                 'mmpycocotools is deprecated. Please install official pycocotools by "pip install pycocotools"',  # noqa: E501
-<<<<<<< HEAD
-                UserWarning,
-            )
-        super().__init__(
-            hub_dataset=hub_dataset,
-            imgs=imgs,
-            masks=masks,
-            labels=labels,
-            bboxes=bboxes,
-        )
-=======
                 UserWarning)
         super().__init__(hub_dataset=hub_dataset, imgs=imgs, masks=masks, labels=labels, bboxes=bboxes, iscrowds=iscrowds)
->>>>>>> new_branch
         self.img_ann_map = self.imgToAnns
         self.cat_img_map = self.catToImgs
 
@@ -393,13 +376,7 @@ class COCODatasetEvaluater(mmdet_coco.CocoDataset):
             list[dict]: Annotation info from COCO api.
         """
 
-<<<<<<< HEAD
-        self.coco = HubCOCO(
-            hub_dataset, imgs=imgs, labels=labels, bboxes=bboxes, masks=masks
-        )
-=======
         self.coco = HubCOCO(hub_dataset, imgs=imgs, labels=labels, bboxes=bboxes, masks=masks, iscrowds=iscrowds)
->>>>>>> new_branch
         # The order of returned `cat_ids` will not
         # change with the order of the CLASSES
         self.cat_ids = self.coco.get_cat_ids(cat_names=self.CLASSES)
