@@ -659,11 +659,19 @@ def json_collate_fn(batch):
     return torch.utils.data._utils.collate.default_collate(batch)
 
 
+def json_transform_fn(sample):
+    return sample[0]["x"]
+
+
 def list_collate_fn(batch):
     import torch
 
     batch = [np.array([it["a"][0], it["a"][1]]) for it in batch]
     return torch.utils.data._utils.collate.default_collate(batch)
+
+
+def list_transform_fn(sample):
+    return np.array([sample[0], sample[1]])
 
 
 def test_pytorch_json(local_ds):
@@ -673,7 +681,7 @@ def test_pytorch_json(local_ds):
         ds.a.append({"x": 1})
         ds.a.append({"x": 2})
 
-    ptds = ds.pytorch(transform={"a": lambda x: x[0]["x"]}, batch_size=2)
+    ptds = ds.pytorch(transform={"a": json_transform_fn}, batch_size=2)
     batch = next(iter(ptds))
     np.testing.assert_equal(batch["a"], np.array([1, 2]))
 
