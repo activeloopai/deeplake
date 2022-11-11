@@ -1,4 +1,3 @@
-import io
 from logging import warning
 import deeplake
 from deeplake.util.exceptions import (
@@ -18,7 +17,7 @@ from deeplake.compression import (
 from typing import Union, Tuple, Sequence, List, Optional, BinaryIO
 import numpy as np
 from pathlib import Path
-from PIL import Image, UnidentifiedImageError  # type: ignore
+from PIL import Image  # type: ignore
 from io import BytesIO
 
 import mmap
@@ -248,7 +247,8 @@ def decompress_array(
     end_idx: Optional[int] = None,
     step: Optional[int] = None,
     reverse: bool = False,
-) -> np.ndarray:
+    to_pil: bool = False,
+) -> Union[np.ndarray, Image.Image]:
     """Decompress some buffer into a numpy array. It is expected that all meta information is
     stored inside `buffer`.
 
@@ -271,7 +271,7 @@ def decompress_array(
         ValueError: If dtype and shape are not specified for byte compression.
 
     Returns:
-        np.ndarray: Array from the decompressed buffer.
+        Union[np.ndarray, Image.Image]: Decompressed array or PIL image.
     """
     compr_type = get_compression_type(compression)
     if compr_type == BYTE_COMPRESSION:
@@ -304,6 +304,8 @@ def decompress_array(
         if not isinstance(buffer, str):
             buffer = BytesIO(buffer)  # type: ignore
         img = Image.open(buffer)  # type: ignore
+        if to_pil:
+            return img
         arr = np.array(img)
         if shape is not None:
             arr = arr.reshape(shape)
