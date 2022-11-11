@@ -27,9 +27,13 @@ def _isArrayLike(obj):
 
 
 class _COCO(pycocotools_coco.COCO):
+<<<<<<< HEAD
     def __init__(
         self, hub_dataset=None, imgs=None, masks=None, bboxes=None, labels=None
     ):
+=======
+    def __init__(self, hub_dataset=None, imgs=None, masks=None, bboxes=None, labels=None, iscrowds=None):
+>>>>>>> new_branch
         """
         Constructor of Microsoft COCO helper class for reading and visualizing annotations.
         :param annotation_file (str): location of annotation file
@@ -40,6 +44,7 @@ class _COCO(pycocotools_coco.COCO):
         self.bboxes = bboxes
         self.labels = labels
         self.img_shapes = imgs
+        self.iscrowds = iscrowds
 
         # load dataset
         self.anns, self.cats, self.imgs = dict(), dict(), dict()
@@ -56,17 +61,10 @@ class _COCO(pycocotools_coco.COCO):
         imgToAnns, catToImgs = defaultdict(list), defaultdict(list)
         absolute_id = 0
         all_categories = self.labels
-        # print("categories created")
         all_bboxes = self.bboxes
-        # print("boxes created")
         all_masks = self.masks
-        # print("masks created")
         all_imgs = self.img_shapes
-        if "iscrowds" in self.dataset.tensors:
-            all_iscrowds = self.dataset["iscrowds"].numpy(aslist=True)
-        else:
-            all_iscrowds = None
-        # print("iscrowds created")
+        all_iscrowds = self.iscrowds
 
         for row_index, row in enumerate(self.dataset):
             categories = all_categories[row_index]  # make referencig custom
@@ -284,10 +282,12 @@ class HubCOCO(_COCO):
         masks=None,
         bboxes=None,
         labels=None,
+        iscrowds=None,
     ):
         if getattr(pycocotools, "__version__", "0") >= "12.0.2":
             warnings.warn(
                 'mmpycocotools is deprecated. Please install official pycocotools by "pip install pycocotools"',  # noqa: E501
+<<<<<<< HEAD
                 UserWarning,
             )
         super().__init__(
@@ -297,6 +297,10 @@ class HubCOCO(_COCO):
             labels=labels,
             bboxes=bboxes,
         )
+=======
+                UserWarning)
+        super().__init__(hub_dataset=hub_dataset, imgs=imgs, masks=masks, labels=labels, bboxes=bboxes, iscrowds=iscrowds)
+>>>>>>> new_branch
         self.img_ann_map = self.imgToAnns
         self.cat_img_map = self.catToImgs
 
@@ -336,6 +340,7 @@ class COCODatasetEvaluater(mmdet_coco.CocoDataset):
         masks=None,
         bboxes=None,
         labels=None,
+        iscrowds=None,
     ):
         self.img_prefix = img_prefix
         self.seg_prefix = seg_prefix
@@ -352,6 +357,7 @@ class COCODatasetEvaluater(mmdet_coco.CocoDataset):
             labels=labels,
             masks=masks,
             bboxes=bboxes,
+            iscrowds=iscrowds,
         )
         self.proposals = None
 
@@ -376,6 +382,7 @@ class COCODatasetEvaluater(mmdet_coco.CocoDataset):
         labels=None,
         masks=None,
         bboxes=None,
+        iscrowds=None,
     ):
         """Load annotation from COCO style annotation file.
 
@@ -386,9 +393,13 @@ class COCODatasetEvaluater(mmdet_coco.CocoDataset):
             list[dict]: Annotation info from COCO api.
         """
 
+<<<<<<< HEAD
         self.coco = HubCOCO(
             hub_dataset, imgs=imgs, labels=labels, bboxes=bboxes, masks=masks
         )
+=======
+        self.coco = HubCOCO(hub_dataset, imgs=imgs, labels=labels, bboxes=bboxes, masks=masks, iscrowds=iscrowds)
+>>>>>>> new_branch
         # The order of returned `cat_ids` will not
         # change with the order of the CLASSES
         self.cat_ids = self.coco.get_cat_ids(cat_names=self.CLASSES)
