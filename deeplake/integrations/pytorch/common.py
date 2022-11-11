@@ -94,11 +94,11 @@ def validate_decode_method(decode_method, all_tensor_keys, jpeg_png_compressed_t
         if tensor_name in jpeg_png_compressed_tensors_set:
             if decode_method not in jpeg_png_supported_decode_methods:
                 raise ValueError(
-                    f"decode_method {decode_method} not supported for tensor {tensor_name}. Supported methods are {jpeg_png_supported_decode_methods}"
+                    f"decode_method {decode_method} not supported for tensor {tensor_name}. Supported methods for this tensor are {jpeg_png_supported_decode_methods}"
                 )
         elif decode_method not in generic_supported_decode_methods:
             raise ValueError(
-                f"decode_method {decode_method} not supported for tensor {tensor_name}. Supported methods are {generic_supported_decode_methods}"
+                f"decode_method {decode_method} not supported for tensor {tensor_name}. Supported methods for this tensor are {generic_supported_decode_methods}"
             )
         if decode_method == "tobytes":
             raw_tensors.append(tensor_name)
