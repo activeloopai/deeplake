@@ -206,7 +206,6 @@ class MMDetDataset(TorchDataset):
 
         if self.metrics_format == "COCO" and self.mode == "val":
             self.evaluator = mmdet_utils.COCODatasetEvaluater(
-<<<<<<< HEAD
                     pipeline, 
                     classes=self.CLASSES, 
                     hub_dataset=self.dataset,
@@ -216,23 +215,13 @@ class MMDetDataset(TorchDataset):
                     labels=self.labels,
                     iscrowds=self.iscrowds,
                 )
-=======
-                pipeline,
-                classes=self.CLASSES,
-                hub_dataset=self.dataset,
-                imgs=self.images,
-                masks=self.masks,
-                bboxes=self.bboxes,
-                labels=self.labels,
-            )
->>>>>>> c29d332f7d226feb2a808595a32505bc501ab48d
         else:
             self.evaluator = None
 
     def _get_images(self, images_tensor):
         image_tensor = self.dataset[images_tensor]
-        image_list = [image.shape for image in image_tensor]
-        return image_list
+        # image_list = [image.shape for image in image_tensor]
+        return image_tensor
 
     def _get_masks(self, masks_tensor, shape):
         if masks_tensor is None:
@@ -531,7 +520,6 @@ def transform(
     labels_tensor: str,
     pipeline: Callable,
     bbox_info: str,
-    metrics_format: str,
     poly2mask: bool,
 ):
     img = sample_in[images_tensor]
@@ -845,7 +833,6 @@ def train_detector(
             persistent_workers=False,
             mode="val",
             metrics_format=metrics_format,
-            shuffle=False,
         )
 
         val_dataloader_args = {

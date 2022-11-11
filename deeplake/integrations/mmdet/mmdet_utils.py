@@ -281,7 +281,6 @@ class HubCOCO(_COCO):
         if getattr(pycocotools, "__version__", "0") >= "12.0.2":
             warnings.warn(
                 'mmpycocotools is deprecated. Please install official pycocotools by "pip install pycocotools"',  # noqa: E501
-<<<<<<< HEAD
                 UserWarning)
         super().__init__(hub_dataset=hub_dataset, imgs=imgs, masks=masks, labels=labels, bboxes=bboxes, iscrowds=iscrowds)
         self.img_ann_map = self.imgToAnns
