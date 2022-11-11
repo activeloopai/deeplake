@@ -47,12 +47,13 @@ def coco_2_pascal(boxes, shape):
 
 def poly_2_mask(polygons, shape):
     # TODO This doesnt fill the array inplace.
-    out = np.zeros((len(polygons),) + shape, dtype=np.uint8)
+    out = np.zeros(shape + (len(polygons),), dtype=np.uint8)
     for i, polygon in enumerate(polygons):
-        im = Image.fromarray(out[i])
+        im = Image.fromarray(out[..., i])
         d = ImageDraw.Draw(im)
         d.polygon(polygon, fill=1)
-        out[i] = np.asarray(im)
+        out[..., i] = np.asarray(im)
+    return out
 
 
 class MMDetDataset(TorchDataset):
@@ -568,8 +569,9 @@ def transform(
         masks = sample_in[masks_tensor]
         if poly2mask:
             masks = poly_2_mask(masks, shape)
-        else:
-            masks = masks.transpose((2, 0, 1)).astype(np.uint8)
+        elif masks.dtype != np.uint8:
+            masks = masks.astype(np.uint8)
+        masks = masks.transpose((2, 0, 1))
         gt_masks = BitmapMasks(masks, *shape[:2])
     else:
         gt_masks = None
