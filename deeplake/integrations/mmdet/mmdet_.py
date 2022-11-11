@@ -824,7 +824,6 @@ def train_detector(
             persistent_workers=False,
             mode="val",
             metrics_format=metrics_format,
-            shuffle=False,
         )
 
         val_dataloader_args = {
