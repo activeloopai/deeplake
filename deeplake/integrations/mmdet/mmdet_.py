@@ -18,6 +18,7 @@ from deeplake.util.warnings import always_warn
 import os.path as osp
 import warnings
 from collections import OrderedDict
+import mmcv
 
 import numpy as np
 from mmcv.utils import print_log
@@ -459,11 +460,12 @@ class MMDetDataset(TorchDataset):
 
 
 class HubDatasetCLass:
-    def __init__(self, cfg=None, ds=None, tensors=None):
+    def __init__(self, cfg=None, ds=None, tensors=None, mode="train"):
         if ds:
             self.ds = ds
+            tensors = tensors or {}
         else:
-            creds = cfg.get("deeplake_credentials", {})
+            creds = cfg.data[mode].get("deeplake_credentials", {})
             token = creds.get("token", None)
             if token is None:
                 uname = creds.get("username")
@@ -471,17 +473,21 @@ class HubDatasetCLass:
                     pword = creds["password"]
                     client = DeepLakeBackendClient()
                     token = client.request_auth_token(username=uname, password=pword)
-            ds_path = cfg.deeplake_path
+            ds_path = cfg.data[mode].deeplake_path
             self.ds = dp.load(ds_path, token=token)
-        tensors = tensors or {}
-        labels_tensor = tensors.get("gt_labels") or _find_tensor_with_htype(
-            self.ds, "class_label"
-        )
+            tensors = cfg.get("deeplake_tensors", {})
+
+        labels_tensor = tensors.get("gt_labels")
+        if labels_tensor is None:
+            labels_tensor =  _find_tensor_with_htype(
+                self.ds, "class_label"
+            )
         self.CLASSES = self.ds[labels_tensor].info.class_names
-        # self.pipeline = cfg.pipeline
 
 
-def _find_tensor_with_htype(ds: dp.Dataset, htype: str):
+def _find_tensor_with_htype(ds: dp.Dataset, htype: str, mmdet_class=None):
+    if mmdet_class is not None:
+        always_warn(f"No deeplake tensor name were specified for '{mmdet_class} in config. Fetching it using htype '{htype}'.")
     tensors = [k for k, v in ds.tensors.items() if v.meta.htype == htype]
     if not tensors:
         always_warn(f"No tensor found with htype='{htype}'")
@@ -545,13 +551,33 @@ def transform(
     )
 
 
-def build_dataset(cfg, tensors=None, *args, **kwargs):
+def build_dataset(cfg, tensors=None, mode="train", *args, **kwargs):
     if isinstance(cfg, dp.Dataset):
-        return HubDatasetCLass(ds=cfg, tensors=tensors)
-    if "deeplake_path" in cfg:
+        return HubDatasetCLass(ds=cfg, tensors=tensors, mode=mode)
+    if "deeplake_path" in cfg.data[mode]:
         # TO DO: add preprocessing functions related to mmdet dataset classes like RepeatDataset etc...
-        return HubDatasetCLass(cfg=cfg)
+        return HubDatasetCLass(cfg=cfg, mode=mode)
     return mmdet_build_dataset(cfg, *args, **kwargs)
+
+
+def _get_collate_keys(pipeline):
+    if type(pipeline) == list:
+        for transform in pipeline:
+            if type(transform) == mmcv.utils.config.ConfigDict:
+                keys = transform.get("keys") or _get_collate_keys(transform)
+                if keys is not None:
+                    return keys
+
+    if type(pipeline) == mmcv.utils.config.ConfigDict:
+        keys = pipeline.get("keys")
+        if keys is not None:
+            return keys
+        
+        for transform in pipeline:
+            if type(pipeline[transform]) == list:
+                keys = _get_collate_keys(pipeline[transform])
+                if keys is not None:
+                    return keys
 
 
 def build_dataloader(
@@ -569,23 +595,37 @@ def build_dataloader(
     if isinstance(dataset, dp.Dataset):
         dataset = HubDatasetCLass(ds=dataset, tensors={"gt_labels": labels_tensor})
     if isinstance(dataset, HubDatasetCLass):
-        classes = dataset.CLASSES
-        images_tensor = images_tensor or _find_tensor_with_htype(dataset.ds, "image")
+        if images_tensor is None:
+            images_tensor = _find_tensor_with_htype(dataset.ds, "image", mmdet_class="img")
+        
         poly2mask = False
-        masks_tensor = masks_tensor or _find_tensor_with_htype(
-            dataset.ds, "binary_mask"
-        )
-        if masks_tensor is None:
-            masks_tensor = _find_tensor_with_htype(dataset.ds, "polygon")
-            if masks_tensor is not None:
+        used_labels = _get_collate_keys(pipeline)
+        if "gt_masks" in used_labels:
+            if masks_tensor is None:
+                masks_tensor = _find_tensor_with_htype(
+                    dataset.ds, "binary_mask", mmdet_class="gt_masks",
+                )
+                always_warn("No tensors with htype binary mask was found searching for polygon htype ...")
+            
+            if masks_tensor is None:
+                masks_tensor = _find_tensor_with_htype(dataset.ds, "polygon")
+                if masks_tensor is not None:
+                    poly2mask = True
+            elif dataset.ds[masks_tensor].htype == "polygon":
                 poly2mask = True
-        elif dataset.ds[masks_tensor].htype == "polygon":
-            poly2mask = True
-        boxes_tensor = boxes_tensor or _find_tensor_with_htype(dataset.ds, "bbox")
+        
+        if boxes_tensor is None:
+            boxes_tensor = _find_tensor_with_htype(dataset.ds, "bbox", mmdet_class="gt_boxes")
+        
         bbox_info = dataset.ds[boxes_tensor].info
-        labels_tensor = labels_tensor or _find_tensor_with_htype(
-            dataset.ds, "class_label"
-        )
+        
+        if labels_tensor is None:
+            labels_tensor = _find_tensor_with_htype(
+                dataset.ds, "class_label", mmdet_class="gt_labels",
+            )
+
+        classes = dataset.CLASSES
+
         pipeline = build_pipeline(pipeline)
         metrics_format = train_loader_config.get("metrics_format")
         transform_fn = partial(
@@ -824,7 +864,7 @@ def train_detector(
         if val_dataloader_args["samples_per_gpu"] > 1:
             # Replace 'ImageToTensor' to 'DefaultFormatBundle'
             cfg.data.val.pipeline = replace_ImageToTensor(cfg.data.val.pipeline)
-        val_dataset = build_dataset(cfg.data.val, tensors=tensors)
+        val_dataset = build_dataset(cfg, tensors=tensors, mode="val")
 
         val_dataloader = build_dataloader(
             val_dataset,
