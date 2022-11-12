@@ -91,7 +91,7 @@ def yolo_frac_2_pascal_pixel(boxes, shape):
 
 
 def get_bbox_format(bbox, bbox_info):
-    bbox_info = bbox_info.coords
+    bbox_info = bbox_info.get("coords", {})
     mode = bbox_info.get("mode", "LTWH")
     type = bbox_info.get("type", "pixel")
 
@@ -151,17 +151,6 @@ def yolo_frac_2_pascal_pixel(boxes, shape):
     return yolo_pixel_2_pascal_pixel(bbox, shape)
 
 
-def get_bbox_format(bbox, bbox_info):
-    bbox_info = bbox_info.coords
-    mode = bbox_info.get("mode", "LTWH")
-    type = bbox_info.get("type", "pixel")
-
-    if len(bbox_info) == 0 and np.mean(bbox) < 1:
-        mode = "CCWH"
-        type = "fractional"
-    return (mode, type)
-
-
 BBOX_FORMAT_TO_CONVERTER = {
     ("LTWH", "pixel"): coco_pixel_2_pascal_pixel,
     ("LTWH", "fractional"): coco_frac_2_pascal_pixel,
@@ -198,8 +187,6 @@ class MMDetDataset(TorchDataset):
         self.bboxes = self._get_bboxes(tensors_dict["boxes_tensor"])
         self.labels = self._get_labels(tensors_dict["labels_tensor"])
         self.iscrowds = self._get_iscrowds(tensors_dict.get("iscrowds"))
-
-        self._classes = self.dataset[tensors_dict["labels_tensor"]].info.class_names
         self.CLASSES = self.get_classes(tensors_dict["labels_tensor"])
         self.mode = mode
         self.metrics_format = metrics_format
@@ -241,12 +228,14 @@ class MMDetDataset(TorchDataset):
         always_warn("iscrowds tensor was not found, setting its value to 0.")
         return iscrowds_tensor
 
-
     def _get_bboxes(self, boxes_tensor):
         return self.dataset[boxes_tensor].numpy(aslist=True)
 
     def _get_labels(self, labels_tensor):
         return self.dataset[labels_tensor].numpy(aslist=True)
+    
+    def _get_class_names(self, labels_tensor):
+        return self.dataset[labels_tensor].info.class_names
 
     def get_ann_info(self, idx):
         """Get annotation by index.
@@ -303,7 +292,7 @@ class MMDetDataset(TorchDataset):
         Returns:
             tuple[str] or list[str]: Names of categories of the dataset.
         """
-        return self._classes
+        return  self.dataset[classes].info.class_names
 
     def evaluate(
         self,

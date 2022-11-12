@@ -28,7 +28,7 @@ def _isArrayLike(obj):
 
 class _COCO(pycocotools_coco.COCO):
 
-    def __init__(self, hub_dataset=None, imgs=None, masks=None, bboxes=None, labels=None, iscrowds=None):
+    def __init__(self, hub_dataset=None, imgs=None, masks=None, bboxes=None, labels=None, iscrowds=None, class_names=None):
         """
         Constructor of Microsoft COCO helper class for reading and visualizing annotations.
         :param annotation_file (str): location of annotation file
@@ -40,6 +40,7 @@ class _COCO(pycocotools_coco.COCO):
         self.labels = labels
         self.img_shapes = imgs
         self.iscrowds = iscrowds
+        self.class_names = class_names
 
         # load dataset
         self.anns, self.cats, self.imgs = dict(), dict(), dict()
@@ -64,7 +65,10 @@ class _COCO(pycocotools_coco.COCO):
         for row_index, row in enumerate(self.dataset):
             categories = all_categories[row_index]  # make referencig custom
             bboxes = all_bboxes[row_index]
-            masks = all_masks[row_index]
+            if all_masks != [] and all_masks is not None:
+                masks = all_masks[row_index]
+            else:
+                masks = None
             if all_iscrowds is not None:
                 is_crowds = all_iscrowds[row_index]
             else:
@@ -93,9 +97,8 @@ class _COCO(pycocotools_coco.COCO):
                 imgToAnns[row_index].append(ann)
                 anns[absolute_id] = ann
                 absolute_id += 1
-        category_names = self.dataset[
-            "categories"
-        ].info.class_names  # TO DO: add super category names
+        
+        category_names = self.class_names  # TO DO: add super category names
         category_names = [
             {"id": cat_id, "name": name} for cat_id, name in enumerate(category_names)
         ]
@@ -278,12 +281,13 @@ class HubCOCO(_COCO):
         bboxes=None,
         labels=None,
         iscrowds=None,
+        class_names=None,
     ):
         if getattr(pycocotools, "__version__", "0") >= "12.0.2":
             warnings.warn(
                 'mmpycocotools is deprecated. Please install official pycocotools by "pip install pycocotools"',  # noqa: E501
                 UserWarning)
-        super().__init__(hub_dataset=hub_dataset, imgs=imgs, masks=masks, labels=labels, bboxes=bboxes, iscrowds=iscrowds)
+        super().__init__(hub_dataset=hub_dataset, imgs=imgs, masks=masks, labels=labels, bboxes=bboxes, iscrowds=iscrowds, class_names=class_names)
         self.img_ann_map = self.imgToAnns
         self.cat_img_map = self.catToImgs
 
@@ -341,6 +345,7 @@ class COCODatasetEvaluater(mmdet_coco.CocoDataset):
             masks=masks,
             bboxes=bboxes,
             iscrowds=iscrowds,
+            class_names=self.CLASSES,
         )
         self.proposals = None
 
@@ -366,6 +371,7 @@ class COCODatasetEvaluater(mmdet_coco.CocoDataset):
         masks=None,
         bboxes=None,
         iscrowds=None,
+        class_names=None,
     ):
         """Load annotation from COCO style annotation file.
 
@@ -376,7 +382,7 @@ class COCODatasetEvaluater(mmdet_coco.CocoDataset):
             list[dict]: Annotation info from COCO api.
         """
 
-        self.coco = HubCOCO(hub_dataset, imgs=imgs, labels=labels, bboxes=bboxes, masks=masks, iscrowds=iscrowds)
+        self.coco = HubCOCO(hub_dataset, imgs=imgs, labels=labels, bboxes=bboxes, masks=masks, iscrowds=iscrowds, class_names=class_names)
         # The order of returned `cat_ids` will not
         # change with the order of the CLASSES
         self.cat_ids = self.coco.get_cat_ids(cat_names=self.CLASSES)
