@@ -723,6 +723,7 @@ def build_dataloader(
                     distributed=dist,
                 )
             )
+            loader.sampler = None
             mmdet_ds = MMDetDataset(
                 dataset=dataset.ds,
                 metrics_format=metrics_format,
