@@ -31,6 +31,8 @@ from deeplake.experimental.dataloader import indra_available, dataloader
 from PIL import Image, ImageDraw
 import os
 
+class Dummy():
+    pass
 
 def coco_pixel_2_pascal_pixel(boxes, shape):
     # Convert bounding boxes to Pascal VOC format and clip bounding boxes to make sure they have non-negative width and height
@@ -723,8 +725,12 @@ def build_dataloader(
                     distributed=dist,
                 )
             )
+
+            # For DDP
             loader.sampler = None
-            loader.batch_sampler = None
+            loader.batch_sampler = Dummy()
+            loader.batch_sampler.sampler = None
+
             mmdet_ds = MMDetDataset(
                 dataset=dataset.ds,
                 metrics_format=metrics_format,
