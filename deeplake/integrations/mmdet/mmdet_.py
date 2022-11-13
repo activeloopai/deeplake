@@ -1,6 +1,6 @@
 from collections import OrderedDict
 
-from typing import Callable, Optional
+from typing import Callable
 from mmdet.apis.train import *
 from mmdet.datasets import build_dataloader as mmdet_build_dataloader
 from mmdet.datasets import build_dataset as mmdet_build_dataset
@@ -487,7 +487,7 @@ class HubDatasetCLass:
 
 def _find_tensor_with_htype(ds: dp.Dataset, htype: str, mmdet_class=None):
     if mmdet_class is not None:
-        always_warn(f"No deeplake tensor name were specified for '{mmdet_class} in config. Fetching it using htype '{htype}'.")
+        always_warn(f"No deeplake tensor name specified for '{mmdet_class} in config. Fetching it using htype '{htype}'.")
     tensors = [k for k, v in ds.tensors.items() if v.meta.htype == htype]
     if not tensors:
         always_warn(f"No tensor found with htype='{htype}'")
@@ -628,6 +628,9 @@ def build_dataloader(
 
         pipeline = build_pipeline(pipeline)
         metrics_format = train_loader_config.get("metrics_format")
+        dist = train_loader_config["dist"]
+        if dist and implementation == "python":
+            raise NotImplementedError("Distributed training is not supported by the python data loader. Set deeplake_dataloader='c++' to use the C++ dtaloader instead.")
         transform_fn = partial(
             transform,
             images_tensor=images_tensor,
@@ -638,7 +641,7 @@ def build_dataloader(
             bbox_info=bbox_info,
             poly2mask=poly2mask,
         )
-        num_workers = train_loader_config["workers_per_gpu"]
+        num_workers = train_loader_config["workers_per_gpu"] * train_loader_config["num_gpus"]
         if shuffle is None:
             shuffle = train_loader_config.get("shuffle", True)
         tensors_dict = {
@@ -651,7 +654,7 @@ def build_dataloader(
             tensors.append(masks_tensor)
             tensors_dict["masks_tensor"] = masks_tensor
 
-        batch_size = train_loader_config.get("samples_per_gpu", 1)
+        batch_size = train_loader_config["samples_per_gpu"] * train_loader_config["num_gpus"]
 
         collate_fn = partial(collate, samples_per_gpu=batch_size)
 
@@ -678,7 +681,7 @@ def build_dataloader(
                 .shuffle(shuffle)
                 .batch(batch_size)
                 .pytorch(
-                    num_workers=num_workers, collate_fn=collate_fn, tensors=tensors
+                    num_workers=num_workers, collate_fn=collate_fn, tensors=tensors, distributed=dist,
                 )
             )
             mmdet_ds = MMDetDataset(
@@ -711,17 +714,13 @@ def train_detector(
     model,
     dataset,
     cfg,
+    validation_dataset=None,
     distributed=False,
-    validate=False,
     timestamp=None,
     meta=None,
-    images_tensor: Optional[str] = None,  # from config file
-    masks_tensor: Optional[str] = None,
-    boxes_tensor: Optional[str] = None,
-    labels_tensor: Optional[str] = None,
     dataloader: str = None,
     metrics_format=None,
-    shuffle=None,
+    validate=False,
 ):
 
     cfg = compat_cfg(cfg)
@@ -738,11 +737,17 @@ def train_detector(
             "`deeplake_dataloader` should be one of ['auto', 'c++', 'python']."
         )
 
-    tensors = cfg.get("deeplake_tensors", {})
-    images_tensor = images_tensor or tensors.get("img")
-    masks_tensor = masks_tensor or tensors.get("gt_masks")
-    boxes_tensor = boxes_tensor or tensors.get("gt_bboxes")
-    labels_tensor = labels_tensor or tensors.get("gt_labels")
+    train_tensors = cfg.data.train.get("deeplake_tensors", {})
+    if train_tensors:
+        train_images_tensor = train_tensors["img"]
+        train_boxes_tensor = train_tensors["gt_bboxes"]
+        train_labels_tensor = train_tensors["gt_labels"]
+        train_masks_tensor = train_tensors.get("gt_masks")
+    else:
+        train_images_tensor = _find_tensor_with_htype(dataset, "image", "img")
+        train_boxes_tensor = _find_tensor_with_htype(dataset, "bbox", "gt_bboxes")
+        train_labels_tensor = _find_tensor_with_htype(dataset, "class_label", "gt_labels")
+        train_masks_tensor = _find_tensor_with_htype(dataset, "binary_mask", "gt_masks") or _find_tensor_with_htype(dataset, "polygon", "gt_masks")
 
     metrics_format = eval_cfg.get("metrics_format", "PascalVOC")
 
@@ -773,13 +778,12 @@ def train_detector(
     data_loaders = [
         build_dataloader(
             ds,
-            images_tensor,
-            masks_tensor,
-            boxes_tensor,
-            labels_tensor,
+            train_images_tensor,
+            train_masks_tensor,
+            train_boxes_tensor,
+            train_labels_tensor,
             pipeline=cfg.get("train_pipeline", []),
             implementation=dl_impl,
-            shuffle=shuffle,
             **train_loader_cfg,
         )
         for ds in dataset
@@ -844,7 +848,21 @@ def train_detector(
             runner.register_hook(DistSamplerSeedHook())
 
     # register eval hooks
-    if validate:
+    if validation_dataset or validate:
+
+        val_tensors = cfg.data.val.get("deeplake_tensors", {})
+        if val_tensors:
+            val_images_tensor = val_tensors["img"]
+            val_boxes_tensor = val_tensors["gt_bboxes"]
+            val_labels_tensor = val_tensors["gt_labels"]
+            val_masks_tensor = val_tensors.get("gt_masks")
+        else:
+            val_images_tensor = _find_tensor_with_htype(dataset, "image", "img")
+            val_boxes_tensor = _find_tensor_with_htype(dataset, "bbox", "gt_bboxes")
+            val_labels_tensor = _find_tensor_with_htype(dataset, "class_label", "gt_labels")
+            val_masks_tensor = _find_tensor_with_htype(dataset, "binary_mask", "gt_masks") or _find_tensor_with_htype(dataset, "polygon", "gt_masks")
+
+
         val_dataloader_default_args = dict(
             samples_per_gpu=1,
             workers_per_gpu=1,
@@ -864,14 +882,14 @@ def train_detector(
         if val_dataloader_args["samples_per_gpu"] > 1:
             # Replace 'ImageToTensor' to 'DefaultFormatBundle'
             cfg.data.val.pipeline = replace_ImageToTensor(cfg.data.val.pipeline)
-        val_dataset = build_dataset(cfg, tensors=tensors, mode="val")
+        val_dataset = validation_dataset or build_dataset(cfg, tensors=val_tensors, mode="val")
 
         val_dataloader = build_dataloader(
             val_dataset,
-            images_tensor,
-            masks_tensor,
-            boxes_tensor,
-            labels_tensor,
+            val_images_tensor,
+            val_masks_tensor,
+            val_boxes_tensor,
+            val_labels_tensor,
             pipeline=cfg.get("test_pipeline", []),
             implementation=dl_impl,
             **val_dataloader_args,
