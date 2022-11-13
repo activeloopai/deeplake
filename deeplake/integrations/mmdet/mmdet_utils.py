@@ -27,8 +27,16 @@ def _isArrayLike(obj):
 
 
 class _COCO(pycocotools_coco.COCO):
-
-    def __init__(self, hub_dataset=None, imgs=None, masks=None, bboxes=None, labels=None, iscrowds=None, class_names=None):
+    def __init__(
+        self,
+        hub_dataset=None,
+        imgs=None,
+        masks=None,
+        bboxes=None,
+        labels=None,
+        iscrowds=None,
+        class_names=None,
+    ):
         """
         Constructor of Microsoft COCO helper class for reading and visualizing annotations.
         :param annotation_file (str): location of annotation file
@@ -97,7 +105,7 @@ class _COCO(pycocotools_coco.COCO):
                 imgToAnns[row_index].append(ann)
                 anns[absolute_id] = ann
                 absolute_id += 1
-        
+
         category_names = self.class_names  # TO DO: add super category names
         category_names = [
             {"id": cat_id, "name": name} for cat_id, name in enumerate(category_names)
@@ -286,8 +294,17 @@ class HubCOCO(_COCO):
         if getattr(pycocotools, "__version__", "0") >= "12.0.2":
             warnings.warn(
                 'mmpycocotools is deprecated. Please install official pycocotools by "pip install pycocotools"',  # noqa: E501
-                UserWarning)
-        super().__init__(hub_dataset=hub_dataset, imgs=imgs, masks=masks, labels=labels, bboxes=bboxes, iscrowds=iscrowds, class_names=class_names)
+                UserWarning,
+            )
+        super().__init__(
+            hub_dataset=hub_dataset,
+            imgs=imgs,
+            masks=masks,
+            labels=labels,
+            bboxes=bboxes,
+            iscrowds=iscrowds,
+            class_names=class_names,
+        )
         self.img_ann_map = self.imgToAnns
         self.cat_img_map = self.catToImgs
 
@@ -382,7 +399,15 @@ class COCODatasetEvaluater(mmdet_coco.CocoDataset):
             list[dict]: Annotation info from COCO api.
         """
 
-        self.coco = HubCOCO(hub_dataset, imgs=imgs, labels=labels, bboxes=bboxes, masks=masks, iscrowds=iscrowds, class_names=class_names)
+        self.coco = HubCOCO(
+            hub_dataset,
+            imgs=imgs,
+            labels=labels,
+            bboxes=bboxes,
+            masks=masks,
+            iscrowds=iscrowds,
+            class_names=class_names,
+        )
         # The order of returned `cat_ids` will not
         # change with the order of the CLASSES
         self.cat_ids = self.coco.get_cat_ids(cat_names=self.CLASSES)
