@@ -724,6 +724,7 @@ def build_dataloader(
                 )
             )
             loader.sampler = None
+            loader.batch_sampler = None
             mmdet_ds = MMDetDataset(
                 dataset=dataset.ds,
                 metrics_format=metrics_format,
