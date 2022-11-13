@@ -812,24 +812,27 @@ class Tensor:
     def data(self, aslist: bool = False, fetch_chunks: bool = False) -> Any:
         """Returns data in the tensor in a format based on the tensor's base htype.
 
-        - Returns dict with dict["value"] = :meth:`Tensor.text() <text>` for tensors with base htype of 'text'.
+        - If tensor has ``text`` base htype
+            - Returns dict with dict["value"] = :meth:`Tensor.text() <text>`
 
-        - Returns dict with dict["value"] = :meth:`Tensor.dict() <dict>` for tensors with base htype of 'json'.
+        - If tensor has ``json`` base htype
+            - Returns dict with dict["value"] = :meth:`Tensor.dict() <dict>`
 
-        - Returns dict with dict["value"] = :meth:`Tensor.list() <list>` for tensors with base htype of 'list'.
+        - If tensor has ``list`` base htype
+            - Returns dict with dict["value"] = :meth:`Tensor.list() <list>`
 
-        - For video tensors, returns a dict with keys "frames", "timestamps" and "sample_info":
+        - For ``video`` tensors, returns a dict with keys "frames", "timestamps" and "sample_info":
 
             - Value of dict["frames"] will be same as :meth:`numpy`.
             - Value of dict["timestamps"] will be same as :attr:`timestamps` corresponding to the frames.
             - Value of dict["sample_info"] will be same as :attr:`sample_info`.
 
-        - For class_label tensors, returns a dict with keys "value" and "text".
+        - For ``class_label`` tensors, returns a dict with keys "value" and "text".
 
             - Value of dict["value"] will be same as :meth:`numpy`.
             - Value of dict["text"] will be list of class labels as strings.
 
-        - For image or dicom tensors, returns dict with keys "value" and "sample_info".
+        - For ``image`` or ``dicom`` tensors, returns dict with keys "value" and "sample_info".
 
             - Value of dict["value"] will be same as :meth:`numpy`.
             - Value of dict["sample_info"] will be same as :attr:`sample_info`.

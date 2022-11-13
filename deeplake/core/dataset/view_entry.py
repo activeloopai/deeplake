@@ -79,7 +79,7 @@ class ViewEntry:
         Example:
 
             >>> # save view
-            >>> ds[:10].save_view(view_id="first_10")
+            >>> ds[:10].save_view(id="first_10")
             >>> # optimize view
             >>> ds.get_view("first_10").optimize()
             >>> # load optimized view

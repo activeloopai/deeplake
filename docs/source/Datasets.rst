@@ -97,6 +97,8 @@ Dataset Properties
     Dataset.num_samples
     Dataset.read_only
     Dataset.info
+    Dataset.max_len
+    Dataset.min_len
 
 Dataset Version Control
 ~~~~~~~~~~~~~~~~~~~~~~~
@@ -155,3 +157,5 @@ in order to preserve data lineage and prevent the underlying data from changing 
     Dataset.delete_view
     Dataset.get_views
     Dataset.is_view
+    Dataset.min_view
+    Dataset.max_view
