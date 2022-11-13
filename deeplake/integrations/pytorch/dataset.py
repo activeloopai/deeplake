@@ -72,15 +72,6 @@ def copy_tensor(x):
         copy = x.copy()
     if isinstance(copy, Polygons):
         copy = copy.numpy()
-    try:
-        if copy.dtype == "object":
-            raise TypeError(
-                "Tensors of json htype cannot be converted to pytorch tensors automatically. \
-Provide a custom collate function to handle this type of data. \
-Alternatively, you can also exclude these tensors from training using the `tensors` argument of `ds.pytorch()`"
-            )
-    except AttributeError:
-        pass
     return copy
 
 
