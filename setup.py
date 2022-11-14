@@ -103,6 +103,10 @@ config = {
         "Documentation": "https://docs.activeloop.ai/",
         "Source": "https://github.com/activeloopai/deeplake",
     },
+    "license": "MPL-2.0",
+    "classifiers": [
+        "License :: OSI Approved :: Mozilla Public License 2.0 (MPL 2.0)",
+    ],
 }
 
 setup(**config)
