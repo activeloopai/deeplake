@@ -120,5 +120,5 @@ def validate_decode_method(decode_method, all_tensor_keys, jpeg_png_compressed_t
 
 def get_collate_fn(collate, mode):
     if collate is None and mode == "pytorch":
-        return default_collate
+        return collate_fn
     return collate

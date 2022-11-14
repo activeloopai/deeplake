@@ -6,7 +6,6 @@ from deeplake.enterprise.util import (
     raise_indra_installation_error,
     verify_base_storage,
 )
-from deeplake.enterprise.util import collate_fn as default_collate  # type: ignore
 from deeplake.enterprise.libdeeplake_query import query, sample_by
 from deeplake.integrations.pytorch.common import (
     PytorchTransformFunction,
