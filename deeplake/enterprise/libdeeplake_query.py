@@ -3,7 +3,6 @@ from deeplake.util.bugout_reporter import deeplake_reporter
 from typing import Optional, Union
 
 
-
 @deeplake_reporter.record_call
 def query(dataset, query_string: str):
     """Returns a sliced :class:`~deeplake.core.dataset.Dataset` with given query results.
