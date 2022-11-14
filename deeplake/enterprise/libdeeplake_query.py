@@ -1,4 +1,4 @@
-from deeplake.experimental.convert_to_libdeeplake import dataset_to_libdeeplake
+from deeplake.enterprise.convert_to_libdeeplake import dataset_to_libdeeplake
 from deeplake.util.bugout_reporter import deeplake_reporter
 
 
@@ -23,7 +23,7 @@ def query(dataset, query_string: str):
         Query from dataset all the samples with lables other than ``5``
 
         >>> import deeplake
-        >>> from deeplake.experimental import query
+        >>> from deeplake.enterprise import query
         >>> ds = deeplake.load('hub://activeloop/fashion-mnist-train')
         >>> query_ds_train = query(ds_train, "select * where labels != 5")
 

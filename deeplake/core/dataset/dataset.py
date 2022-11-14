@@ -1650,7 +1650,7 @@ class Dataset:
             >>> ds_train = deeplake.load('hub://activeloop/coco-train')
             >>> query_ds_train = ds_train.query("(select * where contains(categories, 'car') limit 1000) union (select * where contains(categories, 'motorcycle') limit 1000)")
         """
-        from deeplake.experimental import query
+        from deeplake.enterprise import query
 
         return query(self, query_string)
 

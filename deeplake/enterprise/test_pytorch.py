@@ -1,5 +1,5 @@
 import pickle
-from deeplake.experimental import dataloader
+from deeplake.enterprise import dataloader
 
 import deeplake
 import numpy as np

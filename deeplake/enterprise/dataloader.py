@@ -1,13 +1,13 @@
 from typing import Callable, Dict, List, Optional, Union
-from deeplake.experimental.convert_to_libdeeplake import dataset_to_libdeeplake  # type: ignore
-from deeplake.experimental.util import (
+from deeplake.enterprise.convert_to_libdeeplake import dataset_to_libdeeplake  # type: ignore
+from deeplake.enterprise.util import (
     create_fetching_schedule,
     find_primary_tensor,
     raise_indra_installation_error,
     verify_base_storage,
 )
-from deeplake.experimental.util import collate_fn as default_collate  # type: ignore
-from deeplake.experimental.libdeeplake_query import query
+from deeplake.enterprise.util import collate_fn as default_collate  # type: ignore
+from deeplake.enterprise.libdeeplake_query import query
 from deeplake.integrations.pytorch.common import (
     PytorchTransformFunction,
     check_tensors,
@@ -172,12 +172,12 @@ class DeepLakeDataLoader:
 
         Examples:
             >>> import deeplake
-            >>> from deeplake.experimental import dataloader
+            >>> from deeplake.enterprise import dataloader
             >>> ds = deeplake.load('hub://activeloop/fashion-mnist-train')
             >>> query_ds_train = dataloader(ds_train).query("select * where labels != 5")
 
             >>> import deeplake
-            >>> from deeplake.experimental import query
+            >>> from deeplake.enterprise import query
             >>> ds_train = deeplake.load('hub://activeloop/coco-train')
             >>> query_ds_train = dataloader(ds_train).query("(select * where contains(categories, 'car') limit 1000) union (select * where contains(categories, 'motorcycle') limit 1000)")
         """
@@ -323,14 +323,14 @@ class DeepLakeDataLoader:
 
 
 def dataloader(dataset) -> DeepLakeDataLoader:
-    """Returns a :class:`~deeplake.experimental.dataloader.DeepLakeDataLoader` object which can be transformed to either pytorch dataloader or numpy.
+    """Returns a :class:`~deeplake.enterprise.dataloader.DeepLakeDataLoader` object which can be transformed to either pytorch dataloader or numpy.
 
 
     Args:
         dataset: :class:`~deeplake.core.dataset.Dataset` object on which dataloader needs to be built
 
     Returns:
-        DeepLakeDataLoader: A :class:`~deeplake.experimental.dataloader.DeepLakeDataLoader` object.
+        DeepLakeDataLoader: A :class:`~deeplake.enterprise.dataloader.DeepLakeDataLoader` object.
 
 
     Examples:
@@ -340,7 +340,7 @@ def dataloader(dataset) -> DeepLakeDataLoader:
 
 
         >>> import deeplake
-        >>> from deeplake.experimental import dataloader
+        >>> from deeplake.enterprise import dataloader
         >>>
         >>> ds_train = deeplake.load('hub://activeloop/fashion-mnist-train')
         >>> train_loader = dataloader(ds_train).numpy()

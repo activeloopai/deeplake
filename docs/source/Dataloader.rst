@@ -1,9 +1,9 @@
-.. _Experimental:
+.. _Enterprise:
 
 Dataloader
 ==========
 
-.. currentmodule:: deeplake.experimental
+.. currentmodule:: deeplake.enterprise
 
 .. autofunction:: dataloader
 
