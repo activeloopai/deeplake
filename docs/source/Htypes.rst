@@ -556,7 +556,7 @@ Appending polygons with numpy arrays
 .. _point_cloud-htype:
 
 Point Cloud Htype
-~~~~~~~~~~~
+~~~~~~~~~~~~~~~~~
 
 - :bluebold:`Sample dimensions:` ``(# num_points, 3)``
 - Point cloud samples can be of type ``np.ndarray`` or :class:`~deeplake.core.sample.Sample` which is returned by :meth:`deeplake.read`.
@@ -565,7 +565,7 @@ Point Cloud Htype
 - Different point clouds can have different number of points.
 
 :blue:`Creating a point cloud tensor`
--------------------------------
+-------------------------------------
 
 A point cloud tensor can be created using
 
@@ -578,7 +578,7 @@ A point cloud tensor can be created using
 >>> [None, "las"]
 
 :blue:`Appending point clouds`
---------------------------
+------------------------------
 
 - Point clouds can be appended as a ``np.ndarray``.
 
@@ -605,7 +605,7 @@ Or we can use :meth:`deeplake.read` method to add samples
 .. _mesh-htype:
 
 Mesh Htype
-~~~~~~~~~~~
+~~~~~~~~~~
 
 - :bluebold:`Sample dimensions:` ``(# num_points, 3)``
 - Mesh samples can be of type ``np.ndarray`` or :class:`~deeplake.core.sample.Sample` which is returned by :meth:`deeplake.read`.
@@ -614,7 +614,7 @@ Mesh Htype
 - Different meshes can have different number of points.
 
 :blue:`Creating a mesh tensor`
--------------------------------
+------------------------------
 
 A mesh tensor can be created using
 
@@ -627,7 +627,7 @@ A mesh tensor can be created using
 >>> ["ply"]
 
 :blue:`Appending meshes`
---------------------------
+------------------------
 
 :bluebold:`Examples`
 

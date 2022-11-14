@@ -1559,7 +1559,7 @@ class Dataset:
 
         The new high performance C++ dataloader is part of our Growth and Enterprise Plan .
 
-        - Users of our Community plan can create the dataloaders on Activeloop datasets ("hub://activeloop/..." datasets).
+        - Users of our Community plan can create dataloaders on Activeloop datasets ("hub://activeloop/..." datasets).
         - To run queries on your own datasets, `upgrade your organization's plan <https://www.activeloop.ai/pricing/>`_.
         """
         from deeplake.enterprise import dataloader
