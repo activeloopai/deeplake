@@ -3158,7 +3158,7 @@ class Dataset:
                 skip_ok=True,
                 check_lengths=False,
                 disable_label_sync=True,
-                extend_only=extend_only,
+                extend_only=True,
             )
 
             dest_ds.flush()
