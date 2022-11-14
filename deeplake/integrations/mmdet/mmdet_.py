@@ -596,7 +596,7 @@ def build_dataloader(
     if masks_tensor is not None:
         if dataset[masks_tensor].htype == "polygon":
             poly2mask = True
-    bbox_info = dataset.ds[boxes_tensor].info
+    bbox_info = dataset[boxes_tensor].info
     classes = dataset[labels_tensor].info.class_names
     dataset.CLASSES = classes
     pipeline = build_pipeline(pipeline)
@@ -638,7 +638,7 @@ def build_dataloader(
     collate_fn = partial(collate, samples_per_gpu=batch_size)
 
     if implementation == "python":
-        loader = dataset.ds.pytorch(
+        loader = dataset.pytorch(
             tensors_dict=tensors_dict,
             num_workers=num_workers,
             shuffle=shuffle,
@@ -655,7 +655,7 @@ def build_dataloader(
 
     else:
         loader = (
-            dataloader(dataset.ds)
+            dataloader(dataset)
             .transform(transform_fn)
             .shuffle(shuffle)
             .batch(batch_size)
@@ -673,7 +673,7 @@ def build_dataloader(
         loader.batch_sampler.sampler = None
 
         mmdet_ds = MMDetDataset(
-            dataset=dataset.ds,
+            dataset=dataset,
             metrics_format=metrics_format,
             pipeline=pipeline,
             tensors_dict=tensors_dict,
