@@ -1550,7 +1550,7 @@ class Dataset:
         return dataloader
 
     def dataloader(self):
-        """Returns a :class:`DeepLakeDataLoader` object. To use this, install deeplake with ``pip install deeplake[enterprise]``.
+        """Returns a :class:`~deeplake.enterprise.DeepLakeDataLoader` object. To use this, install deeplake with ``pip install deeplake[enterprise]``.
 
         Returns:
             ~deeplake.enterprise.DeepLakeDataLoader: A :class:`deeplake.enterprise.DeepLakeDataLoader` object.
