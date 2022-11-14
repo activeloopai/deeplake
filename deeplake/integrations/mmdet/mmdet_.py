@@ -31,8 +31,10 @@ from deeplake.experimental.dataloader import indra_available, dataloader
 from PIL import Image, ImageDraw
 import os
 
-class Dummy():
+
+class Dummy:
     pass
+
 
 def coco_pixel_2_pascal_pixel(boxes, shape):
     # Convert bounding boxes to Pascal VOC format and clip bounding boxes to make sure they have non-negative width and height
@@ -759,20 +761,18 @@ def build_pipeline(steps):
 
 def train_detector(
     model,
-    dataset,
+    train_dataset,
     cfg,
     validation_dataset=None,
     distributed=False,
     timestamp=None,
     meta=None,
-    dataloader: str = None,
-    metrics_format=None,
     validate=False,
 ):
 
     cfg = compat_cfg(cfg)
     eval_cfg = cfg.get("evaluation", {})
-    dl_impl = dataloader or cfg.get("deeplake_dataloader", "auto").lower()
+    dl_impl = cfg.get("deeplake_dataloader", "auto").lower()
 
     if dl_impl == "auto":
         dl_impl = "c++" if indra_available() else "python"
@@ -791,21 +791,18 @@ def train_detector(
         train_labels_tensor = train_tensors["gt_labels"]
         train_masks_tensor = train_tensors.get("gt_masks")
     else:
-        train_images_tensor = _find_tensor_with_htype(dataset, "image", "img")
-        train_boxes_tensor = _find_tensor_with_htype(dataset, "bbox", "gt_bboxes")
+        train_images_tensor = _find_tensor_with_htype(train_dataset, "image", "img")
+        train_boxes_tensor = _find_tensor_with_htype(train_dataset, "bbox", "gt_bboxes")
         train_labels_tensor = _find_tensor_with_htype(
-            dataset, "class_label", "gt_labels"
+            train_dataset, "class_label", "gt_labels"
         )
         train_masks_tensor = _find_tensor_with_htype(
-            dataset, "binary_mask", "gt_masks"
-        ) or _find_tensor_with_htype(dataset, "polygon", "gt_masks")
+            train_dataset, "binary_mask", "gt_masks"
+        ) or _find_tensor_with_htype(train_dataset, "polygon", "gt_masks")
 
     metrics_format = eval_cfg.get("metrics_format", "PascalVOC")
 
     logger = get_root_logger(log_level=cfg.log_level)
-
-    # prepare data loaders
-    dataset = dataset if isinstance(dataset, (list, tuple)) else [dataset]
 
     runner_type = "EpochBasedRunner" if "runner" not in cfg else cfg.runner["type"]
 
@@ -825,20 +822,16 @@ def train_detector(
         **train_dataloader_default_args,
         **cfg.data.get("train_dataloader", {}),
     }
-
-    data_loaders = [
-        build_dataloader(
-            ds,
-            train_images_tensor,
-            train_masks_tensor,
-            train_boxes_tensor,
-            train_labels_tensor,
-            pipeline=cfg.get("train_pipeline", []),
-            implementation=dl_impl,
-            **train_loader_cfg,
-        )
-        for ds in dataset
-    ]
+    data_loader = build_dataloader(
+        train_dataset,
+        train_images_tensor,
+        train_masks_tensor,
+        train_boxes_tensor,
+        train_labels_tensor,
+        pipeline=cfg.get("train_pipeline", []),
+        implementation=dl_impl,
+        **train_loader_cfg,
+    )
 
     # put model on gpus
     if distributed:
@@ -908,14 +901,16 @@ def train_detector(
             val_labels_tensor = val_tensors["gt_labels"]
             val_masks_tensor = val_tensors.get("gt_masks")
         else:
-            val_images_tensor = _find_tensor_with_htype(dataset, "image", "img")
-            val_boxes_tensor = _find_tensor_with_htype(dataset, "bbox", "gt_bboxes")
+            val_images_tensor = _find_tensor_with_htype(train_dataset, "image", "img")
+            val_boxes_tensor = _find_tensor_with_htype(
+                train_dataset, "bbox", "gt_bboxes"
+            )
             val_labels_tensor = _find_tensor_with_htype(
-                dataset, "class_label", "gt_labels"
+                train_dataset, "class_label", "gt_labels"
             )
             val_masks_tensor = _find_tensor_with_htype(
-                dataset, "binary_mask", "gt_masks"
-            ) or _find_tensor_with_htype(dataset, "polygon", "gt_masks")
+                train_dataset, "binary_mask", "gt_masks"
+            ) or _find_tensor_with_htype(train_dataset, "polygon", "gt_masks")
 
         val_dataloader_default_args = dict(
             samples_per_gpu=1,
@@ -966,4 +961,4 @@ def train_detector(
         runner.resume(cfg.resume_from)
     elif cfg.load_from:
         runner.load_checkpoint(cfg.load_from)
-    runner.run(data_loaders, cfg.workflow)
+    runner.run([data_loader], cfg.workflow)
