@@ -462,7 +462,7 @@ def merge_tensor_data(
 
     new_indexes = new_samples_dict[tensor_name]
     new_indexes.sort()
-    is_class_label = original_tensor.meta.htype == "class_label"
+    is_class_label = target_tensor.meta.htype == "class_label"
     if is_class_label:
         class_names = target_tensor.info.class_names
     for index in new_indexes:
