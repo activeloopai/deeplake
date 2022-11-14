@@ -5,6 +5,7 @@ from deeplake.util.iterable_ordered_dict import IterableOrderedDict
 from deeplake.core.polygon import Polygons
 import numpy as np
 import warnings
+from PIL import Image
 
 
 def collate_fn(batch):
@@ -34,6 +35,29 @@ def convert_fn(data):
         data = data.numpy()
 
     return torch.utils.data._utils.collate.default_convert(data)
+
+
+def convert_pil_to_np(transformed):
+    sample_0 = transformed[0]
+    if isinstance(sample_0, dict):
+        pil_keys = [k for k, v in sample_0.items() if isinstance(v, Image.Image)]
+        for k in pil_keys:
+            for i in range(len(transformed)):
+                transformed[i][k] = np.array(transformed[i][k])
+    elif isinstance(sample_0, (list, tuple)):
+        is_tuple = isinstance(sample_0, tuple)
+        pil_indices = [i for i, v in enumerate(sample_0) if isinstance(v, Image.Image)]
+        if len(pil_indices) > 0:
+            for j in range(len(transformed)):
+                if is_tuple:
+                    transformed[j] = list(transformed[j])
+                for i in pil_indices:
+                    transformed[j][i] = np.array(transformed[j][i])
+                if is_tuple:
+                    transformed[j] = tuple(transformed[j])
+    elif isinstance(sample_0, Image.Image):
+        for i in range(len(transformed)):
+            transformed[i] = np.array(transformed[i])
 
 
 class PytorchTransformFunction:
