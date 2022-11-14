@@ -15,7 +15,7 @@ class ComputeProvider(ABC):
         import threading
         from threading import Thread
 
-        pbar = tqdm(
+        progress_bar = tqdm(
             total=total_length,
             desc=desc,
             bar_format="{desc}: {percentage:.0f}%|{bar}| {n:.0f}/{total_fmt} [{elapsed}<{remaining}",

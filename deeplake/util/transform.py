@@ -245,7 +245,8 @@ def extend_data_slice(
     }
     result = result_resolved
 
-    pg_callback = normalize_pg(pg_callback, len(result))
+    if pg_callback is not None:
+        pg_callback = normalize_pg(pg_callback, len(result))
 
     for tensor, value in result.items():
         chunk_engine = all_chunk_engines[tensor]
