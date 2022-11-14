@@ -82,9 +82,9 @@ def yolo_pixel_2_pascal_pixel(boxes, shape):
     x_top = np.array(boxes[:, 0]) - np.floor(np.array(boxes[:, 2]) / 2)
     y_top = np.array(boxes[:, 1]) - np.floor(np.array(boxes[:, 3]) / 2)
     x_bottom = np.array(boxes[:, 0]) + np.floor(np.array(boxes[:, 2]) / 2)
-    
+
     y_bottom = np.array(boxes[:, 1]) + np.floor(np.array(boxes[:, 3]) / 2)
-    
+
     return np.stack((x_top, y_top, x_bottom, y_bottom), axis=1)
 
 
@@ -469,28 +469,18 @@ class MMDetDataset(TorchDataset):
         return result_files, tmp_dir
 
 
-class HubDatasetCLass:
-    def __init__(self, cfg=None, ds=None, tensors=None, mode="train"):
-        if ds:
-            self.ds = ds
-            tensors = tensors or {}
-        else:
-            creds = cfg.get("deeplake_credentials", {})
-            token = creds.get("token", None)
-            if token is None:
-                uname = creds.get("username")
-                if uname is not None:
-                    pword = creds["password"]
-                    client = DeepLakeBackendClient()
-                    token = client.request_auth_token(username=uname, password=pword)
-            ds_path = cfg.deeplake_path
-            self.ds = dp.load(ds_path, token=token)
-            tensors = cfg.get("deeplake_tensors", {})
-
-        labels_tensor = tensors.get("gt_labels")
-        if labels_tensor is None:
-            labels_tensor = _find_tensor_with_htype(self.ds, "class_label")
-        self.CLASSES = self.ds[labels_tensor].info.class_names
+def load_ds_from_cfg(cfg):
+    creds = cfg.get("deeplake_credentials", {})
+    token = creds.get("token", None)
+    if token is None:
+        uname = creds.get("username")
+        if uname is not None:
+            pword = creds["password"]
+            client = DeepLakeBackendClient()
+            token = client.request_auth_token(username=uname, password=pword)
+    ds_path = cfg.deeplake_path
+    ds = dp.load(ds_path, token=token)
+    return ds
 
 
 def _find_tensor_with_htype(ds: dp.Dataset, htype: str, mmdet_class=None):
@@ -561,13 +551,10 @@ def transform(
     )
 
 
-def build_dataset(cfg, tensors=None, mode="train", *args, **kwargs):
+def build_dataset(cfg):
     if isinstance(cfg, dp.Dataset):
-        return HubDatasetCLass(ds=cfg, tensors=tensors, mode=mode)
-    if "deeplake_path" in cfg:
-        # TO DO: add preprocessing functions related to mmdet dataset classes like RepeatDataset etc...
-        return HubDatasetCLass(cfg=cfg, mode=mode)
-    return mmdet_build_dataset(cfg, *args, **kwargs)
+        return cfg
+    return load_ds_from_cfg(cfg)
 
 
 def _get_collate_keys(pipeline):
@@ -591,148 +578,113 @@ def _get_collate_keys(pipeline):
 
 
 def build_dataloader(
-    dataset,
-    images_tensor,
-    masks_tensor,
-    boxes_tensor,
-    labels_tensor,
-    implementation,
-    pipeline,
-    mode="train",
-    shuffle=None,
+    dataset: dp.Dataset,
+    images_tensor: str,
+    masks_tensor: Optional[str],
+    boxes_tensor: str,
+    labels_tensor: str,
+    implementation: str,
+    pipeline: List,
+    mode: str = "train",
+    shuffle: Optional[bool] = None,
     **train_loader_config,
 ):
-    if isinstance(dataset, dp.Dataset):
-        dataset = HubDatasetCLass(ds=dataset, tensors={"gt_labels": labels_tensor})
-    if isinstance(dataset, HubDatasetCLass):
-        if images_tensor is None:
-            images_tensor = _find_tensor_with_htype(
-                dataset.ds, "image", mmdet_class="img"
-            )
+    if masks_tensor and "gt_masks" not in _get_collate_keys(pipeline):
+        # TODO (adilkhan) check logic in _get_collate_keys
+        # TODO (adilkhan) what if masks is not collected in the final step but required in intermediate steps?
+        masks_tensor = None
+    poly2mask = False
+    if masks_tensor is not None:
+        if dataset[masks_tensor].htype == "polygon":
+            poly2mask = True
+    bbox_info = dataset.ds[boxes_tensor].info
+    classes = dataset[labels_tensor].info.class_names
+    dataset.CLASSES = classes
+    pipeline = build_pipeline(pipeline)
+    metrics_format = train_loader_config.get("metrics_format")
+    dist = train_loader_config["dist"]
+    if dist and implementation == "python":
+        raise NotImplementedError(
+            "Distributed training is not supported by the python data loader. Set deeplake_dataloader='c++' to use the C++ dtaloader instead."
+        )
+    transform_fn = partial(
+        transform,
+        images_tensor=images_tensor,
+        masks_tensor=masks_tensor,
+        boxes_tensor=boxes_tensor,
+        labels_tensor=labels_tensor,
+        pipeline=pipeline,
+        bbox_info=bbox_info,
+        poly2mask=poly2mask,
+    )
+    num_workers = train_loader_config["workers_per_gpu"] * train_loader_config.get(
+        "num_gpus", 1
+    )
+    if shuffle is None:
+        shuffle = train_loader_config.get("shuffle", True)
+    tensors_dict = {
+        "images_tensor": images_tensor,
+        "boxes_tensor": boxes_tensor,
+        "labels_tensor": labels_tensor,
+    }
+    tensors = [images_tensor, labels_tensor, boxes_tensor]
+    if masks_tensor is not None:
+        tensors.append(masks_tensor)
+        tensors_dict["masks_tensor"] = masks_tensor
 
-        poly2mask = False
-        used_labels = _get_collate_keys(pipeline)
-        if "gt_masks" in used_labels:
-            if masks_tensor is None:
-                masks_tensor = _find_tensor_with_htype(
-                    dataset.ds,
-                    "binary_mask",
-                    mmdet_class="gt_masks",
-                )
-                always_warn(
-                    "No tensors with htype binary mask was found searching for polygon htype ..."
-                )
+    batch_size = train_loader_config["samples_per_gpu"] * train_loader_config.get(
+        "num_gpus", 1
+    )
 
-            if masks_tensor is None:
-                masks_tensor = _find_tensor_with_htype(dataset.ds, "polygon")
-                if masks_tensor is not None:
-                    poly2mask = True
-            elif dataset.ds[masks_tensor].htype == "polygon":
-                poly2mask = True
+    collate_fn = partial(collate, samples_per_gpu=batch_size)
 
-        if boxes_tensor is None:
-            boxes_tensor = _find_tensor_with_htype(
-                dataset.ds, "bbox", mmdet_class="gt_boxes"
-            )
-
-        bbox_info = dataset.ds[boxes_tensor].info
-
-        if labels_tensor is None:
-            labels_tensor = _find_tensor_with_htype(
-                dataset.ds,
-                "class_label",
-                mmdet_class="gt_labels",
-            )
-
-        classes = dataset.CLASSES
-
-        pipeline = build_pipeline(pipeline)
-        metrics_format = train_loader_config.get("metrics_format")
-        dist = train_loader_config["dist"]
-        if dist and implementation == "python":
-            raise NotImplementedError(
-                "Distributed training is not supported by the python data loader. Set deeplake_dataloader='c++' to use the C++ dtaloader instead."
-            )
-        transform_fn = partial(
-            transform,
-            images_tensor=images_tensor,
-            masks_tensor=masks_tensor,
-            boxes_tensor=boxes_tensor,
-            labels_tensor=labels_tensor,
+    if implementation == "python":
+        loader = dataset.ds.pytorch(
+            tensors_dict=tensors_dict,
+            num_workers=num_workers,
+            shuffle=shuffle,
+            transform=transform_fn,
+            tensors=tensors,
+            collate_fn=collate_fn,
+            torch_dataset=MMDetDataset,
+            metrics_format=metrics_format,
             pipeline=pipeline,
+            batch_size=batch_size,
+            mode=mode,
             bbox_info=bbox_info,
-            poly2mask=poly2mask,
-        )
-        num_workers = (
-            train_loader_config["workers_per_gpu"] * train_loader_config.get("num_gpus", 1)
-        )
-        if shuffle is None:
-            shuffle = train_loader_config.get("shuffle", True)
-        tensors_dict = {
-            "images_tensor": images_tensor,
-            "boxes_tensor": boxes_tensor,
-            "labels_tensor": labels_tensor,
-        }
-        tensors = [images_tensor, labels_tensor, boxes_tensor]
-        if masks_tensor is not None:
-            tensors.append(masks_tensor)
-            tensors_dict["masks_tensor"] = masks_tensor
-
-        batch_size = (
-            train_loader_config["samples_per_gpu"] * train_loader_config.get("num_gpus", 1)
         )
 
-        collate_fn = partial(collate, samples_per_gpu=batch_size)
-
-        if implementation == "python":
-            loader = dataset.ds.pytorch(
-                tensors_dict=tensors_dict,
+    else:
+        loader = (
+            dataloader(dataset.ds)
+            .transform(transform_fn)
+            .shuffle(shuffle)
+            .batch(batch_size)
+            .pytorch(
                 num_workers=num_workers,
-                shuffle=shuffle,
-                transform=transform_fn,
-                tensors=tensors,
                 collate_fn=collate_fn,
-                torch_dataset=MMDetDataset,
-                metrics_format=metrics_format,
-                pipeline=pipeline,
-                batch_size=batch_size,
-                mode=mode,
-                bbox_info=bbox_info,
-            )
-
-        else:
-            loader = (
-                dataloader(dataset.ds)
-                .transform(transform_fn)
-                .shuffle(shuffle)
-                .batch(batch_size)
-                .pytorch(
-                    num_workers=num_workers,
-                    collate_fn=collate_fn,
-                    tensors=tensors,
-                    distributed=dist,
-                )
-            )
-
-            # For DDP
-            loader.sampler = None
-            loader.batch_sampler = Dummy()
-            loader.batch_sampler.sampler = None
-
-            mmdet_ds = MMDetDataset(
-                dataset=dataset.ds,
-                metrics_format=metrics_format,
-                pipeline=pipeline,
-                tensors_dict=tensors_dict,
                 tensors=tensors,
-                mode=mode,
-                bbox_info=bbox_info,
+                distributed=dist,
             )
-            loader.dataset = mmdet_ds
-        loader.dataset.CLASSES = classes
-        return loader
+        )
 
-    return mmdet_build_dataloader(dataset, **train_loader_config)
+        # For DDP
+        loader.sampler = None
+        loader.batch_sampler = Dummy()
+        loader.batch_sampler.sampler = None
+
+        mmdet_ds = MMDetDataset(
+            dataset=dataset.ds,
+            metrics_format=metrics_format,
+            pipeline=pipeline,
+            tensors_dict=tensors_dict,
+            tensors=tensors,
+            mode=mode,
+            bbox_info=bbox_info,
+        )
+        loader.dataset = mmdet_ds
+    loader.dataset.CLASSES = classes
+    return loader
 
 
 def build_pipeline(steps):
@@ -747,13 +699,13 @@ def build_pipeline(steps):
 
 def train_detector(
     model,
-    train_dataset,
-    cfg,
-    validation_dataset=None,
-    distributed=False,
+    train_dataset: dp.Dataset,
+    cfg: Dict,
+    validation_dataset: Optional[dp.Dataset] = None,
+    distributed: bool = False,
     timestamp=None,
     meta=None,
-    validate=False,
+    validate: bool = True,
 ):
 
     cfg = compat_cfg(cfg)
@@ -880,24 +832,6 @@ def train_detector(
     # register eval hooks
     if validation_dataset or validate:
 
-        val_tensors = cfg.data.val.get("deeplake_tensors", {})
-        if val_tensors:
-            val_images_tensor = val_tensors["img"]
-            val_boxes_tensor = val_tensors["gt_bboxes"]
-            val_labels_tensor = val_tensors["gt_labels"]
-            val_masks_tensor = val_tensors.get("gt_masks")
-        else:
-            val_images_tensor = _find_tensor_with_htype(train_dataset, "image", "img")
-            val_boxes_tensor = _find_tensor_with_htype(
-                train_dataset, "bbox", "gt_bboxes"
-            )
-            val_labels_tensor = _find_tensor_with_htype(
-                train_dataset, "class_label", "gt_labels"
-            )
-            val_masks_tensor = _find_tensor_with_htype(
-                train_dataset, "binary_mask", "gt_masks"
-            ) or _find_tensor_with_htype(train_dataset, "polygon", "gt_masks")
-
         val_dataloader_default_args = dict(
             samples_per_gpu=1,
             workers_per_gpu=1,
@@ -912,14 +846,28 @@ def train_detector(
             **val_dataloader_default_args,
             **cfg.data.get("val_dataloader", {}),
         }
-        # Support batch_size > 1 in validation
+
+        val_tensors = cfg.data.val.get("deeplake_tensors", {})
 
         if val_dataloader_args["samples_per_gpu"] > 1:
             # Replace 'ImageToTensor' to 'DefaultFormatBundle'
             cfg.data.val.pipeline = replace_ImageToTensor(cfg.data.val.pipeline)
-        val_dataset = validation_dataset or build_dataset(
-            cfg.data.val, tensors=val_tensors, mode="val"
-        )
+        val_dataset = validation_dataset or build_dataset(cfg.data.val)
+
+        if val_tensors:
+            val_images_tensor = val_tensors["img"]
+            val_boxes_tensor = val_tensors["gt_bboxes"]
+            val_labels_tensor = val_tensors["gt_labels"]
+            val_masks_tensor = val_tensors.get("gt_masks")
+        else:
+            val_images_tensor = _find_tensor_with_htype(val_dataset, "image", "img")
+            val_boxes_tensor = _find_tensor_with_htype(val_dataset, "bbox", "gt_bboxes")
+            val_labels_tensor = _find_tensor_with_htype(
+                val_dataset, "class_label", "gt_labels"
+            )
+            val_masks_tensor = _find_tensor_with_htype(
+                val_dataset, "binary_mask", "gt_masks"
+            ) or _find_tensor_with_htype(val_dataset, "polygon", "gt_masks")
 
         val_dataloader = build_dataloader(
             val_dataset,
