@@ -451,7 +451,7 @@ def test_pytorch_tobytes(ds, compressed_image_paths, compression):
             dl = dataloader(ds)
         return
 
-    ptds = dataloader(ds).pytorch(tobytes=["image"])
+    ptds = dataloader(ds).pytorch(decode_method={"image": "tobytes"})
 
     for i, batch in enumerate(ptds):
         image = batch["image"][0]
