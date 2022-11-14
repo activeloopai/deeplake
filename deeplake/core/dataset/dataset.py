@@ -1571,6 +1571,16 @@ class Dataset:
         dataset_read(self)
         return dataloader
 
+    def dataloader(self):
+        """Returns a Dataloader object. This is an enterprise feature. To use this, install deeplake with `pip install deeplake[enterprise]`.
+
+        Returns:
+            A DeepLakeDataloader object.
+        """
+        from deeplake.enterprise import dataloader
+
+        return dataloader(self)
+
     @deeplake_reporter.record_call
     def filter(
         self,
