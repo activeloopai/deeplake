@@ -243,7 +243,7 @@ def extend_data_slice(
     result_resolved = {
         posixpath.join(group_index, k): result[k] for k in result.tensors
     }
-    result = result_resolved
+    result = result_resolved  # type: ignore
 
     if pg_callback is not None:
         pg_callback = normalize_pg(pg_callback, len(result))
