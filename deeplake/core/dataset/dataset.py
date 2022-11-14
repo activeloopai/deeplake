@@ -1550,10 +1550,17 @@ class Dataset:
         return dataloader
 
     def dataloader(self):
-        """Returns a Dataloader object. This is an enterprise feature. To use this, install deeplake with ``pip install deeplake[enterprise]``.
+        """Returns a :class:`DeepLakeDataLoader` object. To use this, install deeplake with ``pip install deeplake[enterprise]``.
 
         Returns:
             ~deeplake.enterprise.DeepLakeDataLoader: A :class:`deeplake.enterprise.DeepLakeDataLoader` object.
+
+        **Restrictions**
+
+        The new high performance C++ dataloader is part of our Growth and Enterprise Plan .
+
+        - Users of our Community plan can create the dataloaders on Activeloop datasets ("hub://activeloop/..." datasets).
+        - To run queries on your own datasets, `upgrade your organization's plan <https://www.activeloop.ai/pricing/>`_.
         """
         from deeplake.enterprise import dataloader
 
@@ -1612,7 +1619,7 @@ class Dataset:
         return ret
 
     def query(self, query_string: str):
-        """Returns a sliced :class:`~deeplake.core.dataset.Dataset` with given query results.
+        """Returns a sliced :class:`~deeplake.core.dataset.Dataset` with given query results. To use this, install deeplake with ``pip install deeplake[enterprise]``.
 
         It allows to run SQL like queries on dataset and extract results. See supported keywords and the Tensor Query Language documentation
         :ref:`here <tql>`.
@@ -1637,6 +1644,13 @@ class Dataset:
 
             >>> ds_train = deeplake.load('hub://activeloop/coco-train')
             >>> query_ds_train = ds_train.query("(select * where contains(categories, 'car') limit 1000) union (select * where contains(categories, 'motorcycle') limit 1000)")
+
+        **Restrictions**
+
+        Querying datasets is part of our Growth and Enterprise Plan .
+
+        - Users of our Community plan can only perform queries on Activeloop datasets ("hub://activeloop/..." datasets).
+        - To run queries on your own datasets, `upgrade your organization's plan <https://www.activeloop.ai/pricing/>`_.
         """
         from deeplake.enterprise import query
 
@@ -1648,14 +1662,12 @@ class Dataset:
         replace: Optional[bool] = True,
         size: Optional[int] = None,
     ):
-        """Returns a sliced :class:`~deeplake.core.dataset.Dataset` with given weighted sampler applied
+        """Returns a sliced :class:`~deeplake.core.dataset.Dataset` with given weighted sampler applied. To use this, install deeplake with ``pip install deeplake[enterprise]``.
 
         Args:
-            weights: (Union[str, list, tuple]): If it's string then tql will be run to calculate the weights based on the expression. list and tuple will be treated as the list of the weights per sample
-            replace: Optional[bool] If true the samples can be repeated in the result view.
-                (default: ``True``).
-            size: Optional[int] The length of the result view.
-                (default: ``len(dataset)``)
+            weights: (Union[str, list, tuple]): If it's string then tql will be run to calculate the weights based on the expression. list and tuple will be treated as the list of the weights per sample.
+            replace: Optional[bool] If true the samples can be repeated in the result view. Defaults to ``True``
+            size: Optional[int] The length of the result view. Defaults to length of the dataset.
 
 
         Returns:
@@ -1666,17 +1678,23 @@ class Dataset:
             Sample the dataset with ``labels == 5`` twice more than ``labels == 6``
 
             >>> import deeplake
-            >>> from deeplake.experimental import query
             >>> ds = deeplake.load('hub://activeloop/fashion-mnist-train')
-            >>> sampled_ds = sample(ds_train, "max_weight(labels == 5: 10, labels == 6: 5)")
+            >>> sampled_ds = ds.sample_by("max_weight(labels == 5: 10, labels == 6: 5"))
 
             Sample the dataset with the given weights;
 
             >>> ds_train = deeplake.load('hub://activeloop/coco-train')
             >>> weights = list()
             >>> for i in range(0, len(ds_train)):
-            >>>     weights.append(i % 5)
-            >>> sampled_ds = sample_by(ds_train, weights, replace=False)
+            ...     weights.append(i % 5)
+            >>> sampled_ds = ds.sample_by(weights, replace=False)
+
+        **Restrictions**
+
+        Querying datasets is part of our Growth and Enterprise Plan .
+
+        - Users of our Community plan can only use ``sample_by`` on Activeloop datasets ("hub://activeloop/..." datasets).
+        - To use sampling functionality on your own datasets, `upgrade your organization's plan <https://www.activeloop.ai/pricing/>`_.
         """
         from deeplake.enterprise import sample_by
 
