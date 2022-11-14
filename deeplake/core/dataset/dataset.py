@@ -1486,31 +1486,31 @@ class Dataset:
 
         Args:
             transform (Callable, Optional): Transformation function to be applied to each sample.
-            tensors (List, Optional): Optionally provide a list of tensor names in the ordering that your training script expects. For example, if you have a dataset that has "image" and "label" tensors, if `tensors=["image", "label"]`, your training script should expect each batch will be provided as a tuple of (image, label).
+            tensors (List, Optional): Optionally provide a list of tensor names in the ordering that your training script expects. For example, if you have a dataset that has "image" and "label" tensors, if ``tensors=["image", "label"]``, your training script should expect each batch will be provided as a tuple of (image, label).
             num_workers (int): The number of workers to use for fetching data in parallel.
             batch_size (int): Number of samples per batch to load. Default value is 1.
             drop_last (bool): Set to True to drop the last incomplete batch, if the dataset size is not divisible by the batch size.
-                if ``False`` and the size of dataset is not divisible by the batch size, then the last batch will be smaller. Default value is False.
+                if ``False`` and the size of dataset is not divisible by the batch size, then the last batch will be smaller. Default value is ``False``.
                 Read torch.utils.data.DataLoader docs for more details.
             collate_fn (Callable, Optional): merges a list of samples to form a mini-batch of Tensor(s). Used when using batched loading from a map-style dataset.
                 Read torch.utils.data.DataLoader docs for more details.
-            pin_memory (bool): If ``True``, the data loader will copy Tensors into CUDA pinned memory before returning them. Default value is False.
+            pin_memory (bool): If ``True``, the data loader will copy Tensors into CUDA pinned memory before returning them. Default value is ``False``.
                 Read torch.utils.data.DataLoader docs for more details.
-            shuffle (bool): If ``True``, the data loader will shuffle the data indices. Default value is False. Details about how Deep Lake shuffles data can be found at https://docs.activeloop.ai/how-hub-works/shuffling-in-ds.pytorch
+            shuffle (bool): If ``True``, the data loader will shuffle the data indices. Default value is False. Details about how Deep Lake shuffles data can be found at `Shuffling in ds.pytorch() <https://docs.activeloop.ai/how-it-works/shuffling-in-ds.pytorch>`_
             buffer_size (int): The size of the buffer used to shuffle the data in MBs. Defaults to 2048 MB. Increasing the buffer_size will increase the extent of shuffling.
-            use_local_cache (bool): If ``True``, the data loader will use a local cache to store data. The default cache location is ~/.activeloop/cache, but it can be changed by setting the LOCAL_CACHE_PREFIX environment variable. This is useful when the dataset can fit on the machine and we don't want to fetch the data multiple times for each iteration. Default value is False
+            use_local_cache (bool): If ``True``, the data loader will use a local cache to store data. The default cache location is ~/.activeloop/cache, but it can be changed by setting the ``LOCAL_CACHE_PREFIX`` environment variable. This is useful when the dataset can fit on the machine and we don't want to fetch the data multiple times for each iteration. Default value is ``False``
             use_progress_bar (bool): If ``True``, tqdm will be wrapped around the returned dataloader. Default value is True.
             return_index (bool): If ``True``, the returned dataloader will have a key "index" that contains the index of the sample(s) in the original dataset. Default value is True.
             pad_tensors (bool): If ``True``, shorter tensors will be padded to the length of the longest tensor. Default value is False.
-            transform_kwargs (optional, Dict[str, Any]): Additional kwargs to be passed to `transform`.
-            decode_method (Dict[str, str], Optional): A dictionary of decode methods for each tensor. Defaults to None.
-            Supported decode methods are:-
+            transform_kwargs (optional, Dict[str, Any]): Additional kwargs to be passed to ``transform``.
+            decode_method (Dict[str, str], Optional): A dictionary of decode methods for each tensor. Defaults to ``None``.
 
-            - 'numpy': Default behaviour. Returns samples as numpy arrays.
+                - Supported decode methods are:
 
-            - 'tobytes': Returns raw bytes of the samples.
-
-            - 'pil': Returns samples as PIL images. Especially useful when transformation use torchvision transforms, that require PIL images as input. Only supported for tensors with sample_compression='jpeg' or 'png'.
+                    :'numpy': Default behaviour. Returns samples as numpy arrays.
+                    :'tobytes': Returns raw bytes of the samples.
+                    :'pil': Returns samples as PIL images. Especially useful when transformation use torchvision transforms, that
+                            require PIL images as input. Only supported for tensors with ``sample_compression='jpeg'`` or ``'png'``.
 
         Returns:
             A torch.utils.data.DataLoader object.
