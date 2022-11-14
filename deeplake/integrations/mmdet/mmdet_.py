@@ -41,10 +41,10 @@ def coco_pixel_2_pascal_pixel(boxes, shape):
 
     return np.stack(
         (
-            np.clip(boxes[:, 0], 0, None),
-            np.clip(boxes[:, 1], 0, None),
-            np.clip(boxes[:, 0] + np.clip(boxes[:, 2], 1, None), 0, shape[1]),
-            np.clip(boxes[:, 1] + np.clip(boxes[:, 3], 1, None), 0, shape[0]),
+            boxes[:, 0],
+            boxes[:, 1],
+            boxes[:, 0] + boxes[:, 2],
+            boxes[:, 1] + boxes[:, 3],
         ),
         axis=1,
     )
@@ -79,18 +79,12 @@ def pascal_frac_2_pascal_pixel(boxes, shape):
 
 
 def yolo_pixel_2_pascal_pixel(boxes, shape):
-    x_top = np.clip(
-        np.array(boxes[:, 0]) - np.floor(np.array(boxes[:, 2]) / 2), 0, shape[1]
-    )
-    y_top = np.clip(
-        np.array(boxes[:, 1]) - np.floor(np.array(boxes[:, 3]) / 2), 0, shape[0]
-    )
-    x_bottom = np.clip(
-        np.array(boxes[:, 0]) + np.floor(np.array(boxes[:, 2]) / 2), 0, shape[1]
-    )
-    y_bottom = np.clip(
-        np.array(boxes[:, 1]) + np.floor(np.array(boxes[:, 3]) / 2), 0, shape[0]
-    )
+    x_top = np.array(boxes[:, 0]) - np.floor(np.array(boxes[:, 2]) / 2)
+    y_top = np.array(boxes[:, 1]) - np.floor(np.array(boxes[:, 3]) / 2)
+    x_bottom = np.array(boxes[:, 0]) + np.floor(np.array(boxes[:, 2]) / 2)
+    
+    y_bottom = np.array(boxes[:, 1]) + np.floor(np.array(boxes[:, 3]) / 2)
+    
     return np.stack((x_top, y_top, x_bottom, y_bottom), axis=1)
 
 
@@ -148,18 +142,10 @@ def pascal_frac_2_pascal_pixel(boxes, shape):
 
 
 def yolo_pixel_2_pascal_pixel(boxes, shape):
-    x_top = np.clip(
-        np.array(boxes[:, 0]) - np.floor(np.array(boxes[:, 2]) / 2), 0, shape[1]
-    )
-    y_top = np.clip(
-        np.array(boxes[:, 1]) - np.floor(np.array(boxes[:, 3]) / 2), 0, shape[0]
-    )
-    x_bottom = np.clip(
-        np.array(boxes[:, 0]) + np.floor(np.array(boxes[:, 2]) / 2), 0, shape[1]
-    )
-    y_bottom = np.clip(
-        np.array(boxes[:, 1]) + np.floor(np.array(boxes[:, 3]) / 2), 0, shape[0]
-    )
+    x_top = np.array(boxes[:, 0]) - np.floor(np.array(boxes[:, 2]) / 2)
+    y_top = np.array(boxes[:, 1]) - np.floor(np.array(boxes[:, 3]) / 2)
+    x_bottom = np.array(boxes[:, 0]) + np.floor(np.array(boxes[:, 2]) / 2)
+    y_bottom = np.array(boxes[:, 1]) + np.floor(np.array(boxes[:, 3]) / 2)
     return np.stack((x_top, y_top, x_bottom, y_bottom), axis=1)
 
 
@@ -401,8 +387,8 @@ class MMDetDataset(TorchDataset):
             (
                 boxes[:, 0],
                 boxes[:, 1],
-                boxes[:, 0] + np.clip(boxes[:, 2], 1, None),
-                boxes[:, 1] + np.clip(boxes[:, 3], 1, None),
+                boxes[:, 0] + boxes[:, 2],
+                boxes[:, 1] + boxes[:, 3],
             ),
             axis=1,
         )
@@ -489,7 +475,7 @@ class HubDatasetCLass:
             self.ds = ds
             tensors = tensors or {}
         else:
-            creds = cfg.data[mode].get("deeplake_credentials", {})
+            creds = cfg.get("deeplake_credentials", {})
             token = creds.get("token", None)
             if token is None:
                 uname = creds.get("username")
@@ -497,7 +483,7 @@ class HubDatasetCLass:
                     pword = creds["password"]
                     client = DeepLakeBackendClient()
                     token = client.request_auth_token(username=uname, password=pword)
-            ds_path = cfg.data[mode].deeplake_path
+            ds_path = cfg.deeplake_path
             self.ds = dp.load(ds_path, token=token)
             tensors = cfg.get("deeplake_tensors", {})
 
@@ -578,7 +564,7 @@ def transform(
 def build_dataset(cfg, tensors=None, mode="train", *args, **kwargs):
     if isinstance(cfg, dp.Dataset):
         return HubDatasetCLass(ds=cfg, tensors=tensors, mode=mode)
-    if "deeplake_path" in cfg.data[mode]:
+    if "deeplake_path" in cfg:
         # TO DO: add preprocessing functions related to mmdet dataset classes like RepeatDataset etc...
         return HubDatasetCLass(cfg=cfg, mode=mode)
     return mmdet_build_dataset(cfg, *args, **kwargs)
@@ -678,7 +664,7 @@ def build_dataloader(
             poly2mask=poly2mask,
         )
         num_workers = (
-            train_loader_config["workers_per_gpu"] * train_loader_config["num_gpus"]
+            train_loader_config["workers_per_gpu"] * train_loader_config.get("num_gpus", 1)
         )
         if shuffle is None:
             shuffle = train_loader_config.get("shuffle", True)
@@ -693,7 +679,7 @@ def build_dataloader(
             tensors_dict["masks_tensor"] = masks_tensor
 
         batch_size = (
-            train_loader_config["samples_per_gpu"] * train_loader_config["num_gpus"]
+            train_loader_config["samples_per_gpu"] * train_loader_config.get("num_gpus", 1)
         )
 
         collate_fn = partial(collate, samples_per_gpu=batch_size)
@@ -932,7 +918,7 @@ def train_detector(
             # Replace 'ImageToTensor' to 'DefaultFormatBundle'
             cfg.data.val.pipeline = replace_ImageToTensor(cfg.data.val.pipeline)
         val_dataset = validation_dataset or build_dataset(
-            cfg, tensors=val_tensors, mode="val"
+            cfg.data.val, tensors=val_tensors, mode="val"
         )
 
         val_dataloader = build_dataloader(
