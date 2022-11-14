@@ -1678,7 +1678,7 @@ class Dataset:
             >>>     weights.append(i % 5)
             >>> sampled_ds = sample_by(ds_train, weights, replace=False)
         """
-        from deeplake.experimental import sample_by
+        from deeplake.enterprise import sample_by
 
         return sample_by(self, weights, replace, size)
 
