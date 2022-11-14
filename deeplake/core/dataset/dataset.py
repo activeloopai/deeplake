@@ -3149,7 +3149,7 @@ class Dataset:
         else:
             reset_index = False
         try:
-            deeplake.compute(_copy_tensor, name="tensor copy transform")().eval(
+            deeplake.compute(_copy_tensor, name="copy transform")().eval(
                 self,
                 dest_ds,
                 num_workers=num_workers,
