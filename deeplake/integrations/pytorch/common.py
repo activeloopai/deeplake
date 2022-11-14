@@ -5,7 +5,6 @@ from deeplake.util.iterable_ordered_dict import IterableOrderedDict
 from deeplake.core.polygon import Polygons
 import numpy as np
 import warnings
-from PIL import Image
 
 
 def collate_fn(batch):
