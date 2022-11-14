@@ -135,7 +135,7 @@ class Pipeline:
             skip_ok (bool): If ``True``, skips the check for output tensors generated. This allows the user to skip certain tensors in the function definition.
                 This is especially useful for inplace transformations in which certain tensors are not modified. Defaults to ``False``.
             check_lengths (bool): If ``True``, checks whether ``ds_out`` has tensors of same lengths initially.
-            pad_data_in (bool): This is only applicable if ``data_in`` is a Deep Lake dataset. If ``True``, pads tensors of ``data_in`` to match the length of the largest tensor in ``data_in``.
+            pad_data_in (bool): If ``True``, pads tensors of ``data_in`` to match the length of the largest tensor in ``data_in``.
                 Defaults to ``False``.
             **kwargs: Additional arguments.
 
@@ -161,6 +161,9 @@ class Pipeline:
             # As a part of a Transform pipeline containing other functions
             pipeline = deeplake.compose([my_fn(a, b), another_function(x=2)])
             pipeline.eval(data_in, ds_out, scheduler="processed", num_workers=2)
+
+        Note:
+            ``pad_data_in`` is only applicable if ``data_in`` is a Deep Lake dataset.
 
         """
         num_workers, scheduler = sanitize_workers_scheduler(num_workers, scheduler)
