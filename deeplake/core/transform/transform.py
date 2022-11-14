@@ -275,6 +275,7 @@ class Pipeline:
             storages = [storage] * len(slices)
         else:
             storages = [storage.copy() for _ in slices]
+        extend_only = kwargs.get("extend_only")
         args = (
             group_index,
             tensors,
@@ -285,6 +286,7 @@ class Pipeline:
             version_state,
             target_ds.link_creds,
             skip_ok,
+            extend_only
         )
         map_inp = zip(slices, storages, repeat(args))
 

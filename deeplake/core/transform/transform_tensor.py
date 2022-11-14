@@ -1,6 +1,7 @@
 from itertools import chain
 from deeplake.core.linked_sample import LinkedSample
 from deeplake.core.sample import Sample  # type: ignore
+from deeplake.core.tensor import Tensor
 from deeplake.util.exceptions import TensorInvalidSampleShapeError
 from deeplake.util.array_list import slice_array_list
 import numpy as np
@@ -155,5 +156,6 @@ class TransformTensor:
                 return self.items.append(items)
             else:
                 self._non_numpy()
+
         for item in items:
             self.append(item)

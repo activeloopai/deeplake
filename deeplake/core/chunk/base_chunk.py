@@ -336,7 +336,6 @@ class BaseChunk(DeepLakeMemoryObject):
                 break_into_tiles,
                 store_uncompressed_tiles,
             )
-            shape = self.convert_to_rgb(shape)
         elif isinstance(incoming_sample, PartialSample):
             incoming_sample, shape = serialize_partial_sample_object(
                 incoming_sample,
@@ -357,7 +356,6 @@ class BaseChunk(DeepLakeMemoryObject):
                 break_into_tiles,
                 store_uncompressed_tiles,
             )
-            shape = self.convert_to_rgb(shape)
         elif isinstance(
             incoming_sample,
             (np.ndarray, list, int, float, bool, np.integer, np.floating, np.bool_),
@@ -380,6 +378,7 @@ class BaseChunk(DeepLakeMemoryObject):
             )
         else:
             raise TypeError(f"Cannot serialize sample of type {type(incoming_sample)}")
+        shape = self.convert_to_rgb(shape)
         shape = self.normalize_shape(shape)
         return incoming_sample, shape  # type: ignore
 

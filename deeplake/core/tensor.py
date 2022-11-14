@@ -589,7 +589,7 @@ class Tensor:
             raise InvalidKeyTypeError(item)
         if isinstance(item, tuple) or item is Ellipsis:
             item = replace_ellipsis_with_slices(item, self.ndim)
-        if not is_iteration and isinstance(item, int):
+        if not self.meta.hidden and not is_iteration and isinstance(item, int):
             indexing_history = self._indexing_history
             if len(indexing_history) == 2:
                 a, b = indexing_history
