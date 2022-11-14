@@ -449,20 +449,27 @@ def compute(
 
         - Supported values include: 'serial', 'threaded', 'processed' and 'ray'. Defaults to 'threaded'.
 
-    - ``progressbar (bool)``: Displays a progress bar if True (default).
+    - ``progressbar (bool)``: Displays a progress bar if ``True`` (default).
 
-    - ``skip_ok (bool)``: If True, skips the check for output tensors generated.
+    - ``skip_ok (bool)``: If ``True``, skips the check for output tensors generated.
 
         - This allows the user to skip certain tensors in the function definition.
         - This is especially useful for inplace transformations in which certain tensors are not modified. Defaults to ``False``.
 
+    - ``check_lengths (bool)``: If ``True``, checks whether ``ds_out`` has tensors of same lengths initially.
+
+    - ``pad_data_in (bool)``: If ``True``, pads tensors of ``data_in`` to match the length of the largest tensor in ``data_in``. Defaults to ``False``.
+
+    Note:
+        ``pad_data_in`` is only applicable if ``data_in`` is a Deep Lake dataset.
+
     It raises the following errors:
 
-    - ``InvalidInputDataError``: If data_in passed to transform is invalid. It should support ``__getitem__`` and ``__len__`` operations. Using scheduler other than "threaded" with deeplake dataset having base storage as memory as data_in will also raise this.
+    - ``InvalidInputDataError``: If ``data_in`` passed to transform is invalid. It should support ``__getitem__`` and ``__len__`` operations. Using scheduler other than "threaded" with deeplake dataset having base storage as memory as ``data_in`` will also raise this.
 
-    - ``InvalidOutputDatasetError``: If all the tensors of ds_out passed to transform don't have the same length. Using scheduler other than "threaded" with deeplake dataset having base storage as memory as ds_out will also raise this.
+    - ``InvalidOutputDatasetError``: If all the tensors of ``ds_out`` passed to transform don't have the same length. Using scheduler other than "threaded" with deeplake dataset having base storage as memory as ``ds_out`` will also raise this.
 
-    - ``TensorMismatchError``: If one or more of the outputs generated during transform contain different tensors than the ones present in 'ds_out' provided to transform.
+    - ``TensorMismatchError``: If one or more of the outputs generated during transform contain different tensors than the ones present in ``ds_out`` provided to transform.
 
     - ``UnsupportedSchedulerError``: If the scheduler passed is not recognized. Supported values include: 'serial', 'threaded', 'processed' and 'ray'.
 
