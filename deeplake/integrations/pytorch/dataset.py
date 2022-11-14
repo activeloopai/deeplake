@@ -31,6 +31,7 @@ from queue import Empty
 
 import numpy as np
 import deeplake
+from PIL import Image
 
 
 mp = torch.multiprocessing.get_context()
@@ -64,6 +65,9 @@ def cast_type(tensor):
 def copy_tensor(x):
     if isinstance(x, Sample):
         x = x.array
+    if isinstance(x, Image.Image):
+        return x
+
     try:
         copy = cast_type(x)
     except AttributeError:

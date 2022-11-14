@@ -313,7 +313,7 @@ class SampleStreaming(Streaming):
             valid_sample_flag = True
 
             for keyid, (key, engine) in enumerate(self.chunk_engines.items()):
-                decompress = key in self.raw_tensors
+                decompress = key not in self.raw_tensors
                 to_pil = key in self.compressed_tensors
                 chunk_class = engine.chunk_class
                 try:
