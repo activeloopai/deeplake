@@ -13,8 +13,5 @@ Dataloader
 
 .. currentmodule:: deeplake.enterprise
 
-.. autosummary::
-    :toctree:
-    :nosignatures:
-
-    DeepLakeDataLoader
+.. autoclass:: DeepLakeDataLoader
+    :members:

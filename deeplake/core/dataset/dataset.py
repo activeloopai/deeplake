@@ -1662,7 +1662,8 @@ class Dataset:
         replace: Optional[bool] = True,
         size: Optional[int] = None,
     ):
-        """Returns a sliced :class:`~deeplake.core.dataset.Dataset` with given weighted sampler applied. To use this, install deeplake with ``pip install deeplake[enterprise]``.
+        """Returns a sliced :class:`~deeplake.core.dataset.Dataset` with given weighted sampler applied.
+        To use this, install deeplake with ``pip install deeplake[enterprise]``.
 
         Args:
             weights: (Union[str, list, tuple]): If it's string then tql will be run to calculate the weights based on the expression. list and tuple will be treated as the list of the weights per sample.
