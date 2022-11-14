@@ -17,6 +17,7 @@ from deeplake.util.bugout_reporter import deeplake_reporter
 from deeplake.util.dataset import map_tensor_keys
 from functools import partial
 import importlib
+import numpy as np
 
 
 # Load lazy to avoid cycylic import.
@@ -190,22 +191,41 @@ class DeepLakeDataLoader:
 
     def sample_by(
         self,
-        weights: Union[str, list, tuple],
+        weights: Union[str, list, tuple, np.ndarray],
         replace: Optional[bool] = True,
         size: Optional[int] = None,
     ):
         """Returns a sliced :class:`DeepLakeDataLoader` with given weighted sampler applied
 
         Args:
-            weights: (Union[str, list, tuple]): If it's string then tql will be run to calculate the weights based on the expression. list and tuple will be treated as the list of the weights per sample
+            weights: (Union[str, list, tuple, np.ndarray]): If it's string then tql will be run to calculate the weights based on the expression. list, tuple and ndarray will be treated as the list of the weights per sample
             replace: Optional[bool] If true the samples can be repeated in the result view.
                 (default: ``True``).
             size: Optional[int] The length of the result view.
                 (default: ``len(dataset)``)
 
-
         Returns:
-            Dataset: A deeplake.Dataset object.
+            DeepLakeDataLoader: A :class:`DeepLakeDataLoader` object.
+
+        Examples:
+
+            Sample the dataloader with ``labels == 5`` twice more than ``labels == 6``
+
+            >>> ds = deeplake.load('hub://activeloop/fashion-mnist-train')
+            >>> sampled_ds = dataloader(ds).sample_by("max_weight(labels == 5: 10, labels == 6: 5)")
+
+            Sample the dataloader treating `labels` tensor as weights.
+
+            >>> ds = deeplake.load('hub://activeloop/fashion-mnist-train')
+            >>> sampled_ds = dataloader(ds).sample_by("labels")
+
+            Sample the dataloader with the given weights;
+
+            >>> ds_train = deeplake.load('hub://activeloop/coco-train')
+            >>> weights = list()
+            >>> for i in range(0, len(ds_train)):
+            >>>     weights.append(i % 5)
+            >>> sampled_ds = dataloader(ds).sample_by(weights, replace=False)
 
         """
         all_vars = self.__dict__.copy()
