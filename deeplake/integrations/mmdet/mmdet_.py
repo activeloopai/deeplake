@@ -39,10 +39,10 @@ def coco_pixel_2_pascal_pixel(boxes, shape):
 
     return np.stack(
         (
-            np.clip(boxes[:, 0], 0, None),
-            np.clip(boxes[:, 1], 0, None),
-            np.clip(boxes[:, 0] + np.clip(boxes[:, 2], 1, None), 0, shape[1]),
-            np.clip(boxes[:, 1] + np.clip(boxes[:, 3], 1, None), 0, shape[0]),
+            boxes[:, 0],
+            boxes[:, 1],
+            boxes[:, 0] + boxes[:, 2],
+            boxes[:, 1] + boxes[:, 3],
         ),
         axis=1,
     )
@@ -77,18 +77,12 @@ def pascal_frac_2_pascal_pixel(boxes, shape):
 
 
 def yolo_pixel_2_pascal_pixel(boxes, shape):
-    x_top = np.clip(
-        np.array(boxes[:, 0]) - np.floor(np.array(boxes[:, 2]) / 2), 0, shape[1]
-    )
-    y_top = np.clip(
-        np.array(boxes[:, 1]) - np.floor(np.array(boxes[:, 3]) / 2), 0, shape[0]
-    )
-    x_bottom = np.clip(
-        np.array(boxes[:, 0]) + np.floor(np.array(boxes[:, 2]) / 2), 0, shape[1]
-    )
-    y_bottom = np.clip(
-        np.array(boxes[:, 1]) + np.floor(np.array(boxes[:, 3]) / 2), 0, shape[0]
-    )
+    x_top = np.array(boxes[:, 0]) - np.floor(np.array(boxes[:, 2]) / 2)
+    y_top = np.array(boxes[:, 1]) - np.floor(np.array(boxes[:, 3]) / 2)
+    x_bottom = np.array(boxes[:, 0]) + np.floor(np.array(boxes[:, 2]) / 2)
+    
+    y_bottom = np.array(boxes[:, 1]) + np.floor(np.array(boxes[:, 3]) / 2)
+    
     return np.stack((x_top, y_top, x_bottom, y_bottom), axis=1)
 
 
@@ -146,18 +140,10 @@ def pascal_frac_2_pascal_pixel(boxes, shape):
 
 
 def yolo_pixel_2_pascal_pixel(boxes, shape):
-    x_top = np.clip(
-        np.array(boxes[:, 0]) - np.floor(np.array(boxes[:, 2]) / 2), 0, shape[1]
-    )
-    y_top = np.clip(
-        np.array(boxes[:, 1]) - np.floor(np.array(boxes[:, 3]) / 2), 0, shape[0]
-    )
-    x_bottom = np.clip(
-        np.array(boxes[:, 0]) + np.floor(np.array(boxes[:, 2]) / 2), 0, shape[1]
-    )
-    y_bottom = np.clip(
-        np.array(boxes[:, 1]) + np.floor(np.array(boxes[:, 3]) / 2), 0, shape[0]
-    )
+    x_top = np.array(boxes[:, 0]) - np.floor(np.array(boxes[:, 2]) / 2)
+    y_top = np.array(boxes[:, 1]) - np.floor(np.array(boxes[:, 3]) / 2)
+    x_bottom = np.array(boxes[:, 0]) + np.floor(np.array(boxes[:, 2]) / 2)
+    y_bottom = np.array(boxes[:, 1]) + np.floor(np.array(boxes[:, 3]) / 2)
     return np.stack((x_top, y_top, x_bottom, y_bottom), axis=1)
 
 
@@ -399,8 +385,8 @@ class MMDetDataset(TorchDataset):
             (
                 boxes[:, 0],
                 boxes[:, 1],
-                boxes[:, 0] + np.clip(boxes[:, 2], 1, None),
-                boxes[:, 1] + np.clip(boxes[:, 3], 1, None),
+                boxes[:, 0] + boxes[:, 2],
+                boxes[:, 1] + boxes[:, 3],
             ),
             axis=1,
         )
