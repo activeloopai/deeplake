@@ -487,7 +487,7 @@ class HubDatasetCLass:
             self.ds = ds
             tensors = tensors or {}
         else:
-            creds = cfg.data[mode].get("deeplake_credentials", {})
+            creds = cfg.get("deeplake_credentials", {})
             token = creds.get("token", None)
             if token is None:
                 uname = creds.get("username")
@@ -495,7 +495,7 @@ class HubDatasetCLass:
                     pword = creds["password"]
                     client = DeepLakeBackendClient()
                     token = client.request_auth_token(username=uname, password=pword)
-            ds_path = cfg.data[mode].deeplake_path
+            ds_path = cfg.deeplake_path
             self.ds = dp.load(ds_path, token=token)
             tensors = cfg.get("deeplake_tensors", {})
 
@@ -576,7 +576,7 @@ def transform(
 def build_dataset(cfg, tensors=None, mode="train", *args, **kwargs):
     if isinstance(cfg, dp.Dataset):
         return HubDatasetCLass(ds=cfg, tensors=tensors, mode=mode)
-    if "deeplake_path" in cfg.data[mode]:
+    if "deeplake_path" in cfg:
         # TO DO: add preprocessing functions related to mmdet dataset classes like RepeatDataset etc...
         return HubDatasetCLass(cfg=cfg, mode=mode)
     return mmdet_build_dataset(cfg, *args, **kwargs)
@@ -676,7 +676,7 @@ def build_dataloader(
             poly2mask=poly2mask,
         )
         num_workers = (
-            train_loader_config["workers_per_gpu"] * train_loader_config["num_gpus"]
+            train_loader_config["workers_per_gpu"] * train_loader_config.get("num_gpus", 1)
         )
         if shuffle is None:
             shuffle = train_loader_config.get("shuffle", True)
@@ -691,7 +691,7 @@ def build_dataloader(
             tensors_dict["masks_tensor"] = masks_tensor
 
         batch_size = (
-            train_loader_config["samples_per_gpu"] * train_loader_config["num_gpus"]
+            train_loader_config["samples_per_gpu"] * train_loader_config.get("num_gpus", 1)
         )
 
         collate_fn = partial(collate, samples_per_gpu=batch_size)
@@ -937,7 +937,7 @@ def train_detector(
             # Replace 'ImageToTensor' to 'DefaultFormatBundle'
             cfg.data.val.pipeline = replace_ImageToTensor(cfg.data.val.pipeline)
         val_dataset = validation_dataset or build_dataset(
-            cfg, tensors=val_tensors, mode="val"
+            cfg.data.val, tensors=val_tensors, mode="val"
         )
 
         val_dataloader = build_dataloader(
