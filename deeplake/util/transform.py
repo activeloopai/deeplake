@@ -252,7 +252,7 @@ def extend_data_slice(
         chunk_engine = all_chunk_engines[tensor]
         callback = chunk_engine._transform_callback
         if value._numpy_only:
-            for batch in value.numpy_compressed():
+            for batch in value.numpy_compressed()[0]:
                 chunk_engine.extend(
                     batch, link_callback=callback, pg_callback=pg_callback
                 )

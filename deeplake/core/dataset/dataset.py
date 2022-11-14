@@ -3129,12 +3129,17 @@ class Dataset:
                     if len(self.index) > 1:
                         sample_out[tensor_name].append(sample_in[tensor_name].numpy())
                     else:
+                        if self.index.subscriptable_at(0):
+                            sample_idxs = list(self.index.values[0].indices(len(self)))
+                        else:
+                            sample_idxs = [self.index.values[0].value]
                         sample_out[tensor_name].append(
-                            sample_in[
-                                tensor_name
-                            ].chunk_engine.get_deeplake_read_sample(
-                                sample_in.index.values[0].value
-                            )
+                            [
+                                sample_in[
+                                    tensor_name
+                                ].chunk_engine.get_deeplake_read_sample(sample_idx)
+                                for sample_idx in sample_idxs
+                            ]
                         )
                 else:
                     sample_out[tensor_name].append(sample_in[tensor_name])

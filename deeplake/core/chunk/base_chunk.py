@@ -383,7 +383,7 @@ class BaseChunk(DeepLakeMemoryObject):
         return incoming_sample, shape  # type: ignore
 
     def convert_to_rgb(self, shape):
-        if self.is_convert_candidate and CONVERT_GRAYSCALE:
+        if shape is not None and self.is_convert_candidate and CONVERT_GRAYSCALE:
             if self.num_dims is None:
                 self.num_dims = len(shape)
             if len(shape) == 2 and self.num_dims == 3:
