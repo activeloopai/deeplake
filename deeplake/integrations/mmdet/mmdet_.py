@@ -1,6 +1,6 @@
 from collections import OrderedDict
 
-from typing import Callable
+from typing import Callable, Optional, List, Dict
 from mmdet.apis.train import *
 from mmdet.datasets import build_dataloader as mmdet_build_dataloader
 from mmdet.datasets import build_dataset as mmdet_build_dataset
@@ -9,7 +9,6 @@ from mmdet.datasets.builder import PIPELINES
 from mmdet.datasets.pipelines import Compose
 from mmcv.parallel import collate
 from functools import partial
-from typing import Optional
 from deeplake.integrations.pytorch.dataset import TorchDataset
 from deeplake.client.client import DeepLakeBackendClient
 from mmdet.core import BitmapMasks
