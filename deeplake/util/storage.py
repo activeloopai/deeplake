@@ -91,7 +91,7 @@ def storage_provider_from_path(
 
 
 def storage_provider_from_hub_path(
-    path: str, read_only: bool = False, token: str = None
+    path: str, read_only: bool = False, token: Optional[str] = None
 ):
     path, org_id, ds_name, subdir = process_hub_path(path)
     client = DeepLakeBackendClient(token=token)
@@ -167,7 +167,7 @@ def get_local_storage_path(path: str, prefix: str):
     local_cache_name = path.replace("://", "_")
     local_cache_name = local_cache_name.replace("/", "_")
     local_cache_name = local_cache_name.replace("\\", "_")
-    return f"{prefix}/{local_cache_name}"
+    return os.path.join(prefix, local_cache_name)
 
 
 def get_pytorch_local_storage(dataset):

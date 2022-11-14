@@ -56,7 +56,7 @@ class LinkedChunkEngine(ChunkEngine):
         cache: LRUCache,
         version_state: Dict[str, Any],
         link_creds: LinkCreds,
-        meta_cache: LRUCache = None,
+        meta_cache: Optional[LRUCache] = None,
     ):
         super().__init__(key, cache, version_state, meta_cache)
         self.path_chunk_engine = ChunkEngine(key, cache, version_state, meta_cache)

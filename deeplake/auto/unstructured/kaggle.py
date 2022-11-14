@@ -1,4 +1,5 @@
 from threading import local
+from typing import Optional
 import deeplake
 import glob
 import os
@@ -17,7 +18,7 @@ def _exec_command(command):
         raise ExternalCommandError(command, out)
 
 
-def _set_environment_credentials_if_none(kaggle_credentials: dict = None):
+def _set_environment_credentials_if_none(kaggle_credentials: Optional[dict] = None):
     if kaggle_credentials is not None:
         username = kaggle_credentials.get("username", None)
         if not username:
@@ -35,7 +36,10 @@ def _set_environment_credentials_if_none(kaggle_credentials: dict = None):
 
 
 def download_kaggle_dataset(
-    tag: str, local_path: str, kaggle_credentials: dict = None, exist_ok: bool = False
+    tag: str,
+    local_path: str,
+    kaggle_credentials: Optional[dict] = None,
+    exist_ok: bool = False,
 ):
     """Calls the kaggle API (https://www.kaggle.com/docs/api) to download a kaggle dataset and unzip it's contents.
 

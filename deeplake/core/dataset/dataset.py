@@ -18,6 +18,7 @@ from deeplake.core.index.index import IndexEntry
 from deeplake.core.link_creds import LinkCreds
 from deeplake.util.connect_dataset import connect_dataset_entry
 from deeplake.util.invalid_view_op import invalid_view_op
+from deeplake.util.iteration_warning import suppress_iteration_warning
 from deeplake.api.info import load_info
 from deeplake.client.log import logger
 from deeplake.client.utils import get_user_name
@@ -284,7 +285,7 @@ class Dataset:
         return self._client
 
     def __len__(self, warn: bool = True):
-        """Returns the length of the smallest tensor"""
+        """Returns the length of the smallest tensor."""
         tensor_lengths = [len(tensor) for tensor in self.tensors.values()]
         pad_tensors = self._pad_tensors
         if not pad_tensors and min(tensor_lengths, default=0) != max(
@@ -300,12 +301,12 @@ class Dataset:
 
     @property
     def max_len(self):
-        """Return the maximum length of the tensor"""
+        """Return the maximum length of the tensor."""
         return max([len(tensor) for tensor in self.tensors.values()])
 
     @property
     def min_len(self):
-        """Return the minimum length of the tensor"""
+        """Return the minimum length of the tensor."""
         return min([len(tensor) for tensor in self.tensors.values()])
 
     def __getstate__(self) -> Dict[str, Any]:
@@ -1146,6 +1147,8 @@ class Dataset:
         return self._commit(message)
 
     @deeplake_reporter.record_call
+    @invalid_view_op
+    @suppress_iteration_warning
     def merge(
         self,
         target_id: str,
@@ -1326,9 +1329,7 @@ class Dataset:
         Args:
             id_1 (str, Optional): The first commit_id or branch name.
             id_2 (str, Optional): The second commit_id or branch name.
-            as_dict (bool, Optional): If ``True``, returns a dictionary of the differences instead of printing them.
-                This dictionary will have two keys - "tensor" and "dataset" which represents tensor level and dataset level changes, respectively.
-                Defaults to False.
+            as_dict (bool, Optional): If ``True``, returns the diff as lists of commit wise dictionaries.
 
         Returns:
             Optional[Dict]
@@ -1344,37 +1345,14 @@ class Dataset:
 
         Note:
             A dictionary of the differences between the commits/branches is returned if ``as_dict`` is ``True``.
+            The dictionary will always have 2 keys, "dataset" and "tensors". The values corresponding to these keys are detailed below:
 
-                - If ``id_1`` and ``id_2`` are None, a dictionary containing the differences between the current state and the previous commit will be returned.
-                - If only ``id_1`` is provided, a dictionary containing the differences in the current state and ``id_1`` respectively will be returned.
+                - If ``id_1`` and ``id_2`` are None, both the keys will have a single list as their value. This list will contain a dictionary describing changes compared to the previous commit.
+                - If only ``id_1`` is provided, both keys will have a tuple of 2 lists as their value. The lists will contain dictionaries describing commitwise differences between commits. The 2 lists will range from current state and ``id_1` to most recent common ancestor the commits respectively.
                 - If only ``id_2`` is provided, a ValueError will be raised.
-                - If both ``id_1`` and ``id_2`` are provided, a dictionary containing the differences in ``id_1`` and ``id_2`` respectively will be returned.
+                - If both ``id_1`` and ``id_2`` are provided, both keys will have a tuple of 2 lists as their value. The lists will contain dictionaries describing commitwise differences between commits. The 2 lists will range from ``id_1`` and ``id_2`` to most recent common ancestor the commits respectively.
 
             ``None`` is returned if ``as_dict`` is ``False``.
-
-            Example of a dict returned:
-
-            >>> {
-            ...    "image": {"data_added": [3, 6], "data_updated": {0, 2}, "created": False, "info_updated": False, "data_transformed_in_place": False},
-            ...    "label": {"data_added": [0, 3], "data_updated": {}, "created": True, "info_updated": False, "data_transformed_in_place": False},
-            ...    "other/stuff" : {"data_added": [3, 3], "data_updated": {1, 2}, "created": True, "info_updated": False, "data_transformed_in_place": False},
-            ... }
-
-
-            - Here, "data_added" is a range of sample indexes that were added to the tensor.
-
-                - For example [3, 6] means that sample 3, 4 and 5 were added.
-                - Another example [3, 3] means that no samples were added as the range is empty.
-
-            - "data_updated" is a set of sample indexes that were updated.
-
-                - For example {0, 2} means that sample 0 and 2 were updated.
-
-            - "created" is a boolean that is ``True`` if the tensor was created.
-
-            - "info_updated" is a boolean that is ``True`` if the info of the tensor was updated.
-
-            - "data_transformed_in_place" is a boolean that is ``True`` if the data of the tensor was transformed in place.
         """
         version_state, storage = self.version_state, self.storage
         res = get_changes_and_messages(version_state, storage, id_1, id_2)
@@ -1663,6 +1641,46 @@ class Dataset:
         from deeplake.enterprise import query
 
         return query(self, query_string)
+
+    def sample_by(
+        self,
+        weights: Union[str, list, tuple],
+        replace: Optional[bool] = True,
+        size: Optional[int] = None,
+    ):
+        """Returns a sliced :class:`~deeplake.core.dataset.Dataset` with given weighted sampler applied
+
+        Args:
+            weights: (Union[str, list, tuple]): If it's string then tql will be run to calculate the weights based on the expression. list and tuple will be treated as the list of the weights per sample
+            replace: Optional[bool] If true the samples can be repeated in the result view.
+                (default: ``True``).
+            size: Optional[int] The length of the result view.
+                (default: ``len(dataset)``)
+
+
+        Returns:
+            Dataset: A deeplake.Dataset object.
+
+        Examples:
+
+            Sample the dataset with ``labels == 5`` twice more than ``labels == 6``
+
+            >>> import deeplake
+            >>> from deeplake.experimental import query
+            >>> ds = deeplake.load('hub://activeloop/fashion-mnist-train')
+            >>> sampled_ds = sample(ds_train, "max_weight(labels == 5: 10, labels == 6: 5)")
+
+            Sample the dataset with the given weights;
+
+            >>> ds_train = deeplake.load('hub://activeloop/coco-train')
+            >>> weights = list()
+            >>> for i in range(0, len(ds_train)):
+            >>>     weights.append(i % 5)
+            >>> sampled_ds = sample_by(ds_train, weights, replace=False)
+        """
+        from deeplake.experimental import sample_by
+
+        return sample_by(self, weights, replace, size)
 
     def _get_total_meta(self):
         """Returns tensor metas all together"""
@@ -1960,10 +1978,12 @@ class Dataset:
         commit_node: CommitNode = self.version_state["commit_node_map"].get(commit_id)
         if commit_node is None:
             raise KeyError(f"Commit {commit_id} not found in dataset.")
+
+        time = str(commit_node.commit_time)[:-7] if commit_node.commit_time else None
         return {
             "commit": commit_node.commit_id,
             "author": commit_node.commit_user_name,
-            "time": str(commit_node.commit_time)[:-7],
+            "time": time,
             "message": commit_node.commit_message,
         }
 
@@ -3555,11 +3575,65 @@ class Dataset:
 
     @property
     def min_view(self):
+        """Returns a view of the dataset in which all tensors are sliced to have the same length as
+        the shortest tensor.
+
+        Example:
+
+            Creating a dataset with 5 images and 4 labels. ``ds.min_view`` will return a view in which tensors are
+            sliced to have 4 samples.
+
+            >>> import deeplake
+            >>> ds = deeplake.dataset("../test/test_ds", overwrite=True)
+            >>> ds.create_tensor("images", htype="link[image]", sample_compression="jpg")
+            >>> ds.create_tensor("labels", htype="class_label")
+            >>> ds.images.extend([deeplake.link("https://picsum.photos/20/20") for _ in range(5)])
+            >>> ds.labels.extend([0, 1, 2, 1])
+            >>> len(ds.images)
+            5
+            >>> len(ds.labels)
+            4
+            >>> for i, sample in enumerate(ds.max_view):
+            ...     print(sample["images"].shape, sample["labels"].numpy())
+            ...
+            (20, 20, 3) [0]
+            (20, 20, 3) [1]
+            (20, 20, 3) [2]
+            (20, 20, 3) [1]
+
+        """
         min_length = min(map(len, self.tensors.values()))
         return self[:min_length]
 
     @property
     def max_view(self):
+        """Returns a view of the dataset in which shorter tensors are padded with ``None`` s to have the same length as
+        the longest tensor.
+
+        Example:
+
+            Creating a dataset with 5 images and 4 labels. ``ds.max_view`` will return a view with ``labels`` tensor
+            padded to have 5 samples.
+
+            >>> import deeplake
+            >>> ds = deeplake.dataset("../test/test_ds", overwrite=True)
+            >>> ds.create_tensor("images", htype="link[image]", sample_compression="jpg")
+            >>> ds.create_tensor("labels", htype="class_label")
+            >>> ds.images.extend([deeplake.link("https://picsum.photos/20/20") for _ in range(5)])
+            >>> ds.labels.extend([0, 1, 2, 1])
+            >>> len(ds.images)
+            5
+            >>> len(ds.labels)
+            4
+            >>> for i, sample in enumerate(ds.max_view):
+            ...     print(sample["images"].shape, sample["labels"].numpy())
+            ...
+            (20, 20, 3) [0]
+            (20, 20, 3) [1]
+            (20, 20, 3) [2]
+            (20, 20, 3) [1]
+            (20, 20, 3) [None]
+        """
         return self.__class__(
             storage=self.storage,
             index=self.index,
