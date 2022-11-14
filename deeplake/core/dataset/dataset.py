@@ -1550,10 +1550,10 @@ class Dataset:
         return dataloader
 
     def dataloader(self):
-        """Returns a Dataloader object. This is an enterprise feature. To use this, install deeplake with `pip install deeplake[enterprise]`.
+        """Returns a Dataloader object. This is an enterprise feature. To use this, install deeplake with ``pip install deeplake[enterprise]``.
 
         Returns:
-            A DeepLakeDataloader object.
+            ~deeplake.enterprise.DeepLakeDataLoader: A :class:`deeplake.enterprise.DeepLakeDataLoader` object.
         """
         from deeplake.enterprise import dataloader
 
