@@ -13,5 +13,5 @@ Dataloader
 
 .. currentmodule:: deeplake.enterprise
 
-.. autoclass:: DeepLakeDataLoader
+.. autoclass:: DeepLakeDataLoader()
     :members:
