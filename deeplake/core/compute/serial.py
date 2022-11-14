@@ -11,7 +11,11 @@ class SerialProvider(ComputeProvider):
     def map_with_progressbar(self, func, iterable, total_length: int, desc=None):
         from tqdm.std import tqdm  # type: ignore
 
-        pbar = tqdm(total=total_length, desc=desc)
+        pbar = tqdm(
+            total=total_length,
+            desc=desc,
+            bar_format="{desc}: {percentage:.0f}%|{bar}| {n:.0f}/{total_fmt} [{elapsed}<{remaining}",
+        )
 
         def sub_func(*args, **kwargs):
             def pg_callback(value: int):

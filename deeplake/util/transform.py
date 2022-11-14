@@ -224,7 +224,7 @@ def _transform_sample_and_update_chunk_engines(
 
 def normalize_pg(pg_callback, num_tensors):
     def inner(num_samples):
-        return pg_callback(round(num_samples / num_tensors, 2))
+        return pg_callback(num_samples / num_tensors)
 
     return inner
 

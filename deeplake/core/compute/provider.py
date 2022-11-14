@@ -15,7 +15,11 @@ class ComputeProvider(ABC):
         import threading
         from threading import Thread
 
-        progress_bar = tqdm(total=total_length, desc=desc)
+        pbar = tqdm(
+            total=total_length,
+            desc=desc,
+            bar_format="{desc}: {percentage:.0f}%|{bar}| {n:.0f}/{total_fmt} [{elapsed}<{remaining}",
+        )
         progress_queue = self.create_queue()
 
         def sub_func(*args, **kwargs):
