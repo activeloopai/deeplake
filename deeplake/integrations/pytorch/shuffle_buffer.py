@@ -35,9 +35,6 @@ class ShuffleBuffer:
             unit_divisor=1024,
         )
         self.pbar_closed = False
-        print("=======")
-        print("init shuffle buffer")
-        print("=======")
     def exchange(self, sample):
         """Shuffle with existing elements in a buffer and return value if buffer is full or if `None` is provided as argument.
 
@@ -48,11 +45,6 @@ class ShuffleBuffer:
             random sample or None,
             same sample if buffer is empty and sample doesn't fit
         """
-
-        print("=======")
-        print("shuffle buffer exchange")
-        print("=======")
-
         buffer_len = len(self.buffer)
 
         if sample is not None:
