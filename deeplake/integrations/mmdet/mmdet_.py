@@ -26,6 +26,7 @@ import tempfile
 from deeplake.integrations.mmdet import mmdet_utils
 from deeplake.experimental.dataloader import indra_available, dataloader
 from PIL import Image, ImageDraw
+from torch.utils.data import DataLoader
 import os
 
 
@@ -669,6 +670,7 @@ def build_dataloader(
         loader.sampler = None
         loader.batch_sampler = Dummy()
         loader.batch_sampler.sampler = None
+        loader.__class__ = DataLoader
 
         mmdet_ds = MMDetDataset(
             dataset=dataset,
