@@ -878,7 +878,7 @@ class Tensor:
             data = {"value": labels}
             class_names = self.info.class_names
             if class_names:
-                data["text"] = convert_to_text(labels, self.info.class_names)
+                data["text"] = convert_to_text(labels, class_names)
             return data
         if htype in ("image", "image.rgb", "image.gray", "dicom"):
             return {
