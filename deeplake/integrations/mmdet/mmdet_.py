@@ -33,6 +33,9 @@ import os
 class Dummy:
     pass
 
+class DummyLoader(DataLoader):
+    pass
+
 
 def coco_pixel_2_pascal_pixel(boxes, shape):
     # Convert bounding boxes to Pascal VOC format and clip bounding boxes to make sure they have non-negative width and height
@@ -670,7 +673,7 @@ def build_dataloader(
         loader.sampler = None
         loader.batch_sampler = Dummy()
         loader.batch_sampler.sampler = None
-        loader.__class__ = DataLoader
+        loader.__class__ = DummyLoader
 
         mmdet_ds = MMDetDataset(
             dataset=dataset,
