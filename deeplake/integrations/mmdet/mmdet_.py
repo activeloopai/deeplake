@@ -496,6 +496,9 @@ def transform(
 
     bboxes = sample_in[boxes_tensor]
     bboxes = convert_to_pascal_format(bboxes, bbox_info, img.shape)
+    if bboxes.shape == (0,0): # TO DO: remove after bug will be fixed
+        bboxes = np.empty((0,4), dtype=sample_in[boxes_tensor].dtype)
+    
     labels = sample_in[labels_tensor]
 
     if img.ndim == 2:
