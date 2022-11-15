@@ -16,7 +16,8 @@ import os.path as osp
 import warnings
 from collections import OrderedDict
 import mmcv
-from mmcv.runner import get_dist_info, init_dist
+from mmcv.runner import init_dist
+import torch
 import numpy as np
 from mmcv.utils import print_log
 from terminaltables import AsciiTable
@@ -723,8 +724,7 @@ def train_detector(
 
     if not hasattr(cfg, "gpu_ids"):
         if distributed:
-            _, world_size = get_dist_info()
-            cfg.gpu_ids = range(world_size)
+            cfg.gpu_ids = range(torch.cuda.device_count())
         else:
             cfg.gpu_ids = range(1)
 
