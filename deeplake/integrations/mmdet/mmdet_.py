@@ -796,7 +796,7 @@ def train_detector(
         print("========================")
         print(f"Local Rank: {local_rank}")
         print("========================")
-        init_dist("pytorch", **cfg.dist_params)
+        torch.distributed.init_process_group("nccl")
         find_unused_parameters = cfg.get("find_unused_parameters", False)
         # Sets the `find_unused_parameters` parameter in
         # # torch.nn.parallel.DistributedDataParallel
