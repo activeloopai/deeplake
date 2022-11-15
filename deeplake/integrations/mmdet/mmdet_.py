@@ -2,8 +2,6 @@ from collections import OrderedDict
 
 from typing import Callable, Optional, List, Dict
 from mmdet.apis.train import *
-from mmdet.datasets import build_dataloader as mmdet_build_dataloader
-from mmdet.datasets import build_dataset as mmdet_build_dataset
 from mmcv.utils import build_from_cfg
 from mmdet.datasets.builder import PIPELINES
 from mmdet.datasets.pipelines import Compose
@@ -18,7 +16,8 @@ import os.path as osp
 import warnings
 from collections import OrderedDict
 import mmcv
-
+from mmcv.runner import init_dist
+import torch
 import numpy as np
 from mmcv.utils import print_log
 from terminaltables import AsciiTable
@@ -452,7 +451,7 @@ class MMDetDataset(TorchDataset):
         return result_files, tmp_dir
 
 
-def load_ds_from_cfg(cfg):
+def load_ds_from_cfg(cfg: Dict):
     creds = cfg.get("deeplake_credentials", {})
     token = creds.get("token", None)
     if token is None:
@@ -536,17 +535,17 @@ def transform(
 
 def build_dataset(cfg):
     if not isinstance(cfg, dp.Dataset):
-        deeplake_tensors = cfg.get('deeplake_tensors', {})
-        classes = deeplake_tensors.get('gt_labels')
-        ds = load_ds_from_cfg(cfg)
+        deeplake_tensors = cfg.get("deeplake_tensors", {})
+        classes = deeplake_tensors.get("gt_labels")
         if classes is None:
-            classes = _find_tensor_with_htype(ds, "class_label", "gt_labels")
+            classes = _find_tensor_with_htype(cfg, "class_label", "gt_labels")
         
         if classes is None:
             raise KeyError("No tensor with htype class_label exists in the dataset")
-        
-        ds.CLASSES = ds[classes].info.class_names
-        return ds
+
+        cfg = load_ds_from_cfg(cfg)
+        cfg.CLASSES = cfg[classes].info.class_names
+        return cfg
     return cfg
     
 
@@ -610,9 +609,7 @@ def build_dataloader(
         bbox_info=bbox_info,
         poly2mask=poly2mask,
     )
-    num_workers = train_loader_config["workers_per_gpu"] * train_loader_config.get(
-        "num_gpus", 1
-    )
+    num_workers = train_loader_config["workers_per_gpu"]
     if shuffle is None:
         shuffle = train_loader_config.get("shuffle", True)
     tensors_dict = {
@@ -625,9 +622,7 @@ def build_dataloader(
         tensors.append(masks_tensor)
         tensors_dict["masks_tensor"] = masks_tensor
 
-    batch_size = train_loader_config["samples_per_gpu"] * train_loader_config.get(
-        "num_gpus", 1
-    )
+    batch_size = train_loader_config["samples_per_gpu"]
 
     collate_fn = partial(collate, samples_per_gpu=batch_size)
 
@@ -760,6 +755,20 @@ def train_detector(
         train_dataset = train_dataset[0]
     
     cfg = compat_cfg(cfg)
+
+    if isinstance(train_dataset, (list, tuple)):
+        if len(train_dataset) > 1:
+            raise NotImplementedError(
+                "Training on multiple Deep Lake datasets is not supported."
+            )
+        train_dataset = train_dataset[0]
+
+    if not hasattr(cfg, "gpu_ids"):
+        if distributed:
+            cfg.gpu_ids = range(torch.cuda.device_count())
+        else:
+            cfg.gpu_ids = range(1)
+
     eval_cfg = cfg.get("evaluation", {})
     dl_impl = cfg.get("deeplake_dataloader", "auto").lower()
 
@@ -816,7 +825,7 @@ def train_detector(
     }
 
     data_loader = build_dataloader(
-        train_dataset,
+        train_dataset[0], # TO DO: convert it to for loop if we will suport concatting several datasets
         train_images_tensor,
         train_masks_tensor,
         train_boxes_tensor,
@@ -828,13 +837,25 @@ def train_detector(
 
     # put model on gpus
     if distributed:
+        local_rank = int(os.environ["LOCAL_RANK"])
+        print("========================")
+        print(f"Local Rank: {local_rank}")
+        print("========================")
+        torch.cuda.set_device(local_rank)
+        init_dist("pytorch", **cfg.dist_params)
         find_unused_parameters = cfg.get("find_unused_parameters", False)
         # Sets the `find_unused_parameters` parameter in
-        # torch.nn.parallel.DistributedDataParallel
+        # # torch.nn.parallel.DistributedDataParallel
+        # model = torch.nn.parallel.DistributedDataParallel(model.cuda(),
+        #                                           device_ids=[local_rank],
+        #                                           output_device=local_rank,
+        #                                           broadcast_buffers=False,
+        #                                           find_unused_parameters=find_unused_parameters)
         model = build_ddp(
             model,
             cfg.device,
-            device_ids=[int(os.environ["LOCAL_RANK"])],
+            device_ids=[local_rank],
+            output_device=local_rank,
             broadcast_buffers=False,
             find_unused_parameters=find_unused_parameters,
         )
