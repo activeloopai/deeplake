@@ -157,16 +157,6 @@ def yolo_frac_2_pascal_pixel(boxes, shape):
     return yolo_pixel_2_pascal_pixel(bbox, shape)
 
 
-BBOX_FORMAT_TO_CONVERTER = {
-    ("LTWH", "pixel"): coco_pixel_2_pascal_pixel,
-    ("LTWH", "fractional"): coco_frac_2_pascal_pixel,
-    ("LTRB", "pixel"): lambda x: x,
-    ("LTRB", "fractional"): pascal_frac_2_pascal_pixel,
-    ("CCWH", "pixel"): yolo_pixel_2_pascal_pixel,
-    ("CCWH", "fractional"): yolo_frac_2_pascal_pixel,
-}
-
-
 def convert_to_pascal_format(bbox, bbox_info, shape):
     bbox_format = get_bbox_format(bbox, bbox_info)
     converter = BBOX_FORMAT_TO_CONVERTER[bbox_format]
@@ -551,10 +541,20 @@ def transform(
 
 
 def build_dataset(cfg):
-    if isinstance(cfg, dp.Dataset):
-        return cfg
-    return load_ds_from_cfg(cfg)
+    if not isinstance(cfg, dp.Dataset):
+        deeplake_tensors = cfg.get('deeplake_tensors', {})
+        classes = deeplake_tensors.get('gt_labels')
+        if classes is None:
+            classes = _find_tensor_with_htype(cfg, "class_label", "gt_labels")
+        
+        if classes is None:
+            raise KeyError("No tensor with htype class_label exists in the dataset")
 
+        cfg = load_ds_from_cfg(cfg)
+        cfg.CLASSES = cfg[classes].info.class_names
+        return cfg
+    return cfg
+    
 
 def _get_collate_keys(pipeline):
     if type(pipeline) == list:
@@ -759,8 +759,9 @@ def train_detector(
         **train_dataloader_default_args,
         **cfg.data.get("train_dataloader", {}),
     }
+
     data_loader = build_dataloader(
-        train_dataset,
+        train_dataset[0], # TO DO: convert it to for loop if we will suport concatting several datasets
         train_images_tensor,
         train_masks_tensor,
         train_boxes_tensor,
