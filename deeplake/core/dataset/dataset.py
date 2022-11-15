@@ -18,7 +18,10 @@ from deeplake.core.index.index import IndexEntry
 from deeplake.core.link_creds import LinkCreds
 from deeplake.util.connect_dataset import connect_dataset_entry
 from deeplake.util.invalid_view_op import invalid_view_op
-from deeplake.util.iteration_warning import suppress_iteration_warning
+from deeplake.util.iteration_warning import (
+    suppress_iteration_warning,
+    check_if_iteration,
+)
 from deeplake.api.info import load_info
 from deeplake.client.log import logger
 from deeplake.client.utils import get_user_name
@@ -445,22 +448,11 @@ class Dataset:
                 return ret
             else:
                 if not is_iteration and isinstance(item, int):
-                    indexing_history = self._indexing_history
-                    if len(indexing_history) == 10:
-                        step = indexing_history[1] - indexing_history[0]
-                        for i in range(2, len(indexing_history)):
-                            if indexing_history[i] - indexing_history[i - 1] != step:
-                                self._indexing_history.pop(0)
-                                self._indexing_history.append(item)
-                                break
-                        else:
-                            is_iteration = True
-                            if deeplake.constants.SHOW_ITERATION_WARNING:
-                                warnings.warn(
-                                    "Indexing by integer in a for loop, like `for i in range(len(ds)): ... ds[i]` can be quite slow. Use `for i, sample in enumerate(ds)` instead."
-                                )
-                    else:
-                        indexing_history.append(item)
+                    is_iteration = check_if_iteration(self._indexing_history, item)
+                    if is_iteration and deeplake.constants.SHOW_ITERATION_WARNING:
+                        warnings.warn(
+                            "Indexing by integer in a for loop, like `for i in range(len(ds)): ... ds[i]` can be quite slow. Use `for i, sample in enumerate(ds)` instead."
+                        )
                 ret = self.__class__(
                     storage=self.storage,
                     index=self.index[item],
