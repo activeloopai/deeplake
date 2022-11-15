@@ -267,6 +267,7 @@ class SampleStreaming(Streaming):
         return_index: bool = True,
         pad_tensors: bool = False,
         decode_method: Optional[Dict[str, str]] = None,
+        tobytes: Optional[Sequence[str]] = None,
     ) -> None:
         super().__init__()
 
