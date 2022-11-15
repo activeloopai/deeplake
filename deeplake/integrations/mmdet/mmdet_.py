@@ -794,6 +794,9 @@ def train_detector(
     # put model on gpus
     if distributed:
         local_rank = int(os.environ["LOCAL_RANK"])
+        print("========================")
+        print(f"Local Rank: {local_rank}")
+        print("========================")
         torch.cuda.set_device(local_rank)
         init_dist("pytorch", **cfg.dist_params)
         find_unused_parameters = cfg.get("find_unused_parameters", False)
