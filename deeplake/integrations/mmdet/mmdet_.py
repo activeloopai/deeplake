@@ -796,7 +796,6 @@ def train_detector(
         print("========================")
         print(f"Local Rank: {local_rank}")
         print("========================")
-        torch.cuda.set_device(local_rank)
         init_dist("pytorch", **cfg.dist_params)
         find_unused_parameters = cfg.get("find_unused_parameters", False)
         # Sets the `find_unused_parameters` parameter in
