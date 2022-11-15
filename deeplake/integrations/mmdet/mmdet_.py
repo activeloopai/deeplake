@@ -168,7 +168,7 @@ def pascal_pixel_2_coco_pixel(boxes):
     ) for box in boxes]
 
 BBOX_FORMAT_TO_COCO_CONVERTER = {
-    ("LTWH", "pixel"): lambda x, y: x,
+    ("LTWH", "pixel"): lambda x: x,
     ("LTRB", "pixel"): pascal_pixel_2_coco_pixel,
 }
 
@@ -520,7 +520,7 @@ def transform(
         img = np.array(img)
 
     bboxes = sample_in[boxes_tensor]
-    # TODO bbox format should be recognized outside the transform, not per sample basis
+    # TODO bbox format should be recognized outside the transform, not per sample basis.
     bboxes = convert_to_pascal_format(bboxes, bbox_info, img.shape)
     if bboxes.shape == (0,0): # TO DO: remove after bug will be fixed
         bboxes = np.empty((0,4), dtype=sample_in[boxes_tensor].dtype)
