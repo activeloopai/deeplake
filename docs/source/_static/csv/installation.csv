@@ -5,4 +5,5 @@ Install command, Description, Dependencies installed
 "``pip install ""deeplake[dicom]""``", DICOM data support, pydicom
 "``pip install ""deeplake[gdrive]""``", Google Drive support, "google-api-python-client, oauth2client, google-auth, google-auth-oauthlib"
 "``pip install ""deeplake[point_cloud]""``", Support for LiDAR point cloud data, laspy
+"``pip install ""deeplake[enterprise]""``", Installs Deep Lake's enterprise features, libdeeplake,
 "``pip install ""deeplake[all]""``", Installs all of the above,           
