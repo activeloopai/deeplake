@@ -36,6 +36,7 @@ class _COCO(pycocotools_coco.COCO):
         labels=None,
         iscrowds=None,
         class_names=None,
+        bbox_format=("LTRB", "pixel"),
     ):
         """
         Constructor of Microsoft COCO helper class for reading and visualizing annotations.
@@ -49,6 +50,7 @@ class _COCO(pycocotools_coco.COCO):
         self.img_shapes = imgs
         self.iscrowds = iscrowds
         self.class_names = class_names
+        self.bbox_format = bbox_format
 
         # load dataset
         self.anns, self.cats, self.imgs = dict(), dict(), dict()
@@ -290,6 +292,7 @@ class HubCOCO(_COCO):
         labels=None,
         iscrowds=None,
         class_names=None,
+        bbox_format=("LTRB", "pixel"),
     ):
         if getattr(pycocotools, "__version__", "0") >= "12.0.2":
             warnings.warn(
@@ -304,6 +307,7 @@ class HubCOCO(_COCO):
             bboxes=bboxes,
             iscrowds=iscrowds,
             class_names=class_names,
+            bbox_format=bbox_format,
         )
         self.img_ann_map = self.imgToAnns
         self.cat_img_map = self.catToImgs
@@ -345,6 +349,7 @@ class COCODatasetEvaluater(mmdet_coco.CocoDataset):
         bboxes=None,
         labels=None,
         iscrowds=None,
+        bbox_format=None,
     ):
         self.img_prefix = img_prefix
         self.seg_prefix = seg_prefix
@@ -363,6 +368,7 @@ class COCODatasetEvaluater(mmdet_coco.CocoDataset):
             bboxes=bboxes,
             iscrowds=iscrowds,
             class_names=self.CLASSES,
+            bbox_format=bbox_format,
         )
         self.proposals = None
 
@@ -389,6 +395,7 @@ class COCODatasetEvaluater(mmdet_coco.CocoDataset):
         bboxes=None,
         iscrowds=None,
         class_names=None,
+        bbox_format=None,
     ):
         """Load annotation from COCO style annotation file.
 
@@ -407,6 +414,7 @@ class COCODatasetEvaluater(mmdet_coco.CocoDataset):
             masks=masks,
             iscrowds=iscrowds,
             class_names=class_names,
+            bbox_format=bbox_format,
         )
         # The order of returned `cat_ids` will not
         # change with the order of the CLASSES

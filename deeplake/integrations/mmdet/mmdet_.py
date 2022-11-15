@@ -106,7 +106,7 @@ def get_bbox_format(bbox, bbox_info):
     return (mode, type)
 
 
-BBOX_FORMAT_TO_CONVERTER = {
+BBOX_FORMAT_TO_PASCAL_CONVERTER = {
     ("LTWH", "pixel"): coco_pixel_2_pascal_pixel,
     ("LTWH", "fractional"): coco_frac_2_pascal_pixel,
     ("LTRB", "pixel"): lambda x, y: x,
@@ -116,44 +116,33 @@ BBOX_FORMAT_TO_CONVERTER = {
 }
 
 
-def coco_frac_2_pascal_pixel(boxes, shape):
-    x = boxes[:, 0] * shape[1]
-    y = boxes[:, 1] * shape[0]
-    w = boxes[:, 2] * shape[1]
-    h = boxes[:, 3] * shape[0]
-    bbox = np.stack((x, y, w, h), axis=1)
-    return coco_pixel_2_pascal_pixel(bbox, shape)
-
-
-def pascal_frac_2_pascal_pixel(boxes, shape):
-    x_top = boxes[:, 0] * shape[1]
-    y_top = boxes[:, 1] * shape[0]
-    x_bottom = boxes[:, 2] * shape[1]
-    y_bottom = boxes[:, 3] * shape[0]
-    return np.stack((x_top, y_top, x_bottom, y_bottom), axis=1)
-
-
-def yolo_pixel_2_pascal_pixel(boxes, shape):
-    x_top = np.array(boxes[:, 0]) - np.floor(np.array(boxes[:, 2]) / 2)
-    y_top = np.array(boxes[:, 1]) - np.floor(np.array(boxes[:, 3]) / 2)
-    x_bottom = np.array(boxes[:, 0]) + np.floor(np.array(boxes[:, 2]) / 2)
-    y_bottom = np.array(boxes[:, 1]) + np.floor(np.array(boxes[:, 3]) / 2)
-    return np.stack((x_top, y_top, x_bottom, y_bottom), axis=1)
-
-
-def yolo_frac_2_pascal_pixel(boxes, shape):
-    x_center = boxes[:, 0] * shape[1]
-    y_center = boxes[:, 1] * shape[0]
-    width = boxes[:, 2] * shape[1]
-    height = boxes[:, 3] * shape[0]
-    bbox = np.stack((x_center, y_center, width, height), axis=1)
-    return yolo_pixel_2_pascal_pixel(bbox, shape)
-
-
 def convert_to_pascal_format(bbox, bbox_info, shape):
     bbox_format = get_bbox_format(bbox, bbox_info)
-    converter = BBOX_FORMAT_TO_CONVERTER[bbox_format]
+    converter = BBOX_FORMAT_TO_PASCAL_CONVERTER[bbox_format]
     return converter(bbox, shape)
+
+
+def pascal_pixel_2_coco_pixel(boxes):
+    return [np.stack(
+        (
+            box[:, 0],
+            box[:, 1],
+            box[:, 2] - box[:, 0],
+            box[:, 3] - box[:, 1],
+        ),
+        axis=1,
+    ) for box in boxes]
+
+BBOX_FORMAT_TO_COCO_CONVERTER = {
+    ("LTWH", "pixel"): lambda x, y: x,
+    ("LTRB", "pixel"): pascal_pixel_2_coco_pixel,
+}
+
+
+def convert_to_coco_format(bbox, bbox_info):
+    bbox_format = get_bbox_format(bbox, bbox_info)
+    converter = BBOX_FORMAT_TO_COCO_CONVERTER[bbox_format]
+    return converter(bbox)
 
 
 class MMDetDataset(TorchDataset):
@@ -174,11 +163,13 @@ class MMDetDataset(TorchDataset):
             tensors_dict.get("masks_tensor", None), shape=self.images[0].shape
         )
         self.bboxes = self._get_bboxes(tensors_dict["boxes_tensor"])
+        bbox_format = get_bbox_format(self.bboxes, bbox_info)
         self.labels = self._get_labels(tensors_dict["labels_tensor"])
         self.iscrowds = self._get_iscrowds(tensors_dict.get("iscrowds"))
         self.CLASSES = self.get_classes(tensors_dict["labels_tensor"])
         self.mode = mode
         self.metrics_format = metrics_format
+        coco_style_bbox = convert_to_coco_format(self.bboxes, bbox_info)
 
         if self.metrics_format == "COCO" and self.mode == "val":
             self.evaluator = mmdet_utils.COCODatasetEvaluater(
@@ -187,9 +178,10 @@ class MMDetDataset(TorchDataset):
                 hub_dataset=self.dataset,
                 imgs=self.images,
                 masks=self.masks,
-                bboxes=self.bboxes,
+                bboxes=coco_style_bbox,
                 labels=self.labels,
                 iscrowds=self.iscrowds,
+                bbox_format=bbox_format,
             )
         else:
             self.evaluator = None
