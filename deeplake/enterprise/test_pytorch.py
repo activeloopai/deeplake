@@ -1,6 +1,4 @@
 import pickle
-from deeplake.enterprise import dataloader
-
 import deeplake
 import numpy as np
 import pytest
@@ -64,9 +62,9 @@ def test_pytorch_small(ds):
 
     if isinstance(get_base_storage(ds.storage), (MemoryProvider, GCSProvider)):
         with pytest.raises(ValueError):
-            dl = dataloader(ds)
+            dl = ds.dataloader()
         return
-    dl = dataloader(ds).batch(1).pytorch(num_workers=2)
+    dl = ds.dataloader().batch(1).pytorch(num_workers=2)
 
     assert len(dl.dataset) == 16
 
@@ -80,7 +78,7 @@ def test_pytorch_small(ds):
             )
 
     sub_ds = ds[5:]
-    sub_dl = dataloader(sub_ds).pytorch(num_workers=0)
+    sub_dl = sub_ds.dataloader().pytorch(num_workers=0)
 
     for i, batch in enumerate(sub_dl):
         np.testing.assert_array_equal(
@@ -91,7 +89,7 @@ def test_pytorch_small(ds):
         )
 
     sub_ds2 = ds[8:12]
-    sub_dl2 = dataloader(sub_ds2).pytorch(num_workers=0)
+    sub_dl2 = sub_ds2.dataloader().pytorch(num_workers=0)
 
     for _ in range(2):
         for i, batch in enumerate(sub_dl2):
@@ -103,7 +101,7 @@ def test_pytorch_small(ds):
             )
 
     sub_ds3 = ds[:5]
-    sub_dl3 = dataloader(sub_ds3).pytorch(num_workers=0)
+    sub_dl3 = sub_ds3.dataloader().pytorch(num_workers=0)
 
     for _ in range(2):
         for i, batch in enumerate(sub_dl3):
@@ -128,11 +126,11 @@ def test_pytorch_transform(ds):
 
     if isinstance(get_base_storage(ds.storage), (MemoryProvider, GCSProvider)):
         with pytest.raises(ValueError):
-            dl = dataloader(ds)
+            dl = ds.dataloader()
         return
 
     dl = (
-        dataloader(ds)
+        ds.dataloader()
         .batch(1)
         .transform(to_tuple, t1="image", t2="image2")
         .pytorch(num_workers=2)
@@ -162,10 +160,10 @@ def test_pytorch_transform_dict(ds):
 
     if isinstance(get_base_storage(ds.storage), (MemoryProvider, GCSProvider)):
         with pytest.raises(ValueError):
-            dl = dataloader(ds)
+            dl = ds.dataloader()
         return
 
-    dl = dataloader(ds).transform({"image": double, "image2": None}).pytorch()
+    dl = ds.dataloader().transform({"image": double, "image2": None}).pytorch()
 
     assert len(dl.dataset) == 16
 
@@ -210,10 +208,10 @@ def test_pytorch_with_compression(ds: Dataset):
 
     if isinstance(get_base_storage(ds.storage), (MemoryProvider, GCSProvider)):
         with pytest.raises(ValueError):
-            dl = dataloader(ds)
+            dl = ds.dataloader()
         return
 
-    dl = dataloader(ds).pytorch(num_workers=0)
+    dl = ds.dataloader().pytorch(num_workers=0)
 
     for _ in range(2):
         for batch in dl:
@@ -235,13 +233,13 @@ def test_custom_tensor_order(ds):
 
     if isinstance(get_base_storage(ds.storage), (MemoryProvider, GCSProvider)):
         with pytest.raises(ValueError):
-            dl = dataloader(ds)
+            dl = ds.dataloader()
         return
 
     with pytest.raises(TensorDoesNotExistError):
-        dl = dataloader(ds).pytorch(tensors=["c", "d", "e"])
+        dl = ds.dataloader().pytorch(tensors=["c", "d", "e"])
 
-    dl = dataloader(ds).pytorch(tensors=["c", "d", "a"], return_index=False)
+    dl = ds.dataloader().pytorch(tensors=["c", "d", "a"], return_index=False)
 
     for i, batch in enumerate(dl):
         c1, d1, a1 = batch
@@ -281,7 +279,7 @@ def test_readonly_with_two_workers(local_ds):
     base_storage.enable_readonly()
     ds = Dataset(storage=local_ds.storage, read_only=True, verbose=False)
 
-    ptds = dataloader(ds).pytorch(num_workers=2)
+    ptds = ds.dataloader().pytorch(num_workers=2)
     # no need to check input, only care that readonly works
     for _ in ptds:
         pass
@@ -314,7 +312,7 @@ def test_groups(local_ds, compressed_image_paths):
             local_ds.images.pngs.flowers.append(img2)
 
     another_ds = deeplake.dataset(local_ds.path)
-    dl = dataloader(another_ds).pytorch(return_index=False)
+    dl = another_ds.dataloader().pytorch(return_index=False)
     for i, (cat, flower) in enumerate(dl):
         assert cat[0].shape == another_ds.images.jpegs.cats[i].numpy().shape
         assert flower[0].shape == another_ds.images.pngs.flowers[i].numpy().shape
@@ -327,7 +325,7 @@ def test_string_tensors(local_ds):
         local_ds.create_tensor("strings", htype="text")
         local_ds.strings.extend([f"string{idx}" for idx in range(5)])
 
-    ptds = dataloader(local_ds).pytorch()
+    ptds = local_ds.dataloader().pytorch()
     for idx, batch in enumerate(ptds):
         np.testing.assert_array_equal(batch["strings"], f"string{idx}")
 
@@ -366,7 +364,7 @@ def test_pytorch_view(local_ds, index):
         ds.img2.extend(arr_list_2)
         ds.label.extend(label_list)
 
-    ptds = dataloader(local_ds[index]).pytorch()
+    ptds = local_ds[index].dataloader().pytorch()
     idxs = list(IndexEntry(index).indices(len(local_ds)))
     for idx, batch in enumerate(ptds):
         idx = idxs[idx]
@@ -388,7 +386,7 @@ def test_pytorch_collate(local_ds, shuffle):
             local_ds.b.append(1)
             local_ds.c.append(2)
 
-    ptds = dataloader(local_ds).batch(4).pytorch(collate_fn=reorder_collate)
+    ptds = local_ds.dataloader().batch(4).pytorch(collate_fn=reorder_collate)
     if shuffle:
         ptds = ptds.shuffle()
     for batch in ptds:
@@ -413,7 +411,7 @@ def test_pytorch_transform_collate(local_ds, shuffle):
             local_ds.c.append(2 * np.ones((300, 300)))
 
     ptds = (
-        dataloader(local_ds)
+        local_ds.dataloader()
         .batch(4)
         .pytorch(
             collate_fn=my_transform_collate,
@@ -449,10 +447,10 @@ def test_pytorch_decode(ds, compressed_image_paths, compression):
         ds.image.extend([deeplake.read(compressed_image_paths["jpeg"][0])] * 5)
     if isinstance(get_base_storage(ds.storage), (MemoryProvider, GCSProvider)):
         with pytest.raises(ValueError):
-            dl = dataloader(ds)
+            dl = ds.dataloader()
         return
 
-    ptds = dataloader(ds).pytorch(decode_method={"image": "tobytes"})
+    ptds = ds.dataloader().pytorch(decode_method={"image": "tobytes"})
 
     for i, batch in enumerate(ptds):
         image = batch["image"][0]
@@ -467,7 +465,7 @@ def test_pytorch_decode(ds, compressed_image_paths, compression):
                 assert f.read() == image
 
     if compression:
-        ptds = dataloader(ds).numpy(decode_method={"image": "pil"})
+        ptds = ds.dataloader().numpy(decode_method={"image": "pil"})
         for i, batch in enumerate(ptds):
             image = batch[0]["image"]
             assert isinstance(image, Image.Image)
@@ -490,7 +488,7 @@ def test_rename(local_ds):
         ds.rename_tensor("abc", "xyz")
         ds.rename_group("blue", "red")
         ds["red/green"].append([1, 2, 3, 4])
-    loader = dataloader(ds).pytorch(return_index=False)
+    loader = ds.dataloader().pytorch(return_index=False)
     for sample in loader:
         assert set(sample.keys()) == {"xyz", "red/green"}
         np.testing.assert_array_equal(np.array(sample["xyz"]), np.array([[1, 2, 3]]))
@@ -503,7 +501,7 @@ def test_rename(local_ds):
 @requires_libdeeplake
 def test_expiration_date_casting_to_string():
     ds = deeplake.dataset("hub://activeloop/cifar100-train")[0:10:2]
-    loader = dataloader(ds).pytorch(return_index=False)
+    loader = ds.dataloader().pytorch(return_index=False)
     for _ in loader:
         pass
 
@@ -519,7 +517,7 @@ def test_indexes(local_ds, num_workers):
             ds.xyz.append(i * np.ones((2, 2)))
 
     ptds = (
-        dataloader(local_ds)
+        local_ds.dataloader()
         .batch(4)
         .pytorch(num_workers=num_workers, return_index=True)
     )
@@ -543,7 +541,7 @@ def test_indexes_transform(local_ds, num_workers):
             ds.xyz.append(i * np.ones((2, 2)))
 
     ptds = (
-        dataloader(local_ds)
+        local_ds.dataloader()
         .batch(4)
         .transform(index_transform)
         .pytorch(num_workers=num_workers, return_index=True)
@@ -571,7 +569,7 @@ def test_indexes_transform_dict(local_ds, num_workers):
             ds.xyz.append(i * np.ones((2, 2)))
 
     ptds = (
-        dataloader(local_ds)
+        local_ds.dataloader()
         .batch(4)
         .transform({"xyz": double, "index": None})
         .pytorch(num_workers=num_workers, return_index=True)
@@ -585,7 +583,7 @@ def test_indexes_transform_dict(local_ds, num_workers):
             np.testing.assert_array_equal(2 * batch["index"][i], batch["xyz"][i][0, 0])
 
     ptds = (
-        dataloader(local_ds)
+        local_ds.dataloader()
         .batch(4)
         .transform({"xyz": double})
         .pytorch(num_workers=num_workers, return_index=True)
@@ -609,7 +607,7 @@ def test_indexes_tensors(local_ds, num_workers):
 
     with pytest.raises(ValueError):
         ptds = (
-            dataloader(local_ds)
+            local_ds.dataloader()
             .batch(4)
             .pytorch(
                 num_workers=num_workers, return_index=True, tensors=["xyz", "index"]
@@ -617,7 +615,7 @@ def test_indexes_tensors(local_ds, num_workers):
         )
 
     ptds = (
-        dataloader(local_ds)
+        local_ds.dataloader()
         .batch(4)
         .pytorch(num_workers=num_workers, return_index=True, tensors=["xyz"])
     )
@@ -636,7 +634,7 @@ def test_uneven_iteration(local_ds):
         ds.create_tensor("y")
         ds.x.extend(list(range(5)))
         ds.y.extend(list(range(10)))
-    ptds = dataloader(ds).pytorch()
+    ptds = ds.dataloader().pytorch()
     for i, batch in enumerate(ptds):
         x, y = np.array(batch["x"][0]), np.array(batch["y"][0])
         np.testing.assert_equal(x, i)
@@ -651,16 +649,16 @@ def test_pytorch_error_handling(local_ds):
         ds.create_tensor("y")
         ds.x.extend(list(range(5)))
 
-    ptds = dataloader(ds).pytorch()
+    ptds = ds.dataloader().pytorch()
     with pytest.raises(EmptyTensorError):
         for _ in ptds:
             pass
 
-    ptds = dataloader(ds).pytorch(tensors=["x", "y"])
+    ptds = ds.dataloader().pytorch(tensors=["x", "y"])
     with pytest.raises(EmptyTensorError):
         for _ in ptds:
             pass
 
-    ptds = dataloader(ds).pytorch(tensors=["x"])
+    ptds = ds.dataloader().pytorch(tensors=["x"])
     for _ in ptds:
         pass
