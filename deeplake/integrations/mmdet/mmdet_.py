@@ -724,17 +724,6 @@ def build_pipeline(steps):
         ]
     )
 
-def ddp_setup(rank: int, world_size: int):
-    """
-    Args:
-        rank: Unique identifier of each process
-        world_size: Total number of processes
-    """
-    os.environ["MASTER_ADDR"] = "localhost"
-    os.environ["MASTER_PORT"] = "12355"  # TODO read from config
-    torch.distributed.init_process_group(backend="nccl", rank=rank, world_size=world_size)
-
-
 
 def train_detector(
     model,
@@ -838,10 +827,6 @@ def train_detector(
     # put model on gpus
     if distributed:
         local_rank = int(os.environ["LOCAL_RANK"])
-        print("========================")
-        print(f"Local Rank: {local_rank}")
-        print("========================")
-        print("process group initialized")
         find_unused_parameters = cfg.get("find_unused_parameters", False)
         # Sets the `find_unused_parameters` parameter in
         # # torch.nn.parallel.DistributedDataParallel
@@ -861,8 +846,6 @@ def train_detector(
         )
     else:
         model = build_dp(model, cfg.device, device_ids=cfg.gpu_ids)
-
-    print("model build done")
 
     # build optimizer
     auto_scale_lr(cfg, distributed, logger)
