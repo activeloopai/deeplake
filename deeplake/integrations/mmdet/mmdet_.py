@@ -798,7 +798,7 @@ def train_detector(
         # Sets the `find_unused_parameters` parameter in
         # torch.nn.parallel.DistributedDataParallel
         local_rank = int(os.environ["LOCAL_RANK"])
-        model = torch.nn.parallel.DistributedDataParallel(model,
+        model = torch.nn.parallel.DistributedDataParallel(model.cuda(),
                                                   device_ids=[local_rank],
                                                   output_device=local_rank,
                                                   broadcast_buffers=False,
