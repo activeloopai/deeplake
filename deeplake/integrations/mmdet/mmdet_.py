@@ -793,11 +793,12 @@ def train_detector(
 
     # put model on gpus
     if distributed:
+        local_rank = int(os.environ["LOCAL_RANK"])
+        torch.cuda.set_device(local_rank)
         init_dist("pytorch", **cfg.dist_params)
         find_unused_parameters = cfg.get("find_unused_parameters", False)
         # Sets the `find_unused_parameters` parameter in
         # # torch.nn.parallel.DistributedDataParallel
-        local_rank = int(os.environ["LOCAL_RANK"])
         # model = torch.nn.parallel.DistributedDataParallel(model.cuda(),
         #                                           device_ids=[local_rank],
         #                                           output_device=local_rank,
