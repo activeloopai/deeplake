@@ -23,15 +23,49 @@ from mmcv.utils import print_log
 from terminaltables import AsciiTable
 from mmdet.core import eval_map, eval_recalls
 from mmdet.datasets.pipelines import Compose
+from mmdet.utils.util_distribution import *
 import tempfile
 from deeplake.integrations.mmdet import mmdet_utils
-from deeplake.experimental.dataloader import indra_available, dataloader
+from deeplake.enterprise.dataloader import indra_available, dataloader
 from PIL import Image, ImageDraw
 import os
 
 
 class Dummy:
     pass
+
+
+def force_cudnn_initialization(device_id):
+    dev = torch.device(f'cuda:{device_id}')
+    torch.nn.functional.conv2d(torch.zeros(32, 32, 32, 32, device=dev), torch.zeros(32, 32, 32, 32, device=dev))
+
+def build_ddp(model, device, *args, **kwargs):
+    """Build DistributedDataParallel module by device type.
+
+    If device is cuda, return a MMDistributedDataParallel model;
+    if device is mlu, return a MLUDistributedDataParallel model.
+
+    Args:
+        model (:class:`nn.Module`): module to be parallelized.
+        device (str): device type, mlu or cuda.
+
+    Returns:
+        :class:`nn.Module`: the module to be parallelized
+
+    References:
+        .. [1] https://pytorch.org/docs/stable/generated/torch.nn.parallel.
+                     DistributedDataParallel.html
+    """
+
+    assert device in ['cuda', 'mlu'], 'Only available for cuda or mlu devices.'
+    if device == 'cuda':
+        model = model.cuda(kwargs['device_ids'][0])  # patch
+    elif device == 'mlu':
+        from mmcv.device.mlu import MLUDistributedDataParallel
+        ddp_factory['mlu'] = MLUDistributedDataParallel
+        model = model.mlu()
+
+    return ddp_factory[device](model, *args, **kwargs)
 
 
 def coco_pixel_2_pascal_pixel(boxes, shape):
@@ -749,11 +783,17 @@ def train_detector(
     """
     cfg = compat_cfg(cfg)
 
-    if not hasattr(cfg, "gpu_ids"):
-        if distributed:
-            cfg.gpu_ids = range(torch.cuda.device_count())
-        else:
-            cfg.gpu_ids = range(1)
+    if isinstance(train_dataset, (list, tuple)):
+        if len(train_dataset) > 1:
+            raise NotImplementedError(
+                "Training on multiple Deep Lake datasets is not supported."
+            )
+        train_dataset = train_dataset[0]
+
+    if distributed:
+        cfg.gpu_ids = range(torch.cuda.device_count())
+    elif not hasattr(cfg, "gpu_ids"):
+        cfg.gpu_ids = range(1)
 
     eval_cfg = cfg.get("evaluation", {})
     dl_impl = cfg.get("deeplake_dataloader", "auto").lower()
@@ -831,11 +871,6 @@ def train_detector(
     # put model on gpus
     if distributed:
         local_rank = int(os.environ["LOCAL_RANK"])
-        print("========================")
-        print(f"Local Rank: {local_rank}")
-        print("========================")
-        torch.cuda.set_device(local_rank)
-        init_dist("pytorch", **cfg.dist_params)
         find_unused_parameters = cfg.get("find_unused_parameters", False)
         # Sets the `find_unused_parameters` parameter in
         # # torch.nn.parallel.DistributedDataParallel
@@ -844,11 +879,12 @@ def train_detector(
         #                                           output_device=local_rank,
         #                                           broadcast_buffers=False,
         #                                           find_unused_parameters=find_unused_parameters)
+        torch.distributed.init_process_group(backend="nccl", rank=local_rank, world_size=len(cfg.gpu_ids))
+        force_cudnn_initialization(local_rank)
         model = build_ddp(
             model,
             cfg.device,
             device_ids=[local_rank],
-            output_device=local_rank,
             broadcast_buffers=False,
             find_unused_parameters=find_unused_parameters,
         )

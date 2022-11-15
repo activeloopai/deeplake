@@ -65,6 +65,7 @@ class SampleCompressedChunk(BaseChunk):
         stream: bool = False,
         decompress: bool = True,
         is_tile: bool = False,
+        to_pil: bool = False,
     ):
         if self.is_empty_tensor:
             raise EmptyTensorError(
@@ -129,7 +130,10 @@ class SampleCompressedChunk(BaseChunk):
             end_idx=stop,
             step=step,
             reverse=reverse,
+            to_pil=to_pil,
         )
+        if to_pil:
+            return sample
 
         if squeeze:
             sample = sample.squeeze(0)

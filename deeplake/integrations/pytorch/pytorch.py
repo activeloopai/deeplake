@@ -13,7 +13,6 @@ from deeplake.integrations.pytorch.dataset import TorchDataset
 def create_dataloader_nesteddataloader(
     dataset,
     tensors,
-    tobytes,
     use_local_cache,
     transform,
     num_workers,
@@ -24,6 +23,7 @@ def create_dataloader_nesteddataloader(
     drop_last,
     return_index,
     pad_tensors,
+    decode_method,
 ):
     import torch
     import torch.utils.data
@@ -35,7 +35,6 @@ def create_dataloader_nesteddataloader(
         SubIterableDataset(
             dataset,
             tensors=tensors,
-            tobytes=tobytes,
             use_local_cache=use_local_cache,
             transform=transform,
             batch_size=batch_size,
@@ -43,6 +42,7 @@ def create_dataloader_nesteddataloader(
             buffer_size=buffer_size,
             return_index=return_index,
             pad_tensors=pad_tensors,
+            decode_method=decode_method,
         ),
         batch_size=batch_size,
         collate_fn=collate_fn,
@@ -103,10 +103,10 @@ def dataset_to_pytorch(
     use_local_cache: bool,
     transform: Optional[Union[Dict, Callable]] = None,
     tensors: Optional[Sequence[str]] = None,
-    tobytes: Union[bool, Sequence[str]] = False,
     return_index: bool = True,
     pad_tensors: bool = True,
     torch_dataset=TorchDataset,
+    decode_method: Optional[Dict[str, str]] = None,
     **kwargs,
 ):
 
@@ -129,13 +129,10 @@ def dataset_to_pytorch(
     else:
         transform = PytorchTransformFunction(composite_transform=transform)
 
-    check_tensors(dataset, tensors)
-
     if shuffle and num_workers > 0:
         return create_dataloader(
             dataset,
             tensors,
-            tobytes,
             use_local_cache,
             transform,
             num_workers,
@@ -146,6 +143,7 @@ def dataset_to_pytorch(
             drop_last,
             return_index,
             pad_tensors,
+            decode_method,
         )
     else:
         return torch.utils.data.DataLoader(
@@ -153,7 +151,6 @@ def dataset_to_pytorch(
                 dataset,
                 *args,
                 tensors=tensors,
-                tobytes=tobytes,
                 use_local_cache=use_local_cache,
                 transform=transform,
                 num_workers=num_workers,
@@ -161,6 +158,7 @@ def dataset_to_pytorch(
                 buffer_size=buffer_size,
                 return_index=return_index,
                 pad_tensors=pad_tensors,
+                decode_method=decode_method,
                 **kwargs,
             ),
             batch_size=batch_size,

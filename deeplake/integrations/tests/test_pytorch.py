@@ -13,6 +13,7 @@ from deeplake.core.storage.memory import MemoryProvider
 from deeplake.constants import KB
 
 from deeplake.tests.dataset_fixtures import enabled_non_gdrive_datasets
+from PIL import Image  # type: ignore
 
 try:
     from torch.utils.data._utils.collate import default_collate
@@ -639,10 +640,14 @@ def test_pytorch_ddp(ds):
     assert s == sum(list(range(254)))
 
 
+def identity(x):
+    return x
+
+
 @requires_torch
 @enabled_non_gdrive_datasets
 @pytest.mark.parametrize("compression", [None, "jpeg"])
-def test_pytorch_tobytes(ds, compressed_image_paths, compression):
+def test_pytorch_decode(ds, compressed_image_paths, compression):
     with ds:
         ds.create_tensor("image", sample_compression=compression)
         ds.image.extend(
@@ -654,7 +659,7 @@ def test_pytorch_tobytes(ds, compressed_image_paths, compression):
             ds.pytorch()
         return
 
-    for i, batch in enumerate(ds.pytorch(tobytes=["image"])):
+    for i, batch in enumerate(ds.pytorch(decode_method={"image": "tobytes"})):
         image = batch["image"][0]
         assert isinstance(image, bytes)
         if i < 5 and not compression:
@@ -665,6 +670,19 @@ def test_pytorch_tobytes(ds, compressed_image_paths, compression):
         elif i >= 5 and compression:
             with open(compressed_image_paths["jpeg"][0], "rb") as f:
                 assert f.read() == image
+
+    if compression:
+        ptds = ds.pytorch(decode_method={"image": "pil"}, collate_fn=identity)
+        for i, batch in enumerate(ptds):
+            image = batch[0]["image"]
+            assert isinstance(image, Image.Image)
+            if i < 5:
+                np.testing.assert_array_equal(
+                    np.array(image), i * np.ones((10, 10, 3), dtype=np.uint8)
+                )
+            elif i >= 5:
+                with Image.open(compressed_image_paths["jpeg"][0]) as f:
+                    np.testing.assert_array_equal(np.array(f), np.array(image))
 
 
 @requires_torch

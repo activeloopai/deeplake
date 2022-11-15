@@ -37,6 +37,7 @@ from deeplake.util.exceptions import (
     InvalidKeyTypeError,
     TensorAlreadyExistsError,
 )
+from deeplake.util.iteration_warning import check_if_iteration
 from deeplake.hooks import dataset_read, dataset_written
 from deeplake.util.pretty_print import (
     summary_tensor,
@@ -590,19 +591,11 @@ class Tensor:
         if isinstance(item, tuple) or item is Ellipsis:
             item = replace_ellipsis_with_slices(item, self.ndim)
         if not is_iteration and isinstance(item, int):
-            indexing_history = self._indexing_history
-            if len(indexing_history) == 2:
-                a, b = indexing_history
-                if item - b == b - a:
-                    is_iteration = True
-                    if deeplake.constants.SHOW_ITERATION_WARNING:
-                        warnings.warn(
-                            "Indexing by integer in a for loop, like `for i in range(len(ds)): ... ds.tensor[i]` can be quite slow. Use `for i, sample in enumerate(ds)` instead."
-                        )
-                if item < a or item > b:
-                    self._indexing_history = [b, item]
-            else:
-                indexing_history.append(item)
+            is_iteration = check_if_iteration(self._indexing_history, item)
+            if is_iteration and deeplake.constants.SHOW_ITERATION_WARNING:
+                warnings.warn(
+                    "Indexing by integer in a for loop, like `for i in range(len(ds)): ... ds.tensor[i]` can be quite slow. Use `for i, sample in enumerate(ds)` instead."
+                )
         return Tensor(
             self.key,
             self.dataset,
@@ -878,7 +871,7 @@ class Tensor:
             data = {"value": labels}
             class_names = self.info.class_names
             if class_names:
-                data["text"] = convert_to_text(labels, self.info.class_names)
+                data["text"] = convert_to_text(labels, class_names)
             return data
         if htype in ("image", "image.rgb", "image.gray", "dicom"):
             return {
@@ -960,12 +953,16 @@ class Tensor:
                 tdt = tensor.dtype
                 vs = get_link_transform(v["extend"])(samples, self.link_creds)
                 if tdt:
-                    vs = [
-                        v.astype(tdt)
-                        if isinstance(v, np.ndarray) and v.dtype != tdt
-                        else v
-                        for v in vs
-                    ]
+                    if isinstance(vs, np.ndarray):
+                        if vs.dtype != tdt:
+                            vs = vs.astype(tdt)
+                    else:
+                        vs = [
+                            v.astype(tdt)
+                            if isinstance(v, np.ndarray) and v.dtype != tdt
+                            else v
+                            for v in vs
+                        ]
                 tensor.extend(vs)
 
     def _update_links(

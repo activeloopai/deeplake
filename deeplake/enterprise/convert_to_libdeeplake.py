@@ -1,4 +1,4 @@
-from deeplake.experimental.util import raise_indra_installation_error, remove_tiled_samples  # type: ignore
+from deeplake.enterprise.util import raise_indra_installation_error, remove_tiled_samples  # type: ignore
 from deeplake.core.storage import S3Provider
 
 from deeplake.util.dataset import try_flushing  # type: ignore

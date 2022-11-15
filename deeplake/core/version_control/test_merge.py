@@ -430,3 +430,23 @@ def test_merge_class_labels(local_ds):
             "g",
             "h",
         }
+
+
+def test_merge_class_labels_no_classnames(local_ds):
+    with local_ds as ds:
+        ds.create_tensor("labels", "class_label")
+        ds.labels.extend([0, 1, 2, 3])
+        ds.commit()
+
+        ds.checkout("alt", create=True)
+        ds.labels.extend([4, 5, 0])
+        ds.commit()
+
+        ds.checkout("main")
+        ds.labels.extend([6, 5, 7])
+        ds.merge("alt")
+
+        np.testing.assert_array_equal(
+            np.array(ds.labels.numpy()).squeeze(),
+            [0, 1, 2, 3, 6, 5, 7, 4, 5, 0],
+        )
