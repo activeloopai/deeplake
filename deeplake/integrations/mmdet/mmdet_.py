@@ -810,7 +810,6 @@ def train_detector(
             model,
             cfg.device,
             device_ids=[local_rank],
-            output_device=local_rank,
             broadcast_buffers=False,
             find_unused_parameters=find_unused_parameters,
         )
