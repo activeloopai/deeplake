@@ -25,5 +25,8 @@ def test_read(cat_path, flower_path):
     assert arr.shape == (900, 900, 3)
     assert arr.dtype == np.uint32
 
+    pil_img = flower.pil
+    assert pil_img.size == (464, 513)
+
 
 # TODO: test creating Sample with np.ndarray

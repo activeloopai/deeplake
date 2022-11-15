@@ -123,7 +123,8 @@ Dataset Version Control
 Dataset Views
 ~~~~~~~~~~~~~
 A dataset view is a subset of a dataset that points to specific samples (indices) in an existing dataset. Dataset views
-can be created by indexing a dataset, filtering a dataset with :meth:`Dataset.filter` or querying a dataset with :meth:`Dataset.query`.
+can be created by indexing a dataset, filtering a dataset with :meth:`Dataset.filter`, querying a dataset with :meth:`Dataset.query`
+or by sampling a dataset with :meth:`Dataset.sample_by`.
 Filtering is done with user-defined functions or simplified expressions whereas query can perform SQL-like queries with our 
 Tensor Query Language. See the full TQL spec :ref:`here <tql>`.
 
@@ -150,6 +151,7 @@ in order to preserve data lineage and prevent the underlying data from changing 
     :nosignatures:
 
     Dataset.query
+    Dataset.sample_by
     Dataset.filter
     Dataset.save_view
     Dataset.get_view
