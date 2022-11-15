@@ -2,8 +2,6 @@ from collections import OrderedDict
 
 from typing import Callable, Optional, List, Dict
 from mmdet.apis.train import *
-from mmdet.datasets import build_dataloader as mmdet_build_dataloader
-from mmdet.datasets import build_dataset as mmdet_build_dataset
 from mmcv.utils import build_from_cfg
 from mmdet.datasets.builder import PIPELINES
 from mmdet.datasets.pipelines import Compose
@@ -458,7 +456,7 @@ class MMDetDataset(TorchDataset):
         return result_files, tmp_dir
 
 
-def load_ds_from_cfg(cfg):
+def load_ds_from_cfg(cfg: Dict):
     creds = cfg.get("deeplake_credentials", {})
     token = creds.get("token", None)
     if token is None:
@@ -780,9 +778,7 @@ def train_detector(
     }
 
     data_loader = build_dataloader(
-        train_dataset[
-            0
-        ],  # TO DO: convert it to for loop if we will suport concatting several datasets
+        train_dataset,
         train_images_tensor,
         train_masks_tensor,
         train_boxes_tensor,
