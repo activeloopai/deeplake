@@ -265,6 +265,7 @@ def decompress_array(
         end_idx: (int, Optional): Applicable only for video compressions. Index of last frame (exclusive).
         step: (int, Optional): Applicable only for video compressions. Step size for seeking.
         reverse (bool): Applicable only for video compressions. Reverses output numpy array if set to True.
+        to_pil (bool): If True, will return a PIL image instead of a numpy array.
 
     Raises:
         SampleDecompressionError: If decompression fails.
