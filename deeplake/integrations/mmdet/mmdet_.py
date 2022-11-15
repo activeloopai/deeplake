@@ -796,20 +796,21 @@ def train_detector(
         init_dist("pytorch", **cfg.dist_params)
         find_unused_parameters = cfg.get("find_unused_parameters", False)
         # Sets the `find_unused_parameters` parameter in
-        # torch.nn.parallel.DistributedDataParallel
+        # # torch.nn.parallel.DistributedDataParallel
         local_rank = int(os.environ["LOCAL_RANK"])
-        model = torch.nn.parallel.DistributedDataParallel(model.cuda(),
-                                                  device_ids=[local_rank],
-                                                  output_device=local_rank,
-                                                  broadcast_buffers=False,
-                                                  find_unused_parameters=find_unused_parameters)
-        # model = build_ddp(
-        #     model,
-        #     cfg.device,
-        #     device_ids=[int(os.environ["LOCAL_RANK"])],
-        #     broadcast_buffers=False,
-        #     find_unused_parameters=find_unused_parameters,
-        # )
+        # model = torch.nn.parallel.DistributedDataParallel(model.cuda(),
+        #                                           device_ids=[local_rank],
+        #                                           output_device=local_rank,
+        #                                           broadcast_buffers=False,
+        #                                           find_unused_parameters=find_unused_parameters)
+        model = build_ddp(
+            model,
+            cfg.device,
+            device_ids=[local_rank],
+            output_device=local_rank,
+            broadcast_buffers=False,
+            find_unused_parameters=find_unused_parameters,
+        )
     else:
         model = build_dp(model, cfg.device, device_ids=cfg.gpu_ids)
 
