@@ -1,5 +1,6 @@
 from math import floor
 from deeplake.tests.common import requires_libdeeplake
+import numpy as np
 
 
 @requires_libdeeplake
@@ -40,6 +41,15 @@ def test_sample(local_ds):
     weights = list()
     for i in range(100):
         weights.append(1 if floor(i / 20) == 0 else 0)
+
+    dsv = local_ds.sample_by(weights)
+    assert len(dsv) == 100
+    for i in range(100):
+        assert dsv.label[i].numpy() == 0
+
+    weights = np.ndarray((100), np.int32)
+    for i in range(100):
+        weights[i] = 1 if floor(i / 10) == 0 else 0
 
     dsv = local_ds.sample_by(weights)
     assert len(dsv) == 100

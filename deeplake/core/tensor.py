@@ -878,7 +878,7 @@ class Tensor:
             data = {"value": labels}
             class_names = self.info.class_names
             if class_names:
-                data["text"] = convert_to_text(labels, self.info.class_names)
+                data["text"] = convert_to_text(labels, class_names)
             return data
         if htype in ("image", "image.rgb", "image.gray", "dicom"):
             return {
@@ -960,12 +960,16 @@ class Tensor:
                 tdt = tensor.dtype
                 vs = get_link_transform(v["extend"])(samples, self.link_creds)
                 if tdt:
-                    vs = [
-                        v.astype(tdt)
-                        if isinstance(v, np.ndarray) and v.dtype != tdt
-                        else v
-                        for v in vs
-                    ]
+                    if isinstance(vs, np.ndarray):
+                        if vs.dtype != tdt:
+                            vs = vs.astype(tdt)
+                    else:
+                        vs = [
+                            v.astype(tdt)
+                            if isinstance(v, np.ndarray) and v.dtype != tdt
+                            else v
+                            for v in vs
+                        ]
                 tensor.extend(vs)
 
     def _update_links(

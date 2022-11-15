@@ -1678,15 +1678,21 @@ class Dataset:
 
             Sample the dataset with ``labels == 5`` twice more than ``labels == 6``
 
+            >>> from deeplake.experimental import query
+            >>> ds = deeplake.load('hub://activeloop/fashion-mnist-train')
+            >>> sampled_ds = ds.sample_by("max_weight(labels == 5: 10, labels == 6: 5)")
+
+            Sample the dataset treating `labels` tensor as weights.
+
             >>> import deeplake
             >>> ds = deeplake.load('hub://activeloop/fashion-mnist-train')
             >>> sampled_ds = ds.sample_by("max_weight(labels == 5: 10, labels == 6: 5"))
 
             Sample the dataset with the given weights;
 
-            >>> ds_train = deeplake.load('hub://activeloop/coco-train')
+            >>> ds = deeplake.load('hub://activeloop/coco-train')
             >>> weights = list()
-            >>> for i in range(0, len(ds_train)):
+            >>> for i in range(len(ds)):
             ...     weights.append(i % 5)
             >>> sampled_ds = ds.sample_by(weights, replace=False)
 
