@@ -816,6 +816,7 @@ def train_detector(
         #                                           output_device=local_rank,
         #                                           broadcast_buffers=False,
         #                                           find_unused_parameters=find_unused_parameters)
+        torch.distributed.init_process_group(backend="nccl", rank=local_rank, world_size=len(cfg.gpu_ids))
         model = build_ddp(
             model.to(f"cuda:{local_rank}"),
             cfg.device,
