@@ -29,3 +29,13 @@ Parallelism
 
     compute
     compose
+
+Transform pipelines returned by :func:`compute` and :func:`compose` are evaluated using ``eval``:
+
+.. currentmodule:: deeplake.core.transform
+
+.. autosummary::
+    :toctree:
+    :nosignatures:
+
+    ~Pipeline.eval

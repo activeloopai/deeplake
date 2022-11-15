@@ -3,9 +3,15 @@
 Dataloader
 ==========
 
+.. currentmodule:: deeplake.core.dataset
+
+.. autosummary::
+    :toctree:
+    :nosignatures:
+
+    Dataset.dataloader
+
 .. currentmodule:: deeplake.enterprise
 
-.. autofunction:: dataloader
-
-.. autoclass:: DeepLakeDataLoader
+.. autoclass:: DeepLakeDataLoader()
     :members:
