@@ -23,6 +23,7 @@ from mmcv.utils import print_log
 from terminaltables import AsciiTable
 from mmdet.core import eval_map, eval_recalls
 from mmdet.datasets.pipelines import Compose
+from mmdet.utils.util_distribution import *
 import tempfile
 from deeplake.integrations.mmdet import mmdet_utils
 from deeplake.enterprise.dataloader import indra_available, dataloader
@@ -32,6 +33,34 @@ import os
 
 class Dummy:
     pass
+
+def build_ddp(model, device, *args, **kwargs):
+    """Build DistributedDataParallel module by device type.
+
+    If device is cuda, return a MMDistributedDataParallel model;
+    if device is mlu, return a MLUDistributedDataParallel model.
+
+    Args:
+        model (:class:`nn.Module`): module to be parallelized.
+        device (str): device type, mlu or cuda.
+
+    Returns:
+        :class:`nn.Module`: the module to be parallelized
+
+    References:
+        .. [1] https://pytorch.org/docs/stable/generated/torch.nn.parallel.
+                     DistributedDataParallel.html
+    """
+
+    assert device in ['cuda', 'mlu'], 'Only available for cuda or mlu devices.'
+    if device == 'cuda':
+        model = model.cuda()
+    elif device == 'mlu':
+        from mmcv.device.mlu import MLUDistributedDataParallel
+        ddp_factory['mlu'] = MLUDistributedDataParallel
+        model = model.mlu()
+
+    return ddp_factory[device](model, *args, **kwargs)
 
 
 def coco_pixel_2_pascal_pixel(boxes, shape):
