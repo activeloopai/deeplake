@@ -173,8 +173,7 @@ BBOX_FORMAT_TO_COCO_CONVERTER = {
 }
 
 
-def convert_to_coco_format(bbox, bbox_info):
-    bbox_format = get_bbox_format(bbox, bbox_info)
+def convert_to_coco_format(bbox, bbox_format):
     converter = BBOX_FORMAT_TO_COCO_CONVERTER[bbox_format]
     return converter(bbox)
 
@@ -203,7 +202,7 @@ class MMDetDataset(TorchDataset):
         self.CLASSES = self.get_classes(tensors_dict["labels_tensor"])
         self.mode = mode
         self.metrics_format = metrics_format
-        coco_style_bbox = convert_to_coco_format(self.bboxes, bbox_info)
+        coco_style_bbox = convert_to_coco_format(self.bboxes, bbox_format)
 
         if self.metrics_format == "COCO" and self.mode == "val":
             self.evaluator = mmdet_utils.COCODatasetEvaluater(
@@ -521,6 +520,7 @@ def transform(
         img = np.array(img)
 
     bboxes = sample_in[boxes_tensor]
+    # TODO bbox format should be recognized outside the transform, not per sample basis
     bboxes = convert_to_pascal_format(bboxes, bbox_info, img.shape)
     if bboxes.shape == (0,0): # TO DO: remove after bug will be fixed
         bboxes = np.empty((0,4), dtype=sample_in[boxes_tensor].dtype)
