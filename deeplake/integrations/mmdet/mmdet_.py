@@ -26,15 +26,8 @@ import tempfile
 from deeplake.integrations.mmdet import mmdet_utils
 from deeplake.experimental.dataloader import indra_available, dataloader
 from PIL import Image, ImageDraw
-from torch.utils.data import DataLoader
 import os
 
-
-class Dummy:
-    pass
-
-class DummyLoader(DataLoader):
-    pass
 
 
 def coco_pixel_2_pascal_pixel(boxes, shape):
@@ -673,7 +666,6 @@ def build_dataloader(
         loader.sampler = None
         loader.batch_sampler = Dummy()
         loader.batch_sampler.sampler = None
-        loader.__class__ = DummyLoader
 
         mmdet_ds = MMDetDataset(
             dataset=dataset,

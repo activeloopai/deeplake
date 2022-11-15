@@ -17,6 +17,7 @@ from deeplake.util.bugout_reporter import deeplake_reporter
 from deeplake.util.dataset import map_tensor_keys
 from functools import partial
 import importlib
+from torch.utils.data import DataLoader
 
 
 # Load lazy to avoid cycylic import.
@@ -47,7 +48,7 @@ def import_indra_loader():
         raise_indra_installation_error(e)
 
 
-class DeepLakeDataLoader:
+class DeepLakeDataLoader(DataLoader):
     def __init__(
         self,
         dataset,
