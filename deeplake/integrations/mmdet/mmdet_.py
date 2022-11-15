@@ -34,6 +34,12 @@ import os
 class Dummy:
     pass
 
+
+def force_cudnn_initialization(device_id):
+    s = 32
+    dev = torch.device(f'cuda:{device_id}')
+    torch.nn.functional.conv2d(torch.zeros(s, s, s, s, device=dev), torch.zeros(s, s, s, s, device=dev))
+
 def build_ddp(model, device, *args, **kwargs):
     """Build DistributedDataParallel module by device type.
 
@@ -846,6 +852,7 @@ def train_detector(
         #                                           broadcast_buffers=False,
         #                                           find_unused_parameters=find_unused_parameters)
         torch.distributed.init_process_group(backend="nccl", rank=local_rank, world_size=len(cfg.gpu_ids))
+        force_cudnn_initialization(local_rank)
         model = build_ddp(
             model.to(f"cuda:{local_rank}"),
             cfg.device,
