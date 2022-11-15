@@ -31,7 +31,7 @@ from queue import Empty
 
 import numpy as np
 import deeplake
-from PIL import Image
+from PIL import Image  # type: ignore
 
 
 mp = torch.multiprocessing.get_context()
@@ -406,8 +406,8 @@ class TorchDataset(torch.utils.data.IterableDataset):
     def __init__(
         self,
         dataset,
+        tensors: Sequence[str],
         use_local_cache: bool = False,
-        tensors: Sequence[str] = None,
         transform: Optional[PytorchTransformFunction] = PytorchTransformFunction(),
         num_workers: int = 1,
         shuffle: bool = False,
@@ -480,8 +480,8 @@ class SubIterableDataset(torch.utils.data.IterableDataset):
     def __init__(
         self,
         dataset,
+        tensors: Sequence[str],
         use_local_cache: bool = False,
-        tensors: Optional[Sequence[str]] = None,
         transform: PytorchTransformFunction = PytorchTransformFunction(),
         num_workers: int = 1,
         buffer_size: int = 512,
@@ -494,8 +494,8 @@ class SubIterableDataset(torch.utils.data.IterableDataset):
 
         self.torch_datset = TorchDataset(
             dataset,
-            use_local_cache,
-            tensors,
+            tensors=tensors,
+            use_local_cache=use_local_cache,
             transform=None if buffer_size else transform,
             num_workers=num_workers,
             shuffle=True,

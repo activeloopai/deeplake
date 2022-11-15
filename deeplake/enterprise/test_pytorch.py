@@ -14,7 +14,7 @@ from deeplake.core.storage import MemoryProvider, GCSProvider
 from deeplake.constants import KB
 
 from deeplake.tests.dataset_fixtures import enabled_non_gdrive_datasets
-from PIL import Image
+from PIL import Image  # type: ignore
 
 try:
     from torch.utils.data._utils.collate import default_collate

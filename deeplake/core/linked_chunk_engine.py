@@ -18,7 +18,8 @@ from deeplake.util.keys import get_creds_encoder_key
 from deeplake.util.link import get_path_creds_key, save_link_creds
 from deeplake.util.video import normalize_index
 import numpy as np
-from typing import Optional, Dict, Any, Tuple
+from typing import Optional, Dict, Any, Tuple, Union
+from PIL import Image  # type: ignore
 
 
 def retry_refresh_managed_creds(fn):
@@ -239,7 +240,8 @@ class LinkedChunkEngine(ChunkEngine):
         cast: bool = True,
         copy: bool = False,
         decompress: bool = True,
-    ) -> np.ndarray:
+        to_pil: bool = False,
+    ) -> Union[np.ndarray, Image.Image]:
         enc = self.chunk_id_encoder
         local_sample_index = enc.translate_index_relative_to_chunks(global_sample_index)
         sample_path = chunk.read_sample(
@@ -251,7 +253,12 @@ class LinkedChunkEngine(ChunkEngine):
             return self.get_empty_sample()
         sample_creds_encoded = creds_encoder.get_encoded_creds_key(global_sample_index)
         sample_creds_key = self.link_creds.get_creds_key(sample_creds_encoded)
-        return read_linked_sample(sample_path, sample_creds_key, self.link_creds, False)
+        read_sample = read_linked_sample(
+            sample_path, sample_creds_key, self.link_creds, False
+        )
+        if to_pil:
+            return read_sample.pil()
+        return read_sample.array
 
     def check_link_ready(self):
         missing_keys = self.link_creds.missing_keys
