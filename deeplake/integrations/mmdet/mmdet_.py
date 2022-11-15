@@ -29,6 +29,9 @@ from PIL import Image, ImageDraw
 import os
 
 
+class Dummy:
+    pass
+
 
 def coco_pixel_2_pascal_pixel(boxes, shape):
     # Convert bounding boxes to Pascal VOC format and clip bounding boxes to make sure they have non-negative width and height
