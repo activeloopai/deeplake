@@ -537,15 +537,14 @@ def build_dataset(cfg):
     if not isinstance(cfg, dp.Dataset):
         deeplake_tensors = cfg.get("deeplake_tensors", {})
         classes = deeplake_tensors.get("gt_labels")
+        ds = load_ds_from_cfg(cfg)
         if classes is None:
-            classes = _find_tensor_with_htype(cfg, "class_label", "gt_labels")
+            classes = _find_tensor_with_htype(ds, "class_label", "gt_labels")
         
         if classes is None:
             raise KeyError("No tensor with htype class_label exists in the dataset")
-
-        cfg = load_ds_from_cfg(cfg)
-        cfg.CLASSES = cfg[classes].info.class_names
-        return cfg
+        ds.CLASSES = ds[classes].info.class_names
+        return ds
     return cfg
     
 
@@ -626,6 +625,35 @@ def build_dataloader(
 
     collate_fn = partial(collate, samples_per_gpu=batch_size)
 
+    if implementation == "c++":
+        loader = (
+            dataloader(dataset)
+            .transform(transform_fn)
+            .shuffle(shuffle)
+            .batch(batch_size)
+            .pytorch(
+                num_workers=num_workers,
+                collate_fn=collate_fn,
+                tensors=tensors,
+                distributed=dist,
+            )
+        )
+        # For DDP
+        loader.sampler = None
+        loader.batch_sampler = Dummy()
+        loader.batch_sampler.sampler = None
+
+        mmdet_ds = MMDetDataset(
+            dataset=dataset,
+            metrics_format=metrics_format,
+            pipeline=pipeline,
+            tensors_dict=tensors_dict,
+            tensors=tensors,
+            mode=mode,
+            bbox_info=bbox_info,
+        )
+        loader.dataset = mmdet_ds
+
     if implementation == "python":
         loader = dataset.pytorch(
             tensors_dict=tensors_dict,
@@ -643,34 +671,7 @@ def build_dataloader(
         )
 
     else:
-        loader = (
-            dataloader(dataset)
-            .transform(transform_fn)
-            .shuffle(shuffle)
-            .batch(batch_size)
-            .pytorch(
-                num_workers=num_workers,
-                collate_fn=collate_fn,
-                tensors=tensors,
-                distributed=dist,
-            )
-        )
-
-        # For DDP
-        loader.sampler = None
-        loader.batch_sampler = Dummy()
-        loader.batch_sampler.sampler = None
-
-        mmdet_ds = MMDetDataset(
-            dataset=dataset,
-            metrics_format=metrics_format,
-            pipeline=pipeline,
-            tensors_dict=tensors_dict,
-            tensors=tensors,
-            mode=mode,
-            bbox_info=bbox_info,
-        )
-        loader.dataset = mmdet_ds
+        
     loader.dataset.CLASSES = classes
     return loader
 
@@ -687,9 +688,11 @@ def build_pipeline(steps):
 
 def train_detector(
     model,
-    train_dataset: dp.Dataset,
     cfg: mmcv.ConfigDict,
-    validation_dataset: Optional[dp.Dataset] = None,
+    ds_train=None,
+    ds_train_tensors=None,
+    ds_val: Optional[dp.Dataset] = None,
+    ds_val_tensors=None,
     distributed: bool = False,
     timestamp=None,
     meta=None,
@@ -751,17 +754,7 @@ def train_detector(
         meta: meta data used to build runner
         validate: bool, whether validation should be conducted, by default `True`
     """
-    if isinstance(train_dataset, list):
-        train_dataset = train_dataset[0]
-    
     cfg = compat_cfg(cfg)
-
-    if isinstance(train_dataset, (list, tuple)):
-        if len(train_dataset) > 1:
-            raise NotImplementedError(
-                "Training on multiple Deep Lake datasets is not supported."
-            )
-        train_dataset = train_dataset[0]
 
     if not hasattr(cfg, "gpu_ids"):
         if distributed:
@@ -782,24 +775,31 @@ def train_detector(
             "`deeplake_dataloader` should be one of ['auto', 'c++', 'python']."
         )
 
-    train_tensors = cfg.data.train.get("deeplake_tensors", {})
-    if train_tensors:
-        train_images_tensor = train_tensors["img"]
-        train_boxes_tensor = train_tensors["gt_bboxes"]
-        train_labels_tensor = train_tensors["gt_labels"]
-        train_masks_tensor = train_tensors.get("gt_masks")
+    if ds_train is None:
+        ds_train = load_ds_from_cfg(cfg.data.train)
+        ds_train_tensors = cfg.data.train.get("deeplake_tensors", {})
     else:
-        train_images_tensor = _find_tensor_with_htype(train_dataset, "image", "img")
-        train_boxes_tensor = _find_tensor_with_htype(train_dataset, "bbox", "gt_bboxes")
+        cfg_data = cfg.data.train.get("deeplake_path")
+        if cfg_data:
+            always_warn("A Deep Lake dataset was specified in the cfg as well as inthe dataset input to train_detector. The dataset input to train_detector will be used in the workflow.")
+    
+    if ds_train_tensors:
+        train_images_tensor = ds_train_tensors["img"]
+        train_boxes_tensor = ds_train_tensors["gt_bboxes"]
+        train_labels_tensor = ds_train_tensors["gt_labels"]
+        train_masks_tensor = ds_train_tensors.get("gt_masks")
+    else:
+        train_images_tensor = _find_tensor_with_htype(ds_train, "image", "img")
+        train_boxes_tensor = _find_tensor_with_htype(ds_train, "bbox", "gt_bboxes")
         train_labels_tensor = _find_tensor_with_htype(
-            train_dataset, "class_label", "train gt_labels"
+            ds_train, "class_label", "train gt_labels"
         )
         train_masks_tensor = None
         collate_keys = _get_collate_keys(cfg.data.train.pipeline)
         if "gt_masks" in collate_keys:
             train_masks_tensor = _find_tensor_with_htype(
-                train_dataset, "binary_mask", "gt_masks"
-            ) or _find_tensor_with_htype(train_dataset, "polygon", "gt_masks")
+                ds_train, "binary_mask", "gt_masks"
+            ) or _find_tensor_with_htype(ds_train, "polygon", "gt_masks")
 
     metrics_format = eval_cfg.get("metrics_format", "PascalVOC")
 
@@ -825,7 +825,7 @@ def train_detector(
     }
 
     data_loader = build_dataloader(
-        train_dataset[0], # TO DO: convert it to for loop if we will suport concatting several datasets
+        ds_train, # TO DO: convert it to for loop if we will suport concatting several datasets
         train_images_tensor,
         train_masks_tensor,
         train_boxes_tensor,
@@ -906,8 +906,7 @@ def train_detector(
             runner.register_hook(DistSamplerSeedHook())
 
     # register eval hooks
-    if validation_dataset or validate:
-
+    if validate:
         val_dataloader_default_args = dict(
             samples_per_gpu=1,
             workers_per_gpu=1,
@@ -923,32 +922,37 @@ def train_detector(
             **cfg.data.get("val_dataloader", {}),
         }
 
-        val_tensors = cfg.data.val.get("deeplake_tensors", {})
+        if ds_val is None:
+            ds_val = load_ds_from_cfg(cfg.data.val)
+            ds_val_tensors = cfg.data.val.get("deeplake_tensors", {})
+        else:
+            cfg_data = cfg.data.val.get("deeplake_path")
+            if cfg_data is not None:
+                always_warn("A Deep Lake dataset was specified in the cfg as well as inthe dataset input to train_detector. The dataset input to train_detector will be used in the workflow.")
 
         if val_dataloader_args["samples_per_gpu"] > 1:
             # Replace 'ImageToTensor' to 'DefaultFormatBundle'
             cfg.data.val.pipeline = replace_ImageToTensor(cfg.data.val.pipeline)
-        val_dataset = validation_dataset or build_dataset(cfg.data.val)
 
-        if val_tensors:
-            val_images_tensor = val_tensors["img"]
-            val_boxes_tensor = val_tensors["gt_bboxes"]
-            val_labels_tensor = val_tensors["gt_labels"]
-            val_masks_tensor = val_tensors.get("gt_masks")
+        if ds_val_tensors:
+            val_images_tensor = ds_val_tensors["img"]
+            val_boxes_tensor = ds_val_tensors["gt_bboxes"]
+            val_labels_tensor = ds_val_tensors["gt_labels"]
+            val_masks_tensor = ds_val_tensors.get("gt_masks")
         else:
-            val_images_tensor = _find_tensor_with_htype(val_dataset, "image", "valiation img")
-            val_boxes_tensor = _find_tensor_with_htype(val_dataset, "bbox", "validation gt_bboxes")
+            val_images_tensor = _find_tensor_with_htype(ds_val, "image", "valiation img")
+            val_boxes_tensor = _find_tensor_with_htype(ds_val, "bbox", "validation gt_bboxes")
             val_labels_tensor = _find_tensor_with_htype(
-                val_dataset, "class_label", "gt_labels"
+                ds_val, "class_label", "gt_labels"
             )
             val_masks_tensor = None
             if val_masks_tensor in _get_collate_keys(cfg.data.val.pipeline):
                 val_masks_tensor = _find_tensor_with_htype(
-                    val_dataset, "binary_mask", "validation gt_masks"
-                ) or _find_tensor_with_htype(val_dataset, "polygon", "validation gt_masks")
+                    ds_val, "binary_mask", "validation gt_masks"
+                ) or _find_tensor_with_htype(ds_val, "polygon", "validation gt_masks")
 
         val_dataloader = build_dataloader(
-            val_dataset,
+            ds_val,
             val_images_tensor,
             val_masks_tensor,
             val_boxes_tensor,
