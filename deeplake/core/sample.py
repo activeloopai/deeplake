@@ -331,7 +331,7 @@ class Sample:
                     shape=self.shape,
                     dtype=self.dtype,
                     to_pil=True,
-                )
+                )  # type: ignore
             else:
                 self._array = decompress_array(
                     compressed,
