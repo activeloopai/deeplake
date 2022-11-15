@@ -718,6 +718,13 @@ def train_detector(
     """
     cfg = compat_cfg(cfg)
 
+    if isinstance(train_dataset, (list, tuple)):
+        if len(train_dataset) > 1:
+            raise NotImplementedError(
+                "Training on multiple Deep Lake datasets is not supported."
+            )
+        train_dataset = train_dataset[0]
+
     if not hasattr(cfg, "gpu_ids"):
         if distributed:
             _, world_size = get_dist_info()
