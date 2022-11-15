@@ -625,35 +625,6 @@ def build_dataloader(
 
     collate_fn = partial(collate, samples_per_gpu=batch_size)
 
-    if implementation == "c++":
-        loader = (
-            dataloader(dataset)
-            .transform(transform_fn)
-            .shuffle(shuffle)
-            .batch(batch_size)
-            .pytorch(
-                num_workers=num_workers,
-                collate_fn=collate_fn,
-                tensors=tensors,
-                distributed=dist,
-            )
-        )
-        # For DDP
-        loader.sampler = None
-        loader.batch_sampler = Dummy()
-        loader.batch_sampler.sampler = None
-
-        mmdet_ds = MMDetDataset(
-            dataset=dataset,
-            metrics_format=metrics_format,
-            pipeline=pipeline,
-            tensors_dict=tensors_dict,
-            tensors=tensors,
-            mode=mode,
-            bbox_info=bbox_info,
-        )
-        loader.dataset = mmdet_ds
-
     if implementation == "python":
         loader = dataset.pytorch(
             tensors_dict=tensors_dict,
@@ -671,7 +642,34 @@ def build_dataloader(
         )
 
     else:
-        
+        loader = (
+            dataloader(dataset)
+            .transform(transform_fn)
+            .shuffle(shuffle)
+            .batch(batch_size)
+            .pytorch(
+                num_workers=num_workers,
+                collate_fn=collate_fn,
+                tensors=tensors,
+                distributed=dist,
+            )
+        )
+
+        # For DDP
+        loader.sampler = None
+        loader.batch_sampler = Dummy()
+        loader.batch_sampler.sampler = None
+
+        mmdet_ds = MMDetDataset(
+            dataset=dataset,
+            metrics_format=metrics_format,
+            pipeline=pipeline,
+            tensors_dict=tensors_dict,
+            tensors=tensors,
+            mode=mode,
+            bbox_info=bbox_info,
+        )
+        loader.dataset = mmdet_ds
     loader.dataset.CLASSES = classes
     return loader
 
