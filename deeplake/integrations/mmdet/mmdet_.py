@@ -25,7 +25,7 @@ from mmdet.core import eval_map, eval_recalls
 from mmdet.datasets.pipelines import Compose
 import tempfile
 from deeplake.integrations.mmdet import mmdet_utils
-from deeplake.experimental.dataloader import indra_available, dataloader
+from deeplake.enterprise.dataloader import indra_available, dataloader
 from PIL import Image, ImageDraw
 import os
 
