@@ -176,14 +176,12 @@ class DeepLakeDataLoader:
 
         Examples:
             >>> import deeplake
-            >>> from deeplake.enterprise import dataloader
             >>> ds = deeplake.load('hub://activeloop/fashion-mnist-train')
-            >>> query_ds_train = dataloader(ds_train).query("select * where labels != 5")
+            >>> query_ds_train = ds_train.dataloader().query("select * where labels != 5")
 
             >>> import deeplake
-            >>> from deeplake.enterprise import query
             >>> ds_train = deeplake.load('hub://activeloop/coco-train')
-            >>> query_ds_train = dataloader(ds_train).query("(select * where contains(categories, 'car') limit 1000) union (select * where contains(categories, 'motorcycle') limit 1000)")
+            >>> query_ds_train = ds_train.dataloader().query("(select * where contains(categories, 'car') limit 1000) union (select * where contains(categories, 'motorcycle') limit 1000)")
         """
         all_vars = self.__dict__.copy()
         all_vars["dataset"] = query(self.dataset, query_string)
@@ -212,20 +210,21 @@ class DeepLakeDataLoader:
             Sample the dataloader with ``labels == 5`` twice more than ``labels == 6``
 
             >>> ds = deeplake.load('hub://activeloop/fashion-mnist-train')
-            >>> sampled_ds = dataloader(ds).sample_by("max_weight(labels == 5: 10, labels == 6: 5)")
+            >>> sampled_ds = ds.dataloader().sample_by("max_weight(labels == 5: 10, labels == 6: 5)")
 
             Sample the dataloader treating `labels` tensor as weights.
 
             >>> ds = deeplake.load('hub://activeloop/fashion-mnist-train')
-            >>> sampled_ds = dataloader(ds).sample_by("labels")
+            >>> sampled_ds = ds.dataloader().sample_by("labels")
 
             Sample the dataloader with the given weights;
 
             >>> ds_train = deeplake.load('hub://activeloop/coco-train')
             >>> weights = list()
             >>> for i in range(0, len(ds_train)):
-            >>>     weights.append(i % 5)
-            >>> sampled_ds = dataloader(ds).sample_by(weights, replace=False)
+            ...     weights.append(i % 5)
+            ...
+            >>> sampled_ds = ds.dataloader().sample_by(weights, replace=False)
 
         """
         all_vars = self.__dict__.copy()

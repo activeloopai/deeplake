@@ -1,7 +1,8 @@
-.. _Enterprise:
-
 Dataloader
 ==========
+
+Train your models using the new high performance C++ dataloader.
+See the ``dataloader`` method on how to create dataloaders from your datasets:
 
 .. currentmodule:: deeplake.core.dataset
 
@@ -10,6 +11,9 @@ Dataloader
     :nosignatures:
 
     Dataset.dataloader
+
+DeepLakeDataLoader
+~~~~~~~~~~~~~~~~~~
 
 .. currentmodule:: deeplake.enterprise
 
