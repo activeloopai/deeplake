@@ -257,7 +257,7 @@ class LinkedChunkEngine(ChunkEngine):
             sample_path, sample_creds_key, self.link_creds, False
         )
         if to_pil:
-            return read_sample.pil()
+            return read_sample.pil
         return read_sample.array
 
     def check_link_ready(self):

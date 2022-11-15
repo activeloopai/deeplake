@@ -302,7 +302,7 @@ class Sample:
         return compressed_bytes
 
     def _decompress(self, to_pil: bool = False):
-        if self._array is not None:
+        if not to_pil and self._array is not None:
             if self._uncompressed_bytes is None:
                 self._uncompressed_bytes = self._array.tobytes()
             return
