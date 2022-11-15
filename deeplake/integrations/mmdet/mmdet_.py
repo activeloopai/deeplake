@@ -54,7 +54,7 @@ def build_ddp(model, device, *args, **kwargs):
 
     assert device in ['cuda', 'mlu'], 'Only available for cuda or mlu devices.'
     if device == 'cuda':
-        model = model.cuda()
+        model = model.cuda(kwargs['device_ids'][0])  # patch
     elif device == 'mlu':
         from mmcv.device.mlu import MLUDistributedDataParallel
         ddp_factory['mlu'] = MLUDistributedDataParallel
