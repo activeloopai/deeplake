@@ -722,11 +722,10 @@ def train_detector(
             )
         train_dataset = train_dataset[0]
 
-    if not hasattr(cfg, "gpu_ids"):
-        if distributed:
-            cfg.gpu_ids = range(torch.cuda.device_count())
-        else:
-            cfg.gpu_ids = range(1)
+    if distributed:
+        cfg.gpu_ids = range(torch.cuda.device_count())
+    elif not hasattr(cfg, "gpu_ids"):
+        cfg.gpu_ids = range(1)
 
     eval_cfg = cfg.get("evaluation", {})
     dl_impl = cfg.get("deeplake_dataloader", "auto").lower()
@@ -817,6 +816,8 @@ def train_detector(
         )
     else:
         model = build_dp(model, cfg.device, device_ids=cfg.gpu_ids)
+
+    print("model build done")
 
     # build optimizer
     auto_scale_lr(cfg, distributed, logger)
