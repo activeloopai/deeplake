@@ -18,7 +18,7 @@ import os.path as osp
 import warnings
 from collections import OrderedDict
 import mmcv
-
+from mmcv.runner import get_dist_info, init_dist
 import numpy as np
 from mmcv.utils import print_log
 from terminaltables import AsciiTable
@@ -542,11 +542,11 @@ def transform(
 
 def build_dataset(cfg):
     if not isinstance(cfg, dp.Dataset):
-        deeplake_tensors = cfg.get('deeplake_tensors', {})
-        classes = deeplake_tensors.get('gt_labels')
+        deeplake_tensors = cfg.get("deeplake_tensors", {})
+        classes = deeplake_tensors.get("gt_labels")
         if classes is None:
             classes = _find_tensor_with_htype(cfg, "class_label", "gt_labels")
-        
+
         if classes is None:
             raise KeyError("No tensor with htype class_label exists in the dataset")
 
@@ -554,7 +554,7 @@ def build_dataset(cfg):
         cfg.CLASSES = cfg[classes].info.class_names
         return cfg
     return cfg
-    
+
 
 def _get_collate_keys(pipeline):
     if type(pipeline) == list:
@@ -719,6 +719,14 @@ def train_detector(
         validate: bool, whether validation should be conducted, by default `True`
     """
     cfg = compat_cfg(cfg)
+
+    if not hasattr(cfg, "gpu_ids"):
+        if distributed:
+            _, world_size = get_dist_info()
+            cfg.gpu_ids = range(world_size)
+        else:
+            cfg.gpu_ids = range(1)
+
     eval_cfg = cfg.get("evaluation", {})
     dl_impl = cfg.get("deeplake_dataloader", "auto").lower()
 
@@ -772,7 +780,9 @@ def train_detector(
     }
 
     data_loader = build_dataloader(
-        train_dataset[0], # TO DO: convert it to for loop if we will suport concatting several datasets
+        train_dataset[
+            0
+        ],  # TO DO: convert it to for loop if we will suport concatting several datasets
         train_images_tensor,
         train_masks_tensor,
         train_boxes_tensor,
@@ -784,6 +794,7 @@ def train_detector(
 
     # put model on gpus
     if distributed:
+        init_dist("pytorch", **cfg.dist_params)
         find_unused_parameters = cfg.get("find_unused_parameters", False)
         # Sets the `find_unused_parameters` parameter in
         # torch.nn.parallel.DistributedDataParallel
