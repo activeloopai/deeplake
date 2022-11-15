@@ -32,7 +32,7 @@ from deeplake.util.exceptions import (
 from deeplake.util.keys import get_chunk_key, get_tensor_meta_key
 from deeplake.util.remove_cache import get_base_storage
 from deeplake.util.storage import get_pytorch_local_storage
-from PIL import Image
+from PIL import Image  # type: ignore
 
 
 ChunkEngineMap = Dict[str, ChunkEngine]
@@ -267,7 +267,7 @@ class SampleStreaming(Streaming):
         return_index: bool = True,
         pad_tensors: bool = False,
         decode_method: Optional[Dict[str, str]] = None,
-        tobytes: Optional[Sequence[str]] = None,
+        tobytes: Union[bool, Sequence[str]] = False,
     ) -> None:
         super().__init__()
 

@@ -94,6 +94,7 @@ from deeplake.compression import (
 from deeplake.core.sample import Sample
 from itertools import chain, repeat
 from collections.abc import Iterable
+from PIL import Image  # type: ignore
 
 
 class ChunkEngine:
@@ -1482,7 +1483,7 @@ class ChunkEngine:
         copy: bool = False,
         decompress: bool = True,
         to_pil: bool = False,
-    ) -> np.ndarray:
+    ) -> Union[np.ndarray, Image.Image]:
         enc = self.chunk_id_encoder
         if self.is_fixed_shape and self.sample_compression is None:
             num_samples_per_chunk = self.num_samples_per_chunk
@@ -1492,6 +1493,7 @@ class ChunkEngine:
                 global_sample_index
             )
         if to_pil:
+            assert isinstance(chunk, SampleCompressedChunk)
             return chunk.read_sample(
                 local_sample_index,
                 cast=cast,

@@ -12,7 +12,6 @@ typing_extensions>=3.10.0.0
 types-requests
 types-click
 boto3-stubs[essential]
-types-Pillow
 
 lz4
 rich
