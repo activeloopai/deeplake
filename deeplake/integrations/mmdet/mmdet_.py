@@ -577,7 +577,7 @@ def _get_collate_keys(pipeline):
 
 
 def build_dataloader(
-    dataset: dp.Dataset,
+    dataset: List[dp.Dataset],
     images_tensor: str,
     masks_tensor: Optional[str],
     boxes_tensor: str,
