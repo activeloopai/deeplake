@@ -699,14 +699,25 @@ def build_pipeline(steps):
 def train_detector(
     model,
     train_dataset: dp.Dataset,
-    cfg: Dict,
+    cfg: mmcv.ConfigDict,
     validation_dataset: Optional[dp.Dataset] = None,
     distributed: bool = False,
     timestamp=None,
     meta=None,
     validate: bool = True,
 ):
-
+    """
+    Creates runner and trains the model:
+    Args:
+        model: model to train, should be built before passing
+        train_dataset: dataset to train of type dp.Dataset
+        cfg: mmcv.ConfigDict object containing all necessary configuration
+        validation_dataset: validation dataset of type dp.Dataset
+        distributed: bool, whether ddp training should be started, by default `False`
+        timestamp: variable used in runner to make .log and .log.json filenames the same
+        meta: meta data used to build runner
+        validate: bool, whether validation should be conducted, by default `True`
+    """
     cfg = compat_cfg(cfg)
     eval_cfg = cfg.get("evaluation", {})
     dl_impl = cfg.get("deeplake_dataloader", "auto").lower()
