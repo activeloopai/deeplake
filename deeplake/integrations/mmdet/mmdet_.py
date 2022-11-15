@@ -690,6 +690,17 @@ def build_pipeline(steps):
         ]
     )
 
+def ddp_setup(rank: int, world_size: int):
+    """
+    Args:
+        rank: Unique identifier of each process
+        world_size: Total number of processes
+    """
+    os.environ["MASTER_ADDR"] = "localhost"
+    os.environ["MASTER_PORT"] = "12355"  # TODO read from config
+    torch.distributed.init_process_group(backend="nccl", rank=rank, world_size=world_size)
+
+
 
 def train_detector(
     model,
@@ -796,7 +807,6 @@ def train_detector(
         print("========================")
         print(f"Local Rank: {local_rank}")
         print("========================")
-        torch.distributed.init_process_group("nccl")
         print("process group initialized")
         find_unused_parameters = cfg.get("find_unused_parameters", False)
         # Sets the `find_unused_parameters` parameter in
@@ -807,7 +817,7 @@ def train_detector(
         #                                           broadcast_buffers=False,
         #                                           find_unused_parameters=find_unused_parameters)
         model = build_ddp(
-            model,
+            model.to(f"cuda:{local_rank}"),
             cfg.device,
             device_ids=[local_rank],
             broadcast_buffers=False,
