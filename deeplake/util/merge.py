@@ -2,6 +2,7 @@ from collections import defaultdict
 from typing import Dict, List, Optional, Set, Tuple
 from deeplake.core.version_control.commit_diff import CommitDiff
 from deeplake.core.version_control.commit_node import CommitNode
+from deeplake.util.class_label import convert_to_text
 from deeplake.util.diff import (
     get_lowest_common_ancestor,
     has_change,
@@ -461,19 +462,21 @@ def merge_tensor_data(
 
     new_indexes = new_samples_dict[tensor_name]
     new_indexes.sort()
-    is_class_label = original_tensor.meta.htype == "class_label"
+    is_class_label = target_tensor.meta.htype == "class_label"
+    if is_class_label:
+        class_names = target_tensor.info.class_names
     for index in new_indexes:
         sample = target_tensor[index]
-        if is_class_label:
-            sample = sample.data()["text"]
+        if is_class_label and class_names:
+            sample = convert_to_text(sample.numpy(), class_names, return_original=True)
         original_tensor.append(sample)
         original_id_tensor[-1] = target_id_tensor[index]
 
     updated_indexes = updated_samples_dict[tensor_name]
     for original_idx, target_idx in updated_indexes:
         sample = target_tensor[target_idx]
-        if is_class_label:
-            sample = sample.data()["text"]
+        if is_class_label and class_names:
+            sample = convert_to_text(sample.numpy(), class_names, return_original=True)
         original_tensor[original_idx] = sample
 
 

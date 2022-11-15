@@ -937,7 +937,10 @@ class ChunkEngine:
         else:
             verified_samples = self._extend(samples, progressbar) or samples
             if link_callback:
-                samples = [None if is_empty_list(s) else s for s in verified_samples]
+                if not isinstance(verified_samples, np.ndarray):
+                    samples = [
+                        None if is_empty_list(s) else s for s in verified_samples
+                    ]
                 link_callback(samples, flat=None)
 
         self.cache.autoflush = initial_autoflush

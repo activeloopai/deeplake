@@ -79,7 +79,7 @@ def libdeeplake_availabe():
 
 
 if libdeeplake_availabe():
-    install_requires.insert(0, "libdeeplake==0.0.25")
+    install_requires.insert(0, "libdeeplake==0.0.26")
 install_requires.append("hub>=2.8.7")
 
 
@@ -103,6 +103,10 @@ config = {
         "Documentation": "https://docs.activeloop.ai/",
         "Source": "https://github.com/activeloopai/deeplake",
     },
+    "license": "MPL-2.0",
+    "classifiers": [
+        "License :: OSI Approved :: Mozilla Public License 2.0 (MPL 2.0)",
+    ],
 }
 
 setup(**config)
