@@ -41,13 +41,13 @@ class UncompressedChunk(BaseChunk):
         space_left = min_chunk_size - num_data_bytes
         idx = np.searchsorted(csum, space_left)
         if not idx and csum[0] > space_left:
-            if self.data_bytes:
+            if self._data_bytes:
                 return 0
         num_samples = int(min(len(incoming_samples), idx + 1))  # type: ignore
         bts = list(
             map(self._text_sample_to_byte_string, incoming_samples[:num_samples])
         )
-        self.data_bytes += b"".join(bts)  # type: ignore
+        self._data_bytes += b"".join(bts)  # type: ignore
         bps = np.zeros((num_samples, 3), dtype=ENCODING_DTYPE)
         enc = self.byte_positions_encoder
         arr = enc._encoded
@@ -131,7 +131,7 @@ class UncompressedChunk(BaseChunk):
                         self.htype,
                     )
             samples = samples.astype(chunk_dtype)
-        self.data_bytes += samples.tobytes()  # type: ignore
+        self._data_bytes += samples.tobytes()  # type: ignore
         self.register_in_meta_and_headers(
             samples[0].nbytes,
             shape,
@@ -162,7 +162,7 @@ class UncompressedChunk(BaseChunk):
             else:
                 sample_nbytes = len(serialized_sample)
                 if self.is_empty or self.can_fit_sample(sample_nbytes):
-                    self.data_bytes += serialized_sample  # type: ignore
+                    self._data_bytes += serialized_sample  # type: ignore
 
                     self.register_in_meta_and_headers(
                         sample_nbytes,
@@ -234,8 +234,8 @@ class UncompressedChunk(BaseChunk):
             None if self.byte_positions_encoder.is_empty() else len(serialized_sample)
         )
 
-        old_data = self.data_bytes
-        self.data_bytes = self.create_updated_data(
+        old_data = self._data_bytes
+        self._data_bytes = self.create_updated_data(
             local_index, old_data, serialized_sample
         )
         self.update_in_meta_and_headers(local_index, new_nb, shape)

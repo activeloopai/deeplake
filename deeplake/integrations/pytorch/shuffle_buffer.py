@@ -35,6 +35,7 @@ class ShuffleBuffer:
             unit_divisor=1024,
         )
         self.pbar_closed = False
+
     def exchange(self, sample):
         """Shuffle with existing elements in a buffer and return value if buffer is full or if `None` is provided as argument.
 

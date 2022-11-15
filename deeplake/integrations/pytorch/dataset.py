@@ -1,4 +1,4 @@
-from typing import Iterable, Optional, Sequence, List, Union
+from typing import Iterable, Optional, Sequence, List, Union, Dict
 from deeplake.constants import MB
 from deeplake.integrations.pytorch.common import PytorchTransformFunction
 
@@ -31,6 +31,7 @@ from queue import Empty
 
 import numpy as np
 import deeplake
+from PIL import Image  # type: ignore
 
 
 mp = torch.multiprocessing.get_context()
@@ -64,6 +65,9 @@ def cast_type(tensor):
 def copy_tensor(x):
     if isinstance(x, Sample):
         x = x.array
+    if isinstance(x, Image.Image):
+        return x
+
     try:
         copy = cast_type(x)
     except AttributeError:
@@ -402,23 +406,26 @@ class TorchDataset(torch.utils.data.IterableDataset):
     def __init__(
         self,
         dataset,
+        tensors: Sequence[str],
         use_local_cache: bool = False,
-        tensors: Optional[Sequence[str]] = None,
-        tobytes: Union[bool, Sequence[str]] = False,
         transform: Optional[PytorchTransformFunction] = PytorchTransformFunction(),
         num_workers: int = 1,
         shuffle: bool = False,
         buffer_size: int = 0,
         return_index: bool = True,
         pad_tensors: bool = False,
+        decode_method: Optional[Dict[str, str]] = None,
     ) -> None:
         super().__init__()
 
         self.dataset = dataset
         self.transform = transform
         self.tensors = tensors
-        self.tobytes = tobytes
+        self.shuffle: bool = shuffle
+        self.buffer_size: int = buffer_size * MB
+        self.return_index: bool = return_index
         self.pad_tensors = pad_tensors
+        self.decode_method = decode_method
 
         self.use_local_cache = use_local_cache
         self.scheduler = use_scheduler(num_workers, shuffle)
@@ -432,18 +439,14 @@ class TorchDataset(torch.utils.data.IterableDataset):
         streaming = SampleStreaming(
             dataset,
             tensors=self.tensors,  # type: ignore
-            tobytes=self.tobytes,
             use_local_cache=use_local_cache,
             pad_tensors=self.pad_tensors,
+            decode_method=self.decode_method,
         )
 
         self.schedules: List[Schedule] = self.scheduler.schedule(
             streaming.list_blocks()
         )
-
-        self.shuffle: bool = shuffle
-        self.buffer_size: int = buffer_size * MB
-        self.return_index: bool = return_index
 
     def __iter__(self):
         worker_info = torch.utils.data.get_worker_info()
@@ -455,10 +458,10 @@ class TorchDataset(torch.utils.data.IterableDataset):
         streaming = SampleStreaming(
             self.dataset,
             tensors=self.tensors,
-            tobytes=self.tobytes,
             use_local_cache=self.use_local_cache,
             return_index=self.return_index,
             pad_tensors=self.pad_tensors,
+            decode_method=self.decode_method,
         )
 
         if self.shuffle:
@@ -477,28 +480,28 @@ class SubIterableDataset(torch.utils.data.IterableDataset):
     def __init__(
         self,
         dataset,
+        tensors: Sequence[str],
         use_local_cache: bool = False,
-        tensors: Optional[Sequence[str]] = None,
-        tobytes: Union[bool, Sequence[str]] = False,
         transform: PytorchTransformFunction = PytorchTransformFunction(),
         num_workers: int = 1,
         buffer_size: int = 512,
         batch_size: int = 1,
         return_index: bool = True,
         pad_tensors: bool = False,
+        decode_method: Optional[Dict[str, str]] = None,
     ) -> None:
         super().__init__()
 
         self.torch_datset = TorchDataset(
             dataset,
-            use_local_cache,
-            tensors,
-            tobytes,
+            tensors=tensors,
+            use_local_cache=use_local_cache,
             transform=None if buffer_size else transform,
             num_workers=num_workers,
             shuffle=True,
             return_index=return_index,
             pad_tensors=pad_tensors,
+            decode_method=decode_method,
         )
         if buffer_size:
             self.transform = transform
