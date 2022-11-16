@@ -90,7 +90,7 @@ class DeepLakeDataLoader(DataLoader):
         self._decode_method = _decode_method
 
     def __len__(self):
-        return len(self.dataset)
+        return len(self.dataset) / (self._batch_size or 1)
 
     def batch(self, batch_size: int, drop_last: bool = False):
         """Returns a batched :class:`DeepLakeDataLoader` object.
