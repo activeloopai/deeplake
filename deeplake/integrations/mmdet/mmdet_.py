@@ -487,6 +487,22 @@ def load_ds_from_cfg(cfg: Dict):
             token = client.request_auth_token(username=uname, password=pword)
     ds_path = cfg.deeplake_path
     ds = dp.load(ds_path, token=token)
+    deeplake_commit = cfg.get("deeplake_commit")
+    deeplake_view_id = cfg.get("deeplake_view_id")
+    deeplake_query = cfg.get("deeplake_query")
+
+    if deeplake_view_id and deeplake_query:
+        raise Exception("A query and view_id were specified simultaneously for a dataset in the config. Please specify either the deeplake_query or the deeplake_view_id.")
+    
+    if deeplake_commit:
+        ds.checkout(deeplake_commit)
+
+    if deeplake_view_id:
+        ds.load_view(id=deeplake_view_id)
+
+    if deeplake_query:
+        ds.query(deeplake_query)
+
     return ds
 
 
