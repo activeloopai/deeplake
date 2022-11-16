@@ -132,7 +132,8 @@ class TransformTensor:
         """Adds multiple items to the tensor."""
         if self._numpy_only:
             if isinstance(items, np.ndarray) or (
-                isinstance(items, list) and set(map(type, items)) in {{}, {np.ndarray}}
+                isinstance(items, list)
+                and set(map(type, items)) in [{dict}, {np.ndarray}]
             ):
                 try:
                     incoming_ndim = items.ndim
