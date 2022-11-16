@@ -2213,3 +2213,21 @@ def test_groups_info(local_ds):
 
         with pytest.raises(GroupInfoNotSupportedError):
             ds.group.info["a"] = 1
+
+
+def test_iter_warning(local_ds):
+    with local_ds as ds:
+        ds.create_tensor("abc")
+        ds.abc.extend(list(range(100)))
+
+        for i in range(10):
+            ds[i]
+
+        with pytest.warns(UserWarning):
+            ds[10]
+
+        for i in range(10):
+            ds.abc[i]
+
+        with pytest.warns(UserWarning):
+            ds.abc[10]

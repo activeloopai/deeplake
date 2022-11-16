@@ -81,6 +81,7 @@ class Sample:
         self._uncompressed_bytes = None
 
         self._array = None
+        self._pil = None
         self._typestr = None
         self._shape = shape or None
         self._dtype = dtype or None
@@ -300,8 +301,8 @@ class Sample:
             self._compressed_bytes[compression] = compressed_bytes
         return compressed_bytes
 
-    def _decompress(self):
-        if self._array is not None:
+    def _decompress(self, to_pil: bool = False):
+        if not to_pil and self._array is not None:
             if self._uncompressed_bytes is None:
                 self._uncompressed_bytes = self._array.tobytes()
             return
@@ -323,12 +324,24 @@ class Sample:
             else:
                 compressed = self.buffer
 
-            self._array = decompress_array(
-                compressed, compression=compression, shape=self.shape, dtype=self.dtype
-            )
-            self._uncompressed_bytes = self._array.tobytes()
-            self._typestr = self._array.__array_interface__["typestr"]
-            self._dtype = np.dtype(self._typestr).name
+            if to_pil:
+                self._pil = decompress_array(
+                    compressed,
+                    compression=compression,
+                    shape=self.shape,
+                    dtype=self.dtype,
+                    to_pil=True,
+                )  # type: ignore
+            else:
+                self._array = decompress_array(
+                    compressed,
+                    compression=compression,
+                    shape=self.shape,
+                    dtype=self.dtype,
+                )
+                self._uncompressed_bytes = self._array.tobytes()
+                self._typestr = self._array.__array_interface__["typestr"]
+                self._dtype = np.dtype(self._typestr).name
 
     def uncompressed_bytes(self) -> Optional[bytes]:
         """Returns uncompressed bytes."""
@@ -351,6 +364,23 @@ class Sample:
             return arr
         self._decompress()
         return self._array  # type: ignore
+
+    @property
+    def pil(self) -> Image.Image:  # type: ignore
+        """Return PIL image corresponding to the sample. Decompresses the sample if necessary.
+
+        Example:
+
+            >>> sample = deeplake.read("./images/dog.jpg")
+            >>> pil = sample.pil
+            >>> pil.size
+            (480, 323)
+        """
+        pil = self._pil
+        if pil is not None:
+            return pil
+        self._decompress(to_pil=True)
+        return self._pil
 
     def __str__(self):
         if self.is_lazy:

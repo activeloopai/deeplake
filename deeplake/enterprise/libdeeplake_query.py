@@ -1,6 +1,8 @@
-from typing import Optional, Union
-from deeplake.experimental.convert_to_libdeeplake import dataset_to_libdeeplake
+from deeplake.enterprise.convert_to_libdeeplake import dataset_to_libdeeplake
 from deeplake.util.bugout_reporter import deeplake_reporter
+from typing import Optional, Union
+
+import numpy as np
 
 
 @deeplake_reporter.record_call
@@ -24,7 +26,7 @@ def query(dataset, query_string: str):
         Query from dataset all the samples with lables other than ``5``
 
         >>> import deeplake
-        >>> from deeplake.experimental import query
+        >>> from deeplake.enterprise import query
         >>> ds = deeplake.load('hub://activeloop/fashion-mnist-train')
         >>> query_ds_train = query(ds_train, "select * where labels != 5")
 
@@ -42,7 +44,7 @@ def query(dataset, query_string: str):
 @deeplake_reporter.record_call
 def sample_by(
     dataset,
-    weights: Union[str, list, tuple],
+    weights: Union[str, list, tuple, np.ndarray],
     replace: Optional[bool] = True,
     size: Optional[int] = None,
 ):
@@ -51,7 +53,7 @@ def sample_by(
 
     Args:
         dataset: deeplake.Dataset object on which the query needs to be run
-        weights: (Union[str, list, tuple]): If it's string then tql will be run to calculate the weights based on the expression. list and tuple will be treated as the list of the weights per sample
+        weights: (Union[str, list, tuple, np.ndarray]): If it's string then tql will be run to calculate the weights based on the expression. list, tuple and ndarray will be treated as the list of the weights per sample
         replace: Optional[bool] If true the samples can be repeated in the result view.
             (default: ``True``).
         size: Optional[int] The length of the result view.
@@ -61,6 +63,9 @@ def sample_by(
     Returns:
         Dataset: A deeplake.Dataset object.
 
+    Raises:
+        ValueError: When the given np.ndarray is multidimensional
+
     Examples:
 
         Sample the dataset with ``labels == 5`` twice more than ``labels == 6``
@@ -68,16 +73,27 @@ def sample_by(
         >>> import deeplake
         >>> from deeplake.experimental import query
         >>> ds = deeplake.load('hub://activeloop/fashion-mnist-train')
-        >>> sampled_ds = sample_by(ds_train, "max_weight(labels == 5: 10, labels == 6: 5)")
+        >>> sampled_ds = sample_by(ds, "max_weight(labels == 5: 10, labels == 6: 5)")
+
+        Sample the dataset treating `labels` tensor as weights.
+
+        >>> import deeplake
+        >>> from deeplake.experimental import query
+        >>> ds = deeplake.load('hub://activeloop/fashion-mnist-train')
+        >>> sampled_ds = sample_by(ds, "labels")
 
         Sample the dataset with the given weights;
 
-        >>> ds_train = deeplake.load('hub://activeloop/coco-train')
+        >>> ds = deeplake.load('hub://activeloop/coco-train')
         >>> weights = list()
-        >>> for i in range(0, len(ds_train)):
+        >>> for i in range(0, len(ds)):
         >>>     weights.append(i % 5)
-        >>> sampled_ds = sample_by(ds_train, weights, replace=False)
+        >>> sampled_ds = sample_by(ds, weights, replace=False)
     """
+    if isinstance(weights, np.ndarray):
+        if len(weights.shape) != 1:
+            raise ValueError("weights should be 1 dimensional array.")
+        weights = tuple(weights)
     ds = dataset_to_libdeeplake(dataset)
     if size is None:
         dsv = ds.sample(weights, replace=replace)
