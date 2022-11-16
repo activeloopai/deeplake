@@ -306,7 +306,7 @@ class Pipeline:
             version_state,
             target_ds.link_creds,
             skip_ok,
-            extend_only
+            extend_only,
         )
         map_inp = zip(slices, storages, repeat(args))
 

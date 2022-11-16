@@ -527,6 +527,7 @@ class Dataset:
             verify (bool): Valid only for link htypes. If ``True``, all links will be verified before they are added to the tensor.
                 ``verify`` is always ``True`` even if specified as ``False`` if ``create_shape_tensor`` or ``create_sample_info_tensor`` is ``True``.
             exist_ok (bool): If ``True``, the group is created if it does not exist. if ``False``, an error is raised if the group already exists.
+            verbose (bool): Shows warnings if ``True``.
             **kwargs:
                 - ``htype`` defaults can be overridden by passing any of the compatible parameters.
                 - To see all htypes and their correspondent arguments, check out :ref:`Htypes`.

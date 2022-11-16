@@ -776,6 +776,7 @@ class dataset:
 
         Raises:
             DatasetHandlerError: If a dataset already exists at destination path and overwrite is False.
+            TypeError: If source is not a path to a dataset.
         """
 
         if not isinstance(src, (str, pathlib.Path)):
