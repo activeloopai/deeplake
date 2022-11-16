@@ -486,7 +486,7 @@ def load_ds_from_cfg(cfg: Dict):
             client = DeepLakeBackendClient()
             token = client.request_auth_token(username=uname, password=pword)
     ds_path = cfg.deeplake_path
-    ds = dp.load(ds_path, token=token)
+    ds = dp.load(ds_path, token=token, read_only=True)
     deeplake_commit = cfg.get("deeplake_commit")
     deeplake_view_id = cfg.get("deeplake_view_id")
     deeplake_query = cfg.get("deeplake_query")
@@ -576,21 +576,6 @@ def transform(
             "bbox_fields": ["gt_bboxes"],
         }
     )
-
-
-def build_dataset(cfg):
-    if not isinstance(cfg, dp.Dataset):
-        deeplake_tensors = cfg.get("deeplake_tensors", {})
-        classes = deeplake_tensors.get("gt_labels")
-        ds = load_ds_from_cfg(cfg)
-        if classes is None:
-            classes = _find_tensor_with_htype(ds, "class_label", "gt_labels")
-        
-        if classes is None:
-            raise KeyError("No tensor with htype class_label exists in the dataset")
-        ds.CLASSES = ds[classes].info.class_names
-        return ds
-    return cfg
     
 
 def _get_collate_keys(pipeline):
@@ -623,6 +608,7 @@ def build_dataloader(
     pipeline: List,
     mode: str = "train",
     shuffle: Optional[bool] = None,
+    model=None,
     **train_loader_config,
 ):
     if masks_tensor and "gt_masks" not in _get_collate_keys(pipeline):
@@ -636,6 +622,8 @@ def build_dataloader(
     bbox_info = dataset[boxes_tensor].info
     classes = dataset[labels_tensor].info.class_names
     dataset.CLASSES = classes
+    if model:
+        model.CLASSES = classes
     pipeline = build_pipeline(pipeline)
     metrics_format = train_loader_config.get("metrics_format")
     dist = train_loader_config["dist"]
@@ -874,6 +862,7 @@ def train_detector(
         train_labels_tensor,
         pipeline=cfg.get("train_pipeline", []),
         implementation=dl_impl,
+        model=model,
         **train_loader_cfg,
     )
 
