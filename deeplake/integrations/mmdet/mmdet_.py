@@ -831,7 +831,7 @@ def train_detector(
                 ds_train, "binary_mask", "gt_masks"
             ) or _find_tensor_with_htype(ds_train, "polygon", "gt_masks")
 
-    metrics_format = eval_cfg.get("metrics_format", "PascalVOC")
+    metrics_format = cfg.get("deeplake_metrics_format", "COCO")
 
     logger = get_root_logger(log_level=cfg.log_level)
 
