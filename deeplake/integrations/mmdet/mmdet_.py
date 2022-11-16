@@ -950,12 +950,21 @@ def train_detector(
         }
 
         if ds_val is None:
+            cfg_ds_val = cfg.data.get("val")
+            if cfg_ds_val is None:
+                raise Exception("Validation dataset is not specified even though validate = True. Please set validate = False or specify a validation dataset.")
+            elif cfg_ds_val.get("deeplake_path") is None:
+                raise Exception("Validation dataset is not specified even though validate = True. Please set validate = False or specify a validation dataset.")                
+            
             ds_val = load_ds_from_cfg(cfg.data.val)
             ds_val_tensors = cfg.data.val.get("deeplake_tensors", {})
         else:
             cfg_data = cfg.data.val.get("deeplake_path")
             if cfg_data is not None:
                 always_warn("A Deep Lake dataset was specified in the cfg as well as inthe dataset input to train_detector. The dataset input to train_detector will be used in the workflow.")
+
+        if ds_val is None:
+            raise Exception("Validation dataset is not specified even though validate = True. Please set validate = False or specify a validation dataset.")
 
         if val_dataloader_args["samples_per_gpu"] > 1:
             # Replace 'ImageToTensor' to 'DefaultFormatBundle'
