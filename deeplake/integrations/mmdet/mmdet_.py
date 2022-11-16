@@ -178,6 +178,12 @@ def convert_to_coco_format(bbox, bbox_format):
     return converter(bbox)
 
 
+def first_non_empty(bboxes):
+    for box in bboxes:
+        if len(box):
+            return box
+    raise ValueError("Empty bboxes")
+
 class MMDetDataset(TorchDataset):
     def __init__(
         self,
@@ -196,7 +202,7 @@ class MMDetDataset(TorchDataset):
             tensors_dict.get("masks_tensor", None), shape=self.images[0].shape
         )
         self.bboxes = self._get_bboxes(tensors_dict["boxes_tensor"])
-        bbox_format = get_bbox_format(self.bboxes[0], bbox_info)
+        bbox_format = get_bbox_format(first_non_empty(self.bboxes), bbox_info)
         self.labels = self._get_labels(tensors_dict["labels_tensor"])
         self.iscrowds = self._get_iscrowds(tensors_dict.get("iscrowds"))
         self.CLASSES = self.get_classes(tensors_dict["labels_tensor"])
