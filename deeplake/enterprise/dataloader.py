@@ -19,7 +19,7 @@ from functools import partial
 import importlib
 from torch.utils.data import DataLoader
 import numpy as np
-
+import math
 
 # Load lazy to avoid cycylic import.
 INDRA_LOADER = None
@@ -90,7 +90,7 @@ class DeepLakeDataLoader(DataLoader):
         self._decode_method = _decode_method
 
     def __len__(self):
-        return len(self.dataset) / (self._batch_size or 1)
+        return math.ceil(len(self.dataset) / (self._batch_size or 1))
 
     def batch(self, batch_size: int, drop_last: bool = False):
         """Returns a batched :class:`DeepLakeDataLoader` object.
