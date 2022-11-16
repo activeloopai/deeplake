@@ -90,7 +90,9 @@ class DeepLakeDataLoader(DataLoader):
         self._decode_method = _decode_method
 
     def __len__(self):
-        return math.ceil(len(self.dataset) / (self._batch_size or 1))
+        import torch.distributed as dist
+        world_size = dist.get_world_size() if dist.is_available() else 1
+        return math.ceil(len(self.dataset) / ((self._batch_size or 1) * world_size))
 
     def batch(self, batch_size: int, drop_last: bool = False):
         """Returns a batched :class:`DeepLakeDataLoader` object.
