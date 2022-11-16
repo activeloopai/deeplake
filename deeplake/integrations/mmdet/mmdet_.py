@@ -629,7 +629,7 @@ def build_dataloader(
     dist = train_loader_config["dist"]
     if dist and implementation == "python":
         raise NotImplementedError(
-            "Distributed training is not supported by the python data loader. Set deeplake_dataloader='c++' to use the C++ dtaloader instead."
+            "Distributed training is not supported by the python data loader. Set deeplake_dataloader_type='c++' to use the C++ dtaloader instead."
         )
     transform_fn = partial(
         transform,
@@ -641,7 +641,10 @@ def build_dataloader(
         bbox_info=bbox_info,
         poly2mask=poly2mask,
     )
-    num_workers = train_loader_config["workers_per_gpu"]
+    num_workers = train_loader_config.get("num_workers")
+    if num_workers is None:
+        num_workers = train_loader_config["workers_per_gpu"]
+    
     if shuffle is None:
         shuffle = train_loader_config.get("shuffle", True)
     tensors_dict = {
@@ -654,7 +657,10 @@ def build_dataloader(
         tensors.append(masks_tensor)
         tensors_dict["masks_tensor"] = masks_tensor
 
-    batch_size = train_loader_config["samples_per_gpu"]
+    batch_size = train_loader_config.get("batch_size")
+    if batch_size is None:
+        batch_size = train_loader_config["samples_per_gpu"]
+
 
     collate_fn = partial(collate, samples_per_gpu=batch_size)
 
@@ -804,7 +810,7 @@ def train_detector(
         cfg.gpu_ids = range(1)
 
     eval_cfg = cfg.get("evaluation", {})
-    dl_impl = cfg.get("deeplake_dataloader", "auto").lower()
+    dl_impl = cfg.get("deeplake_dataloader_type", "auto").lower()
 
     if dl_impl == "auto":
         dl_impl = "c++" if indra_available() else "python"
@@ -813,7 +819,7 @@ def train_detector(
 
     if dl_impl not in {"c++", "python"}:
         raise ValueError(
-            "`deeplake_dataloader` should be one of ['auto', 'c++', 'python']."
+            "`deeplake_dataloader_type` should be one of ['auto', 'c++', 'python']."
         )
 
     if ds_train is None:
@@ -848,9 +854,15 @@ def train_detector(
 
     runner_type = "EpochBasedRunner" if "runner" not in cfg else cfg.runner["type"]
 
+    batch_size = cfg.data.get("samples_per_gpu", 256)
+
+    num_workers = cfg.data.train.get("num_workers")
+    if num_workers is None:
+        num_workers = cfg.data.get("workers_per_gpu", 8)
+
     train_dataloader_default_args = dict(
-        samples_per_gpu=cfg.data.get("samples_per_gpu", 256),
-        workers_per_gpu=cfg.data.get("workers_per_gpu", 8),
+        samples_per_gpu=batch_size,
+        workers_per_gpu=num_workers,
         # `num_gpus` will be ignored if distributed
         num_gpus=len(cfg.gpu_ids),
         dist=distributed,
@@ -862,7 +874,7 @@ def train_detector(
 
     train_loader_cfg = {
         **train_dataloader_default_args,
-        **cfg.data.get("train_dataloader", {}),
+        **cfg.data.train.get("deeplake_dataloader", {}),
     }
 
     data_loader = build_dataloader(
@@ -957,7 +969,7 @@ def train_detector(
 
         val_dataloader_args = {
             **val_dataloader_default_args,
-            **cfg.data.get("val_dataloader", {}),
+            **cfg.data.val.get("deeplake_dataloader", {}),
         }
 
         if ds_val is None:
