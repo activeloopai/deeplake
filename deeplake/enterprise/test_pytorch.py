@@ -11,7 +11,6 @@ from deeplake.core.dataset import Dataset
 from deeplake.core.storage import MemoryProvider, GCSProvider
 from deeplake.constants import KB
 
-from deeplake.tests.dataset_fixtures import enabled_non_gdrive_datasets
 from PIL import Image  # type: ignore
 
 try:
@@ -50,21 +49,24 @@ def index_transform(sample):
 
 
 @requires_torch
-@enabled_non_gdrive_datasets
 @requires_libdeeplake
-def test_pytorch_small(ds):
-    with ds:
-        ds.create_tensor("image", max_chunk_size=PYTORCH_TESTS_MAX_CHUNK_SIZE)
-        ds.image.extend(([i * np.ones((i + 1, i + 1)) for i in range(16)]))
-        ds.commit()
-        ds.create_tensor("image2", max_chunk_size=PYTORCH_TESTS_MAX_CHUNK_SIZE)
-        ds.image2.extend(np.array([i * np.ones((12, 12)) for i in range(16)]))
+def test_pytorch_small(hub_cloud_ds):
+    with hub_cloud_ds:
+        hub_cloud_ds.create_tensor("image", max_chunk_size=PYTORCH_TESTS_MAX_CHUNK_SIZE)
+        hub_cloud_ds.image.extend(([i * np.ones((i + 1, i + 1)) for i in range(16)]))
+        hub_cloud_ds.commit()
+        hub_cloud_ds.create_tensor(
+            "image2", max_chunk_size=PYTORCH_TESTS_MAX_CHUNK_SIZE
+        )
+        hub_cloud_ds.image2.extend(np.array([i * np.ones((12, 12)) for i in range(16)]))
 
-    if isinstance(get_base_storage(ds.storage), (MemoryProvider, GCSProvider)):
+    if isinstance(
+        get_base_storage(hub_cloud_ds.storage), (MemoryProvider, GCSProvider)
+    ):
         with pytest.raises(ValueError):
-            dl = ds.dataloader()
+            dl = hub_cloud_ds.dataloader()
         return
-    dl = ds.dataloader().batch(1).pytorch(num_workers=2)
+    dl = hub_cloud_ds.dataloader().batch(1).pytorch(num_workers=2)
 
     assert len(dl.dataset) == 16
 
@@ -77,7 +79,7 @@ def test_pytorch_small(ds):
                 batch["image2"].numpy(), i * np.ones((1, 12, 12))
             )
 
-    sub_ds = ds[5:]
+    sub_ds = hub_cloud_ds[5:]
     sub_dl = sub_ds.dataloader().pytorch(num_workers=0)
 
     for i, batch in enumerate(sub_dl):
@@ -88,7 +90,7 @@ def test_pytorch_small(ds):
             batch["image2"].numpy(), (5 + i) * np.ones((1, 12, 12))
         )
 
-    sub_ds2 = ds[8:12]
+    sub_ds2 = hub_cloud_ds[8:12]
     sub_dl2 = sub_ds2.dataloader().pytorch(num_workers=0)
 
     for _ in range(2):
@@ -100,7 +102,7 @@ def test_pytorch_small(ds):
                 batch["image2"].numpy(), (8 + i) * np.ones((1, 12, 12))
             )
 
-    sub_ds3 = ds[:5]
+    sub_ds3 = hub_cloud_ds[:5]
     sub_dl3 = sub_ds3.dataloader().pytorch(num_workers=0)
 
     for _ in range(2):
@@ -114,23 +116,26 @@ def test_pytorch_small(ds):
 
 
 @requires_torch
-@enabled_non_gdrive_datasets
 @requires_libdeeplake
-def test_pytorch_transform(ds):
-    with ds:
-        ds.create_tensor("image", max_chunk_size=PYTORCH_TESTS_MAX_CHUNK_SIZE)
-        ds.image.extend(([i * np.ones((i + 1, i + 1)) for i in range(16)]))
-        ds.checkout("alt", create=True)
-        ds.create_tensor("image2", max_chunk_size=PYTORCH_TESTS_MAX_CHUNK_SIZE)
-        ds.image2.extend(np.array([i * np.ones((12, 12)) for i in range(16)]))
+def test_pytorch_transform(hub_cloud_ds):
+    with hub_cloud_ds:
+        hub_cloud_ds.create_tensor("image", max_chunk_size=PYTORCH_TESTS_MAX_CHUNK_SIZE)
+        hub_cloud_ds.image.extend(([i * np.ones((i + 1, i + 1)) for i in range(16)]))
+        hub_cloud_ds.checkout("alt", create=True)
+        hub_cloud_ds.create_tensor(
+            "image2", max_chunk_size=PYTORCH_TESTS_MAX_CHUNK_SIZE
+        )
+        hub_cloud_ds.image2.extend(np.array([i * np.ones((12, 12)) for i in range(16)]))
 
-    if isinstance(get_base_storage(ds.storage), (MemoryProvider, GCSProvider)):
+    if isinstance(
+        get_base_storage(hub_cloud_ds.storage), (MemoryProvider, GCSProvider)
+    ):
         with pytest.raises(ValueError):
-            dl = ds.dataloader()
+            dl = hub_cloud_ds.dataloader()
         return
 
     dl = (
-        ds.dataloader()
+        hub_cloud_ds.dataloader()
         .batch(1)
         .transform(to_tuple, t1="image", t2="image2")
         .pytorch(num_workers=2)
@@ -147,23 +152,30 @@ def test_pytorch_transform(ds):
 
 
 @requires_torch
-@enabled_non_gdrive_datasets
 @requires_libdeeplake
-def test_pytorch_transform_dict(ds):
-    with ds:
-        ds.create_tensor("image", max_chunk_size=PYTORCH_TESTS_MAX_CHUNK_SIZE)
-        ds.image.extend(([i * np.ones((i + 1, i + 1)) for i in range(16)]))
-        ds.create_tensor("image2", max_chunk_size=PYTORCH_TESTS_MAX_CHUNK_SIZE)
-        ds.image2.extend(np.array([i * np.ones((12, 12)) for i in range(16)]))
-        ds.create_tensor("image3", max_chunk_size=PYTORCH_TESTS_MAX_CHUNK_SIZE)
-        ds.image3.extend(np.array([i * np.ones((12, 12)) for i in range(16)]))
+def test_pytorch_transform_dict(hub_cloud_ds):
+    with hub_cloud_ds:
+        hub_cloud_ds.create_tensor("image", max_chunk_size=PYTORCH_TESTS_MAX_CHUNK_SIZE)
+        hub_cloud_ds.image.extend(([i * np.ones((i + 1, i + 1)) for i in range(16)]))
+        hub_cloud_ds.create_tensor(
+            "image2", max_chunk_size=PYTORCH_TESTS_MAX_CHUNK_SIZE
+        )
+        hub_cloud_ds.image2.extend(np.array([i * np.ones((12, 12)) for i in range(16)]))
+        hub_cloud_ds.create_tensor(
+            "image3", max_chunk_size=PYTORCH_TESTS_MAX_CHUNK_SIZE
+        )
+        hub_cloud_ds.image3.extend(np.array([i * np.ones((12, 12)) for i in range(16)]))
 
-    if isinstance(get_base_storage(ds.storage), (MemoryProvider, GCSProvider)):
+    if isinstance(
+        get_base_storage(hub_cloud_ds.storage), (MemoryProvider, GCSProvider)
+    ):
         with pytest.raises(ValueError):
-            dl = ds.dataloader()
+            dl = hub_cloud_ds.dataloader()
         return
 
-    dl = ds.dataloader().transform({"image": double, "image2": None}).pytorch()
+    dl = (
+        hub_cloud_ds.dataloader().transform({"image": double, "image2": None}).pytorch()
+    )
 
     assert len(dl.dataset) == 16
 
@@ -186,18 +198,17 @@ def test_pytorch_transform_dict(ds):
 
 
 @requires_torch
-@enabled_non_gdrive_datasets
 @requires_libdeeplake
-def test_pytorch_with_compression(ds: Dataset):
+def test_pytorch_with_compression(hub_cloud_ds: Dataset):
     # TODO: chunk-wise compression for labels (right now they are uncompressed)
-    with ds:
-        images = ds.create_tensor(
+    with hub_cloud_ds:
+        images = hub_cloud_ds.create_tensor(
             "images",
             htype="image",
             sample_compression="png",
             max_chunk_size=PYTORCH_TESTS_MAX_CHUNK_SIZE,
         )
-        labels = ds.create_tensor(
+        labels = hub_cloud_ds.create_tensor(
             "labels", htype="class_label", max_chunk_size=PYTORCH_TESTS_MAX_CHUNK_SIZE
         )
 
@@ -206,12 +217,14 @@ def test_pytorch_with_compression(ds: Dataset):
         images.extend(np.ones((16, 12, 12, 3), dtype="uint8"))
         labels.extend(np.ones((16, 1), dtype="uint32"))
 
-    if isinstance(get_base_storage(ds.storage), (MemoryProvider, GCSProvider)):
+    if isinstance(
+        get_base_storage(hub_cloud_ds.storage), (MemoryProvider, GCSProvider)
+    ):
         with pytest.raises(ValueError):
-            dl = ds.dataloader()
+            dl = hub_cloud_ds.dataloader()
         return
 
-    dl = ds.dataloader().pytorch(num_workers=0)
+    dl = hub_cloud_ds.dataloader().pytorch(num_workers=0)
 
     for _ in range(2):
         for batch in dl:
@@ -222,24 +235,25 @@ def test_pytorch_with_compression(ds: Dataset):
 
 
 @requires_torch
-@enabled_non_gdrive_datasets
 @requires_libdeeplake
-def test_custom_tensor_order(ds):
-    with ds:
+def test_custom_tensor_order(hub_cloud_ds):
+    with hub_cloud_ds:
         tensors = ["a", "b", "c", "d"]
         for t in tensors:
-            ds.create_tensor(t, max_chunk_size=PYTORCH_TESTS_MAX_CHUNK_SIZE)
-            ds[t].extend(np.random.random((3, 4, 5)))
+            hub_cloud_ds.create_tensor(t, max_chunk_size=PYTORCH_TESTS_MAX_CHUNK_SIZE)
+            hub_cloud_ds[t].extend(np.random.random((3, 4, 5)))
 
-    if isinstance(get_base_storage(ds.storage), (MemoryProvider, GCSProvider)):
+    if isinstance(
+        get_base_storage(hub_cloud_ds.storage), (MemoryProvider, GCSProvider)
+    ):
         with pytest.raises(ValueError):
-            dl = ds.dataloader()
+            dl = hub_cloud_ds.dataloader()
         return
 
     with pytest.raises(TensorDoesNotExistError):
-        dl = ds.dataloader().pytorch(tensors=["c", "d", "e"])
+        dl = hub_cloud_ds.dataloader().pytorch(tensors=["c", "d", "e"])
 
-    dl = ds.dataloader().pytorch(tensors=["c", "d", "a"], return_index=False)
+    dl = hub_cloud_ds.dataloader().pytorch(tensors=["c", "d", "a"], return_index=False)
 
     for i, batch in enumerate(dl):
         c1, d1, a1 = batch
@@ -250,9 +264,9 @@ def test_custom_tensor_order(ds):
         np.testing.assert_array_equal(a1, a2)
         np.testing.assert_array_equal(c1, c2)
         np.testing.assert_array_equal(d1, d2)
-        np.testing.assert_array_equal(a1[0], ds.a.numpy()[i])
-        np.testing.assert_array_equal(c1[0], ds.c.numpy()[i])
-        np.testing.assert_array_equal(d1[0], ds.d.numpy()[i])
+        np.testing.assert_array_equal(a1[0], hub_cloud_ds.a.numpy()[i])
+        np.testing.assert_array_equal(c1[0], hub_cloud_ds.c.numpy()[i])
+        np.testing.assert_array_equal(d1[0], hub_cloud_ds.d.numpy()[i])
         batch = pickle.loads(pickle.dumps(batch))
         c1, d1, a1 = batch
         a2 = batch["a"]
@@ -261,23 +275,23 @@ def test_custom_tensor_order(ds):
         np.testing.assert_array_equal(a1, a2)
         np.testing.assert_array_equal(c1, c2)
         np.testing.assert_array_equal(d1, d2)
-        np.testing.assert_array_equal(a1[0], ds.a.numpy()[i])
-        np.testing.assert_array_equal(c1[0], ds.c.numpy()[i])
-        np.testing.assert_array_equal(d1[0], ds.d.numpy()[i])
+        np.testing.assert_array_equal(a1[0], hub_cloud_ds.a.numpy()[i])
+        np.testing.assert_array_equal(c1[0], hub_cloud_ds.c.numpy()[i])
+        np.testing.assert_array_equal(d1[0], hub_cloud_ds.d.numpy()[i])
 
 
 @requires_torch
 @requires_libdeeplake
-def test_readonly_with_two_workers(local_ds):
-    local_ds.create_tensor("images", max_chunk_size=PYTORCH_TESTS_MAX_CHUNK_SIZE)
-    local_ds.create_tensor("labels", max_chunk_size=PYTORCH_TESTS_MAX_CHUNK_SIZE)
-    local_ds.images.extend(np.ones((10, 12, 12)))
-    local_ds.labels.extend(np.ones(10))
+def test_readonly_with_two_workers(hub_cloud_ds):
+    hub_cloud_ds.create_tensor("images", max_chunk_size=PYTORCH_TESTS_MAX_CHUNK_SIZE)
+    hub_cloud_ds.create_tensor("labels", max_chunk_size=PYTORCH_TESTS_MAX_CHUNK_SIZE)
+    hub_cloud_ds.images.extend(np.ones((10, 12, 12)))
+    hub_cloud_ds.labels.extend(np.ones(10))
 
-    base_storage = get_base_storage(local_ds.storage)
+    base_storage = get_base_storage(hub_cloud_ds.storage)
     base_storage.flush()
     base_storage.enable_readonly()
-    ds = Dataset(storage=local_ds.storage, read_only=True, verbose=False)
+    ds = Dataset(storage=hub_cloud_ds.storage, read_only=True, verbose=False)
 
     ptds = ds.dataloader().pytorch(num_workers=2)
     # no need to check input, only care that readonly works
@@ -297,21 +311,21 @@ def test_pytorch_local_cache():
 
 @requires_torch
 @requires_libdeeplake
-def test_groups(local_ds, compressed_image_paths):
+def test_groups(hub_cloud_ds, compressed_image_paths):
     img1 = deeplake.read(compressed_image_paths["jpeg"][0])
     img2 = deeplake.read(compressed_image_paths["png"][0])
-    with local_ds:
-        local_ds.create_tensor(
+    with hub_cloud_ds:
+        hub_cloud_ds.create_tensor(
             "images/jpegs/cats", htype="image", sample_compression="jpeg"
         )
-        local_ds.create_tensor(
+        hub_cloud_ds.create_tensor(
             "images/pngs/flowers", htype="image", sample_compression="png"
         )
         for _ in range(10):
-            local_ds.images.jpegs.cats.append(img1)
-            local_ds.images.pngs.flowers.append(img2)
+            hub_cloud_ds.images.jpegs.cats.append(img1)
+            hub_cloud_ds.images.pngs.flowers.append(img2)
 
-    another_ds = deeplake.dataset(local_ds.path)
+    another_ds = deeplake.dataset(hub_cloud_ds.path)
     dl = another_ds.dataloader().pytorch(return_index=False)
     for i, (cat, flower) in enumerate(dl):
         assert cat[0].shape == another_ds.images.jpegs.cats[i].numpy().shape
@@ -320,12 +334,12 @@ def test_groups(local_ds, compressed_image_paths):
 
 @requires_torch
 @requires_libdeeplake
-def test_string_tensors(local_ds):
-    with local_ds:
-        local_ds.create_tensor("strings", htype="text")
-        local_ds.strings.extend([f"string{idx}" for idx in range(5)])
+def test_string_tensors(hub_cloud_ds):
+    with hub_cloud_ds:
+        hub_cloud_ds.create_tensor("strings", htype="text")
+        hub_cloud_ds.strings.extend([f"string{idx}" for idx in range(5)])
 
-    ptds = local_ds.dataloader().pytorch()
+    ptds = hub_cloud_ds.dataloader().pytorch()
     for idx, batch in enumerate(ptds):
         np.testing.assert_array_equal(batch["strings"], f"string{idx}")
 
@@ -351,12 +365,12 @@ def test_pytorch_large():
         [4, 3, 2, 1],
     ],
 )
-def test_pytorch_view(local_ds, index):
+def test_pytorch_view(hub_cloud_ds, index):
     arr_list_1 = [np.random.randn(15, 15, i) for i in range(10)]
     arr_list_2 = [np.random.randn(40, 15, 4, i) for i in range(10)]
     label_list = list(range(10))
 
-    with local_ds as ds:
+    with hub_cloud_ds as ds:
         ds.create_tensor("img1")
         ds.create_tensor("img2")
         ds.create_tensor("label")
@@ -364,8 +378,8 @@ def test_pytorch_view(local_ds, index):
         ds.img2.extend(arr_list_2)
         ds.label.extend(label_list)
 
-    ptds = local_ds[index].dataloader().pytorch()
-    idxs = list(IndexEntry(index).indices(len(local_ds)))
+    ptds = hub_cloud_ds[index].dataloader().pytorch()
+    idxs = list(IndexEntry(index).indices(len(hub_cloud_ds)))
     for idx, batch in enumerate(ptds):
         idx = idxs[idx]
         np.testing.assert_array_equal(batch["img1"][0], arr_list_1[idx])
@@ -376,17 +390,17 @@ def test_pytorch_view(local_ds, index):
 @requires_torch
 @requires_libdeeplake
 @pytest.mark.parametrize("shuffle", [True, False])
-def test_pytorch_collate(local_ds, shuffle):
-    with local_ds:
-        local_ds.create_tensor("a")
-        local_ds.create_tensor("b")
-        local_ds.create_tensor("c")
+def test_pytorch_collate(hub_cloud_ds, shuffle):
+    with hub_cloud_ds:
+        hub_cloud_ds.create_tensor("a")
+        hub_cloud_ds.create_tensor("b")
+        hub_cloud_ds.create_tensor("c")
         for _ in range(100):
-            local_ds.a.append(0)
-            local_ds.b.append(1)
-            local_ds.c.append(2)
+            hub_cloud_ds.a.append(0)
+            hub_cloud_ds.b.append(1)
+            hub_cloud_ds.c.append(2)
 
-    ptds = local_ds.dataloader().batch(4).pytorch(collate_fn=reorder_collate)
+    ptds = hub_cloud_ds.dataloader().batch(4).pytorch(collate_fn=reorder_collate)
     if shuffle:
         ptds = ptds.shuffle()
     for batch in ptds:
@@ -400,18 +414,18 @@ def test_pytorch_collate(local_ds, shuffle):
 @requires_torch
 @requires_libdeeplake
 @pytest.mark.parametrize("shuffle", [True, False])
-def test_pytorch_transform_collate(local_ds, shuffle):
-    with local_ds:
-        local_ds.create_tensor("a")
-        local_ds.create_tensor("b")
-        local_ds.create_tensor("c")
+def test_pytorch_transform_collate(hub_cloud_ds, shuffle):
+    with hub_cloud_ds:
+        hub_cloud_ds.create_tensor("a")
+        hub_cloud_ds.create_tensor("b")
+        hub_cloud_ds.create_tensor("c")
         for _ in range(100):
-            local_ds.a.append(0 * np.ones((300, 300)))
-            local_ds.b.append(1 * np.ones((300, 300)))
-            local_ds.c.append(2 * np.ones((300, 300)))
+            hub_cloud_ds.a.append(0 * np.ones((300, 300)))
+            hub_cloud_ds.b.append(1 * np.ones((300, 300)))
+            hub_cloud_ds.c.append(2 * np.ones((300, 300)))
 
     ptds = (
-        local_ds.dataloader()
+        hub_cloud_ds.dataloader()
         .batch(4)
         .pytorch(
             collate_fn=my_transform_collate,
@@ -436,21 +450,24 @@ def test_pytorch_ddp():
 
 @requires_torch
 @requires_libdeeplake
-@enabled_non_gdrive_datasets
 @pytest.mark.parametrize("compression", [None, "jpeg"])
-def test_pytorch_decode(ds, compressed_image_paths, compression):
-    with ds:
-        ds.create_tensor("image", sample_compression=compression)
-        ds.image.extend(
+def test_pytorch_decode(hub_cloud_ds, compressed_image_paths, compression):
+    with hub_cloud_ds:
+        hub_cloud_ds.create_tensor("image", sample_compression=compression)
+        hub_cloud_ds.image.extend(
             np.array([i * np.ones((10, 10, 3), dtype=np.uint8) for i in range(5)])
         )
-        ds.image.extend([deeplake.read(compressed_image_paths["jpeg"][0])] * 5)
-    if isinstance(get_base_storage(ds.storage), (MemoryProvider, GCSProvider)):
+        hub_cloud_ds.image.extend(
+            [deeplake.read(compressed_image_paths["jpeg"][0])] * 5
+        )
+    if isinstance(
+        get_base_storage(hub_cloud_ds.storage), (MemoryProvider, GCSProvider)
+    ):
         with pytest.raises(ValueError):
-            dl = ds.dataloader()
+            dl = hub_cloud_ds.dataloader()
         return
 
-    ptds = ds.dataloader().pytorch(decode_method={"image": "tobytes"})
+    ptds = hub_cloud_ds.dataloader().pytorch(decode_method={"image": "tobytes"})
 
     for i, batch in enumerate(ptds):
         image = batch["image"][0]
@@ -465,7 +482,7 @@ def test_pytorch_decode(ds, compressed_image_paths, compression):
                 assert f.read() == image
 
     if compression:
-        ptds = ds.dataloader().numpy(decode_method={"image": "pil"})
+        ptds = hub_cloud_ds.dataloader().numpy(decode_method={"image": "pil"})
         for i, batch in enumerate(ptds):
             image = batch[0]["image"]
             assert isinstance(image, Image.Image)
@@ -480,8 +497,8 @@ def test_pytorch_decode(ds, compressed_image_paths, compression):
 
 @requires_torch
 @requires_libdeeplake
-def test_rename(local_ds):
-    with local_ds as ds:
+def test_rename(hub_cloud_ds):
+    with hub_cloud_ds as ds:
         ds.create_tensor("abc")
         ds.create_tensor("blue/green")
         ds.abc.append([1, 2, 3])
@@ -509,15 +526,15 @@ def test_expiration_date_casting_to_string():
 @requires_torch
 @requires_libdeeplake
 @pytest.mark.parametrize("num_workers", [0, 2])
-def test_indexes(local_ds, num_workers):
+def test_indexes(hub_cloud_ds, num_workers):
     shuffle = False
-    with local_ds as ds:
+    with hub_cloud_ds as ds:
         ds.create_tensor("xyz")
         for i in range(8):
             ds.xyz.append(i * np.ones((2, 2)))
 
     ptds = (
-        local_ds.dataloader()
+        hub_cloud_ds.dataloader()
         .batch(4)
         .pytorch(num_workers=num_workers, return_index=True)
     )
@@ -533,15 +550,15 @@ def test_indexes(local_ds, num_workers):
 @requires_torch
 @requires_libdeeplake
 @pytest.mark.parametrize("num_workers", [0, 2])
-def test_indexes_transform(local_ds, num_workers):
+def test_indexes_transform(hub_cloud_ds, num_workers):
     shuffle = False
-    with local_ds as ds:
+    with hub_cloud_ds as ds:
         ds.create_tensor("xyz")
         for i in range(8):
             ds.xyz.append(i * np.ones((2, 2)))
 
     ptds = (
-        local_ds.dataloader()
+        hub_cloud_ds.dataloader()
         .batch(4)
         .transform(index_transform)
         .pytorch(num_workers=num_workers, return_index=True)
@@ -561,15 +578,15 @@ def test_indexes_transform(local_ds, num_workers):
 @requires_torch
 @requires_libdeeplake
 @pytest.mark.parametrize("num_workers", [0, 2])
-def test_indexes_transform_dict(local_ds, num_workers):
+def test_indexes_transform_dict(hub_cloud_ds, num_workers):
     shuffle = False
-    with local_ds as ds:
+    with hub_cloud_ds as ds:
         ds.create_tensor("xyz")
         for i in range(8):
             ds.xyz.append(i * np.ones((2, 2)))
 
     ptds = (
-        local_ds.dataloader()
+        hub_cloud_ds.dataloader()
         .batch(4)
         .transform({"xyz": double, "index": None})
         .pytorch(num_workers=num_workers, return_index=True)
@@ -583,7 +600,7 @@ def test_indexes_transform_dict(local_ds, num_workers):
             np.testing.assert_array_equal(2 * batch["index"][i], batch["xyz"][i][0, 0])
 
     ptds = (
-        local_ds.dataloader()
+        hub_cloud_ds.dataloader()
         .batch(4)
         .transform({"xyz": double})
         .pytorch(num_workers=num_workers, return_index=True)
@@ -598,16 +615,16 @@ def test_indexes_transform_dict(local_ds, num_workers):
 @requires_torch
 @requires_libdeeplake
 @pytest.mark.parametrize("num_workers", [0, 2])
-def test_indexes_tensors(local_ds, num_workers):
+def test_indexes_tensors(hub_cloud_ds, num_workers):
     shuffle = False
-    with local_ds as ds:
+    with hub_cloud_ds as ds:
         ds.create_tensor("xyz")
         for i in range(8):
             ds.xyz.append(i * np.ones((2, 2)))
 
     with pytest.raises(ValueError):
         ptds = (
-            local_ds.dataloader()
+            hub_cloud_ds.dataloader()
             .batch(4)
             .pytorch(
                 num_workers=num_workers, return_index=True, tensors=["xyz", "index"]
@@ -615,7 +632,7 @@ def test_indexes_tensors(local_ds, num_workers):
         )
 
     ptds = (
-        local_ds.dataloader()
+        hub_cloud_ds.dataloader()
         .batch(4)
         .pytorch(num_workers=num_workers, return_index=True, tensors=["xyz"])
     )
@@ -628,8 +645,8 @@ def test_indexes_tensors(local_ds, num_workers):
 
 @requires_libdeeplake
 @requires_torch
-def test_uneven_iteration(local_ds):
-    with local_ds as ds:
+def test_uneven_iteration(hub_cloud_ds):
+    with hub_cloud_ds as ds:
         ds.create_tensor("x")
         ds.create_tensor("y")
         ds.x.extend(list(range(5)))
@@ -643,8 +660,8 @@ def test_uneven_iteration(local_ds):
 
 @requires_libdeeplake
 @requires_torch
-def test_pytorch_error_handling(local_ds):
-    with local_ds as ds:
+def test_pytorch_error_handling(hub_cloud_ds):
+    with hub_cloud_ds as ds:
         ds.create_tensor("x")
         ds.create_tensor("y")
         ds.x.extend(list(range(5)))
