@@ -30,7 +30,9 @@ def test_sample(hub_cloud_ds):
     for i in range(10):
         assert dsv.label[i].numpy() == 2 or dsv.label[i].numpy() == 1
 
-    dsv = hub_cloud_ds.sample_by("max_weight(label == 2: 10, label == 1: 1)", replace=True)
+    dsv = hub_cloud_ds.sample_by(
+        "max_weight(label == 2: 10, label == 1: 1)", replace=True
+    )
     assert len(dsv) == 100
     for i in range(100):
         assert dsv.label[i].numpy() == 2 or dsv.label[i].numpy() == 1
