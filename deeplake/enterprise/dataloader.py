@@ -90,8 +90,10 @@ class DeepLakeDataLoader(DataLoader):
         self._decode_method = _decode_method
 
     def __len__(self):
+        world_size = 1
         if self._distributed:
             import torch.distributed as dist
+
             world_size = dist.get_world_size()
         round_fn = math.floor if self._drop_last else math.ceil
         return round_fn(len(self.dataset) / ((self._batch_size or 1) * world_size))
