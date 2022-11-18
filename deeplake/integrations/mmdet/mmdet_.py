@@ -498,10 +498,10 @@ def load_ds_from_cfg(cfg: Dict):
         ds.checkout(deeplake_commit)
 
     if deeplake_view_id:
-        ds.load_view(id=deeplake_view_id)
+        ds = ds.load_view(id=deeplake_view_id)
 
     if deeplake_query:
-        ds.query(deeplake_query)
+        ds = ds.query(deeplake_query)
 
     return ds
 
