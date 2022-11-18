@@ -972,6 +972,9 @@ def train_detector(
             **cfg.data.val.get("deeplake_dataloader", {}),
         }
 
+        if val_dataloader_args.get("shuffle", False) == True:
+            raise Exception("During validation shuffle can not be True, you need to set shuffle=False in deeplake_dataloader or remove it from dictionary.")
+
         if ds_val is None:
             cfg_ds_val = cfg.data.get("val")
             if cfg_ds_val is None:
