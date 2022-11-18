@@ -1107,7 +1107,7 @@ def ddp_setup(rank: int, world_size: int, port: int):
         world_size: Total number of processes
     """
     os.environ["MASTER_ADDR"] = "localhost"
-    os.environ["MASTER_PORT"] = port
+    os.environ["MASTER_PORT"] = str(port)
     torch.distributed.init_process_group(
         backend="nccl", rank=rank, world_size=world_size
     )
