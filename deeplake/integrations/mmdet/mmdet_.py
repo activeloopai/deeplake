@@ -946,13 +946,8 @@ def _train_detector(
         #                                           output_device=local_rank,
         #                                           broadcast_buffers=False,
         #                                           find_unused_parameters=find_unused_parameters)
-        # torch.distributed.init_process_group(
-        #     backend="nccl", rank=local_rank, world_size=len(cfg.gpu_ids)
-        # )
         force_cudnn_initialization(cfg.gpu_ids[local_rank])
-        torch.distributed.init_process_group(
-            backend="nccl", rank=local_rank, world_size=len(cfg.gpu_ids)
-        )
+        ddp_setup(local_rank, len(cfg.gpu_ids))
         model = build_ddp(
             model,
             cfg.device,
@@ -1100,3 +1095,16 @@ def _train_detector(
     elif cfg.load_from:
         runner.load_checkpoint(cfg.load_from)
     runner.run([data_loader], cfg.workflow)
+
+
+def ddp_setup(rank: int, world_size: int):
+    """
+    Args:
+        rank: Unique identifier of each process
+        world_size: Total number of processes
+    """
+    os.environ["MASTER_ADDR"] = "localhost"
+    os.environ["MASTER_PORT"] = "12355"  # TODO dont hardcode
+    torch.distributed.init_process_group(
+        backend="nccl", rank=rank, world_size=world_size
+    )
