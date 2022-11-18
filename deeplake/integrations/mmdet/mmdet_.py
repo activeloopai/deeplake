@@ -501,7 +501,23 @@ def load_ds_from_cfg(cfg: Dict):
             client = DeepLakeBackendClient()
             token = client.request_auth_token(username=uname, password=pword)
     ds_path = cfg.deeplake_path
-    ds = dp.load(ds_path, token=token)
+    ds = dp.load(ds_path, token=token, read_only=True)
+    deeplake_commit = cfg.get("deeplake_commit")
+    deeplake_view_id = cfg.get("deeplake_view_id")
+    deeplake_query = cfg.get("deeplake_query")
+
+    if deeplake_view_id and deeplake_query:
+        raise Exception("A query and view_id were specified simultaneously for a dataset in the config. Please specify either the deeplake_query or the deeplake_view_id.")
+    
+    if deeplake_commit:
+        ds.checkout(deeplake_commit)
+
+    if deeplake_view_id:
+        ds = ds.load_view(id=deeplake_view_id)
+
+    if deeplake_query:
+        ds = ds.query(deeplake_query)
+
     return ds
 
 
@@ -577,21 +593,6 @@ def transform(
     )
 
 
-def build_dataset(cfg):
-    if not isinstance(cfg, dp.Dataset):
-        deeplake_tensors = cfg.get("deeplake_tensors", {})
-        classes = deeplake_tensors.get("gt_labels")
-        ds = load_ds_from_cfg(cfg)
-        if classes is None:
-            classes = _find_tensor_with_htype(ds, "class_label", "gt_labels")
-
-        if classes is None:
-            raise KeyError("No tensor with htype class_label exists in the dataset")
-        ds.CLASSES = ds[classes].info.class_names
-        return ds
-    return cfg
-
-
 def _get_collate_keys(pipeline):
     if type(pipeline) == list:
         for transform in pipeline:
@@ -622,6 +623,7 @@ def build_dataloader(
     pipeline: List,
     mode: str = "train",
     shuffle: Optional[bool] = None,
+    model=None,
     **train_loader_config,
 ):
     if masks_tensor and "gt_masks" not in _get_collate_keys(pipeline):
@@ -635,6 +637,8 @@ def build_dataloader(
     bbox_info = dataset[boxes_tensor].info
     classes = dataset[labels_tensor].info.class_names
     dataset.CLASSES = classes
+    if model:
+        model.CLASSES = classes
     pipeline = build_pipeline(pipeline)
     metrics_format = train_loader_config.get("metrics_format")
     dist = train_loader_config["dist"]
@@ -787,7 +791,18 @@ def train_detector(
                 optimizer: dictionary containing information about optimizer initialization
                 optimizer_config: some optimizer configuration that might be used during training like grad_clip etc.
                 runner: training type e.g. EpochBasedRunner, here you can specify maximum number of epcohs to be conducted. For instance: `runner = dict(type='EpochBasedRunner', max_epochs=273)`
-        validation_dataset: validation dataset of type dp.Dataset
+        ds_train: train dataset of type dp.Dataset. This can be a view of the dataset.
+        ds_train_tensors: dictionary that maps mmdet keys to deeplake dataset tensor. Example:  {"img": "images", "gt_bboxes": "boxes", "gt_labels": "categories"}.
+            If this dictionary is not specified, these tensors will be searched automatically using htypes like "image", "class_label, "bbox", "segment_mask" or "polygon".
+            keys that needs to be mapped are: `img`, `gt_labels`, `gt_bboxes`, `gt_masks`. `img`, `gt_labels`, `gt_bboxes` are always required, they if not specified they 
+            are always searched, while masks are optional, if you specify in collect `gt_masks` then you need to either specify it in config or it will be searched based on 
+            `segment_mask` and `polygon` htypes.
+        ds_val: validation dataset of type dp.Dataset. This can be view of the dataset.
+        ds_val_tensors: dictionary that maps mmdet keys to deeplake dataset tensor. Example:  {"img": "images", "gt_bboxes": "boxes", "gt_labels": "categories"}.
+            If this dictionary is not specified, these tensors will be searched automatically using htypes like "image", "class_label, "bbox", "segment_mask" or "polygon".
+            keys that needs to be mapped are: `img`, `gt_labels`, `gt_bboxes`, `gt_masks`. `img`, `gt_labels`, `gt_bboxes` are always required, they if not specified they 
+            are always searched, while masks are optional, if you specify in collect `gt_masks` then you need to either specify it in config or it will be searched based on 
+            `segment_mask` and `polygon` htypes.
         runner: dict(type='EpochBasedRunner', max_epochs=273)
         evaluation: dictionary that contains all information needed for evaluation apart from data processing, like how often evaluation should be done and what metrics we want to use. In deeplake
             integration version you also need to specify what kind of output you want to be printed during evalaution. For instance, `evaluation = dict(interval=1, metric=['bbox'], metrics_format="COCO")`
@@ -844,7 +859,7 @@ def train_detector(
                 ds_train, "binary_mask", "gt_masks"
             ) or _find_tensor_with_htype(ds_train, "polygon", "gt_masks")
 
-    metrics_format = eval_cfg.get("metrics_format", "PascalVOC")
+    metrics_format = cfg.get("deeplake_metrics_format", "COCO")
 
     logger = get_root_logger(log_level=cfg.log_level)
 
@@ -875,6 +890,7 @@ def train_detector(
         train_labels_tensor,
         pipeline=cfg.get("train_pipeline", []),
         implementation=dl_impl,
+        model=model,
         **train_loader_cfg,
     )
 
@@ -964,6 +980,12 @@ def train_detector(
         }
 
         if ds_val is None:
+            cfg_ds_val = cfg.data.get("val")
+            if cfg_ds_val is None:
+                raise Exception("Validation dataset is not specified even though validate = True. Please set validate = False or specify a validation dataset.")
+            elif cfg_ds_val.get("deeplake_path") is None:
+                raise Exception("Validation dataset is not specified even though validate = True. Please set validate = False or specify a validation dataset.")                
+            
             ds_val = load_ds_from_cfg(cfg.data.val)
             ds_val_tensors = cfg.data.val.get("deeplake_tensors", {})
         else:
@@ -972,6 +994,9 @@ def train_detector(
                 always_warn(
                     "A Deep Lake dataset was specified in the cfg as well as inthe dataset input to train_detector. The dataset input to train_detector will be used in the workflow."
                 )
+
+        if ds_val is None:
+            raise Exception("Validation dataset is not specified even though validate = True. Please set validate = False or specify a validation dataset.")
 
         if val_dataloader_args["samples_per_gpu"] > 1:
             # Replace 'ImageToTensor' to 'DefaultFormatBundle'
