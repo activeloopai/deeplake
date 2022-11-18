@@ -9,6 +9,7 @@ from mmcv.parallel import collate
 from functools import partial
 from deeplake.integrations.pytorch.dataset import TorchDataset
 from deeplake.client.client import DeepLakeBackendClient
+from deeplake.core.ipc import _get_free_port
 from mmdet.core import BitmapMasks
 import deeplake as dp
 from deeplake.util.warnings import always_warn
@@ -828,6 +829,7 @@ def train_detector(
                 timestamp,
                 meta,
                 validate,
+                _get_free_port(),
             ),
             nprocs=len(cfg.gpu_ids),
         )
@@ -858,6 +860,7 @@ def _train_detector(
     timestamp=None,
     meta=None,
     validate: bool = True,
+    port=None,
 ):
     eval_cfg = cfg.get("evaluation", {})
     dl_impl = cfg.get("deeplake_dataloader", "auto").lower()
@@ -947,7 +950,7 @@ def _train_detector(
         #                                           broadcast_buffers=False,
         #                                           find_unused_parameters=find_unused_parameters)
         force_cudnn_initialization(cfg.gpu_ids[local_rank])
-        ddp_setup(local_rank, len(cfg.gpu_ids))
+        ddp_setup(local_rank, len(cfg.gpu_ids), port)
         model = build_ddp(
             model,
             cfg.device,
@@ -1097,14 +1100,14 @@ def _train_detector(
     runner.run([data_loader], cfg.workflow)
 
 
-def ddp_setup(rank: int, world_size: int):
+def ddp_setup(rank: int, world_size: int, port: int):
     """
     Args:
         rank: Unique identifier of each process
         world_size: Total number of processes
     """
     os.environ["MASTER_ADDR"] = "localhost"
-    os.environ["MASTER_PORT"] = "12355"  # TODO dont hardcode
+    os.environ["MASTER_PORT"] = port
     torch.distributed.init_process_group(
         backend="nccl", rank=rank, world_size=world_size
     )
