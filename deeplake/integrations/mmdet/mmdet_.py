@@ -954,7 +954,7 @@ def _train_detector(
         model = build_ddp(
             model,
             cfg.device,
-            device_ids=[cfg.gpu_dids[local_rank]],
+            device_ids=[cfg.gpu_ids[local_rank]],
             broadcast_buffers=False,
             find_unused_parameters=find_unused_parameters,
         )
