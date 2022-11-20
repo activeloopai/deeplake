@@ -35,24 +35,24 @@ def dataset_to_tensorflow(dataset, tensors, tobytes, fetch_chunks=True):
         tobytes = {k: k in tobytes for k in tensors}
 
     def __iter__():
-        for index in range(len(dataset)):
-            sample = {}
+        for sample in dataset:
+            out = {}
             corrupt_sample_found = False
             for key in tensors:
                 try:
-                    value = dataset[key][index]
+                    value = sample[key]
                     if tobytes[key]:
                         value = [value.tobytes()]
                     else:
                         value = value.numpy(fetch_chunks=fetch_chunks)
-                    sample[key] = value
+                    out[key] = value
                 except SampleDecompressionError:
                     warnings.warn(
                         f"Skipping corrupt {dataset[key].meta.sample_compression} sample."
                     )
                     corrupt_sample_found = True
             if not corrupt_sample_found:
-                yield sample
+                yield out
 
     def generate_signature():
         signature = {}
