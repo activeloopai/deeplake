@@ -44,23 +44,6 @@ extras = {
     "point_cloud": ["laspy"],
 }
 
-all_extras = {r for v in extras.values() for r in v}
-install_requires = [req_map[r] for r in req_map if r not in all_extras]
-extras_require = {k: [req_map[r] for r in v] for k, v in extras.items()}
-extras_require["all"] = [req_map[r] for r in all_extras]
-
-
-init_file = os.path.join(project_name, "__init__.py")
-
-
-def get_property(prop):
-    result = re.search(
-        # find variable with name `prop` in the __init__.py file
-        rf'{prop}\s*=\s*[\'"]([^\'"]*)[\'"]',
-        open(init_file).read(),
-    )
-    return result.group(1)
-
 
 def libdeeplake_availabe():
     py_ver = sys.version_info
@@ -78,8 +61,29 @@ def libdeeplake_availabe():
     return False
 
 
+all_extras = {r for v in extras.values() for r in v}
+install_requires = [req_map[r] for r in req_map if r not in all_extras]
+extras_require = {k: [req_map[r] for r in v] for k, v in extras.items()}
+
+extras_require["all"] = [req_map[r] for r in all_extras]
+
 if libdeeplake_availabe():
-    install_requires.insert(0, "libdeeplake==0.0.26")
+    libdeeplake = "libdeeplake==0.0.29"
+    extras_require["enterprise"] = [libdeeplake]
+    extras_require["all"].append(libdeeplake)
+
+init_file = os.path.join(project_name, "__init__.py")
+
+
+def get_property(prop):
+    result = re.search(
+        # find variable with name `prop` in the __init__.py file
+        rf'{prop}\s*=\s*[\'"]([^\'"]*)[\'"]',
+        open(init_file).read(),
+    )
+    return result.group(1)
+
+
 install_requires.append("hub>=2.8.7")
 
 
