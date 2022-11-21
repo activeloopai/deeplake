@@ -11,7 +11,7 @@ class ComputeProvider(ABC):
     def get_progressbar(self, total_length, desc):
         import warnings
         from tqdm.std import tqdm  # type: ignore
-        from tqdm import TqdmWarning
+        from tqdm import TqdmWarning  # type: ignore
 
         warnings.simplefilter("ignore", TqdmWarning)
 
