@@ -647,13 +647,17 @@ def _get_collate_keys(pipeline):
     if type(pipeline) == list:
         for transform in pipeline:
             if type(transform) == mmcv.utils.config.ConfigDict:
-                keys = transform.get("keys") or _get_collate_keys(transform)
+                if transform["type"] == "Collect":
+                    keys = transform.get("keys")
+                else:
+                    keys = _get_collate_keys(transform)
+
                 if keys is not None:
                     return keys
 
     if type(pipeline) == mmcv.utils.config.ConfigDict:
-        keys = pipeline.get("keys")
-        if keys is not None:
+        if pipeline["type"] == "Collect":
+            keys = pipeline.get("keys")
             return keys
 
         for transform in pipeline:
@@ -710,7 +714,11 @@ def build_dataloader(
         bbox_info=bbox_info,
         poly2mask=poly2mask,
     )
-    num_workers = train_loader_config["workers_per_gpu"]
+
+    num_workers = train_loader_config.get("num_workers")
+    if num_workers is None:
+        num_workers = train_loader_config["workers_per_gpu"]
+
     if shuffle is None:
         shuffle = train_loader_config.get("shuffle", True)
     tensors_dict = {
@@ -723,7 +731,9 @@ def build_dataloader(
         tensors.append(masks_tensor)
         tensors_dict["masks_tensor"] = masks_tensor
 
-    batch_size = train_loader_config["samples_per_gpu"]
+    batch_size = train_loader_config.get("batch_size")
+    if batch_size is None:
+        batch_size = train_loader_config["samples_per_gpu"]
 
     collate_fn = partial(collate, samples_per_gpu=batch_size)
 
