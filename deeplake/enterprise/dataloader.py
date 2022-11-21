@@ -70,6 +70,7 @@ class DeepLakeDataLoader(DataLoader):
         _buffer_size=None,
         orig_dataset=None,
         _decode_method=None,
+        _world_size=1,
     ):
         import_indra_loader()
         self.dataset = dataset
@@ -89,7 +90,7 @@ class DeepLakeDataLoader(DataLoader):
         self._primary_tensor_name = _primary_tensor_name or find_primary_tensor(dataset)
         self._buffer_size = _buffer_size
         self._decode_method = _decode_method
-        self._world_size = 1
+        self._world_size = _world_size
     
     def __len__(self):
         round_fn = math.floor if self._drop_last else math.ceil
@@ -302,10 +303,9 @@ class DeepLakeDataLoader(DataLoader):
         all_vars["_distributed"] = distributed
         all_vars["_return_index"] = return_index
         all_vars["_mode"] = "pytorch"
-        ret = self.__class__(**all_vars)
         if distributed:
-            ret._world_size = torch.distributed.get_world_size()
-        return ret
+            all_vars["_world_size"] = torch.distributed.get_world_size()
+        return self.__class__(**all_vars)
 
     @deeplake_reporter.record_call
     def numpy(
