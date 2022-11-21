@@ -932,16 +932,6 @@ def _train_detector(
         **cfg.data.get("train_dataloader", {}),
     }
 
-    data_loader = build_dataloader(
-        ds_train,  # TO DO: convert it to for loop if we will suport concatting several datasets
-        train_images_tensor,
-        train_masks_tensor,
-        train_boxes_tensor,
-        train_labels_tensor,
-        pipeline=cfg.get("train_pipeline", []),
-        implementation=dl_impl,
-        **train_loader_cfg,
-    )
 
     # put model on gpus
     if distributed:
@@ -964,6 +954,20 @@ def _train_detector(
         )
     else:
         model = build_dp(model, cfg.device, device_ids=cfg.gpu_ids)
+
+
+    data_loader = build_dataloader(
+        ds_train,  # TO DO: convert it to for loop if we will suport concatting several datasets
+        train_images_tensor,
+        train_masks_tensor,
+        train_boxes_tensor,
+        train_labels_tensor,
+        pipeline=cfg.get("train_pipeline", []),
+        implementation=dl_impl,
+        **train_loader_cfg,
+    )
+
+
 
     # build optimizer
     auto_scale_lr(cfg, distributed, logger)
