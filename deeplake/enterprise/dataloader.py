@@ -121,7 +121,8 @@ class DeepLakeDataLoader:
         if shuffle:
             schedule = create_fetching_schedule(self.dataset, self._primary_tensor_name)
             if schedule is not None:
-                all_vars["dataset"] = self.dataset[schedule]
+                ds = self.dataset.no_view_dataset
+                all_vars["dataset"] = ds[schedule]
         return self.__class__(**all_vars)
 
     def transform(
