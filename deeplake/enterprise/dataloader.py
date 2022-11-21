@@ -18,6 +18,7 @@ from deeplake.util.dataset import map_tensor_keys
 from functools import partial
 import importlib
 from torch.utils.data import DataLoader
+import torch
 import numpy as np
 import math
 
@@ -88,15 +89,11 @@ class DeepLakeDataLoader(DataLoader):
         self._primary_tensor_name = _primary_tensor_name or find_primary_tensor(dataset)
         self._buffer_size = _buffer_size
         self._decode_method = _decode_method
-
+        self._world_size = 1
+    
     def __len__(self):
-        world_size = 1
-        if self._distributed:
-            import torch.distributed as dist
-
-            world_size = dist.get_world_size()
         round_fn = math.floor if self._drop_last else math.ceil
-        return round_fn(len(self.dataset) / ((self._batch_size or 1) * world_size))
+        return round_fn(len(self.dataset) / ((self._batch_size or 1) * self._world_size))
 
     def batch(self, batch_size: int, drop_last: bool = False):
         """Returns a batched :class:`DeepLakeDataLoader` object.
@@ -305,7 +302,10 @@ class DeepLakeDataLoader(DataLoader):
         all_vars["_distributed"] = distributed
         all_vars["_return_index"] = return_index
         all_vars["_mode"] = "pytorch"
-        return self.__class__(**all_vars)
+        ret = self.__class__(**all_vars)
+        if distributed:
+            ret._world_size = torch.distributed.get_world_size()
+        return ret
 
     @deeplake_reporter.record_call
     def numpy(
