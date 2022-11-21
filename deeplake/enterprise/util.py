@@ -12,7 +12,7 @@ import warnings
 def raise_indra_installation_error(indra_import_error: Optional[Exception] = None):
     if not indra_import_error:
         raise ImportError(
-            "This is an experimental feature that requires libdeeplake package. libdeeplake is available only on linux for python versions 3.6 through 3.10 and on macos for python versions 3.7 through 3.10"
+            "This is an enterprise feature that requires libdeeplake package which can be installed using pip install deeplake[enterprise]. libdeeplake is available only on linux for python versions 3.6 through 3.10 and on macos for python versions 3.7 through 3.10"
         )
     raise ImportError(
         "Error while importing C++ backend. One of the dependencies might not be installed."

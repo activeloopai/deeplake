@@ -10,6 +10,7 @@ from deeplake.util.exceptions import (
 )
 from deeplake.constants import ENV_KAGGLE_KEY, ENV_KAGGLE_USERNAME
 from zipfile import ZipFile
+from typing import Optional
 
 
 def _exec_command(command):

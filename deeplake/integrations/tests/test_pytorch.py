@@ -13,6 +13,7 @@ from deeplake.core.storage.memory import MemoryProvider
 from deeplake.constants import KB
 
 from deeplake.tests.dataset_fixtures import enabled_non_gdrive_datasets
+from PIL import Image  # type: ignore
 
 try:
     from torch.utils.data._utils.collate import default_collate
@@ -639,10 +640,14 @@ def test_pytorch_ddp(ds):
     assert s == sum(list(range(254)))
 
 
+def identity(x):
+    return x
+
+
 @requires_torch
 @enabled_non_gdrive_datasets
 @pytest.mark.parametrize("compression", [None, "jpeg"])
-def test_pytorch_tobytes(ds, compressed_image_paths, compression):
+def test_pytorch_decode(ds, compressed_image_paths, compression):
     with ds:
         ds.create_tensor("image", sample_compression=compression)
         ds.image.extend(
@@ -654,7 +659,7 @@ def test_pytorch_tobytes(ds, compressed_image_paths, compression):
             ds.pytorch()
         return
 
-    for i, batch in enumerate(ds.pytorch(tobytes=["image"])):
+    for i, batch in enumerate(ds.pytorch(decode_method={"image": "tobytes"})):
         image = batch["image"][0]
         assert isinstance(image, bytes)
         if i < 5 and not compression:
@@ -665,6 +670,19 @@ def test_pytorch_tobytes(ds, compressed_image_paths, compression):
         elif i >= 5 and compression:
             with open(compressed_image_paths["jpeg"][0], "rb") as f:
                 assert f.read() == image
+
+    if compression:
+        ptds = ds.pytorch(decode_method={"image": "pil"}, collate_fn=identity)
+        for i, batch in enumerate(ptds):
+            image = batch[0]["image"]
+            assert isinstance(image, Image.Image)
+            if i < 5:
+                np.testing.assert_array_equal(
+                    np.array(image), i * np.ones((10, 10, 3), dtype=np.uint8)
+                )
+            elif i >= 5:
+                with Image.open(compressed_image_paths["jpeg"][0]) as f:
+                    np.testing.assert_array_equal(np.array(f), np.array(image))
 
 
 @requires_torch
@@ -810,3 +828,57 @@ def test_uneven_iteration(local_ds):
             np.testing.assert_equal(x, i)
             target_y = i if i < 5 else []
             np.testing.assert_equal(y, target_y)
+
+
+def json_collate_fn(batch):
+    import torch
+
+    batch = [it["a"][0]["x"] for it in batch]
+    return torch.utils.data._utils.collate.default_collate(batch)
+
+
+def json_transform_fn(sample):
+    return sample[0]["x"]
+
+
+def list_collate_fn(batch):
+    import torch
+
+    batch = [np.array([it["a"][0], it["a"][1]]) for it in batch]
+    return torch.utils.data._utils.collate.default_collate(batch)
+
+
+def list_transform_fn(sample):
+    return np.array([sample[0], sample[1]])
+
+
+def test_pytorch_json(local_ds):
+    ds = local_ds
+    with ds:
+        ds.create_tensor("a", htype="json")
+        ds.a.append({"x": 1})
+        ds.a.append({"x": 2})
+
+    ptds = ds.pytorch(transform={"a": json_transform_fn}, batch_size=2)
+    batch = next(iter(ptds))
+    np.testing.assert_equal(batch["a"], np.array([1, 2]))
+
+    ptds = ds.pytorch(collate_fn=json_collate_fn, batch_size=2)
+    batch = next(iter(ptds))
+    np.testing.assert_equal(batch, np.array([1, 2]))
+
+
+def test_pytorch_list(local_ds):
+    ds = local_ds
+    with ds:
+        ds.create_tensor("a", htype="list")
+        ds.a.append([1, 2])
+        ds.a.append([3, 4])
+
+    ptds = ds.pytorch(transform={"a": list_transform_fn}, batch_size=2)
+    batch = next(iter(ptds))
+    np.testing.assert_equal(batch["a"], np.array([[1, 2], [3, 4]]))
+
+    ptds = ds.pytorch(collate_fn=list_collate_fn, batch_size=2)
+    batch = next(iter(ptds))
+    np.testing.assert_equal(batch, np.array([[1, 2], [3, 4]]))
