@@ -12,6 +12,7 @@ from deeplake.client.client import DeepLakeBackendClient
 from mmdet.core import BitmapMasks
 import deeplake as dp
 from deeplake.util.warnings import always_warn
+from deeplake.util.bugout_reporter import deeplake_reporter
 import os.path as osp
 import warnings
 from collections import OrderedDict
@@ -751,6 +752,7 @@ def build_dataloader(
             batch_size=batch_size,
             mode=mode,
             bbox_info=bbox_info,
+            decode_method={images_tensor: "numpy"},
         )
 
     else:
@@ -764,6 +766,7 @@ def build_dataloader(
                 collate_fn=collate_fn,
                 tensors=tensors,
                 distributed=dist,
+                decode_method={images_tensor: "numpy"},
             )
         )
 
@@ -796,6 +799,7 @@ def build_pipeline(steps):
     )
 
 
+@deeplake_reporter.record_call
 def train_detector(
     model,
     cfg: mmcv.ConfigDict,
@@ -877,7 +881,7 @@ def train_detector(
     """
     batch_size = cfg.data.get("samples_per_gpu", 256)
     num_workers = cfg.data.train.get("num_workers")
-    
+
     cfg = compat_cfg(cfg)
 
     if distributed:
