@@ -63,7 +63,7 @@ def test_minimal_coco_ingestion(local_path, coco_images_path, coco_annotation_pa
     ignore_keys = ["area", "iscrowd"]
 
     ds = deeplake.ingest_coco(
-        src=coco_images_path,
+        images_directory=coco_images_path,
         dest=local_path,
         annotation_files=[coco_annotation_path],
         key_to_tensor_mapping=key_to_tensor,

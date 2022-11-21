@@ -33,18 +33,10 @@ class CocoDataset(UnstructuredDataset):
         image_settings: Dict = {},
         creds: Optional[Dict] = None,
     ):
-        """
-        Args:
-            source (str): The path to the directory containing images.
-            annotation_files (Union[str, List[str]]): The path(s) to the annotation jsons.
-            key_to_tensor_mapping (dict): The names to which the keys in the annotation json should be mapped to when creating tensors.
-            file_to_group_mapping (dict): Map the annotation file names to groups.
-            ignore_one_group (bool): If there is only a single annotation file, whether the creation of group should be skipped.
-            ignore_keys (bool): Which keys in the annotation file should be ignored and tensors/data should not be created.
-        """
         super().__init__(source)
         self.creds = creds
         self.images = CocoImages(images_directory=source, creds=creds)
+        self.linked_images = False
 
         self.annotation_files = (
             [annotation_files]
@@ -73,6 +65,7 @@ class CocoDataset(UnstructuredDataset):
 
     def _parse_annotation_tensors(
         self,
+        ds: Dataset,
         inspect_limit: int = 1000000,
     ) -> DatasetStructure:
         """Return all the tensors and groups that should be created for this dataset"""
@@ -84,16 +77,20 @@ class CocoDataset(UnstructuredDataset):
             file_name = Path(ann_file).stem
             keys_in_group = set(chain.from_iterable(annotations[:inspect_limit]))
 
-            group = GroupStructure(
-                self.file_to_group.get(file_name, file_name),
-            )
+            group_name = self.file_to_group.get(file_name, file_name)
+            group = GroupStructure(group_name)
 
             for key in keys_in_group:
                 if key in self.ignore_keys:
                     continue
 
+                tensor_name = self.key_to_tensor.get(key, key)
+
+                if group_name + "/" + tensor_name in ds:
+                    continue
+
                 tensor = TensorStructure(
-                    name=self.key_to_tensor.get(key, key),
+                    name=tensor_name,
                     params=DEFAULT_COCO_TENSOR_PARAMS.get(
                         key, DEFAULT_GENERIC_TENSOR_PARAMS
                     ),
@@ -179,7 +176,7 @@ class CocoDataset(UnstructuredDataset):
 
         return values
 
-    def structure(self, ds: Dataset, use_progress_bar: bool = True):
+    def structure(self, ds: Dataset, progressbar: bool = True):
         (
             img_files,
             _,
@@ -190,7 +187,7 @@ class CocoDataset(UnstructuredDataset):
         if "sample_compression" not in self.image_settings.keys():
             self.image_settings["sample_compression"] = most_common_compression
 
-        parsed = self._parse_annotation_tensors()
+        parsed = self._parse_annotation_tensors(ds)
         images_tensor = self._parse_images_tensor(
             sample_compression=most_common_compression
         )
@@ -236,9 +233,7 @@ class CocoDataset(UnstructuredDataset):
                 process_annotations(values).eval(img_files, ds)
 
                 @deeplake.compute
-                def append(s, ds):
+                def append_annotations(s, ds):
                     ds.append(s)
 
-                append().eval(values, ds)
-
-                # deeplake.compose([process_annotations(values), append()]).eval(img_files, ds)
+                append_annotations().eval(values, ds)

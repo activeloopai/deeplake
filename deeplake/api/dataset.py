@@ -924,44 +924,6 @@ class dataset:
         return ret
 
     @staticmethod
-    def ingest_coco(
-        src: Union[str, pathlib.Path],
-        dest: Union[str, pathlib.Path],
-        annotation_files: Union[str, List[str]],
-        key_to_tensor_mapping: dict = {},
-        file_to_group_mapping: dict = {},
-        ignore_one_group: bool = False,
-        progressbar: bool = True,
-        summary: bool = True,
-        ignore_keys: List[str] = [],
-        image_settings: dict = {},
-        creds: Optional[Dict] = None,
-        **dataset_kwargs,
-    ) -> Dataset:
-        dest = convert_pathlib_to_string_if_needed(dest)
-        src = convert_pathlib_to_string_if_needed(src)
-
-        ds = deeplake.dataset(dest, **dataset_kwargs)
-
-        unstructured = CocoDataset(
-            source=src,
-            annotation_files=annotation_files,
-            key_to_tensor_mapping=key_to_tensor_mapping,
-            file_to_group_mapping=file_to_group_mapping,
-            ignore_one_group=ignore_one_group,
-            ignore_keys=ignore_keys,
-            image_settings=image_settings,
-            creds=creds,
-        )
-
-        unstructured.structure(
-            ds,
-            use_progress_bar=progressbar,
-        )
-
-        return ds
-
-    @staticmethod
     def connect(
         src_path: str,
         creds_key: str,
@@ -1004,6 +966,74 @@ class dataset:
             ds_name=ds_name,
             token=token,
         )
+
+    @staticmethod
+    def ingest_coco(
+        images_directory: Union[str, pathlib.Path],
+        annotation_files: Union[str, pathlib.Path, List[str]],
+        dest: Union[str, pathlib.Path, Dataset],
+        key_to_tensor_mapping: Dict = {},
+        file_to_group_mapping: Dict = {},
+        ignore_one_group: bool = False,
+        ignore_keys: List[str] = [],
+        image_settings: Dict = {},
+        src_creds: Optional[Dict] = None,
+        dest_creds: Optional[Dict] = None,
+        progressbar: bool = True,
+        **dataset_kwargs,
+    ) -> Dataset:
+        """Ingest images and annotations in COCO format to a Deep Lake Dataset.
+
+        Args:
+            images_directory (str, pathlib.Path): The path to the directory containing images.
+            annotation_files (str, pathlib.Path, List[str]): Path to JSON annotation files in COCO format.
+            dest (str, pathlib.Path, Dataset):
+                - A Dataset or The full path to the dataset. Can be:
+                - a Deep Lake cloud path of the form ``hub://username/datasetname``. To write to Deep Lake cloud datasets, ensure that you are logged in to Deep Lake (use 'activeloop login' from command line)
+                - an s3 path of the form ``s3://bucketname/path/to/dataset``. Credentials are required in either the environment or passed to the creds argument.
+                - a local file system path of the form ``./path/to/dataset`` or ``~/path/to/dataset`` or ``path/to/dataset``.
+                - a memory path of the form ``mem://path/to/dataset`` which doesn't save the dataset but keeps it in memory instead. Should be used only for testing as it does not persist.
+            key_to_tensor_mapping (Optional[Dict]): A one-to-one mapping between COCO keys and Dataset tensor names.
+            file_to_group_mapping (Optional[Dict]): A one-to-one mapping between COCO annotation file names and Dataset group names.
+            ignore_one_group (bool): Skip creation of group in case of a single annotation file. Set to ``True`` by default.
+            ignore_keys (List[str]): A list of COCO keys to ignore.
+            src_creds (Optional[Dict]): Credentials to access the source path. If not provided, will be inferred from the environment.
+            dest_creds (Optional[Dict]): A dictionary containing credentials used to access the destination path of the dataset.
+            progressbar (bool): Enables or disables ingestion progress bar. Set to ``True`` by default.
+            **dataset_kwargs: Any arguments passed here will be forwarded to the dataset creator function. See :func:`deeplake.dataset`.
+
+        Returns:
+            Dataset: The Dataset created from images and COCO annotations.
+
+        Raises:
+            IngestionError: If either ``key_to_tensor_mapping`` or ``file_to_group_mapping`` are not one-to-one.
+        """
+        dest = convert_pathlib_to_string_if_needed(dest)
+        images_directory = convert_pathlib_to_string_if_needed(images_directory)
+
+        if isinstance(dest, Dataset):
+            ds = dest
+        else:
+            dest = convert_pathlib_to_string_if_needed(dest)
+            ds = deeplake.dataset(dest, creds=dest_creds, **dataset_kwargs)
+
+        unstructured = CocoDataset(
+            source=images_directory,
+            annotation_files=annotation_files,
+            key_to_tensor_mapping=key_to_tensor_mapping,
+            file_to_group_mapping=file_to_group_mapping,
+            ignore_one_group=ignore_one_group,
+            ignore_keys=ignore_keys,
+            image_settings=image_settings,
+            creds=src_creds,
+        )
+
+        unstructured.structure(
+            ds,
+            progressbar,
+        )
+
+        return ds
 
     @staticmethod
     def ingest(
