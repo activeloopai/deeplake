@@ -875,6 +875,9 @@ def train_detector(
         meta: meta data used to build runner
         validate: bool, whether validation should be conducted, by default `True`
     """
+    batch_size = cfg.data.get("samples_per_gpu", 256)
+    num_workers = cfg.data.train.get("num_workers")
+    
     cfg = compat_cfg(cfg)
 
     if distributed:
@@ -929,8 +932,6 @@ def train_detector(
 
     runner_type = "EpochBasedRunner" if "runner" not in cfg else cfg.runner["type"]
 
-    batch_size = cfg.data.get("samples_per_gpu", 256)
-    num_workers = cfg.data.train.get("num_workers")
     if num_workers is None:
         num_workers = cfg.data.get("workers_per_gpu", 8)
 
