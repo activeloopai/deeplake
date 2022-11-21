@@ -3218,7 +3218,7 @@ class Dataset:
                     and (src.base_htype != "video" or deeplake.constants._UNLINK_VIDEOS)
                 ):
                     if len(self.index) > 1:
-                        sample_out[tensor_name].extend(sample_in[tensor_name].numpy())
+                        sample_out[tensor_name].extend(sample_in[tensor_name])
                     else:
                         if self.index.subscriptable_at(0):
                             sample_idxs = list(self.index.values[0].indices(len(self)))
