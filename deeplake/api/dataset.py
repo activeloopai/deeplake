@@ -1,4 +1,5 @@
 import os
+
 import deeplake
 import pathlib
 import posixpath
@@ -11,6 +12,7 @@ from deeplake.client.client import DeepLakeBackendClient
 from deeplake.client.log import logger
 from deeplake.core.dataset import Dataset, dataset_factory
 from deeplake.core.meta.dataset_meta import DatasetMeta
+from deeplake.util.connect_dataset import connect_dataset_entry
 from deeplake.util.path import convert_pathlib_to_string_if_needed
 from deeplake.hooks import (
     dataset_created,
@@ -102,15 +104,19 @@ class dataset:
                     - 'download'
 
                         - Downloads the data to the local filesystem to the path specified in environment variable ``DEEPLAKE_DOWNLOAD_PATH``.
-                        - Raises an exception if the environment variable is not set, or if the path is not empty.
-                        - Will also raise an exception if the dataset does not exist. The 'download' access method can also be modified to specify num_workers and/or scheduler.
-                        - For example: 'download:2:processed', will use 2 workers and use processed scheduler, while 'download:3' will use 3 workers and default scheduler (threaded), and 'download:processed' will use a single worker and use processed scheduler.
+                          This will overwrite ``DEEPLAKE_DOWNLOAD_PATH``.
+                        - Raises an exception if ``DEEPLAKE_DOWNLOAD_PATH`` environment variable is not set or if the dataset does not exist.
+                        - The 'download' access method can be modified to specify num_workers and/or scheduler.
+                          For example: 'download:2:processed' will use 2 workers and use processed scheduler, while 'download:3' will use 3 workers and
+                          default scheduler (threaded), and 'download:processed' will use a single worker and use processed scheduler.
 
                     - 'local'
 
-                        - Used when download was already done in a previous run.
-                        - Doesn't download the data again.
-                        - Raises an exception if ``DEEPLAKE_DOWNLOAD_PATH`` environment variable is not set or the dataset is not found in ``DEEPLAKE_DOWNLOAD_PATH``.
+                        - Downloads the dataset if it doesn't already exist, otherwise loads from local storage.
+                        - Raises an exception if ``DEEPLAKE_DOWNLOAD_PATH`` environment variable is not set.
+                        - The 'local' access method can be modified to specify num_workers and/or scheduler to be used in case dataset needs to be downloaded.
+                          If dataset needs to be downloaded, 'local:2:processed' will use 2 workers and use processed scheduler, while 'local:3' will use 3 workers
+                          and default scheduler (threaded), and 'local:processed' will use a single worker and use processed scheduler.
 
         Returns:
             Dataset: Dataset created using the arguments provided.
@@ -123,6 +129,9 @@ class dataset:
 
         Danger:
             Setting ``overwrite`` to ``True`` will delete all of your data if it exists! Be very careful when setting this parameter.
+
+        Warning:
+            Setting ``access_method`` to download will overwrite the local copy of the dataset if it was previously downloaded.
 
         Note:
             Any changes made to the dataset in download / local mode will only be made to the local copy and will not be reflected in the original dataset.
@@ -355,16 +364,20 @@ class dataset:
 
                     - 'download'
 
-                        - Downloads the data to the local filesystem to the path specified in environment variable `DEEPLAKE_DOWNLOAD_PATH`.
-                        - Raises an exception if the environment variable is not set, or if the path is not empty.
-                        - Will also raise an exception if the dataset does not exist. The 'download' access method can also be modified to specify num_workers and/or scheduler.
-                        - For example: 'download:2:processed', will use 2 workers and use processed scheduler, while 'download:3' will use 3 workers and default scheduler (threaded), and 'download:processed' will use a single worker and use processed scheduler.
+                        - Downloads the data to the local filesystem to the path specified in environment variable ``DEEPLAKE_DOWNLOAD_PATH``.
+                          This will overwrite ``DEEPLAKE_DOWNLOAD_PATH``.
+                        - Raises an exception if ``DEEPLAKE_DOWNLOAD_PATH`` environment variable is not set or if the dataset does not exist.
+                        - The 'download' access method can be modified to specify num_workers and/or scheduler.
+                          For example: 'download:2:processed' will use 2 workers and use processed scheduler, while 'download:3' will use 3 workers and
+                          default scheduler (threaded), and 'download:processed' will use a single worker and use processed scheduler.
 
                     - 'local'
 
-                        - Used when download was already done in a previous run.
-                        - Doesn't download the data again.
-                        - Raises an exception if ``DEEPLAKE_DOWNLOAD_PATH`` environment variable is not set or the dataset is not found in ``DEEPLAKE_DOWNLOAD_PATH``.
+                        - Downloads the dataset if it doesn't already exist, otherwise loads from local storage.
+                        - Raises an exception if ``DEEPLAKE_DOWNLOAD_PATH`` environment variable is not set.
+                        - The 'local' access method can be modified to specify num_workers and/or scheduler to be used in case dataset needs to be downloaded.
+                          If dataset needs to be downloaded, 'local:2:processed' will use 2 workers and use processed scheduler, while 'local:3' will use 3 workers
+                          and default scheduler (threaded), and 'local:processed' will use a single worker and use processed scheduler.
 
         Returns:
             Dataset: Dataset loaded using the arguments provided.
@@ -375,6 +388,9 @@ class dataset:
             UserNotLoggedInException: When user is not logged in
             InvalidTokenException: If the specified toke is invalid
             TokenPermissionError: When there are permission or other errors related to token
+
+        Warning:
+            Setting ``access_method`` to download will overwrite the local copy of the dataset if it was previously downloaded.
 
         Note:
             Any changes made to the dataset in download / local mode will only be made to the local copy and will not be reflected in the original dataset.
@@ -946,6 +962,50 @@ class dataset:
         return ds
 
     @staticmethod
+    def connect(
+        src_path: str,
+        creds_key: str,
+        dest_path: Optional[str] = None,
+        org_id: Optional[str] = None,
+        ds_name: Optional[str] = None,
+        token: Optional[str] = None,
+    ) -> Dataset:
+        """Connects dataset at ``src_path`` to Deep Lake via the provided path.
+
+        Examples:
+            >>> # Connect an s3 dataset
+            >>> ds = deeplake.connect(src_path="s3://bucket/dataset", dest_path="hub://my_org/dataset", creds_key="my_managed_credentials_key")
+            >>> # or
+            >>> ds = deeplake.connect(src_path="s3://bucket/dataset", org_id="my_org", creds_key="my_managed_credentials_key")
+
+        Args:
+            src_path (str): Cloud path to the source dataset. Can be:
+                an s3 path like ``s3://bucket/path/to/dataset``.
+                a gcs path like ``gcs://bucket/path/to/dataset``.
+            creds_key (str): The managed credentials to be used for accessing the source path.
+            dest_path (str, optional): The full path to where the connected Deep Lake dataset will reside. Can be:
+                a Deep Lake path like ``hub://organization/dataset``
+            org_id (str, optional): The organization to where the connected Deep Lake dataset will be added.
+            ds_name (str, optional): The name of the connected Deep Lake dataset. Will be infered from ``dest_path`` or ``src_path`` if not provided.
+            token (str, optional): Activeloop token used to fetch the managed credentials.
+
+        Returns:
+            Dataset: The connected Deep Lake dataset.
+
+        Raises:
+            InvalidSourcePathError: If the ``src_path`` is not a valid s3 or gcs path.
+            InvalidDestinationPathError: If ``dest_path``, or ``org_id`` and ``ds_name`` do not form a valid Deep Lake path.
+        """
+        return connect_dataset_entry(
+            src_path=src_path,
+            creds_key=creds_key,
+            dest_path=dest_path,
+            org_id=org_id,
+            ds_name=ds_name,
+            token=token,
+        )
+
+    @staticmethod
     def ingest(
         src: Union[str, pathlib.Path],
         dest: Union[str, pathlib.Path],
@@ -1078,7 +1138,7 @@ class dataset:
         exist_ok: bool = False,
         images_compression: str = "auto",
         dest_creds: Optional[Dict] = None,
-        kaggle_credentials: dict = None,
+        kaggle_credentials: Optional[dict] = None,
         progressbar: bool = True,
         summary: bool = True,
         **dataset_kwargs,
@@ -1150,7 +1210,7 @@ class dataset:
     @staticmethod
     def ingest_dataframe(
         src,
-        dest: Union[str, pathlib.Path],
+        dest: Union[str, pathlib.Path, Dataset],
         dest_creds: Optional[Dict] = None,
         progressbar: bool = True,
         **dataset_kwargs,
@@ -1159,8 +1219,8 @@ class dataset:
 
         Args:
             src (pd.DataFrame): The pandas dataframe to be converted.
-            dest (str, pathlib.Path):
-                - The full path to the dataset. Can be:
+            dest (str, pathlib.Path, Dataset):
+                - A Dataset or The full path to the dataset. Can be:
                 - a Deep Lake cloud path of the form ``hub://username/datasetname``. To write to Deep Lake cloud datasets, ensure that you are logged in to Deep Lake (use 'activeloop login' from command line)
                 - an s3 path of the form ``s3://bucketname/path/to/dataset``. Credentials are required in either the environment or passed to the creds argument.
                 - a local file system path of the form ``./path/to/dataset`` or ``~/path/to/dataset`` or ``path/to/dataset``.
@@ -1181,9 +1241,11 @@ class dataset:
         if not isinstance(src, pd.DataFrame):
             raise Exception("Source provided is not a valid pandas dataframe object")
 
-        dest = convert_pathlib_to_string_if_needed(dest)
-
-        ds = deeplake.dataset(dest, creds=dest_creds, **dataset_kwargs)
+        if isinstance(dest, Dataset):
+            ds = dest
+        else:
+            dest = convert_pathlib_to_string_if_needed(dest)
+            ds = deeplake.dataset(dest, creds=dest_creds, **dataset_kwargs)
 
         structured = DataFrame(src)
         structured.fill_dataset(ds, progressbar)  # type: ignore

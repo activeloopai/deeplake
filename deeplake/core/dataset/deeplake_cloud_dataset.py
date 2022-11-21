@@ -1,11 +1,15 @@
 import posixpath
-from typing import Any, Dict, Union
+from typing import Any, Dict, Optional, Union
 from deeplake.client.utils import get_user_name
 from deeplake.constants import HUB_CLOUD_DEV_USERNAME
 from deeplake.core.dataset import Dataset
 from deeplake.client.client import DeepLakeBackendClient
 from deeplake.util.bugout_reporter import deeplake_reporter
-from deeplake.util.exceptions import RenameError, ReadOnlyModeError
+from deeplake.util.exceptions import (
+    InvalidSourcePathError,
+    RenameError,
+    ReadOnlyModeError,
+)
 from deeplake.util.link import save_link_creds
 from deeplake.util.path import is_hub_cloud_path
 from deeplake.util.tag import process_hub_path
@@ -90,7 +94,7 @@ class DeepLakeCloudDataset(Dataset):
         event_id: str,
         event_group: str,
         deeplake_meta: Dict[str, Any],
-        has_head_changes: bool = None,
+        has_head_changes: Optional[bool] = None,
     ):
         username = get_user_name()
         has_head_changes = (
@@ -254,7 +258,7 @@ class DeepLakeCloudDataset(Dataset):
         from deeplake.visualizer import visualize
 
         deeplake_reporter.feature_report(feature_name="visualize", parameters={})
-        visualize(self.path, self.token, width=width, height=height)
+        visualize(self.path, token=self.token, width=width, height=height)
 
     def add_creds_key(self, creds_key: str, managed: bool = False):
         """Adds a new creds key to the dataset. These keys are used for tensors that are linked to external data.
@@ -351,3 +355,8 @@ class DeepLakeCloudDataset(Dataset):
                 self.base_storage = self2.orig_storage
 
         return _TmpWriteAccess()
+
+    def connect(self, *args, **kwargs):
+        raise InvalidSourcePathError(
+            f"Source dataset is already accessible via Deep Lake path {self.path}"
+        )

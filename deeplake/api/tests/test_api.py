@@ -15,6 +15,7 @@ from deeplake.tests.storage_fixtures import enabled_remote_storages
 from deeplake.core.storage import GCSProvider
 from deeplake.util.exceptions import (
     BadLinkError,
+    GroupInfoNotSupportedError,
     InvalidOperationError,
     TensorDtypeMismatchError,
     TensorDoesNotExistError,
@@ -23,6 +24,7 @@ from deeplake.util.exceptions import (
     TensorGroupAlreadyExistsError,
     TensorInvalidSampleShapeError,
     DatasetHandlerError,
+    TransformError,
     UnsupportedCompressionError,
     InvalidTensorNameError,
     InvalidTensorGroupNameError,
@@ -1130,6 +1132,7 @@ def test_tensor_delete(local_ds_generator):
     ds.delete_group("x")
     assert list(ds.storage.keys()) == ["dataset_meta.json"]
     assert ds.tensors == {}
+    assert ds.meta.hidden_tensors == []
 
 
 def test_group_delete_bug(local_ds_generator):
@@ -1484,13 +1487,16 @@ def test_auto_htype(memory_ds):
     assert ds.f.htype == "json"
 
 
-def test_sample_shape(memory_ds):
+@pytest.mark.parametrize(
+    "args", [{}, {"sample_compression": "lz4"}, {"chunk_compression": "lz4"}]
+)
+def test_sample_shape(memory_ds, args):
     ds = memory_ds
     with ds:
-        ds.create_tensor("w")
-        ds.create_tensor("x")
-        ds.create_tensor("y")
-        ds.create_tensor("z")
+        ds.create_tensor("w", **args)
+        ds.create_tensor("x", **args)
+        ds.create_tensor("y", **args)
+        ds.create_tensor("z", **args)
         ds.w.extend(np.zeros((5, 4, 3, 2)))
         ds.x.extend(np.ones((5, 4000, 5000)))
         ds.y.extend([np.zeros((2, 3)), np.ones((3, 2))])
@@ -1760,44 +1766,6 @@ def test_create_branch_when_locked_out(local_ds):
     local_ds.create_tensor("x")
 
 
-def test_access_method(s3_ds_generator):
-    with pytest.raises(DatasetHandlerError):
-        deeplake.dataset("./some_non_existent_path", access_method="download")
-
-    with pytest.raises(DatasetHandlerError):
-        deeplake.dataset("./some_non_existent_path", access_method="local")
-
-    ds = s3_ds_generator()
-    with ds:
-        ds.create_tensor("x")
-        for i in range(10):
-            ds.x.append(i)
-
-    ds = s3_ds_generator(access_method="download")
-    with pytest.raises(DatasetHandlerError):
-        # second time download is not allowed
-        s3_ds_generator(access_method="download")
-    assert not ds.path.startswith("s3://")
-    for i in range(10):
-        assert ds.x[i].numpy() == i
-
-    with pytest.raises(ValueError):
-        s3_ds_generator(access_method="invalid")
-
-    with pytest.raises(ValueError):
-        s3_ds_generator(access_method="download", overwrite=True)
-
-    with pytest.raises(ValueError):
-        s3_ds_generator(access_method="local", overwrite=True)
-
-    ds = s3_ds_generator(access_method="local")
-    assert not ds.path.startswith("s3://")
-    for i in range(10):
-        assert ds.x[i].numpy() == i
-
-    ds.delete()
-
-
 def test_partial_read_then_write(s3_ds_generator):
     ds = s3_ds_generator()
     with ds:
@@ -1999,6 +1967,45 @@ def test_text_labels_transform(local_ds_generator, num_workers):
         np.testing.assert_array_equal(arr, expected)
 
 
+@pytest.mark.parametrize("num_workers", [0, 2])
+def test_transform_upload_fail(local_ds_generator, num_workers):
+    @deeplake.compute
+    def upload(data, ds):
+        ds.append({"images": deeplake.link("lalala"), "labels": data})
+
+    with local_ds_generator() as ds:
+        ds.create_tensor("images", htype="link[image]", sample_compression="jpg")
+        ds.create_tensor("labels", htype="class_label")
+
+    with pytest.raises(TransformError):
+        upload().eval([0, 1, 2, 3], ds)
+
+    @deeplake.compute
+    def upload(data, ds):
+        ds.append(
+            {"images": deeplake.link("https://picsum.photos/20/20"), "labels": data}
+        )
+
+    with local_ds_generator() as ds:
+        assert list(ds.tensors) == ["images", "labels"]
+        upload().eval([0, 1, 2, 3], ds)
+        np.testing.assert_array_equal(
+            ds.labels.numpy().flatten(), np.array([0, 1, 2, 3])
+        )
+        assert list(ds.tensors) == ["images", "labels"]
+
+
+def test_ignore_temp_tensors(local_ds_generator):
+    with local_ds_generator() as ds:
+        ds.create_tensor("__temptensor")
+        ds.__temptensor.append(123)
+
+    with local_ds_generator() as ds:
+        assert list(ds.tensors) == []
+        assert ds.meta.hidden_tensors == []
+        assert list(ds.storage.keys()) == ["dataset_meta.json"]
+
+
 def test_empty_sample_partial_read(s3_ds):
     with s3_ds as ds:
         ds.create_tensor("xyz")
@@ -2082,7 +2089,13 @@ def invalid_token_exception_check():
 def user_not_logged_in_exception_check(runner):
     runner.invoke(logout)
     with pytest.raises(UserNotLoggedInException):
-        ds = deeplake.load("hub://activeloop-test/sohas-weapons-train", read_only=True)
+        ds = deeplake.load("hub://adilkhan/demo", read_only=False)
+
+    with pytest.raises(UserNotLoggedInException):
+        ds = deeplake.dataset("hub://adilkhan/demo", read_only=False)
+
+    with pytest.raises(UserNotLoggedInException):
+        ds = deeplake.empty("hub://adilkhan/demo")
 
 
 def dataset_handler_error_check(runner, username, password):
@@ -2166,7 +2179,6 @@ def test_columnar_views(memory_ds):
     ds.create_tensor("a/c")
     ds.create_tensor("a/d")
     view = ds["a"][["b", "d"]]
-    print(view.enabled_tensors)
     assert list(view.tensors) == ["b", "d"]
     assert view.group_index == "a"
 
@@ -2192,3 +2204,30 @@ def test_rich(memory_ds):
     rich_print(ds)
     rich_print(ds.info)
     rich_print(ds.x.info)
+
+
+def test_groups_info(local_ds):
+    with local_ds as ds:
+        ds.create_tensor("group/tensor")
+        ds.group.tensor.extend([0, 1, 2])
+
+        with pytest.raises(GroupInfoNotSupportedError):
+            ds.group.info["a"] = 1
+
+
+def test_iter_warning(local_ds):
+    with local_ds as ds:
+        ds.create_tensor("abc")
+        ds.abc.extend(list(range(100)))
+
+        for i in range(10):
+            ds[i]
+
+        with pytest.warns(UserWarning):
+            ds[10]
+
+        for i in range(10):
+            ds.abc[i]
+
+        with pytest.warns(UserWarning):
+            ds.abc[10]

@@ -21,7 +21,7 @@ def dataset_factory(path, *args, **kwargs):
 
     if clz in {Dataset, DeepLakeCloudDataset}:
         ds = clz(path=path, *args, **kwargs)
-        if ds.info.get("virtual-datasource", False):
+        if ds.root.info.get("virtual-datasource", False):
             ds = ds._get_view()
         return ds
     raise TypeError(f"Invalid dataset class {clz}")

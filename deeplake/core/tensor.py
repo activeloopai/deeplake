@@ -37,6 +37,7 @@ from deeplake.util.exceptions import (
     InvalidKeyTypeError,
     TensorAlreadyExistsError,
 )
+from deeplake.util.iteration_warning import check_if_iteration
 from deeplake.hooks import dataset_read, dataset_written
 from deeplake.util.pretty_print import summary_tensor
 from deeplake.constants import FIRST_COMMIT_ID, _NO_LINK_UPDATE, UNSPECIFIED
@@ -305,7 +306,7 @@ class Tensor:
         self.chunk_engine.extend(
             samples,
             progressbar=progressbar,
-            link_callback=self._append_to_links if self.meta.links else None,
+            link_callback=self._extend_links if self.meta.links else None,
         )
         dataset_written(self.dataset)
 
@@ -588,18 +589,11 @@ class Tensor:
         if isinstance(item, tuple) or item is Ellipsis:
             item = replace_ellipsis_with_slices(item, self.ndim)
         if not is_iteration and isinstance(item, int):
-            indexing_history = self._indexing_history
-            if len(indexing_history) == 2:
-                a, b = indexing_history
-                if item - b == b - a:
-                    is_iteration = True
-                    warnings.warn(
-                        "Indexing by integer in a for loop, like `for i in range(len(ds)): ... ds.tensor[i]` can be quite slow. Use `for i, sample in enumerate(ds)` instead."
-                    )
-                if item < a or item > b:
-                    self._indexing_history = [b, item]
-            else:
-                indexing_history.append(item)
+            is_iteration = check_if_iteration(self._indexing_history, item)
+            if is_iteration and deeplake.constants.SHOW_ITERATION_WARNING:
+                warnings.warn(
+                    "Indexing by integer in a for loop, like `for i in range(len(ds)): ... ds.tensor[i]` can be quite slow. Use `for i, sample in enumerate(ds)` instead."
+                )
         return Tensor(
             self.key,
             self.dataset,
@@ -669,12 +663,12 @@ class Tensor:
                     "Random assignment is not supported for sequences yet."
                 )
             num_samples_to_pad = item - self.num_samples
-            append_link_callback = self._append_to_links if self.meta.links else None
+            extend_link_callback = self._extend_links if self.meta.links else None
 
             self.chunk_engine.pad_and_append(
                 num_samples_to_pad,
                 value,
-                append_link_callback=append_link_callback,
+                extend_link_callback=extend_link_callback,
                 update_link_callback=update_link_callback,
             )
         else:
@@ -809,24 +803,27 @@ class Tensor:
     def data(self, aslist: bool = False, fetch_chunks: bool = False) -> Any:
         """Returns data in the tensor in a format based on the tensor's base htype.
 
-        - Returns dict with dict["value"] = :meth:`Tensor.text() <text>` for tensors with base htype of 'text'.
+        - If tensor has ``text`` base htype
+            - Returns dict with dict["value"] = :meth:`Tensor.text() <text>`
 
-        - Returns dict with dict["value"] = :meth:`Tensor.dict() <dict>` for tensors with base htype of 'json'.
+        - If tensor has ``json`` base htype
+            - Returns dict with dict["value"] = :meth:`Tensor.dict() <dict>`
 
-        - Returns dict with dict["value"] = :meth:`Tensor.list() <list>` for tensors with base htype of 'list'.
+        - If tensor has ``list`` base htype
+            - Returns dict with dict["value"] = :meth:`Tensor.list() <list>`
 
-        - For video tensors, returns a dict with keys "frames", "timestamps" and "sample_info":
+        - For ``video`` tensors, returns a dict with keys "frames", "timestamps" and "sample_info":
 
             - Value of dict["frames"] will be same as :meth:`numpy`.
             - Value of dict["timestamps"] will be same as :attr:`timestamps` corresponding to the frames.
             - Value of dict["sample_info"] will be same as :attr:`sample_info`.
 
-        - For class_label tensors, returns a dict with keys "value" and "text".
+        - For ``class_label`` tensors, returns a dict with keys "value" and "text".
 
             - Value of dict["value"] will be same as :meth:`numpy`.
             - Value of dict["text"] will be list of class labels as strings.
 
-        - For image or dicom tensors, returns dict with keys "value" and "sample_info".
+        - For ``image`` or ``dicom`` tensors, returns dict with keys "value" and "sample_info".
 
             - Value of dict["value"] will be same as :meth:`numpy`.
             - Value of dict["sample_info"] will be same as :attr:`sample_info`.
@@ -872,7 +869,7 @@ class Tensor:
             data = {"value": labels}
             class_names = self.info.class_names
             if class_names:
-                data["text"] = convert_to_text(labels, self.info.class_names)
+                data["text"] = convert_to_text(labels, class_names)
             return data
         if htype in ("image", "image.rgb", "image.gray", "dicom"):
             return {
@@ -947,18 +944,24 @@ class Tensor:
         dataset_read(self.dataset)
         return ret
 
-    def _append_to_links(self, sample, flat: Optional[bool]):
+    def _extend_links(self, samples, flat: Optional[bool]):
         for k, v in self.meta.links.items():
             if flat is None or v["flatten_sequence"] == flat:
-                v = get_link_transform(v["append"])(sample, self.link_creds)
                 tensor = Tensor(k, self.dataset)
-                if (
-                    isinstance(v, np.ndarray)
-                    and tensor.dtype
-                    and v.dtype != tensor.dtype
-                ):
-                    v = v.astype(tensor.dtype)  # bc
-                tensor.append(v)
+                tdt = tensor.dtype
+                vs = get_link_transform(v["extend"])(samples, self.link_creds)
+                if tdt:
+                    if isinstance(vs, np.ndarray):
+                        if vs.dtype != tdt:
+                            vs = vs.astype(tdt)
+                    else:
+                        vs = [
+                            v.astype(tdt)
+                            if isinstance(v, np.ndarray) and v.dtype != tdt
+                            else v
+                            for v in vs
+                        ]
+                tensor.extend(vs)
 
     def _update_links(
         self,
@@ -1215,3 +1218,10 @@ class Tensor:
             return list(self.numpy(fetch_chunks=fetch_chunks))
         else:
             return list(map(list, self.numpy(aslist=True, fetch_chunks=fetch_chunks)))
+
+    def path(self, fetch_chunks: bool = False):
+        """Return path data. Only applicable for linked tensors"""
+        if not self.is_link:
+            raise Exception(f"Only supported for linked tensors.")
+        assert isinstance(self.chunk_engine, LinkedChunkEngine)
+        return self.chunk_engine.path(self.index, fetch_chunks=fetch_chunks)

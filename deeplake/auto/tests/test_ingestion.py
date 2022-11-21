@@ -156,10 +156,10 @@ def test_csv(memory_ds: Dataset):
 
     assert list(ds.tensors) == ["Year", "Score", "Title"]
 
-    assert ds["Year"].dtype == np.dtype("int")
+    assert ds["Year"].dtype == df["Year"].dtype
     np.testing.assert_array_equal(ds["Year"].numpy().reshape(-1), df["Year"].values)
 
-    assert ds["Score"].dtype == np.dtype("int")
+    assert ds["Score"].dtype == df["Score"].dtype
     np.testing.assert_array_equal(ds["Score"].numpy().reshape(-1), df["Score"].values)
 
     assert ds["Title"].htype == "text"
@@ -181,10 +181,10 @@ def test_dataframe(memory_ds: Dataset, convert_to_pathlib: bool):
 
     assert list(ds.tensors) == ["Year", "Score", "Title"]
 
-    assert ds["Year"].dtype == np.dtype("int")
+    assert ds["Year"].dtype == df["Year"].dtype
     np.testing.assert_array_equal(ds["Year"].numpy().reshape(-1), df["Year"].values)
 
-    assert ds["Score"].dtype == np.dtype("int")
+    assert ds["Score"].dtype == df["Score"].dtype
     np.testing.assert_array_equal(ds["Score"].numpy().reshape(-1), df["Score"].values)
 
     assert ds["Title"].htype == "text"

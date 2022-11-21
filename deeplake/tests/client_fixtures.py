@@ -1,4 +1,5 @@
 from deeplake.constants import (
+    ENV_HUB_DEV_MANAGED_CREDS_KEY,
     HUB_CLOUD_OPT,
     ENV_HUB_DEV_USERNAME,
     ENV_HUB_DEV_PASSWORD,
@@ -70,3 +71,12 @@ def hub_kaggle_credentials(request):
     ), f"Kaggle credentials were not found in environment variable. This is necessary for testing kaggle ingestion datasets."
 
     return username, key
+
+
+@pytest.fixture(scope="session")
+def hub_cloud_dev_managed_creds_key(request):
+    if not is_opt_true(request, HUB_CLOUD_OPT):
+        pytest.skip()
+
+    creds_key = os.getenv(ENV_HUB_DEV_MANAGED_CREDS_KEY, "deeplake_tests")
+    return creds_key

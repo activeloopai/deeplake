@@ -1,11 +1,10 @@
-from io import BufferedWriter
 import numpy as np
-from typing import List, Union
+from typing import List, Union, Optional
 from deeplake.core.serialize import check_sample_shape, bytes_to_text
 from deeplake.core.tiling.sample_tiles import SampleTiles
 from deeplake.core.polygon import Polygons
-from deeplake.util.casting import intelligent_cast
-from deeplake.util.exceptions import EmptyTensorError
+from deeplake.util.exceptions import EmptyTensorError, TensorDtypeMismatchError
+from deeplake.constants import ENCODING_DTYPE
 from .base_chunk import BaseChunk, InputSample
 
 
@@ -14,8 +13,13 @@ class UncompressedChunk(BaseChunk):
         self,
         incoming_samples: Union[List[InputSample], np.ndarray],
         update_tensor_meta: bool = True,
+        lengths: Optional[List[int]] = None,
     ) -> float:
         self.prepare_for_write()
+        if lengths is not None:  # this is triggered only for htype == "text"
+            return self._extend_if_has_space_text(
+                incoming_samples, update_tensor_meta, lengths
+            )
         if isinstance(incoming_samples, np.ndarray):
             if incoming_samples.dtype == object:
                 incoming_samples = list(incoming_samples)
@@ -25,40 +29,116 @@ class UncompressedChunk(BaseChunk):
                 )
         return self._extend_if_has_space_list(incoming_samples, update_tensor_meta)
 
+    def _extend_if_has_space_text(
+        self,
+        incoming_samples,
+        update_tensor_meta: bool = True,
+        lengths=None,
+    ) -> float:
+        csum = np.cumsum(lengths)
+        min_chunk_size = self.min_chunk_size
+        num_data_bytes = self.num_data_bytes
+        space_left = min_chunk_size - num_data_bytes
+        idx = np.searchsorted(csum, space_left)
+        if not idx and csum[0] > space_left:
+            if self._data_bytes:
+                return 0
+        num_samples = int(min(len(incoming_samples), idx + 1))  # type: ignore
+        bts = list(
+            map(self._text_sample_to_byte_string, incoming_samples[:num_samples])
+        )
+        self._data_bytes += b"".join(bts)  # type: ignore
+        bps = np.zeros((num_samples, 3), dtype=ENCODING_DTYPE)
+        enc = self.byte_positions_encoder
+        arr = enc._encoded
+        if len(arr):
+            last_seen = arr[-1, 2] + 1
+            if len(arr) == 1:
+                offset = (arr[0, 2] + 1) * arr[0, 0]
+            else:
+                offset = (arr[-1, 2] - arr[-2, 2]) * arr[-1, 0] + arr[-1, 1]
+        else:
+            last_seen = 0
+            offset = 0
+        bps[:, 2] = np.arange(last_seen, num_samples + last_seen)
+        bps[0, 1] = offset
+        for i, b in enumerate(bts):
+            lengths[i] = len(b)
+        lview = lengths[:num_samples]
+        csum = np.cumsum(lengths[: num_samples - 1])
+        bps[:, 0] = lview
+        csum += offset
+        bps[1:, 1] = csum
+        if len(arr):
+            arr = np.concatenate([arr, bps], 0)
+        else:
+            arr = bps
+        enc._encoded = arr
+        shape = (1,)
+        self.register_sample_to_headers(None, shape, num_samples=num_samples)
+        if update_tensor_meta:
+            self.update_tensor_meta(shape, num_samples)
+        return num_samples
+
     def _extend_if_has_space_numpy(
         self,
         incoming_samples: np.ndarray,
         update_tensor_meta: bool = True,
     ) -> float:
-        num_samples: int = 0
-        buffer_size = 0
-
-        for sample in incoming_samples:
-            shape = self.normalize_shape(sample.shape)
-            self.num_dims = self.num_dims or len(shape)
-            sample_nbytes = sample.nbytes
-            check_sample_shape(shape, self.num_dims)
-            # no need to check sample size, this code is only reached when size smaller than chunk
-            if not self.can_fit_sample(sample_nbytes, buffer_size):
-                break
-            buffer_size += sample_nbytes
-            num_samples += 1
-
+        num_samples: int
+        elem = incoming_samples[0]
+        shape = elem.shape
+        if not shape:
+            shape = (1,)
+        chunk_num_dims = self.num_dims
+        if chunk_num_dims is None:
+            self.num_dims = elem.ndim
+        else:
+            check_sample_shape(shape, chunk_num_dims)
+        size = elem.size
+        self.num_dims = self.num_dims or len(shape)
+        if size == 0:
+            num_samples = len(incoming_samples)
+        else:
+            num_data_bytes = self.num_data_bytes
+            num_samples = max(
+                0,
+                min(
+                    len(incoming_samples),
+                    (self.min_chunk_size - num_data_bytes) // elem.nbytes,
+                ),
+            )
+            if not num_samples:
+                if num_data_bytes:
+                    return 0.0
+                else:
+                    tiling_threshold = self.tiling_threshold
+                    if tiling_threshold < 0 or elem.nbytes < tiling_threshold:
+                        num_samples = 1
+                    else:
+                        return (
+                            -1
+                        )  # Bail. Chunk engine will try again with incoming_samples as list.
         samples = incoming_samples[:num_samples]
-        samples = intelligent_cast(samples, self.dtype, self.htype)
-
-        assert isinstance(self.data_bytes, bytearray)
-        self.data_bytes += samples.tobytes()
-
-        if num_samples > 0:
-            shape = self.normalize_shape(samples[0].shape)
-            sample_nbytes = samples[0].nbytes
-            for _ in range(num_samples):
-                self.register_in_meta_and_headers(
-                    sample_nbytes, shape, update_tensor_meta=update_tensor_meta
-                )
-
-        return float(num_samples)
+        chunk_dtype = self.dtype
+        samples_dtype = incoming_samples.dtype
+        if samples_dtype != chunk_dtype:
+            if size:
+                if not np.can_cast(samples_dtype, chunk_dtype):
+                    raise TensorDtypeMismatchError(
+                        chunk_dtype,
+                        samples_dtype,
+                        self.htype,
+                    )
+            samples = samples.astype(chunk_dtype)
+        self._data_bytes += samples.tobytes()  # type: ignore
+        self.register_in_meta_and_headers(
+            samples[0].nbytes,
+            shape,
+            update_tensor_meta=update_tensor_meta,
+            num_samples=num_samples,
+        )
+        return num_samples
 
     def _extend_if_has_space_list(
         self,
@@ -66,7 +146,6 @@ class UncompressedChunk(BaseChunk):
         update_tensor_meta: bool = True,
     ) -> float:
         num_samples: float = 0
-
         for i, incoming_sample in enumerate(incoming_samples):
             serialized_sample, shape = self.serialize_sample(incoming_sample)
             if shape is not None:
@@ -83,7 +162,7 @@ class UncompressedChunk(BaseChunk):
             else:
                 sample_nbytes = len(serialized_sample)
                 if self.is_empty or self.can_fit_sample(sample_nbytes):
-                    self.data_bytes += serialized_sample  # type: ignore
+                    self._data_bytes += serialized_sample  # type: ignore
 
                     self.register_in_meta_and_headers(
                         sample_nbytes,
@@ -155,8 +234,8 @@ class UncompressedChunk(BaseChunk):
             None if self.byte_positions_encoder.is_empty() else len(serialized_sample)
         )
 
-        old_data = self.data_bytes
-        self.data_bytes = self.create_updated_data(
+        old_data = self._data_bytes
+        self._data_bytes = self.create_updated_data(
             local_index, old_data, serialized_sample
         )
         self.update_in_meta_and_headers(local_index, new_nb, shape)

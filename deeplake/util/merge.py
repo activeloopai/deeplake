@@ -1,9 +1,14 @@
 from collections import defaultdict
 from typing import Dict, List, Optional, Set, Tuple
 from deeplake.core.version_control.commit_diff import CommitDiff
-from deeplake.core.version_control.dataset_diff import DatasetDiff
 from deeplake.core.version_control.commit_node import CommitNode
-from deeplake.util.diff import get_lowest_common_ancestor, sanitize_commit
+from deeplake.util.class_label import convert_to_text
+from deeplake.util.diff import (
+    get_lowest_common_ancestor,
+    has_change,
+    merge_renamed_deleted,
+    sanitize_commit,
+)
 from deeplake.util.exceptions import (
     MergeConflictError,
     MergeMismatchError,
@@ -33,12 +38,12 @@ def merge(
     auto_checkout(dataset)
     target_commit_id = sanitize_commit(target_id, version_state)
     target_commit_id = auto_commit_target_commit(dataset, target_commit_id)
-    target_ds = create_read_copy_dataset(dataset, target_commit_id)
 
     nodes: Dict[str, CommitNode] = {}
     nodes["original"] = original_node = version_state["commit_node"]
     nodes["target"] = target_node = commit_node_map[target_commit_id]
     lca_id = get_lowest_common_ancestor(original_node, target_node)
+    target_ds = create_read_copy_dataset(dataset, target_commit_id)
 
     if lca_id == target_commit_id:
         print("No merge needed, target id is an ancestor of the current commit")
@@ -49,19 +54,17 @@ def merge(
         new_tensors,
         common_tensors,
         deleted_tensors,
-        cleared_tensors,
-    ) = get_new_common_deleted_and_cleared_tensors(dataset, target_ds, lca_id, force)
+    ) = get_new_common_deleted_tensors(dataset, target_ds, lca_id, force)
 
     merge_common_tensors(common_tensors, dataset, target_ds, nodes, conflict_resolution)
     copy_new_tensors(new_tensors, dataset, target_ds)
     delete_tensors(deleted_tensors, dataset, delete_removed_tensors)
-    clear_tensors(cleared_tensors, dataset)
     finalize_merge(dataset, nodes)
 
 
-def get_new_common_deleted_and_cleared_tensors(
+def get_new_common_deleted_tensors(
     dataset, target_ds, lca_id: str, force: bool
-) -> Tuple[Set[str], Set[str], Set[str], Set[str]]:
+) -> Tuple[Set[str], Set[str], Set[str]]:
     """Gets the names of tensors, that are new, common and deleted in the target commit"""
     original_tensors: Set[str] = set(dataset.tensors)
     all_original_tensors: Set[str] = set(dataset._all_tensors_filtered())
@@ -87,8 +90,33 @@ def get_new_common_deleted_and_cleared_tensors(
 
     original_dataset_diff, _ = dataset.diff(lca_id, as_dict=True)["dataset"]
 
-    target_renamed_tensors = target_dataset_diff.get("renamed") or {}
-    original_renamed_tensors = original_dataset_diff.get("renamed") or {}
+    target_renamed_tensors, _ = merge_renamed_deleted(target_dataset_diff)
+    original_renamed_tensors, _ = merge_renamed_deleted(original_dataset_diff)
+
+    process_renamed_tensors(
+        dataset,
+        force,
+        new_tensors,
+        common_tensors,
+        original_deleted_tensors,
+        target_deleted_tensors,
+        original_renamed_tensors,
+        target_renamed_tensors,
+    )
+    process_deleted_tensors(new_tensors, original_deleted_tensors, target_tensor_diff)
+    return new_tensors, common_tensors, target_deleted_tensors
+
+
+def process_renamed_tensors(
+    dataset,
+    force,
+    new_tensors,
+    common_tensors,
+    original_deleted_tensors,
+    target_deleted_tensors,
+    original_renamed_tensors,
+    target_renamed_tensors,
+):
     for old_tensor, new_tensor in target_renamed_tensors.items():
         if new_tensor in new_tensors:
             if not force:
@@ -107,7 +135,7 @@ def get_new_common_deleted_and_cleared_tensors(
 
         elif new_tensor in common_tensors:
             # no merge conflict if same tensor was renamed to same name on both branches
-            if not original_renamed_tensors.get(old_tensor) == new_tensor and not force:
+            if original_renamed_tensors.get(old_tensor) != new_tensor and not force:
                 raise MergeConflictError(
                     message=f"{old_tensor} was renamed to {new_tensor} in target but another {new_tensor} exists on the current branch. Rename tensors to resolve the conflict or use `force=True` to merge {new_tensor} of target with {new_tensor} of current branch."
                 )
@@ -115,22 +143,17 @@ def get_new_common_deleted_and_cleared_tensors(
         target_deleted_tensors.discard(old_tensor)
         original_deleted_tensors.discard(old_tensor)
 
+
+def process_deleted_tensors(new_tensors, original_deleted_tensors, target_tensor_diff):
     for tensor in original_deleted_tensors:
-        diff = target_tensor_diff.get(tensor, None)
-
-        # target has tensor but with no changes since lca, no point in creating again
-        if not diff or not (diff["data_added"] or diff["data_updated"]):
+        tensor_changed = False
+        for commit_diff in target_tensor_diff:
+            diff = commit_diff[tensor]
+            if has_change(diff):
+                tensor_changed = True
+                break
+        if not tensor_changed:
             new_tensors.discard(tensor)
-
-    target_cleared_tensors: Set[str] = set()
-
-    for tensor in common_tensors:
-        diff = target_tensor_diff.get(tensor, None)
-
-        if diff and diff["cleared"]:
-            target_cleared_tensors.add(tensor)
-
-    return new_tensors, common_tensors, target_deleted_tensors, target_cleared_tensors
 
 
 def finalize_merge(dataset, nodes: Dict[str, CommitNode]):
@@ -177,14 +200,7 @@ def get_changes_commit_ids_for_node(
             for idx in changes:
                 changes_commit_map[idx].extend(changes[idx])
         else:
-            diff_key = get_tensor_commit_diff_key(tensor_key, commit_id)
-            try:
-                diff: Optional[CommitDiff] = dataset.storage.get_deeplake_object(
-                    diff_key, CommitDiff
-                )
-            except KeyError:
-                diff = None
-
+            diff = get_tensor_commit_diff(dataset, tensor_key, commit_id)
             if diff is not None:
                 data_updated = sorted(diff.data_updated)
                 id_tensor_key = get_sample_id_tensor_key(tensor_name)
@@ -194,6 +210,16 @@ def get_changes_commit_ids_for_node(
                     changes_commit_map[sample_id].append(commit_id)
         current_node = current_node.parent
     return changes_commit_map
+
+
+def get_tensor_commit_diff(dataset, tensor_key, commit_id):
+    diff_key = get_tensor_commit_diff_key(tensor_key, commit_id)
+    diff: Optional[CommitDiff]
+    try:
+        diff = dataset.storage.get_deeplake_object(diff_key, CommitDiff)
+    except KeyError:
+        diff = None
+    return diff
 
 
 def delete_tensors(tensor_names: Set[str], dataset, delete_removed_tensors: bool):
@@ -237,7 +263,7 @@ def merge_common_tensors(
     new_samples_dict: Dict[str, List[int]] = {}
     updated_samples_dict: Dict[str, List[Tuple[int, int]]] = {}
     conflict_samples_dict: Dict[str, List[Tuple[int, int]]] = {}
-
+    conflict_tensors = set()
     for tensor_name in tensor_names:
         (
             new_indexes,
@@ -253,10 +279,11 @@ def merge_common_tensors(
         updated_samples_dict[tensor_name] = updated_indexes
         if conflict_indexes:
             conflict_samples_dict[tensor_name] = conflict_indexes
+            conflict_tensors.add(tensor_name)
 
-    if conflict_samples_dict and conflict_resolution is None:
+    if conflict_tensors and conflict_resolution is None:
         # There are conflicts and a conflict resolution strategy has not been specified, unable to merge
-        raise MergeConflictError(conflict_samples_dict)
+        raise MergeConflictError(conflict_tensors)
 
     for tensor_name in tensor_names:
         merge_tensor_data(
@@ -290,13 +317,13 @@ def check_common_tensor_mismatches(tensor_names: Set[str], dataset, target_datas
                 raise MergeMismatchError(tensor_name, key, value, target_details[key])
 
 
-def get_new_indexes(
-    new_elements_ids, target_id_changes_commit_map, target_id_to_index_map
+def get_indexes_from_ids(
+    elements_ids, id_changes_commit_map, id_to_index_map
 ) -> List[int]:
     new_indexes: List[int] = []
-    for id in new_elements_ids:
-        target_id_changes_commit_map.pop(id, None)
-        idx = target_id_to_index_map[id]
+    for id in elements_ids:
+        id_changes_commit_map.pop(id, None)
+        idx = id_to_index_map[id]
         new_indexes.append(idx)
     return new_indexes
 
@@ -352,7 +379,7 @@ def find_new_updated_and_conflict_indexes(
     target_dataset,
     nodes: Dict[str, CommitNode],
 ) -> Tuple[List[int], List[Tuple[int, int]], List[Tuple[int, int]]]:
-    """Finds the new and conflict indexes for a given tensor.
+    """Finds the new, deleted, updated and conflict indexes between the original commit and target commit.
 
     Args:
         tensor_name (str): The name of the tensor to find the new and conflict indexes for.
@@ -361,7 +388,7 @@ def find_new_updated_and_conflict_indexes(
         nodes (dict): A dictionary containing original, target and lca nodes.
 
     Returns:
-        A tuple of the form (new_indexes, updated_indexes, conflict_indexes), where
+        A tuple of the form (new_indexes, updated_indexes, conflict_indexes)
         - new_indexes is a list of indexes for new samples
         - updated_indexes is a list of tuples of the form (original_idx, target_idx)
         - conflict_indexes is a list of tuples of the form (original_idx, target_idx)
@@ -390,9 +417,10 @@ def find_new_updated_and_conflict_indexes(
 
     new_elements_ids = set(target_ids) - set(original_ids)
 
-    new_indexes = get_new_indexes(
+    new_indexes = get_indexes_from_ids(
         new_elements_ids, target_id_changes_commit_map, target_id_to_index_map
     )
+
     conflict_indexes: List[Tuple[int, int]] = []
     updated_indexes: List[Tuple[int, int]] = []
     updated_indexes, conflict_indexes = find_updated_and_conflicts(
@@ -402,6 +430,15 @@ def find_new_updated_and_conflict_indexes(
         target_id_to_index_map,
     )
     return new_indexes, updated_indexes, conflict_indexes
+
+
+def get_deleted_ids(original_ids, target_ids, lca_ids):
+    deleted_ids_in_target = set(lca_ids) - set(target_ids)
+    deleted_ids_in_original = set(lca_ids) - set(original_ids)
+    deleted_in_both = deleted_ids_in_target & deleted_ids_in_original
+    deleted_ids_in_original = deleted_ids_in_original - deleted_in_both
+    deleted_ids_in_target = deleted_ids_in_target - deleted_in_both
+    return deleted_ids_in_original, deleted_ids_in_target
 
 
 def merge_tensor_data(
@@ -414,6 +451,9 @@ def merge_tensor_data(
     conflict_resolution,
 ):
     """Merges actual data present in 2 versions of a common tensor."""
+    if conflict_resolution == "theirs" and tensor_name in conflict_samples_dict:
+        updated_samples_dict[tensor_name].extend(conflict_samples_dict[tensor_name])
+
     original_tensor = dataset[tensor_name]
     target_tensor = target_dataset[tensor_name]
     id_tensor_name = get_sample_id_tensor_key(tensor_name)
@@ -422,18 +462,22 @@ def merge_tensor_data(
 
     new_indexes = new_samples_dict[tensor_name]
     new_indexes.sort()
+    is_class_label = target_tensor.meta.htype == "class_label"
+    if is_class_label:
+        class_names = target_tensor.info.class_names
     for index in new_indexes:
-        original_tensor.append(target_tensor[index])
+        sample = target_tensor[index]
+        if is_class_label and class_names:
+            sample = convert_to_text(sample.numpy(), class_names, return_original=True)
+        original_tensor.append(sample)
         original_id_tensor[-1] = target_id_tensor[index]
 
     updated_indexes = updated_samples_dict[tensor_name]
     for original_idx, target_idx in updated_indexes:
-        original_tensor[original_idx] = target_tensor[target_idx]
-
-    if conflict_resolution == "theirs" and tensor_name in conflict_samples_dict:
-        conflict_indexes = conflict_samples_dict[tensor_name]
-        for original_idx, target_idx in conflict_indexes:
-            original_tensor[original_idx] = target_tensor[target_idx]
+        sample = target_tensor[target_idx]
+        if is_class_label and class_names:
+            sample = convert_to_text(sample.numpy(), class_names, return_original=True)
+        original_tensor[original_idx] = sample
 
 
 def check_id_tensors_exist(visible_tensors: Set[str], all_tensors: Set[str]):

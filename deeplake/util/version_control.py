@@ -91,7 +91,7 @@ def generate_hash() -> str:
     return hsh.hexdigest()
 
 
-def commit(dataset, message: str = None, hash: Optional[str] = None) -> None:
+def commit(dataset, message: Optional[str] = None, hash: Optional[str] = None) -> None:
     """Modifies the version state to reflect the commit and also copies required data to the new commit directory."""
     storage = dataset.storage
     version_state = dataset.version_state
@@ -523,6 +523,8 @@ def load_meta(dataset):
     version_state = dataset.version_state
     storage: LRUCache = dataset.storage
     storage.clear_deeplake_objects()
+    dataset._info = None
+    dataset._ds_diff = None
     meta_key = get_dataset_meta_key(version_state["commit_id"])
     meta = storage.get_deeplake_object(meta_key, DatasetMeta)
     if not meta.tensor_names:  # backward compatibility
@@ -539,6 +541,8 @@ def load_meta(dataset):
     _tensor_names.update(meta.tensor_names)
 
     for tensor_key in _tensor_names.values():
+        if tensor_key.startswith("__temp"):
+            dataset._temp_tensors.append(tensor_key)
         _tensors[tensor_key] = Tensor(tensor_key, dataset)
 
 

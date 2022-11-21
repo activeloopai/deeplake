@@ -69,6 +69,33 @@ def test_json_with_deeplake_sample(memory_ds, compressed_image_paths):
         assert ds.json[i].data()["value"] == items[i % 2]
 
 
+def test_json_with_bytes(memory_ds):
+    ds = memory_ds
+    ds.create_tensor("json", htype="json")
+    items = [
+        [
+            {
+                "x": [1, 2, 3],
+                "y": [4, [5, 6, b"abc"]],
+            },
+            [[b"abc"]],
+            [None, 0.1],
+        ],
+        [
+            [],
+            [[[b"abc"]]],
+            {"a": [0.1, 1, "a", b"abc"]},
+        ],
+    ]
+    with ds:
+        for x in items:
+            ds.json.append(x)
+        ds.json.extend(items)
+    assert ds.json.shape == (4, 1)
+    for i in range(4):
+        assert ds.json[i].data()["value"] == items[i % 2]
+
+
 def test_json_list_basic(memory_ds):
     ds = memory_ds
     ds.create_tensor("list", htype="list")

@@ -1,6 +1,7 @@
+from random import sample
 import deeplake
 from deeplake.core.fast_forwarding import ffw_tensor_meta
-from typing import Any, Callable, Dict, List, Sequence, Union, Optional
+from typing import Any, Callable, Dict, List, Sequence, Union, Optional, Tuple
 import numpy as np
 from deeplake.util.exceptions import (
     TensorMetaInvalidHtype,
@@ -69,11 +70,11 @@ class TensorMeta(Meta):
             self.htype = None  # type: ignore
 
     def add_link(
-        self, name, append_f: str, update_f: Optional[str], flatten_sequence: bool
+        self, name, extend_f: str, update_f: Optional[str], flatten_sequence: bool
     ):
         """Link this tensor with another."""
         link = {
-            "append": append_f,
+            "extend": extend_f,
             "flatten_sequence": flatten_sequence,
         }
         if update_f is not None:
@@ -180,10 +181,6 @@ class TensorMeta(Meta):
         return d
 
     def __setstate__(self, state: Dict[str, Any]):
-        if "chunk_compression" not in state:
-            state["chunk_compression"] = None  # Backward compatibility
-        if "hidden" not in state:
-            state["hidden"] = False
         super().__setstate__(state)
         self._required_meta_keys = tuple(state.keys())
         ffw_tensor_meta(self)
@@ -201,30 +198,30 @@ class TensorMeta(Meta):
 def _validate_links(links: dict):
     if not isinstance(links, dict):
         raise InvalidTensorLinkError()
-    allowed_keys = ("append", "update", "flatten_sequence")
+    allowed_keys = ("extend", "update", "flatten_sequence")
     for out_tensor, args in links.items():
         if not isinstance(out_tensor, str):
             raise InvalidTensorLinkError()
         if not isinstance(args, dict):
             raise InvalidTensorLinkError()
-        if "append" not in args:
+        if "extend" not in args:
             raise InvalidTensorLinkError(
-                f"append transform not specified for link {out_tensor}"
+                f"extend transform not specified for link {out_tensor}"
             )
         if "flatten_sequence" not in args:
             raise InvalidTensorLinkError(
                 f"flatten_sequence arg not specified for link {out_tensor}"
             )
         try:
-            get_link_transform(args["append"])
+            get_link_transform(args["extend"])
         except KeyError:
-            raise InvalidTensorLinkError(f"Invalid append transform: {args['append']}")
+            raise InvalidTensorLinkError(f"Invalid extend transform: {args['extend']}")
         if "update" in args:
             try:
                 get_link_transform(args["update"])
             except KeyError:
                 raise InvalidTensorLinkError(
-                    f"Invalid update transform: {args['append']}"
+                    f"Invalid update transform: {args['extend']}"
                 )
         for k in args:
             if k not in allowed_keys:
@@ -258,7 +255,7 @@ def _validate_htype_overwrites(htype: str, htype_overwrite: dict):
         if key not in defaults:
             raise TensorMetaInvalidHtypeOverwriteKey(htype, key, list(defaults.keys()))
 
-        if value == UNSPECIFIED:
+        if isinstance(value, str) and value == UNSPECIFIED:
             if defaults[key] == REQUIRE_USER_SPECIFICATION:
                 raise TensorMetaMissingRequiredValue(htype, key)
 
@@ -293,7 +290,7 @@ def _replace_unspecified_values(htype: str, htype_overwrite: dict):
     defaults = HTYPE_CONFIGURATIONS[htype]
 
     for k, v in htype_overwrite.items():
-        if v == UNSPECIFIED:
+        if isinstance(v, str) and v == UNSPECIFIED:
             htype_overwrite[k] = defaults[k]
 
     if (
