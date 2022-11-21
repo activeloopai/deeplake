@@ -2,7 +2,7 @@ import os
 import deeplake
 
 from pathlib import Path
-from typing import List, Union, Dict
+from typing import List, Union, Dict, Optional
 from tqdm import tqdm
 from itertools import chain
 
@@ -31,6 +31,7 @@ class CocoDataset(UnstructuredDataset):
         ignore_one_group: bool = False,
         ignore_keys: Union[str, List[str]] = [],
         image_settings: Dict = {},
+        creds: Optional[Dict] = None,
     ):
         """
         Args:
@@ -42,7 +43,8 @@ class CocoDataset(UnstructuredDataset):
             ignore_keys (bool): Which keys in the annotation file should be ignored and tensors/data should not be created.
         """
         super().__init__(source)
-        self.images = CocoImages(images_directory=source)
+        self.creds = creds
+        self.images = CocoImages(images_directory=source, creds=creds)
 
         self.annotation_files = (
             [annotation_files]
@@ -77,7 +79,7 @@ class CocoDataset(UnstructuredDataset):
         dataset_structure = DatasetStructure(ignore_one_group=self.ignore_one_group)
 
         for ann_file in self.annotation_files:
-            coco_file = CocoAnnotation(file_path=ann_file)
+            coco_file = CocoAnnotation(file_path=ann_file, creds=self.creds)
             annotations = coco_file.annotations
             file_name = Path(ann_file).stem
             keys_in_group = set(chain.from_iterable(annotations[:inspect_limit]))
@@ -102,9 +104,7 @@ class CocoDataset(UnstructuredDataset):
 
         return dataset_structure
 
-    def _parse_images_tensor(
-        self, sample_compression: str
-    ):
+    def _parse_images_tensor(self, sample_compression: str):
         img_config = DEFAULT_IMAGE_TENSOR_PARAMS.copy()
 
         if self.image_settings.get("link", False):
@@ -116,6 +116,68 @@ class CocoDataset(UnstructuredDataset):
         name = self.image_settings.get("name", "images")
 
         return TensorStructure(name=name, primary=True, params=img_config)
+
+    def generate_images_data(
+        self, images, ann_file, parsed, image, append_obj, images_dir
+    ):
+        coco_file = CocoAnnotation(ann_file, creds=self.creds)
+        id_2_label_mapping = coco_file.id_to_label_mapping
+        image_name_to_id = coco_file.image_name_to_id_mapping
+
+        group = parsed[self.file_to_group.get(Path(ann_file).stem, Path(ann_file).stem)]
+        group_prefix = group.name
+        tensors = group.tensors
+
+        for img_file in images:
+            img_id = image_name_to_id[img_file]
+            matching_anns = coco_file.get_annotations_for_image(img_id)
+            values = {group_prefix + "/" + t.name: [] for t in tensors}
+            values[image.name] = deeplake.read(images_dir + "/" + img_file)
+
+            # Create a list of lists with all the data
+            for ann in matching_anns:
+                for tensor in tensors:
+                    coco_key = self.tensor_to_key.get(tensor.name, tensor.name)
+                    value = coco_2_deeplake(
+                        coco_key,
+                        ann[coco_key],
+                        append_obj[tensor.name].meta,
+                        category_lookup=id_2_label_mapping,
+                    )
+
+                    values[group_prefix + "/" + tensor.name].append(value)
+
+            yield values
+
+    def process_single_image(
+        self,
+        img_file,
+        append_obj,
+        image_name_to_id,
+        id_2_label,
+        coco_file,
+        tensors,
+        group_prefix,
+        image,
+    ):
+        img_id = image_name_to_id[img_file]
+        matching_anns = coco_file.get_annotations_for_image(img_id)
+        values = {group_prefix + "/" + t.name: [] for t in tensors}
+        values[image.name] = deeplake.read(self.images.get_full_path(img_file))
+
+        for ann in matching_anns:
+            for tensor in tensors:
+                coco_key = self.tensor_to_key.get(tensor.name, tensor.name)
+                value = coco_2_deeplake(
+                    coco_key,
+                    ann[coco_key],
+                    append_obj[tensor.name].meta,
+                    category_lookup=id_2_label,
+                )
+
+                values[group_prefix + "/" + tensor.name].append(value)
+
+        return values
 
     def structure(self, ds: Dataset, use_progress_bar: bool = True):
         (
@@ -138,48 +200,45 @@ class CocoDataset(UnstructuredDataset):
 
         with ds:
             for ann_file in self.annotation_files:
-                coco_file = CocoAnnotation(ann_file)
+                coco_file = CocoAnnotation(ann_file, creds=self.creds)
                 id_2_label_mapping = coco_file.id_to_label_mapping
                 image_name_to_id = coco_file.image_name_to_id_mapping
 
-                for img_file in tqdm(img_files, disable=not use_progress_bar):
-                    try:
-                        img_id = image_name_to_id[img_file]
-                    except KeyError:
-                        logger.warn(
-                            f"Could not find the id of image {img_file}, skipping."
+                group = parsed[
+                    self.file_to_group.get(Path(ann_file).stem, Path(ann_file).stem)
+                ]
+                tensors = group.tensors
+
+                # Get the object to which data will be appended. We need to know if it's first-level tensor, or a group
+                if self.ignore_one_group and len(parsed.structure) == 1:
+                    append_obj = ds
+                    group_prefix = ""
+                else:
+                    append_obj = ds[group.name]
+                    group_prefix = group.name
+
+                @deeplake.compute
+                def process_annotations(image, _, values):
+                    values.append(
+                        self.process_single_image(
+                            image,
+                            append_obj,
+                            image_name_to_id,
+                            id_2_label_mapping,
+                            coco_file,
+                            tensors,
+                            group_prefix,
+                            images_tensor,
                         )
-                        continue
-
-                    matching_anns = coco_file.get_annotations_for_image(img_id)
-                    group = parsed[
-                        self.file_to_group.get(Path(ann_file).stem, Path(ann_file).stem)
-                    ]
-
-                    # Get the object to which data will be appended. We need to know if it's first-level tensor, or a group
-                    if self.ignore_one_group and len(parsed.structure) == 1:
-                        append_obj = ds
-                    else:
-                        append_obj = ds[group.name]
-
-                    tensors = group.tensors
-                    values = {t.name: [] for t in tensors}
-
-                    # Create a list of lists with all the data
-                    for ann in matching_anns:
-                        for i, tensor in enumerate(tensors):
-                            coco_key = self.tensor_to_key.get(tensor.name, tensor.name)
-                            value = coco_2_deeplake(
-                                coco_key,
-                                ann[coco_key],
-                                append_obj[tensor.name].meta,
-                                category_lookup=id_2_label_mapping,
-                            )
-
-                            values[tensor.name].append(value)
-
-                    append_obj.append(values)
-
-                    ds[images_tensor.name].append(
-                        deeplake.read(self.images.get_full_path(img_file))
                     )
+
+                values = []
+                process_annotations(values).eval(img_files, ds)
+
+                @deeplake.compute
+                def append(s, ds):
+                    ds.append(s)
+
+                append().eval(values, ds)
+
+                # deeplake.compose([process_annotations(values), append()]).eval(img_files, ds)

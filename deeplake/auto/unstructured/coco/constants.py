@@ -1,4 +1,6 @@
-DEFAULT_GENERIC_TENSOR_PARAMS = {"htype": "generic", "sample_compression": None}
+from deeplake.constants import UNSPECIFIED
+
+DEFAULT_GENERIC_TENSOR_PARAMS = {"htype": UNSPECIFIED, "sample_compression": None}
 DEFAULT_IMAGE_TENSOR_PARAMS = {"htype": "image", "sample_compression": "jpeg"}
 
 # Contains default kwargs for the tensors created from each of COCO keys
@@ -9,6 +11,6 @@ DEFAULT_COCO_TENSOR_PARAMS = {
     },
     "category_id": {"htype": "class_label", "sample_compression": None},
     "bbox": {"htype": "bbox", "sample_compression": None},
-    "keypoints": {"htype": "keypoints_coco" },
+    "keypoints": {"htype": "keypoints_coco"},
     "_other": DEFAULT_GENERIC_TENSOR_PARAMS,
 }

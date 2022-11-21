@@ -919,6 +919,7 @@ class dataset:
         summary: bool = True,
         ignore_keys: List[str] = [],
         image_settings: dict = {},
+        creds: Optional[Dict] = None,
         **dataset_kwargs,
     ) -> Dataset:
         dest = convert_pathlib_to_string_if_needed(dest)
@@ -934,6 +935,7 @@ class dataset:
             ignore_one_group=ignore_one_group,
             ignore_keys=ignore_keys,
             image_settings=image_settings,
+            creds=creds,
         )
 
         unstructured.structure(

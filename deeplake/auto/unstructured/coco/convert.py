@@ -10,30 +10,27 @@ from collections import defaultdict
 from deeplake.htype import HTYPE_SUPPORTED_COMPRESSIONS
 from deeplake.util.exceptions import IngestionError
 from deeplake.client.log import logger
-from deeplake.core.storage import LocalProvider
+from deeplake.util.storage import storage_provider_from_path
+from deeplake.util.path import convert_pathlib_to_string_if_needed
 
 
 def coco_2_deeplake(coco_key, value, tensor_meta, category_lookup=None):
-    """Takes a key-value pair from coco data and converts is to data in Deep Lake format
+    """Takes a key-value pair from coco data and converts it to data in Deep Lake format
     as per the key types in coco and array shape rules in Deep Lake"""
     dtype = tensor_meta.dtype
 
     if coco_key == "bbox":
-        return np.array(value).astype(dtype)
+        assert len(value) == 4
+        return np.array(value, dtype=dtype)
     elif coco_key == "segmentation":
-        if len(value) == 0:
-            # Can not return None, because something about polygons erroring out
-            return np.array([[0, 0]]).astype(dtype)
-
         # Make sure there aren't multiple segementations per single value, because multiple things will break
-        if len(value) > 1:
-            print("MULTIPLE SEGMENTATIONS PER OBJECT")
+        # # if len(value) > 1:
+        #     print("MULTIPLE SEGMENTATIONS PER OBJECT")
 
         try:
-            return np.array(value[0]).reshape((len(value[0]) // 2), 2).astype(dtype)
+            return np.array(value[0], dtype=dtype).reshape((len(value[0]) // 2), 2)
         except KeyError:
-            # Can not return None, because something about polygons erroring out
-            return np.array([[0, 0]]).astype(dtype)
+            return np.array([[0, 0]], dtype=dtype)
 
     elif coco_key == "category_id":
         if category_lookup is None:
@@ -42,7 +39,9 @@ def coco_2_deeplake(coco_key, value, tensor_meta, category_lookup=None):
             return category_lookup[str(value)]
 
     elif coco_key == "keypoints":
-        return np.array(value).astype(dtype)
+        return np.array(value, dtype=dtype)
+
+    return value
 
 
 class CocoAnnotation:
@@ -54,11 +53,15 @@ class CocoAnnotation:
 
     COCO_REQUIRED_KEYS = [COCO_CATEGORIES_KEY, COCO_IMAGES_KEY, COCO_ANNOTATIONS_KEY]
 
-    def __init__(self, file_path: str) -> None:
+    def __init__(self, file_path: str, creds) -> None:
         self.file_path = file_path
         self.root = Path(file_path).parent
         self.file = Path(file_path).name
-        self.provider = LocalProvider(self.root)
+
+        root = convert_pathlib_to_string_if_needed(self.root)
+        root = root.replace("s3:/", "s3://")
+
+        self.provider = storage_provider_from_path(root, creds=creds)
 
         self.data = self._load_annotation_data()
 
@@ -104,9 +107,11 @@ class CocoAnnotation:
 
 
 class CocoImages:
-    def __init__(self, images_directory: str) -> None:
+    def __init__(self, images_directory: str, creds) -> None:
         self.root = images_directory
-        self.provider = LocalProvider(self.root)
+        self.provider = storage_provider_from_path(
+            convert_pathlib_to_string_if_needed(self.root), creds=creds
+        )
 
     def parse_images(self) -> Tuple[List[str], List[str], List[str], str]:
         """Parses the given directory to generate a list of image paths.
@@ -121,7 +126,6 @@ class CocoImages:
         extensions = defaultdict(int)
 
         for file in self.provider:
-            # for file in os.listdir(self.root):
             if file.endswith(supported_image_extensions):
                 supported_images.append(file)
                 ext = Path(file).suffix[1:]  # Get extension without the . symbol
