@@ -876,12 +876,7 @@ def train_detector(
         meta: meta data used to build runner
         validate: bool, whether validation should be conducted, by default `True`
     """
-    batch_size = cfg.data.get("samples_per_gpu", 256)
-    num_workers = cfg.data.train.get("num_workers")
-
     mmdet_utils.check_unsupported_functionalities(cfg)
-
-    cfg = compat_cfg(cfg)
 
     if not hasattr(cfg, "gpu_ids"):
         cfg.gpu_ids = range(torch.cuda.device_count() if distributed else 1)
@@ -932,6 +927,9 @@ def _train_detector(
     validate: bool = True,
     port=None,
 ):
+    batch_size = cfg.data.get("samples_per_gpu", 256)
+    num_workers = cfg.data.get("num_workers", 1)
+
     eval_cfg = cfg.get("evaluation", {})
     dl_impl = cfg.get("deeplake_dataloader_type", "auto").lower()
 
@@ -983,9 +981,6 @@ def _train_detector(
     logger = get_root_logger(log_level=cfg.log_level)
 
     runner_type = "EpochBasedRunner" if "runner" not in cfg else cfg.runner["type"]
-
-    if num_workers is None:
-        num_workers = cfg.data.get("workers_per_gpu", 8)
 
     train_dataloader_default_args = dict(
         samples_per_gpu=batch_size,
