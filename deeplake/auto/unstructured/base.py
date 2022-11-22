@@ -14,5 +14,5 @@ class UnstructuredDataset(ABC):
     """
 
     @abstractmethod
-    def structure(ds, use_progress_bar: bool = True, **kwargs):
+    def structure(ds, progressbar: bool = True, **kwargs):
         pass

@@ -1085,7 +1085,7 @@ class dataset:
             # TODO: auto detect compression
             unstructured.structure(
                 ds,  # type: ignore
-                use_progress_bar=progressbar,
+                progressbar=progressbar,
                 generate_summary=summary,
                 image_tensor_args={"sample_compression": images_compression},
             )
