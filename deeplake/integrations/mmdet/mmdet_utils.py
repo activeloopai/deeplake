@@ -30,7 +30,7 @@ def _isArrayLike(obj):
 class _COCO(pycocotools_coco.COCO):
     def __init__(
         self,
-        hub_dataset=None,
+        deeplake_dataset=None,
         imgs=None,
         masks=None,
         bboxes=None,
@@ -57,11 +57,11 @@ class _COCO(pycocotools_coco.COCO):
         self.anns, self.cats, self.imgs = dict(), dict(), dict()
         self.imgToAnns, self.catToImgs = defaultdict(list), defaultdict(list)
         print("loading annotations into memory...")
-        self.dataset = hub_dataset
+        self.dataset = deeplake_dataset
         if self.dataset is not None:
-            self.createHubIndex()
+            self.createDeeplakeIndex()
 
-    def createHubIndex(self):
+    def createDeeplakeIndex(self):
         # create index
         print("creating index...")
         anns, cats, imgs = {}, {}, {}
@@ -150,7 +150,6 @@ class _COCO(pycocotools_coco.COCO):
                 ]
                 anns = list(itertools.chain.from_iterable(lists))
             else:
-                # anns = self.dataset['annotations']
                 anns = list(self.anns.values())
             anns = (
                 anns
@@ -277,7 +276,7 @@ class _COCO(pycocotools_coco.COCO):
         return res
 
 
-class HubCOCO(_COCO):
+class DeeplakeCOCO(_COCO):
     """This class is almost the same as official pycocotools package.
 
     It implements some snake case function aliases. So that the COCO class has
@@ -286,7 +285,7 @@ class HubCOCO(_COCO):
 
     def __init__(
         self,
-        hub_dataset=None,
+        deeplake_dataset=None,
         imgs=None,
         masks=None,
         bboxes=None,
@@ -301,7 +300,7 @@ class HubCOCO(_COCO):
                 UserWarning,
             )
         super().__init__(
-            hub_dataset=hub_dataset,
+            deeplake_dataset=deeplake_dataset,
             imgs=imgs,
             masks=masks,
             labels=labels,
@@ -336,7 +335,7 @@ class COCODatasetEvaluater(mmdet_coco.CocoDataset):
     def __init__(
         self,
         pipeline,
-        hub_dataset=None,
+        deeplake_dataset=None,
         classes=None,
         img_prefix="",
         seg_prefix=None,
@@ -362,7 +361,7 @@ class COCODatasetEvaluater(mmdet_coco.CocoDataset):
         self.CLASSES = classes
 
         self.data_infos = self.load_annotations(
-            hub_dataset,
+            deeplake_dataset,
             imgs=imgs,
             labels=labels,
             masks=masks,
@@ -389,7 +388,7 @@ class COCODatasetEvaluater(mmdet_coco.CocoDataset):
 
     def load_annotations(
         self,
-        hub_dataset,
+        deeplake_dataset,
         imgs=None,
         labels=None,
         masks=None,
@@ -407,8 +406,8 @@ class COCODatasetEvaluater(mmdet_coco.CocoDataset):
             list[dict]: Annotation info from COCO api.
         """
 
-        self.coco = HubCOCO(
-            hub_dataset,
+        self.coco = DeeplakeCOCO(
+            deeplake_dataset,
             imgs=imgs,
             labels=labels,
             bboxes=bboxes,

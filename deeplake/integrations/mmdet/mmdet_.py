@@ -185,7 +185,7 @@ def pascal_frac_2_coco_pixel(boxes, images):
         y_bottom = box[:, 3] * shape[0]
         bbox = np.stack((x_top, y_top, x_bottom, y_bottom), axis=1)
         pascal_pixel_boxes.append(bbox)
-    return pascal_pixel_boxes
+    return pascal_pixel_2_coco_pixel(pascal_pixel_boxes, images)
 
 
 def yolo_pixel_2_coco_pixel(boxes, images):
@@ -202,7 +202,7 @@ def yolo_pixel_2_coco_pixel(boxes, images):
 
 def yolo_frac_2_coco_pixel(boxes, images):
     yolo_boxes = []
-    for i, box in boxes:
+    for i, box in enumerate(boxes):
         shape = images[i].shape
         x_center = box[:, 0] * shape[1]
         y_center = box[:, 1] * shape[0]
@@ -223,16 +223,16 @@ def coco_frac_2_coco_pixel(boxes, images):
         h = box[:, 3] * shape[0]
         bbox = np.stack((x, y, w, h), axis=1)
         coco_pixel_boxes.append(bbox)
-    return np.stack((x, y, w, h), axis=1)
+    return np.array(coco_pixel_boxes)
 
 
 BBOX_FORMAT_TO_COCO_CONVERTER = {
     ("LTWH", "pixel"): lambda x, y: x,
-    ("LTWH", "frac"): coco_frac_2_coco_pixel,
+    ("LTWH", "fraction"): coco_frac_2_coco_pixel,
     ("LTRB", "pixel"): pascal_pixel_2_coco_pixel,
-    ("LTRB", "frac"): pascal_frac_2_coco_pixel,
+    ("LTRB", "fraction"): pascal_frac_2_coco_pixel,
     ("CCWH", "pixel"): yolo_pixel_2_coco_pixel,
-    ("CCWH", "frac"): yolo_frac_2_coco_pixel,
+    ("CCWH", "fraction"): yolo_frac_2_coco_pixel,
 }
 
 
@@ -252,7 +252,7 @@ class MMDetDataset(TorchDataset):
         pipeline=None,
         **kwargs,
     ):
-        super().__init__(*args, **kwargs)
+        super().__init__(*args, **kwargs)  # TO DO: if htypes are not present
         self.bbox_info = bbox_info
         self.images = self._get_images(tensors_dict["images_tensor"])
         self.masks = self._get_masks(
@@ -360,7 +360,7 @@ class MMDetDataset(TorchDataset):
                 valid_inds.append(i)
         return valid_inds
 
-    def get_classes(self, classes=None):
+    def get_classes(self, classes):
         """Get class names of current dataset.
 
         Args:
@@ -373,7 +373,9 @@ class MMDetDataset(TorchDataset):
         Returns:
             tuple[str] or list[str]: Names of categories of the dataset.
         """
-        return self.dataset[classes].info.class_names
+        return self.dataset[
+            classes
+        ].info.class_names  # TO DO: re docs support only strings
 
     def evaluate(
         self,
@@ -451,7 +453,7 @@ class MMDetDataset(TorchDataset):
         )
 
     @staticmethod
-    def _coco_2_pascal(boxes):
+    def _coco_2_pascal(boxes):  # TO DO: remove this
         # Convert bounding boxes to Pascal VOC format and clip bounding boxes to make sure they have non-negative width and height
         return np.stack(
             (
