@@ -928,6 +928,8 @@ def _train_detector(
     batch_size = cfg.data.get("samples_per_gpu", 256)
     num_workers = cfg.data.get("num_workers", 1)
 
+    cfg = compat_cfg(cfg)
+
     eval_cfg = cfg.get("evaluation", {})
     dl_impl = cfg.get("deeplake_dataloader_type", "auto").lower()
 
@@ -990,11 +992,11 @@ def _train_detector(
         runner_type=runner_type,
         persistent_workers=False,
         metrics_format=metrics_format,
-        shuffle = cfg.data.get("train_dataloader", {}).get("shuffle", True)
     )
 
     train_loader_cfg = {
         **train_dataloader_default_args,
+        **cfg.data.get("train_dataloader", {}),
         **cfg.data.train.get("deeplake_dataloader", {}),
     }
 
