@@ -161,7 +161,7 @@ def convert_to_pascal_format(bbox, bbox_info, shape):
     return converter(bbox, shape)
 
 
-def pascal_pixel_2_coco_pixel(boxes):
+def pascal_pixel_2_coco_pixel(boxes, images):
     return [
         np.stack(
             (
@@ -176,15 +176,70 @@ def pascal_pixel_2_coco_pixel(boxes):
     ]
 
 
+def pascal_frac_2_coco_pixel(boxes, images):
+    pascal_pixel_boxes = []
+    for i, box in enumerate(boxes):
+        shape = images[i].shape
+        x_top = box[:, 0] * shape[1]
+        y_top = box[:, 1] * shape[0]
+        x_bottom = box[:, 2] * shape[1]
+        y_bottom = box[:, 3] * shape[0]
+        bbox = np.stack((x_top, y_top, x_bottom, y_bottom), axis=1)
+        pascal_pixel_boxes.append(bbox)
+    return pascal_pixel_boxes
+
+
+def yolo_pixel_2_coco_pixel(boxes, images):
+    yolo_boxes = []
+    for box in boxes:
+        x_top = np.array(box[:, 0]) - np.floor(np.array(box[:, 2]) / 2)
+        y_top = np.array(box[:, 1]) - np.floor(np.array(box[:, 3]) / 2)
+        w = box[:, 2]
+        h = box[:, 3]
+        bbox = np.stack([x_top, y_top, w, h], axis=1)
+        yolo_boxes.append(bbox)
+    return yolo_boxes
+
+
+def yolo_frac_2_coco_pixel(boxes, images):
+    yolo_boxes = []
+    for i, box in boxes:
+        shape = images[i].shape
+        x_center = box[:, 0] * shape[1]
+        y_center = box[:, 1] * shape[0]
+        width = box[:, 2] * shape[1]
+        height = box[:, 3] * shape[0]
+        bbox = np.stack((x_center, y_center, width, height), axis=1)
+        yolo_boxes.append(bbox)
+    return yolo_pixel_2_coco_pixel(yolo_boxes, images)
+
+
+def coco_frac_2_coco_pixel(boxes, images):
+    coco_pixel_boxes = []
+    for i, box in enumerate(boxes):
+        shape = images[i].shape
+        x = box[:, 0] * shape[1]
+        y = box[:, 1] * shape[0]
+        w = box[:, 2] * shape[1]
+        h = box[:, 3] * shape[0]
+        bbox = np.stack((x, y, w, h), axis=1)
+        coco_pixel_boxes.append(bbox)
+    return np.stack((x, y, w, h), axis=1)
+
+
 BBOX_FORMAT_TO_COCO_CONVERTER = {
-    ("LTWH", "pixel"): lambda x: x,
+    ("LTWH", "pixel"): lambda x, y: x,
+    ("LTWH", "frac"): coco_frac_2_coco_pixel,
     ("LTRB", "pixel"): pascal_pixel_2_coco_pixel,
+    ("LTRB", "frac"): pascal_frac_2_coco_pixel,
+    ("CCWH", "pixel"): yolo_pixel_2_coco_pixel,
+    ("CCWH", "frac"): yolo_frac_2_coco_pixel,
 }
 
 
-def convert_to_coco_format(bbox, bbox_format):
+def convert_to_coco_format(bbox, bbox_format, images):
     converter = BBOX_FORMAT_TO_COCO_CONVERTER[bbox_format]
-    return converter(bbox)
+    return converter(bbox, images)
 
 
 def first_non_empty(bboxes):
@@ -218,7 +273,7 @@ class MMDetDataset(TorchDataset):
         self.CLASSES = self.get_classes(tensors_dict["labels_tensor"])
         self.mode = mode
         self.metrics_format = metrics_format
-        coco_style_bbox = convert_to_coco_format(self.bboxes, bbox_format)
+        coco_style_bbox = convert_to_coco_format(self.bboxes, bbox_format, self.images)
 
         if self.metrics_format == "COCO" and self.mode == "val":
             self.evaluator = mmdet_utils.COCODatasetEvaluater(
@@ -580,10 +635,6 @@ def transform(
     else:
         gt_masks = None
 
-    # img = np.random.randint(0, 100, (640, 390, 3), dtype=np.uint8)
-    # bboxes = np.random.uniform(0, 50, (10, 4)).astype(np.float32)
-    # labels = np.random.randint(0, 80, (10, ), dtype=labels.dtype)
-
     return pipeline(
         {
             "img": img,
@@ -604,13 +655,17 @@ def _get_collate_keys(pipeline):
     if type(pipeline) == list:
         for transform in pipeline:
             if type(transform) == mmcv.utils.config.ConfigDict:
-                keys = transform.get("keys") or _get_collate_keys(transform)
+                if transform["type"] == "Collect":
+                    keys = transform.get("keys")
+                else:
+                    keys = _get_collate_keys(transform)
+
                 if keys is not None:
                     return keys
 
     if type(pipeline) == mmcv.utils.config.ConfigDict:
-        keys = pipeline.get("keys")
-        if keys is not None:
+        if pipeline["type"] == "Collect":
+            keys = pipeline.get("keys")
             return keys
 
         for transform in pipeline:
@@ -648,7 +703,7 @@ def build_dataloader(
     dist = train_loader_config["dist"]
     if dist and implementation == "python":
         raise NotImplementedError(
-            "Distributed training is not supported by the python data loader. Set deeplake_dataloader='c++' to use the C++ dtaloader instead."
+            "Distributed training is not supported by the python data loader. Set deeplake_dataloader_type='c++' to use the C++ dtaloader instead."
         )
     transform_fn = partial(
         transform,
@@ -660,7 +715,11 @@ def build_dataloader(
         bbox_info=bbox_info,
         poly2mask=poly2mask,
     )
-    num_workers = train_loader_config["workers_per_gpu"]
+
+    num_workers = train_loader_config.get("num_workers")
+    if num_workers is None:
+        num_workers = train_loader_config["workers_per_gpu"]
+
     if shuffle is None:
         shuffle = train_loader_config.get("shuffle", True)
     tensors_dict = {
@@ -673,7 +732,9 @@ def build_dataloader(
         tensors.append(masks_tensor)
         tensors_dict["masks_tensor"] = masks_tensor
 
-    batch_size = train_loader_config["samples_per_gpu"]
+    batch_size = train_loader_config.get("batch_size")
+    if batch_size is None:
+        batch_size = train_loader_config["samples_per_gpu"]
 
     collate_fn = partial(collate, samples_per_gpu=batch_size)
 
@@ -815,6 +876,11 @@ def train_detector(
         meta: meta data used to build runner
         validate: bool, whether validation should be conducted, by default `True`
     """
+    batch_size = cfg.data.get("samples_per_gpu", 256)
+    num_workers = cfg.data.train.get("num_workers")
+
+    mmdet_utils.check_unsupported_functionalities(cfg)
+
     cfg = compat_cfg(cfg)
 
     if not hasattr(cfg, "gpu_ids"):
@@ -867,7 +933,7 @@ def _train_detector(
     port=None,
 ):
     eval_cfg = cfg.get("evaluation", {})
-    dl_impl = cfg.get("deeplake_dataloader", "auto").lower()
+    dl_impl = cfg.get("deeplake_dataloader_type", "auto").lower()
 
     if dl_impl == "auto":
         dl_impl = "c++" if indra_available() else "python"
@@ -876,7 +942,7 @@ def _train_detector(
 
     if dl_impl not in {"c++", "python"}:
         raise ValueError(
-            "`deeplake_dataloader` should be one of ['auto', 'c++', 'python']."
+            "`deeplake_dataloader_type` should be one of ['auto', 'c++', 'python']."
         )
 
     if ds_train is None:
@@ -907,6 +973,9 @@ def _train_detector(
                 ds_train, "binary_mask", "gt_masks"
             ) or _find_tensor_with_htype(ds_train, "polygon", "gt_masks")
 
+    if hasattr(model, "CLASSES"):
+        warnings.warn("model already has a CLASSES attribute. Will be ignored.")
+
     model.CLASSES = ds_train[train_labels_tensor].info.class_names
 
     metrics_format = cfg.get("deeplake_metrics_format", "COCO")
@@ -915,9 +984,12 @@ def _train_detector(
 
     runner_type = "EpochBasedRunner" if "runner" not in cfg else cfg.runner["type"]
 
+    if num_workers is None:
+        num_workers = cfg.data.get("workers_per_gpu", 8)
+
     train_dataloader_default_args = dict(
-        samples_per_gpu=cfg.data.get("samples_per_gpu", 256),
-        workers_per_gpu=cfg.data.get("workers_per_gpu", 8),
+        samples_per_gpu=batch_size,
+        workers_per_gpu=num_workers,
         # `num_gpus` will be ignored if distributed
         num_gpus=len(cfg.gpu_ids),
         dist=distributed,
@@ -929,7 +1001,7 @@ def _train_detector(
 
     train_loader_cfg = {
         **train_dataloader_default_args,
-        **cfg.data.get("train_dataloader", {}),
+        **cfg.data.train.get("deeplake_dataloader", {}),
     }
 
 
@@ -1026,8 +1098,13 @@ def _train_detector(
 
         val_dataloader_args = {
             **val_dataloader_default_args,
-            **cfg.data.get("val_dataloader", {}),
+            **cfg.data.val.get("deeplake_dataloader", {}),
         }
+
+        if val_dataloader_args.get("shuffle", False) == True:
+            raise Exception(
+                "During validation shuffle can not be True, you need to set shuffle=False in deeplake_dataloader or remove it from dictionary."
+            )
 
         if ds_val is None:
             cfg_ds_val = cfg.data.get("val")
