@@ -1,6 +1,7 @@
 import deeplake as dp
 import os
 import sys
+import pytest
 
 
 def get_test_config(mmdet_path):
