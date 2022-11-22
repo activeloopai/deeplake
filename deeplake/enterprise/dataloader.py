@@ -68,13 +68,13 @@ class DeepLakeDataLoader(DataLoader):
         _return_index=None,
         _primary_tensor_name=None,
         _buffer_size=None,
-        orig_dataset=None,
+        _orig_dataset=None,
         _decode_method=None,
         _world_size=1,
     ):
         import_indra_loader()
         self.dataset = dataset
-        self.orig_dataset = orig_dataset or dataset
+        self._orig_dataset = _orig_dataset or dataset
         self._batch_size = _batch_size
         self._shuffle = _shuffle
         self._num_threads = _num_threads
@@ -358,10 +358,10 @@ class DeepLakeDataLoader(DataLoader):
         primary_tensor_name = self._primary_tensor_name
         buffer_size = self._buffer_size
 
-        tensors = self._tensors or map_tensor_keys(self.orig_dataset, None)
-        dataset = dataset_to_libdeeplake(self.orig_dataset)
+        tensors = self._tensors or map_tensor_keys(self._orig_dataset, None)
+        dataset = dataset_to_libdeeplake(self._orig_dataset)
 
-        jpeg_png_compressed_tensors = check_tensors(self.orig_dataset, tensors)
+        jpeg_png_compressed_tensors = check_tensors(self._orig_dataset, tensors)
         raw_tensors, compressed_tensors = validate_decode_method(
             self._decode_method, tensors, jpeg_png_compressed_tensors
         )
