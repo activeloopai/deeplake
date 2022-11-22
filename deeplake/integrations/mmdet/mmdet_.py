@@ -684,7 +684,6 @@ def build_dataloader(
     implementation: str,
     pipeline: List,
     mode: str = "train",
-    shuffle: Optional[bool] = None,
     **train_loader_config,
 ):
     if masks_tensor and "gt_masks" not in _get_collate_keys(pipeline):
@@ -720,8 +719,7 @@ def build_dataloader(
     if num_workers is None:
         num_workers = train_loader_config["workers_per_gpu"]
 
-    if shuffle is None:
-        shuffle = train_loader_config.get("shuffle", True)
+    shuffle = train_loader_config.get("shuffle", True)
     tensors_dict = {
         "images_tensor": images_tensor,
         "boxes_tensor": boxes_tensor,
@@ -992,13 +990,13 @@ def _train_detector(
         runner_type=runner_type,
         persistent_workers=False,
         metrics_format=metrics_format,
+        shuffle = cfg.data.get("train_dataloader", {}).get("shuffle", True)
     )
 
     train_loader_cfg = {
         **train_dataloader_default_args,
         **cfg.data.train.get("deeplake_dataloader", {}),
     }
-
 
     # put model on gpus
     if distributed:
