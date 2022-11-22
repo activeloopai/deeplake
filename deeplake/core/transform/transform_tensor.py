@@ -115,7 +115,7 @@ class TransformTensor:
                 return self.extend(np.expand_dims(item, 0))
             else:
                 self._non_numpy()
-        if not isinstance(item, LinkedSample):
+        if not isinstance(item, (LinkedSample, Tensor)):
             shape = getattr(item, "shape", None)
             if shape is None:
                 item = np.asarray(item)
