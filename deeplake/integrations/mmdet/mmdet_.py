@@ -187,7 +187,7 @@ def pascal_frac_2_coco_pixel(boxes, images):
         y_bottom = box[:, 3] * shape[0]
         bbox = np.stack((x_top, y_top, x_bottom, y_bottom), axis=1)
         pascal_pixel_boxes.append(bbox)
-    return pascal_pixel_boxes
+    return pascal_pixel_2_coco_pixel(pascal_pixel_boxes, images)
 
 
 def yolo_pixel_2_coco_pixel(boxes, images):
@@ -204,7 +204,7 @@ def yolo_pixel_2_coco_pixel(boxes, images):
 
 def yolo_frac_2_coco_pixel(boxes, images):
     yolo_boxes = []
-    for i, box in boxes:
+    for i, box in enumerate(boxes):
         shape = images[i].shape
         x_center = box[:, 0] * shape[1]
         y_center = box[:, 1] * shape[0]
@@ -225,16 +225,16 @@ def coco_frac_2_coco_pixel(boxes, images):
         h = box[:, 3] * shape[0]
         bbox = np.stack((x, y, w, h), axis=1)
         coco_pixel_boxes.append(bbox)
-    return np.stack((x, y, w, h), axis=1)
+    return np.array(coco_pixel_boxes)
 
 
 BBOX_FORMAT_TO_COCO_CONVERTER = {
     ("LTWH", "pixel"): lambda x, y: x,
-    ("LTWH", "frac"): coco_frac_2_coco_pixel,
+    ("LTWH", "fractional"): coco_frac_2_coco_pixel,
     ("LTRB", "pixel"): pascal_pixel_2_coco_pixel,
-    ("LTRB", "frac"): pascal_frac_2_coco_pixel,
+    ("LTRB", "fractional"): pascal_frac_2_coco_pixel,
     ("CCWH", "pixel"): yolo_pixel_2_coco_pixel,
-    ("CCWH", "frac"): yolo_frac_2_coco_pixel,
+    ("CCWH", "fractional"): yolo_frac_2_coco_pixel,
 }
 
 
