@@ -882,6 +882,8 @@ def train_detector(
     batch_size = cfg.data.get("samples_per_gpu", 256)
     num_workers = cfg.data.train.get("num_workers")
 
+    mmdet_utils.check_unsupported_functionalities(cfg)
+
     cfg = compat_cfg(cfg)
 
     if distributed:
