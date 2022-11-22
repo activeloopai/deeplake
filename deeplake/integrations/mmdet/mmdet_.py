@@ -934,18 +934,6 @@ def _train_detector(
 
     cfg = compat_cfg(cfg)
 
-    eval_cfg = cfg.get("evaluation", {})
-    dl_impl = cfg.get("deeplake_dataloader_type", "auto").lower()
-
-    if dl_impl == "auto":
-        dl_impl = "c++" if indra_available() else "python"
-    elif dl_impl == "cpp":
-        dl_impl = "c++"
-
-    if dl_impl not in {"c++", "python"}:
-        raise ValueError(
-            "`deeplake_dataloader_type` should be one of ['auto', 'c++', 'python']."
-        )
 
     if ds_train is None:
         ds_train = load_ds_from_cfg(cfg.data.train)
@@ -956,6 +944,24 @@ def _train_detector(
             always_warn(
                 "A Deep Lake dataset was specified in the cfg as well as inthe dataset input to train_detector. The dataset input to train_detector will be used in the workflow."
             )
+
+
+    eval_cfg = cfg.get("evaluation", {})
+    dl_impl = cfg.get("deeplake_dataloader_type", "auto").lower()
+
+
+    # TODO: check whether dataset is actually supported by enterprise dataloader if c++
+    if dl_impl == "auto":
+        dl_impl = "c++" if indra_available() else "python"
+    elif dl_impl == "cpp":
+        dl_impl = "c++"
+
+    if dl_impl not in {"c++", "python"}:
+        raise ValueError(
+            "`deeplake_dataloader_type` should be one of ['auto', 'c++', 'python']."
+        )
+
+
 
     if ds_train_tensors:
         train_images_tensor = ds_train_tensors["img"]
