@@ -930,7 +930,7 @@ def _train_detector(
     port=None,
 ):
     batch_size = cfg.data.get("samples_per_gpu", 256)
-    num_workers = cfg.data.get("num_workers", 1)
+    num_workers = cfg.data.get("workers_per_gpu", 1)
 
     cfg = compat_cfg(cfg)
 
