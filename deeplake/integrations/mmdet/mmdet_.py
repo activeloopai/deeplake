@@ -13,6 +13,7 @@ from deeplake.core.ipc import _get_free_port
 from mmdet.core import BitmapMasks
 import deeplake as dp
 from deeplake.util.warnings import always_warn
+from deeplake.util.bugout_reporter import deeplake_reporter
 import os.path as osp
 import warnings
 from collections import OrderedDict
@@ -750,6 +751,7 @@ def build_dataloader(
             batch_size=batch_size,
             mode=mode,
             bbox_info=bbox_info,
+            decode_method={images_tensor: "numpy"},
         )
 
     else:
@@ -763,6 +765,7 @@ def build_dataloader(
                 collate_fn=collate_fn,
                 tensors=tensors,
                 distributed=dist,
+                decode_method={images_tensor: "numpy"},
             )
         )
 
@@ -795,6 +798,7 @@ def build_pipeline(steps):
     )
 
 
+@deeplake_reporter.record_call
 def train_detector(
     model,
     cfg: mmcv.ConfigDict,
