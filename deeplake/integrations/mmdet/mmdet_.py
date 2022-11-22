@@ -961,8 +961,6 @@ def _train_detector(
             "`deeplake_dataloader_type` should be one of ['auto', 'c++', 'python']."
         )
 
-
-
     if ds_train_tensors:
         train_images_tensor = ds_train_tensors["img"]
         train_boxes_tensor = ds_train_tensors["gt_bboxes"]
@@ -980,6 +978,8 @@ def _train_detector(
             train_masks_tensor = _find_tensor_with_htype(
                 ds_train, "binary_mask", "gt_masks"
             ) or _find_tensor_with_htype(ds_train, "polygon", "gt_masks")
+
+    # TODO verify required tensors are not None and raise Exception.
 
     if hasattr(model, "CLASSES"):
         warnings.warn("model already has a CLASSES attribute. Will be ignored.")
@@ -1106,10 +1106,8 @@ def _train_detector(
             **cfg.data.val.get("deeplake_dataloader", {}),
         }
 
-        if val_dataloader_args.get("shuffle", False) == True:
-            raise Exception(
-                "During validation shuffle can not be True, you need to set shuffle=False in deeplake_dataloader or remove it from dictionary."
-            )
+        if val_dataloader_args.get("shuffle", False):
+            always_warn("shuffle argument for validation dataset will be ignored.")
 
         if ds_val is None:
             cfg_ds_val = cfg.data.get("val")
@@ -1160,6 +1158,8 @@ def _train_detector(
                 val_masks_tensor = _find_tensor_with_htype(
                     ds_val, "binary_mask", "validation gt_masks"
                 ) or _find_tensor_with_htype(ds_val, "polygon", "validation gt_masks")
+
+        # TODO make sure required tensors are not None.
 
         val_dataloader = build_dataloader(
             ds_val,
