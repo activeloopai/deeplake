@@ -1,4 +1,5 @@
 torch
+torchvision
 tensorflow
 tensorflow_datasets
 pickle5>=0.0.11; python_version < "3.8" and python_version >= "3.6"
