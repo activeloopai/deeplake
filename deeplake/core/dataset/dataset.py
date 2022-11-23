@@ -1463,7 +1463,6 @@ class Dataset:
     @deeplake_reporter.record_call
     def pytorch(
         self,
-        *args,
         transform: Optional[Callable] = None,
         tensors: Optional[Sequence[str]] = None,
         num_workers: int = 1,
@@ -1480,11 +1479,14 @@ class Dataset:
         transform_kwargs: Optional[Dict[str, Any]] = None,
         torch_dataset=TorchDataset,
         decode_method: Optional[Dict[str, str]] = None,
+        *args,
         **kwargs,
     ):
         """Converts the dataset into a pytorch Dataloader.
 
         Args:
+            *args: Additional args to be passed to torch_dataset
+            **kwargs: Additional kwargs to be passed to torch_dataset
             transform (Callable, Optional): Transformation function to be applied to each sample.
             tensors (List, Optional): Optionally provide a list of tensor names in the ordering that your training script expects. For example, if you have a dataset that has "image" and "label" tensors, if ``tensors=["image", "label"]``, your training script should expect each batch will be provided as a tuple of (image, label).
             num_workers (int): The number of workers to use for fetching data in parallel.
@@ -1503,6 +1505,7 @@ class Dataset:
             return_index (bool): If ``True``, the returned dataloader will have a key "index" that contains the index of the sample(s) in the original dataset. Default value is True.
             pad_tensors (bool): If ``True``, shorter tensors will be padded to the length of the longest tensor. Default value is False.
             transform_kwargs (optional, Dict[str, Any]): Additional kwargs to be passed to ``transform``.
+            torch_dataset (TorchDataset): dataset type that going to be used in dataloader
             decode_method (Dict[str, str], Optional): A dictionary of decode methods for each tensor. Defaults to ``None``.
 
                 - Supported decode methods are:
@@ -1511,9 +1514,7 @@ class Dataset:
                     :'tobytes': Returns raw bytes of the samples.
                     :'pil': Returns samples as PIL images. Especially useful when transformation use torchvision transforms, that
                             require PIL images as input. Only supported for tensors with ``sample_compression='jpeg'`` or ``'png'``.
-            args (List) - Additional args to be passed to torch_dataset
-            kwars (optional, Dict[str, Any]) - Additional kwargs to be passed to torch_dataset
-            torch_dataset - dataset type that going to be used in dataloader
+
         Returns:
             A torch.utils.data.DataLoader object.
 

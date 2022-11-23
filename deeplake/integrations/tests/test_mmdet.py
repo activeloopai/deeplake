@@ -24,6 +24,7 @@ def load_pickle_file(pickle_file):
     reason="MMDet is installed on CI only for linux and python version >= 3.7.",
 )
 def test_check_unused_dataset_fields():
+    import mmcv  # type: ignore
     from deeplake.integrations.mmdet import mmdet_utils
 
     cfg = mmcv.utils.config.ConfigDict()
@@ -43,6 +44,7 @@ def test_check_unused_dataset_fields():
     reason="MMDet is installed on CI only for linux and python version >= 3.7.",
 )
 def test_check_unsupported_train_pipeline_fields():
+    import mmcv  # type: ignore
     from deeplake.integrations.mmdet import mmdet_utils
 
     cfg = mmcv.utils.config.ConfigDict()
@@ -97,6 +99,7 @@ def test_check_unsupported_train_pipeline_fields():
     reason="MMDet is installed on CI only for linux and python version >= 3.7.",
 )
 def test_check_dataset_augmentation_formats():
+    import mmcv  # type: ignore
     from deeplake.integrations.mmdet import mmdet_utils
 
     cfg = mmcv.utils.config.ConfigDict()
