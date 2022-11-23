@@ -443,8 +443,8 @@ class COCODatasetEvaluater(mmdet_coco.CocoDataset):
 
 def check_unsupported_functionalities(cfg):
     check_unused_dataset_fields(cfg)
-    check_unsupported_train_pipeline_fields(cfg, pipeline="train_pipeline")
-    check_unsupported_train_pipeline_fields(cfg, pipeline="test_pipeline")
+    check_unsupported_train_pipeline_fields(cfg, mode="train")
+    check_unsupported_train_pipeline_fields(cfg, mode="val")
     check_dataset_augmentation_formats(cfg)
 
 
@@ -461,8 +461,8 @@ def check_unused_dataset_fields(cfg):
         )
 
 
-def check_unsupported_train_pipeline_fields(cfg, pipeline="train_pipeline"):
-    transforms = cfg[pipeline]
+def check_unsupported_train_pipeline_fields(cfg, mode="train"):
+    transforms = cfg.data[mode].pipeline
 
     for transform in transforms:
         transform_type = transform.get("type")
