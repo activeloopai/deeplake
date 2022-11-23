@@ -1511,7 +1511,9 @@ class Dataset:
                     :'tobytes': Returns raw bytes of the samples.
                     :'pil': Returns samples as PIL images. Especially useful when transformation use torchvision transforms, that
                             require PIL images as input. Only supported for tensors with ``sample_compression='jpeg'`` or ``'png'``.
-
+            args (List) - Additional args to be passed to torch_dataset
+            kwars (optional, Dict[str, Any]) - Additional kwargs to be passed to torch_dataset
+            torch_dataset - dataset type that going to be used in dataloader
         Returns:
             A torch.utils.data.DataLoader object.
 

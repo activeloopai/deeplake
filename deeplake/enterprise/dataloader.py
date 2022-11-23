@@ -1,5 +1,7 @@
 from typing import Callable, Dict, List, Optional, Union
-from deeplake.enterprise.convert_to_libdeeplake import dataset_to_libdeeplake  # type: ignore
+from deeplake.enterprise.convert_to_libdeeplake import (
+    dataset_to_libdeeplake,
+)  # type: ignore
 from deeplake.enterprise.util import (
     create_fetching_schedule,
     find_primary_tensor,
@@ -147,9 +149,7 @@ class DeepLakeDataLoader(DataLoader):
         return self.__class__(**all_vars)
 
     def transform(
-        self,
-        transform: Union[Callable, Dict[str, Optional[Callable]]],
-        **kwargs: Dict,
+        self, transform: Union[Callable, Dict[str, Optional[Callable]]], **kwargs: Dict
     ):
         """Returns a transformed :class:`DeepLakeDataLoader` object.
 

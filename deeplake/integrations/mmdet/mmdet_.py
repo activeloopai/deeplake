@@ -1,40 +1,57 @@
 from collections import OrderedDict
 
 from typing import Callable, Optional, List, Dict
-from mmdet.apis.train import *
-from mmcv.utils import build_from_cfg
-from mmdet.datasets.builder import PIPELINES
-from mmdet.datasets.pipelines import Compose
-from mmcv.parallel import collate
+
+from mmdet.apis.train import auto_scale_lr  # type: ignore
+from mmdet.utils import (
+    build_dp,
+    compat_cfg,
+    find_latest_checkpoint,
+    get_root_logger,
+)  # type: ignore
+from mmdet.core import DistEvalHook, EvalHook  # type: ignore
+from mmdet.core import build_optimizer
+from mmcv.runner import (
+    DistSamplerSeedHook,
+    EpochBasedRunner,
+    Fp16OptimizerHook,
+    OptimizerHook,
+    build_runner,
+)  # type: ignore
+from mmdet.datasets import replace_ImageToTensor  # type: ignore
+from mmcv.utils import build_from_cfg  # type: ignore
+from mmdet.datasets.builder import PIPELINES  # type: ignore
+from mmdet.datasets.pipelines import Compose  # type: ignore
+from mmcv.parallel import collate  # type: ignore
 from functools import partial
 from deeplake.integrations.pytorch.dataset import TorchDataset
 from deeplake.client.client import DeepLakeBackendClient
 from deeplake.core.ipc import _get_free_port
-from mmdet.core import BitmapMasks
+from mmdet.core import BitmapMasks  # type: ignore
 import deeplake as dp
 from deeplake.util.warnings import always_warn
 from deeplake.util.bugout_reporter import deeplake_reporter
 import os.path as osp
 import warnings
 from collections import OrderedDict
-import mmcv
-from mmcv.runner import init_dist
+import mmcv  # type: ignore
+from mmcv.runner import init_dist  # type: ignore
 import torch
 import numpy as np
 from mmcv.utils import print_log
-from terminaltables import AsciiTable
+from terminaltables import AsciiTable  # type: ignore
 from mmdet.core import eval_map, eval_recalls
 from mmdet.datasets.pipelines import Compose
-from mmdet.utils.util_distribution import *
+from mmdet.utils.util_distribution import *  # type: ignore
 import tempfile
 from deeplake.integrations.mmdet import mmdet_utils
 from deeplake.enterprise.dataloader import indra_available, dataloader
-from PIL import Image, ImageDraw
+from PIL import Image, ImageDraw  # type: ignore
 import os
 
 
 class Dummy:
-    pass
+    sampler = None
 
 
 def force_cudnn_initialization(device_id):
@@ -53,7 +70,8 @@ def build_ddp(model, device, *args, **kwargs):
     Args:
         model (:class:`nn.Module`): module to be parallelized.
         device (str): device type, mlu or cuda.
-
+        args (List): arguments to be passed to ddp_factory
+        kwargs (dict): keyword arguments to be passed to ddp_factory
     Returns:
         :class:`nn.Module`: the module to be parallelized
 
@@ -66,7 +84,7 @@ def build_ddp(model, device, *args, **kwargs):
     if device == "cuda":
         model = model.cuda(kwargs["device_ids"][0])  # patch
     elif device == "mlu":
-        from mmcv.device.mlu import MLUDistributedDataParallel
+        from mmcv.device.mlu import MLUDistributedDataParallel  # type: ignore
 
         ddp_factory["mlu"] = MLUDistributedDataParallel
         model = model.mlu()
@@ -165,13 +183,7 @@ def convert_to_pascal_format(bbox, bbox_info, shape):
 def pascal_pixel_2_coco_pixel(boxes, images):
     return [
         np.stack(
-            (
-                box[:, 0],
-                box[:, 1],
-                box[:, 2] - box[:, 0],
-                box[:, 3] - box[:, 1],
-            ),
-            axis=1,
+            (box[:, 0], box[:, 1], box[:, 2] - box[:, 0], box[:, 3] - box[:, 1]), axis=1
         )
         for box in boxes
     ]
@@ -340,10 +352,7 @@ class MMDetDataset(TorchDataset):
         bboxes = convert_to_pascal_format(
             self.bboxes[idx], self.bbox_info, self.images[idx].shape
         )
-        return {
-            "bboxes": bboxes,
-            "labels": self.labels[idx],
-        }
+        return {"bboxes": bboxes, "labels": self.labels[idx]}
 
     def get_cat_ids(self, idx):
         """Get category ids by index.
@@ -369,18 +378,14 @@ class MMDetDataset(TorchDataset):
                 valid_inds.append(i)
         return valid_inds
 
-    def get_classes(self, classes=None):
+    def get_classes(self, classes):
         """Get class names of current dataset.
 
         Args:
-            classes (Sequence[str] | str | None): If classes is None, use
-                default CLASSES defined by builtin dataset. If classes is a
-                string, take it as a file name. The file contains the name of
-                classes where each line contains one class name. If classes is
-                a tuple or list, override the CLASSES defined by the dataset.
+            classes (str): Reresents the name of the classes tensor. Overrides the CLASSES defined by the dataset.
 
         Returns:
-            tuple[str] or list[str]: Names of categories of the dataset.
+            list[str]: Names of categories of the dataset.
         """
         return self.dataset[classes].info.class_names
 
@@ -388,7 +393,6 @@ class MMDetDataset(TorchDataset):
         self,
         results,
         metric="mAP",
-        metrics_format="PascalVOC",
         logger=None,
         proposal_nums=(100, 300, 1000),
         iou_thr=0.5,  #
@@ -408,6 +412,10 @@ class MMDetDataset(TorchDataset):
             iou_thr (float | list[float]): IoU threshold. Default: 0.5.
             scale_ranges (list[tuple] | None): Scale ranges for evaluating mAP.
                 Default: None.
+            kwargs (dict): Keyword arguments to pass to self.evaluate object
+
+        Returns:
+            OrderedDict: Evaluation metrics dictionary
         """
         if self.evaluator is None:
             if not isinstance(metric, str):
@@ -452,11 +460,7 @@ class MMDetDataset(TorchDataset):
             return eval_results
 
         return self.evaluator.evaluate(
-            results,
-            metric=metric,
-            logger=logger,
-            proposal_nums=proposal_nums,
-            **kwargs,
+            results, metric=metric, logger=logger, proposal_nums=proposal_nums, **kwargs
         )
 
     @staticmethod
@@ -526,7 +530,7 @@ class MMDetDataset(TorchDataset):
             jsonfile_prefix (str | None): The prefix of json files. It includes
                 the file path and the prefix of filename, e.g., "a/b/prefix".
                 If not specified, a temp file will be created. Default: None.
-
+            kwargs (dict): Additional keyword arguments to be passed.
         Returns:
             tuple: (result_files, tmp_dir), result_files is a dict containing
                 the json filepaths, tmp_dir is the temporal directory created
@@ -548,7 +552,7 @@ class MMDetDataset(TorchDataset):
         return result_files, tmp_dir
 
 
-def load_ds_from_cfg(cfg: Dict):
+def load_ds_from_cfg(cfg: mmcv.utils.config.ConfigDict):
     creds = cfg.get("deeplake_credentials", {})
     token = creds.get("token", None)
     if token is None:
@@ -677,7 +681,7 @@ def _get_collate_keys(pipeline):
 
 
 def build_dataloader(
-    dataset: List[dp.Dataset],
+    dataset: dp.Dataset,
     images_tensor: str,
     masks_tensor: Optional[str],
     boxes_tensor: str,
@@ -1189,6 +1193,7 @@ def ddp_setup(rank: int, world_size: int, port: int):
     Args:
         rank: Unique identifier of each process
         world_size: Total number of processes
+        port: Port number
     """
     os.environ["MASTER_ADDR"] = "localhost"
     os.environ["MASTER_PORT"] = str(port)

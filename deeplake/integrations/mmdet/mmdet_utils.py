@@ -1,26 +1,26 @@
 import time
 import warnings
-import pycocotools
+import pycocotools  # type: ignore
 import numpy as np
 import copy
 import itertools
 import pycocotools.mask as maskUtils
-from pycocotools import coco as pycocotools_coco
+from pycocotools import coco as pycocotools_coco  # type: ignore
 from collections import defaultdict
 import sys
 
 PYTHON_VERSION = sys.version_info[0]
 if PYTHON_VERSION == 2:
-    from urllib import urlretrieve
+    from urllib import urlretrieve  # type: ignore
 elif PYTHON_VERSION == 3:
     from urllib.request import urlretrieve
-from mmdet.datasets import coco as mmdet_coco
+from mmdet.datasets import coco as mmdet_coco  # type: ignore
 from mmdet.datasets import pipelines
 from deeplake.util.warnings import always_warn
 import json
-import mmcv
+import mmcv  # type: ignore
 import os
-import tqdm
+import tqdm  # type: ignore
 
 
 def _isArrayLike(obj):
@@ -150,7 +150,6 @@ class _COCO(pycocotools_coco.COCO):
                 ]
                 anns = list(itertools.chain.from_iterable(lists))
             else:
-                # anns = self.dataset['annotations']
                 anns = list(self.anns.values())
             anns = (
                 anns
@@ -402,7 +401,13 @@ class COCODatasetEvaluater(mmdet_coco.CocoDataset):
         """Load annotation from COCO style annotation file.
 
         Args:
-            ann_file (str): Path of annotation file.
+            deeplake_dataset (dp.Dataset): Deeplake dataset object.
+            imgs (dp.Tensor): image deeplake tensor.
+            labels (List[numpy]): List of labels for every every detection for each image in numpy format.
+            masks (List[numpy]): List of masks for every every detection for each image in numpy format.
+            bboxes (List[numpy]): List of bboxes for every every detection for each image in numpy.
+            iscrowds (List[numpy]): List of iscrowds for every every detection for each image in numpy format.
+            class_names (List[str]): List of class names for every every detection for each image.
 
         Returns:
             list[dict]: Annotation info from COCO api.
