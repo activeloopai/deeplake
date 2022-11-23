@@ -173,19 +173,20 @@ class _COCO(pycocotools_coco.COCO):
         return ids
 
     def getCatIds(self, catNms=[], supNms=[], catIds=[]):
-        """
-        filtering parameters. default skips that filter.
-        :param catNms (str array)  : get cats for given cat names
-        :param supNms (str array)  : get cats for given supercategory names
-        :param catIds (int array)  : get cats for given cat ids
-        :return: ids (int array)   : integer array of cat ids
+        """Filtering parameters.
+        Args:
+            catNms (str): get cats for given cat names
+            supNms (str): get cats for given supercategory names
+            catIds (int): get cats for given cat ids
+
+        Returns:
+            ids (List[int]): integer array of cat ids
         """
         catNms = catNms if _isArrayLike(catNms) else [catNms]
         supNms = supNms if _isArrayLike(supNms) else [supNms]
         catIds = catIds if _isArrayLike(catIds) else [catIds]
 
         if len(catNms) == len(supNms) == len(catIds) == 0:
-            # cats = self.dataset['categories']
             cats = list(self.cats.values())
         else:
             # cats = self.dataset['categories']
@@ -445,12 +446,12 @@ def check_unused_dataset_fields(cfg):
     if cfg.get("dataset_type"):
 
         always_warn(
-            "The deeplake integration does not use dataset_type to work with the data and compute metrics. All deeplake datasets are in the same deeplake format. To specify a metrics format, you should deeplake_metrics_format "
+            "The deeplake mmdet integration does not use dataset_type to work with the data and compute metrics. All deeplake datasets are in the same deeplake format. To specify a metrics format, you should deeplake_metrics_format "
         )
 
     if cfg.get("data_root"):
         always_warn(
-            "The deeplake integration does not use data_root, this input will be ignored"
+            "The deeplake mmdet integration does not use data_root, this input will be ignored"
         )
 
 
