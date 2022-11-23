@@ -342,6 +342,10 @@ class S3ListError(S3Error):
     """Catchall for all errors encountered while retrieving a list of objects present in S3"""
 
 
+class S3GetAccessError(S3GetError):
+    """Credentials related errors encountered while getting an object from S3"""
+
+
 class CompressionError(Exception):
     pass
 
