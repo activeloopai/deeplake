@@ -304,7 +304,7 @@ def get_test_config(mmdet_path):
     cfg.checkpoint_config = dict(interval=12)
     cfg.seed = None
     cfg.device = "cpu"
-    cfg.runner = dict(type="EpochBasedRunner", max_epochs=10)
+    cfg.runner = dict(type="EpochBasedRunner", max_epochs=1)
     return cfg
 
 
