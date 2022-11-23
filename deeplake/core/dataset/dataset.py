@@ -2151,6 +2151,26 @@ class Dataset:
         self.storage.autoflush = autoflush
         return ds
 
+    @property
+    def no_view_dataset(self):
+        """Returns the same dataset without slicing."""
+        if self.index is None or self.index.is_trivial():
+            return self
+        return self.__class__(
+            storage=self.storage,
+            index=None,
+            group_index=self.group_index,
+            read_only=self.read_only,
+            public=self.public,
+            token=self._token,
+            verbose=False,
+            version_state=self.version_state,
+            path=self.path,
+            link_creds=self.link_creds,
+            pad_tensors=self._pad_tensors,
+            enabled_tensors=self.enabled_tensors,
+        )
+
     def _create_group(self, name: str) -> "Dataset":
         """Internal method used by `create_group` and `create_tensor`."""
         meta: DatasetMeta = self.version_state["meta"]
