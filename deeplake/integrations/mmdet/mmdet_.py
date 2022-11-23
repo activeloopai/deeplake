@@ -280,7 +280,7 @@ class MMDetDataset(TorchDataset):
             self.evaluator = mmdet_utils.COCODatasetEvaluater(
                 pipeline,
                 classes=self.CLASSES,
-                hub_dataset=self.dataset,
+                deeplake_dataset=self.dataset,
                 imgs=self.images,
                 masks=self.masks,
                 bboxes=coco_style_bbox,
