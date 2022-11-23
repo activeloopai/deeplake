@@ -415,6 +415,9 @@ class MMDetDataset(TorchDataset):
             scale_ranges (list[tuple] | None): Scale ranges for evaluating mAP.
                 Default: None.
 
+        Raises:
+            KeyError: if a specified metric format is not supported
+
         Returns:
             OrderedDict: Evaluation metrics dictionary
         """

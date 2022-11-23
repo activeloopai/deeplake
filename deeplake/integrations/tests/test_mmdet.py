@@ -315,7 +315,7 @@ def get_test_config(mmdet_path):
             # deeplake_tensors = {"img": "images", "gt_bboxes": "boxes", "gt_labels": "categories"}
         ),
     )
-    cfg.deeplake_dataloader_type = "python"
+    cfg.deeplake_dataloader_type = "c++"
     cfg.deeplake_metrics_format = "COCO"
     cfg.evaluation = dict(metric=["bbox"], interval=1)
     cfg.work_dir = "./mmdet_outputs"
