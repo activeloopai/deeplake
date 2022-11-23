@@ -3,7 +3,6 @@ import deeplake as dp
 import os
 import pytest
 import pickle
-import mmcv  # type: ignore
 import numpy as np
 import pathlib
 
