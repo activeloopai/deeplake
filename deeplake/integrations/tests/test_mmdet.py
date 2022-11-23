@@ -1,7 +1,5 @@
 import sys
 import deeplake as dp
-from deeplake.integrations.mmdet import mmdet_, mmdet_utils
-
 import os
 import pytest
 import pickle
@@ -22,12 +20,17 @@ def load_pickle_file(pickle_file):
         return pickle.load(f)
 
 
+@pytest.mark.skipif(
+    sys.platform != "linux", reason="MMDet is installed on CI only for linux"
+)
 def test_check_unused_dataset_fields():
+    from deeplake.integrations.mmdet import mmdet_utils
+
     cfg = mmcv.utils.config.ConfigDict()
     cfg.dataset_type = "COCODataset"
 
     with pytest.warns(UserWarning):
-         mmdet_utils.check_unused_dataset_fields(cfg)
+        mmdet_utils.check_unused_dataset_fields(cfg)
 
     cfg.data_root = "./"
 
@@ -35,7 +38,12 @@ def test_check_unused_dataset_fields():
         mmdet_utils.check_unused_dataset_fields(cfg)
 
 
+@pytest.mark.skipif(
+    sys.platform != "linux", reason="MMDet is installed on CI only for linux"
+)
 def test_check_unsupported_train_pipeline_fields():
+    from deeplake.integrations.mmdet import mmdet_utils
+
     cfg = mmcv.utils.config.ConfigDict()
     cfg.train_pipeline = [dict(type="LoadImageFromFile")]
 
@@ -83,7 +91,12 @@ def test_check_unsupported_train_pipeline_fields():
         mmdet_utils.check_unsupported_train_pipeline_fields(cfg)
 
 
+@pytest.mark.skipif(
+    sys.platform != "linux", reason="MMDet is installed on CI only for linux"
+)
 def test_check_dataset_augmentation_formats():
+    from deeplake.integrations.mmdet import mmdet_utils
+
     cfg = mmcv.utils.config.ConfigDict()
     cfg.train_dataset = dict(type="ConcatDataset")
 
@@ -91,7 +104,12 @@ def test_check_dataset_augmentation_formats():
         mmdet_utils.check_unsupported_train_pipeline_fields(cfg)
 
 
+@pytest.mark.skipif(
+    sys.platform != "linux", reason="MMDet is installed on CI only for linux"
+)
 def test_coco_to_pascal_format():
+    from deeplake.integrations.mmdet import mmdet_
+
     shape = (10, 10)
     bbox = np.array([[4, 5, 2, 2]])
     bbox_info = {"coords": {"mode": "LTWH", "type": "pixel"}}
@@ -105,7 +123,12 @@ def test_coco_to_pascal_format():
     np.testing.assert_array_equal(bbox_pascal, targ_bbox)
 
 
+@pytest.mark.skipif(
+    sys.platform != "linux", reason="MMDet is installed on CI only for linux"
+)
 def test_yolo_to_pascal_format():
+    from deeplake.integrations.mmdet import mmdet_
+
     shape = (10, 10)
     bbox = np.array([[4, 5, 2, 2]])
     bbox_info = {"coords": {"mode": "CCWH", "type": "pixel"}}
@@ -120,7 +143,12 @@ def test_yolo_to_pascal_format():
     np.testing.assert_array_equal(bbox_pascal, targ_bbox)
 
 
+@pytest.mark.skipif(
+    sys.platform != "linux", reason="MMDet is installed on CI only for linux"
+)
 def test_pascal_to_pascal_format():
+    from deeplake.integrations.mmdet import mmdet_
+
     shape = (10, 10)
     bbox = np.array([[4, 5, 6, 7]])
     bbox_info = {"coords": {"mode": "LTRB", "type": "pixel"}}
@@ -135,7 +163,12 @@ def test_pascal_to_pascal_format():
     np.testing.assert_array_equal(bbox_pascal, targ_bbox)
 
 
+@pytest.mark.skipif(
+    sys.platform != "linux", reason="MMDet is installed on CI only for linux"
+)
 def test_pascal_to_coco_format():
+    from deeplake.integrations.mmdet import mmdet_
+
     images = [np.zeros((10, 10))]
     bbox = np.array([[[4, 5, 6, 7]]])
     bbox_info = ("LTRB", "pixel")
@@ -149,7 +182,12 @@ def test_pascal_to_coco_format():
     np.testing.assert_array_equal(bbox_coco[0], targ_bbox)
 
 
+@pytest.mark.skipif(
+    sys.platform != "linux", reason="MMDet is installed on CI only for linux"
+)
 def test_yolo_to_coco_format():
+    from deeplake.integrations.mmdet import mmdet_
+
     image = [np.zeros((10, 10))]
     bbox = np.array([[[4, 5, 2, 2]]])
     bbox_info = ("CCWH", "pixel")
@@ -163,7 +201,12 @@ def test_yolo_to_coco_format():
     np.testing.assert_array_equal(bbox_coco[0], targ_bbox)
 
 
+@pytest.mark.skipif(
+    sys.platform != "linux", reason="MMDet is installed on CI only for linux"
+)
 def test_coco_to_coco_format():
+    from deeplake.integrations.mmdet import mmdet_
+
     image = [np.zeros((10, 10))]
     bbox = np.array([[[4, 5, 2, 2]]])
     bbox_info = ("LTWH", "pixel")
@@ -179,63 +222,71 @@ def test_coco_to_coco_format():
 
 def get_test_config(mmdet_path):
     from mmcv import Config
-    cfg = Config.fromfile(os.path.join(mmdet_path, "configs", "yolo", "yolov3_d53_mstrain-416_273e_coco.py"))
-    img_norm_cfg = dict(mean=[0, 0, 0], std=[255., 255., 255.], to_rgb=True)
+
+    cfg = Config.fromfile(
+        os.path.join(
+            mmdet_path, "configs", "yolo", "yolov3_d53_mstrain-416_273e_coco.py"
+        )
+    )
+    img_norm_cfg = dict(mean=[0, 0, 0], std=[255.0, 255.0, 255.0], to_rgb=True)
     cfg.img_norm_cfg = img_norm_cfg
     train_pipeline = [
-        dict(type='LoadImageFromFile'),
-        dict(type='LoadAnnotations', with_bbox=True),
+        dict(type="LoadImageFromFile"),
+        dict(type="LoadAnnotations", with_bbox=True),
         dict(
-            type='Expand',
-            mean=img_norm_cfg['mean'],
-            to_rgb=img_norm_cfg['to_rgb'],
-            ratio_range=(1, 2)),
-        dict(type='Resize', img_scale=[(320, 320), (416, 416)], keep_ratio=True),
-        dict(type='RandomFlip', flip_ratio=0.0),
-        dict(type='PhotoMetricDistortion'),
-        dict(type='Normalize', **img_norm_cfg),
-        dict(type='Pad', size_divisor=32),
-        dict(type='DefaultFormatBundle'),
-        dict(type='Collect', keys=['img', 'gt_bboxes', 'gt_labels'])
+            type="Expand",
+            mean=img_norm_cfg["mean"],
+            to_rgb=img_norm_cfg["to_rgb"],
+            ratio_range=(1, 2),
+        ),
+        dict(type="Resize", img_scale=[(320, 320), (416, 416)], keep_ratio=True),
+        dict(type="RandomFlip", flip_ratio=0.0),
+        dict(type="PhotoMetricDistortion"),
+        dict(type="Normalize", **img_norm_cfg),
+        dict(type="Pad", size_divisor=32),
+        dict(type="DefaultFormatBundle"),
+        dict(type="Collect", keys=["img", "gt_bboxes", "gt_labels"]),
     ]
     test_pipeline = [
-    dict(type='LoadImageFromFile'),
-    dict(
-        type='MultiScaleFlipAug',
-        img_scale=(416, 416),
-        flip=False,
-        transforms=[
-            dict(type='Resize', keep_ratio=True),
-            dict(type='RandomFlip', flip_ratio=0.0),
-            dict(type='Normalize', **img_norm_cfg),
-            dict(type='Pad', size_divisor=32),
-            dict(type='ImageToTensor', keys=['img']),
-            dict(type='Collect', keys=['img'])
-        ])]
+        dict(type="LoadImageFromFile"),
+        dict(
+            type="MultiScaleFlipAug",
+            img_scale=(416, 416),
+            flip=False,
+            transforms=[
+                dict(type="Resize", keep_ratio=True),
+                dict(type="RandomFlip", flip_ratio=0.0),
+                dict(type="Normalize", **img_norm_cfg),
+                dict(type="Pad", size_divisor=32),
+                dict(type="ImageToTensor", keys=["img"]),
+                dict(type="Collect", keys=["img"]),
+            ],
+        ),
+    ]
     cfg.data = dict(
-    # train_dataloader={"shuffle": False},
-    samples_per_gpu=8,
-    workers_per_gpu=8,
-    train=dict(
-        pipeline=train_pipeline,
-        # deeplake_path="hub://activeloop/coco-train",
-        # deeplake_credentials={
-        #     "username": None,
-        #     "password": None,
-        #     "token": None,
-        # },
-        # deeplake_tensors = {"img": "images", "gt_bboxes": "boxes", "gt_labels": "categories"}
-    ),
-    val=dict(
-        pipeline=test_pipeline,
-        # deeplake_path="hub://activeloop/coco-val",
-        # deeplake_credentials={
-        #     "username": None,
-        #     "password": None,
-        #     "token": None,
-        # },
-        # deeplake_tensors = {"img": "images", "gt_bboxes": "boxes", "gt_labels": "categories"}
-    ),
+        # train_dataloader={"shuffle": False},
+        samples_per_gpu=8,
+        workers_per_gpu=8,
+        train=dict(
+            pipeline=train_pipeline,
+            # deeplake_path="hub://activeloop/coco-train",
+            # deeplake_credentials={
+            #     "username": None,
+            #     "password": None,
+            #     "token": None,
+            # },
+            # deeplake_tensors = {"img": "images", "gt_bboxes": "boxes", "gt_labels": "categories"}
+        ),
+        val=dict(
+            pipeline=test_pipeline,
+            # deeplake_path="hub://activeloop/coco-val",
+            # deeplake_credentials={
+            #     "username": None,
+            #     "password": None,
+            #     "token": None,
+            # },
+            # deeplake_tensors = {"img": "images", "gt_bboxes": "boxes", "gt_labels": "categories"}
+        ),
     )
     cfg.deeplake_dataloader_type = "c++"
     cfg.deeplake_metrics_format = "COCO"
@@ -245,14 +296,17 @@ def get_test_config(mmdet_path):
     cfg.checkpoint_config = dict(interval=12)
     cfg.seed = None
     cfg.device = "cpu"
-    cfg.runner = dict(type='EpochBasedRunner', max_epochs=10)
+    cfg.runner = dict(type="EpochBasedRunner", max_epochs=10)
     return cfg
 
 
-@pytest.mark.skipif(sys.platform != "linux", reason="MMDet is installed on CI only for linux")
+@pytest.mark.skipif(
+    sys.platform != "linux", reason="MMDet is installed on CI only for linux"
+)
 def test_mmdet(mmdet_path):
     import mmcv
     from deeplake.integrations import mmdet
+
     cfg = get_test_config(mmdet_path)
     num_classes = 80
     ds_train = dp.load("hub://activeloop/coco_train")[:100]
@@ -261,4 +315,3 @@ def test_mmdet(mmdet_path):
     model = mmdet.build_detector(cfg.model)
     mmcv.mkdir_or_exist(os.path.abspath(cfg.work_dir))
     mmdet.train_detector(model, cfg, ds_train=ds_train, ds_val=ds_val)
-

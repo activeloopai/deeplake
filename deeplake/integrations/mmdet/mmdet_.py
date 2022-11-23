@@ -934,7 +934,6 @@ def _train_detector(
 
     cfg = compat_cfg(cfg)
 
-
     if ds_train is None:
         ds_train = load_ds_from_cfg(cfg.data.train)
         ds_train_tensors = cfg.data.train.get("deeplake_tensors", {})
@@ -945,10 +944,8 @@ def _train_detector(
                 "A Deep Lake dataset was specified in the cfg as well as inthe dataset input to train_detector. The dataset input to train_detector will be used in the workflow."
             )
 
-
     eval_cfg = cfg.get("evaluation", {})
     dl_impl = cfg.get("deeplake_dataloader_type", "auto").lower()
-
 
     # TODO: check whether dataset is actually supported by enterprise dataloader if c++
     if dl_impl == "auto":
@@ -1032,7 +1029,6 @@ def _train_detector(
     else:
         model = build_dp(model, cfg.device, device_ids=cfg.gpu_ids)
 
-
     data_loader = build_dataloader(
         ds_train,  # TO DO: convert it to for loop if we will suport concatting several datasets
         train_images_tensor,
@@ -1043,8 +1039,6 @@ def _train_detector(
         implementation=dl_impl,
         **train_loader_cfg,
     )
-
-
 
     # build optimizer
     auto_scale_lr(cfg, distributed, logger)

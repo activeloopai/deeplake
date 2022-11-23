@@ -91,10 +91,12 @@ class DeepLakeDataLoader(DataLoader):
         self._buffer_size = _buffer_size
         self._decode_method = _decode_method
         self._world_size = _world_size
-    
+
     def __len__(self):
         round_fn = math.floor if self._drop_last else math.ceil
-        return round_fn(len(self.dataset) / ((self._batch_size or 1) * self._world_size))
+        return round_fn(
+            len(self.dataset) / ((self._batch_size or 1) * self._world_size)
+        )
 
     def batch(self, batch_size: int, drop_last: bool = False):
         """Returns a batched :class:`DeepLakeDataLoader` object.
