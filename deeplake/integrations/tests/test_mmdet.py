@@ -21,7 +21,8 @@ def load_pickle_file(pickle_file):
 
 
 @pytest.mark.skipif(
-    sys.platform != "linux", reason="MMDet is installed on CI only for linux"
+    sys.platform != "linux" or sys.version_info < (3, 7),
+    reason="MMDet is installed on CI only for linux and python version >= 3.7.",
 )
 def test_check_unused_dataset_fields():
     from deeplake.integrations.mmdet import mmdet_utils
@@ -39,7 +40,8 @@ def test_check_unused_dataset_fields():
 
 
 @pytest.mark.skipif(
-    sys.platform != "linux", reason="MMDet is installed on CI only for linux"
+    sys.platform != "linux" or sys.version_info < (3, 7),
+    reason="MMDet is installed on CI only for linux and python version >= 3.7.",
 )
 def test_check_unsupported_train_pipeline_fields():
     from deeplake.integrations.mmdet import mmdet_utils
@@ -92,7 +94,8 @@ def test_check_unsupported_train_pipeline_fields():
 
 
 @pytest.mark.skipif(
-    sys.platform != "linux", reason="MMDet is installed on CI only for linux"
+    sys.platform != "linux" or sys.version_info < (3, 7),
+    reason="MMDet is installed on CI only for linux and python version >= 3.7.",
 )
 def test_check_dataset_augmentation_formats():
     from deeplake.integrations.mmdet import mmdet_utils
@@ -105,7 +108,8 @@ def test_check_dataset_augmentation_formats():
 
 
 @pytest.mark.skipif(
-    sys.platform != "linux", reason="MMDet is installed on CI only for linux"
+    sys.platform != "linux" or sys.version_info < (3, 7),
+    reason="MMDet is installed on CI only for linux and python version >= 3.7.",
 )
 def test_coco_to_pascal_format():
     from deeplake.integrations.mmdet import mmdet_
@@ -124,7 +128,8 @@ def test_coco_to_pascal_format():
 
 
 @pytest.mark.skipif(
-    sys.platform != "linux", reason="MMDet is installed on CI only for linux"
+    sys.platform != "linux" or sys.version_info < (3, 7),
+    reason="MMDet is installed on CI only for linux and python version >= 3.7.",
 )
 def test_yolo_to_pascal_format():
     from deeplake.integrations.mmdet import mmdet_
@@ -144,7 +149,8 @@ def test_yolo_to_pascal_format():
 
 
 @pytest.mark.skipif(
-    sys.platform != "linux", reason="MMDet is installed on CI only for linux"
+    sys.platform != "linux" or sys.version_info < (3, 7),
+    reason="MMDet is installed on CI only for linux and python version >= 3.7.",
 )
 def test_pascal_to_pascal_format():
     from deeplake.integrations.mmdet import mmdet_
@@ -164,7 +170,8 @@ def test_pascal_to_pascal_format():
 
 
 @pytest.mark.skipif(
-    sys.platform != "linux", reason="MMDet is installed on CI only for linux"
+    sys.platform != "linux" or sys.version_info < (3, 7),
+    reason="MMDet is installed on CI only for linux and python version >= 3.7.",
 )
 def test_pascal_to_coco_format():
     from deeplake.integrations.mmdet import mmdet_
@@ -183,7 +190,8 @@ def test_pascal_to_coco_format():
 
 
 @pytest.mark.skipif(
-    sys.platform != "linux", reason="MMDet is installed on CI only for linux"
+    sys.platform != "linux" or sys.version_info < (3, 7),
+    reason="MMDet is installed on CI only for linux and python version >= 3.7.",
 )
 def test_yolo_to_coco_format():
     from deeplake.integrations.mmdet import mmdet_
@@ -202,7 +210,8 @@ def test_yolo_to_coco_format():
 
 
 @pytest.mark.skipif(
-    sys.platform != "linux", reason="MMDet is installed on CI only for linux"
+    sys.platform != "linux" or sys.version_info < (3, 7),
+    reason="MMDet is installed on CI only for linux and python version >= 3.7.",
 )
 def test_coco_to_coco_format():
     from deeplake.integrations.mmdet import mmdet_
@@ -301,7 +310,8 @@ def get_test_config(mmdet_path):
 
 
 @pytest.mark.skipif(
-    sys.platform != "linux", reason="MMDet is installed on CI only for linux"
+    sys.platform != "linux" or sys.version_info < (3, 7),
+    reason="MMDet is installed on CI only for linux and python version >= 3.7.",
 )
 def test_mmdet(mmdet_path):
     import mmcv
