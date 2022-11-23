@@ -319,7 +319,7 @@ def test_mmdet(mmdet_path):
     cfg = get_test_config(mmdet_path)
     num_classes = 80
     ds_train = dp.load("hub://activeloop/coco_train")[:100]
-    ds_val = dp.load("hub://activeloop-test/coco-val")[:100]
+    ds_val = dp.load("hub://activeloop/coco-val")[:100]
     cfg.model.bbox_head.num_classes = num_classes
     model = mmdet.build_detector(cfg.model)
     mmcv.mkdir_or_exist(os.path.abspath(cfg.work_dir))
