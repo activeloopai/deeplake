@@ -14,10 +14,13 @@ from deeplake.util.storage import storage_provider_from_path
 from deeplake.util.path import convert_pathlib_to_string_if_needed
 
 
-def coco_2_deeplake(coco_key, value, tensor_meta, category_lookup=None):
+def coco_2_deeplake(coco_key, value, destination_tensor, category_lookup=None):
     """Takes a key-value pair from coco data and converts it to data in Deep Lake format
     as per the key types in coco and array shape rules in Deep Lake"""
-    dtype = tensor_meta.dtype
+    dtype = destination_tensor.meta.dtype
+
+    if isinstance(value, list) and len(value) == 0:
+        raise Exception("Empty value for key: " + coco_key)
 
     if coco_key == "bbox":
         assert len(value) == 4
@@ -31,6 +34,7 @@ def coco_2_deeplake(coco_key, value, tensor_meta, category_lookup=None):
             return np.array(value[0], dtype=dtype).reshape((len(value[0]) // 2), 2)
         except KeyError:
             return np.array([[0, 0]], dtype=dtype)
+
 
     elif coco_key == "category_id":
         if category_lookup is None:
