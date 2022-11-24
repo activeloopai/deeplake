@@ -1305,15 +1305,17 @@ class ChunkEngine:
     def is_tensor_hidden(self) -> bool:
         """function to check is the tensors that chunk_engine belongs to is hidden"""
         if self.tensor_meta.name.startswith("_"):
-            return self.tensor_meta.name.endswith(
-                "_shape"
-            ) or self.tensor_meta.name.endswith("_id")
+            return (
+                self.tensor_meta.name.endswith("_shape")
+                or self.tensor_meta.name.endswith("_id")
+                or self.tensor_meta.name.endswith("_info")
+            )
         return False
 
     def _check_rechunk(self, chunk: BaseChunk, chunk_row: int):
         """function to check if there is a need to re-chunk the current one"""
 
-        if self.tensor_meta and self.is_tensor_hidden():
+        if self.is_tensor_hidden():
             return
         if (
             chunk.num_data_bytes < RANDOM_MINIMAL_CHUNK_SIZE
