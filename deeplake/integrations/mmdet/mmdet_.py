@@ -941,7 +941,7 @@ def _train_detector(
     batch_size = cfg.data.get("samples_per_gpu", 256)
     num_workers = cfg.data.get("workers_per_gpu", 1)
 
-    cfg = compat_cfg(cfg)
+    # cfg = compat_cfg(cfg)
 
     if ds_train is None:
         ds_train = load_ds_from_cfg(cfg.data.train)
