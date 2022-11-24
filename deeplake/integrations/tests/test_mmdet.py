@@ -1,3 +1,6 @@
+raise Exception()
+
+
 import sys
 import deeplake as dp
 import os
