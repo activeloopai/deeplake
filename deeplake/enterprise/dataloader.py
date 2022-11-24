@@ -113,8 +113,6 @@ class DeepLakeDataLoader:
             ValueError: If .shuffle() has already been called.
             ValueError: If dataset is view and shuffle is True
         """
-        if shuffle and isinstance(self.dataset.index.values[0].value, tuple):
-            raise ValueError("Can't shuffle dataset view")
         if self._shuffle is not None:
             raise ValueError("shuffle is already set")
         all_vars = self.__dict__.copy()
@@ -123,7 +121,8 @@ class DeepLakeDataLoader:
         if shuffle:
             schedule = create_fetching_schedule(self.dataset, self._primary_tensor_name)
             if schedule is not None:
-                all_vars["dataset"] = self.dataset[schedule]
+                ds = self.dataset.no_view_dataset
+                all_vars["dataset"] = ds[schedule]
         return self.__class__(**all_vars)
 
     def transform(

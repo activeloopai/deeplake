@@ -1,3 +1,4 @@
+from collections import defaultdict
 import torch
 from typing import Optional
 import numpy as np
@@ -52,9 +53,11 @@ def create_fetching_schedule(dataset, primary_tensor_name):
         start = slice_.start if slice_.start is not None else 0
         stop = slice_.stop if slice_.stop is not None else dataset.min_len
         step = slice_.step if slice_.step is not None else 1
-        index_set = set(range(start, stop, step))
+        index_struct = set(range(start, stop, step))
     elif isinstance(slice_, (list, tuple)):
-        index_set = set(slice_)
+        index_struct = defaultdict(lambda: 0)
+        for item in slice_:
+            index_struct[item] += 1
     primary_tensor = dataset[primary_tensor_name]
     chunk_id_encoder: ChunkIdEncoder = primary_tensor.chunk_engine.chunk_id_encoder
     enc_array = chunk_id_encoder.array
@@ -68,7 +71,15 @@ def create_fetching_schedule(dataset, primary_tensor_name):
         indexes = np.arange(start_index, last_index)
         schedule.extend(indexes)
 
-    schedule = [idx for idx in schedule if idx in index_set]
+    if isinstance(index_struct, set):
+        schedule = [idx for idx in schedule if idx in index_struct]
+    elif isinstance(index_struct, dict):
+        nested_schedule = [
+            [idx] * index_struct[idx] for idx in schedule if idx in index_struct
+        ]
+        schedule = []
+        for indexes_list in nested_schedule:
+            schedule.extend(indexes_list)
     return schedule
 
 
