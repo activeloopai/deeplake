@@ -7,14 +7,16 @@ from typing import Tuple, List
 from pathlib import Path
 from collections import defaultdict
 
+import deeplake
 from deeplake.htype import HTYPE_SUPPORTED_COMPRESSIONS
 from deeplake.util.exceptions import IngestionError
 from deeplake.client.log import logger
 from deeplake.util.storage import storage_provider_from_path
 from deeplake.util.path import convert_pathlib_to_string_if_needed
+from deeplake.core.tensor import Tensor
 
 
-def coco_2_deeplake(coco_key, value, destination_tensor, category_lookup=None):
+def coco_2_deeplake(coco_key, value, destination_tensor: Tensor, category_lookup=None):
     """Takes a key-value pair from coco data and converts it to data in Deep Lake format
     as per the key types in coco and array shape rules in Deep Lake"""
     dtype = destination_tensor.meta.dtype
@@ -34,7 +36,6 @@ def coco_2_deeplake(coco_key, value, destination_tensor, category_lookup=None):
             return np.array(value[0], dtype=dtype).reshape((len(value[0]) // 2), 2)
         except KeyError:
             return np.array([[0, 0]], dtype=dtype)
-
 
     elif coco_key == "category_id":
         if category_lookup is None:
@@ -117,6 +118,13 @@ class CocoImages:
             convert_pathlib_to_string_if_needed(self.root), creds=creds
         )
 
+        (
+            self.supported_images,
+            self.invalid_files,
+            self.extensions,
+            self.most_frequent_extension,
+        ) = self.parse_images()
+
     def parse_images(self) -> Tuple[List[str], List[str], List[str], str]:
         """Parses the given directory to generate a list of image paths.
         Returns:
@@ -151,3 +159,9 @@ class CocoImages:
 
     def get_full_path(self, image_name: str) -> str:
         return os.path.join(self.root, image_name)
+
+    def get_image(self, image: str, destination_tensor: Tensor, creds_key: str):
+        if destination_tensor.is_link:
+            return deeplake.link(os.path.join(self.root, image), creds_key=creds_key)
+
+        return deeplake.read(os.path.join(self.root, image), storage=self.provider)

@@ -30,7 +30,7 @@ class CocoDataset(UnstructuredDataset):
         file_to_group_mapping: Dict = {},
         ignore_one_group: bool = False,
         ignore_keys: Union[str, List[str]] = [],
-        image_settings: Dict = {},
+        image_settings: Optional[Dict] = None,
         creds: Optional[Dict] = None,
     ):
         super().__init__(source)
@@ -53,7 +53,10 @@ class CocoDataset(UnstructuredDataset):
         self._validate_group_mapping()
 
         self.ignore_keys = ignore_keys
-        self.image_settings = image_settings
+        self.image_settings = (
+            image_settings if image_settings is not None else {"name": "images"}
+        )
+        self._validate_image_settings()
 
     def _validate_key_mapping(self):
         if len(self.key_to_tensor.values()) != len(set(self.key_to_tensor.values())):
@@ -63,14 +66,17 @@ class CocoDataset(UnstructuredDataset):
         if len(self.file_to_group.values()) != len(set(self.file_to_group.values())):
             raise IngestionError("File names must be mapped to unique group names.")
 
+    def _validate_image_settings(self):
+        if "name" not in self.image_settings:
+            raise IngestionError(
+                "Image settings must contain a name for the image tensor."
+            )
+
     def _parse_annotation_tensors(
         self,
-        ds: Dataset,
+        structure: DatasetStructure,
         inspect_limit: int = 1000000,
-    ) -> DatasetStructure:
-        """Return all the tensors and groups that should be created for this dataset"""
-        dataset_structure = DatasetStructure(ignore_one_group=self.ignore_one_group)
-
+    ):
         for ann_file in self.annotation_files:
             coco_file = CocoAnnotation(file_path=ann_file, creds=self.creds)
             annotations = coco_file.annotations
@@ -83,11 +89,7 @@ class CocoDataset(UnstructuredDataset):
             for key in keys_in_group:
                 if key in self.ignore_keys:
                     continue
-
                 tensor_name = self.key_to_tensor.get(key, key)
-
-                if group_name + "/" + tensor_name in ds:
-                    continue
 
                 tensor = TensorStructure(
                     name=tensor_name,
@@ -97,80 +99,67 @@ class CocoDataset(UnstructuredDataset):
                 )
                 group.add_item(tensor)
 
-            dataset_structure.add_group(group)
+            structure.add_group(group)
 
-        return dataset_structure
-
-    def _parse_images_tensor(self, sample_compression: str):
+    def _parse_images_tensor(self, structure: DatasetStructure):
         img_config = DEFAULT_IMAGE_TENSOR_PARAMS.copy()
 
         if self.image_settings.get("linked", False):
             img_config["htype"] = "link[image]"
 
         img_config["sample_compression"] = self.image_settings.get(
-            "sample_compression", sample_compression
+            "sample_compression", self.images.most_frequent_extension
         )
         name = self.image_settings.get("name", "images")
 
-        return TensorStructure(name=name, primary=True, params=img_config)
+        structure.add_first_level_tensor(
+            TensorStructure(name=name, primary=True, params=img_config)
+        )
+
+    def prepare_structure(self, inspect_limit: int = 1000000) -> DatasetStructure:
+        structure = DatasetStructure(ignore_one_group=self.ignore_one_group)
+        self._parse_annotation_tensors(structure, inspect_limit=inspect_limit)
+        self._parse_images_tensor(structure)
+
+        return structure
 
     def process_single_image(
         self,
         img_file,
-        ds,
+        ds: Dataset,
         image_name_to_id,
         id_2_label,
         coco_file,
-        tensors,
         group_prefix,
-        image,
     ):
         img_id = image_name_to_id[img_file]
         matching_anns = coco_file.get_annotations_for_image(img_id)
-        values = {group_prefix + "/" + t.name: [] for t in tensors}
+        group_tensors = ds[group_prefix].tensors if group_prefix else ds.tensors
+        values = {t.key: [] for t in group_tensors.values()}
+        image_tensor = self.image_settings.get("name")
 
-        if self.image_settings.get("linked", False):
-            values[image.name] = deeplake.link(
-                self.images.get_full_path(img_file),
-                self.image_settings.get("creds_key", None),
-            )
-        else:
-            values[image.name] = deeplake.read(self.images.get_full_path(img_file))
+        values[image_tensor] = self.images.get_image(
+            img_file,
+            destination_tensor=ds[image_tensor],
+            creds_key=self.image_settings.get("creds_key"),
+        )
 
-        # deeplake.link(), make sure creds keys are passed
         for ann in matching_anns:
-            for tensor in tensors:
-                full_key = group_prefix + "/" + tensor.name
-                coco_key = self.tensor_to_key.get(tensor.name, tensor.name)
+            for tensor_name, tensor in group_tensors.items():
+                coco_key = self.tensor_to_key.get(tensor_name, tensor_name)
                 value = coco_2_deeplake(
                     coco_key,
                     ann[coco_key],
-                    ds[full_key],
+                    ds[tensor.key],
                     category_lookup=id_2_label,
                 )
 
-                values[full_key].append(value)
+                values[tensor.key].append(value)
 
         return values
 
     def structure(self, ds: Dataset, progressbar: bool = True):
-        (
-            img_files,
-            _,
-            _,
-            most_common_compression,
-        ) = self.images.parse_images()
-
-        if "sample_compression" not in self.image_settings.keys():
-            self.image_settings["sample_compression"] = most_common_compression
-
-        parsed = self._parse_annotation_tensors(ds)
-        images_tensor = self._parse_images_tensor(
-            sample_compression=most_common_compression
-        )
-
-        parsed.add_first_level_tensor(images_tensor)
-        parsed.create_structure(ds)
+        img_files = self.images.supported_images
 
         with ds:
             for ann_file in self.annotation_files:
@@ -178,16 +167,13 @@ class CocoDataset(UnstructuredDataset):
                 id_2_label_mapping = coco_file.id_to_label_mapping
                 image_name_to_id = coco_file.image_name_to_id_mapping
 
-                group = parsed[
-                    self.file_to_group.get(Path(ann_file).stem, Path(ann_file).stem)
-                ]
-                tensors = group.tensors
+                group_prefix = self.file_to_group.get(
+                    Path(ann_file).stem, Path(ann_file).stem
+                )
 
                 # Get the object to which data will be appended. We need to know if it's first-level tensor, or a group
-                if self.ignore_one_group and len(parsed.structure) == 1:
+                if self.ignore_one_group and len(ds.groups) == 1:
                     group_prefix = ""
-                else:
-                    group_prefix = group.name
 
                 @deeplake.compute
                 def process_annotations(image, _, values):
@@ -198,9 +184,7 @@ class CocoDataset(UnstructuredDataset):
                             image_name_to_id,
                             id_2_label_mapping,
                             coco_file,
-                            tensors,
                             group_prefix,
-                            images_tensor,
                         )
                     )
 

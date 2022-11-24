@@ -976,9 +976,10 @@ class dataset:
         file_to_group_mapping: Dict = {},
         ignore_one_group: bool = False,
         ignore_keys: List[str] = [],
-        image_settings: Dict = {},
+        image_settings: Optional[Dict] = None,
         src_creds: Optional[Dict] = None,
         dest_creds: Optional[Dict] = None,
+        inspect_limit: int = 1000000,
         progressbar: bool = True,
         **dataset_kwargs,
     ) -> Dataset:
@@ -1027,6 +1028,8 @@ class dataset:
             image_settings=image_settings,
             creds=src_creds,
         )
+        structure = unstructured.prepare_structure(inspect_limit)
+        structure.create_missing(ds)
 
         unstructured.structure(
             ds,

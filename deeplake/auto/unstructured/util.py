@@ -1,7 +1,6 @@
 from typing import Optional, Dict, List, Union
 
 from deeplake.core.dataset import Dataset
-from deeplake.core.tensor import Tensor
 
 
 class TensorStructure:
@@ -15,8 +14,12 @@ class TensorStructure:
         self.params = params if params is not None else dict()
         self.primary = primary
 
-    def create(self, ds: Union[Dataset, Tensor]):
+    def create(self, ds: Dataset):
         ds.create_tensor(self.name, **self.params)
+
+    def create_missing(self, ds: Dataset):
+        if self.name not in ds.tensors:
+            self.create(ds)
 
 
 class GroupStructure:
@@ -39,11 +42,18 @@ class GroupStructure:
     def add_item(self, item: Union[TensorStructure, "GroupStructure"]):
         self.items.append(item)
 
-    def create(self, ds: Union[Dataset, Tensor]):
+    def create(self, ds: Dataset):
         ds.create_group(self.name)
 
         for item in self.items:
             item.create(ds=ds[self.name])
+
+    def create_missing(self, ds: Dataset):
+        if self.name not in ds.groups:
+            ds.create_group(self.name)
+
+        for item in self.items:
+            item.create_missing(ds=ds[self.name])
 
 
 class DatasetStructure:
@@ -75,7 +85,7 @@ class DatasetStructure:
     def tensors(self):
         return [t for t in self.structure if isinstance(t, TensorStructure)]
 
-    def create_structure(self, ds: Dataset):
+    def create_full(self, ds: Dataset):
         first_level_tensors = self.tensors
         groups = self.groups
 
@@ -89,3 +99,18 @@ class DatasetStructure:
 
         for group in groups:
             group.create(ds)
+
+    def create_missing(self, ds: Dataset):
+        first_level_tensors = self.tensors
+        groups = self.groups
+
+        for tensor in first_level_tensors:
+            tensor.create_missing(ds)
+
+        if self.ignore_one_group and len(groups) == 1:
+            for tensor in groups[0].tensors:
+                tensor.create_missing(ds)
+            return
+
+        for group in groups:
+            group.create_missing(ds)
