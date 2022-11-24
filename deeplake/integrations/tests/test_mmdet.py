@@ -272,7 +272,7 @@ def get_test_config(mmdet_path):
         ),
     ]
     cfg.data = dict(
-        # train_dataloader={"shuffle": False},
+        train_dataloader={"shuffle": False},
         samples_per_gpu=8,
         workers_per_gpu=8,
         train=dict(
