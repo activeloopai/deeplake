@@ -125,6 +125,7 @@ from deeplake.hooks import dataset_read
 from itertools import chain
 import warnings
 import jwt
+from deeplake.integrations.pytorch.dataset import TorchDataset
 
 
 _LOCKABLE_STORAGES = {S3Provider, GCSProvider}
@@ -1481,10 +1482,19 @@ class Dataset:
         return_index: bool = True,
         pad_tensors: bool = False,
         transform_kwargs: Optional[Dict[str, Any]] = None,
+<<<<<<< Updated upstream
+=======
+        torch_dataset=TorchDataset,
+        decode_method: Optional[Dict[str, str]] = None,
+        *args,
+        **kwargs,
+>>>>>>> Stashed changes
     ):
         """Converts the dataset into a pytorch Dataloader.
 
         Args:
+            *args: Additional args to be passed to torch_dataset
+            **kwargs: Additional kwargs to be passed to torch_dataset
             transform (Callable, Optional): Transformation function to be applied to each sample.
             tensors (List, Optional): Optionally provide a list of tensor names in the ordering that your training script expects. For example, if you have a dataset that has "image" and "label" tensors, if `tensors=["image", "label"]`, your training script should expect each batch will be provided as a tuple of (image, label).
             tobytes (bool): If ``True``, samples will not be decompressed and their raw bytes will be returned instead of numpy arrays. Can also be a list of tensors, in which case those tensors alone will not be decompressed.
@@ -1503,7 +1513,16 @@ class Dataset:
             use_progress_bar (bool): If ``True``, tqdm will be wrapped around the returned dataloader. Default value is True.
             return_index (bool): If ``True``, the returned dataloader will have a key "index" that contains the index of the sample(s) in the original dataset. Default value is True.
             pad_tensors (bool): If ``True``, shorter tensors will be padded to the length of the longest tensor. Default value is False.
-            transform_kwargs (optional, Dict[str, Any]): Additional kwargs to be passed to `transform`.
+            transform_kwargs (optional, Dict[str, Any]): Additional kwargs to be passed to ``transform``.
+            torch_dataset (TorchDataset): dataset type that going to be used in dataloader
+            decode_method (Dict[str, str], Optional): A dictionary of decode methods for each tensor. Defaults to ``None``.
+
+                - Supported decode methods are:
+
+                    :'numpy': Default behaviour. Returns samples as numpy arrays.
+                    :'tobytes': Returns raw bytes of the samples.
+                    :'pil': Returns samples as PIL images. Especially useful when transformation use torchvision transforms, that
+                            require PIL images as input. Only supported for tensors with ``sample_compression='jpeg'`` or ``'png'``.
 
         Returns:
             A torch.utils.data.DataLoader object.
@@ -1522,6 +1541,7 @@ class Dataset:
 
         dataloader = to_pytorch(
             self,
+            *args,
             transform=transform,
             tensors=tensors,
             tobytes=tobytes,
@@ -1535,6 +1555,12 @@ class Dataset:
             use_local_cache=use_local_cache,
             return_index=return_index,
             pad_tensors=pad_tensors,
+<<<<<<< Updated upstream
+=======
+            torch_dataset=torch_dataset,
+            decode_method=decode_method,
+            **kwargs,
+>>>>>>> Stashed changes
         )
 
         if use_progress_bar:

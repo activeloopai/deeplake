@@ -11,16 +11,29 @@ from deeplake.experimental.libdeeplake_query import query, sample_by
 from deeplake.integrations.pytorch.common import (
     PytorchTransformFunction,
     check_tensors,
-    remove_intersections,
+    validate_decode_method,
 )
 from deeplake.util.bugout_reporter import deeplake_reporter
 from deeplake.util.dataset import map_tensor_keys
 from functools import partial
 import importlib
+import numpy as np
+from torch.utils.data import DataLoader
+import torch
+
+import math
 
 
 # Load lazy to avoid cycylic import.
 INDRA_LOADER = None
+
+
+def indra_available() -> bool:
+    try:
+        import_indra_loader()
+        return True
+    except ImportError:
+        return False
 
 
 def import_indra_loader():
@@ -39,7 +52,7 @@ def import_indra_loader():
         raise_indra_installation_error(e)
 
 
-class DeepLakeDataLoader:
+class DeepLakeDataLoader(DataLoader):
     def __init__(
         self,
         dataset,
@@ -57,10 +70,13 @@ class DeepLakeDataLoader:
         _return_index=None,
         _primary_tensor_name=None,
         _buffer_size=None,
-        _tobytes=None,
+        _orig_dataset=None,
+        _decode_method=None,
+        _world_size=1,
     ):
         import_indra_loader()
         self.dataset = dataset
+        self._orig_dataset = _orig_dataset or dataset
         self._batch_size = _batch_size
         self._shuffle = _shuffle
         self._num_threads = _num_threads
@@ -75,7 +91,14 @@ class DeepLakeDataLoader:
         self._return_index = _return_index
         self._primary_tensor_name = _primary_tensor_name or find_primary_tensor(dataset)
         self._buffer_size = _buffer_size
-        self._tobytes = _tobytes
+        self._decode_method = _decode_method
+        self._world_size = _world_size
+
+    def __len__(self):
+        round_fn = math.floor if self._drop_last else math.ceil
+        return round_fn(
+            len(self.dataset) / ((self._batch_size or 1) * self._world_size)
+        )
 
     def batch(self, batch_size: int, drop_last: bool = False):
         """Returns a batched :class:`DeepLakeDataLoader` object.
@@ -112,7 +135,9 @@ class DeepLakeDataLoader:
             ValueError: If .shuffle() has already been called.
             ValueError: If dataset is view and shuffle is True
         """
-        if shuffle and isinstance(self.dataset.index.values[0].value, tuple):
+        if shuffle and isinstance(
+            self.dataset.index.values[0].value, tuple  # type: ignore[attr-defined]
+        ):
             raise ValueError("Can't shuffle dataset view")
         if self._shuffle is not None:
             raise ValueError("shuffle is already set")
@@ -122,7 +147,8 @@ class DeepLakeDataLoader:
         if shuffle:
             schedule = create_fetching_schedule(self.dataset, self._primary_tensor_name)
             if schedule is not None:
-                all_vars["dataset"] = self.dataset[schedule]
+                ds = self.dataset.no_view_dataset  # type: ignore
+                all_vars["dataset"] = ds[schedule]
         return self.__class__(**all_vars)
 
     def transform(
@@ -252,12 +278,14 @@ class DeepLakeDataLoader:
         all_vars = self.__dict__.copy()
         all_vars["_num_workers"] = num_workers
         all_vars["_collate"] = collate_fn
-        handle_tensors_and_tobytes(tensors, tobytes, self.dataset, all_vars)
+        validate_tensors(tensors, tobytes, self.dataset, all_vars)
         all_vars["_num_threads"] = num_threads
         all_vars["_prefetch_factor"] = prefetch_factor
         all_vars["_distributed"] = distributed
         all_vars["_return_index"] = return_index
         all_vars["_mode"] = "pytorch"
+        if distributed:
+            all_vars["_world_size"] = torch.distributed.get_world_size()
         return self.__class__(**all_vars)
 
     @deeplake_reporter.record_call
@@ -336,8 +364,12 @@ class DeepLakeDataLoader:
         else:
             raw_tensors = self._tobytes
 
-        compressed_tensors, raw_tensors = remove_intersections(
-            compressed_tensors, raw_tensors
+        tensors = self._tensors or map_tensor_keys(self._orig_dataset, None)
+        dataset = dataset_to_libdeeplake(self._orig_dataset)
+
+        jpeg_png_compressed_tensors = check_tensors(self._orig_dataset, tensors)
+        raw_tensors, compressed_tensors = validate_decode_method(
+            self._decode_method, tensors, jpeg_png_compressed_tensors
         )
         return iter(
             INDRA_LOADER(
@@ -432,7 +464,7 @@ def dataloader(dataset) -> DeepLakeDataLoader:
     return DeepLakeDataLoader(dataset)
 
 
-def handle_tensors_and_tobytes(tensors, tobytes, dataset, all_vars):
+def validate_tensors(tensors, dataset, all_vars):
     existing_tensors = all_vars["_tensors"]
     if tensors:
         if "index" in tensors:
@@ -445,11 +477,3 @@ def handle_tensors_and_tobytes(tensors, tobytes, dataset, all_vars):
                 "Tensors have already been specified by passing a dictionary to .transform() method"
             )
     all_vars["_tensors"] = existing_tensors or tensors
-    if isinstance(tobytes, Sequence):
-        tobytes = map_tensor_keys(dataset, tobytes)
-        if tobytes and all_vars["_tensors"]:
-            tensor_set = set(all_vars["_tensors"])
-            for tensor in tobytes:
-                if tensor not in tensor_set:
-                    raise ValueError(f"tobytes tensor {tensor} not found in tensors.")
-    all_vars["_tobytes"] = tobytes
