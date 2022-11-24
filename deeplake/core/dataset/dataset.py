@@ -3639,6 +3639,8 @@ class Dataset:
         Raises:
             IndexError: If the index is out of range.
         """
+        self._initial_autoflush.append(self.storage.autoflush)
+        self.storage.autoflush = False
         max_len = max((t.num_samples for t in self.tensors.values()), default=0)
         if max_len == 0:
             raise IndexError("Can't pop from empty dataset.")
@@ -3656,6 +3658,8 @@ class Dataset:
         for tensor in self.tensors.values():
             if tensor.num_samples > index:
                 tensor.pop(index)
+
+        self.storage.autoflush = self._initial_autoflush.pop()
 
     @property
     def is_view(self) -> bool:
