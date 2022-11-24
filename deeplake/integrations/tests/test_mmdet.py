@@ -24,6 +24,7 @@ def load_pickle_file(pickle_file):
     reason="MMDet is installed on CI only for linux and python version >= 3.7.",
 )
 def test_check_unused_dataset_fields():
+    import mmcv  # type: ignore
     from deeplake.integrations.mmdet import mmdet_utils
 
     cfg = mmcv.utils.config.ConfigDict()
@@ -43,50 +44,53 @@ def test_check_unused_dataset_fields():
     reason="MMDet is installed on CI only for linux and python version >= 3.7.",
 )
 def test_check_unsupported_train_pipeline_fields():
+    import mmcv  # type: ignore
     from deeplake.integrations.mmdet import mmdet_utils
 
     cfg = mmcv.utils.config.ConfigDict()
-    cfg.train_pipeline = [dict(type="LoadImageFromFile")]
+    cfg.data = mmcv.utils.config.ConfigDict()
+    cfg.data.train = mmcv.utils.config.ConfigDict()
+    cfg.data.train.pipeline = [dict(type="LoadImageFromFile")]
 
     with pytest.warns(UserWarning):
         mmdet_utils.check_unsupported_train_pipeline_fields(cfg)
 
-    cfg.train_pipeline = [dict(type="LoadAnnotations")]
+    cfg.data.train.pipeline = [dict(type="LoadAnnotations")]
 
     with pytest.warns(UserWarning):
         mmdet_utils.check_unsupported_train_pipeline_fields(cfg)
 
-    cfg.train_pipeline = [dict(type="Corrupt")]
+    cfg.data.train.pipeline = [dict(type="Corrupt")]
 
     with pytest.raises(Exception) as ex_info:
         mmdet_utils.check_unsupported_train_pipeline_fields(cfg)
 
-    cfg.train_pipeline = [dict(type="MinIoURandomCrop")]
+    cfg.data.train.pipeline = [dict(type="MinIoURandomCrop")]
 
     with pytest.raises(Exception) as ex_info:
         mmdet_utils.check_unsupported_train_pipeline_fields(cfg)
 
-    cfg.train_pipeline = [dict(type="RandomCrop")]
+    cfg.data.train.pipeline = [dict(type="RandomCrop")]
 
     with pytest.raises(Exception) as ex_info:
         mmdet_utils.check_unsupported_train_pipeline_fields(cfg)
 
-    cfg.train_pipeline = [dict(type="YOLOXHSVRandomAug")]
+    cfg.data.train.pipeline = [dict(type="YOLOXHSVRandomAug")]
 
     with pytest.raises(Exception) as ex_info:
         mmdet_utils.check_unsupported_train_pipeline_fields(cfg)
 
-    cfg.train_pipeline = [dict(type="CopyPaste")]
+    cfg.data.train.pipeline = [dict(type="CopyPaste")]
 
     with pytest.raises(Exception) as ex_info:
         mmdet_utils.check_unsupported_train_pipeline_fields(cfg)
 
-    cfg.train_pipeline = [dict(type="CutOut")]
+    cfg.data.train.pipeline = [dict(type="CutOut")]
 
     with pytest.raises(Exception) as ex_info:
         mmdet_utils.check_unsupported_train_pipeline_fields(cfg)
 
-    cfg.train_pipeline = [dict(type="Mosaic")]
+    cfg.data.train.pipeline = [dict(type="Mosaic")]
 
     with pytest.raises(Exception) as ex_info:
         mmdet_utils.check_unsupported_train_pipeline_fields(cfg)
@@ -97,6 +101,7 @@ def test_check_unsupported_train_pipeline_fields():
     reason="MMDet is installed on CI only for linux and python version >= 3.7.",
 )
 def test_check_dataset_augmentation_formats():
+    import mmcv  # type: ignore
     from deeplake.integrations.mmdet import mmdet_utils
 
     cfg = mmcv.utils.config.ConfigDict()
@@ -241,12 +246,12 @@ def get_test_config(mmdet_path):
     train_pipeline = [
         dict(type="LoadImageFromFile"),
         dict(type="LoadAnnotations", with_bbox=True),
-        dict(
-            type="Expand",
-            mean=img_norm_cfg["mean"],
-            to_rgb=img_norm_cfg["to_rgb"],
-            ratio_range=(1, 2),
-        ),
+        # dict(
+        #     type="Expand",
+        #     mean=img_norm_cfg["mean"],
+        #     to_rgb=img_norm_cfg["to_rgb"],
+        #     ratio_range=(1, 2),
+        # ),
         dict(type="Resize", img_scale=[(320, 320), (416, 416)], keep_ratio=True),
         dict(type="RandomFlip", flip_ratio=0.0),
         dict(type="PhotoMetricDistortion"),
@@ -255,6 +260,8 @@ def get_test_config(mmdet_path):
         dict(type="DefaultFormatBundle"),
         dict(type="Collect", keys=["img", "gt_bboxes", "gt_labels"]),
     ]
+    cfg.train_pipeline = train_pipeline
+
     test_pipeline = [
         dict(type="LoadImageFromFile"),
         dict(
@@ -271,10 +278,12 @@ def get_test_config(mmdet_path):
             ],
         ),
     ]
+    cfg.test_pipeline = test_pipeline
+
     cfg.data = dict(
         train_dataloader={"shuffle": False},
-        samples_per_gpu=8,
-        workers_per_gpu=8,
+        samples_per_gpu=4,
+        workers_per_gpu=2,
         train=dict(
             pipeline=train_pipeline,
             # deeplake_path="hub://activeloop/coco-train",
@@ -295,12 +304,22 @@ def get_test_config(mmdet_path):
             # },
             # deeplake_tensors = {"img": "images", "gt_bboxes": "boxes", "gt_labels": "categories"}
         ),
+        test=dict(
+            pipeline=test_pipeline,
+            # deeplake_path="hub://activeloop/coco-val",
+            # deeplake_credentials={
+            #     "username": None,
+            #     "password": None,
+            #     "token": None,
+            # },
+            # deeplake_tensors = {"img": "images", "gt_bboxes": "boxes", "gt_labels": "categories"}
+        ),
     )
     cfg.deeplake_dataloader_type = "c++"
     cfg.deeplake_metrics_format = "COCO"
     cfg.evaluation = dict(metric=["bbox"], interval=1)
     cfg.work_dir = "./mmdet_outputs"
-    cfg.log_config = dict(interval=10)
+    cfg.log_config = dict(interval=10, hooks=[dict(type="TextLoggerHook")])
     cfg.checkpoint_config = dict(interval=12)
     cfg.seed = None
     cfg.device = "cpu"
@@ -318,7 +337,7 @@ def test_mmdet(mmdet_path):
 
     cfg = get_test_config(mmdet_path)
     num_classes = 80
-    ds_train = dp.load("hub://activeloop/coco_train")[:100]
+    ds_train = dp.load("hub://activeloop/coco-train")[:100]
     ds_val = dp.load("hub://activeloop/coco-val")[:100]
     cfg.model.bbox_head.num_classes = num_classes
     model = mmdet.build_detector(cfg.model)

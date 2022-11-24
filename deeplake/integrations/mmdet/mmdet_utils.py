@@ -4,10 +4,11 @@ import pycocotools  # type: ignore
 import numpy as np
 import copy
 import itertools
-import pycocotools.mask as maskUtils
+import pycocotools.mask as maskUtils  # type: ignore
 from pycocotools import coco as pycocotools_coco  # type: ignore
 from collections import defaultdict
 import sys
+from typing import Union, Dict, List
 
 PYTHON_VERSION = sys.version_info[0]
 if PYTHON_VERSION == 2:
@@ -19,8 +20,6 @@ from mmdet.datasets import pipelines
 from deeplake.util.warnings import always_warn
 import json
 import mmcv  # type: ignore
-import os
-import tqdm  # type: ignore
 
 
 def _isArrayLike(obj):
@@ -171,12 +170,13 @@ class _COCO(pycocotools_coco.COCO):
             ids = [ann["id"] for ann in anns]
         return ids
 
-    def getCatIds(self, catNms=[], supNms=[], catIds=[]):
+    def getCatIds(self, catNms: List = [], supNms: List = [], catIds: List = []):
         """Filtering parameters.
+
         Args:
-            catNms (str): get cats for given cat names
-            supNms (str): get cats for given supercategory names
-            catIds (int): get cats for given cat ids
+            catNms (List): get cats for given cat names
+            supNms (List): get classes for given supercategory names
+            catIds (List): get cats for given cat ids
 
         Returns:
             ids (List[int]): integer array of cat ids
@@ -408,6 +408,7 @@ class COCODatasetEvaluater(mmdet_coco.CocoDataset):
             bboxes (List[numpy]): List of bboxes for every every detection for each image in numpy.
             iscrowds (List[numpy]): List of iscrowds for every every detection for each image in numpy format.
             class_names (List[str]): List of class names for every every detection for each image.
+            bbox_format (Dict[Dict[str, str]]): Dictionary contatining bbox format information.
 
         Returns:
             list[dict]: Annotation info from COCO api.
@@ -442,8 +443,8 @@ class COCODatasetEvaluater(mmdet_coco.CocoDataset):
 
 def check_unsupported_functionalities(cfg):
     check_unused_dataset_fields(cfg)
-    check_unsupported_train_pipeline_fields(cfg, pipeline="train_pipeline")
-    check_unsupported_train_pipeline_fields(cfg, pipeline="test_pipeline")
+    check_unsupported_train_pipeline_fields(cfg, mode="train")
+    check_unsupported_train_pipeline_fields(cfg, mode="val")
     check_dataset_augmentation_formats(cfg)
 
 
@@ -460,8 +461,8 @@ def check_unused_dataset_fields(cfg):
         )
 
 
-def check_unsupported_train_pipeline_fields(cfg, pipeline="train_pipeline"):
-    transforms = cfg[pipeline]
+def check_unsupported_train_pipeline_fields(cfg, mode="train"):
+    transforms = cfg.data[mode].pipeline
 
     for transform in transforms:
         transform_type = transform.get("type")

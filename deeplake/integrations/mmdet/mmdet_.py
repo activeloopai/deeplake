@@ -3,21 +3,21 @@ from collections import OrderedDict
 from typing import Callable, Optional, List, Dict
 
 from mmdet.apis.train import auto_scale_lr  # type: ignore
-from mmdet.utils import (
+from mmdet.utils import (  # type: ignore
     build_dp,
     compat_cfg,
     find_latest_checkpoint,
     get_root_logger,
-)  # type: ignore
+)
 from mmdet.core import DistEvalHook, EvalHook  # type: ignore
 from mmdet.core import build_optimizer
-from mmcv.runner import (
+from mmcv.runner import (  # type: ignore
     DistSamplerSeedHook,
     EpochBasedRunner,
     Fp16OptimizerHook,
     OptimizerHook,
     build_runner,
-)  # type: ignore
+)
 from mmdet.datasets import replace_ImageToTensor  # type: ignore
 from mmcv.utils import build_from_cfg  # type: ignore
 from mmdet.datasets.builder import PIPELINES  # type: ignore
@@ -72,6 +72,7 @@ def build_ddp(model, device, *args, **kwargs):
         device (str): device type, mlu or cuda.
         args (List): arguments to be passed to ddp_factory
         kwargs (dict): keyword arguments to be passed to ddp_factory
+
     Returns:
         :class:`nn.Module`: the module to be parallelized
 
@@ -402,6 +403,7 @@ class MMDetDataset(TorchDataset):
         """Evaluate the dataset.
 
         Args:
+            **kwargs (dict): Keyword arguments to pass to self.evaluate object
             results (list): Testing results of the dataset.
             metric (str | list[str]): Metrics to be evaluated.
             logger (logging.Logger | None | str): Logger used for printing
@@ -412,7 +414,9 @@ class MMDetDataset(TorchDataset):
             iou_thr (float | list[float]): IoU threshold. Default: 0.5.
             scale_ranges (list[tuple] | None): Scale ranges for evaluating mAP.
                 Default: None.
-            kwargs (dict): Keyword arguments to pass to self.evaluate object
+
+        Raises:
+            KeyError: if a specified metric format is not supported
 
         Returns:
             OrderedDict: Evaluation metrics dictionary
@@ -531,6 +535,7 @@ class MMDetDataset(TorchDataset):
                 the file path and the prefix of filename, e.g., "a/b/prefix".
                 If not specified, a temp file will be created. Default: None.
             kwargs (dict): Additional keyword arguments to be passed.
+
         Returns:
             tuple: (result_files, tmp_dir), result_files is a dict containing
                 the json filepaths, tmp_dir is the temporal directory created

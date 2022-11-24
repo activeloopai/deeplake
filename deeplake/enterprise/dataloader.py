@@ -143,7 +143,7 @@ class DeepLakeDataLoader(DataLoader):
         all_vars["_shuffle"] = shuffle
         all_vars["_buffer_size"] = buffer_size
         if shuffle:
-            schedule = create_fetching_schedule(self.dataset, self._primary_tensor_name)
+            schedule = create_fetching_schedule(self.dataset, self._primary_tensor_name)  # type: ignore[attr-defined]
             if schedule is not None:
                 all_vars["dataset"] = self.dataset[schedule]
         return self.__class__(**all_vars)
