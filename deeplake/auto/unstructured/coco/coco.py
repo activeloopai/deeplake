@@ -158,7 +158,7 @@ class CocoDataset(UnstructuredDataset):
 
         return values
 
-    def structure(self, ds: Dataset, progressbar: bool = True):
+    def structure(self, ds: Dataset, progressbar: bool = True, num_workers: int = 0):
         img_files = self.images.supported_images
 
         with ds:
@@ -189,10 +189,14 @@ class CocoDataset(UnstructuredDataset):
                     )
 
                 values = []
-                process_annotations(values).eval(img_files, ds)
+                process_annotations(values).eval(
+                    img_files, ds, num_workers=num_workers, progressbar=progressbar
+                )
 
                 @deeplake.compute
                 def append_annotations(s, ds):
                     ds.append(s)
 
-                append_annotations().eval(values, ds)
+                append_annotations().eval(
+                    values, ds, num_workers=num_workers, progressbar=progressbar
+                )

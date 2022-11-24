@@ -981,6 +981,7 @@ class dataset:
         dest_creds: Optional[Dict] = None,
         inspect_limit: int = 1000000,
         progressbar: bool = True,
+        num_workers: int = 0,
         **dataset_kwargs,
     ) -> Dataset:
         """Ingest images and annotations in COCO format to a Deep Lake Dataset.
@@ -1034,6 +1035,7 @@ class dataset:
         unstructured.structure(
             ds,
             progressbar,
+            num_workers,
         )
 
         return ds
