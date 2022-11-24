@@ -281,9 +281,9 @@ def get_test_config(mmdet_path):
     cfg.test_pipeline = test_pipeline
 
     cfg.data = dict(
-        # train_dataloader={"shuffle": False},
+        train_dataloader={"shuffle": False},
         samples_per_gpu=4,
-        workers_per_gpu=8,
+        workers_per_gpu=2,
         train=dict(
             pipeline=train_pipeline,
             # deeplake_path="hub://activeloop/coco-train",
@@ -323,7 +323,7 @@ def get_test_config(mmdet_path):
     cfg.checkpoint_config = dict(interval=12)
     cfg.seed = None
     cfg.device = "cpu"
-    cfg.runner = dict(type="EpochBasedRunner", max_epochs=10)
+    cfg.runner = dict(type="EpochBasedRunner", max_epochs=1)
     return cfg
 
 
