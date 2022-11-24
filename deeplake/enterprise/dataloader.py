@@ -17,11 +17,23 @@ from deeplake.util.bugout_reporter import deeplake_reporter
 from deeplake.util.dataset import map_tensor_keys
 from functools import partial
 import importlib
+from torch.utils.data import DataLoader
+import torch
 import numpy as np
+
+import math
 
 
 # Load lazy to avoid cycylic import.
 INDRA_LOADER = None
+
+
+def indra_available() -> bool:
+    try:
+        import_indra_loader()
+        return True
+    except ImportError:
+        return False
 
 
 def import_indra_loader():
@@ -40,7 +52,7 @@ def import_indra_loader():
         raise_indra_installation_error(e)
 
 
-class DeepLakeDataLoader:
+class DeepLakeDataLoader(DataLoader):
     def __init__(
         self,
         dataset,
@@ -58,12 +70,15 @@ class DeepLakeDataLoader:
         _return_index=None,
         _primary_tensor_name=None,
         _buffer_size=None,
+        _orig_dataset=None,
         _decode_method=None,
         _persistent_workers=None,
         _dataloader=None,
+		_world_size=1,
     ):
         import_indra_loader()
         self.dataset = dataset
+        self._orig_dataset = _orig_dataset or dataset
         self._batch_size = _batch_size
         self._shuffle = _shuffle
         self._num_threads = _num_threads
@@ -81,6 +96,13 @@ class DeepLakeDataLoader:
         self._decode_method = _decode_method
         self._persistent_workers = _persistent_workers
         self._dataloader = _dataloader
+		self._world_size = _world_size
+
+    def __len__(self):
+        round_fn = math.floor if self._drop_last else math.ceil
+        return round_fn(
+            len(self.dataset) / ((self._batch_size or 1) * self._world_size)
+        )
 
     def batch(self, batch_size: int, drop_last: bool = False):
         """Returns a batched :class:`DeepLakeDataLoader` object.
@@ -117,6 +139,10 @@ class DeepLakeDataLoader:
             ValueError: If .shuffle() has already been called.
             ValueError: If dataset is view and shuffle is True
         """
+        if shuffle and isinstance(
+            self.dataset.index.values[0].value, tuple  # type: ignore[attr-defined]
+        ):
+            raise ValueError("Can't shuffle dataset view")
         if self._shuffle is not None:
             raise ValueError("shuffle is already set")
         all_vars = self.__dict__.copy()
@@ -125,7 +151,7 @@ class DeepLakeDataLoader:
         if shuffle:
             schedule = create_fetching_schedule(self.dataset, self._primary_tensor_name)
             if schedule is not None:
-                ds = self.dataset.no_view_dataset
+                ds = self.dataset.no_view_dataset  # type: ignore
                 all_vars["dataset"] = ds[schedule]
         all_vars["_dataloader"] = None
         return self.__class__(**all_vars)
@@ -303,6 +329,8 @@ class DeepLakeDataLoader:
         all_vars["_mode"] = "pytorch"
         all_vars["_persistent_workers"] = persistent_workers
         all_vars["_dataloader"] = None
+		if distributed:
+            all_vars["_world_size"] = torch.distributed.get_world_size()
         return self.__class__(**all_vars)
 
     @deeplake_reporter.record_call

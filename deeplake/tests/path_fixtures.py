@@ -47,6 +47,7 @@ _GIT_CLONE_CACHE_DIR = ".test_resources"
 
 _HUB_TEST_RESOURCES_URL = "https://www.github.com/activeloopai/hub-test-resources.git"
 _PILLOW_URL = "https://www.github.com/python-pillow/Pillow.git"
+_MMDET_URL = "https://www.github.com/open-mmlab/mmdetection.git"
 
 
 def _repo_name_from_git_url(url):
@@ -363,6 +364,11 @@ def grayscale_image_paths():
         "jpeg": os.path.join(base, "hopper_gray.jpg"),
     }
     return paths
+
+
+@pytest.fixture(scope="session")
+def mmdet_path():
+    return _git_clone(_MMDET_URL)
 
 
 @pytest.fixture(scope="session")
