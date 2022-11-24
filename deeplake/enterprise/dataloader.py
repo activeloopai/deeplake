@@ -149,7 +149,8 @@ class DeepLakeDataLoader(DataLoader):
                 self.dataset, self._primary_tensor_name
             )  # type: ignore[attr-defined]
             if schedule is not None:
-                all_vars["dataset"] = self.dataset[schedule]
+                ds = self.dataset.no_view_dataset
+                all_vars["dataset"] = ds[schedule]
         return self.__class__(**all_vars)
 
     def transform(
