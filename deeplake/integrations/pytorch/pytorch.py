@@ -150,7 +150,7 @@ def dataset_to_pytorch(
         )
     else:
         return torch.utils.data.DataLoader(
-            TorchDataset(
+            torch_dataset(
                 dataset,
                 *args,
                 tensors=tensors,
