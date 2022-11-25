@@ -240,6 +240,11 @@ class DeepLakeDataLoader:
         all_vars["_dataloader"] = None
         return self.__class__(**all_vars)
 
+    def close(self):
+        """Shuts down the workers and releases the resources."""
+        if self._dataloader is not None:
+            self._dataloader.close()
+
     @deeplake_reporter.record_call
     def pytorch(
         self,
