@@ -244,6 +244,7 @@ class DeepLakeDataLoader:
         """Shuts down the workers and releases the resources."""
         if self._dataloader is not None:
             self._dataloader.close()
+            self._dataloader = None
 
     @deeplake_reporter.record_call
     def pytorch(
