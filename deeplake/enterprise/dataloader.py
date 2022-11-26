@@ -367,29 +367,27 @@ class DeepLakeDataLoader:
                 self._decode_method, tensors, jpeg_png_compressed_tensors
             )
             raw_tensors.extend(compressed_tensors)
-            self._dataloader = iter(
-                INDRA_LOADER(
-                    dataset,
-                    batch_size=self._batch_size,
-                    num_threads=self._num_threads,
-                    shuffle=self._shuffle,
-                    num_workers=self._num_workers,
-                    collate_fn=collate_fn,
-                    transform_fn=self._transform,
-                    distributed=self._distributed,
-                    prefetch_factor=self._prefetch_factor,
-                    tensors=tensors,
-                    drop_last=self._drop_last,
-                    upcast=upcast,
-                    return_index=self._return_index,
-                    primary_tensor=primary_tensor_name,
-                    buffer_size=buffer_size,
-                    raw_tensors=raw_tensors,
-                    compressed_tensors=compressed_tensors,
-                    persistent_workers=self._persistent_workers,
-                )
+            self._dataloader = INDRA_LOADER(
+                dataset,
+                batch_size=self._batch_size,
+                num_threads=self._num_threads,
+                shuffle=self._shuffle,
+                num_workers=self._num_workers,
+                collate_fn=collate_fn,
+                transform_fn=self._transform,
+                distributed=self._distributed,
+                prefetch_factor=self._prefetch_factor,
+                tensors=tensors,
+                drop_last=self._drop_last,
+                upcast=upcast,
+                return_index=self._return_index,
+                primary_tensor=primary_tensor_name,
+                buffer_size=buffer_size,
+                raw_tensors=raw_tensors,
+                compressed_tensors=compressed_tensors,
+                persistent_workers=self._persistent_workers,
             )
-        return self._dataloader
+        return iter(self._dataloader)
 
 
 def dataloader(dataset) -> DeepLakeDataLoader:
