@@ -33,12 +33,20 @@ class DatasetMeta(Meta):
 
     def __getstate__(self) -> Dict[str, Any]:
         d = super().__getstate__()
-        d["tensors"] = self.tensors
-        d["groups"] = self.groups
-        d["tensor_names"] = self.tensor_names
-        d["hidden_tensors"] = self.hidden_tensors
-        d["default_index"] = self.default_index
+        d["tensors"] = self.tensors.copy()
+        d["groups"] = self.groups.copy()
+        d["tensor_names"] = self.tensor_names.copy()
+        d["hidden_tensors"] = self.hidden_tensors.copy()
+        d["default_index"] = self.default_index.copy()
         return d
+
+    def __setstate__(self, d):
+        self.version = d["version"]
+        self.tensors = d["tensors"]
+        self.groups = d["groups"]
+        self.tensor_names = d["tensor_names"]
+        self.hidden_tensors = d["hidden_tensors"]
+        self.default_index = d["default_index"]
 
     def add_tensor(self, name, key, hidden=False):
         """Reflect addition of tensor in dataset's meta."""
