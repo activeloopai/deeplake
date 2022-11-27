@@ -1315,7 +1315,7 @@ class ChunkEngine:
     def _check_rechunk(self, chunk: BaseChunk, chunk_row: int):
         """function to check if there is a need to re-chunk the current one"""
 
-        if self.is_tensor_hidden():
+        if self.tensor_meta and self.is_tensor_hidden():
             return
         if (
             chunk.num_data_bytes < RANDOM_MINIMAL_CHUNK_SIZE
