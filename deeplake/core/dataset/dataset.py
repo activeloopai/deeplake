@@ -126,7 +126,6 @@ from deeplake.util.pretty_print import summary_dataset
 from deeplake.core.dataset.view_entry import ViewEntry
 from deeplake.hooks import dataset_read
 from itertools import chain
-from copy import deepcopy
 import warnings
 import jwt
 
