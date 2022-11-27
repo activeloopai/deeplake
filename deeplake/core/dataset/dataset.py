@@ -375,18 +375,16 @@ class Dataset:
         vs_copy = {}
         vs_copy["branch"] = version_state["branch"]
         vs_copy["branch_commit_map"] = version_state["branch_commit_map"].copy()
-        vs_copy["commit_node_map"] = {
-            key: node.copy() for key, node in version_state["commit_node_map"].items()
-        }
+        vs_copy["commit_node_map"] = version_state["commit_node_map"]
         vs_copy["commit_id"] = version_state["commit_id"]
-        vs_copy["commit_node"] = version_state["commit_node"].copy()
-        vs_copy["full_tensors"] = {
-            key: Tensor(key, self) for key in version_state["full_tensors"]
-        }
+        vs_copy["commit_node"] = version_state["commit_node"]
         vs_copy["tensor_names"] = version_state["tensor_names"].copy()
         vs_copy["meta"] = DatasetMeta()
         vs_copy["meta"].__setstate__(version_state["meta"].__getstate__())
-        return vs_copy
+        self.version_state = vs_copy
+        vs_copy["full_tensors"] = {
+            key: Tensor(key, self) for key in version_state["full_tensors"]
+        }
 
     def __getitem__(
         self,
@@ -1797,7 +1795,7 @@ class Dataset:
             self._lock(verbose=verbose)  # for ref counting
 
         if not self.is_first_load:
-            self.version_state = self._reload_version_state(self.version_state)
+            self._reload_version_state(self.version_state)
 
         if not self.is_iteration:
             group_index = self.group_index
