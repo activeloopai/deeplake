@@ -74,7 +74,7 @@ class DeepLakeDataLoader(DataLoader):
         _decode_method=None,
         _persistent_workers=None,
         _dataloader=None,
-		_world_size=1,
+        _world_size=1,
     ):
         import_indra_loader()
         self.dataset = dataset
@@ -96,7 +96,7 @@ class DeepLakeDataLoader(DataLoader):
         self._decode_method = _decode_method
         self._persistent_workers = _persistent_workers
         self._dataloader = _dataloader
-		self._world_size = _world_size
+        self._world_size = _world_size
 
     def __len__(self):
         round_fn = math.floor if self._drop_last else math.ceil
@@ -329,7 +329,7 @@ class DeepLakeDataLoader(DataLoader):
         all_vars["_mode"] = "pytorch"
         all_vars["_persistent_workers"] = persistent_workers
         all_vars["_dataloader"] = None
-		if distributed:
+        if distributed:
             all_vars["_world_size"] = torch.distributed.get_world_size()
         return self.__class__(**all_vars)
 
