@@ -389,10 +389,10 @@ class DeepLakeDataLoader(DataLoader):
             primary_tensor_name = self._primary_tensor_name
             buffer_size = self._buffer_size
 
-            tensors = self._tensors or map_tensor_keys(self._origi_dataset, None)
-            dataset = dataset_to_libdeeplake(self._origi_dataset)
+            tensors = self._tensors or map_tensor_keys(self._orig_dataset, None)
+            dataset = dataset_to_libdeeplake(self._orig_dataset)
 
-            jpeg_png_compressed_tensors = check_tensors(self._origi_dataset, tensors)
+            jpeg_png_compressed_tensors = check_tensors(self._orig_dataset, tensors)
             raw_tensors, compressed_tensors = validate_decode_method(
                 self._decode_method, tensors, jpeg_png_compressed_tensors
             )
