@@ -59,6 +59,8 @@ class DeepLakeDataLoader:
         _primary_tensor_name=None,
         _buffer_size=None,
         _decode_method=None,
+        _persistent_workers=None,
+        _dataloader=None,
     ):
         import_indra_loader()
         self.dataset = dataset
@@ -77,6 +79,8 @@ class DeepLakeDataLoader:
         self._primary_tensor_name = _primary_tensor_name or find_primary_tensor(dataset)
         self._buffer_size = _buffer_size
         self._decode_method = _decode_method
+        self._persistent_workers = _persistent_workers
+        self._dataloader = _dataloader
 
     def batch(self, batch_size: int, drop_last: bool = False):
         """Returns a batched :class:`DeepLakeDataLoader` object.
@@ -123,6 +127,7 @@ class DeepLakeDataLoader:
             if schedule is not None:
                 ds = self.dataset.no_view_dataset
                 all_vars["dataset"] = ds[schedule]
+        all_vars["_dataloader"] = None
         return self.__class__(**all_vars)
 
     def transform(
@@ -160,6 +165,7 @@ class DeepLakeDataLoader:
                 transform = partial(transform, **kwargs)
             transform = PytorchTransformFunction(composite_transform=transform)
         all_vars["_transform"] = transform
+        all_vars["_dataloader"] = None
         return self.__class__(**all_vars)
 
     def query(self, query_string: str):
@@ -184,6 +190,7 @@ class DeepLakeDataLoader:
         """
         all_vars = self.__dict__.copy()
         all_vars["dataset"] = query(self.dataset, query_string)
+        all_vars["_dataloader"] = None
         return self.__class__(**all_vars)
 
     def sample_by(
@@ -230,7 +237,14 @@ class DeepLakeDataLoader:
         all_vars["dataset"] = sample_by(
             self.dataset, weights, replace=replace, size=size
         )
+        all_vars["_dataloader"] = None
         return self.__class__(**all_vars)
+
+    def close(self):
+        """Shuts down the workers and releases the resources."""
+        if self._dataloader is not None:
+            self._dataloader.close()
+            self._dataloader = None
 
     @deeplake_reporter.record_call
     def pytorch(
@@ -243,6 +257,7 @@ class DeepLakeDataLoader:
         distributed: bool = False,
         return_index: bool = True,
         decode_method: Optional[Dict[str, str]] = None,
+        persistent_workers: bool = False,
     ):
         """Returns a :class:`DeepLakeDataLoader` object.
 
@@ -255,7 +270,9 @@ class DeepLakeDataLoader:
             prefetch_factor (int): Number of batches to transform and collate in advance per worker. Defaults to 2.
             distributed (bool): Used for DDP training. Distributes different sections of the dataset to different ranks. Defaults to ``False``.
             return_index (bool): Used to idnetify where loader needs to retur sample index or not. Defaults to ``True``.
+            persistent_workers (bool): If ``True``, the data loader will not shutdown the worker processes after a dataset has been consumed once. Defaults to ``False``.
             decode_method (Dict[str, str], Optional): A dictionary of decode methods for each tensor. Defaults to ``None``.
+
 
                 - Supported decode methods are:
 
@@ -284,6 +301,8 @@ class DeepLakeDataLoader:
         all_vars["_distributed"] = distributed
         all_vars["_return_index"] = return_index
         all_vars["_mode"] = "pytorch"
+        all_vars["_persistent_workers"] = persistent_workers
+        all_vars["_dataloader"] = None
         return self.__class__(**all_vars)
 
     @deeplake_reporter.record_call
@@ -294,6 +313,7 @@ class DeepLakeDataLoader:
         num_threads: Optional[int] = None,
         prefetch_factor: int = 2,
         decode_method: Optional[Dict[str, str]] = None,
+        persistent_workers: bool = False,
     ):
         """Returns a :class:`DeepLakeDataLoader` object.
 
@@ -302,6 +322,7 @@ class DeepLakeDataLoader:
             tensors (List[str], Optional): List of tensors to load. If None, all tensors are loaded. Defaults to None.
             num_threads (int, Optional): Number of threads to use for fetching and decompressing the data. If None, the number of threads is automatically determined. Defaults to None.
             prefetch_factor (int): Number of batches to transform and collate in advance per worker. Defaults to 2.
+            persistent_workers (bool): If ``True``, the data loader will not shutdown the worker processes after a dataset has been consumed once. Defaults to ``False``.
             decode_method (Dict[str, str], Optional): A dictionary of decode methods for each tensor. Defaults to None.
 
                 - Supported decode methods are:-
@@ -328,25 +349,27 @@ class DeepLakeDataLoader:
         all_vars["_num_threads"] = num_threads
         all_vars["_prefetch_factor"] = prefetch_factor
         all_vars["_mode"] = "numpy"
+        all_vars["_persistent_workers"] = persistent_workers
+        all_vars["_dataloader"] = None
         return self.__class__(**all_vars)
 
     def __iter__(self):
-        collate_fn = get_collate_fn(self._collate, self._mode)
-        upcast = self._mode == "pytorch"  # upcast to handle unsupported dtypes
+        if self._dataloader is None:
+            collate_fn = get_collate_fn(self._collate, self._mode)
+            upcast = self._mode == "pytorch"  # upcast to handle unsupported dtypes
 
-        primary_tensor_name = self._primary_tensor_name
-        buffer_size = self._buffer_size
+            primary_tensor_name = self._primary_tensor_name
+            buffer_size = self._buffer_size
 
-        tensors = self._tensors or map_tensor_keys(self.dataset, None)
-        dataset = dataset_to_libdeeplake(self.dataset)
+            tensors = self._tensors or map_tensor_keys(self.dataset, None)
+            dataset = dataset_to_libdeeplake(self.dataset)
 
-        jpeg_png_compressed_tensors = check_tensors(self.dataset, tensors)
-        raw_tensors, compressed_tensors = validate_decode_method(
-            self._decode_method, tensors, jpeg_png_compressed_tensors
-        )
-        raw_tensors.extend(compressed_tensors)
-        return iter(
-            INDRA_LOADER(
+            jpeg_png_compressed_tensors = check_tensors(self.dataset, tensors)
+            raw_tensors, compressed_tensors = validate_decode_method(
+                self._decode_method, tensors, jpeg_png_compressed_tensors
+            )
+            raw_tensors.extend(compressed_tensors)
+            self._dataloader = INDRA_LOADER(
                 dataset,
                 batch_size=self._batch_size,
                 num_threads=self._num_threads,
@@ -364,8 +387,9 @@ class DeepLakeDataLoader:
                 buffer_size=buffer_size,
                 raw_tensors=raw_tensors,
                 compressed_tensors=compressed_tensors,
+                persistent_workers=self._persistent_workers,
             )
-        )
+        return iter(self._dataloader)
 
 
 def dataloader(dataset) -> DeepLakeDataLoader:
