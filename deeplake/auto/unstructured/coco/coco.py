@@ -26,10 +26,10 @@ class CocoDataset(UnstructuredDataset):
         self,
         source: str,
         annotation_files: Union[str, List[str]],
-        key_to_tensor_mapping: Dict = {},
-        file_to_group_mapping: Dict = {},
+        key_to_tensor_mapping: Optional[Dict] = None,
+        file_to_group_mapping: Optional[Dict] = None,
         ignore_one_group: bool = False,
-        ignore_keys: Union[str, List[str]] = [],
+        ignore_keys: Optional[List[str]] = None,
         image_settings: Optional[Dict] = None,
         creds: Optional[Dict] = None,
     ):
@@ -45,14 +45,14 @@ class CocoDataset(UnstructuredDataset):
         )
         self.ignore_one_group = ignore_one_group
 
-        self.key_to_tensor = key_to_tensor_mapping
+        self.key_to_tensor = key_to_tensor_mapping or {}
         self._validate_key_mapping()
         self.tensor_to_key = {v: k for k, v in key_to_tensor_mapping.items()}
 
         self.file_to_group = {Path(k).stem: v for k, v in file_to_group_mapping.items()}
         self._validate_group_mapping()
 
-        self.ignore_keys = ignore_keys
+        self.ignore_keys = ignore_keys or []
         self.image_settings = (
             image_settings if image_settings is not None else {"name": "images"}
         )
