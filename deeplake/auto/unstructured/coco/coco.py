@@ -47,7 +47,7 @@ class CocoDataset(UnstructuredDataset):
 
         self.key_to_tensor = key_to_tensor_mapping or {}
         self._validate_key_mapping()
-        self.tensor_to_key = {v: k for k, v in key_to_tensor_mapping.items()}
+        self.tensor_to_key = {v: k for k, v in self.key_to_tensor.items()}
 
         self.file_to_group = {Path(k).stem: v for k, v in file_to_group_mapping.items()}
         self._validate_group_mapping()
