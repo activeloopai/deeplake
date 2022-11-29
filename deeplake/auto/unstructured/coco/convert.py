@@ -150,11 +150,15 @@ class CocoImages:
                 f"Encountered {len(invalid_files)} unsupported files in images directory."
             )
 
+        most_frequent_extension = (
+            max(extensions, key=extensions.get) if len(extensions) > 0 else None
+        )
+
         return (
             supported_images,
             invalid_files,
             list(extensions.keys()),
-            max(extensions, key=lambda k: extensions[k]),
+            most_frequent_extension,
         )
 
     def get_full_path(self, image_name: str) -> str:
