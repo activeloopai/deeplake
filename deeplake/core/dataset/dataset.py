@@ -490,6 +490,7 @@ class Dataset:
         create_id_tensor: bool = True,
         verify: bool = True,
         exist_ok: bool = False,
+        verbose: bool = True,
         **kwargs,
     ):
         """Creates a new tensor in the dataset.
@@ -527,6 +528,7 @@ class Dataset:
             verify (bool): Valid only for link htypes. If ``True``, all links will be verified before they are added to the tensor.
                 ``verify`` is always ``True`` even if specified as ``False`` if ``create_shape_tensor`` or ``create_sample_info_tensor`` is ``True``.
             exist_ok (bool): If ``True``, the group is created if it does not exist. if ``False``, an error is raised if the group already exists.
+            verbose (bool): Shows warnings if ``True``.
             **kwargs:
                 - ``htype`` defaults can be overridden by passing any of the compatible parameters.
                 - To see all htypes and their correspondent arguments, check out :ref:`Htypes`.
@@ -583,7 +585,12 @@ class Dataset:
 
         kwargs["is_sequence"] = kwargs.get("is_sequence") or is_sequence
         kwargs["is_link"] = kwargs.get("is_link") or is_link
-        if not verify and (create_shape_tensor or create_sample_info_tensor):
+        if (
+            kwargs["is_link"]
+            and not verify
+            and (create_shape_tensor or create_sample_info_tensor)
+            and verbose
+        ):
             warnings.warn(
                 "Setting `verify` to True. `verify`, `create_shape_tensor` and `create_sample_info_tensor` should all be False if you do not want to verify your link samples."
             )
@@ -882,7 +889,7 @@ class Dataset:
         del meta["version"]
         del meta["name"]
 
-        destination_tensor = self.create_tensor(name, **meta)
+        destination_tensor = self.create_tensor(name, verbose=False, **meta)
         destination_tensor.info.update(info)
         return destination_tensor
 
@@ -3232,6 +3239,32 @@ class Dataset:
             else False,
         )
 
+        def _copy_tensor(sample_in, sample_out):
+            for tensor_name in dest_ds.tensors:
+                src = self[tensor_name]
+                if (
+                    unlink
+                    and src.is_link
+                    and (src.base_htype != "video" or deeplake.constants._UNLINK_VIDEOS)
+                ):
+                    if len(self.index) > 1:
+                        sample_out[tensor_name].extend(sample_in[tensor_name])
+                    else:
+                        if self.index.subscriptable_at(0):
+                            sample_idxs = list(self.index.values[0].indices(len(self)))
+                        else:
+                            sample_idxs = [self.index.values[0].value]
+                        sample_out[tensor_name].extend(
+                            [
+                                sample_in[
+                                    tensor_name
+                                ].chunk_engine.get_deeplake_read_sample(sample_idx)
+                                for sample_idx in sample_idxs
+                            ]
+                        )
+                else:
+                    sample_out[tensor_name].extend(sample_in[tensor_name])
+
         if not self.index.subscriptable_at(0):
             old_first_index = self.index.values[0]
             new_first_index = IndexEntry(
@@ -3242,33 +3275,17 @@ class Dataset:
         else:
             reset_index = False
         try:
-            for tensor in dest_ds.tensors:
-                src = self[tensor]
-                copy_f = (
-                    (
-                        _copy_tensor_unlinked_partial_sample
-                        if len(self.index) > 1
-                        else _copy_tensor_unlinked_full_sample
-                    )
-                    if unlink
-                    and src.is_link
-                    and (src.base_htype != "video" or deeplake.constants._UNLINK_VIDEOS)
-                    else _copy_tensor
-                )
-                if progressbar:
-                    sys.stderr.write(f"Copying tensor: {tensor}.\n")
-                deeplake.compute(copy_f, name="tensor copy transform")(
-                    tensor_name=tensor
-                ).eval(
-                    self,
-                    dest_ds,
-                    num_workers=num_workers,
-                    scheduler=scheduler,
-                    progressbar=progressbar,
-                    skip_ok=True,
-                    check_lengths=False,
-                    disable_label_sync=True,
-                )
+            deeplake.compute(_copy_tensor, name="copy transform")().eval(
+                self,
+                dest_ds,
+                num_workers=num_workers,
+                scheduler=scheduler,
+                progressbar=progressbar,
+                skip_ok=True,
+                check_lengths=False,
+                disable_label_sync=True,
+                extend_only=True,
+            )
 
             dest_ds.flush()
             if create_vds_index_tensor:
@@ -3758,19 +3775,3 @@ class Dataset:
     def _temp_write_access(self):
         # Defined in DeepLakeCloudDataset
         return memoryview(b"")  # No-op context manager
-
-
-def _copy_tensor(sample_in, sample_out, tensor_name):
-    sample_out[tensor_name].append(sample_in[tensor_name])
-
-
-def _copy_tensor_unlinked_full_sample(sample_in, sample_out, tensor_name):
-    sample_out[tensor_name].append(
-        sample_in[tensor_name].chunk_engine.get_deeplake_read_sample(
-            sample_in.index.values[0].value
-        )
-    )
-
-
-def _copy_tensor_unlinked_partial_sample(sample_in, sample_out, tensor_name):
-    sample_out[tensor_name].append(sample_in[tensor_name].numpy())

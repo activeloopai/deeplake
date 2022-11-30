@@ -120,6 +120,7 @@ def store_data_slice_with_pbar(pg_callback, transform_input: Tuple) -> Dict:
         version_state,
         link_creds,
         skip_ok,
+        extend_only,
     ) = inp
     all_chunk_engines = create_worker_chunk_engines(
         tensors, label_temp_tensors, output_storage, version_state, link_creds
@@ -128,17 +129,26 @@ def store_data_slice_with_pbar(pg_callback, transform_input: Tuple) -> Dict:
     if isinstance(data_slice, deeplake.Dataset):
         data_slice = add_cache_to_dataset_slice(data_slice, tensors)
 
-    transform_data_slice_and_append(
-        data_slice,
-        pipeline,
-        visible_tensors,
-        label_temp_tensors,
-        actual_tensors,
-        all_chunk_engines,
-        group_index,
-        pg_callback,
-        skip_ok,
-    )
+    if extend_only:
+        extend_data_slice(
+            data_slice,
+            pipeline,
+            all_chunk_engines,
+            group_index,
+            pg_callback,
+        )
+    else:
+        transform_data_slice_and_append(
+            data_slice,
+            pipeline,
+            visible_tensors,
+            label_temp_tensors,
+            actual_tensors,
+            all_chunk_engines,
+            group_index,
+            pg_callback,
+            skip_ok,
+        )
 
     # retrieve relevant objects from memory
     all_tensor_metas = {}
@@ -209,6 +219,49 @@ def _transform_sample_and_update_chunk_engines(
                 chunk_engine.extend(batch, link_callback=callback)
         else:
             chunk_engine.extend(value.numpy_compressed(), link_callback=callback)
+        value.items.clear()
+
+
+def normalize_pg(pg_callback, num_tensors):
+    def inner(num_samples):
+        return pg_callback(num_samples / num_tensors)
+
+    return inner
+
+
+def extend_data_slice(
+    data_slice,
+    pipeline,
+    all_chunk_engines,
+    group_index: str,
+    pg_callback,
+):
+    transform_fn = pipeline.functions[0]
+    extend_fn, args, kwargs = transform_fn.func, transform_fn.args, transform_fn.kwargs
+    result = TransformDataset()
+    extend_fn(data_slice, result, *args, **kwargs)
+    result_resolved = {
+        posixpath.join(group_index, k): result[k] for k in result.tensors
+    }
+    result = result_resolved  # type: ignore
+
+    if pg_callback is not None:
+        pg_callback = normalize_pg(pg_callback, len(result))
+
+    for tensor, value in result.items():
+        chunk_engine = all_chunk_engines[tensor]
+        callback = chunk_engine._transform_callback
+        if value._numpy_only:
+            for batch in value.numpy_compressed():
+                chunk_engine.extend(
+                    batch, link_callback=callback, pg_callback=pg_callback
+                )
+        else:
+            chunk_engine.extend(
+                value.numpy_compressed(),
+                link_callback=callback,
+                pg_callback=pg_callback,
+            )
         value.items.clear()
 
 

@@ -8,14 +8,27 @@ class ComputeProvider(ABC):
     def __init__(self, workers):
         self.workers = workers
 
+    def get_progressbar(self, total_length, desc):
+        import warnings
+        from tqdm.std import tqdm  # type: ignore
+        from tqdm import TqdmWarning  # type: ignore
+
+        warnings.simplefilter("ignore", TqdmWarning)
+
+        progress_bar = tqdm(
+            total=total_length,
+            desc=desc,
+            bar_format="{desc}: {percentage:.0f}%|{bar}| {n:.0f}/{total_fmt} [{elapsed}<{remaining}",
+        )
+        return progress_bar
+
     def map_with_progressbar(
         self, func, iterable, total_length: int, desc: Optional[str] = None
     ):
-        from tqdm.std import tqdm  # type: ignore
         import threading
         from threading import Thread
 
-        progress_bar = tqdm(total=total_length, desc=desc)
+        progress_bar = self.get_progressbar(total_length, desc)
         progress_queue = self.create_queue()
 
         def sub_func(*args, **kwargs):

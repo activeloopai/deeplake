@@ -1,6 +1,7 @@
 from itertools import chain
 from deeplake.core.linked_sample import LinkedSample
 from deeplake.core.sample import Sample  # type: ignore
+from deeplake.core.tensor import Tensor
 from deeplake.util.exceptions import TensorInvalidSampleShapeError
 from deeplake.util.array_list import slice_array_list
 import numpy as np
@@ -114,7 +115,7 @@ class TransformTensor:
                 return self.extend(np.expand_dims(item, 0))
             else:
                 self._non_numpy()
-        if not isinstance(item, LinkedSample):
+        if not isinstance(item, (LinkedSample, Tensor)):
             shape = getattr(item, "shape", None)
             if shape is None:
                 item = np.asarray(item)
@@ -131,7 +132,8 @@ class TransformTensor:
         """Adds multiple items to the tensor."""
         if self._numpy_only:
             if isinstance(items, np.ndarray) or (
-                isinstance(items, list) and set(map(type, items)) in {{}, {np.ndarray}}
+                isinstance(items, list)
+                and set(map(type, items)) in [{dict}, {np.ndarray}]
             ):
                 try:
                     incoming_ndim = items.ndim
@@ -155,5 +157,6 @@ class TransformTensor:
                 return self.items.append(items)
             else:
                 self._non_numpy()
+
         for item in items:
             self.append(item)

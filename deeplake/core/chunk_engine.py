@@ -706,6 +706,7 @@ class ChunkEngine:
         start_chunk_row: Optional[int] = None,
         progressbar: bool = False,
         register_creds: bool = True,
+        pg_callback=None,
     ):
         """Add samples to chunks, in case if there is a space on the start_chunk,
         othewise creating new chunk and append samples to newly created chunk
@@ -719,6 +720,7 @@ class ChunkEngine:
             start_chunk_row (int, Optional): Parameter that shows the chunk row that needs to be updated, those params are needed only in rechunking phase.
             progressbar (bool): Parameter that shows if need to show sample insertion progress
             register_creds (bool): Parameter that shows if need to register the creds_key of the sample
+            pg_callback: Progress bar callback parameter
 
         Returns:
             Tuple[List[BaseChunk], Dict[Any, Any]]
@@ -839,6 +841,8 @@ class ChunkEngine:
                 num_samples += num
             if progressbar:
                 pbar.update(num_samples_added)
+            elif pg_callback is not None:
+                pg_callback(num_samples_added)
         if extending:
             if enc_ids[0] is None:
                 enc_ids.pop(0)
@@ -881,7 +885,7 @@ class ChunkEngine:
     def update_creds(self, sample_index, sample):
         return
 
-    def _extend(self, samples, progressbar, update_commit_diff=True):
+    def _extend(self, samples, progressbar, pg_callback=None, update_commit_diff=True):
         if isinstance(samples, deeplake.Tensor):
             samples = tqdm(samples) if progressbar else samples
             for sample in samples:
@@ -889,6 +893,7 @@ class ChunkEngine:
                     [sample],
                     update_commit_diff=update_commit_diff,
                     progressbar=False,
+                    pg_callback=pg_callback,
                 )  # TODO optimize this
             return
         if len(samples) == 0:
@@ -900,6 +905,7 @@ class ChunkEngine:
             register=True,
             progressbar=progressbar,
             update_commit_diff=update_commit_diff,
+            pg_callback=pg_callback,
         )
         return verified_samples
 
@@ -908,7 +914,9 @@ class ChunkEngine:
         samples,
         progressbar: bool = False,
         link_callback: Optional[Callable] = None,
+        pg_callback=None,
     ):
+        assert not (progressbar and pg_callback)
         self.check_link_ready()
         if not self.write_initialization_done:
             self._write_initialization()
@@ -936,7 +944,9 @@ class ChunkEngine:
                     link_callback(s, flat=True)
 
         else:
-            verified_samples = self._extend(samples, progressbar) or samples
+            verified_samples = (
+                self._extend(samples, progressbar, pg_callback=pg_callback) or samples
+            )
             if link_callback:
                 if not isinstance(verified_samples, np.ndarray):
                     samples = [
