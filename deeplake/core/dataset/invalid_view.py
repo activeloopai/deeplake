@@ -16,9 +16,5 @@ class InvalidView:
             raise InvalidViewException(
                 "This dataset view was invalidated because the base dataset was checked out to a different commit."
             )
-        elif self.reason == "update":
-            raise InvalidViewException(
-                "This dataset view was invalidated because new changes were made at the HEAD node after creation of this view."
-            )
 
     __getattr__ = __getitem__
