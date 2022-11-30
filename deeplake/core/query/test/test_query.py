@@ -3,7 +3,11 @@ import pytest
 import numpy as np
 
 from deeplake.core.query import DatasetQuery
-from deeplake.util.exceptions import DatasetViewSavingError, InvalidOperationError
+from deeplake.util.exceptions import (
+    DatasetViewSavingError,
+    InvalidOperationError,
+    InvalidViewException,
+)
 import deeplake
 from uuid import uuid4
 
@@ -167,12 +171,14 @@ def test_dataset_view_save(optimize):
     for t in view.tensors:
         np.testing.assert_array_equal(view[t].numpy(), view2[t].numpy())
     _populate_data(ds)
-    view = ds.filter("labels == 'dog'")
     ds.commit()
     _populate_data(ds)
-    with pytest.raises(DatasetViewSavingError):
+    view = ds.filter("labels == 'dog'")
+    _populate_data(ds)
+    with pytest.raises(InvalidViewException):
         view.save_view(path=".tests/ds_view", overwrite=True, optimize=optimize)
     ds.commit()
+    view = ds.filter("labels == 'dog'")
     view.save_view(path=".tests/ds_view", overwrite=True, optimize=optimize)
 
 

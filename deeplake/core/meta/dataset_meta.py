@@ -44,9 +44,9 @@ class DatasetMeta(Meta):
         self.version = d["version"]
         self.tensors = d["tensors"]
         self.groups = d["groups"]
-        self.tensor_names = d["tensor_names"]
-        self.hidden_tensors = d["hidden_tensors"]
-        self.default_index = d["default_index"]
+        self.tensor_names = d.get("tensor_names") or []
+        self.hidden_tensors = d.get("hidden_tensors") or []
+        self.default_index = d.get("default_index") or Index().to_json()
 
     def add_tensor(self, name, key, hidden=False):
         """Reflect addition of tensor in dataset's meta."""
