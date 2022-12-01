@@ -744,9 +744,11 @@ class EmptyTensorError(Exception):
 class DatasetViewSavingError(Exception):
     pass
 
+
 class InvalidViewException(Exception):
     def __init__(self, message):
         super().__init__(message)
+
 
 class ManagedCredentialsNotFoundError(Exception):
     def __init__(self, org_id, creds_key):

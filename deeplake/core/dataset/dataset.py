@@ -210,6 +210,7 @@ class Dataset:
         d["_view_id"] = str(uuid.uuid4())
         d["_view_invalid_save"] = False
         d["_view_base"] = view_base
+        d["_view_use_parent_commit"] = False
         d["_update_hooks"] = {}
         d["_commit_hooks"] = {}
         d["_checkout_hooks"] = {}
@@ -337,6 +338,7 @@ class Dataset:
             "_is_filtered_view",
             "_view_id",
             "_view_invalid_save",
+            "_view_use_parent_commit",
             "_parent_dataset",
             "_pad_tensors",
             "_locking_enabled",
@@ -372,7 +374,11 @@ class Dataset:
     def _reload_version_state(self):
         version_state = self.version_state
         # share version state if at HEAD
-        if self._view_base and self._view_base.has_head_changes:
+        if (
+            not self._view_use_parent_commit
+            and self._view_base
+            and version_state["commit_node"].is_head_node
+        ):
             uid = self._view_id
 
             def commit_hook():
@@ -382,6 +388,7 @@ class Dataset:
                     del self._view_base._update_hooks[uid]
                 except KeyError:
                     pass
+                self._view_use_parent_commit = True
                 self._reload_version_state()
 
             def checkout_hook():
@@ -408,13 +415,8 @@ class Dataset:
         vs_copy["branch_commit_map"] = version_state["branch_commit_map"]
         vs_copy["commit_node_map"] = version_state["commit_node_map"]
         commit_node = version_state["commit_node"]
-        if commit_node.is_head_node:
-            # if dataset was never committed
-            if commit_node.parent is None:
-                vs_copy["commit_node"] = commit_node
-            # if dataset was just committed (no head changes)
-            else:
-                vs_copy["commit_node"] = commit_node.parent
+        if self._view_use_parent_commit:
+            vs_copy["commit_node"] = commit_node.parent
         else:
             vs_copy["commit_node"] = commit_node
         vs_copy["commit_id"] = vs_copy["commit_node"].commit_id
@@ -1839,7 +1841,7 @@ class Dataset:
         elif not self._read_only:
             self._lock(verbose=verbose)  # for ref counting
 
-        if not self.is_first_load:
+        if not self.is_first_load and not self.group_index:
             self._reload_version_state()
 
         if not self.is_iteration:
@@ -2212,6 +2214,7 @@ class Dataset:
             version_state=self.version_state,
             path=self.path,
             link_creds=self.link_creds,
+            view_base=self._view_base,
         )
         self.storage.autoflush = autoflush
         return ds
