@@ -634,6 +634,18 @@ def transform(
         img = np.repeat(img, 3, axis=2)
     shape = img.shape
 
+    pipeline_dict = {
+        "img": np.ascontiguousarray(img, dtype=np.float32),
+        "img_fields": ["img"],
+        "filename": None,
+        "ori_filename": None,
+        "img_shape": shape,
+        "ori_shape": shape,
+        "gt_bboxes": bboxes,
+        "gt_labels": labels,
+        "bbox_fields": ["gt_bboxes"],
+    }
+
     if masks_tensor:
         masks = sample_in[masks_tensor]
         if poly2mask:
@@ -642,23 +654,9 @@ def transform(
             masks = masks.astype(np.uint8)
         masks = masks.transpose((2, 0, 1))
         gt_masks = BitmapMasks(masks, *shape[:2])
-    else:
-        gt_masks = None
 
-    return pipeline(
-        {
-            "img": img,
-            "img_fields": ["img"],
-            "filename": None,
-            "ori_filename": None,
-            "img_shape": shape,
-            "ori_shape": shape,
-            "gt_masks": gt_masks,
-            "gt_bboxes": bboxes,
-            "gt_labels": labels,
-            "bbox_fields": ["gt_bboxes"],
-        }
-    )
+        pipeline_dict["gt_masks"] = gt_masks
+    return pipeline(pipeline_dict)
 
 
 def _get_collate_keys(pipeline):
