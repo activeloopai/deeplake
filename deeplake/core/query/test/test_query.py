@@ -172,7 +172,6 @@ def test_dataset_view_save(optimize):
         np.testing.assert_array_equal(view[t].numpy(), view2[t].numpy())
     _populate_data(ds)
     ds.commit()
-    _populate_data(ds)
     view = ds.filter("labels == 'dog'")
     _populate_data(ds)
     with pytest.raises(DatasetViewSavingError):
