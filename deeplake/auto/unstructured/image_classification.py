@@ -94,7 +94,7 @@ class ImageClassification(UnstructuredDataset):
     def structure(  # type: ignore
         self,
         ds: Dataset,
-        use_progress_bar: bool = True,
+        progressbar: bool = True,
         generate_summary: bool = True,
         image_tensor_args: dict = {},
     ) -> Dataset:
@@ -102,7 +102,7 @@ class ImageClassification(UnstructuredDataset):
 
         Args:
             ds (Dataset) : A Deep Lake dataset object.
-            use_progress_bar (bool): Defines if the method uses a progress bar. Defaults to True.
+            progressbar (bool): Defines if the method uses a progress bar. Defaults to True.
             generate_summary (bool): Defines if the method generates ingestion summary. Defaults to True.
             image_tensor_args (dict): Defines the sample compression of the dataset (jpeg or png).
 
@@ -145,7 +145,7 @@ class ImageClassification(UnstructuredDataset):
                 desc='Ingesting "%s" (%i files skipped)'
                 % (self.source.name, len(skipped_files)),
                 total=len(paths),
-                disable=not use_progress_bar,
+                disable=not progressbar,
             )
 
         with ds, iterator:

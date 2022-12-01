@@ -776,7 +776,13 @@ class dataset:
 
         Raises:
             DatasetHandlerError: If a dataset already exists at destination path and overwrite is False.
+            TypeError: If source is not a path to a dataset.
         """
+
+        if not isinstance(src, (str, pathlib.Path)):
+            raise TypeError(
+                f"Source for `deepcopy` should be path to a dataset. Got {type(src)}."
+            )
 
         src = convert_pathlib_to_string_if_needed(src)
         dest = convert_pathlib_to_string_if_needed(dest)
@@ -1085,7 +1091,7 @@ class dataset:
             # TODO: auto detect compression
             unstructured.structure(
                 ds,  # type: ignore
-                use_progress_bar=progressbar,
+                progressbar=progressbar,
                 generate_summary=summary,
                 image_tensor_args={"sample_compression": images_compression},
             )

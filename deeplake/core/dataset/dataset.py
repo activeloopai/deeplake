@@ -129,6 +129,7 @@ from deeplake.hooks import dataset_read
 from itertools import chain
 import warnings
 import jwt
+from deeplake.integrations.pytorch.dataset import TorchDataset
 
 
 _LOCKABLE_STORAGES = {S3Provider, GCSProvider}
@@ -550,6 +551,7 @@ class Dataset:
         create_id_tensor: bool = True,
         verify: bool = True,
         exist_ok: bool = False,
+        verbose: bool = True,
         **kwargs,
     ):
         """Creates a new tensor in the dataset.
@@ -587,6 +589,7 @@ class Dataset:
             verify (bool): Valid only for link htypes. If ``True``, all links will be verified before they are added to the tensor.
                 ``verify`` is always ``True`` even if specified as ``False`` if ``create_shape_tensor`` or ``create_sample_info_tensor`` is ``True``.
             exist_ok (bool): If ``True``, the group is created if it does not exist. if ``False``, an error is raised if the group already exists.
+            verbose (bool): Shows warnings if ``True``.
             **kwargs:
                 - ``htype`` defaults can be overridden by passing any of the compatible parameters.
                 - To see all htypes and their correspondent arguments, check out :ref:`Htypes`.
@@ -643,7 +646,12 @@ class Dataset:
 
         kwargs["is_sequence"] = kwargs.get("is_sequence") or is_sequence
         kwargs["is_link"] = kwargs.get("is_link") or is_link
-        if not verify and (create_shape_tensor or create_sample_info_tensor):
+        if (
+            kwargs["is_link"]
+            and not verify
+            and (create_shape_tensor or create_sample_info_tensor)
+            and verbose
+        ):
             warnings.warn(
                 "Setting `verify` to True. `verify`, `create_shape_tensor` and `create_sample_info_tensor` should all be False if you do not want to verify your link samples."
             )
@@ -942,7 +950,7 @@ class Dataset:
         del meta["version"]
         del meta["name"]
 
-        destination_tensor = self.create_tensor(name, **meta)
+        destination_tensor = self.create_tensor(name, verbose=False, **meta)
         destination_tensor.info.update(info)
         return destination_tensor
 
@@ -1536,15 +1544,20 @@ class Dataset:
         shuffle: bool = False,
         buffer_size: int = 2048,
         use_local_cache: bool = False,
-        use_progress_bar: bool = False,
+        progressbar: bool = False,
         return_index: bool = True,
         pad_tensors: bool = False,
         transform_kwargs: Optional[Dict[str, Any]] = None,
+        torch_dataset=TorchDataset,
         decode_method: Optional[Dict[str, str]] = None,
+        *args,
+        **kwargs,
     ):
         """Converts the dataset into a pytorch Dataloader.
 
         Args:
+            *args: Additional args to be passed to torch_dataset
+            **kwargs: Additional kwargs to be passed to torch_dataset
             transform (Callable, Optional): Transformation function to be applied to each sample.
             tensors (List, Optional): Optionally provide a list of tensor names in the ordering that your training script expects. For example, if you have a dataset that has "image" and "label" tensors, if ``tensors=["image", "label"]``, your training script should expect each batch will be provided as a tuple of (image, label).
             num_workers (int): The number of workers to use for fetching data in parallel.
@@ -1559,10 +1572,11 @@ class Dataset:
             shuffle (bool): If ``True``, the data loader will shuffle the data indices. Default value is False. Details about how Deep Lake shuffles data can be found at `Shuffling in ds.pytorch() <https://docs.activeloop.ai/how-it-works/shuffling-in-ds.pytorch>`_
             buffer_size (int): The size of the buffer used to shuffle the data in MBs. Defaults to 2048 MB. Increasing the buffer_size will increase the extent of shuffling.
             use_local_cache (bool): If ``True``, the data loader will use a local cache to store data. The default cache location is ~/.activeloop/cache, but it can be changed by setting the ``LOCAL_CACHE_PREFIX`` environment variable. This is useful when the dataset can fit on the machine and we don't want to fetch the data multiple times for each iteration. Default value is ``False``
-            use_progress_bar (bool): If ``True``, tqdm will be wrapped around the returned dataloader. Default value is True.
+            progressbar (bool): If ``True``, tqdm will be wrapped around the returned dataloader. Default value is True.
             return_index (bool): If ``True``, the returned dataloader will have a key "index" that contains the index of the sample(s) in the original dataset. Default value is True.
             pad_tensors (bool): If ``True``, shorter tensors will be padded to the length of the longest tensor. Default value is False.
             transform_kwargs (optional, Dict[str, Any]): Additional kwargs to be passed to ``transform``.
+            torch_dataset (TorchDataset): dataset type that going to be used in dataloader
             decode_method (Dict[str, str], Optional): A dictionary of decode methods for each tensor. Defaults to ``None``.
 
                 - Supported decode methods are:
@@ -1589,6 +1603,7 @@ class Dataset:
 
         dataloader = to_pytorch(
             self,
+            *args,
             transform=transform,
             tensors=tensors,
             num_workers=num_workers,
@@ -1601,10 +1616,12 @@ class Dataset:
             use_local_cache=use_local_cache,
             return_index=return_index,
             pad_tensors=pad_tensors,
+            torch_dataset=torch_dataset,
             decode_method=decode_method,
+            **kwargs,
         )
 
-        if use_progress_bar:
+        if progressbar:
             dataloader = tqdm(dataloader, desc=self.path, total=len(self) // batch_size)
         dataset_read(self)
         return dataloader
@@ -3267,6 +3284,32 @@ class Dataset:
             else False,
         )
 
+        def _copy_tensor(sample_in, sample_out):
+            for tensor_name in dest_ds.tensors:
+                src = self[tensor_name]
+                if (
+                    unlink
+                    and src.is_link
+                    and (src.base_htype != "video" or deeplake.constants._UNLINK_VIDEOS)
+                ):
+                    if len(self.index) > 1:
+                        sample_out[tensor_name].extend(sample_in[tensor_name])
+                    else:
+                        if self.index.subscriptable_at(0):
+                            sample_idxs = list(self.index.values[0].indices(len(self)))
+                        else:
+                            sample_idxs = [self.index.values[0].value]
+                        sample_out[tensor_name].extend(
+                            [
+                                sample_in[
+                                    tensor_name
+                                ].chunk_engine.get_deeplake_read_sample(sample_idx)
+                                for sample_idx in sample_idxs
+                            ]
+                        )
+                else:
+                    sample_out[tensor_name].extend(sample_in[tensor_name])
+
         if not self.index.subscriptable_at(0):
             old_first_index = self.index.values[0]
             new_first_index = IndexEntry(
@@ -3277,33 +3320,17 @@ class Dataset:
         else:
             reset_index = False
         try:
-            for tensor in dest_ds.tensors:
-                src = self[tensor]
-                copy_f = (
-                    (
-                        _copy_tensor_unlinked_partial_sample
-                        if len(self.index) > 1
-                        else _copy_tensor_unlinked_full_sample
-                    )
-                    if unlink
-                    and src.is_link
-                    and (src.base_htype != "video" or deeplake.constants._UNLINK_VIDEOS)
-                    else _copy_tensor
-                )
-                if progressbar:
-                    sys.stderr.write(f"Copying tensor: {tensor}.\n")
-                deeplake.compute(copy_f, name="tensor copy transform")(
-                    tensor_name=tensor
-                ).eval(
-                    self,
-                    dest_ds,
-                    num_workers=num_workers,
-                    scheduler=scheduler,
-                    progressbar=progressbar,
-                    skip_ok=True,
-                    check_lengths=False,
-                    disable_label_sync=True,
-                )
+            deeplake.compute(_copy_tensor, name="copy transform")().eval(
+                self,
+                dest_ds,
+                num_workers=num_workers,
+                scheduler=scheduler,
+                progressbar=progressbar,
+                skip_ok=True,
+                check_lengths=False,
+                disable_label_sync=True,
+                extend_only=True,
+            )
 
             dest_ds.flush()
             if create_vds_index_tensor:
@@ -3684,6 +3711,8 @@ class Dataset:
         Raises:
             IndexError: If the index is out of range.
         """
+        self._initial_autoflush.append(self.storage.autoflush)
+        self.storage.autoflush = False
         max_len = max((t.num_samples for t in self.tensors.values()), default=0)
         if max_len == 0:
             raise IndexError("Can't pop from empty dataset.")
@@ -3701,6 +3730,8 @@ class Dataset:
         for tensor in self.tensors.values():
             if tensor.num_samples > index:
                 tensor.pop(index)
+
+        self.storage.autoflush = self._initial_autoflush.pop()
 
     @property
     def is_view(self) -> bool:
@@ -3789,19 +3820,3 @@ class Dataset:
     def _temp_write_access(self):
         # Defined in DeepLakeCloudDataset
         return memoryview(b"")  # No-op context manager
-
-
-def _copy_tensor(sample_in, sample_out, tensor_name):
-    sample_out[tensor_name].append(sample_in[tensor_name])
-
-
-def _copy_tensor_unlinked_full_sample(sample_in, sample_out, tensor_name):
-    sample_out[tensor_name].append(
-        sample_in[tensor_name].chunk_engine.get_deeplake_read_sample(
-            sample_in.index.values[0].value
-        )
-    )
-
-
-def _copy_tensor_unlinked_partial_sample(sample_in, sample_out, tensor_name):
-    sample_out[tensor_name].append(sample_in[tensor_name].numpy())

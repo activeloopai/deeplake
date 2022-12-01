@@ -22,7 +22,11 @@ from deeplake.constants import (
     QUERIES_FILENAME,
     QUERIES_LOCK_FILENAME,
 )
-from deeplake.util.exceptions import S3GetError
+from deeplake.util.exceptions import (
+    S3GetError,
+    S3GetAccessError,
+    AuthorizationException,
+)
 
 
 def get_chunk_key(key: str, chunk_name: str, commit_id: str) -> str:
@@ -173,7 +177,9 @@ def dataset_exists(storage) -> bool:
     try:
         storage[get_dataset_meta_key(FIRST_COMMIT_ID)]
         return True
-    except (KeyError, S3GetError):
+    except S3GetAccessError as err:
+        raise AuthorizationException("The dataset storage cannot be accessed") from err
+    except (KeyError, S3GetError) as err:
         return False
 
 

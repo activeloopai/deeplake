@@ -590,7 +590,7 @@ class Tensor:
             raise InvalidKeyTypeError(item)
         if isinstance(item, tuple) or item is Ellipsis:
             item = replace_ellipsis_with_slices(item, self.ndim)
-        if not is_iteration and isinstance(item, int):
+        if not self.meta.hidden and not is_iteration and isinstance(item, int):
             is_iteration = check_if_iteration(self._indexing_history, item)
             if is_iteration and deeplake.constants.SHOW_ITERATION_WARNING:
                 warnings.warn(

@@ -336,7 +336,6 @@ class BaseChunk(DeepLakeMemoryObject):
                 break_into_tiles,
                 store_uncompressed_tiles,
             )
-            shape = self.convert_to_rgb(shape)
         elif isinstance(incoming_sample, PartialSample):
             incoming_sample, shape = serialize_partial_sample_object(
                 incoming_sample,
@@ -379,11 +378,12 @@ class BaseChunk(DeepLakeMemoryObject):
             )
         else:
             raise TypeError(f"Cannot serialize sample of type {type(incoming_sample)}")
+        shape = self.convert_to_rgb(shape)
         shape = self.normalize_shape(shape)
         return incoming_sample, shape  # type: ignore
 
     def convert_to_rgb(self, shape):
-        if self.is_convert_candidate and CONVERT_GRAYSCALE:
+        if shape is not None and self.is_convert_candidate and CONVERT_GRAYSCALE:
             if self.num_dims is None:
                 self.num_dims = len(shape)
             if len(shape) == 2 and self.num_dims == 3:

@@ -4,11 +4,12 @@ import time
 import boto3
 import botocore  # type: ignore
 import posixpath
-from typing import Dict, Optional, Tuple
+from typing import Dict, Optional, Tuple, Type
 from botocore.session import ComponentLocator
 from deeplake.client.client import DeepLakeBackendClient
 from deeplake.core.storage.provider import StorageProvider
 from deeplake.util.exceptions import (
+    S3GetAccessError,
     S3DeletionError,
     S3GetError,
     S3SetError,
@@ -45,7 +46,7 @@ except ImportError:
 class S3ResetReloadCredentialsManager:
     """Tries to reload the credentials if the error is due to expired token, if error still occurs, it raises it."""
 
-    def __init__(self, s3p, error_class: S3Error):
+    def __init__(self, s3p, error_class: Type[S3Error]):
         self.error_class = error_class
         self.s3p = s3p
 
@@ -228,7 +229,8 @@ class S3Provider(StorageProvider):
         Raises:
             InvalidBytesRequestedError: If ``start_byte`` > ``end_byte`` or ``start_byte`` < 0 or ``end_byte`` < 0.
             KeyError: If an object is not found at the path.
-            S3GetError: Any other error other than KeyError while retrieving the object.
+            S3GetAccessError: Invalid credentials for the object path storage.
+            S3GetError: Any other error while retrieving the object.
         """
         self._check_update_creds()
         path = "".join((self.path, path))
@@ -237,7 +239,11 @@ class S3Provider(StorageProvider):
         except botocore.exceptions.ClientError as err:
             if err.response["Error"]["Code"] == "NoSuchKey":
                 raise KeyError(err) from err
-            with S3ResetReloadCredentialsManager(self, S3GetError):  # type: ignore
+            if err.response["Error"]["Code"] == "InvalidAccessKeyId":
+                new_error_cls: Type[S3GetError] = S3GetAccessError
+            else:
+                new_error_cls = S3GetError
+            with S3ResetReloadCredentialsManager(self, new_error_cls):
                 return self._get_bytes(path, start_byte, end_byte)
         except CONNECTION_ERRORS as err:
             tries = self.num_tries
@@ -252,6 +258,8 @@ class S3Provider(StorageProvider):
                 except Exception:
                     pass
             raise S3GetError(err) from err
+        except botocore.exceptions.NoCredentialsError as err:
+            raise S3GetAccessError from err
         except Exception as err:
             raise S3GetError(err) from err
 
@@ -570,7 +578,7 @@ class S3Provider(StorageProvider):
         except botocore.exceptions.ClientError as err:
             if err.response["Error"]["Code"] == "NoSuchKey":
                 raise KeyError(err) from err
-            with S3ResetReloadCredentialsManager(self, S3GetError):  # type: ignore
+            with S3ResetReloadCredentialsManager(self, S3GetError):
                 return self._get(path, bucket)
         except CONNECTION_ERRORS as err:
             tries = self.num_tries
