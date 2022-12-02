@@ -687,7 +687,15 @@ class Dataset:
                 warnings.warn(
                     f"Downsampling is only supported for tensor with htypes {downsampling_htypes}, got {htype}. Skipping downsampling."
                 )
-            self._create_downsampled_tensor(name, htype, dtype, sample_compression, chunk_compression, downsampling_factor, number_of_layers)
+            self._create_downsampled_tensor(
+                name,
+                htype,
+                dtype,
+                sample_compression,
+                chunk_compression,
+                downsampling_factor,
+                number_of_layers,
+            )
         return tensor
 
     def _create_sample_shape_tensor(self, tensor: str, htype: str):
@@ -750,7 +758,14 @@ class Dataset:
         )
 
     def _create_downsampled_tensor(
-        self, tensor: str, htype: str, dtype: Union[str, np.dtype], sample_compression: str, chunk_compression: str, downsampling_factor: int, number_of_layers: int
+        self,
+        tensor: str,
+        htype: str,
+        dtype: Union[str, np.dtype],
+        sample_compression: str,
+        chunk_compression: str,
+        downsampling_factor: int,
+        number_of_layers: int,
     ):
         downsampled_tensor = get_downsampled_tensor_key(tensor, downsampling_factor)
         if number_of_layers == 1:
