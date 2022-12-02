@@ -13,7 +13,7 @@ from deeplake.core.meta.tensor_meta import TensorMeta
 from deeplake.core.storage import StorageProvider
 from deeplake.core.chunk_engine import ChunkEngine
 from deeplake.core.compression import _read_timestamps
-from deeplake.core.tensor_link import get_link_transform
+from deeplake.core.tensor_link import extend_downsample, get_link_transform, update_downsample
 from deeplake.api.info import Info, load_info
 from deeplake.util.keys import (
     get_chunk_id_encoder_key,
@@ -949,9 +949,20 @@ class Tensor:
     def _extend_links(self, samples, flat: Optional[bool]):
         for k, v in self.meta.links.items():
             if flat is None or v["flatten_sequence"] == flat:
-                tensor = Tensor(k, self.dataset)
+                tensor = self.version_state["full_tensors"][k]
                 tdt = tensor.dtype
-                vs = get_link_transform(v["extend"])(samples, self.link_creds)
+                fn = get_link_transform(v["extend"])
+                if fn == extend_downsample:
+                    factor = tensor.info.downsampling_factor
+                    vs = fn(
+                        samples,
+                        factor,
+                        self.meta.sample_compression,
+                        self.htype,
+                        self.link_creds,
+                    )
+                else:
+                    vs = fn(samples, self.link_creds)
                 if tdt:
                     if isinstance(vs, np.ndarray):
                         if vs.dtype != tdt:
@@ -976,15 +987,25 @@ class Tensor:
             if flat is None or v["flatten_sequence"] == flat:
                 fname = v.get("update")
                 if fname:
-                    func = get_link_transform(fname)
+                    func = get_link_transform(fname)                        
                     tensor = Tensor(k, self.dataset)
-                    val = func(
-                        new_sample,
-                        tensor[global_sample_index],
-                        sub_index=sub_index,
-                        partial=not sub_index.is_trivial(),
-                        link_creds=self.link_creds,
-                    )
+                    if func == update_downsample:
+                        factor = tensor.info.downsampling_factor
+                        val = func(
+                            new_sample,
+                            factor,
+                            self.meta.sample_compression,
+                            self.htype,
+                            self.link_creds,
+                        )
+                    else:
+                        val = func(
+                            new_sample,
+                            tensor[global_sample_index],
+                            sub_index=sub_index,
+                            partial=not sub_index.is_trivial(),
+                            link_creds=self.link_creds,
+                        )
                     if val is not _NO_LINK_UPDATE:
                         if (
                             isinstance(val, np.ndarray)

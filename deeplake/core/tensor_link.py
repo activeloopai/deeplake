@@ -4,10 +4,10 @@ from deeplake.constants import _NO_LINK_UPDATE
 import inspect
 import deeplake
 import inspect
-from deeplake.util.generate_id import generate_id
 import numpy as np
-from uuid import uuid4
 from os import urandom
+from PIL import Image
+from deeplake.util.downsample import downsample_sample
 
 
 class _TensorLinkTransform:
@@ -112,6 +112,30 @@ def extend_len(samples, link_creds=None):
 @link
 def update_len(sample, link_creds=None):
     return 0 if sample is None else len(sample)
+
+
+def sample_to_pil(sample, link_creds=None):
+    if isinstance(sample, deeplake.core.linked_sample.LinkedSample):
+        sample = read_linked_sample(
+            sample.path, sample.creds_key, link_creds, verify=False
+        )
+    if isinstance(sample, deeplake.core.sample.Sample):
+        sample = sample.pil
+    if isinstance(sample, np.ndarray):
+        sample = Image.fromarray(sample)
+    return sample
+
+
+@link
+def extend_downsample(samples, factor, compression, htype, link_creds=None):
+    samples = [sample_to_pil(sample, link_creds) for sample in samples]
+    return [downsample_sample(sample, factor, compression, htype) for sample in samples]
+
+
+@link
+def update_downsample(sample, factor, compression, htype, link_creds=None):
+    sample = sample_to_pil(sample, link_creds)
+    return downsample_sample(sample, factor, compression, htype)
 
 
 _funcs = {k: v for k, v in globals().items() if isinstance(v, link)}

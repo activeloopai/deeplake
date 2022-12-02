@@ -22,6 +22,7 @@ from deeplake.constants import (
     QUERIES_FILENAME,
     QUERIES_LOCK_FILENAME,
 )
+from deeplake.util.downsample import get_downsample_factor
 from deeplake.util.exceptions import (
     S3GetError,
     S3GetAccessError,
@@ -223,3 +224,14 @@ def get_sample_id_tensor_key(key: str):
 def get_sample_shape_tensor_key(key: str):
     group, key = posixpath.split(key)
     return posixpath.join(group, f"_{key}_shape")
+
+
+def get_downsampled_tensor_key(key: str, factor: int):
+    group, key = posixpath.split(key)
+    if key.startswith("_") and "downsampled" in key:
+        current_factor = get_downsample_factor(key)
+        factor *= current_factor
+        ls = key.split("_")
+        ls[-1] = str(factor)
+        return "_".join(ls)
+    return posixpath.join(group, f"_{key}_downsampled_{factor}")
