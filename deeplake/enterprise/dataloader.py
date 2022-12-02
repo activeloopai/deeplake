@@ -1,8 +1,7 @@
 from typing import Callable, Dict, List, Optional, Union
 from deeplake.enterprise.convert_to_libdeeplake import dataset_to_libdeeplake  # type: ignore
+from deeplake.util.scheduling import create_fetching_schedule, find_primary_tensor
 from deeplake.enterprise.util import (
-    create_fetching_schedule,
-    find_primary_tensor,
     raise_indra_installation_error,
     verify_base_storage,
 )

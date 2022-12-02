@@ -1,7 +1,6 @@
 # type: ignore
 import os
 import uuid
-import sys
 import json
 import posixpath
 from logging import warning
@@ -63,6 +62,7 @@ from deeplake.util.notebook import is_colab
 from deeplake.util.path import (
     convert_pathlib_to_string_if_needed,
 )
+from deeplake.util.scheduling import create_random_split_views
 from deeplake.util.logging import log_visualizer_link
 from deeplake.util.warnings import always_warn
 from deeplake.util.exceptions import (
@@ -3771,6 +3771,9 @@ class Dataset:
             pad_tensors=True,
             enabled_tensors=self.enabled_tensors,
         )
+
+    def random_split(self, lengths: Sequence[Union[int, float]]):
+        return create_random_split_views(self, lengths)
 
     def _temp_write_access(self):
         # Defined in DeepLakeCloudDataset
