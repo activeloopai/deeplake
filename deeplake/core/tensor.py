@@ -13,7 +13,11 @@ from deeplake.core.meta.tensor_meta import TensorMeta
 from deeplake.core.storage import StorageProvider
 from deeplake.core.chunk_engine import ChunkEngine
 from deeplake.core.compression import _read_timestamps
-from deeplake.core.tensor_link import extend_downsample, get_link_transform, update_downsample
+from deeplake.core.tensor_link import (
+    extend_downsample,
+    get_link_transform,
+    update_downsample,
+)
 from deeplake.api.info import Info, load_info
 from deeplake.util.keys import (
     get_chunk_id_encoder_key,
@@ -987,7 +991,7 @@ class Tensor:
             if flat is None or v["flatten_sequence"] == flat:
                 fname = v.get("update")
                 if fname:
-                    func = get_link_transform(fname)                        
+                    func = get_link_transform(fname)
                     tensor = Tensor(k, self.dataset)
                     if func == update_downsample:
                         factor = tensor.info.downsampling_factor
