@@ -174,6 +174,7 @@ class Dataset:
             **kwargs: Passing subclass variables through without errors.
             lock (bool): Whether the dataset should be locked for writing. Only applicable for S3, Deep Lake storage and GCS datasets. No effect if read_only=True.
             enabled_tensors (List[str], Optional): List of tensors that are enabled in this view. By default all tensors are enabled.
+            view_base (Optional["Dataset"]): Base dataset of this view.
 
         Raises:
             ValueError: If an existing local path is given, it must be a directory.
