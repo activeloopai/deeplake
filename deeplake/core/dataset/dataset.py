@@ -1180,6 +1180,22 @@ class Dataset:
         unlock_dataset(self)
 
     def __del__(self):
+        if self._view_base:
+            view_id = self._view_id
+            try:
+                del self._view_base._commit_hooks[view_id]
+            except KeyError:
+                pass
+
+            try:
+                del self._view_base._checkout_hooks[view_id]
+            except KeyError:
+                pass
+
+            try:
+                del self._view_base._update_hooks[view_id]
+            except KeyError:
+                pass
         try:
             self._unlock()
         except Exception:  # python shutting down
