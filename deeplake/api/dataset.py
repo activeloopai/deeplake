@@ -941,9 +941,9 @@ class dataset:
 
         Examples:
             >>> # Connect an s3 dataset
-            >>> ds = deeplake.connect(src_path="s3://bucket/dataset", dest_path="hub://my_org/dataset", creds_key="my_managed_credentials_key")
+            >>> ds = deeplake.connect(src_path="s3://bucket/dataset", dest_path="hub://my_org/dataset", creds_key="my_managed_credentials_key", token="my_activeloop_token")
             >>> # or
-            >>> ds = deeplake.connect(src_path="s3://bucket/dataset", org_id="my_org", creds_key="my_managed_credentials_key")
+            >>> ds = deeplake.connect(src_path="s3://bucket/dataset", org_id="my_org", creds_key="my_managed_credentials_key", token="my_activeloop_token")
 
         Args:
             src_path (str): Cloud path to the source dataset. Can be:
