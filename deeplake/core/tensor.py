@@ -311,6 +311,7 @@ class Tensor:
             link_callback=self._extend_links if self.meta.links else None,
         )
         dataset_written(self.dataset)
+        self.invalidate_libdeeplake_dataset()
 
     @property
     def info(self) -> Info:
@@ -387,6 +388,7 @@ class Tensor:
             self.meta.is_dirty = True
         except TensorDoesNotExistError:
             pass
+        self.invalidate_libdeeplake_dataset()
 
     def modified_samples(
         self, target_id: Optional[str] = None, return_indexes: Optional[bool] = False
@@ -685,6 +687,7 @@ class Tensor:
                 link_callback=update_link_callback,
             )
         dataset_written(self.dataset)
+        self.invalidate_libdeeplake_dataset()
 
     def __iter__(self):
         for i in range(len(self)):
@@ -1131,6 +1134,7 @@ class Tensor:
             index = self.num_samples - 1
         self.chunk_engine.pop(index)
         [self.dataset[link].pop(index) for link in self.meta.links]
+        self.invalidate_libdeeplake_dataset()
 
     @property
     def timestamps(self) -> np.ndarray:
@@ -1227,3 +1231,7 @@ class Tensor:
             raise Exception(f"Only supported for linked tensors.")
         assert isinstance(self.chunk_engine, LinkedChunkEngine)
         return self.chunk_engine.path(self.index, fetch_chunks=fetch_chunks)
+
+    def invalidate_libdeeplake_dataset(self):
+        """Invalidates the libdeeplake dataset object."""
+        self.dataset.libdeeplake_dataset = None

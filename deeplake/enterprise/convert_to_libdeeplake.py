@@ -28,7 +28,7 @@ INDRA_INSTALLED = bool(importlib.util.find_spec("indra"))
 
 def dataset_to_libdeeplake(hub2_dataset):
     """Convert a hub 2.x dataset object to a libdeeplake dataset object."""
-    if hub2_dataset.libdeeplake_dataset is None or hub2_dataset.is_head_node:
+    if hub2_dataset.libdeeplake_dataset is None:
         api = import_indra_api()
         try_flushing(hub2_dataset)
         path: str = hub2_dataset.path
@@ -77,8 +77,7 @@ def dataset_to_libdeeplake(hub2_dataset):
             raise ValueError("GCP datasets are not supported for libdeeplake currently.")
         else:
             libdeeplake_dataset = api.dataset(path)
-        if not hub2_dataset.is_head_node:
-            hub2_dataset.libdeeplake_dataset = libdeeplake_dataset
+        hub2_dataset.libdeeplake_dataset = libdeeplake_dataset
     else:
         libdeeplake_dataset = hub2_dataset.libdeeplake_dataset
     commit_id = hub2_dataset.pending_commit_id
