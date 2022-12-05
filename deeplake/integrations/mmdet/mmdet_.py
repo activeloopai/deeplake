@@ -1097,7 +1097,7 @@ def _train_detector(
         val_dataloader_default_args = dict(
             samples_per_gpu=1,
             workers_per_gpu=1,
-            dist=distributed,
+            dist=False,
             shuffle=False,
             persistent_workers=False,
             mode="val",
