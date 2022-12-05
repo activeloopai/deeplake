@@ -417,6 +417,7 @@ class DeepLakeDataLoader(DataLoader):
             dataset = dataset_to_libdeeplake(self._orig_dataset)
 
             jpeg_png_compressed_tensors = check_tensors(self._orig_dataset, tensors)
+            assert self._decode_method is not None
             raw_tensors, compressed_tensors = validate_decode_method(
                 self._decode_method, tensors, jpeg_png_compressed_tensors
             )
