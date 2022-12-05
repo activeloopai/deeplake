@@ -195,8 +195,10 @@ class ChunkEngine:
         self._info_commit_id: Optional[str] = None
 
         self._all_chunk_engines: Optional[Dict[str, ChunkEngine]] = None
+
         self._is_temp_label_tensor: bool = False
         self._hash_label_map: Dict[int, str] = OrderedDict()
+
         self._sample_compression = None
         self._chunk_compression = None
 

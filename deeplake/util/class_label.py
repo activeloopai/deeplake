@@ -51,11 +51,7 @@ def convert_to_hash(samples, hash_label_map):
 def convert_hash_to_idx(hashes, hash_idx_map):
     if isinstance(hashes, list):
         return [convert_hash_to_idx(hash, hash_idx_map) for hash in hashes]
-    else:
-        try:
-            return hash_idx_map[hashes]
-        except KeyError:
-            return hashes
+    return hash_idx_map.get(hashes, hashes)
 
 
 def convert_to_text(inp, class_names: List[str], return_original=False):
@@ -78,14 +74,14 @@ def sync_labels(
 
     @deeplake.compute
     def class_label_sync(
-        hash_tensor_sample,
+        hash_tensor,
         samples_out,
         label_tensor: str,
         hash_idx_map,
     ):
-        hashes = hash_tensor_sample.numpy().tolist()
-        idxs = convert_hash_to_idx(hashes, hash_idx_map)
-        samples_out[label_tensor].append(idxs)
+        samples_out[label_tensor].extend(
+            convert_hash_to_idx(hash_tensor.numpy().tolist(), hash_idx_map)
+        )
 
     for tensor, temp_tensor in label_temp_tensors.items():
         if len(ds[temp_tensor]) == 0:
@@ -124,6 +120,7 @@ def sync_labels(
                     progressbar=True,
                     check_lengths=False,
                     skip_ok=True,
+                    extend_only=True,
                 )
                 target_tensor.meta._disable_temp_transform = False
             finally:
