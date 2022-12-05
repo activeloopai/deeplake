@@ -720,14 +720,16 @@ class dataset:
             UnsupportedParameterException: If parameter that is no longer supported is beeing called.
         """
         if kwargs.get("src_token"):
-            raise UnsupportedParameterException("src_token")
-
+            raise UnsupportedParameterException("src_token is now not supported. You should use `token` instead.")
+        
         if kwargs.get("dest_token"):
-            raise UnsupportedParameterException("dest_token")
-
+            raise UnsupportedParameterException("dest_token is now not supported. You should use `token` instead.")
+        
         if isinstance(src, (str, pathlib.Path)):
             src = convert_pathlib_to_string_if_needed(src)
-            src_ds = deeplake.load(src, read_only=True, creds=src_creds, token=token)
+            src_ds = deeplake.load(
+                src, read_only=True, creds=src_creds, token=token
+            )
         else:
             src_ds = src
             src_ds.path = str(src_ds.path)
@@ -779,6 +781,7 @@ class dataset:
             progressbar (bool): Displays a progress bar if True (default).
             public (bool): Defines if the dataset will have public access. Applicable only if Deep Lake cloud storage is used and a new Dataset is being created. Defaults to ``False``.
             verbose (bool): If True, logs will be printed. Defaults to ``True``.
+            **kwargs: Additional keyword arguments
 
         Returns:
             Dataset: New dataset object.
@@ -789,12 +792,12 @@ class dataset:
             UnsupportedParameterException: If parameter that is no longer supported is beeing called.
         """
 
-        if src_token:
-            raise UnsupportedParameterException("src_token")
-
-        if dest_token:
-            raise UnsupportedParameterException("dest_token")
-
+        if kwargs.get("src_token"):
+            raise UnsupportedParameterException("src_token is now not supported. You should use `token` instead.")
+        
+        if kwargs.get("dest_token"):
+            raise UnsupportedParameterException("dest_token is now not supported. You should use `token` instead.")
+        
         if not isinstance(src, (str, pathlib.Path)):
             raise TypeError(
                 f"Source for `deepcopy` should be path to a dataset. Got {type(src)}."
