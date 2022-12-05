@@ -65,21 +65,6 @@ def test_check_unsupported_train_pipeline_fields():
     with pytest.raises(Exception) as ex_info:
         mmdet_utils.check_unsupported_train_pipeline_fields(cfg)
 
-    cfg.data.train.pipeline = [dict(type="MinIoURandomCrop")]
-
-    with pytest.raises(Exception) as ex_info:
-        mmdet_utils.check_unsupported_train_pipeline_fields(cfg)
-
-    cfg.data.train.pipeline = [dict(type="RandomCrop")]
-
-    with pytest.raises(Exception) as ex_info:
-        mmdet_utils.check_unsupported_train_pipeline_fields(cfg)
-
-    cfg.data.train.pipeline = [dict(type="YOLOXHSVRandomAug")]
-
-    with pytest.raises(Exception) as ex_info:
-        mmdet_utils.check_unsupported_train_pipeline_fields(cfg)
-
     cfg.data.train.pipeline = [dict(type="CopyPaste")]
 
     with pytest.raises(Exception) as ex_info:
@@ -246,14 +231,29 @@ def get_test_config(mmdet_path):
     train_pipeline = [
         dict(type="LoadImageFromFile"),
         dict(type="LoadAnnotations", with_bbox=True),
-        # dict(
-        #     type="Expand",
-        #     mean=img_norm_cfg["mean"],
-        #     to_rgb=img_norm_cfg["to_rgb"],
-        #     ratio_range=(1, 2),
-        # ),
+        dict(
+            type="Expand",
+            mean=img_norm_cfg["mean"],
+            to_rgb=img_norm_cfg["to_rgb"],
+            ratio_range=(1, 2),
+        ),
+        dict(
+            type="MinIoURandomCrop",
+            min_ious=(0.4, 0.5, 0.6, 0.7, 0.8, 0.9),
+            min_crop_size=0.3,
+        ),
         dict(type="Resize", img_scale=[(320, 320), (416, 416)], keep_ratio=True),
         dict(type="RandomFlip", flip_ratio=0.0),
+        dict(
+            type="RandomCenterCropPad",
+            crop_size=(240, 240),
+            ratios=(0.6, 0.7, 0.8, 0.9, 1.0, 1.1, 1.2, 1.3),
+            mean=[0, 0, 0],
+            std=[1, 1, 1],
+            to_rgb=True,
+            test_pad_mode=None,
+        ),
+        dict(type="RandomCrop", crop_size=(240, 240), allow_negative_crop=True),
         dict(type="PhotoMetricDistortion"),
         dict(type="Normalize", **img_norm_cfg),
         dict(type="Pad", size_divisor=32),
