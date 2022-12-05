@@ -38,8 +38,9 @@ from deeplake.util.exceptions import (
     UserNotLoggedInException,
     SampleAppendingError,
     DatasetTooLargeToDelete,
+    InvalidDatasetNameException,
 )
-from deeplake.util.path import convert_string_to_pathlib_if_needed
+from deeplake.util.path import convert_string_to_pathlib_if_needed, verify_dataset_name
 from deeplake.util.pretty_print import summary_tensor, summary_dataset
 from deeplake.constants import GDRIVE_OPT, MB
 from deeplake.client.config import REPORTING_CONFIG_FILE_PATH
@@ -2231,3 +2232,26 @@ def test_iter_warning(local_ds):
 
         with pytest.warns(UserWarning):
             ds.abc[10]
+
+
+def test_invalid_ds_name():
+    with pytest.raises(InvalidDatasetNameException):
+        deeplake.dataset("folder/datasets/dataset name *")
+
+    verify_dataset_name("folders/datasets/dataset name")
+
+    with pytest.raises(InvalidDatasetNameException):
+        ds = deeplake.dataset("hub://test/Mnist 123")
+
+    with pytest.raises(InvalidDatasetNameException):
+        ds = deeplake.empty("hub://test/ Mnist123")
+
+    with pytest.raises(InvalidDatasetNameException):
+        ds = deeplake.like("hub://test/Mnist123 ", "hub://activeloop/mnist-train")
+
+    with pytest.raises(InvalidDatasetNameException):
+        ds = deeplake.deepcopy(
+            "hub://activeloop/mnist-train", "hub://activeloop/mnist$train"
+        )
+
+    verify_dataset_name("hub://test/data-set_123")

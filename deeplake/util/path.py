@@ -1,10 +1,16 @@
 import pathlib
+import posixpath
 from typing import Optional, Union
 from deeplake.core.storage.provider import StorageProvider
 from deeplake.util.tag import process_hub_path
 from deeplake.constants import HUB_CLOUD_DEV_USERNAME
+from deeplake.util.exceptions import InvalidDatasetNameException
 import glob
 import os
+import re
+
+CLOUD_DS_NAME_PATTERN = re.compile(r"^[A-Za-z0-9_-]*$")
+LOCAL_DS_NAME_PATTERN = re.compile(r"^[A-Za-z0-9_ -]*$")
 
 
 def is_hub_cloud_path(path: str):
@@ -66,7 +72,9 @@ def find_root(path: str) -> str:
 def get_path_type(path: Optional[str]) -> str:
     if not isinstance(path, str):
         path = str(path)
-    if path.startswith("http://") or path.startswith("https://"):
+    if path.startswith("hub://"):
+        return "hub"
+    elif path.startswith("http://") or path.startswith("https://"):
         return "http"
     elif path.startswith("gcs://") or path.startswith("gcp://"):
         return "gcs"
@@ -105,3 +113,16 @@ def get_org_id_and_ds_name(path):
         ds_name = path.replace("/", "_").replace(".", "")
 
     return org_id, ds_name
+
+
+def verify_dataset_name(path):
+    path_type = get_path_type(path)
+    ds_name = posixpath.split(path)[-1]
+    if path_type == "local":
+        match = bool(LOCAL_DS_NAME_PATTERN.match(ds_name))
+        if not match:
+            raise InvalidDatasetNameException(path_type)
+    else:
+        match = bool(CLOUD_DS_NAME_PATTERN.match(ds_name))
+        if not match:
+            raise InvalidDatasetNameException(path_type)

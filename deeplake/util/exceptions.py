@@ -824,3 +824,11 @@ class GroupInfoNotSupportedError(Exception):
     def __init__(self):
         message = "Tensor groups does not have info attribute. Please use `dataset.info` or `dataset.tensor.info`."
         super().__init__(message)
+
+class InvalidDatasetNameException(Exception):
+    def __init__(self, path_type):
+        if path_type == "local":
+            message = "Local dataset names can only contain letters, numbers, hyphens, underscores and spaces."
+        else:
+            message = "Please specify a dataset name that contains only letters, numbers, hyphens and underscores."
+        super().__init__(message)
