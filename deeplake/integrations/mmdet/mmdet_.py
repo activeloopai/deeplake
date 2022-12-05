@@ -746,6 +746,8 @@ def build_dataloader(
 
     collate_fn = partial(collate, samples_per_gpu=batch_size)
 
+    decode_method={images_tensor: "numpy"}
+
     if implementation == "python":
         loader = dataset.pytorch(
             tensors_dict=tensors_dict,
@@ -760,7 +762,7 @@ def build_dataloader(
             batch_size=batch_size,
             mode=mode,
             bbox_info=bbox_info,
-            decode_method={images_tensor: "numpy"},
+            decode_method=decode_method,
         )
 
     else:
@@ -774,7 +776,7 @@ def build_dataloader(
                 collate_fn=collate_fn,
                 tensors=tensors,
                 distributed=dist,
-                decode_method={images_tensor: "numpy"},
+                decode_method=decode_method,
             )
         )
 
@@ -791,6 +793,7 @@ def build_dataloader(
             tensors=tensors,
             mode=mode,
             bbox_info=bbox_info,
+            decode_method=decode_method,
         )
         loader.dataset = mmdet_ds
     loader.dataset.CLASSES = classes

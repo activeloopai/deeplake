@@ -289,7 +289,6 @@ class SampleStreaming(Streaming):
         self.return_index = return_index
 
         jpeg_png_compressed_tensors = check_tensors(self.dataset, tensors)
-        assert self.decode_method is not None
         raw_tensors, compressed_tensors = validate_decode_method(
             self.decode_method, tensors, jpeg_png_compressed_tensors
         )
