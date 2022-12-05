@@ -963,7 +963,7 @@ class dataset:
             InvalidSourcePathError: If the ``src_path`` is not a valid s3 or gcs path.
             InvalidDestinationPathError: If ``dest_path``, or ``org_id`` and ``ds_name`` do not form a valid Deep Lake path.
         """
-        return connect_dataset_entry(
+        path = connect_dataset_entry(
             src_path=src_path,
             creds_key=creds_key,
             dest_path=dest_path,
@@ -971,6 +971,7 @@ class dataset:
             ds_name=ds_name,
             token=token,
         )
+        return deeplake.dataset(path, token=token, verbose=False)
 
     @staticmethod
     def ingest(

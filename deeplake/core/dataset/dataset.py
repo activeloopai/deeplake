@@ -3443,14 +3443,22 @@ class Dataset:
             InvalidSourcePathError: If the dataset's path is not a valid s3 or gcs path.
             InvalidDestinationPathError: If ``dest_path``, or ``org_id`` and ``ds_name`` do not form a valid Deep Lake path.
         """
-        return connect_dataset_entry(
+        self.__class__ = (
+            deeplake.core.dataset.deeplake_cloud_dataset.DeepLakeCloudDataset
+        )
+        path = connect_dataset_entry(
             src_path=self.path,
-            creds_key=creds_key,
             dest_path=dest_path,
             org_id=org_id,
             ds_name=ds_name,
+            creds_key=creds_key,
             token=token,
         )
+        self._token = token
+        self.path = path
+        self.public = False
+        self._load_link_creds()
+        self._first_load_init(verbose=False)
 
     def add_creds_key(self, creds_key: str, managed: bool = False):
         """Adds a new creds key to the dataset. These keys are used for tensors that are linked to external data.
