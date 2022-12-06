@@ -763,6 +763,7 @@ class dataset:
         progressbar=True,
         public: bool = False,
         verbose: bool = True,
+        **kwargs,
     ):
         """Copies dataset at ``src`` to ``dest`` including version control history.
 
