@@ -424,28 +424,26 @@ def test_view_mutability(local_ds):
         ds.abc.extend(list(range(50)))
 
     full_view = ds[:]
-    full_view.abc.extend(list(range(50)))
     half_view = ds[:25]
 
     with pytest.raises(InvalidOperationError):
         half_view.abc.extend(list(range(50)))
 
     a = ds.commit()
+
     half_view_2 = ds[:50]
 
     ds.abc.extend(list(range(50)))
 
-    # full_view, half_view and half_view_2 points to last commit, not HEAD
-    np.testing.assert_array_equal(full_view.abc.numpy(), ds[:100].abc.numpy())
+    # full_view, half_view points to last commit, not HEAD
+    np.testing.assert_array_equal(full_view.abc.numpy(), ds[:50].abc.numpy())
     np.testing.assert_array_equal(half_view.abc.numpy(), ds[:25].abc.numpy())
-    np.testing.assert_array_equal(half_view_2.abc.numpy(), ds[:50].abc.numpy())
+
+    # half_view_2 invalidated due to update
+    with pytest.raises(InvalidViewException):
+        half_view_2.abc.numpy(), ds[:50].abc.numpy()
 
     view1 = ds[10:20]
-
-    ds.abc.extend(list(range(50)))
-    # can't save since ds was updated
-    with pytest.raises(DatasetViewSavingError):
-        view1.save_view(id="first_25")
 
     ds.checkout(a)
     # view1 invalidated because of base ds checkout

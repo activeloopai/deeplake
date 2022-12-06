@@ -276,7 +276,6 @@ def test_auto_checkout_bug(local_ds):
     g = local_ds.checkout(a)
     local_ds.abc[0] = 5
     dsv = local_ds[0:3]
-    dsv.abc[0] = 5
     h = local_ds.commit("it is 5")
     i = local_ds.checkout(e)
     local_ds.abc[0] = 6
