@@ -72,7 +72,9 @@ def test_point_cloud(local_ds, point_cloud_paths):
         3,
     )
 
-    local_ds.point_cloud_without_sample_compression.numpy(aslist=True)
+    assert isinstance(
+        local_ds.point_cloud_without_sample_compression.numpy(aslist=True), list
+    )
 
     assert len(local_ds.point_cloud_without_sample_compression.numpy(aslist=True)) == 2
     assert len(local_ds.point_cloud_without_sample_compression.data(aslist=True)) == 2
