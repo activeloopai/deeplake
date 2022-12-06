@@ -10,7 +10,7 @@ import os
 import re
 
 CLOUD_DS_NAME_PATTERN = re.compile(r"^[A-Za-z0-9_-]*$")
-LOCAL_DS_NAME_PATTERN = re.compile(r"^[A-Za-z0-9_ -]*$")
+LOCAL_DS_NAME_PATTERN = re.compile(r"^[A-Za-z0-9_ .-]*$")
 
 
 def is_hub_cloud_path(path: str):
@@ -117,12 +117,11 @@ def get_org_id_and_ds_name(path):
 
 def verify_dataset_name(path):
     path_type = get_path_type(path)
-    ds_name = posixpath.split(path)[-1]
+    ds_name = os.path.split(path)[-1]
+    match = True
     if path_type == "local":
         match = bool(LOCAL_DS_NAME_PATTERN.match(ds_name))
-        if not match:
-            raise InvalidDatasetNameException(path_type)
-    else:
+    elif "/queries/" not in path:
         match = bool(CLOUD_DS_NAME_PATTERN.match(ds_name))
-        if not match:
-            raise InvalidDatasetNameException(path_type)
+    if not match:
+        raise InvalidDatasetNameException(path_type)

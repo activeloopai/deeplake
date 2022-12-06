@@ -829,7 +829,7 @@ class GroupInfoNotSupportedError(Exception):
 class InvalidDatasetNameException(Exception):
     def __init__(self, path_type):
         if path_type == "local":
-            message = "Local dataset names can only contain letters, numbers, hyphens, underscores and spaces."
+            message = "Local dataset names can only contain letters, numbers, spaces, `-`, `_` and `.`."
         else:
             message = "Please specify a dataset name that contains only letters, numbers, hyphens and underscores."
         super().__init__(message)
