@@ -27,7 +27,7 @@ deeplake.api.dataset
         
         See :func:`deeplake.like`.
     
-    .. staticmethod:: copy(src: Union[str, pathlib.Path, Dataset], dest: Union[str, pathlib.Path], tensors: Optional[List[str]] = None, overwrite: bool = False, src_creds=None dest_creds=None, token=None, num_workers: int = 0, scheduler="threaded", progressbar=True)
+    .. staticmethod:: copy(src: Union[str, pathlib.Path, Dataset], dest: Union[str, pathlib.Path], tensors: Optional[List[str]] = None, overwrite: bool = False, src_creds=None, dest_creds=None, token=None, num_workers: int = 0, scheduler="threaded", progressbar=True)
         
         See :func:`deeplake.copy`.
     
