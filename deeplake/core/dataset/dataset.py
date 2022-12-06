@@ -210,7 +210,6 @@ class Dataset:
         d["_info"] = None
         d["_ds_diff"] = None
         d["_view_id"] = str(uuid.uuid4())
-        d["_view_invalid_save"] = False
         d["_view_base"] = view_base
         d["_view_use_parent_commit"] = False
         d["_update_hooks"] = {}
@@ -339,7 +338,6 @@ class Dataset:
             "ds_name",
             "_is_filtered_view",
             "_view_id",
-            "_view_invalid_save",
             "_view_use_parent_commit",
             "_parent_dataset",
             "_pad_tensors",
@@ -386,26 +384,23 @@ class Dataset:
             def commit_hook():
                 del self._view_base._commit_hooks[uid]
                 del self._view_base._checkout_hooks[uid]
-                try:
-                    del self._view_base._update_hooks[uid]
-                except KeyError:
-                    pass
+                del self._view_base._update_hooks[uid]
                 self._view_use_parent_commit = True
                 self._reload_version_state()
 
             def checkout_hook():
                 del self._view_base._commit_hooks[uid]
                 del self._view_base._checkout_hooks[uid]
-                try:
-                    del self._view_base._update_hooks[uid]
-                except KeyError:
-                    pass
+                del self._view_base._update_hooks[uid]
                 self.__class__ = InvalidView
                 self.__init__(reason="checkout")
 
             def update_hook():
+                del self._view_base._commit_hooks[uid]
+                del self._view_base._checkout_hooks[uid]
                 del self._view_base._update_hooks[uid]
-                self._view_invalid_save = True
+                self.__class__ = InvalidView
+                self.__init__(reason="update")
 
             self._view_base._commit_hooks[uid] = commit_hook
             self._view_base._checkout_hooks[uid] = checkout_hook
@@ -2512,10 +2507,6 @@ class Dataset:
         message: Optional[str] = None,
         copy: bool = False,
     ):
-        if self._view_invalid_save:
-            raise DatasetViewSavingError(
-                "This view cannot be saved as new changes were made at HEAD node after creation of this view."
-            )
         if self.has_head_changes:
             raise DatasetViewSavingError(
                 "HEAD node has uncommitted changes. Commit them before saving views."

@@ -174,7 +174,7 @@ def test_dataset_view_save(optimize):
     ds.commit()
     view = ds.filter("labels == 'dog'")
     _populate_data(ds)
-    with pytest.raises(DatasetViewSavingError):
+    with pytest.raises(InvalidViewException):
         view.save_view(path=".tests/ds_view", overwrite=True, optimize=optimize)
     ds.commit()
     view = ds.filter("labels == 'dog'")
