@@ -937,7 +937,7 @@ def test_dataset_deepcopy(path, hub_token, num_workers, progressbar):
             src_path,
             dest_path,
             overwrite=True,
-            scr_token=hub_token,
+            src_token=hub_token,
             num_workers=num_workers,
             progressbar=progressbar,
         )

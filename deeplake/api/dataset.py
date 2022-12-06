@@ -793,12 +793,12 @@ class dataset:
             UnsupportedParameterException: If parameter that is no longer supported is beeing called.
         """
 
-        if kwargs.get("src_token"):
+        if "src_token" in kwargs:
             raise UnsupportedParameterException(
                 "src_token is now not supported. You should use `token` instead."
             )
 
-        if kwargs.get("dest_token"):
+        if "dest_token" in kwargs:
             raise UnsupportedParameterException(
                 "dest_token is now not supported. You should use `token` instead."
             )

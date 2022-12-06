@@ -836,5 +836,4 @@ class InvalidDatasetNameException(Exception):
 
 
 class UnsupportedParameterException(Exception):
-    def __init__(self, message):
-        super().__init___(message)
+    pass
