@@ -1042,9 +1042,7 @@ def test_transform_info(local_ds_generator):
     ["memory_ds", "local_ds", "s3_ds"],
     indirect=True,
 )
-def test_read_only_dataset_aggregation_image(
-    ds, sample_compression, num_workers
-):
+def test_read_only_dataset_aggregation_image(ds, sample_compression, num_workers):
     scheduler = "serial"
     i_start = 0
     i_stop = 100
