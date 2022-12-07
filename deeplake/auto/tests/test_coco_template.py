@@ -17,9 +17,12 @@ def coco_images_path():
 
 @pytest.fixture
 def coco_annotation_path():
-    return get_dummy_data_path(
-        os.path.join("tests_auto", "coco", "instances_val_2017_tiny.json")
-    )
+    return get_dummy_data_path(os.path.join("tests_auto", "coco", "annotations1.json"))
+
+
+@pytest.fixture
+def coco_annotation_path2():
+    return get_dummy_data_path(os.path.join("tests_auto", "coco", "annotations2.json"))
 
 
 def test_full_dataset_structure(local_ds):
@@ -99,15 +102,17 @@ def test_missing_dataset_structure(local_ds):
     assert "annotations/sub_annotations/sub_tensor1" in tensors
 
 
-def test_minimal_coco_ingestion(local_path, coco_images_path, coco_annotation_path):
+def test_minimal_coco_ingestion(
+    local_path, coco_images_path, coco_annotation_path, coco_annotation_path2
+):
     key_to_tensor = {"segmentation": "mask", "bbox": "bboxes"}
-    file_to_group = {"instances_val_2017_tiny": "base_annotations"}
+    file_to_group = {"annotations1": "group1", "annotations2": "group2"}
     ignore_keys = ["area", "iscrowd"]
 
     ds = deeplake.ingest_coco(
         images_directory=coco_images_path,
         dest=local_path,
-        annotation_files=[coco_annotation_path],
+        annotation_files=[coco_annotation_path, coco_annotation_path2],
         key_to_tensor_mapping=key_to_tensor,
         file_to_group_mapping=file_to_group,
         ignore_keys=ignore_keys,
@@ -115,19 +120,19 @@ def test_minimal_coco_ingestion(local_path, coco_images_path, coco_annotation_pa
     )
 
     assert ds.path == local_path
-    # assert len(ds.groups) == 1
     assert "images" in ds.tensors
-    assert "base_annotations/mask" in ds.tensors
-    assert "base_annotations/bboxes" in ds.tensors
-
-    assert "base_annotations/iscrowd" not in ds.tensors
-    assert "base_annotations/area" not in ds.tensors
+    assert "group1/mask" in ds.tensors
+    assert "group2/mask" in ds.tensors
+    assert "group1/bboxes" in ds.tensors
+    assert "group2/bboxes" in ds.tensors
+    assert "group1/iscrowd" not in ds.tensors
+    assert "group2/iscrowd" not in ds.tensors
 
 
 def test_ingestion_with_linked_images(
     local_path, coco_images_path, coco_annotation_path
 ):
-    file_to_group = {"instances_val_2017_tiny": "base_annotations"}
+    file_to_group = {"annotations1.json": "base_annotations"}
     ds = deeplake.ingest_coco(
         images_directory=coco_images_path,
         annotation_files=coco_annotation_path,
@@ -153,7 +158,7 @@ def test_ingestion_with_existing_destination(
         "base_annotations/bbox", htype="bbox", sample_compression=None
     )
 
-    file_to_group = {"instances_val_2017_tiny": "base_annotations"}
+    file_to_group = {"annotations1.json": "base_annotations"}
     deeplake.ingest_coco(
         images_directory=coco_images_path,
         annotation_files=coco_annotation_path,

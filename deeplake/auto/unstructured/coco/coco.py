@@ -1,14 +1,11 @@
-import os
 import deeplake
 
 from pathlib import Path
 from typing import List, Union, Dict, Optional
-from tqdm import tqdm
 from itertools import chain
 
 from deeplake.core.dataset.dataset import Dataset
 from deeplake.util.exceptions import IngestionError
-from deeplake.client.log import logger
 
 from ..base import UnstructuredDataset
 from ..util import DatasetStructure, GroupStructure, TensorStructure
@@ -49,7 +46,8 @@ class CocoDataset(UnstructuredDataset):
         self._validate_key_mapping()
         self.tensor_to_key = {v: k for k, v in self.key_to_tensor.items()}
 
-        self.file_to_group = {Path(k).stem: v for k, v in file_to_group_mapping.items()}
+        self.file_to_group = file_to_group_mapping or {}
+        self.file_to_group = {Path(k).stem: v for k, v in self.file_to_group.items()}
         self._validate_group_mapping()
 
         self.ignore_keys = ignore_keys or []
@@ -72,7 +70,7 @@ class CocoDataset(UnstructuredDataset):
                 "Image settings must contain a name for the image tensor."
             )
 
-    def _parse_annotation_tensors(
+    def _add_annotation_tensors(
         self,
         structure: DatasetStructure,
         inspect_limit: int = 1000000,
@@ -101,7 +99,7 @@ class CocoDataset(UnstructuredDataset):
 
             structure.add_group(group)
 
-    def _parse_images_tensor(self, structure: DatasetStructure):
+    def _add_images_tensor(self, structure: DatasetStructure):
         img_config = DEFAULT_IMAGE_TENSOR_PARAMS.copy()
 
         if self.image_settings.get("linked", False):
@@ -116,87 +114,114 @@ class CocoDataset(UnstructuredDataset):
             TensorStructure(name=name, primary=True, params=img_config)
         )
 
-    def prepare_structure(self, inspect_limit: int = 1000000) -> DatasetStructure:
-        structure = DatasetStructure(ignore_one_group=self.ignore_one_group)
-        self._parse_annotation_tensors(structure, inspect_limit=inspect_limit)
-        self._parse_images_tensor(structure)
-
-        return structure
-
-    def process_single_image(
+    def _ingest_images(
         self,
-        img_file,
         ds: Dataset,
-        image_name_to_id,
-        id_2_label,
-        coco_file,
-        group_prefix,
+        images: List[str],
+        progressbar: bool = True,
+        num_workers: int = 0,
     ):
-        img_id = image_name_to_id[img_file]
-        matching_anns = coco_file.get_annotations_for_image(img_id)
-        group_tensors = ds[group_prefix].tensors if group_prefix else ds.tensors
-        values = {t.key: [] for t in group_tensors.values()}
         image_tensor = self.image_settings.get("name")
 
-        values[image_tensor] = self.images.get_image(
-            img_file,
-            destination_tensor=ds[image_tensor],
-            creds_key=self.image_settings.get("creds_key"),
+        @deeplake.compute
+        def append_images(image, ds):
+            ds[image_tensor].append(
+                self.images.get_image(
+                    image,
+                    ds[image_tensor],
+                    creds_key=self.image_settings.get("creds_key"),
+                )
+            )
+
+        append_images().eval(
+            images, ds, progressbar=progressbar, num_workers=num_workers
         )
 
+    def _get_sample(
+        self,
+        image_file: str,
+        ds: Dataset,
+        coco_file: CocoAnnotation,
+    ):
+        id_2_label = coco_file.id_to_label_mapping
+        image_name_to_id = coco_file.image_name_to_id_mapping
+        image_id = image_name_to_id[image_file]
+        matching_anns = coco_file.get_annotations_for_image(image_id)
+        group_tensors = [
+            t for t in ds.tensors.keys() if not t.startswith("_")
+        ]  # Avoid hidden tensors
+        sample = {k: [] for k in group_tensors}
+
         for ann in matching_anns:
-            for tensor_name, tensor in group_tensors.items():
+            for tensor_name in group_tensors:
                 coco_key = self.tensor_to_key.get(tensor_name, tensor_name)
                 value = coco_2_deeplake(
                     coco_key,
                     ann[coco_key],
-                    ds[tensor.key],
+                    ds[tensor_name],
                     category_lookup=id_2_label,
                 )
 
-                values[tensor.key].append(value)
+                sample[tensor_name].append(value)
 
-        return values
+        return sample
+
+    def prepare_structure(self, inspect_limit: int = 1000000) -> DatasetStructure:
+        structure = DatasetStructure(ignore_one_group=self.ignore_one_group)
+        self._add_annotation_tensors(structure, inspect_limit=inspect_limit)
+        self._add_images_tensor(structure)
+
+        return structure
 
     def structure(self, ds: Dataset, progressbar: bool = True, num_workers: int = 0):
-        img_files = self.images.supported_images
+        image_files = self.images.supported_images
 
         with ds:
+            self._ingest_images(ds, image_files, progressbar, num_workers)
+
             for ann_file in self.annotation_files:
                 coco_file = CocoAnnotation(ann_file, creds=self.creds)
-                id_2_label_mapping = coco_file.id_to_label_mapping
-                image_name_to_id = coco_file.image_name_to_id_mapping
 
                 group_prefix = self.file_to_group.get(
                     Path(ann_file).stem, Path(ann_file).stem
                 )
+                append_obj = ds
 
                 # Get the object to which data will be appended. We need to know if it's first-level tensor, or a group
                 if self.ignore_one_group and len(ds.groups) == 1:
                     group_prefix = ""
 
+                if group_prefix:
+                    append_obj = ds[group_prefix]
+
                 @deeplake.compute
                 def process_annotations(image, _, values):
                     values.append(
-                        self.process_single_image(
+                        self._get_sample(
                             image,
-                            ds,
-                            image_name_to_id,
-                            id_2_label_mapping,
+                            append_obj,
                             coco_file,
-                            group_prefix,
                         )
                     )
 
                 values = []
                 process_annotations(values).eval(
-                    img_files, ds, num_workers=num_workers, progressbar=progressbar
+                    image_files,
+                    append_obj,
+                    num_workers=num_workers,
+                    progressbar=progressbar,
                 )
 
-                @deeplake.compute
-                def append_annotations(s, ds):
-                    ds.append(s)
+                samples = {
+                    key: [item[key] for item in values] for key in values[0].keys()
+                }
 
-                append_annotations().eval(
-                    values, ds, num_workers=num_workers, progressbar=progressbar
-                )
+                append_obj.extend(samples)
+
+                # @deeplake.compute
+                # def append_annotations(s, ds):
+                #     ds.append(s)
+
+                # append_annotations().eval(
+                #     values, append_obj, num_workers=num_workers, progressbar=progressbar
+                # )
