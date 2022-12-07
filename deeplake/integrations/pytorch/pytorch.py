@@ -3,7 +3,6 @@ from deeplake.util.dataset import try_flushing
 from deeplake.util.dataset import map_tensor_keys
 from .common import (
     PytorchTransformFunction,
-    check_tensors,
     convert_fn as default_convert_fn,
     collate_fn as default_collate_fn,
 )

@@ -9,7 +9,6 @@ from numpy import array as nparray
 from math import floor
 import numpy as np
 
-
 from deeplake.constants import MB
 from deeplake.core.chunk.base_chunk import BaseChunk
 from deeplake.core.chunk_engine import ChunkEngine
@@ -302,6 +301,10 @@ class SampleStreaming(Streaming):
             if self.local_storage is not None
             else None
         )
+        group_index_length = len(self.dataset.group_index)
+        if group_index_length:
+            group_index_length += 1  # add 1 for the forward slash
+        self._group_index_length = group_index_length
 
     def read(self, schedule: Schedule) -> Iterator:
         for block in schedule._blocks:
@@ -314,6 +317,7 @@ class SampleStreaming(Streaming):
             valid_sample_flag = True
 
             for keyid, (key, engine) in enumerate(self.chunk_engines.items()):
+                rel_key = key[self._group_index_length :]
                 decompress = key not in self.raw_tensors
                 to_pil = key in self.compressed_tensors
                 chunk_class = engine.chunk_class
@@ -324,7 +328,7 @@ class SampleStreaming(Streaming):
 
                     version_state = self.dataset.version_state
                     if c_names == [None]:
-                        sample[key] = engine.get_empty_sample()
+                        sample[rel_key] = engine.get_empty_sample()
                         continue
                     for c_name in c_names:
                         commit_id = engine.get_chunk_commit(c_name)
@@ -361,7 +365,7 @@ class SampleStreaming(Streaming):
                             data = Image.fromarray(data)  # type: ignore
 
                     if data is not None:
-                        sample[key] = data
+                        sample[rel_key] = data
                     else:
                         valid_sample_flag = False
                         break
