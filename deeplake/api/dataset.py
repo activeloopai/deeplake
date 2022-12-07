@@ -1012,6 +1012,11 @@ class dataset:
         """
         dest = convert_pathlib_to_string_if_needed(dest)
         images_directory = convert_pathlib_to_string_if_needed(images_directory)
+        annotation_files = (
+            [convert_pathlib_to_string_if_needed(f) for f in annotation_files]
+            if isinstance(annotation_files, list)
+            else convert_pathlib_to_string_if_needed(annotation_files)
+        )
 
         if isinstance(dest, Dataset):
             ds = dest

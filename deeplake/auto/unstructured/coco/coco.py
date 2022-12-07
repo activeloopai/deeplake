@@ -4,12 +4,13 @@ from pathlib import Path
 from typing import List, Union, Dict, Optional
 from itertools import chain
 
-from deeplake.core.dataset.dataset import Dataset
+from deeplake.core.dataset import Dataset
 from deeplake.util.exceptions import IngestionError
 
 from ..base import UnstructuredDataset
 from ..util import DatasetStructure, GroupStructure, TensorStructure
-from .convert import coco_2_deeplake, CocoAnnotation, CocoImages
+from .utils import CocoAnnotation, CocoImages
+from .convert import coco_2_deeplake
 
 from .constants import (
     DEFAULT_GENERIC_TENSOR_PARAMS,
@@ -143,23 +144,23 @@ class CocoDataset(UnstructuredDataset):
         ds: Dataset,
         coco_file: CocoAnnotation,
     ):
-        id_2_label = coco_file.id_to_label_mapping
+        id_to_label = coco_file.id_to_label_mapping
         image_name_to_id = coco_file.image_name_to_id_mapping
         image_id = image_name_to_id[image_file]
-        matching_anns = coco_file.get_annotations_for_image(image_id)
+        matching_annotations = coco_file.get_annotations_for_image(image_id)
         group_tensors = [
             t for t in ds.tensors.keys() if not t.startswith("_")
         ]  # Avoid hidden tensors
         sample = {k: [] for k in group_tensors}
 
-        for ann in matching_anns:
+        for annotation in matching_annotations:
             for tensor_name in group_tensors:
                 coco_key = self.tensor_to_key.get(tensor_name, tensor_name)
                 value = coco_2_deeplake(
                     coco_key,
-                    ann[coco_key],
+                    annotation[coco_key],
                     ds[tensor_name],
-                    category_lookup=id_2_label,
+                    category_lookup=id_to_label,
                 )
 
                 sample[tensor_name].append(value)
@@ -185,21 +186,21 @@ class CocoDataset(UnstructuredDataset):
                 group_prefix = self.file_to_group.get(
                     Path(ann_file).stem, Path(ann_file).stem
                 )
-                append_obj = ds
+                append_destination = ds
 
                 # Get the object to which data will be appended. We need to know if it's first-level tensor, or a group
                 if self.ignore_one_group and len(ds.groups) == 1:
                     group_prefix = ""
 
                 if group_prefix:
-                    append_obj = ds[group_prefix]
+                    append_destination = ds[group_prefix]
 
                 @deeplake.compute
                 def process_annotations(image, _, values):
                     values.append(
                         self._get_sample(
                             image,
-                            append_obj,
+                            append_destination,
                             coco_file,
                         )
                     )
@@ -207,7 +208,7 @@ class CocoDataset(UnstructuredDataset):
                 values = []
                 process_annotations(values).eval(
                     image_files,
-                    append_obj,
+                    append_destination,
                     num_workers=num_workers,
                     progressbar=progressbar,
                 )
@@ -216,12 +217,4 @@ class CocoDataset(UnstructuredDataset):
                     key: [item[key] for item in values] for key in values[0].keys()
                 }
 
-                append_obj.extend(samples)
-
-                # @deeplake.compute
-                # def append_annotations(s, ds):
-                #     ds.append(s)
-
-                # append_annotations().eval(
-                #     values, append_obj, num_workers=num_workers, progressbar=progressbar
-                # )
+                append_destination.extend(samples)
