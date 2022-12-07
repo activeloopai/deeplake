@@ -12,7 +12,7 @@ from deeplake.client.log import logger
 from deeplake.core.dataset import Dataset, dataset_factory
 from deeplake.core.meta.dataset_meta import DatasetMeta
 from deeplake.util.connect_dataset import connect_dataset_entry
-from deeplake.util.path import convert_pathlib_to_string_if_needed
+from deeplake.util.path import convert_pathlib_to_string_if_needed, verify_dataset_name
 from deeplake.hooks import (
     dataset_created,
     dataset_loaded,
@@ -138,6 +138,8 @@ class dataset:
         access_method, num_workers, scheduler = parse_access_method(access_method)
         check_access_method(access_method, overwrite)
         path = convert_pathlib_to_string_if_needed(path)
+
+        verify_dataset_name(path)
 
         if creds is None:
             creds = {}
@@ -282,6 +284,8 @@ class dataset:
             Setting ``overwrite`` to ``True`` will delete all of your data if it exists! Be very careful when setting this parameter.
         """
         path = convert_pathlib_to_string_if_needed(path)
+
+        verify_dataset_name(path)
 
         if creds is None:
             creds = {}
@@ -786,6 +790,8 @@ class dataset:
 
         src = convert_pathlib_to_string_if_needed(src)
         dest = convert_pathlib_to_string_if_needed(dest)
+
+        verify_dataset_name(dest)
 
         report_params = {
             "Overwrite": overwrite,
