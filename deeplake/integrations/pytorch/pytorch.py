@@ -125,12 +125,22 @@ def dataset_to_pytorch(
     if tensors is not None and "index" in tensors:
         raise ValueError("index is not a tensor, to get index, pass return_index=True")
 
-    tensors = map_tensor_keys(dataset, tensors)
     if isinstance(transform, dict):
         tensors = [k for k in transform.keys() if k != "index"]
         transform = PytorchTransformFunction(transform_dict=transform)
     else:
         transform = PytorchTransformFunction(composite_transform=transform)
+
+    if tensors is None:
+        tensors = dataset.tensors
+
+    for t in tensors:
+        if dataset[t].is_sequence:
+            raise NotImplementedError(
+                f"Deep Lake’s OSS pure-python dataloader is not compatible with tensor `{t}` with htype = sequence[…]. Please use the C++ dataloader via ds.dataloader(…), which can be installed using ‘pip install deeplake[enterprise]’."
+            )
+
+    tensors = map_tensor_keys(dataset, tensors)
 
     if shuffle and num_workers > 0:
         return create_dataloader(
