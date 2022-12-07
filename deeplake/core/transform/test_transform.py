@@ -1036,7 +1036,6 @@ def test_transform_info(local_ds_generator):
 
 
 @parametrize_num_workers
-@all_schedulers
 @all_compressions
 @pytest.mark.parametrize(
     "ds",
@@ -1044,11 +1043,9 @@ def test_transform_info(local_ds_generator):
     indirect=True,
 )
 def test_read_only_dataset_aggregation_image(
-    ds, sample_compression, scheduler, num_workers
+    ds, sample_compression, num_workers
 ):
-    if scheduler == "processed" and ds.path.startswith("mem://"):
-        pytest.xfail("Memory dataset not supported in processed scheduler")
-
+    scheduler = "serial"
     i_start = 0
     i_stop = 100
     with ds:
@@ -1070,15 +1067,13 @@ def test_read_only_dataset_aggregation_image(
 
 
 @parametrize_num_workers
-@all_schedulers
 @pytest.mark.parametrize(
     "ds",
     ["memory_ds", "local_ds", "s3_ds"],
     indirect=True,
 )
-def test_read_only_dataset_aggregation_label(ds, scheduler, num_workers):
-    if scheduler == "processed" and ds.path.startswith("mem://"):
-        pytest.xfail("Memory dataset not supported in processed scheduler")
+def test_read_only_dataset_aggregation_label(ds, num_workers):
+    scheduler = "serial"
 
     i_start = 0
     i_stop = 100
