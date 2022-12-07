@@ -30,18 +30,20 @@ def get_dataset_with_zero_size_cache(ds):
     ds_base_storage = get_base_storage(ds.storage)
     zero_cache_storage = LRUCache(MemoryProvider(), ds_base_storage, 0)
     commit_id = ds.pending_commit_id
+    index = ds.index
     ds = deeplake.core.dataset.dataset_factory(
         path=ds.path,
         storage=zero_cache_storage,
-        index=ds.index,
         group_index=ds.group_index,
         read_only=ds.read_only,
         token=ds.token,
         verbose=False,
-        version_state=ds.version_state,
         link_creds=ds.link_creds,
         pad_tensors=ds._pad_tensors,
     )
+    if ds.pending_commit_id != commit_id:
+        ds.checkout(commit_id)
+    ds.index = index
     return ds
 
 
