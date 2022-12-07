@@ -364,6 +364,7 @@ class Dataset:
         state["_commit_hooks"] = {}
         state["_waiting_for_view_base_commit"] = False
         state["_client"] = state["org_id"] = state["ds_name"] = None
+        state["_temp_tensors"] = []
         self.__dict__.update(state)
         self.__dict__["base_storage"] = get_base_storage(self.storage)
         # clear cache while restoring
