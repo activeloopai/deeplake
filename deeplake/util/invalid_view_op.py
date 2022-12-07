@@ -13,8 +13,7 @@ def invalid_view_op(callable: Callable):
             is_del = callable.__name__ == "delete"
             managed_view = "_view_entry" in ds.__dict__
             has_vds = "_vds" in ds.__dict__
-            is_ds_view = ds._view_base and not ds.group_index
-            is_view = not x.index.is_trivial() or has_vds or managed_view or is_ds_view
+            is_view = not x.index.is_trivial() or has_vds or managed_view
             if is_view and not (is_del and (has_vds or managed_view)):
                 raise InvalidOperationError(
                     callable.__name__,
