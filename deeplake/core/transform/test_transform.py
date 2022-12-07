@@ -1097,13 +1097,10 @@ def test_read_only_dataset_aggregation_label(ds, num_workers):
 @all_schedulers
 @pytest.mark.parametrize(
     "ds",
-    ["memory_ds", "local_ds", "s3_ds"],
+    ["local_ds", "s3_ds"],
     indirect=True,
 )
 def test_read_only_dataset_raise(ds, scheduler, num_workers):
-    if scheduler == "processed" and ds.path.startswith("mem://"):
-        pytest.xfail("Memory dataset not supported in processed scheduler")
-
     with ds:
         ds.create_tensor("label", htype="class_label")
         ds.label.append(1)
