@@ -441,7 +441,6 @@ class DeepLakeDataLoader(DataLoader):
                 raw_tensors=raw_tensors,
                 jpeg_png_numpy_tensors=jpeg_png_numpy_tensors,
                 jpeg_png_pil_tensors=jpeg_png_pil_tensors,
-                jpeg_png_compressed_tensors=jpeg_png_compressed_tensors,
                 persistent_workers=self._persistent_workers,
             )
         dataset_read(self._orig_dataset)
