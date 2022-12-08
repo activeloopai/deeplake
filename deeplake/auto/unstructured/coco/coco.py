@@ -3,6 +3,7 @@ import deeplake
 from pathlib import Path
 from typing import List, Union, Dict, Optional
 from itertools import chain
+from collections import OrderedDict
 
 from deeplake.core.dataset import Dataset
 from deeplake.util.exceptions import IngestionError
@@ -10,7 +11,7 @@ from deeplake.util.exceptions import IngestionError
 from ..base import UnstructuredDataset
 from ..util import DatasetStructure, GroupStructure, TensorStructure
 from .utils import CocoAnnotation, CocoImages
-from .convert import coco_2_deeplake
+from .convert import coco_to_deeplake
 
 from .constants import (
     DEFAULT_GENERIC_TENSOR_PARAMS,
@@ -122,21 +123,22 @@ class CocoDataset(UnstructuredDataset):
         progressbar: bool = True,
         num_workers: int = 0,
     ):
-        image_tensor = self.image_settings.get("name")
+        images_tensor_name = self.image_settings.get("name")
+        images_tensor = ds[images_tensor_name]
+        samples = OrderedDict((image, None) for image in images)
 
         @deeplake.compute
-        def append_images(image, ds):
-            ds[image_tensor].append(
-                self.images.get_image(
-                    image,
-                    ds[image_tensor],
-                    creds_key=self.image_settings.get("creds_key"),
-                )
+        def append_images(image, _, samples):
+            samples[image] = self.images.get_image(
+                image,
+                destination_tensor=images_tensor,
+                creds_key=self.image_settings.get("creds_key"),
             )
 
-        append_images().eval(
+        append_images(samples).eval(
             images, ds, progressbar=progressbar, num_workers=num_workers
         )
+        images_tensor.extend(list(samples.values()), progressbar=progressbar)
 
     def _get_sample(
         self,
@@ -156,7 +158,7 @@ class CocoDataset(UnstructuredDataset):
         for annotation in matching_annotations:
             for tensor_name in group_tensors:
                 coco_key = self.tensor_to_key.get(tensor_name, tensor_name)
-                value = coco_2_deeplake(
+                value = coco_to_deeplake(
                     coco_key,
                     annotation[coco_key],
                     ds[tensor_name],
@@ -197,24 +199,23 @@ class CocoDataset(UnstructuredDataset):
 
                 @deeplake.compute
                 def process_annotations(image, _, values):
-                    values.append(
-                        self._get_sample(
-                            image,
-                            append_destination,
-                            coco_file,
-                        )
+                    values[image] = self._get_sample(
+                        image,
+                        append_destination,
+                        coco_file,
                     )
 
-                values = []
+                values = OrderedDict((image, None) for image in image_files)
+
                 process_annotations(values).eval(
                     image_files,
                     append_destination,
                     num_workers=num_workers,
                     progressbar=progressbar,
                 )
-
                 samples = {
-                    key: [item[key] for item in values] for key in values[0].keys()
+                    key: [item[key] for item in values.values()]
+                    for key in values[image_files[0]].keys()
                 }
 
                 append_destination.extend(samples)

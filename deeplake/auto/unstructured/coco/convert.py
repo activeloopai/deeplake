@@ -4,30 +4,32 @@ from typing import Dict, Any, Optional
 from deeplake.core.tensor import Tensor
 
 
-def coco_2_deeplake(
+def coco_to_deeplake(
     coco_key: str,
     value: Any,
     destination_tensor: Tensor,
     category_lookup: Optional[Dict] = None,
 ):
-    """Takes a key-value pair from coco data and converts it to data in Deep Lake format
-    as per the key types in coco and array shape rules in Deep Lake"""
+    """Takes a key-value pair from coco data and converts it to data in Deep Lake compatible format"""
     dtype = destination_tensor.meta.dtype
-
-    if isinstance(value, list) and len(value) == 0:
-        raise Exception("Empty value for key: " + coco_key)
 
     if coco_key == "bbox":
         assert len(value) == 4
         return np.array(value, dtype=dtype)
     elif coco_key == "segmentation":
-        # Make sure there aren't multiple segementations per single value, because multiple things will break
-        # # if len(value) > 1:
-        #     print("MULTIPLE SEGMENTATIONS PER OBJECT")
-
         try:
-            return np.array(value[0], dtype=dtype).reshape((len(value[0]) // 2), 2)
+            # Currently having only ONE polygon is supported.
+            # Multiple polygons are under same label, but there is only a single bbox.
+            # Can not think of a way to support multiple polygons for same label on the same image, other than converting to a mask.
+            return np.array(value[0], dtype=dtype).reshape(
+                (len(value[0]) // 2), 2
+            )  # Convert to array of x-y coordinates
         except KeyError:
+            """KeyError happens if the value is NOT a list of polygons.
+            Returning None does not work, as polygon is erroring out during shape validation.
+            Returning an empty array works, but the data is wrong... Alternatively, whole sample may be skipped.
+            """
+
             return np.array([[0, 0]], dtype=dtype)
 
     elif coco_key == "category_id":
