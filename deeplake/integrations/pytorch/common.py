@@ -85,13 +85,14 @@ def check_tensors(dataset, tensors):
 
 def validate_decode_method(decode_method, all_tensor_keys, jpeg_png_compressed_tensors):
     raw_tensors = []
-    pil_tensors = []
+    jpeg_png_numpy_tensors = []
+    jpeg_png_pil_tensors = []
     if decode_method is None:
         if len(jpeg_png_compressed_tensors) > 0:
             warnings.warn(
                 f"Decode method for tensors {jpeg_png_compressed_tensors} is defaulting to numpy. Please consider specifying a decode_method in .pytorch() that maximizes the data preprocessing speed based on your transformation."
             )
-        return raw_tensors, pil_tensors
+        return [], jpeg_png_compressed_tensors, []
 
     jpeg_png_compressed_tensors_set = set(jpeg_png_compressed_tensors)
     generic_supported_decode_methods = {"numpy", "tobytes"}
@@ -113,9 +114,11 @@ def validate_decode_method(decode_method, all_tensor_keys, jpeg_png_compressed_t
         if decode_method == "tobytes":
             raw_tensors.append(tensor_name)
         elif decode_method == "pil":
-            pil_tensors.append(tensor_name)
+            jpeg_png_pil_tensors.append(tensor_name)
 
-    return raw_tensors, pil_tensors
+    jpeg_png_numpy_tensors = list(set(jpeg_png_compressed_tensors) - set(raw_tensors) - set(jpeg_png_pil_tensors))
+
+    return raw_tensors, jpeg_png_numpy_tensors, jpeg_png_pil_tensors
 
 
 def get_collate_fn(collate, mode):
