@@ -421,7 +421,6 @@ class DeepLakeDataLoader(DataLoader):
             raw_tensors, jpeg_png_numpy_tensors, jpeg_png_pil_tensors = validate_decode_method(
                 self._decode_method, tensors, jpeg_png_compressed_tensors
             )
-            raw_tensors.extend(jpeg_png_compressed_tensors)
             self._dataloader = INDRA_LOADER(
                 dataset,
                 batch_size=self._batch_size,

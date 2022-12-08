@@ -92,32 +92,32 @@ def validate_decode_method(decode_method, all_tensor_keys, jpeg_png_compressed_t
             warnings.warn(
                 f"Decode method for tensors {jpeg_png_compressed_tensors} is defaulting to numpy. Please consider specifying a decode_method in .pytorch() that maximizes the data preprocessing speed based on your transformation."
             )
-        return [], jpeg_png_compressed_tensors, []
-
-    jpeg_png_compressed_tensors_set = set(jpeg_png_compressed_tensors)
-    generic_supported_decode_methods = {"numpy", "tobytes"}
-    jpeg_png_supported_decode_methods = {"numpy", "tobytes", "pil"}
-    for tensor_name, decode_method in decode_method.items():
-        if tensor_name not in all_tensor_keys:
-            raise ValueError(
-                f"decode_method tensor {tensor_name} not found in tensors."
-            )
-        if tensor_name in jpeg_png_compressed_tensors_set:
-            if decode_method not in jpeg_png_supported_decode_methods:
+    else:
+        jpeg_png_compressed_tensors_set = set(jpeg_png_compressed_tensors)
+        generic_supported_decode_methods = {"numpy", "tobytes"}
+        jpeg_png_supported_decode_methods = {"numpy", "tobytes", "pil"}
+        for tensor_name, decode_method in decode_method.items():
+            if tensor_name not in all_tensor_keys:
                 raise ValueError(
-                    f"decode_method {decode_method} not supported for tensor {tensor_name}. Supported methods for this tensor are {jpeg_png_supported_decode_methods}"
+                    f"decode_method tensor {tensor_name} not found in tensors."
                 )
-        elif decode_method not in generic_supported_decode_methods:
-            raise ValueError(
-                f"decode_method {decode_method} not supported for tensor {tensor_name}. Supported methods for this tensor are {generic_supported_decode_methods}"
-            )
-        if decode_method == "tobytes":
-            raw_tensors.append(tensor_name)
-        elif decode_method == "pil":
-            jpeg_png_pil_tensors.append(tensor_name)
+            if tensor_name in jpeg_png_compressed_tensors_set:
+                if decode_method not in jpeg_png_supported_decode_methods:
+                    raise ValueError(
+                        f"decode_method {decode_method} not supported for tensor {tensor_name}. Supported methods for this tensor are {jpeg_png_supported_decode_methods}"
+                    )
+            elif decode_method not in generic_supported_decode_methods:
+                raise ValueError(
+                    f"decode_method {decode_method} not supported for tensor {tensor_name}. Supported methods for this tensor are {generic_supported_decode_methods}"
+                )
+            if decode_method == "tobytes":
+                raw_tensors.append(tensor_name)
+            elif decode_method == "pil":
+                jpeg_png_pil_tensors.append(tensor_name)
 
     jpeg_png_numpy_tensors = list(set(jpeg_png_compressed_tensors) - set(raw_tensors) - set(jpeg_png_pil_tensors))
-
+    raw_tensors.extend(jpeg_png_numpy_tensors)
+    raw_tensors.extend(jpeg_png_pil_tensors)
     return raw_tensors, jpeg_png_numpy_tensors, jpeg_png_pil_tensors
 
 
