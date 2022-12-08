@@ -289,11 +289,11 @@ class SampleStreaming(Streaming):
         self.return_index = return_index
 
         jpeg_png_compressed_tensors = check_tensors(self.dataset, tensors)
-        raw_tensors, compressed_tensors = validate_decode_method(
+        raw_tensors, jpeg_png_numpy_tensors, jpeg_png_pil_tensors = validate_decode_method(
             self.decode_method, tensors, jpeg_png_compressed_tensors
         )
         self.raw_tensors = set(raw_tensors)
-        self.compressed_tensors = set(compressed_tensors)
+        self.compressed_tensors = set(jpeg_png_pil_tensors)
 
         self.chunk_engines: ChunkEngineMap = self._map_chunk_engines(self.tensors)
 

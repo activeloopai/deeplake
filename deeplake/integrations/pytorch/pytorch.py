@@ -125,12 +125,16 @@ def dataset_to_pytorch(
     if tensors is not None and "index" in tensors:
         raise ValueError("index is not a tensor, to get index, pass return_index=True")
 
-    tensors = map_tensor_keys(dataset, tensors)
     if isinstance(transform, dict):
-        tensors = [k for k in transform.keys() if k != "index"]
+        transform_tensors = [k for k in transform.keys() if k != "index"]
+        if tensors is not None and not set(tensors) == set(transform_tensors):
+            raise ValueError("Mismatch between tensors and transform keys")
+        tensors = transform_tensors
         transform = PytorchTransformFunction(transform_dict=transform)
     else:
         transform = PytorchTransformFunction(composite_transform=transform)
+    
+    tensors = map_tensor_keys(dataset, tensors)
 
     if shuffle and num_workers > 0:
         return create_dataloader(
