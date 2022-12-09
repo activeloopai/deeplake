@@ -74,7 +74,7 @@ def get_local_dataset(
             path,
             local_path,
             src_creds=creds,
-            src_token=token,
+            token=token,
             num_workers=num_workers,
             scheduler=scheduler,
             progressbar=True,

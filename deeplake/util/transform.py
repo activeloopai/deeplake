@@ -418,10 +418,13 @@ def check_transform_data_in(data_in, scheduler: str) -> None:
 
 
 def check_transform_ds_out(
-    ds_out: deeplake.Dataset, scheduler: str, check_lengths: bool
+    ds_out: deeplake.Dataset,
+    scheduler: str,
+    check_lengths: bool,
+    read_only_ok: bool = False,
 ) -> None:
     """Checks whether the ds_out for a transform is valid or not."""
-    if ds_out._read_only:
+    if ds_out._read_only and not read_only_ok:
         raise InvalidOutputDatasetError
     tensors = list(ds_out.tensors)
 
