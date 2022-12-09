@@ -74,7 +74,9 @@ def dataset_to_libdeeplake(hub2_dataset):
             )
 
         elif path.startswith(("gcs://", "gs://", "gcp://")):
-            raise ValueError("GCP datasets are not supported for libdeeplake currently.")
+            raise ValueError(
+                "GCP datasets are not supported for libdeeplake currently."
+            )
         else:
             libdeeplake_dataset = api.dataset(path)
         hub2_dataset.libdeeplake_dataset = libdeeplake_dataset

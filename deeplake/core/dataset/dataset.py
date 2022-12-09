@@ -151,7 +151,7 @@ class Dataset:
         pad_tensors: bool = False,
         lock: bool = True,
         enabled_tensors: Optional[List[str]] = None,
-        libdeeplake_dataset = None,
+        libdeeplake_dataset=None,
         **kwargs,
     ):
         """Initializes a new or existing dataset.
@@ -1442,7 +1442,6 @@ class Dataset:
         """Returns True if the current commit is the head node of the branch and False otherwise."""
         commit_node = self.version_state["commit_node"]
         return not commit_node.children
-
 
     @property
     def has_head_changes(self):
