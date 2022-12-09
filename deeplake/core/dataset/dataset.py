@@ -243,7 +243,8 @@ class Dataset:
         self._indexing_history: List[int] = []
 
         for temp_tensor in self._temp_tensors:
-            self.delete_tensor(temp_tensor)
+            self.delete_tensor(temp_tensor, large_ok=True)
+        self._temp_tensors = []
 
     def _lock_lost_handler(self):
         """This is called when lock is acquired but lost later on due to slow update."""
@@ -366,12 +367,17 @@ class Dataset:
         state["_commit_hooks"] = {}
         state["_waiting_for_view_base_commit"] = False
         state["_client"] = state["org_id"] = state["ds_name"] = None
+        state["_temp_tensors"] = []
         self.__dict__.update(state)
         self.__dict__["base_storage"] = get_base_storage(self.storage)
         # clear cache while restoring
         self.storage.clear_cache_without_flush()
         self._set_derived_attributes(verbose=False)
         self._indexing_history = []
+
+        for temp_tensor in self._temp_tensors:
+            self.delete_tensor(temp_tensor, large_ok=True)
+        self._temp_tensors = []
 
     def __getitem__(
         self,
