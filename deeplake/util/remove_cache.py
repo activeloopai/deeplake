@@ -3,6 +3,7 @@ import deeplake
 from deeplake.core.storage.provider import StorageProvider
 from deeplake.core.storage.lru_cache import LRUCache
 from deeplake.core.storage import MemoryProvider
+from deeplake.core.index import Index
 from deeplake.constants import MB
 
 
@@ -30,7 +31,7 @@ def get_dataset_with_zero_size_cache(ds):
     ds_base_storage = get_base_storage(ds.storage)
     zero_cache_storage = LRUCache(MemoryProvider(), ds_base_storage, 0)
     commit_id = ds.pending_commit_id
-    index = ds.index
+    index = Index.from_json(ds.index.to_json())
     ds = deeplake.core.dataset.dataset_factory(
         path=ds.path,
         storage=zero_cache_storage,
@@ -64,9 +65,9 @@ def create_read_copy_dataset(dataset, commit_id: Optional[str] = None):
     else:
         new_storage = base_storage.copy()
     storage = LRUCache(MemoryProvider(), new_storage, 256 * MB)
+    index = Index.from_json(dataset.index.to_json())
     ds = dataset.__class__(
         storage,
-        index=dataset.index,
         group_index=dataset.group_index,
         read_only=True,
         public=dataset.public,
@@ -76,4 +77,5 @@ def create_read_copy_dataset(dataset, commit_id: Optional[str] = None):
     )
     if commit_id is not None:
         ds.checkout(commit_id)
+    ds.index = index
     return ds

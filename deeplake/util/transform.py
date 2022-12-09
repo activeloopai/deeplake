@@ -9,6 +9,7 @@ from deeplake.core.meta.tensor_meta import TensorMeta
 from deeplake.core.storage import StorageProvider, MemoryProvider, LRUCache
 from deeplake.core.chunk_engine import ChunkEngine
 from deeplake.core.transform.transform_dataset import TransformDataset
+from deeplake.core.index import Index
 
 from deeplake.constants import MB, TRANSFORM_PROGRESSBAR_UPDATE_INTERVAL
 from deeplake.util.remove_cache import get_base_storage
@@ -385,7 +386,9 @@ def add_cache_to_dataset_slice(
     cached_store = LRUCache(MemoryProvider(), base_storage, cache_size)
     commit_id = dataset_slice.pending_commit_id
     # don't pass version state to constructor as otherwise all workers will share it, checkout to commit_id instead
-    index = dataset_slice.index  # we don't allow checkouts for views
+    index = Index.from_json(
+        dataset_slice.index.to_json()
+    )  # we don't allow checkouts for views
     dataset_slice = deeplake.core.dataset.dataset_factory(
         path=dataset_slice.path,
         storage=cached_store,
@@ -419,10 +422,13 @@ def check_transform_data_in(data_in, scheduler: str) -> None:
 
 
 def check_transform_ds_out(
-    ds_out: deeplake.Dataset, scheduler: str, check_lengths: bool
+    ds_out: deeplake.Dataset,
+    scheduler: str,
+    check_lengths: bool,
+    read_only_ok: bool = False,
 ) -> None:
     """Checks whether the ds_out for a transform is valid or not."""
-    if ds_out._read_only:
+    if ds_out._read_only and not read_only_ok:
         raise InvalidOutputDatasetError
     tensors = list(ds_out.tensors)
 

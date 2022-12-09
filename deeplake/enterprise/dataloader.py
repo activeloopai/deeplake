@@ -6,6 +6,7 @@ from deeplake.enterprise.util import (
     raise_indra_installation_error,
     verify_base_storage,
 )
+from deeplake.hooks import dataset_read
 from deeplake.enterprise.libdeeplake_query import query, sample_by
 from deeplake.integrations.pytorch.common import (
     PytorchTransformFunction,
@@ -441,6 +442,7 @@ class DeepLakeDataLoader(DataLoader):
                 compressed_tensors=compressed_tensors,
                 persistent_workers=self._persistent_workers,
             )
+        dataset_read(self._orig_dataset)
         return iter(self._dataloader)
 
 

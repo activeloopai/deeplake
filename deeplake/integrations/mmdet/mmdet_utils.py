@@ -480,15 +480,6 @@ def check_unsupported_train_pipeline_fields(cfg, mode="train"):
         if transform_type == "Corrupt":
             raise Exception("Corrupt augmentation is not supported yet.")
 
-        elif transform_type == "MinIoURandomCrop":  # TO DO: @adolkhan resolve this
-            raise Exception("MinIoURandomCrop augmentation is not supported yet.")
-
-        elif transform_type == "RandomCrop":  # TO DO: @adolkhan resolve this
-            raise Exception("RandomCrop augmentation is not supported yet.")
-
-        elif transform_type == "YOLOXHSVRandomAug":  # TO DO: @adolkhan resolve this
-            raise Exception("YOLOXHSVRandomAug augmentation is not supported yet")
-
         elif transform_type == "CopyPaste":  # TO DO: @adolkhan resolve this
             raise Exception("CopyPaste augmentation is not supported yet")
 

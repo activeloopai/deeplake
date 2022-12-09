@@ -8,7 +8,7 @@ from deeplake.core.compression import (
     _open_video,
     _read_metadata_from_vstream,
     _read_audio_meta,
-    _read_point_cloud_meta,
+    _read_3d_data_meta,
 )
 from deeplake.compression import (
     get_compression_type,
@@ -16,6 +16,7 @@ from deeplake.compression import (
     IMAGE_COMPRESSION,
     VIDEO_COMPRESSION,
     POINT_CLOUD_COMPRESSION,
+    MESH_COMPRESSION,
 )
 from deeplake.util.exceptions import UnableToReadFromUrlError
 from deeplake.util.exif import getexif
@@ -235,9 +236,9 @@ class Sample:
 
     def _get_point_cloud_meta(self) -> dict:
         if self.path and get_path_type(self.path) == "local":
-            info = _read_point_cloud_meta(self.path)
+            info = _read_3d_data_meta(self.path)
         else:
-            info = _read_point_cloud_meta(self.buffer)
+            info = _read_3d_data_meta(self.buffer)
         return info
 
     @property
@@ -495,7 +496,7 @@ class Sample:
             meta.update(self._get_video_meta())
         elif compression_type == AUDIO_COMPRESSION:
             meta.update(self._get_audio_meta())
-        elif compression_type == POINT_CLOUD_COMPRESSION:
+        elif compression_type in [POINT_CLOUD_COMPRESSION, MESH_COMPRESSION]:
             meta.update(self._get_point_cloud_meta())
         meta["shape"] = self.shape
         meta["format"] = self.compression

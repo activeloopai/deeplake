@@ -129,7 +129,6 @@ from deeplake.hooks import dataset_read
 from itertools import chain
 import warnings
 import jwt
-from deeplake.integrations.pytorch.dataset import TorchDataset
 
 
 _LOCKABLE_STORAGES = {S3Provider, GCSProvider}
@@ -153,6 +152,7 @@ class Dataset:
         lock: bool = True,
         enabled_tensors: Optional[List[str]] = None,
         view_base: Optional["Dataset"] = None,
+        libdeeplake_dataset=None,
         **kwargs,
     ):
         """Initializes a new or existing dataset.
@@ -175,6 +175,7 @@ class Dataset:
             lock (bool): Whether the dataset should be locked for writing. Only applicable for S3, Deep Lake storage and GCS datasets. No effect if read_only=True.
             enabled_tensors (List[str], Optional): List of tensors that are enabled in this view. By default all tensors are enabled.
             view_base (Optional["Dataset"]): Base dataset of this view.
+            libdeeplake_dataset : The libdeeplake dataset object corresponding to this dataset.
 
         Raises:
             ValueError: If an existing local path is given, it must be a directory.
@@ -207,6 +208,7 @@ class Dataset:
         d["verbose"] = verbose
         d["version_state"] = version_state or {}
         d["link_creds"] = link_creds
+        d["libdeeplake_dataset"] = libdeeplake_dataset
         d["_info"] = None
         d["_ds_diff"] = None
         d["_view_id"] = str(uuid.uuid4())
@@ -458,6 +460,7 @@ class Dataset:
                     pad_tensors=self._pad_tensors,
                     enabled_tensors=self.enabled_tensors,
                     view_base=self._view_base or self,
+                    libdeeplake_dataset=self.libdeeplake_dataset,
                 )
             elif "/" in item:
                 splt = posixpath.split(item)
@@ -498,6 +501,7 @@ class Dataset:
                     pad_tensors=self._pad_tensors,
                     enabled_tensors=enabled_tensors,
                     view_base=self._view_base or self,
+                    libdeeplake_dataset=self.libdeeplake_dataset,
                 )
             elif isinstance(item, tuple) and len(item) and isinstance(item[0], str):
                 ret = self
@@ -525,6 +529,7 @@ class Dataset:
                     pad_tensors=self._pad_tensors,
                     enabled_tensors=self.enabled_tensors,
                     view_base=self._view_base or self,
+                    libdeeplake_dataset=self.libdeeplake_dataset,
                 )
         else:
             raise InvalidKeyTypeError(item)
@@ -720,6 +725,7 @@ class Dataset:
             "video",
             "dicom",
             "point_cloud",
+            "mesh",
         ):
             self._create_sample_info_tensor(name)
         if create_shape_tensor and htype not in ("text", "json"):
@@ -1508,10 +1514,15 @@ class Dataset:
         return self._read_only
 
     @property
+    def is_head_node(self):
+        """Returns True if the current commit is the head node of the branch and False otherwise."""
+        commit_node = self.version_state["commit_node"]
+        return not commit_node.children
+
+    @property
     def has_head_changes(self):
         """Returns True if currently at head node and uncommitted changes are present."""
-        commit_node = self.version_state["commit_node"]
-        return not commit_node.children and current_commit_has_change(
+        return self.is_head_node and current_commit_has_change(
             self.version_state, self.storage
         )
 
@@ -1560,7 +1571,7 @@ class Dataset:
         return_index: bool = True,
         pad_tensors: bool = False,
         transform_kwargs: Optional[Dict[str, Any]] = None,
-        torch_dataset=TorchDataset,
+        torch_dataset=None,
         decode_method: Optional[Dict[str, str]] = None,
         *args,
         **kwargs,
@@ -1588,7 +1599,7 @@ class Dataset:
             return_index (bool): If ``True``, the returned dataloader will have a key "index" that contains the index of the sample(s) in the original dataset. Default value is True.
             pad_tensors (bool): If ``True``, shorter tensors will be padded to the length of the longest tensor. Default value is False.
             transform_kwargs (optional, Dict[str, Any]): Additional kwargs to be passed to ``transform``.
-            torch_dataset (TorchDataset): dataset type that going to be used in dataloader
+            torch_dataset (None): dataset type that going to be used in dataloader
             decode_method (Dict[str, str], Optional): A dictionary of decode methods for each tensor. Defaults to ``None``.
 
                 - Supported decode methods are:
@@ -1609,6 +1620,10 @@ class Dataset:
             This spins up it's own workers to fetch data.
         """
         from deeplake.integrations import dataset_to_pytorch as to_pytorch
+        from deeplake.integrations.pytorch.dataset import TorchDataset
+
+        if torch_dataset is None:
+            torch_dataset = TorchDataset
 
         if transform and transform_kwargs:
             transform = partial(transform, **transform_kwargs)
@@ -2222,6 +2237,7 @@ class Dataset:
             version_state=self.version_state,
             path=self.path,
             link_creds=self.link_creds,
+            libdeeplake_dataset=self.libdeeplake_dataset,
         )
         self.storage.autoflush = autoflush
         return ds
@@ -2244,6 +2260,7 @@ class Dataset:
             path=self.path,
             link_creds=self.link_creds,
             view_base=self._view_base,
+            libdeeplake_dataset=self.libdeeplake_dataset,
         )
         self.storage.autoflush = autoflush
         return ds
@@ -2266,6 +2283,7 @@ class Dataset:
             link_creds=self.link_creds,
             pad_tensors=self._pad_tensors,
             enabled_tensors=self.enabled_tensors,
+            libdeeplake_dataset=self.libdeeplake_dataset,
         )
 
     def _create_group(self, name: str) -> "Dataset":
@@ -3823,6 +3841,7 @@ class Dataset:
             link_creds=self.link_creds,
             pad_tensors=True,
             enabled_tensors=self.enabled_tensors,
+            libdeeplake_dataset=self.libdeeplake_dataset,
         )
 
     def _temp_write_access(self):
