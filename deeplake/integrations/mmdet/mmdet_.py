@@ -48,6 +48,7 @@ from deeplake.integrations.mmdet import mmdet_utils
 from deeplake.enterprise.dataloader import indra_available, dataloader
 from PIL import Image, ImageDraw  # type: ignore
 import os
+import math
 
 
 class Dummy:
@@ -303,6 +304,11 @@ class MMDetDataset(TorchDataset):
             )
         else:
             self.evaluator = None
+
+    def __len__(self):
+        if self.mode == "eval":
+            return math.ceil(len(self.dataset) / self.batch_size)
+        return super().__len__()
 
     def _get_images(self, images_tensor):
         image_tensor = self.dataset[images_tensor]
