@@ -150,6 +150,7 @@ class Dataset:
         pad_tensors: bool = False,
         lock: bool = True,
         enabled_tensors: Optional[List[str]] = None,
+        libdeeplake_dataset=None,
         **kwargs,
     ):
         """Initializes a new or existing dataset.
@@ -171,6 +172,7 @@ class Dataset:
             **kwargs: Passing subclass variables through without errors.
             lock (bool): Whether the dataset should be locked for writing. Only applicable for S3, Deep Lake storage and GCS datasets. No effect if read_only=True.
             enabled_tensors (List[str], Optional): List of tensors that are enabled in this view. By default all tensors are enabled.
+            libdeeplake_dataset : The libdeeplake dataset object corresponding to this dataset.
 
         Raises:
             ValueError: If an existing local path is given, it must be a directory.
@@ -203,6 +205,7 @@ class Dataset:
         d["verbose"] = verbose
         d["version_state"] = version_state or {}
         d["link_creds"] = link_creds
+        d["libdeeplake_dataset"] = libdeeplake_dataset
         d["_info"] = None
         d["_ds_diff"] = None
         d["_view_id"] = str(uuid.uuid4)
@@ -407,6 +410,7 @@ class Dataset:
                     link_creds=self.link_creds,
                     pad_tensors=self._pad_tensors,
                     enabled_tensors=self.enabled_tensors,
+                    libdeeplake_dataset=self.libdeeplake_dataset,
                 )
             elif "/" in item:
                 splt = posixpath.split(item)
@@ -446,6 +450,7 @@ class Dataset:
                     link_creds=self.link_creds,
                     pad_tensors=self._pad_tensors,
                     enabled_tensors=enabled_tensors,
+                    libdeeplake_dataset=self.libdeeplake_dataset,
                 )
             elif isinstance(item, tuple) and len(item) and isinstance(item[0], str):
                 ret = self
@@ -472,6 +477,7 @@ class Dataset:
                     link_creds=self.link_creds,
                     pad_tensors=self._pad_tensors,
                     enabled_tensors=self.enabled_tensors,
+                    libdeeplake_dataset=self.libdeeplake_dataset,
                 )
         else:
             raise InvalidKeyTypeError(item)
@@ -1438,10 +1444,15 @@ class Dataset:
         return self._read_only
 
     @property
+    def is_head_node(self):
+        """Returns True if the current commit is the head node of the branch and False otherwise."""
+        commit_node = self.version_state["commit_node"]
+        return not commit_node.children
+
+    @property
     def has_head_changes(self):
         """Returns True if currently at head node and uncommitted changes are present."""
-        commit_node = self.version_state["commit_node"]
-        return not commit_node.children and current_commit_has_change(
+        return self.is_head_node and current_commit_has_change(
             self.version_state, self.storage
         )
 
@@ -2153,6 +2164,7 @@ class Dataset:
             version_state=self.version_state,
             path=self.path,
             link_creds=self.link_creds,
+            libdeeplake_dataset=self.libdeeplake_dataset,
         )
         self.storage.autoflush = autoflush
         return ds
@@ -2174,6 +2186,7 @@ class Dataset:
             version_state=self.version_state,
             path=self.path,
             link_creds=self.link_creds,
+            libdeeplake_dataset=self.libdeeplake_dataset,
         )
         self.storage.autoflush = autoflush
         return ds
@@ -2196,6 +2209,7 @@ class Dataset:
             link_creds=self.link_creds,
             pad_tensors=self._pad_tensors,
             enabled_tensors=self.enabled_tensors,
+            libdeeplake_dataset=self.libdeeplake_dataset,
         )
 
     def _create_group(self, name: str) -> "Dataset":
@@ -3780,6 +3794,7 @@ class Dataset:
             link_creds=self.link_creds,
             pad_tensors=True,
             enabled_tensors=self.enabled_tensors,
+            libdeeplake_dataset=self.libdeeplake_dataset,
         )
 
     def _temp_write_access(self):
