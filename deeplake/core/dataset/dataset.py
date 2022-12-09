@@ -3442,9 +3442,9 @@ class Dataset:
         Examples:
             >>> # create/load an s3 dataset
             >>> s3_ds = deeplake.dataset("s3://bucket/dataset")
-            >>> ds = s3_ds.connect(dest_path="hub://my_org/dataset", creds_key="my_managed_credentials_key")
+            >>> ds = s3_ds.connect(dest_path="hub://my_org/dataset", creds_key="my_managed_credentials_key", token="my_activeloop_token)
             >>> # or
-            >>> ds = s3_ds.connect(org_id="my_org", creds_key="my_managed_credentials_key")
+            >>> ds = s3_ds.connect(org_id="my_org", creds_key="my_managed_credentials_key", token="my_activeloop_token")
 
         Args:
             creds_key (str): The managed credentials to be used for accessing the source path.
@@ -3454,21 +3454,26 @@ class Dataset:
             ds_name (str, optional): The name of the connected Deep Lake dataset. Will be infered from ``dest_path`` or ``src_path`` if not provided.
             token (str, optional): Activeloop token used to fetch the managed credentials.
 
-        Returns:
-            Dataset: The connected Deep Lake dataset.
-
         Raises:
             InvalidSourcePathError: If the dataset's path is not a valid s3 or gcs path.
             InvalidDestinationPathError: If ``dest_path``, or ``org_id`` and ``ds_name`` do not form a valid Deep Lake path.
         """
-        return connect_dataset_entry(
+        self.__class__ = (
+            deeplake.core.dataset.deeplake_cloud_dataset.DeepLakeCloudDataset
+        )
+        path = connect_dataset_entry(
             src_path=self.path,
-            creds_key=creds_key,
             dest_path=dest_path,
             org_id=org_id,
             ds_name=ds_name,
+            creds_key=creds_key,
             token=token,
         )
+        self._token = token
+        self.path = path
+        self.public = False
+        self._load_link_creds()
+        self._first_load_init(verbose=False)
 
     def add_creds_key(self, creds_key: str, managed: bool = False):
         """Adds a new creds key to the dataset. These keys are used for tensors that are linked to external data.
