@@ -93,6 +93,7 @@ AUDIO_COMPRESSIONS = ["mp3", "flac", "wav"]
 
 READONLY_COMPRESSIONS = ["mpo", "fli", "dcm", *AUDIO_COMPRESSIONS, *VIDEO_COMPRESSIONS]
 POINT_CLOUD_COMPRESSIONS = ["las"]
+MESH_COMPRESSIONS = ["ply"]
 
 
 # Just constants
@@ -101,6 +102,7 @@ IMAGE_COMPRESSION = "image"
 VIDEO_COMPRESSION = "video"
 AUDIO_COMPRESSION = "audio"
 POINT_CLOUD_COMPRESSION = "point_cloud"
+MESH_COMPRESSION = "mesh"
 
 
 COMPRESSION_TYPES = [
@@ -109,6 +111,7 @@ COMPRESSION_TYPES = [
     AUDIO_COMPRESSION,
     VIDEO_COMPRESSION,
     POINT_CLOUD_COMPRESSION,
+    MESH_COMPRESSION,
 ]
 
 # Pillow plugins for some formats might not be installed:
@@ -129,6 +132,7 @@ SUPPORTED_COMPRESSIONS = [
     *AUDIO_COMPRESSIONS,
     *VIDEO_COMPRESSIONS,
     *POINT_CLOUD_COMPRESSIONS,
+    *MESH_COMPRESSIONS,
 ]
 SUPPORTED_COMPRESSIONS = list(sorted(set(SUPPORTED_COMPRESSIONS)))  # type: ignore
 SUPPORTED_COMPRESSIONS.append(None)  # type: ignore
@@ -151,6 +155,8 @@ for c in AUDIO_COMPRESSIONS:
     _compression_types[c] = AUDIO_COMPRESSION
 for c in POINT_CLOUD_COMPRESSIONS:
     _compression_types[c] = POINT_CLOUD_COMPRESSION
+for c in MESH_COMPRESSIONS:
+    _compression_types[c] = MESH_COMPRESSION
 
 
 def get_compression_type(c):

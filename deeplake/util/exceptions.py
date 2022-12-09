@@ -833,3 +833,17 @@ class InvalidDatasetNameException(Exception):
         else:
             message = "Please specify a dataset name that contains only letters, numbers, hyphens and underscores."
         super().__init__(message)
+
+
+class UnsupportedParameterException(Exception):
+    pass
+
+
+class UnsupportedExtensionError(Exception):
+    def __init__(self, extension, htype=""):
+        if htype:
+            htype = f"For {htype} htype "
+        message = f"{htype}{extension} is not supported"
+
+        super().__init__(message)
+

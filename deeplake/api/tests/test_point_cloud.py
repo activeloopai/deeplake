@@ -5,6 +5,7 @@ from deeplake.core.dataset import Dataset
 from deeplake.core.compression import compress_multiple
 from deeplake.tests.common import get_dummy_data_path
 from deeplake.util.exceptions import CorruptedSampleError
+from deeplake.util.exceptions import DynamicTensorNumpyError
 
 import numpy as np
 
@@ -20,7 +21,7 @@ def test_point_cloud(local_ds, point_cloud_paths):
             if "point_cloud" in path:  # check shape only for internal test point_clouds
                 assert sample.shape[0] == 20153
 
-            assert len(sample.meta) == 6
+            assert len(sample.meta) == 7
             assert len(sample.meta["dimension_names"]) == 18
             assert len(sample.meta["las_header"]) == 19
 
@@ -70,6 +71,11 @@ def test_point_cloud(local_ds, point_cloud_paths):
         20153,
         3,
     )
+
+    assert isinstance(
+        local_ds.point_cloud_without_sample_compression.numpy(aslist=True), list
+    )
+
     assert len(local_ds.point_cloud_without_sample_compression.numpy(aslist=True)) == 2
     assert len(local_ds.point_cloud_without_sample_compression.data(aslist=True)) == 2
     local_ds.create_tensor(
