@@ -837,3 +837,13 @@ class InvalidDatasetNameException(Exception):
 
 class UnsupportedParameterException(Exception):
     pass
+
+
+class UnsupportedExtensionError(Exception):
+    def __init__(self, extension, htype=""):
+        if htype:
+            htype = f"For {htype} htype "
+        message = f"{htype}{extension} is not supported"
+
+        super().__init__(message)
+
