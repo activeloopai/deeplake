@@ -2255,3 +2255,17 @@ def test_invalid_ds_name():
         )
 
     verify_dataset_name("hub://test/data-set_123")
+
+
+def test_create_tensor_overwrite(local_ds):
+    with local_ds as ds:
+        ds.create_tensor("abc")
+        ds.abc.extend([1, 2, 3, 4, 5])
+
+    with pytest.raises(TensorAlreadyExistsError):
+        ds.create_tensor("abc")
+
+    ds.create_tensor("abc", overwrite=True)
+    ds.abc.extend([1, 2, 3])
+
+    assert ds.abc.numpy().flatten().tolist() == [1, 2, 3]

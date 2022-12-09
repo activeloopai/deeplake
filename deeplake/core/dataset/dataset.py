@@ -489,7 +489,7 @@ class Dataset:
         create_shape_tensor: bool = True,
         create_id_tensor: bool = True,
         verify: bool = True,
-        exist_ok: bool = False,
+        overwrite: bool = False,
         verbose: bool = True,
         **kwargs,
     ):
@@ -527,7 +527,7 @@ class Dataset:
             create_id_tensor (bool): If ``True``, an associated tensor containing unique ids for each sample will be created. This is useful for merge operations.
             verify (bool): Valid only for link htypes. If ``True``, all links will be verified before they are added to the tensor.
                 ``verify`` is always ``True`` even if specified as ``False`` if ``create_shape_tensor`` or ``create_sample_info_tensor`` is ``True``.
-            exist_ok (bool): If ``True``, the group is created if it does not exist. if ``False``, an error is raised if the group already exists.
+            overwrite (bool): If ``True``, and a tensor of the same name already exists, it will be overwritten.
             verbose (bool): Shows warnings if ``True``.
             **kwargs:
                 - ``htype`` defaults can be overridden by passing any of the compatible parameters.
@@ -537,7 +537,7 @@ class Dataset:
             Tensor: The new tensor, which can be accessed by ``dataset[name]`` or ``dataset.name``.
 
         Raises:
-            TensorAlreadyExistsError: If the tensor already exists and ``exist_ok`` is ``False``.
+            TensorAlreadyExistsError: If the tensor already exists and ``overwrite`` is ``False``.
             TensorGroupAlreadyExistsError: Duplicate tensor groups are not allowed.
             InvalidTensorNameError: If ``name`` is in dataset attributes.
             NotImplementedError: If trying to override ``chunk_compression``.
@@ -551,26 +551,10 @@ class Dataset:
         key = self.version_state["tensor_names"].get(name)
         is_sequence, is_link, htype = parse_complex_htype(htype)
         if key:
-            if not exist_ok:
+            if not overwrite:
                 raise TensorAlreadyExistsError(name)
-            tensor = self.root[key]
-            current_config = tensor._config
-            new_config = {
-                "htype": htype,
-                "dtype": dtype,
-                "sample_compression": sample_compression,
-                "chunk_compression": chunk_compression,
-                "hidden": hidden,
-                "is_link": is_link,
-                "is_sequence": is_sequence,
-            }
-            if current_config != new_config:
-                raise ValueError(
-                    f"Tensor {name} already exists with different configuration. "
-                    f"Current config: {current_config}. "
-                    f"New config: {new_config}"
-                )
-            return tensor
+            else:
+                self.delete_tensor(name, large_ok=True)
         elif name in self.version_state["full_tensors"]:
             key = f"{name}_{uuid.uuid4().hex[:4]}"
         else:
