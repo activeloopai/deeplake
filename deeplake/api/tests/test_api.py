@@ -39,6 +39,7 @@ from deeplake.util.exceptions import (
     SampleAppendingError,
     DatasetTooLargeToDelete,
     InvalidDatasetNameException,
+    UnsupportedParameterException,
 )
 from deeplake.util.path import convert_string_to_pathlib_if_needed, verify_dataset_name
 from deeplake.util.pretty_print import summary_tensor, summary_dataset
@@ -901,8 +902,7 @@ def test_dataset_deepcopy(path, hub_token, num_workers, progressbar):
         src_path,
         dest_path,
         overwrite=True,
-        src_token=hub_token,
-        dest_token=hub_token,
+        token=hub_token,
         num_workers=num_workers,
         progressbar=progressbar,
     )
@@ -921,19 +921,36 @@ def test_dataset_deepcopy(path, hub_token, num_workers, progressbar):
         np.testing.assert_array_equal(src_ds[tensor].numpy(), dest_ds[tensor].numpy())
 
     with pytest.raises(DatasetHandlerError):
-        deeplake.deepcopy(
-            src_path, dest_path, src_token=hub_token, dest_token=hub_token
-        )
+        deeplake.deepcopy(src_path, dest_path, token=hub_token)
 
     deeplake.deepcopy(
         src_path,
         dest_path,
         overwrite=True,
-        src_token=hub_token,
-        dest_token=hub_token,
+        token=hub_token,
         num_workers=num_workers,
         progressbar=progressbar,
     )
+
+    with pytest.raises(UnsupportedParameterException):
+        deeplake.deepcopy(
+            src_path,
+            dest_path,
+            overwrite=True,
+            src_token=hub_token,
+            num_workers=num_workers,
+            progressbar=progressbar,
+        )
+
+    with pytest.raises(UnsupportedParameterException):
+        deeplake.deepcopy(
+            src_path,
+            dest_path,
+            overwrite=True,
+            dest_token=hub_token,
+            num_workers=num_workers,
+            progressbar=progressbar,
+        )
 
     assert list(dest_ds.tensors) == ["a", "b", "c", "d"]
     for tensor in dest_ds.tensors:
@@ -949,8 +966,7 @@ def test_dataset_deepcopy(path, hub_token, num_workers, progressbar):
         src_path,
         dest_path,
         overwrite=True,
-        src_token=hub_token,
-        dest_token=hub_token,
+        token=hub_token,
         num_workers=num_workers,
         progressbar=progressbar,
     )
@@ -965,8 +981,7 @@ def test_dataset_deepcopy(path, hub_token, num_workers, progressbar):
         dest_path,
         tensors=["a", "d"],
         overwrite=True,
-        src_token=hub_token,
-        dest_token=hub_token,
+        token=hub_token,
         num_workers=num_workers,
         progressbar=progressbar,
     )
