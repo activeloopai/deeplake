@@ -102,7 +102,7 @@ class DeepLakeDataLoader(DataLoader):
     def __len__(self):
         round_fn = math.floor if self._drop_last else math.ceil
         return round_fn(
-            len(self.dataset) / ((self._batch_size or 1) * self._world_size)
+            len(self._orig_dataset) / ((self._batch_size or 1) * self._world_size)
         )
 
     def batch(self, batch_size: int, drop_last: bool = False):
