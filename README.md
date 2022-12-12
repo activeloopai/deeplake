@@ -247,7 +247,11 @@ To get the first image in the Objectron Bikes dataset in numpy format:
 image_arr = ds.image[0].numpy()
 ```
 
+## ⚙️ Integrations
+Deep Lake offers integration with other tools in order to streamline your deep learning workflows. Current integrations include:
 
+* **Model Training**
+  * Stream data while training thousands of pre-built models using [MMDetection](https://github.com/open-mmlab/mmdetection), a popular open-source object detection toolbox based on PyTorch.
 
 ## 📚 Documentation
 Getting started guides, examples, tutorials, API reference, and other useful information can be found on our [documentation page](http://docs.activeloop.ai/?utm_source=github&utm_medium=repo&utm_campaign=readme). 
