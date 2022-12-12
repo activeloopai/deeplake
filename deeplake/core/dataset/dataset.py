@@ -693,6 +693,7 @@ class Dataset:
                 dtype,
                 sample_compression,
                 chunk_compression,
+                meta_kwargs,
                 downsampling_factor,
                 number_of_layers,
             )
@@ -764,6 +765,7 @@ class Dataset:
         dtype: Union[str, np.dtype],
         sample_compression: str,
         chunk_compression: str,
+        meta_kwargs: Dict[str, Any],
         downsampling_factor: int,
         number_of_layers: int,
     ):
@@ -783,6 +785,7 @@ class Dataset:
             create_sample_info_tensor=False,
             create_shape_tensor=False,
             downsampling=downsampling,
+            **meta_kwargs,
         )
         new_tensor.info.downsampling_factor = downsampling_factor
         self._link_tensors(
