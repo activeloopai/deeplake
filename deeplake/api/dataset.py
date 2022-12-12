@@ -967,9 +967,9 @@ class dataset:
 
         Examples:
             >>> # Connect an s3 dataset
-            >>> ds = deeplake.connect(src_path="s3://bucket/dataset", dest_path="hub://my_org/dataset", creds_key="my_managed_credentials_key")
+            >>> ds = deeplake.connect(src_path="s3://bucket/dataset", dest_path="hub://my_org/dataset", creds_key="my_managed_credentials_key", token="my_activeloop_token")
             >>> # or
-            >>> ds = deeplake.connect(src_path="s3://bucket/dataset", org_id="my_org", creds_key="my_managed_credentials_key")
+            >>> ds = deeplake.connect(src_path="s3://bucket/dataset", org_id="my_org", creds_key="my_managed_credentials_key", token="my_activeloop_token")
 
         Args:
             src_path (str): Cloud path to the source dataset. Can be:
@@ -989,7 +989,7 @@ class dataset:
             InvalidSourcePathError: If the ``src_path`` is not a valid s3 or gcs path.
             InvalidDestinationPathError: If ``dest_path``, or ``org_id`` and ``ds_name`` do not form a valid Deep Lake path.
         """
-        return connect_dataset_entry(
+        path = connect_dataset_entry(
             src_path=src_path,
             creds_key=creds_key,
             dest_path=dest_path,
@@ -997,6 +997,7 @@ class dataset:
             ds_name=ds_name,
             token=token,
         )
+        return deeplake.dataset(path, token=token, verbose=False)
 
     @staticmethod
     def ingest(

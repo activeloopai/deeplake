@@ -50,6 +50,7 @@ from click.testing import CliRunner
 from deeplake.cli.auth import login, logout
 from deeplake.util.bugout_reporter import feature_report_path
 from rich import print as rich_print
+from io import BytesIO
 
 # need this for 32-bit and 64-bit systems to have correct tests
 MAX_INT_DTYPE = np.int_.__name__
@@ -2272,3 +2273,23 @@ def test_invalid_ds_name():
         )
 
     verify_dataset_name("hub://test/data-set_123")
+
+
+def test_pickle_bug(local_ds):
+    import pickle
+
+    file = BytesIO()
+
+    with local_ds as ds:
+        ds.create_tensor("__temp_123")
+        ds.__temp_123.extend([1, 2, 3, 4, 5])
+
+    pickle.dump(local_ds, file)
+
+    file.seek(0)
+    ds = pickle.load(file)
+
+    with pytest.raises(TensorDoesNotExistError):
+        ds["__temp_123"].numpy()
+
+    assert ds._temp_tensors == []

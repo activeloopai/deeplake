@@ -27,7 +27,7 @@ def connect_dataset_entry(
     ds_name: Optional[str] = None,
     token: Optional[str] = None,
     verbose: bool = True,
-):
+) -> str:
     dataset_entry = DatasetEntry(src_path, creds_key, dest_path, org_id, ds_name, token)
     dataset_entry.validate()
     connected_id = dataset_entry.connect_dataset_entry()
@@ -43,7 +43,7 @@ def connect_dataset_entry(
     if verbose:
         log_dataset_connection_success(result_path)
 
-    return deeplake.dataset(result_path, token=token, verbose=False)
+    return result_path
 
 
 class DatasetEntry:

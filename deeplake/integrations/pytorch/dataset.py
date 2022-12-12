@@ -508,7 +508,6 @@ class SubIterableDataset(torch.utils.data.IterableDataset):
         self.num_workers = num_workers
         self.batch_size = batch_size
         self.buffer_size = buffer_size * MB
-
         if self.buffer_size == 0:
             warn("setting buffer_size = 0 will result in poor shuffling distribution")
 
