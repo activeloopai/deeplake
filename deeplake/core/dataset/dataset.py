@@ -124,6 +124,7 @@ from deeplake.util.version_control import (
 )
 from deeplake.util.pretty_print import summary_dataset
 from deeplake.core.dataset.view_entry import ViewEntry
+from deeplake.core.dataset.invalid_view import InvalidView
 from deeplake.hooks import dataset_read
 from itertools import chain
 import warnings
@@ -150,6 +151,7 @@ class Dataset:
         pad_tensors: bool = False,
         lock: bool = True,
         enabled_tensors: Optional[List[str]] = None,
+        view_base: Optional["Dataset"] = None,
         libdeeplake_dataset=None,
         **kwargs,
     ):
@@ -172,6 +174,7 @@ class Dataset:
             **kwargs: Passing subclass variables through without errors.
             lock (bool): Whether the dataset should be locked for writing. Only applicable for S3, Deep Lake storage and GCS datasets. No effect if read_only=True.
             enabled_tensors (List[str], Optional): List of tensors that are enabled in this view. By default all tensors are enabled.
+            view_base (Optional["Dataset"]): Base dataset of this view.
             libdeeplake_dataset : The libdeeplake dataset object corresponding to this dataset.
 
         Raises:
@@ -208,13 +211,12 @@ class Dataset:
         d["libdeeplake_dataset"] = libdeeplake_dataset
         d["_info"] = None
         d["_ds_diff"] = None
-        d["_view_id"] = str(uuid.uuid4)
-        d["_view_invalid"] = False
-        d["_waiting_for_view_base_commit"] = False
-        d["_new_view_base_commit"] = None
-        d["_view_base"] = None
+        d["_view_id"] = str(uuid.uuid4())
+        d["_view_base"] = view_base
+        d["_view_use_parent_commit"] = False
         d["_update_hooks"] = {}
         d["_commit_hooks"] = {}
+        d["_checkout_hooks"] = {}
         d["_parent_dataset"] = None
         d["_pad_tensors"] = pad_tensors
         d["_locking_enabled"] = lock
@@ -339,8 +341,7 @@ class Dataset:
             "ds_name",
             "_is_filtered_view",
             "_view_id",
-            "_view_invalid",
-            "_new_view_base_commit",
+            "_view_use_parent_commit",
             "_parent_dataset",
             "_pad_tensors",
             "_locking_enabled",
@@ -365,7 +366,6 @@ class Dataset:
         state["_view_base"] = None
         state["_update_hooks"] = {}
         state["_commit_hooks"] = {}
-        state["_waiting_for_view_base_commit"] = False
         state["_client"] = state["org_id"] = state["ds_name"] = None
         state["_temp_tensors"] = []
         self.__dict__.update(state)
@@ -378,6 +378,61 @@ class Dataset:
         for temp_tensor in self._temp_tensors:
             self.delete_tensor(temp_tensor, large_ok=True)
         self._temp_tensors = []
+
+    def _reload_version_state(self):
+        version_state = self.version_state
+        # share version state if at HEAD
+        if (
+            not self._view_use_parent_commit
+            and self._view_base
+            and version_state["commit_node"].is_head_node
+        ):
+            uid = self._view_id
+
+            def commit_hook():
+                del self._view_base._commit_hooks[uid]
+                del self._view_base._checkout_hooks[uid]
+                del self._view_base._update_hooks[uid]
+                self._view_use_parent_commit = True
+                self._reload_version_state()
+
+            def checkout_hook():
+                del self._view_base._commit_hooks[uid]
+                del self._view_base._checkout_hooks[uid]
+                del self._view_base._update_hooks[uid]
+                self.__class__ = InvalidView
+                self.__init__(reason="checkout")
+
+            def update_hook():
+                del self._view_base._commit_hooks[uid]
+                del self._view_base._checkout_hooks[uid]
+                del self._view_base._update_hooks[uid]
+                self.__class__ = InvalidView
+                self.__init__(reason="update")
+
+            self._view_base._commit_hooks[uid] = commit_hook
+            self._view_base._checkout_hooks[uid] = checkout_hook
+            self._view_base._update_hooks[uid] = update_hook
+            return version_state
+        vs_copy = {}
+        vs_copy["branch"] = version_state["branch"]
+        # share branch_commit_map and commit_node_map
+        vs_copy["branch_commit_map"] = version_state["branch_commit_map"]
+        vs_copy["commit_node_map"] = version_state["commit_node_map"]
+        commit_node = version_state["commit_node"]
+        if self._view_use_parent_commit:
+            vs_copy["commit_node"] = commit_node.parent
+        else:
+            vs_copy["commit_node"] = commit_node
+        vs_copy["commit_id"] = vs_copy["commit_node"].commit_id
+        vs_copy["tensor_names"] = version_state["tensor_names"].copy()
+        vs_copy["meta"] = DatasetMeta()
+        vs_copy["meta"].__setstate__(version_state["meta"].__getstate__())
+        self.version_state = vs_copy
+        vs_copy["full_tensors"] = {
+            key: Tensor(key, self) for key in version_state["full_tensors"]
+        }
+        self._view_base = None
 
     def __getitem__(
         self,
@@ -410,6 +465,7 @@ class Dataset:
                     link_creds=self.link_creds,
                     pad_tensors=self._pad_tensors,
                     enabled_tensors=self.enabled_tensors,
+                    view_base=self._view_base or self,
                     libdeeplake_dataset=self.libdeeplake_dataset,
                 )
             elif "/" in item:
@@ -450,6 +506,7 @@ class Dataset:
                     link_creds=self.link_creds,
                     pad_tensors=self._pad_tensors,
                     enabled_tensors=enabled_tensors,
+                    view_base=self._view_base or self,
                     libdeeplake_dataset=self.libdeeplake_dataset,
                 )
             elif isinstance(item, tuple) and len(item) and isinstance(item[0], str):
@@ -477,11 +534,11 @@ class Dataset:
                     link_creds=self.link_creds,
                     pad_tensors=self._pad_tensors,
                     enabled_tensors=self.enabled_tensors,
+                    view_base=self._view_base or self,
                     libdeeplake_dataset=self.libdeeplake_dataset,
                 )
         else:
             raise InvalidKeyTypeError(item)
-        ret._view_base = self._view_base or self
         if hasattr(self, "_view_entry"):
             ret._view_entry = self._view_entry
         return ret
@@ -1131,6 +1188,22 @@ class Dataset:
         unlock_dataset(self)
 
     def __del__(self):
+        if self._view_base:
+            view_id = self._view_id
+            try:
+                del self._view_base._commit_hooks[view_id]
+            except KeyError:
+                pass
+
+            try:
+                del self._view_base._checkout_hooks[view_id]
+            except KeyError:
+                pass
+
+            try:
+                del self._view_base._update_hooks[view_id]
+            except KeyError:
+                pass
         try:
             self._unlock()
         except Exception:  # python shutting down
@@ -1238,6 +1311,7 @@ class Dataset:
 
         return self.commit_id  # type: ignore
 
+    @invalid_view_op
     def checkout(self, address: str, create: bool = False) -> Optional[str]:
         """Checks out to a specific commit_id or branch. If ``create = True``, creates a new branch with name ``address``.
 
@@ -1309,6 +1383,8 @@ class Dataset:
             self.storage.autoflush = self._initial_autoflush.pop()
         self._info = None
         self._ds_diff = None
+
+        [f() for f in list(self._checkout_hooks.values())]
 
         # do not store address
         deeplake_reporter.feature_report(
@@ -1815,6 +1891,9 @@ class Dataset:
         elif not self._read_only:
             self._lock(verbose=verbose)  # for ref counting
 
+        if not self.is_first_load and not self.group_index:
+            self._reload_version_state()
+
         if not self.is_iteration:
             group_index = self.group_index
             group_filter = (
@@ -2186,6 +2265,7 @@ class Dataset:
             version_state=self.version_state,
             path=self.path,
             link_creds=self.link_creds,
+            view_base=self._view_base,
             libdeeplake_dataset=self.libdeeplake_dataset,
         )
         self.storage.autoflush = autoflush
@@ -2451,38 +2531,11 @@ class Dataset:
         message: Optional[str] = None,
         copy: bool = False,
     ):
-        if self._view_invalid:
+        if self.has_head_changes:
             raise DatasetViewSavingError(
-                "This view cannot be saved as new changes were made at HEAD node after creation of this query view."
+                "HEAD node has uncommitted changes. Commit them before saving views."
             )
         commit_id = self.commit_id
-        if self.has_head_changes:
-            if self._new_view_base_commit:
-                commit_id = self._view_base_commit
-            else:
-                if self._view_base:
-                    self._waiting_for_view_base_commit = True
-                    uid = self._view_id
-                    if uid not in self._update_hooks:
-
-                        def update_hook():
-                            self._view_invalid = True
-                            self._waiting_for_view_base_commit = False
-                            del self._view_base._update_hooks[uid]
-                            del self._view_base._commit_hooks[uid]
-
-                        def commit_hook():
-                            self._waiting_for_view_base_commit = False
-                            self._new_view_base_commit = self._view_base.commit_id
-                            del self._view_base._update_hooks[uid]
-                            del self._view_base._commit_hooks[uid]
-
-                        self._view_base._update_hooks[uid] = update_hook
-                        self._view_base._commit_hooks[uid] = commit_hook
-
-                raise DatasetViewSavingError(
-                    "HEAD node has uncommitted changes. Commit them before saving views."
-                )
         tm = getattr(self, "_created_at", time())
         id = self._view_hash() if id is None else id
         info = {

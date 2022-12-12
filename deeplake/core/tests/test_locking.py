@@ -114,8 +114,11 @@ def test_lock_thread_leaking(s3_ds_generator):
 
     assert nlocks() == 1  # 1 because views
 
+    views[-1].__del__()
     views.pop()
     assert nlocks() == 1  # deleting 1 view doesn't release locks
 
+    for i in range(len(views)):
+        views[i].__del__()
     del views
     assert nlocks() == 0  # 0 because dataset and all views deleted
