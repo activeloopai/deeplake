@@ -27,6 +27,24 @@ def _isArrayLike(obj):
     return hasattr(obj, "__iter__") and hasattr(obj, "__len__")
 
 
+class DeeplakePolygonMask:
+    def __init__(self, dataset, mask):
+        self.dataset = dataset
+        self.data = self.dataset[mask]
+
+
+class DeeplakeBinaryMask:
+    def __init__(self, dataset, mask):
+        self.dataset = dataset
+        self.data = self.dataset[mask].numpy(aslist=True)
+
+
+MASK_FORMAT_TO_MASK_CLASS = {
+    "polygon": DeeplakePolygonMask,
+    "binary_mask": DeeplakeBinaryMask,
+}
+
+
 class _COCO(pycocotools_coco.COCO):
     def __init__(
         self,
@@ -69,7 +87,7 @@ class _COCO(pycocotools_coco.COCO):
         absolute_id = 0
         all_categories = self.labels
         all_bboxes = self.bboxes
-        all_masks = self.masks
+        all_masks = self.masks.data
         all_imgs = self.img_shapes
         all_iscrowds = self.iscrowds
 
@@ -90,20 +108,19 @@ class _COCO(pycocotools_coco.COCO):
                 "width": all_imgs[row_index].shape[1],
             }
             imgs[row_index] = img
-            # rle_mask = _mask.encode(np.asfortranarray(masks[..., bbox_index]))
             for bbox_index, bbox in enumerate(bboxes):
-                if isinstance(all_masks, list):
+                if isinstance(self.masks, DeeplakeBinaryMask):
                     mask = _mask.encode(np.asfortranarray(masks[..., bbox_index]))
-                else:
+                elif isinstance(self.masks, DeeplakePolygonMask):
                     mask = convert_poly_to_coco_format(masks.numpy()[bbox_index])
-
+                else:
+                    raise Exception(f"{type(self.masks)} is not supported yet.")
                 ann = {
                     "image_id": row_index,
                     "id": absolute_id,
                     "category_id": categories[bbox_index],
                     "bbox": bbox,
                     "area": bbox[2] * bbox[3],
-                    # "segmentation": masks.transpose((2, 0, 1))[bbox_index]
                     "segmentation": mask
                     if masks is not None
                     else None,  # optimize here
@@ -447,20 +464,23 @@ class COCODatasetEvaluater(mmdet_coco.CocoDataset):
         return data_infos
 
 
+def get_deeplake_mask_object(data_type):
+    if data_type == "polygon":
+        return MASK_FORMAT_TO_MASK_CLASS["polygon"]
+    return MASK_FORMAT_TO_MASK_CLASS["binary_mask"]
+
+
 def convert_poly_to_coco_format(masks):
     if isinstance(masks, np.ndarray):
         px = masks[..., 0]
         py = masks[..., 1]
         poly = [(x + 0.5, y + 0.5) for x, y in zip(px, py)]
         poly = [[float(p) for x in poly for p in x]]
-    elif isinstance(masks, list):
-        poly = []
-        for mask in masks:
-            px = mask[..., 0]
-            py = mask[..., 1]
-            poly_i = [(x + 0.5, y + 0.5) for x, y in zip(px, py)]
-            poly_i = [p for x in poly_i for p in x]
-            poly.append([np.array(poly_i)])
+        return poly
+    poly = []
+    for mask in masks:
+        poly_i = convert_poly_to_coco_format(mask)
+        poly.append([np.array(poly_i[0])])
     return poly
 
 
