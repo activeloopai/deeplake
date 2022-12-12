@@ -6,6 +6,7 @@ import copy
 import itertools
 import pycocotools.mask as maskUtils  # type: ignore
 from pycocotools import coco as pycocotools_coco  # type: ignore
+from pycocotools import mask as _mask
 from collections import defaultdict
 import sys
 from typing import Union, Dict, List
@@ -85,20 +86,25 @@ class _COCO(pycocotools_coco.COCO):
                 is_crowds = np.zeros_like(categories)
             img = {
                 "id": row_index,
-                "height": all_imgs[row_index][0],
-                "width": all_imgs[row_index][1],
+                "height": all_imgs[row_index].shape[0],
+                "width": all_imgs[row_index].shape[1],
             }
             imgs[row_index] = img
+            # rle_mask = _mask.encode(np.asfortranarray(masks[..., bbox_index]))
             for bbox_index, bbox in enumerate(bboxes):
+                if isinstance(all_masks, list):
+                    mask = _mask.encode(np.asfortranarray(masks[..., bbox_index]))
+                else:
+                    mask = convert_poly_to_coco_format(masks.numpy()[bbox_index])
+
                 ann = {
                     "image_id": row_index,
                     "id": absolute_id,
                     "category_id": categories[bbox_index],
                     "bbox": bbox,
                     "area": bbox[2] * bbox[3],
-                    "segmentation": masks.transpose((2, 0, 1))[bbox_index].astype(
-                        np.uint8
-                    )
+                    # "segmentation": masks.transpose((2, 0, 1))[bbox_index]
+                    "segmentation": mask
                     if masks is not None
                     else None,  # optimize here
                     "iscrowd": int(is_crowds[bbox_index]),
@@ -439,6 +445,23 @@ class COCODatasetEvaluater(mmdet_coco.CocoDataset):
             total_ann_ids.extend(ann_ids)
         assert len(set(total_ann_ids)) == len(total_ann_ids)
         return data_infos
+
+
+def convert_poly_to_coco_format(masks):
+    if isinstance(masks, np.ndarray):
+        px = masks[..., 0]
+        py = masks[..., 1]
+        poly = [(x + 0.5, y + 0.5) for x, y in zip(px, py)]
+        poly = [[float(p) for x in poly for p in x]]
+    elif isinstance(masks, list):
+        poly = []
+        for mask in masks:
+            px = mask[..., 0]
+            py = mask[..., 1]
+            poly_i = [(x + 0.5, y + 0.5) for x, y in zip(px, py)]
+            poly_i = [p for x in poly_i for p in x]
+            poly.append([np.array(poly_i)])
+    return poly
 
 
 def check_unsupported_functionalities(cfg):
