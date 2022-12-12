@@ -319,10 +319,12 @@ class MMDetDataset(TorchDataset):
     def _get_masks(self, masks_tensor, shape):
         if masks_tensor is None:
             return []
-        ret = self.dataset[masks_tensor].numpy(aslist=True)
-        if self.dataset[masks_tensor].htype == "polygon":
-            ret = self.dataset[masks_tensor]
-        return ret
+        # ret = self.dataset[masks_tensor].numpy(aslist=True)
+        # if self.dataset[masks_tensor].htype == "polygon":
+        #     ret = self.dataset[masks_tensor]
+        htype = self.dataset[masks_tensor].htype
+        mask_object = mmdet_utils.get_deeplake_mask_object(htype)
+        return mask_object(self.dataset, masks_tensor)
 
     def _get_iscrowds(self, iscrowds_tensor):
         if iscrowds_tensor is not None:
@@ -686,30 +688,6 @@ def process_polygons(polygons):
     return valid_polygons
 
 
-def _get_collate_keys(pipeline):
-    if type(pipeline) == list:
-        for transform in pipeline:
-            if type(transform) == mmcv.utils.config.ConfigDict:
-                if transform["type"] == "Collect":
-                    keys = transform.get("keys")
-                else:
-                    keys = _get_collate_keys(transform)
-
-                if keys is not None:
-                    return keys
-
-    if type(pipeline) == mmcv.utils.config.ConfigDict:
-        if pipeline["type"] == "Collect":
-            keys = pipeline.get("keys")
-            return keys
-
-        for transform in pipeline:
-            if type(pipeline[transform]) == list:
-                keys = _get_collate_keys(pipeline[transform])
-                if keys is not None:
-                    return keys
-
-
 def build_dataloader(
     dataset: dp.Dataset,
     images_tensor: str,
@@ -721,10 +699,6 @@ def build_dataloader(
     mode: str = "train",
     **train_loader_config,
 ):
-    # if masks_tensor and "gt_masks" not in _get_collate_keys(pipeline):
-    #     # TODO (adilkhan) check logic in _get_collate_keys
-    #     # TODO (adilkhan) what if masks is not collected in the final step but required in intermediate steps?
-    #     masks_tensor = None
     poly2mask = False
     if masks_tensor is not None:
         if dataset[masks_tensor].htype == "polygon":
@@ -1008,8 +982,6 @@ def _train_detector(
             ds_train, "class_label", "train gt_labels"
         )
         train_masks_tensor = None
-    collate_keys = _get_collate_keys(cfg.data.train.pipeline)
-    # if "gt_masks" in collate_keys:
     train_masks_tensor = _find_tensor_with_htype(
         ds_train, "binary_mask", "gt_masks"
     ) or _find_tensor_with_htype(ds_train, "polygon", "gt_masks")
@@ -1186,7 +1158,7 @@ def _train_detector(
                 ds_val, "class_label", "gt_labels"
             )
             val_masks_tensor = None
-            # if val_masks_tensor in _get_collate_keys(cfg.data.val.pipeline):
+
             val_masks_tensor = _find_tensor_with_htype(
                 ds_val, "binary_mask", "validation gt_masks"
             ) or _find_tensor_with_htype(ds_val, "polygon", "validation gt_masks")
