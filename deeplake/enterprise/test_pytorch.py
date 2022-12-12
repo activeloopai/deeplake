@@ -331,6 +331,13 @@ def test_groups(hub_cloud_ds, compressed_image_paths):
         assert cat[0].shape == another_ds.images.jpegs.cats[i].numpy().shape
         assert flower[0].shape == another_ds.images.pngs.flowers[i].numpy().shape
 
+    dl = another_ds.images.dataloader().pytorch(return_index=False)
+    for sample in dl:
+        cat = sample["jpegs/cats"]
+        flower = sample["pngs/flowers"]
+        np.testing.assert_array_equal(cat[0], img1.array)
+        np.testing.assert_array_equal(flower[0], img2.array)
+
 
 @requires_torch
 @requires_libdeeplake
