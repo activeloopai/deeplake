@@ -1659,6 +1659,7 @@ class Dataset:
         dataset_read(self)
         return dataloader
 
+    @deeplake_reporter.record_call
     def dataloader(self):
         """Returns a :class:`~deeplake.enterprise.DeepLakeDataLoader` object. To use this, install deeplake with ``pip install deeplake[enterprise]``.
 
