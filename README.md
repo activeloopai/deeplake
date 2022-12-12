@@ -248,7 +248,7 @@ image_arr = ds.image[0].numpy()
 ```
 
 ## ⚙️ Integrations
-Deep Lake offers integration with other tools in order to streamline your deep learning workflows. Current integrations include:
+Deep Lake offers integrations with other tools in order to streamline your deep learning workflows. Current integrations include:
 
 * **Model Training**
   * Stream data while training thousands of pre-built models using [MMDetection](https://github.com/open-mmlab/mmdetection), a popular open-source object detection toolbox based on PyTorch.
