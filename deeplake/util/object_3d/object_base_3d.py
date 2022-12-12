@@ -1,7 +1,5 @@
 from abc import ABC, abstractmethod
 
-import pandas as pd  # type: ignore
-
 
 class ObjectBase3D(ABC):
     """Represents a base class for working with 3d data.
