@@ -66,7 +66,7 @@ class _COCO(pycocotools_coco.COCO):
         self.masks = masks
         self.bboxes = bboxes
         self.labels = labels
-        self.img_shapes = imgs
+        self.imgs_orig = imgs
         self.iscrowds = iscrowds
         self.class_names = class_names
         self.bbox_format = bbox_format
@@ -87,11 +87,16 @@ class _COCO(pycocotools_coco.COCO):
         absolute_id = 0
         all_categories = self.labels
         all_bboxes = self.bboxes
-        all_masks = self.masks.data
-        all_imgs = self.img_shapes
+        all_masks = self.masks
+        all_imgs = self.imgs_orig
         all_iscrowds = self.iscrowds
 
         for row_index, row in enumerate(self.dataset):
+            if all_imgs[row_index].size == 0:
+                always_warn(
+                    "found empty image, skipping it. Please verify that your dataset is not corrupted."
+                )
+                continue
             categories = all_categories[row_index]  # make referencig custom
             bboxes = all_bboxes[row_index]
             if all_masks != [] and all_masks is not None:
@@ -109,9 +114,11 @@ class _COCO(pycocotools_coco.COCO):
             }
             imgs[row_index] = img
             for bbox_index, bbox in enumerate(bboxes):
-                if isinstance(self.masks, DeeplakeBinaryMask):
-                    mask = _mask.encode(np.asfortranarray(masks[..., bbox_index]))
-                elif isinstance(self.masks, DeeplakePolygonMask):
+                if self.masks.htype == "binary_mask":
+                    mask = _mask.encode(
+                        np.asfortranarray(masks[..., bbox_index].numpy())
+                    )
+                elif self.masks.htype == "polygon":
                     mask = convert_poly_to_coco_format(masks.numpy()[bbox_index])
                 else:
                     raise Exception(f"{type(self.masks)} is not supported yet.")
