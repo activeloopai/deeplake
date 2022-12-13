@@ -750,7 +750,7 @@ def build_dataloader(
 
     collate_fn = partial(collate, samples_per_gpu=batch_size)
 
-    decode_method={images_tensor: "numpy"}
+    decode_method = {images_tensor: "numpy"}
 
     if implementation == "python":
         loader = dataset.pytorch(
