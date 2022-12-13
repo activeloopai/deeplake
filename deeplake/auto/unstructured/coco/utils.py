@@ -4,7 +4,7 @@ import json
 import pathlib
 
 from collections import defaultdict
-from typing import Tuple, List, Union, Optional
+from typing import Tuple, List, Union, Optional, DefaultDict
 
 import deeplake
 from deeplake.htype import HTYPE_SUPPORTED_COMPRESSIONS
@@ -97,7 +97,7 @@ class CocoImages:
         )
         supported_images = []
         invalid_files = []
-        extensions = defaultdict(int)
+        extensions: DefaultDict[str, int] = defaultdict(int)
 
         for file in self.provider:
             if file.endswith(supported_image_extensions):
@@ -114,9 +114,7 @@ class CocoImages:
                 f"Encountered {len(invalid_files)} unsupported files in images directory."
             )
 
-        most_frequent_extension = (
-            max(extensions, key=extensions.get) if len(extensions) > 0 else None
-        )
+        most_frequent_extension = max(extensions, key=lambda k: extensions[k], default=None)
 
         return (
             supported_images,

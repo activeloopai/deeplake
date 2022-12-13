@@ -153,7 +153,7 @@ class CocoDataset(UnstructuredDataset):
         group_tensors = [
             t for t in ds.tensors.keys() if not t.startswith("_")
         ]  # Avoid hidden tensors
-        sample = {k: [] for k in group_tensors}
+        sample: Dict[str, List] = {k: [] for k in group_tensors}
 
         for annotation in matching_annotations:
             for tensor_name in group_tensors:
@@ -176,7 +176,7 @@ class CocoDataset(UnstructuredDataset):
 
         return structure
 
-    def structure(self, ds: Dataset, progressbar: bool = True, num_workers: int = 0):
+    def structure(self, ds: Dataset, progressbar: bool = True, num_workers: int = 0): # type: ignore
         image_files = self.images.supported_images
 
         with ds:
@@ -205,7 +205,7 @@ class CocoDataset(UnstructuredDataset):
                         coco_file,
                     )
 
-                values = OrderedDict((image, None) for image in image_files)
+                values: Dict[str, Dict] = OrderedDict((image, None) for image in image_files) # type: ignore
 
                 process_annotations(values).eval(
                     image_files,

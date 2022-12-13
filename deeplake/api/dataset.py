@@ -1032,9 +1032,12 @@ class dataset:
             file_to_group_mapping (Optional[Dict]): A one-to-one mapping between COCO annotation file names and Dataset group names.
             ignore_one_group (bool): Skip creation of group in case of a single annotation file. Set to ``True`` by default.
             ignore_keys (List[str]): A list of COCO keys to ignore.
+            image_settings (Optional[Dict]): A dictionary containing settings for the images tensor.
             src_creds (Optional[Dict]): Credentials to access the source path. If not provided, will be inferred from the environment.
             dest_creds (Optional[Dict]): A dictionary containing credentials used to access the destination path of the dataset.
+            inspect_limit (int): The maximum number of samples to inspect in the annotations json. Set to ``1000000`` by default.
             progressbar (bool): Enables or disables ingestion progress bar. Set to ``True`` by default.
+            num_workers (int): The number of workers to use for ingestion. Set to ``0`` by default.
             **dataset_kwargs: Any arguments passed here will be forwarded to the dataset creator function. See :func:`deeplake.dataset`.
 
         Returns:
