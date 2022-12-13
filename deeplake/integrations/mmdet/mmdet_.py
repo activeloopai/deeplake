@@ -318,9 +318,7 @@ class MMDetDataset(TorchDataset):
     def _get_masks(self, masks_tensor, shape):
         if masks_tensor is None:
             return []
-        htype = self.dataset[masks_tensor].htype
-        mask_object = mmdet_utils.get_deeplake_mask_object(htype)
-        return mask_object(self.dataset, masks_tensor)
+        return self.dataset[masks_tensor]
 
     def _get_iscrowds(self, iscrowds_tensor):
         if iscrowds_tensor is not None:
