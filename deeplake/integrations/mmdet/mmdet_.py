@@ -1148,20 +1148,16 @@ def _train_detector(
             val_labels_tensor = ds_val_tensors["gt_labels"]
             val_masks_tensor = ds_val_tensors.get("gt_masks")
         else:
-            val_images_tensor = _find_tensor_with_htype(
-                ds_val, "image", "valiation img"
-            )
-            val_boxes_tensor = _find_tensor_with_htype(
-                ds_val, "bbox", "validation gt_bboxes"
-            )
+            val_images_tensor = _find_tensor_with_htype(ds_val, "image", "img")
+            val_boxes_tensor = _find_tensor_with_htype(ds_val, "bbox", "gt_bboxes")
             val_labels_tensor = _find_tensor_with_htype(
                 ds_val, "class_label", "gt_labels"
             )
             val_masks_tensor = None
 
             val_masks_tensor = _find_tensor_with_htype(
-                ds_val, "binary_mask", "validation gt_masks"
-            ) or _find_tensor_with_htype(ds_val, "polygon", "validation gt_masks")
+                ds_val, "binary_mask", "gt_masks"
+            ) or _find_tensor_with_htype(ds_val, "polygon", "gt_masks")
 
         # TODO make sure required tensors are not None.
 
