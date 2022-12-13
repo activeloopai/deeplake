@@ -9,6 +9,7 @@ from deeplake.core.meta.tensor_meta import TensorMeta
 from deeplake.core.storage import StorageProvider, MemoryProvider, LRUCache
 from deeplake.core.chunk_engine import ChunkEngine
 from deeplake.core.transform.transform_dataset import TransformDataset
+from deeplake.core.index import Index
 
 from deeplake.constants import MB, TRANSFORM_PROGRESSBAR_UPDATE_INTERVAL
 from deeplake.util.remove_cache import get_base_storage
@@ -120,6 +121,7 @@ def store_data_slice_with_pbar(pg_callback, transform_input: Tuple) -> Dict:
         version_state,
         link_creds,
         skip_ok,
+        extend_only,
     ) = inp
     all_chunk_engines = create_worker_chunk_engines(
         tensors, label_temp_tensors, output_storage, version_state, link_creds
@@ -128,17 +130,26 @@ def store_data_slice_with_pbar(pg_callback, transform_input: Tuple) -> Dict:
     if isinstance(data_slice, deeplake.Dataset):
         data_slice = add_cache_to_dataset_slice(data_slice, tensors)
 
-    transform_data_slice_and_append(
-        data_slice,
-        pipeline,
-        visible_tensors,
-        label_temp_tensors,
-        actual_tensors,
-        all_chunk_engines,
-        group_index,
-        pg_callback,
-        skip_ok,
-    )
+    if extend_only:
+        extend_data_slice(
+            data_slice,
+            pipeline,
+            all_chunk_engines,
+            group_index,
+            pg_callback,
+        )
+    else:
+        transform_data_slice_and_append(
+            data_slice,
+            pipeline,
+            visible_tensors,
+            label_temp_tensors,
+            actual_tensors,
+            all_chunk_engines,
+            group_index,
+            pg_callback,
+            skip_ok,
+        )
 
     # retrieve relevant objects from memory
     all_tensor_metas = {}
@@ -209,6 +220,49 @@ def _transform_sample_and_update_chunk_engines(
                 chunk_engine.extend(batch, link_callback=callback)
         else:
             chunk_engine.extend(value.numpy_compressed(), link_callback=callback)
+        value.items.clear()
+
+
+def normalize_pg(pg_callback, num_tensors):
+    def inner(num_samples):
+        return pg_callback(num_samples / num_tensors)
+
+    return inner
+
+
+def extend_data_slice(
+    data_slice,
+    pipeline,
+    all_chunk_engines,
+    group_index: str,
+    pg_callback,
+):
+    transform_fn = pipeline.functions[0]
+    extend_fn, args, kwargs = transform_fn.func, transform_fn.args, transform_fn.kwargs
+    result = TransformDataset()
+    extend_fn(data_slice, result, *args, **kwargs)
+    result_resolved = {
+        posixpath.join(group_index, k): result[k] for k in result.tensors
+    }
+    result = result_resolved  # type: ignore
+
+    if pg_callback is not None:
+        pg_callback = normalize_pg(pg_callback, len(result))
+
+    for tensor, value in result.items():
+        chunk_engine = all_chunk_engines[tensor]
+        callback = chunk_engine._transform_callback
+        if value._numpy_only:
+            for batch in value.numpy_compressed():
+                chunk_engine.extend(
+                    batch, link_callback=callback, pg_callback=pg_callback
+                )
+        else:
+            chunk_engine.extend(
+                value.numpy_compressed(),
+                link_callback=callback,
+                pg_callback=pg_callback,
+            )
         value.items.clear()
 
 
@@ -332,10 +386,12 @@ def add_cache_to_dataset_slice(
     cached_store = LRUCache(MemoryProvider(), base_storage, cache_size)
     commit_id = dataset_slice.pending_commit_id
     # don't pass version state to constructor as otherwise all workers will share it, checkout to commit_id instead
+    index = Index.from_json(
+        dataset_slice.index.to_json()
+    )  # we don't allow checkouts for views
     dataset_slice = deeplake.core.dataset.dataset_factory(
         path=dataset_slice.path,
         storage=cached_store,
-        index=dataset_slice.index,
         group_index=dataset_slice.group_index,
         read_only=dataset_slice.read_only,
         token=dataset_slice.token,
@@ -344,6 +400,7 @@ def add_cache_to_dataset_slice(
         pad_tensors=dataset_slice._pad_tensors,
     )
     dataset_slice.checkout(commit_id)
+    dataset_slice.index = index
     return dataset_slice
 
 
@@ -365,10 +422,13 @@ def check_transform_data_in(data_in, scheduler: str) -> None:
 
 
 def check_transform_ds_out(
-    ds_out: deeplake.Dataset, scheduler: str, check_lengths: bool
+    ds_out: deeplake.Dataset,
+    scheduler: str,
+    check_lengths: bool,
+    read_only_ok: bool = False,
 ) -> None:
     """Checks whether the ds_out for a transform is valid or not."""
-    if ds_out._read_only:
+    if ds_out._read_only and not read_only_ok:
         raise InvalidOutputDatasetError
     tensors = list(ds_out.tensors)
 

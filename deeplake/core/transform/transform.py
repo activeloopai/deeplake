@@ -55,6 +55,7 @@ class ComputeFunction:
         skip_ok: bool = False,
         check_lengths: bool = True,
         pad_data_in: bool = False,
+        read_only_ok: bool = False,
         **kwargs,
     ):
         """Evaluates the ComputeFunction on data_in to produce an output dataset ds_out.
@@ -73,6 +74,8 @@ class ComputeFunction:
                 This is especially useful for inplace transformations in which certain tensors are not modified. Defaults to False.
             check_lengths (bool): If True, checks whether ds_out has tensors of same lengths initially.
             pad_data_in (bool): NOTE: This is only applicable if data_in is a Deep Lake dataset. If True, pads tensors of data_in to match the length of the largest tensor in data_in.
+                Defaults to False.
+            read_only_ok (bool): If ``True`` and output dataset is same as input dataset, the read-only check is skipped. This can be used to read data in parallel without making changes to underlying dataset.
                 Defaults to False.
             **kwargs: Additional arguments.
 
@@ -93,6 +96,7 @@ class ComputeFunction:
             skip_ok,
             check_lengths,
             pad_data_in,
+            read_only_ok,
             **kwargs,
         )
 
@@ -118,6 +122,7 @@ class Pipeline:
         skip_ok: bool = False,
         check_lengths: bool = True,
         pad_data_in: bool = False,
+        read_only_ok: bool = False,
         **kwargs,
     ):
         """Evaluates the pipeline on ``data_in`` to produce an output dataset ``ds_out``.
@@ -137,6 +142,8 @@ class Pipeline:
             check_lengths (bool): If ``True``, checks whether ``ds_out`` has tensors of same lengths initially.
             pad_data_in (bool): If ``True``, pads tensors of ``data_in`` to match the length of the largest tensor in ``data_in``.
                 Defaults to ``False``.
+            read_only_ok (bool): If ``True`` and output dataset is same as input dataset, the read-only check is skipped.
+                Defaults to False.
             **kwargs: Additional arguments.
 
         Raises:
@@ -186,7 +193,9 @@ class Pipeline:
 
         target_ds = data_in if overwrite else ds_out
 
-        check_transform_ds_out(target_ds, scheduler, check_lengths)
+        check_transform_ds_out(
+            target_ds, scheduler, check_lengths, read_only_ok and overwrite
+        )
 
         # if overwrite then we've already flushed and autocheckecked out data_in which is target_ds now
         if not overwrite:
@@ -214,6 +223,7 @@ class Pipeline:
                 progressbar,
                 overwrite,
                 skip_ok,
+                read_only_ok and overwrite,
                 **kwargs,
             )
             target_ds._send_compute_progress(**progress_end_args, status="success")
@@ -241,6 +251,7 @@ class Pipeline:
         progressbar: bool = True,
         overwrite: bool = False,
         skip_ok: bool = False,
+        read_only: bool = False,
         **kwargs,
     ):
         """Runs the pipeline on the input data to produce output samples and stores in the dataset.
@@ -255,6 +266,7 @@ class Pipeline:
                 tensor.key
                 for tensor in target_ds.tensors.values()
                 if tensor.base_htype == "class_label"
+                and not read_only
                 and not tensor.meta._disable_temp_transform
             ]
             if not kwargs.get("disable_label_sync")
@@ -267,19 +279,20 @@ class Pipeline:
             else [target_ds[t].key for t in target_ds.tensors]
         )
 
-        for tensor in class_label_tensors:
-            temp_tensor = f"__temp{tensor}_{uuid4().hex[:4]}"
-            with target_ds:
-                temp_tensor_obj = target_ds.create_tensor(
-                    temp_tensor,
-                    htype="class_label",
-                    create_sample_info_tensor=False,
-                    create_shape_tensor=False,
-                    create_id_tensor=False,
-                )
-                temp_tensor_obj.meta._disable_temp_transform = True
-                label_temp_tensors[tensor] = temp_tensor
-            target_ds.flush()
+        if not read_only:
+            for tensor in class_label_tensors:
+                temp_tensor = f"__temp{tensor}_{uuid4().hex[:4]}"
+                with target_ds:
+                    temp_tensor_obj = target_ds.create_tensor(
+                        temp_tensor,
+                        htype="class_label",
+                        create_sample_info_tensor=False,
+                        create_shape_tensor=False,
+                        create_id_tensor=False,
+                    )
+                    temp_tensor_obj.meta._disable_temp_transform = True
+                    label_temp_tensors[tensor] = temp_tensor
+                target_ds.flush()
 
         visible_tensors = list(target_ds.tensors)
         visible_tensors = [target_ds[t].key for t in visible_tensors]
@@ -295,6 +308,7 @@ class Pipeline:
             storages = [storage] * len(slices)
         else:
             storages = [storage.copy() for _ in slices]
+        extend_only = kwargs.get("extend_only")
         args = (
             group_index,
             tensors,
@@ -305,6 +319,7 @@ class Pipeline:
             version_state,
             target_ds.link_creds,
             skip_ok,
+            extend_only,
         )
         map_inp = zip(slices, storages, repeat(args))
 
@@ -323,6 +338,9 @@ class Pipeline:
             for tensor in label_temp_tensors.values():
                 target_ds.delete_tensor(tensor)
             raise e
+
+        if read_only:
+            return
 
         result = process_transform_result(result)
 

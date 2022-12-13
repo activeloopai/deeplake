@@ -3,7 +3,6 @@ from deeplake.util.dataset import try_flushing
 from deeplake.util.dataset import map_tensor_keys
 from .common import (
     PytorchTransformFunction,
-    check_tensors,
     convert_fn as default_convert_fn,
     collate_fn as default_collate_fn,
 )
@@ -94,6 +93,7 @@ def dataset_to_pytorch(
     num_workers: int,
     batch_size: int,
     drop_last: bool,
+    *args,
     collate_fn: Optional[Callable],
     pin_memory: bool,
     shuffle: bool,
@@ -103,11 +103,16 @@ def dataset_to_pytorch(
     tensors: Optional[Sequence[str]] = None,
     return_index: bool = True,
     pad_tensors: bool = True,
+    torch_dataset=None,
     decode_method: Optional[Dict[str, str]] = None,
+    **kwargs,
 ):
 
     import torch
     from deeplake.integrations.pytorch.dataset import TorchDataset
+
+    if torch_dataset is None:
+        torch_dataset = TorchDataset
 
     try_flushing(dataset)
 
@@ -144,8 +149,9 @@ def dataset_to_pytorch(
         )
     else:
         return torch.utils.data.DataLoader(
-            TorchDataset(
+            torch_dataset(
                 dataset,
+                *args,
                 tensors=tensors,
                 use_local_cache=use_local_cache,
                 transform=transform,
@@ -155,6 +161,7 @@ def dataset_to_pytorch(
                 return_index=return_index,
                 pad_tensors=pad_tensors,
                 decode_method=decode_method,
+                **kwargs,
             ),
             batch_size=batch_size,
             collate_fn=collate_fn,

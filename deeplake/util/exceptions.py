@@ -342,6 +342,10 @@ class S3ListError(S3Error):
     """Catchall for all errors encountered while retrieving a list of objects present in S3"""
 
 
+class S3GetAccessError(S3GetError):
+    """Credentials related errors encountered while getting an object from S3"""
+
+
 class CompressionError(Exception):
     pass
 
@@ -745,6 +749,11 @@ class DatasetViewSavingError(Exception):
     pass
 
 
+class InvalidViewException(Exception):
+    def __init__(self, message):
+        super().__init__(message)
+
+
 class ManagedCredentialsNotFoundError(Exception):
     def __init__(self, org_id, creds_key):
         super().__init__(
@@ -823,4 +832,26 @@ class UnprocessableEntityException(Exception):
 class GroupInfoNotSupportedError(Exception):
     def __init__(self):
         message = "Tensor groups does not have info attribute. Please use `dataset.info` or `dataset.tensor.info`."
+        super().__init__(message)
+
+
+class InvalidDatasetNameException(Exception):
+    def __init__(self, path_type):
+        if path_type == "local":
+            message = "Local dataset names can only contain letters, numbers, spaces, `-`, `_` and `.`."
+        else:
+            message = "Please specify a dataset name that contains only letters, numbers, hyphens and underscores."
+        super().__init__(message)
+
+
+class UnsupportedParameterException(Exception):
+    pass
+
+
+class UnsupportedExtensionError(Exception):
+    def __init__(self, extension, htype=""):
+        if htype:
+            htype = f"For {htype} htype "
+        message = f"{htype}{extension} is not supported"
+
         super().__init__(message)

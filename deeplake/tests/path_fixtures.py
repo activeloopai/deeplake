@@ -47,6 +47,7 @@ _GIT_CLONE_CACHE_DIR = ".test_resources"
 
 _HUB_TEST_RESOURCES_URL = "https://www.github.com/activeloopai/hub-test-resources.git"
 _PILLOW_URL = "https://www.github.com/python-pillow/Pillow.git"
+_MMDET_URL = "https://www.github.com/open-mmlab/mmdetection.git"
 
 
 def _repo_name_from_git_url(url):
@@ -366,6 +367,11 @@ def grayscale_image_paths():
 
 
 @pytest.fixture(scope="session")
+def mmdet_path():
+    return _git_clone(_MMDET_URL)
+
+
+@pytest.fixture(scope="session")
 def compressed_image_paths():
     paths = {
         "webp": "beach.webp",
@@ -451,6 +457,20 @@ def point_cloud_paths():
     }
 
     parent = get_dummy_data_path("point_cloud")
+    for k in paths:
+        paths[k] = os.path.join(parent, paths[k])
+    return paths
+
+
+@pytest.fixture
+def mesh_paths():
+    paths = {
+        "ascii1": "mesh_ascii.ply",
+        "ascii2": "mesh_ascii_2.ply",
+        "bin": "mesh_bin.ply",
+    }
+
+    parent = get_dummy_data_path("mesh")
     for k in paths:
         paths[k] = os.path.join(parent, paths[k])
     return paths
