@@ -27,24 +27,6 @@ def _isArrayLike(obj):
     return hasattr(obj, "__iter__") and hasattr(obj, "__len__")
 
 
-class DeeplakePolygonMask:
-    def __init__(self, dataset, mask):
-        self.dataset = dataset
-        self.data = self.dataset[mask]
-
-
-class DeeplakeBinaryMask:
-    def __init__(self, dataset, mask):
-        self.dataset = dataset
-        self.data = self.dataset[mask].numpy(aslist=True)
-
-
-MASK_FORMAT_TO_MASK_CLASS = {
-    "polygon": DeeplakePolygonMask,
-    "binary_mask": DeeplakeBinaryMask,
-}
-
-
 class _COCO(pycocotools_coco.COCO):
     def __init__(
         self,
@@ -467,12 +449,6 @@ class COCODatasetEvaluater(mmdet_coco.CocoDataset):
             total_ann_ids.extend(ann_ids)
         assert len(set(total_ann_ids)) == len(total_ann_ids)
         return data_infos
-
-
-def get_deeplake_mask_object(data_type):
-    if data_type == "polygon":
-        return MASK_FORMAT_TO_MASK_CLASS["polygon"]
-    return MASK_FORMAT_TO_MASK_CLASS["binary_mask"]
 
 
 def convert_poly_to_coco_format(masks):
