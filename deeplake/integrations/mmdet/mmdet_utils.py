@@ -163,7 +163,6 @@ class _COCO(pycocotools_coco.COCO):
         catIds = catIds if _isArrayLike(catIds) else [catIds]
 
         if len(imgIds) == len(catIds) == len(areaRng) == 0:
-            # anns = self.dataset['annotations']
             anns = list(self.anns.values())
         else:
             if not len(imgIds) == 0:
@@ -211,7 +210,6 @@ class _COCO(pycocotools_coco.COCO):
         if len(catNms) == len(supNms) == len(catIds) == 0:
             cats = list(self.cats.values())
         else:
-            # cats = self.dataset['categories']
             cats = list(self.cats.values())
             cats = (
                 cats

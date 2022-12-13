@@ -313,15 +313,11 @@ class MMDetDataset(TorchDataset):
 
     def _get_images(self, images_tensor):
         image_tensor = self.dataset[images_tensor]
-        # image_list = [image.shape for image in image_tensor]
         return image_tensor
 
     def _get_masks(self, masks_tensor, shape):
         if masks_tensor is None:
             return []
-        # ret = self.dataset[masks_tensor].numpy(aslist=True)
-        # if self.dataset[masks_tensor].htype == "polygon":
-        #     ret = self.dataset[masks_tensor]
         htype = self.dataset[masks_tensor].htype
         mask_object = mmdet_utils.get_deeplake_mask_object(htype)
         return mask_object(self.dataset, masks_tensor)
@@ -943,8 +939,6 @@ def _train_detector(
 ):
     batch_size = cfg.data.get("samples_per_gpu", 256)
     num_workers = cfg.data.get("workers_per_gpu", 1)
-
-    # cfg = compat_cfg(cfg)
 
     if ds_train is None:
         ds_train = load_ds_from_cfg(cfg.data.train)
