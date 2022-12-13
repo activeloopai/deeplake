@@ -114,7 +114,9 @@ class CocoImages:
                 f"Encountered {len(invalid_files)} unsupported files in images directory."
             )
 
-        most_frequent_extension = max(extensions, key=lambda k: extensions[k], default=None)
+        most_frequent_extension = max(
+            extensions, key=lambda k: extensions[k], default=None
+        )
 
         return (
             supported_images,
