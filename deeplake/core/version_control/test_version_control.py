@@ -276,7 +276,6 @@ def test_auto_checkout_bug(local_ds):
     g = local_ds.checkout(a)
     local_ds.abc[0] = 5
     dsv = local_ds[0:3]
-    dsv.abc[0] = 5
     h = local_ds.commit("it is 5")
     i = local_ds.checkout(e)
     local_ds.abc[0] = 6
@@ -285,7 +284,7 @@ def test_auto_checkout_bug(local_ds):
     j = local_ds.commit("it is 6")
     local_ds.log()
     local_ds.checkout(a)
-    assert dsv.abc[0].numpy() == 1
+    assert dsv.abc[0].numpy() == 5
     assert local_ds.abc[0].numpy() == 1
     local_ds.checkout(b)
     assert local_ds.abc[0].numpy() == 2

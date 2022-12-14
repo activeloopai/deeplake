@@ -5,6 +5,7 @@ from deeplake.enterprise.util import (
     raise_indra_installation_error,
     verify_base_storage,
 )
+from deeplake.hooks import dataset_read
 from deeplake.enterprise.libdeeplake_query import query, sample_by
 from deeplake.integrations.pytorch.common import (
     PytorchTransformFunction,
@@ -12,7 +13,6 @@ from deeplake.integrations.pytorch.common import (
     get_collate_fn,
     validate_decode_method,
 )
-from deeplake.util.bugout_reporter import deeplake_reporter
 from deeplake.util.dataset import map_tensor_keys
 from functools import partial
 import importlib
@@ -100,7 +100,7 @@ class DeepLakeDataLoader(DataLoader):
     def __len__(self):
         round_fn = math.floor if self._drop_last else math.ceil
         return round_fn(
-            len(self.dataset) / ((self._batch_size or 1) * self._world_size)
+            len(self._orig_dataset) / ((self._batch_size or 1) * self._world_size)
         )
 
     def batch(self, batch_size: int, drop_last: bool = False):
@@ -271,7 +271,6 @@ class DeepLakeDataLoader(DataLoader):
             self._dataloader.close()
             self._dataloader = None
 
-    @deeplake_reporter.record_call
     def pytorch(
         self,
         num_workers: int = 0,
@@ -356,7 +355,6 @@ class DeepLakeDataLoader(DataLoader):
             all_vars["_world_size"] = torch.distributed.get_world_size()
         return self.__class__(**all_vars)
 
-    @deeplake_reporter.record_call
     def numpy(
         self,
         num_workers: int = 0,
@@ -440,6 +438,7 @@ class DeepLakeDataLoader(DataLoader):
                 compressed_tensors=compressed_tensors,
                 persistent_workers=self._persistent_workers,
             )
+        dataset_read(self._orig_dataset)
         return iter(self._dataloader)
 
 

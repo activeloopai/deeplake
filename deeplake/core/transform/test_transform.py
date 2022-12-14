@@ -138,6 +138,11 @@ def small_transform(sample_in, samples_out):
     samples_out.image.append(sample_in)
 
 
+@deeplake.compute
+def fn_aggregate(samples_in, samples_out, key, values):
+    values.append(samples_in[key].numpy().mean())
+
+
 def check_target_array(ds, index, target):
     np.testing.assert_array_equal(
         ds.img[index].numpy(), target * np.ones((200, 200, 3))
@@ -1028,3 +1033,100 @@ def test_transform_info(local_ds_generator):
         assert ds.info["test"] == 123
     ds = local_ds_generator()
     assert ds.info["test"] == 123
+
+
+@parametrize_num_workers
+@all_compressions
+@pytest.mark.parametrize(
+    "ds",
+    ["memory_ds", "local_ds", "s3_ds"],
+    indirect=True,
+)
+def test_read_only_dataset_aggregation_image(ds, sample_compression, num_workers):
+    scheduler = "serial"
+    i_start = 0
+    i_stop = 100
+    with ds:
+        ds.create_tensor("image", htype="image", sample_compression=sample_compression)
+        for i in range(i_start, i_stop):
+            ds.image.append(i * np.ones((9, 16), dtype="uint8"))
+    ds.read_only = True
+
+    values = []
+    fn_aggregate(key="image", values=values).eval(
+        ds,
+        num_workers=num_workers,
+        progressbar=False,
+        scheduler=scheduler,
+        read_only_ok=True,
+    )
+    assert len(values) == i_stop - i_start
+    assert np.array(values).mean() == (i_start + i_stop - 1) / 2  # half-open interval
+
+
+@parametrize_num_workers
+@pytest.mark.parametrize(
+    "ds",
+    ["memory_ds", "local_ds", "s3_ds"],
+    indirect=True,
+)
+def test_read_only_dataset_aggregation_label(ds, num_workers):
+    scheduler = "serial"
+
+    i_start = 0
+    i_stop = 100
+    with ds:
+        ds.create_tensor("label", htype="class_label")
+        for i in range(i_start, i_stop):
+            ds.label.append(i)
+    ds.read_only = True
+
+    values = []
+    fn_aggregate(key="label", values=values).eval(
+        ds,
+        num_workers=num_workers,
+        progressbar=False,
+        scheduler=scheduler,
+        read_only_ok=True,
+    )
+    assert len(values) == i_stop - i_start
+    assert np.array(values).mean() == (i_start + i_stop - 1) / 2  # half-open interval
+
+
+@parametrize_num_workers
+@all_schedulers
+@pytest.mark.parametrize(
+    "ds",
+    ["local_ds", "s3_ds"],
+    indirect=True,
+)
+def test_read_only_dataset_raise(ds, scheduler, num_workers):
+    with ds:
+        ds.create_tensor("label", htype="class_label")
+        ds.label.append(1)
+    ds.read_only = True
+
+    with pytest.raises(InvalidOutputDatasetError):
+        values = []
+        fn_aggregate(key="label", values=values).eval(
+            ds, num_workers=num_workers, progressbar=False, scheduler=scheduler
+        )
+
+
+def test_read_only_dataset_raise_if_output_dataset(memory_ds):
+    data_in = memory_ds
+
+    with data_in:
+        data_in.create_tensor("label", htype="class_label")
+        data_in.label.append(1)
+
+    data_out = deeplake.dataset(
+        "mem://test_read_only_dataset_raise_if_output_dataset", overwrite=True
+    )
+    data_out.read_only = True
+
+    with pytest.raises(InvalidOutputDatasetError):
+        values = []
+        fn_aggregate(key="label", values=values).eval(
+            data_in, data_out, progressbar=False, read_only_ok=True
+        )
