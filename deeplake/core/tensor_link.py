@@ -6,7 +6,7 @@ import deeplake
 import inspect
 import numpy as np
 from os import urandom
-from PIL import Image
+from PIL import Image  # type: ignore
 from deeplake.util.downsample import downsample_sample
 
 optional_kwargs = {

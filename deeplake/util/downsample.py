@@ -1,5 +1,5 @@
 from typing import Optional, Union
-from PIL import Image
+from PIL import Image  # type: ignore
 import deeplake
 from deeplake.core.partial_sample import PartialSample
 import numpy as np

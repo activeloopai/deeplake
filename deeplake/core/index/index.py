@@ -273,6 +273,9 @@ class IndexEntry:
 
         Returns:
             IndexEntry: The downsampled IndexEntry.
+
+        Raises:
+            TypeError: If the IndexEntry cannot be downsampled.
         """
         if isinstance(self.value, slice):
             start = self.value.start or 0
