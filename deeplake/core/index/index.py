@@ -2,7 +2,7 @@ from typing import Union, List, Tuple, Iterable, Optional
 from collections.abc import Iterable
 import numpy as np
 
-IndexValue = Union[int, slice, Tuple[int]]
+IndexValue = Union[int, slice, Tuple[int, ...]]
 
 
 def has_negatives(s: slice) -> bool:
