@@ -24,12 +24,11 @@ class TileEncoder(DeepLakeMemoryObject):
         self.is_dirty = True
 
     def __delitem__(self, global_sample_index: int):
-        del self.entries[global_sample_index]
-        keys = sorted(self.entries.keys())
+        self.entries.pop(global_sample_index, None)
+        keys = list(filter(lambda k: k > global_sample_index, self.entries))
+        keys.sort()
         for k in keys:
-            if k > global_sample_index:
-                self.entries[k - 1] = self.entries[k]
-                del self.entries[k]
+            self.entries[k - 1] = self.entries.pop(k)
         self.is_dirty = True
 
     def __getitem__(self, global_sample_index: int):

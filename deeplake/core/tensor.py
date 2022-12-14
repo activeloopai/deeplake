@@ -56,9 +56,10 @@ from deeplake.util.video import normalize_index
 
 from deeplake.compression import get_compression_type, VIDEO_COMPRESSION
 from deeplake.util.notebook import is_jupyter, video_html, is_colab
-from deeplake.util.point_cloud import (
-    POINT_CLOUD_FIELD_NAME_TO_TYPESTR,
-    cast_point_cloud_array_to_proper_dtype,
+from deeplake.util.object_3d.point_cloud import parse_point_cloud_to_dict
+from deeplake.util.object_3d.mesh import (
+    parse_mesh_to_dict,
+    get_mesh_vertices,
 )
 import warnings
 import webbrowser
@@ -317,6 +318,7 @@ class Tensor:
             link_callback=self._extend_links if self.meta.links else None,
         )
         dataset_written(self.dataset)
+        self.invalidate_libdeeplake_dataset()
 
     @property
     def info(self) -> Info:
@@ -393,6 +395,7 @@ class Tensor:
             self.meta.is_dirty = True
         except TensorDoesNotExistError:
             pass
+        self.invalidate_libdeeplake_dataset()
 
     def modified_samples(
         self, target_id: Optional[str] = None, return_indexes: Optional[bool] = False
@@ -691,6 +694,7 @@ class Tensor:
                 link_callback=update_link_callback,
             )
         dataset_written(self.dataset)
+        self.invalidate_libdeeplake_dataset()
 
     def __iter__(self):
         for i in range(len(self)):
@@ -729,11 +733,14 @@ class Tensor:
             fetch_chunks=fetch_chunks or self.is_iteration,
             pad_tensor=self.pad_tensor,
         )
-        if self.htype == "point_cloud":
+        if self.htype == "point_cloud":  # TODO: refactor
             if isinstance(ret, list):
                 ret = [arr[..., :3] for arr in ret]
             else:
                 ret = ret[..., :3]
+
+        if self.htype == "mesh":  # TODO: refacor
+            ret = get_mesh_vertices(self.key, self.index, ret, self.sample_info, aslist)
         dataset_read(self.dataset)
         return ret
 
@@ -891,39 +898,17 @@ class Tensor:
                 pad_tensor=self.pad_tensor,
                 fetch_chunks=fetch_chunks,
             )
+            value = parse_point_cloud_to_dict(full_arr, self.ndim, self.sample_info)
+            return value
 
-            if self.ndim == 2:
-                meta = {}  # type: ignore
-
-                if len(self.sample_info) == 0:
-                    return meta
-
-                for i, dimension_name in enumerate(self.sample_info["dimension_names"]):  # type: ignore
-                    typestr = POINT_CLOUD_FIELD_NAME_TO_TYPESTR[dimension_name]
-                    meta[dimension_name] = full_arr[..., i].astype(np.dtype(typestr))  # type: ignore
-                return meta
-
-            meta = []  # type: ignore
-            for sample_index in range(len(full_arr)):
-                meta_dict = {}  # type: ignore
-
-                if len(self.sample_info[sample_index]) == 0:
-                    meta.append(meta_dict)  # type: ignore
-                    continue
-
-                for dimension_index, dimension_name in enumerate(
-                    self.sample_info[sample_index]["dimension_names"]
-                ):
-                    dtype = POINT_CLOUD_FIELD_NAME_TO_TYPESTR[dimension_name]
-                    meta_dict[dimension_name] = cast_point_cloud_array_to_proper_dtype(
-                        full_arr, sample_index, dimension_index, dtype
-                    )
-                meta.append(meta_dict)  # type: ignore
-
-            if len(full_arr) == 1:
-                meta = meta[0]  # type: ignore
-            return meta
-
+        elif htype == "mesh":
+            full_arr = self.chunk_engine.numpy(
+                self.index,
+                aslist=False,
+                pad_tensor=self.pad_tensor,
+            )
+            value = parse_mesh_to_dict(full_arr, self.sample_info)
+            return value
         else:
             return {
                 "value": self.chunk_engine.numpy(
@@ -1142,6 +1127,7 @@ class Tensor:
             index = self.num_samples - 1
         self.chunk_engine.pop(index)
         [self.dataset[link].pop(index) for link in self.meta.links]
+        self.invalidate_libdeeplake_dataset()
 
     @property
     def timestamps(self) -> np.ndarray:
@@ -1238,3 +1224,7 @@ class Tensor:
             raise Exception(f"Only supported for linked tensors.")
         assert isinstance(self.chunk_engine, LinkedChunkEngine)
         return self.chunk_engine.path(self.index, fetch_chunks=fetch_chunks)
+
+    def invalidate_libdeeplake_dataset(self):
+        """Invalidates the libdeeplake dataset object."""
+        self.dataset.libdeeplake_dataset = None

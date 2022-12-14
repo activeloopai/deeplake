@@ -1929,7 +1929,7 @@ class ChunkEngine:
             )
         chunk_ids, rows, delete = enc.pop(global_sample_index)
         if len(chunk_ids) > 1:  # Tiled sample, delete all chunks
-            del self.tile_encoder[global_sample_index]
+            pass
         elif not delete:  # There are other samples in the last chunk
             chunk_to_update = self.get_chunk_from_chunk_id(chunk_ids[0], copy=True)
             chunk_to_update.pop(local_sample_index)
@@ -1953,7 +1953,7 @@ class ChunkEngine:
                         del self.cache[chunk_key]
                     except KeyError:
                         pass
-
+        del self.tile_encoder[global_sample_index]
         self.tensor_meta.pop(global_sample_index)
 
     def write_chunk_to_storage(self, chunk):

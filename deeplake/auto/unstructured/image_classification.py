@@ -3,7 +3,6 @@ import numpy as np
 from pathlib import Path
 import os
 import glob
-import PIL  # type: ignore
 from typing import Dict, List, Sequence, Tuple, Union
 
 from deeplake.util.auto import ingestion_summary

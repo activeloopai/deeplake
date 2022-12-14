@@ -2,6 +2,7 @@ from deeplake.compression import (
     BYTE_COMPRESSION,
     VIDEO_COMPRESSION,
     AUDIO_COMPRESSION,
+    MESH_COMPRESSION,
     get_compression_type,
 )
 from deeplake.core.fast_forwarding import version_compare
@@ -508,7 +509,8 @@ def serialize_sample_object(
         compressed_bytes = out.compressed_bytes(sample_compression)
 
         if (
-            compression_type not in (VIDEO_COMPRESSION, AUDIO_COMPRESSION)
+            compression_type
+            not in (VIDEO_COMPRESSION, AUDIO_COMPRESSION, MESH_COMPRESSION)
             and len(compressed_bytes) > min_chunk_size
             and break_into_tiles
         ):

@@ -38,8 +38,10 @@ from deeplake.util.exceptions import (
     UserNotLoggedInException,
     SampleAppendingError,
     DatasetTooLargeToDelete,
+    InvalidDatasetNameException,
+    UnsupportedParameterException,
 )
-from deeplake.util.path import convert_string_to_pathlib_if_needed
+from deeplake.util.path import convert_string_to_pathlib_if_needed, verify_dataset_name
 from deeplake.util.pretty_print import summary_tensor, summary_dataset
 from deeplake.constants import GDRIVE_OPT, MB
 from deeplake.client.config import REPORTING_CONFIG_FILE_PATH
@@ -48,6 +50,7 @@ from click.testing import CliRunner
 from deeplake.cli.auth import login, logout
 from deeplake.util.bugout_reporter import feature_report_path
 from rich import print as rich_print
+from io import BytesIO
 
 # need this for 32-bit and 64-bit systems to have correct tests
 MAX_INT_DTYPE = np.int_.__name__
@@ -900,8 +903,7 @@ def test_dataset_deepcopy(path, hub_token, num_workers, progressbar):
         src_path,
         dest_path,
         overwrite=True,
-        src_token=hub_token,
-        dest_token=hub_token,
+        token=hub_token,
         num_workers=num_workers,
         progressbar=progressbar,
     )
@@ -920,19 +922,36 @@ def test_dataset_deepcopy(path, hub_token, num_workers, progressbar):
         np.testing.assert_array_equal(src_ds[tensor].numpy(), dest_ds[tensor].numpy())
 
     with pytest.raises(DatasetHandlerError):
-        deeplake.deepcopy(
-            src_path, dest_path, src_token=hub_token, dest_token=hub_token
-        )
+        deeplake.deepcopy(src_path, dest_path, token=hub_token)
 
     deeplake.deepcopy(
         src_path,
         dest_path,
         overwrite=True,
-        src_token=hub_token,
-        dest_token=hub_token,
+        token=hub_token,
         num_workers=num_workers,
         progressbar=progressbar,
     )
+
+    with pytest.raises(UnsupportedParameterException):
+        deeplake.deepcopy(
+            src_path,
+            dest_path,
+            overwrite=True,
+            src_token=hub_token,
+            num_workers=num_workers,
+            progressbar=progressbar,
+        )
+
+    with pytest.raises(UnsupportedParameterException):
+        deeplake.deepcopy(
+            src_path,
+            dest_path,
+            overwrite=True,
+            dest_token=hub_token,
+            num_workers=num_workers,
+            progressbar=progressbar,
+        )
 
     assert list(dest_ds.tensors) == ["a", "b", "c", "d"]
     for tensor in dest_ds.tensors:
@@ -948,8 +967,7 @@ def test_dataset_deepcopy(path, hub_token, num_workers, progressbar):
         src_path,
         dest_path,
         overwrite=True,
-        src_token=hub_token,
-        dest_token=hub_token,
+        token=hub_token,
         num_workers=num_workers,
         progressbar=progressbar,
     )
@@ -964,8 +982,7 @@ def test_dataset_deepcopy(path, hub_token, num_workers, progressbar):
         dest_path,
         tensors=["a", "d"],
         overwrite=True,
-        src_token=hub_token,
-        dest_token=hub_token,
+        token=hub_token,
         num_workers=num_workers,
         progressbar=progressbar,
     )
@@ -1014,6 +1031,7 @@ def test_compressions_list():
         "mpo",
         "msp",
         "pcx",
+        "ply",
         "png",
         "ppm",
         "sgi",
@@ -1043,6 +1061,7 @@ def test_htypes_list():
         "json",
         "keypoints_coco",
         "list",
+        "mesh",
         "point",
         "point_cloud",
         "point_cloud.calibration_matrix",
@@ -2231,3 +2250,46 @@ def test_iter_warning(local_ds):
 
         with pytest.warns(UserWarning):
             ds.abc[10]
+
+
+def test_invalid_ds_name():
+    with pytest.raises(InvalidDatasetNameException):
+        deeplake.dataset("folder/datasets/dataset name *")
+
+    verify_dataset_name("folders/datasets/dataset name")
+
+    with pytest.raises(InvalidDatasetNameException):
+        ds = deeplake.dataset("hub://test/Mnist 123")
+
+    with pytest.raises(InvalidDatasetNameException):
+        ds = deeplake.empty("hub://test/ Mnist123")
+
+    with pytest.raises(InvalidDatasetNameException):
+        ds = deeplake.like("hub://test/Mnist123 ", "hub://activeloop/mnist-train")
+
+    with pytest.raises(InvalidDatasetNameException):
+        ds = deeplake.deepcopy(
+            "hub://activeloop/mnist-train", "hub://activeloop/mnist$train"
+        )
+
+    verify_dataset_name("hub://test/data-set_123")
+
+
+def test_pickle_bug(local_ds):
+    import pickle
+
+    file = BytesIO()
+
+    with local_ds as ds:
+        ds.create_tensor("__temp_123")
+        ds.__temp_123.extend([1, 2, 3, 4, 5])
+
+    pickle.dump(local_ds, file)
+
+    file.seek(0)
+    ds = pickle.load(file)
+
+    with pytest.raises(TensorDoesNotExistError):
+        ds["__temp_123"].numpy()
+
+    assert ds._temp_tensors == []
