@@ -1934,7 +1934,7 @@ class ChunkEngine:
             chunk_to_update = self.get_chunk_from_chunk_id(chunk_ids[0], copy=True)
             chunk_to_update.pop(local_sample_index)
 
-            # self._check_rechunk(chunk_to_update, chunk_row=rows[0])
+            self._check_rechunk(chunk_to_update, chunk_row=rows[0])
 
             if (
                 self.active_updated_chunk is not None
