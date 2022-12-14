@@ -749,6 +749,11 @@ class DatasetViewSavingError(Exception):
     pass
 
 
+class InvalidViewException(Exception):
+    def __init__(self, message):
+        super().__init__(message)
+
+
 class ManagedCredentialsNotFoundError(Exception):
     def __init__(self, org_id, creds_key):
         super().__init__(
@@ -846,4 +851,3 @@ class UnsupportedExtensionError(Exception):
         message = f"{htype}{extension} is not supported"
 
         super().__init__(message)
-

@@ -27,7 +27,7 @@ def test_connect_dataset_api(
     assert ds.x[0].numpy() == 10
 
 
-def test_connect_dataset_object(
+def test_in_place_dataset_connect(
     hub_cloud_dev_token,
     hub_cloud_path,
     hub_cloud_dev_managed_creds_key,
@@ -37,16 +37,16 @@ def test_connect_dataset_object(
     s3_ds.create_tensor("x")
     s3_ds.x.append(10)
 
-    ds = s3_ds.connect(
+    s3_ds.connect(
         creds_key=hub_cloud_dev_managed_creds_key,
         dest_path=hub_cloud_path,
         token=hub_cloud_dev_token,
     )
+    s3_ds.add_creds_key(hub_cloud_dev_managed_creds_key, managed=True)
 
-    assert ds is not None
-    assert ds.path.startswith("hub://")
-    assert "x" in ds.tensors
-    assert ds.x[0].numpy() == 10
+    assert s3_ds.path.startswith("hub://")
+    assert "x" in s3_ds.tensors
+    assert s3_ds.x[0].numpy() == 10
 
 
 def test_connect_dataset_cases(local_ds, memory_ds, hub_cloud_ds):

@@ -445,7 +445,9 @@ def test_groups(local_ds, compressed_image_paths):
             local_ds.arrays.y.append(np.random.random((4, 5)))
 
     dl = local_ds.images.pytorch(return_index=False)
-    for cat, flower in dl:
+    for sample in dl:
+        cat = sample["jpegs/cats"]
+        flower = sample["pngs/flowers"]
         np.testing.assert_array_equal(cat[0], img1.array)
         np.testing.assert_array_equal(flower[0], img2.array)
 
