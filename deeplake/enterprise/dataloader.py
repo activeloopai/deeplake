@@ -14,7 +14,6 @@ from deeplake.integrations.pytorch.common import (
     get_collate_fn,
     validate_decode_method,
 )
-from deeplake.util.bugout_reporter import deeplake_reporter
 from deeplake.util.dataset import map_tensor_keys
 from functools import partial
 import importlib
@@ -273,7 +272,6 @@ class DeepLakeDataLoader(DataLoader):
             self._dataloader.close()
             self._dataloader = None
 
-    @deeplake_reporter.record_call
     def pytorch(
         self,
         num_workers: int = 0,
@@ -358,7 +356,6 @@ class DeepLakeDataLoader(DataLoader):
             all_vars["_world_size"] = torch.distributed.get_world_size()
         return self.__class__(**all_vars)
 
-    @deeplake_reporter.record_call
     def numpy(
         self,
         num_workers: int = 0,
