@@ -48,6 +48,7 @@ from deeplake.integrations.mmdet import mmdet_utils
 from deeplake.enterprise.dataloader import indra_available, dataloader
 from PIL import Image, ImageDraw  # type: ignore
 import os
+import math
 
 
 class Dummy:
@@ -303,6 +304,11 @@ class MMDetDataset(TorchDataset):
             )
         else:
             self.evaluator = None
+
+    def __len__(self):
+        if self.mode == "eval":
+            return math.ceil(len(self.dataset) / self.batch_size)
+        return super().__len__()
 
     def _get_images(self, images_tensor):
         image_tensor = self.dataset[images_tensor]
@@ -744,6 +750,8 @@ def build_dataloader(
 
     collate_fn = partial(collate, samples_per_gpu=batch_size)
 
+    decode_method = {images_tensor: "numpy"}
+
     if implementation == "python":
         loader = dataset.pytorch(
             tensors_dict=tensors_dict,
@@ -758,7 +766,7 @@ def build_dataloader(
             batch_size=batch_size,
             mode=mode,
             bbox_info=bbox_info,
-            decode_method={images_tensor: "numpy"},
+            decode_method=decode_method,
         )
 
     else:
@@ -772,7 +780,7 @@ def build_dataloader(
                 collate_fn=collate_fn,
                 tensors=tensors,
                 distributed=dist,
-                decode_method={images_tensor: "numpy"},
+                decode_method=decode_method,
             )
         )
 
@@ -789,6 +797,7 @@ def build_dataloader(
             tensors=tensors,
             mode=mode,
             bbox_info=bbox_info,
+            decode_method=decode_method,
         )
         loader.dataset = mmdet_ds
     loader.dataset.CLASSES = classes
@@ -1095,7 +1104,7 @@ def _train_detector(
         val_dataloader_default_args = dict(
             samples_per_gpu=1,
             workers_per_gpu=1,
-            dist=distributed,
+            dist=False,
             shuffle=False,
             persistent_workers=False,
             mode="val",
@@ -1173,7 +1182,7 @@ def _train_detector(
             **val_dataloader_args,
         )
         eval_cfg["by_epoch"] = cfg.runner["type"] != "IterBasedRunner"
-        eval_hook = DistEvalHook if distributed else EvalHook
+        eval_hook = EvalHook
         # In this PR (https://github.com/open-mmlab/mmcv/pull/1193), the
         # priority of IterTimerHook has been modified from 'NORMAL' to 'LOW'.
         runner.register_hook(eval_hook(val_dataloader, **eval_cfg), priority="LOW")
