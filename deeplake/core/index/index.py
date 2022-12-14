@@ -265,6 +265,34 @@ class IndexEntry:
                     f"Index {self.value} is out of range for tensors with length {parent_length}"
                 )
 
+    def downsample(self, factor: int):
+        """Downsamples an IndexEntry by a given factor.
+
+        Args:
+            factor (int): The factor by which to downsample.
+
+        Returns:
+            IndexEntry: The downsampled IndexEntry.
+        """
+        if isinstance(self.value, slice):
+            start = self.value.start or 0
+            stop = self.value.stop
+            step = self.value.step or 1
+            assert step == 1, "Cannot downsample with step != 1"
+            downsampled_start = start // factor
+            downsampled_stop = stop // factor if stop is not None else None
+            return IndexEntry(slice(downsampled_start, downsampled_stop, 1))
+        elif isinstance(self.value, tuple):
+            downsampled_tuple = (idx // factor for idx in self.value)
+            return IndexEntry(downsampled_tuple)
+        elif isinstance(self.value, int):
+            return IndexEntry(self.value // factor)
+        else:
+            raise TypeError(
+                f"Cannot downsample IndexEntry with value {self.value} of type {type(self.value)}"
+            )
+
+
 
 class Index:
     def __init__(
@@ -463,3 +491,15 @@ class Index:
             return self.values[i].is_trivial()
         except IndexError:
             return True
+
+    def downsample(self, factor: int):
+        """Downsamples an Index by the given factor.
+
+        Args:
+            factor (int): The factor to downsample by.
+
+        Returns:
+            Index: The downsampled Index.
+        """
+        new_values = [v.downsample(factor) for v in self.values]
+        return Index(new_values)

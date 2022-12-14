@@ -1,6 +1,7 @@
-from typing import Optional
+from typing import Optional, Union
 from PIL import Image
 import deeplake
+from deeplake.core.partial_sample import PartialSample
 import numpy as np
 import io
 
@@ -35,10 +36,14 @@ def get_filter(htype):
 
 
 def downsample_sample(
-    sample: Optional[Image.Image], factor: int, compression: Optional[str], htype: str
+    sample: Optional[Union[Image.Image, PartialSample]], factor: int, compression: Optional[str], htype: str, partial: bool = False
 ):
+    if isinstance(sample, PartialSample):
+        return sample.downsample(factor)
+
     if sample is None or not needs_downsampling(sample, factor):
         return None
+
     downsampled_sample = sample.resize(
         (sample.size[0] // factor, sample.size[1] // factor), get_filter(htype)
     )
@@ -52,3 +57,7 @@ def downsample_sample(
 
 def get_downsample_factor(key: str):
     return int(key.split("_")[-1])
+
+def apply_partial_downsample(tensor, global_sample_index, val):
+    downsample_sub_index, new_value = val
+    tensor[global_sample_index][downsample_sub_index] = new_value

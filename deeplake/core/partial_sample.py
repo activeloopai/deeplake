@@ -21,3 +21,11 @@ class PartialSample:
 
     def astype(self, dtype: Union[str, np.dtype]):
         return self.__class__(self.sample_shape, self.tile_shape, dtype)
+
+    def downsample(self, factor: int):
+        shape = (self.sample_shape[0] // factor, self.sample_shape[1] // factor) + self.sample_shape[2:]
+        return self.__class__(
+            shape,
+            self.tile_shape,
+            self.dtype,
+        )

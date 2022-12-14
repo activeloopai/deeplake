@@ -9,14 +9,14 @@ from os import urandom
 from PIL import Image
 from deeplake.util.downsample import downsample_sample
 
-
+optional_kwargs = {"old_value", "index", "sub_index", "partial", "factor", "compression", "htype", "link_creds"}
 class _TensorLinkTransform:
     def __init__(self, f):
         self.name = f.__name__
         self.f = f
         spec = inspect.getfullargspec(f)
         self.multi_arg = len(spec.args) > 1 or spec.varargs or spec.varkw
-        self.kwargs = [k for k in ("index", "sub_index", "partial") if k in spec.args]
+        self.kwargs = [k for k in optional_kwargs if k in spec.args]
 
     def __call__(self, *args, **kwargs):
         if self.multi_arg:
@@ -79,15 +79,15 @@ def update_info(
 
 
 @link
-def update_shape(sample, link_creds=None):
-    if isinstance(sample, deeplake.core.linked_sample.LinkedSample):
-        sample = read_linked_sample(
-            sample.path, sample.creds_key, link_creds, verify=False
+def update_shape(new_sample, link_creds=None):
+    if isinstance(new_sample, deeplake.core.linked_sample.LinkedSample):
+        new_sample = read_linked_sample(
+            new_sample.path, new_sample.creds_key, link_creds, verify=False
         )
-    if np.isscalar(sample):
+    if np.isscalar(new_sample):
         return np.array([1], dtype=np.int64)
     return np.array(
-        getattr(sample, "shape", None) or np.array(sample).shape, dtype=np.int64
+        getattr(new_sample, "shape", None) or np.array(new_sample).shape, dtype=np.int64
     )
 
 
@@ -110,8 +110,8 @@ def extend_len(samples, link_creds=None):
 
 
 @link
-def update_len(sample, link_creds=None):
-    return 0 if sample is None else len(sample)
+def update_len(new_sample, link_creds=None):
+    return 0 if new_sample is None else len(new_sample)
 
 
 def sample_to_pil(sample, link_creds=None):
@@ -123,6 +123,7 @@ def sample_to_pil(sample, link_creds=None):
         sample = sample.pil
     if isinstance(sample, np.ndarray):
         sample = Image.fromarray(sample)
+    # PartialSample isn't converted
     return sample
 
 
@@ -133,9 +134,13 @@ def extend_downsample(samples, factor, compression, htype, link_creds=None):
 
 
 @link
-def update_downsample(sample, factor, compression, htype, link_creds=None):
-    sample = sample_to_pil(sample, link_creds)
-    return downsample_sample(sample, factor, compression, htype)
+def update_downsample(new_sample, factor, compression, htype, link_creds=None, sub_index=None, partial=False):
+    new_sample = sample_to_pil(new_sample, link_creds)
+    downsampled = downsample_sample(new_sample, factor, compression, htype)
+    if partial:
+        downsampled_sub_index = sub_index.downsample(factor)
+        return downsampled_sub_index, downsampled
+    return downsampled
 
 
 _funcs = {k: v for k, v in globals().items() if isinstance(v, link)}
@@ -164,3 +169,12 @@ def read_linked_sample(
         creds = link_creds.get_creds(sample_creds_key)
         return deeplake.read(sample_path, verify=verify, creds=creds)
     return deeplake.read(sample_path, verify=verify)
+
+def cast_to_type(val, dtype):
+    if (
+        isinstance(val, np.ndarray)
+        and dtype
+        and val.dtype != dtype
+    ):
+        return val.astype(dtype)
+    return val
