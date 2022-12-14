@@ -2369,7 +2369,7 @@ class Dataset:
         @deeplake.compute
         def rechunking(sample_in, samples_out):
             for tensor in tensors:
-                samples_out[tensor].append(sample_in[tensor])
+                samples_out[tensor].extend(sample_in[tensor])
 
         rechunking().eval(
             self,
@@ -2377,6 +2377,8 @@ class Dataset:
             scheduler=scheduler,
             progressbar=progressbar,
             skip_ok=True,
+            extend_only=True,
+            disable_label_sync=True,
         )
 
     # the below methods are used by cloudpickle dumps
