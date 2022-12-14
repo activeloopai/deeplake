@@ -286,7 +286,7 @@ class IndexEntry:
             downsampled_stop = stop // factor if stop is not None else None
             return IndexEntry(slice(downsampled_start, downsampled_stop, 1))
         elif isinstance(self.value, tuple):
-            downsampled_tuple = (idx // factor for idx in self.value)
+            downsampled_tuple = tuple(idx // factor for idx in self.value)
             return IndexEntry(downsampled_tuple)
         elif isinstance(self.value, int):
             return IndexEntry(self.value // factor)
