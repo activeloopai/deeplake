@@ -277,3 +277,31 @@ def test_pop_bug(local_ds_generator):
     np.testing.assert_array_equal(ds.x.numpy().squeeze(), [1, 2, 4])
     ds.checkout(a)
     np.testing.assert_array_equal(ds.x.numpy().squeeze(), [1, 2, 3, 4])
+
+
+def test_pop_tiled(local_ds_generator):
+    ds = local_ds_generator()
+    arr1 = np.random.random((3, 1, 2))
+    arr2 = np.random.random((2, 1, 3))
+    arr3 = np.random.random((50, 5, 1))
+    arr4 = np.random.random((1, 2, 3))
+    arrs = [arr1, arr2, arr3, arr4]
+    with ds:
+        ds.create_tensor("x", max_chunk_size=1024, tiling_threshold=1024)
+        ds.x.append(arr1)
+        ds.x.append(arr2)
+        ds.x.append(arr3)
+        ds.x.append(arr4)
+    assert not ds.x.chunk_engine._is_tiled_sample(0)
+    assert not ds.x.chunk_engine._is_tiled_sample(1)
+    assert ds.x.chunk_engine._is_tiled_sample(2)
+    assert not ds.x.chunk_engine._is_tiled_sample(3)
+    with ds:
+        ds.pop(1)
+    arrs.pop(1)
+    for arr, sample in zip(arrs, ds.x):
+        np.testing.assert_array_equal(sample, arr)
+
+    assert not ds.x.chunk_engine._is_tiled_sample(0)
+    assert ds.x.chunk_engine._is_tiled_sample(1)
+    assert not ds.x.chunk_engine._is_tiled_sample(2)
