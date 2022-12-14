@@ -944,7 +944,9 @@ class Tensor:
                 func = get_link_transform(v["extend"])
                 vs = func(
                     samples,
-                    factor=tensor.info.downsampling_factor if func == extend_downsample else None,
+                    factor=tensor.info.downsampling_factor
+                    if func == extend_downsample
+                    else None,
                     compression=self.meta.sample_compression,
                     htype=self.htype,
                     link_creds=self.link_creds,
@@ -975,17 +977,17 @@ class Tensor:
                 val = func(
                     new_sample,
                     old_value=tensor[global_sample_index],
-                    factor=tensor.info.downsampling_factor if func == update_downsample else None,
+                    factor=tensor.info.downsampling_factor
+                    if func == update_downsample
+                    else None,
                     compression=self.meta.sample_compression,
                     htype=self.htype,
                     link_creds=self.link_creds,
                     sub_index=sub_index,
-                    partial=is_partial
+                    partial=is_partial,
                 )
                 if is_partial and func == update_downsample:
-                    apply_partial_downsample(
-                        tensor, global_sample_index, val
-                    )
+                    apply_partial_downsample(tensor, global_sample_index, val)
                 elif val is not _NO_LINK_UPDATE:
                     cast_to_type(val, tensor.dtype)
                     tensor[global_sample_index] = val

@@ -293,7 +293,6 @@ class IndexEntry:
             )
 
 
-
 class Index:
     def __init__(
         self,

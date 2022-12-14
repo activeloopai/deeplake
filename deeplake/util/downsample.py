@@ -36,7 +36,10 @@ def get_filter(htype):
 
 
 def downsample_sample(
-    sample: Optional[Union[Image.Image, PartialSample]], factor: int, compression: Optional[str], htype: str, partial: bool = False
+    sample: Optional[Union[Image.Image, PartialSample]],
+    factor: int,
+    compression: Optional[str],
+    htype: str,
 ):
     if isinstance(sample, PartialSample):
         return sample.downsample(factor)
@@ -57,6 +60,7 @@ def downsample_sample(
 
 def get_downsample_factor(key: str):
     return int(key.split("_")[-1])
+
 
 def apply_partial_downsample(tensor, global_sample_index, val):
     downsample_sub_index, new_value = val

@@ -9,7 +9,18 @@ from os import urandom
 from PIL import Image
 from deeplake.util.downsample import downsample_sample
 
-optional_kwargs = {"old_value", "index", "sub_index", "partial", "factor", "compression", "htype", "link_creds"}
+optional_kwargs = {
+    "old_value",
+    "index",
+    "sub_index",
+    "partial",
+    "factor",
+    "compression",
+    "htype",
+    "link_creds",
+}
+
+
 class _TensorLinkTransform:
     def __init__(self, f):
         self.name = f.__name__
@@ -134,7 +145,15 @@ def extend_downsample(samples, factor, compression, htype, link_creds=None):
 
 
 @link
-def update_downsample(new_sample, factor, compression, htype, link_creds=None, sub_index=None, partial=False):
+def update_downsample(
+    new_sample,
+    factor,
+    compression,
+    htype,
+    link_creds=None,
+    sub_index=None,
+    partial=False,
+):
     new_sample = sample_to_pil(new_sample, link_creds)
     downsampled = downsample_sample(new_sample, factor, compression, htype)
     if partial:
@@ -170,11 +189,8 @@ def read_linked_sample(
         return deeplake.read(sample_path, verify=verify, creds=creds)
     return deeplake.read(sample_path, verify=verify)
 
+
 def cast_to_type(val, dtype):
-    if (
-        isinstance(val, np.ndarray)
-        and dtype
-        and val.dtype != dtype
-    ):
+    if isinstance(val, np.ndarray) and dtype and val.dtype != dtype:
         return val.astype(dtype)
     return val
