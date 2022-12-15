@@ -1,28 +1,10 @@
-import os
 import deeplake
-import pytest
 
 from deeplake.auto.unstructured.util import (
     DatasetStructure,
     TensorStructure,
     GroupStructure,
 )
-from deeplake.tests.common import get_dummy_data_path
-
-
-@pytest.fixture
-def coco_images_path():
-    return get_dummy_data_path(os.path.join("tests_auto", "coco", "images"))
-
-
-@pytest.fixture
-def coco_annotation_path():
-    return get_dummy_data_path(os.path.join("tests_auto", "coco", "annotations1.json"))
-
-
-@pytest.fixture
-def coco_annotation_path2():
-    return get_dummy_data_path(os.path.join("tests_auto", "coco", "annotations2.json"))
 
 
 def test_full_dataset_structure(local_ds):
@@ -102,17 +84,14 @@ def test_missing_dataset_structure(local_ds):
     assert "annotations/sub_annotations/sub_tensor1" in tensors
 
 
-def test_minimal_coco_ingestion(
-    local_path, coco_images_path, coco_annotation_path, coco_annotation_path2
-):
+def test_minimal_coco_ingestion(local_path, coco_ingestion_data):
     key_to_tensor = {"segmentation": "mask", "bbox": "bboxes"}
     file_to_group = {"annotations1": "group1", "annotations2": "group2"}
     ignore_keys = ["area", "iscrowd"]
 
     ds = deeplake.ingest_coco(
-        images_directory=coco_images_path,
+        **coco_ingestion_data,
         dest=local_path,
-        annotation_files=[coco_annotation_path, coco_annotation_path2],
         key_to_tensor_mapping=key_to_tensor,
         file_to_group_mapping=file_to_group,
         ignore_keys=ignore_keys,
@@ -129,13 +108,10 @@ def test_minimal_coco_ingestion(
     assert "group2/iscrowd" not in ds.tensors
 
 
-def test_ingestion_with_linked_images(
-    local_path, coco_images_path, coco_annotation_path
-):
+def test_ingestion_with_linked_images(local_path, coco_ingestion_data):
     file_to_group = {"annotations1.json": "base_annotations"}
     ds = deeplake.ingest_coco(
-        images_directory=coco_images_path,
-        annotation_files=coco_annotation_path,
+        **coco_ingestion_data,
         file_to_group_mapping=file_to_group,
         dest=local_path,
         image_settings={"name": "linked_images", "linked": True},
@@ -148,9 +124,7 @@ def test_ingestion_with_linked_images(
     assert ds.linked_images.htype == "link[image]"
 
 
-def test_ingestion_with_existing_destination(
-    local_ds, coco_images_path, coco_annotation_path
-):
+def test_ingestion_with_existing_destination(local_ds, coco_ingestion_data):
     local_ds.create_tensor(
         "linked_images", htype="link[image]", sample_compression="jpeg"
     )
@@ -160,8 +134,7 @@ def test_ingestion_with_existing_destination(
 
     file_to_group = {"annotations1.json": "base_annotations"}
     deeplake.ingest_coco(
-        images_directory=coco_images_path,
-        annotation_files=coco_annotation_path,
+        **coco_ingestion_data,
         file_to_group_mapping=file_to_group,
         dest=local_ds,
         image_settings={"name": "linked_images"},
