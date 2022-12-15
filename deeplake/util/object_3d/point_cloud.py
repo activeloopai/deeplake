@@ -2,7 +2,6 @@ import sys
 from typing import Dict, List
 
 import numpy as np
-import pandas as pd  # type: ignore
 
 try:
     import laspy as lp  # type: ignore

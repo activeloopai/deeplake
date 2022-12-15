@@ -1,7 +1,6 @@
 # type: ignore
 import os
 import uuid
-import sys
 import json
 import posixpath
 from logging import warning
@@ -60,7 +59,10 @@ from deeplake.util.htype import parse_complex_htype
 from deeplake.util.link import save_link_creds
 from deeplake.util.merge import merge
 from deeplake.util.notebook import is_colab
-from deeplake.util.path import convert_pathlib_to_string_if_needed
+from deeplake.util.path import (
+    convert_pathlib_to_string_if_needed,
+)
+from deeplake.util.scheduling import create_random_split_views
 from deeplake.util.logging import log_visualizer_link
 from deeplake.util.warnings import always_warn
 from deeplake.util.exceptions import (
@@ -2367,7 +2369,7 @@ class Dataset:
         @deeplake.compute
         def rechunking(sample_in, samples_out):
             for tensor in tensors:
-                samples_out[tensor].append(sample_in[tensor])
+                samples_out[tensor].extend(sample_in[tensor])
 
         rechunking().eval(
             self,
@@ -2375,6 +2377,8 @@ class Dataset:
             scheduler=scheduler,
             progressbar=progressbar,
             skip_ok=True,
+            extend_only=True,
+            disable_label_sync=True,
         )
 
     # the below methods are used by cloudpickle dumps
@@ -3853,6 +3857,51 @@ class Dataset:
             enabled_tensors=self.enabled_tensors,
             libdeeplake_dataset=self.libdeeplake_dataset,
         )
+
+    def random_split(self, lengths: Sequence[Union[int, float]]):
+        """Splits the dataset into non-overlapping new datasets of given lengths.
+        If a list of fractions that sum up to 1 is given, the lengths will be computed automatically as floor(frac * len(dataset)) for each fraction provided.
+
+        After computing the lengths, if there are any remainders, 1 count will be distributed in round-robin fashion to the lengths until there are no remainders left.
+
+        Example:
+
+            >>> import deeplake
+            >>> ds = deeplake.dataset("../test/test_ds", overwrite=True)
+            >>> ds.create_tensor("labels", htype="class_label")
+            >>> ds.labels.extend([0, 1, 2, 1, 3])
+            >>> len(ds)
+            5
+            >>> train_ds, val_ds = ds.random_split([0.8, 0.2])
+            >>> len(train_ds)
+            4
+            >>> len(val_ds)
+            1
+            >>> train_ds, val_ds = ds.random_split([3, 2])
+            >>> len(train_ds)
+            3
+            >>> len(val_ds)
+            2
+            >> train_loader = train_ds.pytorch(batch_size=2, shuffle=True)
+            >> val_loader = val_ds.pytorch(batch_size=2, shuffle=False)
+
+        Args:
+            lengths (Sequence[Union[int, float]]): lengths or fractions of splits to be produced.
+
+        Returns:
+            Tuple[Dataset, ...]: a tuple of datasets of the given lengths.
+
+        Raises:
+            ValueError: If the sum of the lengths is not equal to the length of the dataset.
+            ValueError: If the dataset has variable length tensors.
+            ValueError: If lengths are floats and one or more of them are not between 0 and 1.
+
+        """
+        if self.max_len != self.min_len:
+            raise ValueError(
+                "Random_split is not supported for datasets with variable length tensors."
+            )
+        return create_random_split_views(self, lengths)
 
     def _temp_write_access(self):
         # Defined in DeepLakeCloudDataset

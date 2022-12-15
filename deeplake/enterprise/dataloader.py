@@ -1,8 +1,7 @@
 from typing import Callable, Dict, List, Optional, Union
 from deeplake.enterprise.convert_to_libdeeplake import dataset_to_libdeeplake  # type: ignore
+from deeplake.util.scheduling import create_fetching_schedule, find_primary_tensor
 from deeplake.enterprise.util import (
-    create_fetching_schedule,
-    find_primary_tensor,
     raise_indra_installation_error,
     verify_base_storage,
 )
@@ -101,7 +100,7 @@ class DeepLakeDataLoader(DataLoader):
     def __len__(self):
         round_fn = math.floor if self._drop_last else math.ceil
         return round_fn(
-            len(self.dataset) / ((self._batch_size or 1) * self._world_size)
+            len(self._orig_dataset) / ((self._batch_size or 1) * self._world_size)
         )
 
     def batch(self, batch_size: int, drop_last: bool = False):
