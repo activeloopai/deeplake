@@ -368,6 +368,7 @@ class Dataset:
         state["_commit_hooks"] = {}
         state["_client"] = state["org_id"] = state["ds_name"] = None
         state["_temp_tensors"] = []
+        state["libdeeplake_dataset"] = None
         self.__dict__.update(state)
         self.__dict__["base_storage"] = get_base_storage(self.storage)
         # clear cache while restoring
