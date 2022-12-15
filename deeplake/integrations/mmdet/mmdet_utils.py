@@ -96,14 +96,15 @@ class _COCO(pycocotools_coco.COCO):
             }
             imgs[row_index] = img
             for bbox_index, bbox in enumerate(bboxes):
-                if self.masks.htype == "binary_mask":
-                    mask = _mask.encode(
-                        np.asfortranarray(masks[..., bbox_index].numpy())
-                    )
-                elif self.masks.htype == "polygon":
-                    mask = convert_poly_to_coco_format(masks.numpy()[bbox_index])
-                else:
-                    raise Exception(f"{type(self.masks)} is not supported yet.")
+                if self.masks is not None and self.masks != []:
+                    if self.masks.htype == "binary_mask":
+                        mask = _mask.encode(
+                            np.asfortranarray(masks[..., bbox_index].numpy())
+                        )
+                    elif self.masks.htype == "polygon":
+                        mask = convert_poly_to_coco_format(masks.numpy()[bbox_index])
+                    else:
+                        raise Exception(f"{type(self.masks)} is not supported yet.")
                 ann = {
                     "image_id": row_index,
                     "id": absolute_id,
