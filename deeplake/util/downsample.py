@@ -40,16 +40,15 @@ def downsample_sample(
     factor: int,
     compression: Optional[str],
     htype: str,
+    partial: bool = False,
 ):
     if isinstance(sample, PartialSample):
         return sample.downsample(factor)
 
-    if sample is None or not needs_downsampling(sample, factor):
+    if sample is None or not (partial or needs_downsampling(sample, factor)):
         return None
-
-    downsampled_sample = sample.resize(
-        (sample.size[0] // factor, sample.size[1] // factor), get_filter(htype)
-    )
+    size = sample.size[0]//factor, sample.size[1]//factor
+    downsampled_sample = sample.resize(size, get_filter(htype))
     if compression is None:
         return np.array(downsampled_sample)
     with io.BytesIO() as f:

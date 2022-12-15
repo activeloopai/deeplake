@@ -986,11 +986,12 @@ class Tensor:
                     sub_index=sub_index,
                     partial=is_partial,
                 )
-                if is_partial and func == update_downsample:
-                    apply_partial_downsample(tensor, global_sample_index, val)
-                elif val is not _NO_LINK_UPDATE:
-                    cast_to_type(val, tensor.dtype)
-                    tensor[global_sample_index] = val
+                if val is not _NO_LINK_UPDATE:
+                    if is_partial and func == update_downsample:
+                        apply_partial_downsample(tensor, global_sample_index, val)
+                    else:
+                        cast_to_type(val, tensor.dtype)
+                        tensor[global_sample_index] = val
 
     @property
     def _sample_info_tensor(self):

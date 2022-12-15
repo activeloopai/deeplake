@@ -265,7 +265,7 @@ class IndexEntry:
                     f"Index {self.value} is out of range for tensors with length {parent_length}"
                 )
 
-    def downsample(self, factor: int):
+    def downsample(self, factor: int, length: int):
         """Downsamples an IndexEntry by a given factor.
 
         Args:
@@ -282,19 +282,15 @@ class IndexEntry:
             stop = self.value.stop
             step = self.value.step or 1
             assert step == 1, "Cannot downsample with step != 1"
-            downsampled_start = start // factor
-            downsampled_stop = stop // factor if stop is not None else None
+            downsampled_start = start//factor
+            downsampled_stop = stop//factor if stop is not None else None
+            if downsampled_stop is None or downsampled_stop - downsampled_start != length:
+                downsampled_stop = downsampled_start + length
             return IndexEntry(slice(downsampled_start, downsampled_stop, 1))
-        elif isinstance(self.value, tuple):
-            downsampled_tuple = tuple(idx // factor for idx in self.value)
-            return IndexEntry(downsampled_tuple)
-        elif isinstance(self.value, int):
-            return IndexEntry(self.value // factor)
         else:
             raise TypeError(
                 f"Cannot downsample IndexEntry with value {self.value} of type {type(self.value)}"
             )
-
 
 class Index:
     def __init__(
@@ -494,7 +490,7 @@ class Index:
         except IndexError:
             return True
 
-    def downsample(self, factor: int):
+    def downsample(self, factor: int, shape: Tuple[int, ...]):
         """Downsamples an Index by the given factor.
 
         Args:
@@ -503,5 +499,6 @@ class Index:
         Returns:
             Index: The downsampled Index.
         """
-        new_values = [v.downsample(factor) for v in self.values]
+        new_values = [v.downsample(factor, length) for v, length in zip(self.values[:2], shape)]
+        new_values += self.values[2:]
         return Index(new_values)

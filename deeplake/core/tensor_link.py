@@ -155,9 +155,13 @@ def update_downsample(
     partial=False,
 ):
     new_sample = sample_to_pil(new_sample, link_creds)
-    downsampled = downsample_sample(new_sample, factor, compression, htype)
     if partial:
-        downsampled_sub_index = sub_index.downsample(factor)
+        for index_entry in sub_index.values:
+            if not isinstance(index_entry.value, slice):
+                return _NO_LINK_UPDATE
+    downsampled = downsample_sample(new_sample, factor, compression, htype, partial)
+    if partial:
+        downsampled_sub_index = sub_index.downsample(factor, downsampled.shape)
         return downsampled_sub_index, downsampled
     return downsampled
 
