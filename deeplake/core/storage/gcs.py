@@ -203,6 +203,24 @@ class GCloudCredentials:
         else:
             raise AttributeError(f"Invalid method: {method}")
 
+    def get_token_info(self):
+        token = self.token
+        if token in ["browser", "cache"]:
+            raise NotImplementedError("Token info not available for browser method")
+        if token == "anon":
+            return {"anon": "anon"}
+        if token == "google_default":
+            path = os.env.get("GOOGLE_APPLICATION_CREDENTIALS")
+            if path is None:
+                raise Exception("Token info not found for google_default method as env variable GOOGLE_APPLICATION_CREDENTIALS is not set")
+            token = json.load(open(path))
+        if isinstance(token, str):
+            if not os.path.exists(token):
+                raise FileNotFoundError(token)
+            token = json.load(open(token))
+        if isinstance(token, dict):
+            rename_keys(token)
+        return {}
 
 class GCSProvider(StorageProvider):
     """Provider class for using GC storage."""
