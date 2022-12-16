@@ -125,7 +125,7 @@ def update_len(new_sample, link_creds=None):
     return 0 if new_sample is None else len(new_sample)
 
 
-def sample_to_pil(sample, link_creds=None):
+def convert_sample_for_downsampling(sample, link_creds=None):
     if isinstance(sample, deeplake.core.linked_sample.LinkedSample):
         sample = read_linked_sample(
             sample.path, sample.creds_key, link_creds, verify=False
@@ -140,7 +140,7 @@ def sample_to_pil(sample, link_creds=None):
 
 @link
 def extend_downsample(samples, factor, compression, htype, link_creds=None):
-    samples = [sample_to_pil(sample, link_creds) for sample in samples]
+    samples = [convert_sample_for_downsampling(sample, link_creds) for sample in samples]
     return [downsample_sample(sample, factor, compression, htype) for sample in samples]
 
 
@@ -154,7 +154,7 @@ def update_downsample(
     sub_index=None,
     partial=False,
 ):
-    new_sample = sample_to_pil(new_sample, link_creds)
+    new_sample = convert_sample_for_downsampling(new_sample, link_creds)
     if partial:
         for index_entry in sub_index.values:
             if not isinstance(index_entry.value, slice):
