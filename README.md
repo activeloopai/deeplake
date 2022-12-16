@@ -86,7 +86,7 @@ pip3 install deeplake
 
 **By default, Deep Lake does not install dependencies for audio, video, google-cloud, and other features. Details on all installation options are [available here](https://docs.deeplake.ai/en/latest/Installation.html).**
 
-### 🧠 Training a PyTorch model on a Deep Lake dataset
+### 🧠 How to Train a PyTorch model on a Deep Lake dataset
 
 #### Load CIFAR 10, one of the readily available datasets in Deep Lake:
 
