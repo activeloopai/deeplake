@@ -1728,6 +1728,10 @@ class Dataset:
         from deeplake.enterprise import dataloader
 
         return dataloader(self)
+    @deeplake_reporter.record_call
+    def dict_record(self):
+        from deeplake.enterprise import dataloader
+        return iter(map(lambda row: dict(row[0]), dataloader(self).numpy()))
 
     @deeplake_reporter.record_call
     def filter(
