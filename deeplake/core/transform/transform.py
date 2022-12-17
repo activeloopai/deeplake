@@ -34,6 +34,8 @@ from deeplake.util.exceptions import (
 from deeplake.hooks import dataset_written, dataset_read
 from deeplake.util.version_control import auto_checkout, load_meta
 from deeplake.util.class_label import sync_labels
+from deeplake.util.check_rechunk import check_rechunk
+from deeplake.client.log import logger
 import numpy as np
 
 
@@ -370,6 +372,12 @@ class Pipeline:
                 scheduler=scheduler,
                 verbose=progressbar,
             )
+
+        if not kwargs.get("disable_rechunk_check"):
+            rechunk_tensors = check_rechunk(target_ds)
+            logger.info(f"Rechunking tensors: {rechunk_tensors}")
+            if rechunk_tensors:
+                target_ds.rechunk(tensors=rechunk_tensors)
 
 
 def compose(functions: List[ComputeFunction]):  # noqa: DAR101, DAR102, DAR201, DAR401

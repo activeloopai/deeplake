@@ -2380,6 +2380,7 @@ class Dataset:
             skip_ok=True,
             extend_only=True,
             disable_label_sync=True,
+            disable_rechunk_check=True,     # avoid recursion
         )
 
     # the below methods are used by cloudpickle dumps
