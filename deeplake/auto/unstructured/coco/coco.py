@@ -151,7 +151,7 @@ class CocoDataset(UnstructuredDataset):
         image_id = image_name_to_id[image_file]
         matching_annotations = coco_file.get_annotations_for_image(image_id)
         group_tensors = [
-            t for t in ds.tensors.keys() if not t.startswith("_")
+            t for t in ds.tensors if not ds.tensors[t].meta.hidden
         ]  # Avoid hidden tensors
         sample: Dict[str, List] = {k: [] for k in group_tensors}
 
@@ -212,6 +212,7 @@ class CocoDataset(UnstructuredDataset):
                     append_destination,
                     num_workers=num_workers,
                     progressbar=progressbar,
+                    skip_ok=True,
                 )
                 samples = {
                     key: [item[key] for item in values.values()]
