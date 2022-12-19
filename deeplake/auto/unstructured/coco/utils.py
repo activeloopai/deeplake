@@ -24,6 +24,10 @@ class CocoAnnotation:
 
     COCO_REQUIRED_KEYS = [COCO_CATEGORIES_KEY, COCO_IMAGES_KEY, COCO_ANNOTATIONS_KEY]
 
+    COCO_SAMPLE_KEYS = set(
+        ("id", "image_id", "category_id", "segmentation", "area", "bbox", "iscrowd")
+    )
+
     def __init__(self, file_path: Union[str, pathlib.Path], creds) -> None:
         self.file_path = file_path
         self.root = convert_pathlib_to_string_if_needed(file_path)

@@ -43,16 +43,25 @@ class CocoDataset(UnstructuredDataset):
             else annotation_files
         )
         self.ignore_one_group = ignore_one_group
+        self.ignore_keys = set(ignore_keys or [])
 
         self.key_to_tensor = key_to_tensor_mapping or {}
         self._validate_key_mapping()
         self.tensor_to_key = {v: k for k, v in self.key_to_tensor.items()}
+        # If a key is not mapped to a tensor, map it to itself
+        self.tensor_to_key.update(
+            {
+                k: k
+                for k in CocoAnnotation.COCO_SAMPLE_KEYS
+                - set(self.key_to_tensor.keys())
+                - self.ignore_keys
+            }
+        )
 
         self.file_to_group = file_to_group_mapping or {}
         self.file_to_group = {Path(k).stem: v for k, v in self.file_to_group.items()}
         self._validate_group_mapping()
 
-        self.ignore_keys = ignore_keys or []
         self.image_settings = (
             image_settings if image_settings is not None else {"name": "images"}
         )
@@ -77,6 +86,9 @@ class CocoDataset(UnstructuredDataset):
         structure: DatasetStructure,
         inspect_limit: int = 1000000,
     ):
+        if inspect_limit < 1:
+            inspect_limit = 1
+
         for ann_file in self.annotation_files:
             coco_file = CocoAnnotation(file_path=ann_file, creds=self.creds)
             annotations = coco_file.annotations
@@ -151,8 +163,8 @@ class CocoDataset(UnstructuredDataset):
         image_id = image_name_to_id[image_file]
         matching_annotations = coco_file.get_annotations_for_image(image_id)
         group_tensors = [
-            t for t in ds.tensors if not ds.tensors[t].meta.hidden
-        ]  # Avoid hidden tensors
+            t for t in ds.tensors if t in self.tensor_to_key and not ds[t].meta.hidden
+        ]
         sample: Dict[str, List] = {k: [] for k in group_tensors}
 
         for annotation in matching_annotations:
@@ -212,7 +224,6 @@ class CocoDataset(UnstructuredDataset):
                     append_destination,
                     num_workers=num_workers,
                     progressbar=progressbar,
-                    skip_ok=True,
                 )
                 samples = {
                     key: [item[key] for item in values.values()]

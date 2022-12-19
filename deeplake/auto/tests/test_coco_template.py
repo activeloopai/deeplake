@@ -100,6 +100,8 @@ def test_minimal_coco_ingestion(local_path, coco_ingestion_data):
 
     assert ds.path == local_path
     assert "images" in ds.tensors
+    assert "group1/category_id" in ds.tensors
+    assert "group2/category_id" in ds.tensors
     assert "group1/mask" in ds.tensors
     assert "group2/mask" in ds.tensors
     assert "group1/bboxes" in ds.tensors
@@ -130,6 +132,11 @@ def test_ingestion_with_existing_destination(local_ds, coco_ingestion_data):
     )
     local_ds.create_tensor(
         "base_annotations/bbox", htype="bbox", sample_compression=None
+    )
+
+    # Unrelated tensors should not iterfere
+    local_ds.create_tensor(
+        "another_group/misc", htype="generic", sample_compression=None
     )
 
     file_to_group = {"annotations1.json": "base_annotations"}

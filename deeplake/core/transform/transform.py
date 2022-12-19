@@ -289,7 +289,6 @@ class Pipeline:
                         create_sample_info_tensor=False,
                         create_shape_tensor=False,
                         create_id_tensor=False,
-                        hidden=True,
                     )
                     temp_tensor_obj.meta._disable_temp_transform = True
                     label_temp_tensors[tensor] = temp_tensor
