@@ -3862,7 +3862,7 @@ class Dataset:
     def random_split(self, lengths: Sequence[Union[int, float]]):
         """Splits the dataset into non-overlapping class:`~deeplake.core.dataset.Dataset` objects of given lengths.
         If a list of fractions that sum up to 1 is given, the lengths will be computed automatically as floor(frac * len(dataset)) for each fraction provided.
-        To use this, install deeplake with ``pip install deeplake[enterprise]``.
+        The split generated is only performant with enterprise dataloader which can be installed with ``pip install deeplake[enterprise]``.
 
         After computing the lengths, if there are any remainders, 1 count will be distributed in round-robin fashion to the lengths until there are no remainders left.
 
