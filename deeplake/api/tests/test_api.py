@@ -2252,6 +2252,39 @@ def test_iter_warning(local_ds):
             ds.abc[10]
 
 
+def test_random_split(local_ds):
+    with local_ds as ds:
+        ds.create_tensor("label")
+        ds.label.extend([0, 1, 2, 3, 4, 5, 6, 7, 8, 9])
+
+        train, test = ds.random_split([6, 4])
+        assert len(train) == 6
+        assert len(test) == 4
+
+        train, test = ds.random_split([0.8, 0.2])
+        assert len(train) == 8
+        assert len(test) == 2
+
+        train, test, val = ds.random_split([0.5, 0.3, 0.2])
+
+        # round robin
+        assert len(train) == 5
+        assert len(test) == 3
+        assert len(val) == 2
+
+        with pytest.raises(ValueError):
+            ds.random_split([0.5, 0.5, 0.5])
+
+        with pytest.raises(ValueError):
+            ds.random_split([0.5, 1.3])
+
+        ds.create_tensor("label2")
+        ds.label2.extend([0, 1])
+
+        with pytest.raises(ValueError):
+            ds.random_split([0.5, 0.5])
+
+
 def test_invalid_ds_name():
     with pytest.raises(InvalidDatasetNameException):
         deeplake.dataset("folder/datasets/dataset name *")
