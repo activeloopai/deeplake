@@ -561,7 +561,7 @@ class Dataset:
         verify: bool = True,
         exist_ok: bool = False,
         verbose: bool = True,
-        downsampling: Optional[Tuple] = None,
+        downsampling: Optional[Tuple[int, int]] = None,
         **kwargs,
     ):
         """Creates a new tensor in the dataset.
@@ -600,7 +600,8 @@ class Dataset:
                 ``verify`` is always ``True`` even if specified as ``False`` if ``create_shape_tensor`` or ``create_sample_info_tensor`` is ``True``.
             exist_ok (bool): If ``True``, the group is created if it does not exist. if ``False``, an error is raised if the group already exists.
             verbose (bool): Shows warnings if ``True``.
-            downsampling (tuple): If not ``None``, the tensor will be downsampled by the provided factors. For example, ``(2, 5)`` will downsample the tensor by a factor of 2 in both dimensions and create 5 layers of downsampled tensors.
+            downsampling (tuple[int, int]): If not ``None``, the tensor will be downsampled by the provided factors. For example, ``(2, 5)`` will downsample the tensor by a factor of 2 in both dimensions and create 5 layers of downsampled tensors.
+                Only support for image and mask htypes.
             **kwargs:
                 - ``htype`` defaults can be overridden by passing any of the compatible parameters.
                 - To see all htypes and their correspondent arguments, check out :ref:`Htypes`.
@@ -756,16 +757,17 @@ class Dataset:
                 warnings.warn(
                     f"Downsampling is only supported for tensor with htypes {downsampling_htypes}, got {htype}. Skipping downsampling."
                 )
-            self._create_downsampled_tensor(
-                name,
-                htype,
-                dtype,
-                sample_compression,
-                chunk_compression,
-                meta_kwargs,
-                downsampling_factor,
-                number_of_layers,
-            )
+            else:
+                self._create_downsampled_tensor(
+                    name,
+                    htype,
+                    dtype,
+                    sample_compression,
+                    chunk_compression,
+                    meta_kwargs,
+                    downsampling_factor,
+                    number_of_layers,
+                )
         return tensor
 
     def _create_sample_shape_tensor(self, tensor: str, htype: str):

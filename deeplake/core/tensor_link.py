@@ -140,7 +140,9 @@ def convert_sample_for_downsampling(sample, link_creds=None):
 
 @link
 def extend_downsample(samples, factor, compression, htype, link_creds=None):
-    samples = [convert_sample_for_downsampling(sample, link_creds) for sample in samples]
+    samples = [
+        convert_sample_for_downsampling(sample, link_creds) for sample in samples
+    ]
     return [downsample_sample(sample, factor, compression, htype) for sample in samples]
 
 

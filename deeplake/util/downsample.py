@@ -14,10 +14,11 @@ def validate_downsampling(downsampling):
             f"Downsampling must be a tuple of the form (downsampling_factor, number_of_layers), got {downsampling}"
         )
     downsampling_factor, number_of_layers = downsampling
-    if downsampling_factor < 1:
-        raise ValueError("Downsampling factor must be >= 1")
-    if number_of_layers < 1:
-        raise ValueError("Number of layers must be >= 1")
+    if downsampling_factor < 1 or not isinstance(downsampling_factor, int):
+        raise ValueError("Downsampling factor must be an integer >= 1")
+    if number_of_layers < 1 or not isinstance(number_of_layers, int):
+        raise ValueError("Number of layers must be an integer >= 1")
+
     return downsampling_factor, number_of_layers
 
 
@@ -47,7 +48,7 @@ def downsample_sample(
 
     if sample is None or not (partial or needs_downsampling(sample, factor)):
         return None
-    size = sample.size[0]//factor, sample.size[1]//factor
+    size = sample.size[0] // factor, sample.size[1] // factor
     downsampled_sample = sample.resize(size, get_filter(htype))
     if compression is None:
         return np.array(downsampled_sample)
