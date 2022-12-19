@@ -46,8 +46,14 @@ def downsample_sample(
     if isinstance(sample, PartialSample):
         return sample.downsample(factor)
 
-    if sample is None or not (partial or needs_downsampling(sample, factor)):
+    if sample is None:
         return None
+    if not (partial or needs_downsampling(sample, factor)):
+        arr = np.array(sample)
+        required_shape = tuple([0] * len(arr.shape))
+        required_dtype = arr.dtype
+        return np.ones(required_shape, dtype=required_dtype)
+
     size = sample.size[0] // factor, sample.size[1] // factor
     downsampled_sample = sample.resize(size, get_filter(htype))
     if compression is None:
