@@ -1035,7 +1035,7 @@ class dataset:
             image_settings (Optional[Dict]): A dictionary containing settings for the images tensor.
             src_creds (Optional[Dict]): Credentials to access the source path. If not provided, will be inferred from the environment.
             dest_creds (Optional[Dict]): A dictionary containing credentials used to access the destination path of the dataset.
-            inspect_limit (int): The maximum number of samples to inspect in the annotations json. Set to ``1000000`` by default.
+            inspect_limit (int): The maximum number of samples to inspect in the annotations json, in order to generate the set of COCO annotation keys. Set to ``1000000`` by default.
             progressbar (bool): Enables or disables ingestion progress bar. Set to ``True`` by default.
             num_workers (int): The number of workers to use for ingestion. Set to ``0`` by default.
             **dataset_kwargs: Any arguments passed here will be forwarded to the dataset creator function. See :func:`deeplake.dataset`.
@@ -1057,7 +1057,6 @@ class dataset:
         if isinstance(dest, Dataset):
             ds = dest
         else:
-            dest = convert_pathlib_to_string_if_needed(dest)
             ds = deeplake.dataset(dest, creds=dest_creds, **dataset_kwargs)
 
         unstructured = CocoDataset(

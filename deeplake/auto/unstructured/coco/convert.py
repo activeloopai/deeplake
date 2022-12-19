@@ -2,6 +2,7 @@ import numpy as np
 from typing import Dict, Any, Optional
 
 from deeplake.core.tensor import Tensor
+from deeplake.util.exceptions import IngestionError
 
 
 def coco_to_deeplake(
@@ -14,7 +15,11 @@ def coco_to_deeplake(
     dtype = destination_tensor.meta.dtype
 
     if coco_key == "bbox":
-        assert len(value) == 4
+        if len(value) != 4:
+            raise IngestionError(
+                f"Invalid bbox encountered in key {coco_key}. Bbox must have 4 values."
+            )
+
         return np.array(value, dtype=dtype)
     elif coco_key == "segmentation":
         try:
