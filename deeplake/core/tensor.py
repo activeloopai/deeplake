@@ -990,7 +990,7 @@ class Tensor:
                     if is_partial and func == update_downsample:
                         apply_partial_downsample(tensor, global_sample_index, val)
                     else:
-                        cast_to_type(val, tensor.dtype)
+                        val = cast_to_type(val, tensor.dtype)
                         tensor[global_sample_index] = val
 
     @property

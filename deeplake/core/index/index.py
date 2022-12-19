@@ -270,6 +270,7 @@ class IndexEntry:
 
         Args:
             factor (int): The factor by which to downsample.
+            length (int): The length of the downsampled IndexEntry.
 
         Returns:
             IndexEntry: The downsampled IndexEntry.
@@ -499,6 +500,7 @@ class Index:
 
         Args:
             factor (int): The factor to downsample by.
+            shape (Tuple[int, ...]): The shape of the downsampled data.
 
         Returns:
             Index: The downsampled Index.
