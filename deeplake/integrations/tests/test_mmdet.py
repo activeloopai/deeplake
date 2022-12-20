@@ -288,7 +288,7 @@ def get_test_config(mmdet_path):
             pipeline=test_pipeline,
         ),
     )
-    cfg.deeplake_dataloader_type = "c++"
+    cfg.deeplake_dataloader_type = "python"
     cfg.deeplake_metrics_format = "COCO"
     cfg.evaluation = dict(metric=["bbox"], interval=1)
     cfg.work_dir = "./mmdet_outputs"
