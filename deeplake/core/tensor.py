@@ -581,8 +581,8 @@ class Tensor:
 
         # catch corrupted datasets / user tampering ASAP
         self.chunk_engine.validate_num_samples_is_synchronized()
-
-        return self.index.length(self.num_samples)
+        
+        return self.shape[0]
 
     def __getitem__(
         self,
