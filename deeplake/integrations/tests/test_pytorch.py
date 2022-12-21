@@ -688,6 +688,34 @@ def test_pytorch_decode(ds, compressed_image_paths, compression):
 
 
 @requires_torch
+def test_pytorch_decode_multi_worker_shuffle(local_ds, compressed_image_paths):
+    with local_ds as ds:
+        ds.create_tensor("image", sample_compression="jpeg")
+        ds.image.extend(
+            np.array([i * np.ones((10, 10, 3), dtype=np.uint8) for i in range(5)])
+        )
+        ds.image.extend([deeplake.read(compressed_image_paths["jpeg"][0])] * 5)
+        for i, batch in enumerate(
+            ds.pytorch(
+                num_workers=2,
+                shuffle=True,
+                decode_method={"image": "pil"},
+                collate_fn=identity,
+            )
+        ):
+            image = batch[0]["image"]
+            index = batch[0]["index"][0]
+            assert isinstance(image, Image.Image)
+            if index < 5:
+                np.testing.assert_array_equal(
+                    np.array(image), index * np.ones((10, 10, 3), dtype=np.uint8)
+                )
+            elif index >= 5:
+                with Image.open(compressed_image_paths["jpeg"][0]) as f:
+                    np.testing.assert_array_equal(np.array(f), np.array(image))
+
+
+@requires_torch
 def test_rename(local_ds):
     with local_ds as ds:
         ds.create_tensor("abc")
