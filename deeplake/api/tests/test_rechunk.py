@@ -155,7 +155,10 @@ def test_rechunk_json(local_ds_generator):
     with local_ds_generator() as ds:
         ds.create_tensor("abc", "json")
         add_sample_in().eval(
-            [{"one": "if"}, {"two": "elif"}, {"three": "else"}], ds, num_workers=2
+            [{"one": "if"}, {"two": "elif"}, {"three": "else"}],
+            ds,
+            num_workers=2,
+            disable_rechunk=True,
         )
 
         assert len(ds.abc.chunk_engine.chunk_id_encoder.array) == 2

@@ -1670,6 +1670,17 @@ def test_sequence_shapes(memory_ds):
         assert ds.abc.shape_interval.upper == (2, 4, 1)
 
 
+def test_sequence_len(memory_ds):
+    with memory_ds as ds:
+        ds.create_tensor("abc", htype="sequence")
+        ds.abc.extend([[1, 2, 3], [4, 5], [6, 7, 8]])
+
+        assert len(ds.abc) == 3
+        assert len(ds.abc[0]) == 3
+        assert len(ds.abc[1]) == 2
+        assert len(ds.abc[2]) == 3
+
+
 def test_shape_bug(memory_ds):
     ds = memory_ds
     ds.create_tensor("x")
