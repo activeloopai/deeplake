@@ -846,6 +846,8 @@ class Dataset:
             downsampling = None
         else:
             downsampling = (downsampling_factor, number_of_layers - 1)
+        meta_kwargs = meta_kwargs.copy()
+        meta_kwargs.pop("is_link", None)
         new_tensor = self.create_tensor(
             downsampled_tensor,
             htype=htype,
