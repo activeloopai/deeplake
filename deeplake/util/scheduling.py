@@ -4,6 +4,7 @@ import warnings
 import numpy as np
 from collections import defaultdict
 from deeplake.core.meta.encode.chunk_id import ChunkIdEncoder
+from deeplake.enterprise.convert_to_libdeeplake import import_indra_api
 
 
 def find_primary_tensor(dataset):
@@ -60,6 +61,7 @@ def create_fetching_schedule(dataset, primary_tensor_name, shuffle_within_chunks
 
 
 def create_random_split_views(dataset, lengths):
+    import_indra_api()
     if math.isclose(sum(lengths), 1) and sum(lengths) <= 1:
         subset_lengths: List[int] = []
         for i, frac in enumerate(lengths):
