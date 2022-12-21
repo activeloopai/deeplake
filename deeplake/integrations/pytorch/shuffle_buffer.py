@@ -5,7 +5,7 @@ from operator import mul
 import warnings
 import numpy as np
 import torch
-from PIL import Image
+from PIL import Image  # type: ignore
 from io import BytesIO
 from tqdm import tqdm  # type: ignore
 
