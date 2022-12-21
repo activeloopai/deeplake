@@ -706,12 +706,12 @@ def test_pytorch_decode_multi_worker_shuffle(local_ds, compressed_image_paths):
             image = batch[0]["image"]
             index = batch[0]["index"][0]
             assert isinstance(image, Image.Image)
-            if i < 5:
+            if index < 5:
                 np.testing.assert_array_equal(
-                    np.array(image), i * np.ones((10, 10, 3), dtype=np.uint8)
+                    np.array(image), index * np.ones((10, 10, 3), dtype=np.uint8)
                 )
-            elif i >= 5:
-                with Image.open(compressed_image_paths["jpeg"][index]) as f:
+            elif index >= 5:
+                with Image.open(compressed_image_paths["jpeg"][0]) as f:
                     np.testing.assert_array_equal(np.array(f), np.array(image))
 
 
