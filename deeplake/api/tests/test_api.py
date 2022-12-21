@@ -10,6 +10,7 @@ from deeplake.tests.common import (
     assert_array_lists_equal,
     is_opt_true,
     get_dummy_data_path,
+    requires_libdeeplake,
 )
 from deeplake.tests.storage_fixtures import enabled_remote_storages
 from deeplake.core.storage import GCSProvider
@@ -2252,6 +2253,7 @@ def test_iter_warning(local_ds):
             ds.abc[10]
 
 
+@requires_libdeeplake
 def test_random_split(local_ds):
     with local_ds as ds:
         ds.create_tensor("label")
