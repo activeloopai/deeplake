@@ -590,7 +590,7 @@ def test_htype(memory_ds: Dataset):
     label.append(np.array(5, dtype=np.uint32))
     with pytest.raises(NotImplementedError):
         video.append(np.ones((10, 28, 28, 3), dtype=np.uint8))
-    bin_mask.append(np.zeros((28, 28), dtype=np.bool8))
+    bin_mask.append(np.zeros((28, 28), dtype=bool))
     segment_mask.append(np.ones((28, 28), dtype=np.uint32))
     keypoints_coco.append(np.ones((51, 2), dtype=np.int32))
     point.append(np.ones((11, 2), dtype=np.int32))
