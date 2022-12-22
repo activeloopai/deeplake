@@ -866,16 +866,17 @@ class Tensor:
                         ]
                     )
                 else:
-                    data["timestamps"] = np.array(
-                        [
-                            root[i].timestamps
-                            for i in index.values[0].indices(self.num_samples)
-                        ]
-                    )
+                    data["timestamps"] = [
+                        root[i].timestamps
+                        for i in index.values[0].indices(self.num_samples)
+                    ]
             else:
                 data["timestamps"] = self.timestamps
-            if aslist:
-                data["timestamps"] = data["timestamps"].tolist()  # type: ignore
+            if not aslist:
+                try:
+                    data["timestamps"] = np.array(data["timestamps"])  # type: ignore
+                except ValueError:
+                    data["timestamps"] = np.array(data["timestamps"], dtype=object)  # type: ignore
 
             data["sample_info"] = self.sample_info  # type: ignore
             return data
