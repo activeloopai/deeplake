@@ -121,7 +121,9 @@ def extend_shape(samples, link_creds=None):
         ndim = max(map(len, shapes))
         for i, s in enumerate(shapes):
             if len(s) < ndim:
-                shapes[i] = np.concatenate([s, (1,) * (ndim - len(s))])
+                shapes[i] = np.concatenate(
+                    [s, (int(bool(np.prod(s))),) * (ndim - len(s))]
+                )
         arr = np.array(shapes)
     return arr
 

@@ -244,9 +244,9 @@ def test_basic(local_ds_generator, cat_path, flower_path, create_shape_tensor, v
             assert ds.linked_images_2[i].numpy().shape == shape_target
 
         assert ds.linked_images_2.meta.sample_compression == "png"
-        assert ds.linked_images[10].shape == (0,)
+        assert ds.linked_images[10].size == 0
         np.testing.assert_array_equal(ds.linked_images[10].numpy(), np.ones((0,)))
-        assert ds.linked_images_2[10].shape == (0,)
+        assert ds.linked_images_2[10].size == 0
         np.testing.assert_array_equal(ds.linked_images_2[10].numpy(), np.ones((0,)))
 
     ds.commit()
