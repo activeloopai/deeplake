@@ -114,7 +114,7 @@ class CocoImages:
                 invalid_files.append(file)
 
         if len(invalid_files) > 0:
-            logger.warn(
+            logger.warning(
                 f"Encountered {len(invalid_files)} unsupported files in images directory."
             )
 

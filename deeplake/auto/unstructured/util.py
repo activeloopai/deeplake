@@ -4,6 +4,8 @@ from deeplake.core.dataset import Dataset
 
 
 class TensorStructure:
+    """Contains the name and necessary parameters of a tensor to be created in a dataset."""
+
     def __init__(
         self,
         name: str,
@@ -23,6 +25,8 @@ class TensorStructure:
 
 
 class GroupStructure:
+    """Represents a group in a dataset, containing a list of TensorStructure and nested GroupStructure objects."""
+
     def __init__(
         self,
         name: str,
@@ -57,11 +61,24 @@ class GroupStructure:
 
 
 class DatasetStructure:
+    """
+    Represents a collection of TensorStructure and GroupStructure objects, forming
+    the structure of a dataset parsed by an ingestion template.
+
+    Supports adding items, creating the tensors and groups (or only the missing ones) in a given Dataset object.
+    """
+
     def __init__(
         self,
         structure: Optional[List[Union[TensorStructure, GroupStructure]]] = None,
         ignore_one_group: bool = False,
     ) -> None:
+        """Creates a new DatasetStructure object.
+
+        Args:
+            structure: An initial list of TensorStructure and GroupStructure objects.
+            ignore_one_group: If True, the structure will be flattened if it contains only one group.
+        """
         self.structure = structure if structure is not None else []
         self.ignore_one_group = ignore_one_group
 

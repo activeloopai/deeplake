@@ -1019,11 +1019,35 @@ class dataset:
     ) -> Dataset:
         """Ingest images and annotations in COCO format to a Deep Lake Dataset.
 
+        Examples:
+            >>> ds = deeplake.ingest_coco(
+            >>>     "path/to/images/directory",
+            >>>     ["path/to/annotation/file1.json", "path/to/annotation/file2.json"],
+            >>>     dest="hub://username/dataset",
+            >>>     key_to_tensor_mapping={"category_id": "labels", "bbox": "boxes"},
+            >>>     file_to_group_mapping={"file1.json": "group1", "file2.json": "group2"},
+            >>>     ignore_keys=["area", "image_id", "id"],
+            >>>     token="my_activeloop_token",
+            >>>     num_workers=4,
+            >>> )
+            >>> # or ingest data from cloud
+            >>> ds = deeplake.ingest_coco(
+            >>>     "s3://bucket/images/directory",
+            >>>     "s3://bucket/annotation/file1.json",
+            >>>     dest="hub://username/dataset",
+            >>>     ignore_one_group=True,
+            >>>     ignore_keys=["area", "image_id", "id"],
+            >>>     image_settings={"name": "images", "linked": True, creds_key="my_managed_creds_key", "sample_compression": "jpeg"},
+            >>>     src_creds=aws_creds, # Can also be inferred from environment
+            >>>     token="my_activeloop_token",
+            >>>     num_workers=4,
+            >>> )
+
         Args:
             images_directory (str, pathlib.Path): The path to the directory containing images.
             annotation_files (str, pathlib.Path, List[str]): Path to JSON annotation files in COCO format.
-            dest (str, pathlib.Path, Dataset):
-                - A Dataset or The full path to the dataset. Can be:
+            dest (str, pathlib.Path):
+                - The full path to the dataset. Can be:
                 - a Deep Lake cloud path of the form ``hub://username/datasetname``. To write to Deep Lake cloud datasets, ensure that you are logged in to Deep Lake (use 'activeloop login' from command line)
                 - an s3 path of the form ``s3://bucketname/path/to/dataset``. Credentials are required in either the environment or passed to the creds argument.
                 - a local file system path of the form ``./path/to/dataset`` or ``~/path/to/dataset`` or ``path/to/dataset``.
@@ -1038,7 +1062,7 @@ class dataset:
             inspect_limit (int): The maximum number of samples to inspect in the annotations json, in order to generate the set of COCO annotation keys. Set to ``1000000`` by default.
             progressbar (bool): Enables or disables ingestion progress bar. Set to ``True`` by default.
             num_workers (int): The number of workers to use for ingestion. Set to ``0`` by default.
-            **dataset_kwargs: Any arguments passed here will be forwarded to the dataset creator function. See :func:`deeplake.dataset`.
+            **dataset_kwargs: Any arguments passed here will be forwarded to the dataset creator function. See :func:`deeplake.empty`.
 
         Returns:
             Dataset: The Dataset created from images and COCO annotations.
@@ -1054,10 +1078,7 @@ class dataset:
             else convert_pathlib_to_string_if_needed(annotation_files)
         )
 
-        if isinstance(dest, Dataset):
-            ds = dest
-        else:
-            ds = deeplake.dataset(dest, creds=dest_creds, **dataset_kwargs)
+        ds = deeplake.empty(dest, creds=dest_creds, verbose=False, **dataset_kwargs)
 
         unstructured = CocoDataset(
             source=images_directory,

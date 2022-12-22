@@ -3,6 +3,7 @@ from typing import Dict, Any, Optional
 
 from deeplake.core.tensor import Tensor
 from deeplake.util.exceptions import IngestionError
+from deeplake.client.log import logger
 
 
 def coco_to_deeplake(
@@ -22,20 +23,24 @@ def coco_to_deeplake(
 
         return np.array(value, dtype=dtype)
     elif coco_key == "segmentation":
-        try:
-            # Currently having only ONE polygon is supported.
-            # Multiple polygons are under same label, but there is only a single bbox.
-            # Can not think of a way to support multiple polygons for same label on the same image, other than converting to a mask.
-            return np.array(value[0], dtype=dtype).reshape(
-                (len(value[0]) // 2), 2
-            )  # Convert to array of x-y coordinates
-        except KeyError:
-            """KeyError happens if the value is NOT a list of polygons.
-            Returning None does not work, as polygon is erroring out during shape validation.
-            Returning an empty array works, but the data is wrong... Alternatively, whole sample may be skipped.
-            """
+        if not isinstance(value, list):
+            raise IngestionError(
+                f"Invalid value encountered in key {coco_key}. Segmentation must be a list of polygons."
+            )
 
-            return np.array([[0, 0]], dtype=dtype)
+        # Currently having only ONE polygon is supported.
+        # Multiple polygons are under same label, but there is only a single bbox.
+        if len(value) > 1:
+            logger.warning(
+                f"Multiple polygons are not supported in key {coco_key}. Only the first one will be used."
+            )
+
+        if len(value) == 0:
+            return None
+
+        return np.array(value[0], dtype=dtype).reshape(
+            (len(value[0]) // 2), 2
+        )  # Convert to array of x-y coordinates
 
     elif coco_key == "category_id":
         if category_lookup is None:

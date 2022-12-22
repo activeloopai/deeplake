@@ -124,30 +124,3 @@ def test_ingestion_with_linked_images(local_path, coco_ingestion_data):
     assert "base_annotations/bbox" in ds.tensors
     assert "base_annotations/segmentation" in ds.tensors
     assert ds.linked_images.htype == "link[image]"
-
-
-def test_ingestion_with_existing_destination(local_ds, coco_ingestion_data):
-    local_ds.create_tensor(
-        "linked_images", htype="link[image]", sample_compression="jpeg"
-    )
-    local_ds.create_tensor(
-        "base_annotations/bbox", htype="bbox", sample_compression=None
-    )
-
-    # Unrelated tensors should not iterfere
-    local_ds.create_tensor(
-        "another_group/misc", htype="generic", sample_compression=None
-    )
-
-    file_to_group = {"annotations1.json": "base_annotations"}
-    deeplake.ingest_coco(
-        **coco_ingestion_data,
-        file_to_group_mapping=file_to_group,
-        dest=local_ds,
-        image_settings={"name": "linked_images"},
-    )
-
-    assert "linked_images" in local_ds.tensors
-    assert "base_annotations/bbox" in local_ds.tensors
-    assert "base_annotations/segmentation" in local_ds.tensors
-    assert local_ds.linked_images.htype == "link[image]"

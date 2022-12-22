@@ -138,13 +138,17 @@ class CocoDataset(UnstructuredDataset):
         images_tensor_name = self.image_settings.get("name")
         images_tensor = ds[images_tensor_name]
         samples = OrderedDict((image, None) for image in images)
+        creds_key = self.image_settings.get("creds_key", None)
+
+        if creds_key is not None:
+            ds.add_creds_key(creds_key, managed=True)
 
         @deeplake.compute
         def append_images(image, _, samples):
             samples[image] = self.images.get_image(
                 image,
                 destination_tensor=images_tensor,
-                creds_key=self.image_settings.get("creds_key"),
+                creds_key=creds_key,
             )
 
         append_images(samples).eval(
