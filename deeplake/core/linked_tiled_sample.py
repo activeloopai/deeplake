@@ -13,8 +13,6 @@ class LinkedTiledSample:
         self,
         path_array: np.ndarray,
         creds_key: Optional[str] = None,
-        sample_shape: Optional[tuple] = None,
-        tile_shape: Optional[tuple] = None,
     ):
         self.path_array = path_array
         self._path = None
@@ -23,8 +21,8 @@ class LinkedTiledSample:
         if len(path_types) > 1:
             raise ValueError("Path array contains paths in different locations.")
         self.creds_key = convert_creds_key(creds_key, self.path)
-        self._tile_shape = tile_shape
-        self._shape = sample_shape
+        self._tile_shape = None
+        self._shape = None
 
     @property
     def path(self):
@@ -41,11 +39,10 @@ class LinkedTiledSample:
             # check that path is string like
             if not isinstance(path, str):
                 raise ValueError("Path array contains non-string paths.")
-
             sample_obj = read_linked_sample(path, self.creds_key, link_creds, verify)
             if tile_shape is None:
                 tile_shape = sample_obj.shape
-            elif tile_shape != sample_obj.shape:
+            elif verify and tile_shape != sample_obj.shape:
                 raise ValueError("Path array contains paths with different shapes.")
         self._tile_shape = tile_shape
 
