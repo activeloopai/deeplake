@@ -18,7 +18,6 @@ from .base import UnstructuredDataset
 
 import deeplake
 
-IMAGES_TENSOR_NAME = "images"
 LABELS_TENSOR_NAME = "labels"
 
 
@@ -44,8 +43,8 @@ def _set_name_from_path(path: Path) -> str:
     return path.parts[-3]
 
 
-class ImageClassification(UnstructuredDataset):
-    def __init__(self, source: str):
+class Classification(UnstructuredDataset):
+    def __init__(self, source: str, htype: str):
         """Convert an unstructured dataset to a structured dataset.
 
         Note:
@@ -71,6 +70,7 @@ class ImageClassification(UnstructuredDataset):
                 f"No files found in {self.source}. Please ensure that the source path is correct."
             )
 
+        self.htype = htype
         self.set_names = self.get_set_names()
         self.class_names = self.get_class_names()
 
@@ -95,7 +95,7 @@ class ImageClassification(UnstructuredDataset):
         ds: Dataset,
         progressbar: bool = True,
         generate_summary: bool = True,
-        image_tensor_args: dict = {},
+        tensor_args: dict = {},
     ) -> Dataset:
         """Create a structured dataset.
 
@@ -103,14 +103,14 @@ class ImageClassification(UnstructuredDataset):
             ds (Dataset) : A Deep Lake dataset object.
             progressbar (bool): Defines if the method uses a progress bar. Defaults to True.
             generate_summary (bool): Defines if the method generates ingestion summary. Defaults to True.
-            image_tensor_args (dict): Defines the sample compression of the dataset (jpeg or png).
+            tensor_args (dict): Defines the sample compression of the dataset (jpeg or png).
 
         Returns:
             A Deep Lake dataset.
 
         """
 
-        images_tensor_map = {}
+        tensor_map = {}
         labels_tensor_map = {}
 
         use_set_prefix = len(self.set_names) > 1
@@ -119,16 +119,16 @@ class ImageClassification(UnstructuredDataset):
             if not use_set_prefix:
                 set_name = ""
 
-            images_tensor_name = os.path.join(set_name, IMAGES_TENSOR_NAME)
+            tensor_name = os.path.join(set_name, self.htype + "s")
             labels_tensor_name = os.path.join(set_name, LABELS_TENSOR_NAME)
-            images_tensor_map[set_name] = images_tensor_name.replace("\\", "/")
+            tensor_map[set_name] = tensor_name.replace("\\", "/")
             labels_tensor_map[set_name] = labels_tensor_name.replace("\\", "/")
 
             # TODO: infer sample_compression
             ds.create_tensor(
-                images_tensor_name.replace("\\", "/"),
-                htype="image",
-                **image_tensor_args,
+                tensor_name.replace("\\", "/"),
+                htype=self.htype,
+                **tensor_args,
             )
             ds.create_tensor(
                 labels_tensor_name.replace("\\", "/"),
@@ -160,12 +160,12 @@ class ImageClassification(UnstructuredDataset):
                 # TODO: try to get all len(shape)s to match.
                 # if appending fails because of a shape mismatch, expand dims (might also fail)
                 try:
-                    ds[images_tensor_map[set_name]].append(image)
+                    ds[tensor_map[set_name]].append(image)
 
                 except TensorInvalidSampleShapeError:
                     im = image.array
                     reshaped_image = np.expand_dims(im, -1)
-                    ds[images_tensor_map[set_name]].append(reshaped_image)
+                    ds[tensor_map[set_name]].append(reshaped_image)
 
                 except Exception:
                     skipped_files.append(file_path.name)
@@ -180,3 +180,16 @@ class ImageClassification(UnstructuredDataset):
             if generate_summary:
                 ingestion_summary(str(self.source), skipped_files)
             return ds
+
+class ImageClassification(Classification):
+    def __init__(self, source: str, htype: str):
+        super().__init__(source, htype)
+
+
+class AudioClassification(Classification):
+    def __init__(self, source: str, htype: str):
+        super().__init__(source, htype)
+
+class VideoClassification(Classification):
+    def __init__(self, source: str, htype: str):
+        super().__init__(source, htype)

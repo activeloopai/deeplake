@@ -6,7 +6,11 @@ import posixpath
 from typing import Dict, Optional, Union, List
 
 from deeplake.auto.unstructured.kaggle import download_kaggle_dataset
-from deeplake.auto.unstructured.image_classification import ImageClassification
+from hub.auto.unstructured.classification import (
+    ImageClassification,
+    AudioClassification,
+    VideoClassification,
+)
 from deeplake.client.client import DeepLakeBackendClient
 from deeplake.client.log import logger
 from deeplake.core.dataset import Dataset, dataset_factory
@@ -54,6 +58,13 @@ from deeplake.util.compute import get_compute_provider
 from deeplake.util.remove_cache import get_base_storage
 from deeplake.util.cache_chain import generate_chain
 from deeplake.core.storage.deeplake_memory_object import DeepLakeMemoryObject
+
+_image_compressions = (
+    IMAGE_COMPRESSIONS[:] + BYTE_COMPRESSIONS + list(COMPRESSION_ALIASES)
+)
+_image_compressions.remove("dcm")
+_video_compressions = VIDEO_COMPRESSIONS
+_audio_compressions = AUDIO_COMPRESSIONS
 
 
 class dataset:
@@ -1003,7 +1014,7 @@ class dataset:
     def ingest(
         src: Union[str, pathlib.Path],
         dest: Union[str, pathlib.Path],
-        images_compression: str = "auto",
+        sample_compression: str = "auto",
         dest_creds: Optional[Dict] = None,
         progressbar: bool = True,
         summary: bool = True,
@@ -1018,7 +1029,7 @@ class dataset:
                 - an s3 path of the form ``s3://bucketname/path/to/dataset``. Credentials are required in either the environment or passed to the creds argument.
                 - a local file system path of the form ``./path/to/dataset`` or ``~/path/to/dataset`` or ``path/to/dataset``.
                 - a memory path of the form ``mem://path/to/dataset`` which doesn't save the dataset but keeps it in memory instead. Should be used only for testing as it does not persist.
-            images_compression (str): For image classification datasets, this compression will be used for the `images` tensor. If ``images_compression`` is "auto", compression will be automatically determined by the most common extension in the directory.
+            sample_compression (str): For image classification datasets, this compression will be used for the `images` tensor. If ``sample_compression`` is "auto", compression will be automatically determined by the most common extension in the directory.
             dest_creds (Optional[Dict]): A dictionary containing credentials used to access the destination path of the dataset.
             progressbar (bool): Enables or disables ingestion progress bar. Defaults to ``True``.
             summary (bool): If ``True``, a summary of skipped files will be printed after completion. Defaults to ``True``.
@@ -1079,7 +1090,7 @@ class dataset:
             dest,
             "ingest",
             {
-                "Images_Compression": images_compression,
+                "sample_Compression": sample_compression,
                 "Progressbar": progressbar,
                 "Summary": summary,
             },
@@ -1105,22 +1116,27 @@ class dataset:
             if not os.path.isdir(src):
                 raise InvalidPathException(src)
 
-            if images_compression == "auto":
-                images_compression = get_most_common_extension(src)
-                if images_compression is None:
+            if sample_compression == "auto":
+                sample_compression = get_most_common_extension(src)
+                if sample_compression is None:
                     raise InvalidFileExtension(src)
 
             ds = deeplake.dataset(dest, creds=dest_creds, **dataset_kwargs)
 
             # TODO: support more than just image classification (and update docstring)
-            unstructured = ImageClassification(source=src)
+            if sample_compression in _image_compressions:
+                unstructured = ImageClassification(source=src, htype="image")  # type: ignore
+            elif sample_compression in _audio_compressions:
+                unstructured = AudioClassification(source=src, htype="audio")  # type: ignore
+            elif sample_compression in _video_compressions:
+                unstructured = VideoClassification(source=src, htype="video")  # type: ignore
 
             # TODO: auto detect compression
             unstructured.structure(
                 ds,  # type: ignore
                 progressbar=progressbar,
                 generate_summary=summary,
-                image_tensor_args={"sample_compression": images_compression},
+                image_tensor_args={"sample_compression": sample_compression},
             )
         return ds  # type: ignore
 
@@ -1130,7 +1146,7 @@ class dataset:
         src: Union[str, pathlib.Path],
         dest: Union[str, pathlib.Path],
         exist_ok: bool = False,
-        images_compression: str = "auto",
+        sample_compression: str = "auto",
         dest_creds: Optional[Dict] = None,
         kaggle_credentials: Optional[dict] = None,
         progressbar: bool = True,
@@ -1148,7 +1164,7 @@ class dataset:
                 - a local file system path of the form ``./path/to/dataset`` or ``~/path/to/dataset`` or ``path/to/dataset``.
                 - a memory path of the form ``mem://path/to/dataset`` which doesn't save the dataset but keeps it in memory instead. Should be used only for testing as it does not persist.
             exist_ok (bool): If the kaggle dataset was already downloaded and ``exist_ok`` is ``True``, ingestion will proceed without error.
-            images_compression (str): For image classification datasets, this compression will be used for the ``images`` tensor. If ``images_compression`` is "auto", compression will be automatically determined by the most common extension in the directory.
+            sample_compression (str): For image classification datasets, this compression will be used for the ``images`` tensor. If ``sample_compression`` is "auto", compression will be automatically determined by the most common extension in the directory.
             dest_creds (Optional[Dict]): A dictionary containing credentials used to access the destination path of the dataset.
             kaggle_credentials (dict): A dictionary containing kaggle credentials {"username":"YOUR_USERNAME", "key": "YOUR_KEY"}. If ``None``, environment variables/the kaggle.json file will be used if available.
             progressbar (bool): Enables or disables ingestion progress bar. Set to ``True`` by default.
@@ -1171,7 +1187,7 @@ class dataset:
             dest,
             "ingest_kaggle",
             {
-                "Images_Compression": images_compression,
+                "sample_Compression": sample_compression,
                 "Exist_Ok": exist_ok,
                 "Progressbar": progressbar,
                 "Summary": summary,
@@ -1192,7 +1208,7 @@ class dataset:
         ds = deeplake.ingest(
             src=src,
             dest=dest,
-            images_compression=images_compression,
+            sample_compression=sample_compression,
             dest_creds=dest_creds,
             progressbar=progressbar,
             summary=summary,

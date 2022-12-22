@@ -88,7 +88,34 @@ IMAGE_COMPRESSION_EXTENSIONS = list(
 
 VIDEO_COMPRESSIONS = ["mp4", "mkv", "avi"]
 
+VIDEO_COMPRESSION_EXT_DICT = {
+    "mp4": [".mp4"],
+    "mkv": [".mkv"],
+    "avi": [".avi"],
+}
+
+VIDEO_COMPRESSION_EXTENSIONS = list(
+    set(itertools.chain(*VIDEO_COMPRESSION_EXT_DICT.values()))
+)
+
 AUDIO_COMPRESSIONS = ["mp3", "flac", "wav"]
+
+
+AUDIO_COMPRESSION_EXT_DICT = {
+    "mp3": [".mp3"],
+    "flac": [".flac"],
+    "wav": [".wav"],
+}
+
+AUDIO_COMPRESSION_EXTENSIONS = list(
+    set(itertools.chain(*AUDIO_COMPRESSION_EXT_DICT.values()))
+)
+
+COMPRESSION_EXTENSIONS = list(
+        IMAGE_COMPRESSION_EXTENSIONS
+        + VIDEO_COMPRESSION_EXTENSIONS
+        + AUDIO_COMPRESSION_EXTENSIONS
+)
 
 
 READONLY_COMPRESSIONS = ["mpo", "fli", "dcm", *AUDIO_COMPRESSIONS, *VIDEO_COMPRESSIONS]

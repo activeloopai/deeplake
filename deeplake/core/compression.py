@@ -829,9 +829,9 @@ def _open_video(file: Union[str, bytes, memoryview]):
         raise ModuleNotFoundError(
             "PyAV is not installed. Run `pip install deeplake[video]`."
         )
-    if isinstance(file, str):
+    if isinstance(file, (str, Path)):
         container = av.open(
-            file, options={"protocol_whitelist": "file,http,https,tcp,tls,subfile"}
+            str(file), options={"protocol_whitelist": "file,http,https,tcp,tls,subfile"}
         )
     else:
         container = av.open(BytesIO(file))
@@ -1004,9 +1004,9 @@ def _open_audio(file: Union[str, bytes, memoryview]):
         raise ModuleNotFoundError(
             "PyAV is not installed. Please run `pip install deeplake[audio]`"
         )
-    if isinstance(file, str):
+    if isinstance(file, (str, Path)):
         container = av.open(
-            file, options={"protocol_whitelist": "file,http,https,tcp,tls,subfile"}
+            str(file), options={"protocol_whitelist": "file,http,https,tcp,tls,subfile"}
         )
     else:
         container = av.open(BytesIO(file))
