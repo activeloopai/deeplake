@@ -6,7 +6,7 @@ import posixpath
 from typing import Dict, Optional, Union, List
 
 from deeplake.auto.unstructured.kaggle import download_kaggle_dataset
-from hub.auto.unstructured.classification import (
+from deeplake.auto.unstructured.image_classification import (
     ImageClassification,
     AudioClassification,
     VideoClassification,
@@ -49,6 +49,13 @@ from deeplake.util.exceptions import (
     UserNotLoggedInException,
     TokenPermissionError,
     UnsupportedParameterException,
+)
+from hub.compression import (
+    IMAGE_COMPRESSIONS,
+    VIDEO_COMPRESSIONS,
+    AUDIO_COMPRESSIONS,
+    BYTE_COMPRESSIONS,
+    COMPRESSION_ALIASES,
 )
 from deeplake.util.storage import (
     get_storage_and_cache_chain,
@@ -1136,7 +1143,7 @@ class dataset:
                 ds,  # type: ignore
                 progressbar=progressbar,
                 generate_summary=summary,
-                image_tensor_args={"sample_compression": sample_compression},
+                tensor_args={"sample_compression": sample_compression},
             )
         return ds  # type: ignore
 

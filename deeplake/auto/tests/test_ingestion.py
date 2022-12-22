@@ -87,6 +87,40 @@ def test_image_classification_sets(memory_ds: Dataset):
     assert ds["train/labels"].numpy().shape == (3, 1)
     assert ds["train/labels"].info.class_names == ("class0", "class1", "class2")
 
+def test_audio(memory_ds: Dataset):
+    path = get_dummy_data_path("tests_auto/audio_classification")
+    src = "test_auto/invalid_path"
+    ds = deeplake.ingest(
+        src=path,
+        dest=memory_ds.path,
+        progressbar=False,
+        summary=False,
+        overwrite=False
+    )
+
+    with pytest.raises(InvalidPathException):
+        deeplake.ingest(
+            src=src,
+            dest=memory_ds.path,
+            progressbar=False,
+            summary=False,
+            overwrite=False
+        )
+
+    with pytest.raises(SamePathException):
+        deeplake.ingest(
+            src=path,
+            dest=path,
+            progressbar=False,
+            summary=False,
+            overwrite=False
+        )
+
+    assert ds["audios"].meta.sample_compression == "mp3"
+    assert list(ds.tensors.keys()) == ["audios", "labels"]
+    assert ds["audios"].numpy().shape == (0,)
+    assert ds["audios"].numpy().shape == (0,)
+    assert ds["labels"].info.class_names == ("class0", "class1", "class2")
 
 def test_ingestion_exception(memory_ds: Dataset):
     path = get_dummy_data_path("tests_auto/image_classification_with_sets")
