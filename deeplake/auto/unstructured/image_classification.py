@@ -181,6 +181,7 @@ class Classification(UnstructuredDataset):
                 ingestion_summary(str(self.source), skipped_files)
             return ds
 
+
 class ImageClassification(Classification):
     def __init__(self, source: str, htype: str):
         super().__init__(source, htype)
@@ -189,6 +190,7 @@ class ImageClassification(Classification):
 class AudioClassification(Classification):
     def __init__(self, source: str, htype: str):
         super().__init__(source, htype)
+
 
 class VideoClassification(Classification):
     def __init__(self, source: str, htype: str):
