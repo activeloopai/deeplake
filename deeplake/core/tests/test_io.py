@@ -1,6 +1,6 @@
 from typing import Iterator
 
-from numpy.testing._private.utils import assert_array_equal
+from deeplake.util.testing import assert_array_equal
 from deeplake.core.io import (
     IOBlock,
     Streaming,
