@@ -106,13 +106,24 @@ def update_shape(new_sample, link_creds=None):
 def extend_shape(samples, link_creds=None):
     if isinstance(samples, np.ndarray):
         return [np.array(samples.shape[1:])] * len(samples)
-    return (
-        np.array([], dtype=np.int64)
-        if samples is None
-        else np.array(
-            [update_shape.f(sample, link_creds=link_creds) for sample in samples]
-        )
-    )
+    if samples is None:
+        return np.array([], dtype=np.int64)
+    shapes = [update_shape.f(sample, link_creds=link_creds) for sample in samples]
+    mixed_ndim = False
+    try:
+        arr = np.array(shapes)
+        if arr.dtype == np.object:
+            mixed_ndim = True
+    except ValueError:
+        mixed_ndim = True
+
+    if mixed_ndim:
+        ndim = max(map(len, shapes))
+        for i, s in enumerate(shapes):
+            if len(s) < ndim:
+                shapes[i] = np.concatenate([s, (1,) * (ndim - len(s))])
+        arr = np.array(shapes)
+    return arr
 
 
 @link
