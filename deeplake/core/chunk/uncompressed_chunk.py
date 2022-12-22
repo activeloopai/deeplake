@@ -1,6 +1,11 @@
 import numpy as np
 from typing import List, Union, Optional
-from deeplake.core.serialize import check_sample_shape, bytes_to_text
+from deeplake.core.linked_tiled_sample import LinkedTiledSample
+from deeplake.core.serialize import (
+    check_sample_shape,
+    bytes_to_text,
+    deserialize_linked_tiled_sample,
+)
 from deeplake.core.tiling.sample_tiles import SampleTiles
 from deeplake.core.polygon import Polygons
 from deeplake.util.exceptions import EmptyTensorError, TensorDtypeMismatchError
@@ -169,6 +174,10 @@ class UncompressedChunk(BaseChunk):
                         shape,
                         update_tensor_meta=update_tensor_meta,
                     )
+                    if isinstance(incoming_sample, LinkedTiledSample):
+                        num_samples += 0.5
+                        break
+
                     num_samples += 1
                 else:
                     break
@@ -203,6 +212,8 @@ class UncompressedChunk(BaseChunk):
                 sb, eb = self.get_byte_positions(local_index)
             buffer = buffer[sb:eb]
         else:
+            if self.tensor_meta.is_link:
+                return deserialize_linked_tiled_sample(buffer)
             shape = self.shapes_encoder[local_index]
             if not bps.is_empty():
                 sb, eb = bps[local_index]

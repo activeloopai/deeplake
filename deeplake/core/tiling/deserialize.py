@@ -8,7 +8,7 @@ def coalesce_tiles(
     tiles: np.ndarray,
     tile_shape: Tuple[int, ...],
     sample_shape: Optional[Tuple[int, ...]],
-    dtype: Union[str, np.dtype],
+    dtype: Union[str, np.dtype] = None,
 ) -> np.ndarray:
     """Coalesce tiles into a single array of shape `sample_shape`.
     Args:
@@ -21,6 +21,8 @@ def coalesce_tiles(
     Returns:
         np.ndarray: Sample array from tiles.
     """
+    if dtype is None:
+        dtype = next(iter(tiles.flat)).dtype
     ndim = tiles.ndim
     sample_shape = sample_shape or tuple(  # Infer sample shape from tile shapes
         sum(
@@ -58,7 +60,7 @@ def combine_chunks(
 
 
 def np_list_to_sample(
-    tiled_arrays: List[np.ndarray], shape, tile_shape, layout_shape, dtype
+    tiled_arrays: List[np.ndarray], shape, tile_shape, layout_shape, dtype=None
 ) -> np.ndarray:
     num_tiles = len(tiled_arrays)
     tiles = np.empty((num_tiles,), dtype=object)

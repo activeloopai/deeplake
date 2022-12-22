@@ -14,6 +14,7 @@ from deeplake.compression import (
 from deeplake.constants import CONVERT_GRAYSCALE
 from deeplake.core.fast_forwarding import ffw_chunk
 from deeplake.core.linked_sample import LinkedSample
+from deeplake.core.linked_tiled_sample import LinkedTiledSample
 from deeplake.core.meta.encode.byte_positions import BytePositionsEncoder
 from deeplake.core.meta.encode.shape import ShapeEncoder
 from deeplake.core.meta.tensor_meta import TensorMeta
@@ -25,6 +26,7 @@ from deeplake.core.serialize import (
     infer_chunk_num_bytes,
     infer_header_num_bytes,
     serialize_chunk,
+    serialize_linked_tiled_sample,
     serialize_numpy_and_base_types,
     serialize_sample_object,
     serialize_text,
@@ -300,6 +302,12 @@ class BaseChunk(DeepLakeMemoryObject):
                     "deeplake.link() samples can only be appended to linked tensors. To create linked tensors, include link in htype during create_tensor, for example 'link[image]'."
                 )
 
+        if isinstance(incoming_sample, LinkedTiledSample):
+            if not self.tensor_meta.is_link:
+                raise ValueError(
+                    "deeplake.link_tile() samples can only be appended to linked tensors. To create linked tensors, include link in htype during create_tensor, for example 'link[image]'."
+                )
+
         if self.is_text_like:
             if isinstance(incoming_sample, LinkedSample):
                 incoming_sample = incoming_sample.path
@@ -318,6 +326,8 @@ class BaseChunk(DeepLakeMemoryObject):
                     raise TypeError(
                         f"Cannot append to {htype} tensor with Sample object"
                     )
+            elif isinstance(incoming_sample, LinkedTiledSample):
+                incoming_sample, shape = serialize_linked_tiled_sample(incoming_sample)
             else:
                 incoming_sample, shape = serialize_text(
                     incoming_sample, sample_compression, dt, ht  # type: ignore

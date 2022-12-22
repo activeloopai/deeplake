@@ -6,6 +6,7 @@ from deeplake.compression import (
     get_compression_type,
 )
 from deeplake.core.fast_forwarding import version_compare
+from deeplake.core.linked_tiled_sample import LinkedTiledSample
 from deeplake.core.tiling.sample_tiles import SampleTiles
 from deeplake.core.partial_sample import PartialSample
 from deeplake.core.polygon import Polygons
@@ -254,6 +255,75 @@ def deserialize_chunk(
     if incoming_mview and copy:
         data = memoryview(bytes(data))
     return version, shape_info, byte_positions, data  # type: ignore
+
+
+def serialize_linked_tiled_sample(sample: LinkedTiledSample):
+    version = deeplake.__version__
+    path_array = sample.path_array
+    flat_bytes = []
+    num_bytes = 0
+    for path in path_array.flat:
+        path_bytes = path.encode("ascii")
+        flat_bytes.append(path_bytes)
+        flat_bytes.append(b"\x00")
+        num_bytes += len(path_bytes) + 1
+
+    buff = bytearray(1 + len(version) + 1 + (4 * path_array.ndim) + num_bytes)
+
+    # Write version
+    len_version = len(version)
+    buff[0] = len_version
+    buff[1 : 1 + len_version] = version.encode("ascii")
+    offset = 1 + len_version
+
+    # write ndims of path array
+    buff[offset] = path_array.ndim
+    offset += 1
+
+    # write shape of path array
+    for dim in path_array.shape:
+        buff[offset : offset + 4] = dim.to_bytes(4, "little")
+        offset += 4
+
+    for path in path_array.flat:
+        path_bytes = path.encode("ascii")
+        buff[offset : offset + len(path_bytes)] = path_bytes
+        offset += len(path_bytes)
+        # write null byte
+        buff[offset] = 0
+        offset += 1
+
+    return buff, sample.sample_shape
+
+
+def deserialize_linked_tiled_sample(
+    byts: Union[bytes, memoryview]
+) -> LinkedTiledSample:
+    byts = memoryview(byts)
+    # Read version
+    len_version = byts[0]
+    version = str(byts[1 : 1 + len_version], "ascii")
+    offset = 1 + len_version
+
+    # Read ndims of path array
+    ndims = byts[offset]
+    offset += 1
+
+    # Read shape of path array
+    shape = []
+    for _ in range(ndims):
+        shape.append(int.from_bytes(byts[offset : offset + 4], "little"))
+        offset += 4
+
+    # Read path array
+    path_array = np.empty(shape, dtype=object)
+    for i in np.ndindex(*shape):
+        initial_offset = offset
+        while byts[offset] != 0:
+            offset += 1
+        offset += 1
+        path_array[i] = str(byts[initial_offset : offset - 1], "ascii")
+    return LinkedTiledSample(path_array)
 
 
 def serialize_chunkids(version: str, arr: np.ndarray) -> memoryview:
