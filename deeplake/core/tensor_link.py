@@ -112,7 +112,7 @@ def extend_shape(samples, link_creds=None):
     mixed_ndim = False
     try:
         arr = np.array(shapes)
-        if arr.dtype == np.object:
+        if arr.dtype == object:
             mixed_ndim = True
     except ValueError:
         mixed_ndim = True
