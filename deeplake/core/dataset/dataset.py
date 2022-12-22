@@ -2977,45 +2977,6 @@ class Dataset:
             return vds
         return vds.path
 
-    def _save_query_view(
-        path: Optional[Union[str, pathlib.Path]] = None,
-        id: Optional[str] = None,
-        message: Optional[str] = None,
-        optimize: bool = False,
-        tensors: Optional[List[str]] = None,
-        num_workers: int = 0,
-        scheduler: str = "threaded",
-        verbose: bool = True,
-        _ret_ds: bool = False,
-        **ds_args,
-    ):
-        """Saves a dataset view as a virtual dataset (VDS)
-
-        Args:
-            path (Optional, str, pathlib.Path): If specified, the VDS will saved as a standalone dataset at the specified path. If not,
-                the VDS is saved under `.queries` subdirectory of the source dataset's storage. If the user doesn't have
-                write access to the source dataset and the source dataset is a Deep Lake cloud dataset, then the VDS is saved
-                is saved under the user's Deep Lake account and can be accessed using deeplake.load(f"hub://{username}/queries/{query_hash}").
-            id (Optional, str): Unique id for this view.
-            message (Optional, message): Custom user message.
-            optimize (bool): Whether the view should be optimized by copying the required data. Default False.
-            tensors (Optional, List[str]): Tensors to be copied if `optimize` is True. By default all tensors are copied.
-            num_workers (int): Number of workers to be used if `optimize` is True.
-            scheduler (str): The scheduler to be used for optimization. Supported values include: 'serial', 'threaded', 'processed' and 'ray'.
-                Only applicable if ``optimize=True``. Defaults to 'threaded'.
-            verbose (bool): If ``True``, logs will be printed. Defaults to ``True``.
-            _ret_ds (bool): If ``True``, the VDS is retured as such without converting it to a view. If ``False``, the VDS path is returned.
-                Default False.
-            ds_args (dict): Additional args for creating VDS when path is specified. (See documentation for `deeplake.dataset()`)
-
-        Returns:
-            If ``_ret_ds`` is ``True``, the VDS is returned, else path to the VDS is returned.
-
-        Raises:
-            ReadOnlyModeError: When attempting to save a view inplace and the user doesn't have write access.
-            NotImplementedError: When attempting to save in-memory datasets.
-        """
-
     def _get_view(self, inherit_creds=True, creds: Optional[Dict] = None):
         """Returns a view for this VDS. Only works if this Dataset is a virtual dataset.
 
@@ -4023,11 +3984,3 @@ class Dataset:
     def _temp_write_access(self):
         # Defined in DeepLakeCloudDataset
         return memoryview(b"")  # No-op context manager
-
-    def save_query_view(query_str: str):
-        """Saves the query view to the storage.
-
-        Args:
-            query_str (str): the query string to be saved.
-        """
-        self.storage.save_query_view(query_str)
