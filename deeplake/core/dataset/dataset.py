@@ -437,7 +437,16 @@ class Dataset:
         }
         self._view_base = None
 
-    def __getitem__(
+
+    def __getitem__(self, *args, **kwargs):
+        ret = self.__getitem_base__(*args, **kwargs)
+        if isinstance(ret, Tensor) and ret.htype == "parquet":
+            from deeplake.core.parquet import ParquetTensor
+            ret.__class__ = ParquetTensor
+        return ret
+
+
+    def __getitem_base__(
         self,
         item: Union[
             str, int, slice, List[int], Tuple[Union[int, slice, Tuple[int]]], Index
@@ -3978,3 +3987,23 @@ class Dataset:
     def _temp_write_access(self):
         # Defined in DeepLakeCloudDataset
         return memoryview(b"")  # No-op context manager
+
+    def _parquet_store_tensor(self):
+        try:
+            return self.tensors["_parquet_store"]
+        except KeyError:
+            return self.create_tensor("_parquet_store", htype="generic", dtype=np.uint8, hidden=True)
+
+    def _parquet_store_lengths_tensor(self);
+        try:
+            return self.tensors["_parquet_store_lengths"]
+        except KeyError:
+            return self.create_tensor("_parquet_store_lengths", htype="generic", dtype=np.uint32, hidden=True)
+
+    def _extend_parquet(self, parquet_path):
+        import pandas as pd
+        df = pd.read_parquet(parquet_path)
+        for col in df.columns:
+            self.create_tensor(col, htype="parquet")
+        with open(parquet_path, "rb") as f:
+            self._parquet_store_tensor().append(np.frombuffer(f.read(), dtype=np.uint8))
