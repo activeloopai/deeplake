@@ -33,6 +33,7 @@ class htype:
     POINT_CLOUD_CALIBRATION_MATRIX = "point_cloud.calibration_matrix"
     POLYGON = "polygon"
     MESH = "mesh"
+    parquet = "parquet"
 
 
 # used for requiring the user to specify a value for htype properties. notates that the htype property has no default.
@@ -44,6 +45,7 @@ UNSPECIFIED = "unspecified"
 
 HTYPE_CONFIGURATIONS: Dict[str, Dict] = {
     htype.DEFAULT: {"dtype": None},
+    htype.PARQUET: {"dtype": None},
     htype.IMAGE: {
         "dtype": "uint8",
     },
