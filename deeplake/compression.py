@@ -91,9 +91,18 @@ VIDEO_COMPRESSIONS = ["mp4", "mkv", "avi"]
 AUDIO_COMPRESSIONS = ["mp3", "flac", "wav"]
 
 
-READONLY_COMPRESSIONS = ["mpo", "fli", "dcm", *AUDIO_COMPRESSIONS, *VIDEO_COMPRESSIONS]
+READONLY_COMPRESSIONS = [
+    "mpo",
+    "fli",
+    "dcm",
+    "nii",
+    "nii.gz",
+    *AUDIO_COMPRESSIONS,
+    *VIDEO_COMPRESSIONS,
+]
 POINT_CLOUD_COMPRESSIONS = ["las"]
 MESH_COMPRESSIONS = ["ply"]
+NIFTI_COMPRESSIONS = ["nii", "nii.gz"]
 
 
 # Just constants
@@ -103,6 +112,7 @@ VIDEO_COMPRESSION = "video"
 AUDIO_COMPRESSION = "audio"
 POINT_CLOUD_COMPRESSION = "point_cloud"
 MESH_COMPRESSION = "mesh"
+NIFTI_COMPRESSION = "nifti"
 
 
 COMPRESSION_TYPES = [
@@ -133,6 +143,7 @@ SUPPORTED_COMPRESSIONS = [
     *VIDEO_COMPRESSIONS,
     *POINT_CLOUD_COMPRESSIONS,
     *MESH_COMPRESSIONS,
+    *NIFTI_COMPRESSIONS,
 ]
 SUPPORTED_COMPRESSIONS = list(sorted(set(SUPPORTED_COMPRESSIONS)))  # type: ignore
 SUPPORTED_COMPRESSIONS.append(None)  # type: ignore
@@ -157,6 +168,8 @@ for c in POINT_CLOUD_COMPRESSIONS:
     _compression_types[c] = POINT_CLOUD_COMPRESSION
 for c in MESH_COMPRESSIONS:
     _compression_types[c] = MESH_COMPRESSION
+for c in NIFTI_COMPRESSIONS:
+    _compression_types[c] = NIFTI_COMPRESSION
 
 
 def get_compression_type(c):
