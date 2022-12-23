@@ -223,7 +223,10 @@ def get_test_config(mmdet_path):
 
     cfg = Config.fromfile(
         os.path.join(
-            mmdet_path, "configs", "yolo", "yolov3_d53_mstrain-416_273e_coco.py"
+            mmdet_path,
+            "configs",
+            "mask_rcnn",
+            "mask_rcnn_r50_caffe_fpn_mstrain-poly_3x_coco.py",
         )
     )
     img_norm_cfg = dict(mean=[0, 0, 0], std=[255.0, 255.0, 255.0], to_rgb=True)
@@ -244,21 +247,12 @@ def get_test_config(mmdet_path):
         ),
         dict(type="Resize", img_scale=[(320, 320), (416, 416)], keep_ratio=True),
         dict(type="RandomFlip", flip_ratio=0.0),
-        dict(
-            type="RandomCenterCropPad",
-            crop_size=(240, 240),
-            ratios=(0.6, 0.7, 0.8, 0.9, 1.0, 1.1, 1.2, 1.3),
-            mean=[0, 0, 0],
-            std=[1, 1, 1],
-            to_rgb=True,
-            test_pad_mode=None,
-        ),
         dict(type="RandomCrop", crop_size=(240, 240), allow_negative_crop=True),
         dict(type="PhotoMetricDistortion"),
         dict(type="Normalize", **img_norm_cfg),
         dict(type="Pad", size_divisor=32),
         dict(type="DefaultFormatBundle"),
-        dict(type="Collect", keys=["img", "gt_bboxes", "gt_labels"]),
+        dict(type="Collect", keys=["img", "gt_bboxes", "gt_labels", "gt_masks"]),
     ]
     cfg.train_pipeline = train_pipeline
 
@@ -286,36 +280,15 @@ def get_test_config(mmdet_path):
         workers_per_gpu=2,
         train=dict(
             pipeline=train_pipeline,
-            # deeplake_path="hub://activeloop/coco-train",
-            # deeplake_credentials={
-            #     "username": None,
-            #     "password": None,
-            #     "token": None,
-            # },
-            # deeplake_tensors = {"img": "images", "gt_bboxes": "boxes", "gt_labels": "categories"}
         ),
         val=dict(
             pipeline=test_pipeline,
-            # deeplake_path="hub://activeloop/coco-val",
-            # deeplake_credentials={
-            #     "username": None,
-            #     "password": None,
-            #     "token": None,
-            # },
-            # deeplake_tensors = {"img": "images", "gt_bboxes": "boxes", "gt_labels": "categories"}
         ),
         test=dict(
             pipeline=test_pipeline,
-            # deeplake_path="hub://activeloop/coco-val",
-            # deeplake_credentials={
-            #     "username": None,
-            #     "password": None,
-            #     "token": None,
-            # },
-            # deeplake_tensors = {"img": "images", "gt_bboxes": "boxes", "gt_labels": "categories"}
         ),
     )
-    cfg.deeplake_dataloader_type = "c++"
+    cfg.deeplake_dataloader_type = "python"
     cfg.deeplake_metrics_format = "COCO"
     cfg.evaluation = dict(metric=["bbox"], interval=1)
     cfg.work_dir = "./mmdet_outputs"
@@ -337,9 +310,8 @@ def test_mmdet(mmdet_path):
 
     cfg = get_test_config(mmdet_path)
     num_classes = 80
-    ds_train = dp.load("hub://activeloop/coco-train")[:3]
-    ds_val = dp.load("hub://activeloop/coco-val")[:3]
-    cfg.model.bbox_head.num_classes = num_classes
+    ds_train = dp.load("hub://activeloop/coco-train")[:4]
+    ds_val = dp.load("hub://activeloop/coco-val")[:4]
     model = mmdet.build_detector(cfg.model)
     mmcv.mkdir_or_exist(os.path.abspath(cfg.work_dir))
     mmdet.train_detector(model, cfg, ds_train=ds_train, ds_val=ds_val)

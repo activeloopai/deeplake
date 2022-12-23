@@ -5,6 +5,8 @@ from operator import mul
 import warnings
 import numpy as np
 import torch
+from PIL import Image  # type: ignore
+from io import BytesIO
 from tqdm import tqdm  # type: ignore
 
 
@@ -106,8 +108,12 @@ class ShuffleBuffer:
             return sample.element_size() * reduce(mul, sample.shape, 1)
         elif isinstance(sample, np.ndarray):
             return sample.nbytes
+        elif isinstance(sample, Image.Image):
+            img = BytesIO()
+            sample.save(img, sample.format)
+            return len(img.getvalue())
         raise ValueError(
-            f"Expected input of type bytes, dict, Sequence, torch.Tensor or np.ndarray, got: {type(sample)}"
+            f"Expected input of type bytes, dict, Sequence, torch.Tensor, np.ndarray or PIL image, got: {type(sample)}"
         )
 
     def __len__(self):

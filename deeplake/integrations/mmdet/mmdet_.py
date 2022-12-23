@@ -48,6 +48,7 @@ from deeplake.integrations.mmdet import mmdet_utils
 from deeplake.enterprise.dataloader import indra_available, dataloader
 from PIL import Image, ImageDraw  # type: ignore
 import os
+from mmdet.core import BitmapMasks, PolygonMasks
 import math
 
 
@@ -312,16 +313,12 @@ class MMDetDataset(TorchDataset):
 
     def _get_images(self, images_tensor):
         image_tensor = self.dataset[images_tensor]
-        # image_list = [image.shape for image in image_tensor]
         return image_tensor
 
     def _get_masks(self, masks_tensor, shape):
         if masks_tensor is None:
             return []
-        ret = self.dataset[masks_tensor].numpy(aslist=True)
-        if self.dataset[masks_tensor].htype == "polygon":
-            ret = map(partial(poly_2_mask, shape=shape), ret)
-        return ret
+        return self.dataset[masks_tensor]
 
     def _get_iscrowds(self, iscrowds_tensor):
         if iscrowds_tensor is not None:
@@ -655,38 +652,34 @@ def transform(
     if masks_tensor:
         masks = sample_in[masks_tensor]
         if poly2mask:
-            masks = poly_2_mask(masks, shape)
-        elif masks.dtype != np.uint8:
-            masks = masks.astype(np.uint8)
-        masks = masks.transpose((2, 0, 1))
-        gt_masks = BitmapMasks(masks, *shape[:2])
+            masks = mmdet_utils.convert_poly_to_coco_format(masks)
+            masks = PolygonMasks(
+                [process_polygons(polygons) for polygons in masks], shape[0], shape[1]
+            )
+        else:
+            masks = BitmapMasks(masks.astype(np.uint8).transpose(2, 0, 1), *shape[:2])
 
-        pipeline_dict["gt_masks"] = gt_masks
+        pipeline_dict["gt_masks"] = masks
+        pipeline_dict["mask_fields"] = ["gt_masks"]
     return pipeline(pipeline_dict)
 
 
-def _get_collate_keys(pipeline):
-    if type(pipeline) == list:
-        for transform in pipeline:
-            if type(transform) == mmcv.utils.config.ConfigDict:
-                if transform["type"] == "Collect":
-                    keys = transform.get("keys")
-                else:
-                    keys = _get_collate_keys(transform)
+def process_polygons(polygons):
+    """Convert polygons to list of ndarray and filter invalid polygons.
 
-                if keys is not None:
-                    return keys
+    Args:
+        polygons (list[list]): Polygons of one instance.
 
-    if type(pipeline) == mmcv.utils.config.ConfigDict:
-        if pipeline["type"] == "Collect":
-            keys = pipeline.get("keys")
-            return keys
+    Returns:
+        list[numpy.ndarray]: Processed polygons.
+    """
 
-        for transform in pipeline:
-            if type(pipeline[transform]) == list:
-                keys = _get_collate_keys(pipeline[transform])
-                if keys is not None:
-                    return keys
+    polygons = [np.array(p) for p in polygons]
+    valid_polygons = []
+    for polygon in polygons:
+        if len(polygon) % 2 == 0 and len(polygon) >= 6:
+            valid_polygons.append(polygon)
+    return valid_polygons
 
 
 def build_dataloader(
@@ -700,14 +693,11 @@ def build_dataloader(
     mode: str = "train",
     **train_loader_config,
 ):
-    if masks_tensor and "gt_masks" not in _get_collate_keys(pipeline):
-        # TODO (adilkhan) check logic in _get_collate_keys
-        # TODO (adilkhan) what if masks is not collected in the final step but required in intermediate steps?
-        masks_tensor = None
     poly2mask = False
     if masks_tensor is not None:
         if dataset[masks_tensor].htype == "polygon":
             poly2mask = True
+
     bbox_info = dataset[boxes_tensor].info
     classes = dataset[labels_tensor].info.class_names
     dataset.CLASSES = classes
@@ -948,8 +938,6 @@ def _train_detector(
     batch_size = cfg.data.get("samples_per_gpu", 256)
     num_workers = cfg.data.get("workers_per_gpu", 1)
 
-    # cfg = compat_cfg(cfg)
-
     if ds_train is None:
         ds_train = load_ds_from_cfg(cfg.data.train)
         ds_train_tensors = cfg.data.train.get("deeplake_tensors", {})
@@ -986,11 +974,9 @@ def _train_detector(
             ds_train, "class_label", "train gt_labels"
         )
         train_masks_tensor = None
-        collate_keys = _get_collate_keys(cfg.data.train.pipeline)
-        if "gt_masks" in collate_keys:
-            train_masks_tensor = _find_tensor_with_htype(
-                ds_train, "binary_mask", "gt_masks"
-            ) or _find_tensor_with_htype(ds_train, "polygon", "gt_masks")
+    train_masks_tensor = _find_tensor_with_htype(
+        ds_train, "binary_mask", "gt_masks"
+    ) or _find_tensor_with_htype(ds_train, "polygon", "gt_masks")
 
     # TODO verify required tensors are not None and raise Exception.
 
@@ -1154,20 +1140,16 @@ def _train_detector(
             val_labels_tensor = ds_val_tensors["gt_labels"]
             val_masks_tensor = ds_val_tensors.get("gt_masks")
         else:
-            val_images_tensor = _find_tensor_with_htype(
-                ds_val, "image", "valiation img"
-            )
-            val_boxes_tensor = _find_tensor_with_htype(
-                ds_val, "bbox", "validation gt_bboxes"
-            )
+            val_images_tensor = _find_tensor_with_htype(ds_val, "image", "img")
+            val_boxes_tensor = _find_tensor_with_htype(ds_val, "bbox", "gt_bboxes")
             val_labels_tensor = _find_tensor_with_htype(
                 ds_val, "class_label", "gt_labels"
             )
             val_masks_tensor = None
-            if val_masks_tensor in _get_collate_keys(cfg.data.val.pipeline):
-                val_masks_tensor = _find_tensor_with_htype(
-                    ds_val, "binary_mask", "validation gt_masks"
-                ) or _find_tensor_with_htype(ds_val, "polygon", "validation gt_masks")
+
+            val_masks_tensor = _find_tensor_with_htype(
+                ds_val, "binary_mask", "gt_masks"
+            ) or _find_tensor_with_htype(ds_val, "polygon", "gt_masks")
 
         # TODO make sure required tensors are not None.
 
