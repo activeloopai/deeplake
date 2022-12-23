@@ -34,7 +34,7 @@ from deeplake.core.tiling.deserialize import (
 from deeplake.core.tiling.serialize import break_into_tiles
 from deeplake.core.polygon import Polygons
 from deeplake.util.casting import get_empty_text_like_sample, intelligent_cast
-from deeplake.util.empty_sample import is_empty_list
+from deeplake.util.empty_sample import is_empty
 from deeplake.util.shape_interval import ShapeInterval
 from deeplake.constants import (
     DEFAULT_MAX_CHUNK_SIZE,
@@ -642,7 +642,7 @@ class ChunkEngine:
     def _sanitize_samples(self, samples, verify=True):
         check_samples_type(samples)
         if isinstance(samples, list):
-            samples = [None if is_empty_list(sample) else sample for sample in samples]
+            samples = [None if is_empty(sample) else sample for sample in samples]
         verified_samples = self.check_each_sample(samples, verify=verify)
         tensor_meta = self.tensor_meta
         all_empty = all(sample is None for sample in samples)
@@ -938,7 +938,7 @@ class ChunkEngine:
                 self.commit_diff.add_data(1)
                 verified_samples.append(verified_sample or sample)
             if link_callback:
-                samples = [None if is_empty_list(s) else s for s in verified_samples]
+                samples = [None if is_empty(s) else s for s in verified_samples]
                 link_callback(verified_samples, flat=False)
                 for s in verified_samples:
                     link_callback(s, flat=True)
@@ -949,9 +949,7 @@ class ChunkEngine:
             )
             if link_callback:
                 if not isinstance(verified_samples, np.ndarray):
-                    samples = [
-                        None if is_empty_list(s) else s for s in verified_samples
-                    ]
+                    samples = [None if is_empty(s) else s for s in verified_samples]
                 link_callback(samples, flat=None)
 
         self.cache.autoflush = initial_autoflush
@@ -1366,7 +1364,7 @@ class ChunkEngine:
         global_sample_indices = tuple(index.values[0].indices(self.num_samples))
         is_sequence = self.is_sequence
         for i, sample in enumerate(samples):  # type: ignore
-            sample = None if is_empty_list(sample) else sample
+            sample = None if is_empty(sample) else sample
             global_sample_index = global_sample_indices[i]  # TODO!
             if self._is_tiled_sample(global_sample_index):
                 self._update_tiled_sample(global_sample_index, index, sample)

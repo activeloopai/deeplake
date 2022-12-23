@@ -1130,3 +1130,16 @@ def test_read_only_dataset_raise_if_output_dataset(memory_ds):
         fn_aggregate(key="label", values=values).eval(
             data_in, data_out, progressbar=False, read_only_ok=True
         )
+
+
+def test_empty_sample_transform(local_ds):
+    @deeplake.compute
+    def upload_boxes(box, sample_out):
+        sample_out.boxes.append(box)
+
+    with local_ds as ds:
+        ds.create_tensor("boxes", htype="bbox")
+
+    samples = [None] * 100 + [np.zeros((5, 4), dtype=np.float32)] * 100
+
+    upload_boxes().eval(samples, ds, num_workers=4)
