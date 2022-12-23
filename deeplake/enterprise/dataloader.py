@@ -17,7 +17,6 @@ from deeplake.util.dataset import map_tensor_keys
 from functools import partial
 import importlib
 from torch.utils.data import DataLoader
-import torch
 import numpy as np
 
 import math
@@ -335,6 +334,7 @@ class DeepLakeDataLoader(DataLoader):
             ...     pass
             ...
         """
+        import torch
         if self._mode is not None:
             if self._mode == "numpy":
                 raise ValueError("Can't call .pytorch after .numpy()")
