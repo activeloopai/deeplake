@@ -335,6 +335,7 @@ class DeepLakeDataLoader(DataLoader):
             ...
         """
         import torch
+
         if self._mode is not None:
             if self._mode == "numpy":
                 raise ValueError("Can't call .pytorch after .numpy()")

@@ -16,6 +16,7 @@ def raise_indra_installation_error(indra_import_error: Optional[Exception] = Non
 
 def collate_fn(batch):
     import torch
+
     elem = batch[0]
 
     if isinstance(elem, IterableOrderedDict):
