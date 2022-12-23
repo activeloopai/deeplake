@@ -20,8 +20,24 @@ class ParquetTensor(Tensor):
 
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
-        self._cache = None
-        self._cache_index = None
+
+    @property
+    def _cache(self):
+        return getattr(self.dataset.storage, f"_{self.key}_parquet_cache", None)
+
+    @_cache.setter
+    def _cache(self, value):
+        setattr(self.dataset.storage, f"_{self.key}_parquet_cache", value)
+
+
+    @property
+    def _cache_index(self):
+        return getattr(self.dataset.storage, f"_{self.key}_parquet_cache_index", None)
+
+    @_cache.setter
+    def _cache_index(self, value):
+        setattr(self.dataset.storage, f"_{self.key}_parquet_cache_index", value)
+
 
     def _get_value(self, idx: int):
         import pandas as pd
