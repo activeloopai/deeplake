@@ -2,7 +2,7 @@ from typing import Union, List, Tuple, Iterable, Optional
 from collections.abc import Iterable
 import numpy as np
 
-IndexValue = Union[int, slice, Tuple[int]]
+IndexValue = Union[int, slice, Tuple[int, ...]]
 
 
 def has_negatives(s: slice) -> bool:
@@ -265,6 +265,37 @@ class IndexEntry:
                     f"Index {self.value} is out of range for tensors with length {parent_length}"
                 )
 
+    def downsample(self, factor: int, length: int):
+        """Downsamples an IndexEntry by a given factor.
+
+        Args:
+            factor (int): The factor by which to downsample.
+            length (int): The length of the downsampled IndexEntry.
+
+        Returns:
+            IndexEntry: The downsampled IndexEntry.
+
+        Raises:
+            TypeError: If the IndexEntry cannot be downsampled.
+        """
+        if isinstance(self.value, slice):
+            start = self.value.start or 0
+            stop = self.value.stop
+            step = self.value.step or 1
+            assert step == 1, "Cannot downsample with step != 1"
+            downsampled_start = start // factor
+            downsampled_stop = stop // factor if stop is not None else None
+            if (
+                downsampled_stop is None
+                or downsampled_stop - downsampled_start != length
+            ):
+                downsampled_stop = downsampled_start + length
+            return IndexEntry(slice(downsampled_start, downsampled_stop, 1))
+        else:
+            raise TypeError(
+                f"Cannot downsample IndexEntry with value {self.value} of type {type(self.value)}"
+            )
+
 
 class Index:
     def __init__(
@@ -463,3 +494,19 @@ class Index:
             return self.values[i].is_trivial()
         except IndexError:
             return True
+
+    def downsample(self, factor: int, shape: Tuple[int, ...]):
+        """Downsamples an Index by the given factor.
+
+        Args:
+            factor (int): The factor to downsample by.
+            shape (Tuple[int, ...]): The shape of the downsampled data.
+
+        Returns:
+            Index: The downsampled Index.
+        """
+        new_values = [
+            v.downsample(factor, length) for v, length in zip(self.values[:2], shape)
+        ]
+        new_values += self.values[2:]
+        return Index(new_values)
