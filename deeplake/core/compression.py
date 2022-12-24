@@ -49,8 +49,8 @@ except ImportError:
     _LZ4_INSTALLED = False
 
 try:
-    import nibabel as nib
-    from nibabel import FileHolder, Nifti1Image
+    import nibabel as nib  # type: ignore
+    from nibabel import FileHolder, Nifti1Image  # type: ignore
 
     _NIBABEL_INSTALLED = True
 except ImportError:
@@ -456,13 +456,18 @@ def verify_compressed_file(
         elif compression == "jpeg":
             return _verify_jpeg(file), "|u1"
         elif get_compression_type(compression) == AUDIO_COMPRESSION:
+            if isinstance(file, BinaryIO):
+                file = file.read()
             return _read_audio_shape(file), "<f4"  # type: ignore
         elif compression in ("mp4", "mkv", "avi"):
-            if isinstance(file, (bytes, memoryview, str)):
-                return _read_video_shape(file), "|u1"  # type: ignore
+            if isinstance(file, BinaryIO):
+                file = file.read()
+            return _read_video_shape(file), "|u1"  # type: ignore
         elif compression == "dcm":
             return _read_dicom_shape_and_dtype(file)
         elif get_compression_type(compression) == NIFTI_COMPRESSION:
+            if isinstance(file, BinaryIO):
+                file = file.read()
             return _read_nifti_shape_and_dtype(file, gz=compression == "nii.gz")
         elif compression in ("las", "ply"):
             return _read_3d_data_shape_and_dtype(file)
@@ -1171,9 +1176,5 @@ def _decompress_nifti(file: Union[bytes, memoryview, str], gz: bool = False):
 
 def _read_nifti_shape_and_dtype(file: Union[bytes, memoryview, str], gz: bool = False):
     img = _open_nifti(file, gz=gz)
-
-    header = img.header
-    typestr = header.get_data_dtype().str
-    shape = header.get_data_shape()
-
-    return shape, typestr
+    typestr = img.header.get_data_dtype().str
+    return img.shape, typestr
