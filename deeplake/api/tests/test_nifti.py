@@ -60,3 +60,19 @@ def test_nifti_sample_info(memory_ds):
         sample_info = ds.abc[0].sample_info
         for key in ("affine", "zooms"):
             assert key in sample_info
+
+
+def test_nifti_2(memory_ds):
+    with memory_ds as ds:
+        ds.create_tensor("nifti2", htype="nifti", sample_compression="nii.gz")
+
+        nifti2_file = os.path.join(data_path, "example_nifti2.nii.gz")
+        sample = deeplake.read(nifti2_file)
+        img = nib.load(nifti2_file)
+
+        assert sample.shape == img.shape
+        np.testing.assert_array_equal(sample.array, img.get_fdata())
+
+        ds.nifti2.append(sample)
+        np.testing.assert_array_equal(ds.nifti2.numpy()[0], img.get_fdata())
+        assert ds.nifti2.shape == (1, *sample.shape)

@@ -50,7 +50,7 @@ except ImportError:
 
 try:
     import nibabel as nib  # type: ignore
-    from nibabel import FileHolder, Nifti1Image  # type: ignore
+    from nibabel import FileHolder, Nifti1Image, Nifti2Image  # type: ignore
 
     _NIBABEL_INSTALLED = True
 except ImportError:
@@ -1159,14 +1159,23 @@ def _open_nifti(file: Union[bytes, memoryview, str], gz: bool = False):
         )
 
     if isinstance(file, str):
-        img = nib.load(file)
-    else:
-        if gz:
-            fh = FileHolder(fileobj=GzipFile(fileobj=BytesIO(file)))
-        else:
-            fh = FileHolder(fileobj=BytesIO(file))
-        img = Nifti1Image.from_file_map({"header": fh, "image": fh})
-    return img
+        return nib.load(file)
+
+    fileobj = GzipFile(fileobj=BytesIO(file)) if gz else BytesIO(file)
+
+    # file is in nifti-2 format if size of header is 540
+    sizeof_hdr = fileobj.read(4)
+    is_nifti_2 = (
+        int.from_bytes(sizeof_hdr, "little") == 540
+        or int.from_bytes(sizeof_hdr, "big") == 540
+    )
+    fileobj.seek(0)
+
+    fh = FileHolder(fileobj=fileobj)
+
+    if is_nifti_2:
+        return Nifti2Image.from_file_map({"header": fh, "image": fh})
+    return Nifti1Image.from_file_map({"header": fh, "image": fh})
 
 
 def _decompress_nifti(file: Union[bytes, memoryview, str], gz: bool = False):
