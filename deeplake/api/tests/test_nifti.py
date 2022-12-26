@@ -4,6 +4,7 @@ import nibabel as nib  # type: ignore
 import numpy as np
 
 import deeplake
+import pytest
 import os
 
 
@@ -76,3 +77,16 @@ def test_nifti_2(memory_ds):
         ds.nifti2.append(sample)
         np.testing.assert_array_equal(ds.nifti2.numpy()[0], img.get_fdata())
         assert ds.nifti2.shape == (1, *sample.shape)
+
+
+def test_nifti_raw_compress(memory_ds):
+    with memory_ds as ds:
+        ds.create_tensor("abc", htype="nifti", sample_compression="nii.gz")
+
+        with pytest.raises(NotImplementedError):
+            ds.abc.append(np.ones((40, 40, 10)))
+
+        ds.create_tensor("xyz", htype="nifti", sample_compression=None)
+        ds.xyz.append(np.ones((40, 40, 10)))
+
+        np.testing.assert_array_equal(ds.xyz[0].numpy(), np.ones((40, 40, 10)))

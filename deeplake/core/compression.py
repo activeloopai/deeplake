@@ -237,6 +237,11 @@ def compress_array(array: np.ndarray, compression: Optional[str]) -> bytes:
         raise NotImplementedError(
             "In order to store mesh data, you should use `deeplake.read(path_to_file)`. Compressing raw data is not yet supported."
         )
+    elif compr_type == NIFTI_COMPRESSION:
+        raise NotImplementedError(
+            "In order to store nifti data, you should use `deeplake.read(path_to_file)` or use a None compression. "
+            "Compressing raw data is not yet supported."
+        )
     if compression == "apng":
         return _compress_apng(array)
     try:
