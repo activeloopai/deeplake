@@ -553,6 +553,37 @@ Appending polygons with numpy arrays
 >>> sample = [poly1, poly2, poly3]
 >>> ds.polygons.append(sample)
 
+.. _nifti-htype:
+
+Nifti Htype
+~~~~~~~~~~~
+
+- :bluebold:`Sample dimensions:` ``(# height, # width, # slices)`` or ``(# height, # width, # slices, # time unit)`` in case of time-series data.
+
+:blue:`Creating a nifti tensor`
+-------------------------------
+
+A nifti tensor can be created using 
+
+>>> ds.create_tensor("patients", htype="nifti", sample_compression="nii.gz")
+
+- Supported compressions:
+
+>>> ["nii.gz", "nii", None]
+
+:blue:`Appending nifti data`
+----------------------------
+
+- Nifti samples can be of type ``np.ndarray`` or :class:`~deeplake.core.sample.Sample` which is returned by :meth:`deeplake.read`.
+- Deep Lake does not support compression of raw nifti data. Therefore, array of raw frames can only be appended to tensors with
+  ``None`` compression.
+
+:bluebold:`Examples`
+
+>>> ds.patients.append(deeplake.read("data/patient0.nii.gz"))
+
+>>> ds.patients.extend([deeplake.read(f"data/patient{i}.nii.gz") for i in range(10)])
+
 .. _point_cloud-htype:
 
 Point Cloud Htype

@@ -887,7 +887,7 @@ class Tensor:
             if class_names:
                 data["text"] = convert_to_text(labels, class_names)
             return data
-        if htype in ("image", "image.rgb", "image.gray", "dicom"):
+        if htype in ("image", "image.rgb", "image.gray", "dicom", "nifti"):
             return {
                 "value": self.numpy(aslist=aslist, fetch_chunks=fetch_chunks),
                 "sample_info": self.sample_info or {},

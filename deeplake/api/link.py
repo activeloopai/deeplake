@@ -14,6 +14,7 @@ def link(
         Audio: "flac", "mp3", "wav"
         Video: "mp4", "mkv", "avi"
         Dicom: "dcm"
+        Nifti: "nii", "nii.gz"
 
     Args:
         path (str): Path to a supported file.
