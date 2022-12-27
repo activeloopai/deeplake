@@ -90,3 +90,14 @@ def test_nifti_raw_compress(memory_ds):
         ds.xyz.append(np.ones((40, 40, 10)))
 
         np.testing.assert_array_equal(ds.xyz[0].numpy(), np.ones((40, 40, 10)))
+
+
+def test_nifti_cloud(memory_ds):
+    with memory_ds as ds:
+        ds.create_tensor("abc", htype="nifti", sample_compression="nii.gz")
+        ds.abc.append(
+            deeplake.read(
+                "https://nifti.nimh.nih.gov/nifti-1/data/zstat1.nii.gz", verify=True
+            )
+        )
+        assert ds.abc[0].numpy().shape == (64, 64, 21)

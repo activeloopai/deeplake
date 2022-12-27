@@ -223,23 +223,27 @@ def compress_array(array: np.ndarray, compression: Optional[str]) -> bytes:
         return compress_bytes(array.tobytes(), compression)
     elif compr_type == AUDIO_COMPRESSION:
         raise NotImplementedError(
-            "In order to store audio data, you should use `deeplake.read(path_to_file)`. Compressing raw data is not yet supported."
+            "In order to store audio data, you should use `deeplake.read(path_to_file)` or specify sample_compression=None. "
+            "Compressing raw data is not yet supported."
         )
     elif compr_type == VIDEO_COMPRESSION:
         raise NotImplementedError(
-            "In order to store video data, you should use `deeplake.read(path_to_file)`. Compressing raw data is not yet supported."
+            "In order to store video data, you should use `deeplake.read(path_to_file)` or specify sample_compression=None. "
+            "Compressing raw data is not yet supported."
         )
     elif compr_type == POINT_CLOUD_COMPRESSION:
         raise NotImplementedError(
-            "In order to store point cloud data, you should use `deeplake.read(path_to_file)`. Compressing raw data is not yet supported."
+            "In order to store point cloud data, you should use `deeplake.read(path_to_file)` or specify sample_compression=None. "
+            "Compressing raw data is not yet supported."
         )
     elif compr_type == MESH_COMPRESSION:
         raise NotImplementedError(
-            "In order to store mesh data, you should use `deeplake.read(path_to_file)`. Compressing raw data is not yet supported."
+            "In order to store mesh data, you should use `deeplake.read(path_to_file)` or specify sample_compression=None. "
+            "Compressing raw data is not yet supported."
         )
     elif compr_type == NIFTI_COMPRESSION:
         raise NotImplementedError(
-            "In order to store nifti data, you should use `deeplake.read(path_to_file)` or use a None compression. "
+            "In order to store nifti data, you should use `deeplake.read(path_to_file)` or specify sample_compression=None. "
             "Compressing raw data is not yet supported."
         )
     if compression == "apng":
