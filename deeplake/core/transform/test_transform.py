@@ -1147,7 +1147,7 @@ def test_empty_sample_transform(local_ds, compression):
                 ds.create_tensor("boxes", htype="bbox", chunk_compression=cmpr)
         else:
             ds.create_tensor("boxes", htype="bbox")
-        samples = [None] * 100 + [np.zeros((5, 4), dtype=np.float32)] * 50
+        samples = [None] * 50 + [[]] * 50 + [np.zeros((5, 4), dtype=np.float32)] * 50
         upload_boxes().eval(samples, ds, num_workers=2)
 
     boxes = ds.boxes.numpy(aslist=True)

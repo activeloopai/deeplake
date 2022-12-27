@@ -6,5 +6,5 @@ def is_empty(sample):
         isinstance(sample, list)
         and len(sample) == 0
         or isinstance(sample, np.ndarray)
-        and sample.shape == ()
+        and ((sample == None).all() or sample.size == 0)
     )
