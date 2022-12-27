@@ -36,7 +36,7 @@ from deeplake.core.serialize import (
 )
 from deeplake.core.storage.deeplake_memory_object import DeepLakeMemoryObject
 from deeplake.core.tiling.sample_tiles import SampleTiles
-from deeplake.util.exceptions import TensorInvalidSampleShapeError
+from deeplake.util.exceptions import TensorInvalidSampleShapeError, EmptyTensorError
 from deeplake.core.polygon import Polygons
 from functools import reduce
 from operator import mul
@@ -577,3 +577,16 @@ class BaseChunk(DeepLakeMemoryObject):
                 return sample.tolist().encode("utf-8")
             except AttributeError:  # None
                 return b""
+
+    def fill_empty_before_read(self):
+        if self.is_empty_tensor:
+            raise EmptyTensorError(
+                "This tensor has only been populated with empty samples. "
+                "Need to add at least one non-empty sample before retrieving data."
+            )
+
+        bps = self.byte_positions_encoder
+        if self.shapes_encoder.is_empty() and not bps.is_empty():
+            self.num_dims = len(self.tensor_meta.max_shape)
+            shape = (0,) * self.num_dims
+            self._fill_empty_shapes(shape, bps.num_samples)

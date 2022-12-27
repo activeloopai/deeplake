@@ -183,11 +183,7 @@ class UncompressedChunk(BaseChunk):
         decompress: bool = True,
         is_tile: bool = False,
     ):
-        if self.is_empty_tensor:
-            raise EmptyTensorError(
-                "This tensor has only been populated with empty samples. "
-                "Need to add at least one non-empty sample before retrieving data."
-            )
+        self.fill_empty_before_read()
         partial_sample_tile = self._get_partial_sample_tile()
         if partial_sample_tile is not None:
             return partial_sample_tile
