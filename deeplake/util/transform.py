@@ -483,6 +483,7 @@ def delete_overwritten_chunks(old_chunk_paths, storage, overwrite):
     if not overwrite:
         return
 
+    print(old_chunk_paths)
     storage.delete_multiple(old_chunk_paths)
 
 
