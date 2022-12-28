@@ -22,8 +22,17 @@ def default_collate(batch):
 
     v = batch[0]
     if isinstance(v, np.ndarray):
-        return np.stack(batch)
+        stack = np.stack(batch)
+        return tf.convert_to_tensor(stack)
     elif isinstance(v, tf.Tensor):
         return tf.stack(batch)
+    elif isinstance(v, (tuple, list)):
+        ls = [default_collate([b[i] for b in batch]) for i in range(len(v))]
+        if isinstance(v, tuple):
+            return tuple(ls)
+        return ls
+    elif isinstance(v, dict):
+        return {key: default_collate([d[key] for d in batch]) for key in v}
     else:
-        return np.array(batch)
+        stack = np.array(batch)
+        return tf.convert_to_tensor(stack)
