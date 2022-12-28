@@ -136,6 +136,10 @@ class DeepLakeDataLoader(DataLoader):
     def sampler(self):
         return _InfiniteConstantSampler()
 
+    @property
+    def collate_fn(self):
+        return get_collate_fn(self._collate, self._mode)
+
     def __len__(self):
         round_fn = math.floor if self._drop_last else math.ceil
         return round_fn(
@@ -445,7 +449,7 @@ class DeepLakeDataLoader(DataLoader):
 
     def __iter__(self):
         if self._dataloader is None:
-            collate_fn = get_collate_fn(self._collate, self._mode)
+            collate_fn = self.collate_fn
             upcast = self._mode == "pytorch"  # upcast to handle unsupported dtypes
 
             primary_tensor_name = self._primary_tensor_name
