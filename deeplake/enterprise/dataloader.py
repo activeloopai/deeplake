@@ -73,6 +73,7 @@ class DeepLakeDataLoader(DataLoader):
         _persistent_workers=None,
         _dataloader=None,
         _world_size=1,
+        **kwargs,
     ):
         import_indra_loader()
         self.dataset = dataset
@@ -95,6 +96,8 @@ class DeepLakeDataLoader(DataLoader):
         self._persistent_workers = _persistent_workers
         self._dataloader = _dataloader
         self._world_size = _world_size
+        for k, v in kwargs.items():
+            setattr(self, k, v)
 
     def __len__(self):
         round_fn = math.floor if self._drop_last else math.ceil
