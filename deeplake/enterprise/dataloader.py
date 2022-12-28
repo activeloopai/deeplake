@@ -309,7 +309,7 @@ class DeepLakeDataLoader(DataLoader):
             DeepLakeDataLoader: A :class:`DeepLakeDataLoader` object.
 
         Raises:
-            ValueError: If .pytorch() or .numpy() has already been called.
+            ValueError: If .pytorch() or .tensorflow() or .numpy() has already been called.
         
         Examples:
             
@@ -391,26 +391,19 @@ class DeepLakeDataLoader(DataLoader):
             DeepLakeDataLoader: A :class:`DeepLakeDataLoader` object.
 
         Raises:
-            ValueError: If .pytorch() or .numpy() has already been called.
+            ValueError: If .pytorch() or .tensorflow() or .numpy() has already been called.
         
         Examples:
             
             >>> import deeplake
             >>> from torchvision import transforms
             >>> ds_train = deeplake.load('hub://activeloop/fashion-mnist-train')
-            >>> tform = transforms.Compose([
-            ...     transforms.RandomRotation(20), # Image augmentation
-            ...     transforms.ToTensor(), # Must convert to pytorch tensor for subsequent operations to run
-            ...     transforms.Normalize([0.5], [0.5]),
-            ... ])
-            ...
             >>> batch_size = 32
             >>> # create dataloader by chaining with transform function and batch size and returns batch of pytorch tensors
             >>> train_loader = ds_train.dataloader()\\
-            ...     .transform({'images': tform, 'labels': None})\\
             ...     .batch(batch_size)\\
             ...     .shuffle()\\
-            ...     .tensorflow(decode_method={'images': 'pil'}) # return samples as PIL images for transforms
+            ...     .tensorflow() # return samples as PIL images for transforms
             ...
             >>> # iterate over dataloader
             >>> for i, sample in enumerate(train_loader):
@@ -461,7 +454,7 @@ class DeepLakeDataLoader(DataLoader):
             DeepLakeDataLoader: A :class:`DeepLakeDataLoader` object.
 
         Raises:
-            ValueError: If .pytorch() or .numpy() has already been called.
+            ValueError: If .pytorch() or .tensorflow() or .numpy() has already been called.
         """
         mode = "numpy"
         handle_mode(self._mode, mode)
