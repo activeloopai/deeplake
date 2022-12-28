@@ -169,8 +169,7 @@ class PlyASCIIReader(ply_reader_base.PlyReaderBase):
                 usecols=face_names,
                 names=face_names,
             )
-            mesh = mesh.dropna(axis=1).to_numpy()
-            return np.asanyarray([points, mesh])
+            return np.asanyarray([points, mesh.to_numpy()], dtype=object)
         return points
 
     @property
@@ -269,7 +268,7 @@ class PlyBinReader(ply_reader_base.PlyReaderBase):
 
             if ext != sys_byteorder:
                 mesh = mesh.byteswap().newbyteorder()
-            return np.asanyarray([points, mesh])
+            return np.asanyarray([points, mesh], dtype=object)
         return points
 
     @property

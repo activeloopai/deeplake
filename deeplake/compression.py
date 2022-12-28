@@ -1,21 +1,4 @@
 import itertools
-
-
-"""
-Supported compressions (formats):
-
-    Image : bmp, dib, gif, ico, jpeg, jpeg2000, pcx, png, ppm, sgi, tga, tiff, webp, wmf, xbm
-    Audio : flac, mp3, wav
-    Video : mp4, mkv, avi
-    Bytes : lz4
-
-__Note__:- 
-
-For video compressions, we only support already compressed data read using deeplake.read. We do not actually compress the video data. 
-
-Also, when using deeplake.read with one of the video compressions, ensure that the compression matches, otherwise Deep Lake will be unable to compress the data to the specified compression.
-
-"""
 from PIL import Image  # type: ignore
 
 
@@ -87,13 +70,19 @@ IMAGE_COMPRESSION_EXTENSIONS = list(
 )
 
 VIDEO_COMPRESSIONS = ["mp4", "mkv", "avi"]
-
 AUDIO_COMPRESSIONS = ["mp3", "flac", "wav"]
-
-
-READONLY_COMPRESSIONS = ["mpo", "fli", "dcm", *AUDIO_COMPRESSIONS, *VIDEO_COMPRESSIONS]
+NIFTI_COMPRESSIONS = ["nii", "nii.gz"]
 POINT_CLOUD_COMPRESSIONS = ["las"]
 MESH_COMPRESSIONS = ["ply"]
+
+READONLY_COMPRESSIONS = [
+    "mpo",
+    "fli",
+    "dcm",
+    *NIFTI_COMPRESSIONS,
+    *AUDIO_COMPRESSIONS,
+    *VIDEO_COMPRESSIONS,
+]
 
 
 # Just constants
@@ -103,6 +92,7 @@ VIDEO_COMPRESSION = "video"
 AUDIO_COMPRESSION = "audio"
 POINT_CLOUD_COMPRESSION = "point_cloud"
 MESH_COMPRESSION = "mesh"
+NIFTI_COMPRESSION = "nifti"
 
 
 COMPRESSION_TYPES = [
@@ -112,6 +102,7 @@ COMPRESSION_TYPES = [
     VIDEO_COMPRESSION,
     POINT_CLOUD_COMPRESSION,
     MESH_COMPRESSION,
+    NIFTI_COMPRESSION,
 ]
 
 # Pillow plugins for some formats might not be installed:
@@ -133,6 +124,7 @@ SUPPORTED_COMPRESSIONS = [
     *VIDEO_COMPRESSIONS,
     *POINT_CLOUD_COMPRESSIONS,
     *MESH_COMPRESSIONS,
+    *NIFTI_COMPRESSIONS,
 ]
 SUPPORTED_COMPRESSIONS = list(sorted(set(SUPPORTED_COMPRESSIONS)))  # type: ignore
 SUPPORTED_COMPRESSIONS.append(None)  # type: ignore
@@ -157,6 +149,8 @@ for c in POINT_CLOUD_COMPRESSIONS:
     _compression_types[c] = POINT_CLOUD_COMPRESSION
 for c in MESH_COMPRESSIONS:
     _compression_types[c] = MESH_COMPRESSION
+for c in NIFTI_COMPRESSIONS:
+    _compression_types[c] = NIFTI_COMPRESSION
 
 
 def get_compression_type(c):

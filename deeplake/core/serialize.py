@@ -532,17 +532,26 @@ def serialize_partial_sample_object(
     min_chunk_size: int,
 ):
     shape = incoming_sample.shape
-    return (
-        SampleTiles(
-            compression=sample_compression or chunk_compression,
-            chunk_size=min_chunk_size,
-            htype=htype,
-            dtype=dtype,
-            sample_shape=shape,
-            tile_shape=incoming_sample.tile_shape,
-        ),
-        shape,
+    tiles = SampleTiles(
+        compression=sample_compression or chunk_compression,
+        chunk_size=min_chunk_size,
+        htype=htype,
+        dtype=dtype,
+        sample_shape=shape,
+        tile_shape=incoming_sample.tile_shape,
     )
+    if tiles.num_tiles == 1:
+        return serialize_numpy_and_base_types(
+            np.ones(shape, dtype=dtype),
+            sample_compression=sample_compression,
+            chunk_compression=chunk_compression,
+            dtype=dtype,
+            htype=htype,
+            min_chunk_size=min_chunk_size,
+            break_into_tiles=False,
+            store_tiles=False,
+        )
+    return tiles, shape
 
 
 def serialize_text_sample_object(
