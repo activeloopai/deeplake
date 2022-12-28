@@ -578,15 +578,9 @@ class BaseChunk(DeepLakeMemoryObject):
             except AttributeError:  # None
                 return b""
 
-    def fill_empty_before_read(self):
+    def check_empty_before_read(self):
         if self.is_empty_tensor:
             raise EmptyTensorError(
                 "This tensor has only been populated with empty samples. "
                 "Need to add at least one non-empty sample before retrieving data."
             )
-
-        bps = self.byte_positions_encoder
-        if self.shapes_encoder.is_empty() and not bps.is_empty():
-            self.num_dims = len(self.tensor_meta.max_shape)
-            shape = (0,) * self.num_dims
-            self._fill_empty_shapes(shape, bps.num_samples)
