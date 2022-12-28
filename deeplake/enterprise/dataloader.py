@@ -2,15 +2,16 @@ from typing import Callable, Dict, List, Optional, Union
 from deeplake.enterprise.convert_to_libdeeplake import dataset_to_libdeeplake  # type: ignore
 from deeplake.util.scheduling import create_fetching_schedule, find_primary_tensor
 from deeplake.enterprise.util import (
+    handle_mode,
     raise_indra_installation_error,
     verify_base_storage,
+    get_collate_fn,
 )
 from deeplake.hooks import dataset_read
 from deeplake.enterprise.libdeeplake_query import query, sample_by
 from deeplake.integrations.pytorch.common import (
     PytorchTransformFunction,
     check_tensors,
-    get_collate_fn,
     validate_decode_method,
 )
 from deeplake.util.dataset import map_tensor_keys
@@ -336,10 +337,8 @@ class DeepLakeDataLoader(DataLoader):
         """
         import torch
 
-        if self._mode is not None:
-            if self._mode == "numpy":
-                raise ValueError("Can't call .pytorch after .numpy()")
-            raise ValueError("already called .pytorch()")
+        mode = "pytorch"
+        handle_mode(self._mode, mode)
         all_vars = self.__dict__.copy()
         all_vars["_num_workers"] = num_workers
         all_vars["_collate"] = collate_fn
@@ -349,11 +348,88 @@ class DeepLakeDataLoader(DataLoader):
         all_vars["_prefetch_factor"] = prefetch_factor
         all_vars["_distributed"] = distributed
         all_vars["_return_index"] = return_index
-        all_vars["_mode"] = "pytorch"
+        all_vars["_mode"] = mode
         all_vars["_persistent_workers"] = persistent_workers
         all_vars["_dataloader"] = None
         if distributed:
             all_vars["_world_size"] = torch.distributed.get_world_size()
+        return self.__class__(**all_vars)
+
+    def tensorflow(
+        self,
+        num_workers: int = 0,
+        collate_fn: Optional[Callable] = None,
+        tensors: Optional[List[str]] = None,
+        num_threads: Optional[int] = None,
+        prefetch_factor: int = 2,
+        return_index: bool = True,
+        decode_method: Optional[Dict[str, str]] = None,
+        persistent_workers: bool = False,
+    ):
+        """Returns a :class:`DeepLakeDataLoader` object.
+
+
+        Args:
+            num_workers (int): Number of workers to use for transforming and processing the data. Defaults to 0.
+            collate_fn (Callable, Optional): merges a list of samples to form a mini-batch of Tensor(s).
+            tensors (List[str], Optional): List of tensors to load. If None, all tensors are loaded. Defaults to ``None``.
+            num_threads (int, Optional): Number of threads to use for fetching and decompressing the data. If ``None``, the number of threads is automatically determined. Defaults to ``None``.
+            prefetch_factor (int): Number of batches to transform and collate in advance per worker. Defaults to 2.
+            return_index (bool): Used to idnetify where loader needs to retur sample index or not. Defaults to ``True``.
+            persistent_workers (bool): If ``True``, the data loader will not shutdown the worker processes after a dataset has been consumed once. Defaults to ``False``.
+            decode_method (Dict[str, str], Optional): A dictionary of decode methods for each tensor. Defaults to ``None``.
+
+
+                - Supported decode methods are:
+
+                    :'numpy': Default behaviour. Returns samples as numpy arrays.
+                    :'tobytes': Returns raw bytes of the samples.
+                    :'pil': Returns samples as PIL images. Especially useful when transformation use torchvision transforms, that
+                            require PIL images as input. Only supported for tensors with ``sample_compression='jpeg'`` or ``'png'``.
+
+        Returns:
+            DeepLakeDataLoader: A :class:`DeepLakeDataLoader` object.
+
+        Raises:
+            ValueError: If .pytorch() or .numpy() has already been called.
+        
+        Examples:
+            
+            >>> import deeplake
+            >>> from torchvision import transforms
+            >>> ds_train = deeplake.load('hub://activeloop/fashion-mnist-train')
+            >>> tform = transforms.Compose([
+            ...     transforms.RandomRotation(20), # Image augmentation
+            ...     transforms.ToTensor(), # Must convert to pytorch tensor for subsequent operations to run
+            ...     transforms.Normalize([0.5], [0.5]),
+            ... ])
+            ...
+            >>> batch_size = 32
+            >>> # create dataloader by chaining with transform function and batch size and returns batch of pytorch tensors
+            >>> train_loader = ds_train.dataloader()\\
+            ...     .transform({'images': tform, 'labels': None})\\
+            ...     .batch(batch_size)\\
+            ...     .shuffle()\\
+            ...     .tensorflow(decode_method={'images': 'pil'}) # return samples as PIL images for transforms
+            ...
+            >>> # iterate over dataloader
+            >>> for i, sample in enumerate(train_loader):
+            ...     pass
+            ...
+        """
+        mode = "tensorflow"
+        handle_mode(self._mode, mode)
+        all_vars = self.__dict__.copy()
+        all_vars["_num_workers"] = num_workers
+        all_vars["_collate"] = collate_fn
+        validate_tensors(tensors, self.dataset, all_vars)
+        all_vars["_decode_method"] = decode_method
+        all_vars["_num_threads"] = num_threads
+        all_vars["_prefetch_factor"] = prefetch_factor
+        all_vars["_return_index"] = return_index
+        all_vars["_mode"] = mode
+        all_vars["_persistent_workers"] = persistent_workers
+        all_vars["_dataloader"] = None
         return self.__class__(**all_vars)
 
     def numpy(
@@ -387,10 +463,8 @@ class DeepLakeDataLoader(DataLoader):
         Raises:
             ValueError: If .pytorch() or .numpy() has already been called.
         """
-        if self._mode is not None:
-            if self._mode == "pytorch":
-                raise ValueError("Can't call .numpy after .pytorch()")
-            raise ValueError("already called .numpy()")
+        mode = "numpy"
+        handle_mode(self._mode, mode)
         all_vars = self.__dict__.copy()
         all_vars["_num_workers"] = num_workers
         validate_tensors(tensors, self.dataset, all_vars)
@@ -398,7 +472,7 @@ class DeepLakeDataLoader(DataLoader):
         all_vars["_tensors"] = self._tensors or tensors
         all_vars["_num_threads"] = num_threads
         all_vars["_prefetch_factor"] = prefetch_factor
-        all_vars["_mode"] = "numpy"
+        all_vars["_mode"] = mode
         all_vars["_persistent_workers"] = persistent_workers
         all_vars["_dataloader"] = None
         return self.__class__(**all_vars)

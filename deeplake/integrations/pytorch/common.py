@@ -8,7 +8,7 @@ import warnings
 
 
 def collate_fn(batch):
-    import torch
+    from torch.utils.data._utils.collate import default_collate
 
     elem = batch[0]
     if isinstance(elem, IterableOrderedDict):
@@ -20,11 +20,11 @@ def collate_fn(batch):
         batch = [it[0] for it in batch]
     elif isinstance(elem, Polygons):
         batch = [it.numpy() for it in batch]
-    return torch.utils.data._utils.collate.default_collate(batch)
+    return default_collate(batch)
 
 
 def convert_fn(data):
-    import torch
+    from torch.utils.data._utils.collate import default_convert
 
     if isinstance(data, IterableOrderedDict):
         return IterableOrderedDict((k, convert_fn(v)) for k, v in data.items())
@@ -33,7 +33,7 @@ def convert_fn(data):
     elif isinstance(data, Polygons):
         data = data.numpy()
 
-    return torch.utils.data._utils.collate.default_convert(data)
+    return default_convert(data)
 
 
 class PytorchTransformFunction:
@@ -116,9 +116,3 @@ def validate_decode_method(decode_method, all_tensor_keys, jpeg_png_compressed_t
             compressed_tensors.append(tensor_name)
 
     return raw_tensors, compressed_tensors
-
-
-def get_collate_fn(collate, mode):
-    if collate is None and mode == "pytorch":
-        return collate_fn
-    return collate
