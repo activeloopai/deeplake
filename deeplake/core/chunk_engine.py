@@ -1081,7 +1081,7 @@ class ChunkEngine:
         else:
             del self.tile_encoder.entries[global_sample_index]
 
-    def _update_tiled_sample(self, global_sample_index: int, index: Index, sample):
+    def _update_tiled_sample(self, global_sample_index: int, index: Index, sample, nbytes_after_updates):
         if len(index.values) == 1:
             self._replace_tiled_sample(global_sample_index, sample)
             return
@@ -1121,6 +1121,33 @@ class ChunkEngine:
             ):
                 self.write_chunk_to_storage(self.active_updated_chunk)
             self.active_updated_chunk = chunk
+
+    def _update_non_tiled_sample(self, global_sample_index: int, index: Index, sample, nbytes_after_updates):
+        enc = self.chunk_id_encoder
+        chunk = self.get_chunks_for_sample(global_sample_index, copy=True)[0]
+        local_sample_index = enc.translate_index_relative_to_chunks(
+            global_sample_index
+        )
+
+        if len(index.values) <= 1 + int(self.is_sequence):
+            chunk.update_sample(local_sample_index, sample)
+        else:
+            orig_sample = chunk.read_sample(local_sample_index, copy=True)
+            orig_sample[tuple(e.value for e in index.values[1:])] = sample
+            chunk.update_sample(local_sample_index, orig_sample)
+        if (
+            self.active_updated_chunk is not None
+            and self.active_updated_chunk.key != chunk.key  # type: ignore
+        ):
+            self.write_chunk_to_storage(self.active_updated_chunk)
+        self.active_updated_chunk = chunk
+
+        # only care about deltas if it isn't the last chunk
+        if chunk.key != self.last_chunk_key:  # type: ignore
+            nbytes_after_updates.append(chunk.nbytes)
+        self._check_rechunk(
+            chunk, chunk_row=enc.__getitem__(global_sample_index, True)[0][1]
+        )
 
     def pad_and_append(
         self,
@@ -1417,32 +1444,9 @@ class ChunkEngine:
             sample = None if is_empty_list(sample) else sample
             global_sample_index = global_sample_indices[i]  # TODO!
             if self._is_tiled_sample(global_sample_index):
-                self._update_tiled_sample(global_sample_index, index, sample)
+                self._update_tiled_sample(global_sample_index, index, sample, nbytes_after_updates)
             else:
-                chunk = self.get_chunks_for_sample(global_sample_index, copy=True)[0]
-                local_sample_index = enc.translate_index_relative_to_chunks(
-                    global_sample_index
-                )
-
-                if len(index.values) <= 1 + int(self.is_sequence):
-                    chunk.update_sample(local_sample_index, sample)
-                else:
-                    orig_sample = chunk.read_sample(local_sample_index, copy=True)
-                    orig_sample[tuple(e.value for e in index.values[1:])] = sample
-                    chunk.update_sample(local_sample_index, orig_sample)
-                if (
-                    self.active_updated_chunk is not None
-                    and self.active_updated_chunk.key != chunk.key  # type: ignore
-                ):
-                    self.write_chunk_to_storage(self.active_updated_chunk)
-                self.active_updated_chunk = chunk
-
-                # only care about deltas if it isn't the last chunk
-                if chunk.key != self.last_chunk_key:  # type: ignore
-                    nbytes_after_updates.append(chunk.nbytes)
-                self._check_rechunk(
-                    chunk, chunk_row=enc.__getitem__(global_sample_index, True)[0][1]
-                )
+                self._update_non_tiled_sample(global_sample_index, index, sample, nbytes_after_updates)
             self.update_creds(global_sample_index, sample)
             if update_commit_diff:
                 self.commit_diff.update_data(global_sample_index)
