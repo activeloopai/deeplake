@@ -43,6 +43,7 @@ copy = api_dataset.copy
 deepcopy = api_dataset.deepcopy
 ingest = api_dataset.ingest
 connect = api_dataset.connect
+ingest_coco = api_dataset.ingest_coco
 ingest_kaggle = api_dataset.ingest_kaggle
 ingest_dataframe = api_dataset.ingest_dataframe
 ingest_huggingface = huggingface.ingest_huggingface
