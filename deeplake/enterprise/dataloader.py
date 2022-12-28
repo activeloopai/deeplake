@@ -16,7 +16,8 @@ from deeplake.integrations.pytorch.common import (
 from deeplake.util.dataset import map_tensor_keys
 from functools import partial
 import importlib
-from torch.utils.data import DataLoader
+from torch.utils.data.dataloader import DataLoader, _InfiniteConstantSampler
+
 import numpy as np
 
 import math
@@ -99,10 +100,46 @@ class DeepLakeDataLoader(DataLoader):
         for k, v in kwargs.items():
             setattr(self, k, v)
 
+        # torch.utils.data.DataLoader attributes
+        self.__initialized = True
+        self._iterator = None
+
+    @property
+    def batch_size(self):
+        return self._batch_size or 1
+
+    @property
+    def sampler(self):
+        return None
+
+    @property
+    def drop_last(self):
+        return self._drop_last
+
+    @property
+    def num_workers(self):
+        return self._num_workers or 0
+
+    @property
+    def prefetch_factor(self):
+        return self._prefetch_factor or 0
+
+    @property
+    def pin_memory(self):
+        return False
+
+    @property
+    def timeout(self):
+        return 0
+
+    @property
+    def sampler(self):
+        return _InfiniteConstantSampler()
+
     def __len__(self):
         round_fn = math.floor if self._drop_last else math.ceil
         return round_fn(
-            len(self._orig_dataset) / ((self._batch_size or 1) * self._world_size)
+            len(self._orig_dataset) / ((self.batch_size) * self._world_size)
         )
 
     def batch(self, batch_size: int, drop_last: bool = False):
