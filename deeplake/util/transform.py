@@ -33,6 +33,7 @@ except ImportError:
 def transform_sample(
     sample: Any,
     pipeline,
+    tensors,
 ) -> TransformDataset:
     """Calls all the functions one after the other on a single sample.
     Can return 0 or more samples.
@@ -47,32 +48,28 @@ def transform_sample(
     Returns:
         TransformDataset: A transform dataset containing all the samples that were generated.
     """
-
-    result = sample
+    out = sample
     for index in range(len(pipeline)):
         transform_fn = pipeline.functions[index]
         fn, args, kwargs = transform_fn.func, transform_fn.args, transform_fn.kwargs
 
-        if isinstance(result, TransformDataset):
-            all_samples_out = []
-            for item in result:
-                samples_out = TransformDataset()
-                fn(item, samples_out, *args, **kwargs)
-                validate_transform_dataset(samples_out)
-                all_samples_out.append(samples_out)
-            result = combine_transform_datasets(all_samples_out)
+        if isinstance(out, TransformDataset):
+            result = TransformDataset(tensors)
+            for item in out:
+                fn(item, result, *args, **kwargs)
             try:
                 validate_transform_dataset(result)
             except InvalidTransformDataset:
                 raise InvalidTransformDataset(
                     "One or more of the TransformDatasets returned had different number of tensors. Always ensure that all outputs have exactly the same tensors and equal number of samples in each tensor."
                 )
+            out = result
         else:
-            samples_out = TransformDataset()
-            fn(result, samples_out, *args, **kwargs)
-            validate_transform_dataset(samples_out)
-            result = samples_out
-    return result
+            result = TransformDataset(tensors)
+            fn(out, result, *args, **kwargs)
+            validate_transform_dataset(result)
+            out = result
+    return out
 
 
 def combine_transform_datasets(datasets: List[TransformDataset]):
@@ -129,6 +126,19 @@ def store_data_slice_with_pbar(pg_callback, transform_input: Tuple) -> Dict:
 
     if isinstance(data_slice, deeplake.Dataset):
         data_slice = add_cache_to_dataset_slice(data_slice, tensors)
+
+    transform_dataset = TransformDataset(
+        visible_tensors, all_chunk_engines, group_index, label_temp_tensors
+    )
+    n = len(data_slice)
+    for i, sample in enumerate(
+        (data_slice[i : i + 1] for i in range(n))
+        if pd and isinstance(data_slice, pd.DataFrame)
+        else data_slice
+    ):
+        out = transform_sample(sample, pipeline)
+        for tensor in out.tensors:
+            transform_dataset[tensor].extend(out[tensor])
 
     if extend_only:
         extend_data_slice(
