@@ -1081,7 +1081,9 @@ class ChunkEngine:
         else:
             del self.tile_encoder.entries[global_sample_index]
 
-    def _update_tiled_sample(self, global_sample_index: int, index: Index, sample, nbytes_after_updates):
+    def _update_tiled_sample(
+        self, global_sample_index: int, index: Index, sample, nbytes_after_updates
+    ):
         if len(index.values) == 1:
             self._replace_tiled_sample(global_sample_index, sample)
             return
@@ -1122,12 +1124,12 @@ class ChunkEngine:
                 self.write_chunk_to_storage(self.active_updated_chunk)
             self.active_updated_chunk = chunk
 
-    def _update_non_tiled_sample(self, global_sample_index: int, index: Index, sample, nbytes_after_updates):
+    def _update_non_tiled_sample(
+        self, global_sample_index: int, index: Index, sample, nbytes_after_updates
+    ):
         enc = self.chunk_id_encoder
         chunk = self.get_chunks_for_sample(global_sample_index, copy=True)[0]
-        local_sample_index = enc.translate_index_relative_to_chunks(
-            global_sample_index
-        )
+        local_sample_index = enc.translate_index_relative_to_chunks(global_sample_index)
 
         if len(index.values) <= 1 + int(self.is_sequence):
             chunk.update_sample(local_sample_index, sample)
@@ -1444,9 +1446,13 @@ class ChunkEngine:
             sample = None if is_empty_list(sample) else sample
             global_sample_index = global_sample_indices[i]  # TODO!
             if self._is_tiled_sample(global_sample_index):
-                self._update_tiled_sample(global_sample_index, index, sample, nbytes_after_updates)
+                self._update_tiled_sample(
+                    global_sample_index, index, sample, nbytes_after_updates
+                )
             else:
-                self._update_non_tiled_sample(global_sample_index, index, sample, nbytes_after_updates)
+                self._update_non_tiled_sample(
+                    global_sample_index, index, sample, nbytes_after_updates
+                )
             self.update_creds(global_sample_index, sample)
             if update_commit_diff:
                 self.commit_diff.update_data(global_sample_index)

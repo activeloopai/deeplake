@@ -113,13 +113,15 @@ class LinkedChunkEngine(ChunkEngine):
     def is_data_cachable(self):
         return False
 
-    def linked_sample(self, global_sample_index: int) -> Union[LinkedSample, LinkedTiledSample]:
+    def linked_sample(
+        self, global_sample_index: int
+    ) -> Union[LinkedSample, LinkedTiledSample]:
         creds_encoder = self.creds_encoder
         sample_creds_encoded = creds_encoder.get_encoded_creds_key(global_sample_index)
         sample_creds_key = self.link_creds.get_creds_key(sample_creds_encoded)
         if self._is_tiled_sample(global_sample_index):
             path_array: np.ndarray = (
-            super()
+                super()
                 .get_basic_sample(
                     global_sample_index,
                     Index(global_sample_index),
@@ -388,15 +390,23 @@ class LinkedChunkEngine(ChunkEngine):
             index, fetch_chunks=fetch_chunks, use_data_cache=False
         )
 
-    def _update_non_tiled_sample(self, global_sample_index: int, index: Index, sample, nbytes_after_updates):
+    def _update_non_tiled_sample(
+        self, global_sample_index: int, index: Index, sample, nbytes_after_updates
+    ):
         if len(index.values) != 1:
             raise ValueError(
                 "Cannot update a partial value of a linked sample. Please update the entire sample."
             )
-        super()._update_non_tiled_sample(global_sample_index, index, sample, nbytes_after_updates)
+        super()._update_non_tiled_sample(
+            global_sample_index, index, sample, nbytes_after_updates
+        )
 
-    def _update_tiled_sample(self, global_sample_index: int, index: Index, sample, nbytes_after_updates):
-        self._update_non_tiled_sample(global_sample_index, index, sample, nbytes_after_updates)
+    def _update_tiled_sample(
+        self, global_sample_index: int, index: Index, sample, nbytes_after_updates
+    ):
+        self._update_non_tiled_sample(
+            global_sample_index, index, sample, nbytes_after_updates
+        )
 
     def _handle_tiled_sample(
         self,
