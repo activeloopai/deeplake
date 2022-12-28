@@ -52,9 +52,7 @@ def test_tensorflow_small(hub_cloud_ds):
         hub_cloud_ds.create_tensor("image", max_chunk_size=TF_TESTS_MAX_CHUNK_SIZE)
         hub_cloud_ds.image.extend(([i * np.ones((i + 1, i + 1)) for i in range(16)]))
         hub_cloud_ds.commit()
-        hub_cloud_ds.create_tensor(
-            "image2", max_chunk_size=TF_TESTS_MAX_CHUNK_SIZE
-        )
+        hub_cloud_ds.create_tensor("image2", max_chunk_size=TF_TESTS_MAX_CHUNK_SIZE)
         hub_cloud_ds.image2.extend(np.array([i * np.ones((12, 12)) for i in range(16)]))
 
     if isinstance(
@@ -119,9 +117,7 @@ def test_tensorflow_transform(hub_cloud_ds):
         hub_cloud_ds.create_tensor("image", max_chunk_size=TF_TESTS_MAX_CHUNK_SIZE)
         hub_cloud_ds.image.extend(([i * np.ones((i + 1, i + 1)) for i in range(16)]))
         hub_cloud_ds.checkout("alt", create=True)
-        hub_cloud_ds.create_tensor(
-            "image2", max_chunk_size=TF_TESTS_MAX_CHUNK_SIZE
-        )
+        hub_cloud_ds.create_tensor("image2", max_chunk_size=TF_TESTS_MAX_CHUNK_SIZE)
         hub_cloud_ds.image2.extend(np.array([i * np.ones((12, 12)) for i in range(16)]))
 
     if isinstance(
@@ -154,13 +150,9 @@ def test_tensorflow_transform_dict(hub_cloud_ds):
     with hub_cloud_ds:
         hub_cloud_ds.create_tensor("image", max_chunk_size=TF_TESTS_MAX_CHUNK_SIZE)
         hub_cloud_ds.image.extend(([i * np.ones((i + 1, i + 1)) for i in range(16)]))
-        hub_cloud_ds.create_tensor(
-            "image2", max_chunk_size=TF_TESTS_MAX_CHUNK_SIZE
-        )
+        hub_cloud_ds.create_tensor("image2", max_chunk_size=TF_TESTS_MAX_CHUNK_SIZE)
         hub_cloud_ds.image2.extend(np.array([i * np.ones((12, 12)) for i in range(16)]))
-        hub_cloud_ds.create_tensor(
-            "image3", max_chunk_size=TF_TESTS_MAX_CHUNK_SIZE
-        )
+        hub_cloud_ds.create_tensor("image3", max_chunk_size=TF_TESTS_MAX_CHUNK_SIZE)
         hub_cloud_ds.image3.extend(np.array([i * np.ones((12, 12)) for i in range(16)]))
 
     if isinstance(
@@ -171,7 +163,9 @@ def test_tensorflow_transform_dict(hub_cloud_ds):
         return
 
     dl = (
-        hub_cloud_ds.dataloader().transform({"image": double, "image2": None}).tensorflow()
+        hub_cloud_ds.dataloader()
+        .transform({"image": double, "image2": None})
+        .tensorflow()
     )
 
     assert len(dl.dataset) == 16
@@ -250,7 +244,9 @@ def test_custom_tensor_order(hub_cloud_ds):
     with pytest.raises(TensorDoesNotExistError):
         dl = hub_cloud_ds.dataloader().tensorflow(tensors=["c", "d", "e"])
 
-    dl = hub_cloud_ds.dataloader().tensorflow(tensors=["c", "d", "a"], return_index=False)
+    dl = hub_cloud_ds.dataloader().tensorflow(
+        tensors=["c", "d", "a"], return_index=False
+    )
 
     for i, batch in enumerate(dl):
         c1, d1, a1 = batch
