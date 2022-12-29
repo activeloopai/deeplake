@@ -740,6 +740,7 @@ class Dataset:
             "dicom",
             "point_cloud",
             "mesh",
+            "nifti",
         ):
             self._create_sample_info_tensor(name)
         if create_shape_tensor and htype not in ("text", "json"):

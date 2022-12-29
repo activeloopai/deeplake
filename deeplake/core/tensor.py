@@ -45,9 +45,7 @@ from deeplake.util.exceptions import (
 )
 from deeplake.util.iteration_warning import check_if_iteration
 from deeplake.hooks import dataset_read, dataset_written
-from deeplake.util.pretty_print import (
-    summary_tensor,
-)
+from deeplake.util.pretty_print import summary_tensor
 from deeplake.constants import FIRST_COMMIT_ID, _NO_LINK_UPDATE, UNSPECIFIED
 
 
@@ -887,7 +885,7 @@ class Tensor:
             if class_names:
                 data["text"] = convert_to_text(labels, class_names)
             return data
-        if htype in ("image", "image.rgb", "image.gray", "dicom"):
+        if htype in ("image", "image.rgb", "image.gray", "dicom", "nifti"):
             return {
                 "value": self.numpy(aslist=aslist, fetch_chunks=fetch_chunks),
                 "sample_info": self.sample_info or {},
