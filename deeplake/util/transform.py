@@ -130,36 +130,32 @@ def store_data_slice_with_pbar(pg_callback, transform_input: Tuple) -> Dict:
     transform_dataset = TransformDataset(
         visible_tensors, all_chunk_engines, group_index, label_temp_tensors
     )
+
     n = len(data_slice)
+    last_reported_time = time.time()
+    last_reported_num_samples = 0
+
     for i, sample in enumerate(
         (data_slice[i : i + 1] for i in range(n))
         if pd and isinstance(data_slice, pd.DataFrame)
         else data_slice
     ):
-        out = transform_sample(sample, pipeline)
+        out = transform_sample(sample, pipeline, visible_tensors)
         for tensor in out.tensors:
-            transform_dataset[tensor].extend(out[tensor])
+            transform_dataset[tensor].extend(out[tensor].items)
 
-    if extend_only:
-        extend_data_slice(
-            data_slice,
-            pipeline,
-            all_chunk_engines,
-            group_index,
-            pg_callback,
-        )
-    else:
-        transform_data_slice_and_append(
-            data_slice,
-            pipeline,
-            visible_tensors,
-            label_temp_tensors,
-            actual_tensors,
-            all_chunk_engines,
-            group_index,
-            pg_callback,
-            skip_ok,
-        )
+        if pg_callback is not None:
+            curr_time = time.time()
+            if (
+                curr_time - last_reported_time > TRANSFORM_PROGRESSBAR_UPDATE_INTERVAL
+                or i == n - 1
+            ):
+                num_samples = i + 1
+                pg_callback(num_samples - last_reported_num_samples)
+                last_reported_num_samples = num_samples
+                last_reported_time = curr_time
+
+    transform_dataset.flush()
 
     # retrieve relevant objects from memory
     all_tensor_metas = {}

@@ -6,17 +6,27 @@ from deeplake.constants import MB
 
 import numpy as np
 
+import posixpath
+
 
 class TransformTensor:
-    def __init__(self, dataset):
+    def __init__(self, dataset, name, is_group=False):
         self.items = []
         self.dataset = dataset
+        self.name = name
+        self.is_group = is_group
         self.idx = slice(None, None, None)
 
     def __len__(self):
         return len(self.items)
 
+    def __getattr__(self, item):
+        del self.dataset.data[self.name]
+        return self.dataset[posixpath.join(self.name, item)][self.idx]
+
     def __getitem__(self, item):
+        if isinstance(item, str):
+            return self.__getattr__(item)
         self.idx = item
         return self
 
@@ -26,6 +36,7 @@ class TransformTensor:
             squeeze = True
         else:
             items = self.numpy_compressed()
+            squeeze = False
 
         values = []
         for i, item in enumerate(items):
@@ -43,6 +54,8 @@ class TransformTensor:
         return self.items[self.idx]
 
     def append(self, item):
+        if self.is_group:
+            raise TensorDoesNotExistError(self.name)
         if self.dataset.all_chunk_engines:
             self.dataset.item_added(item)
         self.items.append(item)
@@ -63,9 +76,7 @@ class TransformDataset:
         cache_size=16 * MB,
     ):
         self.tensors = tensors
-        self.data = (
-            {tensor: TransformTensor(self) for tensor in tensors} if tensors else {}
-        )
+        self.data = {tensor: TransformTensor(self, tensor) for tensor in tensors}
         self.all_chunk_engines = all_chunk_engines
         self.group_index = group_index
         self.label_temp_tensors = label_temp_tensors
@@ -80,7 +91,8 @@ class TransformDataset:
         try:
             return self.data[tensor][self.idx]
         except KeyError:
-            raise TensorDoesNotExistError(tensor)
+            self.data[tensor] = TransformTensor(self, tensor, is_group=True)
+            return self.data[tensor][self.idx]
 
     def __getitem__(self, item):
         if isinstance(item, str):
@@ -113,10 +125,14 @@ class TransformDataset:
         all_chunk_engines = self.all_chunk_engines
         label_temp_tensors = self.label_temp_tensors
         for name, tensor in self.data.items():
-            chunk_engine = all_chunk_engines[label_temp_tensors.get(name) or name]
-            callback = chunk_engine._transform_callback
-            chunk_engine.extend(tensor.numpy_compressed(), link_callback=callback)
-            tensor.items.clear()
+            if not tensor.is_group:
+                name = posixpath.join(self.group_index, name)
+                chunk_engine = all_chunk_engines[label_temp_tensors.get(name) or name]
+                callback = chunk_engine._transform_callback
+                chunk_engine.extend(
+                    tensor[:].numpy_compressed(), link_callback=callback
+                )
+                tensor.items.clear()
 
 
 # class TransformDataset:
