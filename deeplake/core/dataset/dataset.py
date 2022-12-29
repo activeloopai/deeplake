@@ -368,6 +368,7 @@ class Dataset:
         state["_view_base"] = None
         state["_update_hooks"] = {}
         state["_commit_hooks"] = {}
+        state["_checkout_hooks"] = {}
         state["_client"] = state["org_id"] = state["ds_name"] = None
         state["_temp_tensors"] = []
         state["libdeeplake_dataset"] = None
