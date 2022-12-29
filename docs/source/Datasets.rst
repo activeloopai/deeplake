@@ -14,6 +14,7 @@ Creating Datasets
     deeplake.empty
     deeplake.like
     deeplake.ingest
+    deeplake.ingest_coco
     deeplake.ingest_kaggle
     deeplake.ingest_dataframe
     deeplake.ingest_huggingface

@@ -1004,7 +1004,7 @@ class dataset:
     def ingest_coco(
         images_directory: Union[str, pathlib.Path],
         annotation_files: Union[str, pathlib.Path, List[str]],
-        dest: Union[str, pathlib.Path, Dataset],
+        dest: Union[str, pathlib.Path],
         key_to_tensor_mapping: Optional[Dict] = None,
         file_to_group_mapping: Optional[Dict] = None,
         ignore_one_group: bool = False,
