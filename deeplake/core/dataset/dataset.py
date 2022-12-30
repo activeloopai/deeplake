@@ -776,6 +776,7 @@ class Dataset:
         shape_tensor = get_sample_shape_tensor_key(tensor)
         self.create_tensor(
             shape_tensor,
+            dtype="int64",
             hidden=True,
             create_id_tensor=False,
             create_sample_info_tensor=False,
