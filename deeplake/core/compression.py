@@ -1164,7 +1164,7 @@ def _read_3d_data_meta(file: Union[bytes, memoryview, str]):
 def _open_nifti(file: Union[bytes, memoryview, str], gz: bool = False):
     if not _NIBABEL_INSTALLED:
         raise ModuleNotFoundError(
-            "nibabel is not installed. Please run `pip install deeplake[nifti]`"
+            "nibabel is not installed. Please run `pip install deeplake[medical]`"
         )
 
     if isinstance(file, str):

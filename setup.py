@@ -34,7 +34,7 @@ extras = {
     "av": ["av"],
     "gcp": ["google-cloud-storage", "google-auth", "google-auth-oauthlib"],
     "dicom": ["pydicom", "nibabel"],
-    "nifti": ["pydicom", "nibabel"],
+    "medical": ["pydicom", "nibabel"],
     "visualizer": ["IPython", "flask"],
     "gdrive": [
         "google-api-python-client",
