@@ -93,7 +93,12 @@ def create_tensors(
         raise TypeError(f"`dataset` must be a Hub Dataset. Got {type(dataset)}")
 
     # Catch write access error early.
-    if dataset.read_only:
+    if dataset._locked_out:
+        raise ValueError(
+            f"Unable to write to the dataset as another machine has locked it for writing. Please try again later."
+        )
+
+    elif dataset.read_only:
         raise ValueError(
             f"`create_tensors` is True but dataset is read-only. Try loading the dataset with `read_only=False.`"
         )
