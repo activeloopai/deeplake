@@ -1,1 +1,1 @@
-BUGOUT_TOKEN = "f7176d62-73fa-4ecc-b24d-624364bddcb0"
+BUGOUT_TOKEN = 'eeb4f655-bdeb-4dec-ad33-409c87f96e3d'
