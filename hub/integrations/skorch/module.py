@@ -9,7 +9,7 @@ from hub.integrations.skorch.net import VisionClassifierNet
 
 def pytorch_module_to_skorch(
     dataset,
-    dataset_valid,
+    validation_dataset,
     transform,
     tensors,
     batch_size,
@@ -56,8 +56,8 @@ def pytorch_module_to_skorch(
     if optimizer is None:
         optimizer = torch.optim.Adam
 
-    if dataset_valid:
-        train_split = predefined_split(dataset_valid)
+    if validation_dataset:
+        train_split = predefined_split(validation_dataset)
     else:
         train_split = None
 

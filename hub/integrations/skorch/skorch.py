@@ -3,7 +3,7 @@ from typing import Any, Callable, Optional, Sequence, Union
 
 def skorch(
     dataset: Any,
-    dataset_valid: Any = None,
+    validation_dataset: Any = None,
     transform: Optional[Callable] = None,
     tensors: Optional[Sequence[str]] = None,
     batch_size: int = 64,
@@ -24,7 +24,7 @@ def skorch(
 
     Args:
         dataset (class): Hub Dataset to use to instantiate the NeuralNet.
-        dataset_valid (class, Optional): Hub Dataset to use as a validation set for training. It is expected that the validation set tensor names are the same as the training tensor names. Default is `None`.
+        validation_dataset (class, Optional): Hub Dataset to use as a validation set for training. It is expected that the validation set tensor names are the same as the training tensor names. Default is `None`.
         transform (Callable, Optional): Transformation function to be applied to each sample. This be used to provide ordered tensor names (data, labels). Default is `None`.
         tensors (list, Optional): A list of ordered tensors (data, labels) that would be used to find label issues (e.g. `['images', 'labels']`).
         batch_size (int): Number of samples per batch to load. If `batch_size` is -1, a single batch with all the data will be used during training and validation. Default is `64`.
@@ -47,14 +47,14 @@ def skorch(
     if not is_dataset(dataset):
         raise TypeError(f"`dataset` must be a Hub Dataset. Got {type(dataset)}")
 
-    if dataset_valid and not is_dataset(dataset_valid):
+    if validation_dataset and not is_dataset(validation_dataset):
         raise TypeError(
-            f"`dataset_valid` must be a Hub Dataset. Got {type(dataset_valid)}"
+            f"`validation_dataset` must be a Hub Dataset. Got {type(validation_dataset)}"
         )
 
     return pytorch_module_to_skorch(
         dataset=dataset,
-        dataset_valid=dataset_valid,
+        validation_dataset=validation_dataset,
         transform=transform,
         tensors=tensors,
         batch_size=batch_size,
