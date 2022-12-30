@@ -17,9 +17,9 @@ def subset_dataset(dataset, mask):
 def switch_branch(dataset, branch):
     """Switches dataset to a different branch"""
     # If branch is provided, check if it exists. If not, create it.
-    try:
+    if branch in set(dataset.branches):
         dataset.checkout(branch)
-    except CheckoutError:
+    else:
         dataset.checkout(branch, create=True)
 
 
