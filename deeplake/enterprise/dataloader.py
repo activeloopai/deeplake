@@ -109,10 +109,6 @@ class DeepLakeDataLoader(DataLoader):
         return self._batch_size or 1
 
     @property
-    def sampler(self):
-        return None
-
-    @property
     def drop_last(self):
         return self._drop_last
 
