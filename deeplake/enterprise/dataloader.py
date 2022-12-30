@@ -16,7 +16,8 @@ from deeplake.integrations.pytorch.common import (
 from deeplake.util.dataset import map_tensor_keys
 from functools import partial
 import importlib
-from torch.utils.data import DataLoader
+from torch.utils.data.dataloader import DataLoader, _InfiniteConstantSampler
+
 import numpy as np
 
 import math
@@ -73,6 +74,7 @@ class DeepLakeDataLoader(DataLoader):
         _persistent_workers=None,
         _dataloader=None,
         _world_size=1,
+        **kwargs,
     ):
         import_indra_loader()
         self.dataset = dataset
@@ -95,11 +97,49 @@ class DeepLakeDataLoader(DataLoader):
         self._persistent_workers = _persistent_workers
         self._dataloader = _dataloader
         self._world_size = _world_size
+        for k, v in kwargs.items():
+            setattr(self, k, v)
+
+        # torch.utils.data.DataLoader attributes
+        self.__initialized = True
+        self._iterator = None
+
+    @property
+    def batch_size(self):
+        return self._batch_size or 1
+
+    @property
+    def drop_last(self):
+        return self._drop_last
+
+    @property
+    def num_workers(self):
+        return self._num_workers or 0
+
+    @property
+    def prefetch_factor(self):
+        return self._prefetch_factor or 0
+
+    @property
+    def pin_memory(self):
+        return False
+
+    @property
+    def timeout(self):
+        return 0
+
+    @property
+    def sampler(self):
+        return _InfiniteConstantSampler()
+
+    @property
+    def collate_fn(self):
+        return get_collate_fn(self._collate, self._mode)
 
     def __len__(self):
         round_fn = math.floor if self._drop_last else math.ceil
         return round_fn(
-            len(self._orig_dataset) / ((self._batch_size or 1) * self._world_size)
+            len(self._orig_dataset) / ((self.batch_size) * self._world_size)
         )
 
     def batch(self, batch_size: int, drop_last: bool = False):
@@ -405,7 +445,7 @@ class DeepLakeDataLoader(DataLoader):
 
     def __iter__(self):
         if self._dataloader is None:
-            collate_fn = get_collate_fn(self._collate, self._mode)
+            collate_fn = self.collate_fn
             upcast = self._mode == "pytorch"  # upcast to handle unsupported dtypes
 
             primary_tensor_name = self._primary_tensor_name
