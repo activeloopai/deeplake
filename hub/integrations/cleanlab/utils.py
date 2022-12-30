@@ -29,9 +29,7 @@ def process_label_issues(dataset, label_issues):
 
     for column in columns:
         if column not in label_issues.columns:
-            raise KeyError(
-                f"DataFrame label_issues must contain column: `{column}`. "
-            )
+            raise KeyError(f"DataFrame label_issues must contain column: `{column}`. ")
 
         if not is_subsettable(dataset=dataset, mask=label_issues[column]):
             raise ValueError(
