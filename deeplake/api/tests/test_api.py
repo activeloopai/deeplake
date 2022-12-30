@@ -2263,7 +2263,6 @@ def test_random_split(local_ds):
 
         train, test, val = ds.random_split([0.5, 0.3, 0.2])
 
-        # round robin
         assert len(train) == 5
         assert len(test) == 3
         assert len(val) == 2
@@ -2279,6 +2278,23 @@ def test_random_split(local_ds):
 
         with pytest.raises(ValueError):
             ds.random_split([0.5, 0.5])
+
+
+@requires_libdeeplake
+def test_random_split_views(local_ds):
+    with local_ds as ds:
+        ds.create_tensor("label")
+        ds.label.extend([0, 1, 2, 3, 4, 5, 6, 7, 8, 9])
+
+        views = [ds[:5], ds[[1, 3, 5, 7, 9]]]
+        for view in views:
+            train, test = view.random_split([3, 2])
+            assert len(train) == 3
+            assert len(test) == 2
+
+            train, test = view.random_split([0.6, 0.4])
+            assert len(train) == 3
+            assert len(test) == 2
 
 
 def test_invalid_ds_name():

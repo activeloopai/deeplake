@@ -86,6 +86,19 @@ def _download_hub_test_videos():
     return [os.path.join(mp4_path, f) for f in os.listdir(mp4_path)]
 
 
+def _download_hub_test_coco_data():
+    path = _git_clone(_HUB_TEST_RESOURCES_URL)
+    coco_images_path = path + "/coco/images"
+    coco_annotations_path = path + "/coco/annotations"
+    return {
+        "images_directory": coco_images_path,
+        "annotation_files": [
+            os.path.join(coco_annotations_path, f)
+            for f in os.listdir(coco_annotations_path)
+        ],
+    }
+
+
 def _download_pil_test_images(ext=[".jpg", ".png"]):
     paths = {e: [] for e in ext}
     corrupt_file_keys = [
@@ -494,3 +507,8 @@ def hub_token(request):
     if is_opt_true(request, HUB_CLOUD_OPT):
         return request.getfixturevalue(request.param)
     return None
+
+
+@pytest.fixture(scope="session")
+def coco_ingestion_data():
+    return _download_hub_test_coco_data()

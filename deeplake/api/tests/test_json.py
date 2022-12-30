@@ -209,13 +209,15 @@ def test_json_transform(ds, compression, scheduler="threaded"):
         None,
     ] * 5
 
+    expected = [*items[:9], {}] * 5
+
     @deeplake.compute
     def upload(stuff, ds):
         ds.json.append(stuff)
         return ds
 
     upload().eval(items, ds, num_workers=2, scheduler=scheduler)
-    assert ds.json.data()["value"] == items
+    assert ds.json.data()["value"] == expected
     with pytest.raises(Exception):
         ds.json.list()
 
