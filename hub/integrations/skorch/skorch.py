@@ -25,8 +25,8 @@ def skorch(
     Args:
         dataset (class): Hub Dataset to use to instantiate the NeuralNet.
         validation_dataset (class, Optional): Hub Dataset to use as a validation set for training. It is expected that the validation set tensor names are the same as the training tensor names. Default is `None`.
-        transform (Callable, Optional): Transformation function to be applied to each sample. This be used to provide ordered tensor names (data, labels). Default is `None`.
-        tensors (list, Optional): A list of ordered tensors (data, labels) that would be used to find label issues (e.g. `['images', 'labels']`).
+        transform (Callable, Optional): Transformation function to be applied to each sample. This can also be used to provide tensor names (data, labels). Default is `None`.
+        tensors (list, Optional): A list of tensors (data, labels) that would be used to find label issues (e.g. `['images', 'labels']`).
         batch_size (int): Number of samples per batch to load. If `batch_size` is -1, a single batch with all the data will be used during training and validation. Default is `64`.
         module (class): A PyTorch torch.nn.Module module (class or instance). Default is `torchvision.models.resnet18()`.
         criterion (class): An uninitialized PyTorch criterion (loss) used to optimize the module. Default is `torch.nn.CrossEntropyLoss`.

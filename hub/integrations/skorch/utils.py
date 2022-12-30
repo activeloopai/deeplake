@@ -50,16 +50,23 @@ def get_dataset_tensors(dataset, transform, tensors):
             [k for k in transform.keys() if k != "index"],
         )
 
-    # Map the images and labels tensors.
-    try:
-        images_tensor, labels_tensor = tensors
-    except ValueError:
+    if not tensors:
+        tensors = set(dataset.tensors)
+
+    # Map the images and labels tensors to the corresponding tensors in the dataset.
+    images_tensor, labels_tensor = None, None
+
+    for tensor in tensors:
+        if is_image_tensor(dataset[tensor].htype):
+            images_tensor = tensor
+        elif is_label_tensor(dataset[tensor].htype):
+            labels_tensor = tensor
+
+    if images_tensor and labels_tensor:
+        tensors = [images_tensor, labels_tensor]
+    else:
         raise ValueError(
-            "Could not find the images and labels tensors. Please provide the images and labels tensors in `tensors` or `transform`."
+            "Could not find the images and labels tensors. Please provide the images and labels tensors."
         )
 
-    assert_valid_tensors(
-        dataset=dataset, images_tensor=images_tensor, labels_tensor=labels_tensor
-    )
-
-    return [images_tensor, labels_tensor]
+    return tensors
