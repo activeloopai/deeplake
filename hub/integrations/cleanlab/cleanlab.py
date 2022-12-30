@@ -33,9 +33,6 @@ def clean_labels(
             - label_quality: Label quality scores for each datapoint, where lower scores indicate labels less likely to be correct.
             - predicted_labels: Class predicted by model trained on cleaned data for each example in the dataset.
 
-    Raises:
-        ...
-
     """
 
     from hub.integrations.cleanlab.label_issues import get_label_issues
@@ -86,9 +83,6 @@ def create_tensors(
 
     Returns:
         commit_id (str): The commit hash of the commit that was created.
-
-    Raises:
-        ...
 
     """
     from hub.integrations.cleanlab.tensors import create_label_issues_tensors
