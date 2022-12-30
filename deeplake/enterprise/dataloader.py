@@ -17,11 +17,12 @@ from deeplake.integrations.pytorch.common import (
 from deeplake.util.dataset import map_tensor_keys
 from functools import partial
 import importlib
+
 try:
     from torch.utils.data.dataloader import DataLoader, _InfiniteConstantSampler
 except ImportError:
-    DataLoader = object # type: ignore
-    _InfiniteConstantSampler = object # type: ignore
+    DataLoader = object  # type: ignore
+    _InfiniteConstantSampler = None  # type: ignore
 
 import numpy as np
 
@@ -455,6 +456,7 @@ class DeepLakeDataLoader(DataLoader):
             ...
         """
         import tensorflow as tf
+
         mode = "tensorflow"
         handle_mode(self._mode, mode)
         all_vars = self.__dict__.copy()
