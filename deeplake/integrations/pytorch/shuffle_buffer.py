@@ -8,12 +8,12 @@ import numpy as np
 try:
     from torch import Tensor as TorchTensor
 except ImportError:
-    TorchTensor = None
+    TorchTensor = None  # type: ignore
 
 try:
     from tensorflow import Tensor as TensorflowTensor
 except ImportError:
-    TensorflowTensor = None
+    TensorflowTensor = None  # type: ignore
 
 from PIL import Image  # type: ignore
 from io import BytesIO
