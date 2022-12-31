@@ -183,10 +183,6 @@ class DeepLakeDataLoader(DataLoader):
             ValueError: If .shuffle() has already been called.
             ValueError: If dataset is view and shuffle is True
         """
-        if shuffle and isinstance(
-            self.dataset.index.values[0].value, tuple  # type: ignore[attr-defined]
-        ):
-            raise ValueError("Can't shuffle dataset view")
         if self._shuffle is not None:
             raise ValueError("shuffle is already set")
         all_vars = self.__dict__.copy()
