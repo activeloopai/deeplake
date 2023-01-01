@@ -94,7 +94,8 @@ def create_random_split_views(dataset, lengths):
     schedule = create_fetching_schedule(
         dataset, primary_tensor, shuffle_within_chunks=True
     )
-    sliced_ds = dataset[schedule]
+    ds = dataset.no_view_dataset
+    sliced_ds = ds[schedule]
     views = []
     start = 0
     for length in lengths:
