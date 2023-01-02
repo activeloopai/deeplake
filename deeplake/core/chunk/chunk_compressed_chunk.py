@@ -374,11 +374,7 @@ class ChunkCompressedChunk(BaseChunk):
             raise NotImplementedError(
                 "`decompress=False` is not supported by chunk compressed chunks as it can cause recompression."
             )
-        if self.is_empty_tensor:
-            raise EmptyTensorError(
-                "This tensor has only been populated with empty samples. "
-                "Need to add at least one non-empty sample before retrieving data."
-            )
+        self.check_empty_before_read()
         partial_sample_tile = self._get_partial_sample_tile(as_bytes=False)
         if partial_sample_tile is not None:
             return partial_sample_tile
@@ -391,8 +387,16 @@ class ChunkCompressedChunk(BaseChunk):
             sb, eb = self.get_byte_positions(local_index)
             decompressed = decompressed[sb:eb]
         else:
-            shape = self.shapes_encoder[local_index]
-            if not self.byte_positions_encoder.is_empty():
+            bps_empty = self.byte_positions_encoder.is_empty()
+            try:
+                shape = self.shapes_encoder[local_index]
+            except IndexError as e:
+                if not bps_empty:
+                    self.num_dims = self.num_dims or len(self.tensor_meta.max_shape)
+                    shape = (0,) * self.num_dims
+                else:
+                    raise e
+            if not bps_empty:
                 sb, eb = self.byte_positions_encoder[local_index]
                 decompressed = decompressed[sb:eb]
         if self.is_text_like:

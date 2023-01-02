@@ -807,6 +807,10 @@ class BadLinkError(Exception):
         super().__init__(message)
 
 
+class IngestionError(Exception):
+    pass
+
+
 class DatasetConnectError(Exception):
     pass
 

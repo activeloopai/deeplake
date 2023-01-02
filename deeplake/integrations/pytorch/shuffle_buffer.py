@@ -4,7 +4,17 @@ from functools import reduce
 from operator import mul
 import warnings
 import numpy as np
-import torch
+
+try:
+    from torch import Tensor as TorchTensor
+except ImportError:
+    TorchTensor = None  # type: ignore
+
+try:
+    from tensorflow import Tensor as TensorflowTensor
+except ImportError:
+    TensorflowTensor = None  # type: ignore
+
 from PIL import Image  # type: ignore
 from io import BytesIO
 from tqdm import tqdm  # type: ignore
@@ -104,8 +114,10 @@ class ShuffleBuffer:
             return sum(self._sample_size(tensor) for tensor in sample.values())
         elif isinstance(sample, Sequence):
             return sum(self._sample_size(tensor) for tensor in sample)
-        elif isinstance(sample, torch.Tensor):
+        elif TorchTensor is not None and isinstance(sample, TorchTensor):
             return sample.element_size() * reduce(mul, sample.shape, 1)
+        elif TensorflowTensor is not None and isinstance(sample, TensorflowTensor):
+            return sample.dtype.size * reduce(mul, sample.shape.as_list(), 1)
         elif isinstance(sample, np.ndarray):
             return sample.nbytes
         elif isinstance(sample, Image.Image):

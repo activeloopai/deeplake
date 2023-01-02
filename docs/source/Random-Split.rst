@@ -1,7 +1,7 @@
 .. currentmodule:: deeplake.core.dataset
 
 Random Split
-=======
+============
 
 Splits the dataset into non overlapping new datasets of given lengths.
 The resulting datasets are generated in such a way that when creating a dataloader from the view and training on it,

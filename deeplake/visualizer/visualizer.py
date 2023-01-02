@@ -90,6 +90,9 @@ class _Visualizer:
 
         _SERVER_THREAD = threading.Thread(target=run_app, daemon=True)
         _SERVER_THREAD.start()
+        print(
+            f"HINT: Please forward the port - {self._port} to your local machine, if you are running on the cloud."
+        )
         return f"http://localhost:{self.port}/"
 
     def stop_server(self):

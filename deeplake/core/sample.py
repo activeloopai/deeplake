@@ -9,6 +9,7 @@ from deeplake.core.compression import (
     _read_metadata_from_vstream,
     _read_audio_meta,
     _read_3d_data_meta,
+    _open_nifti,
 )
 from deeplake.compression import (
     get_compression_type,
@@ -17,6 +18,7 @@ from deeplake.compression import (
     VIDEO_COMPRESSION,
     POINT_CLOUD_COMPRESSION,
     MESH_COMPRESSION,
+    NIFTI_COMPRESSION,
 )
 from deeplake.util.exceptions import UnableToReadFromUrlError
 from deeplake.util.exif import getexif
@@ -218,6 +220,16 @@ class Sample:
             if not isinstance(x.value, bytes)
         }
         return meta
+
+    def _get_nifti_meta(self) -> dict:
+        if self.path and get_path_type(self.path) == "local":
+            img = _open_nifti(self.path)
+        else:
+            img = _open_nifti(self.buffer, gz=self.compression == "nii.gz")
+        return {
+            "affine": img.affine,
+            "zooms": tuple(map(float, img.header.get_zooms())),
+        }
 
     def _get_video_meta(self) -> dict:
         if self.path and get_path_type(self.path) == "local":
@@ -490,6 +502,8 @@ class Sample:
         compression_type = get_compression_type(compression)
         if compression == "dcm":
             meta.update(self._get_dicom_meta())
+        elif compression_type == NIFTI_COMPRESSION:
+            meta.update(self._get_nifti_meta())
         elif compression_type == IMAGE_COMPRESSION:
             meta["exif"] = self._getexif()
         elif compression_type == VIDEO_COMPRESSION:

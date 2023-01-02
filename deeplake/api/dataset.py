@@ -7,6 +7,7 @@ from typing import Dict, Optional, Union, List
 
 from deeplake.auto.unstructured.kaggle import download_kaggle_dataset
 from deeplake.auto.unstructured.image_classification import ImageClassification
+from deeplake.auto.unstructured.coco.coco import CocoDataset
 from deeplake.client.client import DeepLakeBackendClient
 from deeplake.client.log import logger
 from deeplake.core.dataset import Dataset, dataset_factory
@@ -998,6 +999,107 @@ class dataset:
             token=token,
         )
         return deeplake.dataset(path, token=token, verbose=False)
+
+    @staticmethod
+    def ingest_coco(
+        images_directory: Union[str, pathlib.Path],
+        annotation_files: Union[str, pathlib.Path, List[str]],
+        dest: Union[str, pathlib.Path],
+        key_to_tensor_mapping: Optional[Dict] = None,
+        file_to_group_mapping: Optional[Dict] = None,
+        ignore_one_group: bool = False,
+        ignore_keys: Optional[List[str]] = None,
+        image_settings: Optional[Dict] = None,
+        src_creds: Optional[Dict] = None,
+        dest_creds: Optional[Dict] = None,
+        inspect_limit: int = 1000000,
+        progressbar: bool = True,
+        num_workers: int = 0,
+        **dataset_kwargs,
+    ) -> Dataset:
+        """Ingest images and annotations in COCO format to a Deep Lake Dataset.
+
+        Examples:
+            >>> ds = deeplake.ingest_coco(
+            >>>     "path/to/images/directory",
+            >>>     ["path/to/annotation/file1.json", "path/to/annotation/file2.json"],
+            >>>     dest="hub://username/dataset",
+            >>>     key_to_tensor_mapping={"category_id": "labels", "bbox": "boxes"},
+            >>>     file_to_group_mapping={"file1.json": "group1", "file2.json": "group2"},
+            >>>     ignore_keys=["area", "image_id", "id"],
+            >>>     token="my_activeloop_token",
+            >>>     num_workers=4,
+            >>> )
+            >>> # or ingest data from cloud
+            >>> ds = deeplake.ingest_coco(
+            >>>     "s3://bucket/images/directory",
+            >>>     "s3://bucket/annotation/file1.json",
+            >>>     dest="hub://username/dataset",
+            >>>     ignore_one_group=True,
+            >>>     ignore_keys=["area", "image_id", "id"],
+            >>>     image_settings={"name": "images", "linked": True, creds_key="my_managed_creds_key", "sample_compression": "jpeg"},
+            >>>     src_creds=aws_creds, # Can also be inferred from environment
+            >>>     token="my_activeloop_token",
+            >>>     num_workers=4,
+            >>> )
+
+        Args:
+            images_directory (str, pathlib.Path): The path to the directory containing images.
+            annotation_files (str, pathlib.Path, List[str]): Path to JSON annotation files in COCO format.
+            dest (str, pathlib.Path):
+                - The full path to the dataset. Can be:
+                - a Deep Lake cloud path of the form ``hub://username/datasetname``. To write to Deep Lake cloud datasets, ensure that you are logged in to Deep Lake (use 'activeloop login' from command line)
+                - an s3 path of the form ``s3://bucketname/path/to/dataset``. Credentials are required in either the environment or passed to the creds argument.
+                - a local file system path of the form ``./path/to/dataset`` or ``~/path/to/dataset`` or ``path/to/dataset``.
+                - a memory path of the form ``mem://path/to/dataset`` which doesn't save the dataset but keeps it in memory instead. Should be used only for testing as it does not persist.
+            key_to_tensor_mapping (Optional[Dict]): A one-to-one mapping between COCO keys and Dataset tensor names.
+            file_to_group_mapping (Optional[Dict]): A one-to-one mapping between COCO annotation file names and Dataset group names.
+            ignore_one_group (bool): Skip creation of group in case of a single annotation file. Set to ``True`` by default.
+            ignore_keys (List[str]): A list of COCO keys to ignore.
+            image_settings (Optional[Dict]): A dictionary containing settings for the images tensor.
+            src_creds (Optional[Dict]): Credentials to access the source path. If not provided, will be inferred from the environment.
+            dest_creds (Optional[Dict]): A dictionary containing credentials used to access the destination path of the dataset.
+            inspect_limit (int): The maximum number of samples to inspect in the annotations json, in order to generate the set of COCO annotation keys. Set to ``1000000`` by default.
+            progressbar (bool): Enables or disables ingestion progress bar. Set to ``True`` by default.
+            num_workers (int): The number of workers to use for ingestion. Set to ``0`` by default.
+            **dataset_kwargs: Any arguments passed here will be forwarded to the dataset creator function. See :func:`deeplake.empty`.
+
+        Returns:
+            Dataset: The Dataset created from images and COCO annotations.
+
+        Raises:
+            IngestionError: If either ``key_to_tensor_mapping`` or ``file_to_group_mapping`` are not one-to-one.
+        """
+        dest = convert_pathlib_to_string_if_needed(dest)
+        images_directory = convert_pathlib_to_string_if_needed(images_directory)
+        annotation_files = (
+            [convert_pathlib_to_string_if_needed(f) for f in annotation_files]
+            if isinstance(annotation_files, list)
+            else convert_pathlib_to_string_if_needed(annotation_files)
+        )
+
+        ds = deeplake.empty(dest, creds=dest_creds, verbose=False, **dataset_kwargs)
+
+        unstructured = CocoDataset(
+            source=images_directory,
+            annotation_files=annotation_files,
+            key_to_tensor_mapping=key_to_tensor_mapping,
+            file_to_group_mapping=file_to_group_mapping,
+            ignore_one_group=ignore_one_group,
+            ignore_keys=ignore_keys,
+            image_settings=image_settings,
+            creds=src_creds,
+        )
+        structure = unstructured.prepare_structure(inspect_limit)
+        structure.create_missing(ds)
+
+        unstructured.structure(
+            ds,
+            progressbar,
+            num_workers,
+        )
+
+        return ds
 
     @staticmethod
     def ingest(
