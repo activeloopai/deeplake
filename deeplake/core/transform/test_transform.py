@@ -1130,3 +1130,30 @@ def test_read_only_dataset_raise_if_output_dataset(memory_ds):
         fn_aggregate(key="label", values=values).eval(
             data_in, data_out, progressbar=False, read_only_ok=True
         )
+
+
+@pytest.mark.parametrize("compression", [("lz4", "sample"), ("lz4", "chunk"), None])
+def test_empty_sample_transform(local_ds, compression):
+    @deeplake.compute
+    def upload_boxes(box, sample_out):
+        sample_out.boxes.append(box)
+
+    with local_ds as ds:
+        if isinstance(compression, tuple):
+            cmpr, typ = compression
+            if typ == "sample":
+                ds.create_tensor("boxes", htype="bbox", sample_compression=cmpr)
+            else:
+                ds.create_tensor("boxes", htype="bbox", chunk_compression=cmpr)
+        else:
+            ds.create_tensor("boxes", htype="bbox")
+        samples = [None] * 50 + [[]] * 50 + [np.zeros((5, 4), dtype=np.float32)] * 50
+        upload_boxes().eval(samples, ds, num_workers=2)
+
+    boxes = ds.boxes.numpy(aslist=True)
+
+    for i in range(150):
+        if i < 100:
+            np.testing.assert_array_equal(boxes[i], np.zeros((0, 0), dtype=np.float32))
+        else:
+            np.testing.assert_array_equal(boxes[i], np.zeros((5, 4), dtype=np.float32))

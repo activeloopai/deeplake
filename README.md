@@ -366,12 +366,11 @@ If you use Deep Lake in your research, please cite Activeloop using:
 
 ```
 @article{deeplake,
-  doi = {10.48550/ARXIV.2209.10785},
-  url = {https://arxiv.org/abs/2209.10785},
-  author = {Hambardzumyan, Sasun and Tuli, Abhinav and Ghukasyan, Levon and Rahman, Fariz and Topchyan, Hrant and Isayan, David and Harutyunyan, Mikayel and Hakobyan, Tatevik and Stranic, Ivo and Buniatyan, Davit},
   title = {Deep Lake: a Lakehouse for Deep Learning},
-  publisher = {arXiv},
-  year = {2022},
+  author = {Hambardzumyan, Sasun and Tuli, Abhinav and Ghukasyan, Levon and Rahman, Fariz and Topchyan, Hrant and Isayan, David and Harutyunyan, Mikayel and Hakobyan, Tatevik and Stranic, Ivo and Buniatyan, Davit},
+  url = {https://www.cidrdb.org/cidr2023/papers/p69-buniatyan.pdf},
+  booktitle={Proceedings of CIDR},
+  year = {2023},
 }
 ```
 
