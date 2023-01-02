@@ -3,10 +3,13 @@ from deeplake.core.linked_sample import LinkedSample
 from deeplake.core.sample import Sample
 from deeplake.core.tensor import Tensor
 from deeplake.constants import MB
+from typing import Union, List
+from itertools import chain
 
 import numpy as np
 
 import posixpath
+import bisect
 
 
 class TransformTensor:
@@ -16,8 +19,12 @@ class TransformTensor:
         self.name = name
         self.is_group = is_group
         self.idx = slice(None, None, None)
+        self.numpy_only = True
+        self.cum_sizes = []
 
     def __len__(self):
+        if self.numpy_only:
+            return 0 if not self.cum_sizes else self.cum_sizes[-1]
         return len(self.items)
 
     def __getattr__(self, item):
@@ -30,7 +37,10 @@ class TransformTensor:
         self.idx = item
         return self
 
-    def numpy(self):
+    def numpy(self) -> Union[List, np.ndarray]:
+        if self.numpy_only:
+            return self.numpy_compressed()
+
         if isinstance(self.idx, int):
             items = [self.numpy_compressed()]
             squeeze = True
@@ -51,16 +61,48 @@ class TransformTensor:
         return values
 
     def numpy_compressed(self):
+        idx = self.idx
+        if self.numpy_only:
+            if isinstance(idx, int):
+                i = bisect.bisect_right(self.cum_sizes, idx)
+                if i == 0:
+                    j = idx
+                else:
+                    j = idx - self.cum_sizes[i - 1]
+                return self.items[i][j]
         return self.items[self.idx]
+
+    def non_numpy_only(self):
+        items = list(chain(*self.items[:]))
+        self.items.clear()
+        self.items += items
+        self.cum_sizes.clear()
+        self.numpy_only = False
 
     def append(self, item):
         if self.is_group:
             raise TensorDoesNotExistError(self.name)
+        if self.numpy_only:
+            # optimization applicable only if extending
+            self.non_numpy_only()
+        self.items.append(item)
         if self.dataset.all_chunk_engines:
             self.dataset.item_added(item)
-        self.items.append(item)
 
     def extend(self, items):
+        if self.numpy_only:
+            if isinstance(items, np.ndarray):
+                self.items.append(items)
+                if len(self.cum_sizes) == 0:
+                    self.cum_sizes.append(len(items))
+                else:
+                    self.cum_sizes.append(self.cum_sizes[-1] + len(items))
+                if self.dataset.all_chunk_engines:
+                    self.dataset.item_added(items)
+                return
+            else:
+                self.non_numpy_only()
+
         for item in items:
             self.append(item)
 
@@ -104,6 +146,16 @@ class TransformDataset:
     def __iter__(self):
         for i in range(len(self)):
             yield self[i]
+    
+    def append(self, sample, skip_ok=False):
+        if not skip_ok:
+            for k in self.tensors:
+                if k not in sample:
+                    raise TensorDoesNotExistError(k)
+        if len(set(map(len, (self[k] for k in sample)))) != 1:
+            raise ValueError("All tensors are expected to have the same length.")
+        for k, v in sample.items():
+            self[k].append(v)
 
     def item_added(self, item):
         if isinstance(item, Sample):
@@ -129,9 +181,14 @@ class TransformDataset:
                 name = posixpath.join(self.group_index, name)
                 chunk_engine = all_chunk_engines[label_temp_tensors.get(name) or name]
                 callback = chunk_engine._transform_callback
-                chunk_engine.extend(
-                    tensor[:].numpy_compressed(), link_callback=callback
-                )
+                if tensor.numpy_only:
+                    items = tensor[:].numpy_compressed()
+                    for item in items:
+                        chunk_engine.extend(item, link_callback=callback)
+                else:
+                    chunk_engine.extend(
+                        tensor[:].numpy_compressed(), link_callback=callback
+                    )
                 tensor.items.clear()
 
 

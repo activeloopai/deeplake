@@ -128,12 +128,17 @@ def store_data_slice_with_pbar(pg_callback, transform_input: Tuple) -> Dict:
         data_slice = add_cache_to_dataset_slice(data_slice, tensors)
 
     transform_dataset = TransformDataset(
-        visible_tensors, all_chunk_engines, group_index, label_temp_tensors
+        visible_tensors,
+        all_chunk_engines,
+        group_index,
+        label_temp_tensors,
     )
 
     n = len(data_slice)
     last_reported_time = time.time()
     last_reported_num_samples = 0
+
+    pipeline_checked = False
 
     for i, sample in enumerate(
         (data_slice[i : i + 1] for i in range(n))
@@ -141,8 +146,30 @@ def store_data_slice_with_pbar(pg_callback, transform_input: Tuple) -> Dict:
         else data_slice
     ):
         out = transform_sample(sample, pipeline, visible_tensors)
+
+        if is_empty_transform_dataset(out):
+            return
+
+        if not pipeline_checked:
+            data = out.data
+            result_keys = set(k for k in data if not data[k].is_group)
+
+            # compare with actual tensors if there are temporary tensors
+            if skip_ok:
+                if not result_keys.issubset(visible_tensors):
+                    raise TensorMismatchError(
+                        list(visible_tensors), list(result_keys), skip_ok
+                    )
+            elif set(result_keys) != set(visible_tensors):
+                raise TensorMismatchError(
+                    list(visible_tensors), list(result_keys), skip_ok
+                )
+
+            pipeline_checked = True
+
         for tensor in out.tensors:
             transform_dataset[tensor].extend(out[tensor].items)
+            transform_dataset[tensor].numpy_only = out[tensor].numpy_only
 
         if pg_callback is not None:
             curr_time = time.time()
