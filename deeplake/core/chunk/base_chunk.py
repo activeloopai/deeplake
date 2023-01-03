@@ -323,7 +323,7 @@ class BaseChunk(DeepLakeMemoryObject):
                     incoming_sample, sample_compression, dt, ht  # type: ignore
                 )
         elif incoming_sample is None:
-            shape = (0,) * (self.num_dims or 1)
+            shape = (0,) * self.num_dims if self.num_dims else None
             incoming_sample = b""
         elif isinstance(incoming_sample, Sample):
             incoming_sample, shape = serialize_sample_object(  # type: ignore
