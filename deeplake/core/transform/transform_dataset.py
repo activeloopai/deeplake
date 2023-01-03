@@ -28,7 +28,6 @@ class TransformTensor:
         return len(self.items)
 
     def __getattr__(self, item):
-        del self.dataset.data[self.name]
         return self.dataset[posixpath.join(self.name, item)][self.idx]
 
     def __getitem__(self, item):
@@ -125,6 +124,7 @@ class TransformDataset:
         self.cache_size = cache_size
         self.cache_used = 0
         self.idx = idx
+        self.pg_callback = None
 
     def __len__(self):
         return min(len(self[tensor]) for tensor in self.data)
@@ -146,7 +146,7 @@ class TransformDataset:
     def __iter__(self):
         for i in range(len(self)):
             yield self[i]
-    
+
     def append(self, sample, skip_ok=False):
         if not skip_ok:
             for k in self.tensors:
@@ -173,6 +173,9 @@ class TransformDataset:
         if self.cache_used >= self.cache_size:
             self.flush()
 
+    def set_pg_callback(self, callback):
+        self.pg_callback = callback
+
     def flush(self):
         all_chunk_engines = self.all_chunk_engines
         label_temp_tensors = self.label_temp_tensors
@@ -184,47 +187,13 @@ class TransformDataset:
                 if tensor.numpy_only:
                     items = tensor[:].numpy_compressed()
                     for item in items:
-                        chunk_engine.extend(item, link_callback=callback)
+                        chunk_engine.extend(
+                            item, link_callback=callback, pg_callback=self.pg_callback
+                        )
                 else:
                     chunk_engine.extend(
-                        tensor[:].numpy_compressed(), link_callback=callback
+                        tensor[:].numpy_compressed(),
+                        link_callback=callback,
+                        pg_callback=self.pg_callback,
                     )
                 tensor.items.clear()
-
-
-# class TransformDataset:
-#     def __init__(self, all_tensors=None, slice_list=None):
-#         """Creates a Dataset like object that supports "." access of tensors and appends/extends to the tensors.
-#         This is used as sample_out in deeplake transforms.
-#         """
-#         self.tensors = all_tensors or {}
-#         self.slice_list = slice_list or []
-
-#     def __len__(self):
-#         return min(len(self[tensor]) for tensor in self.tensors)
-
-#     def __getattr__(self, name):
-#         if name not in self.tensors:
-#             self.tensors[name] = TransformTensor(name=name, dataset=self)
-#         return self.tensors[name][self.slice_list]
-
-#     def __getitem__(self, slice_):
-#         if isinstance(slice_, str):
-#             return self.__getattr__(slice_)
-#         assert isinstance(slice_, (slice, int))
-#         new_slice_list = self.slice_list + [slice_]
-#         return TransformDataset(all_tensors=self.tensors, slice_list=new_slice_list)
-
-#     def __iter__(self):
-#         for i in range(len(self)):
-#             yield self[i]
-
-#     def append(self, sample, skip_ok=False):
-#         if not skip_ok:
-#             for k in self.tensors:
-#                 if k not in sample:
-#                     raise TensorDoesNotExistError(k)
-#         if len(set(map(len, (self[k] for k in sample)))) != 1:
-#             raise ValueError("All tensors are expected to have the same length.")
-#         for k, v in sample.items():
-#             self[k].append(v)

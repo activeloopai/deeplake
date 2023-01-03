@@ -127,62 +127,84 @@ def store_data_slice_with_pbar(pg_callback, transform_input: Tuple) -> Dict:
     if isinstance(data_slice, deeplake.Dataset):
         data_slice = add_cache_to_dataset_slice(data_slice, tensors)
 
+    rel_tensors = [posixpath.relpath(tensor, group_index) for tensor in visible_tensors]
+
     transform_dataset = TransformDataset(
-        visible_tensors,
+        rel_tensors,
         all_chunk_engines,
         group_index,
         label_temp_tensors,
     )
 
-    n = len(data_slice)
-    last_reported_time = time.time()
-    last_reported_num_samples = 0
+    if extend_only:
+        transform_fn = pipeline.functions[0]
+        extend_fn, args, kwargs = (
+            transform_fn.func,
+            transform_fn.args,
+            transform_fn.kwargs,
+        )
+        extend_fn(data_slice, transform_dataset, *args, **kwargs)
+        data = transform_dataset.data
+        updated_tensors = set(
+            k for k in data if not data[k].is_group and len(data[k]) > 0
+        )
+        if pg_callback is not None:
+            pg_callback = normalize_pg(pg_callback, len(updated_tensors))
+        transform_dataset.set_pg_callback(pg_callback)
+        transform_dataset.flush()
+    else:
+        n = len(data_slice)
+        last_reported_time = time.time()
+        last_reported_num_samples = 0
 
-    pipeline_checked = False
+        pipeline_checked = False
 
-    for i, sample in enumerate(
-        (data_slice[i : i + 1] for i in range(n))
-        if pd and isinstance(data_slice, pd.DataFrame)
-        else data_slice
-    ):
-        out = transform_sample(sample, pipeline, visible_tensors)
+        for i, sample in enumerate(
+            (data_slice[i : i + 1] for i in range(n))
+            if pd and isinstance(data_slice, pd.DataFrame)
+            else data_slice
+        ):
+            out = transform_sample(sample, pipeline, rel_tensors)
 
-        if is_empty_transform_dataset(out):
-            return
+            if is_empty_transform_dataset(out):
+                return
 
-        if not pipeline_checked:
-            data = out.data
-            result_keys = set(k for k in data if not data[k].is_group)
-
-            # compare with actual tensors if there are temporary tensors
-            if skip_ok:
-                if not result_keys.issubset(visible_tensors):
-                    raise TensorMismatchError(
-                        list(visible_tensors), list(result_keys), skip_ok
-                    )
-            elif set(result_keys) != set(visible_tensors):
-                raise TensorMismatchError(
-                    list(visible_tensors), list(result_keys), skip_ok
+            if not pipeline_checked:
+                data = out.data
+                result_keys = set(
+                    k for k in data if not data[k].is_group and len(data[k]) > 0
                 )
 
-            pipeline_checked = True
+                # compare with actual tensors if there are temporary tensors
+                if skip_ok:
+                    if not result_keys.issubset(rel_tensors):
+                        raise TensorMismatchError(
+                            list(rel_tensors), list(result_keys), skip_ok
+                        )
+                elif set(result_keys) != set(rel_tensors):
+                    raise TensorMismatchError(
+                        list(rel_tensors), list(result_keys), skip_ok
+                    )
 
-        for tensor in out.tensors:
-            transform_dataset[tensor].extend(out[tensor].items)
-            transform_dataset[tensor].numpy_only = out[tensor].numpy_only
+                pipeline_checked = True
 
-        if pg_callback is not None:
-            curr_time = time.time()
-            if (
-                curr_time - last_reported_time > TRANSFORM_PROGRESSBAR_UPDATE_INTERVAL
-                or i == n - 1
-            ):
-                num_samples = i + 1
-                pg_callback(num_samples - last_reported_num_samples)
-                last_reported_num_samples = num_samples
-                last_reported_time = curr_time
+            for tensor in out.tensors:
+                transform_dataset[tensor].extend(out[tensor].items)
+                transform_dataset[tensor].numpy_only = out[tensor].numpy_only
 
-    transform_dataset.flush()
+            if pg_callback is not None:
+                curr_time = time.time()
+                if (
+                    curr_time - last_reported_time
+                    > TRANSFORM_PROGRESSBAR_UPDATE_INTERVAL
+                    or i == n - 1
+                ):
+                    num_samples = i + 1
+                    pg_callback(num_samples - last_reported_num_samples)
+                    last_reported_num_samples = num_samples
+                    last_reported_time = curr_time
+
+        transform_dataset.flush()
 
     # retrieve relevant objects from memory
     all_tensor_metas = {}
@@ -218,128 +240,11 @@ def store_data_slice_with_pbar(pg_callback, transform_input: Tuple) -> Dict:
     }
 
 
-def _transform_sample_and_update_chunk_engines(
-    sample,
-    pipeline,
-    tensors: List[str],
-    label_temp_tensors: Dict[str, str],
-    actual_tensors: Optional[List[str]],
-    all_chunk_engines: Dict[str, ChunkEngine],
-    group_index: str,
-    skip_ok: bool = False,
-):
-    result = transform_sample(sample, pipeline)
-    if is_empty_transform_dataset(result):
-        return
-    result_resolved = {
-        posixpath.join(group_index, k): result[k] for k in result.tensors
-    }
-    result = result_resolved  # type: ignore
-    result_keys = set(result.keys())
-
-    # compare with actual tensors if there are temporary tensors
-    actual_tensors = actual_tensors or tensors
-    if skip_ok:
-        if not result_keys.issubset(actual_tensors):
-            raise TensorMismatchError(list(actual_tensors), list(result_keys), skip_ok)
-    elif set(result_keys) != set(actual_tensors):
-        raise TensorMismatchError(list(actual_tensors), list(result_keys), skip_ok)
-
-    for tensor, value in result.items():
-        chunk_engine = all_chunk_engines[label_temp_tensors.get(tensor) or tensor]
-        callback = chunk_engine._transform_callback
-        if value._numpy_only:
-            for batch in value.numpy_compressed():
-                chunk_engine.extend(batch, link_callback=callback)
-        else:
-            chunk_engine.extend(value.numpy_compressed(), link_callback=callback)
-        value.items.clear()
-
-
 def normalize_pg(pg_callback, num_tensors):
     def inner(num_samples):
         return pg_callback(num_samples / num_tensors)
 
     return inner
-
-
-def extend_data_slice(
-    data_slice,
-    pipeline,
-    all_chunk_engines,
-    group_index: str,
-    pg_callback,
-):
-    transform_fn = pipeline.functions[0]
-    extend_fn, args, kwargs = transform_fn.func, transform_fn.args, transform_fn.kwargs
-    result = TransformDataset()
-    extend_fn(data_slice, result, *args, **kwargs)
-    result_resolved = {
-        posixpath.join(group_index, k): result[k] for k in result.tensors
-    }
-    result = result_resolved  # type: ignore
-
-    if pg_callback is not None:
-        pg_callback = normalize_pg(pg_callback, len(result))
-
-    for tensor, value in result.items():
-        chunk_engine = all_chunk_engines[tensor]
-        callback = chunk_engine._transform_callback
-        if value._numpy_only:
-            for batch in value.numpy_compressed():
-                chunk_engine.extend(
-                    batch, link_callback=callback, pg_callback=pg_callback
-                )
-        else:
-            chunk_engine.extend(
-                value.numpy_compressed(),
-                link_callback=callback,
-                pg_callback=pg_callback,
-            )
-        value.items.clear()
-
-
-def transform_data_slice_and_append(
-    data_slice,
-    pipeline,
-    tensors: List[str],
-    label_temp_tensors: Dict[str, str],
-    actual_tensors: Optional[List[str]],
-    all_chunk_engines: Dict[str, ChunkEngine],
-    group_index: str,
-    pg_callback=None,
-    skip_ok=False,
-) -> None:
-    """Transforms the data_slice with the pipeline and adds the resultant samples to chunk_engines."""
-
-    n = len(data_slice)
-    last_reported_time = time.time()
-    last_reported_num_samples = 0
-    for i, sample in enumerate(
-        (data_slice[i : i + 1] for i in range(n))
-        if pd and isinstance(data_slice, pd.DataFrame)
-        else data_slice
-    ):
-        _transform_sample_and_update_chunk_engines(
-            sample,
-            pipeline,
-            tensors,
-            label_temp_tensors,
-            actual_tensors,
-            all_chunk_engines,
-            group_index,
-            skip_ok,
-        )
-        if pg_callback is not None:
-            curr_time = time.time()
-            if (
-                curr_time - last_reported_time > TRANSFORM_PROGRESSBAR_UPDATE_INTERVAL
-                or i == n - 1
-            ):
-                num_samples = i + 1
-                pg_callback(num_samples - last_reported_num_samples)
-                last_reported_num_samples = num_samples
-                last_reported_time = curr_time
 
 
 def create_worker_chunk_engines(
