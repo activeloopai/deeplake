@@ -1147,13 +1147,19 @@ def test_empty_sample_transform(local_ds, compression):
                 ds.create_tensor("boxes", htype="bbox", chunk_compression=cmpr)
         else:
             ds.create_tensor("boxes", htype="bbox")
-        samples = [None] * 50 + [[]] * 50 + [np.zeros((5, 4), dtype=np.float32)] * 50
-        upload_boxes().eval(samples, ds, num_workers=2)
+        samples = (
+            [None] * 50
+            + [[]] * 50
+            + [np.zeros((5, 4), dtype=np.float32)] * 50
+            + [None] * 50
+            + [[]] * 50
+        )
+        upload_boxes().eval(samples, ds, num_workers=4)
 
     boxes = ds.boxes.numpy(aslist=True)
 
-    for i in range(150):
-        if i < 100:
+    for i in range(250):
+        if i < 100 or i >= 150:
             np.testing.assert_array_equal(boxes[i], np.zeros((0, 0), dtype=np.float32))
         else:
             np.testing.assert_array_equal(boxes[i], np.zeros((5, 4), dtype=np.float32))
