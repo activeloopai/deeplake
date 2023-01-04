@@ -112,6 +112,7 @@ def store_data_slice_with_pbar(pg_callback, transform_input: Tuple) -> Dict:
         link_creds,
         skip_ok,
         extend_only,
+        cache_size,
     ) = inp
     all_chunk_engines = create_worker_chunk_engines(
         tensors, label_temp_tensors, output_storage, version_state, link_creds
@@ -127,6 +128,7 @@ def store_data_slice_with_pbar(pg_callback, transform_input: Tuple) -> Dict:
         all_chunk_engines,
         group_index,
         label_temp_tensors,
+        cache_size=cache_size,
     )
 
     if extend_only:

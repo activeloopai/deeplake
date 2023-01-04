@@ -56,6 +56,7 @@ class ComputeFunction:
         check_lengths: bool = True,
         pad_data_in: bool = False,
         read_only_ok: bool = False,
+        cache_size: int = 16,
         **kwargs,
     ):
         """Evaluates the ComputeFunction on data_in to produce an output dataset ds_out.
@@ -97,6 +98,7 @@ class ComputeFunction:
             check_lengths,
             pad_data_in,
             read_only_ok,
+            cache_size,
             **kwargs,
         )
 
@@ -123,6 +125,7 @@ class Pipeline:
         check_lengths: bool = True,
         pad_data_in: bool = False,
         read_only_ok: bool = False,
+        cache_size: int = 16,
         **kwargs,
     ):
         """Evaluates the pipeline on ``data_in`` to produce an output dataset ``ds_out``.
@@ -224,6 +227,7 @@ class Pipeline:
                 overwrite,
                 skip_ok,
                 read_only_ok and overwrite,
+                cache_size,
                 **kwargs,
             )
             target_ds._send_compute_progress(**progress_end_args, status="success")
@@ -252,6 +256,7 @@ class Pipeline:
         overwrite: bool = False,
         skip_ok: bool = False,
         read_only: bool = False,
+        cache_size: int = 16,
         **kwargs,
     ):
         """Runs the pipeline on the input data to produce output samples and stores in the dataset.
@@ -320,6 +325,7 @@ class Pipeline:
             target_ds.link_creds,
             skip_ok,
             extend_only,
+            cache_size,
         )
         map_inp = zip(slices, storages, repeat(args))
 

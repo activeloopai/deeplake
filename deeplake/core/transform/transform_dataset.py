@@ -115,14 +115,14 @@ class TransformDataset:
         group_index="",
         label_temp_tensors=None,
         idx=slice(None, None, None),
-        cache_size=16 * MB,
+        cache_size=16,
     ):
         self.tensors = tensors
         self.data = {tensor: TransformTensor(self, tensor) for tensor in tensors}
         self.all_chunk_engines = all_chunk_engines
         self.group_index = group_index
         self.label_temp_tensors = label_temp_tensors
-        self.cache_size = cache_size
+        self.cache_size = cache_size * MB
         self.cache_used = 0
         self.idx = idx
         self.pg_callback = None
@@ -198,3 +198,4 @@ class TransformDataset:
                         pg_callback=self.pg_callback,
                     )
                 tensor.items.clear()
+        self.cache_used = 0
