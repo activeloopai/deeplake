@@ -69,14 +69,15 @@ class TransformTensor:
                 else:
                     j = idx - self.cum_sizes[i - 1]
                 return self.items[i][j]
-        return self.items[self.idx]
+        return self.items[idx]
 
     def non_numpy_only(self):
-        items = list(chain(*self.items[:]))
-        self.items.clear()
-        self.items += items
-        self.cum_sizes.clear()
-        self.numpy_only = False
+        if self.numpy_only:
+            items = list(chain(*self.items[:]))
+            self.items.clear()
+            self.items += items
+            self.cum_sizes.clear()
+            self.numpy_only = False
 
     def append(self, item):
         if self.is_group:
@@ -127,7 +128,7 @@ class TransformDataset:
         self.pg_callback = None
 
     def __len__(self):
-        return min(len(self[tensor]) for tensor in self.data)
+        return max(len(self[tensor]) for tensor in self.data)
 
     def __getattr__(self, tensor):
         try:
@@ -182,7 +183,7 @@ class TransformDataset:
         for name, tensor in self.data.items():
             if not tensor.is_group:
                 name = posixpath.join(self.group_index, name)
-                chunk_engine = all_chunk_engines[label_temp_tensors.get(name) or name]
+                chunk_engine = all_chunk_engines[label_temp_tensors.get(name, name)]
                 callback = chunk_engine._transform_callback
                 if tensor.numpy_only:
                     items = tensor[:].numpy_compressed()

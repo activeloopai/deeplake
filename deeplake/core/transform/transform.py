@@ -279,6 +279,9 @@ class Pipeline:
             else [target_ds[t].key for t in target_ds.tensors]
         )
 
+        visible_tensors = list(target_ds.tensors)
+        visible_tensors = [target_ds[t].key for t in visible_tensors]
+
         if not read_only:
             for tensor in class_label_tensors:
                 temp_tensor = f"__temp{tensor}_{uuid4().hex[:4]}"
@@ -286,6 +289,7 @@ class Pipeline:
                     temp_tensor_obj = target_ds.create_tensor(
                         temp_tensor,
                         htype="class_label",
+                        hidden=True,
                         create_sample_info_tensor=False,
                         create_shape_tensor=False,
                         create_id_tensor=False,
@@ -293,10 +297,6 @@ class Pipeline:
                     temp_tensor_obj.meta._disable_temp_transform = True
                     label_temp_tensors[tensor] = temp_tensor
                 target_ds.flush()
-
-        visible_tensors = list(target_ds.tensors)
-        visible_tensors = [target_ds[t].key for t in visible_tensors]
-        visible_tensors = list(set(visible_tensors) - set(class_label_tensors))
 
         tensors = list(target_ds._tensors())
         tensors = [target_ds[t].key for t in tensors]
