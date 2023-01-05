@@ -53,7 +53,7 @@ Treat your cloud datasets as if they are a collection of NumPy arrays in your sy
 Commits, branches, checkout - Concepts you are already familiar with in your code repositories can now be applied to your datasets as well!
 </details>
 <details>
-  <summary><b>Integrations with Deep Learning Frameworks</b></summary>
+  <summary><b>Dataloaders for Popular Deep Learning Frameworks</b></summary>
 Deep Lake comes with built-in dataloaders for Pytorch and Tensorflow. Train your model with a few lines of code - we even take care of dataset shuffling. :)
 </details>
 <details>
