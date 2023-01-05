@@ -168,7 +168,7 @@ class TransformDataset:
         elif isinstance(item, (Tensor, type(None))):
             sizeof_item = 0
         else:
-            sizeof_item = np.asarray(item).nbytes
+            sizeof_item = np.asarray(item, dtype=object).nbytes
 
         self.cache_used += sizeof_item
         if self.cache_used >= self.cache_size:
