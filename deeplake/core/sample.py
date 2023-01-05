@@ -226,10 +226,7 @@ class Sample:
             img = _open_nifti(self.path)
         else:
             img = _open_nifti(self.buffer, gz=self.compression == "nii.gz")
-        return {
-            "affine": img.affine,
-            "zooms": tuple(map(float, img.header.get_zooms())),
-        }
+        return dict(img.header)
 
     def _get_video_meta(self) -> dict:
         if self.path and get_path_type(self.path) == "local":
