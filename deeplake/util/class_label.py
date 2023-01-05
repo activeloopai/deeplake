@@ -70,6 +70,7 @@ def convert_to_text(inp, class_names: List[str], return_original=False):
 def sync_labels(
     ds, label_temp_tensors, hash_label_maps, num_workers, scheduler, verbose=True
 ):
+    ds = ds.root
     hl_maps = defaultdict(OrderedDict)
     for map in hash_label_maps:
         for tensor in map:

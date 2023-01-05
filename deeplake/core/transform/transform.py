@@ -36,6 +36,8 @@ from deeplake.util.version_control import auto_checkout, load_meta
 from deeplake.util.class_label import sync_labels
 import numpy as np
 
+import posixpath
+
 
 class ComputeFunction:
     def __init__(self, func, args, kwargs, name: Optional[str] = None):
@@ -289,7 +291,7 @@ class Pipeline:
 
         if not read_only:
             for tensor in class_label_tensors:
-                temp_tensor = f"__temp{tensor}_{uuid4().hex[:4]}"
+                temp_tensor = f"__temp{posixpath.relpath(tensor, target_ds.group_index)}_{uuid4().hex[:4]}"
                 with target_ds:
                     temp_tensor_obj = target_ds.create_tensor(
                         temp_tensor,
@@ -300,7 +302,7 @@ class Pipeline:
                         create_id_tensor=False,
                     )
                     temp_tensor_obj.meta._disable_temp_transform = True
-                    label_temp_tensors[tensor] = temp_tensor
+                    label_temp_tensors[tensor] = temp_tensor_obj.key
                 target_ds.flush()
 
         tensors = list(target_ds._tensors())
