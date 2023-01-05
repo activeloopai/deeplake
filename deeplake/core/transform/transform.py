@@ -80,6 +80,7 @@ class ComputeFunction:
                 Defaults to False.
             read_only_ok (bool): If ``True`` and output dataset is same as input dataset, the read-only check is skipped. This can be used to read data in parallel without making changes to underlying dataset.
                 Defaults to False.
+            cache_size (int): Cache size to be used by transform per worker.
             **kwargs: Additional arguments.
 
         Raises:
@@ -149,6 +150,7 @@ class Pipeline:
                 Defaults to ``False``.
             read_only_ok (bool): If ``True`` and output dataset is same as input dataset, the read-only check is skipped.
                 Defaults to False.
+            cache_size (int): Cache size to be used by transform per worker.
             **kwargs: Additional arguments.
 
         Raises:

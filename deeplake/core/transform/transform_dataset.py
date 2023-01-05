@@ -2,8 +2,8 @@ from deeplake.util.exceptions import TensorDoesNotExistError
 from deeplake.core.linked_sample import LinkedSample
 from deeplake.core.sample import Sample
 from deeplake.core.tensor import Tensor
+from typing import Union, List, Any
 from deeplake.constants import MB
-from typing import Union, List
 from itertools import chain
 
 import numpy as np
@@ -47,8 +47,8 @@ class TransformTensor:
             items = self.numpy_compressed()
             squeeze = False
 
-        values = []
-        for i, item in enumerate(items):
+        values: List[Any] = []
+        for item in items:
             if isinstance(item, Sample):
                 values.append(item.array)
             elif not isinstance(item, (LinkedSample, Tensor, type(None))):

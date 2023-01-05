@@ -3,7 +3,6 @@ import pytest
 import numpy as np
 from click.testing import CliRunner
 from deeplake.core.storage.memory import MemoryProvider
-from deeplake.core.transform.transform_tensor import TransformTensor
 from deeplake.core.version_control.test_version_control import (
     compare_dataset_diff,
     compare_tensor_diff,

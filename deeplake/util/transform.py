@@ -41,9 +41,7 @@ def transform_sample(
     Args:
         sample: The sample on which the pipeline of functions is to be applied.
         pipeline (Pipeline): The Sequence of functions to apply on the sample.
-
-    Raises:
-        InvalidTransformDataset: If number of tensors were inconsistent between all transform datasets.
+        tensors: List of tensors in output.
 
     Returns:
         TransformDataset: A transform dataset containing all the samples that were generated.
@@ -63,21 +61,6 @@ def transform_sample(
             fn(out, result, *args, **kwargs)
             out = result
     return out
-
-
-def combine_transform_datasets(datasets: List[TransformDataset]):
-    """Combines multiple TransformDataset into a single transform dataset."""
-    final_ds = TransformDataset()
-    for ds in datasets:
-        for tensor in ds.tensors:
-            input_tensor = ds[tensor]
-            output_tensor = final_ds[tensor]
-            if input_tensor._numpy_only:
-                for batch in input_tensor.numpy():
-                    output_tensor.extend(batch)
-            else:
-                output_tensor.extend(input_tensor.numpy())
-    return final_ds
 
 
 def validate_transform_dataset(dataset: TransformDataset):
