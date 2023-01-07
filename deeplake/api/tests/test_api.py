@@ -2009,17 +2009,6 @@ def test_transform_upload_fail(local_ds_generator, num_workers):
         assert list(ds.tensors) == ["images", "labels"]
 
 
-def test_ignore_temp_tensors(local_ds_generator):
-    with local_ds_generator() as ds:
-        ds.create_tensor("__temptensor")
-        ds.__temptensor.append(123)
-
-    with local_ds_generator() as ds:
-        assert list(ds.tensors) == []
-        assert ds.meta.hidden_tensors == []
-        assert list(ds.storage.keys()) == ["dataset_meta.json"]
-
-
 def test_ignore_temp_tensors(local_path):
     with deeplake.dataset(local_path, overwrite=True) as ds:
         ds.create_tensor(
