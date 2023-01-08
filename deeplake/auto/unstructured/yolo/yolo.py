@@ -10,6 +10,8 @@ from ..base import UnstructuredDataset
 from ..util import DatasetStructure, TensorStructure
 from .utils import YoloData
 
+import numpy as np
+
 from .constants import (
     DEFAULT_YOLO_COORDINATES_TENSOR_PARAMS,
     DEFAULT_YOLO_LABEL_TENSOR_PARAMS,

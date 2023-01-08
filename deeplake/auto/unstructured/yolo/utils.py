@@ -57,7 +57,7 @@ class YoloData:
 
         return names.splitlines()
 
-    def parse_data(self) -> Tuple[List[str], List[str], List[str], Optional[str]]:
+    def parse_data(self) -> Tuple[List[str], List[str], List[str], List[str], Optional[str]]:
         """Parses the given directory to generate a list of image and annotation paths.
         Returns:
             A tuple with, respectively, list of supported images, list of encountered invalid files, list of encountered extensions and the most frequent extension
