@@ -5,6 +5,7 @@ from typing import Dict, Optional
 
 from deeplake.core.dataset import Dataset
 from deeplake.util.exceptions import IngestionError
+from deeplake.client.log import logger
 
 from ..base import UnstructuredDataset
 from ..util import DatasetStructure, TensorStructure
@@ -48,9 +49,9 @@ class YoloDataset(UnstructuredDataset):
 
         self.data = YoloData(
             self.data_directory,
+            creds,
             self.annotations_directory,
             self.class_names_file,
-            creds,
         )
         self._validate_data()
 
@@ -291,7 +292,7 @@ class YoloDataset(UnstructuredDataset):
                 num_workers=num_workers,
             )
 
-    def structure(self, ds: Dataset, progressbar: bool = True, num_workers: int = 0):
+    def structure(self, ds: Dataset, progressbar: bool = True, num_workers: int = 0):  # type: ignore
 
         # Set class names in the dataset
         if self.data.class_names:

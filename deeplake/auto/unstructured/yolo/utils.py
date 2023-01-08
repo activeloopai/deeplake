@@ -12,14 +12,16 @@ from deeplake.client.log import logger
 from deeplake.util.storage import storage_provider_from_path
 from deeplake.util.path import convert_pathlib_to_string_if_needed
 
+import numpy as np
+
 
 class YoloData:
     def __init__(
         self,
         data_directory: Union[str, pathlib.Path],
-        annotations_directory: Union[str, pathlib.Path],
-        class_names_file: Union[str, pathlib.Path],
         creds,
+        annotations_directory: Optional[Union[str, pathlib.Path]] = None,
+        class_names_file: Optional[Union[str, pathlib.Path]] = None,
     ) -> None:
         """Annotations can either be in hte data_directory, or in a separate annotations_directory"""
 
@@ -48,16 +50,22 @@ class YoloData:
         ) = self.parse_data()
 
         self.class_names = (
-            self.parse_class_names(class_names_file) if class_names_file else None
+            self.parse_class_names(
+                convert_pathlib_to_string_if_needed(class_names_file)
+            )
+            if class_names_file
+            else None
         )
 
-    def parse_class_names(self, class_names_file: Union[str, pathlib.Path]):
+    def parse_class_names(self, class_names_file: str):
         """Parses the file with class names into a list of strings"""
         names = self.get_text_file(class_names_file)
 
         return names.splitlines()
 
-    def parse_data(self) -> Tuple[List[str], List[str], List[str], List[str], Optional[str]]:
+    def parse_data(
+        self,
+    ) -> Tuple[List[str], List[str], List[str], List[str], Optional[str]]:
         """Parses the given directory to generate a list of image and annotation paths.
         Returns:
             A tuple with, respectively, list of supported images, list of encountered invalid files, list of encountered extensions and the most frequent extension
@@ -132,17 +140,16 @@ class YoloData:
 
         yolo_labels = np.zeros(len(lines_split))
 
-        if is_box:
-            yolo_coordinates = np.zeros((len(lines_split), 4))
-        else:
-            yolo_coordinates = []
+        # Initialize box box and polygon coordinates in order to mypy to pass.
+        yolo_coordinates_box = np.zeros((len(lines_split), 4))
+        yolo_coordinates_poly = []
 
         # Go through each line and parse data
         for l, line in enumerate(lines_split):
             line_split = line.split()
 
             if is_box:
-                yolo_coordinates[l, :] = np.array(
+                yolo_coordinates_box[l, :] = np.array(
                     (
                         float(line_split[1]),
                         float(line_split[2]),
@@ -155,16 +162,19 @@ class YoloData:
 
                 if coordinates.size % 2 != 0:
                     raise IngestionError(
-                        f"Error ih annotation {fn}. Polygons must have an even number of points."
+                        f"Error ih annotation {file_name}. Polygons must have an even number of points."
                     )
 
-                yolo_coordinates.append(
+                yolo_coordinates_poly.append(
                     coordinates.reshape((int(coordinates.size / 2), 2))
                 )
 
             yolo_labels[l] = int(line_split[0])
 
-        return yolo_labels, yolo_coordinates
+        if is_box:
+            return yolo_labels, yolo_coordinates_box
+        else:
+            return yolo_labels, yolo_coordinates_poly
 
     def get_full_path_image(self, image_name: str) -> str:
         return os.path.join(self.root, image_name)
