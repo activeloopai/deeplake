@@ -1023,7 +1023,7 @@ class dataset:
             >>> ds = deeplake.ingest_coco(
             >>>     "path/to/images/directory",
             >>>     ["path/to/annotation/file1.json", "path/to/annotation/file2.json"],
-            >>>     dest="hub://username/dataset",
+            >>>     dest="hub://org_id/dataset",
             >>>     key_to_tensor_mapping={"category_id": "labels", "bbox": "boxes"},
             >>>     file_to_group_mapping={"file1.json": "group1", "file2.json": "group2"},
             >>>     ignore_keys=["area", "image_id", "id"],
@@ -1034,7 +1034,7 @@ class dataset:
             >>> ds = deeplake.ingest_coco(
             >>>     "s3://bucket/images/directory",
             >>>     "s3://bucket/annotation/file1.json",
-            >>>     dest="hub://username/dataset",
+            >>>     dest="hub://org_id/dataset",
             >>>     ignore_one_group=True,
             >>>     ignore_keys=["area", "image_id", "id"],
             >>>     image_settings={"name": "images", "linked": True, creds_key="my_managed_creds_key", "sample_compression": "jpeg"},
@@ -1054,7 +1054,7 @@ class dataset:
                 - a memory path of the form ``mem://path/to/dataset`` which doesn't save the dataset but keeps it in memory instead. Should be used only for testing as it does not persist.
             key_to_tensor_mapping (Optional[Dict]): A one-to-one mapping between COCO keys and Dataset tensor names.
             file_to_group_mapping (Optional[Dict]): A one-to-one mapping between COCO annotation file names and Dataset group names.
-            ignore_one_group (bool): Skip creation of group in case of a single annotation file. Set to ``True`` by default.
+            ignore_one_group (bool): Skip creation of group in case of a single annotation file. Set to ``False`` by default.
             ignore_keys (List[str]): A list of COCO keys to ignore.
             image_settings (Optional[Dict]): A dictionary containing settings for the images tensor.
             src_creds (Optional[Dict]): Credentials to access the source path. If not provided, will be inferred from the environment.
@@ -1098,6 +1098,7 @@ class dataset:
             progressbar,
             num_workers,
         )
+        feature_report_path(dest, "ingest_coco", {})
 
         return ds
 

@@ -161,6 +161,7 @@ class CocoDataset(UnstructuredDataset):
         image_file: str,
         ds: Dataset,
         coco_file: CocoAnnotation,
+        include_image: bool = False,
     ):
         id_to_label = coco_file.id_to_label_mapping
         image_name_to_id = coco_file.image_name_to_id_mapping
@@ -170,6 +171,13 @@ class CocoDataset(UnstructuredDataset):
             t for t in ds.tensors if t in self.tensor_to_key and not ds[t].meta.hidden
         ]
         sample: Dict[str, List] = {k: [] for k in group_tensors}
+        if include_image:
+            images_tensor_name = self.image_settings.get("name")
+            images_tensor = ds[images_tensor_name]
+            creds_key = self.image_settings.get("creds_key", None)
+            sample[images_tensor_name] = self.images.get_image(
+                image_file, images_tensor, creds_key
+            )
 
         for annotation in matching_annotations:
             for tensor_name in group_tensors:
@@ -194,9 +202,11 @@ class CocoDataset(UnstructuredDataset):
 
     def structure(self, ds: Dataset, progressbar: bool = True, num_workers: int = 0):  # type: ignore
         image_files = self.images.supported_images
+        ingest_flat = len(self.annotation_files) == 1 and self.ignore_one_group
 
         with ds:
-            self._ingest_images(ds, image_files, progressbar, num_workers)
+            if not ingest_flat:
+                self._ingest_images(ds, image_files, progressbar, num_workers)
 
             for ann_file in self.annotation_files:
                 coco_file = CocoAnnotation(ann_file, creds=self.creds)
@@ -207,7 +217,7 @@ class CocoDataset(UnstructuredDataset):
                 append_destination = ds
 
                 # Get the object to which data will be appended. We need to know if it's first-level tensor, or a group
-                if self.ignore_one_group and len(ds.groups) == 1:
+                if ingest_flat:
                     group_prefix = ""
 
                 if group_prefix:
@@ -216,9 +226,7 @@ class CocoDataset(UnstructuredDataset):
                 @deeplake.compute
                 def process_annotations(image, _, values):
                     values[image] = self._get_sample(
-                        image,
-                        append_destination,
-                        coco_file,
+                        image, append_destination, coco_file, include_image=ingest_flat
                     )
 
                 values: Dict[str, Dict] = OrderedDict((image, None) for image in image_files)  # type: ignore

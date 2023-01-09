@@ -124,3 +124,15 @@ def test_ingestion_with_linked_images(local_path, coco_ingestion_data):
     assert "base_annotations/bbox" in ds.tensors
     assert "base_annotations/segmentation" in ds.tensors
     assert ds.linked_images.htype == "link[image]"
+
+
+def test_flat_ingestion(local_path, coco_ingestion_data):
+    params = {**coco_ingestion_data}
+    params["annotation_files"] = params["annotation_files"][0]
+    ds = deeplake.ingest_coco(**params, dest=local_path, ignore_one_group=True)
+
+    assert ds.path == local_path
+    assert len(ds.groups) == 0
+    assert "images" in ds.tensors
+    assert "bbox" in ds.tensors
+    assert "segmentation" in ds.tensors
