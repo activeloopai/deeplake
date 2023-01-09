@@ -2020,15 +2020,39 @@ def test_transform_upload_fail(local_ds_generator, num_workers):
         assert list(ds.tensors) == ["images", "labels"]
 
 
-def test_ignore_temp_tensors(local_ds_generator):
-    with local_ds_generator() as ds:
-        ds.create_tensor("__temptensor")
+def test_ignore_temp_tensors(local_path):
+    with deeplake.dataset(local_path, overwrite=True) as ds:
+        ds.create_tensor(
+            "__temptensor",
+            htype="class_label",
+            hidden=True,
+            create_sample_info_tensor=False,
+            create_shape_tensor=False,
+            create_id_tensor=False,
+        )
         ds.__temptensor.append(123)
 
-    with local_ds_generator() as ds:
+    with deeplake.load(local_path) as ds:
         assert list(ds.tensors) == []
         assert ds.meta.hidden_tensors == []
         assert list(ds.storage.keys()) == ["dataset_meta.json"]
+
+    with deeplake.dataset(local_path, overwrite=True) as ds:
+        ds.create_tensor(
+            "__temptensor",
+            htype="class_label",
+            hidden=True,
+            create_sample_info_tensor=False,
+            create_shape_tensor=False,
+            create_id_tensor=False,
+        )
+        ds.__temptensor.append(123)
+
+    with deeplake.load(local_path, read_only=True) as ds:
+        assert list(ds.tensors) == []
+        assert list(ds._tensors()) == ["__temptensor"]
+        assert ds.meta.hidden_tensors == ["__temptensor"]
+        assert ds.__temptensor[0].numpy() == 123
 
 
 def test_empty_sample_partial_read(s3_ds):

@@ -246,9 +246,10 @@ class Dataset:
         ] = []  # This is a stack to support nested with contexts
         self._indexing_history: List[int] = []
 
-        for temp_tensor in self._temp_tensors:
-            self.delete_tensor(temp_tensor, large_ok=True)
-        self._temp_tensors = []
+        if not self.read_only:
+            for temp_tensor in self._temp_tensors:
+                self.delete_tensor(temp_tensor, large_ok=True)
+            self._temp_tensors = []
 
     def _lock_lost_handler(self):
         """This is called when lock is acquired but lost later on due to slow update."""

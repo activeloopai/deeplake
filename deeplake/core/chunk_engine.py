@@ -1487,7 +1487,7 @@ class ChunkEngine:
     @property
     def is_fixed_shape(self):
         tensor_meta = self.tensor_meta
-        return tensor_meta.min_shape == tensor_meta.max_shape
+        return not self.is_text_like and tensor_meta.min_shape == tensor_meta.max_shape
 
     @property
     def num_samples_per_chunk(self):

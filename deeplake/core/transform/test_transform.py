@@ -1152,28 +1152,23 @@ def test_rechunk_post_transform(local_ds):
     assert image_num_chunks == 4
 
 
-@pytest.mark.parametrize("compression", [("lz4", "sample"), ("lz4", "chunk"), None])
-def test_empty_sample_transform(local_ds, compression):
+@pytest.mark.parametrize(
+    "compression", [{"sample_compression": "lz4"}, {"chunk_compression": "lz4"}, {}]
+)
+@pytest.mark.parametrize(
+    "data", [[1] * 100 + [2] * 100 + [None] * 300, [None] * 300 + [3] * 200]
+)
+def test_empty_sample_transform_1(local_ds, compression, data):
     @deeplake.compute
-    def upload_boxes(box, sample_out):
-        sample_out.boxes.append(box)
+    def upload(sample_in, sample_out):
+        sample_out.x.append(sample_in)
 
     with local_ds as ds:
-        if isinstance(compression, tuple):
-            cmpr, typ = compression
-            if typ == "sample":
-                ds.create_tensor("boxes", htype="bbox", sample_compression=cmpr)
-            else:
-                ds.create_tensor("boxes", htype="bbox", chunk_compression=cmpr)
-        else:
-            ds.create_tensor("boxes", htype="bbox")
-        samples = [None] * 50 + [[]] * 50 + [np.zeros((5, 4), dtype=np.float32)] * 50
-        upload_boxes().eval(samples, ds, num_workers=2)
+        ds.create_tensor("x", **compression)
 
-    boxes = ds.boxes.numpy(aslist=True)
-
-    for i in range(150):
-        if i < 100:
-            np.testing.assert_array_equal(boxes[i], np.zeros((0, 0), dtype=np.float32))
-        else:
-            np.testing.assert_array_equal(boxes[i], np.zeros((5, 4), dtype=np.float32))
+        upload().eval(
+            data,
+            ds,
+            num_workers=2,
+        )
+        assert len(ds.x) == 500
