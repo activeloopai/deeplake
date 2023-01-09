@@ -71,7 +71,7 @@ Deep Lake datasets are instantly visualized with bounding boxes, masks, annotati
 
 
 <div align="center">
-<a href="https://www.linkpicture.com/view.php?img=LPic61b13e5c1c539681810493"><img src="https://www.linkpicture.com/q/ReadMe.gif" type="image"></a>
+<a href="https://app.activeloop.ai/istranic/coco"><img src="https://www.linkpicture.com/q/ReadMe.gif" type="image"></a>
 </div>
 
     
