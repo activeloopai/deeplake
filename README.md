@@ -28,16 +28,9 @@
 
 *Read this in other languages: [简体中文](README.zh-cn.md)*
 
-<b> 🚀 Deep Lake's efficient enterprise dataloaders speeds up data streaming by >2x compared to Hub 2.x (Ofeidis et al. 2022) 🚀</b>
-
-<div align="center">
-<a href="https://arxiv.org/pdf/2209.10785.pdf"><img src="docs/source/_static/img/benchmarks.png" type="image"></a>
-</div>
-
 ## About Deep Lake
 
 Deep Lake (formerly known as Activeloop Hub) is a data lake for deep learning applications. Our open-source dataset format is optimized for rapid streaming and querying of data while training models at scale, and it includes a simple API for creating, storing, and collaborating on AI datasets of any size. It can be deployed locally or in the cloud, and it enables you to store all of your data in one place, ranging from simple annotations to large videos. Deep Lake is used by Google, Waymo, Red Cross, Omdena, Yale, & Oxford. Deep Lake includes the following features:
-
 
 <details>
   <summary><b>Storage Agnostic API</b></summary>
@@ -77,6 +70,15 @@ Deep Lake datasets are instantly visualized with bounding boxes, masks, annotati
 </div>
 
     
+## Performance
+
+<b> 🚀 Deep Lake's efficient enterprise dataloaders speeds up data streaming by >2x compared to Hub 2.x (Ofeidis et al. 2022) 🚀</b>
+
+<div align="center">
+<a href="https://arxiv.org/pdf/2209.10785.pdf"><img src="docs/source/_static/img/benchmarks.png" type="image"></a>
+</div>
+
+
 ## Getting Started with Deep Lake
 
 
