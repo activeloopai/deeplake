@@ -140,7 +140,7 @@ class YoloData:
 
         yolo_labels = np.zeros(len(lines_split))
 
-        # Initialize box box and polygon coordinates in order to mypy to pass.
+        # Initialize box and polygon coordinates in order to mypy to pass, since types are different. This is computationally negligible.
         yolo_coordinates_box = np.zeros((len(lines_split), 4))
         yolo_coordinates_poly = []
 
