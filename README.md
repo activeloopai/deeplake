@@ -70,9 +70,9 @@ Deep Lake datasets are instantly visualized with bounding boxes, masks, annotati
 </div>
 
     
-## Performance
+## 🚀 Performance
 
-<b> 🚀 Deep Lake's efficient enterprise dataloaders speeds up data streaming by >2x compared to Hub 2.x (Ofeidis et al. 2022) 🚀</b>
+Deep Lake's efficient enterprise dataloaders built in C++ speeds up data streaming by >2x compared to Hub 2.x (Ofeidis et al. 2022) 
 
 <div align="center">
 <a href="https://arxiv.org/pdf/2209.10785.pdf"><img src="docs/source/_static/img/benchmarks.png" type="image"></a>
