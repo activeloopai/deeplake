@@ -225,7 +225,7 @@ class YoloDataset(UnstructuredDataset):
                 {
                     self.image_params["name"]: self.data.get_image(
                         data[0],
-                        tensor_meta["images"].htype == "link",
+                        tensor_meta["images"].is_link,
                         self.image_creds_key,
                     ),
                     self.label_params["name"]: yolo_labels.astype(
@@ -253,7 +253,7 @@ class YoloDataset(UnstructuredDataset):
                 {
                     self.image_params["name"]: self.data.get_image(
                         data[0],
-                        tensor_meta["images"].htype == "link",
+                        tensor_meta["images"].is_link,
                         self.image_creds_key,
                     ),
                     self.label_params["name"]: yolo_labels.astype(
