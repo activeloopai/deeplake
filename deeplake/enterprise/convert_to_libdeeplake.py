@@ -3,6 +3,7 @@ from deeplake.core.storage import S3Provider
 
 from deeplake.util.dataset import try_flushing  # type: ignore
 import importlib
+import jwt
 
 # Load lazy to avoid cycylic import.
 INDRA_API = None
@@ -78,7 +79,11 @@ def dataset_to_libdeeplake(hub2_dataset):
                 "GCP datasets are not supported for libdeeplake currently."
             )
         else:
-            libdeeplake_dataset = api.dataset(path)
+            token = hub2_dataset._token
+            if token is not None:
+                org_id = jwt.decode(token, options={"verify_signature", False})
+                kwargs = {"token": token, "org_id": org_id}
+            libdeeplake_dataset = api.dataset(path, **kwargs)
         hub2_dataset.libdeeplake_dataset = libdeeplake_dataset
     else:
         libdeeplake_dataset = hub2_dataset.libdeeplake_dataset
