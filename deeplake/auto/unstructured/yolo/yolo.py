@@ -184,7 +184,7 @@ class YoloDataset(UnstructuredDataset):
         )
 
     def _add_images_tensor(self, structure: DatasetStructure):
-        img_config = DEFAULT_IMAGE_TENSOR_PARAMS.copy()
+        img_config = self.image_settings.copy()
 
         if self.image_settings.get("linked", False):
             img_config["htype"] = "link[image]"
@@ -197,7 +197,6 @@ class YoloDataset(UnstructuredDataset):
         structure.add_first_level_tensor(
             TensorStructure(
                 name=name,
-                primary=True,
                 params={i: img_config[i] for i in img_config if i != "name"},
             )
         )
@@ -237,7 +236,7 @@ class YoloDataset(UnstructuredDataset):
             sample_out.append(
                 {
                     self.image_settings["name"]: self.data.get_image(
-                        data[0], tensor_meta["images"].htype == "link", creds_key
+                        data[0], tensor_meta["images"].is_link, creds_key
                     ),
                     self.label_settings["name"]: yolo_labels.astype(
                         tensor_meta["labels"].dtype
@@ -268,7 +267,7 @@ class YoloDataset(UnstructuredDataset):
             sample_out.append(
                 {
                     self.image_settings["name"]: self.data.get_image(
-                        data[0], tensor_meta["images"].htype == "link", creds_key
+                        data[0], tensor_meta["images"].is_link, creds_key
                     ),
                     self.label_settings["name"]: yolo_labels.astype(
                         tensor_meta["labels"].dtype

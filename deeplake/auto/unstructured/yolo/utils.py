@@ -41,6 +41,20 @@ class YoloData:
             self.root_annotations = self.root
             self.provider_annotations = self.provider
 
+        if class_names_file:
+            class_names_file = convert_pathlib_to_string_if_needed(class_names_file)
+            self.root_class_names = os.path.dirname(class_names_file)
+            self.provider_class_names = storage_provider_from_path(
+                self.root_class_names, creds=creds
+            )
+            self.class_names = (
+                self.provider_class_names.get_bytes(os.path.basename(class_names_file))
+                .decode()
+                .splitlines()
+            )
+        else:
+            self.class_names = None
+
         (
             self.supported_images,
             self.supported_annotations,
@@ -48,20 +62,6 @@ class YoloData:
             self.image_extensions,
             self.most_frequent_image_extension,
         ) = self.parse_data()
-
-        self.class_names = (
-            self.parse_class_names(
-                convert_pathlib_to_string_if_needed(class_names_file)
-            )
-            if class_names_file
-            else None
-        )
-
-    def parse_class_names(self, class_names_file: str):
-        """Parses the file with class names into a list of strings"""
-        names = self.get_text_file(class_names_file)
-
-        return names.splitlines()
 
     def parse_data(
         self,
@@ -135,7 +135,7 @@ class YoloData:
         points in each polygon, and N is the number of ploygons in the annotation file.
         """
 
-        ann = self.get_text_file(file_name)
+        ann = self.get_annotation(file_name)
         lines_split = ann.splitlines()
 
         yolo_labels = np.zeros(len(lines_split))
@@ -179,16 +179,12 @@ class YoloData:
     def get_full_path_image(self, image_name: str) -> str:
         return os.path.join(self.root, image_name)
 
-    def get_full_path_annotation(self, annotation_name: str) -> str:
-        return os.path.join(self.root_annotations, annotation_name)
-
     def get_image(self, image: str, is_link: bool, creds_key: str):
+
         if is_link:
             return deeplake.link(self.get_full_path_image(image), creds_key=creds_key)
 
         return deeplake.read(self.get_full_path_image(image), storage=self.provider)
 
-    def get_text_file(self, file_name: str):
-        return self.provider_annotations.get_bytes(
-            self.get_full_path_annotation(file_name)
-        ).decode()
+    def get_annotation(self, annotation: str):
+        return self.provider_annotations.get_bytes(annotation).decode()
