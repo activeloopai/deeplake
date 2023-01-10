@@ -1144,7 +1144,7 @@ class dataset:
             >>>     "s3://bucket/data_directory",
             >>>     dest="hub://org_id/dataset",
             >>>     image_params={"name": "image_links", "htype": "link[image]"},
-            >>>     image_creds_key='my_s3_managed_crerendials"
+            >>>     image_creds_key='my_s3_managed_crerendials",
             >>>     src_creds=aws_creds, # Can also be inferred from environment
             >>>     token="my_activeloop_token",
             >>>     num_workers=4,
@@ -1159,7 +1159,7 @@ class dataset:
                 - a local file system path of the form ``./path/to/dataset`` or ``~/path/to/dataset`` or ``path/to/dataset``.
                 - a memory path of the form ``mem://path/to/dataset`` which doesn't save the dataset but keeps it in memory instead. Should be used only for testing as it does not persist.
             class_names_file: Path to the file containing the class names on separate lines. This is typically a file titled classes.names.
-            annotations_directory (Optional(Union[str, pathlib.Path])): Path to directory containing the annotations. If specified, the 'data_directory' will not be examined for annotations.
+            annotations_directory (Optional[Union[str, pathlib.Path]]): Path to directory containing the annotations. If specified, the 'data_directory' will not be examined for annotations.
             allow_no_annotation (bool): Flag to determine whether missing annotations files corresponding to an image should be treated as empty annoations. Set to ``False`` by default.
             image_params (Optional[Dict]): A dictionary containing parameters for the images tensor.
             label_params (Optional[Dict]): A dictionary containing parameters for the labels tensor.
