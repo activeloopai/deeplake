@@ -1165,7 +1165,7 @@ class dataset:
                 - a memory path of the form ``mem://path/to/dataset`` which doesn't save the dataset but keeps it in memory instead. Should be used only for testing as it does not persist.
             class_names_file: Path to the file containing the class names on separate lines. This is typically a file titled classes.names.
             annotations_directory (Optional(Union[str, pathlib.Path])): Path to directory containing the annotations. If specified, the 'data_directory' will not be examined for annotations.
-            allow_no_annotation (False): Flag to determine whether missing annotations files corresponding to an image should be treated as empty annoations.
+            allow_no_annotation (bool): Flag to determine whether missing annotations files corresponding to an image should be treated as empty annoations. Set to ``False`` by default.
             image_params (Optional[Dict]): A dictionary containing parameters for the images tensor.
             label_params (Optional[Dict]): A dictionary containing parameters for the labels tensor.
             coordinates_params (Optional[Dict]): A dictionary containing parameters for the ccoordinates tensor. This tensor either contains bounding boxes or polygons.
