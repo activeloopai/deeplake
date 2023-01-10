@@ -1024,7 +1024,7 @@ class dataset:
             >>> ds = deeplake.ingest_coco(
             >>>     "path/to/images/directory",
             >>>     ["path/to/annotation/file1.json", "path/to/annotation/file2.json"],
-            >>>     dest="hub://username/dataset",
+            >>>     dest="hub://org_id/dataset",
             >>>     key_to_tensor_mapping={"category_id": "labels", "bbox": "boxes"},
             >>>     file_to_group_mapping={"file1.json": "group1", "file2.json": "group2"},
             >>>     ignore_keys=["area", "image_id", "id"],
@@ -1035,7 +1035,7 @@ class dataset:
             >>> ds = deeplake.ingest_coco(
             >>>     "s3://bucket/images/directory",
             >>>     "s3://bucket/annotation/file1.json",
-            >>>     dest="hub://username/dataset",
+            >>>     dest="hub://org_id/dataset",
             >>>     ignore_one_group=True,
             >>>     ignore_keys=["area", "image_id", "id"],
             >>>     image_settings={"name": "images", "linked": True, creds_key="my_managed_creds_key", "sample_compression": "jpeg"},
@@ -1049,7 +1049,7 @@ class dataset:
             annotation_files (str, pathlib.Path, List[str]): Path to JSON annotation files in COCO format.
             dest (str, pathlib.Path):
                 - The full path to the dataset. Can be:
-                - a Deep Lake cloud path of the form ``hub://username/datasetname``. To write to Deep Lake cloud datasets, ensure that you are logged in to Deep Lake (use 'activeloop login' from command line), or pass in a token using the 'token' parameter.
+                - a Deep Lake cloud path of the form ``hub://org_id/datasetname``. To write to Deep Lake cloud datasets, ensure that you are logged in to Deep Lake (use 'activeloop login' from command line), or pass in a token using the 'token' parameter.
                 - an s3 path of the form ``s3://bucketname/path/to/dataset``. Credentials are required in either the environment or passed to the creds argument.
                 - a local file system path of the form ``./path/to/dataset`` or ``~/path/to/dataset`` or ``path/to/dataset``.
                 - a memory path of the form ``mem://path/to/dataset`` which doesn't save the dataset but keeps it in memory instead. Should be used only for testing as it does not persist.
@@ -1132,24 +1132,19 @@ class dataset:
         """Ingest images and annotations in YOLO format to a Deep Lake Dataset.
 
         Examples:
-            >>> ds = deeplake.ingest_coco(
-            >>>     "path/to/images/directory",
-            >>>     ["path/to/annotation/file1.json", "path/to/annotation/file2.json"],
-            >>>     dest="hub://username/dataset",
-            >>>     key_to_tensor_mapping={"category_id": "labels", "bbox": "boxes"},
-            >>>     file_to_group_mapping={"file1.json": "group1", "file2.json": "group2"},
-            >>>     ignore_keys=["area", "image_id", "id"],
+            >>> ds = deeplake.ingest_yolo(
+            >>>     "path/to/data/directory",
+            >>>     dest="hub://org_id/dataset",
+            >>>     allow_no_annotation=True,
             >>>     token="my_activeloop_token",
             >>>     num_workers=4,
             >>> )
             >>> # or ingest data from cloud
-            >>> ds = deeplake.ingest_coco(
-            >>>     "s3://bucket/images/directory",
-            >>>     "s3://bucket/annotation/file1.json",
-            >>>     dest="hub://username/dataset",
-            >>>     ignore_one_group=True,
-            >>>     ignore_keys=["area", "image_id", "id"],
-            >>>     image_params={"name": "images", "linked": True, creds_key="my_managed_creds_key", "sample_compression": "jpeg"},
+            >>> ds = deeplake.ingest_yolo(
+            >>>     "s3://bucket/data_directory",
+            >>>     dest="hub://org_id/dataset",
+            >>>     image_params={"name": "image_links", "htype": "link[image]"},
+            >>>     image_creds_key='my_s3_managed_crerendials"
             >>>     src_creds=aws_creds, # Can also be inferred from environment
             >>>     token="my_activeloop_token",
             >>>     num_workers=4,
@@ -1159,7 +1154,7 @@ class dataset:
             data_directory (str, pathlib.Path): The path to the directory containing the data (images files and annotation files(see 'annotations_directory' input for specifying annotations in a separate directory).
             dest (str, pathlib.Path):
                 - The full path to the dataset. Can be:
-                - a Deep Lake cloud path of the form ``hub://username/datasetname``. To write to Deep Lake cloud datasets, ensure that you are logged in to Deep Lake (use 'activeloop login' from command line), or pass in a token using the 'token' parameter.
+                - a Deep Lake cloud path of the form ``hub://org_id/datasetname``. To write to Deep Lake cloud datasets, ensure that you are logged in to Deep Lake (use 'activeloop login' from command line), or pass in a token using the 'token' parameter.
                 - an s3 path of the form ``s3://bucketname/path/to/dataset``. Credentials are required in either the environment or passed to the creds argument.
                 - a local file system path of the form ``./path/to/dataset`` or ``~/path/to/dataset`` or ``path/to/dataset``.
                 - a memory path of the form ``mem://path/to/dataset`` which doesn't save the dataset but keeps it in memory instead. Should be used only for testing as it does not persist.
@@ -1172,10 +1167,10 @@ class dataset:
             src_creds (Optional[Dict]): Credentials to access the source path. If not provided, will be inferred from the environment.
             dest_creds (Optional[Dict]): A dictionary containing credentials used to access the destination path of the dataset.
             image_creds_key (Optional[str]): creds_key for linked tensors, applicable if the htype for the images tensor is specified as 'link[image]' in the 'image_params' input.
-            inspect_limit (int): The maximum number of annotations to inspect, in order to infer whether the annotations are bounding boxes of polygons. This in put is ignored if the htype is specfied in the 'coordinates_params'.
+            inspect_limit (int): The maximum number of annotations to inspect, in order to infer whether they are bounding boxes of polygons. This in put is ignored if the htype is specfied in the 'coordinates_params'.
             progressbar (bool): Enables or disables ingestion progress bar. Set to ``True`` by default.
             num_workers (int): The number of workers to use for ingestion. Set to ``0`` by default.
-            connect_kwargs (Optional[Dict]): If specified, the dataset will be connected to Platform, and connect_kwargs will be passed to ds.connect(...).
+            connect_kwargs (Optional[Dict]): If specified, the dataset will be connected to Platform, and connect_kwargs will be passed to :func:`ds.connect`.
             **dataset_kwargs: Any arguments passed here will be forwarded to the dataset creator function. See :func:`deeplake.empty`.
 
         Returns:
