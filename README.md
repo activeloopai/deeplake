@@ -66,7 +66,7 @@ Deep Lake datasets are instantly visualized with bounding boxes, masks, annotati
 </details>
 
 <div align="center">
-<a href="https://app.activeloop.ai/activeloop/coco-train"><img src="https://www.linkpicture.com/q/ReadMe.gif" type="image"></a>
+<a href="https://www.youtube.com/watch?v=SxsofpSIw3k"><img src="https://www.linkpicture.com/q/ReadMe.gif" type="image"></a>
 </div>
 
     
