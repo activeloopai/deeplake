@@ -1049,7 +1049,7 @@ class dataset:
             annotation_files (str, pathlib.Path, List[str]): Path to JSON annotation files in COCO format.
             dest (str, pathlib.Path):
                 - The full path to the dataset. Can be:
-                - a Deep Lake cloud path of the form ``hub://username/datasetname``. To write to Deep Lake cloud datasets, ensure that you are logged in to Deep Lake (use 'activeloop login' from command line)
+                - a Deep Lake cloud path of the form ``hub://username/datasetname``. To write to Deep Lake cloud datasets, ensure that you are logged in to Deep Lake (use 'activeloop login' from command line), or pass in a token using the 'token' parameter.
                 - an s3 path of the form ``s3://bucketname/path/to/dataset``. Credentials are required in either the environment or passed to the creds argument.
                 - a local file system path of the form ``./path/to/dataset`` or ``~/path/to/dataset`` or ``path/to/dataset``.
                 - a memory path of the form ``mem://path/to/dataset`` which doesn't save the dataset but keeps it in memory instead. Should be used only for testing as it does not persist.
@@ -1112,8 +1112,8 @@ class dataset:
 
     @staticmethod
     def ingest_yolo(
-        dest: Union[str, pathlib.Path],
         data_directory: Union[str, pathlib.Path],
+        dest: Union[str, pathlib.Path],
         class_names_file: Optional[Union[str, pathlib.Path]] = None,
         annotations_directory: Optional[Union[str, pathlib.Path]] = None,
         allow_no_annotation: bool = False,
@@ -1126,6 +1126,7 @@ class dataset:
         inspect_limit: int = 1000,
         progressbar: bool = True,
         num_workers: int = 0,
+        connect_kwargs: Optional[Dict] = None,
         **dataset_kwargs,
     ) -> Dataset:
         """Ingest images and annotations in YOLO format to a Deep Lake Dataset.
@@ -1155,24 +1156,26 @@ class dataset:
             >>> )
 
         Args:
-            dest (str, pathlib.Path):
             data_directory (str, pathlib.Path): The path to the directory containing the data (images files and annotation files(see 'annotations_directory' input for specifying annotations in a separate directory).
+            dest (str, pathlib.Path):
                 - The full path to the dataset. Can be:
-                - a Deep Lake cloud path of the form ``hub://username/datasetname``. To write to Deep Lake cloud datasets, ensure that you are logged in to Deep Lake (use 'activeloop login' from command line)
+                - a Deep Lake cloud path of the form ``hub://username/datasetname``. To write to Deep Lake cloud datasets, ensure that you are logged in to Deep Lake (use 'activeloop login' from command line), or pass in a token using the 'token' parameter.
                 - an s3 path of the form ``s3://bucketname/path/to/dataset``. Credentials are required in either the environment or passed to the creds argument.
                 - a local file system path of the form ``./path/to/dataset`` or ``~/path/to/dataset`` or ``path/to/dataset``.
                 - a memory path of the form ``mem://path/to/dataset`` which doesn't save the dataset but keeps it in memory instead. Should be used only for testing as it does not persist.
             class_names_file: Path to the file containing the class names on separate lines. This is typically a file titled classes.names.
             annotations_directory (Optional(Union[str, pathlib.Path])): Path to directory containing the annotations. If specified, the 'data_directory' will not be examined for annotations.
-            allow_no_annotation
-            image_params (Optional[Dict]): A dictionary containing settings for the images tensor.
-            label_params (Optional[Dict]): A dictionary containing settings for the labels tensor.
-            coordinates_params (Optional[Dict]): A dictionary containing settings for the images tensor.
+            allow_no_annotation (False): Flag to determine whether missing annotations files corresponding to an image should be treated as empty annoations.
+            image_params (Optional[Dict]): A dictionary containing parameters for the images tensor.
+            label_params (Optional[Dict]): A dictionary containing parameters for the labels tensor.
+            coordinates_params (Optional[Dict]): A dictionary containing parameters for the ccoordinates tensor. This tensor either contains bounding boxes or polygons. 
             src_creds (Optional[Dict]): Credentials to access the source path. If not provided, will be inferred from the environment.
             dest_creds (Optional[Dict]): A dictionary containing credentials used to access the destination path of the dataset.
+            image_creds_key (Optional[str]): creds_key for linked tensors, applicable if the htype for the images tensor is specified as 'link[image]' in the 'image_params' input.
             inspect_limit (int): The maximum number of annotations to inspect, in order to infer whether the annotations are bounding boxes of polygons. This in put is ignored if the htype is specfied in the 'coordinates_params'.
             progressbar (bool): Enables or disables ingestion progress bar. Set to ``True`` by default.
             num_workers (int): The number of workers to use for ingestion. Set to ``0`` by default.
+            connect_kwargs (Optional[Dict]): If specified, the dataset will be connected to Platform, and connect_kwargs will be passed to ds.connect(...).
             **dataset_kwargs: Any arguments passed here will be forwarded to the dataset creator function. See :func:`deeplake.empty`.
 
         Returns:
@@ -1206,6 +1209,9 @@ class dataset:
 
         ds = deeplake.empty(dest, creds=dest_creds, verbose=False, **dataset_kwargs)
 
+        if connect_kwargs is not None:
+            ds.connect(**connect_kwargs, token=dataset_kwargs.get("token", None))
+
         unstructured = YoloDataset(
             data_directory=data_directory,
             class_names_file=class_names_file,
@@ -1216,6 +1222,7 @@ class dataset:
             allow_no_annotation=allow_no_annotation,
             creds=src_creds,
             image_creds_key=image_creds_key,
+            inspect_limit=inspect_limit,
         )
 
         structure = unstructured.prepare_structure()
