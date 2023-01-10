@@ -286,6 +286,7 @@ class Pipeline:
                     temp_tensor_obj = target_ds.create_tensor(
                         temp_tensor,
                         htype="class_label",
+                        hidden=True,
                         create_sample_info_tensor=False,
                         create_shape_tensor=False,
                         create_id_tensor=False,
