@@ -1152,6 +1152,21 @@ def test_rechunk_post_transform(local_ds):
     assert image_num_chunks == 4
 
 
+def test_none_rechunk_post_transform(local_ds):
+    @deeplake.compute
+    def upload(stuff, ds):
+        ds.abc.append(None)
+
+    with local_ds as ds:
+        ds.create_tensor("abc")
+
+    upload().eval(list(range(100)), ds, num_workers=2)
+
+    num_chunks = ds.abc.chunk_engine.num_chunks
+
+    assert num_chunks == 2
+
+
 @pytest.mark.parametrize(
     "compression", [{"sample_compression": "lz4"}, {"chunk_compression": "lz4"}, {}]
 )

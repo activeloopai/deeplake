@@ -247,9 +247,10 @@ class Pipeline:
                 rechunk_tensors = check_rechunk(target_ds.root)
                 if rechunk_tensors:
                     if progressbar:
-                        logger.info(f"Rechunking tensors: {rechunk_tensors}")
+                        logger.info(f"Optimizing tensors: {rechunk_tensors}")
                     target_ds.root.rechunk(
-                        tensors=rechunk_tensors, progressbar=progressbar
+                        tensors=rechunk_tensors,
+                        progressbar=progressbar,
                     )
 
     def run(
