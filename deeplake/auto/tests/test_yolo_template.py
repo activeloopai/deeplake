@@ -32,7 +32,7 @@ def test_yolo_ingestion_with_linked_images(local_path, yolo_ingestion_data):
     ds = deeplake.ingest_yolo(
         **yolo_ingestion_data,
         dest=local_path,
-        image_settings={"name": "linked_images", "linked": True},
+        image_settings={"name": "linked_images", "htype": "link[image]"},
     )
 
     assert ds.path == local_path
