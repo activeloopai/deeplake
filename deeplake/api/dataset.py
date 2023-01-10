@@ -8,6 +8,7 @@ from typing import Dict, Optional, Union, List
 from deeplake.auto.unstructured.kaggle import download_kaggle_dataset
 from deeplake.auto.unstructured.image_classification import ImageClassification
 from deeplake.auto.unstructured.coco.coco import CocoDataset
+from deeplake.auto.unstructured.yolo.yolo import YoloDataset
 from deeplake.client.client import DeepLakeBackendClient
 from deeplake.client.log import logger
 from deeplake.core.dataset import Dataset, dataset_factory
@@ -1071,16 +1072,19 @@ class dataset:
             IngestionError: If either ``key_to_tensor_mapping`` or ``file_to_group_mapping`` are not one-to-one.
         """
 
-        feature_report_path(
-            dest, "ingest_coco", {"num_workers": num_workers}, token=token
-        )
-
         dest = convert_pathlib_to_string_if_needed(dest)
         images_directory = convert_pathlib_to_string_if_needed(images_directory)
         annotation_files = (
             [convert_pathlib_to_string_if_needed(f) for f in annotation_files]
             if isinstance(annotation_files, list)
             else convert_pathlib_to_string_if_needed(annotation_files)
+        )
+
+        feature_report_path(
+            dest,
+            "ingest_coco",
+            {"num_workers": num_workers},
+            token=dataset_kwargs.get("token", None),
         )
 
         ds = deeplake.empty(dest, creds=dest_creds, verbose=False, **dataset_kwargs)
@@ -1177,14 +1181,26 @@ class dataset:
             IngestionError: If annotations are not found for all the images and 'allow_no_annotation' is False
         """
 
-        feature_report_path(
-            dest, "ingest_yolo", {"num_workers": num_workers}, token=token
-        )
-
         dest = convert_pathlib_to_string_if_needed(dest)
         data_directory = convert_pathlib_to_string_if_needed(data_directory)
-        annotations_directory = convert_pathlib_to_string_if_needed(
-            annotations_directory
+
+        annotations_directory = (
+            convert_pathlib_to_string_if_needed(annotations_directory)
+            if annotations_directory is not None
+            else None
+        )
+
+        class_names_file = (
+            convert_pathlib_to_string_if_needed(class_names_file)
+            if class_names_file is not None
+            else None
+        )
+
+        feature_report_path(
+            dest,
+            "ingest_yolo",
+            {"num_workers": num_workers},
+            token=dataset_kwargs.get("token", None),
         )
 
         ds = deeplake.empty(dest, creds=dest_creds, verbose=False, **dataset_kwargs)
@@ -1295,7 +1311,7 @@ class dataset:
                 "Progressbar": progressbar,
                 "Summary": summary,
             },
-            token=token,
+            token=dataset_kwargs.get("token", None),
         )
 
         src = convert_pathlib_to_string_if_needed(src)
@@ -1389,7 +1405,7 @@ class dataset:
                 "Progressbar": progressbar,
                 "Summary": summary,
             },
-            token=token,
+            token=dataset_kwargs.get("token", None),
         )
 
         if os.path.isdir(src) and os.path.isdir(dest):
