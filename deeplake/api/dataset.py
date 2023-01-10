@@ -1117,11 +1117,12 @@ class dataset:
         class_names_file: Optional[Union[str, pathlib.Path]] = None,
         annotations_directory: Optional[Union[str, pathlib.Path]] = None,
         allow_no_annotation: bool = False,
-        image_settings: Optional[Dict] = None,
-        label_settings: Optional[Dict] = None,
-        coordinates_settings: Optional[Dict] = None,
+        image_params: Optional[Dict] = None,
+        label_params: Optional[Dict] = None,
+        coordinates_params: Optional[Dict] = None,
         src_creds: Optional[Dict] = None,
         dest_creds: Optional[Dict] = None,
+        image_creds_key: Optional[str] = None,
         inspect_limit: int = 1000,
         progressbar: bool = True,
         num_workers: int = 0,
@@ -1147,7 +1148,7 @@ class dataset:
             >>>     dest="hub://username/dataset",
             >>>     ignore_one_group=True,
             >>>     ignore_keys=["area", "image_id", "id"],
-            >>>     image_settings={"name": "images", "linked": True, creds_key="my_managed_creds_key", "sample_compression": "jpeg"},
+            >>>     image_params={"name": "images", "linked": True, creds_key="my_managed_creds_key", "sample_compression": "jpeg"},
             >>>     src_creds=aws_creds, # Can also be inferred from environment
             >>>     token="my_activeloop_token",
             >>>     num_workers=4,
@@ -1164,12 +1165,12 @@ class dataset:
             class_names_file: Path to the file containing the class names on separate lines. This is typically a file titled classes.names.
             annotations_directory (Optional(Union[str, pathlib.Path])): Path to directory containing the annotations. If specified, the 'data_directory' will not be examined for annotations.
             allow_no_annotation
-            image_settings (Optional[Dict]): A dictionary containing settings for the images tensor.
-            label_settings (Optional[Dict]): A dictionary containing settings for the labels tensor.
-            coordinates_settings (Optional[Dict]): A dictionary containing settings for the images tensor.
+            image_params (Optional[Dict]): A dictionary containing settings for the images tensor.
+            label_params (Optional[Dict]): A dictionary containing settings for the labels tensor.
+            coordinates_params (Optional[Dict]): A dictionary containing settings for the images tensor.
             src_creds (Optional[Dict]): Credentials to access the source path. If not provided, will be inferred from the environment.
             dest_creds (Optional[Dict]): A dictionary containing credentials used to access the destination path of the dataset.
-            inspect_limit (int): The maximum number of annotations to inspect, in order to infer whether the annotations are bounding boxes of polygons. This in put is ignored if the htype is specfied in the 'coordinates_settings'.
+            inspect_limit (int): The maximum number of annotations to inspect, in order to infer whether the annotations are bounding boxes of polygons. This in put is ignored if the htype is specfied in the 'coordinates_params'.
             progressbar (bool): Enables or disables ingestion progress bar. Set to ``True`` by default.
             num_workers (int): The number of workers to use for ingestion. Set to ``0`` by default.
             **dataset_kwargs: Any arguments passed here will be forwarded to the dataset creator function. See :func:`deeplake.empty`.
@@ -1209,11 +1210,12 @@ class dataset:
             data_directory=data_directory,
             class_names_file=class_names_file,
             annotations_directory=annotations_directory,
-            image_settings=image_settings,
-            label_settings=label_settings,
-            coordinates_settings=coordinates_settings,
+            image_params=image_params,
+            label_params=label_params,
+            coordinates_params=coordinates_params,
             allow_no_annotation=allow_no_annotation,
             creds=src_creds,
+            image_creds_key=image_creds_key,
         )
 
         structure = unstructured.prepare_structure()

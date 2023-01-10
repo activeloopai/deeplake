@@ -179,7 +179,12 @@ class YoloData:
     def get_full_path_image(self, image_name: str) -> str:
         return os.path.join(self.root, image_name)
 
-    def get_image(self, image: str, is_link: bool, creds_key: str):
+    def get_image(
+        self,
+        image: str,
+        is_link: Optional[bool] = False,
+        creds_key: Optional[str] = None,
+    ):
 
         if is_link:
             return deeplake.link(self.get_full_path_image(image), creds_key=creds_key)
