@@ -572,7 +572,7 @@ class BaseChunk(DeepLakeMemoryObject):
     def _text_sample_to_byte_string(self, sample):
         if isinstance(sample, deeplake.Tensor):
             try:
-                return sample.numpy(aslist=True)[0]
+                return sample.numpy(aslist=True)[0].encode("utf-8")
             except AttributeError:
                 return b""
         try:
