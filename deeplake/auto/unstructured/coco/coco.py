@@ -124,9 +124,7 @@ class CocoDataset(UnstructuredDataset):
         )
         name = self.image_settings.get("name", "images")
 
-        structure.add_first_level_tensor(
-            TensorStructure(name=name, params=img_config)
-        )
+        structure.add_first_level_tensor(TensorStructure(name=name, params=img_config))
 
     def _ingest_images(
         self,
