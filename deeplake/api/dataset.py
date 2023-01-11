@@ -1202,11 +1202,6 @@ class dataset:
             token=dataset_kwargs.get("token", None),
         )
 
-        ds = deeplake.empty(dest, creds=dest_creds, verbose=False, **dataset_kwargs)
-
-        if connect_kwargs is not None:
-            ds.connect(**connect_kwargs, token=dataset_kwargs.get("token", None))
-
         unstructured = YoloDataset(
             data_directory=data_directory,
             class_names_file=class_names_file,
@@ -1221,6 +1216,11 @@ class dataset:
         )
 
         structure = unstructured.prepare_structure()
+
+        ds = deeplake.empty(dest, creds=dest_creds, verbose=False, **dataset_kwargs)
+        if connect_kwargs is not None:
+            ds.connect(**connect_kwargs, token=dataset_kwargs.get("token", None))
+
         structure.create_missing(ds)
 
         unstructured.structure(

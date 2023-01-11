@@ -61,6 +61,8 @@ class YoloDataset(UnstructuredDataset):
         # We do this in advance so missing files are discovered before the ingestion process.
         self._create_ingestion_list()
 
+        self._validate_ingestion_data()
+
         self._initialize_params(
             image_params or {}, label_params or {}, coordinates_params or {}
         )
@@ -148,6 +150,17 @@ class YoloDataset(UnstructuredDataset):
         ):
             raise IngestionError(
                 "The number of images and annotations in the input data is not equal. Please ensure that each image has a corresponding annotation, or set allow_no_annotation = True"
+            )
+
+        if len(self.data.supported_images) == 0:
+            raise IngestionError(
+                "There are no supported images in the input data. Please verify the source directory."
+            )
+
+    def _validate_ingestion_data(self):
+        if len(self.ingestion_data) == 0:
+            raise IngestionError(
+                "The data parser was not able to find any annotations corresponding to the images. Please check your directories, filename, and extenstions, or consider setting allow_no_annotation = True in order to upload empty annotations."
             )
 
     def _validate_image_params(self):
