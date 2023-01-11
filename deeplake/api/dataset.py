@@ -1087,8 +1087,6 @@ class dataset:
             token=dataset_kwargs.get("token", None),
         )
 
-        ds = deeplake.empty(dest, creds=dest_creds, verbose=False, **dataset_kwargs)
-
         unstructured = CocoDataset(
             source=images_directory,
             annotation_files=annotation_files,
@@ -1100,6 +1098,9 @@ class dataset:
             creds=src_creds,
         )
         structure = unstructured.prepare_structure(inspect_limit)
+
+        ds = deeplake.empty(dest, creds=dest_creds, verbose=False, **dataset_kwargs)
+
         structure.create_missing(ds)
 
         unstructured.structure(
