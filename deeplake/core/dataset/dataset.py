@@ -2738,12 +2738,16 @@ class Dataset:
     ):
         """Saves this view under ".queries" sub directory of same storage."""
         info = self._get_view_info(id, message, copy)
-        hash = info["id"]
-        path = f".queries/{hash}"
-        vds = self._sub_ds(path, empty=True, verbose=False)
-        self._write_vds(vds, info, copy, tensors, num_workers, scheduler)
-        self._append_to_queries_json(info)
-        return vds
+        if self._query is None:
+             hash = info["id"]
+             path = f".queries/{hash}"
+             vds = self._sub_ds(path, empty=True, verbose=False)
+             self._write_vds(vds, info, copy, tensors, num_workers, scheduler)
+             self._append_to_queries_json(info)
+             return vds
+         else:
+             self._append_to_queries_json(info)
+             return self
 
     def _save_view_in_user_queries_dataset(
         self,
@@ -2787,14 +2791,17 @@ class Dataset:
 
         queries_ds._unlock()  # we don't need locking as no data will be added to this ds.
 
-        path = f"hub://{username}/queries/{hash}"
+        if self._query is None:
+            path = f"hub://{username}/queries/{hash}"
 
-        vds = deeplake.empty(path, overwrite=True, verbose=False)
+            vds = deeplake.empty(path, overwrite=True, verbose=False)
 
-        self._write_vds(vds, info, copy, tensors, num_workers, scheduler)
-        queries_ds._append_to_queries_json(info)
-
-        return vds
+            self._write_vds(vds, info, copy, tensors, num_workers, scheduler)
+            queries_ds._append_to_queries_json(info)
+            return vds
+        else:
+             queries_ds._append_to_queries_json(info)
+             return self
 
     def _save_view_in_path(
         self,
