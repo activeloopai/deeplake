@@ -111,6 +111,7 @@ from deeplake.util.keys import (
     get_dataset_linked_creds_key,
 )
 from deeplake.util.path import get_path_from_storage
+from deeplake.util.query import is_linear_operation
 from deeplake.util.remove_cache import get_base_storage
 from deeplake.util.diff import get_all_changes_string, get_changes_and_messages
 from deeplake.util.version_control import (
@@ -127,6 +128,7 @@ from deeplake.util.version_control import (
 from deeplake.util.pretty_print import summary_dataset
 from deeplake.core.dataset.view_entry import ViewEntry
 from deeplake.core.dataset.invalid_view import InvalidView
+from deeplake.core.dataset.deeplake_query_view import NonlinearQueryView
 from deeplake.hooks import dataset_read
 from itertools import chain
 import warnings
@@ -1887,7 +1889,9 @@ class Dataset:
         """
         from deeplake.enterprise import query
 
-        return query(self, query_string)
+        view = query(self, query_string)
+        view._query = query_string
+        return view
 
     def sample_by(
         self,
@@ -2874,9 +2878,6 @@ class Dataset:
             Specifying ``path`` makes the view external. External views cannot be accessed using the parent dataset's :func:`Dataset.get_view`,
             :func:`Dataset.load_view`, :func:`Dataset.delete_view` methods. They have to be loaded using :func:`deeplake.load`.
         """
-        if query:
-            self._query = query
-
         return self._save_view(
             path,
             id,
@@ -3073,29 +3074,39 @@ class Dataset:
                 - If not specified, views from the currently checked out commit will be returned.
 
         Returns:
-            List[ViewEntry]: List of :class:`ViewEntry` instances.
+            List[Union(ViewEntry, NonlinearQueryView)]: List of :class:`ViewEntry` or `NonlinearQueryView` instances.
         """
         commit_id = commit_id or self.commit_id
         queries = self._read_queries_json()
         f = lambda x: x["source-dataset-version"] == commit_id
-        ret = map(
-            partial(ViewEntry, dataset=self),
-            filter(f, queries),
-        )
+
+        filtered_queries = filter(f, queries)
+
+        ret = []
+        for query in filtered_queries:
+            ViewClass = ViewEntry
+            if not is_linear_operation(query.get("query")):
+                ViewClass = NonlinearQueryView
+
+            ret.append(ViewClass(info=query, dataset=self))
 
         if self.path.startswith("hub://"):
             queries, qds = self._read_queries_json_from_user_account()
             if queries:
-                ret = chain(
-                    ret,
-                    map(
-                        partial(
-                            ViewEntry, dataset=qds, source_dataset=self, external=True
-                        ),
-                        filter(f, queries),
-                    ),
-                )
-        return list(ret)
+                for query in filtered_queries:
+                    ViewClass = ViewEntry
+                    if not is_linear_operation(query.get("query")):
+                        ViewClass = NonlinearQueryView
+
+                    ret.append(
+                        ViewClass(
+                            info=query,
+                            dataset=qds,
+                            source_dataset=self,
+                            external=True,
+                        )
+                    )
+        return ret
 
     def get_view(self, id: str) -> ViewEntry:
         """Returns the dataset view corresponding to ``id``.
@@ -3122,12 +3133,20 @@ class Dataset:
         queries = self._read_queries_json()
         for q in queries:
             if q["id"] == id:
-                return ViewEntry(q, self)
+                query = q.get("query")
+                if is_linear_operation(query):
+                    return ViewEntry(q, self)
+                return NonlinearQueryView(q, self)
+
         if self.path.startswith("hub://"):
             queries, qds = self._read_queries_json_from_user_account()
             for q in queries:
                 if q["id"] == f"[{self.org_id}][{self.ds_name}]{id}":
-                    return ViewEntry(q, qds, self, True)
+                    query = q.get("query")
+                    if is_linear_operation(query):
+                        return ViewEntry(q, qds, self, True)
+                    return NonlinearQueryView(q, qds, self, True)
+
         raise KeyError(f"No view with id {id} found in the dataset.")
 
     def load_view(

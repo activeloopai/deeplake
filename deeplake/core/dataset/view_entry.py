@@ -34,7 +34,7 @@ class ViewEntry:
         return self.info.get("message", "")
 
     def __str__(self):
-        return f"View(id='{self.id}', message='{self.message}', virtual={self.virtual})"
+        return f"View(id='{self.id}', message='{self.message}', virtual={self.virtual}, query='{self.query}')"
 
     __repr__ = __str__
 

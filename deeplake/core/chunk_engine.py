@@ -1567,7 +1567,7 @@ class ChunkEngine:
                 start = self.num_samples + start
 
             if stop < 0:
-                stop = self.num_samples + start
+                stop = self.num_samples + stop
 
             numpy_array_length = (stop - start) // step
             return numpy_array_length > threshold
