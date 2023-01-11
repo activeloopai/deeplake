@@ -67,7 +67,7 @@ html_static_path = ["_static"]
 html_css_files = ["css/custom.css"]
 
 # Logo
-html_logo = "_static/img/logo.svg"
+html_logo = "_static/img/tensie.svg"
 
 # Favicon
 html_favicon = "_static/img/tensie.svg"
