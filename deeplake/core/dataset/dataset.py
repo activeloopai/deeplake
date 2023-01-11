@@ -2757,12 +2757,16 @@ class Dataset:
     ):
         """Saves this view under ".queries" sub directory of same storage."""
         info = self._get_view_info(id, message, copy)
-        hash = info["id"]
-        path = f".queries/{hash}"
-        vds = self._sub_ds(path, empty=True, verbose=False)
-        self._write_vds(vds, info, copy, tensors, num_workers, scheduler)
-        self._append_to_queries_json(info)
-        return vds
+        if self._query is None:
+             hash = info["id"]
+             path = f".queries/{hash}"
+             vds = self._sub_ds(path, empty=True, verbose=False)
+             self._write_vds(vds, info, copy, tensors, num_workers, scheduler)
+             self._append_to_queries_json(info)
+             return vds
+         else:
+             self._append_to_queries_json(info)
+             return self
 
     def _save_view_in_path(
         self,
