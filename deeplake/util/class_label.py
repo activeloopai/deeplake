@@ -124,6 +124,7 @@ def sync_labels(
                     progressbar=True,
                     check_lengths=False,
                     skip_ok=True,
+                    disable_rechunk=True,
                 )
                 target_tensor.meta._disable_temp_transform = False
             finally:

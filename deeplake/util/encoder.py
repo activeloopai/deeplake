@@ -23,11 +23,18 @@ import posixpath
 
 
 def merge_all_meta_info(
-    target_ds, storage, generated_tensors, overwrite, all_num_samples, result
+    target_ds,
+    storage,
+    generated_tensors,
+    overwrite,
+    all_num_samples,
+    result,
+    update_commit_diff=True,
 ):
-    merge_all_commit_diffs(
-        result["commit_diffs"], target_ds, storage, overwrite, generated_tensors
-    )
+    if update_commit_diff:
+        merge_all_commit_diffs(
+            result["commit_diffs"], target_ds, storage, overwrite, generated_tensors
+        )
     merge_all_tile_encoders(
         result["tile_encoders"],
         all_num_samples,

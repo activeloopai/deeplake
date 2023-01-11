@@ -34,6 +34,8 @@ from deeplake.util.exceptions import (
 from deeplake.hooks import dataset_written, dataset_read
 from deeplake.util.version_control import auto_checkout, load_meta
 from deeplake.util.class_label import sync_labels
+from deeplake.util.check_rechunk import check_rechunk
+from deeplake.client.log import logger
 import numpy as np
 
 
@@ -241,6 +243,16 @@ class Pipeline:
                 load_meta(target_ds)
                 target_ds.storage.autoflush = initial_autoflush
 
+            if not kwargs.get("disable_rechunk"):
+                rechunk_tensors = check_rechunk(target_ds.root)
+                if rechunk_tensors:
+                    if progressbar:
+                        logger.info(f"Optimizing tensors: {rechunk_tensors}")
+                    target_ds.root.rechunk(
+                        tensors=rechunk_tensors,
+                        progressbar=progressbar,
+                    )
+
     def run(
         self,
         data_in,
@@ -309,7 +321,10 @@ class Pipeline:
             storages = [storage] * len(slices)
         else:
             storages = [storage.copy() for _ in slices]
+
         extend_only = kwargs.get("extend_only")
+        update_commit_diff = kwargs.get("update_commit_diff", True)
+
         args = (
             group_index,
             tensors,
@@ -357,7 +372,13 @@ class Pipeline:
 
         old_chunk_paths = get_old_chunk_paths(target_ds, generated_tensors, overwrite)
         merge_all_meta_info(
-            target_ds, storage, generated_tensors, overwrite, all_num_samples, result
+            target_ds,
+            storage,
+            generated_tensors,
+            overwrite,
+            all_num_samples,
+            result,
+            update_commit_diff,
         )
         delete_overwritten_chunks(old_chunk_paths, storage, overwrite)
         dataset_written(target_ds)
