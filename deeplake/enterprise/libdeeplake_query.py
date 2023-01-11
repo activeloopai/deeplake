@@ -38,6 +38,7 @@ def query(dataset, query_string: str):
     ds = dataset_to_libdeeplake(dataset)
     dsv = ds.query(query_string)
     indexes = dsv.indexes
+    dataset._query = query_string
     return dataset[indexes]
 
 
