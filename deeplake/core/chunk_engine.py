@@ -831,18 +831,8 @@ class ChunkEngine:
                 num_samples_added = 0
                 samples = list(samples)
             else:
-                current_chunk = self._create_new_chunk(
-                    register and start_chunk_row is not None, row=start_chunk_row
-                )
-                current_chunk._update_tensor_meta_length = False
-                if start_chunk_row is not None:
-                    start_chunk_row += 1
-                elif register:
-                    enc_ids.append(current_chunk.id)  # type: ignore
-                    enc_count.append(0)
-                if not register:
+                if not register and not updated_chunks:
                     updated_chunks.append(current_chunk.id)
-
                 num = int(num_samples_added)
                 if register:
                     if start_chunk_row is not None:
