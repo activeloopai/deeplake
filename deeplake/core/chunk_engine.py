@@ -773,12 +773,17 @@ class ChunkEngine:
         ):
             # Note: in the future we can get rid of this conversion of sample compressed chunks too by predicting the compression ratio.
             samples = list(samples)
+        current_chunk_full = False
         while len(samples) > 0:
-            num_samples_added = current_chunk.extend_if_has_space(
-                samples, update_tensor_meta=update_tensor_meta, **extra_args  # type: ignore
-            )  # type: ignore
-            if register_creds:
-                self.register_new_creds(num_samples_added, samples)
+            if current_chunk_full:
+                num_samples_added = 0
+                current_chunk_full = False
+            else:
+                num_samples_added = current_chunk.extend_if_has_space(
+                    samples, update_tensor_meta=update_tensor_meta, **extra_args  # type: ignore
+                )  # type: ignore
+                if register_creds:
+                    self.register_new_creds(num_samples_added, samples)
             if num_samples_added == 0:
                 current_chunk = self._create_new_chunk(
                     register and start_chunk_row is not None, row=start_chunk_row
@@ -831,6 +836,7 @@ class ChunkEngine:
                 num_samples_added = 0
                 samples = list(samples)
             else:
+                current_chunk_full = True
                 if not register and not updated_chunks:
                     updated_chunks.append(current_chunk.id)
                 num = int(num_samples_added)

@@ -508,7 +508,12 @@ def serialize_sample_object(
     tile_compression = chunk_compression or sample_compression
 
     out = incoming_sample
-    out = Sample(path=out.path, array=out._array, buffer=out._buffer, compression=out._compression)
+    out = Sample(
+        path=out.path,
+        array=out._array,
+        buffer=out._buffer,
+        compression=out._compression,
+    )
     if sample_compression:
         compression_type = get_compression_type(sample_compression)
         is_byte_compression = compression_type == BYTE_COMPRESSION
