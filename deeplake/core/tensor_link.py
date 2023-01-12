@@ -8,6 +8,7 @@ import numpy as np
 from os import urandom
 from PIL import Image  # type: ignore
 from deeplake.util.downsample import downsample_sample
+import tqdm
 
 optional_kwargs = {
     "old_value",
@@ -18,6 +19,7 @@ optional_kwargs = {
     "compression",
     "htype",
     "link_creds",
+    "progressbar",
 }
 
 
@@ -60,15 +62,21 @@ def update_test(
 
 
 @link
-def extend_info(samples, link_creds=None):
+def extend_info(samples, link_creds=None, progressbar=False):
+    if progressbar:
+        samples = tqdm.tqdm(samples, desc="Uploading sample meta info...")
     metas = []
     for sample in samples:
         meta = {}
+        copy = True
         if isinstance(sample, deeplake.core.linked_sample.LinkedSample):
             sample = read_linked_sample(
                 sample.path, sample.creds_key, link_creds, verify=False
             )
+            copy = False
         if isinstance(sample, deeplake.core.sample.Sample):
+            if copy:
+                sample = sample.copy()
             meta = sample.meta
             meta["modified"] = False
         metas.append(meta)

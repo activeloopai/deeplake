@@ -948,9 +948,9 @@ class ChunkEngine:
                 verified_samples.append(verified_sample or sample)
             if link_callback:
                 samples = [None if is_empty_list(s) else s for s in verified_samples]
-                link_callback(verified_samples, flat=False)
+                link_callback(verified_samples, flat=False, progressbar=progressbar)
                 for s in verified_samples:
-                    link_callback(s, flat=True)
+                    link_callback(s, flat=True, progressbar=progressbar)
 
         else:
             verified_samples = (
@@ -961,7 +961,7 @@ class ChunkEngine:
                     samples = [
                         None if is_empty_list(s) else s for s in verified_samples
                     ]
-                link_callback(samples, flat=None)
+                link_callback(samples, flat=None, progressbar=progressbar)
 
         self.cache.autoflush = initial_autoflush
         self.cache.maybe_flush()
@@ -2334,7 +2334,7 @@ class ChunkEngine:
                 flat is None or v["flatten_sequence"] == flat
             ):
                 self._all_chunk_engines[k].extend(
-                    get_link_transform(v["extend"])(samples)
+                    get_link_transform(v["extend"])(samples, progressbar=True)
                 )
 
     def get_empty_sample(self):
