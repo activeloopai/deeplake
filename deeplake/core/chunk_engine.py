@@ -948,9 +948,9 @@ class ChunkEngine:
                 verified_samples.append(verified_sample or sample)
             if link_callback:
                 samples = [None if is_empty_list(s) else s for s in verified_samples]
-                link_callback(verified_samples, flat=False, progressbar=progressbar)
+                link_callback(verified_samples, flat=False, progressbar=progressbar or (pg_callback is not None))
                 for s in verified_samples:
-                    link_callback(s, flat=True, progressbar=progressbar)
+                    link_callback(s, flat=True, progressbar=progressbar or (pg_callback is not None))
 
         else:
             verified_samples = (
@@ -961,7 +961,7 @@ class ChunkEngine:
                     samples = [
                         None if is_empty_list(s) else s for s in verified_samples
                     ]
-                link_callback(samples, flat=None, progressbar=progressbar)
+                link_callback(samples, flat=None, progressbar=progressbar or (pg_callback is not None))
 
         self.cache.autoflush = initial_autoflush
         self.cache.maybe_flush()
