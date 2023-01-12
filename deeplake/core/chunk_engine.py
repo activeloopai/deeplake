@@ -885,7 +885,14 @@ class ChunkEngine:
     def update_creds(self, sample_index, sample):
         return
 
-    def _extend(self, samples, progressbar, pg_callback=None, update_commit_diff=True):
+    def _extend(
+        self,
+        samples,
+        progressbar,
+        pg_callback=None,
+        update_commit_diff=True,
+        verify=True,
+    ):
         if isinstance(samples, deeplake.Tensor):
             samples = tqdm(samples) if progressbar else samples
             for sample in samples:
@@ -898,7 +905,7 @@ class ChunkEngine:
             return
         if len(samples) == 0:
             return
-        samples, verified_samples = self._sanitize_samples(samples)
+        samples, verified_samples = self._sanitize_samples(samples, verify=verify)
         self._samples_to_chunks(
             samples,
             start_chunk=self.last_appended_chunk(),
@@ -915,6 +922,7 @@ class ChunkEngine:
         progressbar: bool = False,
         link_callback: Optional[Callable] = None,
         pg_callback=None,
+        verify: bool = True,
     ):
         assert not (progressbar and pg_callback)
         self.check_link_ready()
@@ -932,7 +940,7 @@ class ChunkEngine:
                 if sample is None:
                     sample = []
                 verified_sample = self._extend(
-                    sample, progressbar=False, update_commit_diff=False
+                    sample, progressbar=False, update_commit_diff=False, verify=verify
                 )
                 self.sequence_encoder.register_samples(len(sample), 1)
                 self.commit_diff.add_data(1)
@@ -945,7 +953,10 @@ class ChunkEngine:
 
         else:
             verified_samples = (
-                self._extend(samples, progressbar, pg_callback=pg_callback) or samples
+                self._extend(
+                    samples, progressbar, pg_callback=pg_callback, verify=verify
+                )
+                or samples
             )
             if link_callback:
                 if not isinstance(verified_samples, np.ndarray):

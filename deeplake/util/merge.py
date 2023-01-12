@@ -469,7 +469,7 @@ def merge_tensor_data(
         sample = target_tensor[index]
         if is_class_label and class_names:
             sample = convert_to_text(sample.numpy(), class_names, return_original=True)
-        original_tensor.append(sample)
+        original_tensor.append(sample, verify=False)
         original_id_tensor[-1] = target_id_tensor[index]
 
     updated_indexes = updated_samples_dict[tensor_name]
