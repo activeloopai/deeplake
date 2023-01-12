@@ -34,6 +34,16 @@ def test_full_dataset_structure(local_ds):
 
     dataset_structure.add_group(group)
 
+    assert dataset_structure.all_keys == {
+        "images",
+        "tensor1",
+        "annotations/bboxes",
+        "annotations/keypoints",
+        "annotations/masks",
+        "annotations/sub_annotations/sub_tensor1",
+        "annotations/sub_annotations/sub_tensor2",
+    }
+
     dataset_structure.create_full(local_ds)
 
     tensors = local_ds.tensors
@@ -116,7 +126,7 @@ def test_ingestion_with_linked_images(local_path, coco_ingestion_data):
         **coco_ingestion_data,
         file_to_group_mapping=file_to_group,
         dest=local_path,
-        image_settings={"name": "linked_images", "linked": True},
+        image_settings={"name": "linked_images", "htype": "link[image]"},
     )
 
     assert ds.path == local_path

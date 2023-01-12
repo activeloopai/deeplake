@@ -1010,11 +1010,13 @@ class dataset:
         ignore_one_group: bool = False,
         ignore_keys: Optional[List[str]] = None,
         image_settings: Optional[Dict] = None,
+        image_creds_key: Optional[str] = None,
         src_creds: Optional[Dict] = None,
         dest_creds: Optional[Dict] = None,
         inspect_limit: int = 1000000,
         progressbar: bool = True,
         num_workers: int = 0,
+        token: Optional[str] = None,
         **dataset_kwargs,
     ) -> Dataset:
         """Ingest images and annotations in COCO format to a Deep Lake Dataset.
@@ -1078,7 +1080,9 @@ class dataset:
             else convert_pathlib_to_string_if_needed(annotation_files)
         )
 
-        ds = deeplake.empty(dest, creds=dest_creds, verbose=False, **dataset_kwargs)
+        ds = deeplake.empty(
+            dest, creds=dest_creds, verbose=False, token=token, **dataset_kwargs
+        )
 
         unstructured = CocoDataset(
             source=images_directory,
@@ -1088,6 +1092,7 @@ class dataset:
             ignore_one_group=ignore_one_group,
             ignore_keys=ignore_keys,
             image_settings=image_settings,
+            image_creds_key=image_creds_key,
             creds=src_creds,
         )
         structure = unstructured.prepare_structure(inspect_limit)
@@ -1098,7 +1103,6 @@ class dataset:
             progressbar,
             num_workers,
         )
-        feature_report_path(dest, "ingest_coco", {})
 
         return ds
 

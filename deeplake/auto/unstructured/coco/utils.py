@@ -12,7 +12,6 @@ from deeplake.util.exceptions import IngestionError
 from deeplake.client.log import logger
 from deeplake.util.storage import storage_provider_from_path
 from deeplake.util.path import convert_pathlib_to_string_if_needed
-from deeplake.core.tensor import Tensor
 
 
 class CocoAnnotation:
@@ -37,6 +36,8 @@ class CocoAnnotation:
         self.provider = storage_provider_from_path(self.root, creds=creds)
 
         self.data = self._load_annotation_data()
+        self.id_to_label_mapping = self._get_id_to_label_mapping()
+        self.image_name_to_id_mapping = self._get_image_name_to_id_mapping()
 
     def _load_annotation_data(self):
         """Validates and loads the COCO annotation file."""
@@ -50,6 +51,16 @@ class CocoAnnotation:
 
         return data
 
+    def _get_id_to_label_mapping(self):
+        return {str(i["id"]): i["name"] for i in self.categories}
+
+    def _get_image_name_to_id_mapping(self):
+        return {i["file_name"]: i["id"] for i in self.images}
+
+    @property
+    def file_name(self):
+        return pathlib.Path(self.file_path).stem
+
     @property
     def categories(self):
         return self.data[self.COCO_CATEGORIES_KEY]
@@ -62,15 +73,13 @@ class CocoAnnotation:
     def images(self):
         return self.data[self.COCO_IMAGES_KEY]
 
-    @property
-    def id_to_label_mapping(self):
-        return {str(i["id"]): i["name"] for i in self.categories}
-
-    @property
-    def image_name_to_id_mapping(self):
-        return {i["file_name"]: i["id"] for i in self.images}
-
-    def get_annotations_for_image(self, image_id: str):
+    def get_annotations_for_image(self, image: str):
+        try:
+            image_id = self.image_name_to_id_mapping[image]
+        except KeyError:
+            raise IngestionError(
+                f"Could not find corresponding image_id for {image} in {self.file_name} file."
+            )
         return list(
             filter(
                 lambda item: item["image_id"] == image_id,
@@ -132,8 +141,8 @@ class CocoImages:
     def get_full_path(self, image_name: str) -> str:
         return os.path.join(self.root, image_name)
 
-    def get_image(self, image: str, destination_tensor: Tensor, creds_key: str):
-        if destination_tensor.is_link:
+    def get_image(self, image: str, linked: bool, creds_key: str):
+        if linked:
             return deeplake.link(self.get_full_path(image), creds_key=creds_key)
 
         return deeplake.read(self.get_full_path(image), storage=self.provider)
