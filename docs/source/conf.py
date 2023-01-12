@@ -75,3 +75,5 @@ html_favicon = "_static/img/tensie.svg"
 # copy button args
 copybutton_prompt_text = ">>> |\.\.\. "
 copybutton_prompt_is_regexp = True
+
+master_doc = "index"
