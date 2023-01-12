@@ -2327,14 +2327,16 @@ class ChunkEngine:
 
         return ShapeInterval(min_shape, max_shape)
 
-    def _transform_callback(self, samples, flat: Optional[bool]):
+    def _transform_callback(
+        self, samples, flat: Optional[bool], progressbar: bool = False
+    ):
         """Used in transforms to handle linked tensors."""
         for k, v in self.tensor_meta.links.items():
             if self._all_chunk_engines and (
                 flat is None or v["flatten_sequence"] == flat
             ):
                 self._all_chunk_engines[k].extend(
-                    get_link_transform(v["extend"])(samples, progressbar=True)
+                    get_link_transform(v["extend"])(samples, progressbar=progressbar)
                 )
 
     def get_empty_sample(self):
