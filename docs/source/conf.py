@@ -35,7 +35,6 @@ release = deeplake.__version__
 # ones.
 extensions = [
     "sphinx.ext.autodoc",
-    "sphinxcontrib.jquery",
     "sphinx.ext.autosummary",
     "sphinx.ext.napoleon",
     "sphinx.ext.autosectionlabel",
@@ -69,8 +68,6 @@ html_css_files = ["css/custom.css"]
 
 # Logo
 html_logo = "_static/img/logo.svg"
-
-# Favicon
 html_favicon = "_static/img/tensie.svg"
 
 # copy button args
