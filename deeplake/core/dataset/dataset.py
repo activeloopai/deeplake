@@ -802,7 +802,6 @@ class Dataset:
         id_tensor = get_sample_id_tensor_key(tensor)
         self.create_tensor(
             id_tensor,
-            dtype="uint64",
             hidden=True,
             create_id_tensor=False,
             create_sample_info_tensor=False,
@@ -2452,11 +2451,8 @@ class Dataset:
             scheduler=scheduler,
             progressbar=progressbar,
             skip_ok=True,
-            check_lengths=False,
             extend_only=True,
             disable_label_sync=True,
-            disable_rechunk=True,  # avoid recursion
-            update_commit_diff=False,
         )
 
     # the below methods are used by cloudpickle dumps
