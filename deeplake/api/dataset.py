@@ -1130,7 +1130,7 @@ class dataset:
         connect_kwargs: Optional[Dict] = None,
         **dataset_kwargs,
     ) -> Dataset:
-        """Ingest images and annotations in YOLO format to a Deep Lake Dataset.
+        """Ingest images and annotations (bounding boxes or polygons) in YOLO format to a Deep Lake Dataset.
 
         Examples:
             >>> ds = deeplake.ingest_yolo(

@@ -10,7 +10,5 @@ DEFAULT_YOLO_LABEL_TENSOR_PARAMS = {
 }
 
 DEFAULT_YOLO_COORDINATES_TENSOR_PARAMS = {
-    "name": "boxes",
-    "htype": "bbox",
     "sample_compression": None,
 }

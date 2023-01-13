@@ -68,23 +68,28 @@ class YoloDataset(UnstructuredDataset):
         )
         self._validate_image_params()
 
-    def _parse_coordinates_htype(self):
+    def _parse_coordinates_type(self):
         """Function inspects up to inspect_limit annotation files in order to infer whether they are polygons or bounding boxes"""
 
-        # If the htype of the coordinates is not specified (could be bbox or polygon), auto-infer it by reading some of the annotation files
-        if "htype" not in self.coordinates_params.keys():
+        # If the htype or name of the coordinates is not specified (htype could be bbox or polygon), auto-infer it by reading some of the annotation files
+        if (
+            "htype" not in self.coordinates_params.keys()
+            or "name" not in self.coordinates_params.keys()
+        ):
 
             # Read the annotation files assuming they are polygons and check if there are any non-empty annotations without 4 coordinates
             coordinates_htype = "bbox"  # Initialize to bbox and change if contradicted
+            coordinates_name = "boxes"  # Initialize to boxes and change if contradicted
             count = 0
-            while count < self.inspect_limit:
-                coordinates = self.data.read_yolo_coordinates(
+            while count < min(self.inspect_limit, len(self.ingestion_data)):
+                _, coordinates = self.data.read_yolo_coordinates(
                     self.ingestion_data[count][1], is_box=False
                 )
                 for c in coordinates:
                     coord_size = c.size
                     if coord_size > 0 and coord_size != 4:
                         coordinates_htype = "polygon"
+                        coordinates_name = "polygons"
 
                         count = (
                             self.inspect_limit + 1
@@ -94,7 +99,11 @@ class YoloDataset(UnstructuredDataset):
                     ## TODO: Add fancier math to see whether even coordinates with 4 elements could be polygons
                 count += 1
 
+        if "htype" not in self.coordinates_params.keys():
             self.coordinates_params["htype"] = coordinates_htype
+
+        if "name" not in self.coordinates_params.keys():
+            self.coordinates_params["name"] = coordinates_name
 
     def _initialize_params(self, image_params, label_params, coordinates_params):
         image_params_updated = DEFAULT_IMAGE_TENSOR_PARAMS.copy()
@@ -112,7 +121,7 @@ class YoloDataset(UnstructuredDataset):
             label_params_updated[k] = v
         self.label_params = label_params_updated
 
-        self._parse_coordinates_htype()
+        self._parse_coordinates_type()
 
     def _create_ingestion_list(self):
         """Function creates a list of tuples (image_filename, annotation_filename) that is passed to a deeplake.compute ingestion function"""
