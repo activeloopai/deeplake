@@ -129,10 +129,7 @@ def test_rechunk_text(local_ds_generator):
     with local_ds_generator() as ds:
         ds.create_tensor("abc", "text")
         add_sample_in().eval(
-            ["hello", "world", "abc", "def", "ghi", "yo"],
-            ds,
-            num_workers=2,
-            disable_rechunk=True,
+            ["hello", "world", "abc", "def", "ghi", "yo"], ds, num_workers=2
         )
 
         assert len(ds.abc.chunk_engine.chunk_id_encoder.array) == 2
@@ -155,10 +152,7 @@ def test_rechunk_json(local_ds_generator):
     with local_ds_generator() as ds:
         ds.create_tensor("abc", "json")
         add_sample_in().eval(
-            [{"one": "if"}, {"two": "elif"}, {"three": "else"}],
-            ds,
-            num_workers=2,
-            disable_rechunk=True,
+            [{"one": "if"}, {"two": "elif"}, {"three": "else"}], ds, num_workers=2
         )
 
         assert len(ds.abc.chunk_engine.chunk_id_encoder.array) == 2
@@ -181,10 +175,7 @@ def test_rechunk_list(local_ds_generator):
     with local_ds_generator() as ds:
         ds.create_tensor("abc", "list")
         add_sample_in().eval(
-            [["hello", "world"], ["abc", "def", "ghi"], ["yo"]],
-            ds,
-            num_workers=2,
-            disable_rechunk=True,
+            [["hello", "world"], ["abc", "def", "ghi"], ["yo"]], ds, num_workers=2
         )
 
         assert len(ds.abc.chunk_engine.chunk_id_encoder.array) == 2

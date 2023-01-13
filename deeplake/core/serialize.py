@@ -566,11 +566,7 @@ def serialize_tensor(
             store_tiles,
         )
 
-    if (
-        incoming_sample.meta.chunk_compression
-        or chunk_compression
-        or incoming_sample.meta.is_sequence  # fix for now. there is a bug with .tobytes for sequence sample.
-    ):
+    if incoming_sample.meta.chunk_compression or chunk_compression:
         return _return_numpy()
     elif incoming_sample.meta.sample_compression == sample_compression:
         # Pass through
