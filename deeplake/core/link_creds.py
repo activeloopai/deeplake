@@ -41,7 +41,7 @@ class LinkCreds(DeepLakeMemoryObject):
 
     def refresh_managed_creds(self, creds_key: str):
         if creds_key not in self.managed_creds_keys:
-            raise ValueError(f"Creds key {creds_key} is not managed")
+            return
         creds = self.fetch_managed_creds(creds_key)
         self.populate_creds(creds_key, creds)
 
