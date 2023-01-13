@@ -1,5 +1,7 @@
 from deeplake.enterprise.convert_to_libdeeplake import dataset_to_libdeeplake
 from deeplake.util.bugout_reporter import deeplake_reporter
+from deeplake.util.query import is_linear_operation
+from deeplake.core.dataset.dataset import DeepLakeQueryDataset
 from typing import Optional, Union
 
 import numpy as np
@@ -37,9 +39,12 @@ def query(dataset, query_string: str):
     """
     ds = dataset_to_libdeeplake(dataset)
     dsv = ds.query(query_string)
-    indexes = dsv.indexes
-    dataset._query = query_string
-    return dataset[indexes]
+    if is_linear_operation(query_string):
+        indexes = dsv.indexes
+        dataset._query = query_string
+        return dataset[indexes]
+    view = DeepLakeQueryDataset(deeplake_ds=dataset, indra_ds=dsv)
+    return view
 
 
 @deeplake_reporter.record_call
