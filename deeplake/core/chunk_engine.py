@@ -526,8 +526,8 @@ class ChunkEngine:
         chunk_commit_id = self.get_chunk_commit(chunk_name)
         chunk_key = get_chunk_key(self.key, chunk_name, chunk_commit_id)
         chunk = self.get_chunk(chunk_key)
-        chunk.key = chunk_key  # type: ignore
-        chunk.id = self.last_appended_chunk_id  # type: ignore
+        chunk.key = chunk_key
+        chunk.id = self.last_appended_chunk_id
         if chunk_commit_id != self.commit_id:
             chunk = self.copy_chunk_to_new_commit(chunk, chunk_name)
         if (
@@ -556,8 +556,8 @@ class ChunkEngine:
         chunk_commit_id = self.get_chunk_commit(chunk_name)
         chunk_key = get_chunk_key(self.key, chunk_name, chunk_commit_id)
         chunk = self.get_chunk(chunk_key, partial_chunk_bytes=partial_chunk_bytes)
-        chunk.key = chunk_key  # type: ignore
-        chunk.id = chunk_id  # type: ignore
+        chunk.key = chunk_key
+        chunk.id = chunk_id
         if copy and chunk_commit_id != self.commit_id:
             chunk = self.copy_chunk_to_new_commit(chunk, chunk_name)
         return chunk
@@ -581,8 +581,8 @@ class ChunkEngine:
             chunk = self.cache.get_deeplake_object(
                 chunk_key, self.chunk_class, meta=self.chunk_args
             )
-        chunk.key = chunk_key  # type: ignore
-        chunk.id = chunk_id  # type: ignore
+        chunk.key = chunk_key
+        chunk.id = chunk_id
         if copy and chunk_commit_id != self.commit_id:
             chunk = self.copy_chunk_to_new_commit(chunk, chunk_name)
         return chunk, stream
@@ -757,7 +757,7 @@ class ChunkEngine:
             if not register:
                 updated_chunks.append(current_chunk.id)
             if extending:
-                enc_ids.append(current_chunk.id)  # type: ignore
+                enc_ids.append(current_chunk.id)
         else:
             current_chunk._update_tensor_meta_length = False
             if extending:
@@ -792,7 +792,7 @@ class ChunkEngine:
                 if start_chunk_row is not None:
                     start_chunk_row += 1
                 elif register:
-                    enc_ids.append(current_chunk.id)  # type: ignore
+                    enc_ids.append(current_chunk.id)
                     enc_count.append(0)
                 if not register:
                     updated_chunks.append(current_chunk.id)
@@ -828,7 +828,7 @@ class ChunkEngine:
                     if start_chunk_row is not None:
                         start_chunk_row += 1
                     elif register:
-                        enc_ids.append(current_chunk.id)  # type: ignore
+                        enc_ids.append(current_chunk.id)
                         enc_count.append(0)
                     if not register:
                         updated_chunks.append(current_chunk.id)
@@ -948,9 +948,17 @@ class ChunkEngine:
                 verified_samples.append(verified_sample or sample)
             if link_callback:
                 samples = [None if is_empty_list(s) else s for s in verified_samples]
-                link_callback(verified_samples, flat=False, progressbar=progressbar or (pg_callback is not None))
+                link_callback(
+                    verified_samples,
+                    flat=False,
+                    progressbar=progressbar or (pg_callback is not None),
+                )
                 for s in verified_samples:
-                    link_callback(s, flat=True, progressbar=progressbar or (pg_callback is not None))
+                    link_callback(
+                        s,
+                        flat=True,
+                        progressbar=progressbar or (pg_callback is not None),
+                    )
 
         else:
             verified_samples = (
@@ -961,7 +969,11 @@ class ChunkEngine:
                     samples = [
                         None if is_empty_list(s) else s for s in verified_samples
                     ]
-                link_callback(samples, flat=None, progressbar=progressbar or (pg_callback is not None))
+                link_callback(
+                    samples,
+                    flat=None,
+                    progressbar=progressbar or (pg_callback is not None),
+                )
 
         self.cache.autoflush = initial_autoflush
         self.cache.maybe_flush()
@@ -974,8 +986,8 @@ class ChunkEngine:
         chunk_key = get_chunk_key(self.key, chunk_name, self.commit_id)
         if self.commit_chunk_set is not None:
             self.commit_chunk_set.add(chunk_name)
-        chunk.key = chunk_key  # type: ignore
-        chunk.id = chunk_id  # type: ignore
+        chunk.key = chunk_key
+        chunk.id = chunk_id
         chunk._update_tensor_meta_length = register
         if self.active_appended_chunk is not None:
             self.write_chunk_to_storage(self.active_appended_chunk)

@@ -108,6 +108,8 @@ class BaseChunk(DeepLakeMemoryObject):
         self._item_size = None
         self._sample_size = None
         self.write_initialization_done = False
+        self.id = None
+        self.key = None
 
     @property
     def is_fixed_shape(self):

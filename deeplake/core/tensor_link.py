@@ -8,7 +8,7 @@ import numpy as np
 from os import urandom
 from PIL import Image  # type: ignore
 from deeplake.util.downsample import downsample_sample
-import tqdm
+import tqdm  # type: ignore
 
 optional_kwargs = {
     "old_value",
