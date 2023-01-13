@@ -82,21 +82,21 @@ class YoloDataset(UnstructuredDataset):
             coordinates_name = "boxes"  # Initialize to boxes and change if contradicted
             count = 0
             while count < min(self.inspect_limit, len(self.ingestion_data)):
-                _, coordinates = self.data.read_yolo_coordinates(
-                    self.ingestion_data[count][1], is_box=False
-                )
-                for c in coordinates:
-                    coord_size = c.size
-                    if coord_size > 0 and coord_size != 4:
-                        coordinates_htype = "polygon"
-                        coordinates_name = "polygons"
+                fn = self.ingestion_data[count][1]
+                if fn is not None:
+                    _, coordinates = self.data.read_yolo_coordinates(fn, is_box=False)
+                    for c in coordinates:
+                        coord_size = c.size
+                        if coord_size > 0 and coord_size != 4:
+                            coordinates_htype = "polygon"
+                            coordinates_name = "polygons"
 
-                        count = (
-                            self.inspect_limit + 1
-                        )  # Set this to exit the while loop
-                        break
+                            count = (
+                                self.inspect_limit + 1
+                            )  # Set this to exit the while loop
+                            break
 
-                    ## TODO: Add fancier math to see whether even coordinates with 4 elements could be polygons
+                        ## TODO: Add fancier math to see whether even coordinates with 4 elements could be polygons
                 count += 1
 
         if "htype" not in self.coordinates_params.keys():

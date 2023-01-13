@@ -91,8 +91,7 @@ def test_minimal_yolo_ingestion_unsupported_annotations(
 def test_minimal_yolo_ingestion_bad_data_path(local_path, yolo_ingestion_data):
 
     params = {
-        "data_directory": yolo_ingestion_data["data_directory_unsupported_annotations"]
-        + "corrupt_this_path",
+        "data_directory": yolo_ingestion_data["data_directory"] + "corrupt_this_path",
         "class_names_file": yolo_ingestion_data["class_names_file"],
     }
 
@@ -103,7 +102,7 @@ def test_minimal_yolo_ingestion_bad_data_path(local_path, yolo_ingestion_data):
 def test_minimal_yolo_ingestion_poly(local_path, yolo_ingestion_data):
 
     params = {
-        "data_directory": yolo_ingestion_data["data_directory_unsupported_annotations"],
+        "data_directory": yolo_ingestion_data["data_directory"],
         "class_names_file": yolo_ingestion_data["class_names_file"],
     }
 
@@ -124,7 +123,7 @@ def test_minimal_yolo_ingestion_poly(local_path, yolo_ingestion_data):
 def test_minimal_yolo_ingestion_with_linked_images(local_path, yolo_ingestion_data):
 
     params = {
-        "data_directory": yolo_ingestion_data["data_directory_unsupported_annotations"],
+        "data_directory": yolo_ingestion_data["data_directory"],
         "class_names_file": yolo_ingestion_data["class_names_file"],
     }
 
