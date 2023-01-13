@@ -1,4 +1,6 @@
 import deeplake
+import pytest
+from deeplake.util.exceptions import IngestionError
 
 
 def test_minimal_yolo_ingestion(local_path, yolo_ingestion_data):
@@ -82,6 +84,9 @@ def test_minimal_yolo_ingestion_unsupported_annotations(
 
     ds = deeplake.ingest_yolo(**params, dest=local_path)
 
+    with pytest.raises(IngestionError):
+        ds = deeplake.ingest_yolo(**params, dest=local_path)
+
 
 def test_minimal_yolo_ingestion_bad_data_path(local_path, yolo_ingestion_data):
 
@@ -91,13 +96,19 @@ def test_minimal_yolo_ingestion_bad_data_path(local_path, yolo_ingestion_data):
         "class_names_file": yolo_ingestion_data["class_names_file"],
     }
 
-    ds = deeplake.ingest_yolo(**params, dest=local_path)
+    with pytest.raises(IngestionError):
+        ds = deeplake.ingest_yolo(**params, dest=local_path)
 
 
 def test_minimal_yolo_ingestion_poly(local_path, yolo_ingestion_data):
 
+    params = {
+        "data_directory": yolo_ingestion_data["data_directory_unsupported_annotations"],
+        "class_names_file": yolo_ingestion_data["class_names_file"],
+    }
+
     ds = deeplake.ingest_yolo(
-        **yolo_ingestion_data,
+        **params,
         dest=local_path,
         coordinates_params={"name": "polygons", "htype": "polygon"},
     )
@@ -112,8 +123,13 @@ def test_minimal_yolo_ingestion_poly(local_path, yolo_ingestion_data):
 
 def test_minimal_yolo_ingestion_with_linked_images(local_path, yolo_ingestion_data):
 
+    params = {
+        "data_directory": yolo_ingestion_data["data_directory_unsupported_annotations"],
+        "class_names_file": yolo_ingestion_data["class_names_file"],
+    }
+
     ds = deeplake.ingest_yolo(
-        **yolo_ingestion_data,
+        **params,
         dest=local_path,
         image_params={
             "name": "linked_images",

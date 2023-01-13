@@ -130,7 +130,7 @@ class YoloDataset(UnstructuredDataset):
 
                 else:
                     raise IngestionError(
-                        f"Annotation was not found for {img_fn}. Please add an annotation for this images, of specify allow_no_annotation=True, which will automatically append an empty annotation to the Deep Lake dataset."
+                        f"Annotation was not found for {img_fn}. Please add an annotation for this image, of specify allow_no_annotation=True, which will automatically append an empty annotation to the Deep Lake dataset."
                     )
                 ingestion_data.append((img_fn, None))
 
@@ -149,7 +149,7 @@ class YoloDataset(UnstructuredDataset):
             and self.allow_no_annotation == False
         ):
             raise IngestionError(
-                "The number of images and annotations in the input data is not equal. Please ensure that each image has a corresponding annotation, or set allow_no_annotation = True"
+                "The number of supported images and annotations in the input data is not equal. Please ensure that each image has a corresponding annotation, or set allow_no_annotation = True"
             )
 
         if len(self.data.supported_images) == 0:
@@ -166,7 +166,7 @@ class YoloDataset(UnstructuredDataset):
     def _validate_image_params(self):
         if "name" not in self.image_params:
             raise IngestionError(
-                "Image settings must contain a name for the image tensor."
+                "Image params must contain a name for the image tensor."
             )
 
     def _add_annotation_tensors(
