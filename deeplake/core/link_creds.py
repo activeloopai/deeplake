@@ -41,9 +41,10 @@ class LinkCreds(DeepLakeMemoryObject):
 
     def refresh_managed_creds(self, creds_key: str):
         if creds_key not in self.managed_creds_keys:
-            return
+            return False
         creds = self.fetch_managed_creds(creds_key)
         self.populate_creds(creds_key, creds)
+        return True
 
     def get_default_provider(self, provider_type: str):
         if provider_type == "s3":

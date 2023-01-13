@@ -31,28 +31,43 @@ def read_linked_sample(
     if provider_type == "local":
         return deeplake.read(sample_path, verify=verify)
     elif provider_type == "http":
-        return _read_http_linked_sample(link_creds, sample_creds_key, sample_path, verify)
+        return _read_http_linked_sample(
+            link_creds, sample_creds_key, sample_path, verify
+        )
     else:
-        return _read_cloud_linked_sample(link_creds, sample_creds_key, sample_path, provider_type, verify)
+        return _read_cloud_linked_sample(
+            link_creds, sample_creds_key, sample_path, provider_type, verify
+        )
 
 
 def retry_refresh_managed_creds(f):
     def wrapper(linked_creds, sample_creds_key, *args, **kwargs):
         try:
             return f(linked_creds, sample_creds_key, *args, **kwargs)
-        except Exception:
-            linked_creds.refresh_managed_creds(sample_creds_key)
+        except Exception as e:
+            refreshed = linked_creds.refresh_managed_creds(sample_creds_key)
+            if not refreshed:
+                raise e
             return f(linked_creds, sample_creds_key, *args, **kwargs)
+
     return wrapper
 
 
 @retry_refresh_managed_creds
-def _read_cloud_linked_sample(link_creds, sample_creds_key: str, sample_path: str, provider_type: str, verify: bool):
+def _read_cloud_linked_sample(
+    link_creds,
+    sample_creds_key: str,
+    sample_path: str,
+    provider_type: str,
+    verify: bool,
+):
     storage = link_creds.get_storage_provider(sample_creds_key, provider_type)
     return deeplake.read(sample_path, storage=storage, verify=verify)
 
+
 @retry_refresh_managed_creds
-def _read_http_linked_sample(link_creds, sample_creds_key: str, sample_path: str, verify: bool):
+def _read_http_linked_sample(
+    link_creds, sample_creds_key: str, sample_path: str, verify: bool
+):
     creds = link_creds.get_creds(sample_creds_key)
     return deeplake.read(sample_path, verify=verify, creds=creds)
-
