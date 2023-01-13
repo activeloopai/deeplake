@@ -104,6 +104,11 @@ def _download_hub_test_yolo_data():
     return {
         "data_directory": path + "/yolo/data",
         "class_names_file": path + "/yolo/classes.names",
+        "data_directory_no_annotations": path + "/yolo/images_only",
+        "annotations_directory": path + "/yolo/annotations_only",
+        "data_directory_missing_annotations": path + "/yolo/data_missing_annotations",
+        "data_directory_unsupported_annotations": path
+        + "/yolo/data_unsupported_annotations",
     }
 
 
