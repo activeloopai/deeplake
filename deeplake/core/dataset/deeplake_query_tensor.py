@@ -185,6 +185,9 @@ class DeepLakeQueryTensor(tensor.Tensor):
         """
         return self.deeplake_tensor.meta.htype
 
+    def __len__(self):
+        return self.shape[0]
+
 
 class DeeplakeQueryTensorWithSliceIndices(DeepLakeQueryTensor):
     def __init__(self, *args, **kwargs):
@@ -202,18 +205,21 @@ class DeeplakeQueryTensorWithSliceIndices(DeepLakeQueryTensor):
         max_shapes += tuple(self.max_shape)
 
         for i, idx in enumerate(self.idxs):
-            start = idx.value.start or 0
-            stop = idx.value.stop or max_shapes[i]
-            step = idx.value.step or 1
+            if isinstance(idx.value, slice):
+                start = idx.value.start or 0
+                stop = idx.value.stop or max_shapes[i]
+                step = idx.value.step or 1
 
-            if start < 0:
-                start = max_shapes[i] + start
+                if start < 0:
+                    start = max_shapes[i] + start
 
-            if stop < 0:
-                stop = max_shapes[i] + stop
+                if stop < 0:
+                    stop = max_shapes[i] + stop
 
-            dim = (stop - start) // step
-            shape += (dim,)
+                dim = (stop - start) // step
+                shape += (dim,)
+            else:
+                shape += (1,)
 
             if i != 0 and self.max_shape[i - 1] != self.min_shape[i - 1]:
                 raise Exception("Data across this dimension has different shapes")
@@ -239,9 +245,17 @@ class DeeplakeQueryTensorWithSliceIndices(DeepLakeQueryTensor):
             try:
                 tensors = np.dstack(tensors_list).transpose(2, 0, 1)
             except:
-                raise Exception(
-                    "The data in the dataset has different shape across dimensions"
-                )
+                idxs_tuple = tuple(idxs[1:])
+                try:
+                    tensors = []
+                    for tensor in tensors_list:
+                        tensors.append(tensor[idxs_tuple])
+                    tensors = np.dstack(tensors_list).transpose(2, 0, 1)
+                    return tensors
+                except:
+                    raise Exception(
+                        "The data in the dataset has different shape across dimensions"
+                    )
             idxs_tuple = (slice(None, None, None),)
             idxs_tuple += tuple(idxs[1:])
             tensors = tensors[idxs_tuple]
@@ -258,10 +272,11 @@ class DeeplakeQueryTensorWithIntIndices(DeepLakeQueryTensor):
 
     @property
     def shape(self):
-        first_dim = len(self.index.values)
-        self.set_first_dim(first_dim)
-        shape = self.callect_final_shape()
-        return shape
+        if len(self.index.values) == 1:
+            first_dim = len(self.index.values)
+            self.set_first_dim(first_dim)
+            shape = self.callect_final_shape()
+            return shape
 
     def numpy_aslist(self, aslist):
         idx_value = self.idx[0].value
@@ -302,7 +317,7 @@ class DeeplakeQueryTensorWithListIndices(DeepLakeQueryTensor):
 
 
 INDEX_TO_CLASS = {
-    int: DeeplakeQueryTensorWithIntIndices,
+    int: DeeplakeQueryTensorWithSliceIndices,
     slice: DeeplakeQueryTensorWithSliceIndices,
     list: DeeplakeQueryTensorWithListIndices,
     tuple: DeeplakeQueryTensorWithListIndices,
