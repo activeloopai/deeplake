@@ -372,8 +372,8 @@ def text_to_bytes(sample, dtype, htype):
         byts = json.dumps(sample, cls=HubJsonEncoder).encode()
         shape = (len(sample),) if htype == "list" else (1,)
     else:  # htype == "text":
-        if isinstance(sample, np.ndarray):
-            sample = sample.tolist()
+        if isinstance(sample, np.ndarray) and sample.size == 1:
+            sample = str(sample.reshape(()))
         if not isinstance(sample, str):
             raise TypeError("Expected str, received: " + str(sample))
         byts = sample.encode()
