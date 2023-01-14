@@ -16,6 +16,7 @@ text, str, None
 json, Any, None
 list, List, None
 dicom, None, dcm
+:ref:`nifti <nifti-htype>`,None,Required arg
 :ref:`point_cloud <point_cloud-htype>`, None, las
 :ref:`mesh <mesh-htype>`, None, ply
 instance_label, uint32, None

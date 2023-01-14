@@ -16,6 +16,7 @@ from deeplake.compression import (
     AUDIO_COMPRESSION,
     POINT_CLOUD_COMPRESSION,
     MESH_COMPRESSION,
+    NIFTI_COMPRESSION,
 )
 from typing import Union, Tuple, Sequence, List, Optional, BinaryIO
 import numpy as np
@@ -31,6 +32,7 @@ import numcodecs.lz4  # type: ignore
 from numpy.core.fromnumeric import compress  # type: ignore
 import math
 from pathlib import Path
+from gzip import GzipFile
 
 try:
     import av  # type: ignore
@@ -45,6 +47,14 @@ try:
     _LZ4_INSTALLED = True
 except ImportError:
     _LZ4_INSTALLED = False
+
+try:
+    import nibabel as nib  # type: ignore
+    from nibabel import FileHolder, Nifti1Image, Nifti2Image  # type: ignore
+
+    _NIBABEL_INSTALLED = True
+except ImportError:
+    _NIBABEL_INSTALLED = False
 
 if sys.byteorder == "little":
     _NATIVE_INT32 = "<i4"
@@ -213,19 +223,28 @@ def compress_array(array: np.ndarray, compression: Optional[str]) -> bytes:
         return compress_bytes(array.tobytes(), compression)
     elif compr_type == AUDIO_COMPRESSION:
         raise NotImplementedError(
-            "In order to store audio data, you should use `deeplake.read(path_to_file)`. Compressing raw data is not yet supported."
+            "In order to store audio data, you should use `deeplake.read(path_to_file)` or specify sample_compression=None. "
+            "Compressing raw data is not yet supported."
         )
     elif compr_type == VIDEO_COMPRESSION:
         raise NotImplementedError(
-            "In order to store video data, you should use `deeplake.read(path_to_file)`. Compressing raw data is not yet supported."
+            "In order to store video data, you should use `deeplake.read(path_to_file)` or specify sample_compression=None. "
+            "Compressing raw data is not yet supported."
         )
     elif compr_type == POINT_CLOUD_COMPRESSION:
         raise NotImplementedError(
-            "In order to store point cloud data, you should use `deeplake.read(path_to_file)`. Compressing raw data is not yet supported."
+            "In order to store point cloud data, you should use `deeplake.read(path_to_file)` or specify sample_compression=None. "
+            "Compressing raw data is not yet supported."
         )
     elif compr_type == MESH_COMPRESSION:
         raise NotImplementedError(
-            "In order to store mesh data, you should use `deeplake.read(path_to_file)`. Compressing raw data is not yet supported."
+            "In order to store mesh data, you should use `deeplake.read(path_to_file)` or specify sample_compression=None. "
+            "Compressing raw data is not yet supported."
+        )
+    elif compr_type == NIFTI_COMPRESSION:
+        raise NotImplementedError(
+            "In order to store nifti data, you should use `deeplake.read(path_to_file)` or specify sample_compression=None. "
+            "Compressing raw data is not yet supported."
         )
     if compression == "apng":
         return _compress_apng(array)
@@ -302,6 +321,10 @@ def decompress_array(
         return _decompress_apng(buffer)  # type: ignore
     if compression == "dcm":
         return _decompress_dicom(buffer)  # type: ignore
+    if compression == "nii":
+        return _decompress_nifti(buffer)
+    if compression == "nii.gz":
+        return _decompress_nifti(buffer, gz=True)
     if compression is None and isinstance(buffer, memoryview) and shape is not None:
         assert buffer is not None
         assert shape is not None
@@ -442,12 +465,19 @@ def verify_compressed_file(
         elif compression == "jpeg":
             return _verify_jpeg(file), "|u1"
         elif get_compression_type(compression) == AUDIO_COMPRESSION:
+            if isinstance(file, BinaryIO):
+                file = file.read()
             return _read_audio_shape(file), "<f4"  # type: ignore
         elif compression in ("mp4", "mkv", "avi"):
-            if isinstance(file, (bytes, memoryview, str)):
-                return _read_video_shape(file), "|u1"  # type: ignore
+            if isinstance(file, BinaryIO):
+                file = file.read()
+            return _read_video_shape(file), "|u1"  # type: ignore
         elif compression == "dcm":
             return _read_dicom_shape_and_dtype(file)
+        elif get_compression_type(compression) == NIFTI_COMPRESSION:
+            if isinstance(file, BinaryIO):
+                file = file.read()
+            return _read_nifti_shape_and_dtype(file, gz=compression == "nii.gz")
         elif compression in ("las", "ply"):
             return _read_3d_data_shape_and_dtype(file)
         else:
@@ -474,6 +504,8 @@ def get_compression(header=None, path=None):
             ".dcm",
             ".las",
             ".ply",
+            ".nii",
+            ".nii.gz",
         ]
         path = str(path).lower()
         for fmt in file_formats:
@@ -649,6 +681,10 @@ def read_meta_from_compressed_file(
                 raise CorruptedSampleError("png")
         elif compression == "dcm":
             shape, typestr = _read_dicom_shape_and_dtype(f)
+        elif compression == "nii":
+            shape, typestr = _read_nifti_shape_and_dtype(file)
+        elif compression == "nii.gz":
+            shape, typestr = _read_nifti_shape_and_dtype(file, gz=True)
         elif get_compression_type(compression) == AUDIO_COMPRESSION:
             try:
                 shape, typestr = _read_audio_shape(file), "<f4"
@@ -1123,3 +1159,40 @@ def _read_3d_data_shape_and_dtype(file: Union[bytes, BinaryIO]):
 def _read_3d_data_meta(file: Union[bytes, memoryview, str]):
     point_cloud = _open_3d_data(file)
     return point_cloud.meta_data
+
+
+def _open_nifti(file: Union[bytes, memoryview, str], gz: bool = False):
+    if not _NIBABEL_INSTALLED:
+        raise ModuleNotFoundError(
+            "nibabel is not installed. Please run `pip install deeplake[medical]`"
+        )
+
+    if isinstance(file, str):
+        return nib.load(file)
+
+    fileobj = GzipFile(fileobj=BytesIO(file)) if gz else BytesIO(file)
+
+    # file is in nifti-2 format if size of header is 540
+    sizeof_hdr = fileobj.read(4)
+    is_nifti_2 = (
+        int.from_bytes(sizeof_hdr, "little") == 540
+        or int.from_bytes(sizeof_hdr, "big") == 540
+    )
+    fileobj.seek(0)
+
+    fh = FileHolder(fileobj=fileobj)
+
+    if is_nifti_2:
+        return Nifti2Image.from_file_map({"header": fh, "image": fh})
+    return Nifti1Image.from_file_map({"header": fh, "image": fh})
+
+
+def _decompress_nifti(file: Union[bytes, memoryview, str], gz: bool = False):
+    img = _open_nifti(file, gz=gz)
+    return img.get_fdata()
+
+
+def _read_nifti_shape_and_dtype(file: Union[bytes, memoryview, str], gz: bool = False):
+    img = _open_nifti(file, gz=gz)
+    typestr = img.header.get_data_dtype().str
+    return img.shape, typestr

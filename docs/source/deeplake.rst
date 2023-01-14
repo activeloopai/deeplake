@@ -8,6 +8,7 @@ deeplake
 .. autofunction:: empty
 .. autofunction:: like
 .. autofunction:: ingest
+.. autofunction:: ingest_coco
 .. autofunction:: ingest_kaggle
 .. autofunction:: ingest_dataframe
 .. autofunction:: ingest_huggingface

@@ -4,10 +4,21 @@ from deeplake.constants import _NO_LINK_UPDATE
 import inspect
 import deeplake
 import inspect
-from deeplake.util.generate_id import generate_id
 import numpy as np
-from uuid import uuid4
 from os import urandom
+from PIL import Image  # type: ignore
+from deeplake.util.downsample import downsample_sample
+
+optional_kwargs = {
+    "old_value",
+    "index",
+    "sub_index",
+    "partial",
+    "factor",
+    "compression",
+    "htype",
+    "link_creds",
+}
 
 
 class _TensorLinkTransform:
@@ -16,7 +27,7 @@ class _TensorLinkTransform:
         self.f = f
         spec = inspect.getfullargspec(f)
         self.multi_arg = len(spec.args) > 1 or spec.varargs or spec.varkw
-        self.kwargs = [k for k in ("index", "sub_index", "partial") if k in spec.args]
+        self.kwargs = [k for k in optional_kwargs if k in spec.args]
 
     def __call__(self, *args, **kwargs):
         if self.multi_arg:
@@ -79,15 +90,15 @@ def update_info(
 
 
 @link
-def update_shape(sample, link_creds=None):
-    if isinstance(sample, deeplake.core.linked_sample.LinkedSample):
-        sample = read_linked_sample(
-            sample.path, sample.creds_key, link_creds, verify=False
+def update_shape(new_sample, link_creds=None):
+    if isinstance(new_sample, deeplake.core.linked_sample.LinkedSample):
+        new_sample = read_linked_sample(
+            new_sample.path, new_sample.creds_key, link_creds, verify=False
         )
-    if np.isscalar(sample):
+    if np.isscalar(new_sample):
         return np.array([1], dtype=np.int64)
     return np.array(
-        getattr(sample, "shape", None) or np.array(sample).shape, dtype=np.int64
+        getattr(new_sample, "shape", None) or np.array(new_sample).shape, dtype=np.int64
     )
 
 
@@ -95,13 +106,26 @@ def update_shape(sample, link_creds=None):
 def extend_shape(samples, link_creds=None):
     if isinstance(samples, np.ndarray):
         return [np.array(samples.shape[1:])] * len(samples)
-    return (
-        np.array([], dtype=np.int64)
-        if samples is None
-        else np.array(
-            [update_shape.f(sample, link_creds=link_creds) for sample in samples]
-        )
-    )
+    if samples is None:
+        return np.array([], dtype=np.int64)
+    shapes = [update_shape.f(sample, link_creds=link_creds) for sample in samples]
+    mixed_ndim = False
+    try:
+        arr = np.array(shapes)
+        if arr.dtype == object:
+            mixed_ndim = True
+    except ValueError:
+        mixed_ndim = True
+
+    if mixed_ndim:
+        ndim = max(map(len, shapes))
+        for i, s in enumerate(shapes):
+            if len(s) < ndim:
+                shapes[i] = np.concatenate(
+                    [s, (int(bool(np.prod(s))),) * (ndim - len(s))]
+                )
+        arr = np.array(shapes)
+    return arr
 
 
 @link
@@ -110,8 +134,51 @@ def extend_len(samples, link_creds=None):
 
 
 @link
-def update_len(sample, link_creds=None):
-    return 0 if sample is None else len(sample)
+def update_len(new_sample, link_creds=None):
+    return 0 if new_sample is None else len(new_sample)
+
+
+def convert_sample_for_downsampling(sample, link_creds=None):
+    if isinstance(sample, deeplake.core.linked_sample.LinkedSample):
+        sample = read_linked_sample(
+            sample.path, sample.creds_key, link_creds, verify=False
+        )
+    if isinstance(sample, deeplake.core.sample.Sample):
+        sample = sample.pil
+    if isinstance(sample, np.ndarray):
+        sample = Image.fromarray(sample)
+    # PartialSample isn't converted
+    return sample
+
+
+@link
+def extend_downsample(samples, factor, compression, htype, link_creds=None):
+    samples = [
+        convert_sample_for_downsampling(sample, link_creds) for sample in samples
+    ]
+    return [downsample_sample(sample, factor, compression, htype) for sample in samples]
+
+
+@link
+def update_downsample(
+    new_sample,
+    factor,
+    compression,
+    htype,
+    link_creds=None,
+    sub_index=None,
+    partial=False,
+):
+    new_sample = convert_sample_for_downsampling(new_sample, link_creds)
+    if partial:
+        for index_entry in sub_index.values:
+            if not isinstance(index_entry.value, slice):
+                return _NO_LINK_UPDATE
+    downsampled = downsample_sample(new_sample, factor, compression, htype, partial)
+    if partial:
+        downsampled_sub_index = sub_index.downsample(factor, downsampled.shape)
+        return downsampled_sub_index, downsampled
+    return downsampled
 
 
 _funcs = {k: v for k, v in globals().items() if isinstance(v, link)}
@@ -140,3 +207,9 @@ def read_linked_sample(
         creds = link_creds.get_creds(sample_creds_key)
         return deeplake.read(sample_path, verify=verify, creds=creds)
     return deeplake.read(sample_path, verify=verify)
+
+
+def cast_to_type(val, dtype):
+    if isinstance(val, np.ndarray) and dtype and val.dtype != dtype:
+        return val.astype(dtype)
+    return val

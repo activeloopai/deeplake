@@ -16,6 +16,7 @@ import deeplake
 from deeplake.core.index.index import IndexEntry
 from deeplake.core.link_creds import LinkCreds
 from deeplake.util.connect_dataset import connect_dataset_entry
+from deeplake.util.downsample import validate_downsampling
 from deeplake.util.invalid_view_op import invalid_view_op
 from deeplake.util.iteration_warning import (
     suppress_iteration_warning,
@@ -97,6 +98,7 @@ from deeplake.util.keys import (
     get_sample_id_tensor_key,
     get_sample_info_tensor_key,
     get_sample_shape_tensor_key,
+    get_downsampled_tensor_key,
     filter_name,
     get_tensor_meta_key,
     get_tensor_commit_diff_key,
@@ -244,9 +246,10 @@ class Dataset:
         ] = []  # This is a stack to support nested with contexts
         self._indexing_history: List[int] = []
 
-        for temp_tensor in self._temp_tensors:
-            self.delete_tensor(temp_tensor, large_ok=True)
-        self._temp_tensors = []
+        if not self.read_only:
+            for temp_tensor in self._temp_tensors:
+                self.delete_tensor(temp_tensor, large_ok=True)
+            self._temp_tensors = []
 
     def _lock_lost_handler(self):
         """This is called when lock is acquired but lost later on due to slow update."""
@@ -560,6 +563,7 @@ class Dataset:
         verify: bool = True,
         exist_ok: bool = False,
         verbose: bool = True,
+        downsampling: Optional[Tuple[int, int]] = None,
         **kwargs,
     ):
         """Creates a new tensor in the dataset.
@@ -598,6 +602,8 @@ class Dataset:
                 ``verify`` is always ``True`` even if specified as ``False`` if ``create_shape_tensor`` or ``create_sample_info_tensor`` is ``True``.
             exist_ok (bool): If ``True``, the group is created if it does not exist. if ``False``, an error is raised if the group already exists.
             verbose (bool): Shows warnings if ``True``.
+            downsampling (tuple[int, int]): If not ``None``, the tensor will be downsampled by the provided factors. For example, ``(2, 5)`` will downsample the tensor by a factor of 2 in both dimensions and create 5 layers of downsampled tensors.
+                Only support for image and mask htypes.
             **kwargs:
                 - ``htype`` defaults can be overridden by passing any of the compatible parameters.
                 - To see all htypes and their correspondent arguments, check out :ref:`Htypes`.
@@ -652,6 +658,7 @@ class Dataset:
         if not tensor_name or tensor_name in dir(self):
             raise InvalidTensorNameError(tensor_name)
 
+        downsampling_factor, number_of_layers = validate_downsampling(downsampling)
         kwargs["is_sequence"] = kwargs.get("is_sequence") or is_sequence
         kwargs["is_link"] = kwargs.get("is_link") or is_link
         if (
@@ -677,6 +684,7 @@ class Dataset:
                 create_shape_tensor=create_shape_tensor,
                 create_id_tensor=create_id_tensor,
                 exist_ok=exist_ok,
+                downsampling=downsampling,
                 **kwargs,
             )
 
@@ -733,18 +741,43 @@ class Dataset:
             "dicom",
             "point_cloud",
             "mesh",
+            "nifti",
         ):
             self._create_sample_info_tensor(name)
         if create_shape_tensor and htype not in ("text", "json"):
             self._create_sample_shape_tensor(name, htype=htype)
         if create_id_tensor:
             self._create_sample_id_tensor(name)
+        if downsampling:
+            downsampling_htypes = {
+                "image",
+                "image.rgb",
+                "image.gray",
+                "binary_mask",
+                "segment_mask",
+            }
+            if htype not in downsampling_htypes:
+                warnings.warn(
+                    f"Downsampling is only supported for tensor with htypes {downsampling_htypes}, got {htype}. Skipping downsampling."
+                )
+            else:
+                self._create_downsampled_tensor(
+                    name,
+                    htype,
+                    dtype,
+                    sample_compression,
+                    chunk_compression,
+                    meta_kwargs,
+                    downsampling_factor,
+                    number_of_layers,
+                )
         return tensor
 
     def _create_sample_shape_tensor(self, tensor: str, htype: str):
         shape_tensor = get_sample_shape_tensor_key(tensor)
         self.create_tensor(
             shape_tensor,
+            dtype="int64",
             hidden=True,
             create_id_tensor=False,
             create_sample_info_tensor=False,
@@ -797,6 +830,46 @@ class Dataset:
             sample_info_tensor,
             "extend_info",
             "update_info",
+            flatten_sequence=True,
+        )
+
+    def _create_downsampled_tensor(
+        self,
+        tensor: str,
+        htype: str,
+        dtype: Union[str, np.dtype],
+        sample_compression: str,
+        chunk_compression: str,
+        meta_kwargs: Dict[str, Any],
+        downsampling_factor: int,
+        number_of_layers: int,
+    ):
+        downsampled_tensor = get_downsampled_tensor_key(tensor, downsampling_factor)
+        if number_of_layers == 1:
+            downsampling = None
+        else:
+            downsampling = (downsampling_factor, number_of_layers - 1)
+        meta_kwargs = meta_kwargs.copy()
+        meta_kwargs.pop("is_link", None)
+        new_tensor = self.create_tensor(
+            downsampled_tensor,
+            htype=htype,
+            dtype=dtype,
+            sample_compression=sample_compression,
+            chunk_compression=chunk_compression,
+            hidden=True,
+            create_id_tensor=False,
+            create_sample_info_tensor=False,
+            create_shape_tensor=False,
+            downsampling=downsampling,
+            **meta_kwargs,
+        )
+        new_tensor.info.downsampling_factor = downsampling_factor
+        self._link_tensors(
+            tensor,
+            downsampled_tensor,
+            extend_f=f"extend_downsample",
+            update_f=f"update_downsample",
             flatten_sequence=True,
         )
 
@@ -3860,8 +3933,9 @@ class Dataset:
         )
 
     def random_split(self, lengths: Sequence[Union[int, float]]):
-        """Splits the dataset into non-overlapping new datasets of given lengths.
+        """Splits the dataset into non-overlapping :class:`~deeplake.core.dataset.Dataset` objects of given lengths.
         If a list of fractions that sum up to 1 is given, the lengths will be computed automatically as floor(frac * len(dataset)) for each fraction provided.
+        The split generated is only performant with enterprise dataloader which can be installed with ``pip install deeplake[enterprise]``.
 
         After computing the lengths, if there are any remainders, 1 count will be distributed in round-robin fashion to the lengths until there are no remainders left.
 

@@ -29,6 +29,7 @@ class htype:
     JSON = "json"
     LIST = "list"
     DICOM = "dicom"
+    NIFTI = "nifti"
     POINT_CLOUD = "point_cloud"
     POINT_CLOUD_CALIBRATION_MATRIX = "point_cloud.calibration_matrix"
     POLYGON = "polygon"
@@ -80,6 +81,7 @@ HTYPE_CONFIGURATIONS: Dict[str, Dict] = {
     htype.LIST: {"dtype": "List"},
     htype.TEXT: {"dtype": "str"},
     htype.DICOM: {"sample_compression": "dcm"},
+    htype.NIFTI: {},
     htype.POINT_CLOUD: {"dtype": "float32"},
     htype.POINT_CLOUD_CALIBRATION_MATRIX: {"dtype": "float32"},
     htype.POLYGON: {"dtype": "float32"},
@@ -106,6 +108,7 @@ HTYPE_SUPPORTED_COMPRESSIONS = {
     htype.JSON: BYTE_COMPRESSIONS[:],
     htype.POINT_CLOUD: POINT_CLOUD_COMPRESSIONS[:],
     htype.DICOM: ["dcm"],
+    htype.NIFTI: ["nii", "nii.gz"],
     htype.POLYGON: BYTE_COMPRESSIONS[:],
     htype.MESH: MESH_COMPRESSIONS[:],
 }

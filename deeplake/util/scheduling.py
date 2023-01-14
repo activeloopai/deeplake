@@ -60,6 +60,9 @@ def create_fetching_schedule(dataset, primary_tensor_name, shuffle_within_chunks
 
 
 def create_random_split_views(dataset, lengths):
+    from deeplake.enterprise.convert_to_libdeeplake import import_indra_api
+
+    import_indra_api()
     if math.isclose(sum(lengths), 1) and sum(lengths) <= 1:
         subset_lengths: List[int] = []
         for i, frac in enumerate(lengths):
@@ -91,7 +94,8 @@ def create_random_split_views(dataset, lengths):
     schedule = create_fetching_schedule(
         dataset, primary_tensor, shuffle_within_chunks=True
     )
-    sliced_ds = dataset[schedule]
+    ds = dataset.no_view_dataset
+    sliced_ds = ds[schedule]
     views = []
     start = 0
     for length in lengths:

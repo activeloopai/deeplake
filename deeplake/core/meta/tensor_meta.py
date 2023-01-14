@@ -18,9 +18,7 @@ from deeplake.constants import (
     REQUIRE_USER_SPECIFICATION,
     UNSPECIFIED,
 )
-from deeplake.compression import (
-    COMPRESSION_ALIASES,
-)
+from deeplake.compression import COMPRESSION_ALIASES
 from deeplake.htype import (
     HTYPE_CONFIGURATIONS,
     HTYPE_SUPPORTED_COMPRESSIONS,
@@ -269,7 +267,7 @@ def _validate_htype_overwrites(htype: str, htype_overwrite: dict):
         raise TensorMetaMissingRequiredValue(
             actual_htype, ["chunk_compression", "sample_compression"]  # type: ignore
         )
-    if htype in ("audio", "video", "point_cloud", "mesh"):
+    if htype in ("audio", "video", "point_cloud", "mesh", "nifti"):
         if cc not in (UNSPECIFIED, None):
             raise UnsupportedCompressionError("Chunk compression", htype=htype)
         elif sc == UNSPECIFIED:
