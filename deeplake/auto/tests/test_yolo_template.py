@@ -82,8 +82,6 @@ def test_minimal_yolo_ingestion_unsupported_annotations(
         "class_names_file": yolo_ingestion_data["class_names_file"],
     }
 
-    ds = deeplake.ingest_yolo(**params, dest=local_path)
-
     with pytest.raises(IngestionError):
         ds = deeplake.ingest_yolo(**params, dest=local_path)
 
