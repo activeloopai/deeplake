@@ -951,13 +951,13 @@ class ChunkEngine:
                 link_callback(
                     verified_samples,
                     flat=False,
-                    progressbar=progressbar or (pg_callback is not None),
+                    progressbar=progressbar,
                 )
                 for s in verified_samples:
                     link_callback(
                         s,
                         flat=True,
-                        progressbar=progressbar or (pg_callback is not None),
+                        progressbar=progressbar,
                     )
 
         else:
@@ -972,7 +972,7 @@ class ChunkEngine:
                 link_callback(
                     samples,
                     flat=None,
-                    progressbar=progressbar or (pg_callback is not None),
+                    progressbar=progressbar,
                 )
 
         self.cache.autoflush = initial_autoflush
