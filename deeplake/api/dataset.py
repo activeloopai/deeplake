@@ -7,6 +7,7 @@ from typing import Dict, Optional, Union, List
 
 from deeplake.auto.unstructured.kaggle import download_kaggle_dataset
 from deeplake.auto.unstructured.image_classification import ImageClassification
+from deeplake.auto.unstructured.files import Files
 from deeplake.auto.unstructured.coco.coco import CocoDataset
 from deeplake.auto.unstructured.yolo.yolo import YoloDataset
 from deeplake.client.client import DeepLakeBackendClient
@@ -1233,7 +1234,108 @@ class dataset:
         return ds
 
     @staticmethod
-    def ingest(
+    def ingest_files   (
+        data_directory: Union[str, pathlib.Path],
+        dest: Union[str, pathlib.Path],
+        image_params: Optional[Dict] = None,
+        src_creds: Optional[Dict] = None,
+        dest_creds: Optional[Dict] = None,
+        creds_key: Optional[str] = None,
+        inspect_limit: int = 1000,
+        progressbar: bool = True,
+        num_workers: int = 0,
+        connect_kwargs: Optional[Dict] = None,
+        **dataset_kwargs,
+    ) -> Dataset:
+        """Ingest files into a single tensor. For ingesting of data with annotations, see other ingestion functions such as ingest_yolo, ingest_coco, ingest_classificaiton, and others.
+
+        Examples:
+            >>> ds = deeplake.ingest_files(
+            >>>     "path/to/data/directory",
+            >>>     dest="hub://org_id/dataset",
+            >>>     allow_no_annotation=True,
+            >>>     token="my_activeloop_token",
+            >>>     num_workers=4,
+            >>> )
+            >>> # or ingest data from cloud
+            >>> ds = deeplake.ingest_files(
+            >>>     "s3://bucket/data_directory",
+            >>>     dest="hub://org_id/dataset",
+            >>>     image_params={"name": "image_links", "htype": "link[image]"},
+            >>>     image_creds_key='my_s3_managed_crerendials",
+            >>>     src_creds=aws_creds, # Can also be inferred from environment
+            >>>     token="my_activeloop_token",
+            >>>     num_workers=4,
+            >>> )
+
+        Args:
+            data_directory (str, pathlib.Path): The path to the directory containing the data (images files and annotation files(see 'annotations_directory' input for specifying annotations in a separate directory).
+            dest (str, pathlib.Path):
+                - The full path to the dataset. Can be:
+                - a Deep Lake cloud path of the form ``hub://org_id/datasetname``. To write to Deep Lake cloud datasets, ensure that you are logged in to Deep Lake (use 'activeloop login' from command line), or pass in a token using the 'token' parameter.
+                - an s3 path of the form ``s3://bucketname/path/to/dataset``. Credentials are required in either the environment or passed to the creds argument.
+                - a local file system path of the form ``./path/to/dataset`` or ``~/path/to/dataset`` or ``path/to/dataset``.
+                - a memory path of the form ``mem://path/to/dataset`` which doesn't save the dataset but keeps it in memory instead. Should be used only for testing as it does not persist.
+            class_names_file: Path to the file containing the class names on separate lines. This is typically a file titled classes.names.
+            annotations_directory (Optional[Union[str, pathlib.Path]]): Path to directory containing the annotations. If specified, the 'data_directory' will not be examined for annotations.
+            allow_no_annotation (bool): Flag to determine whether missing annotations files corresponding to an image should be treated as empty annoations. Set to ``False`` by default.
+            image_params (Optional[Dict]): A dictionary containing parameters for the images tensor.
+            label_params (Optional[Dict]): A dictionary containing parameters for the labels tensor.
+            coordinates_params (Optional[Dict]): A dictionary containing parameters for the ccoordinates tensor. This tensor either contains bounding boxes or polygons.
+            src_creds (Optional[Dict]): Credentials to access the source path. If not provided, will be inferred from the environment.
+            dest_creds (Optional[Dict]): A dictionary containing credentials used to access the destination path of the dataset.
+            image_creds_key (Optional[str]): creds_key for linked tensors, applicable if the htype for the images tensor is specified as 'link[image]' in the 'image_params' input.
+            inspect_limit (int): The maximum number of annotations to inspect, in order to infer whether they are bounding boxes of polygons. This in put is ignored if the htype is specfied in the 'coordinates_params'.
+            progressbar (bool): Enables or disables ingestion progress bar. Set to ``True`` by default.
+            num_workers (int): The number of workers to use for ingestion. Set to ``0`` by default.
+            connect_kwargs (Optional[Dict]): If specified, the dataset will be connected to Platform, and connect_kwargs will be passed to :func:`ds.connect`.
+            **dataset_kwargs: Any arguments passed here will be forwarded to the dataset creator function. See :func:`deeplake.empty`.
+
+        Returns:
+            Dataset: The Dataset created from the images and YOLO annotations.
+
+        Raises:
+            IngestionError: If annotations are not found for all the images and 'allow_no_annotation' is False
+        """
+
+        dest = convert_pathlib_to_string_if_needed(dest)
+        data_directory = convert_pathlib_to_string_if_needed(data_directory)
+
+        feature_report_path(
+            dest,
+            "ingest_files",
+            {"num_workers": num_workers},
+            token=dataset_kwargs.get("token", None),
+        )
+
+        unstructured = Files(
+            data_directory=data_directory,
+            image_params=image_params,
+            creds=src_creds,
+            creds_key=creds_key,
+            inspect_limit=inspect_limit,
+        )
+
+        structure = unstructured.prepare_structure()
+
+        ds = deeplake.empty(dest, creds=dest_creds, verbose=False, **dataset_kwargs)
+        if connect_kwargs is not None:
+            ds.connect(**connect_kwargs, token=dataset_kwargs.get("token", None))
+
+        structure.create_missing(ds)
+
+        unstructured.structure(
+            ds,
+            progressbar,
+            num_workers,
+        )
+
+        return ds
+
+
+
+    @staticmethod
+    def ingest_classification(
         src: Union[str, pathlib.Path],
         dest: Union[str, pathlib.Path],
         images_compression: str = "auto",
@@ -1347,7 +1449,7 @@ class dataset:
             ds = deeplake.dataset(dest, creds=dest_creds, **dataset_kwargs)
 
             # TODO: support more than just image classification (and update docstring)
-            unstructured = ImageClassification(source=src)
+            unstructured = Files(source=src)
 
             # TODO: auto detect compression
             unstructured.structure(
