@@ -86,7 +86,7 @@ def combine_transform_datasets(datasets: List[TransformDataset]):
                 for batch in input_tensor.numpy():
                     output_tensor.extend(batch)
             else:
-                output_tensor.extend(input_tensor.numpy())
+                output_tensor.extend(input_tensor.numpy_compressed())
     return final_ds
 
 
