@@ -82,22 +82,6 @@ def store_data_slice(transform_input: Tuple) -> Dict:
     return store_data_slice_with_pbar(None, transform_input)
 
 
-def update_progress_bar(
-    pg_callback, i, n, last_reported_num_samples, last_reported_time
-):
-    if pg_callback is not None:
-        curr_time = time.time()
-        if (
-            curr_time - last_reported_time > TRANSFORM_PROGRESSBAR_UPDATE_INTERVAL
-            or i == n - 1
-        ):
-            num_samples = i + 1
-            pg_callback(num_samples - last_reported_num_samples)
-            last_reported_num_samples = num_samples
-            last_reported_time = curr_time
-    return last_reported_num_samples, last_reported_time
-
-
 def store_data_slice_with_pbar(pg_callback, transform_input: Tuple) -> Dict:
     data_slice, output_storage, inp = transform_input
     (
@@ -148,8 +132,6 @@ def store_data_slice_with_pbar(pg_callback, transform_input: Tuple) -> Dict:
         transform_dataset.flush()
     else:
         n = len(data_slice)
-        last_reported_time = time.time()
-        last_reported_num_samples = 0
 
         pipeline_checked = False
 
@@ -161,9 +143,6 @@ def store_data_slice_with_pbar(pg_callback, transform_input: Tuple) -> Dict:
             out = transform_sample(sample, pipeline, rel_tensors)
 
             if is_empty_transform_dataset(out):
-                last_reported_num_samples, last_reported_time = update_progress_bar(
-                    pg_callback, i, n, last_reported_num_samples, last_reported_time
-                )
                 continue
 
             if not pipeline_checked:
@@ -183,6 +162,12 @@ def store_data_slice_with_pbar(pg_callback, transform_input: Tuple) -> Dict:
                         list(rel_tensors), list(result_keys), skip_ok
                     )
 
+                updated_tensors = set(
+                    k for k in data if not data[k].is_group and len(data[k]) > 0
+                )
+                pg_callback = normalize_pg(pg_callback, len(updated_tensors))
+                transform_dataset.set_pg_callback(pg_callback)
+
                 pipeline_checked = True
 
             for tensor in out.tensors:
@@ -194,10 +179,6 @@ def store_data_slice_with_pbar(pg_callback, transform_input: Tuple) -> Dict:
                     out_tensor.non_numpy_only()
                     transform_tensor.extend(out_tensor.items)
                 out_tensor.items.clear()
-
-            last_reported_num_samples, last_reported_time = update_progress_bar(
-                pg_callback, i, n, last_reported_num_samples, last_reported_time
-            )
 
         transform_dataset.flush()
 
