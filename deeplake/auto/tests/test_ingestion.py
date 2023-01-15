@@ -25,7 +25,7 @@ def test_ingestion_simple(memory_ds: Dataset, convert_to_pathlib: bool):
         )
 
     with pytest.raises(InvalidPathException):
-        deeplake.ingest(
+        deeplake.ingest_classification(
             src=src,
             dest=memory_ds.path,
             images_compression="auto",
@@ -35,7 +35,7 @@ def test_ingestion_simple(memory_ds: Dataset, convert_to_pathlib: bool):
         )
 
     with pytest.raises(SamePathException):
-        deeplake.ingest(
+        deeplake.ingest_classification(
             src=path,
             dest=path,
             images_compression="jpeg",
@@ -44,7 +44,7 @@ def test_ingestion_simple(memory_ds: Dataset, convert_to_pathlib: bool):
             overwrite=False,
         )
 
-    ds = deeplake.ingest(
+    ds = deeplake.ingest_classification(
         src=path,
         dest=memory_ds.path,
         images_compression="auto",
@@ -62,7 +62,7 @@ def test_ingestion_simple(memory_ds: Dataset, convert_to_pathlib: bool):
 
 def test_image_classification_sets(memory_ds: Dataset):
     path = get_dummy_data_path("tests_auto/image_classification_with_sets")
-    ds = deeplake.ingest(
+    ds = deeplake.ingest_classification(
         src=path,
         dest=memory_ds.path,
         images_compression="auto",
@@ -91,7 +91,7 @@ def test_image_classification_sets(memory_ds: Dataset):
 def test_ingestion_exception(memory_ds: Dataset):
     path = get_dummy_data_path("tests_auto/image_classification_with_sets")
     with pytest.raises(InvalidPathException):
-        deeplake.ingest(
+        deeplake.ingest_classification(
             src="tests_auto/invalid_path",
             dest=memory_ds.path,
             images_compression="auto",
@@ -101,7 +101,7 @@ def test_ingestion_exception(memory_ds: Dataset):
         )
 
     with pytest.raises(SamePathException):
-        deeplake.ingest(
+        deeplake.ingest_classification(
             src=path,
             dest=path,
             images_compression="auto",
@@ -114,7 +114,7 @@ def test_ingestion_exception(memory_ds: Dataset):
 def test_overwrite(local_ds: Dataset):
     path = get_dummy_data_path("tests_auto/image_classification")
 
-    deeplake.ingest(
+    deeplake.ingest_classification(
         src=path,
         dest=local_ds.path,
         images_compression="auto",
@@ -124,7 +124,7 @@ def test_overwrite(local_ds: Dataset):
     )
 
     with pytest.raises(TensorAlreadyExistsError):
-        deeplake.ingest(
+        deeplake.ingest_classification(
             src=path,
             dest=local_ds.path,
             images_compression="auto",
@@ -137,7 +137,7 @@ def test_overwrite(local_ds: Dataset):
 def test_csv(memory_ds: Dataset):
     path = get_dummy_data_path("tests_auto/csv/deniro.csv")
     with pytest.raises(InvalidPathException):
-        deeplake.ingest(
+        deeplake.ingest_classification(
             src="tests_auto/csv/cities.csv",
             dest=memory_ds.path,
             progressbar=False,
@@ -145,7 +145,7 @@ def test_csv(memory_ds: Dataset):
             overwrite=False,
         )
 
-    ds = deeplake.ingest(
+    ds = deeplake.ingest_classification(
         src=path,
         dest=memory_ds.path,
         progressbar=False,

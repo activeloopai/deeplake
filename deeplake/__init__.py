@@ -41,10 +41,11 @@ delete = api_dataset.delete
 rename = api_dataset.rename
 copy = api_dataset.copy
 deepcopy = api_dataset.deepcopy
-ingest = api_dataset.ingest
+ingest_classification = api_dataset.ingest_classification
 connect = api_dataset.connect
 ingest_coco = api_dataset.ingest_coco
 ingest_yolo = api_dataset.ingest_yolo
+ingest_files = api_dataset.ingest_files
 ingest_kaggle = api_dataset.ingest_kaggle
 ingest_dataframe = api_dataset.ingest_dataframe
 ingest_huggingface = huggingface.ingest_huggingface
@@ -67,7 +68,10 @@ __all__ = [
     "deepcopy",
     "like",
     "list",
-    "ingest",
+    "ingest_classification",
+    "ingest_yolo",
+    "ingest_coco",
+    "ingest_files",
     "ingest_kaggle",
     "ingest_huggingface",
     "compressions",
