@@ -732,7 +732,7 @@ class ChunkEngine:
         incoming_num_samples = len(samples)
         if extending:
             num_samples = len(samples)
-            enc_ids = []
+            enc_ids: List[Optional[str]] = []
             enc_count = [0]
             if self.tensor_meta.htype == "text" and (
                 self.chunk_class != SampleCompressedChunk
@@ -748,7 +748,7 @@ class ChunkEngine:
         extra_args = {"lengths": lengths}
         current_chunk = start_chunk
         if not register:
-            updated_chunks = []
+            updated_chunks: List[Optional[str]] = []
         if current_chunk is None:
             current_chunk = self._create_new_chunk(
                 register and start_chunk_row is not None
