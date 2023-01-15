@@ -95,6 +95,7 @@ def update_progress_bar(
             pg_callback(num_samples - last_reported_num_samples)
             last_reported_num_samples = num_samples
             last_reported_time = curr_time
+    return last_reported_num_samples, last_reported_time
 
 
 def store_data_slice_with_pbar(pg_callback, transform_input: Tuple) -> Dict:
@@ -160,7 +161,7 @@ def store_data_slice_with_pbar(pg_callback, transform_input: Tuple) -> Dict:
             out = transform_sample(sample, pipeline, rel_tensors)
 
             if is_empty_transform_dataset(out):
-                update_progress_bar(
+                last_reported_num_samples, last_reported_time = update_progress_bar(
                     pg_callback, i, n, last_reported_num_samples, last_reported_time
                 )
                 continue
@@ -194,7 +195,7 @@ def store_data_slice_with_pbar(pg_callback, transform_input: Tuple) -> Dict:
                     transform_tensor.extend(out_tensor.items)
                 out_tensor.items.clear()
 
-            update_progress_bar(
+            last_reported_num_samples, last_reported_time = update_progress_bar(
                 pg_callback, i, n, last_reported_num_samples, last_reported_time
             )
 
