@@ -1344,7 +1344,6 @@ class dataset:
                 if images_compression is None:
                     raise InvalidFileExtension(src)
 
-
             # TODO: support more than just image classification (and update docstring)
             unstructured = ImageClassification(source=src)
 
@@ -1471,9 +1470,9 @@ class dataset:
         feature_report_path(
             convert_pathlib_to_string_if_needed(dest),
             "ingest_dataframe",
+            {},
             token=dataset_kwargs.get("token", None),
         )
-
 
         if not isinstance(src, pd.DataFrame):
             raise Exception("Source provided is not a valid pandas dataframe object")
@@ -1488,7 +1487,6 @@ class dataset:
 
         structured.fill_dataset(ds, progressbar)  # type: ignore
         return ds  # type: ignore
-
 
     @staticmethod
     def list(
@@ -1507,12 +1505,10 @@ class dataset:
             List: List of dataset names.
         """
 
-
         deeplake_reporter.feature_report(
-            feature_name='list',
+            feature_name="list",
             parameters={"org_id": org_id},
         )
-
 
         client = DeepLakeBackendClient(token=token)
         datasets = client.get_datasets(workspace=org_id)
