@@ -10,11 +10,9 @@ class TensorStructure:
         self,
         name: str,
         params: Optional[Dict] = None,
-        primary: bool = False,
     ) -> None:
         self.name = name
         self.params = params if params is not None else dict()
-        self.primary = primary
 
     def create(self, ds: Dataset):
         ds.create_tensor(self.name, **self.params)

@@ -11,13 +11,12 @@ def test_full_dataset_structure(local_ds):
     dataset_structure = DatasetStructure(ignore_one_group=False)
 
     dataset_structure.add_first_level_tensor(
-        TensorStructure("tensor1", params={"htype": "generic"}, primary=False)
+        TensorStructure("tensor1", params={"htype": "generic"})
     )
     dataset_structure.add_first_level_tensor(
         TensorStructure(
             "images",
             params={"htype": "image", "sample_compression": "jpeg"},
-            primary=True,
         )
     )
 
@@ -51,13 +50,12 @@ def test_missing_dataset_structure(local_ds):
     local_ds.create_tensor("annotations/masks", htype="binary_mask")
 
     dataset_structure.add_first_level_tensor(
-        TensorStructure("tensor1", params={"htype": "generic"}, primary=False)
+        TensorStructure("tensor1", params={"htype": "generic"})
     )
     dataset_structure.add_first_level_tensor(
         TensorStructure(
             "images",
             params={"htype": "image", "sample_compression": "jpeg"},
-            primary=True,
         )
     )
 
