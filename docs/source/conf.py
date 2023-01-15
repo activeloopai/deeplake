@@ -68,10 +68,10 @@ html_css_files = ["css/custom.css"]
 
 # Logo
 html_logo = "_static/img/logo.svg"
-
-# Favicon
 html_favicon = "_static/img/tensie.svg"
 
 # copy button args
 copybutton_prompt_text = ">>> |\.\.\. "
 copybutton_prompt_is_regexp = True
+
+master_doc = "index"

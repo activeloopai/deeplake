@@ -30,14 +30,11 @@
 
 ## About Deep Lake
 
-<b> 🚀 Deep Lake's efficient new C++ implementation speeds up data streaming by >2x compared to Hub 2.x (Ofeidis et al. 2022) 🚀</b>
-
-
-Deep Lake (formerly known as Activeloop Hub) is a data lake for deep learning applications. Open-source dataset format provides a simple API for creating, storing, and collaborating on AI datasets of any size. It enables you to store all of your data in one place, ranging from simple annotations to large videos, and it unlocks rapid streaming of data while training models at scale. Deep Lake is used by Google, Waymo, Red Cross, Omdena, Yale, & Oxford. Deep Lake includes the following features:
+Deep Lake (formerly known as Activeloop Hub) is a data lake for deep learning applications. Our open-source dataset format is optimized for rapid streaming and querying of data while training models at scale, and it includes a simple API for creating, storing, and collaborating on AI datasets of any size. It can be deployed locally or in the cloud, and it enables you to store all of your data in one place, ranging from simple annotations to large videos. Deep Lake is used by Google, Waymo, Red Cross, Omdena, Yale, & Oxford. Deep Lake includes the following features:
 
 <details>
   <summary><b>Storage Agnostic API</b></summary>
-Use the same API to upload, download, and stream datasets to/from AWS S3/S3-compatible storage, GCP, Activeloop cloud, local storage, as well as in-memory.
+Use one API to upload, download, and stream datasets to/from AWS S3/S3-compatible storage, GCP, Activeloop cloud, or local storage.
 </details>
 <details>
   <summary><b>Compressed Storage</b></summary>
@@ -45,15 +42,15 @@ Store images, audios and videos in their native compression, decompressing them 
 </details>
 <details>
   <summary><b>Lazy NumPy-like Indexing</b></summary>
-Treat your S3 or GCP datasets as if they are a collection of NumPy arrays in your system's memory. Slice them, index them, or iterate through them. Only the bytes you ask for will be downloaded!
+Treat your cloud datasets as if they are a collection of NumPy arrays in your system's memory. Slice them, index them, or iterate through them. Only the bytes you ask for will be downloaded!
 </details>
 <details>
   <summary><b>Dataset Version Control</b></summary>
 Commits, branches, checkout - Concepts you are already familiar with in your code repositories can now be applied to your datasets as well!
 </details>
 <details>
-  <summary><b>Integrations with Deep Learning Frameworks</b></summary>
-Deep Lake comes with built-in integrations for Pytorch and Tensorflow. Train your model with a few lines of code - we even take care of dataset shuffling. :)
+  <summary><b>Dataloaders for Popular Deep Learning Frameworks</b></summary>
+Deep Lake comes with built-in dataloaders for Pytorch and Tensorflow. Train your model with a few lines of code - we even take care of dataset shuffling. :)
 </details>
 <details>
   <summary><b>Distributed Transformations</b></summary>
@@ -68,12 +65,20 @@ Deep Lake community has uploaded <a href="https://docs.activeloop.ai/datasets/?u
 Deep Lake datasets are instantly visualized with bounding boxes, masks, annotations, etc. in <a href="https://app.activeloop.ai/?utm_source=github&utm_medium=github&utm_campaign=github_readme&utm_id=readme">Deep Lake Visualizer</a> (see below).
 </details>
 
-
 <div align="center">
-<a href="https://www.linkpicture.com/view.php?img=LPic61b13e5c1c539681810493"><img src="https://www.linkpicture.com/q/ReadMe.gif" type="image"></a>
+<a href="https://www.youtube.com/watch?v=SxsofpSIw3k"><img src="https://www.linkpicture.com/q/ReadMe.gif" type="image"></a>
 </div>
 
     
+## 🚀 Performance
+
+Deep Lake's efficient enterprise dataloaders built in C++ speeds up data streaming by >2x compared to Hub 2.x (Ofeidis et al. 2022, Hambardzumyan et al. 2023) 
+
+<div align="center">
+<a href="https://arxiv.org/pdf/2209.10785.pdf"><img src="docs/source/_static/img/benchmarks.png" type="image"></a>
+</div>
+
+
 ## Getting Started with Deep Lake
 
 
