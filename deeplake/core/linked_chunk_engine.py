@@ -170,7 +170,7 @@ class LinkedChunkEngine(ChunkEngine):
     def verify(self):
         return self.tensor_meta.is_link and self.tensor_meta.verify
 
-    def check_each_sample(self, samples, verify=True):
+    def check_each_sample(self, samples, verify=True, pg_callback=None):
         link_creds = self.link_creds
         verified_samples = []
         for i, sample in enumerate(samples):
@@ -192,14 +192,19 @@ class LinkedChunkEngine(ChunkEngine):
                 verified_samples.append(sample)
             else:
                 try:
+                    _verify = verify and self.verify
                     verified_samples.append(
                         read_linked_sample(
                             sample.path,
                             sample.creds_key,
                             self.link_creds,
-                            verify=verify and self.verify,
+                            verify=_verify,
                         )
                     )
+
+                    if _verify and pg_callback is not None:
+                        # during transforms verification takes most time
+                        pg_callback(1)
                 except Exception as e:
                     raise BadLinkError from e
         return verified_samples

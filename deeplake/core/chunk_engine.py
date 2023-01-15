@@ -636,14 +636,17 @@ class ChunkEngine:
     def _convert_to_list(self, samples):
         return False
 
-    def check_each_sample(self, samples, verify=True):
+    def check_each_sample(self, samples, verify=True, pg_callback=None):
+        # overridden in LinkedChunkEngine
         return
 
-    def _sanitize_samples(self, samples, verify=True):
+    def _sanitize_samples(self, samples, verify=True, pg_callback=None):
         check_samples_type(samples)
         if isinstance(samples, list):
             samples = [None if is_empty_list(sample) else sample for sample in samples]
-        verified_samples = self.check_each_sample(samples, verify=verify)
+        verified_samples = self.check_each_sample(
+            samples, verify=verify, pg_callback=pg_callback
+        )
         tensor_meta = self.tensor_meta
         all_empty = all(sample is None for sample in samples)
         if tensor_meta.htype is None and not all_empty:
@@ -907,7 +910,15 @@ class ChunkEngine:
             return
         if len(samples) == 0:
             return
-        samples, verified_samples = self._sanitize_samples(samples)
+        samples, verified_samples = self._sanitize_samples(
+            samples, pg_callback=pg_callback
+        )
+        if (
+            isinstance(self, deeplake.core.linked_chunk_engine.LinkedChunkEngine)
+            and self.verify
+        ):
+            # progress bar will be updated in check_each_sample of LinkedChunkEngine
+            pg_callback = None
         self._samples_to_chunks(
             samples,
             start_chunk=self.last_appended_chunk(),
@@ -951,13 +962,13 @@ class ChunkEngine:
                 link_callback(
                     verified_samples,
                     flat=False,
-                    progressbar=progressbar or (pg_callback is not None),
+                    progressbar=progressbar,
                 )
                 for s in verified_samples:
                     link_callback(
                         s,
                         flat=True,
-                        progressbar=progressbar or (pg_callback is not None),
+                        progressbar=progressbar,
                     )
 
         else:
@@ -972,7 +983,7 @@ class ChunkEngine:
                 link_callback(
                     samples,
                     flat=None,
-                    progressbar=progressbar or (pg_callback is not None),
+                    progressbar=progressbar,
                 )
 
         self.cache.autoflush = initial_autoflush
