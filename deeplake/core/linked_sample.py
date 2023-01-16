@@ -45,9 +45,7 @@ def retry_refresh_managed_creds(f):
         try:
             return f(linked_creds, sample_creds_key, *args, **kwargs)
         except Exception as e:
-            refreshed = linked_creds.refresh_managed_creds(sample_creds_key)
-            if not refreshed:
-                raise e
+            linked_creds.populate_all_managed_creds()
             return f(linked_creds, sample_creds_key, *args, **kwargs)
 
     return wrapper
@@ -61,10 +59,6 @@ def _read_cloud_linked_sample(
     provider_type: str,
     verify: bool,
 ):
-    import random
-    r = random.randint(0, 10)
-    if r % 2 == 0:
-        raise Exception()
     storage = link_creds.get_storage_provider(sample_creds_key, provider_type)
     return deeplake.read(sample_path, storage=storage, verify=verify)
 
