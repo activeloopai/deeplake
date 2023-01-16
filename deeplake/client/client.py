@@ -298,7 +298,7 @@ class DeepLakeBackendClient:
                 "GET",
                 relative_url,
                 endpoint=self.endpoint(),
-                params={"query": creds_key},
+                params={"query": creds_key, "duration": 900},
             ).json()
         except ResourceNotFoundException:
             raise ManagedCredentialsNotFoundError(org_id, creds_key) from None
