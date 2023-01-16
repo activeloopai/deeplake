@@ -42,6 +42,9 @@ def read_linked_sample(
 
 def retry_refresh_managed_creds(f):
     def wrapper(linked_creds, sample_creds_key, *args, **kwargs):
+        import random; r = random.randint(0, 10)
+        if r % 2 == 0:
+            raise Exception()
         try:
             return f(linked_creds, sample_creds_key, *args, **kwargs)
         except Exception as e:
