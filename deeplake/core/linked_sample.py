@@ -61,6 +61,10 @@ def _read_cloud_linked_sample(
     provider_type: str,
     verify: bool,
 ):
+    import random
+    r = random.randint(0, 10)
+    if r % 2 == 0:
+        raise Exception()
     storage = link_creds.get_storage_provider(sample_creds_key, provider_type)
     return deeplake.read(sample_path, storage=storage, verify=verify)
 
