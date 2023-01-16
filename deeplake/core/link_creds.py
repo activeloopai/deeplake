@@ -133,6 +133,7 @@ class LinkCreds(DeepLakeMemoryObject):
             raise KeyError(f"Creds key {creds_key} does not exist")
         expires_in_to_expires_at(creds)
         self.creds_dict[creds_key] = creds
+        self.storage_providers.pop(creds_key, None)
 
     def add_to_used_creds(self, creds_key: Optional[str]):
         if creds_key is None or creds_key in self.used_creds_keys:

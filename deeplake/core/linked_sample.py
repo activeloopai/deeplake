@@ -45,9 +45,7 @@ def retry_refresh_managed_creds(f):
         try:
             return f(linked_creds, sample_creds_key, *args, **kwargs)
         except Exception as e:
-            refreshed = linked_creds.refresh_managed_creds(sample_creds_key)
-            if not refreshed:
-                raise e
+            linked_creds.populate_all_managed_creds()
             return f(linked_creds, sample_creds_key, *args, **kwargs)
 
     return wrapper
