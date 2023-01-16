@@ -367,10 +367,3 @@ class GDriveProvider(StorageProvider):
                     pass
         if not prefix:
             self._delete_file(self.root_id)
-
-    def copy(self):
-        cls = self.__class__
-        new_provider = cls.__new__(cls)
-        new_provider.__setstate__(self.__getstate__())
-        new_provider.gid.path_id_map = self.gid.path_id_map
-        return new_provider

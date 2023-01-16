@@ -507,7 +507,8 @@ def serialize_sample_object(
     shape = incoming_sample.shape
     tile_compression = chunk_compression or sample_compression
 
-    out = incoming_sample
+    out = incoming_sample.copy()
+
     if sample_compression:
         compression_type = get_compression_type(sample_compression)
         is_byte_compression = compression_type == BYTE_COMPRESSION
@@ -566,11 +567,7 @@ def serialize_tensor(
             store_tiles,
         )
 
-    if (
-        incoming_sample.meta.chunk_compression
-        or chunk_compression
-        or incoming_sample.meta.is_sequence  # fix for now. there is a bug with .tobytes for sequence sample.
-    ):
+    if incoming_sample.meta.chunk_compression or chunk_compression:
         return _return_numpy()
     elif incoming_sample.meta.sample_compression == sample_compression:
         # Pass through

@@ -108,6 +108,8 @@ class BaseChunk(DeepLakeMemoryObject):
         self._item_size = None
         self._sample_size = None
         self.write_initialization_done = False
+        self.id: Optional[str] = None
+        self.key: Optional[str] = None
 
     @property
     def is_fixed_shape(self):
@@ -570,11 +572,6 @@ class BaseChunk(DeepLakeMemoryObject):
         return len(self.tensor_meta.max_shape) == 0 and len(self.data_bytes) == 0
 
     def _text_sample_to_byte_string(self, sample):
-        if isinstance(sample, deeplake.Tensor):
-            try:
-                return sample.numpy(aslist=True)[0].encode("utf-8")
-            except AttributeError:
-                return b""
         try:
             return sample.encode("utf-8")
         except AttributeError:

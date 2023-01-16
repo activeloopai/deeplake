@@ -586,11 +586,7 @@ class Tensor:
         # catch corrupted datasets / user tampering ASAP
         self.chunk_engine.validate_num_samples_is_synchronized()
 
-        num_samples = self.num_samples
-        if self.is_sequence and num_samples > 0:
-            return self.shape[0]
-
-        return self.index.length(num_samples)
+        return self.index.length(self.num_samples)
 
     def __getitem__(
         self,
@@ -940,7 +936,7 @@ class Tensor:
         dataset_read(self.dataset)
         return ret
 
-    def _extend_links(self, samples, flat: Optional[bool]):
+    def _extend_links(self, samples, flat: Optional[bool], progressbar: bool = False):
         for k, v in self.meta.links.items():
             if flat is None or v["flatten_sequence"] == flat:
                 tensor = self.version_state["full_tensors"][k]
@@ -953,6 +949,7 @@ class Tensor:
                     compression=self.meta.sample_compression,
                     htype=self.htype,
                     link_creds=self.link_creds,
+                    progressbar=progressbar,
                 )
                 dtype = tensor.dtype
                 if dtype:
