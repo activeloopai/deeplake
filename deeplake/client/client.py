@@ -279,7 +279,7 @@ class DeepLakeBackendClient:
             if public is False:
                 logger.info("The dataset is private so make sure you are logged in!")
 
-    def get_managed_creds(self, org_id, creds_key, duration=15 * 60):
+    def get_managed_creds(self, org_id, creds_key):
         """Retrieves the managed credentials for the given org_id and creds_key.
 
         Args:
