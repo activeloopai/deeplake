@@ -120,7 +120,11 @@ def extend_shape(samples, link_creds=None):
     shapes = [update_shape.f(sample, link_creds=link_creds) for sample in samples]
     mixed_ndim = False
     try:
-        arr = np.array(shapes)
+        if len(set(map(len, shapes))) > 1:
+            dtype = object
+        else:
+            dtype = None
+        arr = np.array(shapes, dtype=dtype)
         if arr.dtype == object:
             mixed_ndim = True
     except ValueError:
