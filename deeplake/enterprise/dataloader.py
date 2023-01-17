@@ -140,6 +140,10 @@ class DeepLakeDataLoader(DataLoader):
     def sampler(self):
         return _InfiniteConstantSampler()
 
+    @sampler.setter
+    def sampler(self, sampler_fn):
+        self._sampler = sampler_fn
+
     @property
     def collate_fn(self):
         return get_collate_fn(self._collate, self._mode)

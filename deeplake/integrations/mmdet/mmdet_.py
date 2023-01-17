@@ -801,7 +801,7 @@ def build_dataloader(
         )
 
         # For DDP
-        # loader.sampler = None
+        loader.sampler = None
         loader.batch_sampler = Dummy()
 
         mmdet_ds = MMDetDataset(
