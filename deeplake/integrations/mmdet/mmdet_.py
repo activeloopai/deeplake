@@ -787,11 +787,7 @@ def build_dataloader(
 
     else:
         loader = (
-            dataloader(
-                dataset,
-                sampler=None,
-                batch_sampler=Dummy(),
-            )
+            dataloader(dataset)
             .transform(transform_fn)
             .shuffle(shuffle)
             .batch(batch_size)
@@ -803,6 +799,10 @@ def build_dataloader(
                 decode_method=decode_method,
             )
         )
+
+        # For DDP
+        # loader.sampler = None
+        loader.batch_sampler = Dummy()
 
         mmdet_ds = MMDetDataset(
             dataset=dataset,
