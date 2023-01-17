@@ -8,7 +8,7 @@ from deeplake.core.link_creds import LinkCreds
 from deeplake.core.linked_sample import LinkedSample
 from deeplake.core.meta.encode.creds import CredsEncoder
 from deeplake.core.storage import LRUCache
-from deeplake.core.tensor_link import read_linked_sample
+from deeplake.core.linked_sample import read_linked_sample
 from deeplake.util.exceptions import (
     BadLinkError,
     ReadOnlyModeError,
@@ -20,27 +20,6 @@ from deeplake.util.video import normalize_index
 import numpy as np
 from typing import Optional, Dict, Any, Tuple, Union
 from PIL import Image  # type: ignore
-
-
-def retry_refresh_managed_creds(fn):
-    def wrapper(chunk_engine, global_sample_index, *args, **kwargs):
-        try:
-            return fn(chunk_engine, global_sample_index, *args, **kwargs)
-        except UnableToReadFromUrlError:
-            sample_creds_encoded = chunk_engine.creds_encoder.get_encoded_creds_key(
-                global_sample_index
-            )
-
-            link_creds: LinkCreds = chunk_engine.link_creds
-            sample_creds_key = link_creds.get_creds_key(sample_creds_encoded)
-
-            if sample_creds_key in link_creds.managed_creds_keys:
-                link_creds.refresh_managed_creds(sample_creds_key)
-            else:
-                raise
-            return fn(chunk_engine, global_sample_index, *args, **kwargs)
-
-    return wrapper
 
 
 def remove_chunk_engine_compression(chunk_engine):
@@ -145,7 +124,6 @@ class LinkedChunkEngine(ChunkEngine):
             video_sample.squeeze(0)
         return video_sample
 
-    @retry_refresh_managed_creds
     def get_basic_sample(self, global_sample_index, index, fetch_chunks=False):
         sample = self.get_deeplake_read_sample(global_sample_index, fetch_chunks)
         if sample is None:
@@ -226,7 +204,6 @@ class LinkedChunkEngine(ChunkEngine):
             save_link_creds(self.link_creds, self.cache)
             self.link_creds.warn_missing_managed_creds()
 
-    @retry_refresh_managed_creds
     def read_shape_for_sample(self, global_sample_index: int) -> Tuple[int, ...]:
         sample = self.get_deeplake_read_sample(global_sample_index)
         if sample is None:
@@ -276,7 +253,6 @@ class LinkedChunkEngine(ChunkEngine):
     def get_empty_sample(self):
         return np.ones((0,))
 
-    @retry_refresh_managed_creds
     def read_bytes_for_sample(self, global_sample_index: int) -> bytes:
         sample = self.get_deeplake_read_sample(global_sample_index)
         return sample.buffer
