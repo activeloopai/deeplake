@@ -1651,7 +1651,6 @@ class Dataset:
         return_index: bool = True,
         pad_tensors: bool = False,
         transform_kwargs: Optional[Dict[str, Any]] = None,
-        torch_dataset=None,
         decode_method: Optional[Dict[str, str]] = None,
         *args,
         **kwargs,
@@ -1679,7 +1678,6 @@ class Dataset:
             return_index (bool): If ``True``, the returned dataloader will have a key "index" that contains the index of the sample(s) in the original dataset. Default value is True.
             pad_tensors (bool): If ``True``, shorter tensors will be padded to the length of the longest tensor. Default value is False.
             transform_kwargs (optional, Dict[str, Any]): Additional kwargs to be passed to ``transform``.
-            torch_dataset (None): dataset type that going to be used in dataloader
             decode_method (Dict[str, str], Optional): A dictionary of decode methods for each tensor. Defaults to ``None``.
 
                 - Supported decode methods are:
@@ -1700,10 +1698,6 @@ class Dataset:
             This spins up it's own workers to fetch data.
         """
         from deeplake.integrations import dataset_to_pytorch as to_pytorch
-        from deeplake.integrations.pytorch.dataset import TorchDataset
-
-        if torch_dataset is None:
-            torch_dataset = TorchDataset
 
         if transform and transform_kwargs:
             transform = partial(transform, **transform_kwargs)
@@ -1723,7 +1717,6 @@ class Dataset:
             use_local_cache=use_local_cache,
             return_index=return_index,
             pad_tensors=pad_tensors,
-            torch_dataset=torch_dataset,
             decode_method=decode_method,
             **kwargs,
         )

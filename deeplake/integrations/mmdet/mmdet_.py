@@ -50,6 +50,7 @@ from PIL import Image, ImageDraw  # type: ignore
 import os
 from mmdet.core import BitmapMasks, PolygonMasks
 import math
+import types
 
 
 class Dummy:
@@ -647,6 +648,7 @@ def transform(
         "gt_bboxes": bboxes,
         "gt_labels": labels,
         "bbox_fields": ["gt_bboxes"],
+        # "gt_masks": None,
     }
 
     if masks_tensor:
@@ -680,6 +682,14 @@ def process_polygons(polygons):
         if len(polygon) % 2 == 0 and len(polygon) >= 6:
             valid_polygons.append(polygon)
     return valid_polygons
+
+
+def mmdet_subiterable_dataset_eval(
+    self,
+    *args,
+    **kwargs,
+):
+    return self.mmdet_dataset.evaluate(*args, **kwargs)
 
 
 def build_dataloader(
@@ -750,7 +760,7 @@ def build_dataloader(
             transform=transform_fn,
             tensors=tensors,
             collate_fn=collate_fn,
-            torch_dataset=MMDetDataset,
+            # torch_dataset=MMDetDataset,
             metrics_format=metrics_format,
             pipeline=pipeline,
             batch_size=batch_size,
@@ -759,9 +769,29 @@ def build_dataloader(
             decode_method=decode_method,
         )
 
+        mmdet_ds = MMDetDataset(
+            dataset=dataset,
+            metrics_format=metrics_format,
+            pipeline=pipeline,
+            tensors_dict=tensors_dict,
+            tensors=tensors,
+            mode=mode,
+            bbox_info=bbox_info,
+            decode_method=decode_method,
+        )
+
+        loader.dataset.mmdet_dataset = mmdet_ds
+        loader.dataset.evaluate = types.MethodType(
+            mmdet_subiterable_dataset_eval, loader.dataset
+        )
+
     else:
         loader = (
-            dataloader(dataset)
+            dataloader(
+                dataset,
+                sampler=None,
+                batch_sampler=Dummy(),
+            )
             .transform(transform_fn)
             .shuffle(shuffle)
             .batch(batch_size)
@@ -773,11 +803,6 @@ def build_dataloader(
                 decode_method=decode_method,
             )
         )
-
-        # For DDP
-        loader.sampler = None
-        loader.batch_sampler = Dummy()
-        loader.batch_sampler.sampler = None
 
         mmdet_ds = MMDetDataset(
             dataset=dataset,
@@ -974,9 +999,10 @@ def _train_detector(
             ds_train, "class_label", "train gt_labels"
         )
         train_masks_tensor = None
-    train_masks_tensor = _find_tensor_with_htype(
-        ds_train, "binary_mask", "gt_masks"
-    ) or _find_tensor_with_htype(ds_train, "polygon", "gt_masks")
+
+        train_masks_tensor = _find_tensor_with_htype(
+            ds_train, "binary_mask", "gt_masks"
+        ) or _find_tensor_with_htype(ds_train, "polygon", "gt_masks")
 
     # TODO verify required tensors are not None and raise Exception.
 
@@ -1098,8 +1124,8 @@ def _train_detector(
         )
 
         val_dataloader_args = {
-            **val_dataloader_default_args,
             **cfg.data.val.get("deeplake_dataloader", {}),
+            **val_dataloader_default_args,
         }
 
         if val_dataloader_args.get("shuffle", False):
@@ -1146,10 +1172,9 @@ def _train_detector(
                 ds_val, "class_label", "gt_labels"
             )
             val_masks_tensor = None
-
             val_masks_tensor = _find_tensor_with_htype(
-                ds_val, "binary_mask", "gt_masks"
-            ) or _find_tensor_with_htype(ds_val, "polygon", "gt_masks")
+                ds_train, "binary_mask", "gt_masks"
+            ) or _find_tensor_with_htype(ds_train, "polygon", "gt_masks")
 
         # TODO make sure required tensors are not None.
 
