@@ -95,14 +95,16 @@ def generate_hash() -> str:
 
 def integrity_check(dataset):
     try:
-        rev_tensor_names = {v:k for k,v in dataset.meta.tensor_names.items()}
+        rev_tensor_names = {v: k for k, v in dataset.meta.tensor_names.items()}
         for k in dataset.meta.tensor_names:
             t = dataset[k]
             n1 = t.meta.length
             engine = t.chunk_engine
             n2 = engine.chunk_id_encoder.num_samples
             if n1 != n2:
-                raise ValueError(f"Tensor meta and chunk id encoder have different number of samples for tensor {k}.")
+                raise ValueError(
+                    f"Tensor meta and chunk id encoder have different number of samples for tensor {k}."
+                )
             num_sequences = getattr(engine.sequence_encoder, "num_samples", None)
             for l, info in t.meta.links.items():
                 l = rev_tensor_names[l]
@@ -112,9 +114,11 @@ def integrity_check(dataset):
                     n2 = n1
                 n3 = dataset[l].meta.length
                 if n2 != n3:
-                    raise ValueError(f"Tensor {k} and its linked tensor {l} have different number of samples ({n2} and {n3} respectively).")
+                    raise ValueError(
+                        f"Tensor {k} and its linked tensor {l} have different number of samples ({n2} and {n3} respectively)."
+                    )
             engine.tile_encoder
-            
+
             engine.creds_encoder
     except Exception as e:
         raise DatasetCorruptError() from e
