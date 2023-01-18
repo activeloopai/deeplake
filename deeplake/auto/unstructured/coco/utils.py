@@ -41,7 +41,12 @@ class CocoAnnotation:
 
     def _load_annotation_data(self):
         """Validates and loads the COCO annotation file."""
-        data = json.loads(self.provider.get_bytes(self.file))
+        try:
+            data = json.loads(self.provider.get_bytes(self.file))
+        except KeyError:
+            raise IngestionError(
+                f"Could not find a JSON annotation file at {self.file_path}."
+            )
 
         for key in self.COCO_REQUIRED_KEYS:
             if key not in data:
@@ -95,15 +100,13 @@ class CocoImages:
 
         (
             self.supported_images,
-            self.invalid_files,
-            self.extensions,
             self.most_frequent_extension,
         ) = self.parse_images()
 
-    def parse_images(self) -> Tuple[List[str], List[str], List[str], Optional[str]]:
+    def parse_images(self) -> Tuple[List[str], Optional[str]]:
         """Parses the given directory to generate a list of image paths.
         Returns:
-            A tuple with, respectively, list of supported images, list of encountered invalid files, list of encountered extensions and the most frequent extension
+            A tuple with, respectively, list of supported images, the most frequent extension
         """
         supported_image_extensions = tuple(
             HTYPE_SUPPORTED_COMPRESSIONS["image"] + ["jpg"]
@@ -127,21 +130,24 @@ class CocoImages:
                 f"Encountered {len(invalid_files)} unsupported files in images directory."
             )
 
+        if len(supported_images) == 0:
+            raise IngestionError(
+                f"No supported images found in {self.root}. Supported extensions are: {supported_image_extensions}"
+            )
+
         most_frequent_extension = max(
             extensions, key=lambda k: extensions[k], default=None
         )
 
         return (
             supported_images,
-            invalid_files,
-            list(extensions.keys()),
             most_frequent_extension,
         )
 
     def get_full_path(self, image_name: str) -> str:
         return os.path.join(self.root, image_name)
 
-    def get_image(self, image: str, linked: bool, creds_key: str):
+    def get_image(self, image: str, linked: bool, creds_key: Optional[str] = None):
         if linked:
             return deeplake.link(self.get_full_path(image), creds_key=creds_key)
 

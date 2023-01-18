@@ -1091,7 +1091,7 @@ class dataset:
             file_to_group_mapping=file_to_group_mapping,
             ignore_one_group=ignore_one_group,
             ignore_keys=ignore_keys,
-            image_settings=image_settings,
+            image_params=image_settings,
             image_creds_key=image_creds_key,
             creds=src_creds,
         )

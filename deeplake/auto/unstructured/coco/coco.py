@@ -29,14 +29,14 @@ class CocoDataset(UnstructuredDataset):
         file_to_group_mapping: Optional[Dict] = None,
         ignore_one_group: bool = False,
         ignore_keys: Optional[List[str]] = None,
-        image_settings: Optional[Dict] = None,
+        image_params: Optional[Dict] = None,
         image_creds_key: Optional[str] = None,
         creds: Optional[Dict] = None,
     ):
         super().__init__(source)
         self._creds = creds
         self._image_creds_key = image_creds_key
-        self.image_settings = image_settings or {}
+        self.image_params = image_params or {}
         self.images = CocoImages(images_directory=source, creds=creds)
 
         if not isinstance(annotation_files, list):
@@ -114,11 +114,11 @@ class CocoDataset(UnstructuredDataset):
             structure.add_group(group)
 
     def _add_images_tensor(self, structure: DatasetStructure):
-        images_tensor_params = {**DEFAULT_IMAGE_TENSOR_PARAMS, **self.image_settings}
+        images_tensor_params = {**DEFAULT_IMAGE_TENSOR_PARAMS, **self.image_params}
         name = images_tensor_params.pop("name")
 
         # If the user has not explicitly specified a compression, try to infer it, or use default one
-        if "sample_compression" not in self.image_settings:
+        if "sample_compression" not in self.image_params:
             images_tensor_params["sample_compression"] = (
                 self.images.most_frequent_extension
                 or DEFAULT_IMAGE_TENSOR_PARAMS["sample_compression"]

@@ -1,3 +1,6 @@
+import pytest
+import pathlib
+
 import deeplake
 
 from deeplake.auto.unstructured.util import (
@@ -5,6 +8,7 @@ from deeplake.auto.unstructured.util import (
     TensorStructure,
     GroupStructure,
 )
+from deeplake.util.exceptions import IngestionError
 
 
 def test_full_dataset_structure(local_ds):
@@ -120,7 +124,7 @@ def test_minimal_coco_ingestion(local_path, coco_ingestion_data):
     assert "group2/iscrowd" not in ds.tensors
 
 
-def test_ingestion_with_linked_images(local_path, coco_ingestion_data):
+def test_coco_ingestion_with_linked_images(local_path, coco_ingestion_data):
     file_to_group = {"annotations1.json": "base_annotations"}
     ds = deeplake.ingest_coco(
         **coco_ingestion_data,
@@ -136,7 +140,7 @@ def test_ingestion_with_linked_images(local_path, coco_ingestion_data):
     assert ds.linked_images.htype == "link[image]"
 
 
-def test_flat_ingestion(local_path, coco_ingestion_data):
+def test_flat_coco_ingestion(local_path, coco_ingestion_data):
     params = {**coco_ingestion_data}
     params["annotation_files"] = params["annotation_files"][0]
     ds = deeplake.ingest_coco(**params, dest=local_path, ignore_one_group=True)
@@ -146,3 +150,74 @@ def test_flat_ingestion(local_path, coco_ingestion_data):
     assert "images" in ds.tensors
     assert "bbox" in ds.tensors
     assert "segmentation" in ds.tensors
+
+
+def test_coco_ingestion_with_invalid_mapping(local_path, coco_ingestion_data):
+    non_unique_file_to_group = {
+        "annotations1.json": "annotations",
+        "annotations2.json": "annotations",
+    }
+
+    non_unique_key_to_tensor = {
+        "segmentation": "mask",
+        "bbox": "mask",
+    }
+
+    with pytest.raises(IngestionError):
+        deeplake.ingest_coco(
+            **coco_ingestion_data,
+            file_to_group_mapping=non_unique_file_to_group,
+            dest=local_path,
+        )
+
+    with pytest.raises(IngestionError):
+        deeplake.ingest_coco(
+            **coco_ingestion_data,
+            key_to_tensor_mapping=non_unique_key_to_tensor,
+            dest=local_path,
+            overwrite=True,
+        )
+
+
+def test_coco_ingestion_with_incomplete_data(local_path, coco_ingestion_data):
+    only_images = {
+        "images_directory": coco_ingestion_data["images_directory"],
+        "annotation_files": [],
+    }
+
+    no_images = {
+        # There are no supported images in the annotations directory
+        "images_directory": pathlib.Path(
+            coco_ingestion_data["annotation_files"][0]
+        ).parent,
+        "annotation_files": coco_ingestion_data["annotation_files"],
+    }
+
+    invalid_annotation_file_path = {
+        "images_directory": coco_ingestion_data["images_directory"],
+        "annotation_files": ["invalid_path"],
+    }
+
+    with pytest.raises(IngestionError):
+        deeplake.ingest_coco(
+            **no_images,
+            dest=local_path,
+        )
+
+    with pytest.raises(IngestionError):
+        deeplake.ingest_coco(
+            **invalid_annotation_file_path,
+            dest=local_path,
+            overwrite=True,
+        )
+
+    ds = deeplake.ingest_coco(
+        **only_images,
+        dest=local_path,
+        overwrite=True,
+    )
+
+    assert ds.path == local_path
+    assert "images" in ds.tensors
+    assert len(ds.tensors) == 1
+    assert ds.images.num_samples == 10
