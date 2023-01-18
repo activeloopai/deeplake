@@ -937,10 +937,14 @@ class Tensor:
         return ret
 
     def _extend_links(self, samples, flat: Optional[bool], progressbar: bool = False):
+        has_shape_tensor = False
         for k, v in self.meta.links.items():
             if flat is None or v["flatten_sequence"] == flat:
                 tensor = self.version_state["full_tensors"][k]
-                func = get_link_transform(v["extend"])
+                func_name = v["extend"]
+                if func_name == "extend_shape":
+                    has_shape_tensor = True
+                func = get_link_transform(func_name)
                 vs = func(
                     samples,
                     factor=tensor.info.downsampling_factor
@@ -950,6 +954,7 @@ class Tensor:
                     htype=self.htype,
                     link_creds=self.link_creds,
                     progressbar=progressbar,
+                    tensor_meta=self.meta,
                 )
                 dtype = tensor.dtype
                 if dtype:
@@ -958,6 +963,9 @@ class Tensor:
                     else:
                         vs = [cast_to_type(v, dtype) for v in vs]
                 tensor.extend(vs)
+        if self.meta.is_link and not has_shape_tensor:
+            func = get_link_transform("extend_shape")
+            func(samples, tensor_meta=self.meta)
 
     def _update_links(
         self,

@@ -463,7 +463,9 @@ class BaseChunk(DeepLakeMemoryObject):
     def update_tensor_meta(self, shape, num_samples):
         if self._update_tensor_meta_length:
             self.tensor_meta.update_length(num_samples)
-        if shape is not None:
+        if shape is not None and not self.tensor_meta.is_link:
+            if self.tensor_meta.name == "x":
+                raise Exception()
             self.tensor_meta.update_shape_interval(shape)
 
     def update_in_meta_and_headers(

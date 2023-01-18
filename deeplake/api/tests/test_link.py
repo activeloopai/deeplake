@@ -602,3 +602,16 @@ def test_link_path(local_ds):
 @pytest.mark.parametrize("verify", [True, False])
 def test_basic_sequence(local_ds, cat_path, flower_path, create_shape_tensor, verify):
     pass
+
+
+@pytest.mark.parametrize("shape_tensor", (True, False))
+def test_shape_interval(local_ds_generator, cat_path, shape_tensor):
+    with local_ds_generator() as ds:
+        ds.create_tensor(
+            "img",
+            htype="link[image]",
+            sample_compression="jpg",
+            create_shape_tensor=shape_tensor,
+        )
+        ds.img.append(deeplake.link(cat_path))
+        assert ds.img.shape_interval.astuple() == (1, 900, 900, 3)

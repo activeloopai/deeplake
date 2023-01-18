@@ -21,6 +21,7 @@ optional_kwargs = {
     "htype",
     "link_creds",
     "progressbar",
+    "tensor_meta",
 }
 
 
@@ -112,7 +113,7 @@ def update_shape(new_sample, link_creds=None):
 
 
 @link
-def extend_shape(samples, link_creds=None):
+def extend_shape(samples, link_creds=None, tensor_meta=None):
     if isinstance(samples, np.ndarray):
         return [np.array(samples.shape[1:])] * len(samples)
     if samples is None:
@@ -134,6 +135,8 @@ def extend_shape(samples, link_creds=None):
                     [s, (int(bool(np.prod(s))),) * (ndim - len(s))]
                 )
         arr = np.array(shapes)
+    if tensor_meta and tensor_meta.is_link:
+        [tensor_meta.update_shape_interval(s.tolist()) for s in shapes]
     return arr
 
 
