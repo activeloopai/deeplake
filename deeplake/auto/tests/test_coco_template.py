@@ -173,7 +173,6 @@ def test_coco_ingestion_with_invalid_mapping(local_path, coco_ingestion_data):
             **coco_ingestion_data,
             key_to_tensor_mapping=non_unique_key_to_tensor,
             dest=local_path,
-            overwrite=True,
         )
 
 
@@ -206,13 +205,11 @@ def test_coco_ingestion_with_incomplete_data(local_path, coco_ingestion_data):
         deeplake.ingest_coco(
             **invalid_annotation_file_path,
             dest=local_path,
-            overwrite=True,
         )
 
     ds = deeplake.ingest_coco(
         **only_images,
         dest=local_path,
-        overwrite=True,
     )
 
     assert ds.path == local_path
