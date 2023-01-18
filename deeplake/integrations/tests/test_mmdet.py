@@ -335,9 +335,9 @@ def test_mmdet(mmdet_path, model_name, dataset_path):
         model,
         cfg,
         ds_train=ds_train,
-        ds_train_tensors=deeplake_tensors,
+        # ds_train_tensors=deeplake_tensors,
         ds_val=ds_val,
-        ds_val_tensors=deeplake_tensors,
+        # ds_val_tensors=deeplake_tensors,
     )
 
 

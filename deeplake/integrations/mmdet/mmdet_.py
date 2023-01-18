@@ -943,6 +943,14 @@ def train_detector(
     )
 
 
+def get_collect_keys(cfg):
+    pipeline = cfg.train_pipeline
+    for transform in pipeline:
+        if transform["type"] == "Collect":
+            return transform["keys"]
+    raise ValueError("collection keys were not specified")
+
+
 def _train_detector(
     local_rank,
     model,
@@ -997,9 +1005,11 @@ def _train_detector(
         )
         train_masks_tensor = None
 
-        # train_masks_tensor = _find_tensor_with_htype(
-        #     ds_train, "binary_mask", "gt_masks"
-        # ) or _find_tensor_with_htype(ds_train, "polygon", "gt_masks")
+        collection_keys = get_collect_keys(cfg)
+        if "gt_masks" in collection_keys:
+            train_masks_tensor = _find_tensor_with_htype(
+                ds_train, "binary_mask", "gt_masks"
+            ) or _find_tensor_with_htype(ds_train, "polygon", "gt_masks")
 
     # TODO verify required tensors are not None and raise Exception.
 
@@ -1169,9 +1179,11 @@ def _train_detector(
                 ds_val, "class_label", "gt_labels"
             )
             val_masks_tensor = None
-            val_masks_tensor = _find_tensor_with_htype(
-                ds_train, "binary_mask", "gt_masks"
-            ) or _find_tensor_with_htype(ds_train, "polygon", "gt_masks")
+
+            if "gt_masks" in collection_keys:
+                val_masks_tensor = _find_tensor_with_htype(
+                    ds_train, "binary_mask", "gt_masks"
+                ) or _find_tensor_with_htype(ds_train, "polygon", "gt_masks")
 
         # TODO make sure required tensors are not None.
 
