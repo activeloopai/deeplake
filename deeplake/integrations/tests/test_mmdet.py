@@ -273,50 +273,6 @@ def get_test_config(
             model_path,
         )
     )
-    # img_norm_cfg = dict(mean=[0, 0, 0], std=[255.0, 255.0, 255.0], to_rgb=True)
-    # cfg.img_norm_cfg = img_norm_cfg
-    # train_pipeline = [
-    #     dict(type="LoadImageFromFile"),
-    #     dict(type="LoadAnnotations", with_bbox=True),
-    #     dict(
-    #         type="Expand",
-    #         mean=img_norm_cfg["mean"],
-    #         to_rgb=img_norm_cfg["to_rgb"],
-    #         ratio_range=(1, 2),
-    #     ),
-    #     dict(
-    #         type="MinIoURandomCrop",
-    #         min_ious=(0.4, 0.5, 0.6, 0.7, 0.8, 0.9),
-    #         min_crop_size=0.3,
-    #     ),
-    #     dict(type="Resize", img_scale=[(320, 320), (416, 416)], keep_ratio=True),
-    #     dict(type="RandomFlip", flip_ratio=0.0),
-    #     dict(type="RandomCrop", crop_size=(240, 240), allow_negative_crop=True),
-    #     dict(type="PhotoMetricDistortion"),
-    #     dict(type="Normalize", **img_norm_cfg),
-    #     dict(type="Pad", size_divisor=32),
-    #     dict(type="DefaultFormatBundle"),
-    #     dict(type="Collect", keys=keys),
-    # ]
-    # cfg.train_pipeline = train_pipeline
-
-    # test_pipeline = [
-    #     dict(type="LoadImageFromFile"),
-    #     dict(
-    #         type="MultiScaleFlipAug",
-    #         img_scale=(416, 416),
-    #         flip=False,
-    #         transforms=[
-    #             dict(type="Resize", keep_ratio=True),
-    #             dict(type="RandomFlip", flip_ratio=0.0),
-    #             dict(type="Normalize", **img_norm_cfg),
-    #             dict(type="Pad", size_divisor=32),
-    #             dict(type="ImageToTensor", keys=["img"]),
-    #             dict(type="Collect", keys=["img"]),
-    #         ],
-    #     ),
-    # ]
-    # cfg.test_pipeline = test_pipeline
 
     cfg.data = dict(
         train_dataloader={"shuffle": False},

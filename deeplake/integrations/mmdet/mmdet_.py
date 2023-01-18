@@ -648,7 +648,6 @@ def transform(
         "gt_bboxes": bboxes,
         "gt_labels": labels,
         "bbox_fields": ["gt_bboxes"],
-        # "gt_masks": None,
     }
 
     if masks_tensor:
@@ -760,7 +759,6 @@ def build_dataloader(
             transform=transform_fn,
             tensors=tensors,
             collate_fn=collate_fn,
-            # torch_dataset=MMDetDataset,
             metrics_format=metrics_format,
             pipeline=pipeline,
             batch_size=batch_size,
