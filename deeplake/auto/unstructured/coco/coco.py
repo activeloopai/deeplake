@@ -125,7 +125,7 @@ class CocoDataset(UnstructuredDataset):
             )
 
         structure.add_first_level_tensor(
-            TensorStructure(name, primary=True, params=images_tensor_params)
+            TensorStructure(name, params=images_tensor_params)
         )
         self._images_tensor_name = name
 
@@ -140,6 +140,9 @@ class CocoDataset(UnstructuredDataset):
     def structure(self, ds: Dataset, progressbar: bool = True, num_workers: int = 0):  # type: ignore
         image_files = self.images.supported_images
         tensors = ds.tensors
+
+        if self._image_creds_key is not None:
+            ds.add_creds_key(self._image_creds_key, managed=True)
 
         @deeplake.compute
         def append_samples(
