@@ -137,7 +137,7 @@ class CocoDataset(UnstructuredDataset):
         self._structure = structure
         return structure
 
-    def structure(self, ds: Dataset, progressbar: bool = True, num_workers: int = 0):
+    def structure(self, ds: Dataset, progressbar: bool = True, num_workers: int = 0):  # type: ignore
         image_files = self.images.supported_images
         tensors = ds.tensors
 
@@ -148,7 +148,7 @@ class CocoDataset(UnstructuredDataset):
             tensors: Dict[str, Tensor],
         ):
             images_tensor_name = self._images_tensor_name
-            full_sample = {key: [] for key in self._structure.all_keys}
+            full_sample: Dict[str, List] = {key: [] for key in self._structure.all_keys}
             full_sample[images_tensor_name] = self.images.get_image(
                 image,
                 tensors[images_tensor_name].is_link,

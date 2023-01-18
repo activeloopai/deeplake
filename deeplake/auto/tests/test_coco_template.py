@@ -130,7 +130,7 @@ def test_coco_ingestion_with_linked_images(local_path, coco_ingestion_data):
         **coco_ingestion_data,
         file_to_group_mapping=file_to_group,
         dest=local_path,
-        image_settings={"name": "linked_images", "htype": "link[image]"},
+        image_params={"name": "linked_images", "htype": "link[image]"},
     )
 
     assert ds.path == local_path

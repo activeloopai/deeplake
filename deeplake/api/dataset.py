@@ -1009,7 +1009,7 @@ class dataset:
         file_to_group_mapping: Optional[Dict] = None,
         ignore_one_group: bool = False,
         ignore_keys: Optional[List[str]] = None,
-        image_settings: Optional[Dict] = None,
+        image_params: Optional[Dict] = None,
         image_creds_key: Optional[str] = None,
         src_creds: Optional[Dict] = None,
         dest_creds: Optional[Dict] = None,
@@ -1058,12 +1058,14 @@ class dataset:
             file_to_group_mapping (Optional[Dict]): A one-to-one mapping between COCO annotation file names and Dataset group names.
             ignore_one_group (bool): Skip creation of group in case of a single annotation file. Set to ``False`` by default.
             ignore_keys (List[str]): A list of COCO keys to ignore.
-            image_settings (Optional[Dict]): A dictionary containing settings for the images tensor.
+            image_params (Optional[Dict]): A dictionary containing parameters for the images tensor.
+            image_creds_key (Optional[str]): The name of the managed credentials to use for accessing the images directory via linked tensor.
             src_creds (Optional[Dict]): Credentials to access the source path. If not provided, will be inferred from the environment.
             dest_creds (Optional[Dict]): A dictionary containing credentials used to access the destination path of the dataset.
             inspect_limit (int): The maximum number of samples to inspect in the annotations json, in order to generate the set of COCO annotation keys. Set to ``1000000`` by default.
             progressbar (bool): Enables or disables ingestion progress bar. Set to ``True`` by default.
             num_workers (int): The number of workers to use for ingestion. Set to ``0`` by default.
+            token (Optional[str]): The token to use for accessing the dataset.
             **dataset_kwargs: Any arguments passed here will be forwarded to the dataset creator function. See :func:`deeplake.empty`.
 
         Returns:
@@ -1091,7 +1093,7 @@ class dataset:
             file_to_group_mapping=file_to_group_mapping,
             ignore_one_group=ignore_one_group,
             ignore_keys=ignore_keys,
-            image_params=image_settings,
+            image_params=image_params,
             image_creds_key=image_creds_key,
             creds=src_creds,
         )
