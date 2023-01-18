@@ -19,7 +19,9 @@ from functools import partial
 import importlib
 
 try:
-    from torch.utils.data.dataloader import DataLoader, _InfiniteConstantSampler
+    # from torch.utils.data.dataloader import DataLoader, _InfiniteConstantSampler
+    from torch.utils.data import DataLoader
+    from torch.utils.data.dataloader import _InfiniteConstantSampler
 except ImportError:
     DataLoader = object  # type: ignore
     _InfiniteConstantSampler = None  # type: ignore
@@ -553,7 +555,7 @@ class DeepLakeDataLoader(DataLoader):
         return iter(self._dataloader)
 
 
-def dataloader(dataset) -> DeepLakeDataLoader:
+def dataloader(dataset, **kwargs) -> DeepLakeDataLoader:
     """Returns a :class:`~deeplake.enterprise.dataloader.DeepLakeDataLoader` object which can be transformed to either pytorch dataloader or numpy.
 
 
@@ -620,7 +622,7 @@ def dataloader(dataset) -> DeepLakeDataLoader:
         ...     pass
     """
     verify_base_storage(dataset)
-    return DeepLakeDataLoader(dataset)
+    return DeepLakeDataLoader(dataset, **kwargs)
 
 
 def validate_tensors(tensors, dataset, all_vars):
