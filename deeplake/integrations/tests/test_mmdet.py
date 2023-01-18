@@ -1,10 +1,13 @@
 import sys
-import deeplake as dp
 import os
-import pytest
 import pickle
-import numpy as np
 import pathlib
+
+import pytest
+import numpy as np
+
+import deeplake as dp
+from deeplake.client.client import DeepLakeBackendClient
 
 
 _THIS_FILE = pathlib.Path(__file__).parent.absolute()
@@ -327,17 +330,23 @@ def get_test_config(
         "False",
     ],
 )
-def test_mmdet(mmdet_path, model_name, dataset_path, tensors_specified):
+def test_mmdet(
+    mmdet_path, model_name, dataset_path, tensors_specified, hub_cloud_dev_credentials
+):
     import mmcv
     from deeplake.integrations import mmdet
+
+    username, password = hub_cloud_dev_credentials
+    deeplake_client = DeepLakeBackendClient()
+    token = deeplake_client.request_auth_token(username, password)
 
     deeplake_tensors = None
     if tensors_specified:
         deeplake_tensors = get_deeplake_tensors(dataset_path, model_name)
     cfg = get_test_config(mmdet_path, model_name=model_name, dataset_path=dataset_path)
     cfg = process_cfg(cfg, model_name, dataset_path)
-    ds_train = dp.load(dataset_path)[:1]
-    ds_val = dp.load(dataset_path)[:1]
+    ds_train = dp.load(dataset_path, token=token)[:1]
+    ds_val = dp.load(dataset_path, token=token)[:1]
     model = mmdet.build_detector(cfg.model)
     mmcv.mkdir_or_exist(os.path.abspath(cfg.work_dir))
     mmdet.train_detector(

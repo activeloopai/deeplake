@@ -553,7 +553,7 @@ class DeepLakeDataLoader(DataLoader):
         return iter(self._dataloader)
 
 
-def dataloader(dataset, **kwargs) -> DeepLakeDataLoader:
+def dataloader(dataset) -> DeepLakeDataLoader:
     """Returns a :class:`~deeplake.enterprise.dataloader.DeepLakeDataLoader` object which can be transformed to either pytorch dataloader or numpy.
 
 
@@ -620,7 +620,7 @@ def dataloader(dataset, **kwargs) -> DeepLakeDataLoader:
         ...     pass
     """
     verify_base_storage(dataset)
-    return DeepLakeDataLoader(dataset, **kwargs)
+    return DeepLakeDataLoader(dataset)
 
 
 def validate_tensors(tensors, dataset, all_vars):
