@@ -8,6 +8,8 @@ import numpy as np
 from os import urandom
 from PIL import Image  # type: ignore
 from deeplake.util.downsample import downsample_sample
+from deeplake.core.linked_sample import read_linked_sample
+import tqdm  # type: ignore
 
 optional_kwargs = {
     "old_value",
@@ -18,6 +20,7 @@ optional_kwargs = {
     "compression",
     "htype",
     "link_creds",
+    "progressbar",
 }
 
 
@@ -60,15 +63,21 @@ def update_test(
 
 
 @link
-def extend_info(samples, link_creds=None):
+def extend_info(samples, link_creds=None, progressbar=False):
+    if progressbar:
+        samples = tqdm.tqdm(samples, desc="Uploading sample meta info...")
     metas = []
     for sample in samples:
         meta = {}
+        copy = True
         if isinstance(sample, deeplake.core.linked_sample.LinkedSample):
             sample = read_linked_sample(
                 sample.path, sample.creds_key, link_creds, verify=False
             )
+            copy = False
         if isinstance(sample, deeplake.core.sample.Sample):
+            if copy:
+                sample = sample.copy()
             meta = sample.meta
             meta["modified"] = False
         metas.append(meta)
@@ -194,19 +203,6 @@ def _unregister_link_transform(fname: str):
 
 def get_link_transform(fname: str):
     return _funcs[fname]
-
-
-def read_linked_sample(
-    sample_path: str, sample_creds_key: str, link_creds, verify: bool
-):
-    if sample_path.startswith(("gcs://", "gcp://", "gs://", "s3://")):
-        provider_type = "s3" if sample_path.startswith("s3://") else "gcs"
-        storage = link_creds.get_storage_provider(sample_creds_key, provider_type)
-        return deeplake.read(sample_path, storage=storage, verify=verify)
-    elif sample_path.startswith(("http://", "https://")):
-        creds = link_creds.get_creds(sample_creds_key)
-        return deeplake.read(sample_path, verify=verify, creds=creds)
-    return deeplake.read(sample_path, verify=verify)
 
 
 def cast_to_type(val, dtype):

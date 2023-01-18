@@ -108,6 +108,8 @@ class BaseChunk(DeepLakeMemoryObject):
         self._item_size = None
         self._sample_size = None
         self.write_initialization_done = False
+        self.id: Optional[str] = None
+        self.key: Optional[str] = None
 
     @property
     def is_fixed_shape(self):
@@ -377,7 +379,11 @@ class BaseChunk(DeepLakeMemoryObject):
                 incoming_sample, sample_compression, dt
             )
         else:
-            raise TypeError(f"Cannot serialize sample of type {type(incoming_sample)}")
+            msg = f"Cannot serialize sample of type {type(incoming_sample)}."
+            if isinstance(msg, str):
+                method = "link" if self.tensor_meta.is_link else "read"
+                msg += f"If you are appending data from a file, please pass deeplake.{method}(filename) to the append operation, instead of the filename string."
+            raise TypeError(msg)
         shape = self.convert_to_rgb(shape)
         shape = self.normalize_shape(shape)
         return incoming_sample, shape  # type: ignore
