@@ -936,7 +936,7 @@ class Tensor:
         dataset_read(self.dataset)
         return ret
 
-    def _extend_links(self, samples, flat: Optional[bool]):
+    def _extend_links(self, samples, flat: Optional[bool], progressbar: bool = False):
         for k, v in self.meta.links.items():
             if flat is None or v["flatten_sequence"] == flat:
                 tensor = self.version_state["full_tensors"][k]
@@ -949,6 +949,7 @@ class Tensor:
                     compression=self.meta.sample_compression,
                     htype=self.htype,
                     link_creds=self.link_creds,
+                    progressbar=progressbar,
                 )
                 dtype = tensor.dtype
                 if dtype:
