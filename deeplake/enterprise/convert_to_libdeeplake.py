@@ -80,10 +80,14 @@ def dataset_to_libdeeplake(hub2_dataset):
             )
         else:
             token = hub2_dataset._token
+            org_id = hub2_dataset.org_id
             if token is None:
                 libdeeplake_dataset = api.dataset(path)
             else:
-                org_id = jwt.decode(token, options={"verify_signature": False})["id"]
+                org_id = (
+                    org_id
+                    or jwt.decode(token, options={"verify_signature": False})["id"]
+                )
                 libdeeplake_dataset = api.dataset(path, token=token, org_id=org_id)
 
         hub2_dataset.libdeeplake_dataset = libdeeplake_dataset
