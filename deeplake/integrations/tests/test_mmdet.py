@@ -320,24 +320,33 @@ def get_test_config(
         "hub://activeloop-test/balloon-train",
     ],
 )
-def test_mmdet(mmdet_path, model_name, dataset_path):
+@pytest.mark.parametrize(
+    "tensors_specified",
+    [
+        "True",
+        "False",
+    ],
+)
+def test_mmdet(mmdet_path, model_name, dataset_path, tensors_specified):
     import mmcv
     from deeplake.integrations import mmdet
 
-    deeplake_tensors = get_deeplake_tensors(dataset_path, model_name)
+    deeplake_tensors = None
+    if tensors_specified:
+        deeplake_tensors = get_deeplake_tensors(dataset_path, model_name)
     cfg = get_test_config(mmdet_path, model_name=model_name, dataset_path=dataset_path)
     cfg = process_cfg(cfg, model_name, dataset_path)
-    ds_train = dp.load(dataset_path)[:4]
-    ds_val = dp.load(dataset_path)[:4]
+    ds_train = dp.load(dataset_path)[:1]
+    ds_val = dp.load(dataset_path)[:1]
     model = mmdet.build_detector(cfg.model)
     mmcv.mkdir_or_exist(os.path.abspath(cfg.work_dir))
     mmdet.train_detector(
         model,
         cfg,
         ds_train=ds_train,
-        # ds_train_tensors=deeplake_tensors,
+        ds_train_tensors=deeplake_tensors,
         ds_val=ds_val,
-        # ds_val_tensors=deeplake_tensors,
+        ds_val_tensors=deeplake_tensors,
     )
 
 

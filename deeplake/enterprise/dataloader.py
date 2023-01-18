@@ -19,9 +19,7 @@ from functools import partial
 import importlib
 
 try:
-    # from torch.utils.data.dataloader import DataLoader, _InfiniteConstantSampler
-    from torch.utils.data import DataLoader
-    from torch.utils.data.dataloader import _InfiniteConstantSampler
+    from torch.utils.data.dataloader import DataLoader, _InfiniteConstantSampler
 except ImportError:
     DataLoader = object  # type: ignore
     _InfiniteConstantSampler = None  # type: ignore
