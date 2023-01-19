@@ -50,6 +50,7 @@ from PIL import Image, ImageDraw  # type: ignore
 import os
 from mmdet.core import BitmapMasks, PolygonMasks
 import math
+import types
 
 
 class Dummy:
@@ -682,6 +683,14 @@ def process_polygons(polygons):
     return valid_polygons
 
 
+def mmdet_subiterable_dataset_eval(
+    self,
+    *args,
+    **kwargs,
+):
+    return self.mmdet_dataset.evaluate(*args, **kwargs)
+
+
 def build_dataloader(
     dataset: dp.Dataset,
     images_tensor: str,
@@ -750,13 +759,28 @@ def build_dataloader(
             transform=transform_fn,
             tensors=tensors,
             collate_fn=collate_fn,
-            torch_dataset=MMDetDataset,
             metrics_format=metrics_format,
             pipeline=pipeline,
             batch_size=batch_size,
             mode=mode,
             bbox_info=bbox_info,
             decode_method=decode_method,
+        )
+
+        mmdet_ds = MMDetDataset(
+            dataset=dataset,
+            metrics_format=metrics_format,
+            pipeline=pipeline,
+            tensors_dict=tensors_dict,
+            tensors=tensors,
+            mode=mode,
+            bbox_info=bbox_info,
+            decode_method=decode_method,
+        )
+
+        loader.dataset.mmdet_dataset = mmdet_ds
+        loader.dataset.evaluate = types.MethodType(
+            mmdet_subiterable_dataset_eval, loader.dataset
         )
 
     else:
@@ -775,9 +799,7 @@ def build_dataloader(
         )
 
         # For DDP
-        loader.sampler = None
         loader.batch_sampler = Dummy()
-        loader.batch_sampler.sampler = None
 
         mmdet_ds = MMDetDataset(
             dataset=dataset,
@@ -921,6 +943,14 @@ def train_detector(
     )
 
 
+def get_collect_keys(cfg):
+    pipeline = cfg.train_pipeline
+    for transform in pipeline:
+        if transform["type"] == "Collect":
+            return transform["keys"]
+    raise ValueError("collection keys were not specified")
+
+
 def _train_detector(
     local_rank,
     model,
@@ -974,9 +1004,12 @@ def _train_detector(
             ds_train, "class_label", "train gt_labels"
         )
         train_masks_tensor = None
-    train_masks_tensor = _find_tensor_with_htype(
-        ds_train, "binary_mask", "gt_masks"
-    ) or _find_tensor_with_htype(ds_train, "polygon", "gt_masks")
+
+        collection_keys = get_collect_keys(cfg)
+        if "gt_masks" in collection_keys:
+            train_masks_tensor = _find_tensor_with_htype(
+                ds_train, "binary_mask", "gt_masks"
+            ) or _find_tensor_with_htype(ds_train, "polygon", "gt_masks")
 
     # TODO verify required tensors are not None and raise Exception.
 
@@ -1098,8 +1131,8 @@ def _train_detector(
         )
 
         val_dataloader_args = {
-            **val_dataloader_default_args,
             **cfg.data.val.get("deeplake_dataloader", {}),
+            **val_dataloader_default_args,
         }
 
         if val_dataloader_args.get("shuffle", False):
@@ -1147,9 +1180,10 @@ def _train_detector(
             )
             val_masks_tensor = None
 
-            val_masks_tensor = _find_tensor_with_htype(
-                ds_val, "binary_mask", "gt_masks"
-            ) or _find_tensor_with_htype(ds_val, "polygon", "gt_masks")
+            if "gt_masks" in collection_keys:
+                val_masks_tensor = _find_tensor_with_htype(
+                    ds_train, "binary_mask", "gt_masks"
+                ) or _find_tensor_with_htype(ds_train, "polygon", "gt_masks")
 
         # TODO make sure required tensors are not None.
 

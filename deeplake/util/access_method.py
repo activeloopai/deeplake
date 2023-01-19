@@ -56,6 +56,7 @@ def get_local_dataset(
     local_cache_size,
     creds,
     token,
+    org_id,
     verbose,
     ds_exists,
     num_workers,
@@ -88,6 +89,8 @@ def get_local_dataset(
         verbose=verbose,
         memory_cache_size=memory_cache_size,
         local_cache_size=local_cache_size,
+        token=token,
+        org_id=org_id,
     )
     if download:
         ds.storage.next_storage[TIMESTAMP_FILENAME] = time.ctime().encode("utf-8")
