@@ -92,12 +92,19 @@ def test_nifti_raw_compress(memory_ds):
         np.testing.assert_array_equal(ds.xyz[0].numpy(), np.ones((40, 40, 10)))
 
 
-def test_nifti_cloud(memory_ds):
+def test_nifti_cloud(memory_ds, s3_root_storage):
     with memory_ds as ds:
+        nii_gz_4d = os.path.join(data_path, "example4d.nii.gz")
+        img = nib.load(nii_gz_4d)
+        with open(nii_gz_4d, "rb") as f:
+            data = f.read()
+        s3_root_storage["example4d.nii.gz"] = data
+
         ds.create_tensor("abc", htype="nifti", sample_compression="nii.gz")
         ds.abc.append(
-            deeplake.read(
-                "https://nifti.nimh.nih.gov/nifti-1/data/zstat1.nii.gz", verify=True
-            )
+            deeplake.read(f"{s3_root_storage.root}/example4d.nii.gz", verify=True)
         )
-        assert ds.abc[0].numpy().shape == (64, 64, 21)
+
+        assert ds.abc[0].numpy().shape == img.shape
+
+        del s3_root_storage["example4d.nii.gz"]
