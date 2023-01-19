@@ -79,7 +79,11 @@ class BaseChunk(DeepLakeMemoryObject):
         self.tiling_threshold = tiling_threshold
 
         self.tensor_meta = tensor_meta
-        self.num_dims = len(tensor_meta.max_shape) if tensor_meta.max_shape else None
+        self.num_dims = (
+            1
+            if tensor_meta.is_link
+            else (len(tensor_meta.max_shape) if tensor_meta.max_shape else None)
+        )
         self.is_text_like = (
             self.htype in {"json", "list", "text"} or self.tensor_meta.is_link
         )
