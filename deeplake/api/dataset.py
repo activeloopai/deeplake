@@ -1366,7 +1366,6 @@ class dataset:
         return ds  # type: ignore
 
     @staticmethod
-    @deeplake_reporter.record_call
     def list(
         workspace: str = "",
         token: Optional[str] = None,
@@ -1382,6 +1381,9 @@ class dataset:
         Returns:
             List: List of dataset names.
         """
+        feature_report_path(
+            "", "list", parameters={"workspace": workspace}, token=token
+        )
         client = DeepLakeBackendClient(token=token)
         datasets = client.get_datasets(workspace=workspace)
         return datasets
