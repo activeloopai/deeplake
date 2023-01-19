@@ -1007,6 +1007,7 @@ class Tensor:
         if not has_shape_tensor:
             func = get_link_transform("update_shape")
             func(new_sample, link_creds=self.link_creds, tensor_meta=self.meta)
+
     @property
     def _sample_info_tensor(self):
         ds = self.dataset
