@@ -1008,7 +1008,7 @@ class dataset:
         dest: Union[str, pathlib.Path],
         key_to_tensor_mapping: Optional[Dict] = None,
         file_to_group_mapping: Optional[Dict] = None,
-        ignore_one_group: bool = False,
+        ignore_one_group: bool = True,
         ignore_keys: Optional[List[str]] = None,
         image_params: Optional[Dict] = None,
         image_creds_key: Optional[str] = None,
@@ -1088,7 +1088,7 @@ class dataset:
             dest,
             "ingest_coco",
             {"num_workers": num_workers},
-            token=dataset_kwargs.get("token", None),
+            token=token,
         )
 
         unstructured = CocoDataset(
@@ -1104,7 +1104,9 @@ class dataset:
         )
         structure = unstructured.prepare_structure(inspect_limit)
 
-        ds = deeplake.empty(dest, creds=dest_creds, verbose=False, **dataset_kwargs)
+        ds = deeplake.empty(
+            dest, creds=dest_creds, verbose=False, token=token, **dataset_kwargs
+        )
 
         structure.create_missing(ds)
 
