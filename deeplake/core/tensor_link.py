@@ -136,7 +136,10 @@ def extend_shape(samples, link_creds=None, tensor_meta=None):
                 )
         arr = np.array(shapes)
     if tensor_meta and tensor_meta.is_link:
-        [tensor_meta.update_shape_interval(s.tolist()) for s in shapes]
+        for s in shapes:
+            s = s.tolist()
+            if s:
+                tensor_meta.update_shape_interval(s)
     return arr
 
 

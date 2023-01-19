@@ -477,11 +477,14 @@ class BaseChunk(DeepLakeMemoryObject):
                 num_samples = self.byte_positions_encoder.num_samples
                 self._fill_empty_shapes(shape, num_samples)
             self.shapes_encoder[local_index] = shape
-            self.tensor_meta.update_shape_interval(shape)
+            if not self.tensor_meta.is_link:
+                self.tensor_meta.update_shape_interval(shape)
 
     def check_shape_for_update(self, shape):
         """Checks if the shape being assigned at the new index is valid."""
         if shape is None:
+            return
+        if self.tensor_meta.is_link:
             return
         max_shape = self.tensor_meta.max_shape
         if max_shape:
