@@ -101,10 +101,17 @@ def test_nifti_cloud(memory_ds, s3_root_storage):
         s3_root_storage["example4d.nii.gz"] = data
 
         ds.create_tensor("abc", htype="nifti", sample_compression="nii.gz")
+        ds.create_tensor(
+            "nifti_linked", htype="link[nifti]", sample_compression="nii.gz"
+        )
         ds.abc.append(
             deeplake.read(f"{s3_root_storage.root}/example4d.nii.gz", verify=True)
         )
+        ds.nifti_linked.append(
+            deeplake.link(f"{s3_root_storage.root}/example4d.nii.gz")
+        )
 
         assert ds.abc[0].numpy().shape == img.shape
+        assert ds.nifti_linked[0].numpy().shape == img.shape
 
         del s3_root_storage["example4d.nii.gz"]
