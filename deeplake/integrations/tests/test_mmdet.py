@@ -12,7 +12,7 @@ from deeplake.client.client import DeepLakeBackendClient
 
 _THIS_FILE = pathlib.Path(__file__).parent.absolute()
 _COCO_PATH = "hub://activeloop/coco-train"
-_BALLOON_PATH = "hub://activeloop-test/balloon-train"
+_BALLOON_PATH = "hub://adilkhan/balloon-train"
 _MMDET_KEYS = ["img", "gt_bboxes", "gt_labels", "gt_masks"]
 _COCO_KEYS = ["images", "boxes", "categories", "masks"]
 _BALLOON_KEYS = ["images", "bounding_boxes", "labels", "segmentation_polygons"]
@@ -354,7 +354,7 @@ def test_mmdet(mmdet_path, model_name, dataset_path, tensors_specified):
 
 
 def process_cfg(cfg, model_name, dataset_path):
-    if dataset_path == "hub://activeloop-test/balloon-train":
+    if dataset_path == _BALLOON_PATH:
         if model_name in _INSTANCE_SEGMENTATION:
             cfg.model.roi_head.bbox_head.num_classes = 1
             cfg.model.roi_head.mask_head.num_classes = 1
