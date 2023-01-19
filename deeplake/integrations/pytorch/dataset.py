@@ -52,6 +52,8 @@ def use_scheduler(num_workers: int, ensure_order: bool):
 
 
 def cast_type(tensor):
+    if isinstance(tensor, list):
+        return tensor
     # Cast to a pytorch supported dtype.
     if tensor.dtype == np.uint16:
         return tensor.astype(np.int32)
