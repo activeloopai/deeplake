@@ -974,11 +974,14 @@ class Tensor:
         new_sample,
         flat: Optional[bool],
     ):
+        has_shape_tensor = False
         for k, v in self.meta.links.items():
             if flat is None or v["flatten_sequence"] == flat:
                 fname = v.get("update")
                 if not fname:
                     continue
+                if fname == "update_shape":
+                    has_shape_tensor = True
                 func = get_link_transform(fname)
                 tensor = self.version_state["full_tensors"][k]
                 is_partial = not sub_index.is_trivial()
@@ -993,6 +996,7 @@ class Tensor:
                     link_creds=self.link_creds,
                     sub_index=sub_index,
                     partial=is_partial,
+                    tensor_meta=self.meta,
                 )
                 if val is not _NO_LINK_UPDATE:
                     if is_partial and func == update_downsample:
@@ -1000,7 +1004,9 @@ class Tensor:
                     else:
                         val = cast_to_type(val, tensor.dtype)
                         tensor[global_sample_index] = val
-
+        if not has_shape_tensor:
+            func = get_link_transform("update_shape")
+            func(new_sample, link_creds=self.link_creds, tensor_meta=self.meta)
     @property
     def _sample_info_tensor(self):
         ds = self.dataset
