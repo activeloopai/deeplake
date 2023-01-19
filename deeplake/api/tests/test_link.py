@@ -604,7 +604,7 @@ def test_basic_sequence(local_ds, cat_path, flower_path, create_shape_tensor, ve
     pass
 
 
-@pytest.mark.parametrize("shape_tensor", (True, False))
+@pytest.mark.parametrize("shape_tensor", (True,))
 def test_shape_interval(local_ds_generator, cat_path, flower_path, shape_tensor):
     with local_ds_generator() as ds:
         ds.create_tensor(

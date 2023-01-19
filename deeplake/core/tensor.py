@@ -963,9 +963,9 @@ class Tensor:
                     else:
                         vs = [cast_to_type(v, dtype) for v in vs]
                 tensor.extend(vs)
-        if self.meta.is_link and not has_shape_tensor:
-            func = get_link_transform("extend_shape")
-            func(samples, tensor_meta=self.meta)
+        # if self.meta.is_link and not has_shape_tensor:
+        #     func = get_link_transform("extend_shape")
+        #     func(samples, tensor_meta=self.meta)
 
     def _update_links(
         self,
@@ -1004,9 +1004,9 @@ class Tensor:
                     else:
                         val = cast_to_type(val, tensor.dtype)
                         tensor[global_sample_index] = val
-        if not has_shape_tensor:
-            func = get_link_transform("update_shape")
-            func(new_sample, link_creds=self.link_creds, tensor_meta=self.meta)
+        # if self.meta.is_link and not has_shape_tensor:
+        #     func = get_link_transform("update_shape")
+        #     func(new_sample, link_creds=self.link_creds, tensor_meta=self.meta)
 
     @property
     def _sample_info_tensor(self):
