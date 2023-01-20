@@ -1056,10 +1056,11 @@ class dataset:
             >>> ds = deeplake.ingest_coco(
             >>>     "s3://bucket/images/directory",
             >>>     "s3://bucket/annotation/file1.json",
-            >>>     dest="hub://org_id/dataset",
+            >>>     dest="hub://org_id/dataset_name",
             >>>     ignore_one_group=True,
             >>>     ignore_keys=["area", "image_id", "id"],
-            >>>     image_settings={"name": "images", "linked": True, creds_key="my_managed_creds_key", "sample_compression": "jpeg"},
+            >>>     image_settings={"name": "images", "htype": "link[image]", "sample_compression": "jpeg"},
+            >>>     image_creds_key="my_managed_creds"
             >>>     src_creds=aws_creds, # Can also be inferred from environment
             >>>     token="my_activeloop_token",
             >>>     num_workers=4,
