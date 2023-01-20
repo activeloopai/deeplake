@@ -8,6 +8,7 @@ from typing import Dict, Optional, Union, List
 from deeplake.auto.unstructured.kaggle import download_kaggle_dataset
 from deeplake.auto.unstructured.image_classification import ImageClassification
 from deeplake.auto.unstructured.coco.coco import CocoDataset
+from deeplake.auto.unstructured.yolo.yolo import YoloDataset
 from deeplake.client.client import DeepLakeBackendClient
 from deeplake.client.log import logger
 from deeplake.core.dataset import Dataset, dataset_factory
@@ -1025,14 +1026,16 @@ class dataset:
         dest: Union[str, pathlib.Path],
         key_to_tensor_mapping: Optional[Dict] = None,
         file_to_group_mapping: Optional[Dict] = None,
-        ignore_one_group: bool = False,
+        ignore_one_group: bool = True,
         ignore_keys: Optional[List[str]] = None,
-        image_settings: Optional[Dict] = None,
+        image_params: Optional[Dict] = None,
+        image_creds_key: Optional[str] = None,
         src_creds: Optional[Dict] = None,
         dest_creds: Optional[Dict] = None,
         inspect_limit: int = 1000000,
         progressbar: bool = True,
         num_workers: int = 0,
+        token: Optional[str] = None,
         **dataset_kwargs,
     ) -> Dataset:
         """Ingest images and annotations in COCO format to a Deep Lake Dataset.
@@ -1041,7 +1044,7 @@ class dataset:
             >>> ds = deeplake.ingest_coco(
             >>>     "path/to/images/directory",
             >>>     ["path/to/annotation/file1.json", "path/to/annotation/file2.json"],
-            >>>     dest="hub://username/dataset",
+            >>>     dest="hub://org_id/dataset",
             >>>     key_to_tensor_mapping={"category_id": "labels", "bbox": "boxes"},
             >>>     file_to_group_mapping={"file1.json": "group1", "file2.json": "group2"},
             >>>     ignore_keys=["area", "image_id", "id"],
@@ -1052,7 +1055,7 @@ class dataset:
             >>> ds = deeplake.ingest_coco(
             >>>     "s3://bucket/images/directory",
             >>>     "s3://bucket/annotation/file1.json",
-            >>>     dest="hub://username/dataset",
+            >>>     dest="hub://org_id/dataset",
             >>>     ignore_one_group=True,
             >>>     ignore_keys=["area", "image_id", "id"],
             >>>     image_settings={"name": "images", "linked": True, creds_key="my_managed_creds_key", "sample_compression": "jpeg"},
@@ -1066,20 +1069,22 @@ class dataset:
             annotation_files (str, pathlib.Path, List[str]): Path to JSON annotation files in COCO format.
             dest (str, pathlib.Path):
                 - The full path to the dataset. Can be:
-                - a Deep Lake cloud path of the form ``hub://username/datasetname``. To write to Deep Lake cloud datasets, ensure that you are logged in to Deep Lake (use 'activeloop login' from command line)
+                - a Deep Lake cloud path of the form ``hub://org_id/datasetname``. To write to Deep Lake cloud datasets, ensure that you are logged in to Deep Lake (use 'activeloop login' from command line), or pass in a token using the 'token' parameter.
                 - an s3 path of the form ``s3://bucketname/path/to/dataset``. Credentials are required in either the environment or passed to the creds argument.
                 - a local file system path of the form ``./path/to/dataset`` or ``~/path/to/dataset`` or ``path/to/dataset``.
                 - a memory path of the form ``mem://path/to/dataset`` which doesn't save the dataset but keeps it in memory instead. Should be used only for testing as it does not persist.
             key_to_tensor_mapping (Optional[Dict]): A one-to-one mapping between COCO keys and Dataset tensor names.
             file_to_group_mapping (Optional[Dict]): A one-to-one mapping between COCO annotation file names and Dataset group names.
-            ignore_one_group (bool): Skip creation of group in case of a single annotation file. Set to ``True`` by default.
+            ignore_one_group (bool): Skip creation of group in case of a single annotation file. Set to ``False`` by default.
             ignore_keys (List[str]): A list of COCO keys to ignore.
-            image_settings (Optional[Dict]): A dictionary containing settings for the images tensor.
+            image_params (Optional[Dict]): A dictionary containing parameters for the images tensor.
+            image_creds_key (Optional[str]): The name of the managed credentials to use for accessing the images directory via linked tensor.
             src_creds (Optional[Dict]): Credentials to access the source path. If not provided, will be inferred from the environment.
             dest_creds (Optional[Dict]): A dictionary containing credentials used to access the destination path of the dataset.
             inspect_limit (int): The maximum number of samples to inspect in the annotations json, in order to generate the set of COCO annotation keys. Set to ``1000000`` by default.
             progressbar (bool): Enables or disables ingestion progress bar. Set to ``True`` by default.
             num_workers (int): The number of workers to use for ingestion. Set to ``0`` by default.
+            token (Optional[str]): The token to use for accessing the dataset.
             **dataset_kwargs: Any arguments passed here will be forwarded to the dataset creator function. See :func:`deeplake.empty`.
 
         Returns:
@@ -1088,6 +1093,7 @@ class dataset:
         Raises:
             IngestionError: If either ``key_to_tensor_mapping`` or ``file_to_group_mapping`` are not one-to-one.
         """
+
         dest = convert_pathlib_to_string_if_needed(dest)
         images_directory = convert_pathlib_to_string_if_needed(images_directory)
         annotation_files = (
@@ -1096,7 +1102,12 @@ class dataset:
             else convert_pathlib_to_string_if_needed(annotation_files)
         )
 
-        ds = deeplake.empty(dest, creds=dest_creds, verbose=False, **dataset_kwargs)
+        feature_report_path(
+            dest,
+            "ingest_coco",
+            {"num_workers": num_workers},
+            token=token,
+        )
 
         unstructured = CocoDataset(
             source=images_directory,
@@ -1105,10 +1116,137 @@ class dataset:
             file_to_group_mapping=file_to_group_mapping,
             ignore_one_group=ignore_one_group,
             ignore_keys=ignore_keys,
-            image_settings=image_settings,
+            image_params=image_params,
+            image_creds_key=image_creds_key,
             creds=src_creds,
         )
         structure = unstructured.prepare_structure(inspect_limit)
+
+        ds = deeplake.empty(
+            dest, creds=dest_creds, verbose=False, token=token, **dataset_kwargs
+        )
+
+        structure.create_missing(ds)
+
+        unstructured.structure(
+            ds,
+            progressbar,
+            num_workers,
+        )
+
+        return ds
+
+    @staticmethod
+    def ingest_yolo(
+        data_directory: Union[str, pathlib.Path],
+        dest: Union[str, pathlib.Path],
+        class_names_file: Optional[Union[str, pathlib.Path]] = None,
+        annotations_directory: Optional[Union[str, pathlib.Path]] = None,
+        allow_no_annotation: bool = False,
+        image_params: Optional[Dict] = None,
+        label_params: Optional[Dict] = None,
+        coordinates_params: Optional[Dict] = None,
+        src_creds: Optional[Dict] = None,
+        dest_creds: Optional[Dict] = None,
+        image_creds_key: Optional[str] = None,
+        inspect_limit: int = 1000,
+        progressbar: bool = True,
+        num_workers: int = 0,
+        connect_kwargs: Optional[Dict] = None,
+        **dataset_kwargs,
+    ) -> Dataset:
+        """Ingest images and annotations (bounding boxes or polygons) in YOLO format to a Deep Lake Dataset.
+
+        Examples:
+            >>> ds = deeplake.ingest_yolo(
+            >>>     "path/to/data/directory",
+            >>>     dest="hub://org_id/dataset",
+            >>>     allow_no_annotation=True,
+            >>>     token="my_activeloop_token",
+            >>>     num_workers=4,
+            >>> )
+            >>> # or ingest data from cloud
+            >>> ds = deeplake.ingest_yolo(
+            >>>     "s3://bucket/data_directory",
+            >>>     dest="hub://org_id/dataset",
+            >>>     image_params={"name": "image_links", "htype": "link[image]"},
+            >>>     image_creds_key='my_s3_managed_crerendials",
+            >>>     src_creds=aws_creds, # Can also be inferred from environment
+            >>>     token="my_activeloop_token",
+            >>>     num_workers=4,
+            >>> )
+
+        Args:
+            data_directory (str, pathlib.Path): The path to the directory containing the data (images files and annotation files(see 'annotations_directory' input for specifying annotations in a separate directory).
+            dest (str, pathlib.Path):
+                - The full path to the dataset. Can be:
+                - a Deep Lake cloud path of the form ``hub://org_id/datasetname``. To write to Deep Lake cloud datasets, ensure that you are logged in to Deep Lake (use 'activeloop login' from command line), or pass in a token using the 'token' parameter.
+                - an s3 path of the form ``s3://bucketname/path/to/dataset``. Credentials are required in either the environment or passed to the creds argument.
+                - a local file system path of the form ``./path/to/dataset`` or ``~/path/to/dataset`` or ``path/to/dataset``.
+                - a memory path of the form ``mem://path/to/dataset`` which doesn't save the dataset but keeps it in memory instead. Should be used only for testing as it does not persist.
+            class_names_file: Path to the file containing the class names on separate lines. This is typically a file titled classes.names.
+            annotations_directory (Optional[Union[str, pathlib.Path]]): Path to directory containing the annotations. If specified, the 'data_directory' will not be examined for annotations.
+            allow_no_annotation (bool): Flag to determine whether missing annotations files corresponding to an image should be treated as empty annoations. Set to ``False`` by default.
+            image_params (Optional[Dict]): A dictionary containing parameters for the images tensor.
+            label_params (Optional[Dict]): A dictionary containing parameters for the labels tensor.
+            coordinates_params (Optional[Dict]): A dictionary containing parameters for the ccoordinates tensor. This tensor either contains bounding boxes or polygons.
+            src_creds (Optional[Dict]): Credentials to access the source path. If not provided, will be inferred from the environment.
+            dest_creds (Optional[Dict]): A dictionary containing credentials used to access the destination path of the dataset.
+            image_creds_key (Optional[str]): creds_key for linked tensors, applicable if the htype for the images tensor is specified as 'link[image]' in the 'image_params' input.
+            inspect_limit (int): The maximum number of annotations to inspect, in order to infer whether they are bounding boxes of polygons. This in put is ignored if the htype is specfied in the 'coordinates_params'.
+            progressbar (bool): Enables or disables ingestion progress bar. Set to ``True`` by default.
+            num_workers (int): The number of workers to use for ingestion. Set to ``0`` by default.
+            connect_kwargs (Optional[Dict]): If specified, the dataset will be connected to Platform, and connect_kwargs will be passed to :func:`ds.connect`.
+            **dataset_kwargs: Any arguments passed here will be forwarded to the dataset creator function. See :func:`deeplake.empty`.
+
+        Returns:
+            Dataset: The Dataset created from the images and YOLO annotations.
+
+        Raises:
+            IngestionError: If annotations are not found for all the images and 'allow_no_annotation' is False
+        """
+
+        dest = convert_pathlib_to_string_if_needed(dest)
+        data_directory = convert_pathlib_to_string_if_needed(data_directory)
+
+        annotations_directory = (
+            convert_pathlib_to_string_if_needed(annotations_directory)
+            if annotations_directory is not None
+            else None
+        )
+
+        class_names_file = (
+            convert_pathlib_to_string_if_needed(class_names_file)
+            if class_names_file is not None
+            else None
+        )
+
+        feature_report_path(
+            dest,
+            "ingest_yolo",
+            {"num_workers": num_workers},
+            token=dataset_kwargs.get("token", None),
+        )
+
+        unstructured = YoloDataset(
+            data_directory=data_directory,
+            class_names_file=class_names_file,
+            annotations_directory=annotations_directory,
+            image_params=image_params,
+            label_params=label_params,
+            coordinates_params=coordinates_params,
+            allow_no_annotation=allow_no_annotation,
+            creds=src_creds,
+            image_creds_key=image_creds_key,
+            inspect_limit=inspect_limit,
+        )
+
+        structure = unstructured.prepare_structure()
+
+        ds = deeplake.empty(dest, creds=dest_creds, verbose=False, **dataset_kwargs)
+        if connect_kwargs is not None:
+            ds.connect(**connect_kwargs, token=dataset_kwargs.get("token", None))
+
         structure.create_missing(ds)
 
         unstructured.structure(
@@ -1203,6 +1341,7 @@ class dataset:
                 "Progressbar": progressbar,
                 "Summary": summary,
             },
+            token=dataset_kwargs.get("token", None),
         )
 
         src = convert_pathlib_to_string_if_needed(src)
@@ -1230,10 +1369,10 @@ class dataset:
                 if images_compression is None:
                     raise InvalidFileExtension(src)
 
-            ds = deeplake.dataset(dest, creds=dest_creds, **dataset_kwargs)
-
             # TODO: support more than just image classification (and update docstring)
             unstructured = ImageClassification(source=src)
+
+            ds = deeplake.dataset(dest, creds=dest_creds, **dataset_kwargs)
 
             # TODO: auto detect compression
             unstructured.structure(
@@ -1296,6 +1435,7 @@ class dataset:
                 "Progressbar": progressbar,
                 "Summary": summary,
             },
+            token=dataset_kwargs.get("token", None),
         )
 
         if os.path.isdir(src) and os.path.isdir(dest):
@@ -1352,8 +1492,17 @@ class dataset:
         import pandas as pd
         from deeplake.auto.structured.dataframe import DataFrame
 
+        feature_report_path(
+            convert_pathlib_to_string_if_needed(dest),
+            "ingest_dataframe",
+            {},
+            token=dataset_kwargs.get("token", None),
+        )
+
         if not isinstance(src, pd.DataFrame):
             raise Exception("Source provided is not a valid pandas dataframe object")
+
+        structured = DataFrame(src)
 
         if isinstance(dest, Dataset):
             ds = dest
@@ -1361,27 +1510,31 @@ class dataset:
             dest = convert_pathlib_to_string_if_needed(dest)
             ds = deeplake.dataset(dest, creds=dest_creds, **dataset_kwargs)
 
-        structured = DataFrame(src)
         structured.fill_dataset(ds, progressbar)  # type: ignore
         return ds  # type: ignore
 
     @staticmethod
-    @deeplake_reporter.record_call
     def list(
-        workspace: str = "",
+        org_id: str = "",
         token: Optional[str] = None,
     ) -> None:
         """List all available Deep Lake cloud datasets.
 
         Args:
-            workspace (str): Specify user/organization name. If not given,
+            org_id (str): Specify organization id. If not given,
                 returns a list of all datasets that can be accessed, regardless of what workspace they are in.
-                Otherwise, lists all datasets in the given workspace.
+                Otherwise, lists all datasets in the given organization.
             token (str, optional): Activeloop token, used for fetching credentials for Deep Lake datasets. This is optional, tokens are normally autogenerated.
 
         Returns:
             List: List of dataset names.
         """
+
+        deeplake_reporter.feature_report(
+            feature_name="list",
+            parameters={"org_id": org_id},
+        )
+
         client = DeepLakeBackendClient(token=token)
-        datasets = client.get_datasets(workspace=workspace)
+        datasets = client.get_datasets(workspace=org_id)
         return datasets
