@@ -1036,6 +1036,7 @@ class dataset:
         progressbar: bool = True,
         num_workers: int = 0,
         token: Optional[str] = None,
+        connect_kwargs: Optional[Dict] = None,
         **dataset_kwargs,
     ) -> Dataset:
         """Ingest images and annotations in COCO format to a Deep Lake Dataset.
@@ -1084,7 +1085,8 @@ class dataset:
             inspect_limit (int): The maximum number of samples to inspect in the annotations json, in order to generate the set of COCO annotation keys. Set to ``1000000`` by default.
             progressbar (bool): Enables or disables ingestion progress bar. Set to ``True`` by default.
             num_workers (int): The number of workers to use for ingestion. Set to ``0`` by default.
-            token (Optional[str]): The token to use for accessing the dataset.
+            token (Optional[str]): The token to use for accessing the dataset and/or connecting it to Deep Lake.
+            connect_kwargs (Optional[Dict]): If specified, the dataset will be connected to Deep Lake, and connect_kwargs will be passed to :func:`ds.connect`.
             **dataset_kwargs: Any arguments passed here will be forwarded to the dataset creator function. See :func:`deeplake.empty`.
 
         Returns:
@@ -1125,6 +1127,8 @@ class dataset:
         ds = deeplake.empty(
             dest, creds=dest_creds, verbose=False, token=token, **dataset_kwargs
         )
+        if connect_kwargs is not None:
+            ds.connect(**connect_kwargs, token=token)
 
         structure.create_missing(ds)
 
@@ -1152,6 +1156,7 @@ class dataset:
         inspect_limit: int = 1000,
         progressbar: bool = True,
         num_workers: int = 0,
+        token: Optional[str] = None,
         connect_kwargs: Optional[Dict] = None,
         **dataset_kwargs,
     ) -> Dataset:
@@ -1196,7 +1201,8 @@ class dataset:
             inspect_limit (int): The maximum number of annotations to inspect, in order to infer whether they are bounding boxes of polygons. This in put is ignored if the htype is specfied in the 'coordinates_params'.
             progressbar (bool): Enables or disables ingestion progress bar. Set to ``True`` by default.
             num_workers (int): The number of workers to use for ingestion. Set to ``0`` by default.
-            connect_kwargs (Optional[Dict]): If specified, the dataset will be connected to Platform, and connect_kwargs will be passed to :func:`ds.connect`.
+            token (Optional[str]): The token to use for accessing the dataset and/or connecting it to Deep Lake.
+            connect_kwargs (Optional[Dict]): If specified, the dataset will be connected to Deep Lake, and connect_kwargs will be passed to :func:`ds.connect`.
             **dataset_kwargs: Any arguments passed here will be forwarded to the dataset creator function. See :func:`deeplake.empty`.
 
         Returns:
@@ -1225,7 +1231,7 @@ class dataset:
             dest,
             "ingest_yolo",
             {"num_workers": num_workers},
-            token=dataset_kwargs.get("token", None),
+            token=token,
         )
 
         unstructured = YoloDataset(
@@ -1243,9 +1249,11 @@ class dataset:
 
         structure = unstructured.prepare_structure()
 
-        ds = deeplake.empty(dest, creds=dest_creds, verbose=False, **dataset_kwargs)
+        ds = deeplake.empty(
+            dest, creds=dest_creds, verbose=False, token=token, **dataset_kwargs
+        )
         if connect_kwargs is not None:
-            ds.connect(**connect_kwargs, token=dataset_kwargs.get("token", None))
+            ds.connect(**connect_kwargs, token=token)
 
         structure.create_missing(ds)
 
