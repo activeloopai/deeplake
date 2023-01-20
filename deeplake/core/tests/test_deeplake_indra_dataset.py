@@ -53,10 +53,17 @@ def test_load_view():
     deeplake_ds = dp.load(path, token=TOKEN)
     query_str = "SELECT * GROUP BY labels"
     view = deeplake_ds.query(query_str)
+    view.images.shape_interval
     view_path = view.save_view()
     view_id = "96c542aca468cb8261356b400dc9f9a753f0b43432c75337bdee10a91ce5702a"
     deeplake_indra_ds = DeepLakeQueryDataset(deeplake_ds=deeplake_ds, indra_ds=indra_ds)
     view = deeplake_ds.load_view(view_id)
+
+    dataloader = view[:3].pytorch()
+    iss = []
+    for i, batch in enumerate(dataloader):
+        iss.append(i)
+
     assert np.isclose(indra_ds.tensors[0][:], deeplake_indra_ds.image.numpy())
 
 
