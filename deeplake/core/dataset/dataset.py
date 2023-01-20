@@ -4114,7 +4114,7 @@ class DeepLakeQueryDataset(Dataset):
                 "INDRA is not installed. Please install it with `pip install indra`."
             )
         indra_ds = self.indra_ds
-        if self.index:
+        if self.index.values[0].value != slice(None, None, None):
             idx = self.index.values[0].value
             indra_ds = self.indra_ds[idx]
 

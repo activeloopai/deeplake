@@ -1,9 +1,11 @@
+import deeplake.util.shape_interval as shape_interval
 from deeplake.core import tensor
 from typing import List, Union
 from deeplake.core.index import Index
 import numpy as np
 from deeplake.core.index import replace_ellipsis_with_slices
 from deeplake.util.exceptions import DynamicTensorNumpyError, InvalidKeyTypeError
+
 
 try:
     from indra.pytorch.loader import Loader
@@ -144,13 +146,9 @@ class DeepLakeQueryTensor(tensor.Tensor):
 
     @property
     def shape_interval(self):
-        shape = ()
-        for i, dim_len in enumerate(self.max_shape):
-            if dim_len == self.min_shape[i]:
-                shape += (dim_len,)
-            else:
-                shape += (None,)
-        return shape
+        min_shape = [self.shape[0]] + self.min_shape
+        max_shape = [self.shape[0]] + self.max_shape
+        return shape_interval.ShapeInterval(min_shape, max_shape)
 
     @property
     def ndim(self):
@@ -221,7 +219,7 @@ class DeeplakeQueryTensorWithSliceIndices(DeepLakeQueryTensor):
             else:
                 shape += (1,)
 
-            if i != 0 and self.max_shape[i - 1] != self.min_shape[i - 1]:
+            if i != 0 and self.max_shape[i] != self.min_shape[i]:
                 raise Exception("Data across this dimension has different shapes")
 
         for i in range(len(self.idxs), self.ndim):
@@ -233,7 +231,7 @@ class DeeplakeQueryTensorWithSliceIndices(DeepLakeQueryTensor):
         return shape
 
     def numpy_aslist(self, aslist):
-        if self.min_shape != self.max_shape and self.aslist == False:
+        if self.min_shape != self.max_shape and aslist == False:
             raise DynamicTensorNumpyError(self.key, self.index, "shape")
 
         if len(self.index.values) == 1:
