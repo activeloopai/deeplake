@@ -580,7 +580,9 @@ class BaseChunk(DeepLakeMemoryObject):
 
     @property
     def is_empty_tensor(self):
-        return len(self.tensor_meta.max_shape) == 0 and len(self.data_bytes) == 0
+        return len(self.tensor_meta.max_shape) == 0 and (
+            not isinstance(self.data_bytes, PartialReader) and len(self.data_bytes) == 0
+        )
 
     def _text_sample_to_byte_string(self, sample):
         try:
