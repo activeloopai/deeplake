@@ -5,7 +5,7 @@ from deeplake.core.chunk.uncompressed_chunk import UncompressedChunk
 from deeplake.core.compression import _read_video_shape, _decompress_video
 from deeplake.core.index.index import Index
 from deeplake.core.link_creds import LinkCreds
-from deeplake.core.linked_sample import LinkedSample, retry_refresh_managed_creds
+from deeplake.core.linked_sample import LinkedSample
 from deeplake.core.meta.encode.chunk_id import ChunkIdEncoder
 from deeplake.core.meta.encode.creds import CredsEncoder
 from deeplake.core.storage import LRUCache
@@ -207,7 +207,6 @@ class LinkedChunkEngine(ChunkEngine):
         sample = sample[sample_index]
         return sample
 
-    @retry_refresh_managed_creds
     def get_basic_sample(self, global_sample_index, index, fetch_chunks=False):
         sample = self.get_deeplake_read_sample(global_sample_index, fetch_chunks)
         if sample is None:
@@ -305,7 +304,6 @@ class LinkedChunkEngine(ChunkEngine):
             save_link_creds(self.link_creds, self.cache)
             self.link_creds.warn_missing_managed_creds()
 
-    @retry_refresh_managed_creds
     def read_shape_for_sample(self, global_sample_index: int) -> Tuple[int, ...]:
         if self._is_tiled_sample(global_sample_index):
             return self.tile_encoder.get_sample_shape(global_sample_index)
@@ -357,7 +355,6 @@ class LinkedChunkEngine(ChunkEngine):
     def get_empty_sample(self):
         return np.ones((0,))
 
-    @retry_refresh_managed_creds
     def read_bytes_for_sample(self, global_sample_index: int) -> bytes:
         sample = self.get_deeplake_read_sample(global_sample_index)
         return sample.buffer

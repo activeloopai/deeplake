@@ -729,9 +729,9 @@ class ChunkEngine:
         lengths = None
         orig_meta_length = self.tensor_meta.length
         incoming_num_samples = len(samples)
+        enc_ids: List[Optional[str]] = []
+        enc_count = [0]
         if extending:
-            enc_ids: List[Optional[str]] = []
-            enc_count = [0]
             if self.tensor_meta.htype == "text" and (
                 self.chunk_class != SampleCompressedChunk
             ):
