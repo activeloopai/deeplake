@@ -104,11 +104,6 @@ def downsample_link_tiled(
         image_bytes = f.getvalue()
         return deeplake.core.sample.Sample(buffer=image_bytes, compression=compression)
 
-
-def get_downsample_factor(key: str):
-    return int(key.split("_")[-1])
-
-
 def apply_partial_downsample(tensor, global_sample_index, val):
     downsample_sub_index, new_value = val
     tensor[global_sample_index][downsample_sub_index] = new_value
