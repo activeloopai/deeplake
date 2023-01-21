@@ -44,10 +44,11 @@ def test_link_tiled(local_ds_generator, cat_path):
     arr = np.empty((10, 10), dtype=object)
     for j, i in itertools.product(range(10), range(10)):
         arr[j, i] = cat_path
+    linked_sample = deeplake.link_tiled(arr)
 
     with local_ds_generator() as ds:
         ds.create_tensor("image", htype="link[image]", sample_compression="jpeg")
-        ds.image.append(deeplake.link_tiled(arr))
+        ds.image.append(linked_sample)
 
     actual_data = deeplake.read(cat_path).array
     ds = local_ds_generator()
@@ -55,6 +56,11 @@ def test_link_tiled(local_ds_generator, cat_path):
     check_data(actual_data, ds, index)
     with pytest.raises(ValueError):
         ds.image[index][100:1000, 100:1000, :] = deeplake.link(cat_path)
+
+    with ds:
+        ds.image.extend([linked_sample, linked_sample])
+    check_data(actual_data, ds, 1)
+    check_data(actual_data, ds, 2)
 
 
 def test_link_tiled_transform(local_ds_generator, cat_path):
