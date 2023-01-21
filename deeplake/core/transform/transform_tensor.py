@@ -118,7 +118,10 @@ class TransformTensor:
                 self._non_numpy()
         if isinstance(item, list) and len(item) == 0:
             item = None
-        if not isinstance(item, (LinkedSample, LinkedTiledSample, Tensor)) and item is not None:
+        if (
+            not isinstance(item, (LinkedSample, LinkedTiledSample, Tensor))
+            and item is not None
+        ):
             shape = getattr(item, "shape", None)
             if shape is None:
                 try:

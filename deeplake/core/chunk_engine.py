@@ -745,8 +745,7 @@ class ChunkEngine:
                         lengths[i] = str(s).__len__()
         extra_args = {"lengths": lengths}
         current_chunk = start_chunk
-        if not register:
-            updated_chunks: List[Optional[str]] = []
+        updated_chunks: List[Optional[str]] = []
         if current_chunk is None:
             current_chunk = self._create_new_chunk(
                 register and start_chunk_row is not None

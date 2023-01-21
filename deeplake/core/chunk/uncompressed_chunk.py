@@ -153,7 +153,7 @@ class UncompressedChunk(BaseChunk):
         num_samples: float = 0
         for i, incoming_sample in enumerate(incoming_samples):
             serialized_sample, shape = self.serialize_sample(incoming_sample)
-            if shape is not None:
+            if shape is not None and not self.tensor_meta.is_link:
                 self.num_dims = self.num_dims or len(shape)
                 check_sample_shape(shape, self.num_dims)
 

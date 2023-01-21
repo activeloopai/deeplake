@@ -394,6 +394,7 @@ class LinkedChunkEngine(ChunkEngine):
         incoming_num_samples,
         updated_chunks,
         start_chunk_row,
+        enc_ids,
         enc_count,
         tiles,
         lengths,
