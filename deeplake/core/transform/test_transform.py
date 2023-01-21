@@ -1130,3 +1130,25 @@ def test_read_only_dataset_raise_if_output_dataset(memory_ds):
         fn_aggregate(key="label", values=values).eval(
             data_in, data_out, progressbar=False, read_only_ok=True
         )
+
+
+@pytest.mark.parametrize(
+    "compression", [{"sample_compression": "lz4"}, {"chunk_compression": "lz4"}, {}]
+)
+@pytest.mark.parametrize(
+    "data", [[1] * 100 + [2] * 100 + [None] * 300, [None] * 300 + [3] * 200]
+)
+def test_empty_sample_transform_1(local_ds, compression, data):
+    @deeplake.compute
+    def upload(sample_in, sample_out):
+        sample_out.x.append(sample_in)
+
+    with local_ds as ds:
+        ds.create_tensor("x", **compression)
+
+        upload().eval(
+            data,
+            ds,
+            num_workers=2,
+        )
+        assert len(ds.x) == 500

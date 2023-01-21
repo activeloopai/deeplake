@@ -1,5 +1,6 @@
 from typing import Optional
-import numpy as np
+from deeplake.integrations.pytorch.common import collate_fn as pytorch_collate_fn
+from deeplake.integrations.tf.common import collate_fn as tf_collate_fn
 from deeplake.util.iterable_ordered_dict import IterableOrderedDict
 from deeplake.core.storage import GCSProvider, GDriveProvider, MemoryProvider
 
@@ -14,23 +15,24 @@ def raise_indra_installation_error(indra_import_error: Optional[Exception] = Non
     ) from indra_import_error
 
 
-def collate_fn(batch):
-    import torch
-
-    elem = batch[0]
-
-    if isinstance(elem, IterableOrderedDict):
-        return IterableOrderedDict(
-            (key, collate_fn([d[key] for d in batch])) for key in elem.keys()
-        )
-    if isinstance(elem, np.ndarray) and elem.dtype.type is np.str_:
-        batch = [it.item() for it in batch]
-
-    return torch.utils.data._utils.collate.default_collate(batch)
-
-
 def verify_base_storage(dataset):
     if isinstance(dataset.base_storage, (GCSProvider, GDriveProvider, MemoryProvider)):
         raise ValueError(
             "GCS, Google Drive and Memory datasets are not supported for experimental features currently."
         )
+
+
+def get_collate_fn(collate, mode):
+    if collate is None:
+        if mode == "pytorch":
+            return pytorch_collate_fn
+        elif mode == "tensorflow":
+            return tf_collate_fn
+    return collate
+
+
+def handle_mode(old_mode, new_mode):
+    if old_mode is not None:
+        if old_mode != new_mode:
+            raise ValueError(f"Can't call .{new_mode}() after .{old_mode}()")
+        raise ValueError(f"already called .{new_mode}()")

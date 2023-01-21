@@ -2009,15 +2009,39 @@ def test_transform_upload_fail(local_ds_generator, num_workers):
         assert list(ds.tensors) == ["images", "labels"]
 
 
-def test_ignore_temp_tensors(local_ds_generator):
-    with local_ds_generator() as ds:
-        ds.create_tensor("__temptensor")
+def test_ignore_temp_tensors(local_path):
+    with deeplake.dataset(local_path, overwrite=True) as ds:
+        ds.create_tensor(
+            "__temptensor",
+            htype="class_label",
+            hidden=True,
+            create_sample_info_tensor=False,
+            create_shape_tensor=False,
+            create_id_tensor=False,
+        )
         ds.__temptensor.append(123)
 
-    with local_ds_generator() as ds:
+    with deeplake.load(local_path) as ds:
         assert list(ds.tensors) == []
         assert ds.meta.hidden_tensors == []
         assert list(ds.storage.keys()) == ["dataset_meta.json"]
+
+    with deeplake.dataset(local_path, overwrite=True) as ds:
+        ds.create_tensor(
+            "__temptensor",
+            htype="class_label",
+            hidden=True,
+            create_sample_info_tensor=False,
+            create_shape_tensor=False,
+            create_id_tensor=False,
+        )
+        ds.__temptensor.append(123)
+
+    with deeplake.load(local_path, read_only=True) as ds:
+        assert list(ds.tensors) == []
+        assert list(ds._tensors()) == ["__temptensor"]
+        assert ds.meta.hidden_tensors == ["__temptensor"]
+        assert ds.__temptensor[0].numpy() == 123
 
 
 def test_empty_sample_partial_read(s3_ds):
@@ -2263,7 +2287,6 @@ def test_random_split(local_ds):
 
         train, test, val = ds.random_split([0.5, 0.3, 0.2])
 
-        # round robin
         assert len(train) == 5
         assert len(test) == 3
         assert len(val) == 2
@@ -2279,6 +2302,23 @@ def test_random_split(local_ds):
 
         with pytest.raises(ValueError):
             ds.random_split([0.5, 0.5])
+
+
+@requires_libdeeplake
+def test_random_split_views(local_ds):
+    with local_ds as ds:
+        ds.create_tensor("label")
+        ds.label.extend([0, 1, 2, 3, 4, 5, 6, 7, 8, 9])
+
+        views = [ds[:5], ds[[1, 3, 5, 7, 9]]]
+        for view in views:
+            train, test = view.random_split([3, 2])
+            assert len(train) == 3
+            assert len(test) == 2
+
+            train, test = view.random_split([0.6, 0.4])
+            assert len(train) == 3
+            assert len(test) == 2
 
 
 def test_invalid_ds_name():

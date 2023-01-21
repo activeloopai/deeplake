@@ -38,7 +38,7 @@ from deeplake.core.serialize import (
 )
 from deeplake.core.storage.deeplake_memory_object import DeepLakeMemoryObject
 from deeplake.core.tiling.sample_tiles import SampleTiles
-from deeplake.util.exceptions import TensorInvalidSampleShapeError
+from deeplake.util.exceptions import TensorInvalidSampleShapeError, EmptyTensorError
 from deeplake.core.polygon import Polygons
 from functools import reduce
 from operator import mul
@@ -81,7 +81,11 @@ class BaseChunk(DeepLakeMemoryObject):
         self.tiling_threshold = tiling_threshold
 
         self.tensor_meta = tensor_meta
-        self.num_dims = len(tensor_meta.max_shape) if tensor_meta.max_shape else None
+        self.num_dims = (
+            1
+            if tensor_meta.is_link
+            else (len(tensor_meta.max_shape) if tensor_meta.max_shape else None)
+        )
         self.is_text_like = (
             self.htype in {"json", "list", "text"} or self.tensor_meta.is_link
         )
@@ -110,6 +114,8 @@ class BaseChunk(DeepLakeMemoryObject):
         self._item_size = None
         self._sample_size = None
         self.write_initialization_done = False
+        self.id: Optional[str] = None
+        self.key: Optional[str] = None
 
     @property
     def is_fixed_shape(self):
@@ -387,7 +393,11 @@ class BaseChunk(DeepLakeMemoryObject):
                 incoming_sample, sample_compression, dt
             )
         else:
-            raise TypeError(f"Cannot serialize sample of type {type(incoming_sample)}")
+            msg = f"Cannot serialize sample of type {type(incoming_sample)}."
+            if isinstance(msg, str):
+                method = "link" if self.tensor_meta.is_link else "read"
+                msg += f"If you are appending data from a file, please pass deeplake.{method}(filename) to the append operation, instead of the filename string."
+            raise TypeError(msg)
         shape = self.convert_to_rgb(shape)
         shape = self.normalize_shape(shape)
         return incoming_sample, shape  # type: ignore
@@ -467,7 +477,7 @@ class BaseChunk(DeepLakeMemoryObject):
     def update_tensor_meta(self, shape, num_samples):
         if self._update_tensor_meta_length:
             self.tensor_meta.update_length(num_samples)
-        if shape is not None:
+        if shape is not None and not self.tensor_meta.is_link:
             self.tensor_meta.update_shape_interval(shape)
 
     def update_in_meta_and_headers(
@@ -481,11 +491,14 @@ class BaseChunk(DeepLakeMemoryObject):
                 num_samples = self.byte_positions_encoder.num_samples
                 self._fill_empty_shapes(shape, num_samples)
             self.shapes_encoder[local_index] = shape
-            self.tensor_meta.update_shape_interval(shape)
+            if not self.tensor_meta.is_link:
+                self.tensor_meta.update_shape_interval(shape)
 
     def check_shape_for_update(self, shape):
         """Checks if the shape being assigned at the new index is valid."""
         if shape is None:
+            return
+        if self.tensor_meta.is_link:
             return
         max_shape = self.tensor_meta.max_shape
         if max_shape:
@@ -577,7 +590,9 @@ class BaseChunk(DeepLakeMemoryObject):
 
     @property
     def is_empty_tensor(self):
-        return len(self.tensor_meta.max_shape) == 0 and len(self.data_bytes) == 0
+        return len(self.tensor_meta.max_shape) == 0 and (
+            not isinstance(self.data_bytes, PartialReader) and len(self.data_bytes) == 0
+        )
 
     def _text_sample_to_byte_string(self, sample):
         try:
@@ -587,3 +602,10 @@ class BaseChunk(DeepLakeMemoryObject):
                 return sample.tolist().encode("utf-8")
             except AttributeError:  # None
                 return b""
+
+    def check_empty_before_read(self):
+        if self.is_empty_tensor:
+            raise EmptyTensorError(
+                "This tensor has only been populated with empty samples. "
+                "Need to add at least one non-empty sample before retrieving data."
+            )

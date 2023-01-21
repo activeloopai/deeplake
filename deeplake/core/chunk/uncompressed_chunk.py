@@ -192,11 +192,7 @@ class UncompressedChunk(BaseChunk):
         decompress: bool = True,
         is_tile: bool = False,
     ):
-        if self.is_empty_tensor:
-            raise EmptyTensorError(
-                "This tensor has only been populated with empty samples. "
-                "Need to add at least one non-empty sample before retrieving data."
-            )
+        self.check_empty_before_read()
         partial_sample_tile = self._get_partial_sample_tile()
         if partial_sample_tile is not None:
             return partial_sample_tile
@@ -214,8 +210,17 @@ class UncompressedChunk(BaseChunk):
         else:
             if self.tensor_meta.is_link:
                 return deserialize_linked_tiled_sample(buffer)
-            shape = self.shapes_encoder[local_index]
-            if not bps.is_empty():
+            bps_empty = bps.is_empty()
+            try:
+                shape = self.shapes_encoder[local_index]
+            except IndexError as e:
+                if not bps_empty:
+                    self.num_dims = self.num_dims or len(self.tensor_meta.max_shape)
+                    shape = (0,) * self.num_dims
+                else:
+                    raise e
+
+            if not bps_empty:
                 sb, eb = bps[local_index]
                 buffer = buffer[sb:eb]
 

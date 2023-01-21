@@ -5,7 +5,7 @@ from deeplake.core.chunk.uncompressed_chunk import UncompressedChunk
 from deeplake.core.compression import _read_video_shape, _decompress_video
 from deeplake.core.index.index import Index
 from deeplake.core.link_creds import LinkCreds
-from deeplake.core.linked_sample import LinkedSample
+from deeplake.core.linked_sample import LinkedSample, retry_refresh_managed_creds
 from deeplake.core.meta.encode.chunk_id import ChunkIdEncoder
 from deeplake.core.meta.encode.creds import CredsEncoder
 from deeplake.core.storage import LRUCache
@@ -15,6 +15,7 @@ from deeplake.core.tiling.deserialize import (
     np_list_to_sample,
     translate_slices,
 )
+from deeplake.core.linked_sample import read_linked_sample
 from deeplake.util.exceptions import (
     BadLinkError,
     ReadOnlyModeError,
@@ -28,27 +29,6 @@ from typing import Optional, Dict, Any, Tuple, Union
 from PIL import Image  # type: ignore
 from deeplake.core.linked_tiled_sample import LinkedTiledSample
 from math import ceil
-
-
-def retry_refresh_managed_creds(fn):
-    def wrapper(chunk_engine, global_sample_index, *args, **kwargs):
-        try:
-            return fn(chunk_engine, global_sample_index, *args, **kwargs)
-        except UnableToReadFromUrlError:
-            sample_creds_encoded = chunk_engine.creds_encoder.get_encoded_creds_key(
-                global_sample_index
-            )
-
-            link_creds: LinkCreds = chunk_engine.link_creds
-            sample_creds_key = link_creds.get_creds_key(sample_creds_encoded)
-
-            if sample_creds_key in link_creds.managed_creds_keys:
-                link_creds.refresh_managed_creds(sample_creds_key)
-            else:
-                raise
-            return fn(chunk_engine, global_sample_index, *args, **kwargs)
-
-    return wrapper
 
 
 def remove_chunk_engine_compression(chunk_engine):
