@@ -727,11 +727,9 @@ class ChunkEngine:
         """
         extending = start_chunk_row is None and register
         lengths = None
-        num_samples = self.num_samples
         orig_meta_length = self.tensor_meta.length
         incoming_num_samples = len(samples)
         if extending:
-            num_samples = len(samples)
             enc_ids: List[Optional[str]] = []
             enc_count = [0]
             if self.tensor_meta.htype == "text" and (
