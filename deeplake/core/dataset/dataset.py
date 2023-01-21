@@ -4097,7 +4097,7 @@ class DeepLakeQueryDataset(Dataset):
         transform: Optional[Callable] = None,
         num_workers: int = 0,
         num_threads: Optional[int] = None,
-        collate_fn: Optional[Callable] = default_collate,
+        collate_fn: Optional[Callable] = None,
         distributed=False,
         tensors: Optional[List[str]] = None,
         raw_tensors: Optional[List[str]] = None,
@@ -4151,6 +4151,10 @@ class DeepLakeQueryDataset(Dataset):
             raise ImportError(
                 "INDRA is not installed. Please install it with `pip install indra`."
             )
+
+        if collate_fn is None:
+            collate_fn = default_collate
+
         indra_ds = self.indra_ds
         if self.index.values[0].value != slice(None, None, None):
             idx = self.index.values[0].value
