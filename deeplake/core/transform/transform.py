@@ -153,6 +153,9 @@ class Pipeline:
             UnsupportedSchedulerError: If the scheduler passed is not recognized. Supported values include: 'serial', 'threaded', 'processed' and 'ray'.
             TransformError: All other exceptions raised if there are problems while running the pipeline.
 
+
+        # noqa: DAR401
+
         Example::
 
             @deeplake.compute
