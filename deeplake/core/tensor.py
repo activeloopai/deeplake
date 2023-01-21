@@ -937,10 +937,14 @@ class Tensor:
         return ret
 
     def _extend_links(self, samples, flat: Optional[bool], progressbar: bool = False):
+        has_shape_tensor = False
         for k, v in self.meta.links.items():
             if flat is None or v["flatten_sequence"] == flat:
                 tensor = self.version_state["full_tensors"][k]
-                func = get_link_transform(v["extend"])
+                func_name = v["extend"]
+                if func_name == "extend_shape":
+                    has_shape_tensor = True
+                func = get_link_transform(func_name)
                 vs = func(
                     samples,
                     factor=tensor.info.downsampling_factor
@@ -950,6 +954,7 @@ class Tensor:
                     htype=self.htype,
                     link_creds=self.link_creds,
                     progressbar=progressbar,
+                    tensor_meta=self.meta,
                 )
                 dtype = tensor.dtype
                 if dtype:
@@ -958,6 +963,9 @@ class Tensor:
                     else:
                         vs = [cast_to_type(v, dtype) for v in vs]
                 tensor.extend(vs)
+        # if self.meta.is_link and not has_shape_tensor:
+        #     func = get_link_transform("extend_shape")
+        #     func(samples, tensor_meta=self.meta)
 
     def _update_links(
         self,
@@ -966,11 +974,14 @@ class Tensor:
         new_sample,
         flat: Optional[bool],
     ):
+        has_shape_tensor = False
         for k, v in self.meta.links.items():
             if flat is None or v["flatten_sequence"] == flat:
                 fname = v.get("update")
                 if not fname:
                     continue
+                if fname == "update_shape":
+                    has_shape_tensor = True
                 func = get_link_transform(fname)
                 tensor = self.version_state["full_tensors"][k]
                 is_partial = not sub_index.is_trivial()
@@ -985,6 +996,7 @@ class Tensor:
                     link_creds=self.link_creds,
                     sub_index=sub_index,
                     partial=is_partial,
+                    tensor_meta=self.meta,
                 )
                 if val is not _NO_LINK_UPDATE:
                     if is_partial and func == update_downsample:
@@ -992,6 +1004,9 @@ class Tensor:
                     else:
                         val = cast_to_type(val, tensor.dtype)
                         tensor[global_sample_index] = val
+        # if self.meta.is_link and not has_shape_tensor:
+        #     func = get_link_transform("update_shape")
+        #     func(new_sample, link_creds=self.link_creds, tensor_meta=self.meta)
 
     @property
     def _sample_info_tensor(self):
