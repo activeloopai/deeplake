@@ -311,7 +311,7 @@ class BaseChunk(DeepLakeMemoryObject):
         if isinstance(incoming_sample, LinkedTiledSample):
             if not self.tensor_meta.is_link:
                 raise ValueError(
-                    "deeplake.link_tile() samples can only be appended to linked tensors. To create linked tensors, include link in htype during create_tensor, for example 'link[image]'."
+                    "deeplake.link_tiled() samples can only be appended to linked tensors. To create linked tensors, include link in htype during create_tensor, for example 'link[image]'."
                 )
 
         if self.is_text_like:
