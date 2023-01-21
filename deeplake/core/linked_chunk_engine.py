@@ -269,7 +269,7 @@ class LinkedChunkEngine(ChunkEngine):
                 and sample is not None
             ):
                 raise TypeError(
-                    f"Expected LinkedSample, got {type(sample)} instead. Use deeplake.link() to link samples."
+                    f"Expected LinkedSample or LinkedTiledSample, got {type(sample)} instead. Use deeplake.link() to link samples or deeplake.link_tiled() to link multiple images as tiles."
                 )
 
             path, creds_key = get_path_creds_key(sample)
@@ -282,11 +282,8 @@ class LinkedChunkEngine(ChunkEngine):
                 verified_samples.append(sample)
             elif isinstance(sample, LinkedTiledSample):
                 verify_samples = self.verify and verify
-                if verify_samples or (
-                    sample.tile_shape is None or sample.sample_shape is None
-                ):
-                    sample.get_check_tile_shape(self.link_creds, verify_samples)
-                    sample.get_sample_shape()
+                sample.set_check_tile_shape(self.link_creds, verify_samples)
+                sample.set_sample_shape()
                 verified_samples.append(sample)
             else:
                 try:

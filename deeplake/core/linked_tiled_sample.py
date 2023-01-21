@@ -33,7 +33,7 @@ class LinkedTiledSample:
     def dtype(self) -> str:
         return np.array("").dtype.name
 
-    def get_check_tile_shape(self, link_creds, verify):
+    def set_check_tile_shape(self, link_creds, verify):
         tile_shape = None
         for path in self.path_array.flat:
             # check that path is string like
@@ -42,15 +42,19 @@ class LinkedTiledSample:
             sample_obj = read_linked_sample(path, self.creds_key, link_creds, verify)
             if tile_shape is None:
                 tile_shape = sample_obj.shape
-            elif verify and tile_shape != sample_obj.shape:
+                if not verify:
+                    break
+            elif tile_shape != sample_obj.shape:
                 raise ValueError("Path array contains paths with different shapes.")
         self._tile_shape = tile_shape
+        if len(self.path_array.shape) > len(self._tile_shape):
+            raise ValueError(
+                "Path array can not contain more dimensions than the individual tiles"
+            )
 
-    def get_sample_shape(self):
+    def set_sample_shape(self):
         assert self._tile_shape is not None
-        assert len(self.path_array.shape) <= len(self._tile_shape)
         if len(self.path_array.shape) < len(self._tile_shape):
-            # pad with 1s
             arr_shape = self.path_array.shape + (1,) * (
                 len(self._tile_shape) - len(self.path_array.shape)
             )
