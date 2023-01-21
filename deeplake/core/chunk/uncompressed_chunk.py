@@ -208,7 +208,7 @@ class UncompressedChunk(BaseChunk):
                 sb, eb = self.get_byte_positions(local_index)
             buffer = buffer[sb:eb]
         else:
-            if self.tensor_meta.is_link:
+            if self.tensor_meta.is_link and is_tile:
                 return deserialize_linked_tiled_sample(buffer)
             bps_empty = bps.is_empty()
             try:
