@@ -1087,7 +1087,7 @@ class dataset:
             progressbar (bool): Enables or disables ingestion progress bar. Set to ``True`` by default.
             num_workers (int): The number of workers to use for ingestion. Set to ``0`` by default.
             token (Optional[str]): The token to use for accessing the dataset and/or connecting it to Deep Lake.
-            connect_kwargs (Optional[Dict]): If specified, the dataset will be connected to Deep Lake, and connect_kwargs will be passed to :meth:`Dataset.connect`.
+            connect_kwargs (Optional[Dict]): If specified, the dataset will be connected to Deep Lake, and connect_kwargs will be passed to :meth:`Dataset.connect <deeplake.core.dataset.Dataset.connect>`.
             **dataset_kwargs: Any arguments passed here will be forwarded to the dataset creator function. See :func:`deeplake.empty`.
 
         Returns:
@@ -1204,7 +1204,7 @@ class dataset:
             progressbar (bool): Enables or disables ingestion progress bar. Set to ``True`` by default.
             num_workers (int): The number of workers to use for ingestion. Set to ``0`` by default.
             token (Optional[str]): The token to use for accessing the dataset and/or connecting it to Deep Lake.
-            connect_kwargs (Optional[Dict]): If specified, the dataset will be connected to Deep Lake, and connect_kwargs will be passed to :meth:`Dataset.connect`.
+            connect_kwargs (Optional[Dict]): If specified, the dataset will be connected to Deep Lake, and connect_kwargs will be passed to :meth:`Dataset.connect <deeplake.core.dataset.Dataset.connect>`.
             **dataset_kwargs: Any arguments passed here will be forwarded to the dataset creator function. See :func:`deeplake.empty`.
 
         Returns:
