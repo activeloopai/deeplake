@@ -817,9 +817,9 @@ class ChunkEngine:
                         enc_count.append(0)
                     if not register:
                         updated_chunks.append(current_chunk.id)
-                    elif num_samples_added == FAST_EXTEND_BAIL:
-                        num_samples_added = 0
-                        samples = list(samples)
+            elif num_samples_added == FAST_EXTEND_BAIL:
+                num_samples_added = 0
+                samples = list(samples)
             else:
                 current_chunk_full = True
                 num_samples_added, samples, lengths = self._handle_one_or_more_samples(
@@ -1022,7 +1022,9 @@ class ChunkEngine:
         self.cache.maybe_flush()
 
     def _create_new_chunk(self, register=True, row: Optional[int] = None) -> BaseChunk:
+
         """Creates and returns a new `Chunk`. Automatically creates an ID for it and puts a reference in the cache."""
+        print("Creating new chunk")
         chunk_id = self.chunk_id_encoder.generate_chunk_id(register=register, row=row)
         chunk = self.chunk_class(*self.chunk_args)  # type: ignore
         chunk_name = ChunkIdEncoder.name_from_id(chunk_id)  # type: ignore
