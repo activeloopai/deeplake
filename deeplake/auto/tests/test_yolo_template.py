@@ -141,3 +141,33 @@ def test_minimal_yolo_ingestion_with_linked_images(local_path, yolo_ingestion_da
     assert "labels" in ds.tensors
     assert len(ds.labels.info["class_names"]) > 0
     assert ds.linked_images.htype == "link[image]"
+
+
+def test_minimal_yolo_with_connect(
+    s3_path,
+    yolo_ingestion_data,
+    hub_cloud_path,
+    hub_cloud_dev_token,
+    hub_cloud_dev_managed_creds_key,
+):
+    params = {
+        "data_directory": yolo_ingestion_data["data_directory"],
+        "class_names_file": yolo_ingestion_data["class_names_file"],
+    }
+
+    ds = deeplake.ingest_yolo(
+        **params,
+        dest=s3_path,
+        connect_kwargs={
+            "dest_path": hub_cloud_path,
+            "creds_key": hub_cloud_dev_managed_creds_key,
+            "token": hub_cloud_dev_token,
+        },
+    )
+
+    assert ds.path == hub_cloud_path
+    assert "images" in ds.tensors
+    assert "boxes" in ds.tensors
+    assert "labels" in ds.tensors
+    assert len(ds.labels.info["class_names"]) > 0
+    assert ds.boxes.htype == "bbox"
