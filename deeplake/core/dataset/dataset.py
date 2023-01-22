@@ -1031,6 +1031,7 @@ class Dataset:
         del meta["length"]
         del meta["version"]
         del meta["name"]
+        del meta["links"]
 
         destination_tensor = self.create_tensor(name, verbose=False, **meta)
         destination_tensor.info.update(info)
