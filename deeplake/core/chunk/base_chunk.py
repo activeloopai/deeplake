@@ -579,9 +579,9 @@ class BaseChunk(DeepLakeMemoryObject):
             return sample.encode("utf-8")
         except AttributeError:
             try:
-                return sample.tolist().encode("utf-8")
+                return str(sample.reshape(())).encode("utf-8")
             except AttributeError:  # None
-                return str(sample[0]).encode("utf-8")
+                return b""
 
     def check_empty_before_read(self):
         if self.is_empty_tensor:

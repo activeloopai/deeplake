@@ -741,7 +741,7 @@ class ChunkEngine:
                 for i, s in enumerate(samples):
                     try:
                         if s.dtype.name[:3] == "str":
-                            lengths[i] = s[0].__len__()
+                            lengths[i] = len(str(s.reshape(())))
                     except AttributeError:
                         try:
                             lengths[i] = s.__len__()
