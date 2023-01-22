@@ -387,10 +387,8 @@ class Tensor:
         self.chunk_engine.clear()
         sample_id_key = get_sample_id_tensor_key(self.key)
         try:
-            sample_id_tensor = Tensor(sample_id_key, self.dataset)
-            sample_id_tensor.chunk_engine.clear()
-            self.meta.links.clear()
-            self.meta.is_dirty = True
+            for t in self._all_tensor_links():
+                t.chunk_engine.clear()
         except TensorDoesNotExistError:
             pass
         self.invalidate_libdeeplake_dataset()
@@ -992,6 +990,13 @@ class Tensor:
                     else:
                         val = cast_to_type(val, tensor.dtype)
                         tensor[global_sample_index] = val
+
+    def _all_tensor_links(self):
+        ds = self.dataset
+        return [
+            ds.version_state["full_tensors"][ds.version_state["tensor_names"][l]]
+            for l in self.meta.links
+        ]
 
     @property
     def _sample_info_tensor(self):
