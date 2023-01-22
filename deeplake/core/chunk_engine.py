@@ -800,16 +800,26 @@ class ChunkEngine:
                     samples,
                     orig_meta_length,
                     incoming_num_samples,
-                    updated_chunks,
                     start_chunk_row,
-                    enc_ids,
                     enc_count,
                     tiles,
                     lengths,
                 )
-            elif num_samples_added == FAST_EXTEND_BAIL:
-                num_samples_added = 0
-                samples = list(samples)
+                if len(samples) > 0:
+                    current_chunk = self._create_new_chunk(
+                        register and start_chunk_row is not None, row=start_chunk_row
+                    )
+                    current_chunk._update_tensor_meta_length = False
+                    if start_chunk_row is not None:
+                        start_chunk_row += 1
+                    elif register:
+                        enc_ids.append(current_chunk.id)
+                        enc_count.append(0)
+                    if not register:
+                        updated_chunks.append(current_chunk.id)
+                    elif num_samples_added == FAST_EXTEND_BAIL:
+                        num_samples_added = 0
+                        samples = list(samples)
             else:
                 current_chunk_full = True
                 num_samples_added, samples, lengths = self._handle_one_or_more_samples(
@@ -894,9 +904,7 @@ class ChunkEngine:
         samples,
         orig_meta_length,
         incoming_num_samples,
-        updated_chunks,
         start_chunk_row,
-        enc_ids,
         enc_count,
         tiles,
         lengths,
@@ -921,18 +929,6 @@ class ChunkEngine:
             num_samples_added = 1
         else:
             num_samples_added = 0
-        if len(samples) > 0:
-            current_chunk = self._create_new_chunk(
-                register and start_chunk_row is not None, row=start_chunk_row
-            )
-            current_chunk._update_tensor_meta_length = False
-            if start_chunk_row is not None:
-                start_chunk_row += 1
-            elif register:
-                enc_ids.append(current_chunk.id)
-                enc_count.append(0)
-            if not register:
-                updated_chunks.append(current_chunk.id)
         return num_samples_added, samples, lengths
 
     def register_new_creds(self, num_samples_added, samples):
