@@ -162,7 +162,7 @@ class YoloData:
 
                 if coordinates.size % 2 != 0:
                     raise IngestionError(
-                        f"Error ih annotation {file_name}. Polygons must have an even number of points."
+                        f"Error in annotation {file_name}. Polygons must have an even number of points."
                     )
 
                 yolo_coordinates_poly.append(
