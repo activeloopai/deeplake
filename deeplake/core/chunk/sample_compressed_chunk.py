@@ -51,7 +51,6 @@ class SampleCompressedChunk(BaseChunk):
                         sample = Sample(
                             buffer=serialized_sample, compression=compr, shape=shape, dtype=dtype  # type: ignore
                         )
-                        assert sample.compressed_bytes(compr) == serialized_sample
                         sample.htype = self.htype
                         incoming_samples[i] = sample
                     break
