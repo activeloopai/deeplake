@@ -108,7 +108,7 @@ def integrity_check(dataset):
             num_sequences = getattr(engine.sequence_encoder, "num_samples", None)
             for l, info in t.meta.links.items():
                 l = rev_tensor_names[l]
-                if num_sequences is not None and not info["flatten_sequences"]:
+                if num_sequences is not None and not info["flatten_sequence"]:
                     n2 = num_sequences
                 else:
                     n2 = n1
