@@ -3,6 +3,7 @@ from deeplake.core import tensor
 from typing import List, Union
 from deeplake.core.index import Index
 import numpy as np
+import itertools
 from deeplake.core.index import replace_ellipsis_with_slices
 from deeplake.util.exceptions import DynamicTensorNumpyError, InvalidKeyTypeError
 
@@ -193,38 +194,76 @@ class DeeplakeQueryTensorWithSliceIndices(DeepLakeQueryTensor):
             *args,
             **kwargs,
         )
-        self.idxs = self.index.values
+        # TO DO: Optimize this, we shouldn't be loading indra tensor here.
+        self.idxs = [idx.value for idx in self.index.values]
+        if len(self.index.values) == 1:
+            self.tensors_list = self.indra_tensors[self.idxs[0]]
+        else:
+            self.tensors_list = self.indra_tensors[self.idxs[0]]
+
+    @staticmethod
+    def _find_first_dim(tensors_list):
+        first_dim = len(tensors_list[0])
+        for tensor in tensors_list:
+            if first_dim != len(tensor):
+                first_dim = None
+        return first_dim
 
     @property
     def max_shape(self):
-        pass
+        # TO DO: Optimize this
+        tensors = self.tensors_list
+        first_dim = len(self.tensors_list)
+        if list in map(type, self.tensors_list):
+            tensors = list(itertools.chain(*self.tensors_list))
+            first_dim = self._find_first_dim(self.tensors_list)
+
+        _max_shape = list(tensors[0].shape)
+        for arr in tensors:
+            arr_shape = list(arr.shape)
+            _max_shape = list(map(max, _max_shape, arr_shape))
+        _max_shape.insert(0, first_dim)
+        return tuple(_max_shape)
+
+    @property
+    def min_shape(self):
+        # TO DO: Optimize this
+        tensors = self.tensors_list
+        first_dim = len(self.tensors_list)
+        if list in map(type, self.tensors_list):
+            tensors = list(itertools.chain(*self.tensors_list))
+            first_dim = self._find_first_dim(self.tensors_list)
+        _min_shape = list(tensors[0].shape)
+        for arr in tensors:
+            arr_shape = list(arr.shape)
+            _min_shape = list(map(min, _min_shape, arr_shape))
+        _min_shape.insert(0, first_dim)
+        return tuple(_min_shape)
 
     @property
     def shape(self):
         shape = ()
 
-        max_shapes = (self.num_samples,)
-        max_shapes += tuple(self.max_shape)
-
         for i, idx in enumerate(self.idxs):
-            if isinstance(idx.value, slice):
-                start = idx.value.start or 0
-                stop = idx.value.stop or max_shapes[i]
-                step = idx.value.step or 1
+            if isinstance(idx, int):
+                if i > 0:
+                    shape += (1,)
+            else:
+                start = idx.start or 0
+                stop = idx.stop or self.max_shape[i]
+                step = idx.step or 1
 
                 if start < 0:
-                    start = max_shapes[i] + start
+                    start = self.max_shape[i] + start
 
                 if stop < 0:
-                    stop = max_shapes[i] + stop
+                    stop = self.max_shape[i] + stop
 
                 dim = (stop - start) // step
                 shape += (dim,)
-            else:
-                shape += (1,)
 
             if i != 0 and self.max_shape[i] != self.min_shape[i]:
-                raise Exception("Data across this dimension has different shapes")
+                shape += (None,)
 
         for i in range(len(self.idxs), self.ndim):
             dim_len = self.max_shape[i - 1]
@@ -234,33 +273,30 @@ class DeeplakeQueryTensorWithSliceIndices(DeepLakeQueryTensor):
                 shape += (None,)
         return shape
 
-    def numpy_aslist(self, aslist):
-        if self.min_shape != self.max_shape and aslist == False:
+    def numpy(self, aslist=False):
+        # TO DO: optimize this
+        if self.min_shape != self.max_shape and aslist == False or None in self.shape:
             raise DynamicTensorNumpyError(self.key, self.index, "shape")
 
         if len(self.index.values) == 1:
-            tensors = self.indra_tensors[self.idxs[0].value]
-        else:
-            idxs = [idx.value for idx in self.idxs]
+            return np.stack(self.tensors_list, axis=0)
 
-            tensors_list = self.indra_tensors[idxs[0]]
-            try:
-                tensors = np.dstack(tensors_list).transpose(2, 0, 1)
-            except:
-                idxs_tuple = tuple(idxs[1:])
-                try:
-                    tensors = []
-                    for tensor in tensors_list:
-                        tensors.append(tensor[idxs_tuple])
-                    tensors = np.dstack(tensors_list).transpose(2, 0, 1)
-                    return tensors
-                except:
-                    raise Exception(
-                        "The data in the dataset has different shape across dimensions"
-                    )
-            idxs_tuple = (slice(None, None, None),)
-            idxs_tuple += tuple(idxs[1:])
+        if list not in map(type, self.tensors_list):
+            tensors = np.stack(self.tensors_list, axis=0)
+            idxs_tuple = tuple(self.idxs[1:])
             tensors = tensors[idxs_tuple]
+            return tensors
+
+        tensors = []
+        for tensor in self.tensors_list:
+            tensor = tensor[self.idxs[1]]
+            tensor = np.stack(tensor, axis=-1)
+            if self.idxs[2:]:
+                tensors.append(np.moveaxis(tensor[tuple(self.idxs[2:])], -1, 0))
+            else:
+                tensors.append(np.moveaxis(tensor, -1, 0))
+
+        tensors = np.stack(tensors, axis=0)
         return tensors
 
 
@@ -270,6 +306,7 @@ class DeeplakeQueryTensorWithIntIndices(DeepLakeQueryTensor):
             *args,
             **kwargs,
         )
+        # TO DO: optimize this, we shouldn't be loading indra tensor here.
         self.idx = self.index.values
         idx_value = self.idx[0].value
         self.tensors_list = self.indra_tensors[idx_value]
@@ -287,6 +324,7 @@ class DeeplakeQueryTensorWithIntIndices(DeepLakeQueryTensor):
 
     @property
     def shape(self):
+        # TO DO: optimize this
         shapes = {self._append_first_dim(arr) for arr in self.tensors_list}
         shape = list(shapes)[0]
         if len(shapes) > 1:
@@ -336,7 +374,7 @@ class DeeplakeQueryTensorWithListIndices(DeepLakeQueryTensor):
 
 
 INDEX_TO_CLASS = {
-    int: DeeplakeQueryTensorWithIntIndices,
+    int: DeeplakeQueryTensorWithSliceIndices,
     slice: DeeplakeQueryTensorWithSliceIndices,
     list: DeeplakeQueryTensorWithListIndices,
     tuple: DeeplakeQueryTensorWithListIndices,
