@@ -4152,40 +4152,9 @@ class DeepLakeQueryDataset(Dataset):
         Raises:
             ImportError: of indra is not installed
         """
-        if not _INDRA_INSTALLED:
-            raise ImportError(
-                "INDRA is not installed. Please install it with `pip install indra`."
-            )
-
-        if collate_fn is None:
-            collate_fn = default_collate
-
-        indra_ds = self.indra_ds
-        if self.index.values[0].value != slice(None, None, None):
-            idx = self.index.values[0].value
-            indra_ds = self.indra_ds[idx]
-
-        dataloader = Loader(
-            indra_ds,
-            batch_size=batch_size,
-            shuffle=shuffle,
-            drop_last=drop_last,
-            return_index=return_index,
-            transform_fn=transform,
-            num_workers=num_workers,
-            num_threads=num_threads,
-            collate_fn=collate_fn,
-            distributed=distributed,
-            tensors=tensors,
-            raw_tensors=raw_tensors,
-            compressed_tensors=compressed_tensors,
-            prefetch_factor=prefetch_factor,
-            upcast=upcast,
-            primary_tensor=primary_tensor,
-            buffer_size=buffer_size,
-            persistent_workers=persistent_workers,
+        raise Exception(
+            "OSS dataloader is not supported for groub quieries. Use `view.dataloader().pytorch` instead."
         )
-        return dataloader
 
     def __getitem__(
         self,
