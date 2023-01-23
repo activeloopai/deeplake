@@ -565,15 +565,23 @@ class DeepLakeDataLoader(DataLoader):
             buffer_size = self._buffer_size
 
             tensors = self._tensors or map_tensor_keys(self._orig_dataset, None)
-            dataset = dataset_to_libdeeplake(self._orig_dataset)
+
+            if not hasattr(self, "_indra_dataset"):
+                indra_dataset = dataset_to_libdeeplake(self._orig_dataset)
+            else:
+                indra_dataset = self._indra_dataset
 
             jpeg_png_compressed_tensors = check_tensors(self._orig_dataset, tensors)
             raw_tensors, compressed_tensors = validate_decode_method(
                 self._decode_method, tensors, jpeg_png_compressed_tensors
             )
             raw_tensors.extend(compressed_tensors)
+
+            if hasattr(self, "_indra_dataset"):
+                tensors = None
+
             self._dataloader = INDRA_LOADER(
-                dataset,
+                indra_dataset,
                 batch_size=self._batch_size,
                 num_threads=self._num_threads,
                 shuffle=self._shuffle,

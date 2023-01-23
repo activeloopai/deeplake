@@ -134,9 +134,14 @@ from deeplake.core.dataset.view_entry import ViewEntry
 from deeplake.core.dataset.invalid_view import InvalidView
 from deeplake.core.dataset.deeplake_query_view import NonlinearQueryView
 from deeplake.hooks import dataset_read
+
+# from deeplake.enterprise.util import (
+#     handle_mode,
+# )
 from itertools import chain
 import warnings
 import jwt
+import types
 
 try:
     from indra.pytorch.loader import Loader
@@ -4228,3 +4233,73 @@ class DeepLakeQueryDataset(Dataset):
             idx = self.index.values[0].value
             indra_dataset = self.indra_ds[idx]
         return len(indra_dataset)
+
+    @deeplake_reporter.record_call
+    def dataloader(self):
+        """Returns a :class:`~deeplake.enterprise.DeepLakeDataLoader` object. To use this, install deeplake with ``pip install deeplake[enterprise]``.
+
+        Returns:
+            ~deeplake.enterprise.DeepLakeDataLoader: A :class:`deeplake.enterprise.DeepLakeDataLoader` object.
+        
+        Examples:
+
+            Creating a simple dataloader object which returns a batch of numpy arrays
+
+            >>> import deeplake
+            >>> ds_train = deeplake.load('hub://activeloop/fashion-mnist-train')
+            >>> train_loader = ds_train.dataloader().numpy()
+            >>> for i, data in enumerate(train_loader):
+            ...     # custom logic on data
+            ...     pass
+
+
+            Creating dataloader with custom transformation and batch size
+
+            >>> import deeplake
+            >>> import torch
+            >>> from torchvision import datasets, transforms, models
+            >>> 
+            >>> ds_train = deeplake.load('hub://activeloop/fashion-mnist-train')
+            >>> tform = transforms.Compose([
+            ...     transforms.ToPILImage(), # Must convert to PIL image for subsequent operations to run
+            ...     transforms.RandomRotation(20), # Image augmentation
+            ...     transforms.ToTensor(), # Must convert to pytorch tensor for subsequent operations to run
+            ...     transforms.Normalize([0.5], [0.5]),
+            ... ])
+            ...
+            >>> batch_size = 32
+            >>> # create dataloader by chaining with transform function and batch size and returns batch of pytorch tensors
+            >>> train_loader = ds_train.dataloader()\\
+            ...     .transform({'images': tform, 'labels': None})\\
+            ...     .batch(batch_size)\\
+            ...     .shuffle()\\
+            ...     .pytorch()
+            ...
+            >>> # loop over the elements
+            >>> for i, data in enumerate(train_loader):
+            ...     # custom logic on data
+            ...     pass
+
+            Creating dataloader and chaining with query
+
+            >>> ds = deeplake.load('hub://activeloop/coco-train')
+            >>> train_loader = ds_train.dataloader()\\
+            ...     .query("(select * where contains(categories, 'car') limit 1000) union (select * where contains(categories, 'motorcycle') limit 1000)")\\
+            ...     .pytorch()
+            ...
+            >>> # loop over the elements
+            >>> for i, data in enumerate(train_loader):
+            ...     # custom logic on data
+            ...     pass
+
+        **Restrictions**
+
+        The new high performance C++ dataloader is part of our Growth and Enterprise Plan .
+
+        - Users of our Community plan can create dataloaders on Activeloop datasets ("hub://activeloop/..." datasets).
+        - To run queries on your own datasets, `upgrade your organization's plan <https://www.activeloop.ai/pricing/>`_.
+        """
+        from deeplake.enterprise import DeepLakeDataLoader
+
+        dataloader = DeepLakeDataLoader(self, _indra_dataset=self.indra_ds)
+        return dataloader
