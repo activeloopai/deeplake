@@ -2,13 +2,10 @@ from typing import List, Any, Sequence
 from random import randrange
 from functools import reduce
 from operator import mul
-import warnings
 import numpy as np
 
-try:
-    from torch import Tensor as TorchTensor
-except ImportError:
-    TorchTensor = None  # type: ignore
+import warnings
+import sys
 
 from PIL import Image  # type: ignore
 from io import BytesIO
@@ -100,7 +97,18 @@ class ShuffleBuffer:
 
     def _sample_size(self, sample):
         try:
-            from tensorflow import Tensor as TensorflowTensor
+            if sys.modules.get("torch"):
+                from torch import Tensor as TorchTensor
+            else:
+                TorchTensor = None
+        except ImportError:
+            TorchTensor = None  # type: ignore
+
+        try:
+            if sys.modules.get("tensorflow"):
+                from tensorflow import Tensor as TensorflowTensor
+            else:
+                TensorflowTensor = None
         except ImportError:
             TensorflowTensor = None  # type: ignore
 
