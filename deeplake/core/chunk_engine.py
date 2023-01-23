@@ -740,6 +740,10 @@ class ChunkEngine:
                 lengths = np.zeros(len(samples), dtype=np.uint32)
                 for i, s in enumerate(samples):
                     try:
+                        s = s.numpy()
+                    except AttributeError:
+                        pass
+                    try:
                         if s.dtype.name[:3] == "str":
                             lengths[i] = len(str(s.reshape(())))
                     except AttributeError:
