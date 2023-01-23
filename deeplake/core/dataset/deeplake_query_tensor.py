@@ -196,6 +196,10 @@ class DeeplakeQueryTensorWithSliceIndices(DeepLakeQueryTensor):
         self.idxs = self.index.values
 
     @property
+    def max_shape(self):
+        pass
+
+    @property
     def shape(self):
         shape = ()
 
@@ -267,26 +271,43 @@ class DeeplakeQueryTensorWithIntIndices(DeepLakeQueryTensor):
             **kwargs,
         )
         self.idx = self.index.values
+        idx_value = self.idx[0].value
+        self.tensors_list = self.indra_tensors[idx_value]
+
+    @staticmethod
+    def _compare_shapes(final_shape, shapes):
+        for i, dim in enumerate(shapes):
+            if final_shape[i + 1] != dim:
+                final_shape[i + 1] = None
+        return final_shape
+
+    def _append_first_dim(self, arr):
+        arr = [len(self.tensors_list)] + list(arr.shape)
+        return tuple(arr)
 
     @property
     def shape(self):
-        if len(self.index.values) == 1:
-            first_dim = len(self.index.values)
-            self.set_first_dim(first_dim)
-            shape = self.callect_final_shape()
-            return shape
+        shapes = {self._append_first_dim(arr) for arr in self.tensors_list}
+        shape = list(shapes)[0]
+        if len(shapes) > 1:
+            shape_list = [len(self.tensors_list)] + list(shapes[0])
+            for shape in shapes:
+                if shape != shape_list[1:]:
+                    shape_list = self._compare_shapes(shape_list, shape)
+            shape = shape_list
+        return tuple(shape)
 
-    def numpy_aslist(self, aslist):
-        idx_value = self.idx[0].value
-        tensors_list = self.indra_tensors[idx_value]
-
+    def numpy(self, aslist=False):
         if len(self.idx) > 1:
-            tensors_list = [self.indra_tensors[idx.value] for idx in self.idx]
+            self.tensors_list = [self.indra_tensors[idx.value] for idx in self.idx]
 
-        if self.min_shape != self.max_shape and self.aslist == False:
-            raise DynamicTensorNumpyError(self.key, self.index, "shape")
+        if aslist == False:
+            try:
+                self.tensors_list = np.stack(self.tensors_list, axis=0)
+            except:
+                raise DynamicTensorNumpyError(self.key, self.index, "shape")
 
-        return tensors_list
+        return self.tensors_list
 
 
 class DeeplakeQueryTensorWithListIndices(DeepLakeQueryTensor):
@@ -315,7 +336,7 @@ class DeeplakeQueryTensorWithListIndices(DeepLakeQueryTensor):
 
 
 INDEX_TO_CLASS = {
-    int: DeeplakeQueryTensorWithSliceIndices,
+    int: DeeplakeQueryTensorWithIntIndices,
     slice: DeeplakeQueryTensorWithSliceIndices,
     list: DeeplakeQueryTensorWithListIndices,
     tuple: DeeplakeQueryTensorWithListIndices,
