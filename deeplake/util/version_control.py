@@ -103,7 +103,7 @@ def integrity_check(dataset):
             n2 = engine.chunk_id_encoder.num_samples
             if n1 != n2:
                 raise ValueError(
-                    f"Tensor meta and chunk id encoder have different number of samples for tensor {k}."
+                    f"Tensor meta and chunk id encoder have different number of samples ({n1} and {n2} respectively) for tensor {k}."
                 )
             num_sequences = getattr(engine.sequence_encoder, "num_samples", None)
             for l, info in t.meta.links.items():
@@ -121,7 +121,7 @@ def integrity_check(dataset):
 
             engine.creds_encoder
     except Exception as e:
-        raise DatasetCorruptError() from e
+        raise DatasetCorruptError(e)
 
 
 def commit(dataset, message: Optional[str] = None, hash: Optional[str] = None) -> None:
