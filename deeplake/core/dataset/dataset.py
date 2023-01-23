@@ -1033,7 +1033,14 @@ class Dataset:
         del meta["name"]
         del meta["links"]
 
-        destination_tensor = self.create_tensor(name, verbose=False, **meta)
+        destination_tensor = self.create_tensor(
+            name,
+            verbose=False,
+            create_id_tensor=bool(source._sample_id_tensor),
+            create_shape_tensor=bool(source._sample_shape_tensor),
+            create_sample_info_tensor=bool(source._sample_info_tensor),
+            **meta,
+        )
         destination_tensor.info.update(info)
         return destination_tensor
 
