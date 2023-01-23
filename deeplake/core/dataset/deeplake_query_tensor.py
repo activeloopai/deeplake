@@ -90,7 +90,7 @@ class DeepLakeQueryTensor(tensor.Tensor):
         if idx:
             tensors_list = self.indra_tensors[idx]
 
-        if self.min_shape != self.max_shape and self.aslist == False:
+        if self.min_shape != self.max_shape and aslist == False:
             raise DynamicTensorNumpyError(self.key, self.index, "shape")
 
         return tensors_list
@@ -203,10 +203,7 @@ class DeeplakeQueryTensorWithSliceIndices(DeepLakeQueryTensor):
 
     @staticmethod
     def _find_first_dim(tensors_list):
-        first_dim = len(tensors_list[0])
-        for tensor in tensors_list:
-            if first_dim != len(tensor):
-                first_dim = None
+        first_dim = len(tensors_list)
         return first_dim
 
     @property
