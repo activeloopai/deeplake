@@ -147,7 +147,6 @@ def commit(dataset, message: Optional[str] = None, hash: Optional[str] = None) -
         "commit_id"
     ]
     version_state["commit_node_map"][version_state["commit_id"]] = new_node
-    save_version_info(version_state, storage)
     copy_metas(stored_commit_id, version_state["commit_id"], storage, version_state)
     create_commit_chunk_sets(version_state["commit_id"], storage, version_state)
     discard_old_metas(stored_commit_id, storage, version_state["full_tensors"])
@@ -156,6 +155,7 @@ def commit(dataset, message: Optional[str] = None, hash: Optional[str] = None) -
     commit_time = stored_commit_node.commit_time
     commit_message = stored_commit_node.commit_message
     author = stored_commit_node.commit_user_name
+    save_version_info(version_state, storage)
     dataset._send_commit_event(
         commit_message=commit_message, commit_time=commit_time, author=author
     )
