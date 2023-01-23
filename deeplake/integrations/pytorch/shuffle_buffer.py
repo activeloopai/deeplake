@@ -10,11 +10,6 @@ try:
 except ImportError:
     TorchTensor = None  # type: ignore
 
-try:
-    from tensorflow import Tensor as TensorflowTensor
-except ImportError:
-    TensorflowTensor = None  # type: ignore
-
 from PIL import Image  # type: ignore
 from io import BytesIO
 from tqdm import tqdm  # type: ignore
@@ -104,6 +99,11 @@ class ShuffleBuffer:
         return len(self.buffer) == 0
 
     def _sample_size(self, sample):
+        try:
+            from tensorflow import Tensor as TensorflowTensor
+        except ImportError:
+            TensorflowTensor = None  # type: ignore
+
         if isinstance(sample, (int, float)):
             return 8
         elif isinstance(sample, bool):
