@@ -47,6 +47,10 @@ deeplake.api.dataset
 
         See :func:`deeplake.ingest_coco`.
     
+    .. staticmethod:: def ingest_yolo(data_directory: Union[str, pathlib.Path], dest: Union[str, pathlib.Path], class_names_file: Optional[Union[str, pathlib.Path]] = None, annotations_directory: Optional[Union[str, pathlib.Path]] = None, allow_no_annotation: bool = False, image_params: Optional[Dict] = None, label_params: Optional[Dict] = None, coordinates_params: Optional[Dict] = None, src_creds: Optional[Dict] = None, dest_creds: Optional[Dict] = None, image_creds_key: Optional[str] = None, inspect_limit: int = 1000, progressbar: bool = True, num_workers: int = 0, token: Optional[str] = None, connect_kwargs: Optional[Dict] = None, **dataset_kwargs) -> Dataset:
+    
+        See :func:`deeplake.ingest_yolo`
+        
     .. staticmethod:: ingest_kaggle(tag: str, src: Union[str, pathlib.Path], dest: Union[str, pathlib.Path], exist_ok: bool = False, images_compression: str = "auto", dest_creds: dict = None, kaggle_credentials: dict = None, progressbar: bool = True, summary: bool = True, **dataset_kwargs) -> Dataset
 
         See :func:`deeplake.ingest_kaggle`.

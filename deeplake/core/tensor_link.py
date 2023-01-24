@@ -21,6 +21,7 @@ optional_kwargs = {
     "htype",
     "link_creds",
     "progressbar",
+    "tensor_meta",
 }
 
 
@@ -99,25 +100,33 @@ def update_info(
 
 
 @link
-def update_shape(new_sample, link_creds=None):
+def update_shape(new_sample, link_creds=None, tensor_meta=None):
     if isinstance(new_sample, deeplake.core.linked_sample.LinkedSample):
         new_sample = read_linked_sample(
             new_sample.path, new_sample.creds_key, link_creds, verify=False
         )
     if np.isscalar(new_sample):
-        return np.array([1], dtype=np.int64)
-    return np.array(
-        getattr(new_sample, "shape", None) or np.array(new_sample).shape, dtype=np.int64
-    )
+        ret = np.array([1], dtype=np.int64)
+    else:
+        ret = np.array(
+            getattr(new_sample, "shape", None) or np.array(new_sample).shape,
+            dtype=np.int64,
+        )
+    if tensor_meta and tensor_meta.is_link and ret.size and np.prod(ret):
+        tensor_meta.update_shape_interval(ret.tolist())
+    return ret
 
 
 @link
-def extend_shape(samples, link_creds=None):
+def extend_shape(samples, link_creds=None, tensor_meta=None):
     if isinstance(samples, np.ndarray):
         return [np.array(samples.shape[1:])] * len(samples)
     if samples is None:
         return np.array([], dtype=np.int64)
-    shapes = [update_shape.f(sample, link_creds=link_creds) for sample in samples]
+    shapes = [
+        update_shape.f(sample, link_creds=link_creds, tensor_meta=tensor_meta)
+        for sample in samples
+    ]
     mixed_ndim = False
     try:
         if len(set(map(len, shapes))) > 1:
