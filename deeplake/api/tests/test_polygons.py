@@ -69,3 +69,26 @@ def test_polygon_disabled_cache(memory_ds):
         ds.polygons.append(arr2)
     np.testing.assert_array_equal(ds.polygons.numpy()[0], arr1)
     np.testing.assert_array_equal(ds.polygons.numpy()[1], arr2)
+
+
+def test_polygon_mem_leak(memory_ds):
+    arr1 = np.random.randint(0, 10, (3, 3, 2))
+    arr2 = np.random.randint(0, 10, (3, 3, 2))
+    with memory_ds as ds:
+        ds.create_tensor("polygons", htype="polygon")
+        ds.polygons.append(arr1)
+        ds.polygons.numpy()
+        ds.polygons.append(arr2)
+    np.testing.assert_array_equal(ds.polygons.numpy()[0], arr1)
+    np.testing.assert_array_equal(ds.polygons.numpy()[1], arr2)
+
+
+def test_polygon_chunk_compression_bug(memory_ds):
+    arr1 = np.random.randint(0, 10, (3, 3, 2))
+    arr2 = np.random.randint(0, 10, (3, 3, 2))
+    with memory_ds as ds:
+        ds.create_tensor("polygons", htype="polygon", chunk_compression="lz4")
+        ds.polygons.append(arr1)
+        ds.polygons.append(arr2)
+    np.testing.assert_array_equal(ds.polygons.numpy()[0], arr1)
+    np.testing.assert_array_equal(ds.polygons.numpy()[1], arr2)
