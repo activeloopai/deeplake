@@ -1002,14 +1002,18 @@ class Tensor:
     def _sample_info_tensor(self):
         ds = self.dataset
         return ds.version_state["full_tensors"].get(
-            ds.version_state["tensor_names"].get(get_sample_info_tensor_key(self.meta.name))
+            ds.version_state["tensor_names"].get(
+                get_sample_info_tensor_key(self.meta.name)
+            )
         )
 
     @property
     def _sample_shape_tensor(self):
         ds = self.dataset
         return ds.version_state["full_tensors"].get(
-            ds.version_state["tensor_names"].get(get_sample_shape_tensor_key(self.meta.name))
+            ds.version_state["tensor_names"].get(
+                get_sample_shape_tensor_key(self.meta.name)
+            )
         )
 
     @property
