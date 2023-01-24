@@ -1480,8 +1480,19 @@ class ChunkEngine:
         buffer = chunk.memoryview_data
         if not buffer:
             return b""
-        local_sample_index = enc.translate_index_relative_to_chunks(global_sample_index)
-        sb, eb = chunk.byte_positions_encoder[local_sample_index]
+        if self.is_sequence:
+            start_idx, end_idx = self.sequence_encoder[global_sample_index]
+            end_idx -= 1
+            start_idx, end_idx = map(
+                enc.translate_index_relative_to_chunks, (start_idx, end_idx)
+            )
+            sb = chunk.byte_positions_encoder[start_idx][0]
+            eb = chunk.byte_positions_encoder[end_idx][1]
+        else:
+            local_sample_index = enc.translate_index_relative_to_chunks(
+                global_sample_index
+            )
+            sb, eb = chunk.byte_positions_encoder[local_sample_index]
         return buffer[sb:eb].tobytes()
 
     def read_shape_for_sample(
