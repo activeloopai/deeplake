@@ -9,13 +9,15 @@ from deeplake.constants import FIRST_COMMIT_ID
 from deeplake.core.fast_forwarding import ffw_dataset_meta
 from deeplake.core.meta.dataset_meta import DatasetMeta
 from deeplake.core.storage.deeplake_memory_object import DeepLakeMemoryObject
+from deeplake.core.storage.lru_cache import LRUCache
+from deeplake.core.storage.memory import MemoryProvider
 from deeplake.core.version_control.commit_diff import CommitDiff
 from deeplake.core.version_control.dataset_diff import DatasetDiff
 from deeplake.core.version_control.commit_node import CommitNode  # type: ignore
 from deeplake.core.version_control.commit_chunk_set import CommitChunkSet  # type: ignore
 from deeplake.core.storage import LRUCache
 from deeplake.core.lock import Lock
-from deeplake.util.exceptions import CheckoutError, CommitError
+from deeplake.util.exceptions import CheckoutError, CommitError, DatasetCorruptError
 from deeplake.util.keys import (
     get_chunk_id_encoder_key,
     get_creds_encoder_key,
@@ -91,11 +93,43 @@ def generate_hash() -> str:
     return hsh.hexdigest()
 
 
+def integrity_check(dataset):
+    try:
+        rev_tensor_names = {v: k for k, v in dataset.meta.tensor_names.items()}
+        for k in dataset.meta.tensor_names:
+            t = dataset[k]
+            n1 = t.meta.length
+            engine = t.chunk_engine
+            n2 = engine.chunk_id_encoder.num_samples
+            if n1 != n2:
+                raise ValueError(
+                    f"Tensor meta and chunk id encoder have different number of samples ({n1} and {n2} respectively) for tensor {k}."
+                )
+            num_sequences = getattr(engine.sequence_encoder, "num_samples", None)
+            for l, info in t.meta.links.items():
+                l = rev_tensor_names[l]
+                if num_sequences is not None and not info["flatten_sequence"]:
+                    n2 = num_sequences
+                else:
+                    n2 = n1
+                n3 = dataset[l].meta.length
+                if n2 != n3:
+                    raise ValueError(
+                        f"Tensor {k} and its linked tensor {l} have different number of samples ({n2} and {n3} respectively)."
+                    )
+            engine.tile_encoder
+
+            engine.creds_encoder
+    except Exception as e:
+        raise DatasetCorruptError(e)
+
+
 def commit(dataset, message: Optional[str] = None, hash: Optional[str] = None) -> None:
     """Modifies the version state to reflect the commit and also copies required data to the new commit directory."""
     storage = dataset.storage
     version_state = dataset.version_state
     storage.check_readonly()
+    integrity_check(dataset)
     # if not the head node, checkout to an auto branch that is newly created
     auto_checkout(dataset)
     stored_commit_node: CommitNode = version_state["commit_node"]
@@ -113,7 +147,6 @@ def commit(dataset, message: Optional[str] = None, hash: Optional[str] = None) -
         "commit_id"
     ]
     version_state["commit_node_map"][version_state["commit_id"]] = new_node
-    save_version_info(version_state, storage)
     copy_metas(stored_commit_id, version_state["commit_id"], storage, version_state)
     create_commit_chunk_sets(version_state["commit_id"], storage, version_state)
     discard_old_metas(stored_commit_id, storage, version_state["full_tensors"])
@@ -122,6 +155,7 @@ def commit(dataset, message: Optional[str] = None, hash: Optional[str] = None) -
     commit_time = stored_commit_node.commit_time
     commit_message = stored_commit_node.commit_message
     author = stored_commit_node.commit_user_name
+    save_version_info(version_state, storage)
     dataset._send_commit_event(
         commit_message=commit_message, commit_time=commit_time, author=author
     )
