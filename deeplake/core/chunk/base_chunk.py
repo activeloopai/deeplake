@@ -586,6 +586,10 @@ class BaseChunk(DeepLakeMemoryObject):
 
     def _text_sample_to_byte_string(self, sample):
         try:
+            return str(sample.numpy().reshape(())).encode("utf-8")
+        except AttributeError:
+            pass
+        try:
             return sample.encode("utf-8")
         except AttributeError:
             try:
