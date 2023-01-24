@@ -121,7 +121,19 @@ class TransformTensor:
             shape = getattr(item, "shape", None)
             if shape is None:
                 try:
-                    if len(set(map(len, item))) != 1:
+                    if (
+                        len(
+                            set(
+                                map(
+                                    lambda x: x.__len__()
+                                    if hasattr(x, "__len__")
+                                    else None,
+                                    item,
+                                )
+                            )
+                        )
+                        != 1
+                    ):
                         item = np.asarray(item, dtype=object)
                     else:
                         item = np.asarray(item)
