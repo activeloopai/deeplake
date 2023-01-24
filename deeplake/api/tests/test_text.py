@@ -62,6 +62,18 @@ def test_extend_with_numpy(memory_ds, args):
     ds2 = deeplake.empty("mem://")
     with ds2:
         ds2.create_tensor("x", htype="text", **args)
-        print(ds.x.numpy())
         ds2.x.extend(ds.x.numpy(aslist=True))
     np.testing.assert_array_equal(ds.x.numpy(), ds2.x.numpy())
+
+
+@pytest.mark.parametrize(
+    "args", [{}, {"sample_compression": "lz4"}, {"chunk_compression": "lz4"}]
+)
+def test_text_rechunk(memory_ds, args):
+    ds = memory_ds
+    with ds:
+        ds.create_tensor("x", htype="text", max_chunk_size=16, **args)
+        ds.x.extend(["abcd"] * 100)
+        assert len(ds.x.chunk_engine.chunk_id_encoder.array) > 2
+        ds.rechunk()
+    assert ds.x.numpy().reshape(-1).tolist() == ["abcd"] * 100
