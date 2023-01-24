@@ -1,13 +1,23 @@
 import sys
-import deeplake as dp
 import os
-import pytest
 import pickle
-import numpy as np
 import pathlib
+
+import pytest
+import numpy as np
+
+import deeplake as dp
+from deeplake.client.client import DeepLakeBackendClient
 
 
 _THIS_FILE = pathlib.Path(__file__).parent.absolute()
+_COCO_PATH = "hub://activeloop/coco-train"
+_BALLOON_PATH = "hub://adilkhan/balloon-train"
+_MMDET_KEYS = ["img", "gt_bboxes", "gt_labels", "gt_masks"]
+_COCO_KEYS = ["images", "boxes", "categories", "masks"]
+_BALLOON_KEYS = ["images", "bounding_boxes", "labels", "segmentation_polygons"]
+_OBJECT_DETECTION = ["yolo"]
+_INSTANCE_SEGMENTATION = ["mask_rcnn"]
 
 
 def get_path(path):
@@ -218,74 +228,69 @@ def test_coco_to_coco_format():
     np.testing.assert_array_equal(bbox_coco[0], targ_bbox)
 
 
-def get_test_config(mmdet_path):
+DATASET_PATH_TO_TENSOR_KEYS = {
+    _COCO_PATH: _COCO_KEYS,
+    _BALLOON_PATH: _BALLOON_KEYS,
+}
+
+
+def get_deeplake_tensors(dataset_path, model):
+    if dataset_path not in DATASET_PATH_TO_TENSOR_KEYS:
+        raise ValueError(f"{dataset_path} is not in DATASET_PATH_TO_TENSOR_KEYS")
+
+    tensor_keys = DATASET_PATH_TO_TENSOR_KEYS[dataset_path]
+    tensors_dict = {}
+
+    for mmdet_key, tensor_key in zip(_MMDET_KEYS, tensor_keys):
+        if model in _OBJECT_DETECTION and mmdet_key == "gt_masks":
+            continue
+        tensors_dict[mmdet_key] = tensor_key
+    return tensors_dict
+
+
+def get_test_config(
+    mmdet_path,
+    model_name,
+    dataset_path,
+):
     from mmcv import Config
+
+    deeplake_tensors = get_deeplake_tensors(dataset_path, model_name)
+
+    if model_name == "mask_rcnn":
+        model_path = os.path.join(
+            "mask_rcnn",
+            "mask_rcnn_r50_caffe_fpn_mstrain-poly_3x_coco.py",
+        )
+
+    elif model_name == "yolo":
+        model_path = os.path.join(
+            "yolo",
+            "yolov3_d53_mstrain-608_273e_coco.py",
+        )
 
     cfg = Config.fromfile(
         os.path.join(
             mmdet_path,
             "configs",
-            "mask_rcnn",
-            "mask_rcnn_r50_caffe_fpn_mstrain-poly_3x_coco.py",
+            model_path,
         )
     )
-    img_norm_cfg = dict(mean=[0, 0, 0], std=[255.0, 255.0, 255.0], to_rgb=True)
-    cfg.img_norm_cfg = img_norm_cfg
-    train_pipeline = [
-        dict(type="LoadImageFromFile"),
-        dict(type="LoadAnnotations", with_bbox=True),
-        dict(
-            type="Expand",
-            mean=img_norm_cfg["mean"],
-            to_rgb=img_norm_cfg["to_rgb"],
-            ratio_range=(1, 2),
-        ),
-        dict(
-            type="MinIoURandomCrop",
-            min_ious=(0.4, 0.5, 0.6, 0.7, 0.8, 0.9),
-            min_crop_size=0.3,
-        ),
-        dict(type="Resize", img_scale=[(320, 320), (416, 416)], keep_ratio=True),
-        dict(type="RandomFlip", flip_ratio=0.0),
-        dict(type="RandomCrop", crop_size=(240, 240), allow_negative_crop=True),
-        dict(type="PhotoMetricDistortion"),
-        dict(type="Normalize", **img_norm_cfg),
-        dict(type="Pad", size_divisor=32),
-        dict(type="DefaultFormatBundle"),
-        dict(type="Collect", keys=["img", "gt_bboxes", "gt_labels", "gt_masks"]),
-    ]
-    cfg.train_pipeline = train_pipeline
-
-    test_pipeline = [
-        dict(type="LoadImageFromFile"),
-        dict(
-            type="MultiScaleFlipAug",
-            img_scale=(416, 416),
-            flip=False,
-            transforms=[
-                dict(type="Resize", keep_ratio=True),
-                dict(type="RandomFlip", flip_ratio=0.0),
-                dict(type="Normalize", **img_norm_cfg),
-                dict(type="Pad", size_divisor=32),
-                dict(type="ImageToTensor", keys=["img"]),
-                dict(type="Collect", keys=["img"]),
-            ],
-        ),
-    ]
-    cfg.test_pipeline = test_pipeline
 
     cfg.data = dict(
         train_dataloader={"shuffle": False},
-        samples_per_gpu=4,
-        workers_per_gpu=2,
+        samples_per_gpu=1,
+        workers_per_gpu=0,
         train=dict(
-            pipeline=train_pipeline,
+            pipeline=cfg.train_pipeline,
+            deeplake_tensors=deeplake_tensors,
         ),
         val=dict(
-            pipeline=test_pipeline,
+            pipeline=cfg.test_pipeline,
+            deeplake_tensors=deeplake_tensors,
         ),
         test=dict(
-            pipeline=test_pipeline,
+            pipeline=cfg.test_pipeline,
         ),
     )
     cfg.deeplake_dataloader_type = "python"
@@ -304,14 +309,55 @@ def get_test_config(mmdet_path):
     sys.platform != "linux" or sys.version_info < (3, 7),
     reason="MMDet is installed on CI only for linux and python version >= 3.7.",
 )
-def test_mmdet(mmdet_path):
+@pytest.mark.parametrize(
+    "model_name",
+    [
+        "mask_rcnn",
+        "yolo",
+    ],
+)
+@pytest.mark.parametrize(
+    "dataset_path",
+    [
+        "hub://activeloop/coco-train",
+        "hub://adilkhan/balloon-train",
+    ],
+)
+@pytest.mark.parametrize(
+    "tensors_specified",
+    [
+        "True",
+        "False",
+    ],
+)
+def test_mmdet(mmdet_path, model_name, dataset_path, tensors_specified):
     import mmcv
     from deeplake.integrations import mmdet
 
-    cfg = get_test_config(mmdet_path)
-    num_classes = 80
-    ds_train = dp.load("hub://activeloop/coco-train")[:4]
-    ds_val = dp.load("hub://activeloop/coco-val")[:4]
+    deeplake_tensors = None
+    if tensors_specified:
+        deeplake_tensors = get_deeplake_tensors(dataset_path, model_name)
+    cfg = get_test_config(mmdet_path, model_name=model_name, dataset_path=dataset_path)
+    cfg = process_cfg(cfg, model_name, dataset_path)
+    ds_train = dp.load(dataset_path)[:1]
+    ds_val = dp.load(dataset_path)[:1]
     model = mmdet.build_detector(cfg.model)
     mmcv.mkdir_or_exist(os.path.abspath(cfg.work_dir))
-    mmdet.train_detector(model, cfg, ds_train=ds_train, ds_val=ds_val)
+    mmdet.train_detector(
+        model,
+        cfg,
+        ds_train=ds_train,
+        ds_train_tensors=deeplake_tensors,
+        ds_val=ds_val,
+        ds_val_tensors=deeplake_tensors,
+    )
+
+
+def process_cfg(cfg, model_name, dataset_path):
+    if dataset_path == _BALLOON_PATH:
+        if model_name in _INSTANCE_SEGMENTATION:
+            cfg.model.roi_head.bbox_head.num_classes = 1
+            cfg.model.roi_head.mask_head.num_classes = 1
+        elif model_name in _OBJECT_DETECTION:
+            cfg.model.bbox_head.num_classes = 1
+    return cfg

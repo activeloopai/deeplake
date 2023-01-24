@@ -20,8 +20,9 @@ class LinkedSample:
         self.path = path
         self.creds_key = convert_creds_key(creds_key, path)
 
+    @property
     def dtype(self) -> str:
-        return np.array("").dtype.name
+        return np.array("").dtype.str
 
 
 def read_linked_sample(

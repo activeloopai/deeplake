@@ -10,11 +10,9 @@ class TensorStructure:
         self,
         name: str,
         params: Optional[Dict] = None,
-        primary: bool = False,
     ) -> None:
         self.name = name
         self.params = params if params is not None else dict()
-        self.primary = primary
 
     def create(self, ds: Dataset):
         ds.create_tensor(self.name, **self.params)
@@ -42,6 +40,14 @@ class GroupStructure:
     @property
     def tensors(self):
         return [t for t in self.items if isinstance(t, TensorStructure)]
+
+    @property
+    def all_keys(self):
+        keys = set([f"{self.name}/{t.name}" for t in self.tensors])
+        for g in self.groups:
+            keys.update([f"{self.name}/{k}" for k in g.all_keys])
+
+        return keys
 
     def add_item(self, item: Union[TensorStructure, "GroupStructure"]):
         self.items.append(item)
@@ -101,6 +107,20 @@ class DatasetStructure:
     @property
     def tensors(self):
         return [t for t in self.structure if isinstance(t, TensorStructure)]
+
+    @property
+    def all_keys(self):
+        keys = set([t.name for t in self.tensors])
+        groups = self.groups
+
+        if self.ignore_one_group and len(groups) == 1:
+            keys.update([t.name for t in groups[0].tensors])
+            return keys
+
+        for group in groups:
+            keys.update(group.all_keys)
+
+        return keys
 
     def create_full(self, ds: Dataset):
         first_level_tensors = self.tensors

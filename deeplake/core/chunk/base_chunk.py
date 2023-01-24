@@ -79,7 +79,11 @@ class BaseChunk(DeepLakeMemoryObject):
         self.tiling_threshold = tiling_threshold
 
         self.tensor_meta = tensor_meta
-        self.num_dims = len(tensor_meta.max_shape) if tensor_meta.max_shape else None
+        self.num_dims = (
+            1
+            if tensor_meta.is_link
+            else (len(tensor_meta.max_shape) if tensor_meta.max_shape else None)
+        )
         self.is_text_like = (
             self.htype in {"json", "list", "text"} or self.tensor_meta.is_link
         )
@@ -463,7 +467,7 @@ class BaseChunk(DeepLakeMemoryObject):
     def update_tensor_meta(self, shape, num_samples):
         if self._update_tensor_meta_length:
             self.tensor_meta.update_length(num_samples)
-        if shape is not None:
+        if shape is not None and not self.tensor_meta.is_link:
             self.tensor_meta.update_shape_interval(shape)
 
     def update_in_meta_and_headers(
@@ -477,11 +481,14 @@ class BaseChunk(DeepLakeMemoryObject):
                 num_samples = self.byte_positions_encoder.num_samples
                 self._fill_empty_shapes(shape, num_samples)
             self.shapes_encoder[local_index] = shape
-            self.tensor_meta.update_shape_interval(shape)
+            if not self.tensor_meta.is_link:
+                self.tensor_meta.update_shape_interval(shape)
 
     def check_shape_for_update(self, shape):
         """Checks if the shape being assigned at the new index is valid."""
         if shape is None:
+            return
+        if self.tensor_meta.is_link:
             return
         max_shape = self.tensor_meta.max_shape
         if max_shape:
@@ -573,7 +580,9 @@ class BaseChunk(DeepLakeMemoryObject):
 
     @property
     def is_empty_tensor(self):
-        return len(self.tensor_meta.max_shape) == 0 and len(self.data_bytes) == 0
+        return len(self.tensor_meta.max_shape) == 0 and (
+            not isinstance(self.data_bytes, PartialReader) and len(self.data_bytes) == 0
+        )
 
     def _text_sample_to_byte_string(self, sample):
         try:
