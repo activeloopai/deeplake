@@ -387,10 +387,8 @@ class Tensor:
         self.chunk_engine.clear()
         sample_id_key = get_sample_id_tensor_key(self.key)
         try:
-            sample_id_tensor = Tensor(sample_id_key, self.dataset)
-            sample_id_tensor.chunk_engine.clear()
-            self.meta.links.clear()
-            self.meta.is_dirty = True
+            for t in self._all_tensor_links():
+                t.chunk_engine.clear()
         except TensorDoesNotExistError:
             pass
         self.invalidate_libdeeplake_dataset()
@@ -1008,23 +1006,34 @@ class Tensor:
         #     func = get_link_transform("update_shape")
         #     func(new_sample, link_creds=self.link_creds, tensor_meta=self.meta)
 
+    def _all_tensor_links(self):
+        ds = self.dataset
+        return [
+            ds.version_state["full_tensors"][ds.version_state["tensor_names"][l]]
+            for l in self.meta.links
+        ]
+
     @property
     def _sample_info_tensor(self):
         ds = self.dataset
         return ds.version_state["full_tensors"].get(
-            ds.version_state["tensor_names"].get(get_sample_info_tensor_key(self.key))
+            ds.version_state["tensor_names"].get(
+                get_sample_info_tensor_key(self.meta.name)
+            )
         )
 
     @property
     def _sample_shape_tensor(self):
         ds = self.dataset
         return ds.version_state["full_tensors"].get(
-            ds.version_state["tensor_names"].get(get_sample_shape_tensor_key(self.key))
+            ds.version_state["tensor_names"].get(
+                get_sample_shape_tensor_key(self.meta.name)
+            )
         )
 
     @property
     def _sample_id_tensor(self):
-        return self.dataset._tensors().get(get_sample_id_tensor_key(self.key))
+        return self.dataset._tensors().get(get_sample_id_tensor_key(self.meta.name))
 
     def _sample_shape_provider(self, sample_shape_tensor) -> Callable:
         if self.is_sequence:

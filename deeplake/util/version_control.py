@@ -103,12 +103,12 @@ def integrity_check(dataset):
             n2 = engine.chunk_id_encoder.num_samples
             if n1 != n2:
                 raise ValueError(
-                    f"Tensor meta and chunk id encoder have different number of samples for tensor {k}."
+                    f"Tensor meta and chunk id encoder have different number of samples ({n1} and {n2} respectively) for tensor {k}."
                 )
             num_sequences = getattr(engine.sequence_encoder, "num_samples", None)
             for l, info in t.meta.links.items():
                 l = rev_tensor_names[l]
-                if num_sequences is not None and not info["flatten_sequences"]:
+                if num_sequences is not None and not info["flatten_sequence"]:
                     n2 = num_sequences
                 else:
                     n2 = n1
@@ -121,7 +121,7 @@ def integrity_check(dataset):
 
             engine.creds_encoder
     except Exception as e:
-        raise DatasetCorruptError() from e
+        raise DatasetCorruptError(e)
 
 
 def commit(dataset, message: Optional[str] = None, hash: Optional[str] = None) -> None:
@@ -147,7 +147,6 @@ def commit(dataset, message: Optional[str] = None, hash: Optional[str] = None) -
         "commit_id"
     ]
     version_state["commit_node_map"][version_state["commit_id"]] = new_node
-    save_version_info(version_state, storage)
     copy_metas(stored_commit_id, version_state["commit_id"], storage, version_state)
     create_commit_chunk_sets(version_state["commit_id"], storage, version_state)
     discard_old_metas(stored_commit_id, storage, version_state["full_tensors"])
@@ -156,6 +155,7 @@ def commit(dataset, message: Optional[str] = None, hash: Optional[str] = None) -
     commit_time = stored_commit_node.commit_time
     commit_message = stored_commit_node.commit_message
     author = stored_commit_node.commit_user_name
+    save_version_info(version_state, storage)
     dataset._send_commit_event(
         commit_message=commit_message, commit_time=commit_time, author=author
     )
