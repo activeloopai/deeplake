@@ -30,11 +30,12 @@ class NonlinearQueryView(ViewEntry):
             verbose=False,
         )
         sub_ds_path = sub_ds.path.split("/.queries/")[0]
-        ds = dp.load(sub_ds_path)
-        ds._view_entry = self
+        # ds = dp.load(sub_ds_path)
+
+        self._ds._view_entry = self
         if verbose:
             log_visualizer_link(sub_ds_path, source_ds_url=self.info["source-dataset"])
 
         query_str = self.info.get("query")
-        view = ds.query(query_str)
+        view = self._ds.query(query_str)
         return view
