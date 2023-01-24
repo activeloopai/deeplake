@@ -121,7 +121,10 @@ class TransformTensor:
             shape = getattr(item, "shape", None)
             if shape is None:
                 try:
-                    item = np.asarray(item)
+                    if len(set(map(len, item))) != 1:
+                        item = np.asarray(item, dtype=object)
+                    else:
+                        item = np.asarray(item)
                     shape = item.shape
                 except ValueError:
                     shape = (1,)
