@@ -760,7 +760,7 @@ class ChunkEngine:
             if extending:
                 enc_ids.append(None)
         enc = self.chunk_id_encoder
-        tiles: Dict[int, tuple] = {}
+        tiles: Dict[int, Tuple[Tuple[int, ...], Tuple[int, ...]]] = {}
         if register and update_commit_diff:
             commit_diff = self.commit_diff
         if progressbar:
