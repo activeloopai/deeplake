@@ -4037,7 +4037,7 @@ class DeepLakeQueryDataset(Dataset):
         self.indra_ds = indra_ds
         self.group_index = group_index or deeplake_ds.group_index
         self.enabled_tensors = enabled_tensors or deeplake_ds.enabled_tensors
-        self.index = index or deeplake_ds.index
+        self.indra_index = index or deeplake_ds.index
         self.set_deeplake_dataset_variables()
 
     def set_deeplake_dataset_variables(self):
@@ -4170,7 +4170,7 @@ class DeepLakeQueryDataset(Dataset):
             if enabled_tensors is None or fullpath in enabled_tensors:
                 tensor = self._get_tensor_from_root(fullpath)
                 if tensor is not None:
-                    index = self.index
+                    index = self.indra_index
                     if index.is_trivial() and is_iteration == tensor.is_iteration:
                         return tensor
                     return tensor.__getitem__(index, is_iteration=is_iteration)
@@ -4225,7 +4225,7 @@ class DeepLakeQueryDataset(Dataset):
                 ret = DeepLakeQueryDataset(
                     deeplake_ds=self.deeplake_ds,
                     indra_ds=self.indra_ds,
-                    index=self.index[item],
+                    index=self.indra_index[item],
                 )
         else:
             raise InvalidKeyTypeError(item)
@@ -4236,8 +4236,8 @@ class DeepLakeQueryDataset(Dataset):
 
     def __len__(self):
         indra_dataset = self.indra_ds
-        if self.index:
-            idx = self.index.values[0].value
+        if self.indra_index:
+            idx = self.indra_index.values[0].value
             indra_dataset = self.indra_ds[idx]
         return len(indra_dataset)
 
