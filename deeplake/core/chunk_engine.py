@@ -22,6 +22,7 @@ from deeplake.core.version_control.commit_diff import CommitDiff
 from deeplake.core.partial_reader import PartialReader
 from deeplake.core.version_control.commit_node import CommitNode  # type: ignore
 from deeplake.core.version_control.commit_chunk_set import CommitChunkSet  # type: ignore
+from deeplake.core.version_control.commit_chunk_map import CommitChunkMap  # type: ignore
 from typing import Any, Dict, List, Optional, Sequence, Union, Callable
 from deeplake.core.meta.encode.tile import TileEncoder
 from deeplake.core.storage.provider import StorageProvider
@@ -73,6 +74,7 @@ from deeplake.util.keys import (
     get_tensor_meta_key,
     get_chunk_key,
     get_tensor_commit_chunk_set_key,
+    get_tensor_commit_chunk_map_key,
     get_tensor_meta_key,
     get_tensor_tile_encoder_key,
     get_tensor_info_key,
@@ -607,6 +609,13 @@ class ChunkEngine:
         while cur_node is not None:
             commit_id = cur_node.commit_id
             chunk_set_key = get_tensor_commit_chunk_set_key(self.key, commit_id)
+            chunk_map_key = get_tensor_commit_chunk_map_key(self.key, commit_id)
+            try:
+                chunk_map = self.meta_cache.get_deeplake_object(
+                    chunk_map_key, CommitChunkMap
+                ).chunks
+            except Exception:
+                chunk_map = {}
             try:
                 # the first commit doesn't contain a chunk set, don't repeatedly try to fetch from storage
                 if commit_id == FIRST_COMMIT_ID:
@@ -625,6 +634,18 @@ class ChunkEngine:
                     self.meta_cache.deeplake_objects[chunk_set_key] = commit_chunk_set
                 chunk_set = set()
             if chunk_name in chunk_set:
+                return commit_id
+            commit_id = chunk_map.get(chunk_name)
+            if commit_id:
+                assert (
+                    get_chunk_key(self.key, chunk_name, commit_id)
+                    in self.cache.next_storage
+                ), (
+                    self.key,
+                    chunk_name,
+                    commit_id,
+                    get_chunk_key(self.key, chunk_name, commit_id),
+                )
                 return commit_id
             cur_node = cur_node.parent  # type: ignore
         # the first commit doesn't have a commit chunk set, so any chunk that wasn't found belongs to the first commit

@@ -53,6 +53,7 @@ TENSOR_INFO_FILENAME = "tensor_info.json"
 DATASET_LOCK_FILENAME = "dataset_lock.lock"
 DATASET_DIFF_FILENAME = "dataset_diff"
 TENSOR_COMMIT_CHUNK_SET_FILENAME = "chunk_set"
+TENSOR_COMMIT_CHUNK_MAP_FILENAME = "chunk_map"
 TENSOR_COMMIT_DIFF_FILENAME = "commit_diff"
 TIMESTAMP_FILENAME = "local_download_timestamp"
 

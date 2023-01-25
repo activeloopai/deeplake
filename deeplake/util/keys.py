@@ -15,6 +15,7 @@ from deeplake.constants import (
     TENSOR_INFO_FILENAME,
     TENSOR_META_FILENAME,
     TENSOR_COMMIT_CHUNK_SET_FILENAME,
+    TENSOR_COMMIT_CHUNK_MAP_FILENAME,
     TENSOR_COMMIT_DIFF_FILENAME,
     VERSION_CONTROL_INFO_FILENAME,
     VERSION_CONTROL_INFO_FILENAME_OLD,
@@ -31,6 +32,12 @@ from deeplake.util.exceptions import (
 
 
 def get_chunk_key(key: str, chunk_name: str, commit_id: str) -> str:
+    try:
+        if commit_id[40] == "@":
+            key = commit_id[41:]
+            commit_id = commit_id[:40]
+    except IndexError:
+        pass
     if commit_id == FIRST_COMMIT_ID:
         return "/".join((key, CHUNKS_FOLDER, f"{chunk_name}"))
 
@@ -126,6 +133,12 @@ def get_tensor_commit_chunk_set_key(key: str, commit_id: str) -> str:
     if commit_id == FIRST_COMMIT_ID:
         return "/".join((key, TENSOR_COMMIT_CHUNK_SET_FILENAME))
     return "/".join(("versions", commit_id, key, TENSOR_COMMIT_CHUNK_SET_FILENAME))
+
+
+def get_tensor_commit_chunk_map_key(key: str, commit_id: str) -> str:
+    if commit_id == FIRST_COMMIT_ID:
+        return "/".join((key, TENSOR_COMMIT_CHUNK_MAP_FILENAME))
+    return "/".join(("versions", commit_id, key, TENSOR_COMMIT_CHUNK_MAP_FILENAME))
 
 
 def get_tensor_commit_diff_key(key: str, commit_id: str) -> str:
