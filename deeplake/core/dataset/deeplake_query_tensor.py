@@ -6,6 +6,7 @@ import numpy as np
 import itertools
 from deeplake.core.index import replace_ellipsis_with_slices
 from deeplake.util.exceptions import DynamicTensorNumpyError, InvalidKeyTypeError
+from deeplake.util.pretty_print import summary_tensor
 
 
 try:
@@ -147,9 +148,7 @@ class DeepLakeQueryTensor(tensor.Tensor):
 
     @property
     def shape_interval(self):
-        min_shape = [self.shape[0]] + self.min_shape
-        max_shape = [self.shape[0]] + self.max_shape
-        return shape_interval.ShapeInterval(min_shape, max_shape)
+        return shape_interval.ShapeInterval(self.min_shape, self.max_shape)
 
     @property
     def ndim(self):
@@ -187,6 +186,13 @@ class DeepLakeQueryTensor(tensor.Tensor):
     def __len__(self):
         return self.shape[0]
 
+    def summary(self):
+        """Prints a summary of the tensor."""
+        pretty_print = summary_tensor(self)
+
+        print(self)
+        print(pretty_print)
+
 
 class DeeplakeQueryTensorWithSliceIndices(DeepLakeQueryTensor):
     def __init__(self, *args, **kwargs):
@@ -211,14 +217,18 @@ class DeeplakeQueryTensorWithSliceIndices(DeepLakeQueryTensor):
         # TO DO: Optimize this
         tensors = self.tensors_list
         first_dim = len(self.tensors_list)
+        max_tensor_len = len(self.tensors_list[0])
         if list in map(type, self.tensors_list):
             tensors = list(itertools.chain(*self.tensors_list))
-            first_dim = self._find_first_dim(self.tensors_list)
+            max_tensor_len = max(list(map(len, self.tensors_list)))
 
+        if len(self.idxs) > 1:
+            max_tensor_len = len(self.tensors_list[self.idxs[1]])
         _max_shape = list(tensors[0].shape)
         for arr in tensors:
             arr_shape = list(arr.shape)
             _max_shape = list(map(max, _max_shape, arr_shape))
+        _max_shape.insert(0, max_tensor_len)
         _max_shape.insert(0, first_dim)
         return tuple(_max_shape)
 
@@ -227,13 +237,18 @@ class DeeplakeQueryTensorWithSliceIndices(DeepLakeQueryTensor):
         # TO DO: Optimize this
         tensors = self.tensors_list
         first_dim = len(self.tensors_list)
+        min_tensor_len = len(self.tensors_list[0])
         if list in map(type, self.tensors_list):
             tensors = list(itertools.chain(*self.tensors_list))
-            first_dim = self._find_first_dim(self.tensors_list)
+            min_tensor_len = min(list(map(len, self.tensors_list)))
+
+        if len(self.idxs) > 1:
+            min_tensor_len = len(self.tensors_list[self.idxs[1]])
         _min_shape = list(tensors[0].shape)
         for arr in tensors:
             arr_shape = list(arr.shape)
             _min_shape = list(map(min, _min_shape, arr_shape))
+        _min_shape.insert(0, min_tensor_len)
         _min_shape.insert(0, first_dim)
         return tuple(_min_shape)
 
@@ -263,8 +278,8 @@ class DeeplakeQueryTensorWithSliceIndices(DeepLakeQueryTensor):
                 shape += (None,)
 
         for i in range(len(self.idxs), self.ndim):
-            dim_len = self.max_shape[i - 1]
-            if dim_len == self.min_shape[i - 1]:
+            dim_len = self.max_shape[i]
+            if dim_len == self.min_shape[i]:
                 shape += (dim_len,)
             else:
                 shape += (None,)

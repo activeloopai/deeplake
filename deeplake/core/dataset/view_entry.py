@@ -60,6 +60,10 @@ class ViewEntry:
         sub_ds_path = ds.path
         if self.virtual:
             ds = ds._get_view(inherit_creds=not self._external)
+        else:
+            query_str = self.info.get("query")
+            ds = self._ds.query(query_str)
+
         ds._view_entry = self
         if verbose:
             log_visualizer_link(sub_ds_path, source_ds_url=self.info["source-dataset"])
@@ -98,6 +102,8 @@ class ViewEntry:
         Returns:
             :class:`ViewEntry`
         """
+        if not self.virtual:
+            raise Exception("Optimizing nonlinear query views is not supported")
         self.info = self._ds._optimize_saved_view(
             self.info["id"],
             tensors=tensors,

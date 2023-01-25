@@ -1921,8 +1921,12 @@ class Dataset:
         from deeplake.enterprise import query
 
         view = query(self, query_string)
-        view._query = query_string
-        return view
+        try:
+            indices = view.index
+            return view
+        except RuntimeError:
+            view._query = query_string
+            return view
 
     def sample_by(
         self,
@@ -2628,12 +2632,20 @@ class Dataset:
 
     def _view_hash(self) -> str:
         """Generates a unique hash for a filtered dataset view."""
-        return hash_inputs(
-            self.path,
-            *[e.value for e in self.index.values],
-            self.pending_commit_id,
-            getattr(self, "_query", None),
-        )
+        try:
+            hash = hash_inputs(
+                self.path,
+                *[e.value for e in self.index.values],
+                self.pending_commit_id,
+                getattr(self, "_query", None),
+            )
+        except RuntimeError:
+            hash = hash_inputs(
+                self.path,
+                self.pending_commit_id,
+                getattr(self, "_query", None),
+            )
+        return hash
 
     def _get_view_info(
         self,
@@ -2778,10 +2790,13 @@ class Dataset:
             self._append_to_queries_json(info)
             return vds
         else:
-            self._append_to_queries_json(info)
+            if message is None:
+                message = self._query
             view_path = os.path.join(".queries", info["id"])
             self.path = os.path.join(self.path, view_path)
-            self.virtual = False
+            info["virtual"] = False
+            info["message"] = message
+            self._append_to_queries_json(info)
             return self
 
     def _save_view_in_path(
@@ -2816,7 +2831,6 @@ class Dataset:
         num_workers: int = 0,
         scheduler: str = "threaded",
         verbose: bool = True,
-        query=None,
         **ds_args,
     ) -> str:
         """Saves a dataset view as a virtual dataset (VDS)
@@ -3111,18 +3125,20 @@ class Dataset:
         for q in queries:
             if q["id"] == id:
                 query = q.get("query")
-                if is_linear_operation(query):
-                    return ViewEntry(q, self)
-                return NonlinearQueryView(q, self)
+                # if is_linear_operation(query):
+                #     return ViewEntry(q, self)
+                # return NonlinearQueryView(q, self)
+                return ViewEntry(q, self)
 
         if self.path.startswith("hub://"):
             queries, qds = self._read_queries_json_from_user_account()
             for q in queries:
                 if q["id"] == f"[{self.org_id}][{self.ds_name}]{id}":
                     query = q.get("query")
-                    if is_linear_operation(query):
-                        return ViewEntry(q, qds, self, True)
-                    return NonlinearQueryView(q, qds, self, True)
+                    # if is_linear_operation(query):
+                    #     return ViewEntry(q, qds, self, True)
+                    # return NonlinearQueryView(q, qds, self, True)
+                    return ViewEntry(q, qds, self, True)
 
         raise KeyError(f"No view with id {id} found in the dataset.")
 
@@ -3999,7 +4015,7 @@ class DeepLakeQueryDataset(Dataset):
         self.indra_ds = indra_ds
         self.group_index = group_index or deeplake_ds.group_index
         self.enabled_tensors = enabled_tensors or deeplake_ds.enabled_tensors
-        self.index = index or deeplake_ds.index
+        # self.index = index or deeplake_ds.index
         self.set_deeplake_dataset_variables()
 
     def set_deeplake_dataset_variables(self):
@@ -4010,7 +4026,6 @@ class DeepLakeQueryDataset(Dataset):
         keys = [
             "base_storage",
             "_read_only",
-            # "index",
             "public",
             "storage",
             "_token",
@@ -4024,7 +4039,6 @@ class DeepLakeQueryDataset(Dataset):
             "_parent_dataset",
             "_pad_tensors",
             "_locking_enabled",
-            # "enabled_tensors",
             "is_iteration",
             "_view_base",
             "link_creds",
@@ -4035,13 +4049,7 @@ class DeepLakeQueryDataset(Dataset):
         for k in keys:
             setattr(self, k, getattr(self.deeplake_ds, k))
 
-    def merge(
-        self,
-        target_id: str,
-        conflict_resolution: Optional[str] = None,
-        delete_removed_tensors: bool = False,
-        force: bool = False,
-    ):
+    def merge(self, *args, **kwargs):
         raise InvalidOperationError("merge method cannot be called on a Dataset view.")
 
     def checkout(self, address: str, create: bool = False):
@@ -4272,3 +4280,7 @@ class DeepLakeQueryDataset(Dataset):
 
         dataloader = DeepLakeDataLoader(self, _indra_dataset=self.indra_ds)
         return dataloader
+
+    @property
+    def index(self):
+        return self.indra_ds.indexes

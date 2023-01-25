@@ -39,12 +39,13 @@ def query(dataset, query_string: str):
     """
     ds = dataset_to_libdeeplake(dataset)
     dsv = ds.query(query_string)
-    if is_linear_operation(query_string):
+    try:
         indexes = dsv.indexes
         dataset._query = query_string
         return dataset[indexes]
-    view = DeepLakeQueryDataset(deeplake_ds=dataset, indra_ds=dsv)
-    return view
+    except RuntimeError:
+        view = DeepLakeQueryDataset(deeplake_ds=dataset, indra_ds=dsv)
+        return view
 
 
 @deeplake_reporter.record_call
