@@ -72,9 +72,10 @@ class SampleCompressedChunk(BaseChunk):
         if partial_sample_tile is not None:
             return partial_sample_tile
         buffer = self.memoryview_data
-        bps_empty = self.byte_positions_encoder.is_empty()
+        bps = self.byte_positions_encoder
+        bps_empty = bps.is_empty()
         if not bps_empty:
-            sb, eb = self.byte_positions_encoder[local_index]
+            sb, eb = bps[local_index]
             if stream and self.is_video_compression:
                 header_size = struct.unpack("<i", buffer[-4:])[
                     0
@@ -120,7 +121,7 @@ class SampleCompressedChunk(BaseChunk):
         if self.tensor_meta.htype == "polygon":
             buffer = decompress_bytes(buffer, self.compression)
             return Polygons.frombuffer(
-                buffer,
+                bytes(buffer),
                 dtype=self.tensor_meta.dtype,
                 ndim=shape[-1],
             )
