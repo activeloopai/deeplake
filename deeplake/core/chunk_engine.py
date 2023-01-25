@@ -760,7 +760,7 @@ class ChunkEngine:
             if extending:
                 enc_ids.append(None)
         enc = self.chunk_id_encoder
-        tiles = {}
+        tiles: Dict[int, tuple] = {}
         if register and update_commit_diff:
             commit_diff = self.commit_diff
         if progressbar:
@@ -1455,7 +1455,7 @@ class ChunkEngine:
         verified_samples = self.check_each_sample(samples)
         if self.tensor_meta.htype == "class_label":
             samples = self._convert_class_labels(samples)
-        nbytes_after_updates = []
+        nbytes_after_updates: List[int] = []
         global_sample_indices = tuple(index.values[0].indices(self.num_samples))
         is_sequence = self.is_sequence
         for i, sample in enumerate(samples):  # type: ignore

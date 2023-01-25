@@ -66,13 +66,13 @@ class LinkedTiledSample:
         )
 
     @property
-    def shape(self) -> tuple:
+    def shape(self):
         return self._shape
 
     @property
-    def sample_shape(self) -> tuple:
+    def sample_shape(self):
         return self._shape
 
     @property
-    def tile_shape(self) -> tuple:
+    def tile_shape(self):
         return self._tile_shape
