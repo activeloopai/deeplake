@@ -1271,6 +1271,20 @@ def test_tobytes_link(memory_ds):
         assert ds.images[0].tobytes() == sample.buffer
 
 
+def test_tobytes_sequence(memory_ds):
+    with memory_ds as ds:
+        ds.create_tensor("abc", htype="sequence")
+        ds.abc.extend([[1, 2, 3], [4, 5, 6, 7]])
+        assert ds.abc[0].tobytes() == np.array([1, 2, 3]).tobytes()
+        assert ds.abc[1].tobytes() == np.array([4, 5, 6, 7]).tobytes()
+
+        with pytest.raises(ValueError):
+            ds.abc[:2].tobytes()
+
+        with pytest.raises(ValueError):
+            ds.abc[0, 1].tobytes()
+
+
 def test_tensor_clear(local_ds_generator):
     ds = local_ds_generator()
     a = ds.create_tensor("a")
