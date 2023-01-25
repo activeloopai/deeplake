@@ -29,7 +29,7 @@ except ImportError:
 import numpy as np
 
 import math
-
+from collections import OrderedDict
 
 # Load lazy to avoid cycylic import.
 INDRA_LOADER = None
@@ -576,9 +576,6 @@ class DeepLakeDataLoader(DataLoader):
                 self._decode_method, tensors, jpeg_png_compressed_tensors
             )
             raw_tensors.extend(compressed_tensors)
-
-            if hasattr(self, "_indra_dataset"):
-                tensors = None
 
             self._dataloader = INDRA_LOADER(
                 indra_dataset,
