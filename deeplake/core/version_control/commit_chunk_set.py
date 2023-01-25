@@ -26,7 +26,7 @@ class CommitChunkSet(DeepLakeMemoryObject):
     def nbytes(self) -> int:
         if not self.chunks:
             return 0
-        return 8 + ((len(self.chunks) - 1) * 9)
+        return 15 + ((len(self.chunks) - 1) * 17)
 
     def add(self, chunk_name: str) -> None:
         """Adds a new chunk name to the CommitChunkSet."""
