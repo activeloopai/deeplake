@@ -740,11 +740,19 @@ class ChunkEngine:
                 lengths = np.zeros(len(samples), dtype=np.uint32)
                 for i, s in enumerate(samples):
                     try:
-                        lengths[i] = s.__len__()
-                    except AttributeError:  # None
-                        lengths[i] = 0
-                    except TypeError:  # Numpy scalar str
-                        lengths[i] = str(s).__len__()
+                        s = s.numpy()
+                    except AttributeError:
+                        pass
+                    try:
+                        if s.dtype.name[:3] == "str":
+                            lengths[i] = len(str(s.reshape(())))
+                    except AttributeError:
+                        try:
+                            lengths[i] = s.__len__()
+                        except AttributeError:  # None
+                            lengths[i] = 0
+                        except TypeError:  # Numpy scalar str
+                            lengths[i] = str(s).__len__()
         extra_args = {"lengths": lengths}
         current_chunk = start_chunk
         if not register:
