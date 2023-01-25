@@ -242,18 +242,12 @@ def copy_new_tensors(
     tensor_names: Set[str],
     dataset,
     target_dataset,
-    scheduler="threaded",
-    num_workers=0,
-    progressbar=True,
 ):
     """Copies tensors from the target_commit to the dataset."""
     copy_tensors(
         target_dataset,
         dataset,
         tensor_names,
-        scheduler=scheduler,
-        num_workers=num_workers,
-        progressbar=progressbar,
     )
 
 

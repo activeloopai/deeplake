@@ -31,20 +31,17 @@ def _get_meta_files_for_tensor(tensor_name, commit_id):
 
 
 def _get_chunks_for_tensor(tensor):
-    key = tensor.key
     eng = tensor.chunk_engine
     enc = eng.chunk_id_encoder
-    keys = []
     commits = []
     cnames = []
     chunkids = enc._encoded[:, 0]
     for cid in chunkids:
         cname = enc.name_from_id(cid)
         commit = eng.get_chunk_commit(cname)
-        keys.append(get_chunk_key(key, cname, commit))
         cnames.append(cname)
         commits.append(commit)
-    return keys, cnames, commits
+    return cnames, commits
 
 
 def _copy_objects(key_pairs, src_storage, dest_storage):
@@ -55,31 +52,17 @@ def _copy_objects(key_pairs, src_storage, dest_storage):
             pass
 
 
-def _copy_objects_with_progressbar(pg_callback, key_pairs, src_storage, dest_storage):
-    for src_key, dest_key in zip(*key_pairs):
-        try:
-            dest_storage[dest_key] = src_storage[src_key]
-        except KeyError:
-            pass
-        pg_callback(1)
-
-
 def copy_tensors(
     src_ds,
     dest_ds,
     src_tensor_names,
     dest_tensor_names=None,
-    scheduler="threaded",
-    num_workers=0,
-    progressbar=True,
-    shared_chunks=True,
 ):
     if not src_ds.read_only:
         src_ds.flush()
     dest_ds.flush()
     src_path = src_ds.path
     dest_path = dest_ds.path
-    same_ds = shared_chunks and src_path == dest_path
     src_tensor_names = list(src_tensor_names)
     dest_ds_meta = dest_ds.meta
     hidden_tensors = []
@@ -106,23 +89,16 @@ def copy_tensors(
         same_key = src_tensor.key == dest_tensor_name
         src_tensor_key = src_tensor.key
         dest_commit_id = dest_ds.pending_commit_id
+        chunk_names, commits = _get_chunks_for_tensor(src_tensor)
+        if not same_key:
+            commits = [f"{c}@{src_key}" for c in commits]
+        dest_chunk_map_key = get_tensor_commit_chunk_map_key(
+            dest_tensor_name, dest_commit_id
+        )
+        dest_chunk_map = CommitChunkMap()
+        dest_chunk_map.chunks = dict(zip(chunk_names, commits))
+        dest_storage[dest_chunk_map_key] = dest_chunk_map.tobytes()
 
-        _src_keys, chunk_names, commits = _get_chunks_for_tensor(src_tensor)
-        if same_ds:
-            if not same_key:
-                commits = [f"{c}@{src_key}" for c in commits]
-            dest_chunk_map_key = get_tensor_commit_chunk_map_key(
-                dest_tensor_name, dest_commit_id
-            )
-            dest_chunk_map = CommitChunkMap()
-            dest_chunk_map.chunks = dict(zip(chunk_names, commits))
-            dest_storage[dest_chunk_map_key] = dest_chunk_map.tobytes()
-        else:
-            src_keys += _src_keys
-            dest_keys += [
-                get_chunk_key(dest_tensor_name, chunk_name, dest_commit_id)
-                for chunk_name in chunk_names
-            ]
         src_keys += _get_meta_files_for_tensor(src_tensor_key, src_ds.pending_commit_id)
         dest_keys += _get_meta_files_for_tensor(dest_tensor_name, dest_commit_id)
         dest_commit_diff = CommitDiff(0, True)
@@ -135,44 +111,9 @@ def copy_tensors(
             dest_tensor_name, dest_commit_id
         )
         updated_dest_keys = [dest_commit_diff_key]
-        if same_ds:
-            updated_dest_keys.append(dest_chunk_map_key)
-        else:
-            dest_chunk_set = CommitChunkSet()
-            dest_chunk_set.chunks = set(chunk_names)
-            dest_storage[dest_chunk_set_key] = dest_chunk_set.tobytes()
-            updated_dest_keys.append(dest_chunk_set_key)
+        updated_dest_keys.append(dest_chunk_map_key)
     total = len(src_keys)
-    compute = get_compute_provider(scheduler, num_workers)
-    if same_ds:
-        _copy_objects((src_keys, dest_keys), src_storage, dest_storage)
-    else:
-        if num_workers <= 1:
-            inputs = [(src_keys, dest_keys)]
-        else:
-            inputs = [
-                (src_keys[i::num_workers], dest_keys[i::num_workers])
-                for i in range(num_workers)
-            ]
-        if progressbar:
-
-            compute.map_with_progressbar(
-                partial(
-                    _copy_objects_with_progressbar,
-                    src_storage=src_storage,
-                    dest_storage=dest_storage,
-                ),
-                inputs,
-                total,
-                "Copying tensor data",
-            )
-        else:
-            compute.map(
-                partial(
-                    _copy_objects, src_storage=src_storage, dest_storage=dest_storage
-                ),
-                inputs,
-            )
+    _copy_objects((src_keys, dest_keys), src_storage, dest_storage)
     dest_ds_meta.tensors += dest_tensor_names
     dest_ds_meta.tensor_names.update({k: k for k in dest_tensor_names})
     dest_ds_meta.hidden_tensors += hidden_tensors
