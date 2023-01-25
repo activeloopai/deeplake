@@ -254,6 +254,24 @@ class LRUCache(StorageProvider):
 
         self.maybe_flush()
 
+    def clear_cache(self, paths=None):
+        """Flushes the content of all the cache layers if not in read mode and and then deletes contents of all the layers of it.
+        This doesn't delete data from the actual storage.
+        """
+        self.check_readonly()
+        if paths is None:
+            self._clear_cache()
+        for path in paths:
+            if path in self.deeplake_objects:
+                self.remove_deeplake_object(path)
+            size = self.lru_sizes.pop(path, None)
+            if size is not None:
+                self.cache_used -= size
+                del self.cache_storage[path]
+                self.dirty_keys.pop(path, None)
+        if self.next_storage is not None and hasattr(self.next_storage, "clear_cache"):
+            self.next_storage.clear_cache(paths)
+
     def __delitem__(self, path: str):
         """Deletes the object present at the path from the cache and the underlying storage.
 
@@ -287,7 +305,7 @@ class LRUCache(StorageProvider):
             if not deleted_from_cache:
                 raise
 
-    def clear_cache(self):
+    def _clear_cache(self):
         """Flushes the content of all the cache layers if not in read mode and and then deletes contents of all the layers of it.
         This doesn't delete data from the actual storage.
         """

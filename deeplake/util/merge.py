@@ -18,7 +18,7 @@ from deeplake.util.exceptions import (
 from deeplake.util.keys import get_sample_id_tensor_key, get_tensor_commit_diff_key
 from deeplake.util.remove_cache import create_read_copy_dataset
 from deeplake.util.version_control import auto_checkout, auto_commit, commit
-from deeplake.core.tensor import Tensor
+from deeplake.util.copy import copy_tensors
 
 
 def merge(
@@ -238,18 +238,23 @@ def clear_tensors(tensor_names: Set[str], dataset):
         dataset[tensor_name].clear()
 
 
-def copy_new_tensors(tensor_names: Set[str], dataset, target_dataset):
+def copy_new_tensors(
+    tensor_names: Set[str],
+    dataset,
+    target_dataset,
+    scheduler="threaded",
+    num_workers=0,
+    progressbar=True,
+):
     """Copies tensors from the target_commit to the dataset."""
-    for tensor_name in tensor_names:
-        target_tensor = target_dataset[tensor_name]
-        new_tensor = dataset.create_tensor_like(tensor_name, target_tensor)
-        id_tensor_name = get_sample_id_tensor_key(tensor_name)
-        new_id_tensor = dataset[id_tensor_name]
-        target_id_tensor = target_dataset[id_tensor_name]
-
-        for sample, sample_id in zip(target_tensor, target_id_tensor):
-            new_tensor.append(sample)
-            new_id_tensor[-1] = sample_id
+    copy_tensors(
+        target_dataset,
+        dataset,
+        tensor_names,
+        scheduler=scheduler,
+        num_workers=num_workers,
+        progressbar=progressbar,
+    )
 
 
 def merge_common_tensors(
