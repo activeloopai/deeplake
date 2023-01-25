@@ -1,20 +1,15 @@
-from deeplake.core.version_control.commit_chunk_set import CommitChunkSet
 from deeplake.core.version_control.commit_diff import CommitDiff
 from deeplake.core.version_control.commit_chunk_map import CommitChunkMap
-from deeplake.util.compute import get_compute_provider
 from deeplake.util.keys import (
     get_tensor_meta_key,
     get_tensor_info_key,
     get_tensor_tile_encoder_key,
     get_creds_encoder_key,
-    get_tensor_commit_chunk_set_key,
     get_tensor_commit_chunk_map_key,
     get_tensor_commit_diff_key,
     get_chunk_id_encoder_key,
     get_sequence_encoder_key,
-    get_chunk_key,
 )
-from functools import partial
 import numpy as np
 
 
@@ -107,12 +102,8 @@ def copy_tensors(
             dest_tensor_name, dest_commit_id
         )
         dest_storage[dest_commit_diff_key] = dest_commit_diff.tobytes()
-        dest_chunk_set_key = get_tensor_commit_chunk_set_key(
-            dest_tensor_name, dest_commit_id
-        )
         updated_dest_keys = [dest_commit_diff_key]
         updated_dest_keys.append(dest_chunk_map_key)
-    total = len(src_keys)
     _copy_objects((src_keys, dest_keys), src_storage, dest_storage)
     dest_ds_meta.tensors += dest_tensor_names
     dest_ds_meta.tensor_names.update({k: k for k in dest_tensor_names})
@@ -191,7 +182,11 @@ def _get_required_chunks_for_range(tensor, start, end):
     elif end_chunk_aligned and not start_chunk_aligned:
         return (start_row + 1, end_row + 1), (start, arr[start_row, 1] + 1), None
     elif not start_chunk_aligned and not end_chunk_aligned:
-        return (start_row + 1, end_row), (start, arr[start_row, 1] + 1), (arr[end_row - 1, 1] + 1, end)
+        return (
+            (start_row + 1, end_row),
+            (start, arr[start_row, 1] + 1),
+            (arr[end_row - 1, 1] + 1, end),
+        )
 
 
 def copy_tensor_slice(src_ds, dest_ds, src_tensor_name, dest_tensor_name, indices):
@@ -212,9 +207,11 @@ def copy_tensor_slice(src_ds, dest_ds, src_tensor_name, dest_tensor_name, indice
     dest_tensor.meta.links = {}
     num_added = 0
     for start, end in ranges:
-        chunks_to_copy, left_edge_samples, right_edge_samples = _get_required_chunks_for_range(
-            src_tensor, start, end
-        )
+        (
+            chunks_to_copy,
+            left_edge_samples,
+            right_edge_samples,
+        ) = _get_required_chunks_for_range(src_tensor, start, end)
         if left_edge_samples:
             s, e = left_edge_samples
             dest_tensor.extend(dest_tensor[s:e])
@@ -232,21 +229,18 @@ def copy_tensor_slice(src_ds, dest_ds, src_tensor_name, dest_tensor_name, indice
                 chunk_map = CommitChunkMap()
             chunk_map.chunks.update(dict(zip(chunk_names, chunk_commits)))
             dest_storage[chunk_map_key] = chunk_map
-            dest_enc._encoded = _merge_chunk_id_encodings(dest_enc._encoded, src_enc_arr, s, e)
+            dest_enc._encoded = _merge_chunk_id_encodings(
+                dest_enc._encoded, src_enc_arr, s, e
+            )
         if right_edge_samples:
             s, e = right_edge_samples
             dest_tensor.extend(dest_tensor[s:e])
         num_added = end - start
     dest_tensor.meta.links = links
     dest_tensor.meta.length = orig_length + num_added
-    dest_ds_tensor_names = {v:k for k,v in dest_ds.meta.tensor_names.items()}
-    src_ds_tensor_names = {v:k for k,v in src_ds.meta.tensor_names.items()}
+    dest_ds_tensor_names = {v: k for k, v in dest_ds.meta.tensor_names.items()}
+    src_ds_tensor_names = {v: k for k, v in src_ds.meta.tensor_names.items()}
     for k in dest_tensor.links:
         src_tname = src_ds_tensor_names[k]
         dest_tname = dest_ds_tensor_names[k]
         copy_tensor_slice(src_ds, dest_ds, src_tname, dest_tname, indices)
-
-
-
-        
-        
