@@ -208,7 +208,7 @@ def _merge_chunk_id_encodings(enc1, enc2, start, end):
     else:
         old_offset = enc2[start - 1, 1] + 1
     new_offset = enc1[-1, 1] + 1
-    ret = np.concatenate([enc1, enc2], axis=0)
+    ret = np.concatenate([enc1, enc2[start:end]], axis=0)
     ret[n1:, 1] += new_offset - old_offset
     return ret
 
@@ -226,30 +226,86 @@ def _get_required_chunks_for_range(tensor, start, end):
     while nxt < nrows and arr[nxt, 0] == end_chunk_id:
         end_row = nxt
         nxt += 1
-    start_tiled = start_row != nrows - 1 and arr[start_row, 0] == arr[start_row + 1, 0]
-    end_tiled = orig_end_row != end_row
-    required_chunks = arr[start_row : end_row + 1, 0]
-    if start_tiled:
-        n1 = 0
+    # start_tiled = start_row != nrows - 1 and arr[start_row, 0] == arr[start_row + 1, 0]
+    # end_tiled = orig_end_row != end_row
+    num_required_chunks = end_row + 1 - start_row
+    start_chunk_aligned = False
+    end_chunk_aligned = False
+    if start_row == 0:
+        if start == 0:
+            start_chunk_aligned = True
     else:
-        if start_row == 0:
-            n1 = start
-        else:
-            n1 = start - arr[start_row - 1, 1] - 1
-    if end_tiled:
-        n2 = 0
-    else:
-        n2 = arr[end_row, 1] - end + 1
-    return required_chunks, n1, n2
+        prev_row = start_row - 1
+        if start == arr[prev_row] + 1:
+            start_chunk_aligned = True
+    if arr[end_row, 1] == end - 1:
+        end_chunk_aligned = True
+
+    if num_required_chunks == 1 and not (start_chunk_aligned and end_chunk_aligned):
+        return None, (start, end), None
+    elif num_required_chunks == 2 and not start_chunk_aligned and not end_chunk_aligned:
+        return None, (start, end), None
+    elif start_chunk_aligned and not end_chunk_aligned:
+        return (start_row, end_row), None, (arr[end_row - 1, 1] + 1, end)
+    elif end_chunk_aligned and not start_chunk_aligned:
+        return (start_row + 1, end_row + 1), (start, arr[start_row, 1] + 1), None
+    elif not start_chunk_aligned and not end_chunk_aligned:
+        return (start_row + 1, end_row), (start, arr[start_row, 1] + 1), (arr[end_row - 1, 1] + 1, end)
 
 
 def copy_tensor_slice(src_ds, dest_ds, src_tensor_name, dest_tensor_name, indices):
     src_tensor = src_ds[src_tensor_name]
     dest_tensor = dest_ds[dest_tensor_name]
-    src_enc = src_tensor.chunk_engine.chunk_id_encoder._encoded
-    dest_enc = dest_tensor.chunk_engine.chunk_id_encoder._encoded
+    src_key = src_tensor.key
+    dest_key = dest_tensor.key
+    same_key = src_key == dest_key
+    dest_commit = dest_ds.pending_commit_id
+    src_eng = src_tensor.chunk_engine
+    src_enc = src_eng.chunk_id_encoder
+    dest_enc = dest_tensor.chunk_engine.chunk_id_encoder
+    src_enc_arr = src_enc._encoded
     ranges = _group_ranges(indices)
+    orig_length = dest_tensor.meta.length
+    dest_storage = dest_ds.base_storage
+    links = dest_tensor.meta.links
+    dest_tensor.meta.links = {}
+    num_added = 0
     for start, end in ranges:
-        required_chunk_ids, n1, n2 = _get_required_chunks_for_range(
+        chunks_to_copy, left_edge_samples, right_edge_samples = _get_required_chunks_for_range(
             src_tensor, start, end
         )
+        if left_edge_samples:
+            s, e = left_edge_samples
+            dest_tensor.extend(dest_tensor[s:e])
+        if chunks_to_copy:
+            s, e = chunks_to_copy
+            chunk_ids = src_enc_arr[s:e, 0]
+            chunk_names = list(map(src_enc.name_from_id, chunk_ids))
+            chunk_commits = list(map(src_eng.get_chunk_commit, chunk_names))
+            if not same_key:
+                chunk_commits = [f"{c}@{src_key}" for c in chunk_commits]
+            chunk_map_key = get_tensor_commit_chunk_map_key(dest_key, dest_commit)
+            try:
+                chunk_map = dest_storage[chunk_map_key]
+            except KeyError:
+                chunk_map = CommitChunkMap()
+            chunk_map.chunks.update(dict(zip(chunk_names, chunk_commits)))
+            dest_storage[chunk_map_key] = chunk_map
+            dest_enc._encoded = _merge_chunk_id_encodings(dest_enc._encoded, src_enc_arr, s, e)
+        if right_edge_samples:
+            s, e = right_edge_samples
+            dest_tensor.extend(dest_tensor[s:e])
+        num_added = end - start
+    dest_tensor.meta.links = links
+    dest_tensor.meta.length = orig_length + num_added
+    dest_ds_tensor_names = {v:k for k,v in dest_ds.meta.tensor_names.items()}
+    src_ds_tensor_names = {v:k for k,v in src_ds.meta.tensor_names.items()}
+    for k in dest_tensor.links:
+        src_tname = src_ds_tensor_names[k]
+        dest_tname = dest_ds_tensor_names[k]
+        copy_tensor_slice(src_ds, dest_ds, src_tname, dest_tname, indices)
+
+
+
+        
+        
