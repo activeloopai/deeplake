@@ -260,7 +260,7 @@ class LRUCache(StorageProvider):
         """
         self.check_readonly()
         if paths is None:
-            self._clear_cache()
+            return self._clear_cache()
         for path in paths:
             if path in self.deeplake_objects:
                 self.remove_deeplake_object(path)

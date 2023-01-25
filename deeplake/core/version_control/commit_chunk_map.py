@@ -14,7 +14,9 @@ class CommitChunkMap(DeepLakeMemoryObject):
     def frombuffer(cls, buffer: bytes):
         instance = cls()
         if buffer:
-            instance.chunks = dict([line.split(",") for line in buffer.decode("utf-8").split("\n")])
+            instance.chunks = dict(
+                [line.split(",") for line in buffer.decode("utf-8").split("\n")]
+            )
         instance.is_dirty = False
         return instance
 
@@ -24,6 +26,8 @@ class CommitChunkMap(DeepLakeMemoryObject):
             return 0
         return len(self.chunks) * (40 + 16 + 1 + 1) - 1
 
-    def add(self, chunk_name: str, commit_id: str) -> None:
+    def add(self, chunk_name: str, commit_id: str, tensor_name: str = None) -> None:
+        if tensor_name:
+            commit_id += f"@{tensor_name}"
         self.chunks[chunk_name] = commit_id
         self.is_dirty = True

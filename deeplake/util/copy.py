@@ -63,6 +63,7 @@ def _copy_objects_with_progressbar(pg_callback, key_pairs, src_storage, dest_sto
             pass
         pg_callback(1)
 
+
 def copy_tensors(
     src_ds,
     dest_ds,
@@ -71,13 +72,14 @@ def copy_tensors(
     scheduler="threaded",
     num_workers=0,
     progressbar=True,
+    shared_chunks=True,
 ):
     if not src_ds.read_only:
         src_ds.flush()
     dest_ds.flush()
     src_path = src_ds.path
     dest_path = dest_ds.path
-    same_ds = False#src_path == dest_path
+    same_ds = shared_chunks and src_path == dest_path
     src_tensor_names = list(src_tensor_names)
     dest_ds_meta = dest_ds.meta
     hidden_tensors = []
@@ -100,12 +102,18 @@ def copy_tensors(
 
     for src_tensor_name, dest_tensor_name in zip(src_tensor_names, dest_tensor_names):
         src_tensor = src_ds[src_tensor_name]
+        src_key = src_tensor.key
+        same_key = src_tensor.key == dest_tensor_name
         src_tensor_key = src_tensor.key
         dest_commit_id = dest_ds.pending_commit_id
 
         _src_keys, chunk_names, commits = _get_chunks_for_tensor(src_tensor)
         if same_ds:
-            dest_chunk_map_key = get_tensor_commit_chunk_map_key(dest_tensor_name, dest_commit_id)
+            if not same_key:
+                commits = [f"{c}@{src_key}" for c in commits]
+            dest_chunk_map_key = get_tensor_commit_chunk_map_key(
+                dest_tensor_name, dest_commit_id
+            )
             dest_chunk_map = CommitChunkMap()
             dest_chunk_map.chunks = dict(zip(chunk_names, commits))
             dest_storage[dest_chunk_map_key] = dest_chunk_map.tobytes()
@@ -128,6 +136,8 @@ def copy_tensors(
         )
         updated_dest_keys = [dest_commit_diff_key]
         if same_ds:
+            updated_dest_keys.append(dest_chunk_map_key)
+        else:
             dest_chunk_set = CommitChunkSet()
             dest_chunk_set.chunks = set(chunk_names)
             dest_storage[dest_chunk_set_key] = dest_chunk_set.tobytes()
@@ -158,7 +168,9 @@ def copy_tensors(
             )
         else:
             compute.map(
-                partial(_copy_objects, src_storage=src_storage, dest_storage=dest_storage),
+                partial(
+                    _copy_objects, src_storage=src_storage, dest_storage=dest_storage
+                ),
                 inputs,
             )
     dest_ds_meta.tensors += dest_tensor_names
@@ -166,7 +178,7 @@ def copy_tensors(
     dest_ds_meta.hidden_tensors += hidden_tensors
     dest_ds_meta.is_dirty = True
     dest_ds.flush()
-    dest_ds.storage.clear_cache(dest_keys + updated_dest_keys)
+    dest_ds.storage.clear_cache()
     dest_ds._populate_meta()
 
 
@@ -199,7 +211,6 @@ def _merge_chunk_id_encodings(enc1, enc2, start, end):
     ret = np.concatenate([enc1, enc2], axis=0)
     ret[n1:, 1] += new_offset - old_offset
     return ret
-
 
 
 def _get_required_chunks_for_range(tensor, start, end):
@@ -239,4 +250,6 @@ def copy_tensor_slice(src_ds, dest_ds, src_tensor_name, dest_tensor_name, indice
     dest_enc = dest_tensor.chunk_engine.chunk_id_encoder._encoded
     ranges = _group_ranges(indices)
     for start, end in ranges:
-        required_chunk_ids, n1, n2 = _get_required_chunks_for_range(src_tensor, start, end)
+        required_chunk_ids, n1, n2 = _get_required_chunks_for_range(
+            src_tensor, start, end
+        )

@@ -612,12 +612,10 @@ class ChunkEngine:
             chunk_map_key = get_tensor_commit_chunk_map_key(self.key, commit_id)
             try:
                 chunk_map = self.meta_cache.get_deeplake_object(
-                        chunk_map_key, CommitChunkMap
-                    ).chunks
+                    chunk_map_key, CommitChunkMap
+                ).chunks
             except Exception:
                 chunk_map = {}
-        
-
             try:
                 # the first commit doesn't contain a chunk set, don't repeatedly try to fetch from storage
                 if commit_id == FIRST_COMMIT_ID:
@@ -639,6 +637,15 @@ class ChunkEngine:
                 return commit_id
             commit_id = chunk_map.get(chunk_name)
             if commit_id:
+                assert (
+                    get_chunk_key(self.key, chunk_name, commit_id)
+                    in self.cache.next_storage
+                ), (
+                    self.key,
+                    chunk_name,
+                    commit_id,
+                    get_chunk_key(self.key, chunk_name, commit_id),
+                )
                 return commit_id
             cur_node = cur_node.parent  # type: ignore
         # the first commit doesn't have a commit chunk set, so any chunk that wasn't found belongs to the first commit
