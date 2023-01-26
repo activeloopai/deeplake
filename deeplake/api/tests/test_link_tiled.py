@@ -12,10 +12,16 @@ def add_link_tiled(sample_in, samples_out):
     samples_out.image.append(deeplake.link_tiled(arr))
 
 
-def check_data(actual_data, ds, index):
+def check_data(actual_data, ds, index, downsampled=False):
     deeplake_data = ds.image[index]
     shape = deeplake_data.shape
     assert shape == (9000, 9000, 3)
+
+    if downsampled:
+        downsampled_data = ds._image_downsampled_2[index]
+        assert downsampled_data.shape == (4500, 4500, 3)
+        downsampled_numpy = ds._image_downsampled_2[index].numpy()
+        assert downsampled_numpy.shape == (4500, 4500, 3)
 
     deeplake_numpy = ds.image[index].numpy()
     assert deeplake_numpy.shape == (9000, 9000, 3)
@@ -47,20 +53,22 @@ def test_link_tiled(local_ds_generator, cat_path):
     linked_sample = deeplake.link_tiled(arr)
 
     with local_ds_generator() as ds:
-        ds.create_tensor("image", htype="link[image]", sample_compression="jpeg")
+        ds.create_tensor(
+            "image", htype="link[image]", sample_compression="jpeg", downsampling=[2, 1]
+        )
         ds.image.append(linked_sample)
 
     actual_data = deeplake.read(cat_path).array
     ds = local_ds_generator()
     index = 0
-    check_data(actual_data, ds, index)
+    check_data(actual_data, ds, index, downsampled=True)
     with pytest.raises(ValueError):
         ds.image[index][100:1000, 100:1000, :] = deeplake.link(cat_path)
 
     with ds:
         ds.image.extend([linked_sample, linked_sample])
-    check_data(actual_data, ds, 1)
-    check_data(actual_data, ds, 2)
+    check_data(actual_data, ds, 1, downsampled=True)
+    check_data(actual_data, ds, 2, downsampled=True)
 
 
 def test_link_tiled_transform(local_ds_generator, cat_path):

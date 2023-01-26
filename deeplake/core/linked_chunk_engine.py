@@ -356,6 +356,10 @@ class LinkedChunkEngine(ChunkEngine):
         return np.ones((0,))
 
     def read_bytes_for_sample(self, global_sample_index: int) -> bytes:
+        if self._is_tiled_sample(global_sample_index):
+            raise ValueError(
+                "Cannot read bytes for a link_tiled sample. Please read the sample as a numpy array."
+            )
         sample = self.get_deeplake_read_sample(global_sample_index)
         return sample.buffer
 

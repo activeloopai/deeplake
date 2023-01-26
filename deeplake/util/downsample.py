@@ -90,11 +90,11 @@ def downsample_link_tiled(
             )
             downsampled_tile_arr = np.array(downsampled_tile_pil)
             if arr is None:
-                arr_size = downsample_sample_size + (shape[2:],)
+                arr_size = downsample_sample_size + shape[2:]
                 arr = np.zeros(arr_size, dtype=downsampled_tile_arr.dtype)
             arr[
-                i * tile_shape[0] : (i + 1) * tile_shape[0],
-                j * tile_shape[1] : (j + 1) * tile_shape[1],
+                i * downsampled_tile_size[0] : (i + 1) * downsampled_tile_size[0],
+                j * downsampled_tile_size[1] : (j + 1) * downsampled_tile_size[1],
             ] = downsampled_tile_arr
 
     if compression is None:
