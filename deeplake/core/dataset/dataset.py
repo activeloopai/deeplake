@@ -123,6 +123,8 @@ from deeplake.util.version_control import (
     load_version_info,
     copy_metas,
     create_commit_chunk_sets,
+    save_version_info,
+    generate_hash,
 )
 from deeplake.util.pretty_print import summary_dataset
 from deeplake.core.dataset.view_entry import ViewEntry
@@ -3532,17 +3534,28 @@ class Dataset:
             print("There are no uncommitted changes on this branch.")
             return
 
-        # delete metas first
-        self._delete_metas()
-
         if self.commit_id is None:
             storage.clear()
             self._populate_meta()
         else:
-            prefix = "/".join(("versions", self.pending_commit_id))
-            storage.clear(prefix=prefix)
-            src_id, dest_id = self.commit_id, self.pending_commit_id
+            deletion_folder = "/".join(("versions", self.pending_commit_id))
+            new_commit_id = generate_hash()
+            new_node = CommitNode(self.branch, new_commit_id)
+            version_state["branch_commit_map"][self.branch] = new_commit_id
+            version_state["commit_node_map"][new_commit_id] = new_node
+            del version_state["commit_node_map"][self.pending_commit_id]
+            parent_node: CommitNode = version_state["commit_node_map"][self.commit_id]
+            new_node.parent = parent_node
+            for i, child in enumerate(parent_node.children):
+                if child.commit_id == self.pending_commit_id:
+                    parent_node.children[i] = new_node
+                    break
+            version_state["commit_id"] = new_commit_id
+            version_state["commit_node"] = new_node
+            save_version_info(version_state, storage)
 
+            storage.clear(prefix=deletion_folder)
+            src_id, dest_id = self.commit_id, self.pending_commit_id
             # by doing this checkout, we get list of tensors in previous commit, which is what we require for copying metas and create_commit_chunk_set
             self.checkout(src_id)
             copy_metas(src_id, dest_id, storage, version_state)
