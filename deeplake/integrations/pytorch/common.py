@@ -16,13 +16,14 @@ def collate_fn(batch):
         return IterableOrderedDict(
             (key, collate_fn([d[key] for d in batch])) for key in elem.keys()
         )
-    elif isinstance(elem, Sequence):
-        return [torch.tensor(it) for it in batch]
 
     if isinstance(elem, np.ndarray) and elem.size > 0 and isinstance(elem[0], str):
         batch = [it[0] for it in batch]
     elif isinstance(elem, Polygons):
         batch = [it.numpy() for it in batch]
+    elif isinstance(batch, Sequence) and isinstance(elem, np.ndarray):
+        batch_type = type(batch)
+        return batch_type([torch.tensor(it) for it in batch])
     return default_collate(batch)
 
 

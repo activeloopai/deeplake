@@ -1,9 +1,12 @@
 from deeplake.util.iterable_ordered_dict import IterableOrderedDict
 from deeplake.core.polygon import Polygons
 import numpy as np
+from typing import Sequence
 
 
 def collate_fn(batch):
+    import tensorflow as tf
+
     elem = batch[0]
     if isinstance(elem, IterableOrderedDict):
         return IterableOrderedDict(
@@ -14,6 +17,9 @@ def collate_fn(batch):
         batch = [it[0] for it in batch]
     elif isinstance(elem, Polygons):
         batch = [it.numpy() for it in batch]
+    elif isinstance(batch, Sequence) and isinstance(elem, np.ndarray):
+        batch_type = type(batch)
+        return batch_type([tf.convert_to_tensor(it) for it in batch])
     return default_collate(batch)
 
 
