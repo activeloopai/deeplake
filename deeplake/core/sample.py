@@ -73,13 +73,7 @@ class Sample:
             dtype (optional, str): Data type of the sample.
             creds (optional, Dict): Credentials for s3, gcp and http urls.
             storage (optional, StorageProvider): Storage provider.
-
-        Raises:
-            ValueError: Cannot create a sample from both a ``path`` and ``array``.
         """
-        if path is None and array is None and buffer is None:
-            raise ValueError("Must pass one of `path`, `array` or `buffer`.")
-
         self._compressed_bytes = {}
         self._uncompressed_bytes = None
 
@@ -124,6 +118,21 @@ class Sample:
                     self._shape, self._typestr = verify_compressed_file(buffer, self._compression)  # type: ignore
 
         self.htype = None
+
+    def copy(self):
+        sample = Sample()
+        sample._array = self._array
+        sample._pil = self._pil
+        sample._typestr = self._typestr
+        sample._shape = self._shape
+        sample._dtype = self._dtype
+        sample.path = self.path
+        sample.storage = self.storage
+        sample._buffer = self._buffer
+        sample._creds = self._creds
+        sample._verify = self._verify
+        sample._compression = self._compression
+        return sample
 
     @property
     def buffer(self):
@@ -226,10 +235,10 @@ class Sample:
             img = _open_nifti(self.path)
         else:
             img = _open_nifti(self.buffer, gz=self.compression == "nii.gz")
-        return {
-            "affine": img.affine,
-            "zooms": tuple(map(float, img.header.get_zooms())),
-        }
+        meta = dict(img.header)
+        meta["affine"] = img.affine
+        meta["zooms"] = tuple(map(float, img.header.get_zooms()))
+        return meta
 
     def _get_video_meta(self) -> dict:
         if self.path and get_path_type(self.path) == "local":
@@ -308,7 +317,12 @@ class Sample:
                 else:
                     compressed_bytes = self._recompress(compressed_bytes, compression)
             elif self._buffer is not None:
-                compressed_bytes = self._recompress(self._buffer, compression)
+                if self._compression is None:
+                    self._compression = get_compression(header=self._buffer[:32])
+                if self._compression == compression:
+                    compressed_bytes = self._buffer
+                else:
+                    compressed_bytes = self._recompress(self._buffer, compression)
             else:
                 compressed_bytes = compress_array(self.array, compression)
             self._compressed_bytes[compression] = compressed_bytes

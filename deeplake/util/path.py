@@ -76,7 +76,11 @@ def get_path_type(path: Optional[str]) -> str:
         return "hub"
     elif path.startswith("http://") or path.startswith("https://"):
         return "http"
-    elif path.startswith("gcs://") or path.startswith("gcp://"):
+    elif (
+        path.startswith("gcs://")
+        or path.startswith("gcp://")
+        or path.startswith("gs://")
+    ):
         return "gcs"
     elif path.startswith("s3://"):
         return "s3"

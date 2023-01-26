@@ -372,8 +372,8 @@ def text_to_bytes(sample, dtype, htype):
         byts = json.dumps(sample, cls=HubJsonEncoder).encode()
         shape = (len(sample),) if htype == "list" else (1,)
     else:  # htype == "text":
-        if isinstance(sample, np.ndarray):
-            sample = sample.tolist()
+        if isinstance(sample, np.ndarray) and sample.size == 1:
+            sample = str(sample.reshape(()))
         if not isinstance(sample, str):
             raise TypeError("Expected str, received: " + str(sample))
         byts = sample.encode()
@@ -406,6 +406,16 @@ def serialize_text(
     htype: str,
 ):
     """Converts the sample into bytes"""
+    if isinstance(incoming_sample, deeplake.core.tensor.Tensor):
+        return serialize_tensor(
+            incoming_sample=incoming_sample,
+            sample_compression=sample_compression,
+            chunk_compression=None,
+            dtype=dtype,
+            htype=htype,
+            min_chunk_size=0,
+            break_into_tiles=False,
+        )
     incoming_sample, shape = text_to_bytes(incoming_sample, dtype, htype)
     if sample_compression:
         incoming_sample = compress_bytes(incoming_sample, sample_compression)  # type: ignore
@@ -507,7 +517,8 @@ def serialize_sample_object(
     shape = incoming_sample.shape
     tile_compression = chunk_compression or sample_compression
 
-    out = incoming_sample
+    out = incoming_sample.copy()
+
     if sample_compression:
         compression_type = get_compression_type(sample_compression)
         is_byte_compression = compression_type == BYTE_COMPRESSION

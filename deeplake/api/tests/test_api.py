@@ -1271,6 +1271,20 @@ def test_tobytes_link(memory_ds):
         assert ds.images[0].tobytes() == sample.buffer
 
 
+def test_tobytes_sequence(memory_ds):
+    with memory_ds as ds:
+        ds.create_tensor("abc", htype="sequence")
+        ds.abc.extend([[1, 2, 3], [4, 5, 6, 7]])
+        assert ds.abc[0].tobytes() == np.array([1, 2, 3]).tobytes()
+        assert ds.abc[1].tobytes() == np.array([4, 5, 6, 7]).tobytes()
+
+        with pytest.raises(ValueError):
+            ds.abc[:2].tobytes()
+
+        with pytest.raises(ValueError):
+            ds.abc[0, 1].tobytes()
+
+
 def test_tensor_clear(local_ds_generator):
     ds = local_ds_generator()
     a = ds.create_tensor("a")
@@ -2009,15 +2023,39 @@ def test_transform_upload_fail(local_ds_generator, num_workers):
         assert list(ds.tensors) == ["images", "labels"]
 
 
-def test_ignore_temp_tensors(local_ds_generator):
-    with local_ds_generator() as ds:
-        ds.create_tensor("__temptensor")
+def test_ignore_temp_tensors(local_path):
+    with deeplake.dataset(local_path, overwrite=True) as ds:
+        ds.create_tensor(
+            "__temptensor",
+            htype="class_label",
+            hidden=True,
+            create_sample_info_tensor=False,
+            create_shape_tensor=False,
+            create_id_tensor=False,
+        )
         ds.__temptensor.append(123)
 
-    with local_ds_generator() as ds:
+    with deeplake.load(local_path) as ds:
         assert list(ds.tensors) == []
         assert ds.meta.hidden_tensors == []
         assert list(ds.storage.keys()) == ["dataset_meta.json"]
+
+    with deeplake.dataset(local_path, overwrite=True) as ds:
+        ds.create_tensor(
+            "__temptensor",
+            htype="class_label",
+            hidden=True,
+            create_sample_info_tensor=False,
+            create_shape_tensor=False,
+            create_id_tensor=False,
+        )
+        ds.__temptensor.append(123)
+
+    with deeplake.load(local_path, read_only=True) as ds:
+        assert list(ds.tensors) == []
+        assert list(ds._tensors()) == ["__temptensor"]
+        assert ds.meta.hidden_tensors == ["__temptensor"]
+        assert ds.__temptensor[0].numpy() == 123
 
 
 def test_empty_sample_partial_read(s3_ds):
