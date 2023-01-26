@@ -106,20 +106,20 @@ class YoloDataset(UnstructuredDataset):
             self.coordinates_params["name"] = coordinates_name
 
     def _initialize_params(self, image_params, label_params, coordinates_params):
-        image_params_updated = DEFAULT_IMAGE_TENSOR_PARAMS.copy()
-        for k, v in image_params.items():
-            image_params_updated[k] = v
-        self.image_params = image_params_updated
+        self.image_params = {
+            **DEFAULT_IMAGE_TENSOR_PARAMS,
+            **image_params,
+        }
 
-        coordinates_params_updated = DEFAULT_YOLO_COORDINATES_TENSOR_PARAMS.copy()
-        for k, v in coordinates_params.items():
-            coordinates_params_updated[k] = v
-        self.coordinates_params = coordinates_params_updated
+        self.coordinates_params = {
+            **DEFAULT_YOLO_COORDINATES_TENSOR_PARAMS,
+            **coordinates_params,
+        }
 
-        label_params_updated = DEFAULT_YOLO_LABEL_TENSOR_PARAMS.copy()
-        for k, v in label_params.items():
-            label_params_updated[k] = v
-        self.label_params = label_params_updated
+        self.label_params = {
+            **DEFAULT_YOLO_LABEL_TENSOR_PARAMS,
+            **label_params,
+        }
 
         self._parse_coordinates_type()
 

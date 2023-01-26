@@ -233,7 +233,7 @@ class UncompressedChunk(BaseChunk):
             return bytes_to_text(buffer, self.htype)
         if self.tensor_meta.htype == "polygon":
             return Polygons.frombuffer(
-                buffer,
+                bytes(buffer),
                 dtype=self.tensor_meta.dtype,
                 ndim=shape[-1],
             )
