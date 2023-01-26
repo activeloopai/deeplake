@@ -16,11 +16,6 @@ def collate_fn(batch):
         batch = [it[0] for it in batch]
     elif isinstance(elem, Polygons):
         batch = [it.numpy() for it in batch]
-    elif isinstance(elem, (tuple, list)):
-        elem_type = type(elem)
-        return [
-            elem_type([convert_to_tensor(item) for item in sample]) for sample in batch
-        ]
     return default_collate(batch)
 
 
