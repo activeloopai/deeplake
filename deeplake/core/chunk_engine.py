@@ -14,6 +14,7 @@ from typing import (
     Tuple,
 )
 from deeplake.api.info import Info
+from deeplake.core.link_creds import LinkCreds
 from deeplake.core.linked_sample import LinkedSample
 from deeplake.core.meta.encode.base_encoder import LAST_SEEN_INDEX_COLUMN
 from deeplake.core.serialize import HEADER_SIZE_BYTES
@@ -229,7 +230,7 @@ class ChunkEngine:
         self._num_samples_per_chunk: Optional[int] = None
         self.write_initialization_done = False
         self.start_chunk = None
-        self.link_creds = None
+        self.link_creds: Optional[LinkCreds] = None
 
     @property
     def sample_compression(self):
