@@ -7,7 +7,7 @@ def link_tiled(
     path_array: np.ndarray,
     creds_key: Optional[str] = None,
 ) -> LinkedTiledSample:
-    """Utility that stores linkd to raw data. Used to add data to a Deep Lake Dataset without copying it. See :ref:`Link htype`.
+    """Utility that stores links to multiple images that together form a big tile. These images must all have the exact same dimension. Used to add data to a Deep Lake Dataset without copying it. See :ref:`Link htype`.
 
     Supported file types::
 

@@ -51,7 +51,7 @@ class LinkedChunkEngine(ChunkEngine):
         self.path_chunk_engine = ChunkEngine(key, cache, version_state, meta_cache)
         remove_chunk_engine_compression(self)
         remove_chunk_engine_compression(self.path_chunk_engine)
-        self.link_creds = link_creds
+        self.link_creds = link_creds  # type: ignore
         self._creds_encoder: Optional[CredsEncoder] = None
         self._creds_encoder_commit_id: Optional[str] = None
 
