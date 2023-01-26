@@ -1,4 +1,4 @@
-from typing import Callable, Dict, List, Optional
+from typing import Callable, Dict, List, Optional, Sequence
 import warnings
 from deeplake.util.exceptions import EmptyTensorError
 from deeplake.util.iterable_ordered_dict import IterableOrderedDict
@@ -8,6 +8,7 @@ import warnings
 
 
 def collate_fn(batch):
+    import torch
     from torch.utils.data._utils.collate import default_collate
 
     elem = batch[0]
@@ -15,6 +16,8 @@ def collate_fn(batch):
         return IterableOrderedDict(
             (key, collate_fn([d[key] for d in batch])) for key in elem.keys()
         )
+    elif isinstance(elem, Sequence):
+        return [torch.tensor(it) for it in batch]
 
     if isinstance(elem, np.ndarray) and elem.size > 0 and isinstance(elem[0], str):
         batch = [it[0] for it in batch]
