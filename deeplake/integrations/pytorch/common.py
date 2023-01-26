@@ -21,9 +21,9 @@ def collate_fn(batch):
         batch = [it[0] for it in batch]
     elif isinstance(elem, Polygons):
         batch = [it.numpy() for it in batch]
-    elif isinstance(batch, Sequence) and isinstance(elem, np.ndarray):
-        batch_type = type(batch)
-        return batch_type([torch.tensor(it) for it in batch])
+    elif isinstance(elem, (tuple, list)):
+        elem_type = type(elem)
+        return [elem_type([torch.tensor(item) for item in sample]) for sample in batch]
     return default_collate(batch)
 
 
