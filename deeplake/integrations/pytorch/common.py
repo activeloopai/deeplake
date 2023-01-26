@@ -1,4 +1,4 @@
-from typing import Callable, Dict, List, Optional, Sequence
+from typing import Callable, Dict, Optional
 import warnings
 from deeplake.util.exceptions import EmptyTensorError
 from deeplake.util.iterable_ordered_dict import IterableOrderedDict
