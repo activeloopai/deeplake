@@ -174,8 +174,6 @@ def checkout(
     storage = dataset.storage
     version_state = dataset.version_state
     original_commit_id = version_state["commit_id"]
-    original_branch = version_state["branch"]
-    original_node = version_state["commit_node"]
 
     if address in version_state["branch_commit_map"].keys():
         if create:
@@ -236,9 +234,7 @@ def checkout(
     try:
         load_meta(dataset)
     except Exception as e:
-        version_state["commit_id"] = original_commit_id
-        version_state["commit_node"] = original_node
-        version_state["branch"] = original_branch
+        checkout(dataset, original_commit_id)
         raise CheckoutError(
             f"Unable to checkout to '{address}', failed to load meta data."
         ) from e
