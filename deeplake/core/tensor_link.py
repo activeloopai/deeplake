@@ -120,7 +120,8 @@ def update_shape(new_sample, link_creds=None, tensor_meta=None):
 @link
 def extend_shape(samples, link_creds=None, tensor_meta=None):
     if isinstance(samples, np.ndarray):
-        return [np.array(samples.shape[1:])] * len(samples)
+        if samples.dtype != object:
+            return np.tile(np.array([samples.shape[1:]]), (len(samples), 1))
     if samples is None:
         return np.array([], dtype=np.int64)
     shapes = [
