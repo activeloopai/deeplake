@@ -18,7 +18,7 @@ from deeplake.util.exceptions import (
 from deeplake.util.keys import get_sample_id_tensor_key, get_tensor_commit_diff_key
 from deeplake.util.remove_cache import create_read_copy_dataset
 from deeplake.util.version_control import auto_checkout, auto_commit, commit
-from deeplake.util.copy import copy_tensors
+from deeplake.util.copy import copy_tensors, copy_tensor_slice
 
 
 def merge(
@@ -464,12 +464,16 @@ def merge_tensor_data(
     is_class_label = target_tensor.meta.htype == "class_label"
     if is_class_label:
         class_names = target_tensor.info.class_names
-    for index in new_indexes:
-        sample = target_tensor[index]
-        if is_class_label and class_names:
-            sample = convert_to_text(sample.numpy(), class_names, return_original=True)
-        original_tensor.append(sample)
-        original_id_tensor[-1] = target_id_tensor[index]
+        is_class_label = bool(class_names)
+    if is_class_label:
+        for index in new_indexes:
+            sample = target_tensor[index]
+            if is_class_label and class_names:
+                sample = convert_to_text(sample.numpy(), class_names, return_original=True)
+            original_tensor.append(sample)
+            original_id_tensor[-1] = target_id_tensor[index]
+    else:
+        copy_tensor_slice(target_dataset, dataset, tensor_name, tensor_name, new_indexes)
 
     updated_indexes = updated_samples_dict[tensor_name]
     for original_idx, target_idx in updated_indexes:
