@@ -568,8 +568,6 @@ def copy_tensors(
     if not src_ds.read_only:
         src_ds.flush()
     dest_ds.flush()
-    src_path = src_ds.path
-    dest_path = dest_ds.path
     src_tensor_names = list(src_tensor_names)
     src_commit_id = src_ds.pending_commit_id
     dest_commit_id = dest_ds.pending_commit_id
@@ -663,7 +661,6 @@ def _get_required_chunks_for_range(tensor, start, end):
     arr = enc._encoded
     start_row = enc.translate_index(start)
     end_row = enc.translate_index(end - 1)
-    orig_end_row = end_row
     end_chunk_id = arr[end_row, 0]
     nrows = len(arr)
     nxt = end_row + 1
@@ -724,9 +721,7 @@ def copy_tensor_slice(
     src_tensor = src_ds[src_tensor_name]
     dest_tensor = dest_ds[dest_tensor_name]
     if not _copy_links_only:
-        src_key = src_tensor.key
         dest_key = dest_tensor.key
-        src_commit = src_ds.pending_commit_id
         dest_commit = dest_ds.pending_commit_id
         src_eng = src_tensor.chunk_engine
         src_enc = src_eng.chunk_id_encoder
