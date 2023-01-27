@@ -156,7 +156,7 @@ def store_data_slice_with_pbar(pg_callback, transform_input: Tuple) -> Dict:
     all_chunk_id_encoders = {}
     all_tile_encoders = {}
     all_sequence_encoders = {}
-    all_chunk_sets = {}
+    all_chunk_maps = {}
     all_commit_diffs = {}
     all_creds_encoders = {}
     all_hash_label_maps = {}
@@ -167,7 +167,7 @@ def store_data_slice_with_pbar(pg_callback, transform_input: Tuple) -> Dict:
         all_chunk_id_encoders[tensor] = chunk_engine.chunk_id_encoder
         all_tile_encoders[tensor] = chunk_engine.tile_encoder
         all_sequence_encoders[tensor] = chunk_engine.sequence_encoder
-        all_chunk_sets[tensor] = chunk_engine.commit_chunk_set
+        all_chunk_maps[tensor] = chunk_engine.commit_chunk_map
         all_commit_diffs[tensor] = chunk_engine.commit_diff
         all_creds_encoders[tensor] = chunk_engine.creds_encoder
         if chunk_engine._is_temp_label_tensor:
@@ -178,7 +178,7 @@ def store_data_slice_with_pbar(pg_callback, transform_input: Tuple) -> Dict:
         "chunk_id_encoders": all_chunk_id_encoders,
         "sequence_encoders": all_sequence_encoders,
         "tile_encoders": all_tile_encoders,
-        "commit_chunk_sets": all_chunk_sets,
+        "commit_chunk_maps": all_chunk_maps,
         "commit_diffs": all_commit_diffs,
         "creds_encoders": all_creds_encoders,
         "hash_label_maps": all_hash_label_maps,

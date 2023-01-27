@@ -14,7 +14,7 @@ from deeplake.core.storage.memory import MemoryProvider
 from deeplake.core.version_control.commit_diff import CommitDiff
 from deeplake.core.version_control.dataset_diff import DatasetDiff
 from deeplake.core.version_control.commit_node import CommitNode  # type: ignore
-from deeplake.core.version_control.commit_chunk_set import CommitChunkSet  # type: ignore
+from deeplake.core.version_control.commit_chunk_map import CommitChunkMap  # type: ignore
 from deeplake.core.storage import LRUCache
 from deeplake.core.lock import Lock
 from deeplake.util.exceptions import CheckoutError, CommitError, DatasetCorruptError
@@ -25,7 +25,7 @@ from deeplake.util.keys import (
     get_dataset_diff_key,
     get_dataset_info_key,
     get_dataset_meta_key,
-    get_tensor_commit_chunk_set_key,
+    get_tensor_commit_chunk_map_key,
     get_tensor_commit_diff_key,
     get_tensor_info_key,
     get_tensor_meta_key,
@@ -148,7 +148,7 @@ def commit(dataset, message: Optional[str] = None, hash: Optional[str] = None) -
     ]
     version_state["commit_node_map"][version_state["commit_id"]] = new_node
     copy_metas(stored_commit_id, version_state["commit_id"], storage, version_state)
-    create_commit_chunk_sets(version_state["commit_id"], storage, version_state)
+    create_commit_chunk_maps(version_state["commit_id"], storage, version_state)
     discard_old_metas(stored_commit_id, storage, version_state["full_tensors"])
     load_meta(dataset)
 
@@ -216,7 +216,7 @@ def checkout(
         version_state["branch_commit_map"][address] = new_commit_id
         save_version_info(version_state, storage)
         copy_metas(original_commit_id, new_commit_id, storage, version_state)
-        create_commit_chunk_sets(new_commit_id, storage, version_state)
+        create_commit_chunk_maps(new_commit_id, storage, version_state)
         dataset._send_branch_creation_event(address)
     else:
         raise CheckoutError(
@@ -315,7 +315,7 @@ def copy_metas(
     storage.flush()
 
 
-def create_commit_chunk_sets(
+def create_commit_chunk_maps(
     dest_commit_id: str,
     storage: LRUCache,
     version_state: Dict[str, Any],
@@ -323,8 +323,8 @@ def create_commit_chunk_sets(
     """Creates commit chunk sets for all tensors in new commit."""
     tensor_list = version_state["full_tensors"].keys()
     for tensor in tensor_list:
-        key = get_tensor_commit_chunk_set_key(tensor, dest_commit_id)
-        storage[key] = CommitChunkSet()
+        key = get_tensor_commit_chunk_map_key(tensor, dest_commit_id)
+        storage[key] = CommitChunkMap()
 
 
 def discard_old_metas(

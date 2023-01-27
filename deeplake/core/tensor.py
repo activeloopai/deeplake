@@ -3,7 +3,7 @@ from deeplake.core.linked_chunk_engine import LinkedChunkEngine
 from deeplake.core.storage.lru_cache import LRUCache
 from deeplake.util.downsample import apply_partial_downsample
 from deeplake.util.invalid_view_op import invalid_view_op
-from deeplake.core.version_control.commit_chunk_set import CommitChunkSet
+from deeplake.core.version_control.commit_chunk_map import CommitChunkMap
 from deeplake.core.version_control.commit_diff import CommitDiff
 from deeplake.core.chunk.base_chunk import InputSample
 import numpy as np
@@ -24,7 +24,7 @@ from deeplake.api.info import Info, load_info
 from deeplake.util.keys import (
     get_chunk_id_encoder_key,
     get_chunk_key,
-    get_tensor_commit_chunk_set_key,
+    get_tensor_commit_chunk_map_key,
     get_tensor_commit_diff_key,
     get_tensor_meta_key,
     get_tensor_tile_encoder_key,
@@ -104,9 +104,9 @@ def create_tensor(
     storage[meta_key] = meta  # type: ignore
 
     if commit_id != FIRST_COMMIT_ID:
-        cset_key = get_tensor_commit_chunk_set_key(key, commit_id)
-        cset = CommitChunkSet()
-        storage[cset_key] = cset  # type: ignore
+        cmap_key = get_tensor_commit_chunk_map_key(key, commit_id)
+        cmap = CommitChunkMap()
+        storage[cmap_key] = cmap  # type: ignore
 
     diff_key = get_tensor_commit_diff_key(key, commit_id)
     diff = CommitDiff(created=True)

@@ -3,7 +3,7 @@ from deeplake.core.storage.deeplake_memory_object import DeepLakeMemoryObject
 from collections import defaultdict
 
 
-class CommitChunkSet(DeepLakeMemoryObject):
+class CommitChunkMap(DeepLakeMemoryObject):
     """Stores set of chunks stored for a particular tensor in a commit."""
 
     def __init__(self) -> None:
@@ -38,7 +38,7 @@ class CommitChunkSet(DeepLakeMemoryObject):
 
     @classmethod
     def frombuffer(cls, buffer: bytes):
-        """Loads a CommitChunkSet from a buffer."""
+        """Loads a CommitChunkMap from a buffer."""
         instance = cls()
         if buffer:
             entries = buffer.decode("utf-8").split(",")
@@ -58,7 +58,7 @@ class CommitChunkSet(DeepLakeMemoryObject):
         commit_id: Optional[str] = None,
         key: Optional[str] = None,
     ) -> None:
-        """Adds a new chunk name to the CommitChunkSet."""
+        """Adds a new chunk name to the CommitChunkMap."""
         v = {}
         if commit_id:
             v["commit_id"] = commit_id

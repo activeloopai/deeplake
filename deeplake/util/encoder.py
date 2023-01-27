@@ -7,12 +7,12 @@ from deeplake.core.meta.encode.chunk_id import ChunkIdEncoder
 from deeplake.core.meta.encode.tile import TileEncoder
 from deeplake.core.meta.encode.sequence import SequenceEncoder
 from deeplake.core.storage.provider import StorageProvider
-from deeplake.core.version_control.commit_chunk_set import CommitChunkSet
+from deeplake.core.version_control.commit_chunk_map import CommitChunkMap
 from deeplake.core.version_control.commit_diff import CommitDiff
 from deeplake.util.keys import (
     get_creds_encoder_key,
     get_sequence_encoder_key,
-    get_tensor_commit_chunk_set_key,
+    get_tensor_commit_chunk_map_key,
     get_tensor_commit_diff_key,
     get_tensor_meta_key,
     get_chunk_id_encoder_key,
@@ -49,8 +49,8 @@ def merge_all_meta_info(
         result["sequence_encoders"], target_ds, storage, overwrite, generated_tensors
     )
     if target_ds.commit_id is not None:
-        merge_all_commit_chunk_sets(
-            result["commit_chunk_sets"],
+        merge_all_commit_chunk_maps(
+            result["commit_chunk_maps"],
             target_ds,
             storage,
             overwrite,
@@ -197,37 +197,37 @@ def combine_tile_encoders(
             ]
 
 
-def merge_all_commit_chunk_sets(
-    all_workers_commit_chunk_sets: List[Dict[str, CommitChunkSet]],
+def merge_all_commit_chunk_maps(
+    all_workers_commit_chunk_maps: List[Dict[str, CommitChunkMap]],
     target_ds: deeplake.Dataset,
     storage: StorageProvider,
     overwrite: bool,
     tensors: List[str],
 ) -> None:
-    """Merges commit_chunk_sets from all workers into a single one and stores it in target_ds."""
+    """Merges commit_chunk_maps from all workers into a single one and stores it in target_ds."""
     commit_id = target_ds.version_state["commit_id"]
     for tensor in tensors:
         rel_path = posixpath.relpath(tensor, target_ds.group_index)
-        commit_chunk_set = (
-            None if overwrite else target_ds[rel_path].chunk_engine.commit_chunk_set
+        commit_chunk_map = (
+            None if overwrite else target_ds[rel_path].chunk_engine.commit_chunk_map
         )
-        for current_worker_commit_chunk_set in all_workers_commit_chunk_sets:
-            current_commit_chunk_set = current_worker_commit_chunk_set[tensor]
-            if commit_chunk_set is None:
-                commit_chunk_set = current_commit_chunk_set
+        for current_worker_commit_chunk_map in all_workers_commit_chunk_maps:
+            current_commit_chunk_map = current_worker_commit_chunk_map[tensor]
+            if commit_chunk_map is None:
+                commit_chunk_map = current_commit_chunk_map
             else:
-                combine_commit_chunk_sets(commit_chunk_set, current_commit_chunk_set)
+                combine_commit_chunk_maps(commit_chunk_map, current_commit_chunk_map)
 
-        commit_chunk_key = get_tensor_commit_chunk_set_key(tensor, commit_id)
-        storage[commit_chunk_key] = commit_chunk_set.tobytes()  # type: ignore
+        commit_chunk_key = get_tensor_commit_chunk_map_key(tensor, commit_id)
+        storage[commit_chunk_key] = commit_chunk_map.tobytes()  # type: ignore
 
 
-def combine_commit_chunk_sets(
-    ds_commit_chunk_set: CommitChunkSet,
-    worker_commit_chunk_set: CommitChunkSet,
+def combine_commit_chunk_maps(
+    ds_commit_chunk_map: CommitChunkMap,
+    worker_commit_chunk_map: CommitChunkMap,
 ) -> None:
-    """Combines the dataset's commit_chunk_set with a single worker's commit_chunk_set."""
-    ds_commit_chunk_set.chunks.update(worker_commit_chunk_set.chunks)
+    """Combines the dataset's commit_chunk_map with a single worker's commit_chunk_map."""
+    ds_commit_chunk_map.chunks.update(worker_commit_chunk_map.chunks)
 
 
 def merge_all_commit_diffs(

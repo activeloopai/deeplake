@@ -1,11 +1,11 @@
 from deeplake.core.version_control.commit_diff import CommitDiff
-from deeplake.core.version_control.commit_chunk_set import CommitChunkSet
+from deeplake.core.version_control.commit_chunk_map import CommitChunkMap
 from deeplake.util.keys import (
     get_tensor_meta_key,
     get_tensor_info_key,
     get_tensor_tile_encoder_key,
     get_creds_encoder_key,
-    get_tensor_commit_chunk_set_key,
+    get_tensor_commit_chunk_map_key,
     get_tensor_commit_diff_key,
     get_chunk_id_encoder_key,
     get_sequence_encoder_key,
@@ -95,13 +95,13 @@ def copy_tensors(
         src_tensor_key = src_tensor.key
         chunks = _get_chunks_for_tensor(src_tensor, dest_commit_id, dest_tensor_name)
 
-        dest_chunk_set_key = get_tensor_commit_chunk_set_key(
+        dest_chunk_map_key = get_tensor_commit_chunk_map_key(
             dest_tensor_name, dest_commit_id
         )
-        dest_chunk_set = CommitChunkSet()
+        dest_chunk_map = CommitChunkMap()
         for chunk in chunks:
-            dest_chunk_set.add(*chunk)
-        dest_storage[dest_chunk_set_key] = dest_chunk_set.tobytes()
+            dest_chunk_map.add(*chunk)
+        dest_storage[dest_chunk_map_key] = dest_chunk_map.tobytes()
         src_keys += _get_meta_files_for_tensor(src_tensor_key, src_ds.pending_commit_id)
         dest_keys += _get_meta_files_for_tensor(dest_tensor_name, dest_commit_id)
         dest_commit_diff = CommitDiff(0, True)
@@ -111,7 +111,7 @@ def copy_tensors(
         )
         dest_storage[dest_commit_diff_key] = dest_commit_diff.tobytes()
         updated_dest_keys = [dest_commit_diff_key]
-        updated_dest_keys.append(dest_chunk_set_key)
+        updated_dest_keys.append(dest_chunk_map_key)
     _copy_objects((src_keys, dest_keys), src_storage, dest_storage)
     dest_ds_meta.tensors += dest_tensor_names
     dest_ds_meta.tensor_names.update({k: k for k in dest_tensor_names})
@@ -226,8 +226,8 @@ def copy_tensor_slice(
     src_meta = src_tensor.meta
     dest_meta = dest_tensor.meta
     dest_length = dest_meta.length + len(indices)
-    chunk_set_key = get_tensor_commit_chunk_set_key(dest_key, dest_commit)
-    chunk_set = dest_eng.commit_chunk_set
+    chunk_map_key = get_tensor_commit_chunk_map_key(dest_key, dest_commit)
+    chunk_map = dest_eng.commit_chunk_map
     links = dest_tensor.meta.links
     dest_tensor.meta.links = {}
     try:
@@ -250,7 +250,7 @@ def copy_tensor_slice(
                         commit = None
                     elif key == dest_key:
                         key = None
-                    chunk_set.add(chunk_name, commit, key)
+                    chunk_map.add(chunk_name, commit, key)
                 dest_enc._encoded = _merge_chunk_id_encodings(
                     dest_enc._encoded, src_enc_arr, s, e
                 )
@@ -258,7 +258,7 @@ def copy_tensor_slice(
                 s, e = right_edge_samples
                 dest_tensor.extend(src_tensor[s:e])
         dest_ds.flush()
-        dest_storage[chunk_set_key] = chunk_set.tobytes()
+        dest_storage[chunk_map_key] = chunk_map.tobytes()
         if src_meta.min_shape:
             dest_meta.update_shape_interval(src_meta.min_shape)
             dest_meta.update_shape_interval(src_meta.max_shape)

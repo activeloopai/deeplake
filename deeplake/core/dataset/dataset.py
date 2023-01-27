@@ -104,7 +104,7 @@ from deeplake.util.keys import (
     get_tensor_commit_diff_key,
     get_tensor_tile_encoder_key,
     get_tensor_info_key,
-    get_tensor_commit_chunk_set_key,
+    get_tensor_commit_chunk_map_key,
     get_chunk_id_encoder_key,
     get_dataset_diff_key,
     get_sequence_encoder_key,
@@ -122,7 +122,7 @@ from deeplake.util.version_control import (
     warn_node_checkout,
     load_version_info,
     copy_metas,
-    create_commit_chunk_sets,
+    create_commit_chunk_maps,
 )
 from deeplake.util.pretty_print import summary_dataset
 from deeplake.core.dataset.view_entry import ViewEntry
@@ -3543,10 +3543,10 @@ class Dataset:
             storage.clear(prefix=prefix)
             src_id, dest_id = self.commit_id, self.pending_commit_id
 
-            # by doing this checkout, we get list of tensors in previous commit, which is what we require for copying metas and create_commit_chunk_set
+            # by doing this checkout, we get list of tensors in previous commit, which is what we require for copying metas and create_commit_chunk_map
             self.checkout(src_id)
             copy_metas(src_id, dest_id, storage, version_state)
-            create_commit_chunk_sets(dest_id, storage, version_state)
+            create_commit_chunk_maps(dest_id, storage, version_state)
             self.checkout(dest_id)
         load_meta(self)
 
@@ -3561,7 +3561,7 @@ class Dataset:
             meta_keys.append(get_tensor_meta_key(commit_id, tensor))
             meta_keys.append(get_tensor_tile_encoder_key(commit_id, tensor))
             meta_keys.append(get_tensor_info_key(commit_id, tensor))
-            meta_keys.append(get_tensor_commit_chunk_set_key(commit_id, tensor))
+            meta_keys.append(get_tensor_commit_chunk_map_key(commit_id, tensor))
             meta_keys.append(get_tensor_commit_diff_key(commit_id, tensor))
             meta_keys.append(get_chunk_id_encoder_key(commit_id, tensor))
             meta_keys.append(get_sequence_encoder_key(commit_id, tensor))
