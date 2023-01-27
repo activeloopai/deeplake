@@ -318,6 +318,22 @@ class Tensor:
         dataset_written(self.dataset)
         self.invalidate_libdeeplake_dataset()
 
+    @invalid_view_op
+    def _extend_with_paths(
+        self,
+        samples: Union[np.ndarray, Sequence[InputSample], "Tensor"],
+        progressbar: bool = False,
+    ):
+        self._write_initialization()
+        [f() for f in list(self.dataset._update_hooks.values())]
+        self.chunk_engine.path_chunk_engine.extend(
+            samples,
+            progressbar=progressbar,
+            link_callback=self._extend_links if self.meta.links else None,
+        )
+        dataset_written(self.dataset)
+        self.invalidate_libdeeplake_dataset()
+
     @property
     def info(self) -> Info:
         """Returns the information about the tensor. User can set info of tensor.

@@ -19,6 +19,7 @@ from deeplake.util.remove_cache import create_read_copy_dataset
 from deeplake.util.version_control import auto_checkout, auto_commit, commit
 from deeplake.core.version_control.commit_diff import CommitDiff
 from deeplake.core.version_control.commit_chunk_map import CommitChunkMap
+from deeplake.core.index.index import Index, IndexEntry
 from deeplake.util.keys import (
     get_sample_id_tensor_key,
     get_tensor_meta_key,
@@ -498,7 +499,8 @@ def merge_tensor_data(
         tensor_name,
         tensor_name,
         new_indexes,
-        _copy_links_only=copy_links_only,
+        _copy_main_tensor=not copy_links_only,
+        _copy_link_tensors=True,
     )
 
     updated_indexes = updated_samples_dict[tensor_name]
@@ -635,7 +637,7 @@ def _group_ranges(x):
     return ret
 
 
-def _merge_chunk_id_encodings(enc1, enc2, start, end):
+def _merge_encodings(enc1, enc2, start, end):
     n1 = len(enc1)
     if not n1:
         return enc2
@@ -647,6 +649,8 @@ def _merge_chunk_id_encodings(enc1, enc2, start, end):
     else:
         old_offset = enc2[start - 1, 1:2] + 1
     new_offset = enc1[-1, 1:2] + 1
+    if enc1[-1, 0] == enc2[start, 0]:
+        enc1 = enc1[:-1]
     ret = np.concatenate([enc1, enc2[start:end]], axis=0)
     ret[n1:, 1] += new_offset - old_offset
     return ret
@@ -708,16 +712,14 @@ def copy_tensor_slice(
     src_tensor_name,
     dest_tensor_name,
     indices,
-    _copy_links_only=False,
-    _flush=True,
+    _copy_main_tensor=True,
+    _copy_link_tensors=True,
 ):
     if not indices:
         return
-    if _flush:
-        dest_ds.flush()
     src_tensor = src_ds[src_tensor_name]
     dest_tensor = dest_ds[dest_tensor_name]
-    if not _copy_links_only:
+    if _copy_main_tensor:
         dest_key = dest_tensor.key
         dest_commit = dest_ds.pending_commit_id
         src_eng = src_tensor.chunk_engine
@@ -726,17 +728,29 @@ def copy_tensor_slice(
         dest_enc = dest_eng.chunk_id_encoder
         src_enc_arr = src_enc._encoded
         ranges = _group_ranges(indices)
-        dest_storage = dest_ds.base_storage
+        dest_storage = dest_ds.storage
         dest_meta_key = get_tensor_meta_key(dest_key, dest_commit)
         src_meta = src_tensor.meta
         dest_meta = dest_tensor.meta
-        dest_length = dest_meta.length + len(indices)
+        dest_meta_length = dest_meta.length + len(indices)
         chunk_map_key = get_tensor_commit_chunk_map_key(dest_key, dest_commit)
         chunk_map = dest_eng.commit_chunk_map
-        links = dest_tensor.meta.links
+        is_link = src_meta.is_link
         dest_tensor.meta.links = {}
+        links = dest_tensor.meta.links
+        dest_creds_encoder_key = get_creds_encoder_key(dest_key, dest_commit)
         try:
             for start, end in ranges:
+
+                if is_link:
+                    src_creds_encoder = src_eng.creds_encoder
+                    dest_creds_encoder = dest_eng.creds_encoder
+                    start_row = src_creds_encoder.translate_index(start)
+                    end_row = src_creds_encoder.translate_index(end)
+                    dest_creds_encoder._encoded = _merge_encodings(
+                        dest_creds_encoder, src_creds_encoder, start_row, end_row + 1
+                    )
+                    dest_creds_encoder.is_dirty = True
                 (
                     chunks_to_copy,
                     left_edge_samples,
@@ -744,7 +758,16 @@ def copy_tensor_slice(
                 ) = _get_required_chunks_for_range(src_tensor, start, end)
                 if left_edge_samples:
                     s, e = left_edge_samples
-                    dest_tensor.extend(src_tensor[s:e])
+                    if is_link:
+                        dest_tensor._extend_with_paths(
+                            src_tensor.chunk_engine.path_chunk_engine.numpy(
+                                Index([IndexEntry(slice(s, e, None))]),
+                                aslist=True,
+                                fetch_chunks=False,
+                            )
+                        )
+                    else:
+                        dest_tensor.extend(src_tensor[s:e])
                 if chunks_to_copy:
                     s, e = chunks_to_copy
                     chunk_ids = src_enc_arr[s:e, 0]
@@ -756,25 +779,31 @@ def copy_tensor_slice(
                         elif key == dest_key:
                             key = None
                         chunk_map.add(chunk_name, commit, key)
-                    dest_enc._encoded = _merge_chunk_id_encodings(
+                    dest_enc._encoded = _merge_encodings(
                         dest_enc._encoded, src_enc_arr, s, e
                     )
+                    dest_enc.is_dirty = True
                 if right_edge_samples:
                     s, e = right_edge_samples
-                    dest_tensor.extend(src_tensor[s:e])
-            dest_ds.flush()
-            dest_storage[chunk_map_key] = chunk_map.tobytes()
+                    if is_link:
+                        dest_tensor._extend_with_paths(
+                            src_tensor.chunk_engine.path_chunk_engine.numpy(
+                                Index([IndexEntry(slice(s, e, None))]),
+                                aslist=True,
+                                fetch_chunks=False,
+                            )
+                        )
+                    else:
+                        dest_tensor.extend(src_tensor[s:e])
             if src_meta.min_shape:
                 dest_meta.update_shape_interval(src_meta.min_shape)
                 dest_meta.update_shape_interval(src_meta.max_shape)
-            dest_meta.length = dest_length
-            dest_storage[dest_meta_key] = dest_meta.tobytes()
-            dest_storage[
-                get_chunk_id_encoder_key(dest_key, dest_commit)
-            ] = dest_enc.tobytes()
+            dest_meta.length = dest_meta_length
+            dest_meta.is_dirty = True
+            dest_storage.flush()
         finally:
             dest_tensor.meta.links = links
-    if _flush:
+    if _copy_link_tensors:
         links = ["_sample_id_tensor", "_sample_shape_tensor", "_sample_info_tensor"]
         for l in links:
             dest_link_tensor = getattr(dest_tensor, l, None)
@@ -787,8 +816,6 @@ def copy_tensor_slice(
                         src_link_tensor.meta.name,
                         dest_link_tensor.meta.name,
                         indices,
-                        _copy_links_only=False,
-                        _flush=False,
+                        _copy_main_tensor=True,
+                        _copy_link_tensors=False,
                     )
-        dest_ds.storage.clear_cache_without_flush()
-        dest_ds._populate_meta()
