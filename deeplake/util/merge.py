@@ -590,12 +590,9 @@ def copy_tensors(
     dest_storage = dest_ds.base_storage
     updated_dest_keys = []
     for src_tensor_name, dest_tensor_name in zip(src_tensor_names, dest_tensor_names):
-        assert dest_tensor_name not in dest_ds._tensors(include_hidden=True)
         src_tensor = src_ds[src_tensor_name]
         src_key = src_tensor.key
-        src_tensor_key = src_tensor.key
         chunks = _get_chunks_for_tensor(src_tensor, dest_commit_id, dest_tensor_name)
-
         dest_chunk_map_key = get_tensor_commit_chunk_map_key(
             dest_tensor_name, dest_commit_id
         )
@@ -603,7 +600,7 @@ def copy_tensors(
         for chunk in chunks:
             dest_chunk_map.add(*chunk)
         dest_storage[dest_chunk_map_key] = dest_chunk_map.tobytes()
-        src_keys += _get_meta_files_for_tensor(src_tensor_key, src_commit_id)
+        src_keys += _get_meta_files_for_tensor(src_key, src_commit_id)
         dest_keys += _get_meta_files_for_tensor(dest_tensor_name, dest_commit_id)
         dest_commit_diff = CommitDiff(0, True)
         dest_commit_diff.add_data(src_tensor.meta.length)

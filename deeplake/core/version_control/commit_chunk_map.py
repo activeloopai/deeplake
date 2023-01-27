@@ -50,7 +50,7 @@ class CommitChunkMap(DeepLakeMemoryObject):
     def nbytes(self) -> int:
         if not self.chunks:
             return 0
-        return 15 + ((len(self.chunks) - 1) * 17)
+        return 16 + ((len(self.chunks) - 1) * 17)
 
     def add(
         self,
