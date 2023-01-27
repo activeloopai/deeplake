@@ -22,7 +22,6 @@ from deeplake.core.version_control.commit_diff import CommitDiff
 from deeplake.core.partial_reader import PartialReader
 from deeplake.core.version_control.commit_node import CommitNode  # type: ignore
 from deeplake.core.version_control.commit_chunk_map import CommitChunkMap  # type: ignore
-from deeplake.core.version_control.commit_chunk_map import CommitChunkMap  # type: ignore
 from typing import Any, Dict, List, Optional, Sequence, Union, Callable
 from deeplake.core.meta.encode.tile import TileEncoder
 from deeplake.core.storage.provider import StorageProvider
