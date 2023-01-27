@@ -556,6 +556,7 @@ def _copy_objects(key_pairs, src_storage, dest_storage):
         except KeyError as ke:
             pass
 
+
 def copy_tensors(
     src_ds,
     dest_ds,
@@ -654,6 +655,7 @@ def _merge_chunk_id_encodings(enc1, enc2, start, end):
     ret = np.concatenate([enc1, enc2[start:end]], axis=0)
     ret[n1:, 1] += new_offset - old_offset
     return ret
+
 
 def _get_required_chunks_for_range(tensor, start, end):
     eng = tensor.chunk_engine
