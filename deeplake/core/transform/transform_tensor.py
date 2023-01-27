@@ -120,7 +120,6 @@ class TransformTensor:
         if not isinstance(item, (LinkedSample, Tensor)) and item is not None:
             shape = getattr(item, "shape", None)
             if shape is None:
-                # if item is numeric
                 if isinstance(item, (int, float)):
                     shape = (1,)
                 else:
