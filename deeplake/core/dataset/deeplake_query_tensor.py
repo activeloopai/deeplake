@@ -148,7 +148,9 @@ class DeepLakeQueryTensor(tensor.Tensor):
 
     @property
     def shape_interval(self):
-        return shape_interval.ShapeInterval(self.min_shape, self.max_shape)
+        min_shape = (len(self.indra_tensors),) + self.min_shape
+        max_shape = (len(self.indra_tensors),) + self.max_shape
+        return shape_interval.ShapeInterval(min_shape, max_shape)
 
     @property
     def ndim(self):
@@ -202,6 +204,8 @@ class DeeplakeQueryTensorWithSliceIndices(DeepLakeQueryTensor):
         )
         # TO DO: Optimize this, we shouldn't be loading indra tensor here.
         self.idxs = [idx.value for idx in self.index.values]
+
+    def _set_tensors_list(self):
         if len(self.index.values) == 1:
             self.tensors_list = self.indra_tensors[self.idxs[0]]
         else:
@@ -215,6 +219,7 @@ class DeeplakeQueryTensorWithSliceIndices(DeepLakeQueryTensor):
     @property
     def max_shape(self):
         # TO DO: Optimize this
+        self._set_tensors_list()
         tensors = self.tensors_list
         first_dim = len(self.tensors_list)
         max_tensor_len = len(self.tensors_list[0])
@@ -235,6 +240,7 @@ class DeeplakeQueryTensorWithSliceIndices(DeepLakeQueryTensor):
     @property
     def min_shape(self):
         # TO DO: Optimize this
+        self._set_tensors_list()
         tensors = self.tensors_list
         first_dim = len(self.tensors_list)
         min_tensor_len = len(self.tensors_list[0])
@@ -286,6 +292,7 @@ class DeeplakeQueryTensorWithSliceIndices(DeepLakeQueryTensor):
         return shape
 
     def numpy(self, aslist=False):
+        self._set_tensors_list()
         # TO DO: optimize this
         if self.min_shape != self.max_shape and aslist == False or None in self.shape:
             raise DynamicTensorNumpyError(self.key, self.index, "shape")

@@ -129,7 +129,7 @@ from deeplake.util.version_control import (
     save_version_info,
     generate_hash,
 )
-from deeplake.util.pretty_print import summary_dataset
+from deeplake.util.pretty_print import summary_dataset, summary_tensor
 from deeplake.core.dataset.view_entry import ViewEntry
 from deeplake.core.dataset.invalid_view import InvalidView
 from deeplake.core.dataset.deeplake_query_view import NonlinearQueryView
@@ -4284,3 +4284,32 @@ class DeepLakeQueryDataset(Dataset):
     @property
     def index(self):
         return self.indra_ds.indexes
+
+    def _tensors(
+        self, include_hidden: bool = True, include_disabled=True
+    ) -> Dict[str, Tensor]:
+        """All tensors belonging to this group, including those within sub groups. Always returns the sliced tensors."""
+        version_state = self.version_state
+        index = self.indra_index
+        group_index = self.group_index
+        all_tensors = self._all_tensors_filtered(include_hidden, include_disabled)
+        return {t: self[posixpath.join(group_index, t)][index] for t in all_tensors}
+
+    def __str__(self):
+        path_str = ""
+        if self.path:
+            path_str = f"path='{self.path}', "
+
+        mode_str = ""
+        if self.read_only:
+            mode_str = f"read_only=True, "
+
+        index_str = f"index={self.indra_index}, "
+        if self.indra_index.is_trivial():
+            index_str = ""
+
+        group_index_str = (
+            f"group_index='{self.group_index}', " if self.group_index else ""
+        )
+
+        return f"Dataset({path_str}{mode_str}{index_str}{group_index_str}tensors={self._all_tensors_filtered(include_hidden=False, include_disabled=False)})"
