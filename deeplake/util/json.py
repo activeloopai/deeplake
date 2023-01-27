@@ -190,7 +190,7 @@ class HubJsonEncoder(json.JSONEncoder):
                 "_hub_custom_type": "ndarray",
                 "data": base64.b64encode(obj.tobytes()).decode(),
                 "shape": obj.shape,
-                "dtype": obj.dtype.name,
+                "dtype": obj.dtype.str,
             }
         elif isinstance(obj, Sample):
             if obj.compression:

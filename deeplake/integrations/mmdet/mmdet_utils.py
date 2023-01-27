@@ -6,6 +6,7 @@ import copy
 import itertools
 import pycocotools.mask as maskUtils  # type: ignore
 from pycocotools import coco as pycocotools_coco  # type: ignore
+from pycocotools import mask as _mask
 from collections import defaultdict
 import sys
 from typing import Union, Dict, List
@@ -47,7 +48,7 @@ class _COCO(pycocotools_coco.COCO):
         self.masks = masks
         self.bboxes = bboxes
         self.labels = labels
-        self.img_shapes = imgs
+        self.imgs_orig = imgs
         self.iscrowds = iscrowds
         self.class_names = class_names
         self.bbox_format = bbox_format
@@ -69,10 +70,15 @@ class _COCO(pycocotools_coco.COCO):
         all_categories = self.labels
         all_bboxes = self.bboxes
         all_masks = self.masks
-        all_imgs = self.img_shapes
+        all_imgs = self.imgs_orig
         all_iscrowds = self.iscrowds
 
         for row_index, row in enumerate(self.dataset):
+            if all_imgs[row_index].size == 0:
+                always_warn(
+                    "found empty image, skipping it. Please verify that your dataset is not corrupted."
+                )
+                continue
             categories = all_categories[row_index]  # make referencig custom
             bboxes = all_bboxes[row_index]
             if all_masks != [] and all_masks is not None:
@@ -85,20 +91,27 @@ class _COCO(pycocotools_coco.COCO):
                 is_crowds = np.zeros_like(categories)
             img = {
                 "id": row_index,
-                "height": all_imgs[row_index][0],
-                "width": all_imgs[row_index][1],
+                "height": all_imgs[row_index].shape[0],
+                "width": all_imgs[row_index].shape[1],
             }
             imgs[row_index] = img
             for bbox_index, bbox in enumerate(bboxes):
+                if self.masks is not None and self.masks != []:
+                    if self.masks.htype == "binary_mask":
+                        mask = _mask.encode(
+                            np.asfortranarray(masks[..., bbox_index].numpy())
+                        )
+                    elif self.masks.htype == "polygon":
+                        mask = convert_poly_to_coco_format(masks.numpy()[bbox_index])
+                    else:
+                        raise Exception(f"{type(self.masks)} is not supported yet.")
                 ann = {
                     "image_id": row_index,
                     "id": absolute_id,
                     "category_id": categories[bbox_index],
                     "bbox": bbox,
                     "area": bbox[2] * bbox[3],
-                    "segmentation": masks.transpose((2, 0, 1))[bbox_index].astype(
-                        np.uint8
-                    )
+                    "segmentation": mask
                     if masks is not None
                     else None,  # optimize here
                     "iscrowd": int(is_crowds[bbox_index]),
@@ -140,7 +153,6 @@ class _COCO(pycocotools_coco.COCO):
         catIds = catIds if _isArrayLike(catIds) else [catIds]
 
         if len(imgIds) == len(catIds) == len(areaRng) == 0:
-            # anns = self.dataset['annotations']
             anns = list(self.anns.values())
         else:
             if not len(imgIds) == 0:
@@ -188,7 +200,6 @@ class _COCO(pycocotools_coco.COCO):
         if len(catNms) == len(supNms) == len(catIds) == 0:
             cats = list(self.cats.values())
         else:
-            # cats = self.dataset['categories']
             cats = list(self.cats.values())
             cats = (
                 cats
@@ -439,6 +450,20 @@ class COCODatasetEvaluater(mmdet_coco.CocoDataset):
             total_ann_ids.extend(ann_ids)
         assert len(set(total_ann_ids)) == len(total_ann_ids)
         return data_infos
+
+
+def convert_poly_to_coco_format(masks):
+    if isinstance(masks, np.ndarray):
+        px = masks[..., 0]
+        py = masks[..., 1]
+        poly = [(x + 0.5, y + 0.5) for x, y in zip(px, py)]
+        poly = [[float(p) for x in poly for p in x]]
+        return poly
+    poly = []
+    for mask in masks:
+        poly_i = convert_poly_to_coco_format(mask)
+        poly.append([np.array(poly_i[0])])
+    return poly
 
 
 def check_unsupported_functionalities(cfg):

@@ -244,9 +244,9 @@ def test_basic(local_ds_generator, cat_path, flower_path, create_shape_tensor, v
             assert ds.linked_images_2[i].numpy().shape == shape_target
 
         assert ds.linked_images_2.meta.sample_compression == "png"
-        assert ds.linked_images[10].shape == (0,)
+        assert ds.linked_images[10].size == 0
         np.testing.assert_array_equal(ds.linked_images[10].numpy(), np.ones((0,)))
-        assert ds.linked_images_2[10].shape == (0,)
+        assert ds.linked_images_2[10].size == 0
         np.testing.assert_array_equal(ds.linked_images_2[10].numpy(), np.ones((0,)))
 
     ds.commit()
@@ -602,3 +602,19 @@ def test_link_path(local_ds):
 @pytest.mark.parametrize("verify", [True, False])
 def test_basic_sequence(local_ds, cat_path, flower_path, create_shape_tensor, verify):
     pass
+
+
+@pytest.mark.parametrize("shape_tensor", (True,))
+def test_shape_interval(local_ds_generator, cat_path, flower_path, shape_tensor):
+    with local_ds_generator() as ds:
+        ds.create_tensor(
+            "img",
+            htype="link[image]",
+            sample_compression="jpg",
+            create_shape_tensor=shape_tensor,
+        )
+        for _ in range(3):
+            ds.img.append(deeplake.link(cat_path))
+        assert ds.img.shape_interval.astuple() == (3, 900, 900, 3)
+        ds.img[1] = deeplake.link(flower_path)
+        assert ds.img.meta.max_shape == [900, 900, 4]

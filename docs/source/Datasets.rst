@@ -14,6 +14,8 @@ Creating Datasets
     deeplake.empty
     deeplake.like
     deeplake.ingest
+    deeplake.ingest_coco
+    deeplake.ingest_yolo
     deeplake.ingest_kaggle
     deeplake.ingest_dataframe
     deeplake.ingest_huggingface
@@ -59,6 +61,7 @@ Dataset Operations
     Dataset.copy
     Dataset.delete
     Dataset.rename
+    Dataset.connect
     Dataset.visualize
     Dataset.pop
     Dataset.rechunk

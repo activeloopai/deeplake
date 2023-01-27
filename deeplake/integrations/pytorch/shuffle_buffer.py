@@ -2,9 +2,13 @@ from typing import List, Any, Sequence
 from random import randrange
 from functools import reduce
 from operator import mul
-import warnings
 import numpy as np
-import torch
+
+import warnings
+import sys
+
+from PIL import Image  # type: ignore
+from io import BytesIO
 from tqdm import tqdm  # type: ignore
 
 
@@ -92,6 +96,22 @@ class ShuffleBuffer:
         return len(self.buffer) == 0
 
     def _sample_size(self, sample):
+        try:
+            if sys.modules.get("torch"):
+                from torch import Tensor as TorchTensor
+            else:
+                TorchTensor = None
+        except ImportError:
+            TorchTensor = None  # type: ignore
+
+        try:
+            if sys.modules.get("tensorflow"):
+                from tensorflow import Tensor as TensorflowTensor
+            else:
+                TensorflowTensor = None
+        except ImportError:
+            TensorflowTensor = None  # type: ignore
+
         if isinstance(sample, (int, float)):
             return 8
         elif isinstance(sample, bool):
@@ -102,12 +122,18 @@ class ShuffleBuffer:
             return sum(self._sample_size(tensor) for tensor in sample.values())
         elif isinstance(sample, Sequence):
             return sum(self._sample_size(tensor) for tensor in sample)
-        elif isinstance(sample, torch.Tensor):
+        elif TorchTensor is not None and isinstance(sample, TorchTensor):
             return sample.element_size() * reduce(mul, sample.shape, 1)
+        elif TensorflowTensor is not None and isinstance(sample, TensorflowTensor):
+            return sample.dtype.size * reduce(mul, sample.shape.as_list(), 1)
         elif isinstance(sample, np.ndarray):
             return sample.nbytes
+        elif isinstance(sample, Image.Image):
+            img = BytesIO()
+            sample.save(img, sample.format)
+            return len(img.getvalue())
         raise ValueError(
-            f"Expected input of type bytes, dict, Sequence, torch.Tensor or np.ndarray, got: {type(sample)}"
+            f"Expected input of type bytes, dict, Sequence, torch.Tensor, np.ndarray or PIL image, got: {type(sample)}"
         )
 
     def __len__(self):

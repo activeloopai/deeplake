@@ -2,7 +2,14 @@ import sys
 from io import BytesIO, StringIO
 
 import numpy as np
-import pandas as pd  # type: ignore
+
+try:
+    import pandas as pd  # type: ignore
+
+    _PANDAS_INSTALLED = True
+except ImportError:
+    pd = None
+    _PANDAS_INSTALLED = False
 
 from deeplake.util.exceptions import DynamicTensorNumpyError  # type: ignore
 from deeplake.util.object_3d import ply_reader_base
@@ -55,6 +62,10 @@ class PlyASCIIWithNormalsReader(ply_reader_base.PlyReaderBase):
         stream_bytes = str(stream_bytes, "utf-8")
         stream_bytes = StringIO(stream_bytes)
         bottom = 0 if self.mesh_size is None else self.mesh_size
+        if not _PANDAS_INSTALLED:
+            raise ModuleNotFoundError(
+                "pandas is not installed. Run `pip install pandas`."
+            )
         points = pd.read_csv(
             stream_bytes,
             sep=" ",
@@ -169,8 +180,7 @@ class PlyASCIIReader(ply_reader_base.PlyReaderBase):
                 usecols=face_names,
                 names=face_names,
             )
-            mesh = mesh.dropna(axis=1).to_numpy()
-            return np.asanyarray([points, mesh])
+            return np.asanyarray([points, mesh.to_numpy()], dtype=object)
         return points
 
     @property
@@ -269,7 +279,7 @@ class PlyBinReader(ply_reader_base.PlyReaderBase):
 
             if ext != sys_byteorder:
                 mesh = mesh.byteswap().newbyteorder()
-            return np.asanyarray([points, mesh])
+            return np.asanyarray([points, mesh], dtype=object)
         return points
 
     @property

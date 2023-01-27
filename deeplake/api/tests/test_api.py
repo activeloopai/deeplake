@@ -10,6 +10,7 @@ from deeplake.tests.common import (
     assert_array_lists_equal,
     is_opt_true,
     get_dummy_data_path,
+    requires_libdeeplake,
 )
 from deeplake.tests.storage_fixtures import enabled_remote_storages
 from deeplake.core.storage import GCSProvider
@@ -42,6 +43,7 @@ from deeplake.util.exceptions import (
     UnsupportedParameterException,
 )
 from deeplake.util.path import convert_string_to_pathlib_if_needed, verify_dataset_name
+from deeplake.util.testing import assert_array_equal
 from deeplake.util.pretty_print import summary_tensor, summary_dataset
 from deeplake.constants import GDRIVE_OPT, MB
 from deeplake.client.config import REPORTING_CONFIG_FILE_PATH
@@ -77,7 +79,7 @@ def test_persist(ds_generator):
     assert len(ds_new) == 4
 
     assert ds_new.image.shape == (4, 224, 224, 3)
-    np.testing.assert_array_equal(ds_new.image.numpy(), np.ones((4, 224, 224, 3)))
+    assert_array_equal(ds_new.image.numpy(), np.ones((4, 224, 224, 3)))
 
     assert ds_new.meta.version == deeplake.__version__
 
@@ -88,7 +90,7 @@ def test_persist(ds_generator):
 
     ds2.storage["dataset_meta.json"] == ds_new.storage["dataset_meta.json"]
     assert len(ds2) == 4
-    np.testing.assert_array_equal(ds2.label.numpy(), np.array([[1], [2], [3], [4]]))
+    assert_array_equal(ds2.label.numpy(), np.array([[1], [2], [3], [4]]))
 
 
 def test_persist_keys(local_ds_generator):
@@ -125,7 +127,7 @@ def test_persist_with(local_ds_generator):
 
     assert ds_new.image.shape == (4, 224, 224, 3)
 
-    np.testing.assert_array_equal(ds_new.image.numpy(), np.ones((4, 224, 224, 3)))
+    assert_array_equal(ds_new.image.numpy(), np.ones((4, 224, 224, 3)))
 
     assert ds_new.meta.version == deeplake.__version__
 
@@ -140,7 +142,7 @@ def test_persist_clear_cache(local_ds_generator):
 
     assert ds_new.image.shape == (4, 224, 224, 3)
 
-    np.testing.assert_array_equal(ds_new.image.numpy(), np.ones((4, 224, 224, 3)))
+    assert_array_equal(ds_new.image.numpy(), np.ones((4, 224, 224, 3)))
 
 
 def test_populate_dataset(local_ds):
@@ -174,7 +176,7 @@ def test_larger_data_memory(memory_ds):
     memory_ds.image.extend(x)
     assert len(memory_ds) == 4
     assert memory_ds.image.shape == x.shape
-    np.testing.assert_array_equal(memory_ds.image.numpy(), x)
+    assert_array_equal(memory_ds.image.numpy(), x)
     idxs = [
         0,
         1,
@@ -188,7 +190,7 @@ def test_larger_data_memory(memory_ds):
         (slice(1, 3), [20, 1000, 2, 400], [-2, 3, 577, 1023]),
     ]
     for idx in idxs:
-        np.testing.assert_array_equal(memory_ds.image[idx].numpy(), x[idx])
+        assert_array_equal(memory_ds.image[idx].numpy(), x[idx])
 
 
 def test_stringify(memory_ds, capsys):
@@ -252,7 +254,7 @@ def test_fixed_tensor(local_ds):
     local_ds.create_tensor("image")
     local_ds.image.extend(np.ones((32, 28, 28)))
     assert len(local_ds) == 32
-    np.testing.assert_array_equal(local_ds.image.numpy(), np.ones((32, 28, 28)))
+    assert_array_equal(local_ds.image.numpy(), np.ones((32, 28, 28)))
 
 
 def test_dynamic_tensor(local_ds):
@@ -275,8 +277,8 @@ def test_dynamic_tensor(local_ds):
     assert_array_lists_equal(expected_list, actual_list)
 
     # test negative indexing
-    np.testing.assert_array_equal(expected_list[-1], image[-1].numpy())
-    np.testing.assert_array_equal(expected_list[-2], image[-2].numpy())
+    assert_array_equal(expected_list[-1], image[-1].numpy())
+    assert_array_equal(expected_list[-2], image[-2].numpy())
     assert_array_lists_equal(expected_list[-2:], image[-2:].numpy(aslist=True))
     assert_array_lists_equal(expected_list[::-3], image[::-3].numpy(aslist=True))
 
@@ -315,19 +317,15 @@ def test_empty_samples(local_ds: Dataset):
     # test indexing individual empty samples with numpy while looping, this may seem redundant but this was failing before
     for actual_sample, expected in zip(local_ds, expected_list):
         actual = actual_sample.with_empty.numpy()
-        np.testing.assert_array_equal(actual, expected)
+        assert_array_equal(actual, expected)
 
 
 def test_indexed_tensor(local_ds: Dataset):
     tensor = local_ds.create_tensor("abc")
     tensor.append([[1, 2, 3], [4, 5, 6], [7, 8, 9], [10, 11, 12]])
-    np.testing.assert_array_equal(tensor[0, 1].numpy(), np.array([4, 5, 6]))
-    np.testing.assert_array_equal(
-        tensor[0, 0:2].numpy(), np.array([[1, 2, 3], [4, 5, 6]])
-    )
-    np.testing.assert_array_equal(
-        tensor[0, 0::2].numpy(), np.array([[1, 2, 3], [7, 8, 9]])
-    )
+    assert_array_equal(tensor[0, 1].numpy(), np.array([4, 5, 6]))
+    assert_array_equal(tensor[0, 0:2].numpy(), np.array([[1, 2, 3], [4, 5, 6]]))
+    assert_array_equal(tensor[0, 0::2].numpy(), np.array([[1, 2, 3], [7, 8, 9]]))
 
 
 def test_safe_downcasting(local_ds):
@@ -441,7 +439,7 @@ def test_sequence_samples(local_ds):
     assert len(tensor) == 2
     expected_list = [[1, 2, 3], [4, 5, 6]]
     expected = np.array(expected_list)
-    np.testing.assert_array_equal(tensor.numpy(), expected)
+    assert_array_equal(tensor.numpy(), expected)
 
     assert type(tensor.numpy(aslist=True)) == list
     assert_array_lists_equal(tensor.numpy(aslist=True), expected_list)
@@ -458,13 +456,13 @@ def test_iterate_dataset(local_ds):
     for idx, sub_ds in enumerate(local_ds):
         img = sub_ds.image.numpy()
         label = sub_ds.label.numpy()
-        np.testing.assert_array_equal(img, np.ones((28, 28)))
+        assert_array_equal(img, np.ones((28, 28)))
         assert label.shape == (1,)
         assert label == labels[idx]
 
 
 def _check_tensor(tensor, data):
-    np.testing.assert_array_equal(tensor.numpy(), data)
+    assert_array_equal(tensor.numpy(), data)
 
 
 def test_compute_slices(memory_ds):
@@ -590,7 +588,7 @@ def test_htype(memory_ds: Dataset):
     label.append(np.array(5, dtype=np.uint32))
     with pytest.raises(NotImplementedError):
         video.append(np.ones((10, 28, 28, 3), dtype=np.uint8))
-    bin_mask.append(np.zeros((28, 28), dtype=np.bool8))
+    bin_mask.append(np.zeros((28, 28), dtype=bool))
     segment_mask.append(np.ones((28, 28), dtype=np.uint32))
     keypoints_coco.append(np.ones((51, 2), dtype=np.int32))
     point.append(np.ones((11, 2), dtype=np.int32))
@@ -666,10 +664,10 @@ def test_array_interface(memory_ds: Dataset):
     tensor.append(x)
     arr1 = np.array(tensor)
     arr2 = np.array(tensor)
-    np.testing.assert_array_equal(x, arr1[0])
-    np.testing.assert_array_equal(x, arr2[0])
+    assert_array_equal(x, arr1[0])
+    assert_array_equal(x, arr2[0])
     tensor.append(x)
-    np.testing.assert_array_equal(tensor.numpy(), np.concatenate([arr1, arr2]))
+    assert_array_equal(tensor.numpy(), np.concatenate([arr1, arr2]))
 
 
 def test_hub_dataset_suffix_bug(hub_cloud_ds, hub_cloud_dev_token):
@@ -847,10 +845,10 @@ def test_dataset_rename(ds_generator, path, hub_token, convert_to_pathlib):
 
     ds = deeplake.rename(ds.path, new_path, token=hub_token)
     assert ds.path == str(new_path)
-    np.testing.assert_array_equal(ds.abc.numpy(), np.array([[1, 2, 3, 4]]))
+    assert_array_equal(ds.abc.numpy(), np.array([[1, 2, 3, 4]]))
 
     ds = deeplake.load(new_path, token=hub_token)
-    np.testing.assert_array_equal(ds.abc.numpy(), np.array([[1, 2, 3, 4]]))
+    assert_array_equal(ds.abc.numpy(), np.array([[1, 2, 3, 4]]))
 
     with pytest.raises(InvalidTokenException):
         ds = deeplake.load(
@@ -919,7 +917,7 @@ def test_dataset_deepcopy(path, hub_token, num_workers, progressbar):
     assert dest_ds.d.info.key == 1
 
     for tensor in dest_ds.meta.tensors:
-        np.testing.assert_array_equal(src_ds[tensor].numpy(), dest_ds[tensor].numpy())
+        assert_array_equal(src_ds[tensor].numpy(), dest_ds[tensor].numpy())
 
     with pytest.raises(DatasetHandlerError):
         deeplake.deepcopy(src_path, dest_path, token=hub_token)
@@ -955,13 +953,13 @@ def test_dataset_deepcopy(path, hub_token, num_workers, progressbar):
 
     assert list(dest_ds.tensors) == ["a", "b", "c", "d"]
     for tensor in dest_ds.tensors:
-        np.testing.assert_array_equal(src_ds[tensor].numpy(), dest_ds[tensor].numpy())
+        assert_array_equal(src_ds[tensor].numpy(), dest_ds[tensor].numpy())
 
     # test fot dataset.load:
     dest_ds = deeplake.load(dest_path, token=hub_token)
     assert list(dest_ds.tensors) == ["a", "b", "c", "d"]
     for tensor in dest_ds.tensors.keys():
-        np.testing.assert_array_equal(src_ds[tensor].numpy(), dest_ds[tensor].numpy())
+        assert_array_equal(src_ds[tensor].numpy(), dest_ds[tensor].numpy())
 
     deeplake.deepcopy(
         src_path,
@@ -975,7 +973,7 @@ def test_dataset_deepcopy(path, hub_token, num_workers, progressbar):
 
     assert list(dest_ds.tensors) == ["a", "b", "c", "d"]
     for tensor in dest_ds.tensors:
-        np.testing.assert_array_equal(src_ds[tensor].numpy(), dest_ds[tensor].numpy())
+        assert_array_equal(src_ds[tensor].numpy(), dest_ds[tensor].numpy())
 
     deeplake.deepcopy(
         src_path,
@@ -989,7 +987,7 @@ def test_dataset_deepcopy(path, hub_token, num_workers, progressbar):
     dest_ds = deeplake.load(dest_path, token=hub_token)
     assert list(dest_ds.tensors) == ["a", "d"]
     for tensor in dest_ds.tensors:
-        np.testing.assert_array_equal(src_ds[tensor].numpy(), dest_ds[tensor].numpy())
+        assert_array_equal(src_ds[tensor].numpy(), dest_ds[tensor].numpy())
     deeplake.delete(src_path, token=hub_token)
     deeplake.delete(dest_path, token=hub_token)
 
@@ -1030,6 +1028,8 @@ def test_compressions_list():
         "mp4",
         "mpo",
         "msp",
+        "nii",
+        "nii.gz",
         "pcx",
         "ply",
         "png",
@@ -1062,6 +1062,7 @@ def test_htypes_list():
         "keypoints_coco",
         "list",
         "mesh",
+        "nifti",
         "point",
         "point_cloud",
         "point_cloud.calibration_matrix",
@@ -1109,10 +1110,10 @@ def test_groups(local_ds_generator):
     ds = local_ds_generator()
     c = ds.y.z.a.b.c
     assert ds.y.z.a.b.parent.group_index == ds.y.z.a.group_index
-    np.testing.assert_array_equal(c[0].numpy(), np.zeros((3, 2)))
+    assert_array_equal(c[0].numpy(), np.zeros((3, 2)))
     assert "d" in ds.y.z.a.b.groups
     e = ds.y.z.a.b.d.e
-    np.testing.assert_array_equal(e[0].numpy(), np.ones((4, 3)))
+    assert_array_equal(e[0].numpy(), np.ones((4, 3)))
 
     ds.create_group("g")
     ds.g.create_tensor("g")
@@ -1170,14 +1171,14 @@ def test_tensor_rename(local_ds_generator):
     ds["x/y/z"].append([1, 2, 3])
     ds.rename_tensor("x/y/z", "x/y/y")
 
-    np.testing.assert_array_equal(ds["x/y/y"][0].numpy(), np.array([1, 2, 3]))
+    assert_array_equal(ds["x/y/y"][0].numpy(), np.array([1, 2, 3]))
 
     with pytest.raises(TensorDoesNotExistError):
         ds["x/y/z"].numpy()
 
     ds.create_tensor("x/y/z")
     ds["x/y/z"].append([4, 5, 6])
-    np.testing.assert_array_equal(ds["x/y/z"][0].numpy(), np.array([4, 5, 6]))
+    assert_array_equal(ds["x/y/z"][0].numpy(), np.array([4, 5, 6]))
 
     with pytest.raises(RenameError):
         ds.rename_tensor("x/y/y", "x/a")
@@ -1199,10 +1200,10 @@ def test_tensor_rename(local_ds_generator):
 
     ds["x"].rename_tensor("y/y", "y/b")
 
-    np.testing.assert_array_equal(ds["x/y/b"][0].numpy(), np.array([1, 2, 3]))
+    assert_array_equal(ds["x/y/b"][0].numpy(), np.array([1, 2, 3]))
 
     ds = local_ds_generator()
-    np.testing.assert_array_equal(ds["x/y/b"][0].numpy(), np.array([1, 2, 3]))
+    assert_array_equal(ds["x/y/b"][0].numpy(), np.array([1, 2, 3]))
 
     ds.delete_tensor("x/y/b")
 
@@ -1214,9 +1215,7 @@ def test_group_rename(local_ds_generator):
         ds.create_tensor("g1/g2/t")
         ds["g1/g2/g3/g4/t1"].append([1, 2, 3])
         ds["g1/g2"].rename_group("g3/g4", "g3/g5")
-        np.testing.assert_array_equal(
-            ds["g1/g2/g3/g5/t1"].numpy(), np.array([[1, 2, 3]])
-        )
+        assert_array_equal(ds["g1/g2/g3/g5/t1"].numpy(), np.array([[1, 2, 3]]))
         with pytest.raises(TensorGroupDoesNotExistError):
             ds["g1"].rename_group("g2/g4", "g2/g5")
         with pytest.raises(TensorGroupAlreadyExistsError):
@@ -1228,14 +1227,10 @@ def test_group_rename(local_ds_generator):
         with pytest.raises(RenameError):
             ds["g1"].rename_group("g2/g3", "g/g4")
         ds["g1"].rename_group("g2", "g6")
-        np.testing.assert_array_equal(
-            ds["g1/g6/g3/g5/t1"].numpy(), np.array([[1, 2, 3]])
-        )
+        assert_array_equal(ds["g1/g6/g3/g5/t1"].numpy(), np.array([[1, 2, 3]]))
 
     with local_ds_generator() as ds:
-        np.testing.assert_array_equal(
-            ds["g1/g6/g3/g5/t1"].numpy(), np.array([[1, 2, 3]])
-        )
+        assert_array_equal(ds["g1/g6/g3/g5/t1"].numpy(), np.array([[1, 2, 3]]))
 
 
 def test_vc_bug(local_ds_generator):
@@ -1274,6 +1269,20 @@ def test_tobytes_link(memory_ds):
         ds.images.append(deeplake.link("https://picsum.photos/id/237/200/300"))
         sample = deeplake.read("https://picsum.photos/id/237/200/300")
         assert ds.images[0].tobytes() == sample.buffer
+
+
+def test_tobytes_sequence(memory_ds):
+    with memory_ds as ds:
+        ds.create_tensor("abc", htype="sequence")
+        ds.abc.extend([[1, 2, 3], [4, 5, 6, 7]])
+        assert ds.abc[0].tobytes() == np.array([1, 2, 3]).tobytes()
+        assert ds.abc[1].tobytes() == np.array([4, 5, 6, 7]).tobytes()
+
+        with pytest.raises(ValueError):
+            ds.abc[:2].tobytes()
+
+        with pytest.raises(ValueError):
+            ds.abc[0, 1].tobytes()
 
 
 def test_tensor_clear(local_ds_generator):
@@ -1405,10 +1414,10 @@ def test_ds_append_with_ds_view():
     ds2.create_tensor("y")
     ds1.append({"x": [0, 1], "y": [1, 2]})
     ds2.append(ds1[0])
-    np.testing.assert_array_equal(ds1.x, np.array([[0, 1]]))
-    np.testing.assert_array_equal(ds1.x, ds2.x)
-    np.testing.assert_array_equal(ds1.y, np.array([[1, 2]]))
-    np.testing.assert_array_equal(ds1.y, ds2.y)
+    assert_array_equal(ds1.x, np.array([[0, 1]]))
+    assert_array_equal(ds1.x, ds2.x)
+    assert_array_equal(ds1.y, np.array([[1, 2]]))
+    assert_array_equal(ds1.y, ds2.y)
 
 
 def test_ds_extend():
@@ -1420,10 +1429,10 @@ def test_ds_extend():
     ds2.create_tensor("y")
     ds1.extend({"x": [0, 1, 2, 3], "y": [4, 5, 6, 7]})
     ds2.extend(ds1)
-    np.testing.assert_array_equal(ds1.x, np.arange(4).reshape(-1, 1))
-    np.testing.assert_array_equal(ds1.x, ds2.x)
-    np.testing.assert_array_equal(ds1.y, np.arange(4, 8).reshape(-1, 1))
-    np.testing.assert_array_equal(ds1.y, ds2.y)
+    assert_array_equal(ds1.x, np.arange(4).reshape(-1, 1))
+    assert_array_equal(ds1.x, ds2.x)
+    assert_array_equal(ds1.y, np.arange(4, 8).reshape(-1, 1))
+    assert_array_equal(ds1.y, ds2.y)
 
 
 @pytest.mark.parametrize(
@@ -1441,7 +1450,7 @@ def test_append_with_tensor(src_args, dest_args, size):
     ds1.x.append(x)
     ds2.create_tensor("y", max_chunk_size=3 * MB, tiling_threshold=2 * MB, **dest_args)
     ds2.y.append(ds1.x[0])
-    np.testing.assert_array_equal(ds1.x.numpy(), ds2.y.numpy())
+    assert_array_equal(ds1.x.numpy(), ds2.y.numpy())
 
     with pytest.raises(SampleAppendingError):
         ds1.append(np.zeros((416, 416, 3)))
@@ -1462,7 +1471,7 @@ def test_extend_with_tensor():
     with ds2:
         ds2.create_tensor("x")
         ds2.x.extend(ds1.x)
-    np.testing.assert_array_equal(ds1.x, ds2.x)
+    assert_array_equal(ds1.x, ds2.x)
 
 
 def test_empty_extend(memory_ds):
@@ -1480,7 +1489,7 @@ def test_extend_with_progressbar():
     with ds1:
         ds1.create_tensor("x")
         ds1.x.extend([1, 2, 3, 4], progressbar=True)
-    np.testing.assert_array_equal(ds1.x, np.array([[1], [2], [3], [4]]))
+    assert_array_equal(ds1.x, np.array([[1], [2], [3], [4]]))
 
 
 def test_auto_htype(memory_ds):
@@ -1601,7 +1610,7 @@ def test_sequence_htype(memory_ds, aslist, args, idx):
         ds.create_tensor("x", htype="sequence", **args)
         for _ in range(10):
             ds.x.append([np.ones((2, 7, 3), dtype=np.uint8) for _ in range(5)])
-    np.testing.assert_array_equal(
+    assert_array_equal(
         np.array(ds.x[idx].numpy(aslist=aslist)), np.ones((10, 5, 2, 7, 3))[idx]
     )
     assert ds.x.shape == (10, 5, 2, 7, 3)
@@ -1609,12 +1618,12 @@ def test_sequence_htype(memory_ds, aslist, args, idx):
     with ds:
         for _ in range(5):
             ds.x.append([np.ones((2, 7, 3), dtype=np.uint8) for _ in range(5)])
-    np.testing.assert_array_equal(
+    assert_array_equal(
         np.array(ds.x[idx].numpy(aslist=aslist)), np.ones((15, 5, 2, 7, 3))[idx]
     )
     assert ds.x.shape == (15, 5, 2, 7, 3)
     ds.checkout("main")
-    np.testing.assert_array_equal(
+    assert_array_equal(
         np.array(ds.x[idx].numpy(aslist=aslist)), np.ones((10, 5, 2, 7, 3))[idx]
     )
     assert ds.x.shape == (10, 5, 2, 7, 3)
@@ -1635,10 +1644,10 @@ def test_sequence_htype_with_hub_read(local_ds, shape, compressed_image_paths):
     for i in range(5):
         if i % 2:
             for j in range(3):
-                np.testing.assert_array_equal(ds.x[i][j].numpy(), imgs[j].array)
+                assert_array_equal(ds.x[i][j].numpy(), imgs[j].array)
         else:
             for j in range(5):
-                np.testing.assert_array_equal(ds.x[i][j].numpy(), arrs[j])
+                assert_array_equal(ds.x[i][j].numpy(), arrs[j])
 
 
 def test_sequence_shapes(memory_ds):
@@ -1697,8 +1706,8 @@ def test_hidden_tensors(local_ds_generator):
         ds.append({"w": 2, "z": 3})  # hidden tensors not required
 
     # Test access
-    np.testing.assert_array_equal(ds.x, np.array([[1]]))
-    np.testing.assert_array_equal(ds.y, np.array([[1], [2]]))
+    assert_array_equal(ds.x, np.array([[1]]))
+    assert_array_equal(ds.y, np.array([[1], [2]]))
 
     assert not ds.w.meta.hidden
     assert not ds.z.meta.hidden
@@ -1745,7 +1754,7 @@ def test_dataset_copy(
     local_ds = deeplake.load(local_ds.path)
     assert set(local_ds.tensors) == set(["images/image1", "images/image2", "label"])
     for t in local_ds.tensors:
-        np.testing.assert_array_equal(ds[t][index].numpy(), local_ds[t].numpy())
+        assert_array_equal(ds[t][index].numpy(), local_ds[t].numpy())
 
 
 @pytest.mark.parametrize(
@@ -1793,7 +1802,7 @@ def test_partial_read_then_write(s3_ds_generator):
             ds.xyz.append(i * np.ones((1000, 1000)))
 
     ds = s3_ds_generator()
-    np.testing.assert_array_equal(ds.xyz[0].numpy(), 0 * np.ones((1000, 1000)))
+    assert_array_equal(ds.xyz[0].numpy(), 0 * np.ones((1000, 1000)))
 
     with ds:
         ds.xyz[1] = 20 * np.ones((1000, 1000))
@@ -1856,8 +1865,8 @@ def verify_label_data(ds):
     np_data = ds.abc.numpy()
     data = ds.abc.data()
     assert set(data.keys()) == {"value", "text"}
-    np.testing.assert_array_equal(np_data, arr)
-    np.testing.assert_array_equal(data["value"], np_data)
+    assert_array_equal(np_data, arr)
+    assert_array_equal(data["value"], np_data)
     assert data["text"] == text_labels
 
     # xyz
@@ -1865,8 +1874,8 @@ def verify_label_data(ds):
     np_data = ds.xyz.numpy()
     data = ds.xyz.data()
     assert set(data.keys()) == {"value"}
-    np.testing.assert_array_equal(np_data, arr)
-    np.testing.assert_array_equal(data["value"], np_data)
+    assert_array_equal(np_data, arr)
+    assert_array_equal(data["value"], np_data)
 
     # nested
     assert ds.nested.info.class_names == ["airplane", "boat", "car", "person", "bus"]
@@ -1874,8 +1883,8 @@ def verify_label_data(ds):
     data = ds.nested.data(aslist=True)
     assert set(data.keys()) == {"value", "text"}
     for i in range(2):
-        np.testing.assert_array_equal(np_data[i], nested_arr[i])
-        np.testing.assert_array_equal(data["value"][i], np_data[i])
+        assert_array_equal(np_data[i], nested_arr[i])
+        assert_array_equal(data["value"][i], np_data[i])
     assert data["text"] == nested_text_labels
 
     # random
@@ -1883,8 +1892,8 @@ def verify_label_data(ds):
     np_data = ds.random.numpy()
     data = ds.random.data()
     assert set(data.keys()) == {"value", "text"}
-    np.testing.assert_array_equal(np_data, random_arr)
-    np.testing.assert_array_equal(data["value"], np_data)
+    assert_array_equal(np_data, random_arr)
+    assert_array_equal(data["value"], np_data)
     assert data["text"] == random_text_labels
 
     # seq
@@ -1893,8 +1902,8 @@ def verify_label_data(ds):
     # data = ds.seq.data(aslist=True)
     # assert set(data.keys()) == {"numeric", "text"}
     # for i in range(4):
-    #     np.testing.assert_array_equal(np_data[i], seq_arr[i])
-    #     np.testing.assert_array_equal(data["numeric"][i], np_data[i])
+    #     assert_array_equal(np_data[i], seq_arr[i])
+    #     assert_array_equal(data["numeric"][i], np_data[i])
     # assert data["text"] == seq_text_labels
 
 
@@ -1983,7 +1992,9 @@ def test_text_labels_transform(local_ds_generator, num_workers):
             assert class_names == ["ship", "train", "car"]
             expected = convert_to_idx(seq_labels, label_idx_map)
             expected = [np.array(seq).reshape(-1, 1).tolist() for seq in expected]
-        np.testing.assert_array_equal(arr, expected)
+        assert len(arr) == len(expected)
+        for a, e in zip(arr, expected):
+            assert_array_equal(a, e)
 
 
 @pytest.mark.parametrize("num_workers", [0, 2])
@@ -2008,21 +2019,43 @@ def test_transform_upload_fail(local_ds_generator, num_workers):
     with local_ds_generator() as ds:
         assert list(ds.tensors) == ["images", "labels"]
         upload().eval([0, 1, 2, 3], ds)
-        np.testing.assert_array_equal(
-            ds.labels.numpy().flatten(), np.array([0, 1, 2, 3])
-        )
+        assert_array_equal(ds.labels.numpy().flatten(), np.array([0, 1, 2, 3]))
         assert list(ds.tensors) == ["images", "labels"]
 
 
-def test_ignore_temp_tensors(local_ds_generator):
-    with local_ds_generator() as ds:
-        ds.create_tensor("__temptensor")
+def test_ignore_temp_tensors(local_path):
+    with deeplake.dataset(local_path, overwrite=True) as ds:
+        ds.create_tensor(
+            "__temptensor",
+            htype="class_label",
+            hidden=True,
+            create_sample_info_tensor=False,
+            create_shape_tensor=False,
+            create_id_tensor=False,
+        )
         ds.__temptensor.append(123)
 
-    with local_ds_generator() as ds:
+    with deeplake.load(local_path) as ds:
         assert list(ds.tensors) == []
         assert ds.meta.hidden_tensors == []
         assert list(ds.storage.keys()) == ["dataset_meta.json"]
+
+    with deeplake.dataset(local_path, overwrite=True) as ds:
+        ds.create_tensor(
+            "__temptensor",
+            htype="class_label",
+            hidden=True,
+            create_sample_info_tensor=False,
+            create_shape_tensor=False,
+            create_id_tensor=False,
+        )
+        ds.__temptensor.append(123)
+
+    with deeplake.load(local_path, read_only=True) as ds:
+        assert list(ds.tensors) == []
+        assert list(ds._tensors()) == ["__temptensor"]
+        assert ds.meta.hidden_tensors == ["__temptensor"]
+        assert ds.__temptensor[0].numpy() == 123
 
 
 def test_empty_sample_partial_read(s3_ds):
@@ -2046,11 +2079,11 @@ def test_update_bug(local_ds):
         bb = ds.create_tensor("bb", "bbox", dtype="float64")
         arr1 = np.array([[1.0, 2.0, 3.0, 4.0]])
         bb.append(arr1)
-        np.testing.assert_array_equal(bb[0].numpy(), arr1)
+        assert_array_equal(bb[0].numpy(), arr1)
 
         arr2 = np.array([[5.0, 6.0, 7.0, 8.0]])
         bb[0] = arr2
-        np.testing.assert_array_equal(bb[0].numpy(), arr2)
+        assert_array_equal(bb[0].numpy(), arr2)
 
 
 def test_uneven_view(memory_ds):
@@ -2152,11 +2185,11 @@ def test_ellipsis(memory_ds):
         ds.create_tensor("x")
         arr = np.random.random((5, 3, 2, 3, 4))
         ds.x.extend(arr)
-    np.testing.assert_array_equal(arr[:3, ..., 1], ds.x[:3, ..., 1])
-    np.testing.assert_array_equal(arr[..., :2], ds.x[..., :2])
-    np.testing.assert_array_equal(arr[2:, ...], ds.x[2:, ...])
-    np.testing.assert_array_equal(arr[2:, ...][...], ds.x[2:, ...][...])
-    np.testing.assert_array_equal(arr[...], ds.x[...])
+    assert_array_equal(arr[:3, ..., 1], ds.x[:3, ..., 1])
+    assert_array_equal(arr[..., :2], ds.x[..., :2])
+    assert_array_equal(arr[2:, ...], ds.x[2:, ...])
+    assert_array_equal(arr[2:, ...][...], ds.x[2:, ...][...])
+    assert_array_equal(arr[...], ds.x[...])
 
 
 def test_copy_label_sync_disabled(local_ds, capsys):
@@ -2252,6 +2285,7 @@ def test_iter_warning(local_ds):
             ds.abc[10]
 
 
+@requires_libdeeplake
 def test_random_split(local_ds):
     with local_ds as ds:
         ds.create_tensor("label")
@@ -2267,7 +2301,6 @@ def test_random_split(local_ds):
 
         train, test, val = ds.random_split([0.5, 0.3, 0.2])
 
-        # round robin
         assert len(train) == 5
         assert len(test) == 3
         assert len(val) == 2
@@ -2283,6 +2316,23 @@ def test_random_split(local_ds):
 
         with pytest.raises(ValueError):
             ds.random_split([0.5, 0.5])
+
+
+@requires_libdeeplake
+def test_random_split_views(local_ds):
+    with local_ds as ds:
+        ds.create_tensor("label")
+        ds.label.extend([0, 1, 2, 3, 4, 5, 6, 7, 8, 9])
+
+        views = [ds[:5], ds[[1, 3, 5, 7, 9]]]
+        for view in views:
+            train, test = view.random_split([3, 2])
+            assert len(train) == 3
+            assert len(test) == 2
+
+            train, test = view.random_split([0.6, 0.4])
+            assert len(train) == 3
+            assert len(test) == 2
 
 
 def test_invalid_ds_name():

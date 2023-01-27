@@ -48,10 +48,10 @@ class SampleCompressedChunk(BaseChunk):
                     num_samples += 1
                 else:
                     if serialized_sample:
-                        buffer = serialized_sample
                         sample = Sample(
-                            buffer=buffer, compression=compr, shape=shape, dtype=dtype  # type: ignore
+                            buffer=serialized_sample, compression=compr, shape=shape, dtype=dtype  # type: ignore
                         )
+                        sample.htype = self.htype
                         incoming_samples[i] = sample
                     break
         return num_samples
@@ -67,18 +67,15 @@ class SampleCompressedChunk(BaseChunk):
         is_tile: bool = False,
         to_pil: bool = False,
     ):
-        if self.is_empty_tensor:
-            raise EmptyTensorError(
-                "This tensor has only been populated with empty samples. "
-                "Need to add at least one non-empty sample before retrieving data."
-            )
-
+        self.check_empty_before_read()
         partial_sample_tile = self._get_partial_sample_tile()
         if partial_sample_tile is not None:
             return partial_sample_tile
         buffer = self.memoryview_data
-        if not self.byte_positions_encoder.is_empty():
-            sb, eb = self.byte_positions_encoder[local_index]
+        bps = self.byte_positions_encoder
+        bps_empty = bps.is_empty()
+        if not bps_empty:
+            sb, eb = bps[local_index]
             if stream and self.is_video_compression:
                 header_size = struct.unpack("<i", buffer[-4:])[
                     0
@@ -99,7 +96,15 @@ class SampleCompressedChunk(BaseChunk):
         if not is_tile and self.is_fixed_shape:
             shape = tuple(self.tensor_meta.min_shape)
         else:
-            shape = self.shapes_encoder[local_index]
+            try:
+                shape = self.shapes_encoder[local_index]
+            except IndexError as e:
+                if not bps_empty:
+                    self.num_dims = self.num_dims or len(self.tensor_meta.max_shape)
+                    shape = (0,) * self.num_dims
+                else:
+                    raise e
+
         nframes = shape[0]
         if self.is_text_like:
             buffer = decompress_bytes(buffer, compression=self.compression)
@@ -116,7 +121,7 @@ class SampleCompressedChunk(BaseChunk):
         if self.tensor_meta.htype == "polygon":
             buffer = decompress_bytes(buffer, self.compression)
             return Polygons.frombuffer(
-                buffer,
+                bytes(buffer),
                 dtype=self.tensor_meta.dtype,
                 ndim=shape[-1],
             )

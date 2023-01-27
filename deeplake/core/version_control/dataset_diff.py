@@ -57,13 +57,15 @@ class DatasetDiff(DeepLakeMemoryObject):
         len_renamed = int.from_bytes(data[1:9], "big")
         pos = 9
         for _ in range(len_renamed):
-            len_old, len_new = int.from_bytes(
-                data[pos : pos + 8], "big"
-            ), int.from_bytes(data[pos + 8 : pos + 16], "big")
+            len_old, len_new = (
+                int.from_bytes(data[pos : pos + 8], "big"),
+                int.from_bytes(data[pos + 8 : pos + 16], "big"),
+            )
             pos += 16
-            old_name, new_name = data[pos : pos + len_old].decode("utf-8"), data[
-                pos + len_old : pos + len_old + len_new
-            ].decode("utf-8")
+            old_name, new_name = (
+                data[pos : pos + len_old].decode("utf-8"),
+                data[pos + len_old : pos + len_old + len_new].decode("utf-8"),
+            )
             pos += len_old + len_new
             dataset_diff.renamed[old_name] = new_name
         len_deleted = int.from_bytes(data[pos : pos + 8], "big")

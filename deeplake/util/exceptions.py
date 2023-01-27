@@ -807,6 +807,10 @@ class BadLinkError(Exception):
         super().__init__(message)
 
 
+class IngestionError(Exception):
+    pass
+
+
 class DatasetConnectError(Exception):
     pass
 
@@ -851,3 +855,7 @@ class UnsupportedExtensionError(Exception):
         message = f"{htype}{extension} is not supported"
 
         super().__init__(message)
+
+
+class DatasetCorruptError(Exception):
+    pass

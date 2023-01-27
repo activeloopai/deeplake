@@ -41,9 +41,10 @@ class LinkCreds(DeepLakeMemoryObject):
 
     def refresh_managed_creds(self, creds_key: str):
         if creds_key not in self.managed_creds_keys:
-            raise ValueError(f"Creds key {creds_key} is not managed")
+            return False
         creds = self.fetch_managed_creds(creds_key)
         self.populate_creds(creds_key, creds)
+        return True
 
     def get_default_provider(self, provider_type: str):
         if provider_type == "s3":
@@ -132,6 +133,7 @@ class LinkCreds(DeepLakeMemoryObject):
             raise KeyError(f"Creds key {creds_key} does not exist")
         expires_in_to_expires_at(creds)
         self.creds_dict[creds_key] = creds
+        self.storage_providers.pop(creds_key, None)
 
     def add_to_used_creds(self, creds_key: Optional[str]):
         if creds_key is None or creds_key in self.used_creds_keys:

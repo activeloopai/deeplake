@@ -4,6 +4,7 @@ import uuid
 from flask import Flask, request, Response
 from deeplake.core.link_creds import LinkCreds  # type: ignore
 from deeplake.core.storage.provider import StorageProvider
+from deeplake.core.storage.s3 import S3Provider
 from deeplake.util.threading import terminate_thread
 from deeplake.client.config import (
     USE_DEV_ENVIRONMENT,
@@ -90,6 +91,9 @@ class _Visualizer:
 
         _SERVER_THREAD = threading.Thread(target=run_app, daemon=True)
         _SERVER_THREAD.start()
+        print(
+            f"HINT: Please forward the port - {self._port} to your local machine, if you are running on the cloud."
+        )
         return f"http://localhost:{self.port}/"
 
     def stop_server(self):
@@ -167,6 +171,14 @@ def access_creds(path: str):
     paths = path.split("/", 1)
     id = paths[0]
     creds_key = paths[1]
+    if len(creds_key) == 0:
+        p = S3Provider("")
+        return {
+            "aws_access_key_id": p.aws_access_key_id,
+            "aws_secret_access_key": p.aws_secret_access_key,
+            "aws_session_token": p.aws_session_token,
+            "aws_region": p.aws_region,
+        }
     if creds_key in visualizer.get_link_creds(id).creds_keys:
         return visualizer.get_link_creds(id).get_creds(creds_key)
 
