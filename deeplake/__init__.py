@@ -19,6 +19,7 @@ if sys.platform == "darwin":
 from .api.dataset import dataset as api_dataset
 from .api.read import read
 from .api.link import link
+from .api.link_tiled import link_tiled
 from .api.tiled import tiled
 from .core.dataset import Dataset
 from .core.transform import compute, compose
