@@ -32,12 +32,6 @@ from deeplake.util.exceptions import (
 
 
 def get_chunk_key(key: str, chunk_name: str, commit_id: str) -> str:
-    try:
-        if commit_id[40] == "@":
-            key = commit_id[41:]
-            commit_id = commit_id[:40]
-    except IndexError:
-        pass
     if commit_id == FIRST_COMMIT_ID:
         return "/".join((key, CHUNKS_FOLDER, f"{chunk_name}"))
 

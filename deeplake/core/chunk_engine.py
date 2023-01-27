@@ -480,13 +480,13 @@ class ChunkEngine:
     @property
     def last_chunk_key(self) -> str:
         last_chunk_name = self.last_appended_chunk_name
-        commit_id = self.get_chunk_commit(last_chunk_name)
-        return get_chunk_key(self.key, last_chunk_name, commit_id)
+        commit_id, tkey = self.get_chunk_commit(last_chunk_name)
+        return get_chunk_key(tkey, last_chunk_name, commit_id)
 
     def get_chunk_key_for_id(self, chunk_id) -> str:
         chunk_name = ChunkIdEncoder.name_from_id(chunk_id)
-        commit_id = self.get_chunk_commit(chunk_name)
-        return get_chunk_key(self.key, chunk_name, commit_id)
+        commit_id, tkey = self.get_chunk_commit(chunk_name)
+        return get_chunk_key(tkey, chunk_name, commit_id)
 
     @property
     def active_appended_chunk(self):
@@ -525,8 +525,8 @@ class ChunkEngine:
         if self.num_chunks == 0 or last_index in self.tile_encoder:
             return None
         chunk_name = self.last_appended_chunk_name
-        chunk_commit_id = self.get_chunk_commit(chunk_name)
-        chunk_key = get_chunk_key(self.key, chunk_name, chunk_commit_id)
+        chunk_commit_id, tkey = self.get_chunk_commit(chunk_name)
+        chunk_key = get_chunk_key(tkey, chunk_name, chunk_commit_id)
         chunk = self.get_chunk(chunk_key)
         chunk.key = chunk_key
         chunk.id = self.last_appended_chunk_id
@@ -555,8 +555,8 @@ class ChunkEngine:
         self, chunk_id, copy: bool = False, partial_chunk_bytes=0
     ) -> BaseChunk:
         chunk_name = ChunkIdEncoder.name_from_id(chunk_id)
-        chunk_commit_id = self.get_chunk_commit(chunk_name)
-        chunk_key = get_chunk_key(self.key, chunk_name, chunk_commit_id)
+        chunk_commit_id, tkey = self.get_chunk_commit(chunk_name)
+        chunk_key = get_chunk_key(tkey, chunk_name, chunk_commit_id)
         chunk = self.get_chunk(chunk_key, partial_chunk_bytes=partial_chunk_bytes)
         chunk.key = chunk_key
         chunk.id = chunk_id
@@ -567,8 +567,8 @@ class ChunkEngine:
     def get_video_chunk(self, chunk_id, copy: bool = False):
         """Returns video chunks. Chunk will contain presigned url to the video instead of data if the chunk is large."""
         chunk_name = ChunkIdEncoder.name_from_id(chunk_id)
-        chunk_commit_id = self.get_chunk_commit(chunk_name)
-        chunk_key = get_chunk_key(self.key, chunk_name, chunk_commit_id)
+        chunk_commit_id, tkey = self.get_chunk_commit(chunk_name)
+        chunk_key = get_chunk_key(tkey, chunk_name, chunk_commit_id)
 
         base_storage = self.base_storage
         stream = False
@@ -603,23 +603,17 @@ class ChunkEngine:
             self.commit_chunk_set.add(chunk_name)
         return chunk
 
-    def get_chunk_commit(self, chunk_name) -> str:
-        """Returns the commit id that contains the chunk_name."""
+    def get_chunk_commit(self, chunk_name) -> Tuple[str, str]:
+        """Returns the commit id and tensor key that contains the chunk_name."""
         cur_node: Optional[CommitNode] = self.version_state["commit_node"]
+        key = self.key
         while cur_node is not None:
             commit_id = cur_node.commit_id
-            chunk_set_key = get_tensor_commit_chunk_set_key(self.key, commit_id)
-            chunk_map_key = get_tensor_commit_chunk_map_key(self.key, commit_id)
-            try:
-                chunk_map = self.meta_cache.get_deeplake_object(
-                    chunk_map_key, CommitChunkMap
-                ).chunks
-            except Exception:
-                chunk_map = {}
+            chunk_set_key = get_tensor_commit_chunk_set_key(key, commit_id)
             try:
                 # the first commit doesn't contain a chunk set, don't repeatedly try to fetch from storage
                 if commit_id == FIRST_COMMIT_ID:
-                    chunk_set = set()
+                    chunk_set = dict()
                 else:
                     chunk_set = self.meta_cache.get_deeplake_object(
                         chunk_set_key, CommitChunkSet
@@ -632,24 +626,15 @@ class ChunkEngine:
                     # put CommitChunkSet in deeplake_objects to keep in cache temporarily, but won't write to storage
                     # this shouldn't happen in latest version of deeplake, chunk set would always be present
                     self.meta_cache.deeplake_objects[chunk_set_key] = commit_chunk_set
-                chunk_set = set()
-            if chunk_name in chunk_set:
-                return commit_id
-            commit_id = chunk_map.get(chunk_name)
-            if commit_id:
-                assert (
-                    get_chunk_key(self.key, chunk_name, commit_id)
-                    in self.cache.next_storage
-                ), (
-                    self.key,
-                    chunk_name,
-                    commit_id,
-                    get_chunk_key(self.key, chunk_name, commit_id),
-                )
-                return commit_id
+                chunk_set = dict()
+            v = chunk_set.get(chunk_name)
+            if v is not None:
+                commit_id = v.get("commit_id", commit_id)
+                key = v.get("key", key)
+                return commit_id, key
             cur_node = cur_node.parent  # type: ignore
         # the first commit doesn't have a commit chunk set, so any chunk that wasn't found belongs to the first commit
-        return FIRST_COMMIT_ID
+        return FIRST_COMMIT_ID, key
 
     def _write_initialization(self):
         ffw_chunk_id_encoder(self.chunk_id_encoder)
@@ -1311,8 +1296,8 @@ class ChunkEngine:
             return False
 
         next_chunk_name = ChunkIdEncoder.name_from_id(next_chunk_id)  # type: ignore
-        next_chunk_commit_id = self.get_chunk_commit(next_chunk_name)
-        chunk_key = get_chunk_key(self.key, next_chunk_name, next_chunk_commit_id)
+        next_chunk_commit_id, tkey = self.get_chunk_commit(next_chunk_name)
+        chunk_key = get_chunk_key(tkey, next_chunk_name, next_chunk_commit_id)
         next_chunk_size = self.cache.get_object_size(chunk_key)
         next_chunk = self.get_chunk_from_chunk_id(int(next_chunk_id))
         if next_chunk_size + chunk.num_data_bytes < next_chunk.min_chunk_size:
@@ -1335,8 +1320,8 @@ class ChunkEngine:
             return False
 
         prev_chunk_name = ChunkIdEncoder.name_from_id(prev_chunk_id)  # type: ignore
-        prev_chunk_commit_id = self.get_chunk_commit(prev_chunk_name)
-        prev_chunk_key = get_chunk_key(self.key, prev_chunk_name, prev_chunk_commit_id)
+        prev_chunk_commit_id, tkey = self.get_chunk_commit(prev_chunk_name)
+        prev_chunk_key = get_chunk_key(tkey, prev_chunk_name, prev_chunk_commit_id)
         prev_chunk_size = self.cache.get_object_size(prev_chunk_key)
         prev_chunk = self.get_chunk_from_chunk_id(int(prev_chunk_id))
         if prev_chunk_size + chunk.num_data_bytes < prev_chunk.min_chunk_size:
@@ -1986,9 +1971,9 @@ class ChunkEngine:
         if delete:
             for chunk_id in chunk_ids:
                 chunk_name = ChunkIdEncoder.name_from_id(chunk_id)
-                commit_id = self.get_chunk_commit(chunk_name)
+                commit_id, tkey = self.get_chunk_commit(chunk_name)
                 if commit_id == self.commit_id:
-                    chunk_key = get_chunk_key(self.key, chunk_name, commit_id)
+                    chunk_key = get_chunk_key(tkey, chunk_name, commit_id)
                     self.check_remove_active_chunks(chunk_key)
                     try:
                         del self.cache[chunk_key]

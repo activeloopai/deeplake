@@ -1,14 +1,15 @@
 from deeplake.core.version_control.commit_diff import CommitDiff
-from deeplake.core.version_control.commit_chunk_map import CommitChunkMap
+from deeplake.core.version_control.commit_chunk_set import CommitChunkSet
 from deeplake.util.keys import (
     get_tensor_meta_key,
     get_tensor_info_key,
     get_tensor_tile_encoder_key,
     get_creds_encoder_key,
-    get_tensor_commit_chunk_map_key,
+    get_tensor_commit_chunk_set_key,
     get_tensor_commit_diff_key,
     get_chunk_id_encoder_key,
     get_sequence_encoder_key,
+    get_dataset_meta_key,
 )
 import numpy as np
 
@@ -25,18 +26,24 @@ def _get_meta_files_for_tensor(tensor_name, commit_id):
     return [fn(tensor_name, commit_id) for fn in fns]
 
 
-def _get_chunks_for_tensor(tensor):
-    eng = tensor.chunk_engine
+def _get_chunks_for_tensor(src_tensor, dest_commit_id, dest_key):
+    eng = src_tensor.chunk_engine
     enc = eng.chunk_id_encoder
-    commits = []
-    cnames = []
+
     chunkids = enc._encoded[:, 0]
+    ret = []
     for cid in chunkids:
         cname = enc.name_from_id(cid)
-        commit = eng.get_chunk_commit(cname)
-        cnames.append(cname)
-        commits.append(commit)
-    return cnames, commits
+        commit, key = eng.get_chunk_commit(cname)
+        same_commit = commit == dest_commit_id
+        same_key = key == dest_key
+        if same_commit and same_key:
+            ret.append((cname,))
+        elif same_key:
+            ret.append((cname, commit))
+        else:
+            ret.append((cname, commit, key))
+    return ret
 
 
 def _copy_objects(key_pairs, src_storage, dest_storage):
@@ -59,6 +66,7 @@ def copy_tensors(
     src_path = src_ds.path
     dest_path = dest_ds.path
     src_tensor_names = list(src_tensor_names)
+    dest_commit_id = dest_ds.pending_commit_id
     dest_ds_meta = dest_ds.meta
     hidden_tensors = []
     src_tensor_names_get = {
@@ -79,21 +87,19 @@ def copy_tensors(
     updated_dest_keys = []
 
     for src_tensor_name, dest_tensor_name in zip(src_tensor_names, dest_tensor_names):
+        assert dest_tensor_name not in dest_ds._tensors(include_hidden=True)
         src_tensor = src_ds[src_tensor_name]
         src_key = src_tensor.key
-        same_key = src_tensor.key == dest_tensor_name
         src_tensor_key = src_tensor.key
-        dest_commit_id = dest_ds.pending_commit_id
-        chunk_names, commits = _get_chunks_for_tensor(src_tensor)
-        if not same_key:
-            commits = [f"{c}@{src_key}" for c in commits]
-        dest_chunk_map_key = get_tensor_commit_chunk_map_key(
+        chunks = _get_chunks_for_tensor(src_tensor, dest_commit_id, dest_tensor_name)
+
+        dest_chunk_set_key = get_tensor_commit_chunk_set_key(
             dest_tensor_name, dest_commit_id
         )
-        dest_chunk_map = CommitChunkMap()
-        dest_chunk_map.chunks = dict(zip(chunk_names, commits))
-        dest_storage[dest_chunk_map_key] = dest_chunk_map.tobytes()
-
+        dest_chunk_set = CommitChunkSet()
+        for chunk in chunks:
+            dest_chunk_set.add(*chunk)
+        dest_storage[dest_chunk_set_key] = dest_chunk_set.tobytes()
         src_keys += _get_meta_files_for_tensor(src_tensor_key, src_ds.pending_commit_id)
         dest_keys += _get_meta_files_for_tensor(dest_tensor_name, dest_commit_id)
         dest_commit_diff = CommitDiff(0, True)
@@ -103,14 +109,13 @@ def copy_tensors(
         )
         dest_storage[dest_commit_diff_key] = dest_commit_diff.tobytes()
         updated_dest_keys = [dest_commit_diff_key]
-        updated_dest_keys.append(dest_chunk_map_key)
+        updated_dest_keys.append(dest_chunk_set_key)
     _copy_objects((src_keys, dest_keys), src_storage, dest_storage)
     dest_ds_meta.tensors += dest_tensor_names
     dest_ds_meta.tensor_names.update({k: k for k in dest_tensor_names})
     dest_ds_meta.hidden_tensors += hidden_tensors
-    dest_ds_meta.is_dirty = True
-    dest_ds.flush()
-    dest_ds.storage.clear_cache()
+    dest_storage[get_dataset_meta_key(dest_commit_id)] = dest_ds_meta.tobytes()
+    dest_ds.storage.clear_cache_without_flush()
     dest_ds._populate_meta()
 
 
