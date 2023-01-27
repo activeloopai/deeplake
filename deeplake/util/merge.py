@@ -480,7 +480,12 @@ def merge_tensor_data(
             original_tensor.meta.links = links
         copy_links_only = True
     copy_tensor_slice(
-        target_dataset, dataset, tensor_name, tensor_name, new_indexes, _copy_links_only=copy_links_only
+        target_dataset,
+        dataset,
+        tensor_name,
+        tensor_name,
+        new_indexes,
+        _copy_links_only=copy_links_only,
     )
 
     updated_indexes = updated_samples_dict[tensor_name]

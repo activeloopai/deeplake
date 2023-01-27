@@ -206,7 +206,13 @@ def _get_required_chunks_for_range(tensor, start, end):
 
 
 def copy_tensor_slice(
-    src_ds, dest_ds, src_tensor_name, dest_tensor_name, indices, _copy_links_only=False, _flush=True
+    src_ds,
+    dest_ds,
+    src_tensor_name,
+    dest_tensor_name,
+    indices,
+    _copy_links_only=False,
+    _flush=True,
 ):
     if not indices:
         return
