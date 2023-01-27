@@ -685,18 +685,18 @@ def _get_required_chunks_for_range(tensor, start, end):
         if not start_chunk_aligned and not end_chunk_aligned:
             return None, (start, end), None
         if start_chunk_aligned:
-            return (start_row, start_row + 1), None, (arr[start_row, 1] + 1, end)
+            return (start_row, start_row + 1), None, (int(arr[start_row, 1] + 1), end)
         else:
-            return (end_row, end_row + 1), (start, arr[start_row, 1] + 1), None
+            return (end_row, end_row + 1), (start, int(arr[start_row, 1] + 1)), None
     elif start_chunk_aligned and not end_chunk_aligned:
-        return (start_row, end_row), None, (arr[end_row - 1, 1] + 1, end)
+        return (start_row, end_row), None, (int(arr[end_row - 1, 1] + 1), end)
     elif end_chunk_aligned and not start_chunk_aligned:
-        return (start_row + 1, end_row + 1), (start, arr[start_row, 1] + 1), None
+        return (start_row + 1, end_row + 1), (start, int(arr[start_row, 1] + 1)), None
     elif not start_chunk_aligned and not end_chunk_aligned:
         return (
             (start_row + 1, end_row),
-            (start, arr[start_row, 1] + 1),
-            (arr[end_row - 1, 1] + 1, end),
+            (start, int(arr[start_row, 1] + 1)),
+            (int(arr[end_row - 1, 1] + 1), end),
         )
     else:
         return (start_row, end_row + 1), None, None
