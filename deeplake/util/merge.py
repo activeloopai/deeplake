@@ -747,7 +747,10 @@ def copy_tensor_slice(
                     start_row = src_creds_encoder.translate_index(start)
                     end_row = src_creds_encoder.translate_index(end)
                     dest_creds_encoder._encoded = _merge_encodings(
-                        dest_creds_encoder, src_creds_encoder, start_row, end_row + 1
+                        dest_creds_encoder._encoded,
+                        src_creds_encoder._encoded,
+                        start_row,
+                        end_row + 1,
                     )
                 (
                     chunks_to_copy,
