@@ -1,9 +1,8 @@
 from typing import Optional
 import numpy as np
-import deeplake
 from deeplake.core.tensor_link import read_linked_sample
-
-from deeplake.util.creds import convert_creds_key, get_path_type
+from deeplake.util.creds import convert_creds_key
+from deeplake.util.path import get_path_type
 
 
 class LinkedTiledSample:
