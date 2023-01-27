@@ -734,20 +734,21 @@ def copy_tensor_slice(
         dest_meta_length = dest_meta.length + len(indices)
         chunk_map = dest_eng.commit_chunk_map
         is_link = src_meta.is_link
+        if is_link:
+            src_creds_encoder = src_eng.creds_encoder
+            dest_creds_encoder = dest_eng.creds_encoder
+            dest_creds_encoder.is_dirty = True
         dest_tensor.meta.links = {}
         links = dest_tensor.meta.links
         try:
             for start, end in ranges:
 
                 if is_link:
-                    src_creds_encoder = src_eng.creds_encoder
-                    dest_creds_encoder = dest_eng.creds_encoder
                     start_row = src_creds_encoder.translate_index(start)
                     end_row = src_creds_encoder.translate_index(end)
                     dest_creds_encoder._encoded = _merge_encodings(
                         dest_creds_encoder, src_creds_encoder, start_row, end_row + 1
                     )
-                    dest_creds_encoder.is_dirty = True
                 (
                     chunks_to_copy,
                     left_edge_samples,
