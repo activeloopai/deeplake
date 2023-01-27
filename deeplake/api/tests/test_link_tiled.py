@@ -54,7 +54,11 @@ def test_link_tiled(local_ds_generator, cat_path):
 
     with local_ds_generator() as ds:
         ds.create_tensor(
-            "image", htype="link[image]", sample_compression="jpeg", downsampling=[2, 1]
+            "image",
+            htype="link[image]",
+            sample_compression="jpeg",
+            downsampling=[2, 1],
+            create_shape_tensor=False,
         )
         ds.image.append(linked_sample)
 
@@ -69,6 +73,10 @@ def test_link_tiled(local_ds_generator, cat_path):
         ds.image.extend([linked_sample, linked_sample])
     check_data(actual_data, ds, 1, downsampled=True)
     check_data(actual_data, ds, 2, downsampled=True)
+
+    sample = ds.image[0]._linked_sample()
+    np.testing.assert_array_equal(sample.path_array.flatten(), arr.flatten())
+    assert sample.creds_key is None
 
 
 def test_link_tiled_transform(local_ds_generator, cat_path):
