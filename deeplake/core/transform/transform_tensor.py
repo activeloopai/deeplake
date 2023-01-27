@@ -120,11 +120,15 @@ class TransformTensor:
         if not isinstance(item, (LinkedSample, Tensor)) and item is not None:
             shape = getattr(item, "shape", None)
             if shape is None:
-                try:
-                    item = np.asarray(item)
-                    shape = item.shape
-                except ValueError:
+                # if item is numeric
+                if isinstance(item, (int, float)):
                     shape = (1,)
+                else:
+                    try:
+                        item = np.asarray(item)
+                        shape = item.shape
+                    except ValueError:
+                        shape = (1,)
             if self._ndim is None:
                 self._ndim = len(shape)
             else:
