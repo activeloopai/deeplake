@@ -303,6 +303,9 @@ where
 - ``length`` - is the length of the bounding box along x direction
 - ``width``  - is the width of the bounding box along y direction
 - ``height``  - is the height of the bounding box along z direction
+- ``rot_x`` - rotation angel along x axis, given in degrees
+- ``rot_y`` - rotation angel along y axis, given in degrees
+- ``rot_z`` - rotation angel along z axis, given in degrees
 
 
 :blue:`Creating a 3d bbox tensor`
