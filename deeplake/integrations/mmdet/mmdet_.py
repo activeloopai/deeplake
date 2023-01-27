@@ -280,9 +280,7 @@ class MMDetDataset(TorchDataset):
         super().__init__(*args, **kwargs)
         self.bbox_info = bbox_info
         self.images = self._get_images(tensors_dict["images_tensor"])
-        self.masks = self._get_masks(
-            tensors_dict.get("masks_tensor", None), shape=self.images[0].shape
-        )
+        self.masks = self._get_masks(tensors_dict.get("masks_tensor", None))
         self.bboxes = self._get_bboxes(tensors_dict["boxes_tensor"])
         bbox_format = get_bbox_format(first_non_empty(self.bboxes), bbox_info)
         self.labels = self._get_labels(tensors_dict["labels_tensor"])
@@ -316,7 +314,7 @@ class MMDetDataset(TorchDataset):
         image_tensor = self.dataset[images_tensor]
         return image_tensor
 
-    def _get_masks(self, masks_tensor, shape):
+    def _get_masks(self, masks_tensor):
         if masks_tensor is None:
             return []
         return self.dataset[masks_tensor]
@@ -1180,6 +1178,7 @@ def _train_detector(
             )
             val_masks_tensor = None
 
+            collection_keys = get_collect_keys(cfg)
             if "gt_masks" in collection_keys:
                 val_masks_tensor = _find_tensor_with_htype(
                     ds_train, "binary_mask", "gt_masks"
