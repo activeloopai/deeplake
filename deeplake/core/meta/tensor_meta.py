@@ -67,7 +67,7 @@ class TensorMeta(Meta):
             self.set_htype(htype, **kwargs)
         else:
             self.set_htype(HTYPE.DEFAULT, **kwargs)
-            if htype == UNSPECIFIED
+            if htype == UNSPECIFIED:
                 self.htype = None  # type: ignore
 
     def add_link(

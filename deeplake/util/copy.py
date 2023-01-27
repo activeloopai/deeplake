@@ -139,6 +139,8 @@ def _group_ranges(x):
 
 def _merge_chunk_id_encodings(enc1, enc2, start, end):
     n1 = len(enc1)
+    if not n1:
+        return enc2
     n2 = len(enc2)
     if not n2:
         return enc1
@@ -199,6 +201,8 @@ def _get_required_chunks_for_range(tensor, start, end):
             (start, arr[start_row, 1] + 1),
             (arr[end_row - 1, 1] + 1, end),
         )
+    else:
+        return (start_row, end_row + 1), None, None
 
 
 def copy_tensor_slice(
