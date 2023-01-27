@@ -121,7 +121,9 @@ def integrity_check(dataset):
 
             engine.creds_encoder
     except Exception as e:
-        raise DatasetCorruptError(e)
+        raise DatasetCorruptError(
+            f"The HEAD node of the branch {dataset.branch} of this dataset is in a corrupted state and is likely not recoverable. Please run `ds.reset()` to revert the uncommitted changes in order to continue making updates on this branch."
+        ) from e
 
 
 def commit(dataset, message: Optional[str] = None, hash: Optional[str] = None) -> None:

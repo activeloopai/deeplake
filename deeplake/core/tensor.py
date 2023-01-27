@@ -944,7 +944,7 @@ class Tensor:
             ValueError: If the tensor has multiple samples.
         """
         if self.index.values[0].subscriptable() or len(self.index.values) > 1:
-            raise ValueError("tobytes() can be used only on exatcly 1 sample.")
+            raise ValueError("tobytes() can be used only on exactly 1 sample.")
         idx = self.index.values[0].value
         ret = self.chunk_engine.read_bytes_for_sample(idx)  # type: ignore
         dataset_read(self.dataset)
