@@ -227,11 +227,6 @@ class LinkedChunkEngine(ChunkEngine):
         sample_creds_key = self.link_creds.get_creds_key(sample_creds_encoded)
         return read_linked_sample(sample_path, sample_creds_key, self.link_creds, False)
 
-    def get_sample_from_index_and_path(self, global_sample_index, path, creds_encoder):
-        sample_creds_encoded = creds_encoder.get_encoded_creds_key(global_sample_index)
-        sample_creds_key = self.link_creds.get_creds_key(sample_creds_encoded)
-        return read_linked_sample(path, sample_creds_key, self.link_creds, False)
-
     @property
     def verify(self):
         return self.tensor_meta.is_link and self.tensor_meta.verify
