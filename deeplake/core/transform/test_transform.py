@@ -127,6 +127,11 @@ def add_link(sample_in, samples_out):
 
 
 @deeplake.compute
+def add_image(sample_in, samples_out):
+    samples_out.image.append(np.random.randint(0, 255, (1310, 2087, 3), dtype=np.uint8))
+
+
+@deeplake.compute
 def add_images(i, sample_out):
     for i in range(5):
         image = deeplake.read(get_dummy_data_path("images/flower.png"))
@@ -1166,3 +1171,28 @@ def test_classlabel_transform_bug(local_ds):
 
         assert len(ds.x) == 1
         np.testing.assert_array_equal(ds.x[0], -1)
+
+
+def test_downsample_transform(local_ds):
+    with local_ds as ds:
+        ds.create_tensor(
+            "image", htype="image", sample_compression="jpeg", downsampling=(2, 3)
+        )
+
+        add_image().eval(list(range(10)), ds, num_workers=TRANSFORM_TEST_NUM_WORKERS)
+        tensors = [
+            "image",
+            "_image_downsampled_2",
+            "_image_downsampled_4",
+            "_image_downsampled_8",
+        ]
+        expected_shapes = [
+            (1310, 2087, 3),
+            (655, 1043, 3),
+            (327, 521, 3),
+            (163, 260, 3),
+        ]
+        for tensor, shape in zip(tensors, expected_shapes):
+            assert len(ds[tensor]) == 10
+            for i in range(10):
+                assert ds[tensor][i].shape == shape

@@ -1,5 +1,6 @@
 from itertools import chain
 from deeplake.core.linked_sample import LinkedSample
+from deeplake.core.linked_tiled_sample import LinkedTiledSample
 from deeplake.core.sample import Sample  # type: ignore
 from deeplake.core.tensor import Tensor
 from deeplake.util.exceptions import TensorInvalidSampleShapeError
@@ -117,7 +118,10 @@ class TransformTensor:
                 self._non_numpy()
         if isinstance(item, list) and len(item) == 0:
             item = None
-        if not isinstance(item, (LinkedSample, Tensor)) and item is not None:
+        if (
+            not isinstance(item, (LinkedSample, LinkedTiledSample, Tensor))
+            and item is not None
+        ):
             shape = getattr(item, "shape", None)
             if shape is None:
                 if isinstance(item, (int, float)):

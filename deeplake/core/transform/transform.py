@@ -34,7 +34,7 @@ from deeplake.util.exceptions import (
 from deeplake.hooks import dataset_written, dataset_read
 from deeplake.util.version_control import auto_checkout, load_meta
 from deeplake.util.class_label import sync_labels
-import numpy as np
+import sys
 
 
 class ComputeFunction:
@@ -153,6 +153,9 @@ class Pipeline:
             UnsupportedSchedulerError: If the scheduler passed is not recognized. Supported values include: 'serial', 'threaded', 'processed' and 'ray'.
             TransformError: All other exceptions raised if there are problems while running the pipeline.
 
+
+        # noqa: DAR401
+
         Example::
 
             @deeplake.compute
@@ -229,7 +232,7 @@ class Pipeline:
             target_ds._send_compute_progress(**progress_end_args, status="success")
         except Exception as e:
             target_ds._send_compute_progress(**progress_end_args, status="failed")
-            raise TransformError(e) from e
+            raise TransformError(e).with_traceback(sys.exc_info()[2])
         finally:
             compute_provider.close()
             if overwrite:
