@@ -729,16 +729,13 @@ def copy_tensor_slice(
         src_enc_arr = src_enc._encoded
         ranges = _group_ranges(indices)
         dest_storage = dest_ds.storage
-        dest_meta_key = get_tensor_meta_key(dest_key, dest_commit)
         src_meta = src_tensor.meta
         dest_meta = dest_tensor.meta
         dest_meta_length = dest_meta.length + len(indices)
-        chunk_map_key = get_tensor_commit_chunk_map_key(dest_key, dest_commit)
         chunk_map = dest_eng.commit_chunk_map
         is_link = src_meta.is_link
         dest_tensor.meta.links = {}
         links = dest_tensor.meta.links
-        dest_creds_encoder_key = get_creds_encoder_key(dest_key, dest_commit)
         try:
             for start, end in ranges:
 
