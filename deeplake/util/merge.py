@@ -469,11 +469,15 @@ def merge_tensor_data(
         for index in new_indexes:
             sample = target_tensor[index]
             if is_class_label and class_names:
-                sample = convert_to_text(sample.numpy(), class_names, return_original=True)
+                sample = convert_to_text(
+                    sample.numpy(), class_names, return_original=True
+                )
             original_tensor.append(sample)
             original_id_tensor[-1] = target_id_tensor[index]
     else:
-        copy_tensor_slice(target_dataset, dataset, tensor_name, tensor_name, new_indexes)
+        copy_tensor_slice(
+            target_dataset, dataset, tensor_name, tensor_name, new_indexes
+        )
 
     updated_indexes = updated_samples_dict[tensor_name]
     for original_idx, target_idx in updated_indexes:

@@ -184,7 +184,7 @@ def _get_required_chunks_for_range(tensor, start, end):
         else:
             return (start_row, start_row + 1), None, None
     elif num_required_chunks == 2:
-        if  not start_chunk_aligned and not end_chunk_aligned:
+        if not start_chunk_aligned and not end_chunk_aligned:
             return None, (start, end), None
         if start_chunk_aligned:
             return (start_row, start_row + 1), None, (arr[start_row, 1] + 1, end)
@@ -202,7 +202,9 @@ def _get_required_chunks_for_range(tensor, start, end):
         )
 
 
-def copy_tensor_slice(src_ds, dest_ds, src_tensor_name, dest_tensor_name, indices, _flush=True):
+def copy_tensor_slice(
+    src_ds, dest_ds, src_tensor_name, dest_tensor_name, indices, _flush=True
+):
     if not indices:
         return
     if _flush:
@@ -262,7 +264,9 @@ def copy_tensor_slice(src_ds, dest_ds, src_tensor_name, dest_tensor_name, indice
             dest_meta.update_shape_interval(src_meta.max_shape)
         dest_meta.length = dest_length
         dest_storage[dest_meta_key] = dest_meta.tobytes()
-        dest_storage[get_chunk_id_encoder_key(dest_key, dest_commit)] = dest_enc.tobytes()
+        dest_storage[
+            get_chunk_id_encoder_key(dest_key, dest_commit)
+        ] = dest_enc.tobytes()
     finally:
         dest_tensor.meta.links = links
     if _flush:
@@ -272,6 +276,13 @@ def copy_tensor_slice(src_ds, dest_ds, src_tensor_name, dest_tensor_name, indice
             if dest_link_tensor:
                 src_link_tensor = getattr(src_tensor, l, None)
                 if src_link_tensor:
-                    copy_tensor_slice(src_ds, dest_ds, src_link_tensor.meta.name, dest_link_tensor.meta.name, indices, _flush=False)
+                    copy_tensor_slice(
+                        src_ds,
+                        dest_ds,
+                        src_link_tensor.meta.name,
+                        dest_link_tensor.meta.name,
+                        indices,
+                        _flush=False,
+                    )
         dest_ds.storage.clear_cache_without_flush()
         dest_ds._populate_meta()
