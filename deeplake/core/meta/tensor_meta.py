@@ -63,12 +63,11 @@ class TensorMeta(Meta):
         """
 
         super().__init__()
-        if htype and htype not in [UNSPECIFIED, HTYPE.DEFAULT]:
-            self.set_htype(htype, **kwargs)
-        else:
+        if htype in (None, UNSPECIFIED):
             self.set_htype(HTYPE.DEFAULT, **kwargs)
-            if htype == UNSPECIFIED:
-                self.htype = None  # type: ignore
+            self.htype = None  # type: ignore
+        else:
+            self.set_htype(htype, **kwargs)
 
     def add_link(
         self, name, extend_f: str, update_f: Optional[str], flatten_sequence: bool
