@@ -1016,24 +1016,27 @@ class Tensor:
     @property
     def _sample_info_tensor(self):
         ds = self.dataset
+        tensor_name = self.meta.name or self.key
         return ds.version_state["full_tensors"].get(
             ds.version_state["tensor_names"].get(
-                get_sample_info_tensor_key(self.meta.name)
+                get_sample_info_tensor_key(tensor_name)
             )
         )
 
     @property
     def _sample_shape_tensor(self):
         ds = self.dataset
+        tensor_name = self.meta.name or self.key
         return ds.version_state["full_tensors"].get(
             ds.version_state["tensor_names"].get(
-                get_sample_shape_tensor_key(self.meta.name)
+                get_sample_shape_tensor_key(tensor_name)
             )
         )
 
     @property
     def _sample_id_tensor(self):
-        return self.dataset._tensors().get(get_sample_id_tensor_key(self.meta.name))
+        tensor_name = self.meta.name or self.key
+        return self.dataset._tensors().get(get_sample_id_tensor_key(tensor_name))
 
     def _sample_shape_provider(self, sample_shape_tensor) -> Callable:
         if self.is_sequence:

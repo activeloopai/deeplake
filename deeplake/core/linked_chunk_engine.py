@@ -6,8 +6,15 @@ from deeplake.core.compression import _read_video_shape, _decompress_video
 from deeplake.core.index.index import Index
 from deeplake.core.link_creds import LinkCreds
 from deeplake.core.linked_sample import LinkedSample
+from deeplake.core.meta.encode.chunk_id import ChunkIdEncoder
 from deeplake.core.meta.encode.creds import CredsEncoder
 from deeplake.core.storage import LRUCache
+from deeplake.core.tensor_link import read_linked_sample
+from deeplake.core.tiling.deserialize import (
+    coalesce_tiles,
+    np_list_to_sample,
+    translate_slices,
+)
 from deeplake.core.linked_sample import read_linked_sample
 from deeplake.util.exceptions import (
     BadLinkError,
@@ -20,6 +27,8 @@ from deeplake.util.video import normalize_index
 import numpy as np
 from typing import Optional, Dict, Any, Tuple, Union
 from PIL import Image  # type: ignore
+from deeplake.core.linked_tiled_sample import LinkedTiledSample
+from math import ceil
 
 
 def remove_chunk_engine_compression(chunk_engine):
@@ -42,7 +51,7 @@ class LinkedChunkEngine(ChunkEngine):
         self.path_chunk_engine = ChunkEngine(key, cache, version_state, meta_cache)
         remove_chunk_engine_compression(self)
         remove_chunk_engine_compression(self.path_chunk_engine)
-        self.link_creds = link_creds
+        self.link_creds = link_creds  # type: ignore
         self._creds_encoder: Optional[CredsEncoder] = None
         self._creds_encoder_commit_id: Optional[str] = None
 
@@ -84,11 +93,25 @@ class LinkedChunkEngine(ChunkEngine):
     def is_data_cachable(self):
         return False
 
-    def linked_sample(self, global_sample_index: int) -> LinkedSample:
+    def linked_sample(
+        self, global_sample_index: int
+    ) -> Union[LinkedSample, LinkedTiledSample]:
         creds_encoder = self.creds_encoder
-        sample_path = self.get_path(global_sample_index)
         sample_creds_encoded = creds_encoder.get_encoded_creds_key(global_sample_index)
         sample_creds_key = self.link_creds.get_creds_key(sample_creds_encoded)  # type: ignore
+        if self._is_tiled_sample(global_sample_index):
+            path_array: np.ndarray = (
+                super()
+                .get_basic_sample(
+                    global_sample_index,
+                    Index(global_sample_index),
+                    fetch_chunks=True,
+                    is_tile=True,
+                )
+                .path_array
+            )
+            return LinkedTiledSample(path_array, sample_creds_key)
+        sample_path = self.get_path(global_sample_index, fetch_chunks=True)
         return LinkedSample(sample_path, sample_creds_key)
 
     def get_video_url(self, global_sample_index):
@@ -124,6 +147,66 @@ class LinkedChunkEngine(ChunkEngine):
             video_sample.squeeze(0)
         return video_sample
 
+    def get_full_tiled_sample(self, global_sample_index, fetch_chunks=False):
+        tile_enc = self.tile_encoder
+        shape = tile_enc.get_sample_shape(global_sample_index)
+        tile_shape = tile_enc.get_tile_shape(global_sample_index)
+        layout_shape = tile_enc.get_tile_layout_shape(global_sample_index)
+        path_array: np.ndarray = (
+            super()
+            .get_basic_sample(
+                global_sample_index,
+                Index(global_sample_index),
+                fetch_chunks,
+                is_tile=True,
+            )
+            .path_array
+        )
+
+        sample_creds_encoded = self.creds_encoder.get_encoded_creds_key(
+            global_sample_index
+        )
+        sample_creds_key = self.link_creds.get_creds_key(sample_creds_encoded)
+        tiled_arrays = [
+            read_linked_sample(path, sample_creds_key, self.link_creds, False).array
+            for path in iter(path_array.flat)
+        ]
+        return np_list_to_sample(tiled_arrays, shape, tile_shape, layout_shape)
+
+    def get_partial_tiled_sample(self, global_sample_index, index, fetch_chunks=False):
+        tile_enc = self.tile_encoder
+        sample_shape = tile_enc.get_sample_shape(global_sample_index)
+        tile_shape = tile_enc.get_tile_shape(global_sample_index)
+        ordered_tile_paths = (
+            super()
+            .get_basic_sample(
+                global_sample_index,
+                Index(global_sample_index),
+                fetch_chunks,
+                is_tile=True,
+            )
+            .path_array
+        )
+        tiles_index, sample_index = translate_slices(
+            [v.value for v in index.values[1:]], sample_shape, tile_shape  # type: ignore
+        )
+        required_tile_paths = ordered_tile_paths[tiles_index]
+
+        sample_creds_encoded = self.creds_encoder.get_encoded_creds_key(
+            global_sample_index
+        )
+        sample_creds_key = self.link_creds.get_creds_key(sample_creds_encoded)
+
+        tiles = np.vectorize(
+            lambda path: read_linked_sample(
+                path, sample_creds_key, self.link_creds, False
+            ).array,
+            otypes=[object],
+        )(required_tile_paths)
+        sample = coalesce_tiles(tiles, tile_shape, None)
+        sample = sample[sample_index]
+        return sample
+
     def get_basic_sample(self, global_sample_index, index, fetch_chunks=False):
         sample = self.get_deeplake_read_sample(global_sample_index, fetch_chunks)
         if sample is None:
@@ -155,9 +238,12 @@ class LinkedChunkEngine(ChunkEngine):
             if isinstance(sample, deeplake.core.tensor.Tensor) and sample.is_link:
                 sample = sample._linked_sample()
                 samples[i] = sample
-            elif not isinstance(sample, LinkedSample) and sample is not None:
+            elif (
+                not isinstance(sample, (LinkedSample, LinkedTiledSample))
+                and sample is not None
+            ):
                 raise TypeError(
-                    f"Expected LinkedSample, got {type(sample)} instead. Use deeplake.link() to link samples."
+                    f"Expected LinkedSample or LinkedTiledSample, got {type(sample)} instead. Use deeplake.link() to link samples or deeplake.link_tiled() to link multiple images as tiles."
                 )
 
             path, creds_key = get_path_creds_key(sample)
@@ -167,6 +253,11 @@ class LinkedChunkEngine(ChunkEngine):
                 link_creds.get_encoding(creds_key, path)
 
             if sample is None or sample.path == "":
+                verified_samples.append(sample)
+            elif isinstance(sample, LinkedTiledSample):
+                verify_samples = self.verify and verify
+                sample.set_check_tile_shape(self.link_creds, verify_samples)
+                sample.set_sample_shape()
                 verified_samples.append(sample)
             else:
                 try:
@@ -183,7 +274,7 @@ class LinkedChunkEngine(ChunkEngine):
         return verified_samples
 
     def register_new_creds(self, num_samples_added, samples):
-        assert isinstance(num_samples_added, int)
+        num_samples_added = ceil(num_samples_added)
         link_creds = self.link_creds
         creds_encoder = self.creds_encoder
         for i in range(num_samples_added):
@@ -195,7 +286,11 @@ class LinkedChunkEngine(ChunkEngine):
                 save_link_creds(self.link_creds, self.cache)
                 self.link_creds.warn_missing_managed_creds()
 
-    def update_creds(self, sample_index: int, sample: Optional[LinkedSample]):
+    def update_creds(
+        self,
+        sample_index: int,
+        sample: Optional[Union[LinkedSample, LinkedTiledSample]],
+    ):
         link_creds = self.link_creds
         path, creds_key = get_path_creds_key(sample)
         encoded_creds_key = link_creds.get_encoding(creds_key, path)  # type: ignore
@@ -205,6 +300,8 @@ class LinkedChunkEngine(ChunkEngine):
             self.link_creds.warn_missing_managed_creds()  # type: ignore
 
     def read_shape_for_sample(self, global_sample_index: int) -> Tuple[int, ...]:
+        if self._is_tiled_sample(global_sample_index):
+            return self.tile_encoder.get_sample_shape(global_sample_index)
         sample = self.get_deeplake_read_sample(global_sample_index)
         if sample is None:
             return (0,)
@@ -254,6 +351,10 @@ class LinkedChunkEngine(ChunkEngine):
         return np.ones((0,))
 
     def read_bytes_for_sample(self, global_sample_index: int) -> bytes:
+        if self._is_tiled_sample(global_sample_index):
+            raise ValueError(
+                "Cannot read bytes for a link_tiled sample. Please read the sample as a numpy array."
+            )
         sample = self.get_deeplake_read_sample(global_sample_index)
         return sample.buffer
 
@@ -261,3 +362,51 @@ class LinkedChunkEngine(ChunkEngine):
         return self.path_chunk_engine.numpy(
             index, fetch_chunks=fetch_chunks, use_data_cache=False
         )
+
+    def _update_non_tiled_sample(
+        self, global_sample_index: int, index: Index, sample, nbytes_after_updates
+    ):
+        if len(index.values) != 1:
+            raise ValueError(
+                "Cannot update a partial value of a linked sample. Please update the entire sample."
+            )
+        super()._update_non_tiled_sample(
+            global_sample_index, index, sample, nbytes_after_updates
+        )
+
+    def _update_tiled_sample(
+        self, global_sample_index: int, index: Index, sample, nbytes_after_updates
+    ):
+        self._update_non_tiled_sample(
+            global_sample_index, index, sample, nbytes_after_updates
+        )
+
+    def _handle_tiled_sample(
+        self,
+        enc: ChunkIdEncoder,
+        register,
+        samples,
+        orig_meta_length,
+        incoming_num_samples,
+        start_chunk_row,
+        enc_count,
+        tiles,
+        lengths,
+    ):
+        sample: LinkedTiledSample = samples[0]
+        if register:
+            if start_chunk_row is not None:
+                enc.register_samples(1)
+            else:
+                enc_count[-1] += 1
+        tiles[
+            incoming_num_samples - len(samples) + bool(register) * orig_meta_length
+        ] = (
+            sample.sample_shape,
+            sample.tile_shape,
+        )
+        samples = samples[1:]
+        if lengths is not None:
+            lengths = lengths[1:]
+        num_samples_added = 1
+        return num_samples_added, samples, lengths
