@@ -68,6 +68,7 @@ def copy_tensors(
     src_path = src_ds.path
     dest_path = dest_ds.path
     src_tensor_names = list(src_tensor_names)
+    src_commit_id = src_ds.pending_commit_id
     dest_commit_id = dest_ds.pending_commit_id
     dest_ds_meta = dest_ds.meta
     hidden_tensors = []
@@ -87,7 +88,6 @@ def copy_tensors(
     src_storage = src_ds.base_storage
     dest_storage = dest_ds.base_storage
     updated_dest_keys = []
-
     for src_tensor_name, dest_tensor_name in zip(src_tensor_names, dest_tensor_names):
         assert dest_tensor_name not in dest_ds._tensors(include_hidden=True)
         src_tensor = src_ds[src_tensor_name]
@@ -102,7 +102,7 @@ def copy_tensors(
         for chunk in chunks:
             dest_chunk_map.add(*chunk)
         dest_storage[dest_chunk_map_key] = dest_chunk_map.tobytes()
-        src_keys += _get_meta_files_for_tensor(src_tensor_key, src_ds.pending_commit_id)
+        src_keys += _get_meta_files_for_tensor(src_tensor_key, src_commit_id)
         dest_keys += _get_meta_files_for_tensor(dest_tensor_name, dest_commit_id)
         dest_commit_diff = CommitDiff(0, True)
         dest_commit_diff.add_data(src_tensor.meta.length)
@@ -177,7 +177,6 @@ def _get_required_chunks_for_range(tensor, start, end):
             start_chunk_aligned = True
     if arr[end_row, 1] == end - 1:
         end_chunk_aligned = True
-
     if num_required_chunks == 1:
         if not (start_chunk_aligned and end_chunk_aligned):
             return None, (start, end), None
