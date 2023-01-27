@@ -1152,3 +1152,17 @@ def test_empty_sample_transform_1(local_ds, compression, data):
             num_workers=2,
         )
         assert len(ds.x) == 500
+
+
+def test_classlabel_transform_bug(local_ds):
+    @deeplake.compute
+    def upload(sample_in, sample_out):
+        sample_out.x.append(sample_in)
+
+    with local_ds as ds:
+        ds.create_tensor("x", htype="class_label", dtype="int32")
+
+        upload().eval([-1], ds)
+
+        assert len(ds.x) == 1
+        np.testing.assert_array_equal(ds.x[0], -1)
