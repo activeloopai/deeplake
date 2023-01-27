@@ -203,7 +203,7 @@ def _get_required_chunks_for_range(tensor, start, end):
 
 
 def copy_tensor_slice(
-    src_ds, dest_ds, src_tensor_name, dest_tensor_name, indices, _flush=True
+    src_ds, dest_ds, src_tensor_name, dest_tensor_name, indices, _copy_links_only=False, _flush=True
 ):
     if not indices:
         return
@@ -211,64 +211,65 @@ def copy_tensor_slice(
         dest_ds.flush()
     src_tensor = src_ds[src_tensor_name]
     dest_tensor = dest_ds[dest_tensor_name]
-    src_key = src_tensor.key
-    dest_key = dest_tensor.key
-    src_commit = src_ds.pending_commit_id
-    dest_commit = dest_ds.pending_commit_id
-    src_eng = src_tensor.chunk_engine
-    src_enc = src_eng.chunk_id_encoder
-    dest_eng = dest_tensor.chunk_engine
-    dest_enc = dest_eng.chunk_id_encoder
-    src_enc_arr = src_enc._encoded
-    ranges = _group_ranges(indices)
-    dest_storage = dest_ds.base_storage
-    dest_meta_key = get_tensor_meta_key(dest_key, dest_commit)
-    src_meta = src_tensor.meta
-    dest_meta = dest_tensor.meta
-    dest_length = dest_meta.length + len(indices)
-    chunk_map_key = get_tensor_commit_chunk_map_key(dest_key, dest_commit)
-    chunk_map = dest_eng.commit_chunk_map
-    links = dest_tensor.meta.links
-    dest_tensor.meta.links = {}
-    try:
-        for start, end in ranges:
-            (
-                chunks_to_copy,
-                left_edge_samples,
-                right_edge_samples,
-            ) = _get_required_chunks_for_range(src_tensor, start, end)
-            if left_edge_samples:
-                s, e = left_edge_samples
-                dest_tensor.extend(src_tensor[s:e])
-            if chunks_to_copy:
-                s, e = chunks_to_copy
-                chunk_ids = src_enc_arr[s:e, 0]
-                chunk_names = list(map(src_enc.name_from_id, chunk_ids))
-                commit_key_pairs = list(map(src_eng.get_chunk_commit, chunk_names))
-                for chunk_name, (commit, key) in zip(chunk_names, commit_key_pairs):
-                    if commit == dest_commit:
-                        commit = None
-                    elif key == dest_key:
-                        key = None
-                    chunk_map.add(chunk_name, commit, key)
-                dest_enc._encoded = _merge_chunk_id_encodings(
-                    dest_enc._encoded, src_enc_arr, s, e
-                )
-            if right_edge_samples:
-                s, e = right_edge_samples
-                dest_tensor.extend(src_tensor[s:e])
-        dest_ds.flush()
-        dest_storage[chunk_map_key] = chunk_map.tobytes()
-        if src_meta.min_shape:
-            dest_meta.update_shape_interval(src_meta.min_shape)
-            dest_meta.update_shape_interval(src_meta.max_shape)
-        dest_meta.length = dest_length
-        dest_storage[dest_meta_key] = dest_meta.tobytes()
-        dest_storage[
-            get_chunk_id_encoder_key(dest_key, dest_commit)
-        ] = dest_enc.tobytes()
-    finally:
-        dest_tensor.meta.links = links
+    if not _copy_links_only:
+        src_key = src_tensor.key
+        dest_key = dest_tensor.key
+        src_commit = src_ds.pending_commit_id
+        dest_commit = dest_ds.pending_commit_id
+        src_eng = src_tensor.chunk_engine
+        src_enc = src_eng.chunk_id_encoder
+        dest_eng = dest_tensor.chunk_engine
+        dest_enc = dest_eng.chunk_id_encoder
+        src_enc_arr = src_enc._encoded
+        ranges = _group_ranges(indices)
+        dest_storage = dest_ds.base_storage
+        dest_meta_key = get_tensor_meta_key(dest_key, dest_commit)
+        src_meta = src_tensor.meta
+        dest_meta = dest_tensor.meta
+        dest_length = dest_meta.length + len(indices)
+        chunk_map_key = get_tensor_commit_chunk_map_key(dest_key, dest_commit)
+        chunk_map = dest_eng.commit_chunk_map
+        links = dest_tensor.meta.links
+        dest_tensor.meta.links = {}
+        try:
+            for start, end in ranges:
+                (
+                    chunks_to_copy,
+                    left_edge_samples,
+                    right_edge_samples,
+                ) = _get_required_chunks_for_range(src_tensor, start, end)
+                if left_edge_samples:
+                    s, e = left_edge_samples
+                    dest_tensor.extend(src_tensor[s:e])
+                if chunks_to_copy:
+                    s, e = chunks_to_copy
+                    chunk_ids = src_enc_arr[s:e, 0]
+                    chunk_names = list(map(src_enc.name_from_id, chunk_ids))
+                    commit_key_pairs = list(map(src_eng.get_chunk_commit, chunk_names))
+                    for chunk_name, (commit, key) in zip(chunk_names, commit_key_pairs):
+                        if commit == dest_commit:
+                            commit = None
+                        elif key == dest_key:
+                            key = None
+                        chunk_map.add(chunk_name, commit, key)
+                    dest_enc._encoded = _merge_chunk_id_encodings(
+                        dest_enc._encoded, src_enc_arr, s, e
+                    )
+                if right_edge_samples:
+                    s, e = right_edge_samples
+                    dest_tensor.extend(src_tensor[s:e])
+            dest_ds.flush()
+            dest_storage[chunk_map_key] = chunk_map.tobytes()
+            if src_meta.min_shape:
+                dest_meta.update_shape_interval(src_meta.min_shape)
+                dest_meta.update_shape_interval(src_meta.max_shape)
+            dest_meta.length = dest_length
+            dest_storage[dest_meta_key] = dest_meta.tobytes()
+            dest_storage[
+                get_chunk_id_encoder_key(dest_key, dest_commit)
+            ] = dest_enc.tobytes()
+        finally:
+            dest_tensor.meta.links = links
     if _flush:
         links = ["_sample_id_tensor", "_sample_shape_tensor", "_sample_info_tensor"]
         for l in links:
@@ -282,6 +283,7 @@ def copy_tensor_slice(
                         src_link_tensor.meta.name,
                         dest_link_tensor.meta.name,
                         indices,
+                        _copy_links_only=False,
                         _flush=False,
                     )
         dest_ds.storage.clear_cache_without_flush()

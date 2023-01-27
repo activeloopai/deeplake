@@ -465,19 +465,23 @@ def merge_tensor_data(
     if is_class_label:
         class_names = target_tensor.info.class_names
         is_class_label = bool(class_names)
+    copy_links_only = False
     if is_class_label:
-        for index in new_indexes:
-            sample = target_tensor[index]
-            if is_class_label and class_names:
+        links = original_tensor.meta.links
+        original_tensor.meta.links = {}
+        try:
+            for index in new_indexes:
+                sample = target_tensor[index]
                 sample = convert_to_text(
                     sample.numpy(), class_names, return_original=True
                 )
-            original_tensor.append(sample)
-            original_id_tensor[-1] = target_id_tensor[index]
-    else:
-        copy_tensor_slice(
-            target_dataset, dataset, tensor_name, tensor_name, new_indexes
-        )
+                original_tensor.append(sample)
+        finally:
+            original_tensor.meta.links = links
+        copy_links_only = True
+    copy_tensor_slice(
+        target_dataset, dataset, tensor_name, tensor_name, new_indexes, _copy_links_only=copy_links_only
+    )
 
     updated_indexes = updated_samples_dict[tensor_name]
     for original_idx, target_idx in updated_indexes:
