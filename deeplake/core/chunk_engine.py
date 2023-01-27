@@ -14,10 +14,15 @@ from typing import (
     Tuple,
 )
 from deeplake.api.info import Info
+from deeplake.core.link_creds import LinkCreds
 from deeplake.core.linked_sample import LinkedSample
 from deeplake.core.meta.encode.base_encoder import LAST_SEEN_INDEX_COLUMN
 from deeplake.core.serialize import HEADER_SIZE_BYTES
-from deeplake.core.tensor_link import get_link_transform
+from deeplake.core.tensor_link import (
+    cast_to_type,
+    extend_downsample,
+    get_link_transform,
+)
 from deeplake.core.version_control.commit_diff import CommitDiff
 from deeplake.core.partial_reader import PartialReader
 from deeplake.core.version_control.commit_node import CommitNode  # type: ignore
@@ -225,6 +230,7 @@ class ChunkEngine:
         self._num_samples_per_chunk: Optional[int] = None
         self.write_initialization_done = False
         self.start_chunk = None
+        self.link_creds: Optional[LinkCreds] = None
 
     @property
     def sample_compression(self):
@@ -2428,11 +2434,29 @@ class ChunkEngine:
             if self._all_chunk_engines and (
                 flat is None or v["flatten_sequence"] == flat
             ):
-                self._all_chunk_engines[k].extend(
-                    get_link_transform(v["extend"])(
-                        samples, progressbar=progressbar, tensor_meta=self.tensor_meta
-                    )
+                tensor = self.version_state["full_tensors"][k]
+                func = get_link_transform(v["extend"])
+                meta = self.tensor_meta
+                vs = func(
+                    samples,
+                    factor=tensor.info.downsampling_factor
+                    if func == extend_downsample
+                    else None,
+                    compression=meta.sample_compression,
+                    htype=meta.htype,
+                    link_creds=self.link_creds,
+                    progressbar=progressbar,
+                    tensor_meta=self.tensor_meta,
                 )
+                dtype = tensor.dtype
+                if dtype:
+                    if isinstance(vs, np.ndarray):
+                        vs = cast_to_type(vs, dtype)
+                    else:
+                        vs = [cast_to_type(v, dtype) for v in vs]
+                chunk_engine = self._all_chunk_engines[k]
+                chunk_engine.extend(vs)
+                chunk_engine._transform_callback(vs, flat)
 
     def get_empty_sample(self):
         if self.num_samples == 0:

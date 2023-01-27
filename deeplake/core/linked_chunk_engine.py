@@ -98,7 +98,7 @@ class LinkedChunkEngine(ChunkEngine):
     ) -> Union[LinkedSample, LinkedTiledSample]:
         creds_encoder = self.creds_encoder
         sample_creds_encoded = creds_encoder.get_encoded_creds_key(global_sample_index)
-        sample_creds_key = self.link_creds.get_creds_key(sample_creds_encoded)
+        sample_creds_key = self.link_creds.get_creds_key(sample_creds_encoded)  # type: ignore
         if self._is_tiled_sample(global_sample_index):
             path_array: np.ndarray = (
                 super()
@@ -293,11 +293,11 @@ class LinkedChunkEngine(ChunkEngine):
     ):
         link_creds = self.link_creds
         path, creds_key = get_path_creds_key(sample)
-        encoded_creds_key = link_creds.get_encoding(creds_key, path)
+        encoded_creds_key = link_creds.get_encoding(creds_key, path)  # type: ignore
         self.creds_encoder[sample_index] = (encoded_creds_key,)
-        if link_creds.add_to_used_creds(creds_key):
-            save_link_creds(self.link_creds, self.cache)
-            self.link_creds.warn_missing_managed_creds()
+        if link_creds.add_to_used_creds(creds_key):  # type: ignore
+            save_link_creds(self.link_creds, self.cache)  # type: ignore
+            self.link_creds.warn_missing_managed_creds()  # type: ignore
 
     def read_shape_for_sample(self, global_sample_index: int) -> Tuple[int, ...]:
         if self._is_tiled_sample(global_sample_index):
@@ -326,7 +326,7 @@ class LinkedChunkEngine(ChunkEngine):
         if not sample_path:
             return self.get_empty_sample()
         sample_creds_encoded = creds_encoder.get_encoded_creds_key(global_sample_index)
-        sample_creds_key = self.link_creds.get_creds_key(sample_creds_encoded)
+        sample_creds_key = self.link_creds.get_creds_key(sample_creds_encoded)  # type: ignore
         read_sample = read_linked_sample(
             sample_path, sample_creds_key, self.link_creds, False
         )
