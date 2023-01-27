@@ -210,17 +210,21 @@ class GCloudCredentials:
         if token == "anon":
             return {"anon": "anon"}
         if token == "google_default":
-            path = os.env.get("GOOGLE_APPLICATION_CREDENTIALS")
-            if path is None:
-                raise Exception("Token info not found for google_default method as env variable GOOGLE_APPLICATION_CREDENTIALS is not set")
-            token = json.load(open(path))
+            token = os.env.get("GOOGLE_APPLICATION_CREDENTIALS")
+            if token is None:
+                raise ValueError(
+                    "Token info not found for google_default method as env variable GOOGLE_APPLICATION_CREDENTIALS is not set"
+                )
         if isinstance(token, str):
             if not os.path.exists(token):
                 raise FileNotFoundError(token)
-            token = json.load(open(token))
+            with open(token, "r") as f:
+                token = f.read()
+            return {"json_credentials": token}
         if isinstance(token, dict):
-            rename_keys(token)
+            return {"json_credentials": json.dumps(token)}
         return {}
+
 
 class GCSProvider(StorageProvider):
     """Provider class for using GC storage."""
@@ -397,11 +401,6 @@ class GCSProvider(StorageProvider):
             value = value.tobytes()
         elif isinstance(value, bytearray):
             value = bytes(value)
-        # if isinstance(value, memoryview) and (
-        #     value.strides == (1,) and value.shape == (len(value.obj),)
-        # ):
-        #     value = value.obj
-        # value = bytes(value)
         blob.upload_from_string(value, retry=self.retry)
 
     def __iter__(self):
@@ -495,3 +494,8 @@ class GCSProvider(StorageProvider):
             return blob.download_as_bytes(retry=self.retry)
         except self.missing_exceptions:
             raise KeyError(path)
+
+    def get_creds(self):
+        d = self.scoped_credentials.get_token_info()
+        d["expiration"] = self.expiration or ""
+        return d
