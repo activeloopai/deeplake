@@ -81,9 +81,9 @@ def downsample_link_tiled(
     arr = None
     for i in range(path_array.shape[0]):
         for j in range(path_array.shape[1]):
-            tile_pil = read_linked_sample(
-                sample.path, sample.creds_key, link_creds, verify=False
-            ).pil
+            path = sample.path_array[i, j].flatten()[0]
+            creds_key = sample.creds_key
+            tile_pil = read_linked_sample(path, creds_key, link_creds, verify=False).pil
 
             # reverse the size because PIL expects (width, height)
             downsampled_tile_pil = tile_pil.resize(
