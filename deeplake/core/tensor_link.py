@@ -175,7 +175,9 @@ def extend_downsample(samples, factor, compression, htype, link_creds=None):
         convert_sample_for_downsampling(sample, link_creds) for sample in samples
     ]
     return [
-        deeplake.util.downsample.downsample_sample(sample, factor, compression, htype)
+        deeplake.util.downsample.downsample_sample(
+            sample, factor, compression, htype, False, link_creds
+        )
         for sample in samples
     ]
 
@@ -196,7 +198,7 @@ def update_downsample(
             if not isinstance(index_entry.value, slice):
                 return _NO_LINK_UPDATE
     downsampled = deeplake.util.downsample.downsample_sample(
-        new_sample, factor, compression, htype, partial
+        new_sample, factor, compression, htype, partial, link_creds
     )
     if partial:
         downsampled_sub_index = sub_index.downsample(factor, downsampled.shape)
