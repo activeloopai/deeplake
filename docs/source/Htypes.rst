@@ -296,16 +296,16 @@ Bounding Box Htype
 
 Bounding boxes are in KITTI format. In order for bounding boxes to be correctly displayed by the visualizer, the format of the bounding box should be as follows:
 
-``[x, y, z, length, width, hieght, rot_x, -rot_z, rot_y]``
+``[x, y, z, length, width, hieght, rot_x, rot_y, rot_z]``
 
 where
 
 - ``length`` - is the length of the bounding box along x direction
 - ``width``  - is the width of the bounding box along y direction
 - ``height``  - is the height of the bounding box along z direction
-- ``rot_x`` - rotation angel along x axis, given in degrees
-- ``rot_y`` - rotation angel along y axis, given in degrees
-- ``rot_z`` - rotation angel along z axis, given in degrees
+- ``rot_x`` - rotation angle along x axis, given in degrees
+- ``rot_y`` - rotation angle along y axis, given in degrees
+- ``rot_z`` - rotation angle along z axis, given in degrees
 
 
 :blue:`Creating a 3d bbox tensor`
