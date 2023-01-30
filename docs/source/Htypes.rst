@@ -289,7 +289,7 @@ array([[965, 110, 262,  77],
 
 .. _bbox-3d-htype:
 
-Bounding Box Htype
+3D Bounding Box Htype
 ~~~~~~~~~~~~~~~~~~
 
 - :bluebold:`Sample dimensions:` ``(# bounding boxes, 9)``
