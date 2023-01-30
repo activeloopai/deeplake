@@ -637,22 +637,26 @@ def _group_ranges(x):
     return ret
 
 
-def _merge_encodings(enc1, enc2, start, end):
+def _merge_encodings(enc1, enc2, start, end, off1=None, off2=None):
     n1 = len(enc1)
     if not n1:
         return enc2
     n2 = len(enc2)
     if not n2:
         return enc1
-    if start == 0:
+    if off1 is not None:
+        old_offset = off1
+    elif start == 0:
         old_offset = 0
     else:
-        old_offset = enc2[start - 1, 1:2] + 1
-    new_offset = enc1[-1, 1:2] + 1
+        old_offset = enc2[start - 1, -1:] + 1
+    new_offset = enc1[-1, -1:] + 1
     if enc1[-1, 0] == enc2[start, 0]:
         enc1 = enc1[:-1]
     ret = np.concatenate([enc1, enc2[start:end]], axis=0)
-    ret[n1:, 1] += new_offset - old_offset
+    ret[n1:, -1] += new_offset - old_offset
+    if off2 is not None:
+        ret[-1, -1] = off2 - 1 + new_offset - old_offset
     return ret
 
 
@@ -719,6 +723,7 @@ def copy_tensor_slice(
         return
     src_tensor = src_ds[src_tensor_name]
     dest_tensor = dest_ds[dest_tensor_name]
+
     if _copy_main_tensor:
         dest_key = dest_tensor.key
         dest_commit = dest_ds.pending_commit_id
@@ -734,14 +739,38 @@ def copy_tensor_slice(
         dest_meta_length = dest_meta.length + len(indices)
         chunk_map = dest_eng.commit_chunk_map
         is_link = src_meta.is_link
+        is_seq = src_tensor.is_sequence
         if is_link:
             src_creds_encoder = src_eng.creds_encoder
             dest_creds_encoder = dest_eng.creds_encoder
             dest_creds_encoder.is_dirty = True
+        if is_seq:
+            src_seq_encoder = src_eng.sequence_encoder
+            dest_seq_encoder = dest_eng.sequence_encoder
+            dest_seq_encoder.is_dirty = True
         dest_tensor.meta.links = {}
         links = dest_tensor.meta.links
         try:
             for start, end in ranges:
+                if is_seq:
+                    (start2, _), start_row = src_seq_encoder.__getitem__(
+                        start, return_row_index=True
+                    )
+                    (_, end2), end_row = src_seq_encoder.__getitem__(
+                        end, return_row_index=True
+                    )
+                    nrows = len(dest_seq_encoder._encoded)
+                    dest_seq_encoder._encoded = _merge_encodings(
+                        dest_seq_encoder._encoded,
+                        src_seq_encoder._encoded,
+                        start_row,
+                        end_row + 1,
+                        start,
+                        end,
+                    )
+                    dest_seq_encoder._post_process_state(nrows - 1)
+                    start = start2
+                    end = end2
 
                 if is_link:
                     start_row = src_creds_encoder.translate_index(start)
@@ -751,7 +780,10 @@ def copy_tensor_slice(
                         src_creds_encoder._encoded,
                         start_row,
                         end_row + 1,
+                        start,
+                        end,
                     )
+
                 (
                     chunks_to_copy,
                     left_edge_samples,
