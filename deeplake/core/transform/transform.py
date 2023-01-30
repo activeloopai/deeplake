@@ -284,11 +284,13 @@ class Pipeline:
 
         if not read_only:
             for tensor in class_label_tensors:
+                actual_tensor = target_ds[tensor]
                 temp_tensor = f"__temp{tensor}_{uuid4().hex[:4]}"
                 with target_ds:
                     temp_tensor_obj = target_ds.create_tensor(
                         temp_tensor,
                         htype="class_label",
+                        dtype=actual_tensor.dtype,
                         hidden=True,
                         create_sample_info_tensor=False,
                         create_shape_tensor=False,
