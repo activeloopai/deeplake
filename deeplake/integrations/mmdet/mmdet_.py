@@ -185,12 +185,22 @@ def convert_to_pascal_format(bbox, bbox_info, shape):
 
 
 def pascal_pixel_2_coco_pixel(boxes, images):
-    return [
-        np.stack(
-            (box[:, 0], box[:, 1], box[:, 2] - box[:, 0], box[:, 3] - box[:, 1]), axis=1
-        )
-        for box in boxes
-    ]
+    pascal_boxes = []
+    for box in boxes:
+        if box.shape is not None:
+            pascal_boxes.append(
+                np.stack(
+                    (
+                        box[:, 0],
+                        box[:, 1],
+                        box[:, 2] - box[:, 0],
+                        box[:, 3] - box[:, 1],
+                    ),
+                    axis=1,
+                )
+                for box in boxes
+            )
+    return pascal_boxes
 
 
 def pascal_frac_2_coco_pixel(boxes, images):
