@@ -326,7 +326,7 @@ A 3d bbox tensor can be created using
 .. note::
     rotation angles are specified in degrees, not radians
 
-:blue:`Appending bounding boxes`
+:blue:`Appending 3d bounding boxes`
 --------------------------------
 
 - Bounding boxes can be appended as ``np.ndarrays`` or ``list`` or ``lists of arrays``.
