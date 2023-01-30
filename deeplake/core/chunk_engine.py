@@ -330,14 +330,14 @@ class ChunkEngine:
 
     @property
     def commit_chunk_map(self) -> Optional[CommitChunkMap]:
-        """Gets the commit chunk set from cache, if one is not found it creates a blank one.
+        """Gets the commit chunk map from cache, if one is not found it creates a blank one.
 
         Returns:
-            Optional[CommitChunkMap]: The commit chunk set keeps track of all the chunks present in the current commit, returns None for the first commit.
+            Optional[CommitChunkMap]: The commit chunk map keeps track of all the chunks present in the current commit, returns None for the first commit.
         """
         commit_id = self.commit_id
         if commit_id == FIRST_COMMIT_ID:
-            # the first commit doesn't need a commit chunk set
+            # the first commit doesn't need a commit chunk map
             return None
         if (
             self._commit_chunk_map is None
@@ -359,7 +359,7 @@ class ChunkEngine:
 
     @property
     def commit_chunk_map_exists(self) -> bool:
-        """Checks if the commit chunk set exists for the given tensor in the current commit."""
+        """Checks if the commit chunk map exists for the given tensor in the current commit."""
         commit_id = self.commit_id
         if (
             self._commit_chunk_map is not None
@@ -610,7 +610,7 @@ class ChunkEngine:
             commit_id = cur_node.commit_id
             chunk_map_key = get_tensor_commit_chunk_map_key(key, commit_id)
             try:
-                # the first commit doesn't contain a chunk set, don't repeatedly try to fetch from storage
+                # the first commit doesn't contain a chunk map, don't repeatedly try to fetch from storage
                 if commit_id == FIRST_COMMIT_ID:
                     chunk_map = dict()
                 else:
@@ -623,7 +623,7 @@ class ChunkEngine:
                     self.meta_cache[chunk_map_key] = commit_chunk_map
                 except ReadOnlyModeError:
                     # put CommitChunkMap in deeplake_objects to keep in cache temporarily, but won't write to storage
-                    # this shouldn't happen in latest version of deeplake, chunk set would always be present
+                    # this shouldn't happen in latest version of deeplake, chunk map would always be present
                     self.meta_cache.deeplake_objects[chunk_map_key] = commit_chunk_map
                 chunk_map = dict()
             v = chunk_map.get(chunk_name)
@@ -632,7 +632,7 @@ class ChunkEngine:
                 key = v.get("key", key)
                 return commit_id, key
             cur_node = cur_node.parent  # type: ignore
-        # the first commit doesn't have a commit chunk set, so any chunk that wasn't found belongs to the first commit
+        # the first commit doesn't have a commit chunk map, so any chunk that wasn't found belongs to the first commit
         return FIRST_COMMIT_ID, key
 
     def _write_initialization(self):
