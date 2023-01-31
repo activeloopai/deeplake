@@ -14,11 +14,10 @@ Deeplake integration requires the following parameters to be specified in the co
 - data: just like in the MMDetection configuration files, in data dictionary you can specify everything that you want to be applied to the data during training and validation
     - train: is the keyword argument of data, and also a dictionary where one can specify dataset path, credentials, transformations of the training data
     - val: is the keyword argument of data, and also a dictionary where one can specify dataset path, credentials, transformations of the validation data
-    - pipeline: list of transformations. Example: `pipeline =  [dict(type="Resize", img_scale=[(320, 320), (608, 608)], keep_ratio=True),
-        dict(type="RandomFlip", flip_ratio=0.5), dict(type="PhotoMetricDistortion")]`. This parameter exists for train as well as for val.
+    - pipeline: list of transformations. Example: `pipeline =  [dict(type="Resize", img_scale=[(320, 320), (608, 608)], keep_ratio=True), dict(type="RandomFlip", flip_ratio=0.5), dict(type="PhotoMetricDistortion")]`. This parameter exists for train as well as for val.
     - deeplake_path: path to the deeplake dataset. This parameter exists for train as well as for val.
     - deeplake_credentials: optional parameter. Required only when using private nonlocal datasets. See documendataion for `deeplake.load() <https://docs.deeplake.ai/en/latest/deeplake.html#deeplake.load>`_ for details. This parameter exists for train as well as for val.
-    - deeplake_commit_id: optional parameter. If specified. the dataset will checkout to the commit. This parameter exists for train as well as for val.
+    - deeplake_commit_id: optional parameter. If specified. the dataset will checkout to the commit. This parameter exists for train as well as for val. See documendataion for `Dataset.commit_id <https://deep-lake--2152.org.readthedocs.build/en/2152/deeplake.core.dataset.html#deeplake.core.dataset.Dataset.commit_id>`_
     - deeplake_view_id: optional parameter. If specified the dataset will load saved view. This parameter exists for train as well as for val.
     - deeplake_tensors: optional parameter. If specified maps MMDetection tensors to the associated tensors in the dataset. MMDet tensors are: "img", "gt_bboxes", "gt_labels", "gt_masks". This parameter exists for train as well as for val.
         - "img": stands for image tensor.
