@@ -31,7 +31,7 @@ Deeplake integration requires the following parameters to be specified in the co
     - deeplake_dataloader: optional parameter. If specified represents the parameters of the deeplake dataloader. Deeplake dataloader parameters are: "shuffle", "batch_size", "num_workers". This parameter exists for train as well as for val.
         - "shuffle": if True shuffles the dataset.
         - "batch_size": size of batch. If not specified, dataloader will use samples_per_gpu.
-        - num_workers": number of workers to use. If not specified, dataloader will use workers_per_gpu.
+        - "num_workers": number of workers to use. If not specified, dataloader will use workers_per_gpu.
 - deeplake_dataloader_type: optional parameter. If specified represents the type of deeplake dataloader to use.
 - deeplake_metrics_format: optional parameter. If specified represents the format of the deeplake metrics that will be used during evaluation. Default COCO. Avaliable values are: "COCO", "PascalVOC". 
   If COCO format is used, you can specify whether you want to evaluate on bbox only or also want to evaluate on masks. To do that you need to specify the format of the metric in metric. 
@@ -41,8 +41,7 @@ Ex:
 >>>  deeplake_metrics_format = "COCO"
 >>>  evaluation = dict(metric=["bbox"], interval=1)
 
-- train_detector: Function to train the MMDetection model. Parameters are: model, cfg: mmcv.ConfigDict, ds_train=None, ds_train_tensors=None, ds_val: Optional[dp.Dataset] = None,
-    ds_val_tensors=None, distributed: bool = False, timestamp=None, meta=None, validate: bool = True.
+- train_detector: Function to train the MMDetection model. Parameters are: model, cfg: mmcv.ConfigDict, ds_train=None, ds_train_tensors=None, ds_val: Optional[dp.Dataset] = None, ds_val_tensors=None, distributed: bool = False, timestamp=None, meta=None, validate: bool = True.
     - model: MMDetection model that is going to be used.
     - cfg: Configuration of the model as well as of the datasets and transforms that's going to be used.
     - ds_train: Optional parameter. It provided will overwrite deeplake_path in train, and will pass this tensor directly to the dataloader.
