@@ -37,6 +37,7 @@ Deeplake integration requires the following parameters to be specified in the co
   If COCO format is used, you can specify whether you want to evaluate on bbox only or also want to evaluate on masks. To do that you need to specify the format of the metric in metric. 
   
 Ex:
+
 >>>  deeplake_metrics_format = "COCO"
 >>>  evaluation = dict(metric=["bbox"], interval=1)
 
