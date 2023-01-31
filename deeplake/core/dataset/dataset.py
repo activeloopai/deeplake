@@ -2759,6 +2759,7 @@ class Dataset:
         tensors: Optional[List[str]],
         num_workers: int,
         scheduler: str,
+        token: Optional[str],
     ):
         """Saves this view under hub://username/queries
         Only applicable for views of Deep Lake cloud datasets.
@@ -2784,18 +2785,19 @@ class Dataset:
             queries_ds = deeplake.load(
                 queries_ds_path,
                 verbose=False,
+                token=token,
             )  # create if doesn't exist
         except PathNotEmptyException:
-            deeplake.delete(queries_ds_path, force=True)
-            queries_ds = deeplake.empty(queries_ds_path, verbose=False)
+            deeplake.delete(queries_ds_path, force=True, token=token)
+            queries_ds = deeplake.empty(queries_ds_path, verbose=False, token=token)
         except DatasetHandlerError:
-            queries_ds = deeplake.empty(queries_ds_path, verbose=False)
+            queries_ds = deeplake.empty(queries_ds_path, verbose=False, token=token)
 
         queries_ds._unlock()  # we don't need locking as no data will be added to this ds.
 
         path = f"hub://{username}/queries/{hash}"
 
-        vds = deeplake.empty(path, overwrite=True, verbose=False)
+        vds = deeplake.empty(path, overwrite=True, verbose=False, token=token)
 
         self._write_vds(vds, info, copy, tensors, num_workers, scheduler)
         queries_ds._append_to_queries_json(info)
@@ -2938,6 +2940,7 @@ class Dataset:
         path = convert_pathlib_to_string_if_needed(path)
 
         ds_args["verbose"] = False
+        token = ds_args.get("token")
         vds = None
         if path is None and hasattr(self, "_vds"):
             vds = self._vds
@@ -2956,7 +2959,13 @@ class Dataset:
                 if self.read_only and not (self._view_base or self)._locked_out:
                     if isinstance(self, deeplake.core.dataset.DeepLakeCloudDataset):
                         vds = self._save_view_in_user_queries_dataset(
-                            id, message, optimize, tensors, num_workers, scheduler
+                            id,
+                            message,
+                            optimize,
+                            tensors,
+                            num_workers,
+                            scheduler,
+                            token,
                         )
                     else:
                         raise ReadOnlyModeError(
