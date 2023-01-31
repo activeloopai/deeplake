@@ -14,7 +14,11 @@ Deeplake integration requires the following parameters to be specified in the co
 - data: just like in the MMDetection configuration files, in data dictionary you can specify everything that you want to be applied to the data during training and validation
     - train: is the keyword argument of data, and also a dictionary where one can specify dataset path, credentials, transformations of the training data
     - val: is the keyword argument of data, and also a dictionary where one can specify dataset path, credentials, transformations of the validation data
-    - pipeline: list of transformations. Example: `pipeline =  [dict(type="Resize", img_scale=[(320, 320), (608, 608)], keep_ratio=True), dict(type="RandomFlip", flip_ratio=0.5), dict(type="PhotoMetricDistortion")]`. This parameter exists for train as well as for val.
+    - pipeline: list of transformations. This parameter exists for train as well as for val.
+    Example:
+    
+>>>    pipeline =  [dict(type="Resize", img_scale=[(320, 320), (608, 608)], keep_ratio=True), dict(type="RandomFlip", flip_ratio=0.5), dict(type="PhotoMetricDistortion")]
+
     - deeplake_path: path to the deeplake dataset. This parameter exists for train as well as for val.
     - deeplake_credentials: optional parameter. Required only when using private nonlocal datasets. See documendataion for `deeplake.load() <https://docs.deeplake.ai/en/latest/deeplake.html#deeplake.load>`_ for details. This parameter exists for train as well as for val.
     - deeplake_commit_id: optional parameter. If specified. the dataset will checkout to the commit. This parameter exists for train as well as for val. See documendataion for `Dataset.commit_id <https://deep-lake--2152.org.readthedocs.build/en/2152/deeplake.core.dataset.html#deeplake.core.dataset.Dataset.commit_id>`_
@@ -24,7 +28,6 @@ Deeplake integration requires the following parameters to be specified in the co
         - "gt_bboxes": stands for bounding box tensor.
         - "gt_labels": stand for labels tensor.
         - "gt_masks": stand for masks tensor.
-    because they are not always fetched correctly
     - deeplake_dataloader: optional parameter. If specified represents the parameters of the deeplake dataloader. Deeplake dataloader parameters are: "shuffle", "batch_size", "num_workers". This parameter exists for train as well as for val.
         - "shuffle": if True shuffles the dataset.
         - "batch_size": size of batch. If not specified, dataloader will use samples_per_gpu.
@@ -32,10 +35,13 @@ Deeplake integration requires the following parameters to be specified in the co
 - deeplake_dataloader_type: optional parameter. If specified represents the type of deeplake dataloader to use.
 - deeplake_metrics_format: optional parameter. If specified represents the format of the deeplake metrics that will be used during evaluation. Default COCO. Avaliable values are: "COCO", "PascalVOC". 
   If COCO format is used, you can specify whether you want to evaluate on bbox only or also want to evaluate on masks. To do that you need to specify the format of the metric in metric. 
-  Ex: `deeplake_metrics_format = "COCO"
-       evaluation = dict(metric=["bbox"], interval=1)`
-- train_detector: Function to train the MMDetection model. Parameters are: `model, cfg: mmcv.ConfigDict, ds_train=None, ds_train_tensors=None, ds_val: Optional[dp.Dataset] = None,
-    ds_val_tensors=None, distributed: bool = False, timestamp=None, meta=None, validate: bool = True,`.
+  
+Ex:
+>>>  deeplake_metrics_format = "COCO"
+>>>  evaluation = dict(metric=["bbox"], interval=1)
+
+- train_detector: Function to train the MMDetection model. Parameters are: model, cfg: mmcv.ConfigDict, ds_train=None, ds_train_tensors=None, ds_val: Optional[dp.Dataset] = None,
+    ds_val_tensors=None, distributed: bool = False, timestamp=None, meta=None, validate: bool = True.
     - model: MMDetection model that is going to be used.
     - cfg: Configuration of the model as well as of the datasets and transforms that's going to be used.
     - ds_train: Optional parameter. It provided will overwrite deeplake_path in train, and will pass this tensor directly to the dataloader.
@@ -44,7 +50,7 @@ Deeplake integration requires the following parameters to be specified in the co
     - ds_val_tensors: Optional parameter. It provided will overwrite deeplake_tensors in val, and will pass this tensor mapping directly to dataloader.
     - distributed: Optional parameter. If provided will run the code on all available gpus. Meta data used to build runner
     - timestamp: variable used in runner to make .log and .log.json filenames the same.'
-    - validate: bool, whether validation should be conducted, by default `True`
+    - validate: bool, whether validation should be conducted, by default True
 
 NOTE:
     gt_masks is optional parameter and lets say you want to train poure detecter this part is going to exclude. Other mappings are mandatory
