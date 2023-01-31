@@ -25,9 +25,6 @@ Deeplake integration requires the following parameters to be specified in the co
         - "gt_bboxes": stands for bounding box tensor.
         - "gt_labels": stand for labels tensor.
         - "gt_masks": stand for masks tensor.
-        NOTE:
-            gt_masks is optional parameter and lets say you want to train poure detecter this part is going to exclude. Other mappings are mandatory
-            if you don't specify them explicitly they are going to be searched in the dataset according to tensor htype. Better to specify them explicitly
     because they are not always fetched correctly
     - deeplake_dataloader: optional parameter. If specified represents the parameters of the deeplake dataloader. Deeplake dataloader parameters are: "shuffle", "batch_size", "num_workers". This parameter exists for train as well as for val.
         - "shuffle": if True shuffles the dataset.
@@ -49,6 +46,10 @@ Deeplake integration requires the following parameters to be specified in the co
     - distributed: Optional parameter. If provided will run the code on all available gpus. Meta data used to build runner
     - timestamp: variable used in runner to make .log and .log.json filenames the same.'
     - validate: bool, whether validation should be conducted, by default `True`
+
+NOTE:
+    gt_masks is optional parameter and lets say you want to train poure detecter this part is going to exclude. Other mappings are mandatory
+    if you don't specify them explicitly they are going to be searched in the dataset according to tensor htype. Better to specify them explicitly
 
 Below is the example of the deeplake mmdet configuration:
 
@@ -144,9 +145,9 @@ Below is the example of the deeplake mmdet configuration:
 >>> deeplake_metrics_format = "COCO"
 ​
 >>> #----------------------------------END DEEPLAKE INPUTS------------------------------------------------------------#
->>> 
->>> And config for training:
->>> 
+
+And config for training:
+
 >>> import os
 >>> from mmcv import Config
 >>> import mmcv
