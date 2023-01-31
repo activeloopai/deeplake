@@ -148,11 +148,7 @@ class TransformDataset:
         for i in range(len(self)):
             yield self[i]
 
-    def append(self, sample, skip_ok=False):
-        if not skip_ok:
-            for k in self.tensors:
-                if k not in sample:
-                    raise TensorDoesNotExistError(k)
+    def append(self, sample):
         if len(set(map(len, (self[k] for k in sample)))) != 1:
             raise ValueError("All tensors are expected to have the same length.")
         for k, v in sample.items():
