@@ -55,6 +55,7 @@ class ViewEntry:
             ".queries/" + (self.info.get("path") or self.info["id"]),
             lock=False,
             verbose=False,
+            token=self._src_ds.token
         )
         sub_ds_path = ds.path
         if self.virtual:

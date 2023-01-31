@@ -3015,7 +3015,11 @@ class Dataset:
             self._parent_dataset[Index()]
             if (inherit_creds and self._parent_dataset)
             else deeplake.load(
-                self.info["source-dataset"], verbose=False, creds=creds, read_only=True
+                self.info["source-dataset"],
+                verbose=False,
+                creds=creds,
+                read_only=True,
+                token=self._token,
             )
         )
 
@@ -3237,6 +3241,7 @@ class Dataset:
         read_only=None,
         lock=True,
         verbose=True,
+        token=None,
     ):
         """Loads a nested dataset. Internal.
 
@@ -3274,7 +3279,7 @@ class Dataset:
                 local_cache_size * MB,
             ),
             path=path,
-            token=self._token,
+            token=token,
             read_only=read_only,
             lock=lock,
             verbose=verbose,
