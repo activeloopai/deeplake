@@ -7,7 +7,6 @@ import inspect
 import numpy as np
 from os import urandom
 from PIL import Image  # type: ignore
-from deeplake.util.downsample import downsample_sample
 from deeplake.core.linked_sample import read_linked_sample
 import tqdm  # type: ignore
 
@@ -120,7 +119,8 @@ def update_shape(new_sample, link_creds=None, tensor_meta=None):
 @link
 def extend_shape(samples, link_creds=None, tensor_meta=None):
     if isinstance(samples, np.ndarray):
-        return [np.array(samples.shape[1:])] * len(samples)
+        if samples.dtype != object:
+            return np.tile(np.array([samples.shape[1:]]), (len(samples), 1))
     if samples is None:
         return np.array([], dtype=np.int64)
     shapes = [
@@ -178,7 +178,10 @@ def extend_downsample(samples, factor, compression, htype, link_creds=None):
     samples = [
         convert_sample_for_downsampling(sample, link_creds) for sample in samples
     ]
-    return [downsample_sample(sample, factor, compression, htype) for sample in samples]
+    return [
+        deeplake.util.downsample.downsample_sample(sample, factor, compression, htype)
+        for sample in samples
+    ]
 
 
 @link
@@ -196,7 +199,9 @@ def update_downsample(
         for index_entry in sub_index.values:
             if not isinstance(index_entry.value, slice):
                 return _NO_LINK_UPDATE
-    downsampled = downsample_sample(new_sample, factor, compression, htype, partial)
+    downsampled = deeplake.util.downsample.downsample_sample(
+        new_sample, factor, compression, htype, partial
+    )
     if partial:
         downsampled_sub_index = sub_index.downsample(factor, downsampled.shape)
         return downsampled_sub_index, downsampled

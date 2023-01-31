@@ -131,7 +131,7 @@ class Encoder(ABC):
 
         if len(self._encoded) == 0:
             raise IndexError(
-                f"Index {local_sample_index} is out of bounds for an empty byte position encoding."
+                f"Index {local_sample_index} is out of bounds for an empty encoder."
             )
 
         if local_sample_index < 0:
