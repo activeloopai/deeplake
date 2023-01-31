@@ -216,47 +216,33 @@ class DeeplakeQueryTensorWithSliceIndices(DeepLakeQueryTensor):
         first_dim = len(tensors_list)
         return first_dim
 
+    def get_indra_tensor_shapes(self):
+        shapes = []
+        for idx in self.idxs:
+            shapes += self.indra_tensors.shape(idx)
+        return np.array(shapes)
+
     @property
     def max_shape(self):
-        # TO DO: Optimize this
-        self._set_tensors_list()
-        tensors = self.tensors_list
-        first_dim = len(self.tensors_list)
-        max_tensor_len = len(self.tensors_list[0])
-        if list in map(type, self.tensors_list):
-            tensors = list(itertools.chain(*self.tensors_list))
-            max_tensor_len = max(list(map(len, self.tensors_list)))
+        indra_tensor_shapes = self.get_indra_tensor_shapes()
+        _max_shape = []
 
-        if len(self.idxs) > 1:
-            max_tensor_len = len(self.tensors_list[self.idxs[1]])
-        _max_shape = list(tensors[0].shape)
-        for arr in tensors:
-            arr_shape = list(arr.shape)
-            _max_shape = list(map(max, _max_shape, arr_shape))
-        _max_shape.insert(0, max_tensor_len)
-        _max_shape.insert(0, first_dim)
-        return tuple(_max_shape)
+        for axis in range(len(indra_tensor_shapes)):
+            indra_tensors_shapes_along_axis = indra_tensor_shapes[:, axis]
+            max_value = np.max(indra_tensors_shapes_along_axis)
+            _max_shape.append(max_value)
+        return _max_shape
 
     @property
     def min_shape(self):
-        # TO DO: Optimize this
-        self._set_tensors_list()
-        tensors = self.tensors_list
-        first_dim = len(self.tensors_list)
-        min_tensor_len = len(self.tensors_list[0])
-        if list in map(type, self.tensors_list):
-            tensors = list(itertools.chain(*self.tensors_list))
-            min_tensor_len = min(list(map(len, self.tensors_list)))
+        indra_tensor_shapes = self.get_indra_tensor_shapes()
+        _min_shape = []
 
-        if len(self.idxs) > 1:
-            min_tensor_len = len(self.tensors_list[self.idxs[1]])
-        _min_shape = list(tensors[0].shape)
-        for arr in tensors:
-            arr_shape = list(arr.shape)
-            _min_shape = list(map(min, _min_shape, arr_shape))
-        _min_shape.insert(0, min_tensor_len)
-        _min_shape.insert(0, first_dim)
-        return tuple(_min_shape)
+        for axis in range(len(indra_tensor_shapes)):
+            indra_tensors_shapes_along_axis = indra_tensor_shapes[:, axis]
+            min_value = np.min(indra_tensors_shapes_along_axis)
+            _min_shape.append(min_value)
+        return _min_shape
 
     @property
     def shape(self):
