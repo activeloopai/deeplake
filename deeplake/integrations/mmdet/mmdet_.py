@@ -51,6 +51,8 @@ NOTE:
     gt_masks is optional parameter and lets say you want to train poure detecter this part is going to exclude. Other mappings are mandatory
     if you don't specify them explicitly they are going to be searched in the dataset according to tensor htype. Better to specify them explicitly
 
+MMDetection Config Examples
+~~~~~~~~~~~~~~~~~~~~~~~~~~~
 Below is the example of the deeplake mmdet configuration:
 
 
