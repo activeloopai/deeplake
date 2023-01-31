@@ -3056,9 +3056,9 @@ class Dataset:
         return view._save_view(vds_path, _ret_ds=True, **vds_args)
 
     @staticmethod
-    def _get_queries_ds_from_user_account():
-        if self.token:
-            username = jwt.decode(self.token, options={"verify_signature": False})["id"]
+    def _get_queries_ds_from_user_account(token: Optional[str] = None):
+        if token:
+            username = jwt.decode(token, options={"verify_signature": False})["id"]
         else:
             username = get_user_name()
 
@@ -3066,13 +3066,13 @@ class Dataset:
             return
         try:
             return deeplake.load(
-                f"hub://{username}/queries", verbose=False, token=self.token
+                f"hub://{username}/queries", verbose=False, token=token
             )
         except DatasetHandlerError:
             return
 
     def _read_queries_json_from_user_account(self):
-        queries_ds = Dataset._get_queries_ds_from_user_account()
+        queries_ds = Dataset._get_queries_ds_from_user_account(self.token)
         if not queries_ds:
             return [], None
         return (
@@ -3214,7 +3214,7 @@ class Dataset:
                     return
 
         if self.path.startswith("hub://"):
-            qds = Dataset._get_queries_ds_from_user_account()
+            qds = Dataset._get_queries_ds_from_user_account(self.token)
             if qds:
                 with qds._lock_queries_json():
                     qjson = qds._read_queries_json()
