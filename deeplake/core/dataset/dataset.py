@@ -2759,7 +2759,6 @@ class Dataset:
         tensors: Optional[List[str]],
         num_workers: int,
         scheduler: str,
-        token: Optional[str],
     ):
         """Saves this view under hub://username/queries
         Only applicable for views of Deep Lake cloud datasets.
@@ -2785,19 +2784,23 @@ class Dataset:
             queries_ds = deeplake.load(
                 queries_ds_path,
                 verbose=False,
-                token=token,
+                token=self.token,
             )  # create if doesn't exist
         except PathNotEmptyException:
-            deeplake.delete(queries_ds_path, force=True, token=token)
-            queries_ds = deeplake.empty(queries_ds_path, verbose=False, token=token)
+            deeplake.delete(queries_ds_path, force=True, token=self.token)
+            queries_ds = deeplake.empty(
+                queries_ds_path, verbose=False, token=self.token
+            )
         except DatasetHandlerError:
-            queries_ds = deeplake.empty(queries_ds_path, verbose=False, token=token)
+            queries_ds = deeplake.empty(
+                queries_ds_path, verbose=False, token=self.token
+            )
 
         queries_ds._unlock()  # we don't need locking as no data will be added to this ds.
 
         path = f"hub://{username}/queries/{hash}"
 
-        vds = deeplake.empty(path, overwrite=True, verbose=False, token=token)
+        vds = deeplake.empty(path, overwrite=True, verbose=False, token=self.token)
 
         self._write_vds(vds, info, copy, tensors, num_workers, scheduler)
         queries_ds._append_to_queries_json(info)
@@ -2964,7 +2967,6 @@ class Dataset:
                             tensors,
                             num_workers,
                             scheduler,
-                            self.token,
                         )
                     else:
                         raise ReadOnlyModeError(
@@ -3055,11 +3057,17 @@ class Dataset:
 
     @staticmethod
     def _get_queries_ds_from_user_account():
-        username = get_user_name()
+        if self.token:
+            username = jwt.decode(self.token, options={"verify_signature": False})["id"]
+        else:
+            username = get_user_name()
+
         if username == "public":
             return
         try:
-            return deeplake.load(f"hub://{username}/queries", verbose=False)
+            return deeplake.load(
+                f"hub://{username}/queries", verbose=False, token=self.token
+            )
         except DatasetHandlerError:
             return
 
