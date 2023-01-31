@@ -2940,7 +2940,6 @@ class Dataset:
         path = convert_pathlib_to_string_if_needed(path)
 
         ds_args["verbose"] = False
-        token = ds_args.get("token")
         vds = None
         if path is None and hasattr(self, "_vds"):
             vds = self._vds
@@ -2965,7 +2964,7 @@ class Dataset:
                             tensors,
                             num_workers,
                             scheduler,
-                            token,
+                            self.token,
                         )
                     else:
                         raise ReadOnlyModeError(
