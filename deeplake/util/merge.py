@@ -739,6 +739,10 @@ def copy_tensor_slice(
         dest_storage = dest_ds.storage
         src_meta = src_tensor.meta
         dest_meta = dest_tensor.meta
+        if dest_meta.dtype is None:
+            dest_meta.dtype = src_meta.dtype
+        if dest_meta.htype is None:
+            dest_meta.htype = src_meta.htype
         dest_meta_orig_length = dest_meta.length
         dest_meta_length = len(indices)
         chunk_map = dest_eng.commit_chunk_map
