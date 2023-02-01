@@ -20,6 +20,7 @@ Making Deep Lake Samples
 
     read
     link
+    link_tiled
 
 Parallelism
 ~~~~~~~~~~~

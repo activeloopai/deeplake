@@ -23,6 +23,7 @@ deeplake
 .. autofunction:: exists
 .. autofunction:: read
 .. autofunction:: link
+.. autofunction:: link_tiled
 .. autofunction:: tiled
 .. autofunction:: compute
 .. autofunction:: compose
