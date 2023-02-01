@@ -59,6 +59,7 @@ TIMESTAMP_FILENAME = "local_download_timestamp"
 
 DATASET_LOCK_UPDATE_INTERVAL = 120  # seconds
 DATASET_LOCK_VALIDITY = 300  # seconds
+LOCK_VERIFY_INTERVAL = 0.5  # seconds
 
 META_ENCODING = "utf8"
 

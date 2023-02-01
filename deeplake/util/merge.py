@@ -720,11 +720,12 @@ def copy_tensor_slice(
     _copy_main_tensor=True,
     _copy_link_tensors=True,
 ):
+    print(indices, ranges)
     if not indices:
         return
     src_tensor = src_ds[src_tensor_name]
     dest_tensor = dest_ds[dest_tensor_name]
-
+    is_seq = src_tensor.is_sequence
     if _copy_main_tensor:
         dest_key = dest_tensor.key
         dest_commit = dest_ds.pending_commit_id
@@ -747,7 +748,6 @@ def copy_tensor_slice(
         dest_meta_length = len(indices)
         chunk_map = dest_eng.commit_chunk_map
         is_link = src_meta.is_link
-        is_seq = src_tensor.is_sequence
         src_tile_enc_entries = src_eng.tile_encoder.entries
         dest_tile_enc = dest_eng.tile_encoder
         dest_tile_enc_entries = dest_tile_enc.entries
