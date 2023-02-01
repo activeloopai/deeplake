@@ -720,7 +720,6 @@ def copy_tensor_slice(
     _copy_main_tensor=True,
     _copy_link_tensors=True,
 ):
-    print(indices, ranges)
     if not indices:
         return
     src_tensor = src_ds[src_tensor_name]
@@ -745,7 +744,7 @@ def copy_tensor_slice(
         if dest_meta.htype is None:
             dest_meta.htype = src_meta.htype
         dest_meta_orig_length = dest_meta.length
-        dest_meta_length = len(indices)
+        dest_meta_length = len(indices) if indices else sum(end - start for start, end in ranges)
         chunk_map = dest_eng.commit_chunk_map
         is_link = src_meta.is_link
         src_tile_enc_entries = src_eng.tile_encoder.entries
