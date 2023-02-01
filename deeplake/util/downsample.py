@@ -76,21 +76,22 @@ def downsample_link_tiled(
     shape = sample.shape
     tile_shape = sample.tile_shape
     downsampled_tile_size = tile_shape[0] // factor, tile_shape[1] // factor
-
-    downsample_sample_size = shape[0] // factor, shape[1] // factor
+    downsampled_sample_size = shape[0] // factor, shape[1] // factor
     path_array = sample.path_array
     arr = None
     for i in range(path_array.shape[0]):
         for j in range(path_array.shape[1]):
-            tile_pil = read_linked_sample(
-                sample.path, sample.creds_key, link_creds, verify=False
-            ).pil
+            path = sample.path_array[i, j].flatten()[0]
+            creds_key = sample.creds_key
+            tile_pil = read_linked_sample(path, creds_key, link_creds, verify=False).pil
+
+            # reverse the size because PIL expects (width, height)
             downsampled_tile_pil = tile_pil.resize(
-                downsampled_tile_size, get_filter(htype)
+                downsampled_tile_size[::-1], get_filter(htype)
             )
             downsampled_tile_arr = np.array(downsampled_tile_pil)
             if arr is None:
-                arr_size = downsample_sample_size + shape[2:]
+                arr_size = downsampled_sample_size + shape[2:]
                 arr = np.zeros(arr_size, dtype=downsampled_tile_arr.dtype)
             arr[
                 i * downsampled_tile_size[0] : (i + 1) * downsampled_tile_size[0],
