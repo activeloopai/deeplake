@@ -748,6 +748,9 @@ def copy_tensor_slice(
         chunk_map = dest_eng.commit_chunk_map
         is_link = src_meta.is_link
         is_seq = src_tensor.is_sequence
+        src_tile_enc_entries = src_eng.tile_encoder.entries
+        dest_tile_enc = dest_eng.tile_encoder
+        dest_tile_enc_entries = dest_tile_enc.entries
         if is_link:
             src_creds_encoder = src_eng.creds_encoder
             dest_creds_encoder = dest_eng.creds_encoder
@@ -793,6 +796,11 @@ def copy_tensor_slice(
                         start,
                         end,
                     )
+                for idx in range(start, end):
+                    e = src_tile_enc_entries.get(idx)
+                    if e:
+                        dest_tile_enc_entries[idx] = e
+                        dest_tile_enc.is_dirty = True
 
                 (
                     chunks_to_copy,
