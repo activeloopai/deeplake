@@ -736,7 +736,9 @@ def copy_tensor_slice(
         dest_storage = dest_ds.storage
         src_meta = src_tensor.meta
         dest_meta = dest_tensor.meta
-        dest_meta_length = dest_meta.length + len(indices)
+        dest_meta_orig_length = dest_meta.length
+        dest_meta_length = len(indices)
+        dest_meta_seq_length = 0
         chunk_map = dest_eng.commit_chunk_map
         is_link = src_meta.is_link
         is_seq = src_tensor.is_sequence
@@ -757,8 +759,9 @@ def copy_tensor_slice(
                         start, return_row_index=True
                     )
                     (_, end2), end_row = src_seq_encoder.__getitem__(
-                        end, return_row_index=True
+                        end - 1, return_row_index=True
                     )
+                    dest_meta_seq_length += end2 - start2
                     nrows = len(dest_seq_encoder._encoded)
                     dest_seq_encoder._encoded = _merge_encodings(
                         dest_seq_encoder._encoded,
@@ -774,7 +777,7 @@ def copy_tensor_slice(
 
                 if is_link:
                     start_row = src_creds_encoder.translate_index(start)
-                    end_row = src_creds_encoder.translate_index(end)
+                    end_row = src_creds_encoder.translate_index(end - 1)
                     dest_creds_encoder._encoded = _merge_encodings(
                         dest_creds_encoder._encoded,
                         src_creds_encoder._encoded,
@@ -831,7 +834,9 @@ def copy_tensor_slice(
             if src_meta.min_shape:
                 dest_meta.update_shape_interval(src_meta.min_shape)
                 dest_meta.update_shape_interval(src_meta.max_shape)
-            dest_meta.length = dest_meta_length
+            dest_meta.length = dest_meta_orig_length + (
+                dest_meta_seq_length if is_seq else dest_meta_length
+            )
             dest_meta.is_dirty = True
             dest_storage.flush()
         finally:
