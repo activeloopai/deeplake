@@ -303,12 +303,12 @@ def check_common_tensor_mismatches(tensor_names: Set[str], dataset, target_datas
         target_meta = target_dataset[tensor_name].meta
         original_meta = dataset[tensor_name].meta
         original_details = {
-            "htype": original_meta.htype or "generic",
+            "htype": original_meta.htype,
             "sample_compression": original_meta.sample_compression,
             "chunk_compression": original_meta.chunk_compression,
         }
         target_details = {
-            "htype": target_meta.htype or "generic",
+            "htype": target_meta.htype,
             "sample_compression": target_meta.sample_compression,
             "chunk_compression": target_meta.chunk_compression,
         }
