@@ -715,7 +715,8 @@ def copy_tensor_slice(
     dest_ds,
     src_tensor_name,
     dest_tensor_name,
-    indices,
+    indices=None,
+    ranges=None,
     _copy_main_tensor=True,
     _copy_link_tensors=True,
 ):
@@ -732,13 +733,14 @@ def copy_tensor_slice(
         dest_eng = dest_tensor.chunk_engine
         dest_enc = dest_eng.chunk_id_encoder
         src_enc_arr = src_enc._encoded
-        ranges = _group_ranges(indices)
+        if ranges is None:
+            ranges = _group_ranges(indices)
+        flat_ranges = []
         dest_storage = dest_ds.storage
         src_meta = src_tensor.meta
         dest_meta = dest_tensor.meta
         dest_meta_orig_length = dest_meta.length
         dest_meta_length = len(indices)
-        dest_meta_seq_length = 0
         chunk_map = dest_eng.commit_chunk_map
         is_link = src_meta.is_link
         is_seq = src_tensor.is_sequence
@@ -750,6 +752,7 @@ def copy_tensor_slice(
             src_seq_encoder = src_eng.sequence_encoder
             dest_seq_encoder = dest_eng.sequence_encoder
             dest_seq_encoder.is_dirty = True
+            dest_meta_seq_length = 0
         dest_tensor.meta.links = {}
         links = dest_tensor.meta.links
         try:
@@ -774,7 +777,7 @@ def copy_tensor_slice(
                     dest_seq_encoder._post_process_state(nrows - 1)
                     start = start2
                     end = end2
-
+                    flat_ranges.append((start, end))
                 if is_link:
                     start_row = src_creds_encoder.translate_index(start)
                     end_row = src_creds_encoder.translate_index(end - 1)
@@ -803,7 +806,11 @@ def copy_tensor_slice(
                             )
                         )
                     else:
+                        dest_meta.is_sequence = False
+                        src_meta.is_sequence = False
                         dest_tensor.extend(src_tensor[s:e])
+                        dest_meta.is_sequence = is_seq
+                        src_meta.is_sequence = is_seq
                 if chunks_to_copy:
                     s, e = chunks_to_copy
                     chunk_ids = src_enc_arr[s:e, 0]
@@ -830,7 +837,11 @@ def copy_tensor_slice(
                             )
                         )
                     else:
+                        dest_meta.is_sequence = False
+                        src_meta.is_sequence = False
                         dest_tensor.extend(src_tensor[s:e])
+                        dest_meta.is_sequence = is_seq
+                        src_meta.is_sequence = is_seq
             if src_meta.min_shape:
                 dest_meta.update_shape_interval(src_meta.min_shape)
                 dest_meta.update_shape_interval(src_meta.max_shape)
@@ -842,8 +853,10 @@ def copy_tensor_slice(
         finally:
             dest_tensor.meta.links = links
     if _copy_link_tensors:
-        links = ["_sample_id_tensor", "_sample_shape_tensor", "_sample_info_tensor"]
-        for l in links:
+        if not is_seq:
+            flat_ranges = ranges
+        links = [("_sample_id_tensor", False), ("_sample_shape_tensor", True), ("_sample_info_tensor", True)]
+        for l, flat in links:
             dest_link_tensor = getattr(dest_tensor, l, None)
             if dest_link_tensor:
                 src_link_tensor = getattr(src_tensor, l, None)
@@ -853,7 +866,7 @@ def copy_tensor_slice(
                         dest_ds,
                         src_link_tensor.meta.name,
                         dest_link_tensor.meta.name,
-                        indices,
+                        ranges = flat_ranges if flat else ranges,
                         _copy_main_tensor=True,
                         _copy_link_tensors=False,
                     )
