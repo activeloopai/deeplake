@@ -5,7 +5,7 @@ deeplake.core
 
     deeplake.core.sample
     deeplake.core.linked_sample <deeplake.core.linked-sample>
-    deeplake.core.partial_sample <deeplake.core.partial-sample
+    deeplake.core.partial_sample <deeplake.core.partial-sample>
     deeplake.core.link_tiled_sample <deeplake.core.link-tiled-sample>
     deeplake.core.storage
     deeplake.core.index
