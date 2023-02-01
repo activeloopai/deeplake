@@ -2770,7 +2770,7 @@ class Dataset:
 
         if username == "public":
             raise DatasetViewSavingError(
-                "Unable to save view for read only dataset. Login to save the view to your user account."
+                "You are not logged in. Please login through the activeloop CLI or provide an API token to save the view to your user account."
             )
 
         info = self._get_view_info(id, message, copy)
