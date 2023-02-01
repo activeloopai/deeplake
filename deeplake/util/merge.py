@@ -859,7 +859,11 @@ def copy_tensor_slice(
     if _copy_link_tensors:
         if not is_seq:
             flat_ranges = ranges
-        links = [("_sample_id_tensor", False), ("_sample_shape_tensor", True), ("_sample_info_tensor", True)]
+        links = [
+            ("_sample_id_tensor", False),
+            ("_sample_shape_tensor", True),
+            ("_sample_info_tensor", True),
+        ]
         for l, flat in links:
             dest_link_tensor = getattr(dest_tensor, l, None)
             if dest_link_tensor:
@@ -870,7 +874,7 @@ def copy_tensor_slice(
                         dest_ds,
                         src_link_tensor.meta.name,
                         dest_link_tensor.meta.name,
-                        ranges = flat_ranges if flat else ranges,
+                        ranges=flat_ranges if flat else ranges,
                         _copy_main_tensor=True,
                         _copy_link_tensors=False,
                     )
