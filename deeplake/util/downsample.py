@@ -66,10 +66,7 @@ def downsample_sample(
 
     if isinstance(sample, np.ndarray) and sample.dtype == bool:
         downsampled_sample = sample[::factor, ::factor]
-        if compression is None:
-            return downsampled_sample
-        with io.BytesIO() as f:
-            return deeplake.core.sample.Sample(array=downsampled_sample, compression=compression)
+        return downsampled_sample
     else:
         size = sample.size[0] // factor, sample.size[1] // factor
         downsampled_sample = sample.resize(size, get_filter(htype))
