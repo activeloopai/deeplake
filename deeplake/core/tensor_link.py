@@ -163,9 +163,8 @@ def convert_sample_for_downsampling(sample, link_creds=None):
         )
     if isinstance(sample, deeplake.core.sample.Sample):
         sample = sample.pil
-    if isinstance(sample, np.ndarray):
+    if isinstance(sample, np.ndarray) and sample.dtype != bool:
         sample = Image.fromarray(sample)
-    # PartialSample isn't converted
     return sample
 
 
