@@ -3254,6 +3254,7 @@ class Dataset:
             read_only (bool): Loads the sub dataset in read only mode if ``True``. Default ``False``.
             lock (bool): Whether the dataset should be locked for writing. Only applicable for S3, Deep Lake and GCS datasets. No effect if ``read_only=True``.
             verbose (bool): If ``True``, logs will be printed. Defaults to ``True``.
+            token (Optional[str]): Token of source dataset.
 
         Returns:
             Sub dataset
