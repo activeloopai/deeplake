@@ -17,14 +17,14 @@ from deeplake.constants import FIRST_COMMIT_ID
 from deeplake.client.utils import get_user_name
 
 
-def _get_lock_bytes(tag: Optional[str] = None) -> bytes:
+def _get_lock_bytes(tag: Optional[bytes] = None) -> bytes:
     byts = uuid.getnode().to_bytes(6, "little") + struct.pack("d", time.time())
     if tag:
         byts += tag
     return byts
 
 
-def _parse_lock_bytes(byts) -> Tuple[int, int, str]:
+def _parse_lock_bytes(byts) -> Tuple[int, int, bytes]:
     byts = memoryview(byts)
     nodeid = int.from_bytes(byts[:6], "little")
     timestamp = struct.unpack("d", byts[6:14])[0]
@@ -168,7 +168,7 @@ class PersistentLock(Lock):
                             self.acquired = False
                             return
                     self._previous_update_timestamp = time.time()
-                    self.storage[self.path] = _get_lock_bytes(self.username)
+                    self.storage[self.path] = _get_lock_bytes()
                 except Exception:
                     pass
                 self._init = False

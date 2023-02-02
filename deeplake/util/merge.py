@@ -470,8 +470,6 @@ def merge_tensor_data(
     original_tensor = dataset[tensor_name]
     target_tensor = target_dataset[tensor_name]
     id_tensor_name = get_sample_id_tensor_key(tensor_name)
-    original_id_tensor = dataset[id_tensor_name]
-    target_id_tensor = target_dataset[id_tensor_name]
 
     new_indexes = new_samples_dict[tensor_name]
     new_indexes.sort()
