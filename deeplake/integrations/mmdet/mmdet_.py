@@ -1103,7 +1103,6 @@ def _train_detector(
         implementation=dl_impl,
         **train_loader_cfg,
     )
-
     # build optimizer
     auto_scale_lr(cfg, distributed, logger)
     optimizer = build_optimizer(model, cfg.optimizer)

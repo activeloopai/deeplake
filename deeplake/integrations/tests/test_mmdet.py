@@ -5,10 +5,13 @@ import pathlib
 
 import pytest
 import numpy as np
+import wandb
 
 import deeplake as dp
 from deeplake.client.client import DeepLakeBackendClient
 
+
+os.system("wandb offline")
 
 _THIS_FILE = pathlib.Path(__file__).parent.absolute()
 _COCO_PATH = "hub://activeloop/coco-train"
@@ -146,6 +149,11 @@ def test_yolo_to_pascal_format():
     bbox_pascal = mmdet_.convert_to_pascal_format(bbox, bbox_info, shape)
     np.testing.assert_array_equal(bbox_pascal, targ_bbox)
 
+    bbox = np.empty(0)
+    targ_bbox = np.empty((0, 4))
+    bbox_pascal = mmdet_.convert_to_pascal_format(bbox, bbox_info, shape)
+    np.testing.assert_array_equal(bbox_pascal, targ_bbox)
+
 
 @pytest.mark.skipif(
     sys.platform != "linux" or sys.version_info < (3, 7),
@@ -163,6 +171,12 @@ def test_pascal_to_pascal_format():
 
     shape = (10, 10)
     bbox = np.array([[0.4, 0.5, 0.6, 0.7]])
+    bbox_info = {"coords": {"mode": "LTRB", "type": "fractional"}}
+    bbox_pascal = mmdet_.convert_to_pascal_format(bbox, bbox_info, shape)
+    np.testing.assert_array_equal(bbox_pascal, targ_bbox)
+
+    bbox = np.empty(0)
+    targ_bbox = []
     bbox_info = {"coords": {"mode": "LTRB", "type": "fractional"}}
     bbox_pascal = mmdet_.convert_to_pascal_format(bbox, bbox_info, shape)
     np.testing.assert_array_equal(bbox_pascal, targ_bbox)
@@ -187,6 +201,11 @@ def test_pascal_to_coco_format():
     bbox_coco = mmdet_.convert_to_coco_format(bbox, bbox_info, images)
     np.testing.assert_array_equal(bbox_coco[0], targ_bbox)
 
+    bbox = np.empty(0)
+    targ_bbox = []
+    bbox_coco = mmdet_.convert_to_coco_format(bbox, bbox_info, images)
+    np.testing.assert_array_equal(bbox_coco, targ_bbox)
+
 
 @pytest.mark.skipif(
     sys.platform != "linux" or sys.version_info < (3, 7),
@@ -206,6 +225,11 @@ def test_yolo_to_coco_format():
     bbox_info = ("CCWH", "fractional")
     bbox_coco = mmdet_.convert_to_coco_format(bbox, bbox_info, image)
     np.testing.assert_array_equal(bbox_coco[0], targ_bbox)
+
+    bbox = np.empty(0)
+    targ_bbox = []
+    bbox_coco = mmdet_.convert_to_coco_format(bbox, bbox_info, image)
+    np.testing.assert_array_equal(bbox_coco, targ_bbox)
 
 
 @pytest.mark.skipif(
@@ -298,6 +322,18 @@ def get_test_config(
     cfg.evaluation = dict(metric=["bbox"], interval=1)
     cfg.work_dir = "./mmdet_outputs"
     cfg.log_config = dict(interval=10, hooks=[dict(type="TextLoggerHook")])
+    cfg.log_config.hooks = [
+        dict(type="TextLoggerHook"),
+        dict(
+            type="MMDetWandbHook",
+            init_kwargs={"project": "mmdetection"},
+            interval=10,
+            log_checkpoint=True,
+            log_checkpoint_metadata=True,
+            num_eval_images=100,
+            bbox_score_thr=0.3,
+        ),
+    ]
     cfg.checkpoint_config = dict(interval=12)
     cfg.seed = None
     cfg.device = "cpu"
