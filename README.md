@@ -37,8 +37,8 @@ Deep Lake (formerly known as Activeloop Hub) is a data lake for deep learning ap
 Use one API to upload, download, and stream datasets to/from AWS S3/S3-compatible storage, GCP, Activeloop cloud, or local storage.
 </details>
 <details>
-  <summary><b>Compressed Storage</b></summary>
-Store images, audios and videos in their native compression, decompressing them only when needed, for e.g., when training a model.
+  <summary><b>Native Compression</b></summary>
+Store images, audios and videos in their native compression. Deeplake automatically decompresses them to raw data only when needed, e.g., when training a model.
 </details>
 <details>
   <summary><b>Lazy NumPy-like Indexing</b></summary>

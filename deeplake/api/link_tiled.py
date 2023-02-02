@@ -24,8 +24,9 @@ def link_tiled(
         >>> ds = deeplake.dataset("test/test_ds")
         >>> ds.create_tensor("images", htype="link[image]", sample_compression="jpeg")
         >>> arr = np.empty((10, 10), dtype=object)
-            for j, i in itertools.product(range(10), range(10)):
-                arr[j, i] = f"s3://my_bucket/my_image_{j}_{i}.jpeg"
+        >>> for j, i in itertools.product(range(10), range(10)):
+        ...     arr[j, i] = f"s3://my_bucket/my_image_{j}_{i}.jpeg"
+        ...
         >>> ds.images.append(deeplake.link_tiled(arr, creds_key="my_s3_key"))
         >>> # If all images are 1000x1200x3, we now have a 10000x12000x3 image in our dataset.
     """

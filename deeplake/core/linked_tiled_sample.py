@@ -6,7 +6,7 @@ from deeplake.util.path import get_path_type
 
 
 class LinkedTiledSample:
-    """Represents a sample that is initialized using external links. See :meth:`deeplake.link`."""
+    """Represents a sample that is initialized using external links. See :meth:`deeplake.link_tiled`."""
 
     def __init__(
         self,

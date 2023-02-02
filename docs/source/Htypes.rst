@@ -290,7 +290,7 @@ array([[965, 110, 262,  77],
 .. _bbox-3d-htype:
 
 3D Bounding Box Htype
-~~~~~~~~~~~~~~~~~~
+~~~~~~~~~~~~~~~~~~~~~
 
 - :bluebold:`Sample dimensions:` ``(# bounding boxes, 9)``
 
@@ -327,7 +327,7 @@ A 3d bbox tensor can be created using
     rotation angles are specified in degrees, not radians
 
 :blue:`Appending 3d bounding boxes`
---------------------------------
+-----------------------------------
 
 - Bounding boxes can be appended as ``np.ndarrays`` or ``list`` or ``lists of arrays``.
 
