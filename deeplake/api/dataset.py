@@ -1269,13 +1269,15 @@ class dataset:
         return ds
 
     @staticmethod
-    def ingest(
+    def ingest_classification(
         src: Union[str, pathlib.Path],
         dest: Union[str, pathlib.Path],
-        images_compression: str = "auto",
+        image_params: Optional[Dict] = None,
+        label_params: Optional[Dict] = None,
         dest_creds: Optional[Dict] = None,
         progressbar: bool = True,
         summary: bool = True,
+        token: Optional[str] = None,
         **dataset_kwargs,
     ) -> Dataset:
         """Ingests a dataset from a source and stores it as a structured dataset to destination.
@@ -1287,11 +1289,13 @@ class dataset:
                 - an s3 path of the form ``s3://bucketname/path/to/dataset``. Credentials are required in either the environment or passed to the creds argument.
                 - a local file system path of the form ``./path/to/dataset`` or ``~/path/to/dataset`` or ``path/to/dataset``.
                 - a memory path of the form ``mem://path/to/dataset`` which doesn't save the dataset but keeps it in memory instead. Should be used only for testing as it does not persist.
-            images_compression (str): For image classification datasets, this compression will be used for the `images` tensor. If ``images_compression`` is "auto", compression will be automatically determined by the most common extension in the directory.
+            image_params (Optional[Dict]): A dictionary containing parameters for the images tensor.
+            label_params (Optional[Dict]): A dictionary containing parameters for the labels tensor.
             dest_creds (Optional[Dict]): A dictionary containing credentials used to access the destination path of the dataset.
             progressbar (bool): Enables or disables ingestion progress bar. Defaults to ``True``.
             summary (bool): If ``True``, a summary of skipped files will be printed after completion. Defaults to ``True``.
-            **dataset_kwargs: Any arguments passed here will be forwarded to the dataset creator function.
+            token (Optional[str]): The token to use for accessing the dataset and/or connecting it to Deep Lake.
+            **dataset_kwargs: Any arguments passed here will be forwarded to the dataset creator function see :func:`deeplake.empty`.
 
         Returns:
             Dataset: New dataset object with structured dataset.
@@ -1346,13 +1350,12 @@ class dataset:
         dest = convert_pathlib_to_string_if_needed(dest)
         feature_report_path(
             dest,
-            "ingest",
+            "ingest_classification",
             {
-                "Images_Compression": images_compression,
                 "Progressbar": progressbar,
                 "Summary": summary,
             },
-            token=dataset_kwargs.get("token", None),
+            token=token,
         )
 
         src = convert_pathlib_to_string_if_needed(src)
@@ -1368,29 +1371,38 @@ class dataset:
                     raise InvalidPathException(src)
                 source = pd.read_csv(src, quotechar='"', skipinitialspace=True)
                 ds = dataset.ingest_dataframe(
-                    source, dest, dest_creds, progressbar, **dataset_kwargs
+                    source, dest, dest_creds, progressbar, token=token, **dataset_kwargs
                 )
                 return ds
 
             if not os.path.isdir(src):
                 raise InvalidPathException(src)
 
-            if images_compression == "auto":
+            if image_params is None:
+                image_params = {}
+            if label_params is None:
+                label_params = {}
+
+            if not image_params.get("sample_compression", None):
                 images_compression = get_most_common_extension(src)
                 if images_compression is None:
                     raise InvalidFileExtension(src)
+                image_params["sample_compression"] = images_compression
 
             # TODO: support more than just image classification (and update docstring)
             unstructured = ImageClassification(source=src)
 
-            ds = deeplake.dataset(dest, creds=dest_creds, **dataset_kwargs)
+            ds = deeplake.empty(
+                dest, creds=dest_creds, token=token, verbose=False, **dataset_kwargs
+            )
 
             # TODO: auto detect compression
             unstructured.structure(
                 ds,  # type: ignore
                 progressbar=progressbar,
                 generate_summary=summary,
-                image_tensor_args={"sample_compression": images_compression},
+                image_tensor_args=image_params,
+                label_tensor_args=label_params,
             )
         return ds  # type: ignore
 
@@ -1460,10 +1472,10 @@ class dataset:
             exist_ok=exist_ok,
         )
 
-        ds = deeplake.ingest(
+        ds = deeplake.ingest_classification(
             src=src,
             dest=dest,
-            images_compression=images_compression,
+            image_params={"sample_compression": images_compression},
             dest_creds=dest_creds,
             progressbar=progressbar,
             summary=summary,
@@ -1475,16 +1487,17 @@ class dataset:
     @staticmethod
     def ingest_dataframe(
         src,
-        dest: Union[str, pathlib.Path, Dataset],
+        dest: Union[str, pathlib.Path],
         dest_creds: Optional[Dict] = None,
         progressbar: bool = True,
+        token: Optional[str] = None,
         **dataset_kwargs,
     ):
         """Convert pandas dataframe to a Deep Lake Dataset.
 
         Args:
             src (pd.DataFrame): The pandas dataframe to be converted.
-            dest (str, pathlib.Path, Dataset):
+            dest (str, pathlib.Path):
                 - A Dataset or The full path to the dataset. Can be:
                 - a Deep Lake cloud path of the form ``hub://username/datasetname``. To write to Deep Lake cloud datasets, ensure that you are logged in to Deep Lake (use 'activeloop login' from command line)
                 - an s3 path of the form ``s3://bucketname/path/to/dataset``. Credentials are required in either the environment or passed to the creds argument.
@@ -1492,6 +1505,7 @@ class dataset:
                 - a memory path of the form ``mem://path/to/dataset`` which doesn't save the dataset but keeps it in memory instead. Should be used only for testing as it does not persist.
             dest_creds (Optional[Dict]): A dictionary containing credentials used to access the destination path of the dataset.
             progressbar (bool): Enables or disables ingestion progress bar. Set to ``True`` by default.
+            token (Optional[str]): The token to use for accessing the dataset and/or connecting it to Deep Lake.
             **dataset_kwargs: Any arguments passed here will be forwarded to the dataset creator function. See :func:`deeplake.dataset`.
 
         Returns:
@@ -1507,7 +1521,7 @@ class dataset:
             convert_pathlib_to_string_if_needed(dest),
             "ingest_dataframe",
             {},
-            token=dataset_kwargs.get("token", None),
+            token=token,
         )
 
         if not isinstance(src, pd.DataFrame):
@@ -1515,11 +1529,10 @@ class dataset:
 
         structured = DataFrame(src)
 
-        if isinstance(dest, Dataset):
-            ds = dest
-        else:
-            dest = convert_pathlib_to_string_if_needed(dest)
-            ds = deeplake.dataset(dest, creds=dest_creds, **dataset_kwargs)
+        dest = convert_pathlib_to_string_if_needed(dest)
+        ds = deeplake.empty(
+            dest, creds=dest_creds, token=token, verbose=False, **dataset_kwargs
+        )
 
         structured.fill_dataset(ds, progressbar)  # type: ignore
         return ds  # type: ignore

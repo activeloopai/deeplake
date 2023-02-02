@@ -96,6 +96,7 @@ class ImageClassification(UnstructuredDataset):
         progressbar: bool = True,
         generate_summary: bool = True,
         image_tensor_args: dict = {},
+        label_tensor_args: dict = {},
     ) -> Dataset:
         """Create a structured dataset.
 
@@ -103,7 +104,8 @@ class ImageClassification(UnstructuredDataset):
             ds (Dataset) : A Deep Lake dataset object.
             progressbar (bool): Defines if the method uses a progress bar. Defaults to True.
             generate_summary (bool): Defines if the method generates ingestion summary. Defaults to True.
-            image_tensor_args (dict): Defines the sample compression of the dataset (jpeg or png).
+            image_tensor_args (dict): Defines the parameters for the images tensor.
+            label_tensor_args (dict): Defines the parameters for the class_labels tensor.
 
         Returns:
             A Deep Lake dataset.
@@ -119,8 +121,12 @@ class ImageClassification(UnstructuredDataset):
             if not use_set_prefix:
                 set_name = ""
 
-            images_tensor_name = os.path.join(set_name, IMAGES_TENSOR_NAME)
-            labels_tensor_name = os.path.join(set_name, LABELS_TENSOR_NAME)
+            images_tensor_name = os.path.join(
+                set_name, image_tensor_args.pop("name", IMAGES_TENSOR_NAME)
+            )
+            labels_tensor_name = os.path.join(
+                set_name, label_tensor_args.pop("name", LABELS_TENSOR_NAME)
+            )
             images_tensor_map[set_name] = images_tensor_name.replace("\\", "/")
             labels_tensor_map[set_name] = labels_tensor_name.replace("\\", "/")
 
@@ -134,6 +140,7 @@ class ImageClassification(UnstructuredDataset):
                 labels_tensor_name.replace("\\", "/"),
                 htype="class_label",
                 class_names=self.class_names,
+                **label_tensor_args,
             )
 
             paths = self._abs_file_paths
