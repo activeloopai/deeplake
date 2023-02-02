@@ -98,16 +98,18 @@ def build_ddp(model, device, *args, **kwargs):
 
 def coco_pixel_2_pascal_pixel(boxes, shape):
     # Convert bounding boxes to Pascal VOC format and clip bounding boxes to make sure they have non-negative width and height
-
-    return np.stack(
-        (
-            boxes[:, 0],
-            boxes[:, 1],
-            boxes[:, 0] + boxes[:, 2],
-            boxes[:, 1] + boxes[:, 3],
-        ),
-        axis=1,
-    )
+    pascal_boxes = np.empty((0, 4), dtype=boxes.dtype)
+    if boxes.size != 0:
+        pascal_boxes = np.stack(
+            (
+                boxes[:, 0],
+                boxes[:, 1],
+                boxes[:, 0] + boxes[:, 2],
+                boxes[:, 1] + boxes[:, 3],
+            ),
+            axis=1,
+        )
+    return pascal_boxes
 
 
 def poly_2_mask(polygons, shape):
@@ -122,38 +124,49 @@ def poly_2_mask(polygons, shape):
 
 
 def coco_frac_2_pascal_pixel(boxes, shape):
-    x = boxes[:, 0] * shape[1]
-    y = boxes[:, 1] * shape[0]
-    w = boxes[:, 2] * shape[1]
-    h = boxes[:, 3] * shape[0]
-    bbox = np.stack((x, y, w, h), axis=1)
+    bbox = np.empty((0, 4), dtype=boxes.dtype)
+
+    if boxes.size != 0:
+        x = boxes[:, 0] * shape[1]
+        y = boxes[:, 1] * shape[0]
+        w = boxes[:, 2] * shape[1]
+        h = boxes[:, 3] * shape[0]
+        bbox = np.stack((x, y, w, h), axis=1)
     return coco_pixel_2_pascal_pixel(bbox, shape)
 
 
 def pascal_frac_2_pascal_pixel(boxes, shape):
-    x_top = boxes[:, 0] * shape[1]
-    y_top = boxes[:, 1] * shape[0]
-    x_bottom = boxes[:, 2] * shape[1]
-    y_bottom = boxes[:, 3] * shape[0]
-    return np.stack((x_top, y_top, x_bottom, y_bottom), axis=1)
+    bbox = np.empty((0, 4), dtype=boxes.dtype)
+    if boxes.size != 0:
+        x_top = boxes[:, 0] * shape[1]
+        y_top = boxes[:, 1] * shape[0]
+        x_bottom = boxes[:, 2] * shape[1]
+        y_bottom = boxes[:, 3] * shape[0]
+        bbox = np.stack((x_top, y_top, x_bottom, y_bottom), axis=1)
+    return bbox
 
 
 def yolo_pixel_2_pascal_pixel(boxes, shape):
-    x_top = np.array(boxes[:, 0]) - np.floor(np.array(boxes[:, 2]) / 2)
-    y_top = np.array(boxes[:, 1]) - np.floor(np.array(boxes[:, 3]) / 2)
-    x_bottom = np.array(boxes[:, 0]) + np.floor(np.array(boxes[:, 2]) / 2)
+    bbox = np.empty((0, 4), dtype=boxes.dtype)
 
-    y_bottom = np.array(boxes[:, 1]) + np.floor(np.array(boxes[:, 3]) / 2)
-
-    return np.stack((x_top, y_top, x_bottom, y_bottom), axis=1)
+    if boxes.size != 0:
+        x_top = np.array(boxes[:, 0]) - np.floor(np.array(boxes[:, 2]) / 2)
+        y_top = np.array(boxes[:, 1]) - np.floor(np.array(boxes[:, 3]) / 2)
+        x_bottom = np.array(boxes[:, 0]) + np.floor(np.array(boxes[:, 2]) / 2)
+        y_bottom = np.array(boxes[:, 1]) + np.floor(np.array(boxes[:, 3]) / 2)
+        bbox = np.stack((x_top, y_top, x_bottom, y_bottom), axis=1)
+    return bbox
 
 
 def yolo_frac_2_pascal_pixel(boxes, shape):
-    x_center = boxes[:, 0] * shape[1]
-    y_center = boxes[:, 1] * shape[0]
-    width = boxes[:, 2] * shape[1]
-    height = boxes[:, 3] * shape[0]
-    bbox = np.stack((x_center, y_center, width, height), axis=1)
+    bbox = np.empty((0, 4), dtype=boxes.dtype)
+
+    if boxes.size != 0:
+        x_center = boxes[:, 0] * shape[1]
+        y_center = boxes[:, 1] * shape[0]
+        width = boxes[:, 2] * shape[1]
+        height = boxes[:, 3] * shape[0]
+        bbox = np.stack((x_center, y_center, width, height), axis=1)
     return yolo_pixel_2_pascal_pixel(bbox, shape)
 
 
@@ -187,7 +200,7 @@ def convert_to_pascal_format(bbox, bbox_info, shape):
 def pascal_pixel_2_coco_pixel(boxes, images):
     pascal_boxes = []
     for box in boxes:
-        if box.shape is not None:
+        if box.size != 0:
             pascal_boxes.append(
                 np.stack(
                     (
@@ -198,20 +211,22 @@ def pascal_pixel_2_coco_pixel(boxes, images):
                     ),
                     axis=1,
                 )
-                for box in boxes
             )
+        else:
+            pascal_boxes.append(box)
     return pascal_boxes
 
 
 def pascal_frac_2_coco_pixel(boxes, images):
     pascal_pixel_boxes = []
     for i, box in enumerate(boxes):
-        shape = images[i].shape
-        x_top = box[:, 0] * shape[1]
-        y_top = box[:, 1] * shape[0]
-        x_bottom = box[:, 2] * shape[1]
-        y_bottom = box[:, 3] * shape[0]
-        bbox = np.stack((x_top, y_top, x_bottom, y_bottom), axis=1)
+        if box.size != 0:
+            shape = images[i].shape
+            x_top = box[:, 0] * shape[1]
+            y_top = box[:, 1] * shape[0]
+            x_bottom = box[:, 2] * shape[1]
+            y_bottom = box[:, 3] * shape[0]
+            bbox = np.stack((x_top, y_top, x_bottom, y_bottom), axis=1)
         pascal_pixel_boxes.append(bbox)
     return pascal_pixel_2_coco_pixel(pascal_pixel_boxes, images)
 
@@ -219,11 +234,12 @@ def pascal_frac_2_coco_pixel(boxes, images):
 def yolo_pixel_2_coco_pixel(boxes, images):
     yolo_boxes = []
     for box in boxes:
-        x_top = np.array(box[:, 0]) - np.floor(np.array(box[:, 2]) / 2)
-        y_top = np.array(box[:, 1]) - np.floor(np.array(box[:, 3]) / 2)
-        w = box[:, 2]
-        h = box[:, 3]
-        bbox = np.stack([x_top, y_top, w, h], axis=1)
+        if box.size != 0:
+            x_top = np.array(box[:, 0]) - np.floor(np.array(box[:, 2]) / 2)
+            y_top = np.array(box[:, 1]) - np.floor(np.array(box[:, 3]) / 2)
+            w = box[:, 2]
+            h = box[:, 3]
+            bbox = np.stack([x_top, y_top, w, h], axis=1)
         yolo_boxes.append(bbox)
     return yolo_boxes
 
@@ -231,6 +247,7 @@ def yolo_pixel_2_coco_pixel(boxes, images):
 def yolo_frac_2_coco_pixel(boxes, images):
     yolo_boxes = []
     for i, box in enumerate(boxes):
+
         shape = images[i].shape
         x_center = box[:, 0] * shape[1]
         y_center = box[:, 1] * shape[0]
@@ -299,6 +316,7 @@ class MMDetDataset(TorchDataset):
         self.mode = mode
         self.metrics_format = metrics_format
         coco_style_bbox = convert_to_coco_format(self.bboxes, bbox_format, self.images)
+        self.pipeline = pipeline
 
         if self.metrics_format == "COCO" and self.mode == "val":
             self.evaluator = mmdet_utils.COCODatasetEvaluater(
@@ -666,6 +684,8 @@ def transform(
                 [process_polygons(polygons) for polygons in masks], shape[0], shape[1]
             )
         else:
+            # if masks.size == 0:
+            #     masks = -1 * np.ones((*shape[:2], 1))
             masks = BitmapMasks(masks.astype(np.uint8).transpose(2, 0, 1), *shape[:2])
 
         pipeline_dict["gt_masks"] = masks
@@ -787,6 +807,7 @@ def build_dataloader(
         )
 
         loader.dataset.mmdet_dataset = mmdet_ds
+        loader.dataset.pipeline = loader.dataset.mmdet_dataset.pipeline
         loader.dataset.evaluate = types.MethodType(
             mmdet_subiterable_dataset_eval, loader.dataset
         )
