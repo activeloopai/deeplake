@@ -25,6 +25,7 @@ def _get_lock_bytes(tag: Optional[bytes] = None) -> bytes:
 
 
 def _parse_lock_bytes(byts) -> Tuple[int, int, bytes]:
+    assert len(byts) >= 14, len(byts)
     byts = memoryview(byts)
     nodeid = int.from_bytes(byts[:6], "little")
     timestamp = struct.unpack("d", byts[6:14])[0]
@@ -58,7 +59,10 @@ class Lock(object):
         path = self.path
         while True:
             try:
-                nodeid, timestamp, _ = _parse_lock_bytes(storage[path])
+                byts = storage[path]
+                if not byts:
+                    raise KeyError(path)
+                nodeid, timestamp, _ = _parse_lock_bytes(byts)
                 locked = True
             except KeyError:
                 locked = False

@@ -29,8 +29,6 @@ def parse_complex_htype(htype: Optional[str]) -> Tuple[bool, bool, str]:
         raise ValueError(
             "Can't create a linked tensor with a generic htype, you need to specify htype, for example link[image]"
         )
-    if is_sequence and htype is None:
-        htype = "generic"
     return is_sequence, is_link, htype
 
 

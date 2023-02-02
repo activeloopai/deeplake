@@ -127,6 +127,7 @@ def test_lock_thread_leaking(s3_ds_generator):
 
 def test_concurrent_locking(memory_ds):
     storage = memory_ds.base_storage
+
     def f(i):
         lock = deeplake.core.lock.Lock(storage, "lock.lock")
         with lock:
@@ -137,6 +138,7 @@ def test_concurrent_locking(memory_ds):
                 d = json.loads(byts.decode("utf-8"))
             d["x"].append(i)
             storage["meta.json"] = json.dumps(d).encode("utf-8")
+
     n = 10
     with ThreadPoolExecutor(max_workers=n) as executor:
         executor.map(f, range(n))
