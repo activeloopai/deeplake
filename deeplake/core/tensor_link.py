@@ -133,7 +133,7 @@ def update_shape(new_sample, link_creds=None, tensor_meta=None):
             and ret.shape == (2,)
             and len(tensor_meta.min_shape) == 3
         ):
-            ret = np.concatenate([ret, (1,)], dtype=np.int64)
+            ret = np.concatenate([ret, (1,)])
 
     return ret
 
