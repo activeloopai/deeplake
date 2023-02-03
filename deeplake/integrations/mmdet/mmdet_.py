@@ -684,8 +684,6 @@ def transform(
                 [process_polygons(polygons) for polygons in masks], shape[0], shape[1]
             )
         else:
-            # if masks.size == 0:
-            #     masks = -1 * np.ones((*shape[:2], 1))
             masks = BitmapMasks(masks.astype(np.uint8).transpose(2, 0, 1), *shape[:2])
 
         pipeline_dict["gt_masks"] = masks
