@@ -476,18 +476,19 @@ def merge_tensor_data(
     is_class_label = target_tensor.meta.htype == "class_label"
     if is_class_label:
         class_names = target_tensor.info.class_names
-        is_class_label = bool(class_names)
+        is_class_label = class_names and class_names != original_tensor.info.class_names
     copy_links_only = False
     if is_class_label:
         links = original_tensor.meta.links
         original_tensor.meta.links = {}
         try:
-            for index in new_indexes:
-                sample = target_tensor[index]
-                sample = convert_to_text(
-                    sample.numpy(), class_names, return_original=True
-                )
-                original_tensor.append(sample)
+            with original_tensor.dataset:
+                for index in new_indexes:
+                    sample = target_tensor[index]
+                    sample = convert_to_text(
+                        sample.numpy(), class_names, return_original=True
+                    )
+                    original_tensor.append(sample)
         finally:
             original_tensor.meta.links = links
         copy_links_only = True
@@ -718,8 +719,10 @@ def copy_tensor_slice(
     _copy_main_tensor=True,
     _copy_link_tensors=True,
 ):
-    if not indices and not ranges:
-        return
+    if ranges is None:
+        if indices is None:
+            return
+        ranges = _group_ranges(indices)
     src_tensor = src_ds[src_tensor_name]
     dest_tensor = dest_ds[dest_tensor_name]
     is_seq = src_tensor.is_sequence
@@ -731,8 +734,6 @@ def copy_tensor_slice(
         dest_eng = dest_tensor.chunk_engine
         dest_enc = dest_eng.chunk_id_encoder
         src_enc_arr = src_enc._encoded
-        if ranges is None:
-            ranges = _group_ranges(indices)
         flat_ranges = []
         dest_storage = dest_ds.storage
         src_meta = src_tensor.meta
