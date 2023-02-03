@@ -450,3 +450,51 @@ def test_merge_class_labels_no_classnames(local_ds):
             np.array(ds.labels.numpy()).squeeze(),
             [0, 1, 2, 3, 6, 5, 7, 4, 5, 0],
         )
+
+
+def test_merge_class_labels_different_class_names(local_ds):
+    with local_ds as ds:
+        ds.checkout("alt1", create=True)
+        ds.create_tensor("labels", "class_label")
+        ds.labels.extend(["a", "b", "c", "d"])
+        ds.checkout("main")
+        ds.checkout("alt2", create=True)
+        ds.create_tensor("labels", "class_label")
+        ds.labels.extend(["d", "e", "f", "g"])
+        ds.merge("alt1")
+        np.testing.assert_array_equal(
+            np.array(ds.labels.numpy()).squeeze(),
+            [0, 1, 2, 3, 4, 5, 6, 0],
+        )
+
+
+def test_merge_class_labels_subset_class_names(local_ds):
+    with local_ds as ds:
+        ds.checkout("alt1", create=True)
+        ds.create_tensor("labels", "class_label")
+        ds.labels.extend(["a", "b", "c", "d"])
+        ds.checkout("main")
+        ds.checkout("alt2", create=True)
+        ds.create_tensor("labels", "class_label")
+        ds.labels.extend(["a", "b", "c"])
+        ds.merge("alt1")
+        np.testing.assert_array_equal(
+            np.array(ds.labels.numpy()).squeeze(),
+            [0, 1, 2, 0, 1, 2, 3],
+        )
+
+
+def test_merge_class_labels_subset_class_names_2(local_ds):
+    with local_ds as ds:
+        ds.checkout("alt1", create=True)
+        ds.create_tensor("labels", "class_label")
+        ds.labels.extend(["a", "b", "c"])
+        ds.checkout("main")
+        ds.checkout("alt2", create=True)
+        ds.create_tensor("labels", "class_label")
+        ds.labels.extend(["a", "b", "c", "d"])
+        ds.merge("alt1")
+        np.testing.assert_array_equal(
+            np.array(ds.labels.numpy()).squeeze(),
+            [0, 1, 2, 3, 0, 1, 2],
+        )
