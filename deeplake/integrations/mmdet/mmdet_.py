@@ -247,7 +247,6 @@ def yolo_pixel_2_coco_pixel(boxes, images):
 def yolo_frac_2_coco_pixel(boxes, images):
     yolo_boxes = []
     for i, box in enumerate(boxes):
-
         shape = images[i].shape
         x_center = box[:, 0] * shape[1]
         y_center = box[:, 1] * shape[0]
