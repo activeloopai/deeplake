@@ -76,7 +76,6 @@ class YoloDataset(UnstructuredDataset):
             "htype" not in self.coordinates_params.keys()
             or "name" not in self.coordinates_params.keys()
         ):
-
             # Read the annotation files assuming they are polygons and check if there are any non-empty annotations without 4 coordinates
             coordinates_htype = "bbox"  # Initialize to bbox and change if contradicted
             coordinates_name = "boxes"  # Initialize to boxes and change if contradicted
@@ -182,7 +181,6 @@ class YoloDataset(UnstructuredDataset):
         self,
         structure: DatasetStructure,
     ):
-
         structure.add_first_level_tensor(
             TensorStructure(
                 name=self.label_params["name"],
@@ -233,7 +231,6 @@ class YoloDataset(UnstructuredDataset):
 
         @deeplake.compute
         def append_data_bbox(data, sample_out, tensor_meta: Dict = tensor_meta):
-
             # If the ingestion data is None, create empty annotations corresponding to the file
             if data[1]:
                 yolo_labels, yolo_coordinates = self.data.read_yolo_coordinates(
@@ -261,7 +258,6 @@ class YoloDataset(UnstructuredDataset):
 
         @deeplake.compute
         def append_data_polygon(data, sample_out, tensor_meta: Dict = tensor_meta):
-
             # If the ingestion data is None, create empty annotations corresponding to the file
             if data[1]:
                 yolo_labels, yolo_coordinates = self.data.read_yolo_coordinates(
@@ -301,7 +297,6 @@ class YoloDataset(UnstructuredDataset):
             )
 
     def structure(self, ds: Dataset, progressbar: bool = True, num_workers: int = 0):  # type: ignore
-
         # Set class names in the dataset
         if self.data.class_names:
             ds[self.label_params["name"]].info["class_names"] = self.data.class_names
@@ -316,7 +311,6 @@ class YoloDataset(UnstructuredDataset):
         self._ingest_data(ds, progressbar, num_workers)
 
         if self.verify_class_names and self.data.class_names:
-
             labels = ds[self.label_params.get("name")].numpy(aslist=True)
 
             max_label = max(

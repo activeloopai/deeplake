@@ -106,7 +106,6 @@ def dataset_to_pytorch(
     decode_method: Optional[Dict[str, str]] = None,
     **kwargs,
 ):
-
     import torch
     from deeplake.integrations.pytorch.dataset import TorchDataset
 
