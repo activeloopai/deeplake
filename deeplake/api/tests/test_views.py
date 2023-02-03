@@ -72,7 +72,7 @@ def test_view_token_only(
         runner.invoke(login, f"-u {username} -p {password}")
 
 
-def test_view_public(hub_cloud_path, hub_cloud_dev_credentials):
+def test_view_public(hub_cloud_dev_credentials):
     username = get_user_name()
     if username != "public":
         state = "logged in"
@@ -108,14 +108,12 @@ def test_view_public(hub_cloud_path, hub_cloud_dev_credentials):
     loaded = ds.load_view("100to200")
     np.testing.assert_array_equal(loaded.images.numpy(), ds[100:200].images.numpy())
     np.testing.assert_array_equal(loaded.labels.numpy(), ds[100:200].labels.numpy())
-    ds_name = posixpath.split(loaded.path)[-1]
     assert (
         loaded._vds.path
         == f"hub://{username}/queries/.queries/[activeloop][mnist-train]100to200"
     )
 
     ds.delete_view("100to200")
-    deeplake.delete(hub_cloud_path)
 
     if state == "logged out":
         runner.invoke(logout)
