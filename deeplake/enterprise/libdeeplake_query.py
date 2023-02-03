@@ -41,9 +41,9 @@ def query(dataset, query_string: str):
     dsv = ds.query(query_string)
     try:
         indexes = dsv.indexes
-        dataset._query = query_string
         return dataset[indexes]
     except RuntimeError:
+        dataset._query = query_string
         view = DeepLakeQueryDataset(deeplake_ds=dataset, indra_ds=dsv)
         return view
 

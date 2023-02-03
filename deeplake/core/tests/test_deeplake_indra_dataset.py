@@ -7,14 +7,38 @@ import functools
 import os
 
 
+import wandb
+
+
+config_file = "mmdetection/configs/path/to/config.py"
+cfg = Config.fromfile(config_file)
+
+cfg.log_config.hooks = [
+    dict(type="TextLoggerHook"),
+    dict(
+        type="MMDetWandbHook",
+        init_kwargs={"project": "mmdetection"},
+        interval=10,
+        log_checkpoint=True,
+        log_checkpoint_metadata=True,
+        num_eval_images=100,
+        bbox_score_thr=0.3,
+    ),
+]
+
+
 # all of these tests should be performed for hub, s3 and local storage
 
-home_dir = "/Users/adilkhansarsen/Documents/work/Hub_2/"
-path = "/Users/adilkhansarsen/Documents/work/Hub_2/deeplake/mnist-train"
+# home_dir = "/Users/adilkhansarsen/Documents/work/Hub_2/"
+# path = "/Users/adilkhansarsen/Documents/work/Hub_2/deeplake/mnist-train"
+# path = "hub://activeloop/mnist-train"
+dp.client.config.USE_DEV_ENVIRONMENT = True
+
+path = "hub://activeloop/ucf-101-as_frames"
 TOKEN = "eyJhbGciOiJIUzUxMiIsImlhdCI6MTY2MDI5MzExNiwiZXhwIjo0ODEzODkzMTE2fQ.eyJpZCI6ImFkaWxraGFuIn0.wyvhu0z1ak72eyeiq8VKYKT9R268D0i4jH8724X6G0BJLFQNKFHL_BkD5BVDtPln3AdGkNHKeCM8Og2DQ038gA"
 
-indra_ds = api.dataset(path, token=TOKEN)
-indra_ds = indra_ds[:100]
+# indra_ds = api.dataset(path, token=TOKEN)
+# indra_ds = indra_ds[:100]
 
 
 def test_indexing():
@@ -50,13 +74,18 @@ def test_save_view():
 
 
 def test_load_view():
+    dp.client.config.USE_DEV_ENVIRONMENT = True
+
+    path = "hub://activeloop/ucf-101-as_frames"
+    TOKEN = "eyJhbGciOiJIUzUxMiIsImlhdCI6MTY2MDI5MzExNiwiZXhwIjo0ODEzODkzMTE2fQ.eyJpZCI6ImFkaWxraGFuIn0.wyvhu0z1ak72eyeiq8VKYKT9R268D0i4jH8724X6G0BJLFQNKFHL_BkD5BVDtPln3AdGkNHKeCM8Og2DQ038gA"
     deeplake_ds = dp.load(path, token=TOKEN)
-    query_str = "SELECT * GROUP BY labels"
+    # query_str = "SELECT * GROUP BY labels"
+    query_str = "select * group by label, video_id"
     view = deeplake_ds.query(query_str)
-    view.images.shape_interval
+    # view.images.shape_interval
     view_path = view.save_view()
-    view_id = "96c542aca468cb8261356b400dc9f9a753f0b43432c75337bdee10a91ce5702a"
-    deeplake_indra_ds = DeepLakeQueryDataset(deeplake_ds=deeplake_ds, indra_ds=indra_ds)
+    view_id = view_path.split("/")[-1]
+    # deeplake_indra_ds = DeepLakeQueryDataset(deeplake_ds=deeplake_ds, indra_ds=indra_ds)
     view = deeplake_ds.load_view(view_id)
 
     dataloader = view[:3].pytorch()

@@ -4004,7 +4004,7 @@ class Dataset:
         # Defined in DeepLakeCloudDataset
         return memoryview(b"")  # No-op context manager
 
-
+# 1000, 240, 320, 3 -> group by -> 10, 100, 240, 320, 3
 class DeepLakeQueryDataset(Dataset):
     def __init__(
         self, deeplake_ds, indra_ds, group_index=None, enabled_tensors=None, index=None
