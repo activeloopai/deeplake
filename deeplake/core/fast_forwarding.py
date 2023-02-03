@@ -49,7 +49,8 @@ def _check_version(v):
 
 def ffw(func):
     """Decorator for fast forwarding functions. Will handle checking for valid versions and automatically updating the
-    fast forwarded version to the latest. Also adds an extra parameter to the decoarted function (version)."""
+    fast forwarded version to the latest. Also adds an extra parameter to the decoarted function (version).
+    """
 
     def decor(inp, **kwargs):
         v = inp.version

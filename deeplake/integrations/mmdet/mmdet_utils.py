@@ -475,7 +475,6 @@ def check_unsupported_functionalities(cfg):
 
 def check_unused_dataset_fields(cfg):
     if cfg.get("dataset_type"):
-
         always_warn(
             "The deeplake mmdet integration does not use dataset_type to work with the data and compute metrics. All deeplake datasets are in the same deeplake format. To specify a metrics format, you should deeplake_metrics_format "
         )

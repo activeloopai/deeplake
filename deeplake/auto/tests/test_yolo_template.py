@@ -4,7 +4,6 @@ from deeplake.util.exceptions import IngestionError
 
 
 def test_minimal_yolo_ingestion(local_path, yolo_ingestion_data):
-
     params = {
         "data_directory": yolo_ingestion_data["data_directory"],
         "class_names_file": yolo_ingestion_data["class_names_file"],
@@ -21,7 +20,6 @@ def test_minimal_yolo_ingestion(local_path, yolo_ingestion_data):
 
 
 def test_minimal_yolo_ingestion_no_class_names(local_path, yolo_ingestion_data):
-
     params = {
         "data_directory": yolo_ingestion_data["data_directory"],
         "class_names_file": None,
@@ -38,7 +36,6 @@ def test_minimal_yolo_ingestion_no_class_names(local_path, yolo_ingestion_data):
 
 
 def test_minimal_yolo_ingestion_separate_annotations(local_path, yolo_ingestion_data):
-
     params = {
         "data_directory": yolo_ingestion_data["data_directory_no_annotations"],
         "class_names_file": yolo_ingestion_data["class_names_file"],
@@ -56,7 +53,6 @@ def test_minimal_yolo_ingestion_separate_annotations(local_path, yolo_ingestion_
 
 
 def test_minimal_yolo_ingestion_missing_annotations(local_path, yolo_ingestion_data):
-
     params = {
         "data_directory": yolo_ingestion_data["data_directory_missing_annotations"],
         "class_names_file": yolo_ingestion_data["class_names_file"],
@@ -76,7 +72,6 @@ def test_minimal_yolo_ingestion_missing_annotations(local_path, yolo_ingestion_d
 def test_minimal_yolo_ingestion_unsupported_annotations(
     local_path, yolo_ingestion_data
 ):
-
     params = {
         "data_directory": yolo_ingestion_data["data_directory_unsupported_annotations"],
         "class_names_file": yolo_ingestion_data["class_names_file"],
@@ -87,7 +82,6 @@ def test_minimal_yolo_ingestion_unsupported_annotations(
 
 
 def test_minimal_yolo_ingestion_bad_data_path(local_path, yolo_ingestion_data):
-
     params = {
         "data_directory": yolo_ingestion_data["data_directory"] + "corrupt_this_path",
         "class_names_file": yolo_ingestion_data["class_names_file"],
@@ -98,7 +92,6 @@ def test_minimal_yolo_ingestion_bad_data_path(local_path, yolo_ingestion_data):
 
 
 def test_minimal_yolo_ingestion_poly(local_path, yolo_ingestion_data):
-
     params = {
         "data_directory": yolo_ingestion_data["data_directory"],
         "class_names_file": yolo_ingestion_data["class_names_file"],
