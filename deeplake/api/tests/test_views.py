@@ -59,9 +59,10 @@ def test_view_token_only(
     loaded = ds.load_view("25to100")
     np.testing.assert_array_equal(loaded.images.numpy(), ds[25:100].images.numpy())
     np.testing.assert_array_equal(loaded.labels.numpy(), ds[25:100].labels.numpy())
+    ds_name = posixpath.split(loaded.path)[-1]
     assert (
         loaded._vds.path
-        == f"hub://{username}/queries/.queries/[activeloop][mnist-train]25to100"
+        == f"hub://{username}/queries/.queries/[{username}][{ds_name}]25to100"
     )
 
     ds.delete_view("25to100")
@@ -110,7 +111,7 @@ def test_view_public(hub_cloud_path, hub_cloud_dev_credentials):
     ds_name = posixpath.split(loaded.path)[-1]
     assert (
         loaded._vds.path
-        == f"hub://{username}/queries/.queries/[{username}][{ds_name}]100to200"
+        == f"hub://{username}/queries/.queries/[activeloop][mnist-train]100to200"
     )
 
     ds.delete_view("100to200")
