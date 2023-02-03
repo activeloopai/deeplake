@@ -375,8 +375,13 @@ def test_mmdet(mmdet_path, model_name, dataset_path, tensors_specified):
         deeplake_tensors = get_deeplake_tensors(dataset_path, model_name)
     cfg = get_test_config(mmdet_path, model_name=model_name, dataset_path=dataset_path)
     cfg = process_cfg(cfg, model_name, dataset_path)
-    ds_train = dp.load(dataset_path)[:1]
-    ds_val = dp.load(dataset_path)[:1]
+    ds_train = dp.load(dataset_path)[:2]
+    ds_val = dp.load(dataset_path)[:2]
+    if dataset_path == "hub://adilkhan/balloon-train":
+        ds_train.bounding_boxes[2] = None
+        ds_train.segmentation_polygons[2] = None
+        ds_train.labels[2] = None
+
     model = mmdet.build_detector(cfg.model)
     mmcv.mkdir_or_exist(os.path.abspath(cfg.work_dir))
     mmdet.train_detector(
