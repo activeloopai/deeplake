@@ -159,6 +159,32 @@ def test_overwrite(local_ds: Dataset):
         )
 
 
+def test_ingestion_with_connection(
+    s3_path,
+    hub_cloud_path,
+    hub_cloud_dev_token,
+    hub_cloud_dev_managed_creds_key,
+):
+    path = get_dummy_data_path("tests_auto/image_classification")
+    ds = deeplake.ingest_classification(
+        src=path,
+        dest=s3_path,
+        progressbar=False,
+        summary=False,
+        overwrite=False,
+        connect_kwargs={
+            "dest_path": hub_cloud_path,
+            "creds_key": hub_cloud_dev_managed_creds_key,
+            "token": hub_cloud_dev_token,
+        },
+    )
+
+    assert ds.path == hub_cloud_path
+    assert "images" in ds.tensors
+    assert "labels" in ds.tensors
+    assert len(ds.labels.info["class_names"]) > 0
+
+
 def test_csv(memory_ds: Dataset):
     path = get_dummy_data_path("tests_auto/csv/deniro.csv")
     with pytest.raises(InvalidPathException):
@@ -206,6 +232,38 @@ def test_dataframe(memory_ds: Dataset, convert_to_pathlib: bool):
 
     assert list(ds.tensors) == ["Year", "Score", "Title"]
 
+    assert ds["Year"].dtype == df["Year"].dtype
+    np.testing.assert_array_equal(ds["Year"].numpy().reshape(-1), df["Year"].values)
+
+    assert ds["Score"].dtype == df["Score"].dtype
+    np.testing.assert_array_equal(ds["Score"].numpy().reshape(-1), df["Score"].values)
+
+    assert ds["Title"].htype == "text"
+    assert ds["Title"].dtype == str
+    np.testing.assert_array_equal(ds["Title"].numpy().reshape(-1), df["Title"].values)
+
+
+def test_dataframe_with_connect(
+    s3_path,
+    hub_cloud_path,
+    hub_cloud_dev_token,
+    hub_cloud_dev_managed_creds_key,
+):
+    path = get_dummy_data_path("tests_auto/csv/deniro.csv")
+    df = pd.read_csv(path, quotechar='"', skipinitialspace=True)
+    ds = deeplake.ingest_dataframe(
+        df,
+        s3_path,
+        progressbar=False,
+        connect_kwargs={
+            "dest_path": hub_cloud_path,
+            "creds_key": hub_cloud_dev_managed_creds_key,
+            "token": hub_cloud_dev_token,
+        },
+    )
+
+    assert ds.path == hub_cloud_path
+    assert list(ds.tensors) == ["Year", "Score", "Title"]
     assert ds["Year"].dtype == df["Year"].dtype
     np.testing.assert_array_equal(ds["Year"].numpy().reshape(-1), df["Year"].values)
 

@@ -1129,7 +1129,7 @@ class dataset:
             dest, creds=dest_creds, verbose=False, token=token, **dataset_kwargs
         )
         if connect_kwargs is not None:
-            connect_kwargs["token"] = token or connect_kwargs.get(token)
+            connect_kwargs["token"] = token or connect_kwargs.get("token", None)
             ds.connect(**connect_kwargs)
 
         structure.create_missing(ds)
@@ -1255,7 +1255,7 @@ class dataset:
             dest, creds=dest_creds, verbose=False, token=token, **dataset_kwargs
         )
         if connect_kwargs is not None:
-            connect_kwargs["token"] = token or connect_kwargs.get("token")
+            connect_kwargs["token"] = token or connect_kwargs.get("token", None)
             ds.connect(**connect_kwargs)
 
         structure.create_missing(ds)
@@ -1278,6 +1278,7 @@ class dataset:
         progressbar: bool = True,
         summary: bool = True,
         token: Optional[str] = None,
+        connect_kwargs: Optional[Dict] = None,
         **dataset_kwargs,
     ) -> Dataset:
         """Ingests a dataset from a source and stores it as a structured dataset to destination.
@@ -1295,6 +1296,7 @@ class dataset:
             progressbar (bool): Enables or disables ingestion progress bar. Defaults to ``True``.
             summary (bool): If ``True``, a summary of skipped files will be printed after completion. Defaults to ``True``.
             token (Optional[str]): The token to use for accessing the dataset.
+            connect_kwargs (Optional[Dict]): If specified, the dataset will be connected to Deep Lake, and connect_kwargs will be passed to :meth:`Dataset.connect <deeplake.core.dataset.Dataset.connect>`.
             **dataset_kwargs: Any arguments passed here will be forwarded to the dataset creator function see :func:`deeplake.empty`.
 
         Returns:
@@ -1395,6 +1397,9 @@ class dataset:
             ds = deeplake.empty(
                 dest, creds=dest_creds, token=token, verbose=False, **dataset_kwargs
             )
+            if connect_kwargs is not None:
+                connect_kwargs["token"] = token or connect_kwargs.get("token", None)
+                ds.connect(**connect_kwargs)
 
             # TODO: auto detect compression
             unstructured.structure(
@@ -1404,6 +1409,7 @@ class dataset:
                 image_tensor_args=image_params,
                 label_tensor_args=label_params,
             )
+
         return ds  # type: ignore
 
     @staticmethod
@@ -1491,6 +1497,7 @@ class dataset:
         dest_creds: Optional[Dict] = None,
         progressbar: bool = True,
         token: Optional[str] = None,
+        connect_kwargs: Optional[Dict] = None,
         **dataset_kwargs,
     ):
         """Convert pandas dataframe to a Deep Lake Dataset.
@@ -1506,6 +1513,7 @@ class dataset:
             dest_creds (Optional[Dict]): A dictionary containing credentials used to access the destination path of the dataset.
             progressbar (bool): Enables or disables ingestion progress bar. Set to ``True`` by default.
             token (Optional[str]): The token to use for accessing the dataset.
+            connect_kwargs (Optional[Dict]): A dictionary containing arguments to be passed to the dataset connect method. See :meth:`Dataset.connect`.
             **dataset_kwargs: Any arguments passed here will be forwarded to the dataset creator function. See :func:`deeplake.empty`.
 
         Returns:
@@ -1533,8 +1541,12 @@ class dataset:
         ds = deeplake.empty(
             dest, creds=dest_creds, token=token, verbose=False, **dataset_kwargs
         )
+        if connect_kwargs is not None:
+            connect_kwargs["token"] = token or connect_kwargs.get("token", None)
+            ds.connect(**connect_kwargs)
 
         structured.fill_dataset(ds, progressbar)  # type: ignore
+
         return ds  # type: ignore
 
     @staticmethod
