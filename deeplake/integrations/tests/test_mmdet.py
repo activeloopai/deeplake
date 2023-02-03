@@ -378,9 +378,34 @@ def test_mmdet(mmdet_path, model_name, dataset_path, tensors_specified):
     ds_train = dp.load(dataset_path)[:2]
     ds_val = dp.load(dataset_path)[:2]
     if dataset_path == "hub://adilkhan/balloon-train":
-        ds_train.bounding_boxes[2] = None
-        ds_train.segmentation_polygons[2] = None
-        ds_train.labels[2] = None
+        ds_train_with_none = dp.empty("mem://ds_train")
+        ds_val_with_none = dp.empty("mem://ds_val")
+
+        ds_train_with_none.create_tensor_like("images", ds_train.images)
+        ds_train_with_none.create_tensor_like("bounding_boxes", ds_train.bounding_boxes)
+        ds_train_with_none.create_tensor_like(
+            "segmentation_polygons", ds_train.segmentation_polygons
+        )
+        ds_train_with_none.create_tensor_like("labels", ds_train.labels)
+
+        ds_val_with_none.create_tensor_like("images", ds_val.images)
+        ds_val_with_none.create_tensor_like("bounding_boxes", ds_val.bounding_boxes)
+        ds_val_with_none.create_tensor_like(
+            "segmentation_polygons", ds_val.segmentation_polygons
+        )
+        ds_val_with_none.create_tensor_like("labels", ds_val.labels)
+
+        ds_train_with_none.append(ds_train)
+        ds_train_with_none.images.append(ds_train.images[-1])
+        ds_train_with_none.bounding_boxes.append(None)
+        ds_train_with_none.segmentation_polygons.append(None)
+        ds_train_with_none.labels.append(None)
+
+        ds_val_with_none.append(ds_val)
+        ds_val_with_none.images.append(ds_val.images[-1])
+        ds_val_with_none.bounding_boxes.append(None)
+        ds_val_with_none.segmentation_polygons.append(None)
+        ds_val_with_none.labels.append(None)
 
     model = mmdet.build_detector(cfg.model)
     mmcv.mkdir_or_exist(os.path.abspath(cfg.work_dir))
