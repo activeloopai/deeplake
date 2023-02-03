@@ -475,10 +475,23 @@ def merge_tensor_data(
     new_indexes.sort()
     is_class_label = target_tensor.meta.htype == "class_label"
     if is_class_label:
-        class_names = target_tensor.info.class_names
-        is_class_label = class_names and class_names != original_tensor.info.class_names
+        target_class_names = target_tensor.info.class_names
+        original_class_names = original_tensor.info.class_names
+        if target_class_names:
+            if target_class_names == original_class_names:
+                is_class_label = False
+            elif original_class_names[: len(target_class_names)] == target_class_names:
+                is_class_label = False
+            elif (
+                target_class_names[: len(original_class_names)] == original_class_names
+            ):
+                is_class_label = False
+                original_tensor.info.class_names = original_class_names
+        else:
+            is_class_label = False
     copy_links_only = False
     if is_class_label:
+        # TODO optimize this
         links = original_tensor.meta.links
         original_tensor.meta.links = {}
         try:
@@ -486,7 +499,7 @@ def merge_tensor_data(
                 for index in new_indexes:
                     sample = target_tensor[index]
                     sample = convert_to_text(
-                        sample.numpy(), class_names, return_original=True
+                        sample.numpy(), target_class_names, return_original=True
                     )
                     original_tensor.append(sample)
         finally:
@@ -719,8 +732,8 @@ def copy_tensor_slice(
     _copy_main_tensor=True,
     _copy_link_tensors=True,
 ):
-    if ranges is None:
-        if indices is None:
+    if not ranges:
+        if not indices:
             return
         ranges = _group_ranges(indices)
     src_tensor = src_ds[src_tensor_name]
