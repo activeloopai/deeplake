@@ -378,8 +378,8 @@ def test_mmdet(mmdet_path, model_name, dataset_path, tensors_specified):
     ds_train = dp.load(dataset_path)[:2]
     ds_val = dp.load(dataset_path)[:2]
     if dataset_path == "hub://adilkhan/balloon-train":
-        ds_train_with_none = dp.empty("mem://ds_train")
-        ds_val_with_none = dp.empty("mem://ds_val")
+        ds_train_with_none = dp.empty("ds_train", overwrite=True)
+        ds_val_with_none = dp.empty("ds_val", overwrite=True)
 
         ds_train_with_none.create_tensor_like("images", ds_train.images)
         ds_train_with_none.create_tensor_like("bounding_boxes", ds_train.bounding_boxes)
@@ -396,13 +396,13 @@ def test_mmdet(mmdet_path, model_name, dataset_path, tensors_specified):
         ds_val_with_none.create_tensor_like("labels", ds_val.labels)
 
         ds_train_with_none.append(ds_train[0])
-        ds_train_with_none.images.append(ds_train.images[-1])
+        ds_train_with_none.images.append(ds_train.images[1])
         ds_train_with_none.bounding_boxes.append(None)
         ds_train_with_none.segmentation_polygons.append(None)
         ds_train_with_none.labels.append(None)
 
         ds_val_with_none.append(ds_val[0])
-        ds_val_with_none.images.append(ds_val.images[-1])
+        ds_val_with_none.images.append(ds_val.images[1])
         ds_val_with_none.bounding_boxes.append(None)
         ds_val_with_none.segmentation_polygons.append(None)
         ds_val_with_none.labels.append(None)
