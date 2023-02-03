@@ -176,7 +176,7 @@ def test_pascal_to_pascal_format():
     np.testing.assert_array_equal(bbox_pascal, targ_bbox)
 
     bbox = np.empty(0)
-    targ_bbox = []
+    targ_bbox = np.empty((0, 4))
     bbox_info = {"coords": {"mode": "LTRB", "type": "fractional"}}
     bbox_pascal = mmdet_.convert_to_pascal_format(bbox, bbox_info, shape)
     np.testing.assert_array_equal(bbox_pascal, targ_bbox)
