@@ -1,6 +1,7 @@
 import numpy as np
 import pytest
 
+from deeplake.util.testing import assert_array_equal
 from deeplake.util.exceptions import (
     MergeConflictError,
     MergeMismatchError,
@@ -452,8 +453,8 @@ def test_merge_class_labels_no_classnames(local_ds):
         )
 
 
-def test_merge_class_labels_different_class_names(local_ds):
-    with local_ds as ds:
+def test_merge_class_labels_different_class_names(memory_ds):
+    with memory_ds as ds:
         ds.checkout("alt1", create=True)
         ds.create_tensor("labels", "class_label")
         ds.labels.extend(["a", "b", "c", "d"])
@@ -468,8 +469,8 @@ def test_merge_class_labels_different_class_names(local_ds):
         )
 
 
-def test_merge_class_labels_subset_class_names(local_ds):
-    with local_ds as ds:
+def test_merge_class_labels_subset_class_names(memory_ds):
+    with memory_ds as ds:
         ds.checkout("alt1", create=True)
         ds.create_tensor("labels", "class_label")
         ds.labels.extend(["a", "b", "c", "d"])
@@ -484,8 +485,8 @@ def test_merge_class_labels_subset_class_names(local_ds):
         )
 
 
-def test_merge_class_labels_subset_class_names_2(local_ds):
-    with local_ds as ds:
+def test_merge_class_labels_subset_class_names_2(memory_ds):
+    with memory_ds as ds:
         ds.checkout("alt1", create=True)
         ds.create_tensor("labels", "class_label")
         ds.labels.extend(["a", "b", "c"])
@@ -498,3 +499,21 @@ def test_merge_class_labels_subset_class_names_2(local_ds):
             np.array(ds.labels.numpy()).squeeze(),
             [0, 1, 2, 3, 0, 1, 2],
         )
+
+
+def test_merge_sequence_htype(memory_ds):
+    with memory_ds as ds:
+        ds.create_tensor("abc", htype="sequence")
+        ds.abc.extend([[1, 2, 3], [4, 5], [6, 7, 8, 9]])
+        ds.commit()
+
+        ds.checkout("alt", create=True)
+        ds.abc.extend([[1, 2, 3, 4], [1, 2], [7, 5, 4, 2]])
+
+        ds.checkout("main")
+        ds.merge("alt")
+        ds.create_tensor("expected")
+        ds.expected.extend([[1, 2, 3], [4, 5], [6, 7, 8, 9]])
+        ds.expected.extend([[1, 2, 3, 4], [1, 2], [7, 5, 4, 2]])
+        for x, y in zip(ds.abc.numpy(aslist=True), ds.expected.numpy(aslist=True)):
+            assert_array_equal(x, y)
