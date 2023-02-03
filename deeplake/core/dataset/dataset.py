@@ -87,6 +87,7 @@ from deeplake.util.exceptions import (
     DatasetTooLargeToDelete,
     TensorTooLargeToDelete,
     GroupInfoNotSupportedError,
+    TokenPermissionError,
 )
 from deeplake.util.keys import (
     dataset_exists,
@@ -3207,16 +3208,20 @@ class Dataset:
             KeyError: if view with given id does not exist.
         """
 
-        with self._lock_queries_json():
-            qjson = self._read_queries_json()
-            for i, q in enumerate(qjson):
-                if q["id"] == id:
-                    qjson.pop(i)
-                    self.base_storage.subdir(
-                        ".queries/" + (q.get("path") or q["id"])
-                    ).clear()
-                    self._write_queries_json(qjson)
-                    return
+        try:
+            with self._lock_queries_json():
+                qjson = self._read_queries_json()
+                for i, q in enumerate(qjson):
+                    if q["id"] == id:
+                        qjson.pop(i)
+                        self.base_storage.subdir(
+                            ".queries/" + (q.get("path") or q["id"])
+                        ).clear()
+                        self._write_queries_json(qjson)
+                        return
+        # not enough permissions to acquire lock
+        except TokenPermissionError:
+            pass
 
         if self.path.startswith("hub://"):
             qds = Dataset._get_queries_ds_from_user_account(self.token)
