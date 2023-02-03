@@ -274,7 +274,6 @@ class Tensor:
         samples: Union[np.ndarray, Sequence[InputSample], "Tensor"],
         progressbar: bool = False,
     ):
-
         """Extends the end of the tensor by appending multiple elements from a sequence. Accepts a sequence, a single batched numpy array,
         or a sequence of :func:`deeplake.read` outputs, which can be used to load files. See examples down below.
 
@@ -679,7 +678,6 @@ class Tensor:
                 update_link_callback=update_link_callback,
             )
         else:
-
             if not item_index.values[0].subscriptable() and not self.is_sequence:
                 # we're modifying a single sample, convert it to a list as chunk engine expects multiple samples
                 value = [value]
