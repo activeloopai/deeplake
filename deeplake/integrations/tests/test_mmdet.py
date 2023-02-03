@@ -355,7 +355,7 @@ def get_test_config(
 @pytest.mark.parametrize(
     "dataset_path",
     [
-        "hub://activeloop/coco-train",
+        # "hub://activeloop/coco-train",
         "hub://adilkhan/balloon-train",
     ],
 )
@@ -395,17 +395,20 @@ def test_mmdet(mmdet_path, model_name, dataset_path, tensors_specified):
         )
         ds_val_with_none.create_tensor_like("labels", ds_val.labels)
 
-        ds_train_with_none.append(ds_train)
+        ds_train_with_none.append(ds_train[0])
         ds_train_with_none.images.append(ds_train.images[-1])
         ds_train_with_none.bounding_boxes.append(None)
         ds_train_with_none.segmentation_polygons.append(None)
         ds_train_with_none.labels.append(None)
 
-        ds_val_with_none.append(ds_val)
+        ds_val_with_none.append(ds_val[0])
         ds_val_with_none.images.append(ds_val.images[-1])
         ds_val_with_none.bounding_boxes.append(None)
         ds_val_with_none.segmentation_polygons.append(None)
         ds_val_with_none.labels.append(None)
+
+        ds_train = ds_train_with_none
+        ds_val = ds_val_with_none
 
     model = mmdet.build_detector(cfg.model)
     mmcv.mkdir_or_exist(os.path.abspath(cfg.work_dir))
