@@ -270,7 +270,7 @@ class LinkedChunkEngine(ChunkEngine):
                         )
                     )
                 except Exception as e:
-                    raise BadLinkError from e
+                    raise BadLinkError(sample.path, sample.creds_key) from e
         return verified_samples
 
     def register_new_creds(self, num_samples_added, samples):
