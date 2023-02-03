@@ -251,7 +251,6 @@ class CouldNotCreateNewDatasetException(AuthorizationException):
         self,
         path: str,
     ):
-
         extra = ""
         if path.startswith("hub://"):
             extra = "Since the path is a `hub://` dataset, if you believe you should have write permissions, try running `activeloop login`."
