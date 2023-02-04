@@ -115,7 +115,7 @@ Below is the example of the deeplake mmdet configuration:
 >>>             "token": TOKEN,
 >>>             "creds": None,
 >>>         },
->>>         #OPTIONAL - Checkout teh specified commit_id before training
+>>>         #OPTIONAL - Checkout the specified commit_id before training
 >>>         deeplake_commit_id="",
 >>>         #OPTIONAL - Loads a dataset view for training based on view_id
 >>>         deeplake_view_id="",
