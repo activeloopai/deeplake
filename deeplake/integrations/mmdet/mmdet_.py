@@ -6,7 +6,7 @@ Learn more about MMDetection `here <https://mmsegmentation.readthedocs.io/en/lat
 
 Integration Interface
 ~~~~~~~~~~~~~~~~~~~~~
-MMDetection works with configs. Deeplake addopted the strategy, and in order to train MMDet models, you need to create/specify your model and training/validation config. 
+MMDetection works with configs. Deeplake adopted the strategy, and in order to train MMDet models, you need to create/specify your model and training/validation config. 
 Deeplake integration's logic is almost the same as MMDetection's with some minor modifications. The integrations with MMDET occurs in the deeplake.integrations.mmdet module. 
 At a high-level, Deep Lake is responsible for the pytorch dataloader that streams data to the training framework, while MMDET is used for the training, transformation, and evaluation logic. Let us take a look at the config with deeplake changes:
 
