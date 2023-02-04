@@ -21,7 +21,7 @@ Deeplake integration requires the following parameters to be specified in the co
 
     - deeplake_path: path to the deeplake dataset. This parameter exists for train as well as for val.
     - deeplake_credentials: optional parameter. Required only when using private nonlocal datasets. See documendataion for `deeplake.load() <https://docs.deeplake.ai/en/latest/deeplake.html#deeplake.load>`_ for details. This parameter exists for train as well as for val.
-    - deeplake_commit_id: optional parameter. If specified. the dataset will checkout to the commit. This parameter exists for train as well as for val. See documendataion for `Dataset.commit_id <https://deep-lake--2152.org.readthedocs.build/en/2152/deeplake.core.dataset.html#deeplake.core.dataset.Dataset.commit_id>`_
+    - deeplake_commit_id: optional parameter. If specified, the dataset will checkout to the commit. This parameter exists for train as well as for val. See documentation for `Dataset.commit_id <https://deep-lake--2152.org.readthedocs.build/en/2152/deeplake.core.dataset.html#deeplake.core.dataset.Dataset.commit_id>`_
     - deeplake_view_id: optional parameter. If specified the dataset will load saved view. This parameter exists for train as well as for val.
     - deeplake_tensors: optional parameter. If specified maps MMDetection tensors to the associated tensors in the dataset. MMDet tensors are: "img", "gt_bboxes", "gt_labels", "gt_masks". This parameter exists for train as well as for val.
         - "img": stands for image tensor.
