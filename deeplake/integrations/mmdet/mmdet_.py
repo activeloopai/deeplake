@@ -44,10 +44,10 @@ Ex:
 - train_detector: Function to train the MMDetection model. Parameters are: model, cfg: mmcv.ConfigDict, ds_train=None, ds_train_tensors=None, ds_val: Optional[dp.Dataset] = None, ds_val_tensors=None, distributed: bool = False, timestamp=None, meta=None, validate: bool = True.
     - model: MMDetection model that is going to be used.
     - cfg: Configuration of the model as well as of the datasets and transforms that's going to be used.
-    - ds_train: Optional parameter. It provided will overwrite deeplake_path in train, and will pass this tensor directly to the dataloader.
-    - ds_val: Optional parameter. It provided will overwrite deeplake_path in val, and will pass this tensor directly to the dataloader.
-    - ds_train_tensors: Optional parameter. It provided will overwrite deeplake_tensors in train, and will pass this tensor mapping directly to dataloader.
-    - ds_val_tensors: Optional parameter. It provided will overwrite deeplake_tensors in val, and will pass this tensor mapping directly to dataloader.
+    - ds_train: Optional parameter. If provided will overwrite deeplake_path in train, and will pass this tensor directly to the dataloader.
+    - ds_val: Optional parameter. If provided will overwrite deeplake_path in val, and will pass this tensor directly to the dataloader.
+    - ds_train_tensors: Optional parameter. If provided will overwrite deeplake_tensors in train, and will pass this tensor mapping directly to dataloader.
+    - ds_val_tensors: Optional parameter. If provided will overwrite deeplake_tensors in val, and will pass this tensor mapping directly to dataloader.
     - distributed: Optional parameter. If provided will run the code on all available gpus. Meta data used to build runner
     - timestamp: variable used in runner to make .log and .log.json filenames the same.'
     - validate: bool, whether validation should be conducted, by default True
