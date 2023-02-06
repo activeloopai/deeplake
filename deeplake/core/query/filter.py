@@ -156,7 +156,6 @@ def filter_with_compute(
     query_text: Optional[str] = None,
     vds: Optional[deeplake.Dataset] = None,
 ) -> List[int]:
-
     blocks = SampleStreaming(dataset, tensors=map_tensor_keys(dataset)).list_blocks()
     compute = get_compute_provider(scheduler=scheduler, num_workers=num_workers)
 
@@ -173,6 +172,7 @@ def filter_with_compute(
     query_id = hash_inputs(dataset.path, dataset.pending_commit_id, query_text)
 
     progress = {"value": 0}
+
     # Callback for sending query progress
     def _event_callback():
         progress["value"] += 1
@@ -359,7 +359,6 @@ def query_inplace(
     scheduler: str,
     vds: Optional[deeplake.Dataset] = None,
 ) -> List[int]:
-
     num_samples = len(dataset)
     compute = (
         get_compute_provider(scheduler=scheduler, num_workers=num_workers)

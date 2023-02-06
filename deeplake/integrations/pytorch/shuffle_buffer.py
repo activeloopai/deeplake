@@ -82,7 +82,6 @@ class ShuffleBuffer:
             if not self.pbar_closed:
                 self.close_buffer_pbar()
             if buffer_len > 0:
-
                 # return random selection
                 selected = randrange(buffer_len)
                 val = self.buffer.pop(selected)
