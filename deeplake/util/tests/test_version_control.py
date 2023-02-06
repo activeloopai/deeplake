@@ -9,7 +9,6 @@ from deeplake.util.version_control import (
 
 
 def test_merge_commit_node_map():
-
     root = CommitNode("main", FIRST_COMMIT_ID)
     a = CommitNode("main", "a")
     b = CommitNode("main", "b")

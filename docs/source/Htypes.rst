@@ -287,6 +287,69 @@ array([[965, 110, 262,  77],
 >>> ds.boxes.append(boxes)
 
 
+.. _bbox-3d-htype:
+
+3D Bounding Box Htype
+~~~~~~~~~~~~~~~~~~~~~
+
+- :bluebold:`Sample dimensions:` ``(# bounding boxes, 9)``
+
+Bounding boxes are in KITTI format. In order for bounding boxes to be correctly displayed by the visualizer, the format of the bounding box should be as follows:
+
+``[x, y, z, length, width, hieght, rot_x, rot_y, rot_z]``
+
+where
+
+- ``length`` - is the length of the bounding box along x direction
+- ``width``  - is the width of the bounding box along y direction
+- ``height``  - is the height of the bounding box along z direction
+- ``rot_x`` - rotation angle along x axis, given in degrees
+- ``rot_y`` - rotation angle along y axis, given in degrees
+- ``rot_z`` - rotation angle along z axis, given in degrees
+
+
+:blue:`Creating a 3d bbox tensor`
+---------------------------------
+
+A 3d bbox tensor can be created using
+
+>>> ds.create_tensor("3d_boxes", htype="bbox.3d")
+
+- Optional args:
+    - dtype: Defaults to ``float32``.
+    - :ref:`sample_compression <sample_compression>` or :ref:`chunk_compression <chunk_compression>`.
+
+- Supported compressions:
+
+>>> ["lz4"]
+
+.. note::
+    rotation angles are specified in degrees, not radians
+
+:blue:`Appending 3d bounding boxes`
+-----------------------------------
+
+- Bounding boxes can be appended as ``np.ndarrays`` or ``list`` or ``lists of arrays``.
+
+:bluebold:`Examples`
+
+Appending one bounding box
+
+>>> box
+array([[462, 123, 238,  98, 22, 36, 44, 18, 0, 36, 0]])
+>>> ds.3d_boxes.append(box)
+
+Appending sample with 3 bounding boxes
+
+>>> boxes
+array([[965, 110, 262,  77, 22, 36, 44, 18, 0, 28, 0],
+       [462, 123, 238,  98, 26, 34, 24, 19, 0, -50, 0],
+       [688, 108, 279, 116, 12, 32, 14, 38, 0, 30, 0]])
+>>> boxes.shape
+(9, 4)
+>>> ds.3d_boxes.append(boxes)
+
+
 .. _segment-mask-htype:
 
 Segmentation Mask Htype

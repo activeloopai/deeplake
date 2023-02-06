@@ -230,7 +230,14 @@ def checkout(
         storage,
         version_state["full_tensors"],
     )
-    load_meta(dataset)
+
+    try:
+        load_meta(dataset)
+    except Exception as e:
+        checkout(dataset, original_commit_id)
+        raise CheckoutError(
+            f"Unable to checkout to '{address}', failed to load meta data."
+        ) from e
 
 
 def copy_metas(

@@ -244,7 +244,7 @@ class dataset:
                 memory_cache_size=DEFAULT_MEMORY_CACHE_SIZE,
                 local_cache_size=DEFAULT_LOCAL_CACHE_SIZE,
             )
-        except (TokenPermissionError):
+        except TokenPermissionError:
             # Cloud Dataset does not exist
             return False
         return dataset_exists(storage)

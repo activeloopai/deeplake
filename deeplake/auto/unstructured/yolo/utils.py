@@ -185,7 +185,6 @@ class YoloData:
         is_link: Optional[bool] = False,
         creds_key: Optional[str] = None,
     ):
-
         if is_link:
             return deeplake.link(self.get_full_path_image(image), creds_key=creds_key)
 

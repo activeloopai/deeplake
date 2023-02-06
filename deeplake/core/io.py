@@ -312,7 +312,6 @@ class SampleStreaming(Streaming):
 
     def stream(self, block: IOBlock):
         for idx in block.indices():
-
             sample = dict()
             valid_sample_flag = True
 
@@ -322,7 +321,6 @@ class SampleStreaming(Streaming):
                 to_pil = key in self.compressed_tensors
                 chunk_class = engine.chunk_class
                 try:
-
                     chunks: List[BaseChunk] = []
                     c_names = block.chunk_names(keyid)
                     if c_names == [None]:
@@ -420,7 +418,6 @@ class SampleStreaming(Streaming):
             stop = index.stop or self._get_dataset_length()
             step = index.step
             if step is None or step == 1:
-
                 return list(range(max(start, low), min(stop, high)))
             else:
                 if start < low:
