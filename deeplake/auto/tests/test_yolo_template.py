@@ -148,7 +148,6 @@ def test_minimal_yolo_ingestion_with_linked_images(
     hub_cloud_dev_token,
     hub_cloud_dev_managed_creds_key,
 ):
-
     params = {
         "data_directory": yolo_ingestion_data["data_directory"],
         "class_names_file": yolo_ingestion_data["class_names_file"],
