@@ -141,20 +141,24 @@ class DeepLakeQueryTensor(tensor.Tensor):
 
     @property
     def shape(self):
-        first_dim = len(self.indra_tensors)
-        self.set_first_dim(first_dim)
-        shape = self.callect_final_shape()
+        if self.max_shape != self.min_shape:
+            shape = []
+            for i, dim_len in enumerate(self.max_shape):
+                if dim_len == self.min_shape[i]:
+                    shape.append(self.min_shape[i])
+                else:
+                    shape.append(None)
         return shape
 
     @property
     def shape_interval(self):
-        min_shape = (len(self.indra_tensors),) + self.min_shape
-        max_shape = (len(self.indra_tensors),) + self.max_shape
-        return shape_interval.ShapeInterval(min_shape, max_shape)
+        # min_shape = (len(self.indra_tensors),) + self.min_shape
+        # max_shape = (len(self.indra_tensors),) + self.max_shape
+        return shape_interval.ShapeInterval(self.min_shape, self.max_shape)
 
     @property
     def ndim(self):
-        return len(self.indra_tensors.max_shape) + 1
+        return len(self.indra_tensors.max_shape)
 
     @property
     def htype(self):

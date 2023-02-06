@@ -1,6 +1,5 @@
 from deeplake.enterprise.convert_to_libdeeplake import dataset_to_libdeeplake
 from deeplake.util.bugout_reporter import deeplake_reporter
-from deeplake.util.query import is_linear_operation
 from deeplake.core.dataset.dataset import DeepLakeQueryDataset
 from typing import Optional, Union
 
@@ -45,6 +44,7 @@ def query(dataset, query_string: str):
     except RuntimeError:
         dataset._query = query_string
         view = DeepLakeQueryDataset(deeplake_ds=dataset, indra_ds=dsv)
+        view.is_actually_cloud = dataset.is_actually_cloud
         return view
 
 

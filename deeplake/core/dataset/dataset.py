@@ -113,7 +113,6 @@ from deeplake.util.keys import (
     get_dataset_linked_creds_key,
 )
 from deeplake.util.path import get_path_from_storage
-from deeplake.util.query import is_linear_operation
 from deeplake.util.remove_cache import get_base_storage
 from deeplake.util.diff import get_all_changes_string, get_changes_and_messages
 from deeplake.util.version_control import (
@@ -3076,7 +3075,7 @@ class Dataset:
         ret = []
         for query in filtered_queries:
             ViewClass = ViewEntry
-            if not is_linear_operation(query.get("query")):
+            if query.get("query"):
                 ViewClass = NonlinearQueryView
 
             ret.append(ViewClass(info=query, dataset=self))
@@ -3086,7 +3085,7 @@ class Dataset:
             if queries:
                 for query in filtered_queries:
                     ViewClass = ViewEntry
-                    if not is_linear_operation(query.get("query")):
+                    if query.get("query"):
                         ViewClass = NonlinearQueryView
 
                     ret.append(
@@ -3135,7 +3134,7 @@ class Dataset:
                 if q["id"] == f"[{self.org_id}][{self.ds_name}]{id}":
                     query = q.get("query")
                     if query:
-                        return ViewEntry(q, qds, self, True)
+                        return NonlinearQueryView(q, qds, self, True)
                     return ViewEntry(q, qds, self, True)
 
         raise KeyError(f"No view with id {id} found in the dataset.")
@@ -4004,7 +4003,7 @@ class Dataset:
         # Defined in DeepLakeCloudDataset
         return memoryview(b"")  # No-op context manager
 
-# 1000, 240, 320, 3 -> group by -> 10, 100, 240, 320, 3
+
 class DeepLakeQueryDataset(Dataset):
     def __init__(
         self, deeplake_ds, indra_ds, group_index=None, enabled_tensors=None, index=None
