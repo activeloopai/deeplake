@@ -81,7 +81,6 @@ class ChunkCompressedChunk(BaseChunk):
             else:
                 num_samples = len(incoming_samples)
             if not num_samples:
-
                 # Check if compression ratio is actually better
                 s = self._text_sample_to_byte_string(incoming_samples[0])
                 new_decompressed = decompressed_bytes + s
@@ -183,7 +182,6 @@ class ChunkCompressedChunk(BaseChunk):
             else:
                 num_samples = len(incoming_samples)
             if not num_samples:
-
                 # Check if compression ratio is actually better
                 samples_to_chunk = incoming_samples[:1]
                 if cast:
@@ -259,7 +257,6 @@ class ChunkCompressedChunk(BaseChunk):
             if (
                 len(self.decompressed_bytes) + sample_nbytes  # type: ignore
             ) * self._compression_ratio > self.min_chunk_size:
-
                 decompressed_bytes = self.decompressed_bytes
                 new_decompressed = self.decompressed_bytes + serialized_sample  # type: ignore
 
@@ -382,12 +379,17 @@ class ChunkCompressedChunk(BaseChunk):
             return self.decompressed_samples[local_index]  # type: ignore
 
         decompressed = memoryview(self.decompressed_bytes)  # type: ignore
+        is_polygon = self.htype == "polygon"
+        bps = self.byte_positions_encoder
         if not is_tile and self.is_fixed_shape:
             shape = tuple(self.tensor_meta.min_shape)
-            sb, eb = self.get_byte_positions(local_index)
+            if is_polygon:
+                sb, eb = bps[local_index]
+            else:
+                sb, eb = self.get_byte_positions(local_index)
             decompressed = decompressed[sb:eb]
         else:
-            bps_empty = self.byte_positions_encoder.is_empty()
+            bps_empty = bps.is_empty()
             try:
                 shape = self.shapes_encoder[local_index]
             except IndexError as e:
@@ -402,7 +404,9 @@ class ChunkCompressedChunk(BaseChunk):
         if self.is_text_like:
             return bytes_to_text(decompressed, self.htype)
         if self.tensor_meta.htype == "polygon":
-            return Polygons.frombuffer(decompressed, dtype=self.dtype, ndim=shape[-1])
+            return Polygons.frombuffer(
+                bytes(decompressed), dtype=self.dtype, ndim=shape[-1]
+            )
         ret = np.frombuffer(decompressed, dtype=self.dtype).reshape(shape)
         if copy and not ret.flags["WRITEABLE"]:
             ret = ret.copy()

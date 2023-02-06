@@ -21,7 +21,7 @@ def test_downsample(local_ds_generator, cat_path):
         assert tensors.issuperset(downsampled_tensors)
         for tensor in downsampled_tensors[1:]:
             assert ds[tensor].info["downsampling_factor"] == 2
-        ds.image.append(deeplake.read(cat_path))
+        ds.image.extend([deeplake.read(cat_path), deeplake.read(cat_path)])
         cats = [ds[tensor][0].numpy() for tensor in downsampled_tensors]
         expected_shapes = [
             (900, 900, 3),

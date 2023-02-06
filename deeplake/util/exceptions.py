@@ -251,7 +251,6 @@ class CouldNotCreateNewDatasetException(AuthorizationException):
         self,
         path: str,
     ):
-
         extra = ""
         if path.startswith("hub://"):
             extra = "Since the path is a `hub://` dataset, if you believe you should have write permissions, try running `activeloop login`."
@@ -802,8 +801,14 @@ class TensorTooLargeToDelete(Exception):
 
 
 class BadLinkError(Exception):
-    def __init__(self):
-        message = "Verification of link failed. Make sure that the link you are trying to append is correct."
+    def __init__(self, link, creds_key):
+        message = f"Verification of link failed. Make sure that the link you are trying to append is correct.\n\nFailed link: {link}\ncreds_key used: {creds_key}"
+        if creds_key is None:
+            extra = """\n\nNo credentials have been provided to access the link. If the link is not publibly accessible, add access credentials to your dataset\
+ and use the appropriate creds_key."""
+        else:
+            extra = """\n\nPlease also check that the specified credentials have access to the link."""
+        message += extra
         super().__init__(message)
 
 
@@ -855,3 +860,7 @@ class UnsupportedExtensionError(Exception):
         message = f"{htype}{extension} is not supported"
 
         super().__init__(message)
+
+
+class DatasetCorruptError(Exception):
+    pass

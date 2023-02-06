@@ -82,7 +82,6 @@ def test_query(sample_ds, query, results):
 
 
 def test_different_size_ds_query(local_ds):
-
     with local_ds as ds:
         ds.create_tensor("images")
         ds.create_tensor("labels")

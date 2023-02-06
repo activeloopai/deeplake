@@ -274,7 +274,6 @@ class Tensor:
         samples: Union[np.ndarray, Sequence[InputSample], "Tensor"],
         progressbar: bool = False,
     ):
-
         """Extends the end of the tensor by appending multiple elements from a sequence. Accepts a sequence, a single batched numpy array,
         or a sequence of :func:`deeplake.read` outputs, which can be used to load files. See examples down below.
 
@@ -387,10 +386,8 @@ class Tensor:
         self.chunk_engine.clear()
         sample_id_key = get_sample_id_tensor_key(self.key)
         try:
-            sample_id_tensor = Tensor(sample_id_key, self.dataset)
-            sample_id_tensor.chunk_engine.clear()
-            self.meta.links.clear()
-            self.meta.is_dirty = True
+            for t in self._all_tensor_links():
+                t.chunk_engine.clear()
         except TensorDoesNotExistError:
             pass
         self.invalidate_libdeeplake_dataset()
@@ -681,7 +678,6 @@ class Tensor:
                 update_link_callback=update_link_callback,
             )
         else:
-
             if not item_index.values[0].subscriptable() and not self.is_sequence:
                 # we're modifying a single sample, convert it to a list as chunk engine expects multiple samples
                 value = [value]
@@ -930,17 +926,21 @@ class Tensor:
             ValueError: If the tensor has multiple samples.
         """
         if self.index.values[0].subscriptable() or len(self.index.values) > 1:
-            raise ValueError("tobytes() can be used only on exatcly 1 sample.")
+            raise ValueError("tobytes() can be used only on exactly 1 sample.")
         idx = self.index.values[0].value
         ret = self.chunk_engine.read_bytes_for_sample(idx)  # type: ignore
         dataset_read(self.dataset)
         return ret
 
-    def _extend_links(self, samples, flat: Optional[bool]):
+    def _extend_links(self, samples, flat: Optional[bool], progressbar: bool = False):
+        has_shape_tensor = False
         for k, v in self.meta.links.items():
             if flat is None or v["flatten_sequence"] == flat:
                 tensor = self.version_state["full_tensors"][k]
-                func = get_link_transform(v["extend"])
+                func_name = v["extend"]
+                if func_name == "extend_shape":
+                    has_shape_tensor = True
+                func = get_link_transform(func_name)
                 vs = func(
                     samples,
                     factor=tensor.info.downsampling_factor
@@ -949,6 +949,8 @@ class Tensor:
                     compression=self.meta.sample_compression,
                     htype=self.htype,
                     link_creds=self.link_creds,
+                    progressbar=progressbar,
+                    tensor_meta=self.meta,
                 )
                 dtype = tensor.dtype
                 if dtype:
@@ -957,6 +959,9 @@ class Tensor:
                     else:
                         vs = [cast_to_type(v, dtype) for v in vs]
                 tensor.extend(vs)
+        # if self.meta.is_link and not has_shape_tensor:
+        #     func = get_link_transform("extend_shape")
+        #     func(samples, tensor_meta=self.meta)
 
     def _update_links(
         self,
@@ -965,11 +970,14 @@ class Tensor:
         new_sample,
         flat: Optional[bool],
     ):
+        has_shape_tensor = False
         for k, v in self.meta.links.items():
             if flat is None or v["flatten_sequence"] == flat:
                 fname = v.get("update")
                 if not fname:
                     continue
+                if fname == "update_shape":
+                    has_shape_tensor = True
                 func = get_link_transform(fname)
                 tensor = self.version_state["full_tensors"][k]
                 is_partial = not sub_index.is_trivial()
@@ -984,6 +992,7 @@ class Tensor:
                     link_creds=self.link_creds,
                     sub_index=sub_index,
                     partial=is_partial,
+                    tensor_meta=self.meta,
                 )
                 if val is not _NO_LINK_UPDATE:
                     if is_partial and func == update_downsample:
@@ -991,24 +1000,41 @@ class Tensor:
                     else:
                         val = cast_to_type(val, tensor.dtype)
                         tensor[global_sample_index] = val
+        # if self.meta.is_link and not has_shape_tensor:
+        #     func = get_link_transform("update_shape")
+        #     func(new_sample, link_creds=self.link_creds, tensor_meta=self.meta)
+
+    def _all_tensor_links(self):
+        ds = self.dataset
+        return [
+            ds.version_state["full_tensors"][ds.version_state["tensor_names"][l]]
+            for l in self.meta.links
+        ]
 
     @property
     def _sample_info_tensor(self):
         ds = self.dataset
+        tensor_name = self.meta.name or self.key
         return ds.version_state["full_tensors"].get(
-            ds.version_state["tensor_names"].get(get_sample_info_tensor_key(self.key))
+            ds.version_state["tensor_names"].get(
+                get_sample_info_tensor_key(tensor_name)
+            )
         )
 
     @property
     def _sample_shape_tensor(self):
         ds = self.dataset
+        tensor_name = self.meta.name or self.key
         return ds.version_state["full_tensors"].get(
-            ds.version_state["tensor_names"].get(get_sample_shape_tensor_key(self.key))
+            ds.version_state["tensor_names"].get(
+                get_sample_shape_tensor_key(tensor_name)
+            )
         )
 
     @property
     def _sample_id_tensor(self):
-        return self.dataset._tensors().get(get_sample_id_tensor_key(self.key))
+        tensor_name = self.meta.name or self.key
+        return self.dataset._tensors().get(get_sample_id_tensor_key(tensor_name))
 
     def _sample_shape_provider(self, sample_shape_tensor) -> Callable:
         if self.is_sequence:

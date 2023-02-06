@@ -8,3 +8,4 @@ deeplake.api
     deeplake.api.link
     deeplake.api.read
     deeplake.api.tiled
+    deeplake.api.link_tiled

@@ -2,18 +2,10 @@ from typing import List, Any, Sequence
 from random import randrange
 from functools import reduce
 from operator import mul
-import warnings
 import numpy as np
 
-try:
-    from torch import Tensor as TorchTensor
-except ImportError:
-    TorchTensor = None  # type: ignore
-
-try:
-    from tensorflow import Tensor as TensorflowTensor
-except ImportError:
-    TensorflowTensor = None  # type: ignore
+import warnings
+import sys
 
 from PIL import Image  # type: ignore
 from io import BytesIO
@@ -90,7 +82,6 @@ class ShuffleBuffer:
             if not self.pbar_closed:
                 self.close_buffer_pbar()
             if buffer_len > 0:
-
                 # return random selection
                 selected = randrange(buffer_len)
                 val = self.buffer.pop(selected)
@@ -104,6 +95,22 @@ class ShuffleBuffer:
         return len(self.buffer) == 0
 
     def _sample_size(self, sample):
+        try:
+            if sys.modules.get("torch"):
+                from torch import Tensor as TorchTensor
+            else:
+                TorchTensor = None
+        except ImportError:
+            TorchTensor = None  # type: ignore
+
+        try:
+            if sys.modules.get("tensorflow"):
+                from tensorflow import Tensor as TensorflowTensor
+            else:
+                TensorflowTensor = None
+        except ImportError:
+            TensorflowTensor = None  # type: ignore
+
         if isinstance(sample, (int, float)):
             return 8
         elif isinstance(sample, bool):

@@ -9,6 +9,7 @@ deeplake
 .. autofunction:: like
 .. autofunction:: ingest
 .. autofunction:: ingest_coco
+.. autofunction:: ingest_yolo
 .. autofunction:: ingest_kaggle
 .. autofunction:: ingest_dataframe
 .. autofunction:: ingest_huggingface
@@ -22,6 +23,7 @@ deeplake
 .. autofunction:: exists
 .. autofunction:: read
 .. autofunction:: link
+.. autofunction:: link_tiled
 .. autofunction:: tiled
 .. autofunction:: compute
 .. autofunction:: compose

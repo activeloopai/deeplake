@@ -99,6 +99,19 @@ def _download_hub_test_coco_data():
     }
 
 
+def _download_hub_test_yolo_data():
+    path = _git_clone(_HUB_TEST_RESOURCES_URL)
+    return {
+        "data_directory": path + "/yolo/data",
+        "class_names_file": path + "/yolo/classes.names",
+        "data_directory_no_annotations": path + "/yolo/images_only",
+        "annotations_directory": path + "/yolo/annotations_only",
+        "data_directory_missing_annotations": path + "/yolo/data_missing_annotations",
+        "data_directory_unsupported_annotations": path
+        + "/yolo/data_unsupported_annotations",
+    }
+
+
 def _download_pil_test_images(ext=[".jpg", ".png"]):
     paths = {e: [] for e in ext}
     corrupt_file_keys = [
@@ -512,3 +525,8 @@ def hub_token(request):
 @pytest.fixture(scope="session")
 def coco_ingestion_data():
     return _download_hub_test_coco_data()
+
+
+@pytest.fixture(scope="session")
+def yolo_ingestion_data():
+    return _download_hub_test_yolo_data()
