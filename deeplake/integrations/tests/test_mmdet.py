@@ -5,10 +5,13 @@ import pathlib
 
 import pytest
 import numpy as np
+import wandb
 
 import deeplake as dp
 from deeplake.client.client import DeepLakeBackendClient
 
+
+os.system("wandb offline")
 
 _THIS_FILE = pathlib.Path(__file__).parent.absolute()
 _COCO_PATH = "hub://activeloop/coco-train"
@@ -146,6 +149,11 @@ def test_yolo_to_pascal_format():
     bbox_pascal = mmdet_.convert_to_pascal_format(bbox, bbox_info, shape)
     np.testing.assert_array_equal(bbox_pascal, targ_bbox)
 
+    bbox = np.empty(0)
+    targ_bbox = np.empty((0, 4))
+    bbox_pascal = mmdet_.convert_to_pascal_format(bbox, bbox_info, shape)
+    np.testing.assert_array_equal(bbox_pascal, targ_bbox)
+
 
 @pytest.mark.skipif(
     sys.platform != "linux" or sys.version_info < (3, 7),
@@ -163,6 +171,12 @@ def test_pascal_to_pascal_format():
 
     shape = (10, 10)
     bbox = np.array([[0.4, 0.5, 0.6, 0.7]])
+    bbox_info = {"coords": {"mode": "LTRB", "type": "fractional"}}
+    bbox_pascal = mmdet_.convert_to_pascal_format(bbox, bbox_info, shape)
+    np.testing.assert_array_equal(bbox_pascal, targ_bbox)
+
+    bbox = np.empty(0)
+    targ_bbox = np.empty((0, 4))
     bbox_info = {"coords": {"mode": "LTRB", "type": "fractional"}}
     bbox_pascal = mmdet_.convert_to_pascal_format(bbox, bbox_info, shape)
     np.testing.assert_array_equal(bbox_pascal, targ_bbox)
@@ -187,6 +201,11 @@ def test_pascal_to_coco_format():
     bbox_coco = mmdet_.convert_to_coco_format(bbox, bbox_info, images)
     np.testing.assert_array_equal(bbox_coco[0], targ_bbox)
 
+    bbox = np.empty(0)
+    targ_bbox = []
+    bbox_coco = mmdet_.convert_to_coco_format(bbox, bbox_info, images)
+    np.testing.assert_array_equal(bbox_coco, targ_bbox)
+
 
 @pytest.mark.skipif(
     sys.platform != "linux" or sys.version_info < (3, 7),
@@ -206,6 +225,11 @@ def test_yolo_to_coco_format():
     bbox_info = ("CCWH", "fractional")
     bbox_coco = mmdet_.convert_to_coco_format(bbox, bbox_info, image)
     np.testing.assert_array_equal(bbox_coco[0], targ_bbox)
+
+    bbox = np.empty(0)
+    targ_bbox = []
+    bbox_coco = mmdet_.convert_to_coco_format(bbox, bbox_info, image)
+    np.testing.assert_array_equal(bbox_coco, targ_bbox)
 
 
 @pytest.mark.skipif(
@@ -298,6 +322,18 @@ def get_test_config(
     cfg.evaluation = dict(metric=["bbox"], interval=1)
     cfg.work_dir = "./mmdet_outputs"
     cfg.log_config = dict(interval=10, hooks=[dict(type="TextLoggerHook")])
+    cfg.log_config.hooks = [
+        dict(type="TextLoggerHook"),
+        dict(
+            type="MMDetWandbHook",
+            init_kwargs={"project": "mmdetection"},
+            interval=10,
+            log_checkpoint=True,
+            log_checkpoint_metadata=True,
+            num_eval_images=100,
+            bbox_score_thr=0.3,
+        ),
+    ]
     cfg.checkpoint_config = dict(interval=12)
     cfg.seed = None
     cfg.device = "cpu"
@@ -319,7 +355,7 @@ def get_test_config(
 @pytest.mark.parametrize(
     "dataset_path",
     [
-        "hub://activeloop/coco-train",
+        # "hub://activeloop/coco-train",
         "hub://adilkhan/balloon-train",
     ],
 )
@@ -339,8 +375,41 @@ def test_mmdet(mmdet_path, model_name, dataset_path, tensors_specified):
         deeplake_tensors = get_deeplake_tensors(dataset_path, model_name)
     cfg = get_test_config(mmdet_path, model_name=model_name, dataset_path=dataset_path)
     cfg = process_cfg(cfg, model_name, dataset_path)
-    ds_train = dp.load(dataset_path)[:1]
-    ds_val = dp.load(dataset_path)[:1]
+    ds_train = dp.load(dataset_path)[:2]
+    ds_val = dp.load(dataset_path)[:2]
+    if dataset_path == "hub://adilkhan/balloon-train":
+        ds_train_with_none = dp.empty("ds_train", overwrite=True)
+        ds_val_with_none = dp.empty("ds_val", overwrite=True)
+
+        ds_train_with_none.create_tensor_like("images", ds_train.images)
+        ds_train_with_none.create_tensor_like("bounding_boxes", ds_train.bounding_boxes)
+        ds_train_with_none.create_tensor_like(
+            "segmentation_polygons", ds_train.segmentation_polygons
+        )
+        ds_train_with_none.create_tensor_like("labels", ds_train.labels)
+
+        ds_val_with_none.create_tensor_like("images", ds_val.images)
+        ds_val_with_none.create_tensor_like("bounding_boxes", ds_val.bounding_boxes)
+        ds_val_with_none.create_tensor_like(
+            "segmentation_polygons", ds_val.segmentation_polygons
+        )
+        ds_val_with_none.create_tensor_like("labels", ds_val.labels)
+
+        ds_train_with_none.append(ds_train[0])
+        ds_train_with_none.images.append(ds_train.images[1])
+        ds_train_with_none.bounding_boxes.append(None)
+        ds_train_with_none.segmentation_polygons.append(None)
+        ds_train_with_none.labels.append(None)
+
+        ds_val_with_none.append(ds_val[0])
+        ds_val_with_none.images.append(ds_val.images[1])
+        ds_val_with_none.bounding_boxes.append(None)
+        ds_val_with_none.segmentation_polygons.append(None)
+        ds_val_with_none.labels.append(None)
+
+        ds_train = ds_train_with_none
+        ds_val = ds_val_with_none
+
     model = mmdet.build_detector(cfg.model)
     mmcv.mkdir_or_exist(os.path.abspath(cfg.work_dir))
     mmdet.train_detector(

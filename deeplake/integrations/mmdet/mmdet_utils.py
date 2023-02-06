@@ -98,9 +98,12 @@ class _COCO(pycocotools_coco.COCO):
             for bbox_index, bbox in enumerate(bboxes):
                 if self.masks is not None and self.masks != []:
                     if self.masks.htype == "binary_mask":
-                        mask = _mask.encode(
-                            np.asfortranarray(masks[..., bbox_index].numpy())
-                        )
+                        if masks.size == 0:
+                            mask = _mask.encode(np.asfortranarray(masks.numpy()))
+                        else:
+                            mask = _mask.encode(
+                                np.asfortranarray(masks[..., bbox_index].numpy())
+                            )
                     elif self.masks.htype == "polygon":
                         mask = convert_poly_to_coco_format(masks.numpy()[bbox_index])
                     else:
