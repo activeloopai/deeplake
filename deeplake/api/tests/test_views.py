@@ -59,11 +59,7 @@ def test_view_token_only(
     loaded = ds.load_view("25to100")
     np.testing.assert_array_equal(loaded.images.numpy(), ds[25:100].images.numpy())
     np.testing.assert_array_equal(loaded.labels.numpy(), ds[25:100].labels.numpy())
-    ds_name = posixpath.split(loaded.path)[-1]
-    assert (
-        loaded._vds.path
-        == f"hub://{username}/queries/.queries/[{username}][{ds_name}]25to100"
-    )
+    assert loaded._vds.path == posixpath.join(hub_cloud_path, ".queries/25to100")
 
     ds.delete_view("25to100")
     deeplake.delete(hub_cloud_path, token=hub_cloud_dev_token)

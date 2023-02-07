@@ -2962,14 +2962,25 @@ class Dataset:
                     )
                 if self.read_only and not (self._view_base or self)._locked_out:
                     if isinstance(self, deeplake.core.dataset.DeepLakeCloudDataset):
-                        vds = self._save_view_in_user_queries_dataset(
-                            id,
-                            message,
-                            optimize,
-                            tensors,
-                            num_workers,
-                            scheduler,
-                        )
+                        try:
+                            with self._temp_write_access():
+                                vds = self._save_view_in_subdir(
+                                    id,
+                                    message,
+                                    optimize,
+                                    tensors,
+                                    num_workers,
+                                    scheduler,
+                                )
+                        except ReadOnlyModeError:
+                            vds = self._save_view_in_user_queries_dataset(
+                                id,
+                                message,
+                                optimize,
+                                tensors,
+                                num_workers,
+                                scheduler,
+                            )
                     else:
                         raise ReadOnlyModeError(
                             "Cannot save view in read only dataset. Speicify a path to save the view in a different location."
