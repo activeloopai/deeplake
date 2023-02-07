@@ -8,6 +8,7 @@ import numpy as np
 from os import urandom
 from PIL import Image  # type: ignore
 from deeplake.core.linked_sample import read_linked_sample
+from deeplake.compression import IMAGE_COMPRESSION, get_compression_type
 import tqdm  # type: ignore
 
 optional_kwargs = {
@@ -111,8 +112,29 @@ def update_shape(new_sample, link_creds=None, tensor_meta=None):
             getattr(new_sample, "shape", None) or np.array(new_sample).shape,
             dtype=np.int64,
         )
-    if tensor_meta and tensor_meta.is_link and ret.size and np.prod(ret):
-        tensor_meta.update_shape_interval(ret.tolist())
+
+    if tensor_meta:
+        if tensor_meta.is_link and ret.size and np.prod(ret):
+            tensor_meta.update_shape_interval(ret.tolist())
+
+        # if grayscale being appended but tensor has rgb samples, convert shape from (h, w) to (h, w, 1)
+        if (
+            tensor_meta.min_shape
+            and (
+                tensor_meta.htype == "image"
+                or (
+                    IMAGE_COMPRESSION
+                    in map(
+                        get_compression_type,
+                        (tensor_meta.sample_compression, tensor_meta.chunk_compression),
+                    )
+                )
+            )
+            and ret.shape == (2,)
+            and len(tensor_meta.min_shape) == 3
+        ):
+            ret = np.concatenate([ret, (1,)])
+
     return ret
 
 
@@ -179,7 +201,9 @@ def extend_downsample(samples, factor, compression, htype, link_creds=None):
         convert_sample_for_downsampling(sample, link_creds) for sample in samples
     ]
     return [
-        deeplake.util.downsample.downsample_sample(sample, factor, compression, htype)
+        deeplake.util.downsample.downsample_sample(
+            sample, factor, compression, htype, False, link_creds
+        )
         for sample in samples
     ]
 
@@ -200,7 +224,7 @@ def update_downsample(
             if not isinstance(index_entry.value, slice):
                 return _NO_LINK_UPDATE
     downsampled = deeplake.util.downsample.downsample_sample(
-        new_sample, factor, compression, htype, partial
+        new_sample, factor, compression, htype, partial, link_creds
     )
     if partial:
         downsampled_sub_index = sub_index.downsample(factor, downsampled.shape)

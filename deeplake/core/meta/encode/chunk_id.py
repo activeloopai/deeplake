@@ -21,7 +21,8 @@ class ChunkIdEncoder(Encoder, DeepLakeMemoryObject):
     @staticmethod
     def name_from_id(id) -> str:
         """Returns the hex of `id` with the "0x" prefix removed. This is the chunk's name and should be used to determine the chunk's key.
-        Can convert back into `id` using `id_from_name`. You can get the `id` for a chunk using `__getitem__`."""
+        Can convert back into `id` using `id_from_name`. You can get the `id` for a chunk using `__getitem__`.
+        """
         return hex(id)[2:]
 
     @staticmethod

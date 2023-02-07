@@ -275,7 +275,7 @@ class LinkedChunkEngine(ChunkEngine):
                         # during transforms verification takes most time
                         pg_callback(1)
                 except Exception as e:
-                    raise BadLinkError from e
+                    raise BadLinkError(sample.path, sample.creds_key) from e
         return verified_samples
 
     def register_new_creds(self, num_samples_added, samples):

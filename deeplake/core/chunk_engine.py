@@ -1047,7 +1047,6 @@ class ChunkEngine:
         self.cache.maybe_flush()
 
     def _create_new_chunk(self, register=True, row: Optional[int] = None) -> BaseChunk:
-
         """Creates and returns a new `Chunk`. Automatically creates an ID for it and puts a reference in the cache."""
         chunk_id = self.chunk_id_encoder.generate_chunk_id(register=register, row=row)
         chunk = self.chunk_class(*self.chunk_args)  # type: ignore
@@ -2378,7 +2377,9 @@ class ChunkEngine:
                                         or (1,)
                                     )
 
-                        except IndexError:  # Happens during transforms, sample shape tensor is not populated yet
+                        except (
+                            IndexError
+                        ):  # Happens during transforms, sample shape tensor is not populated yet
                             shape = self.read_shape_for_sample(idxs[0].value)  # type: ignore
                     else:
                         self.check_link_ready()
