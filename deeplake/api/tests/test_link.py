@@ -85,7 +85,6 @@ def test_link_creds(request):
     with pytest.raises(KeyError):
         link_creds.populate_creds("ghi", {})
 
-    assert link_creds.get_encoding("ENV") == 0
     assert link_creds.get_encoding(None) == 0
     with pytest.raises(ValueError):
         link_creds.get_encoding(None, "s3://my_bucket/my_key")
@@ -115,7 +114,7 @@ def test_link_creds(request):
     if is_opt_true(request, GCS_OPT):
         assert isinstance(link_creds.get_storage_provider("def", "gcs"), GCSProvider)
         assert isinstance(link_creds.get_storage_provider("def", "gcs"), GCSProvider)
-        assert isinstance(link_creds.get_storage_provider("ENV", "gcs"), GCSProvider)
+        assert isinstance(link_creds.get_storage_provider(None, "gcs"), GCSProvider)
     if is_opt_true(request, S3_OPT):
         assert isinstance(link_creds.get_storage_provider("abc", "s3"), S3Provider)
         assert isinstance(link_creds.get_storage_provider("abc", "s3"), S3Provider)
@@ -189,8 +188,6 @@ def test_none_used_key(local_ds_generator, cat_path):
         ds.add_creds_key("my_s3_key")
         ds.populate_creds("my_s3_key", {})
         ds.xyz.append(deeplake.link(cat_path))
-        assert ds.link_creds.used_creds_keys == set()
-        ds.xyz.append(deeplake.link(cat_path, "ENV"))
         assert ds.link_creds.used_creds_keys == set()
         ds.xyz.append(deeplake.link(cat_path, "my_s3_key"))
         assert ds.link_creds.used_creds_keys == {"my_s3_key"}

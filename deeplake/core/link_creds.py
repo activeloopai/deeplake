@@ -23,7 +23,7 @@ class LinkCreds(DeepLakeMemoryObject):
         self.org_id = None
 
     def get_creds(self, key: Optional[str]):
-        if key in {"ENV", None}:
+        if key is None:
             return {}
         if key not in self.creds_keys:
             raise KeyError(f"Creds key {key} does not exist")
@@ -60,7 +60,7 @@ class LinkCreds(DeepLakeMemoryObject):
 
     def get_storage_provider(self, key: Optional[str], provider_type: str):
         assert provider_type in {"s3", "gcs"}
-        if key in {"ENV", None}:
+        if key is None:
             return self.get_default_provider(provider_type)
 
         provider: StorageProvider
@@ -158,12 +158,13 @@ class LinkCreds(DeepLakeMemoryObject):
             obj.creds_mapping = {k: i + 1 for i, k in enumerate(obj.creds_keys)}
             obj.managed_creds_keys = set(d["managed_creds_keys"])
             obj.used_creds_keys = set(d["used_creds_keys"])
+            if "ENV" in obj.used_creds_keys:
+                obj.creds_keys = ["ENV"] + obj.creds_keys
+                obj.creds_mapping["ENV"] = 0                
         obj.is_dirty = False
         return obj
 
     def get_encoding(self, key: Optional[str] = None, path: Optional[str] = None):
-        if key == "ENV":
-            return 0
         if key is None:
             if path and path.startswith(ALL_CLOUD_PREFIXES):
                 raise ValueError("Creds key must always be specified for cloud storage")

@@ -3,15 +3,12 @@ from deeplake.util.path import get_path_type
 import deeplake
 import numpy as np
 
-from deeplake.util.creds import convert_creds_key
-
-
 class LinkedSample:
     """Represents a sample that is initialized using external links. See :meth:`deeplake.link`."""
 
     def __init__(self, path: str, creds_key: Optional[str] = None):
         self.path = path
-        self.creds_key = convert_creds_key(creds_key, path)
+        self.creds_key = creds_key
 
     @property
     def dtype(self) -> str:
