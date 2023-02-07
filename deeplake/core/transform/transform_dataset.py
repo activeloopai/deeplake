@@ -8,6 +8,7 @@ from itertools import chain
 
 import numpy as np
 
+import deeplake.util.transform as transform_util
 import posixpath
 import bisect
 
@@ -185,8 +186,9 @@ class TransformDataset:
                     items = tensor[:].numpy_compressed()
                     for item in items:
                         chunk_engine.extend(
-                            item, link_callback=callback, pg_callback=self.pg_callback
+                            item, link_callback=callback, pg_callback=None
                         )
+                        self.pg_callback(1)
                 else:
                     chunk_engine.extend(
                         tensor[:].numpy_compressed(),

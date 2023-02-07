@@ -175,7 +175,7 @@ def store_data_slice_with_pbar(pg_callback, transform_input: Tuple) -> Dict:
                 out_tensor = out[tensor]
                 transform_tensor = transform_dataset[tensor]
                 if transform_tensor.numpy_only and out_tensor.numpy_only:
-                    transform_tensor.extend(out_tensor.items)
+                    transform_tensor.items.extend(out_tensor.items)
                 else:
                     out_tensor.non_numpy_only()
                     transform_tensor.extend(out_tensor.items)
