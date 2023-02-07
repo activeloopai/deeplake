@@ -12,7 +12,7 @@ from deeplake.util.keys import get_dataset_lock_key
 from deeplake.util.remove_cache import get_base_storage
 from deeplake.util.path import get_path_from_storage
 from deeplake.util.threading import terminate_thread
-from deeplake.core.storage import StorageProvider
+from deeplake.core.storage import StorageProvider, LocalProvider, MemoryProvider
 from deeplake.constants import FIRST_COMMIT_ID
 from deeplake.client.utils import get_user_name
 
@@ -36,6 +36,11 @@ def _parse_lock_bytes(byts) -> Tuple[int, int, bytes]:
 class Lock(object):
     def __init__(self, storage: StorageProvider, path: str):
         self.storage = storage
+        self._lock_verify_interval = (
+            0.01
+            if isinstance(storage, (LocalProvider, MemoryProvider))
+            else deeplake.constants.LOCK_VERIFY_INTERVAL
+        )
         self.path = path
         username = get_user_name()
         if username == "public":
@@ -68,7 +73,7 @@ class Lock(object):
                 locked = False
             if not locked:
                 self._write_lock()
-                time.sleep(deeplake.constants.LOCK_VERIFY_INTERVAL)
+                time.sleep(self._lock_verify_interval)
                 nodeid, _, tag = _parse_lock_bytes(storage[path])
                 if self.tag == tag and nodeid == uuid.getnode():
                     return
@@ -77,7 +82,7 @@ class Lock(object):
             if time.time() - timestamp >= timeout:
                 if force:
                     self._write_lock()
-                    time.sleep(deeplake.constants.LOCK_VERIFY_INTERVAL)
+                    time.sleep(self._lock_verify_interval)
                     nodeid, _, tag = _parse_lock_bytes(storage[path])
                     if self.tag == tag and nodeid == uuid.getnode():
                         return
