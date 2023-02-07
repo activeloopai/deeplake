@@ -1277,6 +1277,7 @@ class dataset:
         dest_creds: Optional[Dict] = None,
         progressbar: bool = True,
         summary: bool = True,
+        num_workers: int = 0,
         token: Optional[str] = None,
         connect_kwargs: Optional[Dict] = None,
         **dataset_kwargs,
@@ -1295,6 +1296,7 @@ class dataset:
             dest_creds (Optional[Dict]): A dictionary containing credentials used to access the destination path of the dataset.
             progressbar (bool): Enables or disables ingestion progress bar. Defaults to ``True``.
             summary (bool): If ``True``, a summary of skipped files will be printed after completion. Defaults to ``True``.
+            num_workers (int): The number of workers to use for ingestion. Set to ``0`` by default.
             token (Optional[str]): The token to use for accessing the dataset.
             connect_kwargs (Optional[Dict]): If specified, the dataset will be connected to Deep Lake, and connect_kwargs will be passed to :meth:`Dataset.connect <deeplake.core.dataset.Dataset.connect>`.
             **dataset_kwargs: Any arguments passed here will be forwarded to the dataset creator function see :func:`deeplake.empty`.
@@ -1408,6 +1410,7 @@ class dataset:
                 generate_summary=summary,
                 image_tensor_args=image_params,
                 label_tensor_args=label_params,
+                num_workers=num_workers,
             )
 
         return ds  # type: ignore

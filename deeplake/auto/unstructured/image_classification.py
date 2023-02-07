@@ -1,9 +1,8 @@
-import warnings
 import numpy as np
 from pathlib import Path
 import os
 import glob
-from typing import Dict, List, Sequence, Tuple, Union
+from typing import List, Tuple, Union
 
 from deeplake.util.auto import ingestion_summary
 from deeplake.util.exceptions import (
@@ -11,8 +10,6 @@ from deeplake.util.exceptions import (
     TensorInvalidSampleShapeError,
 )
 from deeplake.core.dataset import Dataset
-
-from tqdm import tqdm  # type: ignore
 
 from .base import UnstructuredDataset
 
@@ -83,12 +80,12 @@ class ImageClassification(UnstructuredDataset):
         return tuple(sorted(set_names))  # TODO: lexicographical sorting
 
     # TODO: make lazy/memoized property
-    def get_class_names(self) -> Tuple[str, ...]:
+    def get_class_names(self) -> List[str]:
         # TODO: move outside class
         class_names = set()
         for file_path in self._abs_file_paths:
             class_names.add(_class_name_from_path(file_path))
-        return tuple(sorted(class_names))  # TODO: lexicographical sorting
+        return list(sorted(class_names))  # TODO: lexicographical sorting
 
     def structure(  # type: ignore
         self,
@@ -97,15 +94,17 @@ class ImageClassification(UnstructuredDataset):
         generate_summary: bool = True,
         image_tensor_args: dict = {},
         label_tensor_args: dict = {},
+        num_workers: int = 0,
     ) -> Dataset:
         """Create a structured dataset.
 
         Args:
-            ds (Dataset) : A Deep Lake dataset object.
+            ds (Dataset): A Deep Lake dataset object.
             progressbar (bool): Defines if the method uses a progress bar. Defaults to True.
             generate_summary (bool): Defines if the method generates ingestion summary. Defaults to True.
             image_tensor_args (dict): Defines the parameters for the images tensor.
             label_tensor_args (dict): Defines the parameters for the class_labels tensor.
+            num_workers (int): The number of workers passed to compute.
 
         Returns:
             A Deep Lake dataset.
@@ -143,47 +142,36 @@ class ImageClassification(UnstructuredDataset):
                 **label_tensor_args,
             )
 
-            paths = self._abs_file_paths
-            skipped_files: list = []
+        paths = self._abs_file_paths
+        skipped_files: List[str] = []
 
-            iterator = tqdm(
-                paths,
-                desc='Ingesting "%s" (%i files skipped)'
-                % (self.source.name, len(skipped_files)),
-                total=len(paths),
-                disable=not progressbar,
-            )
+        @deeplake.compute
+        def ingest_classification(file_path: Path, ds: Dataset):
+            image = deeplake.read(file_path)
+            class_name = _class_name_from_path(file_path)
+            set_name = _set_name_from_path(file_path) if use_set_prefix else ""
 
-        with ds, iterator:
-            for file_path in iterator:
-                image = deeplake.read(file_path)
+            # if appending fails because of a shape mismatch, expand dims (might also fail)
+            try:
+                ds[images_tensor_map[set_name]].append(image)
+            except TensorInvalidSampleShapeError:
+                im = image.array
+                reshaped_image = np.expand_dims(im, -1)
+                ds[images_tensor_map[set_name]].append(reshaped_image)
+            except Exception:
+                skipped_files.append(file_path.name)
+                ds[images_tensor_map[set_name]].append(None)
 
-                class_name = _class_name_from_path(file_path)
+            ds[labels_tensor_map[set_name]].append(class_name)
 
-                label = np.uint32(self.class_names.index(class_name))
+        ingest_classification().eval(
+            paths,
+            ds,
+            skip_ok=True,
+            progressbar=progressbar,
+            num_workers=num_workers,
+        )
 
-                set_name = _set_name_from_path(file_path) if use_set_prefix else ""
-
-                # TODO: try to get all len(shape)s to match.
-                # if appending fails because of a shape mismatch, expand dims (might also fail)
-                try:
-                    ds[images_tensor_map[set_name]].append(image)
-
-                except TensorInvalidSampleShapeError:
-                    im = image.array
-                    reshaped_image = np.expand_dims(im, -1)
-                    ds[images_tensor_map[set_name]].append(reshaped_image)
-
-                except Exception:
-                    skipped_files.append(file_path.name)
-                    iterator.set_description(
-                        'Ingesting "%s" (%i files skipped)'
-                        % (self.source.name, len(skipped_files))
-                    )
-                    continue
-
-                ds[labels_tensor_map[set_name]].append(label)
-
-            if generate_summary:
-                ingestion_summary(str(self.source), skipped_files)
-            return ds
+        if generate_summary:
+            ingestion_summary(str(self.source), skipped_files)
+        return ds
