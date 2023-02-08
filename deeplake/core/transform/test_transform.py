@@ -804,6 +804,35 @@ def test_inplace_transform_non_head(local_ds_generator):
         check_target_array(ds, i, target)
 
 
+def test_inplace_transform_bug(local_ds_generator):
+    ds = local_ds_generator()
+    with ds:
+        ds.create_tensor("id")
+        ds.id.extend([1, 2, 3])
+
+        ds.create_tensor("positive")
+        ds.create_tensor("negative")
+
+    @deeplake.compute
+    def construct(sample_in, sample_out):
+        sample_out.append({"positive": [1, 2, 3], "negative": [4, 5, 6]})
+
+    for _ in range(0, ds.max_len):
+        construct().eval(
+            ds,
+            skip_ok=True,
+            check_lengths=False,
+            pad_data_in=True,
+        )
+
+    np.testing.assert_array_equal(
+        ds.positive.numpy(), np.array([[1, 2, 3], [1, 2, 3], [1, 2, 3]])
+    )
+    np.testing.assert_array_equal(
+        ds.negative.numpy(), np.array([[4, 5, 6], [4, 5, 6], [4, 5, 6]])
+    )
+
+
 def test_inplace_transform_clear_chunks(local_ds_generator):
     ds = local_ds_generator()
 
