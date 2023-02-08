@@ -18,7 +18,7 @@ def raise_indra_installation_error(indra_import_error: Optional[Exception] = Non
 def verify_base_storage(dataset):
     if isinstance(dataset.base_storage, (GDriveProvider, MemoryProvider)):
         raise ValueError(
-            "Google Drive and Memory datasets are not supported for experimental features currently."
+            "Google Drive and Memory datasets are not supported for enterprise features currently."
         )
 
 

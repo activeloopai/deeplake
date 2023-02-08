@@ -52,10 +52,7 @@ def index_transform(sample):
 @requires_libdeeplake
 @pytest.mark.parametrize(
     "dataset",
-    [
-        "hub_cloud_ds",
-        "hub_cloud_gcs_ds"
-    ],
+    ["hub_cloud_ds", "hub_cloud_gcs_ds"],
     indirect=True,
 )
 def test_pytorch_small(dataset):
@@ -63,14 +60,10 @@ def test_pytorch_small(dataset):
         dataset.create_tensor("image", max_chunk_size=PYTORCH_TESTS_MAX_CHUNK_SIZE)
         dataset.image.extend(([i * np.ones((i + 1, i + 1)) for i in range(16)]))
         dataset.commit()
-        dataset.create_tensor(
-            "image2", max_chunk_size=PYTORCH_TESTS_MAX_CHUNK_SIZE
-        )
+        dataset.create_tensor("image2", max_chunk_size=PYTORCH_TESTS_MAX_CHUNK_SIZE)
         dataset.image2.extend(np.array([i * np.ones((12, 12)) for i in range(16)]))
 
-    if isinstance(
-        get_base_storage(dataset.storage), (MemoryProvider, GCSProvider)
-    ):
+    if isinstance(get_base_storage(dataset.storage), (MemoryProvider, GCSProvider)):
         with pytest.raises(ValueError):
             dl = dataset.dataloader()
         return
