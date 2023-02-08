@@ -3638,9 +3638,6 @@ class Dataset:
             InvalidSourcePathError: If the dataset's path is not a valid s3 or gcs path.
             InvalidDestinationPathError: If ``dest_path``, or ``org_id`` and ``ds_name`` do not form a valid Deep Lake path.
         """
-        self.__class__ = (
-            deeplake.core.dataset.deeplake_cloud_dataset.DeepLakeCloudDataset
-        )
         path = connect_dataset_entry(
             src_path=self.path,
             dest_path=dest_path,
@@ -3648,6 +3645,9 @@ class Dataset:
             ds_name=ds_name,
             creds_key=creds_key,
             token=token,
+        )
+        self.__class__ = (
+            deeplake.core.dataset.deeplake_cloud_dataset.DeepLakeCloudDataset
         )
         self._token = token
         self.path = path
