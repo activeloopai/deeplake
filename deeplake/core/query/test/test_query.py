@@ -82,7 +82,6 @@ def test_query(sample_ds, query, results):
 
 
 def test_different_size_ds_query(local_ds):
-
     with local_ds as ds:
         ds.create_tensor("images")
         ds.create_tensor("labels")
@@ -239,10 +238,7 @@ def test_inplace_dataset_view_save(
     assert indices == list(view2.sample_indices)
     if ds.path.startswith("hub://"):
         assert vds_path.startswith("hub://")
-        if read_only:
-            assert vds_path[6:].split("/")[1] == "queries"
-        else:
-            assert ds.path + "/.queries/" in vds_path
+        assert ds.path + "/.queries/" in vds_path
     for t in view.tensors:
         np.testing.assert_array_equal(view[t].numpy(), view2[t].numpy())
     ds_orig = ds

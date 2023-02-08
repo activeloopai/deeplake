@@ -369,7 +369,8 @@ def compress_multiple(
     arrays: Sequence[np.ndarray], compression: Optional[str]
 ) -> bytes:
     """Compress multiple arrays of different shapes into a single buffer. Used for chunk wise compression.
-    The arrays are tiled horizontally and padded with zeros to fit in a bounding box, which is then compressed."""
+    The arrays are tiled horizontally and padded with zeros to fit in a bounding box, which is then compressed.
+    """
     if len(arrays) == 0:
         return b""
     dtype = None
@@ -817,7 +818,8 @@ def _decompress_dicom(f: Union[str, bytes, BinaryIO]):
 
 def _read_png_shape_and_dtype(f: Union[bytes, BinaryIO]) -> Tuple[Tuple[int, ...], str]:
     """Reads shape and dtype of a png file from a file like object or file contents.
-    If a file like object is provided, all of its contents are NOT loaded into memory."""
+    If a file like object is provided, all of its contents are NOT loaded into memory.
+    """
     if not hasattr(f, "read"):
         f = BytesIO(f)  # type: ignore
     f.seek(16)  # type: ignore

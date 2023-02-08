@@ -97,7 +97,6 @@ def get_diff_helper(
 
 
 def compare_tensor_dict(d1, d2):
-
     for key in d1:
         if key == "data_added" and d1[key] != d2[key]:
             assert d1[key][1] - d1[key][0] == 0

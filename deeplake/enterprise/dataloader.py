@@ -20,9 +20,11 @@ import importlib
 
 try:
     from torch.utils.data.dataloader import DataLoader, _InfiniteConstantSampler
+    from torch.utils.data.distributed import DistributedSampler
 except ImportError:
     DataLoader = object  # type: ignore
     _InfiniteConstantSampler = None  # type: ignore
+    DistributedSampler = None  # type: ignore
 
 import numpy as np
 
@@ -108,6 +110,7 @@ class DeepLakeDataLoader(DataLoader):
 
         # torch.utils.data.DataLoader attributes
         self.__initialized = True
+        self._IterableDataset_len_called = None
         self._iterator = None
 
     @property
@@ -131,12 +134,48 @@ class DeepLakeDataLoader(DataLoader):
         return False
 
     @property
+    def pin_memory_device(self):
+        return ""
+
+    @property
     def timeout(self):
         return 0
 
     @property
+    def worker_init_fn(self):
+        return None
+
+    @property  # type: ignore
+    def multiprocessing_context(self):
+        return None
+
+    @property
+    def _dataset_kind(self):
+        return 1
+
+    @property
     def sampler(self):
         return _InfiniteConstantSampler()
+
+    @property
+    def batch_sampler(self):
+        return DistributedSampler if self._distributed else None
+
+    @property
+    def generator(self):
+        return None
+
+    @property
+    def persistent_workers(self):
+        return self._persistent_workers or False
+
+    @property
+    def _auto_collation(self):
+        return False
+
+    @property
+    def _index_sampler(self):
+        return self.sampler
 
     @property
     def collate_fn(self):

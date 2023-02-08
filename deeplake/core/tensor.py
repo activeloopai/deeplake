@@ -274,7 +274,6 @@ class Tensor:
         samples: Union[np.ndarray, Sequence[InputSample], "Tensor"],
         progressbar: bool = False,
     ):
-
         """Extends the end of the tensor by appending multiple elements from a sequence. Accepts a sequence, a single batched numpy array,
         or a sequence of :func:`deeplake.read` outputs, which can be used to load files. See examples down below.
 
@@ -679,7 +678,6 @@ class Tensor:
                 update_link_callback=update_link_callback,
             )
         else:
-
             if not item_index.values[0].subscriptable() and not self.is_sequence:
                 # we're modifying a single sample, convert it to a list as chunk engine expects multiple samples
                 value = [value]
@@ -1016,24 +1014,27 @@ class Tensor:
     @property
     def _sample_info_tensor(self):
         ds = self.dataset
+        tensor_name = self.meta.name or self.key
         return ds.version_state["full_tensors"].get(
             ds.version_state["tensor_names"].get(
-                get_sample_info_tensor_key(self.meta.name)
+                get_sample_info_tensor_key(tensor_name)
             )
         )
 
     @property
     def _sample_shape_tensor(self):
         ds = self.dataset
+        tensor_name = self.meta.name or self.key
         return ds.version_state["full_tensors"].get(
             ds.version_state["tensor_names"].get(
-                get_sample_shape_tensor_key(self.meta.name)
+                get_sample_shape_tensor_key(tensor_name)
             )
         )
 
     @property
     def _sample_id_tensor(self):
-        return self.dataset._tensors().get(get_sample_id_tensor_key(self.meta.name))
+        tensor_name = self.meta.name or self.key
+        return self.dataset._tensors().get(get_sample_id_tensor_key(tensor_name))
 
     def _sample_shape_provider(self, sample_shape_tensor) -> Callable:
         if self.is_sequence:

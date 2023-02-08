@@ -32,6 +32,8 @@ Deep Lake is an open-source database for AI.
 
    Weights and Biases <Weights-and-Biases>
 
+   MMDetection <MMDetection>
+
 .. toctree::
    :maxdepth: 1
    :caption: Enterprise Features

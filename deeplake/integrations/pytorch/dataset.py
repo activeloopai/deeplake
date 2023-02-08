@@ -144,7 +144,6 @@ def _worker_loop(
         requested: int = 0  # indicate value of samples requested from worker
 
         while watchdog.is_alive():
-
             # publish requested data
             if not iteration_end and requested > 0:
                 try:
@@ -361,7 +360,6 @@ class ShufflingIterableDataset(torch.utils.data.IterableDataset):
         num_workers: int = 1,
         buffer_size: int = 0,
     ) -> None:
-
         super().__init__()
 
         assert num_workers >= 1

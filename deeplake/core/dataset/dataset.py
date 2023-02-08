@@ -87,6 +87,7 @@ from deeplake.util.exceptions import (
     DatasetTooLargeToDelete,
     TensorTooLargeToDelete,
     GroupInfoNotSupportedError,
+    TokenPermissionError,
 )
 from deeplake.util.keys import (
     dataset_exists,
@@ -123,6 +124,8 @@ from deeplake.util.version_control import (
     load_version_info,
     copy_metas,
     create_commit_chunk_sets,
+    save_version_info,
+    generate_hash,
 )
 from deeplake.util.pretty_print import summary_dataset
 from deeplake.core.dataset.view_entry import ViewEntry
@@ -2768,7 +2771,8 @@ class Dataset:
 
         if username == "public":
             raise DatasetViewSavingError(
-                "Unable to save view for read only dataset. Login to save the view to your user account."
+                "You are not logged in. Please login through the activeloop CLI or provide an API token using the `token` "
+                "parameter when loading the dataset to save the view to your user account."
             )
 
         info = self._get_view_info(id, message, copy)
@@ -2782,18 +2786,23 @@ class Dataset:
             queries_ds = deeplake.load(
                 queries_ds_path,
                 verbose=False,
+                token=self.token,
             )  # create if doesn't exist
         except PathNotEmptyException:
-            deeplake.delete(queries_ds_path, force=True)
-            queries_ds = deeplake.empty(queries_ds_path, verbose=False)
+            deeplake.delete(queries_ds_path, force=True, token=self.token)
+            queries_ds = deeplake.empty(
+                queries_ds_path, verbose=False, token=self.token
+            )
         except DatasetHandlerError:
-            queries_ds = deeplake.empty(queries_ds_path, verbose=False)
+            queries_ds = deeplake.empty(
+                queries_ds_path, verbose=False, token=self.token
+            )
 
         queries_ds._unlock()  # we don't need locking as no data will be added to this ds.
 
         path = f"hub://{username}/queries/{hash}"
 
-        vds = deeplake.empty(path, overwrite=True, verbose=False)
+        vds = deeplake.empty(path, overwrite=True, verbose=False, token=self.token)
 
         self._write_vds(vds, info, copy, tensors, num_workers, scheduler)
         queries_ds._append_to_queries_json(info)
@@ -2953,9 +2962,25 @@ class Dataset:
                     )
                 if self.read_only and not (self._view_base or self)._locked_out:
                     if isinstance(self, deeplake.core.dataset.DeepLakeCloudDataset):
-                        vds = self._save_view_in_user_queries_dataset(
-                            id, message, optimize, tensors, num_workers, scheduler
-                        )
+                        try:
+                            with self._temp_write_access():
+                                vds = self._save_view_in_subdir(
+                                    id,
+                                    message,
+                                    optimize,
+                                    tensors,
+                                    num_workers,
+                                    scheduler,
+                                )
+                        except ReadOnlyModeError:
+                            vds = self._save_view_in_user_queries_dataset(
+                                id,
+                                message,
+                                optimize,
+                                tensors,
+                                num_workers,
+                                scheduler,
+                            )
                     else:
                         raise ReadOnlyModeError(
                             "Cannot save view in read only dataset. Speicify a path to save the view in a different location."
@@ -3003,7 +3028,11 @@ class Dataset:
             self._parent_dataset[Index()]
             if (inherit_creds and self._parent_dataset)
             else deeplake.load(
-                self.info["source-dataset"], verbose=False, creds=creds, read_only=True
+                self.info["source-dataset"],
+                verbose=False,
+                creds=creds,
+                read_only=True,
+                token=self._token,
             )
         )
 
@@ -3044,17 +3073,23 @@ class Dataset:
         return view._save_view(vds_path, _ret_ds=True, **vds_args)
 
     @staticmethod
-    def _get_queries_ds_from_user_account():
-        username = get_user_name()
+    def _get_queries_ds_from_user_account(token: Optional[str] = None):
+        if token:
+            username = jwt.decode(token, options={"verify_signature": False})["id"]
+        else:
+            username = get_user_name()
+
         if username == "public":
             return
         try:
-            return deeplake.load(f"hub://{username}/queries", verbose=False)
+            return deeplake.load(
+                f"hub://{username}/queries", verbose=False, token=token
+            )
         except DatasetHandlerError:
             return
 
     def _read_queries_json_from_user_account(self):
-        queries_ds = Dataset._get_queries_ds_from_user_account()
+        queries_ds = Dataset._get_queries_ds_from_user_account(self.token)
         if not queries_ds:
             return [], None
         return (
@@ -3184,19 +3219,23 @@ class Dataset:
             KeyError: if view with given id does not exist.
         """
 
-        with self._lock_queries_json():
-            qjson = self._read_queries_json()
-            for i, q in enumerate(qjson):
-                if q["id"] == id:
-                    qjson.pop(i)
-                    self.base_storage.subdir(
-                        ".queries/" + (q.get("path") or q["id"])
-                    ).clear()
-                    self._write_queries_json(qjson)
-                    return
+        try:
+            with self._lock_queries_json():
+                qjson = self._read_queries_json()
+                for i, q in enumerate(qjson):
+                    if q["id"] == id:
+                        qjson.pop(i)
+                        self.base_storage.subdir(
+                            ".queries/" + (q.get("path") or q["id"])
+                        ).clear()
+                        self._write_queries_json(qjson)
+                        return
+        # not enough permissions to acquire lock
+        except TokenPermissionError:
+            pass
 
         if self.path.startswith("hub://"):
-            qds = Dataset._get_queries_ds_from_user_account()
+            qds = Dataset._get_queries_ds_from_user_account(self.token)
             if qds:
                 with qds._lock_queries_json():
                     qjson = qds._read_queries_json()
@@ -3219,6 +3258,7 @@ class Dataset:
         read_only=None,
         lock=True,
         verbose=True,
+        token=None,
     ):
         """Loads a nested dataset. Internal.
 
@@ -3230,6 +3270,7 @@ class Dataset:
             read_only (bool): Loads the sub dataset in read only mode if ``True``. Default ``False``.
             lock (bool): Whether the dataset should be locked for writing. Only applicable for S3, Deep Lake and GCS datasets. No effect if ``read_only=True``.
             verbose (bool): If ``True``, logs will be printed. Defaults to ``True``.
+            token (Optional[str]): Token of source dataset.
 
         Returns:
             Sub dataset
@@ -3256,7 +3297,7 @@ class Dataset:
                 local_cache_size * MB,
             ),
             path=path,
-            token=self._token,
+            token=token,
             read_only=read_only,
             lock=lock,
             verbose=verbose,
@@ -3532,45 +3573,41 @@ class Dataset:
             print("There are no uncommitted changes on this branch.")
             return
 
-        # delete metas first
-        self._delete_metas()
-
         if self.commit_id is None:
             storage.clear()
             self._populate_meta()
+            load_meta(self)
         else:
-            prefix = "/".join(("versions", self.pending_commit_id))
-            storage.clear(prefix=prefix)
-            src_id, dest_id = self.commit_id, self.pending_commit_id
+            reset_commit_id = self.pending_commit_id
+            deletion_folder = "/".join(("versions", reset_commit_id))
+            new_commit_id = generate_hash()
+            new_branch = self.branch
 
-            # by doing this checkout, we get list of tensors in previous commit, which is what we require for copying metas and create_commit_chunk_set
-            self.checkout(src_id)
-            copy_metas(src_id, dest_id, storage, version_state)
-            create_commit_chunk_sets(dest_id, storage, version_state)
-            self.checkout(dest_id)
-        load_meta(self)
+            parent_commit_id = self.commit_id
 
-    def _delete_metas(self):
-        """Deletes all metas in the dataset."""
-        commit_id = self.pending_commit_id
-        meta_keys = [get_dataset_meta_key(commit_id)]
-        meta_keys.append(get_dataset_diff_key(commit_id))
-        meta_keys.append(get_dataset_info_key(commit_id))
+            # checkout to get list of tensors in previous commit, needed for copying metas and create_commit_chunk_set
+            self.checkout(parent_commit_id)
 
-        for tensor in self.tensors:
-            meta_keys.append(get_tensor_meta_key(commit_id, tensor))
-            meta_keys.append(get_tensor_tile_encoder_key(commit_id, tensor))
-            meta_keys.append(get_tensor_info_key(commit_id, tensor))
-            meta_keys.append(get_tensor_commit_chunk_set_key(commit_id, tensor))
-            meta_keys.append(get_tensor_commit_diff_key(commit_id, tensor))
-            meta_keys.append(get_chunk_id_encoder_key(commit_id, tensor))
-            meta_keys.append(get_sequence_encoder_key(commit_id, tensor))
+            # populate new commit folder
+            copy_metas(parent_commit_id, new_commit_id, storage, version_state)
+            create_commit_chunk_sets(new_commit_id, storage, version_state)
 
-        for key in meta_keys:
-            try:
-                del self.storage[key]
-            except KeyError:
-                pass
+            # update and save version state
+            parent_node: CommitNode = version_state["commit_node"]
+            new_node = CommitNode(new_branch, new_commit_id)
+            new_node.parent = parent_node
+            version_state["branch_commit_map"][new_branch] = new_commit_id
+            version_state["commit_node_map"][new_commit_id] = new_node
+            del version_state["commit_node_map"][reset_commit_id]
+            for i, child in enumerate(parent_node.children):
+                if child.commit_id == reset_commit_id:
+                    parent_node.children[i] = new_node
+                    break
+            save_version_info(version_state, storage)
+
+            # clear the old folder
+            storage.clear(prefix=deletion_folder)
+            self.checkout(new_commit_id)
 
     def connect(
         self,
