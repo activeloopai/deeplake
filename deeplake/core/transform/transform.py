@@ -337,7 +337,6 @@ class Pipeline:
             cache_size,
         )
         map_inp = zip(slices, storages, repeat(args))
-
         try:
             if progressbar:
                 desc = get_pbar_description(self.functions)
