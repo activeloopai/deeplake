@@ -231,11 +231,7 @@ class Dataset:
         d["_temp_tensors"] = []
         dct = self.__dict__
         dct.update(d)
-        dct["enabled_tensors"] = (
-            set(self._resolve_tensor_list(enabled_tensors, root=True))
-            if enabled_tensors
-            else None
-        )
+
         try:
             self._set_derived_attributes()
         except LockedException:
@@ -246,6 +242,11 @@ class Dataset:
             raise ReadOnlyModeError(
                 "This dataset cannot be open for writing as you don't have permissions. Try loading the dataset with `read_only=True."
             )
+        dct["enabled_tensors"] = (
+            set(self._resolve_tensor_list(enabled_tensors, root=True))
+            if enabled_tensors
+            else None
+        )
         self._first_load_init()
         self._initial_autoflush: List[
             bool
@@ -306,8 +307,10 @@ class Dataset:
         """Returns the length of the smallest tensor."""
         tensor_lengths = [len(tensor) for tensor in self.tensors.values()]
         pad_tensors = self._pad_tensors
-        if not pad_tensors and min(tensor_lengths, default=0) != max(
-            tensor_lengths, default=0
+        if (
+            warn
+            and not pad_tensors
+            and min(tensor_lengths, default=0) != max(tensor_lengths, default=0)
         ):
             warning(
                 "The length of tensors in the dataset is different. The len(ds) returns the length of the "

@@ -278,7 +278,6 @@ def transform_data_slice_and_append(
     skip_ok=False,
 ) -> None:
     """Transforms the data_slice with the pipeline and adds the resultant samples to chunk_engines."""
-
     n = len(data_slice)
     last_reported_time = time.time()
     last_reported_num_samples = 0
@@ -398,6 +397,7 @@ def add_cache_to_dataset_slice(
         verbose=False,
         link_creds=dataset_slice.link_creds,
         pad_tensors=dataset_slice._pad_tensors,
+        enabled_tensors=dataset_slice.enabled_tensors,
     )
     dataset_slice.checkout(commit_id)
     dataset_slice.index = index
@@ -466,7 +466,8 @@ def get_pbar_description(compute_functions: List):
 
 def create_slices(data_in, num_workers):
     size = math.ceil(len(data_in) / num_workers)
-    return [data_in[i * size : (i + 1) * size] for i in range(num_workers)]
+    ret = [data_in[i * size : (i + 1) * size] for i in range(num_workers)]
+    return ret
 
 
 def get_old_chunk_paths(target_ds, generated_tensors, overwrite):

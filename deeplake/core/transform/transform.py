@@ -327,8 +327,9 @@ class Pipeline:
             skip_ok,
             extend_only,
         )
+        assert len(slices) == 2
+        assert slices[0].enabled_tensors == {"text"}, slices[0].enabled_tensors
         map_inp = zip(slices, storages, repeat(args))
-
         try:
             if progressbar:
                 desc = get_pbar_description(self.functions)
