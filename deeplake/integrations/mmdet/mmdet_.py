@@ -1002,9 +1002,6 @@ def build_dataloader(
             )
         )
 
-        # For DDP
-        loader.batch_sampler = Dummy()
-
         mmdet_ds = MMDetDataset(
             dataset=dataset,
             metrics_format=metrics_format,
