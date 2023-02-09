@@ -70,7 +70,7 @@ class Lock(object):
                 self.lock_file = lock_file
                 return
             except IOError:
-                time.sleep(0.1)
+                time.sleep(1)
 
     def release(self):
         if self.lock_file:
@@ -159,39 +159,19 @@ class PersistentLock(Lock):
         except Exception:  # Thread termination
             return
 
-    def acquire(self):
-        if self.acquired:
-            return
-        self.storage.check_readonly()
-        lock_bytes = self.storage.get(self.path)
-        if lock_bytes is not None:
-            nodeid = None
-            try:
-                nodeid, timestamp, _ = _parse_lock_bytes(lock_bytes)
-            except Exception:  # parse error from corrupt lock file, ignore
-                pass
-            if nodeid:
-                if nodeid == uuid.getnode():
-                    # Lock left by this machine from a previous run, ignore
-                    pass
-                elif time.time() - timestamp < deeplake.constants.DATASET_LOCK_VALIDITY:
-                    raise LockedException()
+    # def acquire(self):
+    #     super().acquire()
 
-        self._init = True
-        self._thread = threading.Thread(target=self._lock_loop, daemon=True)
-        self._thread.start()
-        self.acquired = True
-
-    def release(self):
-        if not self.acquired:
-            return
-        with self._thread_lock:
-            terminate_thread(self._thread)
-            self._acquired = False
-        try:
-            del self.storage[self.path]
-        except Exception:
-            pass
+    # def release(self):
+    #     if not self.acquired:
+    #         return
+    #     with self._thread_lock:
+    #         terminate_thread(self._thread)
+    #         self._acquired = False
+    #     try:
+    #         del self.storage[self.path]
+    #     except Exception:
+    #         pass
 
 
 _LOCKS: Dict[str, Lock] = {}
