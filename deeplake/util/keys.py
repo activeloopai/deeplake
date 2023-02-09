@@ -128,12 +128,6 @@ def get_tensor_commit_chunk_map_key(key: str, commit_id: str) -> str:
     return "/".join(("versions", commit_id, key, TENSOR_COMMIT_CHUNK_MAP_FILENAME))
 
 
-def get_tensor_commit_chunk_map_key(key: str, commit_id: str) -> str:
-    if commit_id == FIRST_COMMIT_ID:
-        return "/".join((key, TENSOR_COMMIT_CHUNK_MAP_FILENAME))
-    return "/".join(("versions", commit_id, key, TENSOR_COMMIT_CHUNK_MAP_FILENAME))
-
-
 def get_tensor_commit_diff_key(key: str, commit_id: str) -> str:
     if commit_id == FIRST_COMMIT_ID:
         return "/".join((key, "commit_diff"))

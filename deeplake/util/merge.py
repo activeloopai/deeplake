@@ -476,23 +476,24 @@ def merge_tensor_data(
     new_indexes = new_samples_dict[tensor_name]
     new_indexes.sort()
     is_class_label = target_tensor.meta.htype == "class_label"
+    copy_class_labels = True
     if is_class_label:
         target_class_names = target_tensor.info.class_names
         original_class_names = original_tensor.info.class_names
         if target_class_names:
             if target_class_names == original_class_names:
-                is_class_label = False
+                copy_class_labels = False
             elif original_class_names[: len(target_class_names)] == target_class_names:
-                is_class_label = False
+                copy_class_labels = False
             elif (
                 target_class_names[: len(original_class_names)] == original_class_names
             ):
-                is_class_label = False
+                copy_class_labels = False
                 original_tensor.info.class_names = original_class_names
         else:
-            is_class_label = False
+            copy_class_labels = False
     copy_links_only = False
-    if is_class_label:
+    if copy_class_labels:
         # TODO optimize this
         links = original_tensor.meta.links
         original_tensor.meta.links = {}
@@ -518,10 +519,11 @@ def merge_tensor_data(
     )
 
     updated_indexes = updated_samples_dict[tensor_name]
+    remap_class_label = is_class_label and target_class_names
     for original_idx, target_idx in updated_indexes:
         sample = target_tensor[target_idx]
-        if is_class_label and class_names:
-            sample = convert_to_text(sample.numpy(), class_names, return_original=True)
+        if remap_class_label:
+            sample = convert_to_text(sample.numpy(), target_class_names, return_original=True)
         original_tensor[original_idx] = sample
 
 

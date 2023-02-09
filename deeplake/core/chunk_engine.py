@@ -1968,12 +1968,9 @@ class ChunkEngine:
         """Return list of all chunks for current `version_state['commit_id']` and tensor"""
         commit_id = self.commit_id
         if commit_id == FIRST_COMMIT_ID:
-            arr = self.chunk_id_encoder._encoded
-            if not arr.size:
-                return []
             return [
                 ChunkIdEncoder.name_from_id(chunk_id)
-                for chunk_id in arr[:, CHUNK_ID_COLUMN]
+                for chunk_id in self.chunk_id_encoder._encoded[:, CHUNK_ID_COLUMN]
             ]  # type: ignore
         else:
             return [k for (k, v) in self.commit_chunk_map.chunks.items() if not v]  # type: ignore
