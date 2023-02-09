@@ -15,6 +15,7 @@ from deeplake.util.threading import terminate_thread
 from deeplake.core.storage import StorageProvider, LocalProvider, MemoryProvider
 from deeplake.constants import FIRST_COMMIT_ID
 from deeplake.client.utils import get_user_name
+import fcntl
 
 
 def _get_lock_bytes(tag: Optional[bytes] = None) -> bytes:
@@ -48,6 +49,7 @@ class Lock(object):
         else:
             self.username = username
         self.tag = urandom(4)
+        self.lock_file = None
 
     def _write_lock(self):
         storage = self.storage
@@ -60,49 +62,21 @@ class Lock(object):
                 storage.enable_readonly()
 
     def acquire(self, timeout=10, force=False):
-        storage = self.storage
         path = self.path
         while True:
             try:
-                byts = storage[path]
-                if not byts:
-                    raise KeyError(path)
-                nodeid, timestamp, _ = _parse_lock_bytes(byts)
-                locked = True
-            except KeyError:
-                locked = False
-            if not locked:
-                self._write_lock()
-                time.sleep(self._lock_verify_interval)
-                nodeid, _, tag = _parse_lock_bytes(storage[path])
-                if self.tag == tag and nodeid == uuid.getnode():
-                    return
-                else:
-                    continue
-            if time.time() - timestamp >= timeout:
-                if force:
-                    self._write_lock()
-                    time.sleep(self._lock_verify_interval)
-                    nodeid, _, tag = _parse_lock_bytes(storage[path])
-                    if self.tag == tag and nodeid == uuid.getnode():
-                        return
-                    else:
-                        continue
-                else:
-                    raise LockedException()
-            time.sleep(1)
+                lock_file = open(path, "w")
+                fcntl.flock(lock_file, fcntl.LOCK_EX | fcntl.LOCK_NB)
+                self.lock_file = lock_file
+                return
+            except IOError:
+                time.sleep(0.1)
 
     def release(self):
-        storage = self.storage
-        try:
-            read_only = storage.read_only
-            storage.disable_readonly()
-            del storage[self.path]
-        except Exception:
-            pass
-        finally:
-            if read_only:
-                storage.enable_readonly()
+        if self.lock_file:
+            fcntl.flock(self.lock_file, fcntl.LOCK_UN)
+            self.lock_file.close()
+            self.lock_file = None
 
     def __enter__(self):
         self.acquire()
