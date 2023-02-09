@@ -358,5 +358,5 @@ class DeepLakeCloudDataset(Dataset):
 
     def connect(self, *args, **kwargs):
         raise InvalidSourcePathError(
-            f"Source dataset is already accessible via Deep Lake path {self.path}"
+            f"The dataset being connected is already accessible via Deep Lake path {self.path}"
         )
