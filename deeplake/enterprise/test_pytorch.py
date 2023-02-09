@@ -51,23 +51,23 @@ def index_transform(sample):
 @requires_torch
 @requires_libdeeplake
 @pytest.mark.parametrize(
-    "dataset",
+    "ds",
     ["hub_cloud_ds", "hub_cloud_gcs_ds"],
     indirect=True,
 )
-def test_pytorch_small(dataset):
-    with dataset:
-        dataset.create_tensor("image", max_chunk_size=PYTORCH_TESTS_MAX_CHUNK_SIZE)
-        dataset.image.extend(([i * np.ones((i + 1, i + 1)) for i in range(16)]))
-        dataset.commit()
-        dataset.create_tensor("image2", max_chunk_size=PYTORCH_TESTS_MAX_CHUNK_SIZE)
-        dataset.image2.extend(np.array([i * np.ones((12, 12)) for i in range(16)]))
+def test_pytorch_small(ds):
+    with ds:
+        ds.create_tensor("image", max_chunk_size=PYTORCH_TESTS_MAX_CHUNK_SIZE)
+        ds.image.extend(([i * np.ones((i + 1, i + 1)) for i in range(16)]))
+        ds.commit()
+        ds.create_tensor("image2", max_chunk_size=PYTORCH_TESTS_MAX_CHUNK_SIZE)
+        ds.image2.extend(np.array([i * np.ones((12, 12)) for i in range(16)]))
 
-    if isinstance(get_base_storage(dataset.storage), (MemoryProvider, GCSProvider)):
+    if isinstance(get_base_storage(ds.storage), (MemoryProvider, GCSProvider)):
         with pytest.raises(ValueError):
-            dl = dataset.dataloader()
+            dl = ds.dataloader()
         return
-    dl = dataset.dataloader().batch(1).pytorch(num_workers=2)
+    dl = ds.dataloader().batch(1).pytorch(num_workers=2)
 
     assert len(dl.dataset) == 16
 
@@ -80,7 +80,7 @@ def test_pytorch_small(dataset):
                 batch["image2"].numpy(), i * np.ones((1, 12, 12))
             )
 
-    sub_ds = dataset[5:]
+    sub_ds = ds[5:]
     sub_dl = sub_ds.dataloader().pytorch(num_workers=0)
 
     for i, batch in enumerate(sub_dl):
@@ -91,7 +91,7 @@ def test_pytorch_small(dataset):
             batch["image2"].numpy(), (5 + i) * np.ones((1, 12, 12))
         )
 
-    sub_ds2 = dataset[8:12]
+    sub_ds2 = ds[8:12]
     sub_dl2 = sub_ds2.dataloader().pytorch(num_workers=0)
 
     for _ in range(2):
@@ -103,7 +103,7 @@ def test_pytorch_small(dataset):
                 batch["image2"].numpy(), (8 + i) * np.ones((1, 12, 12))
             )
 
-    sub_ds3 = dataset[:5]
+    sub_ds3 = ds[:5]
     sub_dl3 = sub_ds3.dataloader().pytorch(num_workers=0)
 
     for _ in range(2):
