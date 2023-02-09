@@ -23,6 +23,7 @@ def validate_downsampling(downsampling):
 
     return downsampling_factor, number_of_layers
 
+
 def needs_downsampling(sample, factor: int):
     if isinstance(sample, Image.Image):
         dimensions = sample.size
@@ -32,7 +33,6 @@ def needs_downsampling(sample, factor: int):
     if dimensions[0] * dimensions[1] <= 100 * factor * factor:
         return False
     return dimensions[0] // factor > 0 and dimensions[1] // factor > 0
-    
 
 
 def get_filter(htype):

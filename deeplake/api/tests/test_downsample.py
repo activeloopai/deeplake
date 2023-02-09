@@ -2,6 +2,7 @@ import deeplake
 import numpy as np
 import pytest
 
+
 def test_downsample(local_ds_generator, cat_path):
     with local_ds_generator() as ds:
         ds.create_tensor(
@@ -106,15 +107,28 @@ def test_downsample_tiled(memory_ds):
             x = i * 5472
             ds.image[0][0:3648, x : x + 5472, :] = arr
 
-@pytest.mark.parametrize("sample_compression", [None]) # add back apng when bug is fixed
+
+@pytest.mark.parametrize(
+    "sample_compression", [None]
+)  # add back apng when bug is fixed
 def test_downsample_binary_mask(memory_ds, sample_compression):
     with memory_ds as ds:
-        ds.create_tensor("mask", htype="binary_mask", sample_compression=sample_compression, downsampling=(2,5))
-        binary_masks = [np.ones((1000, 1000, 3), dtype=bool), np.zeros((1000, 1000, 3), dtype=bool)]
+        ds.create_tensor(
+            "mask",
+            htype="binary_mask",
+            sample_compression=sample_compression,
+            downsampling=(2, 5),
+        )
+        binary_masks = [
+            np.ones((1000, 1000, 3), dtype=bool),
+            np.zeros((1000, 1000, 3), dtype=bool),
+        ]
         ds.mask.extend(binary_masks)
 
         for i in range(1, 6):
             tensor = ds[f"_mask_downsampled_{2 ** i}"]
             assert len(tensor) == 2
             for j in range(2):
-                np.testing.assert_array_equal(tensor[j], binary_masks[j][::2 ** i, ::2 ** i, :])
+                np.testing.assert_array_equal(
+                    tensor[j], binary_masks[j][:: 2**i, :: 2**i, :]
+                )
