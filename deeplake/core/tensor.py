@@ -323,6 +323,8 @@ class Tensor:
         samples: Union[np.ndarray, Sequence[InputSample], "Tensor"],
         progressbar: bool = False,
     ):
+        if not self.is_link:
+            raise ValueError("Not supported as the tensor is not a link.")
         self._write_initialization()
         [f() for f in list(self.dataset._update_hooks.values())]
         self.chunk_engine.path_chunk_engine.extend(

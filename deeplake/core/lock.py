@@ -37,7 +37,7 @@ class Lock(object):
     def __init__(self, storage: StorageProvider, path: str):
         self.storage = storage
         self._lock_verify_interval = (
-            0.01
+            0.1
             if isinstance(storage, (LocalProvider, MemoryProvider))
             else deeplake.constants.LOCK_VERIFY_INTERVAL
         )

@@ -1,7 +1,9 @@
+from contextlib import contextmanager
 from collections import defaultdict
 from typing import Dict, List, Optional, Set, Tuple
 from deeplake.core.version_control.commit_diff import CommitDiff
 from deeplake.core.version_control.commit_node import CommitNode
+from deeplake.core.meta.encode.chunk_id import ChunkIdEncoder
 from deeplake.util.class_label import convert_to_text
 from deeplake.util.diff import (
     get_lowest_common_ancestor,
@@ -722,6 +724,103 @@ def _get_required_chunks_for_range(tensor, start, end):
         return (start_row, end_row + 1), None, None
 
 
+@contextmanager
+def _as_flat_tensors(*tensors):
+    is_seq = tensors[0].is_sequence
+    if is_seq:
+        for t in tensors:
+            t.meta.is_sequence = False
+    yield
+    if is_seq:
+        for t in tensors:
+            t.meta.is_sequence = True
+
+
+def _copy_samples(src_tensor, dest_tensor, start: int, end: int):
+    with _as_flat_tensors(src_tensor, dest_tensor):
+        dest_tensor.extend(src_tensor[start:end])
+
+
+def _copy_link_samples(src_tensor, dest_tensor, start, end):
+    with _as_flat_tensors(src_tensor, dest_tensor):
+        dest_tensor._extend_with_paths(
+            src_tensor.chunk_engine.path_chunk_engine.numpy(
+                Index([IndexEntry(slice(start, end, None))]),
+                aslist=True,
+                fetch_chunks=False,
+            )
+        )
+
+
+def _merge_sequence_encoders(
+    src_seq_encoder, dest_seq_encoder, start: int, end: int
+) -> Tuple[int, int]:
+    (start2, _), start_row = src_seq_encoder.__getitem__(start, return_row_index=True)
+    (_, end2), end_row = src_seq_encoder.__getitem__(end - 1, return_row_index=True)
+
+    nrows = len(dest_seq_encoder._encoded)
+    dest_seq_encoder._encoded = _merge_encodings(
+        dest_seq_encoder._encoded,
+        src_seq_encoder._encoded,
+        start_row,
+        end_row + 1,
+        start,
+        end,
+    )
+    dest_seq_encoder._post_process_state(nrows - 1)
+    return start2, end2
+
+
+def _merge_creds_encoders(
+    src_creds_encoder, dest_creds_encoder, start: int, end: int
+) -> None:
+    start_row = src_creds_encoder.translate_index(start)
+    end_row = src_creds_encoder.translate_index(end - 1)
+    dest_creds_encoder._encoded = _merge_encodings(
+        dest_creds_encoder._encoded,
+        src_creds_encoder._encoded,
+        start_row,
+        end_row + 1,
+        start,
+        end,
+    )
+
+
+def _mergs_tile_encoders(
+    src_tile_encoder, dest_tile_encoder, start: int, end: int
+) -> None:
+    src_entries = src_tile_encoder.entries
+    dest_entries = dest_tile_encoder.entries
+    for i in range(start, end):
+        e = src_entries.get(i)
+        if e:
+            dest_entries[i] = e
+            dest_tile_encoder.is_dirty = True
+
+
+def _setup_chunk_pointers(
+    src_eng,
+    src_enc_arr,
+    dest_enc,
+    dest_chunk_map,
+    dest_commit,
+    dest_key,
+    start: int,
+    end: int,
+):
+    chunk_ids = src_enc_arr[start:end, 0]
+    chunk_names = list(map(ChunkIdEncoder.name_from_id, chunk_ids))
+    commit_key_pairs = list(map(src_eng.get_chunk_commit, chunk_names))
+    for chunk_name, (commit, key) in zip(chunk_names, commit_key_pairs):
+        if commit == dest_commit:
+            commit = None
+        elif key == dest_key:
+            key = None
+        dest_chunk_map.add(chunk_name, commit, key)
+    dest_enc._encoded = _merge_encodings(dest_enc._encoded, src_enc_arr, start, end)
+    dest_enc.is_dirty = True
+
+
 def copy_tensor_slice(
     src_ds,
     dest_ds,
@@ -759,11 +858,10 @@ def copy_tensor_slice(
         dest_meta_length = (
             len(indices) if indices else sum(end - start for start, end in ranges)
         )
-        chunk_map = dest_eng.commit_chunk_map
+        dest_chunk_map = dest_eng.commit_chunk_map
         is_link = src_meta.is_link
-        src_tile_enc_entries = src_eng.tile_encoder.entries
+        src_tile_enc = src_eng.tile_encoder
         dest_tile_enc = dest_eng.tile_encoder
-        dest_tile_enc_entries = dest_tile_enc.entries
         if is_link:
             src_creds_encoder = src_eng.creds_encoder
             dest_creds_encoder = dest_eng.creds_encoder
@@ -778,43 +876,16 @@ def copy_tensor_slice(
         try:
             for start, end in ranges:
                 if is_seq:
-                    (start2, _), start_row = src_seq_encoder.__getitem__(
-                        start, return_row_index=True
+                    start, end = _merge_sequence_encoders(
+                        src_seq_encoder, dest_seq_encoder, start, end
                     )
-                    (_, end2), end_row = src_seq_encoder.__getitem__(
-                        end - 1, return_row_index=True
-                    )
-                    dest_meta_seq_length += end2 - start2
-                    nrows = len(dest_seq_encoder._encoded)
-                    dest_seq_encoder._encoded = _merge_encodings(
-                        dest_seq_encoder._encoded,
-                        src_seq_encoder._encoded,
-                        start_row,
-                        end_row + 1,
-                        start,
-                        end,
-                    )
-                    dest_seq_encoder._post_process_state(nrows - 1)
-                    start = start2
-                    end = end2
+                    dest_meta_seq_length += end - start
                     flat_ranges.append((start, end))
                 if is_link:
-                    start_row = src_creds_encoder.translate_index(start)
-                    end_row = src_creds_encoder.translate_index(end - 1)
-                    dest_creds_encoder._encoded = _merge_encodings(
-                        dest_creds_encoder._encoded,
-                        src_creds_encoder._encoded,
-                        start_row,
-                        end_row + 1,
-                        start,
-                        end,
+                    _merge_creds_encoders(
+                        src_creds_encoder, dest_creds_encoder, start, end
                     )
-                for idx in range(start, end):
-                    e = src_tile_enc_entries.get(idx)
-                    if e:
-                        dest_tile_enc_entries[idx] = e
-                        dest_tile_enc.is_dirty = True
-
+                _mergs_tile_encoders(src_tile_enc, dest_tile_enc, start, end)
                 (
                     chunks_to_copy,
                     left_edge_samples,
@@ -823,50 +894,25 @@ def copy_tensor_slice(
                 if left_edge_samples:
                     s, e = left_edge_samples
                     if is_link:
-                        dest_tensor._extend_with_paths(
-                            src_tensor.chunk_engine.path_chunk_engine.numpy(
-                                Index([IndexEntry(slice(s, e, None))]),
-                                aslist=True,
-                                fetch_chunks=False,
-                            )
-                        )
+                        _copy_link_samples(src_tensor, dest_tensor, s, e)
                     else:
-                        dest_meta.is_sequence = False
-                        src_meta.is_sequence = False
-                        dest_tensor.extend(src_tensor[s:e])
-                        dest_meta.is_sequence = is_seq
-                        src_meta.is_sequence = is_seq
+                        _copy_samples(src_tensor, dest_tensor, s, e)
                 if chunks_to_copy:
-                    s, e = chunks_to_copy
-                    chunk_ids = src_enc_arr[s:e, 0]
-                    chunk_names = list(map(src_enc.name_from_id, chunk_ids))
-                    commit_key_pairs = list(map(src_eng.get_chunk_commit, chunk_names))
-                    for chunk_name, (commit, key) in zip(chunk_names, commit_key_pairs):
-                        if commit == dest_commit:
-                            commit = None
-                        elif key == dest_key:
-                            key = None
-                        chunk_map.add(chunk_name, commit, key)
-                    dest_enc._encoded = _merge_encodings(
-                        dest_enc._encoded, src_enc_arr, s, e
+                    _setup_chunk_pointers(
+                        src_eng,
+                        src_enc_arr,
+                        dest_enc,
+                        dest_chunk_map,
+                        dest_commit,
+                        dest_key,
+                        *chunks_to_copy,
                     )
-                    dest_enc.is_dirty = True
                 if right_edge_samples:
                     s, e = right_edge_samples
                     if is_link:
-                        dest_tensor._extend_with_paths(
-                            src_tensor.chunk_engine.path_chunk_engine.numpy(
-                                Index([IndexEntry(slice(s, e, None))]),
-                                aslist=True,
-                                fetch_chunks=False,
-                            )
-                        )
+                        _copy_link_samples(src_tensor, dest_tensor, s, e)
                     else:
-                        dest_meta.is_sequence = False
-                        src_meta.is_sequence = False
-                        dest_tensor.extend(src_tensor[s:e])
-                        dest_meta.is_sequence = is_seq
-                        src_meta.is_sequence = is_seq
+                        _copy_samples(src_tensor, dest_tensor, s, e)
             if src_meta.min_shape:
                 dest_meta.update_shape_interval(src_meta.min_shape)
                 dest_meta.update_shape_interval(src_meta.max_shape)
