@@ -123,7 +123,7 @@ def hub_cloud_gcs_ds_generator(gcs_path, gcs_creds, hub_cloud_dev_token):
         cloud_ds = ds.connect(
             org_id=HUB_CLOUD_DEV_USERNAME,
             token=hub_cloud_dev_token,
-            creds_key="my_gcs_creds",
+            creds_key="DEEPLAKE_GCP",
         )
         return cloud_ds
 
