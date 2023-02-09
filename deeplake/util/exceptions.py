@@ -864,3 +864,7 @@ class UnsupportedExtensionError(Exception):
 
 class DatasetCorruptError(Exception):
     pass
+
+
+class EmptyPolygonError(Exception):
+    pass
