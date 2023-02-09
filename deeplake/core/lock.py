@@ -1,3 +1,4 @@
+import posixpath
 import deeplake
 import time
 import uuid
@@ -16,6 +17,7 @@ from deeplake.core.storage import StorageProvider, LocalProvider, MemoryProvider
 from deeplake.constants import FIRST_COMMIT_ID
 from deeplake.client.utils import get_user_name
 import fcntl
+import os
 
 
 def _get_lock_bytes(tag: Optional[bytes] = None) -> bytes:
@@ -63,18 +65,20 @@ class Lock(object):
 
     def acquire(self, timeout=10, force=False):
         path = self.path
-        while True:
-            try:
-                lock_file = open(path, "w")
-                fcntl.flock(lock_file, fcntl.LOCK_EX | fcntl.LOCK_NB)
-                self.lock_file = lock_file
-                return
-            except IOError:
-                time.sleep(1)
+        storage = self.storage
+        full_path = storage._check_is_file(path)
+        if not os.path.exists(os.path.dirname(full_path)):
+            os.makedirs(os.path.dirname(full_path))
+        lock_file = open(full_path, "w")
+        print(f"!!!!!acquiring lock, {self.path}")
+        fcntl.flock(lock_file, fcntl.LOCK_EX)
+        print(f"!!!!!acquired lock, {self.path}")
+        self.lock_file = lock_file
 
     def release(self):
         if self.lock_file:
             fcntl.flock(self.lock_file, fcntl.LOCK_UN)
+            print(f"!!!!!released lock {self.path}")
             self.lock_file.close()
             self.lock_file = None
 
@@ -160,7 +164,27 @@ class PersistentLock(Lock):
             return
 
     # def acquire(self):
-    #     super().acquire()
+    #     if self.acquired:
+    #         return
+    #     self.storage.check_readonly()
+    #     lock_bytes = self.storage.get(self.path)
+    #     if lock_bytes is not None:
+    #         nodeid = None
+    #         try:
+    #             nodeid, timestamp, _ = _parse_lock_bytes(lock_bytes)
+    #         except Exception:  # parse error from corrupt lock file, ignore
+    #             pass
+    #         if nodeid:
+    #             if nodeid == uuid.getnode():
+    #                 # Lock left by this machine from a previous run, ignore
+    #                 pass
+    #             elif time.time() - timestamp < deeplake.constants.DATASET_LOCK_VALIDITY:
+    #                 raise LockedException()
+
+    #     self._init = True
+    #     self._thread = threading.Thread(target=self._lock_loop, daemon=True)
+    #     self._thread.start()
+    #     self.acquired = True
 
     # def release(self):
     #     if not self.acquired:

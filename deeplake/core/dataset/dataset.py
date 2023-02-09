@@ -42,6 +42,7 @@ from deeplake.core.storage import (
     S3Provider,
     GCSProvider,
     MemoryProvider,
+    LocalProvider
 )
 from deeplake.core.tensor import Tensor, create_tensor, delete_tensor
 from deeplake.core.version_control.commit_node import CommitNode  # type: ignore
@@ -135,7 +136,7 @@ import warnings
 import jwt
 
 
-_LOCKABLE_STORAGES = {S3Provider, GCSProvider}
+_LOCKABLE_STORAGES = {S3Provider, GCSProvider, LocalProvider}
 
 
 class Dataset:
