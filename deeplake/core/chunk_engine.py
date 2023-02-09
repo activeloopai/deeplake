@@ -1976,7 +1976,7 @@ class ChunkEngine:
                 for chunk_id in arr[:, CHUNK_ID_COLUMN]
             ]  # type: ignore
         else:
-            return [k for (k, v) in self.commit_chunk_map.items() if not v]  # type: ignore
+            return [k for (k, v) in self.commit_chunk_map.chunks.items() if not v]  # type: ignore
 
     def list_all_chunks_path(self) -> List[str]:
         """Return list of paths to all chunks"""
