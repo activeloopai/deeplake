@@ -74,7 +74,10 @@ class Lock(object):
             if not locked:
                 self._write_lock()
                 time.sleep(self._lock_verify_interval)
-                nodeid, _, tag = _parse_lock_bytes(storage[path])
+                byts = storage[path]
+                if not byts:
+                    continue
+                nodeid, _, tag = _parse_lock_bytes(byts)
                 if self.tag == tag and nodeid == uuid.getnode():
                     return
                 else:
@@ -83,14 +86,17 @@ class Lock(object):
                 if force:
                     self._write_lock()
                     time.sleep(self._lock_verify_interval)
-                    nodeid, _, tag = _parse_lock_bytes(storage[path])
+                    byts = storage[path]
+                    if not byts:
+                        continue
+                    nodeid, _, tag = _parse_lock_bytes(byts)
                     if self.tag == tag and nodeid == uuid.getnode():
                         return
                     else:
                         continue
                 else:
                     raise LockedException()
-            time.sleep(1)
+            time.sleep(0.5)
 
     def release(self):
         storage = self.storage
