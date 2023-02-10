@@ -232,5 +232,7 @@ def get_downsampled_tensor_key(key: str, factor: int):
         factor *= current_factor
         ls = key.split("_")
         ls[-1] = str(factor)
-        return "_".join(ls)
-    return posixpath.join(group, f"_{key}_downsampled_{factor}")
+        final_key = "_".join(ls)
+    else:
+        final_key = f"_{key}_downsampled_{factor}"
+    return posixpath.join(group, final_key)

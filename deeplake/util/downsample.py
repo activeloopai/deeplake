@@ -24,10 +24,15 @@ def validate_downsampling(downsampling):
     return downsampling_factor, number_of_layers
 
 
-def needs_downsampling(sample: Image.Image, factor: int):
-    if sample.size[0] * sample.size[1] <= 100 * factor * factor:
+def needs_downsampling(sample, factor: int):
+    if isinstance(sample, Image.Image):
+        dimensions = sample.size
+    elif isinstance(sample, np.ndarray):
+        dimensions = sample.shape[:2]
+
+    if dimensions[0] * dimensions[1] <= 100 * factor * factor:
         return False
-    return sample.size[0] // factor > 0 and sample.size[1] // factor > 0
+    return dimensions[0] // factor > 0 and dimensions[1] // factor > 0
 
 
 def get_filter(htype):
@@ -46,26 +51,29 @@ def downsample_sample(
     partial: bool = False,
     link_creds=None,
 ):
-    if isinstance(sample, PartialSample):
-        return sample.downsample(factor)
-
-    if isinstance(sample, LinkedTiledSample):
-        return downsample_link_tiled(sample, factor, compression, htype, link_creds)
-
     if sample is None:
         return None
-    if not (partial or needs_downsampling(sample, factor)):
-        arr = np.array(sample)
+    elif isinstance(sample, PartialSample):
+        return sample.downsample(factor)
+    elif isinstance(sample, LinkedTiledSample):
+        return downsample_link_tiled(sample, factor, compression, htype, link_creds)
+
+    if not partial and not needs_downsampling(sample, factor):
+        arr = np.array(sample) if isinstance(sample, Image.Image) else sample
         required_shape = tuple([0] * len(arr.shape))
         required_dtype = arr.dtype
         return np.ones(required_shape, dtype=required_dtype)
 
-    size = sample.size[0] // factor, sample.size[1] // factor
-    downsampled_sample = sample.resize(size, get_filter(htype))
+    if isinstance(sample, np.ndarray) and sample.dtype == bool:
+        downsampled_sample = sample[::factor, ::factor]
+        return downsampled_sample
+    else:
+        size = sample.size[0] // factor, sample.size[1] // factor
+        downsampled_sample = sample.resize(size, get_filter(htype))
     if compression is None:
         return np.array(downsampled_sample)
     with io.BytesIO() as f:
-        downsampled_sample.save(f, format=compression)
+        downsampled_sample.save(f, format=compression)  # type: ignore
         image_bytes = f.getvalue()
         return deeplake.core.sample.Sample(buffer=image_bytes, compression=compression)
 
