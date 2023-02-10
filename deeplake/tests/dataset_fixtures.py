@@ -120,12 +120,12 @@ def hub_cloud_ds_generator(hub_cloud_path, hub_cloud_dev_token):
 def hub_cloud_gcs_ds_generator(gcs_path, gcs_creds, hub_cloud_dev_token):
     def generate_hub_cloud_gcs_ds(**kwargs):
         ds = deeplake.dataset(gcs_path, creds=gcs_creds, **kwargs)
-        cloud_ds = ds.connect(
+        ds.connect(
             org_id=HUB_CLOUD_DEV_USERNAME,
             token=hub_cloud_dev_token,
             creds_key="DEEPLAKE_GCP",
         )
-        return cloud_ds
+        return ds
 
     return generate_hub_cloud_gcs_ds
 
