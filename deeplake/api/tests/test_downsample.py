@@ -132,3 +132,17 @@ def test_downsample_binary_mask(memory_ds, sample_compression):
                 np.testing.assert_array_equal(
                     tensor[j], binary_masks[j][:: 2**i, :: 2**i, :]
                 )
+
+
+def test_downsample_group_bug(memory_ds):
+    with memory_ds as ds:
+        ds.create_group("stuff")
+        ds.create_tensor(
+            "mask", htype="binary_mask", sample_compression="lz4", downsampling=(2, 2)
+        )
+        ds.create_tensor(
+            "stuff/mask",
+            htype="binary_mask",
+            sample_compression="lz4",
+            downsampling=(2, 2),
+        )
