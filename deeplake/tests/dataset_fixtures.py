@@ -129,6 +129,7 @@ def hub_cloud_gcs_ds_generator(gcs_path, gcs_creds, hub_cloud_dev_token):
 
     return generate_hub_cloud_gcs_ds
 
+
 @pytest.fixture
 def hub_cloud_gcs_ds(hub_cloud_gcs_ds_generator):
     return hub_cloud_gcs_ds_generator()
