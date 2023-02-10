@@ -548,3 +548,13 @@ def test_merge_tiled_new_tensor(memory_ds):
         ds.create_tensor("expected")
         ds.expected.extend(arr)
         assert_array_equal(ds.abc.numpy(aslist=True), ds.expected.numpy(aslist=True))
+
+
+def test_merge_groups(memory_ds):
+    with memory_ds as ds:
+        ds.create_tensor("a")
+        ds.checkout("alt", create=True)
+        ds.create_tensor("b/c")
+        ds.checkout("main")
+        ds.merge("alt")
+        assert list(ds.groups) == ["b"]
