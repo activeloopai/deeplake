@@ -1,5 +1,6 @@
 import numpy as np
 import pytest
+import deeplake
 
 from deeplake.util.testing import assert_array_equal
 from deeplake.util.exceptions import (
@@ -548,3 +549,20 @@ def test_merge_tiled_new_tensor(memory_ds):
         ds.create_tensor("expected")
         ds.expected.extend(arr)
         assert_array_equal(ds.abc.numpy(aslist=True), ds.expected.numpy(aslist=True))
+
+
+def test_merge_linked(memory_ds, cat_path):
+    with memory_ds as ds:
+        ds.create_tensor("abc", htype="link[image]", sample_compression="jpg")
+        ds.add_creds_key("creds1")
+        ds.populate_creds("creds1", {})
+        ds.abc.extend([deeplake.link(cat_path, creds_key="creds1") for _ in range(10)])
+        ds.checkout("alt", create=True)
+        ds.add_creds_key("creds2")
+        ds.populate_creds("creds2", {})
+        ds.abc.extend([deeplake.link(cat_path, creds_key="creds2") for _ in range(5)])
+        ds.checkout("main")
+        ds.merge("alt")
+
+        assert len(ds.abc) == 15
+        assert set(ds.link_creds.creds_keys) == {"creds1", "creds2"}
