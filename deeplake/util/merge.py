@@ -748,7 +748,7 @@ def _copy_samples(src_tensor, dest_tensor, start: int, end: int):
 def _copy_link_samples(src_tensor, dest_tensor, start, end):
     with _as_flat_tensors(src_tensor, dest_tensor):
         dest_tensor._extend_with_paths(
-            src_tensor.chunk_engine.path_chunk_engine.numpy(
+            src_tensor.chunk_engine.path_chunk_engine.numpy(  # type: ignore
                 Index([IndexEntry(slice(start, end, None))]),
                 aslist=True,
                 fetch_chunks=False,
