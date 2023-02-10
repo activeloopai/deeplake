@@ -34,6 +34,7 @@ from deeplake.util.keys import (
     get_sequence_encoder_key,
     get_dataset_meta_key,
 )
+from os.path import dirname
 import numpy as np
 
 
@@ -592,6 +593,7 @@ def copy_tensors(
     src_commit_id = src_ds.pending_commit_id
     dest_commit_id = dest_ds.pending_commit_id
     dest_ds_meta = dest_ds.meta
+    dest_groups = set(dest_ds_meta.groups)
     hidden_tensors = []
     src_tensor_names_get = {
         v: k for k, v in src_ds.meta.tensor_names.items()
@@ -610,6 +612,11 @@ def copy_tensors(
     dest_storage = dest_ds.base_storage
     updated_dest_keys = []
     for src_tensor_name, dest_tensor_name in zip(src_tensor_names, dest_tensor_names):
+        if "/" in src_tensor_name:
+            g = dirname(src_tensor_name)
+            while g:
+                dest_groups.add(g)
+                g = dirname(g)
         src_tensor = src_ds[src_tensor_name]
         src_key = src_tensor.key
         chunks = _get_chunks_for_tensor(src_tensor, dest_commit_id, dest_tensor_name)
@@ -632,6 +639,7 @@ def copy_tensors(
         updated_dest_keys.append(dest_chunk_map_key)
     _copy_objects((src_keys, dest_keys), src_storage, dest_storage)
     dest_ds_meta.tensors += dest_tensor_names
+    dest_ds_meta.groups = list(dest_groups)
     dest_ds_meta.tensor_names.update({k: k for k in dest_tensor_names})
     dest_ds_meta.hidden_tensors += hidden_tensors
     dest_storage[get_dataset_meta_key(dest_commit_id)] = dest_ds_meta.tobytes()
