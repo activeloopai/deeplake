@@ -1,4 +1,4 @@
-from deeplake.util.exceptions import DatasetViewSavingError
+from deeplake.util.exceptions import ReadOnlyModeError
 from deeplake.client.utils import get_user_name
 from deeplake.cli.auth import logout, login
 from click.testing import CliRunner
@@ -83,33 +83,16 @@ def test_view_public(hub_cloud_dev_credentials):
     ds = deeplake.load("hub://activeloop/mnist-train")
     view = ds[100:200]
 
-    # not logged in
-    with pytest.raises(DatasetViewSavingError):
+    with pytest.raises(ReadOnlyModeError):
         view.save_view(id="100to200")
 
     runner.invoke(login, f"-u {username} -p {password}")
 
     ds = deeplake.load("hub://activeloop/mnist-train")
     view = ds[100:200]
-    view.save_view(id="100to200")
 
-    runner.invoke(logout)
-    ds = deeplake.load("hub://activeloop/mnist-train")
-    with pytest.raises(KeyError):
-        ds.load_view("100to200")
-
-    runner.invoke(login, f"-u {username} -p {password}")
-
-    ds = deeplake.load("hub://activeloop/mnist-train")
-    loaded = ds.load_view("100to200")
-    np.testing.assert_array_equal(loaded.images.numpy(), ds[100:200].images.numpy())
-    np.testing.assert_array_equal(loaded.labels.numpy(), ds[100:200].labels.numpy())
-    assert (
-        loaded._vds.path
-        == f"hub://{username}/queries/.queries/[activeloop][mnist-train]100to200"
-    )
-
-    ds.delete_view("100to200")
+    with pytest.raises(ReadOnlyModeError):
+        view.save_view(id="100to200")
 
     if state == "logged out":
         runner.invoke(logout)
