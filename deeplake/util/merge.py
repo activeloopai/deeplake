@@ -476,7 +476,7 @@ def merge_tensor_data(
     new_indexes = new_samples_dict[tensor_name]
     new_indexes.sort()
     is_class_label = target_tensor.meta.htype == "class_label"
-    copy_class_labels = True
+    copy_class_labels = is_class_label
     if is_class_label:
         target_class_names = target_tensor.info.class_names
         original_class_names = original_tensor.info.class_names
@@ -523,7 +523,9 @@ def merge_tensor_data(
     for original_idx, target_idx in updated_indexes:
         sample = target_tensor[target_idx]
         if remap_class_label:
-            sample = convert_to_text(sample.numpy(), target_class_names, return_original=True)
+            sample = convert_to_text(
+                sample.numpy(), target_class_names, return_original=True
+            )
         original_tensor[original_idx] = sample
 
 
@@ -682,10 +684,10 @@ def _get_required_chunks_for_range(tensor, start, end):
     arr = enc._encoded
     start_row = enc.translate_index(start)
     end_row = enc.translate_index(end - 1)
-    end_chunk_id = arr[end_row, 0]
+    last_index = arr[end_row, 1]
     nrows = len(arr)
     nxt = end_row + 1
-    while nxt < nrows and arr[nxt, 0] == end_chunk_id:
+    while nxt < nrows and arr[nxt, 1] == last_index:
         end_row = nxt
         nxt += 1
     num_required_chunks = end_row + 1 - start_row

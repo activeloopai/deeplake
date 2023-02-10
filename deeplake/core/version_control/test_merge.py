@@ -517,3 +517,34 @@ def test_merge_sequence_htype(memory_ds):
         ds.expected.extend([[1, 2, 3, 4], [1, 2], [7, 5, 4, 2]])
         for x, y in zip(ds.abc.numpy(aslist=True), ds.expected.numpy(aslist=True)):
             assert_array_equal(x, y)
+
+
+def test_merge_tiled(memory_ds):
+    arr = np.random.random((3, 1713, 1918))
+    with memory_ds as ds:
+        ds.create_tensor("abc")
+        ds.abc.extend(arr)
+        assert list(ds.abc.chunk_engine.tile_encoder.entries.keys()) == list(range(3))
+        ds.commit()
+        ds.checkout("alt", create=True)
+        ds.abc.extend(arr * 0.3 + 0.7)
+        ds.checkout("main")
+        ds.merge("alt")
+        ds.create_tensor("expected")
+        ds.expected.extend(arr)
+        ds.expected.extend(arr * 0.3 + 0.7)
+        assert_array_equal(ds.abc.numpy(aslist=True), ds.expected.numpy(aslist=True))
+
+
+def test_merge_tiled_new_tensor(memory_ds):
+    arr = np.random.random((3, 1394, 1503))
+    with memory_ds as ds:
+        ds.checkout("alt", create=True)
+        ds.create_tensor("abc")
+        ds.abc.extend(arr)
+        assert list(ds.abc.chunk_engine.tile_encoder.entries.keys()) == list(range(3))
+        ds.checkout("main")
+        ds.merge("alt")
+        ds.create_tensor("expected")
+        ds.expected.extend(arr)
+        assert_array_equal(ds.abc.numpy(aslist=True), ds.expected.numpy(aslist=True))
