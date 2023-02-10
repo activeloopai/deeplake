@@ -8,7 +8,6 @@ from deeplake.util.remove_cache import get_base_storage
 from deeplake.core.index.index import IndexEntry
 from deeplake.tests.common import requires_torch, requires_libdeeplake
 from deeplake.core.dataset import Dataset
-from deeplake.core.storage import MemoryProvider, GCSProvider
 from deeplake.constants import KB
 
 from PIL import Image  # type: ignore
@@ -62,11 +61,6 @@ def test_pytorch_small(ds):
         ds.commit()
         ds.create_tensor("image2", max_chunk_size=PYTORCH_TESTS_MAX_CHUNK_SIZE)
         ds.image2.extend(np.array([i * np.ones((12, 12)) for i in range(16)]))
-
-    if isinstance(get_base_storage(ds.storage), (MemoryProvider, GCSProvider)):
-        with pytest.raises(ValueError):
-            dl = ds.dataloader()
-        return
     dl = ds.dataloader().batch(1).pytorch(num_workers=2)
 
     assert len(dl.dataset) == 16
@@ -128,13 +122,6 @@ def test_pytorch_transform(hub_cloud_ds):
         )
         hub_cloud_ds.image2.extend(np.array([i * np.ones((12, 12)) for i in range(16)]))
 
-    if isinstance(
-        get_base_storage(hub_cloud_ds.storage), (MemoryProvider, GCSProvider)
-    ):
-        with pytest.raises(ValueError):
-            dl = hub_cloud_ds.dataloader()
-        return
-
     dl = (
         hub_cloud_ds.dataloader()
         .batch(1)
@@ -166,13 +153,6 @@ def test_pytorch_transform_dict(hub_cloud_ds):
             "image3", max_chunk_size=PYTORCH_TESTS_MAX_CHUNK_SIZE
         )
         hub_cloud_ds.image3.extend(np.array([i * np.ones((12, 12)) for i in range(16)]))
-
-    if isinstance(
-        get_base_storage(hub_cloud_ds.storage), (MemoryProvider, GCSProvider)
-    ):
-        with pytest.raises(ValueError):
-            dl = hub_cloud_ds.dataloader()
-        return
 
     dl = (
         hub_cloud_ds.dataloader().transform({"image": double, "image2": None}).pytorch()
@@ -218,13 +198,6 @@ def test_pytorch_with_compression(hub_cloud_ds: Dataset):
         images.extend(np.ones((16, 12, 12, 3), dtype="uint8"))
         labels.extend(np.ones((16, 1), dtype="uint32"))
 
-    if isinstance(
-        get_base_storage(hub_cloud_ds.storage), (MemoryProvider, GCSProvider)
-    ):
-        with pytest.raises(ValueError):
-            dl = hub_cloud_ds.dataloader()
-        return
-
     dl = hub_cloud_ds.dataloader().pytorch(num_workers=0)
 
     for _ in range(2):
@@ -243,13 +216,6 @@ def test_custom_tensor_order(hub_cloud_ds):
         for t in tensors:
             hub_cloud_ds.create_tensor(t, max_chunk_size=PYTORCH_TESTS_MAX_CHUNK_SIZE)
             hub_cloud_ds[t].extend(np.random.random((3, 4, 5)))
-
-    if isinstance(
-        get_base_storage(hub_cloud_ds.storage), (MemoryProvider, GCSProvider)
-    ):
-        with pytest.raises(ValueError):
-            dl = hub_cloud_ds.dataloader()
-        return
 
     with pytest.raises(TensorDoesNotExistError):
         dl = hub_cloud_ds.dataloader().pytorch(tensors=["c", "d", "e"])
@@ -468,12 +434,6 @@ def test_pytorch_decode(hub_cloud_ds, compressed_image_paths, compression):
         hub_cloud_ds.image.extend(
             [deeplake.read(compressed_image_paths["jpeg"][0])] * 5
         )
-    if isinstance(
-        get_base_storage(hub_cloud_ds.storage), (MemoryProvider, GCSProvider)
-    ):
-        with pytest.raises(ValueError):
-            dl = hub_cloud_ds.dataloader()
-        return
 
     ptds = hub_cloud_ds.dataloader().pytorch(decode_method={"image": "tobytes"})
 
