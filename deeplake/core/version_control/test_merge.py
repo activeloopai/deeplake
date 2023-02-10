@@ -566,3 +566,29 @@ def test_merge_linked(memory_ds, cat_path):
 
         assert len(ds.abc) == 15
         assert set(ds.link_creds.creds_keys) == {"creds1", "creds2"}
+
+
+def test_get_required_chunks(memory_ds):
+    from deeplake.util.merge import _get_required_chunks_for_range as get_chunks
+
+    half_chunk = np.random.randn(500, 1000)  # 4MB
+    ds = memory_ds
+
+    abc = ds.create_tensor("abc")
+    abc.extend([half_chunk, half_chunk])
+
+    assert get_chunks(abc, 0, 1) == (None, (0, 1), None)
+    assert get_chunks(abc, 0, 2) == ((0, 1), None, None)
+
+    abc.extend([half_chunk, half_chunk])
+
+    assert get_chunks(abc, 1, 3) == (None, (1, 3), None)
+    assert get_chunks(abc, 0, 3) == ((0, 1), None, (2, 3))
+    assert get_chunks(abc, 1, 4) == ((1, 2), (1, 2), None)
+
+    abc.extend([half_chunk, half_chunk])
+
+    assert get_chunks(abc, 0, 5) == ((0, 2), None, (4, 5))
+    assert get_chunks(abc, 1, 6) == ((1, 3), (1, 2), None)
+    assert get_chunks(abc, 1, 5) == ((1, 2), (1, 2), (4, 5))
+    assert get_chunks(abc, 0, 6) == ((0, 3), None, None)
