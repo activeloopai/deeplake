@@ -10,7 +10,7 @@ START_BYTE_COLUMN = 1
 
 class BytePositionsEncoder(Encoder):
     def __init__(self, *args, **kwargs):
-        self._num_rows = 3
+        self._num_columns = 3
         super(BytePositionsEncoder, self).__init__(*args, **kwargs)
 
     def get_sum_of_bytes(self, until_row_index: int = -1) -> int:
