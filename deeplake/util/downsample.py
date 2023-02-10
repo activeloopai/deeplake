@@ -73,7 +73,7 @@ def downsample_sample(
     if compression is None:
         return np.array(downsampled_sample)
     with io.BytesIO() as f:
-        downsampled_sample.save(f, format=compression)
+        downsampled_sample.save(f, format=compression)  # type: ignore
         image_bytes = f.getvalue()
         return deeplake.core.sample.Sample(buffer=image_bytes, compression=compression)
 
