@@ -327,7 +327,7 @@ class Tensor:
             raise ValueError("Not supported as the tensor is not a link.")
         self._write_initialization()
         [f() for f in list(self.dataset._update_hooks.values())]
-        self.chunk_engine.path_chunk_engine.extend(
+        self.chunk_engine.path_chunk_engine.extend(  # type: ignore
             samples,
             progressbar=progressbar,
             link_callback=self._extend_links if self.meta.links else None,
