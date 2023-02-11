@@ -82,7 +82,7 @@ def test_empty():
         enc.register_samples((100, 100, 3), 0)
 
     assert enc.num_samples == 0
-    np.testing.assert_array_equal(enc._encoded, np.array([], dtype=np.uint64))
+    np.testing.assert_array_equal(enc._encoded, np.zeros((0, 2), dtype=np.uint64))
 
     with pytest.raises(IndexError):
         enc[0]
