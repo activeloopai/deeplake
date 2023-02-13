@@ -111,54 +111,32 @@ class DeepLakeQueryTensor(tensor.Tensor):
     def num_samples(self):
         return len(self.indra_tensors)
 
-    def can_convert_to_numpy(self):
-        if None in self.shape:
-            return False
-        return True
-
-    def get_first_dim(self):
-        return self.first_dim
-
-    def set_first_dim(self, first_dim):
-        self.first_dim = first_dim
-
     @property
     def max_shape(self):
-        return self.indra_tensors.max_shape
+        return tuple(self.indra_tensors.max_shape)
 
     @property
     def min_shape(self):
-        return self.indra_tensors.min_shape
-
-    def callect_final_shape(self):
-        shape = (self.first_dim,)
-        for i, dim_len in enumerate(self.max_shape):
-            if dim_len == self.min_shape[i]:
-                shape += (dim_len,)
-            else:
-                shape += (None,)
-        return shape
+        return tuple(self.indra_tensors.min_shape)
 
     @property
     def shape(self):
-        if self.max_shape != self.min_shape:
-            shape = []
-            for i, dim_len in enumerate(self.max_shape):
-                if dim_len == self.min_shape[i]:
-                    shape.append(self.min_shape[i])
-                else:
-                    shape.append(None)
-        return shape
+        shape = list(self.max_shape)
+        for i, dim in enumerate(self.max_shape):
+            if dim != self.min_shape[i]:
+                shape[i] = None
+        shape = [len(self.indra_tensors)] + shape
+        return tuple(shape)
 
     @property
     def shape_interval(self):
-        # min_shape = (len(self.indra_tensors),) + self.min_shape
-        # max_shape = (len(self.indra_tensors),) + self.max_shape
-        return shape_interval.ShapeInterval(self.min_shape, self.max_shape)
+        min_shape = (len(self.indra_tensors),) + self.min_shape
+        max_shape = (len(self.indra_tensors),) + self.max_shape
+        return shape_interval.ShapeInterval(min_shape, max_shape)
 
     @property
     def ndim(self):
-        return len(self.indra_tensors.max_shape)
+        return len(self.shape)
 
     @property
     def htype(self):
@@ -200,6 +178,22 @@ class DeepLakeQueryTensor(tensor.Tensor):
         print(pretty_print)
 
 
+class IndraShapeTensor:
+    def __init__(self, indra_shapes, indexes):
+        self.indra_shapes = indra_shapes
+        self.indexes = indexes
+
+    @property
+    def shape_list(self):
+        shape = []
+        for i in range(len(self.indra_shapes)):
+            pass
+
+    def shape(self):
+        if len(self.indexes) == 1:
+            pass
+
+
 class DeeplakeQueryTensorWithSliceIndices(DeepLakeQueryTensor):
     def __init__(self, *args, **kwargs):
         super().__init__(
@@ -208,78 +202,83 @@ class DeeplakeQueryTensorWithSliceIndices(DeepLakeQueryTensor):
         )
         # TO DO: Optimize this, we shouldn't be loading indra tensor here.
         self.idxs = [idx.value for idx in self.index.values]
+        self.shapes = self.indra_tensors.shape
 
-    def _set_tensors_list(self):
-        if len(self.index.values) == 1:
-            self.tensors_list = self.indra_tensors[self.idxs[0]]
-        else:
-            self.tensors_list = self.indra_tensors[self.idxs[0]]
+    # def _set_tensors_list(self):
+    #     if len(self.index.values) == 1:
+    #         self.tensors_list = self.indra_tensors[self.idxs[0]]
+    #     else:
+    #         self.tensors_list = self.indra_tensors[self.idxs[0]]
 
-    @staticmethod
-    def _find_first_dim(tensors_list):
-        first_dim = len(tensors_list)
-        return first_dim
+    # @staticmethod
+    # def _find_first_dim(tensors_list):
+    #     first_dim = len(tensors_list)
+    #     return first_dim
 
-    def get_indra_tensor_shapes(self):
-        shapes = []
-        for idx in self.idxs:
-            shapes += self.indra_tensors.shape(idx)
-        return np.array(shapes)
+    # def get_indra_tensor_shapes(self):
+    #     shapes = []
+    #     for idx in self.idxs:
+    #         shapes += self.indra_tensors.shape(idx)
+    #     return np.array(shapes)
 
-    @property
-    def max_shape(self):
-        indra_tensor_shapes = self.get_indra_tensor_shapes()
-        _max_shape = []
+    # @property
+    # def max_shape(self):
+    #     indra_tensor_shapes = self.get_indra_tensor_shapes()
+    #     _max_shape = []
 
-        for axis in range(len(indra_tensor_shapes)):
-            indra_tensors_shapes_along_axis = indra_tensor_shapes[:, axis]
-            max_value = np.max(indra_tensors_shapes_along_axis)
-            _max_shape.append(max_value)
-        return _max_shape
+    #     for axis in range(len(indra_tensor_shapes)):
+    #         indra_tensors_shapes_along_axis = indra_tensor_shapes[:, axis]
+    #         max_value = np.max(indra_tensors_shapes_along_axis)
+    #         _max_shape.append(max_value)
+    #     return _max_shape
 
-    @property
-    def min_shape(self):
-        indra_tensor_shapes = self.get_indra_tensor_shapes()
-        _min_shape = []
+    # @property
+    # def min_shape(self):
+    #     indra_tensor_shapes = self.get_indra_tensor_shapes()
+    #     _min_shape = []
 
-        for axis in range(len(indra_tensor_shapes)):
-            indra_tensors_shapes_along_axis = indra_tensor_shapes[:, axis]
-            min_value = np.min(indra_tensors_shapes_along_axis)
-            _min_shape.append(min_value)
-        return _min_shape
+    #     for axis in range(len(indra_tensor_shapes)):
+    #         indra_tensors_shapes_along_axis = indra_tensor_shapes[:, axis]
+    #         min_value = np.min(indra_tensors_shapes_along_axis)
+    #         _min_shape.append(min_value)
+    #     return _min_shape
+
+    # @property
+    # def shape(self):
+    #     shape = ()
+
+    #     for i, idx in enumerate(self.idxs):
+    #         if isinstance(idx, int):
+    #             if i > 0:
+    #                 shape += (1,)
+    #         else:
+    #             start = idx.start or 0
+    #             stop = idx.stop or self.max_shape[i]
+    #             step = idx.step or 1
+
+    #             if start < 0:
+    #                 start = self.max_shape[i] + start
+
+    #             if stop < 0:
+    #                 stop = self.max_shape[i] + stop
+
+    #             dim = (stop - start) // step
+    #             shape += (dim,)
+
+    #         if i != 0 and self.max_shape[i] != self.min_shape[i]:
+    #             shape += (None,)
+
+    #     for i in range(len(self.idxs), self.ndim):
+    #         dim_len = self.max_shape[i]
+    #         if dim_len == self.min_shape[i]:
+    #             shape += (dim_len,)
+    #         else:
+    #             shape += (None,)
+    #     return shape
 
     @property
     def shape(self):
-        shape = ()
-
-        for i, idx in enumerate(self.idxs):
-            if isinstance(idx, int):
-                if i > 0:
-                    shape += (1,)
-            else:
-                start = idx.start or 0
-                stop = idx.stop or self.max_shape[i]
-                step = idx.step or 1
-
-                if start < 0:
-                    start = self.max_shape[i] + start
-
-                if stop < 0:
-                    stop = self.max_shape[i] + stop
-
-                dim = (stop - start) // step
-                shape += (dim,)
-
-            if i != 0 and self.max_shape[i] != self.min_shape[i]:
-                shape += (None,)
-
-        for i in range(len(self.idxs), self.ndim):
-            dim_len = self.max_shape[i]
-            if dim_len == self.min_shape[i]:
-                shape += (dim_len,)
-            else:
-                shape += (None,)
-        return shape
+        pass
 
     def numpy(self, aslist=False):
         self._set_tensors_list()
