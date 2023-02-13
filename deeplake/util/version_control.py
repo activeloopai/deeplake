@@ -37,6 +37,8 @@ from deeplake.util.keys import (
 from deeplake.util.remove_cache import get_base_storage
 from deeplake.hooks import dataset_committed
 from datetime import datetime
+from yaspin.spinners import Spinners
+from yaspin import yaspin
 import json
 
 
@@ -128,40 +130,41 @@ def integrity_check(dataset):
 
 def commit(dataset, message: Optional[str] = None, hash: Optional[str] = None) -> None:
     """Modifies the version state to reflect the commit and also copies required data to the new commit directory."""
-    storage = dataset.storage
-    version_state = dataset.version_state
-    storage.check_readonly()
-    integrity_check(dataset)
-    # if not the head node, checkout to an auto branch that is newly created
-    auto_checkout(dataset)
-    stored_commit_node: CommitNode = version_state["commit_node"]
-    stored_commit_id = version_state["commit_id"]
-    if hash:
-        if hash in version_state["commit_node_map"]:
-            raise CommitError(f"Commit {hash} already exists")
-        version_state["commit_id"] = hash
-    else:
-        version_state["commit_id"] = generate_hash()
-    new_node = CommitNode(version_state["branch"], version_state["commit_id"])
-    version_state["commit_node"].add_successor(new_node, message)
-    version_state["commit_node"] = new_node
-    version_state["branch_commit_map"][version_state["branch"]] = version_state[
-        "commit_id"
-    ]
-    version_state["commit_node_map"][version_state["commit_id"]] = new_node
-    copy_metas(stored_commit_id, version_state["commit_id"], storage, version_state)
-    create_commit_chunk_maps(version_state["commit_id"], storage, version_state)
-    discard_old_metas(stored_commit_id, storage, version_state["full_tensors"])
-    load_meta(dataset)
+    with yaspin(spinner=Spinners.line) as sp:
+        storage = dataset.storage
+        version_state = dataset.version_state
+        storage.check_readonly()
+        integrity_check(dataset)
+        # if not the head node, checkout to an auto branch that is newly created
+        auto_checkout(dataset)
+        stored_commit_node: CommitNode = version_state["commit_node"]
+        stored_commit_id = version_state["commit_id"]
+        if hash:
+            if hash in version_state["commit_node_map"]:
+                raise CommitError(f"Commit {hash} already exists")
+            version_state["commit_id"] = hash
+        else:
+            version_state["commit_id"] = generate_hash()
+        new_node = CommitNode(version_state["branch"], version_state["commit_id"])
+        version_state["commit_node"].add_successor(new_node, message)
+        version_state["commit_node"] = new_node
+        version_state["branch_commit_map"][version_state["branch"]] = version_state[
+            "commit_id"
+        ]
+        version_state["commit_node_map"][version_state["commit_id"]] = new_node
+        copy_metas(stored_commit_id, version_state["commit_id"], storage, version_state)
+        create_commit_chunk_maps(version_state["commit_id"], storage, version_state)
+        discard_old_metas(stored_commit_id, storage, version_state["full_tensors"])
+        load_meta(dataset)
 
-    commit_time = stored_commit_node.commit_time
-    commit_message = stored_commit_node.commit_message
-    author = stored_commit_node.commit_user_name
-    save_version_info(version_state, storage)
-    dataset._send_commit_event(
-        commit_message=commit_message, commit_time=commit_time, author=author
-    )
-    dataset_committed(dataset)
+        commit_time = stored_commit_node.commit_time
+        commit_message = stored_commit_node.commit_message
+        author = stored_commit_node.commit_user_name
+        save_version_info(version_state, storage)
+        dataset._send_commit_event(
+            commit_message=commit_message, commit_time=commit_time, author=author
+        )
+        dataset_committed(dataset)
 
 
 def checkout(

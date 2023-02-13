@@ -132,6 +132,8 @@ from deeplake.core.dataset.view_entry import ViewEntry
 from deeplake.core.dataset.invalid_view import InvalidView
 from deeplake.hooks import dataset_read
 from itertools import chain
+from yaspin.spinners import Spinners
+from yaspin import yaspin
 import warnings
 import jwt
 
@@ -3565,49 +3567,52 @@ class Dataset:
         Note:
             The uncommitted data is deleted from underlying storage, this is not a reversible operation.
         """
-        storage, version_state = self.storage, self.version_state
-        if version_state["commit_node"].children:
-            print("You are not at the head node of the branch, cannot reset.")
-            return
-        if not self.has_head_changes:
-            print("There are no uncommitted changes on this branch.")
-            return
+        with yaspin(spinner=Spinners.line) as sp:
+            storage, version_state = self.storage, self.version_state
+            if version_state["commit_node"].children:
+                sp.write("You are not at the head node of the branch, cannot reset.")
+                return
+            if not self.has_head_changes:
+                sp.write("There are no uncommitted changes on this branch.")
+                return
 
-        if self.commit_id is None:
-            storage.clear()
-            self._populate_meta()
-            load_meta(self)
-        else:
-            reset_commit_id = self.pending_commit_id
-            deletion_folder = "/".join(("versions", reset_commit_id))
-            new_commit_id = generate_hash()
-            new_branch = self.branch
+            if self.commit_id is None:
+                storage.clear()
+                self._populate_meta()
+                load_meta(self)
+            else:
+                reset_commit_id = self.pending_commit_id
+                deletion_folder = "/".join(("versions", reset_commit_id))
+                new_commit_id = generate_hash()
+                new_branch = self.branch
 
-            parent_commit_id = self.commit_id
+                parent_commit_id = self.commit_id
 
-            # checkout to get list of tensors in previous commit, needed for copying metas and create_commit_chunk_set
-            self.checkout(parent_commit_id)
+                # checkout to get list of tensors in previous commit, needed for copying metas and create_commit_chunk_set
+                with sp.hidden():
+                    self.checkout(parent_commit_id)
 
-            # populate new commit folder
-            copy_metas(parent_commit_id, new_commit_id, storage, version_state)
-            create_commit_chunk_maps(new_commit_id, storage, version_state)
+                # populate new commit folder
+                copy_metas(parent_commit_id, new_commit_id, storage, version_state)
+                create_commit_chunk_maps(new_commit_id, storage, version_state)
 
-            # update and save version state
-            parent_node: CommitNode = version_state["commit_node"]
-            new_node = CommitNode(new_branch, new_commit_id)
-            new_node.parent = parent_node
-            version_state["branch_commit_map"][new_branch] = new_commit_id
-            version_state["commit_node_map"][new_commit_id] = new_node
-            del version_state["commit_node_map"][reset_commit_id]
-            for i, child in enumerate(parent_node.children):
-                if child.commit_id == reset_commit_id:
-                    parent_node.children[i] = new_node
-                    break
-            save_version_info(version_state, storage)
+                # update and save version state
+                parent_node: CommitNode = version_state["commit_node"]
+                new_node = CommitNode(new_branch, new_commit_id)
+                new_node.parent = parent_node
+                version_state["branch_commit_map"][new_branch] = new_commit_id
+                version_state["commit_node_map"][new_commit_id] = new_node
+                del version_state["commit_node_map"][reset_commit_id]
+                for i, child in enumerate(parent_node.children):
+                    if child.commit_id == reset_commit_id:
+                        parent_node.children[i] = new_node
+                        break
+                save_version_info(version_state, storage)
 
-            # clear the old folder
-            storage.clear(prefix=deletion_folder)
-            self.checkout(new_commit_id)
+                # clear the old folder
+                storage.clear(prefix=deletion_folder)
+                with sp.hidden():
+                    self.checkout(new_commit_id)
 
     def connect(
         self,

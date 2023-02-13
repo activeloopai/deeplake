@@ -18,3 +18,4 @@ flask
 pyjwt
 laspy
 nibabel
+yaspin

@@ -35,6 +35,8 @@ from deeplake.util.keys import (
     get_dataset_meta_key,
 )
 from os.path import dirname
+from yaspin.spinners import Spinners
+from yaspin import yaspin
 import numpy as np
 
 
@@ -50,33 +52,37 @@ def merge(
     For the common tensors, we compare ids of the samples. The samples with newer ids are added to the dataset.
     For samples with the same ids, we compare the changes history of the sample and resolve conflicts according to the conflict_resolution argument.
     """
-    version_state = dataset.version_state
-    commit_node_map = version_state["commit_node_map"]
-    auto_checkout(dataset)
-    target_commit_id = sanitize_commit(target_id, version_state)
-    target_commit_id = auto_commit_target_commit(dataset, target_commit_id)
+    with yaspin(spinner=Spinners.line) as sp:
+        version_state = dataset.version_state
+        commit_node_map = version_state["commit_node_map"]
+        with sp.hidden():
+            auto_checkout(dataset)
+        target_commit_id = sanitize_commit(target_id, version_state)
+        target_commit_id = auto_commit_target_commit(dataset, target_commit_id)
 
-    nodes: Dict[str, CommitNode] = {}
-    nodes["original"] = original_node = version_state["commit_node"]
-    nodes["target"] = target_node = commit_node_map[target_commit_id]
-    lca_id = get_lowest_common_ancestor(original_node, target_node)
-    target_ds = create_read_copy_dataset(dataset, target_commit_id)
+        nodes: Dict[str, CommitNode] = {}
+        nodes["original"] = original_node = version_state["commit_node"]
+        nodes["target"] = target_node = commit_node_map[target_commit_id]
+        lca_id = get_lowest_common_ancestor(original_node, target_node)
+        target_ds = create_read_copy_dataset(dataset, target_commit_id)
 
-    if lca_id == target_commit_id:
-        print("No merge needed, target id is an ancestor of the current commit")
-        return
-    nodes["lca"] = commit_node_map[lca_id]
+        if lca_id == target_commit_id:
+            sp.write("No merge needed, target id is an ancestor of the current commit")
+            return
+        nodes["lca"] = commit_node_map[lca_id]
 
-    (
-        new_tensors,
-        common_tensors,
-        deleted_tensors,
-    ) = get_new_common_deleted_tensors(dataset, target_ds, lca_id, force)
+        (
+            new_tensors,
+            common_tensors,
+            deleted_tensors,
+        ) = get_new_common_deleted_tensors(dataset, target_ds, lca_id, force)
 
-    merge_common_tensors(common_tensors, dataset, target_ds, nodes, conflict_resolution)
-    copy_new_tensors(new_tensors, dataset, target_ds)
-    delete_tensors(deleted_tensors, dataset, delete_removed_tensors)
-    finalize_merge(dataset, nodes)
+        merge_common_tensors(
+            common_tensors, dataset, target_ds, nodes, conflict_resolution
+        )
+        copy_new_tensors(new_tensors, dataset, target_ds)
+        delete_tensors(deleted_tensors, dataset, delete_removed_tensors)
+        finalize_merge(dataset, nodes)
 
 
 def get_new_common_deleted_tensors(
