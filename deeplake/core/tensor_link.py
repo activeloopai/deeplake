@@ -1,4 +1,5 @@
 from typing import Callable
+from deeplake.core.compression import to_image
 from deeplake.core.index import Index
 from deeplake.constants import _NO_LINK_UPDATE
 import inspect
@@ -188,8 +189,12 @@ def convert_sample_for_downsampling(sample, link_creds=None):
         )
     if isinstance(sample, deeplake.core.sample.Sample):
         sample = sample.pil
-    if isinstance(sample, np.ndarray) and sample.dtype != bool:
-        sample = Image.fromarray(sample)
+    if (
+        isinstance(sample, np.ndarray)
+        and sample.dtype != bool
+        and 0 not in sample.shape
+    ):
+        sample = to_image(sample)
     return sample
 
 
