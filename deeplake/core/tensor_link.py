@@ -1,4 +1,5 @@
 from typing import Callable
+from deeplake.core.compression import to_image
 from deeplake.core.index import Index
 from deeplake.constants import _NO_LINK_UPDATE
 import inspect
@@ -142,7 +143,10 @@ def update_shape(new_sample, link_creds=None, tensor_meta=None):
 def extend_shape(samples, link_creds=None, tensor_meta=None):
     if isinstance(samples, np.ndarray):
         if samples.dtype != object:
-            return np.tile(np.array([samples.shape[1:]]), (len(samples), 1))
+            samples_shape = samples.shape
+            if samples.ndim == 1:
+                samples_shape = samples_shape + (1,)
+            return np.tile(np.array([samples_shape[1:]]), (samples_shape[0], 1))
     if samples is None:
         return np.array([], dtype=np.int64)
     shapes = [
@@ -189,9 +193,12 @@ def convert_sample_for_downsampling(sample, link_creds=None):
         )
     if isinstance(sample, deeplake.core.sample.Sample):
         sample = sample.pil
-    if isinstance(sample, np.ndarray):
-        sample = Image.fromarray(sample)
-    # PartialSample isn't converted
+    if (
+        isinstance(sample, np.ndarray)
+        and sample.dtype != bool
+        and 0 not in sample.shape
+    ):
+        sample = to_image(sample)
     return sample
 
 

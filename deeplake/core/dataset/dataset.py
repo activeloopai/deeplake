@@ -105,7 +105,7 @@ from deeplake.util.keys import (
     get_tensor_commit_diff_key,
     get_tensor_tile_encoder_key,
     get_tensor_info_key,
-    get_tensor_commit_chunk_set_key,
+    get_tensor_commit_chunk_map_key,
     get_chunk_id_encoder_key,
     get_dataset_diff_key,
     get_sequence_encoder_key,
@@ -123,7 +123,7 @@ from deeplake.util.version_control import (
     warn_node_checkout,
     load_version_info,
     copy_metas,
-    create_commit_chunk_sets,
+    create_commit_chunk_maps,
     save_version_info,
     generate_hash,
 )
@@ -2518,7 +2518,7 @@ class Dataset:
                 )
         [f() for f in list(self._update_hooks.values())]
         for i in range(n):
-            self.append({k: v[i] for k, v in samples.items()})
+            self.append({k: v[i] for k, v in samples.items()}, skip_ok=skip_ok)
 
     @invalid_view_op
     def append(
@@ -3593,7 +3593,7 @@ class Dataset:
 
             # populate new commit folder
             copy_metas(parent_commit_id, new_commit_id, storage, version_state)
-            create_commit_chunk_sets(new_commit_id, storage, version_state)
+            create_commit_chunk_maps(new_commit_id, storage, version_state)
 
             # update and save version state
             parent_node: CommitNode = version_state["commit_node"]
@@ -3641,9 +3641,6 @@ class Dataset:
             InvalidSourcePathError: If the dataset's path is not a valid s3 or gcs path.
             InvalidDestinationPathError: If ``dest_path``, or ``org_id`` and ``ds_name`` do not form a valid Deep Lake path.
         """
-        self.__class__ = (
-            deeplake.core.dataset.deeplake_cloud_dataset.DeepLakeCloudDataset
-        )
         path = connect_dataset_entry(
             src_path=self.path,
             dest_path=dest_path,
@@ -3651,6 +3648,9 @@ class Dataset:
             ds_name=ds_name,
             creds_key=creds_key,
             token=token,
+        )
+        self.__class__ = (
+            deeplake.core.dataset.deeplake_cloud_dataset.DeepLakeCloudDataset
         )
         self._token = token
         self.path = path

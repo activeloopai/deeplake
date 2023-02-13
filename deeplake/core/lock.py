@@ -4,7 +4,7 @@ import uuid
 import struct
 import atexit
 import threading
-
+from os import urandom
 from typing import Tuple, Dict, Callable, Optional, Set
 from collections import defaultdict
 from deeplake.util.exceptions import LockedException
@@ -12,43 +12,49 @@ from deeplake.util.keys import get_dataset_lock_key
 from deeplake.util.remove_cache import get_base_storage
 from deeplake.util.path import get_path_from_storage
 from deeplake.util.threading import terminate_thread
-from deeplake.core.storage import StorageProvider
+from deeplake.core.storage import StorageProvider, LocalProvider, MemoryProvider
 from deeplake.constants import FIRST_COMMIT_ID
 from deeplake.client.utils import get_user_name
 
 
-def _get_lock_bytes(username: Optional[str] = None) -> bytes:
+def _get_lock_bytes(tag: Optional[bytes] = None) -> bytes:
     byts = uuid.getnode().to_bytes(6, "little") + struct.pack("d", time.time())
-    ## TODO Uncomment lines below once this version has propogated through the userbase.
-    # if username:
-    #     byts += username.encode("utf-8")
+    if tag:
+        byts += tag
     return byts
 
 
-def _parse_lock_bytes(byts) -> Tuple[int, int, str]:
+def _parse_lock_bytes(byts) -> Tuple[int, int, bytes]:
+    assert len(byts) >= 14, len(byts)
     byts = memoryview(byts)
     nodeid = int.from_bytes(byts[:6], "little")
     timestamp = struct.unpack("d", byts[6:14])[0]
-    username = str(byts[14:], "utf-8")
-    return nodeid, timestamp, username
+    tag = byts[14:]
+    return nodeid, timestamp, tag
 
 
 class Lock(object):
     def __init__(self, storage: StorageProvider, path: str):
         self.storage = storage
+        self._lock_verify_interval = (
+            0.1
+            if isinstance(storage, (LocalProvider, MemoryProvider))
+            else deeplake.constants.LOCK_VERIFY_INTERVAL
+        )
         self.path = path
         username = get_user_name()
         if username == "public":
             self.username = None
         else:
             self.username = username
+        self.tag = urandom(4)
 
     def _write_lock(self):
         storage = self.storage
         try:
             read_only = storage.read_only
             storage.disable_readonly()
-            storage[self.path] = _get_lock_bytes(self.username)
+            storage[self.path] = _get_lock_bytes(self.tag)
         finally:
             if read_only:
                 storage.enable_readonly()
@@ -56,19 +62,41 @@ class Lock(object):
     def acquire(self, timeout=10, force=False):
         storage = self.storage
         path = self.path
-        try:
-            nodeid, timestamp, _ = _parse_lock_bytes(storage[path])
-        except KeyError:
-            return self._write_lock()
-        if nodeid == uuid.getnode():
-            return self._write_lock()
-        while path in storage:
+        while True:
+            try:
+                byts = storage[path]
+                if not byts:
+                    raise KeyError(path)
+                nodeid, timestamp, _ = _parse_lock_bytes(byts)
+                locked = True
+            except KeyError:
+                locked = False
+            if not locked:
+                self._write_lock()
+                time.sleep(self._lock_verify_interval)
+                byts = storage[path]
+                if not byts:
+                    continue
+                nodeid, _, tag = _parse_lock_bytes(byts)
+                if self.tag == tag and nodeid == uuid.getnode():
+                    return
+                else:
+                    continue
             if time.time() - timestamp >= timeout:
                 if force:
-                    return self._write_lock()
+                    self._write_lock()
+                    time.sleep(self._lock_verify_interval)
+                    byts = storage[path]
+                    if not byts:
+                        continue
+                    nodeid, _, tag = _parse_lock_bytes(byts)
+                    if self.tag == tag and nodeid == uuid.getnode():
+                        return
+                    else:
+                        continue
                 else:
                     raise LockedException()
-            time.sleep(1)
+            time.sleep(0.5)
 
     def release(self):
         storage = self.storage
@@ -155,7 +183,7 @@ class PersistentLock(Lock):
                             self.acquired = False
                             return
                     self._previous_update_timestamp = time.time()
-                    self.storage[self.path] = _get_lock_bytes(self.username)
+                    self.storage[self.path] = _get_lock_bytes()
                 except Exception:
                     pass
                 self._init = False

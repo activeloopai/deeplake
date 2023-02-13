@@ -5,8 +5,9 @@ import deeplake
 import uuid
 import time
 import warnings
+import json
 from deeplake.tests.dataset_fixtures import enabled_cloud_dataset_generators
-
+from concurrent.futures import ThreadPoolExecutor
 
 _counter = 0
 
@@ -122,3 +123,23 @@ def test_lock_thread_leaking(s3_ds_generator):
         views[i].__del__()
     del views
     assert nlocks() == 0  # 0 because dataset and all views deleted
+
+
+def test_concurrent_locking(memory_ds):
+    storage = memory_ds.base_storage
+
+    def f(i):
+        lock = deeplake.core.lock.Lock(storage, "lock.lock")
+        with lock:
+            byts = storage.get("meta.json")
+            if byts is None:
+                d = {"x": []}
+            else:
+                d = json.loads(byts.decode("utf-8"))
+            d["x"].append(i)
+            storage["meta.json"] = json.dumps(d).encode("utf-8")
+
+    n = 10
+    with ThreadPoolExecutor(max_workers=n) as executor:
+        executor.map(f, range(n))
+    assert set(json.loads(storage["meta.json"])["x"]) == set(range(n))

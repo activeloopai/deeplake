@@ -52,13 +52,14 @@ TENSOR_INFO_FILENAME = "tensor_info.json"
 
 DATASET_LOCK_FILENAME = "dataset_lock.lock"
 DATASET_DIFF_FILENAME = "dataset_diff"
-TENSOR_COMMIT_CHUNK_SET_FILENAME = "chunk_set"
+TENSOR_COMMIT_CHUNK_MAP_FILENAME = "chunk_set"
 TENSOR_COMMIT_DIFF_FILENAME = "commit_diff"
 TIMESTAMP_FILENAME = "local_download_timestamp"
 
 
 DATASET_LOCK_UPDATE_INTERVAL = 120  # seconds
 DATASET_LOCK_VALIDITY = 300  # seconds
+LOCK_VERIFY_INTERVAL = 0.5  # seconds
 
 META_ENCODING = "utf8"
 

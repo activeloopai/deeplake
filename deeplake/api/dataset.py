@@ -942,7 +942,7 @@ class dataset:
         if tensors:
             assert metas
         len_keys = len(keys)
-        if num_workers == 0:
+        if num_workers <= 1:
             keys = [keys]
         else:
             keys = [keys[i::num_workers] for i in range(num_workers)]
