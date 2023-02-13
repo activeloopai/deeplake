@@ -8,12 +8,17 @@ from deeplake.cli.list_datasets import list_datasets
 from deeplake.tests.common import SESSION_ID
 
 
-def test_cli_auth(hub_cloud_dev_credentials):
+@pytest.mark.parametrize("method", ["creds", "token"])
+def test_cli_auth(hub_cloud_dev_credentials, hub_cloud_dev_token, method):
     username, password = hub_cloud_dev_credentials
 
     runner = CliRunner()
 
-    result = runner.invoke(login, f"-u {username} -p {password}")
+    if method == "creds":
+        result = runner.invoke(login, f"-u {username} -p {password}")
+    elif method == "token":
+        result = runner.invoke(login, f"-t {hub_cloud_dev_token}")
+
     assert result.exit_code == 0
     assert result.output == "Successfully logged in to Activeloop.\n"
 
@@ -22,11 +27,16 @@ def test_cli_auth(hub_cloud_dev_credentials):
     assert result.output == "Logged out of Activeloop.\n"
 
 
-def test_get_datasets(hub_cloud_dev_credentials):
+@pytest.mark.parametrize("method", ["creds", "token"])
+def test_get_datasets(hub_cloud_dev_credentials, hub_cloud_dev_token, method):
     runner = CliRunner()
     username, password = hub_cloud_dev_credentials
 
-    runner.invoke(login, f"-u {username} -p {password}")
+    if method == "creds":
+        runner.invoke(login, f"-u {username} -p {password}")
+    elif method == "token":
+        runner.invoke(login, f"-t {hub_cloud_dev_token}")
+        
     ds1 = deeplake.dataset(f"hub://{username}/test_list_{SESSION_ID}")
 
     res = runner.invoke(list_datasets)
