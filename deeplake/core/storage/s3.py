@@ -1,3 +1,4 @@
+import asyncio
 import deeplake
 from math import ceil
 import time
@@ -25,6 +26,7 @@ from botocore.exceptions import (
     EndpointConnectionError,
     IncompleteReadError,
 )
+import aioboto3
 
 CONNECTION_ERRORS = (
     ReadTimeoutError,
@@ -519,6 +521,8 @@ class S3Provider(StorageProvider):
         session = boto3.session.Session(profile_name=self.profile_name)
         self.client = session.client("s3", **args)
         self.resource = session.resource("s3", **args)
+        self.async_session = aioboto3.session.Session(profile_name=self.profile_name)
+        self.my_args = args     
 
     def need_to_reload_creds(self, err: botocore.exceptions.ClientError) -> bool:
         """Checks if the credentials need to be reloaded.
@@ -595,3 +599,21 @@ class S3Provider(StorageProvider):
             raise S3GetError(err) from err
         except Exception as err:
             raise S3GetError(err) from err
+
+    def set_items(self, items: dict):
+        # set multiple items at once using aioboto3,
+
+        async def _set_items():
+            async with self.async_session.client("s3", **self.my_args) as client:
+                for key, value in items.items():
+                    await client.put_object(
+                        Bucket=self.bucket,
+                        Key=self.path + key,
+                        Body=value,
+                    )
+
+        loop = asyncio.new_event_loop()
+        asyncio.set_event_loop(loop)
+        loop.run_until_complete(_set_items())
+
+

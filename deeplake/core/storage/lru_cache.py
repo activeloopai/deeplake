@@ -84,10 +84,25 @@ class LRUCache(StorageProvider):
                 obj.is_dirty = False
 
         if self.dirty_keys:
-            for key in self.dirty_keys.copy():
-                self._forward(key)
-            if self.next_storage is not None:
-                self.next_storage.flush()
+            if hasattr(self.next_storage, "set_items"):
+                d = {}
+                for key in self.dirty_keys:
+                    value = self.cache_storage[key]
+                    # self.dirty_keys.pop(key, None)
+                    if isinstance(value, DeepLakeMemoryObject):
+                        d[key] = bytes(value.tobytes())
+                    elif isinstance(value, memoryview):
+                        d[key] = bytes(value)
+                    else:
+                        d[key] = value
+
+                self.next_storage.set_items(d)
+                self.dirty_keys.clear()
+            else:
+                for key in self.dirty_keys.copy():
+                    self._forward(key)
+                if self.next_storage is not None:
+                    self.next_storage.flush()
 
         self.autoflush = initial_autoflush
 
