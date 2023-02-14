@@ -13,6 +13,8 @@ from .utils import YoloData
 
 import numpy as np
 
+from random import shuffle
+
 from .constants import (
     DEFAULT_YOLO_COORDINATES_TENSOR_PARAMS,
     DEFAULT_YOLO_LABEL_TENSOR_PARAMS,
@@ -296,7 +298,7 @@ class YoloDataset(UnstructuredDataset):
                 num_workers=num_workers,
             )
 
-    def structure(self, ds: Dataset, progressbar: bool = True, num_workers: int = 0):  # type: ignore
+    def structure(self, ds: Dataset, progressbar: bool = True, num_workers: int = 0, shuffle: bool = True):  # type: ignore
         # Set class names in the dataset
         if self.data.class_names:
             ds[self.label_params["name"]].info["class_names"] = self.data.class_names
@@ -307,6 +309,9 @@ class YoloDataset(UnstructuredDataset):
                 "type": "fractional",
                 "mode": "CCWH",
             }
+
+        if shuffle:
+            shuffle(self.ingestion_data)
 
         self._ingest_data(ds, progressbar, num_workers)
 

@@ -14,6 +14,8 @@ from deeplake.core.dataset import Dataset
 
 from tqdm import tqdm  # type: ignore
 
+from random import shuffle
+
 from .base import UnstructuredDataset
 
 import deeplake
@@ -95,6 +97,7 @@ class ImageClassification(UnstructuredDataset):
         ds: Dataset,
         progressbar: bool = True,
         generate_summary: bool = True,
+        shuffle: bool = True,
         image_tensor_args: dict = {},
     ) -> Dataset:
         """Create a structured dataset.
@@ -103,6 +106,7 @@ class ImageClassification(UnstructuredDataset):
             ds (Dataset) : A Deep Lake dataset object.
             progressbar (bool): Defines if the method uses a progress bar. Defaults to True.
             generate_summary (bool): Defines if the method generates ingestion summary. Defaults to True.
+            shuffle (bool): Defines if the file paths should be shuffled prior to ingestion. Defaults to True.
             image_tensor_args (dict): Defines the sample compression of the dataset (jpeg or png).
 
         Returns:
@@ -137,6 +141,9 @@ class ImageClassification(UnstructuredDataset):
             )
 
             paths = self._abs_file_paths
+            if shuffle:
+                shuffle(paths)
+
             skipped_files: list = []
 
             iterator = tqdm(
