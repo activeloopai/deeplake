@@ -1,6 +1,6 @@
 import subprocess
 import pytest
-from deeplake.cli.commands import login
+from deeplake.cli.commands import login, logout
 from click.testing import CliRunner
 from deeplake.client.client import DeepLakeBackendClient
 from deeplake.client.utils import (
@@ -57,3 +57,5 @@ def test_client_workspace_organizations(
         ["activeloop", "list-datasets", "--workspace", "test"]
     )
     assert "You are not a member of organization" not in str(datasets)
+
+    runner.invoke(logout)

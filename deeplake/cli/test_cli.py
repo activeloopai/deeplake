@@ -45,22 +45,22 @@ def test_get_datasets(hub_cloud_dev_credentials, hub_cloud_dev_token, method):
     elif method == "token":
         runner.invoke(login, f"-t {hub_cloud_dev_token}")
 
-    ds1 = deeplake.dataset(f"hub://{username}/test_list_{SESSION_ID}")
+    ds1 = deeplake.dataset(f"hub://{username}/test_list_{SESSION_ID}_{method}")
 
     res = runner.invoke(list_datasets)
     assert res.exit_code == 0
-    assert f"{username}/test_list_{SESSION_ID}" in res.output
+    assert f"{username}/test_list_{SESSION_ID}_{method}" in res.output
 
     res = runner.invoke(list_datasets, "--workspace activeloop")
     assert len(res.output.split("\n")) > 0
 
     ds2 = deeplake.dataset(
-        f"hub://{username}/test_list_private_{SESSION_ID}", public=False
+        f"hub://{username}/test_list_private_{SESSION_ID}_{method}", public=False
     )
     res = runner.invoke(logout)
     assert res.output == "Logged out of Activeloop.\n"
     res = runner.invoke(list_datasets)
-    assert f"{username}/test_list_private_{SESSION_ID}" not in res.output
+    assert f"{username}/test_list_private_{SESSION_ID}_{method}" not in res.output
 
     ds1.delete()
     ds2.delete()
