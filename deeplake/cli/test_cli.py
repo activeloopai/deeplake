@@ -6,6 +6,7 @@ import deeplake
 from deeplake.cli.auth import login, logout
 from deeplake.cli.list_datasets import list_datasets
 from deeplake.tests.common import SESSION_ID
+from deeplake.util.exceptions import LoginException
 
 
 @pytest.mark.parametrize("method", ["creds", "token"])
@@ -27,6 +28,13 @@ def test_cli_auth(hub_cloud_dev_credentials, hub_cloud_dev_token, method):
     assert result.output == "Logged out of Activeloop.\n"
 
 
+def test_bad_token():
+    runner = CliRunner()
+
+    result = runner.invoke(login, f"-t abcd")
+    assert isinstance(result.exception, LoginException)
+
+
 @pytest.mark.parametrize("method", ["creds", "token"])
 def test_get_datasets(hub_cloud_dev_credentials, hub_cloud_dev_token, method):
     runner = CliRunner()
@@ -36,7 +44,7 @@ def test_get_datasets(hub_cloud_dev_credentials, hub_cloud_dev_token, method):
         runner.invoke(login, f"-u {username} -p {password}")
     elif method == "token":
         runner.invoke(login, f"-t {hub_cloud_dev_token}")
-        
+
     ds1 = deeplake.dataset(f"hub://{username}/test_list_{SESSION_ID}")
 
     res = runner.invoke(list_datasets)

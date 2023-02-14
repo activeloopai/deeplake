@@ -11,7 +11,7 @@ from deeplake.util.bugout_reporter import (
     get_reporting_config,
     deeplake_reporter,
 )
-from deeplake.util.exceptions import AuthenticationException
+from deeplake.util.exceptions import AuthenticationException, LoginException
 
 
 @click.command()
@@ -43,7 +43,15 @@ def login(username: str, password: str, token: str):
             if token is None:
                 client = DeepLakeBackendClient()
                 token = client.request_auth_token(username, password)
-            write_token(token)
+                write_token(token)
+            else:
+                client = DeepLakeBackendClient(token)
+                orgs = client.get_user_organizations()
+                if orgs == ["public"]:
+                    raise LoginException(
+                        "Invalid API token. Please make sure the token is correct and try again."
+                    )
+                write_token(token)
             click.echo("Successfully logged in to Activeloop.")
             reporting_config = get_reporting_config()
             if reporting_config.get("username") != username:
@@ -59,6 +67,8 @@ def login(username: str, password: str, token: str):
                 print(
                     "3 unsuccessful attempts. Kindly retry logging in after sometime."
                 )
+        except LoginException:
+            raise
         except Exception as e:
             print(f"Encountered an error {e} Please try again later.")
             break
