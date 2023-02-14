@@ -603,17 +603,17 @@ class S3Provider(StorageProvider):
     def set_items(self, items: dict):
         # set multiple items at once using aioboto3,
 
-        async def _set_items():
+        async def _set_items(items):
             async with self.async_session.client("s3", **self.my_args) as client:
-                for key, value in items.items():
-                    await client.put_object(
-                        Bucket=self.bucket,
-                        Key=self.path + key,
-                        Body=value,
-                    )
+                tasks = []
+                for k, v in items.items():
+                    tasks.append(asyncio.ensure_future(
+                        client.put_object(Bucket=self.bucket, Key=self.path + k, Body=v)
+                    ))
+                await asyncio.gather(*tasks)
 
         loop = asyncio.new_event_loop()
         asyncio.set_event_loop(loop)
-        loop.run_until_complete(_set_items())
+        loop.run_until_complete(_set_items(items))
 
 
