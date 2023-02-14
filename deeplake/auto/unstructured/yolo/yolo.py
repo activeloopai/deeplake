@@ -13,7 +13,7 @@ from .utils import YoloData
 
 import numpy as np
 
-from random import shuffle
+from random import shuffle as rshuffle
 
 from .constants import (
     DEFAULT_YOLO_COORDINATES_TENSOR_PARAMS,
@@ -311,7 +311,7 @@ class YoloDataset(UnstructuredDataset):
             }
 
         if shuffle:
-            shuffle(self.ingestion_data)
+            rshuffle(self.ingestion_data)
 
         self._ingest_data(ds, progressbar, num_workers)
 

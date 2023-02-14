@@ -14,7 +14,7 @@ from deeplake.core.dataset import Dataset
 
 from tqdm import tqdm  # type: ignore
 
-from random import shuffle
+from random import shuffle as rshuffle
 
 from .base import UnstructuredDataset
 
@@ -142,7 +142,7 @@ class ImageClassification(UnstructuredDataset):
 
             paths = self._abs_file_paths
             if shuffle:
-                shuffle(paths)
+                rshuffle(paths)
 
             skipped_files: list = []
 

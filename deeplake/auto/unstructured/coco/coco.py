@@ -13,7 +13,7 @@ from ..util import DatasetStructure, GroupStructure, TensorStructure
 from .utils import CocoAnnotation, CocoImages
 from .convert import coco_to_deeplake
 
-from random import shuffle
+from random import shuffle as rshuffle
 
 from .constants import (
     DEFAULT_GENERIC_TENSOR_PARAMS,
@@ -143,7 +143,7 @@ class CocoDataset(UnstructuredDataset):
         image_files = self.images.supported_images
 
         if shuffle:
-            shuffle(image_files)
+            rshuffle(image_files)
 
         tensors = ds.tensors
 
