@@ -2752,63 +2752,6 @@ class Dataset:
         self._append_to_queries_json(info)
         return vds
 
-    def _save_view_in_user_queries_dataset(
-        self,
-        id: Optional[str],
-        message: Optional[str],
-        copy: bool,
-        tensors: Optional[List[str]],
-        num_workers: int,
-        scheduler: str,
-    ):
-        """Saves this view under hub://username/queries
-        Only applicable for views of Deep Lake cloud datasets.
-        """
-        if len(self.index.values) > 1:
-            raise NotImplementedError("Storing sub-sample slices is not supported yet.")
-
-        username = jwt.decode(self.token, options={"verify_signature": False})["id"]
-
-        if username == "public":
-            raise DatasetViewSavingError(
-                "You are not logged in. Please login through the activeloop CLI or provide an API token using the `token` "
-                "parameter when loading the dataset to save the view to your user account."
-            )
-
-        info = self._get_view_info(id, message, copy)
-        base = self._view_base or self
-        org_id, ds_name = base.org_id, base.ds_name
-        hash = f"[{org_id}][{ds_name}]{info['id']}"
-        info["id"] = hash
-        queries_ds_path = f"hub://{username}/queries"
-
-        try:
-            queries_ds = deeplake.load(
-                queries_ds_path,
-                verbose=False,
-                token=self.token,
-            )  # create if doesn't exist
-        except PathNotEmptyException:
-            deeplake.delete(queries_ds_path, force=True, token=self.token)
-            queries_ds = deeplake.empty(
-                queries_ds_path, verbose=False, token=self.token
-            )
-        except DatasetHandlerError:
-            queries_ds = deeplake.empty(
-                queries_ds_path, verbose=False, token=self.token
-            )
-
-        queries_ds._unlock()  # we don't need locking as no data will be added to this ds.
-
-        path = f"hub://{username}/queries/{hash}"
-
-        vds = deeplake.empty(path, overwrite=True, verbose=False, token=self.token)
-
-        self._write_vds(vds, info, copy, tensors, num_workers, scheduler)
-        queries_ds._append_to_queries_json(info)
-
-        return vds
-
     def _save_view_in_path(
         self,
         path: str,
@@ -2867,7 +2810,6 @@ class Dataset:
             message (Optional, str): Custom user message.
             path (Optional, str, pathlib.Path): - The VDS will be saved as a standalone dataset at the specified path.
                 - If not specified, the VDS is saved under ``.queries`` subdirectory of the source dataset's storage.
-                - If the user doesn't have write access to the source dataset and the source dataset is a Deep Lake cloud dataset, then the VDS is saved is saved under the user's Deep Lake account and can be accessed using ``deeplake.load(f"hub://{username}/queries/{query_hash}")``.
             id (Optional, str): Unique id for this view. Random id will be generated if not specified.
             optimize (bool):
                 - If ``True``, the dataset view will be optimized by copying and rechunking the required data. This is necessary to achieve fast streaming speeds when training models using the dataset view. The optimization process will take some time, depending on the size of the data.
@@ -2919,9 +2861,7 @@ class Dataset:
 
         Args:
             path (Optional, str, pathlib.Path): If specified, the VDS will saved as a standalone dataset at the specified path. If not,
-                the VDS is saved under `.queries` subdirectory of the source dataset's storage. If the user doesn't have
-                write access to the source dataset and the source dataset is a Deep Lake cloud dataset, then the VDS is saved
-                is saved under the user's Deep Lake account and can be accessed using deeplake.load(f"hub://{username}/queries/{query_hash}").
+                the VDS is saved under `.queries` subdirectory of the source dataset's storage.
             id (Optional, str): Unique id for this view.
             message (Optional, message): Custom user message.
             optimize (bool): Whether the view should be optimized by copying the required data. Default False.
@@ -2972,15 +2912,11 @@ class Dataset:
                                     num_workers,
                                     scheduler,
                                 )
-                        except ReadOnlyModeError:
-                            vds = self._save_view_in_user_queries_dataset(
-                                id,
-                                message,
-                                optimize,
-                                tensors,
-                                num_workers,
-                                scheduler,
-                            )
+                        except ReadOnlyModeError as e:
+                            raise ReadOnlyModeError(
+                                "Cannot save a view in this dataset because you are not a member of its organization."
+                                "Please specify a `path` in order to save the view at a custom location."
+                            ) from e
                     else:
                         raise ReadOnlyModeError(
                             "Cannot save view in read only dataset. Speicify a path to save the view in a different location."
@@ -3072,36 +3008,6 @@ class Dataset:
             view._query = query
         return view._save_view(vds_path, _ret_ds=True, **vds_args)
 
-    @staticmethod
-    def _get_queries_ds_from_user_account(token: Optional[str] = None):
-        if token:
-            username = jwt.decode(token, options={"verify_signature": False})["id"]
-        else:
-            username = get_user_name()
-
-        if username == "public":
-            return
-        try:
-            return deeplake.load(
-                f"hub://{username}/queries", verbose=False, token=token
-            )
-        except DatasetHandlerError:
-            return
-
-    def _read_queries_json_from_user_account(self):
-        queries_ds = Dataset._get_queries_ds_from_user_account(self.token)
-        if not queries_ds:
-            return [], None
-        return (
-            list(
-                filter(
-                    lambda x: x["source-dataset"] == self.path,
-                    queries_ds._read_queries_json(),
-                )
-            ),
-            queries_ds,
-        )
-
     def get_views(self, commit_id: Optional[str] = None) -> List[ViewEntry]:
         """Returns list of views stored in this Dataset.
 
@@ -3121,18 +3027,6 @@ class Dataset:
             filter(f, queries),
         )
 
-        if self.path.startswith("hub://"):
-            queries, qds = self._read_queries_json_from_user_account()
-            if queries:
-                ret = chain(
-                    ret,
-                    map(
-                        partial(
-                            ViewEntry, dataset=qds, source_dataset=self, external=True
-                        ),
-                        filter(f, queries),
-                    ),
-                )
         return list(ret)
 
     def get_view(self, id: str) -> ViewEntry:
@@ -3161,11 +3055,6 @@ class Dataset:
         for q in queries:
             if q["id"] == id:
                 return ViewEntry(q, self)
-        if self.path.startswith("hub://"):
-            queries, qds = self._read_queries_json_from_user_account()
-            for q in queries:
-                if q["id"] == f"[{self.org_id}][{self.ds_name}]{id}":
-                    return ViewEntry(q, qds, self, True)
         raise KeyError(f"No view with id {id} found in the dataset.")
 
     def load_view(
@@ -3234,19 +3123,6 @@ class Dataset:
         except TokenPermissionError:
             pass
 
-        if self.path.startswith("hub://"):
-            qds = Dataset._get_queries_ds_from_user_account(self.token)
-            if qds:
-                with qds._lock_queries_json():
-                    qjson = qds._read_queries_json()
-                    for i, q in enumerate(qjson):
-                        if q["id"] == f"[{self.org_id}][{self.ds_name}]{id}":
-                            qjson.pop(i)
-                            qds.base_storage.subdir(
-                                ".queries/" + (q.get("path") or q["id"])
-                            ).clear()
-                            qds._write_queries_json(qjson)
-                            return
         raise KeyError(f"No view with id {id} found in the dataset.")
 
     def _sub_ds(
@@ -3793,52 +3669,57 @@ class Dataset:
         scheduler="threaded",
         progressbar=True,
     ):
-        with self._temp_write_access():
-            with self._lock_queries_json():
-                qjson = self._read_queries_json()
-                idx = -1
-                for i in range(len(qjson)):
-                    if qjson[i]["id"] == id:
-                        idx = i
-                        break
-                if idx == -1:
-                    raise KeyError(f"View with id {id} not found.")
-                info = qjson[i]
-                if not info["virtual-datasource"]:
-                    # Already optimized
-                    return info
-                path = info.get("path", info["id"])
-                vds = self._sub_ds(".queries/" + path, verbose=False)
-                view = vds._get_view(not external)
-                new_path = path + "_OPTIMIZED"
-                optimized = self._sub_ds(
-                    ".queries/" + new_path, empty=True, verbose=False
-                )
-                view._copy(
-                    optimized,
-                    tensors=tensors,
-                    overwrite=True,
-                    unlink=unlink,
-                    create_vds_index_tensor=True,
-                    num_workers=num_workers,
-                    scheduler=scheduler,
-                    progressbar=progressbar,
-                )
-                optimized.info.update(vds.info.__getstate__())
-                optimized.info["virtual-datasource"] = False
-                optimized.info["path"] = new_path
-                optimized.flush()
-                info["virtual-datasource"] = False
-                info["path"] = new_path
-                self._write_queries_json(qjson)
-            vds.base_storage.disable_readonly()
-            try:
-                vds.base_storage.clear()
-            except Exception as e:
-                warnings.warn(
-                    f"Error while deleting old view after writing optimized version: {e}"
-                )
-            return info
+        try:
+            with self._temp_write_access():
+                with self._lock_queries_json():
+                    qjson = self._read_queries_json()
+                    idx = -1
+                    for i in range(len(qjson)):
+                        if qjson[i]["id"] == id:
+                            idx = i
+                            break
+                    if idx == -1:
+                        raise KeyError(f"View with id {id} not found.")
+                    info = qjson[i]
+                    if not info["virtual-datasource"]:
+                        # Already optimized
+                        return info
+                    path = info.get("path", info["id"])
+                    vds = self._sub_ds(".queries/" + path, verbose=False)
+                    view = vds._get_view(not external)
+                    new_path = path + "_OPTIMIZED"
+                    optimized = self._sub_ds(
+                        ".queries/" + new_path, empty=True, verbose=False
+                    )
+                    view._copy(
+                        optimized,
+                        tensors=tensors,
+                        overwrite=True,
+                        unlink=unlink,
+                        create_vds_index_tensor=True,
+                        num_workers=num_workers,
+                        scheduler=scheduler,
+                        progressbar=progressbar,
+                    )
+                    optimized.info.update(vds.info.__getstate__())
+                    optimized.info["virtual-datasource"] = False
+                    optimized.info["path"] = new_path
+                    optimized.flush()
+                    info["virtual-datasource"] = False
+                    info["path"] = new_path
+                    self._write_queries_json(qjson)
+                vds.base_storage.disable_readonly()
+                try:
+                    vds.base_storage.clear()
+                except Exception as e:
+                    warnings.warn(
+                        f"Error while deleting old view after writing optimized version: {e}"
+                    )
+                return info
+        except ReadOnlyModeError as e:
+            raise ReadOnlyModeError(
+                f"You do not have permission to materialize views in this dataset ({self.path})."
+            ) from e
 
     def _sample_indices(self, maxlen: int):
         vds_index = self._tensors(include_hidden=True).get("VDS_INDEX")
