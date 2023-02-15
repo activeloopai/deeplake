@@ -655,9 +655,7 @@ class ChunkEngine:
         check_samples_type(samples)
         if isinstance(samples, list):
             samples = [None if is_empty_list(sample) else sample for sample in samples]
-        verified_samples = self.check_each_sample(
-            samples, verify=verify, pg_callback=pg_callback
-        )
+        verified_samples = self.check_each_sample(samples, verify=verify)
         tensor_meta = self.tensor_meta
         all_empty = all(sample is None for sample in samples)
         if tensor_meta.htype is None and not all_empty:
