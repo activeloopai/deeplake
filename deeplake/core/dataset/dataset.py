@@ -9,7 +9,7 @@ from functools import partial
 
 import pathlib
 import numpy as np
-from time import time
+from time import time, sleep
 from tqdm import tqdm  # type: ignore
 
 import deeplake
@@ -42,6 +42,7 @@ from deeplake.core.storage import (
     S3Provider,
     GCSProvider,
     MemoryProvider,
+    LocalProvider,
 )
 from deeplake.core.tensor import Tensor, create_tensor, delete_tensor
 from deeplake.core.version_control.commit_node import CommitNode  # type: ignore
@@ -136,7 +137,7 @@ import warnings
 import jwt
 
 
-_LOCKABLE_STORAGES = {S3Provider, GCSProvider}
+_LOCKABLE_STORAGES = {S3Provider, GCSProvider, LocalProvider}
 
 
 class Dataset:
@@ -1246,10 +1247,6 @@ class Dataset:
         if not self._locking_enabled:
             return True
         storage = self.base_storage
-        if storage.read_only and not self._locked_out:
-            if err:
-                raise ReadOnlyModeError()
-            return False
 
         if isinstance(storage, tuple(_LOCKABLE_STORAGES)) and (
             not self.read_only or self._locked_out
@@ -1261,7 +1258,7 @@ class Dataset:
                     self,
                     lock_lost_callback=self._lock_lost_handler,
                 )
-            except LockedException as e:
+            except Exception as e:
                 self._set_read_only(True, False)
                 self.__dict__["_locked_out"] = True
                 if err:
@@ -1448,10 +1445,11 @@ class Dataset:
             raise Exception(
                 "Cannot perform version control operations on a filtered dataset view."
             )
-        if self._locked_out:
-            self.storage.disable_readonly()
-            self._read_only = False
-            self.base_storage.disable_readonly()
+        read_only = self._read_only
+        self._read_only = False
+        self.storage.disable_readonly()
+        self.base_storage.disable_readonly()
+
         try_flushing(self)
         self._initial_autoflush.append(self.storage.autoflush)
         self.storage.autoflush = False
@@ -1461,12 +1459,12 @@ class Dataset:
             checkout(self, address, create, hash)
         except Exception as e:
             err = True
-            if self._locked_out:
-                self.storage.enable_readonly()
-                self._read_only = True
-                self.base_storage.enable_readonly()
             raise e
         finally:
+            if read_only:
+                self._read_only = True
+                self.storage.enable_readonly()
+                self.base_storage.enable_readonly()
             if not (err and self._locked_out):
                 self._lock(verbose=verbose)
             self.storage.autoflush = self._initial_autoflush.pop()
@@ -1621,9 +1619,41 @@ class Dataset:
             self.version_state, self.storage
         )
 
+    def _acquire_branch_lock(self, timeout: Optional[int] = None):
+        if not self._locked_out:
+            if not self._read_only:
+                return
+            else:
+                raise ReadOnlyModeError(
+                    "Cannot acquire lock as dataset was opened in read only mode."
+                )
+        if timeout is not None:
+            start_time = time()
+        while True:
+            try:
+                self._set_read_only(False, True)
+                return
+            except LockedException:
+                if timeout is not None and time() - start_time > timeout:
+                    raise LockedException()
+                sleep(1)
+
+    def _acquire_lock(self, timeout: Optional[int] = None):
+        if timeout is not None:
+            start_time = time()
+        while True:
+            try:
+                self._set_read_only(False, True)
+                return
+            except LockedException:
+                if timeout is not None and time() - start_time > timeout:
+                    raise LockedException()
+                sleep(1)
+
     def _set_read_only(self, value: bool, err: bool):
         storage = self.storage
         self.__dict__["_read_only"] = value
+
         if value:
             storage.enable_readonly()
             if isinstance(storage, LRUCache) and storage.next_storage is not None:
@@ -1642,7 +1672,8 @@ class Dataset:
                     self.__dict__["_read_only"] = True
             except LockedException as e:
                 self.__dict__["_read_only"] = True
-                raise e
+                if err:
+                    raise e
 
     @read_only.setter
     @invalid_view_op
