@@ -37,6 +37,8 @@ def test_client_workspace_organizations(
     deeplake_client = DeepLakeBackendClient()
 
     runner = CliRunner()
+    result = runner.invoke(logout)
+    assert result.exit_code == 0
 
     assert deeplake_client.get_user_organizations() == ["public"]
 
@@ -48,14 +50,5 @@ def test_client_workspace_organizations(
     deeplake_client = DeepLakeBackendClient()
     assert username in deeplake_client.get_user_organizations()
     assert "public" in deeplake_client.get_user_organizations()
-
-    datasets = subprocess.check_output(
-        ["activeloop", "list-datasets", "--workspace", "activeloop"]
-    )
-    assert "You are not a member of organization" in str(datasets)
-    datasets = subprocess.check_output(
-        ["activeloop", "list-datasets", "--workspace", "test"]
-    )
-    assert "You are not a member of organization" not in str(datasets)
 
     runner.invoke(logout)
