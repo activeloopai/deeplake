@@ -3645,7 +3645,12 @@ class Dataset:
         self.link_creds.add_creds_key(creds_key)
         save_link_creds(self.link_creds, self.storage)
 
-    def populate_creds(self, creds_key: str, creds: Optional[dict] = None, from_environment: bool = False):
+    def populate_creds(
+        self,
+        creds_key: str,
+        creds: Optional[dict] = None,
+        from_environment: bool = False,
+    ):
         """Populates the creds key added in add_creds_key with the given creds. These creds are used to fetch the external data.
         This needs to be done everytime the dataset is reloaded for datasets that contain links to external data.
 

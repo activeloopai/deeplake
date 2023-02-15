@@ -160,7 +160,7 @@ class LinkCreds(DeepLakeMemoryObject):
             obj.used_creds_keys = set(d["used_creds_keys"])
             if "ENV" in obj.used_creds_keys:
                 obj.creds_keys = ["ENV"] + obj.creds_keys
-                obj.creds_mapping["ENV"] = 0                
+                obj.creds_mapping["ENV"] = 0
         obj.is_dirty = False
         return obj
 

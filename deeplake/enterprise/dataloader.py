@@ -111,7 +111,6 @@ class DeepLakeDataLoader(DataLoader):
         self._IterableDataset_len_called = None
         self._iterator = None
 
-
     @property
     def batch_size(self):
         return self._batch_size or 1
@@ -175,7 +174,6 @@ class DeepLakeDataLoader(DataLoader):
     @property
     def _index_sampler(self):
         return self.sampler
-
 
     @property
     def collate_fn(self):

@@ -3,6 +3,7 @@ from deeplake.util.path import get_path_type
 import deeplake
 import numpy as np
 
+
 class LinkedSample:
     """Represents a sample that is initialized using external links. See :meth:`deeplake.link`."""
 
