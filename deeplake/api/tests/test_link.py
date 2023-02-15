@@ -339,6 +339,7 @@ def test_video(request, local_ds_generator, create_shape_tensor, verify):
             assert ds.linked_videos[3].shape == (361, 720, 1280, 3)
     # checking persistence
     ds = local_ds_generator()
+    ds.populate_creds("ENV", from_environment=True)
     for i in range(3):
         assert ds.linked_videos[i].shape == (361, 720, 1280, 3)
 
