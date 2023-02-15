@@ -720,11 +720,19 @@ class Tensor:
 
     @property
     def is_empty_tensor(self):
+        if self.meta.is_link:
+            if len(self.meta.max_shape) == 0:
+                for chunk in self.chunk_engine.get_chunks_for_sample(0):
+                    if len(chunk.data_bytes) != 0:
+                        return False
+                return True
+            return False
+
         if (
             self.meta.chunk_compression
             and get_compression_type(self.meta.chunk_compression) != BYTE_COMPRESSION
         ):
-            return self.meta.max_shape == [0, 0, 0]
+            return self.meta.max_shape == [0, 0, 0] or len(self.meta.max_shape) == 0
         return len(self.meta.max_shape) == 0
 
     def numpy(
