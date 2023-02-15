@@ -647,7 +647,7 @@ class ChunkEngine:
     def _convert_to_list(self, samples):
         return False
 
-    def check_each_sample(self, samples, verify=True, pg_callback=None):
+    def check_each_sample(self, samples, verify=True):
         # overridden in LinkedChunkEngine
         return
 
@@ -975,12 +975,6 @@ class ChunkEngine:
         samples, verified_samples = self._sanitize_samples(
             samples, pg_callback=pg_callback
         )
-        if (
-            isinstance(self, deeplake.core.linked_chunk_engine.LinkedChunkEngine)
-            and self.verify
-        ):
-            # progress bar will be updated in check_each_sample of LinkedChunkEngine
-            pg_callback = None
         self._samples_to_chunks(
             samples,
             start_chunk=self.last_appended_chunk(),

@@ -186,9 +186,8 @@ class TransformDataset:
                     items = tensor[:].numpy_compressed()
                     for item in items:
                         chunk_engine.extend(
-                            item, link_callback=callback, pg_callback=None
+                            item, link_callback=callback, pg_callback=self.pg_callback
                         )
-                        self.pg_callback(1)
                 else:
                     chunk_engine.extend(
                         tensor[:].numpy_compressed(),

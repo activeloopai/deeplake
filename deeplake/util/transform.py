@@ -165,9 +165,6 @@ def store_data_slice_with_pbar(pg_callback, transform_input: Tuple) -> Dict:
                 updated_tensors = set(
                     k for k in data if not data[k].is_group and len(data[k]) > 0
                 )
-                if pg_callback is not None:
-                    pg_callback = normalize_pg(pg_callback, len(updated_tensors))
-                    transform_dataset.set_pg_callback(pg_callback)
 
                 pipeline_checked = True
 
@@ -180,6 +177,8 @@ def store_data_slice_with_pbar(pg_callback, transform_input: Tuple) -> Dict:
                     out_tensor.non_numpy_only()
                     transform_tensor.extend(out_tensor.items)
                 out_tensor.items.clear()
+
+            pg_callback(1)
 
         transform_dataset.flush()
 
