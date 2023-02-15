@@ -27,7 +27,7 @@ def test_complex_htype_parsing():
     is_sequence, is_link, htype = parse_complex_htype("sequence")
     assert is_sequence
     assert not is_link
-    assert htype == "generic"
+    assert htype is None
 
     with pytest.raises(ValueError):
         is_sequence, is_link, htype = parse_complex_htype("sequence[link]")

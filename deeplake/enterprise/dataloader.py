@@ -20,9 +20,11 @@ import importlib
 
 try:
     from torch.utils.data.dataloader import DataLoader, _InfiniteConstantSampler
+    from torch.utils.data.distributed import DistributedSampler
 except ImportError:
     DataLoader = object  # type: ignore
     _InfiniteConstantSampler = None  # type: ignore
+    DistributedSampler = None  # type: ignore
 
 import numpy as np
 
@@ -143,7 +145,7 @@ class DeepLakeDataLoader(DataLoader):
     def worker_init_fn(self):
         return None
 
-    @property
+    @property  # type: ignore
     def multiprocessing_context(self):
         return None
 
@@ -153,11 +155,15 @@ class DeepLakeDataLoader(DataLoader):
 
     @property
     def sampler(self):
-        return _InfiniteConstantSampler()
+        return (
+            DistributedSampler(self.dataset)
+            if self._distributed
+            else _InfiniteConstantSampler()
+        )
 
     @property
     def batch_sampler(self):
-        return None
+        return DistributedSampler(self.dataset) if self._distributed else None
 
     @property
     def generator(self):

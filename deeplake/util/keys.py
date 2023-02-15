@@ -14,7 +14,8 @@ from deeplake.constants import (
     DATASET_META_FILENAME,
     TENSOR_INFO_FILENAME,
     TENSOR_META_FILENAME,
-    TENSOR_COMMIT_CHUNK_SET_FILENAME,
+    TENSOR_COMMIT_CHUNK_MAP_FILENAME,
+    TENSOR_COMMIT_CHUNK_MAP_FILENAME,
     TENSOR_COMMIT_DIFF_FILENAME,
     VERSION_CONTROL_INFO_FILENAME,
     VERSION_CONTROL_INFO_FILENAME_OLD,
@@ -121,10 +122,10 @@ def get_tensor_info_key(key: str, commit_id: str) -> str:
     return "/".join(("versions", commit_id, key, TENSOR_INFO_FILENAME))
 
 
-def get_tensor_commit_chunk_set_key(key: str, commit_id: str) -> str:
+def get_tensor_commit_chunk_map_key(key: str, commit_id: str) -> str:
     if commit_id == FIRST_COMMIT_ID:
-        return "/".join((key, TENSOR_COMMIT_CHUNK_SET_FILENAME))
-    return "/".join(("versions", commit_id, key, TENSOR_COMMIT_CHUNK_SET_FILENAME))
+        return "/".join((key, TENSOR_COMMIT_CHUNK_MAP_FILENAME))
+    return "/".join(("versions", commit_id, key, TENSOR_COMMIT_CHUNK_MAP_FILENAME))
 
 
 def get_tensor_commit_diff_key(key: str, commit_id: str) -> str:
@@ -232,5 +233,7 @@ def get_downsampled_tensor_key(key: str, factor: int):
         factor *= current_factor
         ls = key.split("_")
         ls[-1] = str(factor)
-        return "_".join(ls)
-    return posixpath.join(group, f"_{key}_downsampled_{factor}")
+        final_key = "_".join(ls)
+    else:
+        final_key = f"_{key}_downsampled_{factor}"
+    return posixpath.join(group, final_key)

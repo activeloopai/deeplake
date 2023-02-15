@@ -1,7 +1,9 @@
+from contextlib import contextmanager
 from collections import defaultdict
 from typing import Dict, List, Optional, Set, Tuple
 from deeplake.core.version_control.commit_diff import CommitDiff
 from deeplake.core.version_control.commit_node import CommitNode
+from deeplake.core.meta.encode.chunk_id import ChunkIdEncoder
 from deeplake.util.class_label import convert_to_text
 from deeplake.util.diff import (
     get_lowest_common_ancestor,
@@ -15,10 +17,25 @@ from deeplake.util.exceptions import (
     MergeNotSupportedError,
     TensorDoesNotExistError,
 )
-from deeplake.util.keys import get_sample_id_tensor_key, get_tensor_commit_diff_key
 from deeplake.util.remove_cache import create_read_copy_dataset
 from deeplake.util.version_control import auto_checkout, auto_commit, commit
-from deeplake.core.tensor import Tensor
+from deeplake.core.version_control.commit_diff import CommitDiff
+from deeplake.core.version_control.commit_chunk_map import CommitChunkMap
+from deeplake.core.index.index import Index, IndexEntry
+from deeplake.util.keys import (
+    get_sample_id_tensor_key,
+    get_tensor_meta_key,
+    get_tensor_info_key,
+    get_tensor_tile_encoder_key,
+    get_creds_encoder_key,
+    get_tensor_commit_chunk_map_key,
+    get_tensor_commit_diff_key,
+    get_chunk_id_encoder_key,
+    get_sequence_encoder_key,
+    get_dataset_meta_key,
+)
+from os.path import dirname
+import numpy as np
 
 
 def merge(
@@ -238,18 +255,17 @@ def clear_tensors(tensor_names: Set[str], dataset):
         dataset[tensor_name].clear()
 
 
-def copy_new_tensors(tensor_names: Set[str], dataset, target_dataset):
+def copy_new_tensors(
+    tensor_names: Set[str],
+    dataset,
+    target_dataset,
+):
     """Copies tensors from the target_commit to the dataset."""
-    for tensor_name in tensor_names:
-        target_tensor = target_dataset[tensor_name]
-        new_tensor = dataset.create_tensor_like(tensor_name, target_tensor)
-        id_tensor_name = get_sample_id_tensor_key(tensor_name)
-        new_id_tensor = dataset[id_tensor_name]
-        target_id_tensor = target_dataset[id_tensor_name]
-
-        for sample, sample_id in zip(target_tensor, target_id_tensor):
-            new_tensor.append(sample)
-            new_id_tensor[-1] = sample_id
+    copy_tensors(
+        target_dataset,
+        dataset,
+        tensor_names,
+    )
 
 
 def merge_common_tensors(
@@ -303,12 +319,12 @@ def check_common_tensor_mismatches(tensor_names: Set[str], dataset, target_datas
         target_meta = target_dataset[tensor_name].meta
         original_meta = dataset[tensor_name].meta
         original_details = {
-            "htype": original_meta.htype,
+            "htype": original_meta.htype or "generic",
             "sample_compression": original_meta.sample_compression,
             "chunk_compression": original_meta.chunk_compression,
         }
         target_details = {
-            "htype": target_meta.htype,
+            "htype": target_meta.htype or "generic",
             "sample_compression": target_meta.sample_compression,
             "chunk_compression": target_meta.chunk_compression,
         }
@@ -457,26 +473,60 @@ def merge_tensor_data(
     original_tensor = dataset[tensor_name]
     target_tensor = target_dataset[tensor_name]
     id_tensor_name = get_sample_id_tensor_key(tensor_name)
-    original_id_tensor = dataset[id_tensor_name]
-    target_id_tensor = target_dataset[id_tensor_name]
 
     new_indexes = new_samples_dict[tensor_name]
     new_indexes.sort()
     is_class_label = target_tensor.meta.htype == "class_label"
+    copy_class_labels = is_class_label
     if is_class_label:
-        class_names = target_tensor.info.class_names
-    for index in new_indexes:
-        sample = target_tensor[index]
-        if is_class_label and class_names:
-            sample = convert_to_text(sample.numpy(), class_names, return_original=True)
-        original_tensor.append(sample)
-        original_id_tensor[-1] = target_id_tensor[index]
+        target_class_names = target_tensor.info.class_names
+        original_class_names = original_tensor.info.class_names
+        if target_class_names:
+            if target_class_names == original_class_names:
+                copy_class_labels = False
+            elif original_class_names[: len(target_class_names)] == target_class_names:
+                copy_class_labels = False
+            elif (
+                target_class_names[: len(original_class_names)] == original_class_names
+            ):
+                copy_class_labels = False
+                original_tensor.info.class_names = original_class_names
+        else:
+            copy_class_labels = False
+    copy_links_only = False
+    if copy_class_labels:
+        # TODO optimize this
+        links = original_tensor.meta.links
+        original_tensor.meta.links = {}
+        try:
+            with original_tensor.dataset:
+                for index in new_indexes:
+                    sample = target_tensor[index]
+                    sample = convert_to_text(
+                        sample.numpy(), target_class_names, return_original=True
+                    )
+                    original_tensor.append(sample)
+        finally:
+            original_tensor.meta.links = links
+        copy_links_only = True
+    copy_tensor_slice(
+        target_dataset,
+        dataset,
+        tensor_name,
+        tensor_name,
+        new_indexes,
+        _copy_main_tensor=not copy_links_only,
+        _copy_link_tensors=True,
+    )
 
     updated_indexes = updated_samples_dict[tensor_name]
+    remap_class_label = is_class_label and target_class_names
     for original_idx, target_idx in updated_indexes:
         sample = target_tensor[target_idx]
-        if is_class_label and class_names:
-            sample = convert_to_text(sample.numpy(), class_names, return_original=True)
+        if remap_class_label:
+            sample = convert_to_text(
+                sample.numpy(), target_class_names, return_original=True
+            )
         original_tensor[original_idx] = sample
 
 
@@ -486,3 +536,424 @@ def check_id_tensors_exist(visible_tensors: Set[str], all_tensors: Set[str]):
         id_tensor = get_sample_id_tensor_key(tensor_name)
         if id_tensor not in all_tensors:
             raise MergeNotSupportedError
+
+
+def _get_meta_files_for_tensor(tensor_name, commit_id):
+    fns = [
+        get_tensor_meta_key,
+        get_tensor_info_key,
+        get_chunk_id_encoder_key,
+        get_tensor_tile_encoder_key,
+        get_creds_encoder_key,
+        get_sequence_encoder_key,
+    ]
+    return [fn(tensor_name, commit_id) for fn in fns]
+
+
+def _get_chunks_for_tensor(src_tensor, dest_commit_id, dest_key):
+    eng = src_tensor.chunk_engine
+    enc = eng.chunk_id_encoder
+
+    chunkids = enc._encoded[:, 0]
+    ret = []
+    for cid in chunkids:
+        cname = enc.name_from_id(cid)
+        commit, key = eng.get_chunk_commit(cname)
+        same_commit = commit == dest_commit_id
+        same_key = key == dest_key
+        if same_commit and same_key:
+            ret.append((cname,))
+        elif same_key:
+            ret.append((cname, commit))
+        else:
+            ret.append((cname, commit, key))
+    return ret
+
+
+def _copy_objects(key_pairs, src_storage, dest_storage):
+    for src_key, dest_key in zip(*key_pairs):
+        try:
+            dest_storage[dest_key] = src_storage[src_key]
+        except KeyError as ke:
+            pass
+
+
+def copy_tensors(
+    src_ds,
+    dest_ds,
+    src_tensor_names,
+    dest_tensor_names=None,
+):
+    if not src_tensor_names:
+        return
+    if not src_ds.read_only:
+        src_ds.flush()
+    dest_ds.flush()
+    src_tensor_names = list(src_tensor_names)
+    src_commit_id = src_ds.pending_commit_id
+    dest_commit_id = dest_ds.pending_commit_id
+    dest_ds_meta = dest_ds.meta
+    dest_groups = set(dest_ds_meta.groups)
+    hidden_tensors = []
+    src_tensor_names_get = {
+        v: k for k, v in src_ds.meta.tensor_names.items()
+    }.__getitem__
+    for i in range(len(src_tensor_names)):
+        src_tensor = src_ds[src_tensor_names[i]]
+        hidden_tensors += map(src_tensor_names_get, src_tensor.meta.links)
+    src_tensor_names += hidden_tensors
+    if dest_tensor_names is None:
+        dest_tensor_names = src_tensor_names
+    else:
+        assert len(src_tensor_names) == len(dest_tensor_names)
+    src_keys = []
+    dest_keys = []
+    src_storage = src_ds.base_storage
+    dest_storage = dest_ds.base_storage
+    updated_dest_keys = []
+    for src_tensor_name, dest_tensor_name in zip(src_tensor_names, dest_tensor_names):
+        if "/" in src_tensor_name:
+            g = dirname(src_tensor_name)
+            while g:
+                dest_groups.add(g)
+                g = dirname(g)
+        src_tensor = src_ds[src_tensor_name]
+        src_key = src_tensor.key
+        chunks = _get_chunks_for_tensor(src_tensor, dest_commit_id, dest_tensor_name)
+        dest_chunk_map_key = get_tensor_commit_chunk_map_key(
+            dest_tensor_name, dest_commit_id
+        )
+        dest_chunk_map = CommitChunkMap()
+        for chunk in chunks:
+            dest_chunk_map.add(*chunk)
+        dest_storage[dest_chunk_map_key] = dest_chunk_map.tobytes()
+        src_keys += _get_meta_files_for_tensor(src_key, src_commit_id)
+        dest_keys += _get_meta_files_for_tensor(dest_tensor_name, dest_commit_id)
+        dest_commit_diff = CommitDiff(0, True)
+        dest_commit_diff.add_data(src_tensor.meta.length)
+        dest_commit_diff_key = get_tensor_commit_diff_key(
+            dest_tensor_name, dest_commit_id
+        )
+        dest_storage[dest_commit_diff_key] = dest_commit_diff.tobytes()
+        updated_dest_keys = [dest_commit_diff_key]
+        updated_dest_keys.append(dest_chunk_map_key)
+    _copy_objects((src_keys, dest_keys), src_storage, dest_storage)
+    dest_ds_meta.tensors += dest_tensor_names
+    dest_ds_meta.groups = list(dest_groups)
+    dest_ds_meta.tensor_names.update({k: k for k in dest_tensor_names})
+    dest_ds_meta.hidden_tensors += hidden_tensors
+    dest_storage[get_dataset_meta_key(dest_commit_id)] = dest_ds_meta.tobytes()
+    dest_ds.storage.clear_cache_without_flush()
+    dest_ds._populate_meta()
+
+
+def _group_ranges(x):
+    ret = []
+    s = x[0]
+    e = s + 1
+    for i in range(1, len(x)):
+        xi = x[i]
+        if xi == e:
+            e += 1
+        else:
+            ret.append((s, e))
+            s = xi
+            e = s + 1
+    ret.append((s, e))
+    return ret
+
+
+def _merge_encodings(enc1, enc2, start, end, off1=None, off2=None):
+    n1 = len(enc1)
+    if not n1:
+        return enc2
+    n2 = len(enc2)
+    if not n2:
+        return enc1
+    if off1 is not None:
+        old_offset = off1
+    elif start == 0:
+        old_offset = 0
+    else:
+        old_offset = enc2[start - 1, -1:] + 1
+    new_offset = enc1[-1, -1:] + 1
+    if enc1[-1, 0] == enc2[start, 0]:
+        enc1 = enc1[:-1]
+    ret = np.concatenate([enc1, enc2[start:end]], axis=0)
+    ret[n1:, -1] += new_offset - old_offset
+    if off2 is not None:
+        ret[-1, -1] = off2 - 1 + new_offset - old_offset
+    return ret
+
+
+def _get_required_chunks_for_range(tensor, start, end):
+    eng = tensor.chunk_engine
+    enc = eng.chunk_id_encoder
+    arr = enc._encoded
+    start_row = enc.translate_index(start)
+    end_row = enc.translate_index(end - 1)
+    last_index = arr[end_row, 1]
+    nrows = len(arr)
+    nxt = end_row + 1
+    while nxt < nrows and arr[nxt, 1] == last_index:
+        end_row = nxt
+        nxt += 1
+    num_required_chunks = end_row + 1 - start_row
+    start_chunk_aligned = False
+    end_chunk_aligned = False
+    if start_row == 0:
+        if start == 0:
+            start_chunk_aligned = True
+    else:
+        prev_row = start_row - 1
+        if start == arr[prev_row, 1] + 1:
+            start_chunk_aligned = True
+    if arr[end_row, 1] == end - 1:
+        end_chunk_aligned = True
+    if num_required_chunks == 1:
+        if not (start_chunk_aligned and end_chunk_aligned):
+            return None, (start, end), None
+        else:
+            return (start_row, start_row + 1), None, None
+    elif num_required_chunks == 2:
+        if not start_chunk_aligned and not end_chunk_aligned:
+            return None, (start, end), None
+        if start_chunk_aligned:
+            return (start_row, start_row + 1), None, (int(arr[start_row, 1] + 1), end)
+        else:
+            return (end_row, end_row + 1), (start, int(arr[start_row, 1] + 1)), None
+    elif start_chunk_aligned and not end_chunk_aligned:
+        return (start_row, end_row), None, (int(arr[end_row - 1, 1] + 1), end)
+    elif end_chunk_aligned and not start_chunk_aligned:
+        return (start_row + 1, end_row + 1), (start, int(arr[start_row, 1] + 1)), None
+    elif not start_chunk_aligned and not end_chunk_aligned:
+        return (
+            (start_row + 1, end_row),
+            (start, int(arr[start_row, 1] + 1)),
+            (int(arr[end_row - 1, 1] + 1), end),
+        )
+    else:
+        return (start_row, end_row + 1), None, None
+
+
+@contextmanager
+def _as_flat_tensors(*tensors):
+    is_seq = tensors[0].is_sequence
+    if is_seq:
+        for t in tensors:
+            t.meta.is_sequence = False
+    yield
+    if is_seq:
+        for t in tensors:
+            t.meta.is_sequence = True
+
+
+def _copy_samples(src_tensor, dest_tensor, start: int, end: int):
+    with _as_flat_tensors(src_tensor, dest_tensor):
+        dest_tensor.extend(src_tensor[start:end])
+
+
+def _copy_link_samples(src_tensor, dest_tensor, start, end):
+    with _as_flat_tensors(src_tensor, dest_tensor):
+        dest_tensor._extend_with_paths(
+            src_tensor.chunk_engine.path_chunk_engine.numpy(  # type: ignore
+                Index([IndexEntry(slice(start, end, None))]),
+                aslist=True,
+                fetch_chunks=False,
+            )
+        )
+
+
+def _merge_sequence_encoders(
+    src_seq_encoder, dest_seq_encoder, start: int, end: int
+) -> Tuple[int, int]:
+    (start2, _), start_row = src_seq_encoder.__getitem__(start, return_row_index=True)
+    (_, end2), end_row = src_seq_encoder.__getitem__(end - 1, return_row_index=True)
+
+    nrows = len(dest_seq_encoder._encoded)
+    dest_seq_encoder._encoded = _merge_encodings(
+        dest_seq_encoder._encoded,
+        src_seq_encoder._encoded,
+        start_row,
+        end_row + 1,
+        start,
+        end,
+    )
+    dest_seq_encoder._post_process_state(nrows - 1)
+    return start2, end2
+
+
+def _merge_creds_encoders(
+    src_creds_encoder, dest_creds_encoder, start: int, end: int
+) -> None:
+    start_row = src_creds_encoder.translate_index(start)
+    end_row = src_creds_encoder.translate_index(end - 1)
+    dest_creds_encoder._encoded = _merge_encodings(
+        dest_creds_encoder._encoded,
+        src_creds_encoder._encoded,
+        start_row,
+        end_row + 1,
+        start,
+        end,
+    )
+
+
+def _mergs_tile_encoders(
+    src_tile_encoder, dest_tile_encoder, start: int, end: int
+) -> None:
+    src_entries = src_tile_encoder.entries
+    dest_entries = dest_tile_encoder.entries
+    for i in range(start, end):
+        e = src_entries.get(i)
+        if e:
+            dest_entries[i] = e
+            dest_tile_encoder.is_dirty = True
+
+
+def _setup_chunk_pointers(
+    src_eng,
+    src_enc_arr,
+    dest_enc,
+    dest_chunk_map,
+    dest_commit,
+    dest_key,
+    start: int,
+    end: int,
+):
+    chunk_ids = src_enc_arr[start:end, 0]
+    chunk_names = list(map(ChunkIdEncoder.name_from_id, chunk_ids))
+    commit_key_pairs = list(map(src_eng.get_chunk_commit, chunk_names))
+    for chunk_name, (commit, key) in zip(chunk_names, commit_key_pairs):
+        if commit == dest_commit:
+            commit = None
+        elif key == dest_key:
+            key = None
+        dest_chunk_map.add(chunk_name, commit, key)
+    dest_enc._encoded = _merge_encodings(dest_enc._encoded, src_enc_arr, start, end)
+    dest_enc.is_dirty = True
+
+
+def copy_tensor_slice(
+    src_ds,
+    dest_ds,
+    src_tensor_name,
+    dest_tensor_name,
+    indices=None,
+    ranges=None,
+    _copy_main_tensor=True,
+    _copy_link_tensors=True,
+):
+    if not ranges:
+        if not indices:
+            return
+        ranges = _group_ranges(indices)
+    src_tensor = src_ds[src_tensor_name]
+    dest_tensor = dest_ds[dest_tensor_name]
+    is_seq = src_tensor.is_sequence
+    if _copy_main_tensor:
+        dest_key = dest_tensor.key
+        dest_commit = dest_ds.pending_commit_id
+        src_eng = src_tensor.chunk_engine
+        src_enc = src_eng.chunk_id_encoder
+        dest_eng = dest_tensor.chunk_engine
+        dest_enc = dest_eng.chunk_id_encoder
+        src_enc_arr = src_enc._encoded
+        flat_ranges = []
+        dest_storage = dest_ds.storage
+        src_meta = src_tensor.meta
+        dest_meta = dest_tensor.meta
+        if dest_meta.dtype is None:
+            dest_meta.dtype = src_meta.dtype
+        if dest_meta.htype is None:
+            dest_meta.htype = src_meta.htype
+        dest_meta_orig_length = dest_meta.length
+        dest_meta_length = (
+            len(indices) if indices else sum(end - start for start, end in ranges)
+        )
+        dest_chunk_map = dest_eng.commit_chunk_map
+        is_link = src_meta.is_link
+        src_tile_enc = src_eng.tile_encoder
+        dest_tile_enc = dest_eng.tile_encoder
+        if is_link:
+            src_creds_encoder = src_eng.creds_encoder
+            dest_creds_encoder = dest_eng.creds_encoder
+            dest_creds_encoder.is_dirty = True
+        if is_seq:
+            src_seq_encoder = src_eng.sequence_encoder
+            dest_seq_encoder = dest_eng.sequence_encoder
+            dest_seq_encoder.is_dirty = True
+            dest_meta_seq_length = 0
+        dest_tensor.meta.links = {}
+        links = dest_tensor.meta.links
+        try:
+            for start, end in ranges:
+                if is_seq:
+                    start, end = _merge_sequence_encoders(
+                        src_seq_encoder, dest_seq_encoder, start, end
+                    )
+                    dest_meta_seq_length += end - start
+                    flat_ranges.append((start, end))
+                if is_link:
+                    _merge_creds_encoders(
+                        src_creds_encoder, dest_creds_encoder, start, end
+                    )
+                _mergs_tile_encoders(src_tile_enc, dest_tile_enc, start, end)
+                (
+                    chunks_to_copy,
+                    left_edge_samples,
+                    right_edge_samples,
+                ) = _get_required_chunks_for_range(src_tensor, start, end)
+                if left_edge_samples:
+                    s, e = left_edge_samples
+                    if is_link:
+                        _copy_link_samples(src_tensor, dest_tensor, s, e)
+                    else:
+                        _copy_samples(src_tensor, dest_tensor, s, e)
+                if chunks_to_copy:
+                    _setup_chunk_pointers(
+                        src_eng,
+                        src_enc_arr,
+                        dest_enc,
+                        dest_chunk_map,
+                        dest_commit,
+                        dest_key,
+                        *chunks_to_copy,
+                    )
+                if right_edge_samples:
+                    s, e = right_edge_samples
+                    if is_link:
+                        _copy_link_samples(src_tensor, dest_tensor, s, e)
+                    else:
+                        _copy_samples(src_tensor, dest_tensor, s, e)
+            if src_meta.min_shape:
+                dest_meta.update_shape_interval(src_meta.min_shape)
+                dest_meta.update_shape_interval(src_meta.max_shape)
+            dest_meta.length = dest_meta_orig_length + (
+                dest_meta_seq_length if is_seq else dest_meta_length
+            )
+            dest_meta.is_dirty = True
+            dest_storage.flush()
+        finally:
+            dest_tensor.meta.links = links
+    if _copy_link_tensors:
+        if not is_seq:
+            flat_ranges = ranges
+        links = [
+            ("_sample_id_tensor", False),
+            ("_sample_shape_tensor", True),
+            ("_sample_info_tensor", True),
+        ]
+        for l, flat in links:
+            dest_link_tensor = getattr(dest_tensor, l, None)
+            if dest_link_tensor:
+                src_link_tensor = getattr(src_tensor, l, None)
+                if src_link_tensor:
+                    copy_tensor_slice(
+                        src_ds,
+                        dest_ds,
+                        src_link_tensor.meta.name,
+                        dest_link_tensor.meta.name,
+                        ranges=flat_ranges if flat else ranges,
+                        _copy_main_tensor=True,
+                        _copy_link_tensors=False,
+                    )
