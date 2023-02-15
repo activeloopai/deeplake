@@ -51,13 +51,26 @@ def test_ingestion_simple(memory_ds: Dataset, convert_to_pathlib: bool):
         progressbar=False,
         summary=False,
         overwrite=False,
+        shuffle=False,
+    )
+
+    ds2 = deeplake.ingest(
+        src=path,
+        dest=memory_ds.path,
+        images_compression="auto",
+        progressbar=False,
+        summary=False,
+        overwrite=False,
+        shuffle=True,
     )
 
     assert ds["images"].meta.sample_compression == "jpeg"
+    assert ds2["images"].meta.sample_compression == "jpeg"
     assert list(ds.tensors.keys()) == ["images", "labels"]
     assert ds["images"].numpy().shape == (3, 200, 200, 3)
     assert ds["labels"].numpy().shape == (3, 1)
     assert ds["labels"].info.class_names == ("class0", "class1", "class2")
+    assert ds2["labels"].info.class_names == ("class0", "class1", "class2")
 
 
 def test_image_classification_sets(memory_ds: Dataset):
