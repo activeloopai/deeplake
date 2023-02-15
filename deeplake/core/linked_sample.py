@@ -17,7 +17,7 @@ class LinkedSample:
 
 
 def read_linked_sample(
-    sample_path: str, sample_creds_key: str, link_creds, verify: bool
+    sample_path: str, sample_creds_key: Optional[str], link_creds, verify: bool
 ):
     provider_type = get_path_type(sample_path)
     if provider_type == "local":
