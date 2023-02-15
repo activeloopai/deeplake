@@ -52,7 +52,11 @@ from deeplake.constants import FIRST_COMMIT_ID, _NO_LINK_UPDATE, UNSPECIFIED
 from deeplake.util.version_control import auto_checkout
 from deeplake.util.video import normalize_index
 
-from deeplake.compression import get_compression_type, VIDEO_COMPRESSION
+from deeplake.compression import (
+    get_compression_type,
+    VIDEO_COMPRESSION,
+    BYTE_COMPRESSION,
+)
 from deeplake.util.notebook import is_jupyter, video_html, is_colab
 from deeplake.util.object_3d.point_cloud import parse_point_cloud_to_dict
 from deeplake.util.object_3d.mesh import (
@@ -713,6 +717,15 @@ class Tensor:
             yield self.__getitem__(
                 i, is_iteration=not isinstance(self.index.values[0], list)
             )
+
+    @property
+    def is_empty_tensor(self):
+        if (
+            self.meta.chunk_compression
+            and get_compression_type(self.meta.chunk_compression) != BYTE_COMPRESSION
+        ):
+            return self.meta.max_shape == [0, 0, 0]
+        return len(self.meta.max_shape) == 0
 
     def numpy(
         self, aslist=False, fetch_chunks=False

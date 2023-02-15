@@ -653,7 +653,16 @@ class ChunkEngine:
     def _sanitize_samples(self, samples, verify=True):
         check_samples_type(samples)
         if isinstance(samples, list):
-            samples = [None if is_empty_list(sample) else sample for sample in samples]
+            samples = [
+                None
+                if is_empty_list(sample)
+                or (
+                    isinstance(sample, deeplake.core.tensor.Tensor)
+                    and sample.is_empty_tensor
+                )
+                else sample
+                for sample in samples
+            ]
         verified_samples = self.check_each_sample(samples, verify=verify)
         tensor_meta = self.tensor_meta
         all_empty = all(sample is None for sample in samples)
@@ -1029,7 +1038,14 @@ class ChunkEngine:
             if link_callback:
                 if not isinstance(verified_samples, np.ndarray):
                     samples = [
-                        None if is_empty_list(s) else s for s in verified_samples
+                        None
+                        if is_empty_list(s)
+                        or (
+                            isinstance(s, deeplake.core.tensor.Tensor)
+                            and s.is_empty_tensor
+                        )
+                        else s
+                        for s in verified_samples
                     ]
                 link_callback(
                     samples,
