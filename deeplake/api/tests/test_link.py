@@ -310,6 +310,8 @@ def test_jwt_link(local_ds):
 def test_video(request, local_ds_generator, create_shape_tensor, verify):
     local_ds = local_ds_generator()
     with local_ds as ds:
+        ds.add_creds_key("ENV")
+        ds.populate_creds("ENV", from_environment=True)
         ds.create_tensor(
             "linked_videos",
             htype="link[video]",
