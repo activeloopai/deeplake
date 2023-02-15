@@ -2131,6 +2131,7 @@ def token_permission_error_check(
 
     with pytest.raises(TokenPermissionError):
         ds = deeplake.load("hub://activeloop/fake-path")
+    runner.invoke(logout)
 
 
 def invalid_token_exception_check():
@@ -2154,6 +2155,7 @@ def dataset_handler_error_check(runner, username, password):
     result = runner.invoke(login, f"-u {username} -p {password}")
     with pytest.raises(DatasetHandlerError):
         ds = deeplake.load(f"hub://{username}/wrong-path")
+    runner.invoke(logout)
 
 
 def test_hub_related_permission_exceptions(
