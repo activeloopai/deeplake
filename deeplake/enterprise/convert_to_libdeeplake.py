@@ -1,3 +1,4 @@
+from deeplake.core.storage.gcs import GCSProvider
 from deeplake.enterprise.util import raise_indra_installation_error  # type: ignore
 from deeplake.core.storage import S3Provider
 
@@ -52,9 +53,27 @@ def dataset_to_libdeeplake(hub2_dataset):
                     endpoint_url=provider.endpoint_url,
                     expiration=str(provider.expiration),
                 )
-            else:
-                raise ValueError(
-                    "GCP datasets are not supported for libdeeplake currently."
+            elif isinstance(provider, GCSProvider):
+                creds = provider.get_creds()
+                anon = creds.get("anon", "")
+                expiration = creds.get("expiration", "")
+                access_token = creds.get("access_token", "")
+                json_credentials = creds.get("json_credentials", "")
+                endpoint_override = creds.get("endpoint_override", "")
+                scheme = creds.get("scheme", "")
+                retry_limit_seconds = creds.get("retry_limit_seconds", "")
+
+                libdeeplake_dataset = api.dataset(
+                    path,
+                    origin_path=provider.root,
+                    token=token,
+                    anon=anon,
+                    expiration=expiration,
+                    access_token=access_token,
+                    json_credentials=json_credentials,
+                    endpoint_override=endpoint_override,
+                    scheme=scheme,
+                    retry_limit_seconds=retry_limit_seconds,
                 )
         elif path.startswith("s3://"):
             s3_provider = hub2_dataset.storage.next_storage
@@ -75,8 +94,25 @@ def dataset_to_libdeeplake(hub2_dataset):
             )
 
         elif path.startswith(("gcs://", "gs://", "gcp://")):
-            raise ValueError(
-                "GCP datasets are not supported for libdeeplake currently."
+            provider = hub2_dataset.storage.next_storage
+            creds = provider.get_creds()
+            anon = creds.get("anon", "")
+            expiration = creds.get("expiration", "")
+            access_token = creds.get("access_token", "")
+            json_credentials = creds.get("json_credentials", "")
+            endpoint_override = creds.get("endpoint_override", "")
+            scheme = creds.get("scheme", "")
+            retry_limit_seconds = creds.get("retry_limit_seconds", "")
+
+            libdeeplake_dataset = api.dataset(
+                path,
+                anon=anon,
+                expiration=expiration,
+                access_token=access_token,
+                json_credentials=json_credentials,
+                endpoint_override=endpoint_override,
+                scheme=scheme,
+                retry_limit_seconds=retry_limit_seconds,
             )
         else:
             token = hub2_dataset._token

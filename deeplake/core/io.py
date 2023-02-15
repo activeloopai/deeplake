@@ -323,15 +323,13 @@ class SampleStreaming(Streaming):
                 try:
                     chunks: List[BaseChunk] = []
                     c_names = block.chunk_names(keyid)
-
-                    version_state = self.dataset.version_state
                     if c_names == [None]:
                         sample[rel_key] = engine.get_empty_sample()
                         continue
                     for c_name in c_names:
-                        commit_id = engine.get_chunk_commit(c_name)
+                        commit_id, tkey = engine.get_chunk_commit(c_name)
                         c_key = get_chunk_key(
-                            version_state["tensor_names"][key],
+                            tkey,
                             c_name,  # type: ignore
                             commit_id,
                         )
