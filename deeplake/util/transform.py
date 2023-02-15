@@ -55,10 +55,12 @@ def transform_sample(
             result = TransformDataset(tensors)
             for item in out:
                 fn(item, result, *args, **kwargs)
+                validate_transform_dataset(result)
             out = result
         else:
             result = TransformDataset(tensors)
             fn(out, result, *args, **kwargs)
+            validate_transform_dataset(result)
             out = result
     return out
 
@@ -67,7 +69,9 @@ def validate_transform_dataset(dataset: TransformDataset):
     """Checks if the length of all the tensors is equal. Raises exception if not equal."""
     lengths = [len(dataset[tensor]) for tensor in dataset.tensors]
     if any(length != lengths[0] for length in lengths):
-        raise InvalidTransformDataset
+        raise InvalidTransformDataset(
+            "The number of samples added to each tensor in transform should be the same."
+        )
 
 
 def is_empty_transform_dataset(dataset: TransformDataset):

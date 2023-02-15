@@ -1,4 +1,6 @@
+from deeplake.core.linked_tiled_sample import LinkedTiledSample
 from deeplake.util.exceptions import TensorDoesNotExistError
+from deeplake.core.partial_sample import PartialSample
 from deeplake.core.linked_sample import LinkedSample
 from deeplake.core.sample import Sample
 from deeplake.core.tensor import Tensor
@@ -52,7 +54,10 @@ class TransformTensor:
         for item in items:
             if isinstance(item, Sample):
                 values.append(item.array)
-            elif not isinstance(item, (LinkedSample, Tensor, type(None))):
+            elif not isinstance(
+                item,
+                (LinkedSample, Tensor, type(None), PartialSample, LinkedTiledSample),
+            ):
                 values.append(np.asarray(item))
             else:
                 values.append(item)
@@ -162,8 +167,10 @@ class TransformDataset:
             sizeof_item = len(item.path)
         elif isinstance(item, np.ndarray):
             sizeof_item = item.nbytes
-        elif isinstance(item, (Tensor, type(None))):
+        elif isinstance(item, (Tensor, type(None), PartialSample)):
             sizeof_item = 0
+        elif isinstance(item, LinkedTiledSample):
+            sizeof_item = item.path_array.nbytes
         else:
             sizeof_item = np.asarray(item, dtype=object).nbytes
 

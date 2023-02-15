@@ -1241,3 +1241,21 @@ def test_downsample_transform(local_ds):
             assert len(ds[tensor]) == 10
             for i in range(10):
                 assert ds[tensor][i].shape == shape
+
+
+def test_transform_numpy_only(local_ds):
+    @deeplake.compute
+    def upload(i, ds):
+        ds.abc.extend(i * np.ones((10, 5, 5)))
+
+    with local_ds as ds:
+        ds.create_tensor("abc")
+
+        upload().eval(list(range(100)), ds, num_workers=2)
+
+    assert len(local_ds) == 1000
+
+    for i in range(100):
+        np.testing.assert_array_equal(
+            ds.abc[i * 10 : (i + 1) * 10].numpy(), i * np.ones((10, 5, 5))
+        )
