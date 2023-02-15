@@ -1619,25 +1619,6 @@ class Dataset:
             self.version_state, self.storage
         )
 
-    def _acquire_branch_lock(self, timeout: Optional[int] = None):
-        if not self._locked_out:
-            if not self._read_only:
-                return
-            else:
-                raise ReadOnlyModeError(
-                    "Cannot acquire lock as dataset was opened in read only mode."
-                )
-        if timeout is not None:
-            start_time = time()
-        while True:
-            try:
-                self._set_read_only(False, True)
-                return
-            except LockedException:
-                if timeout is not None and time() - start_time > timeout:
-                    raise LockedException()
-                sleep(1)
-
     def _acquire_lock(self, timeout: Optional[int] = None):
         if timeout is not None:
             start_time = time()
