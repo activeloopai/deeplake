@@ -10,7 +10,6 @@ from itertools import chain
 
 import numpy as np
 
-import deeplake.util.transform as transform_util
 import posixpath
 import bisect
 
