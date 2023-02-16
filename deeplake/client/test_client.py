@@ -1,4 +1,3 @@
-import subprocess
 import pytest
 from deeplake.cli.commands import login
 from click.testing import CliRunner
