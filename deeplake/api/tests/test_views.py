@@ -1,4 +1,4 @@
-from deeplake.util.exceptions import ReadOnlyModeError
+from deeplake.util.exceptions import ReadOnlyModeError, EmptyTensorError
 from deeplake.client.utils import get_user_name
 from deeplake.cli.auth import logout, login
 from click.testing import CliRunner
@@ -96,3 +96,26 @@ def test_view_public(hub_cloud_dev_credentials):
 
     if state == "logged out":
         runner.invoke(logout)
+
+
+def test_view_with_empty_tensor(local_ds):
+    with local_ds as ds:
+        ds.create_tensor("images")
+        ds.images.extend([1, 2, 3, 4, 5])
+
+        ds.create_tensor("labels")
+        ds.labels.extend([None, None, None, None, None])
+        ds.commit()
+
+        ds[:3].save_view(id="save1", optimize=True)
+
+    view = ds.load_view("save1")
+
+    assert len(view) == 3
+
+    with pytest.raises(EmptyTensorError):
+        view.labels.numpy()
+
+    np.testing.assert_array_equal(
+        view.images.numpy(), np.array([1, 2, 3]).reshape(3, 1)
+    )
