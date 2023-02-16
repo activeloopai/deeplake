@@ -1244,7 +1244,7 @@ class Dataset:
         self.link_creds = link_creds
 
     def _lock(self, err=False, verbose=True):
-        if not self._locking_enabled:
+        if not self._locking_enabled or not self.has_head_changes:
             return True
         storage = self.base_storage
 
@@ -1446,27 +1446,19 @@ class Dataset:
                 "Cannot perform version control operations on a filtered dataset view."
             )
         read_only = self._read_only
-        self._read_only = False
-        self.storage.disable_readonly()
-        self.base_storage.disable_readonly()
-
+        if read_only and create:
+            self.read_only = False
         try_flushing(self)
         self._initial_autoflush.append(self.storage.autoflush)
         self.storage.autoflush = False
-        err = False
         try:
             self._unlock()
             checkout(self, address, create, hash)
-        except Exception as e:
-            err = True
-            raise e
         finally:
-            if read_only:
-                self._read_only = True
-                self.storage.enable_readonly()
-                self.base_storage.enable_readonly()
-            if not (err and self._locked_out):
-                self._lock(verbose=verbose)
+            if create or read_only:
+                self._set_read_only(True, err=True)
+            else:
+                self._set_read_only(False, err=False)
             self.storage.autoflush = self._initial_autoflush.pop()
         self._info = None
         self._ds_diff = None
@@ -1639,6 +1631,7 @@ class Dataset:
             storage.enable_readonly()
             if isinstance(storage, LRUCache) and storage.next_storage is not None:
                 storage.next_storage.enable_readonly()
+            self._unlock()
         else:
             try:
                 locked = self._lock(err=err)
