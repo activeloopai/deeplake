@@ -28,7 +28,10 @@ def needs_downsampling(sample, factor: int):
     if isinstance(sample, Image.Image):
         dimensions = sample.size
     elif isinstance(sample, np.ndarray):
-        dimensions = sample.shape[:2]
+        dimensions = sample.shape
+        if len(dimensions) == 3 and dimensions[2] == 0:
+            return False
+        dimensions = dimensions[:2]
 
     if dimensions[0] * dimensions[1] <= 100 * factor * factor:
         return False
@@ -64,12 +67,11 @@ def downsample_sample(
         required_dtype = arr.dtype
         return np.ones(required_shape, dtype=required_dtype)
 
-    if isinstance(sample, np.ndarray) and sample.dtype == bool:
+    if isinstance(sample, np.ndarray):
         downsampled_sample = sample[::factor, ::factor]
         return downsampled_sample
-    else:
-        size = sample.size[0] // factor, sample.size[1] // factor
-        downsampled_sample = sample.resize(size, get_filter(htype))
+    size = sample.size[0] // factor, sample.size[1] // factor
+    downsampled_sample = sample.resize(size, get_filter(htype))
     if compression is None:
         return np.array(downsampled_sample)
     with io.BytesIO() as f:

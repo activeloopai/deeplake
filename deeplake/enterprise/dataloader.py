@@ -155,7 +155,11 @@ class DeepLakeDataLoader(DataLoader):
 
     @property
     def sampler(self):
-        return DistributedSampler(self.dataset) if self._distributed else _InfiniteConstantSampler()
+        return (
+            DistributedSampler(self.dataset)
+            if self._distributed
+            else _InfiniteConstantSampler()
+        )
 
     @property
     def batch_sampler(self):

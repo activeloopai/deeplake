@@ -2416,3 +2416,24 @@ def test_min_view(memory_ds):
 
     for i, sample in enumerate(ds.min_view):
         np.testing.assert_array_equal(sample.abc.numpy(), expected["abc"][i])
+
+
+def test_extend_with_empty_tensor(memory_ds):
+    with memory_ds as ds:
+        ds.create_tensor("abc")
+        ds.abc.extend([None, None, None])
+
+        ds.create_tensor("xyz")
+        ds.xyz.extend(ds.abc)
+        ds.xyz.extend([ds.abc[0], ds.abc[1]])
+
+        with pytest.raises(EmptyTensorError):
+            ds.xyz.numpy()
+
+        ds.xyz.append(1)
+
+        data = ds.xyz.numpy(aslist=True)
+        expected = [[]] * 5 + [1]
+
+        for i in range(len(data)):
+            np.testing.assert_array_equal(data[i], expected[i])
