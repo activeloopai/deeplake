@@ -44,6 +44,9 @@ try:
 except ImportError:
     pass
 
+import nest_asyncio
+nest_asyncio.apply()
+
 
 class S3ResetReloadCredentialsManager:
     """Tries to reload the credentials if the error is due to expired token, if error still occurs, it raises it."""
