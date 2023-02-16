@@ -67,7 +67,12 @@ def transform_sample(
 
 def validate_transform_dataset(dataset: TransformDataset):
     """Checks if the length of all the tensors is equal. Raises exception if not equal."""
-    lengths = [len(dataset[tensor]) for tensor in dataset.tensors]
+    data = dataset.data
+    lengths = [
+        len(data[tensor])
+        for tensor in data
+        if (not data[tensor].is_group and len(data[tensor]) > 0)
+    ]
     if any(length != lengths[0] for length in lengths):
         raise InvalidTransformDataset(
             "The number of samples added to each tensor in transform should be the same."
@@ -181,8 +186,8 @@ def store_data_slice_with_pbar(pg_callback, transform_input: Tuple) -> Dict:
                     out_tensor.non_numpy_only()
                     transform_tensor.extend(out_tensor.items)
                 out_tensor.items.clear()
-
-            pg_callback(1)
+            if pg_callback:
+                pg_callback(1)
 
         transform_dataset.flush()
 
