@@ -96,7 +96,8 @@ def test_missing_dataset_structure(local_ds):
     assert "annotations/sub_annotations/sub_tensor1" in tensors
 
 
-def test_minimal_coco_ingestion(local_path, coco_ingestion_data):
+@pytest.mark.parametrize("shuffle", [True, False])
+def test_minimal_coco_ingestion(local_path, coco_ingestion_data, shuffle):
     key_to_tensor = {"segmentation": "mask", "bbox": "bboxes"}
     file_to_group = {"annotations1": "group1", "annotations2": "group2"}
     ignore_keys = ["area", "iscrowd"]
@@ -108,21 +109,10 @@ def test_minimal_coco_ingestion(local_path, coco_ingestion_data):
         file_to_group_mapping=file_to_group,
         ignore_keys=ignore_keys,
         ignore_one_group=False,
-        shuffle=False,
-    )
-
-    ds2 = deeplake.ingest_coco(
-        **coco_ingestion_data,
-        dest=local_path,
-        key_to_tensor_mapping=key_to_tensor,
-        file_to_group_mapping=file_to_group,
-        ignore_keys=ignore_keys,
-        ignore_one_group=False,
-        shuffle=True,
+        shuffle=shuffle,
     )
 
     assert ds.path == local_path
-    assert ds2.path == local_path
     assert "images" in ds.tensors
     assert "group1/category_id" in ds.tensors
     assert "group2/category_id" in ds.tensors
