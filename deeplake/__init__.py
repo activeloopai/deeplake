@@ -1,5 +1,5 @@
 r"""
-The deeplake package provides a database which stores data as compressed chunked arrays that can be stored anywhere and 
+The deeplake package provides a database which stores data as compressed chunked arrays that can be stored anywhere and
 later streamed to deep learning models.
 """
 
@@ -33,7 +33,6 @@ from .integrations import wandb
 
 compressions = list(SUPPORTED_COMPRESSIONS)
 htypes = sorted(list(HTYPE_CONFIGURATIONS))
-list = api_dataset.list
 exists = api_dataset.exists
 load = api_dataset.load
 empty = api_dataset.empty
