@@ -126,14 +126,14 @@ def integrity_check(dataset):
         ) from e
 
 
-def commit(dataset, message: Optional[str] = None, hash: Optional[str] = None) -> None:
+def commit(dataset, message: Optional[str] = None, hash: Optional[str] = None, flush_version_control_info: bool = True) -> None:
     """Modifies the version state to reflect the commit and also copies required data to the new commit directory."""
     storage = dataset.storage
     version_state = dataset.version_state
     storage.check_readonly()
     integrity_check(dataset)
     # if not the head node, checkout to an auto branch that is newly created
-    auto_checkout(dataset)
+    auto_checkout(dataset, flush_version_control_info=False)
     stored_commit_node: CommitNode = version_state["commit_node"]
     stored_commit_id = version_state["commit_id"]
     if hash:
@@ -157,7 +157,8 @@ def commit(dataset, message: Optional[str] = None, hash: Optional[str] = None) -
     commit_time = stored_commit_node.commit_time
     commit_message = stored_commit_node.commit_message
     author = stored_commit_node.commit_user_name
-    save_version_info(version_state, storage)
+    if flush_version_control_info:
+        save_version_info(version_state, storage)
     dataset._send_commit_event(
         commit_message=commit_message, commit_time=commit_time, author=author
     )
@@ -169,6 +170,7 @@ def checkout(
     address: str,
     create: bool = False,
     hash: Optional[str] = None,
+    flush_version_control_info=True,
 ) -> None:
     """Modifies the version state to reflect the checkout and also copies required data to the new branch directory if a new one is being created."""
     storage = dataset.storage
@@ -202,7 +204,7 @@ def checkout(
     elif create:
         storage.check_readonly()
         # if the original commit is head of the branch, auto commit and checkout to original commit before creating new branch
-        auto_commit(dataset, f"auto commit before checkout to {address}")
+        auto_commit(dataset, f"auto commit before checkout to {address}", flush_version_control_info=False)
         if hash:
             if hash in version_state["commit_node_map"]:
                 raise CommitError(f"Commit {hash} already exists")
@@ -216,7 +218,8 @@ def checkout(
         version_state["branch"] = address
         version_state["commit_node_map"][new_commit_id] = new_node
         version_state["branch_commit_map"][address] = new_commit_id
-        save_version_info(version_state, storage)
+        if flush_version_control_info:
+            save_version_info(version_state, storage)
         copy_metas(original_commit_id, new_commit_id, storage, version_state)
         create_commit_chunk_maps(new_commit_id, storage, version_state)
         dataset._send_branch_creation_event(address)
@@ -457,7 +460,7 @@ def load_version_info(storage: LRUCache) -> Dict:
         )  # backward compatiblity
 
 
-def auto_checkout(dataset) -> bool:
+def auto_checkout(dataset, flush_version_control_info: bool=True) -> bool:
     """Automatically checks out if current node is not the head node of the branch. This may happen either during commit/setitem/append/extend/create_tensor/delete_tensor/info updates."""
     version_state = dataset.version_state
     if not version_state["commit_node"].is_head_node:
@@ -466,12 +469,12 @@ def auto_checkout(dataset) -> bool:
         logger.info(
             f"Automatically checking out to branch '{auto_branch}' as not currently at the head node of branch '{current_branch}'."
         )
-        checkout(dataset, auto_branch, True)
+        checkout(dataset, auto_branch, True, flush_version_control_info=flush_version_control_info)
         return True
     return False
 
 
-def auto_commit(dataset, message: str) -> None:
+def auto_commit(dataset, message: str, flush_version_control_info: bool = True) -> None:
     """Automatically commits to the current branch before a checkout to a newly created branch if the current node is the head node and has changes."""
     version_state = dataset.version_state
     commit_node = version_state["commit_node"]
@@ -489,15 +492,15 @@ def auto_commit(dataset, message: str) -> None:
     logger.info(
         f"Auto commiting to branch '{branch}' before checkout as currently at head node."
     )
-    commit(dataset, message)
-    checkout(dataset, original_commit_id, False)
+    commit(dataset, message, flush_version_control_info=flush_version_control_info)
+    checkout(dataset, original_commit_id)
 
 
 def current_commit_has_change(version_state: Dict[str, Any], storage: LRUCache) -> bool:
     return (
+        version_state["commit_id"] == FIRST_COMMIT_ID or
         current_commit_has_data(version_state, storage)
         or current_commit_has_info_modified(version_state, storage)
-        or version_state["commit_id"] == FIRST_COMMIT_ID
     )
 
 

@@ -54,6 +54,7 @@ class Lock(object):
         self._min_sleep = (
             0.01 if isinstance(storage, (LocalProvider, MemoryProvider)) else 1
         )
+        self.acquired = False
 
     def _write_lock(self):
         storage = self.storage
@@ -82,10 +83,15 @@ class Lock(object):
         if timeout is not None:
             start_time = time.time()
         while True:
-            byts = storage.get(path)
+            try:
+                byts = storage.get(path)
+            except Exception:
+                byts = None
             if byts:
                 nodeid, timestamp, tag = _parse_lock_bytes(byts)
                 locked = tag != self.tag or nodeid != uuid.getnode()
+                if not locked:  # Identical lock
+                    return
             else:
                 locked = False
 
@@ -99,11 +105,15 @@ class Lock(object):
 
             self._write_lock()
             time.sleep(self._lock_verify_interval)
-            byts = storage.get(path)
+            try:
+                byts = storage.get(path)
+            except Exception:
+                byts = None
             if not byts:
                 continue
             nodeid, timestamp, tag = _parse_lock_bytes(byts)
             if self.tag == tag and nodeid == uuid.getnode():
+                self.acquired = True
                 return
             else:
                 rem = timestamp - time.time()
@@ -112,6 +122,8 @@ class Lock(object):
                 continue
 
     def release(self):
+        if not self.acquired:
+            return
         storage = self.storage
         try:
             read_only = storage.read_only

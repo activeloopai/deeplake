@@ -74,6 +74,7 @@ def create_read_copy_dataset(dataset, commit_id: Optional[str] = None):
         token=dataset._token,
         verbose=False,
         path=dataset.path,
+        version_state=dataset.version_state,
     )
     if commit_id is not None:
         ds.checkout(commit_id)

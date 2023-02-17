@@ -17,6 +17,7 @@ from deeplake.core.index.index import IndexEntry
 from deeplake.core.link_creds import LinkCreds
 from deeplake.util.connect_dataset import connect_dataset_entry
 from deeplake.util.downsample import validate_downsampling
+from deeplake.util.version_control import save_version_info
 from deeplake.util.invalid_view_op import invalid_view_op
 from deeplake.util.iteration_warning import (
     suppress_iteration_warning,
@@ -230,6 +231,7 @@ class Dataset:
         d["_pad_tensors"] = pad_tensors
         d["_locking_enabled"] = lock
         d["_temp_tensors"] = []
+        d["_vc_info_updated"] = False
         dct = self.__dict__
         dct.update(d)
         dct["enabled_tensors"] = (
@@ -275,7 +277,9 @@ class Dataset:
     def __exit__(self, exc_type, exc_val, exc_tb):
         self.storage.autoflush = self._initial_autoflush.pop()
         if not self._read_only:
+            self._flush_vc_info()
             self.storage.maybe_flush()
+
 
     @property
     def num_samples(self) -> int:
@@ -380,6 +384,7 @@ class Dataset:
         state["_client"] = state["org_id"] = state["ds_name"] = None
         state["_temp_tensors"] = []
         state["libdeeplake_dataset"] = None
+        state["_vc_info_updated"] = False
         self.__dict__.update(state)
         self.__dict__["base_storage"] = get_base_storage(self.storage)
         # clear cache while restoring
@@ -1244,7 +1249,7 @@ class Dataset:
         self.link_creds = link_creds
 
     def _lock(self, err=False, verbose=True):
-        if not self._locking_enabled or not self.has_head_changes:
+        if not self.is_head_node or not self._locking_enabled:
             return True
         storage = self.base_storage
 
@@ -1319,7 +1324,7 @@ class Dataset:
                 "There are no changes, commit is not done. Try again with allow_empty=True."
             )
 
-        return self._commit(message)
+        return self._commit(message, None, False)
 
     @deeplake_reporter.record_call
     @invalid_view_op
@@ -1368,12 +1373,11 @@ class Dataset:
 
         self._initial_autoflush.append(self.storage.autoflush)
         self.storage.autoflush = False
-
         merge(self, target_id, conflict_resolution, delete_removed_tensors, force)
-
+        self.__dict__["_vc_info_updated"] = False
         self.storage.autoflush = self._initial_autoflush.pop()
 
-    def _commit(self, message: Optional[str] = None, hash: Optional[str] = None) -> str:
+    def _commit(self, message: Optional[str] = None, hash: Optional[str] = None, flush_version_control_info: bool = True) -> str:
         if self._is_filtered_view:
             raise Exception(
                 "Cannot perform version control operations on a filtered dataset view."
@@ -1385,7 +1389,9 @@ class Dataset:
         self.storage.autoflush = False
         try:
             self._unlock()
-            commit(self, message, hash)
+            commit(self, message, hash, flush_version_control_info)
+            if not flush_version_control_info:
+                self.__dict__["_vc_info_updated"] = True
             self._lock()
         finally:
             self.storage.autoflush = self._initial_autoflush.pop()
@@ -1432,14 +1438,15 @@ class Dataset:
         Note:
             Checkout from a head node in any branch that contains uncommitted data will lead to an automatic commit before the checkout.
         """
-        return self._checkout(address, create)
+        return self._checkout(address, create, None, False)
 
     def _checkout(
         self,
         address: str,
         create: bool = False,
         hash: Optional[str] = None,
-        verbose=True,
+        verbose: bool = True,
+        flush_version_control_info: bool = False,
     ) -> Optional[str]:
         if self._is_filtered_view:
             raise Exception(
@@ -1453,7 +1460,9 @@ class Dataset:
         self.storage.autoflush = False
         try:
             self._unlock()
-            checkout(self, address, create, hash)
+            checkout(self, address, create, hash, flush_version_control_info)
+            if not flush_version_control_info and create:
+                self.__dict__["_vc_info_updated"] = True
         finally:
             if create or read_only:
                 self._set_read_only(True, err=True)
@@ -2048,7 +2057,13 @@ class Dataset:
         Here dirty data corresponds to data that has been changed/assigned and but hasn't yet been sent to the
         underlying storage.
         """
+        self._flush_vc_info()
         self.storage.flush()
+
+    def _flush_vc_info(self):
+        if self.__dict__["_vc_info_updated"]:
+            save_version_info(self.version_state, self.storage)
+            self.__dict__["_vc_info_updated"] = False
 
     def clear_cache(self):
         """
