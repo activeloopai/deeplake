@@ -604,8 +604,6 @@ class S3Provider(StorageProvider):
             raise S3GetError(err) from err
 
     def set_items(self, items: dict):
-        # set multiple items at once using aioboto3,
-
         async def _set_items(items):
             async with self.async_session.client("s3", **self.my_args) as client:
                 tasks = []
