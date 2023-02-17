@@ -482,33 +482,36 @@ class MMDetDataset(TorchDataset):
         **kwargs,
     ):
         super().__init__(*args, **kwargs)
-        self.bbox_info = bbox_info
-        self.images = self._get_images(tensors_dict["images_tensor"])
-        self.masks = self._get_masks(tensors_dict.get("masks_tensor", None))
-        self.bboxes = self._get_bboxes(tensors_dict["boxes_tensor"])
-        bbox_format = get_bbox_format(first_non_empty(self.bboxes), bbox_info)
-        self.labels = self._get_labels(tensors_dict["labels_tensor"])
-        self.iscrowds = self._get_iscrowds(tensors_dict.get("iscrowds"))
-        self.CLASSES = self.get_classes(tensors_dict["labels_tensor"])
         self.mode = mode
-        self.metrics_format = metrics_format
-        coco_style_bbox = convert_to_coco_format(self.bboxes, bbox_format, self.images)
-        self.pipeline = pipeline
-
-        if self.metrics_format == "COCO" and self.mode in ("val", "test"):
-            self.evaluator = mmdet_utils.COCODatasetEvaluater(
-                pipeline,
-                classes=self.CLASSES,
-                deeplake_dataset=self.dataset,
-                imgs=self.images,
-                masks=self.masks,
-                bboxes=coco_style_bbox,
-                labels=self.labels,
-                iscrowds=self.iscrowds,
-                bbox_format=bbox_format,
+        if self.mode in ("val", "test"):
+            self.bbox_info = bbox_info
+            self.images = self._get_images(tensors_dict["images_tensor"])
+            self.masks = self._get_masks(tensors_dict.get("masks_tensor", None))
+            self.bboxes = self._get_bboxes(tensors_dict["boxes_tensor"])
+            bbox_format = get_bbox_format(first_non_empty(self.bboxes), bbox_info)
+            self.labels = self._get_labels(tensors_dict["labels_tensor"])
+            self.iscrowds = self._get_iscrowds(tensors_dict.get("iscrowds"))
+            self.CLASSES = self.get_classes(tensors_dict["labels_tensor"])
+            self.metrics_format = metrics_format
+            coco_style_bbox = convert_to_coco_format(
+                self.bboxes, bbox_format, self.images
             )
-        else:
-            self.evaluator = None
+            self.pipeline = pipeline
+
+            if self.metrics_format == "COCO":
+                self.evaluator = mmdet_utils.COCODatasetEvaluater(
+                    pipeline,
+                    classes=self.CLASSES,
+                    deeplake_dataset=self.dataset,
+                    imgs=self.images,
+                    masks=self.masks,
+                    bboxes=coco_style_bbox,
+                    labels=self.labels,
+                    iscrowds=self.iscrowds,
+                    bbox_format=bbox_format,
+                )
+            else:
+                self.evaluator = None
 
     def __len__(self):
         if self.mode == "eval":
@@ -1216,8 +1219,8 @@ def _train_detector(
 
     if hasattr(model, "CLASSES"):
         warnings.warn("model already has a CLASSES attribute. Will be ignored.")
-
-    model.CLASSES = ds_train[train_labels_tensor].info.class_names
+    if hasattr(ds_train[train_labels_tensor].info, "class_names"):
+        model.CLASSES = ds_train[train_labels_tensor].info.class_names
 
     metrics_format = cfg.get("deeplake_metrics_format", "COCO")
 
