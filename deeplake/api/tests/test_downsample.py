@@ -146,3 +146,43 @@ def test_downsample_group_bug(memory_ds):
             sample_compression="lz4",
             downsampling=(2, 2),
         )
+
+
+def test_downsample_image(memory_ds):
+    with memory_ds as ds:
+        ds.create_tensor(
+            "image", htype="image", sample_compression="jpeg", downsampling=(2, 2)
+        )
+        ds.image.append(np.ones((100, 100, 3), dtype="uint8"))
+        ds.image.append(np.ones((100, 100, 1), dtype="uint8"))
+        ds.image.append(np.ones((100, 100, 0), dtype="uint8"))
+        ds.image.append(np.ones((100, 0, 3), dtype="uint8"))
+        ds.image.append(np.ones((100, 100), dtype="uint8"))
+
+        target_shapes = {
+            "image": [
+                (100, 100, 3),
+                (100, 100, 1),
+                (100, 100, 0),
+                (100, 0, 3),
+                (100, 100, 1),
+            ],
+            "_image_downsampled_2": [
+                (50, 50, 3),
+                (50, 50, 1),
+                (0, 0, 0),
+                (0, 0, 0),
+                (50, 50, 1),
+            ],
+            "_image_downsampled_4": [
+                (25, 25, 3),
+                (25, 25, 1),
+                (0, 0, 0),
+                (0, 0, 0),
+                (25, 25, 1),
+            ],
+        }
+        for tensor, target_shape in target_shapes.items():
+            shapes = [ds[tensor][i].shape for i in range(5)]
+            numpy_shapes = [ds[tensor][i].numpy().shape for i in range(5)]
+            assert shapes == target_shape == numpy_shapes

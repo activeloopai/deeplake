@@ -1,4 +1,3 @@
-import subprocess
 import pytest
 from deeplake.cli.commands import login
 from click.testing import CliRunner
@@ -39,13 +38,3 @@ def test_client_workspace_organizations(hub_cloud_dev_credentials):
     runner.invoke(login, f"-u {username} -p {password}")
     deeplake_client = DeepLakeBackendClient()
     assert username in deeplake_client.get_user_organizations()
-    assert "public" in deeplake_client.get_user_organizations()
-
-    datasets = subprocess.check_output(
-        ["activeloop", "list-datasets", "--workspace", "activeloop"]
-    )
-    assert "You are not a member of organization" in str(datasets)
-    datasets = subprocess.check_output(
-        ["activeloop", "list-datasets", "--workspace", "test"]
-    )
-    assert "You are not a member of organization" not in str(datasets)

@@ -1,4 +1,4 @@
-from deeplake.util.exceptions import DatasetViewSavingError
+from deeplake.util.exceptions import ReadOnlyModeError, EmptyTensorError
 from deeplake.client.utils import get_user_name
 from deeplake.cli.auth import logout, login
 from click.testing import CliRunner
@@ -83,33 +83,39 @@ def test_view_public(hub_cloud_dev_credentials):
     ds = deeplake.load("hub://activeloop/mnist-train")
     view = ds[100:200]
 
-    # not logged in
-    with pytest.raises(DatasetViewSavingError):
+    with pytest.raises(ReadOnlyModeError):
         view.save_view(id="100to200")
 
     runner.invoke(login, f"-u {username} -p {password}")
 
     ds = deeplake.load("hub://activeloop/mnist-train")
     view = ds[100:200]
-    view.save_view(id="100to200")
 
-    runner.invoke(logout)
-    ds = deeplake.load("hub://activeloop/mnist-train")
-    with pytest.raises(KeyError):
-        ds.load_view("100to200")
-
-    runner.invoke(login, f"-u {username} -p {password}")
-
-    ds = deeplake.load("hub://activeloop/mnist-train")
-    loaded = ds.load_view("100to200")
-    np.testing.assert_array_equal(loaded.images.numpy(), ds[100:200].images.numpy())
-    np.testing.assert_array_equal(loaded.labels.numpy(), ds[100:200].labels.numpy())
-    assert (
-        loaded._vds.path
-        == f"hub://{username}/queries/.queries/[activeloop][mnist-train]100to200"
-    )
-
-    ds.delete_view("100to200")
+    with pytest.raises(ReadOnlyModeError):
+        view.save_view(id="100to200")
 
     if state == "logged out":
         runner.invoke(logout)
+
+
+def test_view_with_empty_tensor(local_ds):
+    with local_ds as ds:
+        ds.create_tensor("images")
+        ds.images.extend([1, 2, 3, 4, 5])
+
+        ds.create_tensor("labels")
+        ds.labels.extend([None, None, None, None, None])
+        ds.commit()
+
+        ds[:3].save_view(id="save1", optimize=True)
+
+    view = ds.load_view("save1")
+
+    assert len(view) == 3
+
+    with pytest.raises(EmptyTensorError):
+        view.labels.numpy()
+
+    np.testing.assert_array_equal(
+        view.images.numpy(), np.array([1, 2, 3]).reshape(3, 1)
+    )
