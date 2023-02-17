@@ -607,8 +607,8 @@ class S3Provider(StorageProvider):
         except Exception as err:
             raise S3GetError(err) from err
 
-    def set_items(self, items: dict):
-        async def _set_items(items):
+    def _set_items(self, items: dict):
+        async def set_items_async(items):
             async with self.async_session.client("s3", **self.s3_kwargs) as client:
                 tasks = []
                 for k, v in items.items():
@@ -623,4 +623,26 @@ class S3Provider(StorageProvider):
 
         loop = asyncio.new_event_loop()
         asyncio.set_event_loop(loop)
-        loop.run_until_complete(_set_items(items))
+        loop.run_until_complete(set_items_async(items))
+
+    def set_items(self, items: dict):
+        try:
+            self._set_items(items)
+        except botocore.exceptions.ClientError as err:
+            with S3ResetReloadCredentialsManager(self, S3SetError):
+                self._set_items(items)
+        except CONNECTION_ERRORS as err:
+            tries = self.num_tries
+            for i in range(1, tries + 1):
+                always_warn(f"Encountered connection error, retry {i} out of {tries}")
+                try:
+                    self._set_items(items)
+                    always_warn(
+                        f"Connection re-established after {i} {['retries', 'retry'][i==1]}."
+                    )
+                    return
+                except Exception:
+                    pass
+            raise S3SetError(err) from err
+        except Exception as err:
+            raise S3SetError(err) from err
