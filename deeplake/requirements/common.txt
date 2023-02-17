@@ -18,3 +18,5 @@ flask
 pyjwt
 laspy
 nibabel
+aioboto3
+nest_asyncio
