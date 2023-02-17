@@ -2,7 +2,6 @@ import click
 
 from deeplake import __version__
 from deeplake.cli.auth import login, logout, register, reporting
-from deeplake.cli.list_datasets import list_datasets
 
 
 @click.group()
@@ -17,7 +16,6 @@ def add_auth_commands(cli):
     cli.add_command(logout)
     cli.add_command(register)
     cli.add_command(reporting)
-    cli.add_command(list_datasets)
 
 
 add_auth_commands(cli)
