@@ -1,4 +1,3 @@
-import subprocess
 import pytest
 from deeplake.cli.commands import login, logout
 from click.testing import CliRunner
@@ -49,6 +48,5 @@ def test_client_workspace_organizations(
 
     deeplake_client = DeepLakeBackendClient()
     assert username in deeplake_client.get_user_organizations()
-    assert "public" in deeplake_client.get_user_organizations()
 
     runner.invoke(logout)

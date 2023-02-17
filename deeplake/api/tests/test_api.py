@@ -2380,6 +2380,46 @@ def test_pickle_bug(local_ds):
     assert ds._temp_tensors == []
 
 
+def test_max_view(memory_ds):
+    with memory_ds as ds:
+        ds.create_tensor("abc")
+        ds.create_tensor("xyz")
+        ds.create_tensor("pqr")
+
+        ds.abc.extend([1, 2, 3, 4])
+        ds.xyz.extend([1, 2, 3])
+        ds.pqr.extend([1, 2])
+
+    expected = {
+        "abc": [[1], [2], [3], [4]],
+        "xyz": [[1], [2], [3], []],
+        "pqr": [[1], [2], [], []],
+    }
+
+    for i, sample in enumerate(ds.max_view):
+        np.testing.assert_array_equal(sample.abc.numpy(), expected["abc"][i])
+
+
+def test_min_view(memory_ds):
+    with memory_ds as ds:
+        ds.create_tensor("abc")
+        ds.create_tensor("xyz")
+        ds.create_tensor("pqr")
+
+        ds.abc.extend([1, 2, 3, 4])
+        ds.xyz.extend([1, 2, 3])
+        ds.pqr.extend([1, 2])
+
+    expected = {
+        "abc": [[1], [2]],
+        "xyz": [[1], [2]],
+        "pqr": [[1], [2]],
+    }
+
+    for i, sample in enumerate(ds.min_view):
+        np.testing.assert_array_equal(sample.abc.numpy(), expected["abc"][i])
+
+
 def test_extend_with_empty_tensor(memory_ds):
     with memory_ds as ds:
         ds.create_tensor("abc")
