@@ -1,3 +1,4 @@
+import aioboto3
 import asyncio
 import deeplake
 from math import ceil
@@ -26,8 +27,6 @@ from botocore.exceptions import (
     EndpointConnectionError,
     IncompleteReadError,
 )
-import aioboto3
-
 CONNECTION_ERRORS = (
     ReadTimeoutError,
     ConnectionError,
@@ -45,7 +44,7 @@ except ImportError:
     pass
 
 import nest_asyncio
-nest_asyncio.apply()
+nest_asyncio.apply() # needed to run asyncio in jupyter notebook
 
 
 class S3ResetReloadCredentialsManager:
@@ -513,7 +512,15 @@ class S3Provider(StorageProvider):
             )
 
     def _set_s3_client_and_resource(self):
-        args = {
+        kwargs = self.s3_kwargs
+        session = boto3.session.Session(profile_name=self.profile_name)
+        self.client = session.client("s3", **kwargs)
+        self.resource = session.resource("s3", **kwargs)
+        self.async_session = aioboto3.session.Session(profile_name=self.profile_name)
+
+    @property
+    def s3_kwargs(self):
+        return {
             "aws_access_key_id": self.aws_access_key_id,
             "aws_secret_access_key": self.aws_secret_access_key,
             "aws_session_token": self.aws_session_token,
@@ -521,11 +528,6 @@ class S3Provider(StorageProvider):
             "endpoint_url": self.endpoint_url,
             "config": self.client_config,
         }
-        session = boto3.session.Session(profile_name=self.profile_name)
-        self.client = session.client("s3", **args)
-        self.resource = session.resource("s3", **args)
-        self.async_session = aioboto3.session.Session(profile_name=self.profile_name)
-        self.my_args = args     
 
     def need_to_reload_creds(self, err: botocore.exceptions.ClientError) -> bool:
         """Checks if the credentials need to be reloaded.
@@ -605,7 +607,7 @@ class S3Provider(StorageProvider):
 
     def set_items(self, items: dict):
         async def _set_items(items):
-            async with self.async_session.client("s3", **self.my_args) as client:
+            async with self.async_session.client("s3", **self.s3_kwargs) as client:
                 tasks = []
                 for k, v in items.items():
                     tasks.append(asyncio.ensure_future(
