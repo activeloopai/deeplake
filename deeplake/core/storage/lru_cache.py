@@ -88,7 +88,6 @@ class LRUCache(StorageProvider):
                 d = {}
                 for key in self.dirty_keys:
                     value = self.cache_storage[key]
-                    # self.dirty_keys.pop(key, None)
                     if isinstance(value, DeepLakeMemoryObject):
                         d[key] = bytes(value.tobytes())
                     elif isinstance(value, memoryview):
