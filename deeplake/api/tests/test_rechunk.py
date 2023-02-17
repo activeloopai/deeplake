@@ -270,6 +270,7 @@ def test_rechunk_cloud_link(local_ds_generator):
 
     assert ds.abc.chunk_engine.creds_encoder.num_samples == 3
 
+
 @deeplake.compute
 def add_samples(sample_in, samples_out):
     samples_out.labels.append(np.ones((200,), dtype=np.int64))
@@ -286,6 +287,10 @@ def test_rechunk_vc_bug(local_ds):
     ds.checkout("alt", True)
     ds.labels[8] = ds.labels[8].numpy()
     ds.commit()
-    np.testing.assert_array_equal(ds.labels.numpy(), np.ones((300, 200), dtype=np.int64))
+    np.testing.assert_array_equal(
+        ds.labels.numpy(), np.ones((300, 200), dtype=np.int64)
+    )
     ds.checkout("main")
-    np.testing.assert_array_equal(ds.labels.numpy(), np.ones((300, 200), dtype=np.int64))
+    np.testing.assert_array_equal(
+        ds.labels.numpy(), np.ones((300, 200), dtype=np.int64)
+    )
