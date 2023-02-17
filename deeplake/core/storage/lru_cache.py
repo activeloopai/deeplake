@@ -13,6 +13,7 @@ def _get_nbytes(obj: Union[bytes, memoryview, DeepLakeMemoryObject]):
         return obj.nbytes
     return len(obj)
 
+
 def obj_to_bytes(obj):
     if isinstance(obj, DeepLakeMemoryObject):
         obj = obj.tobytes()
@@ -92,10 +93,10 @@ class LRUCache(StorageProvider):
 
         if self.dirty_keys:
             if hasattr(self.next_storage, "set_items"):
-                d = {}
-                for key in self.dirty_keys:
-                    value = self.cache_storage[key]
-                    d[key] = obj_to_bytes(value)
+                d = {
+                    key: obj_to_bytes(self.cache_storage[key])
+                    for key in self.dirty_keys
+                }
                 self.next_storage.set_items(d)
                 self.dirty_keys.clear()
             else:

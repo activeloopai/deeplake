@@ -27,6 +27,7 @@ from botocore.exceptions import (
     EndpointConnectionError,
     IncompleteReadError,
 )
+
 CONNECTION_ERRORS = (
     ReadTimeoutError,
     ConnectionError,
@@ -44,7 +45,8 @@ except ImportError:
     pass
 
 import nest_asyncio
-nest_asyncio.apply() # needed to run asyncio in jupyter notebook
+
+nest_asyncio.apply()  # needed to run asyncio in jupyter notebook
 
 
 class S3ResetReloadCredentialsManager:
@@ -610,13 +612,15 @@ class S3Provider(StorageProvider):
             async with self.async_session.client("s3", **self.s3_kwargs) as client:
                 tasks = []
                 for k, v in items.items():
-                    tasks.append(asyncio.ensure_future(
-                        client.put_object(Bucket=self.bucket, Key=self.path + k, Body=v)
-                    ))
+                    tasks.append(
+                        asyncio.ensure_future(
+                            client.put_object(
+                                Bucket=self.bucket, Key=self.path + k, Body=v
+                            )
+                        )
+                    )
                 await asyncio.gather(*tasks)
 
         loop = asyncio.new_event_loop()
         asyncio.set_event_loop(loop)
         loop.run_until_complete(_set_items(items))
-
-
