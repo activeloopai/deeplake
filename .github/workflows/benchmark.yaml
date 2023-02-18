@@ -34,7 +34,7 @@ jobs:
     uses: activeloopai/shared-github-actions/.github/workflows/benchmark.yaml@main
     with:
       benchmark_event: ${{ github.event_name }}
-      sha: ${{ github.sha }}
+      ref: ${{ github.sha }}
     secrets:
       benchmarks_aws_role_arn: ${{ secrets.BENCHMARKS_AWS_ROLE_ARN }}
       slack_url: ${{ secrets.SLACK_URL }}
