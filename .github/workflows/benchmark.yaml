@@ -33,7 +33,6 @@ jobs:
     if: github.event_name == 'push' || (github.event_name == 'pull_request' &&  github.event.label.name == 'run-benchmarks')
     uses: activeloopai/shared-github-actions/.github/workflows/benchmark.yaml@main
     with:
-      ref: ${{ github.sha }}
       benchmark_event: ${{ github.event_name }}
       sha: ${{ github.sha }}
     secrets:
