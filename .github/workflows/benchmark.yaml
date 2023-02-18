@@ -18,18 +18,18 @@ on:
 
 jobs:
   remove_label:
-    name: Remove trigger-benchmark label
-    if: github.event_name == 'pull_request' && github.event.label.name == 'trigger-benchmark'
+    name: Remove run-benchmarks label
+    if: github.event_name == 'pull_request' && github.event.label.name == 'run-benchmarks'
     runs-on: ubuntu-latest
     steps:
-      - name: Remove trigger-benchmark label
+      - name: Remove run-benchmarks label
         continue-on-error: true
         uses: actions-ecosystem/action-remove-labels@v1
         with:
-          labels: trigger-benchmark
+          labels: run-benchmarks
 
   benchmark:
-    if: github.event_name == 'push' || (github.event_name == 'pull_request' &&  github.event.label.name == 'trigger-benchmark')
+    if: github.event_name == 'push' || (github.event_name == 'pull_request' &&  github.event.label.name == 'run-benchmarks')
     uses: activeloopai/shared-github-actions/.github/workflows/benchmark.yaml@main
     with:
       ref: ${{ github.sha }}
