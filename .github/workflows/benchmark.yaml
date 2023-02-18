@@ -1,0 +1,42 @@
+name: Deep Lake benchmarks
+
+permissions:
+  id-token: write
+  contents: read
+
+on:
+  pull_request:
+    branches:
+      - "main"
+    types:
+      - "labeled"
+
+  push:
+    branches:
+      - "main"
+      - "release/**"
+
+jobs:
+  remove_label:
+    name: Remove trigger-benchmark label
+    if: github.event_name == 'pull_request' && github.event.label.name == 'trigger-benchmark'
+    runs-on: ubuntu-latest
+    steps:
+      - name: Remove trigger-benchmark label
+        continue-on-error: true
+        uses: actions-ecosystem/action-remove-labels@v1
+        with:
+          labels: trigger-benchmark
+
+  benchmark:
+    if: github.event_name == 'push' || (github.event_name == 'pull_request' &&  github.event.label.name == 'trigger-benchmark')
+    uses: activeloopai/shared-github-actions/.github/workflows/benchmark.yaml@main
+    with:
+      ref: ${{ github.sha }}
+      benchmark_event: ${{ github.event_name }}
+      sha: ${{ github.sha }}
+    secrets:
+      benchmarks_aws_role_arn: ${{ secrets.BENCHMARKS_AWS_ROLE_ARN }}
+      slack_url: ${{ secrets.SLACK_URL }}
+      activeloop_username: ${{ ecrets.ACTIVELOOP_HUB_USERNAME }}
+      activeloop_password: ${{ secrets.ACTIVELOOP_HUB_PASSWORD }}
