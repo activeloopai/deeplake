@@ -38,5 +38,5 @@ jobs:
     secrets:
       benchmarks_aws_role_arn: ${{ secrets.BENCHMARKS_AWS_ROLE_ARN }}
       slack_url: ${{ secrets.SLACK_URL }}
-      activeloop_username: ${{ ecrets.ACTIVELOOP_HUB_USERNAME }}
+      activeloop_username: ${{ secrets.ACTIVELOOP_HUB_USERNAME }}
       activeloop_password: ${{ secrets.ACTIVELOOP_HUB_PASSWORD }}
