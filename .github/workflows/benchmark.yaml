@@ -2,7 +2,8 @@ name: Deep Lake benchmarks
 
 permissions:
   id-token: write
-  contents: write
+  contents: read
+  pull-requests: 'write'
 
 on:
   pull_request:
