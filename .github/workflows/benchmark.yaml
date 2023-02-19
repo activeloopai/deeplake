@@ -32,11 +32,10 @@ jobs:
   benchmark:
     if: github.event_name == 'push' || (github.event_name == 'pull_request' &&  github.event.label.name == 'run-benchmarks')
     uses: activeloopai/shared-github-actions/.github/workflows/benchmark.yaml@main
-    with:
-      benchmark_event: ${{ github.event_name }}
-      ref: ${{ github.sha }}
     secrets:
       benchmarks_aws_role_arn: ${{ secrets.BENCHMARKS_AWS_ROLE_ARN }}
       slack_url: ${{ secrets.SLACK_URL }}
       activeloop_username: ${{ secrets.ACTIVELOOP_HUB_USERNAME }}
       activeloop_password: ${{ secrets.ACTIVELOOP_HUB_PASSWORD }}
+      benchmarks_repo: ${{ secrets.BENCHMARKS_REPO }}
+      benchmark_report: ${{ secrets.BENCHMARK_REPORT }}
