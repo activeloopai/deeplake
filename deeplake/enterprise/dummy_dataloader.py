@@ -70,13 +70,13 @@ class DummyTensor:
         dtype = self.dtype
         shape = self.tensor_shapes[index]
         if np.issubdtype(dtype, np.floating):
-            return np.random.rand(*shape).astype(dtype)
+            return np.ones(shape, dtype=dtype)
         elif np.issubdtype(self.dtype, np.integer):
-            return np.random.randint(0, 255, size=shape).astype(dtype)
-        elif self.dtype == "str":
+            return np.ones(shape, dtype=dtype)
+        elif dtype == "str":
             if 0 in shape:
                 shape = (1,)
-            return np.random.choice(["a", "b", "c"], size=shape).astype(dtype)
+            return np.array(["a" * np.prod(shape)], dtype=dtype)
             # handle json, list separately later
         else:
             raise ValueError(f"Unknown dtype {dtype}")
