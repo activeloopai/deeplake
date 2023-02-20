@@ -73,6 +73,8 @@ class DummyTensor:
     def get_numpy_data(self, index):
         dtype = self.dtype
         shape = self.tensor_shapes[index]
+        if len(shape) == 0:
+            shape = (1,)
         if np.issubdtype(dtype, np.floating):
             return np.ones(shape, dtype=dtype)
         elif np.issubdtype(self.dtype, np.integer):
