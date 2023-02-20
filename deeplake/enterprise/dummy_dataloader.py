@@ -72,6 +72,8 @@ class DummyTensor:
     def get_numpy_data(self, index):
         dtype = self.dtype
         shape = self.tensor_shapes[index]
+        if self.htype == "polygon":
+            self.shape = self.shape[1:]
         if len(shape) == 0:
             shape = (1,)
         if np.issubdtype(dtype, np.floating):
