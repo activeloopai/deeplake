@@ -91,107 +91,76 @@ def store_data_slice(transform_input: Tuple) -> Dict:
     return store_data_slice_with_pbar(None, transform_input)
 
 
-def store_data_slice_with_pbar(pg_callback, transform_input: Tuple) -> Dict:
-    data_slice, output_storage, inp = transform_input
-    (
-        group_index,
-        tensors,
-        visible_tensors,
-        label_temp_tensors,
-        actual_tensors,
-        pipeline,
-        version_state,
-        link_creds,
-        skip_ok,
-        extend_only,
-        cache_size,
-    ) = inp
-    all_chunk_engines = create_worker_chunk_engines(
-        tensors, label_temp_tensors, output_storage, version_state, link_creds
+def _normalize_pg(pg_callback, num_tensors):
+    def inner(num_samples):
+        return pg_callback(num_samples / num_tensors)
+
+    return inner
+
+
+def _extend_data_slice(data_slice, transform_dataset, transform_fn):
+    extend_fn, args, kwargs = (
+        transform_fn.func,
+        transform_fn.args,
+        transform_fn.kwargs,
     )
+    extend_fn(data_slice, transform_dataset, *args, **kwargs)
+    data = transform_dataset.data
+    updated_tensors = set(k for k in data if not data[k].is_group and len(data[k]) > 0)
+    if pg_callback is not None:
+        pg_callback = _normalize_pg(pg_callback, len(updated_tensors))
+    transform_dataset.set_pg_callback(pg_callback)
+    transform_dataset.flush()
 
-    if isinstance(data_slice, deeplake.Dataset):
-        data_slice = add_cache_to_dataset_slice(data_slice, tensors)
 
-    rel_tensors = [posixpath.relpath(tensor, group_index) for tensor in visible_tensors]
+def _check_pipeline(out, tensors, skip_ok):
+    data = out.data
+    result_keys = set(k for k in data if not data[k].is_group and len(data[k]) > 0)
 
-    transform_dataset = TransformDataset(
-        rel_tensors,
-        all_chunk_engines,
-        group_index,
-        label_temp_tensors,
-        cache_size=cache_size,
-    )
+    if skip_ok:
+        if not result_keys.issubset(tensors):
+            raise TensorMismatchError(list(tensors), list(result_keys), skip_ok)
+    elif set(result_keys) != set(tensors):
+        raise TensorMismatchError(list(tensors), list(result_keys), skip_ok)
 
-    if extend_only:
-        transform_fn = pipeline.functions[0]
-        extend_fn, args, kwargs = (
-            transform_fn.func,
-            transform_fn.args,
-            transform_fn.kwargs,
-        )
-        extend_fn(data_slice, transform_dataset, *args, **kwargs)
-        data = transform_dataset.data
-        updated_tensors = set(
-            k for k in data if not data[k].is_group and len(data[k]) > 0
-        )
-        if pg_callback is not None:
-            pg_callback = normalize_pg(pg_callback, len(updated_tensors))
-        transform_dataset.set_pg_callback(pg_callback)
-        transform_dataset.flush()
-    else:
-        n = len(data_slice)
 
-        pipeline_checked = False
+def _transform_and_append_data_slice(
+    data_slice, transform_dataset, pipeline, tensors, skip_ok, pg_callback
+):
+    n = len(data_slice)
 
-        for i, sample in enumerate(
-            (data_slice[i : i + 1] for i in range(n))
-            if pd and isinstance(data_slice, pd.DataFrame)
-            else data_slice
-        ):
-            out = transform_sample(sample, pipeline, rel_tensors)
+    pipeline_checked = False
 
-            if is_empty_transform_dataset(out):
-                continue
+    for i, sample in enumerate(
+        (data_slice[i : i + 1] for i in range(n))
+        if pd and isinstance(data_slice, pd.DataFrame)
+        else data_slice
+    ):
+        out = transform_sample(sample, pipeline, tensors)
 
-            if not pipeline_checked:
-                data = out.data
-                result_keys = set(
-                    k for k in data if not data[k].is_group and len(data[k]) > 0
-                )
+        if is_empty_transform_dataset(out):
+            continue
 
-                # compare with actual tensors if there are temporary tensors
-                if skip_ok:
-                    if not result_keys.issubset(rel_tensors):
-                        raise TensorMismatchError(
-                            list(rel_tensors), list(result_keys), skip_ok
-                        )
-                elif set(result_keys) != set(rel_tensors):
-                    raise TensorMismatchError(
-                        list(rel_tensors), list(result_keys), skip_ok
-                    )
+        if not pipeline_checked:
+            _check_pipeline(out, tensors, skip_ok)
+            pipeline_checked = True
 
-                updated_tensors = set(
-                    k for k in data if not data[k].is_group and len(data[k]) > 0
-                )
+        for tensor in out.tensors:
+            out_tensor = out[tensor]
+            transform_tensor = transform_dataset[tensor]
+            if transform_tensor.numpy_only and out_tensor.numpy_only:
+                transform_tensor.items.extend(out_tensor.items)
+            else:
+                out_tensor.non_numpy_only()
+                transform_tensor.extend(out_tensor.items)
+            out_tensor.items.clear()
+        if pg_callback:
+            pg_callback(1)
 
-                pipeline_checked = True
+    transform_dataset.flush()
 
-            for tensor in out.tensors:
-                out_tensor = out[tensor]
-                transform_tensor = transform_dataset[tensor]
-                if transform_tensor.numpy_only and out_tensor.numpy_only:
-                    transform_tensor.items.extend(out_tensor.items)
-                else:
-                    out_tensor.non_numpy_only()
-                    transform_tensor.extend(out_tensor.items)
-                out_tensor.items.clear()
-            if pg_callback:
-                pg_callback(1)
 
-        transform_dataset.flush()
-
-    # retrieve relevant objects from memory
+def _retrieve_memory_objects(all_chunk_engines):
     all_tensor_metas = {}
     all_chunk_id_encoders = {}
     all_tile_encoders = {}
@@ -225,11 +194,46 @@ def store_data_slice_with_pbar(pg_callback, transform_input: Tuple) -> Dict:
     }
 
 
-def normalize_pg(pg_callback, num_tensors):
-    def inner(num_samples):
-        return pg_callback(num_samples / num_tensors)
+def store_data_slice_with_pbar(pg_callback, transform_input: Tuple) -> Dict:
+    data_slice, output_storage, inp = transform_input
+    (
+        group_index,
+        tensors,
+        visible_tensors,
+        label_temp_tensors,
+        pipeline,
+        version_state,
+        link_creds,
+        skip_ok,
+        extend_only,
+        cache_size,
+    ) = inp
+    all_chunk_engines = create_worker_chunk_engines(
+        tensors, label_temp_tensors, output_storage, version_state, link_creds
+    )
 
-    return inner
+    if isinstance(data_slice, deeplake.Dataset):
+        data_slice = add_cache_to_dataset_slice(data_slice, tensors)
+
+    rel_tensors = [posixpath.relpath(tensor, group_index) for tensor in visible_tensors]
+
+    transform_dataset = TransformDataset(
+        rel_tensors,
+        all_chunk_engines,
+        group_index,
+        label_temp_tensors,
+        cache_size=cache_size,
+    )
+
+    if extend_only:
+        _extend_data_slice(data_slice, transform_dataset, pipeline.functions[0])
+    else:
+        _transform_and_append_data_slice(
+            data_slice, transform_dataset, pipeline, rel_tensors, skip_ok, pg_callback
+        )
+
+    # retrieve relevant objects from memory
+    return _retrieve_memory_objects(all_chunk_engines)
 
 
 def create_worker_chunk_engines(

@@ -654,7 +654,16 @@ class ChunkEngine:
     def _sanitize_samples(self, samples, verify=True, pg_callback=None):
         check_samples_type(samples)
         if isinstance(samples, list):
-            samples = [None if is_empty_list(sample) else sample for sample in samples]
+            samples = [
+                None
+                if is_empty_list(sample)
+                or (
+                    isinstance(sample, deeplake.core.tensor.Tensor)
+                    and sample.is_empty_tensor
+                )
+                else sample
+                for sample in samples
+            ]
         verified_samples = self.check_each_sample(samples, verify=verify)
         tensor_meta = self.tensor_meta
         all_empty = all(sample is None for sample in samples)
@@ -1032,7 +1041,14 @@ class ChunkEngine:
             if link_callback:
                 if not isinstance(verified_samples, np.ndarray):
                     samples = [
-                        None if is_empty_list(s) else s for s in verified_samples
+                        None
+                        if is_empty_list(s)
+                        or (
+                            isinstance(s, deeplake.core.tensor.Tensor)
+                            and s.is_empty_tensor
+                        )
+                        else s
+                        for s in verified_samples
                     ]
                 link_callback(
                     samples,
@@ -1389,6 +1405,8 @@ class ChunkEngine:
         next_chunk_size = self.cache.get_object_size(chunk_key)
         next_chunk = self.get_chunk_from_chunk_id(int(next_chunk_id))
         if next_chunk_size + chunk.num_data_bytes < next_chunk.min_chunk_size:
+            if next_chunk_commit_id != self.commit_id:
+                next_chunk = self.copy_chunk_to_new_commit(next_chunk, next_chunk_name)
             # merge with next chunk
             return self._merge_chunks(
                 from_chunk=next_chunk,
@@ -1413,6 +1431,8 @@ class ChunkEngine:
         prev_chunk_size = self.cache.get_object_size(prev_chunk_key)
         prev_chunk = self.get_chunk_from_chunk_id(int(prev_chunk_id))
         if prev_chunk_size + chunk.num_data_bytes < prev_chunk.min_chunk_size:
+            if prev_chunk_commit_id != self.commit_id:
+                prev_chunk = self.copy_chunk_to_new_commit(prev_chunk, prev_chunk_name)
             # merge with previous chunk
             return self._merge_chunks(
                 from_chunk=chunk,

@@ -285,11 +285,6 @@ class Pipeline:
             else []
         )
         label_temp_tensors = {}
-        actual_tensors = (
-            None
-            if not class_label_tensors
-            else [target_ds[t].key for t in target_ds.tensors]
-        )
 
         visible_tensors = list(target_ds.tensors)
         visible_tensors = [target_ds[t].key for t in visible_tensors]
@@ -328,7 +323,6 @@ class Pipeline:
             tensors,
             visible_tensors,
             label_temp_tensors,
-            actual_tensors,
             self,
             version_state,
             target_ds.link_creds,
