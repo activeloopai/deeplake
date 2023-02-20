@@ -1,5 +1,7 @@
 from typing import Callable, Dict, List, Optional, Union
-from deeplake.enterprise.convert_to_libdeeplake import dataset_to_libdeeplake  # type: ignore
+import deeplake
+from deeplake.enterprise.convert_to_libdeeplake import dataset_to_libdeeplake
+from deeplake.enterprise.dummy_dataloader import DummyDataloader  # type: ignore
 from deeplake.util.scheduling import create_fetching_schedule, find_primary_tensor
 from deeplake.enterprise.util import (
     handle_mode,
@@ -572,26 +574,45 @@ class DeepLakeDataLoader(DataLoader):
                 self._decode_method, tensors, jpeg_png_compressed_tensors
             )
             raw_tensors.extend(compressed_tensors)
-            self._dataloader = INDRA_LOADER(
-                dataset,
-                batch_size=self._batch_size,
-                num_threads=self._num_threads,
-                shuffle=self._shuffle,
-                num_workers=self._num_workers,
-                collate_fn=collate_fn,
-                transform_fn=self._transform,
-                distributed=self._distributed,
-                prefetch_factor=self._prefetch_factor,
-                tensors=tensors,
-                drop_last=self._drop_last,
-                upcast=upcast,
-                return_index=self._return_index,
-                primary_tensor=primary_tensor_name,
-                buffer_size=buffer_size,
-                raw_tensors=raw_tensors,
-                compressed_tensors=compressed_tensors,
-                persistent_workers=self._persistent_workers,
-            )
+            if deeplake.constants.RETURN_DUMMY_DATA_FOR_DATALOADER:
+                self._dataloader = DummyDataloader(
+                    deeplake_dataset=self._orig_dataset,
+                    batch_size=self._batch_size,
+                    shuffle=self._shuffle,
+                    num_workers=self._num_workers,
+                    collate_fn=collate_fn,
+                    transform_fn=self._transform,
+                    distributed=self._distributed,
+                    prefetch_factor=self._prefetch_factor,
+                    tensors=tensors,
+                    drop_last=self._drop_last,
+                    upcast=upcast,
+                    return_index=self._return_index,
+                    raw_tensors=raw_tensors,
+                    compressed_tensors=compressed_tensors,
+                    persistent_workers=self._persistent_workers,
+                )
+            else:
+                self._dataloader = INDRA_LOADER(
+                    dataset,
+                    batch_size=self._batch_size,
+                    num_threads=self._num_threads,
+                    shuffle=self._shuffle,
+                    num_workers=self._num_workers,
+                    collate_fn=collate_fn,
+                    transform_fn=self._transform,
+                    distributed=self._distributed,
+                    prefetch_factor=self._prefetch_factor,
+                    tensors=tensors,
+                    drop_last=self._drop_last,
+                    upcast=upcast,
+                    return_index=self._return_index,
+                    primary_tensor=primary_tensor_name,
+                    buffer_size=buffer_size,
+                    raw_tensors=raw_tensors,
+                    compressed_tensors=compressed_tensors,
+                    persistent_workers=self._persistent_workers,
+                )
         dataset_read(self._orig_dataset)
         return iter(self._dataloader)
 
