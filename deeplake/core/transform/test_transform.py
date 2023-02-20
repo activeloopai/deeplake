@@ -804,6 +804,52 @@ def test_inplace_transform_non_head(local_ds_generator):
         check_target_array(ds, i, target)
 
 
+def test_inplace_transform_bug(local_ds_generator):
+    @deeplake.compute
+    def construct(sample_in, sample_out):
+        sample_out.append({"positive": [1, 2, 3], "negative": [4, 5, 6]})
+
+    ds = local_ds_generator()
+    with ds:
+        ds.create_tensor("id")
+        ds.id.extend(list(range(10)))
+
+        ds.create_tensor("positive")
+        ds.create_tensor("negative")
+
+    for _ in range(0, ds.max_len):
+        construct().eval(
+            ds,
+            num_workers=2,
+            skip_ok=True,
+            check_lengths=False,
+            pad_data_in=True,
+        )
+
+    np.testing.assert_array_equal(
+        ds.positive.numpy(aslist=True), [np.array([1, 2, 3])] * 10
+    )
+    np.testing.assert_array_equal(
+        ds.negative.numpy(aslist=True), [np.array([4, 5, 6])] * 10
+    )
+
+
+def test_inplace_transform_bug_2(local_ds_generator):
+    @deeplake.compute
+    def tform(sample_in, sample_out):
+        sample_out.text2.append(sample_in.text.text())
+
+    ds = local_ds_generator()
+    with ds:
+        ds.create_tensor("text", htype="text", sample_compression="lz4")
+        ds.text.extend(["abcd", "efgh", "hijk"] * 10)
+        ds.create_tensor("text2", htype="text", sample_compression="lz4")
+        tform().eval(ds[["text"]], ds, num_workers=2, check_lengths=False)
+
+    np.testing.assert_array_equal(ds.text.text(), ["abcd", "efgh", "hijk"] * 10)
+    np.testing.assert_array_equal(ds.text2.text(), ["abcd", "efgh", "hijk"] * 10)
+
+
 def test_inplace_transform_clear_chunks(local_ds_generator):
     ds = local_ds_generator()
 
