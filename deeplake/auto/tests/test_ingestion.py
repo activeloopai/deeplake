@@ -13,7 +13,8 @@ import pandas as pd  # type: ignore
 
 
 @pytest.mark.parametrize("convert_to_pathlib", [True, False])
-def test_ingestion_simple(memory_ds: Dataset, convert_to_pathlib: bool):
+@pytest.mark.parametrize("shuffle", [True, False])
+def test_ingestion_simple(memory_ds: Dataset, convert_to_pathlib: bool, shuffle: bool):
     path = get_dummy_data_path("tests_auto/image_classification")
     src = "tests_auto/invalid_path"
 
@@ -51,6 +52,7 @@ def test_ingestion_simple(memory_ds: Dataset, convert_to_pathlib: bool):
         progressbar=False,
         summary=False,
         overwrite=False,
+        shuffle=shuffle,
     )
 
     assert ds["images"].meta.sample_compression == "jpeg"

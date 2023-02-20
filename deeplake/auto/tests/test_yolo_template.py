@@ -3,13 +3,14 @@ import pytest
 from deeplake.util.exceptions import IngestionError
 
 
-def test_minimal_yolo_ingestion(local_path, yolo_ingestion_data):
+@pytest.mark.parametrize("shuffle", [True, False])
+def test_minimal_yolo_ingestion(local_path, yolo_ingestion_data, shuffle):
     params = {
         "data_directory": yolo_ingestion_data["data_directory"],
         "class_names_file": yolo_ingestion_data["class_names_file"],
     }
 
-    ds = deeplake.ingest_yolo(**params, dest=local_path)
+    ds = deeplake.ingest_yolo(**params, shuffle=shuffle, dest=local_path)
 
     assert ds.path == local_path
     assert "images" in ds.tensors
