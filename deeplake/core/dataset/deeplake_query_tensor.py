@@ -178,22 +178,6 @@ class DeepLakeQueryTensor(tensor.Tensor):
         print(pretty_print)
 
 
-class IndraShapeTensor:
-    def __init__(self, indra_shapes, indexes):
-        self.indra_shapes = indra_shapes
-        self.indexes = indexes
-
-    @property
-    def shape_list(self):
-        shape = []
-        for i in range(len(self.indra_shapes)):
-            pass
-
-    def shape(self):
-        if len(self.indexes) == 1:
-            pass
-
-
 class DeeplakeQueryTensorWithSliceIndices(DeepLakeQueryTensor):
     def __init__(self, *args, **kwargs):
         super().__init__(
@@ -201,7 +185,7 @@ class DeeplakeQueryTensorWithSliceIndices(DeepLakeQueryTensor):
             **kwargs,
         )
         # TO DO: Optimize this, we shouldn't be loading indra tensor here.
-        self.idxs = [idx.value for idx in self.index.values]
+        self.idxs = tuple([idx.value for idx in self.index.values])
         self.shapes = self.indra_tensors.shape
 
     # def _set_tensors_list(self):
@@ -276,9 +260,47 @@ class DeeplakeQueryTensorWithSliceIndices(DeepLakeQueryTensor):
     #             shape += (None,)
     #     return shape
 
+    def get_shape(self, lst, shape=[]):
+        """
+        returns the shape of nested lists similarly to numpy's shape.
+
+        :param lst: the nested list
+        :param shape: the shape up to the current recursion depth
+        :return: the shape including the current depth
+                (finally this will be the full depth)
+        """
+
+        if not isinstance(lst, list):
+            # base case
+            return shape
+
+        # peek ahead and assure all lists in the next depth
+        # have the same length
+        if isinstance(lst[0], list):
+            l = len(lst[0])
+            if not all(len(item) == l for item in lst):
+                shape += [
+                    None,
+                ]
+            else:
+                shape += [
+                    len(lst),
+                ]
+
+        # recurse
+        shape = self.get_shape(lst[0], shape)
+        return shape
+
     @property
     def shape(self):
-        pass
+        indra_tensors = self.indra_tensors
+        indra_tensor_shapes = indra_tensors[self.idxs].shape
+
+        if list not in map(type, self.tensors_list):
+            return indra_tensor_shapes
+
+        indra_tensor_shape = self.get_shape(indra_tensor_shapes)
+        return indra_tensor_shape
 
     def numpy(self, aslist=False):
         self._set_tensors_list()
