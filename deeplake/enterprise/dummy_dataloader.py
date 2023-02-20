@@ -37,7 +37,7 @@ def upcast_array(arr: Union[np.ndarray, bytes]):
 
 
 class DummyTensor:
-    def __init__(self, dataset, tensor_name, mode, transform_fn):
+    def __init__(self, dataset, tensor_name, mode):
         tensor = dataset[tensor_name]
         shape_tensor_key = get_sample_shape_tensor_key(tensor_name)
         self.dtype = tensor.dtype
@@ -68,7 +68,6 @@ class DummyTensor:
                     self.tensor_shapes.append(tuple(shape))
 
         self.mode = mode
-        self.transform_fn = transform_fn
 
     def get_numpy_data(self, index):
         dtype = self.dtype
@@ -98,10 +97,7 @@ class DummyTensor:
             return Image.fromarray(data)
 
     def __getitem__(self, index):
-        data = self.get_data(index)
-        if self.transform_fn is not None:
-            data = self.transform_fn(data)
-        return data
+        return self.get_data(index)
 
 
 class DummyDataset:
@@ -119,11 +115,10 @@ class DummyDataset:
         self.length = len(deeplake_dataset)
         for tensor in tensors:
             mode = get_mode(tensor, raw_tensors, compressed_tensors)
-            self.tensors[tensor] = DummyTensor(
-                deeplake_dataset, tensor, mode, transform_fn
-            )
+            self.tensors[tensor] = DummyTensor(deeplake_dataset, tensor, mode)
         self.upcast = upcast
         self.return_index = return_index
+        self.transform_fn = transform_fn
 
     def __getitem__(self, index):
         sample = IterableOrderedDict(
@@ -135,6 +130,8 @@ class DummyDataset:
             sample = IterableOrderedDict(
                 (k, upcast_array(v)) for k, v in sample.items()
             )
+        if self.transform_fn:
+            sample = self.transform_fn(sample)
         return sample
 
     def __len__(self):
