@@ -46,15 +46,19 @@ class DummyTensor:
         max_shape, min_shape = tensor.meta.max_shape, tensor.meta.min_shape
         print(f"Fetching shape data for {tensor_name}")
         if max_shape == min_shape:
+            print(
+                f"Shape data for {tensor_name} is constant. Using {max_shape} for all samples."
+            )
             self.tensor_shapes = [max_shape] * len(dataset)
         else:
             try:
-                # self.tensor_shapes = dataset[shape_tensor_key].numpy(
-                #     aslist=True, fetch_chunks=True
-                # )
-                raise TensorDoesNotExistError(tensor_name)
+                self.tensor_shapes = dataset[shape_tensor_key].numpy(
+                    aslist=True, fetch_chunks=True
+                )
             except TensorDoesNotExistError:
-                print(f"Shape tensor {shape_tensor_key} does not exist. Generating random shapes.")
+                print(
+                    f"Shape tensor {shape_tensor_key} does not exist. Generating random shapes."
+                )
                 self.tensor_shapes = []
                 for _ in range(len(dataset)):
                     shape = [
