@@ -72,21 +72,22 @@ class DummyTensor:
     def get_numpy_data(self, index):
         dtype = self.dtype
         shape = self.tensor_shapes[index]
-        if self.htype == "polygon":
-            shape = shape[1:]
         if len(shape) == 0:
             shape = (1,)
         if np.issubdtype(dtype, np.floating):
-            return np.ones(shape, dtype=dtype)
+            data = np.ones(shape, dtype=dtype)
         elif np.issubdtype(self.dtype, np.integer):
-            return np.ones(shape, dtype=dtype)
+            data = np.ones(shape, dtype=dtype)
         elif dtype == "str":
             if 0 in shape:
                 shape = (1,)
-            return np.array(["a" * np.prod(shape)], dtype=dtype)
+            data = np.array(["a" * np.prod(shape)], dtype=dtype)
             # handle json, list separately later
         else:
             raise ValueError(f"Unknown dtype {dtype}")
+        if self.htype == "polygon":
+            data = list(data)
+        return data
 
     def get_data(self, index):
         data = self.get_numpy_data(index)
