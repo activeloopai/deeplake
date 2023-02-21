@@ -20,7 +20,7 @@ from deeplake.compression import (
     MESH_COMPRESSION,
     NIFTI_COMPRESSION,
 )
-from deeplake.util.exceptions import UnableToReadFromUrlError
+from deeplake.util.exceptions import SampleReadError, UnableToReadFromUrlError
 from deeplake.util.exif import getexif
 from deeplake.core.storage.provider import StorageProvider
 from deeplake.util.path import get_path_type, is_remote_path
@@ -444,9 +444,7 @@ class Sample:
                 elif path_type == "http":
                     self._buffer = self._read_from_http()
             except Exception as e:
-                raise ValueError(
-                    f"Unable to read file at path: {self.path}"
-                ) from e
+                raise SampleReadError(self.path) from e
         return self._buffer  # type: ignore
 
     def _read_from_local(self) -> bytes:

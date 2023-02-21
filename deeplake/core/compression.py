@@ -3,6 +3,7 @@ import deeplake
 from deeplake.util.exceptions import (
     SampleCompressionError,
     SampleDecompressionError,
+    SampleReadError,
     UnsupportedCompressionError,
     CorruptedSampleError,
 )
@@ -650,7 +651,10 @@ def read_meta_from_compressed_file(
 ) -> Tuple[str, Tuple[int], str]:
     """Reads shape, dtype and format without decompressing or verifying the sample."""
     if isinstance(file, (str, Path)):
-        f = open(file, "rb")
+        try:
+            f = open(file, "rb")
+        except FileNotFoundError as e:
+            raise SampleReadError(file) from e
         isfile = True
         close = True
     elif hasattr(file, "read"):
