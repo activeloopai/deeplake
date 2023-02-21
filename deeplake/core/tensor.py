@@ -3,7 +3,7 @@ from deeplake.core.linked_chunk_engine import LinkedChunkEngine
 from deeplake.core.storage.lru_cache import LRUCache
 from deeplake.util.downsample import apply_partial_downsample
 from deeplake.util.invalid_view_op import invalid_view_op
-from deeplake.core.version_control.commit_chunk_set import CommitChunkSet
+from deeplake.core.version_control.commit_chunk_map import CommitChunkMap
 from deeplake.core.version_control.commit_diff import CommitDiff
 from deeplake.core.chunk.base_chunk import InputSample
 import numpy as np
@@ -24,7 +24,7 @@ from deeplake.api.info import Info, load_info
 from deeplake.util.keys import (
     get_chunk_id_encoder_key,
     get_chunk_key,
-    get_tensor_commit_chunk_set_key,
+    get_tensor_commit_chunk_map_key,
     get_tensor_commit_diff_key,
     get_tensor_meta_key,
     get_tensor_tile_encoder_key,
@@ -52,7 +52,11 @@ from deeplake.constants import FIRST_COMMIT_ID, _NO_LINK_UPDATE, UNSPECIFIED
 from deeplake.util.version_control import auto_checkout
 from deeplake.util.video import normalize_index
 
-from deeplake.compression import get_compression_type, VIDEO_COMPRESSION
+from deeplake.compression import (
+    get_compression_type,
+    VIDEO_COMPRESSION,
+    BYTE_COMPRESSION,
+)
 from deeplake.util.notebook import is_jupyter, video_html, is_colab
 from deeplake.util.object_3d.point_cloud import parse_point_cloud_to_dict
 from deeplake.util.object_3d.mesh import (
@@ -104,9 +108,9 @@ def create_tensor(
     storage[meta_key] = meta  # type: ignore
 
     if commit_id != FIRST_COMMIT_ID:
-        cset_key = get_tensor_commit_chunk_set_key(key, commit_id)
-        cset = CommitChunkSet()
-        storage[cset_key] = cset  # type: ignore
+        cmap_key = get_tensor_commit_chunk_map_key(key, commit_id)
+        cmap = CommitChunkMap()
+        storage[cmap_key] = cmap  # type: ignore
 
     diff_key = get_tensor_commit_diff_key(key, commit_id)
     diff = CommitDiff(created=True)
@@ -310,6 +314,24 @@ class Tensor:
         self._write_initialization()
         [f() for f in list(self.dataset._update_hooks.values())]
         self.chunk_engine.extend(
+            samples,
+            progressbar=progressbar,
+            link_callback=self._extend_links if self.meta.links else None,
+        )
+        dataset_written(self.dataset)
+        self.invalidate_libdeeplake_dataset()
+
+    @invalid_view_op
+    def _extend_with_paths(
+        self,
+        samples: Union[np.ndarray, Sequence[InputSample], "Tensor"],
+        progressbar: bool = False,
+    ):
+        if not self.is_link:
+            raise ValueError("Not supported as the tensor is not a link.")
+        self._write_initialization()
+        [f() for f in list(self.dataset._update_hooks.values())]
+        self.chunk_engine.path_chunk_engine.extend(  # type: ignore
             samples,
             progressbar=progressbar,
             link_callback=self._extend_links if self.meta.links else None,
@@ -695,6 +717,23 @@ class Tensor:
             yield self.__getitem__(
                 i, is_iteration=not isinstance(self.index.values[0], list)
             )
+
+    @property
+    def is_empty_tensor(self):
+        if self.meta.is_link:
+            if len(self.meta.max_shape) == 0:
+                for chunk in self.chunk_engine.get_chunks_for_sample(0):
+                    if len(chunk.data_bytes) != 0:
+                        return False
+                return True
+            return False
+
+        if (
+            self.meta.chunk_compression
+            and get_compression_type(self.meta.chunk_compression) != BYTE_COMPRESSION
+        ):
+            return self.meta.max_shape == [0, 0, 0] or len(self.meta.max_shape) == 0
+        return len(self.meta.max_shape) == 0
 
     def numpy(
         self, aslist=False, fetch_chunks=False

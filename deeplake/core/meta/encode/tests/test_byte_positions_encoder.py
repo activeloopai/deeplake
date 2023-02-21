@@ -7,7 +7,7 @@ import numpy as np
 def test_trivial():
     enc = BytePositionsEncoder()
 
-    assert_encoded(enc, [])
+    assert_encoded(enc, np.zeros((0, 3), dtype=np.uint32))
 
     assert enc.num_samples == 0
 

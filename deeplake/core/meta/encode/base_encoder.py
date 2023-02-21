@@ -65,14 +65,16 @@ class Encoder(ABC):
             encoded (np.ndarray): Encoded state, if None state is empty. Helpful for deserialization. Defaults to None.
             dtype (np.dtype): Dtype of the encoder. Defaults to `ENCODING_DTYPE`.
         """
+        if not hasattr(self, "_num_columns"):
+            self._num_columns = 2
         self.dtype = dtype
 
         if isinstance(encoded, list):
             encoded = np.array(encoded, dtype=self.dtype)
 
+        if encoded is None:
+            encoded = np.zeros((0, self._num_columns), dtype=self.dtype)
         self._encoded = encoded
-        if self._encoded is None:
-            self._encoded = np.array([], dtype=self.dtype)
 
         if self._encoded.dtype != self.dtype:
             raise ValueError(

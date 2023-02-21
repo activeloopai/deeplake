@@ -1,5 +1,6 @@
 import numpy as np
 from pathlib import Path
+from random import shuffle as rshuffle
 import os
 import glob
 from typing import List, Tuple, Union
@@ -10,6 +11,7 @@ from deeplake.util.exceptions import (
     TensorInvalidSampleShapeError,
 )
 from deeplake.core.dataset import Dataset
+
 
 from .base import UnstructuredDataset
 
@@ -92,6 +94,7 @@ class ImageClassification(UnstructuredDataset):
         ds: Dataset,
         progressbar: bool = True,
         generate_summary: bool = True,
+        shuffle: bool = True,
         image_tensor_args: dict = {},
         label_tensor_args: dict = {},
         num_workers: int = 0,
@@ -102,6 +105,7 @@ class ImageClassification(UnstructuredDataset):
             ds (Dataset): A Deep Lake dataset object.
             progressbar (bool): Defines if the method uses a progress bar. Defaults to True.
             generate_summary (bool): Defines if the method generates ingestion summary. Defaults to True.
+            shuffle (bool): Defines if the file paths should be shuffled prior to ingestion. Defaults to True.
             image_tensor_args (dict): Defines the parameters for the images tensor.
             label_tensor_args (dict): Defines the parameters for the class_labels tensor.
             num_workers (int): The number of workers passed to compute.
@@ -143,6 +147,9 @@ class ImageClassification(UnstructuredDataset):
             )
 
         paths = self._abs_file_paths
+        if shuffle:
+                rshuffle(paths)
+                
         skipped_files: List[str] = []
 
         @deeplake.compute

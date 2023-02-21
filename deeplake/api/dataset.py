@@ -942,7 +942,7 @@ class dataset:
         if tensors:
             assert metas
         len_keys = len(keys)
-        if num_workers == 0:
+        if num_workers <= 1:
             keys = [keys]
         else:
             keys = [keys[i::num_workers] for i in range(num_workers)]
@@ -1034,6 +1034,7 @@ class dataset:
         dest_creds: Optional[Dict] = None,
         inspect_limit: int = 1000000,
         progressbar: bool = True,
+        shuffle: bool = False,
         num_workers: int = 0,
         token: Optional[str] = None,
         connect_kwargs: Optional[Dict] = None,
@@ -1085,6 +1086,7 @@ class dataset:
             dest_creds (Optional[Dict]): A dictionary containing credentials used to access the destination path of the dataset.
             inspect_limit (int): The maximum number of samples to inspect in the annotations json, in order to generate the set of COCO annotation keys. Set to ``1000000`` by default.
             progressbar (bool): Enables or disables ingestion progress bar. Set to ``True`` by default.
+            shuffle (bool): Shuffles the input data prior to ingestion. Set to ``False`` by default.
             num_workers (int): The number of workers to use for ingestion. Set to ``0`` by default.
             token (Optional[str]): The token to use for accessing the dataset and/or connecting it to Deep Lake.
             connect_kwargs (Optional[Dict]): If specified, the dataset will be connected to Deep Lake, and connect_kwargs will be passed to :meth:`Dataset.connect <deeplake.core.dataset.Dataset.connect>`.
@@ -1134,11 +1136,7 @@ class dataset:
 
         structure.create_missing(ds)
 
-        unstructured.structure(
-            ds,
-            progressbar,
-            num_workers,
-        )
+        unstructured.structure(ds, progressbar, num_workers, shuffle)
 
         return ds
 
@@ -1157,6 +1155,7 @@ class dataset:
         image_creds_key: Optional[str] = None,
         inspect_limit: int = 1000,
         progressbar: bool = True,
+        shuffle: bool = False,
         num_workers: int = 0,
         token: Optional[str] = None,
         connect_kwargs: Optional[Dict] = None,
@@ -1202,6 +1201,7 @@ class dataset:
             image_creds_key (Optional[str]): creds_key for linked tensors, applicable if the htype for the images tensor is specified as 'link[image]' in the 'image_params' input.
             inspect_limit (int): The maximum number of annotations to inspect, in order to infer whether they are bounding boxes of polygons. This in put is ignored if the htype is specfied in the 'coordinates_params'.
             progressbar (bool): Enables or disables ingestion progress bar. Set to ``True`` by default.
+            shuffle (bool): Shuffles the input data prior to ingestion. Set to ``False`` by default.
             num_workers (int): The number of workers to use for ingestion. Set to ``0`` by default.
             token (Optional[str]): The token to use for accessing the dataset and/or connecting it to Deep Lake.
             connect_kwargs (Optional[Dict]): If specified, the dataset will be connected to Deep Lake, and connect_kwargs will be passed to :meth:`Dataset.connect <deeplake.core.dataset.Dataset.connect>`.
@@ -1264,6 +1264,7 @@ class dataset:
             ds,
             progressbar,
             num_workers,
+            shuffle,
         )
 
         return ds
@@ -1278,6 +1279,7 @@ class dataset:
         progressbar: bool = True,
         summary: bool = True,
         num_workers: int = 0,
+        shuffle: bool = True,
         token: Optional[str] = None,
         connect_kwargs: Optional[Dict] = None,
         **dataset_kwargs,
@@ -1297,6 +1299,7 @@ class dataset:
             progressbar (bool): Enables or disables ingestion progress bar. Defaults to ``True``.
             summary (bool): If ``True``, a summary of skipped files will be printed after completion. Defaults to ``True``.
             num_workers (int): The number of workers to use for ingestion. Set to ``0`` by default.
+            shuffle (bool): Shuffles the input data prior to ingestion. Since data arranged in folders by class is highly non-random, shuffling is important in order to produce optimal results when training. Defaults to ``True``.
             token (Optional[str]): The token to use for accessing the dataset.
             connect_kwargs (Optional[Dict]): If specified, the dataset will be connected to Deep Lake, and connect_kwargs will be passed to :meth:`Dataset.connect <deeplake.core.dataset.Dataset.connect>`.
             **dataset_kwargs: Any arguments passed here will be forwarded to the dataset creator function see :func:`deeplake.empty`.
@@ -1411,6 +1414,8 @@ class dataset:
                 image_tensor_args=image_params,
                 label_tensor_args=label_params,
                 num_workers=num_workers,
+                shuffle=shuffle,
+                image_tensor_args={"sample_compression": images_compression},
             )
 
         return ds  # type: ignore
@@ -1426,6 +1431,7 @@ class dataset:
         kaggle_credentials: Optional[dict] = None,
         progressbar: bool = True,
         summary: bool = True,
+        shuffle: bool = True,
         **dataset_kwargs,
     ) -> Dataset:
         """Download and ingest a kaggle dataset and store it as a structured dataset to destination.
@@ -1444,6 +1450,7 @@ class dataset:
             kaggle_credentials (dict): A dictionary containing kaggle credentials {"username":"YOUR_USERNAME", "key": "YOUR_KEY"}. If ``None``, environment variables/the kaggle.json file will be used if available.
             progressbar (bool): Enables or disables ingestion progress bar. Set to ``True`` by default.
             summary (bool): Generates ingestion summary. Set to ``True`` by default.
+            shuffle (bool): Shuffles the input data prior to ingestion. Since data arranged in folders by class is highly non-random, shuffling is important in order to produce optimal results when training. Defaults to ``True``.
             **dataset_kwargs: Any arguments passed here will be forwarded to the dataset creator function. See :func:`deeplake.dataset`.
 
         Returns:
@@ -1488,6 +1495,7 @@ class dataset:
             dest_creds=dest_creds,
             progressbar=progressbar,
             summary=summary,
+            shuffle=shuffle,
             **dataset_kwargs,
         )
 
@@ -1551,29 +1559,3 @@ class dataset:
         structured.fill_dataset(ds, progressbar)  # type: ignore
 
         return ds  # type: ignore
-
-    @staticmethod
-    def list(
-        org_id: str = "",
-        token: Optional[str] = None,
-    ) -> None:
-        """List all available Deep Lake cloud datasets.
-
-        Args:
-            org_id (str): Specify organization id. If not given,
-                returns a list of all datasets that can be accessed, regardless of what workspace they are in.
-                Otherwise, lists all datasets in the given organization.
-            token (str, optional): Activeloop token, used for fetching credentials for Deep Lake datasets. This is optional, tokens are normally autogenerated.
-
-        Returns:
-            List: List of dataset names.
-        """
-
-        deeplake_reporter.feature_report(
-            feature_name="list",
-            parameters={"org_id": org_id},
-        )
-
-        client = DeepLakeBackendClient(token=token)
-        datasets = client.get_datasets(workspace=org_id)
-        return datasets
