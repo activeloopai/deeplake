@@ -1131,7 +1131,7 @@ class dataset:
             dest, creds=dest_creds, verbose=False, token=token, **dataset_kwargs
         )
         if connect_kwargs is not None:
-            connect_kwargs["token"] = token or connect_kwargs.get("token", None)
+            connect_kwargs["token"] = token or connect_kwargs.get("token")
             ds.connect(**connect_kwargs)
 
         structure.create_missing(ds)
@@ -1255,7 +1255,7 @@ class dataset:
             dest, creds=dest_creds, verbose=False, token=token, **dataset_kwargs
         )
         if connect_kwargs is not None:
-            connect_kwargs["token"] = token or connect_kwargs.get("token", None)
+            connect_kwargs["token"] = token or connect_kwargs.get("token")
             ds.connect(**connect_kwargs)
 
         structure.create_missing(ds)
@@ -1284,10 +1284,10 @@ class dataset:
         connect_kwargs: Optional[Dict] = None,
         **dataset_kwargs,
     ) -> Dataset:
-        """Ingests a dataset from a source and stores it as a structured dataset to destination.
+        """Ingests a dataset of images from a source and stores it as a structured dataset to destination.
 
         Args:
-            src (str, pathlib.Path): Local path to where the unstructured dataset is stored or path to csv file.
+            src (str, pathlib.Path): Local path to where the unstructured dataset of images is stored or path to csv file.
             dest (str, pathlib.Path): - The full path to the dataset. Can be:
                 - a Deep Lake cloud path of the form ``hub://org_id/datasetname``. To write to Deep Lake cloud datasets, ensure that you are logged in to Deep Lake (use 'activeloop login' from command line)
                 - an s3 path of the form ``s3://bucketname/path/to/dataset``. Credentials are required in either the environment or passed to the creds argument.
@@ -1403,7 +1403,7 @@ class dataset:
                 dest, creds=dest_creds, token=token, verbose=False, **dataset_kwargs
             )
             if connect_kwargs is not None:
-                connect_kwargs["token"] = token or connect_kwargs.get("token", None)
+                connect_kwargs["token"] = token or connect_kwargs.get("token")
                 ds.connect(**connect_kwargs)
 
             # TODO: auto detect compression
@@ -1415,7 +1415,6 @@ class dataset:
                 label_tensor_args=label_params,
                 num_workers=num_workers,
                 shuffle=shuffle,
-                image_tensor_args={"sample_compression": images_compression},
             )
 
         return ds  # type: ignore
@@ -1553,7 +1552,7 @@ class dataset:
             dest, creds=dest_creds, token=token, verbose=False, **dataset_kwargs
         )
         if connect_kwargs is not None:
-            connect_kwargs["token"] = token or connect_kwargs.get("token", None)
+            connect_kwargs["token"] = token or connect_kwargs.get("token")
             ds.connect(**connect_kwargs)
 
         structured.fill_dataset(ds, progressbar)  # type: ignore
