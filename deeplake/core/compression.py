@@ -276,6 +276,7 @@ def decompress_array(
     step: Optional[int] = None,
     reverse: bool = False,
     to_pil: bool = False,
+    path: Optional[str] = None,
 ) -> Union[np.ndarray, Image.Image]:
     """Decompress some buffer into a numpy array. It is expected that all meta information is
     stored inside `buffer`.
@@ -294,6 +295,7 @@ def decompress_array(
         step: (int, Optional): Applicable only for video compressions. Step size for seeking.
         reverse (bool): Applicable only for video compressions. Reverses output numpy array if set to True.
         to_pil (bool): If True, will return a PIL image instead of a numpy array.
+        path (str, Optional): Path to file to be decompressed. Only used for error handling.
 
     Raises:
         SampleDecompressionError: If decompression fails.
@@ -303,33 +305,34 @@ def decompress_array(
         Union[np.ndarray, Image.Image]: Decompressed array or PIL image.
     """
     compr_type = get_compression_type(compression)
-    if compr_type == BYTE_COMPRESSION:
-        if dtype is None or shape is None:
-            raise ValueError("dtype and shape must be specified for byte compressions.")
-        try:
+
+    try:
+        if compr_type == BYTE_COMPRESSION:
+            if dtype is None or shape is None:
+                raise ValueError("dtype and shape must be specified for byte compressions.")
             decompressed_bytes = decompress_bytes(buffer, compression)  # type: ignore
             return np.frombuffer(decompressed_bytes, dtype=dtype).reshape(shape)
-        except Exception:
-            raise SampleDecompressionError()
-    elif compr_type == AUDIO_COMPRESSION:
-        return _decompress_audio(buffer)
-    elif compr_type == VIDEO_COMPRESSION:
-        return _decompress_video(buffer, start_idx, end_idx, step, reverse)  # type: ignore
-    elif compr_type in [POINT_CLOUD_COMPRESSION, MESH_COMPRESSION]:
-        return _decompress_3d_data(buffer)
+        elif compr_type == AUDIO_COMPRESSION:
+            return _decompress_audio(buffer)
+        elif compr_type == VIDEO_COMPRESSION:
+            return _decompress_video(buffer, start_idx, end_idx, step, reverse)  # type: ignore
+        elif compr_type in [POINT_CLOUD_COMPRESSION, MESH_COMPRESSION]:
+            return _decompress_3d_data(buffer)
 
-    if compression == "apng":
-        return _decompress_apng(buffer)  # type: ignore
-    if compression == "dcm":
-        return _decompress_dicom(buffer)  # type: ignore
-    if compression == "nii":
-        return _decompress_nifti(buffer)
-    if compression == "nii.gz":
-        return _decompress_nifti(buffer, gz=True)
-    if compression is None and isinstance(buffer, memoryview) and shape is not None:
-        assert buffer is not None
-        assert shape is not None
-        return np.frombuffer(buffer=buffer, dtype=dtype).reshape(shape)
+        if compression == "apng":
+            return _decompress_apng(buffer)  # type: ignore
+        if compression == "dcm":
+            return _decompress_dicom(buffer)  # type: ignore
+        if compression == "nii":
+            return _decompress_nifti(buffer)
+        if compression == "nii.gz":
+            return _decompress_nifti(buffer, gz=True)
+        if compression is None and isinstance(buffer, memoryview) and shape is not None:
+            assert buffer is not None
+            assert shape is not None
+            return np.frombuffer(buffer=buffer, dtype=dtype).reshape(shape)
+    except Exception as e:
+        raise SampleDecompressionError(path) from e
 
     try:
         if shape is not None and 0 in shape:
@@ -344,7 +347,7 @@ def decompress_array(
             arr = arr.reshape(shape)
         return arr
     except Exception:
-        raise SampleDecompressionError()
+        raise SampleDecompressionError(path)
 
 
 def _get_bounding_shape(shapes: Sequence[Tuple[int, ...]]) -> Tuple[int, int, int]:
@@ -453,7 +456,9 @@ def verify_compressed_file(
         file (Union[str, BinaryIO, bytes, memoryview]): Path to the file or file like object or contents of the file
         compression (str): Expected compression of the image file
     """
+    path = None
     if isinstance(file, str):
+        path = file
         file = open(file, "rb")
         close = True
     elif hasattr(file, "read"):
@@ -485,7 +490,7 @@ def verify_compressed_file(
         else:
             return _fast_decompress(file)
     except Exception as e:
-        raise CorruptedSampleError(compression)
+        raise CorruptedSampleError(compression, path)
     finally:
         if close:
             file.close()  # type: ignore
@@ -650,7 +655,9 @@ def read_meta_from_compressed_file(
     file, compression: Optional[str] = None
 ) -> Tuple[str, Tuple[int], str]:
     """Reads shape, dtype and format without decompressing or verifying the sample."""
+    path = None
     if isinstance(file, (str, Path)):
+        path = str(file)
         try:
             f = open(file, "rb")
         except FileNotFoundError as e:
@@ -668,7 +675,6 @@ def read_meta_from_compressed_file(
         close = False
     try:
         if compression is None:
-            path = file if isinstance(file, str) else None
             if hasattr(f, "read"):
                 compression = get_compression(f.read(32), path)
                 f.seek(0)
@@ -678,12 +684,12 @@ def read_meta_from_compressed_file(
             try:
                 shape, typestr = _read_jpeg_shape(f), "|u1"
             except Exception:
-                raise CorruptedSampleError("jpeg")
+                raise CorruptedSampleError("jpeg", path)
         elif compression == "png":
             try:
                 shape, typestr = _read_png_shape_and_dtype(f)
             except Exception:
-                raise CorruptedSampleError("png")
+                raise CorruptedSampleError("png", path)
         elif compression == "dcm":
             shape, typestr = _read_dicom_shape_and_dtype(f)
         elif compression == "nii":
@@ -694,17 +700,17 @@ def read_meta_from_compressed_file(
             try:
                 shape, typestr = _read_audio_shape(file), "<f4"
             except Exception as e:
-                raise CorruptedSampleError(compression)
+                raise CorruptedSampleError(compression, path)
         elif compression in ("mp4", "mkv", "avi"):
             try:
                 shape, typestr = _read_video_shape(file), "|u1"  # type: ignore
             except Exception as e:
-                raise CorruptedSampleError(compression)
+                raise CorruptedSampleError(compression, path)
         elif compression in ("las", "ply"):
             try:
                 shape, typestr = _read_3d_data_shape_and_dtype(file)
             except Exception as e:
-                raise CorruptedSampleError(compression) from e
+                raise CorruptedSampleError(compression, path) from e
         else:
             img = Image.open(f) if isfile else Image.open(BytesIO(f))  # type: ignore
             shape, typestr = Image._conv_type_shape(img)
@@ -1109,9 +1115,7 @@ def _read_audio_meta(
     return meta
 
 
-def _decompress_audio(
-    file: Union[bytes, memoryview, str],
-):
+def _decompress_audio(file: Union[bytes, memoryview, str]):
     container, astream = _open_audio(file)
     shape = _read_shape_from_astream(container, astream)
 

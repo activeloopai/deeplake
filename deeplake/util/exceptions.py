@@ -374,10 +374,12 @@ class SampleCompressionError(CompressionError):
 
 
 class SampleDecompressionError(CompressionError):
-    def __init__(self):
-        super().__init__(
-            f"Could not decompress sample buffer into an array. Either the sample's buffer is corrupted, or it is in an unsupported format. Supported compressions: {deeplake.compressions}."
-        )
+    def __init__(self, path: str = None):
+        message = "Could not decompress sample"
+        if path:
+            message += f" at {path}"
+        message += ". Either the sample's buffer is corrupted, or it is in an unsupported format. Supported compressions: {deeplake.compressions}."
+        super().__init__(message)
 
 
 class InvalidImageDimensions(Exception):
@@ -612,8 +614,12 @@ class MemoryDatasetCanNotBePickledError(Exception):
 
 
 class CorruptedSampleError(Exception):
-    def __init__(self, compression):
-        super().__init__(f"Invalid {compression} file.")
+    def __init__(self, compression, path: str = None):
+        message = f"Unable to decompress {compression} file"
+        if path is not None:
+            message += f"at {path}"
+        message += "."
+        super().__init__(message)
 
 
 class VersionControlError(Exception):
@@ -864,3 +870,8 @@ class UnsupportedExtensionError(Exception):
 
 class DatasetCorruptError(Exception):
     pass
+
+
+class SampleReadError(Exception):
+    def __init__(self, path: str):
+        super().__init__(f"Unable to read sample from {path}")
