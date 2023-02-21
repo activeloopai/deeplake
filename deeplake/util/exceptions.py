@@ -374,7 +374,7 @@ class SampleCompressionError(CompressionError):
 
 
 class SampleDecompressionError(CompressionError):
-    def __init__(self, path: str = None):
+    def __init__(self, path: Optional[str] = None):
         message = "Could not decompress sample"
         if path:
             message += f" at {path}"
@@ -614,7 +614,7 @@ class MemoryDatasetCanNotBePickledError(Exception):
 
 
 class CorruptedSampleError(Exception):
-    def __init__(self, compression, path: str = None):
+    def __init__(self, compression, path: Optional[str] = None):
         message = f"Unable to decompress {compression} file"
         if path is not None:
             message += f"at {path}"
