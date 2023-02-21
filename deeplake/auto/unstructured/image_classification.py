@@ -148,8 +148,8 @@ class ImageClassification(UnstructuredDataset):
 
         paths = self._abs_file_paths
         if shuffle:
-                rshuffle(paths)
-                
+            rshuffle(paths)
+
         skipped_files: List[str] = []
 
         @deeplake.compute
