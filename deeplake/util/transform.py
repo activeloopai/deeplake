@@ -98,7 +98,7 @@ def _normalize_pg(pg_callback, num_tensors):
     return inner
 
 
-def _extend_data_slice(data_slice, transform_dataset, transform_fn):
+def _extend_data_slice(data_slice, transform_dataset, transform_fn, pg_callback):
     extend_fn, args, kwargs = (
         transform_fn.func,
         transform_fn.args,
@@ -154,7 +154,7 @@ def _transform_and_append_data_slice(
                 out_tensor.non_numpy_only()
                 transform_tensor.extend(out_tensor.items)
             out_tensor.items.clear()
-        if pg_callback:
+        if pg_callback is not None:
             pg_callback(1)
 
     transform_dataset.flush()
@@ -226,7 +226,9 @@ def store_data_slice_with_pbar(pg_callback, transform_input: Tuple) -> Dict:
     )
 
     if extend_only:
-        _extend_data_slice(data_slice, transform_dataset, pipeline.functions[0])
+        _extend_data_slice(
+            data_slice, transform_dataset, pipeline.functions[0], pg_callback
+        )
     else:
         _transform_and_append_data_slice(
             data_slice, transform_dataset, pipeline, rel_tensors, skip_ok, pg_callback
