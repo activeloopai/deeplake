@@ -280,7 +280,6 @@ class Dataset:
             self._flush_vc_info()
             self.storage.maybe_flush()
 
-
     @property
     def num_samples(self) -> int:
         """Returns the length of the smallest tensor.
@@ -1377,7 +1376,12 @@ class Dataset:
         self.__dict__["_vc_info_updated"] = False
         self.storage.autoflush = self._initial_autoflush.pop()
 
-    def _commit(self, message: Optional[str] = None, hash: Optional[str] = None, flush_version_control_info: bool = True) -> str:
+    def _commit(
+        self,
+        message: Optional[str] = None,
+        hash: Optional[str] = None,
+        flush_version_control_info: bool = True,
+    ) -> str:
         if self._is_filtered_view:
             raise Exception(
                 "Cannot perform version control operations on a filtered dataset view."

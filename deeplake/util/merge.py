@@ -54,7 +54,9 @@ def merge(
     commit_node_map = version_state["commit_node_map"]
     auto_checkout(dataset, flush_version_control_info=False)
     target_commit_id = sanitize_commit(target_id, version_state)
-    target_commit_id = auto_commit_target_commit(dataset, target_commit_id, flush_version_control_info=False)
+    target_commit_id = auto_commit_target_commit(
+        dataset, target_commit_id, flush_version_control_info=False
+    )
     nodes: Dict[str, CommitNode] = {}
     nodes["original"] = original_node = version_state["commit_node"]
     nodes["target"] = target_node = commit_node_map[target_commit_id]
@@ -186,12 +188,18 @@ def get_lca_tensors(dataset, lca_id: str) -> Set[str]:
     return lca_tensors
 
 
-def auto_commit_target_commit(dataset, target_commit_id: str, flush_version_control_info: bool=True) -> str:
+def auto_commit_target_commit(
+    dataset, target_commit_id: str, flush_version_control_info: bool = True
+) -> str:
     """Automatically commits the dataset at the target id if it is the head of a branch."""
     original_id = dataset.pending_commit_id
     original_branch = dataset.branch
     checkout(dataset, target_commit_id)
-    auto_commit(dataset, f"Auto commit before merging into {original_branch}", flush_version_control_info=flush_version_control_info)
+    auto_commit(
+        dataset,
+        f"Auto commit before merging into {original_branch}",
+        flush_version_control_info=flush_version_control_info,
+    )
     target_commit_id = dataset.pending_commit_id
     checkout(dataset, original_id)
     return target_commit_id
