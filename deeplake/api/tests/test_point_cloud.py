@@ -5,8 +5,6 @@ from deeplake.core.dataset import Dataset
 from deeplake.core.compression import compress_multiple
 from deeplake.tests.common import get_dummy_data_path
 from deeplake.util.exceptions import CorruptedSampleError
-from deeplake.util.exceptions import DynamicTensorNumpyError
-
 import numpy as np
 
 
