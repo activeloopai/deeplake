@@ -432,16 +432,21 @@ class Sample:
     def _read_from_path(self) -> bytes:  # type: ignore
         if self._buffer is None:
             path_type = get_path_type(self.path)
-            if path_type == "local":
-                self._buffer = self._read_from_local()
-            elif path_type == "gcs":
-                self._buffer = self._read_from_gcs()
-            elif path_type == "s3":
-                self._buffer = self._read_from_s3()
-            elif path_type == "gdrive":
-                self._buffer = self._read_from_gdrive()
-            elif path_type == "http":
-                self._buffer = self._read_from_http()
+            try:
+                if path_type == "local":
+                    self._buffer = self._read_from_local()
+                elif path_type == "gcs":
+                    self._buffer = self._read_from_gcs()
+                elif path_type == "s3":
+                    self._buffer = self._read_from_s3()
+                elif path_type == "gdrive":
+                    self._buffer = self._read_from_gdrive()
+                elif path_type == "http":
+                    self._buffer = self._read_from_http()
+            except Exception as e:
+                raise ValueError(
+                    f"Unable to read file at path: {self.path}"
+                ) from e
         return self._buffer  # type: ignore
 
     def _read_from_local(self) -> bytes:
