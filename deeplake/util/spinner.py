@@ -14,7 +14,6 @@ class DummyFile:
     def __init__(self, file, spinner):
         self.spinner = spinner
         self.file = file
-        self.spinner.file = self.file
 
     def write(self, text):
         if len(text.strip()) > 0:
@@ -31,8 +30,9 @@ def run_spinner(spinner):
     try:
         spinner.start()
         save_stdout = sys.stdout
+        save_stderr = sys.stderr
         sys.stdout = DummyFile(sys.stdout, spinner)
-
+        sys.stderr = DummyFile(sys.stderr, spinner)
         # configure logger to use new stdout
         logger = logging.getLogger("deeplake")
         save_handlers = list(logger.handlers)
@@ -42,6 +42,7 @@ def run_spinner(spinner):
     finally:
         spinner.stop()
         sys.stdout = save_stdout
+        sys.stderr = save_stderr
         logger.handlers = save_handlers
 
 
