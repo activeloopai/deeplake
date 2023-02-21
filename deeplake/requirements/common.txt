@@ -18,5 +18,5 @@ flask
 pyjwt
 laspy
 nibabel
-aioboto3
+aioboto3 == 10.4.0
 nest_asyncio
