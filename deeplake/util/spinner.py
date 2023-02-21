@@ -34,7 +34,6 @@ def run_spinner(spinner):
         sys.stdout = DummyFile(sys.stdout, spinner)
 
         # configure logger to use new stdout
-        configure_logger()
         logger = logging.getLogger("deeplake")
         save_handlers = list(logger.handlers)
         logger.handlers.clear()
