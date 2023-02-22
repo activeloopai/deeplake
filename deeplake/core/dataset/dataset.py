@@ -1468,7 +1468,7 @@ class Dataset:
             if not flush_version_control_info and create:
                 self.__dict__["_vc_info_updated"] = True
         finally:
-            if create or read_only:
+            if read_only:
                 self._set_read_only(True, err=True)
             else:
                 self._set_read_only(False, err=False)
