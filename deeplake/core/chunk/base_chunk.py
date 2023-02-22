@@ -263,14 +263,7 @@ class BaseChunk(DeepLakeMemoryObject):
             raise ReadSampleFromChunkError(self.key) from e
 
     @abstractmethod
-    def _read_sample(
-        self,
-        local_index: int,
-        cast: bool = True,
-        copy: bool = False,
-        decompress: bool = True,
-        is_tile: bool = False,
-    ):
+    def _read_sample(self, *args, **kwargs):
         """Reads a sample from the chunk."""
 
     @abstractmethod
