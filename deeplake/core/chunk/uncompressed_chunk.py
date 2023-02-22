@@ -8,7 +8,7 @@ from deeplake.core.serialize import (
 )
 from deeplake.core.tiling.sample_tiles import SampleTiles
 from deeplake.core.polygon import Polygons
-from deeplake.util.exceptions import EmptyTensorError, TensorDtypeMismatchError
+from deeplake.util.exceptions import TensorDtypeMismatchError
 from deeplake.constants import ENCODING_DTYPE
 from .base_chunk import BaseChunk, InputSample
 
@@ -184,7 +184,7 @@ class UncompressedChunk(BaseChunk):
 
         return num_samples
 
-    def read_sample(
+    def _read_sample(
         self,
         local_index: int,
         cast: bool = True,

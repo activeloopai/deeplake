@@ -38,7 +38,11 @@ from deeplake.core.serialize import (
 )
 from deeplake.core.storage.deeplake_memory_object import DeepLakeMemoryObject
 from deeplake.core.tiling.sample_tiles import SampleTiles
-from deeplake.util.exceptions import TensorInvalidSampleShapeError, EmptyTensorError
+from deeplake.util.exceptions import (
+    ReadSampleFromChunkError,
+    TensorInvalidSampleShapeError,
+    EmptyTensorError,
+)
 from deeplake.core.polygon import Polygons
 from functools import reduce
 from operator import mul
@@ -251,8 +255,15 @@ class BaseChunk(DeepLakeMemoryObject):
     ) -> float:
         """Extends the chunk with the incoming samples."""
 
+    def read_sample(self, *args, **kwargs):
+        """Reads a sample from the chunk."""
+        try:
+            return self._read_sample(self, *args, **kwargs)
+        except Exception as e:
+            raise ReadSampleFromChunkError(self.key) from e
+
     @abstractmethod
-    def read_sample(
+    def _read_sample(
         self,
         local_index: int,
         cast: bool = True,

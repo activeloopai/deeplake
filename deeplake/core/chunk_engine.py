@@ -84,9 +84,11 @@ from deeplake.util.keys import (
     get_tensor_info_key,
 )
 from deeplake.util.exceptions import (
+    GetChunkError,
     CorruptedMetaError,
     DynamicTensorNumpyError,
     ReadOnlyModeError,
+    ReadSampleFromChunkError,
     SampleHtypeMismatchError,
 )
 from deeplake.util.remove_cache import get_base_storage
@@ -173,6 +175,7 @@ class ChunkEngine:
         self.base_storage = get_base_storage(cache)
         self._meta_cache = meta_cache
         self.version_state = version_state
+        self.name = version_state["tensor_names"].get(self.key)
         self.compression = None
         self.chunk_class = BaseChunk
 
@@ -559,15 +562,19 @@ class ChunkEngine:
     def get_chunk_from_chunk_id(
         self, chunk_id, copy: bool = False, partial_chunk_bytes=0
     ) -> BaseChunk:
-        chunk_name = ChunkIdEncoder.name_from_id(chunk_id)
-        chunk_commit_id, tkey = self.get_chunk_commit(chunk_name)
-        chunk_key = get_chunk_key(tkey, chunk_name, chunk_commit_id)
-        chunk = self.get_chunk(chunk_key, partial_chunk_bytes=partial_chunk_bytes)
-        chunk.key = chunk_key
-        chunk.id = chunk_id
-        if copy and chunk_commit_id != self.commit_id:
-            chunk = self.copy_chunk_to_new_commit(chunk, chunk_name)
-        return chunk
+        chunk_key = None
+        try:
+            chunk_name = ChunkIdEncoder.name_from_id(chunk_id)
+            chunk_commit_id, tkey = self.get_chunk_commit(chunk_name)
+            chunk_key = get_chunk_key(tkey, chunk_name, chunk_commit_id)
+            chunk = self.get_chunk(chunk_key, partial_chunk_bytes=partial_chunk_bytes)
+            chunk.key = chunk_key
+            chunk.id = chunk_id
+            if copy and chunk_commit_id != self.commit_id:
+                chunk = self.copy_chunk_to_new_commit(chunk, chunk_name)
+            return chunk
+        except Exception as e:
+            raise GetChunkError(chunk_key) from e
 
     def get_video_chunk(self, chunk_id, copy: bool = False):
         """Returns video chunks. Chunk will contain presigned url to the video instead of data if the chunk is large."""
@@ -1875,12 +1882,21 @@ class ChunkEngine:
         else:
             samples = []
             for global_sample_index in index.values[0].indices(length):
-                sample = self.get_single_sample(
-                    global_sample_index,
-                    index,
-                    fetch_chunks=fetch_chunks,
-                    pad_tensor=pad_tensor,
-                )
+                try:
+                    sample = self.get_single_sample(
+                        global_sample_index,
+                        index,
+                        fetch_chunks=fetch_chunks,
+                        pad_tensor=pad_tensor,
+                    )
+                except GetChunkError as e:
+                    raise GetChunkError(
+                        e.chunk_key, global_sample_index, self.name
+                    ) from e
+                except ReadSampleFromChunkError as e:
+                    raise ReadSampleFromChunkError(
+                        e.chunk_key, global_sample_index, self.name
+                    ) from e
                 check_sample_shape(sample.shape, last_shape, self.key, index, aslist)
                 last_shape = sample.shape
                 if ispolygon:

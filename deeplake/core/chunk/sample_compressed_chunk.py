@@ -9,10 +9,8 @@ from deeplake.core.serialize import (
 )
 from deeplake.core.tiling.sample_tiles import SampleTiles
 from deeplake.core.polygon import Polygons
-from deeplake.util.exceptions import EmptyTensorError
 from deeplake.util.video import normalize_index
 from .base_chunk import BaseChunk, InputSample
-import numpy as np
 
 
 class SampleCompressedChunk(BaseChunk):
@@ -56,7 +54,7 @@ class SampleCompressedChunk(BaseChunk):
                     break
         return num_samples
 
-    def read_sample(  # type: ignore
+    def _read_sample(  # type: ignore
         self,
         local_index: int,
         cast: bool = True,

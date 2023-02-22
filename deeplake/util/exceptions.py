@@ -875,3 +875,40 @@ class DatasetCorruptError(Exception):
 class SampleReadError(Exception):
     def __init__(self, path: str):
         super().__init__(f"Unable to read sample from {path}")
+
+
+class GetChunkError(Exception):
+    def __init__(
+        self,
+        chunk_key: Optional[str],
+        global_index: Optional[int] = None,
+        tensor_name: Optional[str] = None,
+    ):
+        self.chunk_key = chunk_key
+        message = "Unable to get chunk"
+        if chunk_key is not None:
+            message += f" '{chunk_key}'"
+        if global_index is not None:
+            message += f" while retrieving data with index {global_index}"
+        if tensor_name is not None:
+            message += f" for tensor {tensor_name}"
+        super().__init__(message)
+
+
+class ReadSampleFromChunkError(Exception):
+    def __init__(
+        self,
+        chunk_key: Optional[str],
+        global_index: Optional[int] = None,
+        tensor_name: Optional[str] = None,
+    ):
+        self.chunk_key = chunk_key
+        message = "Unable to read sample"
+        if global_index is not None:
+            message += f" with index {global_index}"
+        message += " from chunk"
+        if chunk_key is not None:
+            message += f" '{chunk_key}'"
+        if tensor_name is not None:
+            message += f" for tensor {tensor_name}"
+        super().__init__(message)
