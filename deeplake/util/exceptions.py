@@ -928,3 +928,8 @@ class GetDataFromLinkError(Exception):
         if tensor_name is not None:
             message += f" for tensor {tensor_name}"
         super().__init__(message)
+
+
+class TransformFailedError(Exception):
+    def __init__(self, global_index):
+        super().__init__(f"Transform failed while processing sample with index {global_index}")
