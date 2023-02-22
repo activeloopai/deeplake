@@ -1040,7 +1040,7 @@ class dataset:
         connect_kwargs: Optional[Dict] = None,
         **dataset_kwargs,
     ) -> Dataset:
-        """Ingest images and annotations in COCO format to a Deep Lake Dataset.
+        """Ingest images and annotations in COCO format to a Deep Lake Dataset. The source data can be stored locally or in the cloud.
 
         Examples:
             >>> ds = deeplake.ingest_coco(
@@ -1161,7 +1161,7 @@ class dataset:
         connect_kwargs: Optional[Dict] = None,
         **dataset_kwargs,
     ) -> Dataset:
-        """Ingest images and annotations (bounding boxes or polygons) in YOLO format to a Deep Lake Dataset.
+        """Ingest images and annotations (bounding boxes or polygons) in YOLO format to a Deep Lake Dataset. The source data can be stored locally or in the cloud.
 
         Examples:
             >>> ds = deeplake.ingest_yolo(
@@ -1284,7 +1284,7 @@ class dataset:
         connect_kwargs: Optional[Dict] = None,
         **dataset_kwargs,
     ) -> Dataset:
-        """Ingests a dataset of images from a source and stores it as a structured dataset to destination.
+        """Ingest a dataset of images from a local folder to a Deep Lake Dataset. Images should be stored in subfolders by class name.
 
         Args:
             src (str, pathlib.Path): Local path to where the unstructured dataset of images is stored or path to csv file.
@@ -1522,7 +1522,7 @@ class dataset:
                 - a local file system path of the form ``./path/to/dataset`` or ``~/path/to/dataset`` or ``path/to/dataset``.
                 - a memory path of the form ``mem://path/to/dataset`` which doesn't save the dataset but keeps it in memory instead. Should be used only for testing as it does not persist.
             dest_creds (Optional[Dict]): A dictionary containing credentials used to access the destination path of the dataset.
-            column_params (Optional[Dict]): A dictionary containing parameters for the images tensor.
+            column_params (Optional[Dict]): A dictionary containing parameters for the tensors corresponding to the dataframe columns.
             progressbar (bool): Enables or disables ingestion progress bar. Set to ``True`` by default.
             token (Optional[str]): The token to use for accessing the dataset.
             connect_kwargs (Optional[Dict]): A dictionary containing arguments to be passed to the dataset connect method. See :meth:`Dataset.connect`.
