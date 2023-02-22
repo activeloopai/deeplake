@@ -273,6 +273,7 @@ class Dataset:
         self.storage.autoflush = False
         return self
 
+    @spinner
     def __exit__(self, exc_type, exc_val, exc_tb):
         self.storage.autoflush = self._initial_autoflush.pop()
         if not self._read_only:
@@ -2043,6 +2044,7 @@ class Dataset:
             self, tensors=tensors, tobytes=tobytes, fetch_chunks=fetch_chunks
         )
 
+    @spinner
     def flush(self):
         """Necessary operation after writes if caches are being used.
         Writes all the dirty data from the cache layers (if any) to the underlying storage.
