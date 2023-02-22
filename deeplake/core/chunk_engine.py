@@ -559,6 +559,8 @@ class ChunkEngine:
     def get_chunk_from_chunk_id(
         self, chunk_id, copy: bool = False, partial_chunk_bytes=0
     ) -> BaseChunk:
+        if not chunk_id:
+            return None
         chunk_name = ChunkIdEncoder.name_from_id(chunk_id)
         chunk_commit_id, tkey = self.get_chunk_commit(chunk_name)
         chunk_key = get_chunk_key(tkey, chunk_name, chunk_commit_id)
@@ -715,6 +717,24 @@ class ChunkEngine:
         self.commit_diff.modify_info()
         self.cache.maybe_flush()
         return labels
+
+    def _pad_and_append(
+        self,
+        pad_length: int,
+        value,
+        extend_link_callback=None,
+    ):
+        enc = self.chunk_id_encoder
+        arr = np.zeros((1, 2), dtype=enc._encoded.dtype)
+        
+        if enc.num_samples:
+            arr[0, 1] = enc._encoded[-1, 1] + pad_length
+            enc._encoded = np.concatenate([enc._encoded, arr], axis=0)
+        else:
+            arr[0, 1] = pad_length - 1
+            enc._encoded = arr
+        self.tensor_meta.length += pad_length
+        self.extend([value], link_callback=extend_link_callback)
 
     def _samples_to_chunks(
         self,
@@ -1401,7 +1421,7 @@ class ChunkEngine:
         chunk_key = get_chunk_key(tkey, next_chunk_name, next_chunk_commit_id)
         next_chunk_size = self.cache.get_object_size(chunk_key)
         next_chunk = self.get_chunk_from_chunk_id(int(next_chunk_id))
-        if next_chunk_size + chunk.num_data_bytes < next_chunk.min_chunk_size:
+        if next_chunk and next_chunk_size + chunk.num_data_bytes < next_chunk.min_chunk_size:
             if next_chunk_commit_id != self.commit_id:
                 next_chunk = self.copy_chunk_to_new_commit(next_chunk, next_chunk_name)
             # merge with next chunk
@@ -1427,7 +1447,7 @@ class ChunkEngine:
         prev_chunk_key = get_chunk_key(tkey, prev_chunk_name, prev_chunk_commit_id)
         prev_chunk_size = self.cache.get_object_size(prev_chunk_key)
         prev_chunk = self.get_chunk_from_chunk_id(int(prev_chunk_id))
-        if prev_chunk_size + chunk.num_data_bytes < prev_chunk.min_chunk_size:
+        if prev_chunk and prev_chunk_size + chunk.num_data_bytes < prev_chunk.min_chunk_size:
             if prev_chunk_commit_id != self.commit_id:
                 prev_chunk = self.copy_chunk_to_new_commit(prev_chunk, prev_chunk_name)
             # merge with previous chunk
@@ -1606,6 +1626,8 @@ class ChunkEngine:
             chunk = self.get_chunk_from_chunk_id(
                 chunk_id, partial_chunk_bytes=worst_case_header_size
             )
+            if not chunk:
+                return ()
         return tuple(map(int, chunk.shapes_encoder[local_sample_index]))
 
     @property
@@ -1776,6 +1798,8 @@ class ChunkEngine:
         chunk = self.get_chunk_from_chunk_id(
             chunk_id, partial_chunk_bytes=worst_case_header_size
         )
+        if not chunk:
+            return np.empty((0,), dtype=self.tensor_meta.dtype)
         ret = chunk.read_sample(
             local_sample_index,
             cast=self.tensor_meta.htype != "dicom",
@@ -1928,7 +1952,7 @@ class ChunkEngine:
                     full_shape = (num_samples,) + tuple(self.tensor_meta.max_shape)
                     dtype = self.tensor_meta.dtype
 
-                    data_bytes = bytearray(chunk.data_bytes)
+                    data_bytes = bytearray(chunk.data_bytes) if chunk else b""
                     self.cached_data = np.frombuffer(data_bytes, dtype).reshape(
                         full_shape
                     )

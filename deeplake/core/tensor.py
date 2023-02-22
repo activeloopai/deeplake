@@ -697,7 +697,6 @@ class Tensor:
                 num_samples_to_pad,
                 value,
                 extend_link_callback=extend_link_callback,
-                update_link_callback=update_link_callback,
             )
         else:
             if not item_index.values[0].subscriptable() and not self.is_sequence:
