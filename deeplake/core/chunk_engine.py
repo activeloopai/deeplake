@@ -1902,7 +1902,7 @@ class ChunkEngine:
                     raise GetDataFromLinkError(
                         e.link, global_sample_index, self.name
                     ) from e
-                
+
                 check_sample_shape(sample.shape, last_shape, self.key, index, aslist)
                 last_shape = sample.shape
                 if ispolygon:

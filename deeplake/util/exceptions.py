@@ -915,7 +915,12 @@ class ReadSampleFromChunkError(Exception):
 
 
 class GetDataFromLinkError(Exception):
-    def __init__(self, link: str, global_index: Optional[int] = None, tensor_name: Optional[str] = None):
+    def __init__(
+        self,
+        link: str,
+        global_index: Optional[int] = None,
+        tensor_name: Optional[str] = None,
+    ):
         self.link = link
         message = f"Unable to get data from link {link}"
         if global_index is not None:
