@@ -1456,6 +1456,7 @@ class Dataset:
             raise Exception(
                 "Cannot perform version control operations on a filtered dataset view."
             )
+        locked_out = self._locked_out
         read_only = self._read_only
         if read_only and create:
             self.read_only = False
@@ -1468,10 +1469,10 @@ class Dataset:
             if not flush_version_control_info and create:
                 self.__dict__["_vc_info_updated"] = True
         finally:
-            if read_only:
-                self._set_read_only(True, err=True)
-            else:
+            if locked_out:
                 self._set_read_only(False, err=False)
+            elif read_only:
+                self._set_read_only(True, err=True)
             self.storage.autoflush = self._initial_autoflush.pop()
         self._info = None
         self._ds_diff = None
