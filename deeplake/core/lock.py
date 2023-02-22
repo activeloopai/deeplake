@@ -194,7 +194,6 @@ class PersistentLock(Lock):
             while True:
                 time.sleep(deeplake.constants.DATASET_LOCK_UPDATE_INTERVAL)
                 try:
-
                     self.lock.refresh_lock(timeout=0)
                 except LockedException:
                     if self.lock_lost_callback:
