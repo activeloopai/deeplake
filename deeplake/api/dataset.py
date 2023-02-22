@@ -1505,6 +1505,7 @@ class dataset:
         src,
         dest: Union[str, pathlib.Path],
         dest_creds: Optional[Dict] = None,
+        column_params: Optional[Dict] = None,
         progressbar: bool = True,
         token: Optional[str] = None,
         connect_kwargs: Optional[Dict] = None,
@@ -1521,6 +1522,7 @@ class dataset:
                 - a local file system path of the form ``./path/to/dataset`` or ``~/path/to/dataset`` or ``path/to/dataset``.
                 - a memory path of the form ``mem://path/to/dataset`` which doesn't save the dataset but keeps it in memory instead. Should be used only for testing as it does not persist.
             dest_creds (Optional[Dict]): A dictionary containing credentials used to access the destination path of the dataset.
+            column_params (Optional[Dict]): A dictionary containing parameters for the images tensor.
             progressbar (bool): Enables or disables ingestion progress bar. Set to ``True`` by default.
             token (Optional[str]): The token to use for accessing the dataset.
             connect_kwargs (Optional[Dict]): A dictionary containing arguments to be passed to the dataset connect method. See :meth:`Dataset.connect`.
@@ -1545,7 +1547,7 @@ class dataset:
         if not isinstance(src, pd.DataFrame):
             raise Exception("Source provided is not a valid pandas dataframe object")
 
-        structured = DataFrame(src)
+        structured = DataFrame(src, column_params)
 
         dest = convert_pathlib_to_string_if_needed(dest)
         ds = deeplake.empty(
