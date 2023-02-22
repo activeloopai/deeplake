@@ -8,7 +8,7 @@ from .common import (
 )
 
 
-def create_dataloader_nesteddataloader(
+def create_dataloader(
     dataset,
     tensors,
     use_local_cache,
@@ -47,9 +47,6 @@ def create_dataloader_nesteddataloader(
         pin_memory=pin_memory,
         drop_last=drop_last,
     )
-
-
-create_dataloader = create_dataloader_nesteddataloader
 
 
 def dataset_to_pytorch(
