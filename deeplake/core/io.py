@@ -263,7 +263,6 @@ class SampleStreaming(Streaming):
         dataset,
         tensors: Sequence[str],
         use_local_cache: bool = False,
-        return_index: bool = True,
         pad_tensors: bool = False,
         decode_method: Optional[Dict[str, str]] = None,
         tobytes: Union[bool, Sequence[str]] = False,
@@ -285,7 +284,6 @@ class SampleStreaming(Streaming):
         self.tensors = tensors
         self.pad_tensors = pad_tensors
         self.decode_method = decode_method
-        self.return_index = return_index
 
         jpeg_png_compressed_tensors = check_tensors(self.dataset, tensors)
         raw_tensors, compressed_tensors = validate_decode_method(
@@ -373,8 +371,7 @@ class SampleStreaming(Streaming):
                     break
 
             if valid_sample_flag:
-                if self.return_index:
-                    sample["index"] = np.array([idx])
+                sample["index"] = np.array([idx])
                 yield sample
 
     def _get_block_for_single_sample(self, idx):

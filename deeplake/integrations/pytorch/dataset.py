@@ -145,7 +145,6 @@ class TorchDataset(torch.utils.data.IterableDataset):
             self.dataset,
             tensors=self.tensors,
             use_local_cache=self.use_local_cache,
-            return_index=self.return_index,
             pad_tensors=self.pad_tensors,
             decode_method=self.decode_method,
         )
