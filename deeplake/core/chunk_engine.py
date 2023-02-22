@@ -87,6 +87,7 @@ from deeplake.util.exceptions import (
     GetChunkError,
     CorruptedMetaError,
     DynamicTensorNumpyError,
+    GetDataFromLinkError,
     ReadOnlyModeError,
     ReadSampleFromChunkError,
     SampleHtypeMismatchError,
@@ -1897,6 +1898,11 @@ class ChunkEngine:
                     raise ReadSampleFromChunkError(
                         e.chunk_key, global_sample_index, self.name
                     ) from e
+                except GetDataFromLinkError as e:
+                    raise GetDataFromLinkError(
+                        e.link, global_sample_index, self.name
+                    ) from e
+                
                 check_sample_shape(sample.shape, last_shape, self.key, index, aslist)
                 last_shape = sample.shape
                 if ispolygon:

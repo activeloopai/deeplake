@@ -912,3 +912,14 @@ class ReadSampleFromChunkError(Exception):
         if tensor_name is not None:
             message += f" for tensor {tensor_name}"
         super().__init__(message)
+
+
+class GetDataFromLinkError(Exception):
+    def __init__(self, link: str, global_index: Optional[int] = None, tensor_name: Optional[str] = None):
+        self.link = link
+        message = f"Unable to get data from link {link}"
+        if global_index is not None:
+            message += f" while retrieving data with index {global_index}"
+        if tensor_name is not None:
+            message += f" for tensor {tensor_name}"
+        super().__init__(message)
