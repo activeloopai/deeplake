@@ -13,7 +13,7 @@ Creating Datasets
     deeplake.dataset
     deeplake.empty
     deeplake.like
-    deeplake.ingest
+    deeplake.ingest_classification
     deeplake.ingest_coco
     deeplake.ingest_yolo
     deeplake.ingest_kaggle
