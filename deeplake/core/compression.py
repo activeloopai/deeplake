@@ -309,7 +309,9 @@ def decompress_array(
     try:
         if compr_type == BYTE_COMPRESSION:
             if dtype is None or shape is None:
-                raise ValueError("dtype and shape must be specified for byte compressions.")
+                raise ValueError(
+                    "dtype and shape must be specified for byte compressions."
+                )
             decompressed_bytes = decompress_bytes(buffer, compression)  # type: ignore
             return np.frombuffer(decompressed_bytes, dtype=dtype).reshape(shape)
         elif compr_type == AUDIO_COMPRESSION:
