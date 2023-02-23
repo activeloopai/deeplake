@@ -821,7 +821,7 @@ def _setup_chunk_pointers(
     end: int,
 ):
     chunk_ids = src_enc_arr[start:end, 0]
-    chunk_names = list(map(ChunkIdEncoder.name_from_id, chunk_ids))
+    chunk_names = list(map(ChunkIdEncoder.name_from_id, filter(lambda x: x, chunk_ids)))
     commit_key_pairs = list(map(src_eng.get_chunk_commit, chunk_names))
     for chunk_name, (commit, key) in zip(chunk_names, commit_key_pairs):
         if commit == dest_commit:
