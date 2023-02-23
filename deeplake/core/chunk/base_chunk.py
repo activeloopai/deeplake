@@ -44,7 +44,7 @@ from deeplake.util.exceptions import (
     EmptyTensorError,
 )
 from deeplake.core.polygon import Polygons
-from functools import reduce
+from functools import reduce, wraps
 from operator import mul
 
 InputSample = Union[
@@ -255,15 +255,15 @@ class BaseChunk(DeepLakeMemoryObject):
     ) -> float:
         """Extends the chunk with the incoming samples."""
 
-    def read_sample(self, *args, **kwargs):
-        """Reads a sample from the chunk."""
-        try:
-            return self._read_sample(self, *args, **kwargs)
-        except Exception as e:
-            raise ReadSampleFromChunkError(self.key) from e
-
     @abstractmethod
-    def _read_sample(self, *args, **kwargs):
+    def read_sample(
+        self,
+        local_index: int,
+        cast: bool = True,
+        copy: bool = False,
+        decompress: bool = True,
+        is_tile: bool = False,
+    ):
         """Reads a sample from the chunk."""
 
     @abstractmethod
@@ -617,3 +617,14 @@ class BaseChunk(DeepLakeMemoryObject):
                 "This tensor has only been populated with empty samples. "
                 "Need to add at least one non-empty sample before retrieving data."
             )
+
+
+def catch_chunk_read_error(fn):
+    @wraps(fn)
+    def wrapper(self, *args, **kwargs):
+        try:
+            return fn(self, *args, **kwargs)
+        except Exception as e:
+            raise ReadSampleFromChunkError(self.key) from e
+
+    return wrapper
