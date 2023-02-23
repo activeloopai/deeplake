@@ -318,7 +318,8 @@ def test_read_mode(local_ds):
     ds = deeplake.Dataset(storage=local_ds.storage, read_only=True, verbose=False)
     with pytest.raises(ReadOnlyModeError):
         ds.commit("first")
-    ds.checkout("third", create=True)
+    with pytest.raises(ReadOnlyModeError):
+        ds.checkout("third", create=True)
 
 
 def test_checkout_address_not_found(local_ds):
