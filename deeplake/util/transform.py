@@ -156,7 +156,7 @@ def store_data_slice_with_pbar(pg_callback, transform_input: Tuple) -> Dict:
     all_chunk_id_encoders = {}
     all_tile_encoders = {}
     all_sequence_encoders = {}
-    all_chunk_sets = {}
+    all_chunk_maps = {}
     all_commit_diffs = {}
     all_creds_encoders = {}
     all_hash_label_maps = {}
@@ -167,7 +167,7 @@ def store_data_slice_with_pbar(pg_callback, transform_input: Tuple) -> Dict:
         all_chunk_id_encoders[tensor] = chunk_engine.chunk_id_encoder
         all_tile_encoders[tensor] = chunk_engine.tile_encoder
         all_sequence_encoders[tensor] = chunk_engine.sequence_encoder
-        all_chunk_sets[tensor] = chunk_engine.commit_chunk_set
+        all_chunk_maps[tensor] = chunk_engine.commit_chunk_map
         all_commit_diffs[tensor] = chunk_engine.commit_diff
         all_creds_encoders[tensor] = chunk_engine.creds_encoder
         if chunk_engine._is_temp_label_tensor:
@@ -178,7 +178,7 @@ def store_data_slice_with_pbar(pg_callback, transform_input: Tuple) -> Dict:
         "chunk_id_encoders": all_chunk_id_encoders,
         "sequence_encoders": all_sequence_encoders,
         "tile_encoders": all_tile_encoders,
-        "commit_chunk_sets": all_chunk_sets,
+        "commit_chunk_maps": all_chunk_maps,
         "commit_diffs": all_commit_diffs,
         "creds_encoders": all_creds_encoders,
         "hash_label_maps": all_hash_label_maps,
@@ -278,7 +278,6 @@ def transform_data_slice_and_append(
     skip_ok=False,
 ) -> None:
     """Transforms the data_slice with the pipeline and adds the resultant samples to chunk_engines."""
-
     n = len(data_slice)
     last_reported_time = time.time()
     last_reported_num_samples = 0
@@ -398,6 +397,7 @@ def add_cache_to_dataset_slice(
         verbose=False,
         link_creds=dataset_slice.link_creds,
         pad_tensors=dataset_slice._pad_tensors,
+        enabled_tensors=dataset_slice.enabled_tensors,
     )
     dataset_slice.checkout(commit_id)
     dataset_slice.index = index
@@ -466,7 +466,8 @@ def get_pbar_description(compute_functions: List):
 
 def create_slices(data_in, num_workers):
     size = math.ceil(len(data_in) / num_workers)
-    return [data_in[i * size : (i + 1) * size] for i in range(num_workers)]
+    ret = [data_in[i * size : (i + 1) * size] for i in range(num_workers)]
+    return ret
 
 
 def get_old_chunk_paths(target_ds, generated_tensors, overwrite):

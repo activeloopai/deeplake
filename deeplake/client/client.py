@@ -28,7 +28,6 @@ from deeplake.client.config import (
     GET_DATASET_CREDENTIALS_SUFFIX,
     CREATE_DATASET_SUFFIX,
     DATASET_SUFFIX,
-    LIST_DATASETS,
     GET_USER_PROFILE,
     SEND_EVENT_SUFFIX,
     UPDATE_SUFFIX,
@@ -275,7 +274,7 @@ class DeepLakeBackendClient:
         )
 
         if response.status_code == 200:
-            logger.info("Your Hub dataset has been successfully created!")
+            logger.info("Your Deep Lake dataset has been successfully created!")
             if public is False:
                 logger.info("The dataset is private so make sure you are logged in!")
 
@@ -396,27 +395,6 @@ class DeepLakeBackendClient:
                 params={"organization": workspace},
             ).json()
         return response
-
-    def get_datasets(self, workspace: str):
-        suffix_public = LIST_DATASETS.format("public")
-        suffix_user = LIST_DATASETS.format("all")
-        if workspace:
-            res_datasets = self.get_workspace_datasets(
-                workspace, suffix_public, suffix_user
-            )
-        else:
-            public_datasets = self.request(
-                "GET",
-                suffix_public,
-                endpoint=self.endpoint(),
-            ).json()
-            user_datasets = self.request(
-                "GET",
-                suffix_user,
-                endpoint=self.endpoint(),
-            ).json()
-            res_datasets = public_datasets + user_datasets
-        return [ds["_id"] for ds in res_datasets]
 
     def update_privacy(self, username: str, dataset_name: str, public: bool):
         suffix = UPDATE_SUFFIX.format(username, dataset_name)

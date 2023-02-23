@@ -1,5 +1,6 @@
 import deeplake
 import numpy as np
+import pytest
 
 
 def test_downsample(local_ds_generator, cat_path):
@@ -105,3 +106,83 @@ def test_downsample_tiled(memory_ds):
         for i in range(4):
             x = i * 5472
             ds.image[0][0:3648, x : x + 5472, :] = arr
+
+
+@pytest.mark.parametrize(
+    "sample_compression", [None]
+)  # add back apng when bug is fixed
+def test_downsample_binary_mask(memory_ds, sample_compression):
+    with memory_ds as ds:
+        ds.create_tensor(
+            "mask",
+            htype="binary_mask",
+            sample_compression=sample_compression,
+            downsampling=(2, 5),
+        )
+        binary_masks = [
+            np.ones((1000, 1000, 3), dtype=bool),
+            np.zeros((1000, 1000, 3), dtype=bool),
+        ]
+        ds.mask.extend(binary_masks)
+
+        for i in range(1, 6):
+            tensor = ds[f"_mask_downsampled_{2 ** i}"]
+            assert len(tensor) == 2
+            for j in range(2):
+                np.testing.assert_array_equal(
+                    tensor[j], binary_masks[j][:: 2**i, :: 2**i, :]
+                )
+
+
+def test_downsample_group_bug(memory_ds):
+    with memory_ds as ds:
+        ds.create_group("stuff")
+        ds.create_tensor(
+            "mask", htype="binary_mask", sample_compression="lz4", downsampling=(2, 2)
+        )
+        ds.create_tensor(
+            "stuff/mask",
+            htype="binary_mask",
+            sample_compression="lz4",
+            downsampling=(2, 2),
+        )
+
+
+def test_downsample_image(memory_ds):
+    with memory_ds as ds:
+        ds.create_tensor(
+            "image", htype="image", sample_compression="jpeg", downsampling=(2, 2)
+        )
+        ds.image.append(np.ones((100, 100, 3), dtype="uint8"))
+        ds.image.append(np.ones((100, 100, 1), dtype="uint8"))
+        ds.image.append(np.ones((100, 100, 0), dtype="uint8"))
+        ds.image.append(np.ones((100, 0, 3), dtype="uint8"))
+        ds.image.append(np.ones((100, 100), dtype="uint8"))
+
+        target_shapes = {
+            "image": [
+                (100, 100, 3),
+                (100, 100, 1),
+                (100, 100, 0),
+                (100, 0, 3),
+                (100, 100, 1),
+            ],
+            "_image_downsampled_2": [
+                (50, 50, 3),
+                (50, 50, 1),
+                (0, 0, 0),
+                (0, 0, 0),
+                (50, 50, 1),
+            ],
+            "_image_downsampled_4": [
+                (25, 25, 3),
+                (25, 25, 1),
+                (0, 0, 0),
+                (0, 0, 0),
+                (25, 25, 1),
+            ],
+        }
+        for tensor, target_shape in target_shapes.items():
+            shapes = [ds[tensor][i].shape for i in range(5)]
+            numpy_shapes = [ds[tensor][i].numpy().shape for i in range(5)]
+            assert shapes == target_shape == numpy_shapes

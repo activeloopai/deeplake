@@ -32,8 +32,8 @@ _VIDEO_STREAM_CHUNK_SIZE = 1 * MB
 def _get_chunk_key(tensor, index: int) -> str:
     chunk_id = tensor.chunk_engine.chunk_id_encoder[index][0]  # videos are not tiled
     chunk_name = ChunkIdEncoder.name_from_id(chunk_id)
-    chunk_commit_id = tensor.chunk_engine.get_chunk_commit(chunk_name)
-    chunk_key = get_chunk_key(tensor.key, chunk_name, chunk_commit_id)
+    chunk_commit_id, key = tensor.chunk_engine.get_chunk_commit(chunk_name)
+    chunk_key = get_chunk_key(key, chunk_name, chunk_commit_id)
     return chunk_key
 
 
