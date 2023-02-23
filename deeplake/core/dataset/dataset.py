@@ -1387,6 +1387,7 @@ class Dataset:
         merge(self, target_id, conflict_resolution, delete_removed_tensors, force)
         self.__dict__["_vc_info_updated"] = False
         self.storage.autoflush = self._initial_autoflush.pop()
+        self.storage.maybe_flush()
 
     def _commit(
         self,
