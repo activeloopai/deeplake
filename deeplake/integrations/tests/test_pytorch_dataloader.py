@@ -42,7 +42,6 @@ def mock_dataset(cls):
     return instance
 
 
-
 @patch.object(SampleStreaming, "list_blocks", list_blocks)
 @patch.object(SampleStreaming, "read", emit_samples)
 @patch("deeplake.core.dataset.Dataset")

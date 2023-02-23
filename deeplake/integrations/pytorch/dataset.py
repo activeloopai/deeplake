@@ -87,7 +87,6 @@ def _process(sample, transform: Optional[PytorchTransformFunction], return_index
     return sample
 
 
-
 class TorchDataset(torch.utils.data.IterableDataset):
     def __init__(
         self,

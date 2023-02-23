@@ -932,4 +932,6 @@ class GetDataFromLinkError(Exception):
 
 class TransformFailedError(Exception):
     def __init__(self, global_index):
-        super().__init__(f"Transform failed while processing sample with index {global_index}")
+        super().__init__(
+            f"Transform failed while processing sample with index {global_index}"
+        )
