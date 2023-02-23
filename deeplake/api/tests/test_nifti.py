@@ -94,6 +94,8 @@ def test_nifti_raw_compress(memory_ds):
 
 def test_nifti_cloud(memory_ds, s3_root_storage):
     with memory_ds as ds:
+        ds.add_creds_key("ENV")
+        ds.populate_creds("ENV", from_environment=True)
         nii_gz_4d = os.path.join(data_path, "example4d.nii.gz")
         img = nib.load(nii_gz_4d)
         with open(nii_gz_4d, "rb") as f:
@@ -108,7 +110,7 @@ def test_nifti_cloud(memory_ds, s3_root_storage):
             deeplake.read(f"{s3_root_storage.root}/example4d.nii.gz", verify=True)
         )
         ds.nifti_linked.append(
-            deeplake.link(f"{s3_root_storage.root}/example4d.nii.gz")
+            deeplake.link(f"{s3_root_storage.root}/example4d.nii.gz", creds_key="ENV")
         )
 
         assert ds.abc[0].numpy().shape == img.shape

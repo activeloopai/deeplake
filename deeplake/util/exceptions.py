@@ -864,3 +864,11 @@ class UnsupportedExtensionError(Exception):
 
 class DatasetCorruptError(Exception):
     pass
+
+
+class MissingCredsError(Exception):
+    pass
+
+
+class MissingManagedCredsError(Exception):
+    pass
