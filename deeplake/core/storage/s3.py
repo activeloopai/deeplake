@@ -1,4 +1,4 @@
-import aioboto3
+import aioboto3  # type: ignore
 import asyncio
 import deeplake
 from math import ceil
@@ -44,7 +44,7 @@ try:
 except ImportError:
     pass
 
-import nest_asyncio
+import nest_asyncio  # type: ignore
 
 nest_asyncio.apply()  # needed to run asyncio in jupyter notebook
 
