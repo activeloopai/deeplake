@@ -13,6 +13,7 @@ from deeplake.core.storage.s3 import S3Provider
 from deeplake.tests.common import is_opt_true
 from deeplake.util.exceptions import (
     ManagedCredentialsNotFoundError,
+    MissingCredsError,
     TensorMetaInvalidHtype,
     UnableToReadFromUrlError,
 )
@@ -82,7 +83,7 @@ def test_link_creds(request):
     link_creds.populate_creds("abc", {})
     link_creds.populate_creds("def", {})
 
-    with pytest.raises(KeyError):
+    with pytest.raises(MissingCredsError):
         link_creds.populate_creds("ghi", {})
 
     assert link_creds.get_encoding(None) == 0
@@ -90,7 +91,7 @@ def test_link_creds(request):
         link_creds.get_encoding(None, "s3://my_bucket/my_key")
     assert link_creds.get_encoding("abc") == 1
     assert link_creds.get_encoding("def") == 2
-    with pytest.raises(ValueError):
+    with pytest.raises(MissingCredsError):
         link_creds.get_encoding("ghi")
 
     assert link_creds.get_creds_key(0) is None
@@ -105,10 +106,10 @@ def test_link_creds(request):
     link_creds.add_creds_key("ghi")
     assert link_creds.missing_keys == ["ghi"]
 
-    with pytest.raises(KeyError):
+    with pytest.raises(MissingCredsError):
         link_creds.get_storage_provider("xyz", "s3")
 
-    with pytest.raises(ValueError):
+    with pytest.raises(MissingCredsError):
         link_creds.get_storage_provider("ghi", "s3")
 
     if is_opt_true(request, GCS_OPT):

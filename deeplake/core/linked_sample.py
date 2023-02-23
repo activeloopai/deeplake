@@ -1,4 +1,5 @@
 from typing import Optional
+from deeplake.util.exceptions import MissingCredsError
 from deeplake.util.path import get_path_type
 import deeplake
 import numpy as np
@@ -36,6 +37,8 @@ def retry_refresh_managed_creds(f):
     def wrapper(linked_creds, sample_creds_key, *args, **kwargs):
         try:
             return f(linked_creds, sample_creds_key, *args, **kwargs)
+        except MissingCredsError:
+            raise
         except Exception as e:
             if linked_creds.client is not None:
                 linked_creds.populate_all_managed_creds()
