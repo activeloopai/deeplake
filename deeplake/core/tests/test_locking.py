@@ -6,7 +6,9 @@ import uuid
 import time
 import warnings
 import json
-from deeplake.tests.dataset_fixtures import enabled_cloud_dataset_generators
+from deeplake.tests.dataset_fixtures import (
+    enabled_persistent_non_gdrive_dataset_generators,
+)
 from concurrent.futures import ThreadPoolExecutor
 
 _counter = 0
@@ -33,45 +35,45 @@ class VM(object):
         deeplake.core.lock._LOCKS.update(self._locks)
 
 
-@enabled_cloud_dataset_generators
+@enabled_persistent_non_gdrive_dataset_generators
 def test_dataset_locking(ds_generator):
-    ds = ds_generator()
-    ds.create_tensor("x")
-    arr = np.random.random((32, 32))
-    ds.x.append(arr)
+    DATASET_LOCK_VALIDITY = deeplake.constants.DATASET_LOCK_VALIDITY
+    # Temporarily set validity to 1 second so we dont have to wait too long.
+    deeplake.constants.DATASET_LOCK_VALIDITY = 1
+    try:
+        ds = ds_generator()
+        ds.create_tensor("x")
+        arr = np.random.random((32, 32))
+        ds.x.append(arr)
 
-    with VM():
-        # Make sure read only warning is raised
-        with pytest.warns(UserWarning):
-            ds = ds_generator()
-            np.testing.assert_array_equal(arr, ds.x[0].numpy())
-        assert ds.read_only == True
-        with pytest.raises(LockedException):
-            ds.read_only = False
-        # Raise error if user explicitly asks for write access
-        with pytest.raises(LockedException):
-            ds = ds_generator(read_only=False)
-        # No warnings if user requests read only mode
-        with warnings.catch_warnings(record=True) as ws:
-            ds = ds_generator(read_only=True)
-            np.testing.assert_array_equal(arr, ds.x[0].numpy())
-        assert not ws
+        with VM():
+            # Make sure read only warning is raised
+            with pytest.warns(UserWarning):
+                ds = ds_generator()
+                np.testing.assert_array_equal(arr, ds.x[0].numpy())
+            assert ds.read_only == True
+            with pytest.raises(LockedException):
+                ds.read_only = False
+            # Raise error if user explicitly asks for write access
+            with pytest.raises(LockedException):
+                ds = ds_generator(read_only=False)
+            # No warnings if user requests read only mode
+            with warnings.catch_warnings(record=True) as ws:
+                ds = ds_generator(read_only=True)
+                np.testing.assert_array_equal(arr, ds.x[0].numpy())
+            assert not ws
 
-        DATASET_LOCK_VALIDITY = deeplake.constants.DATASET_LOCK_VALIDITY
-        # Temporarily set validity to 1 second so we dont have to wait too long.
-        deeplake.constants.DATASET_LOCK_VALIDITY = 1
-        # Wait for lock to expire.
-        time.sleep(1.1)
+            # Wait for lock to expire.
+            time.sleep(1.1)
 
-        try:
             ds = ds_generator()
             np.testing.assert_array_equal(arr, ds.x[0].numpy())
             assert ds.read_only == False
-        finally:
-            deeplake.constants.DATASET_LOCK_VALIDITY = DATASET_LOCK_VALIDITY
+    finally:
+        deeplake.constants.DATASET_LOCK_VALIDITY = DATASET_LOCK_VALIDITY
 
 
-@enabled_cloud_dataset_generators
+@enabled_persistent_non_gdrive_dataset_generators
 def test_vc_locking(ds_generator):
     ds = ds_generator()
     ds.create_tensor("x")

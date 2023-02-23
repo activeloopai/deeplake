@@ -100,6 +100,7 @@ def test_persist_keys(local_ds_generator):
 
     ds_new = local_ds_generator()
     assert set(ds_new.storage.keys()) == {
+        "dataset_lock.lock",
         "dataset_meta.json",
         "image/commit_diff",
         "image/tensor_meta.json",
@@ -1132,7 +1133,7 @@ def test_tensor_delete(local_ds_generator):
     ds.create_tensor("x", max_chunk_size=2 * MB)
     ds.x.extend(np.ones((3, 253, 501, 5)))
     ds.delete_tensor("x")
-    assert list(ds.storage.keys()) == ["dataset_meta.json"]
+    assert set(ds.storage.keys()) == {"dataset_meta.json", "dataset_lock.lock"}
     assert ds.tensors == {}
 
     ds.create_tensor("x/y")
@@ -1140,7 +1141,7 @@ def test_tensor_delete(local_ds_generator):
     ds.create_tensor("x/y")
     ds["x"].delete_tensor("y")
     ds.delete_group("x")
-    assert list(ds.storage.keys()) == ["dataset_meta.json"]
+    assert set(ds.storage.keys()) == {"dataset_meta.json", "dataset_lock.lock"}
     assert ds.tensors == {}
 
     ds.create_tensor("x/y/z")
@@ -1150,7 +1151,7 @@ def test_tensor_delete(local_ds_generator):
     ds.create_tensor("x/y/z")
     ds["x/y"].delete_tensor("z")
     ds.delete_group("x")
-    assert list(ds.storage.keys()) == ["dataset_meta.json"]
+    assert set(ds.storage.keys()) == {"dataset_meta.json", "dataset_lock.lock"}
     assert ds.tensors == {}
     assert ds.meta.hidden_tensors == []
 
@@ -2038,7 +2039,7 @@ def test_ignore_temp_tensors(local_path):
     with deeplake.load(local_path) as ds:
         assert list(ds.tensors) == []
         assert ds.meta.hidden_tensors == []
-        assert list(ds.storage.keys()) == ["dataset_meta.json"]
+        assert set(ds.storage.keys()) == {"dataset_meta.json", "dataset_lock.lock"}
 
     with deeplake.dataset(local_path, overwrite=True) as ds:
         ds.create_tensor(

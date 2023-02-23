@@ -275,10 +275,19 @@ class Dataset:
         return self
 
     def __exit__(self, exc_type, exc_val, exc_tb):
-        self.storage.autoflush = self._initial_autoflush.pop()
+        autoflush = self._initial_autoflush.pop()
+        if not self._read_only and autoflush:
+            if self._vc_info_updated:
+                self._flush_vc_info()
+            self.storage.flush()
+        self.storage.autoflush = autoflush
+
+    def maybe_flush(self):
         if not self._read_only:
-            self._flush_vc_info()
-            self.storage.maybe_flush()
+            if not self.storage.read_only:
+                if self._vc_info_updated:
+                    self._flush_vc_info()
+                self.storage.flush()
 
     @property
     def num_samples(self) -> int:
@@ -1404,7 +1413,7 @@ class Dataset:
         [f() for f in list(self._commit_hooks.values())]
         # do not store commit message
         deeplake_reporter.feature_report(feature_name="commit", parameters={})
-
+        self.maybe_flush()
         return self.commit_id  # type: ignore
 
     @invalid_view_op
@@ -1486,7 +1495,8 @@ class Dataset:
         commit_node = self.version_state["commit_node"]
         if self.verbose:
             warn_node_checkout(commit_node, create)
-
+        if create:
+            self.maybe_flush()
         return self.commit_id
 
     @deeplake_reporter.record_call
@@ -2066,7 +2076,7 @@ class Dataset:
         self.storage.flush()
 
     def _flush_vc_info(self):
-        if self.__dict__["_vc_info_updated"]:
+        if self._vc_info_updated:
             save_version_info(self.version_state, self.storage)
             self.__dict__["_vc_info_updated"] = False
 
@@ -2672,7 +2682,7 @@ class Dataset:
                     # Ignore storage level lock since we have file level lock
                     storage.read_only = False
                 lock = Lock(storage, get_queries_lock_key())
-                lock.acquire(timeout=10, force=True)
+                lock.acquire(timeout=10)
                 self2.lock = lock
 
             def __exit__(self2, *_, **__):
@@ -2908,7 +2918,6 @@ class Dataset:
         """
 
         path = convert_pathlib_to_string_if_needed(path)
-
         ds_args["verbose"] = False
         vds = None
         if path is None and hasattr(self, "_vds"):
