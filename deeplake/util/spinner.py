@@ -28,22 +28,28 @@ class DummyFile:
 @contextlib.contextmanager
 def run_spinner(spinner):
     try:
-        spinner.start()
-        save_stdout = sys.stdout
-        save_stderr = sys.stderr
-        sys.stdout = DummyFile(sys.stdout, spinner)
-        sys.stderr = DummyFile(sys.stderr, spinner)
-        # configure logger to use new stdout
-        logger = logging.getLogger("deeplake")
-        save_handlers = list(logger.handlers)
-        logger.handlers.clear()
-        logger.addHandler(StreamHandler(stream=sys.stdout))
+        if not isinstance(sys.stdout, DummyFile):
+            spinner.start()
+            spinner_started = True
+            save_stdout = sys.stdout
+            save_stderr = sys.stderr
+            sys.stdout = DummyFile(sys.stdout, spinner)
+            sys.stderr = DummyFile(sys.stderr, spinner)
+            # configure logger to use new stdout
+            logger = logging.getLogger("deeplake")
+            save_handlers = list(logger.handlers)
+            logger.handlers.clear()
+            logger.addHandler(StreamHandler(stream=sys.stdout))
+        else:
+            # another spinner active
+            spinner_started = False
         yield
     finally:
-        spinner.stop()
-        sys.stdout = save_stdout
-        sys.stderr = save_stderr
-        logger.handlers = save_handlers
+        if spinner_started:
+            spinner.stop()
+            sys.stdout = save_stdout
+            sys.stderr = save_stderr
+            logger.handlers = save_handlers
 
 
 class Spinner(threading.Thread):
