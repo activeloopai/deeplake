@@ -5,7 +5,7 @@ from deeplake.util.exceptions import TensorDoesNotExistError
 from deeplake.util.iterable_ordered_dict import IterableOrderedDict
 from deeplake.util.keys import get_sample_shape_tensor_key
 import numpy as np
-from PIL import Image
+from PIL import Image  # type: ignore
 
 try:
     from torch.utils.data.distributed import DistributedSampler
