@@ -101,7 +101,7 @@ def test_cache(cache_chain: StorageProvider):  # note: caches are provided as `S
 
 ## Generating API Docs
 
-Hub used pdocs3 to generate docs: https://pdoc3.github.io/pdoc/
+Deep Lake used pdocs3 to generate docs: https://pdoc3.github.io/pdoc/
 API docs are hosted at: https://api-docs.activeloop.ai/
 
 Run the below command to generate API documentation:

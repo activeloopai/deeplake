@@ -1,9 +1,9 @@
-import warnings
 import numpy as np
 from pathlib import Path
+from random import shuffle as rshuffle
 import os
 import glob
-from typing import Dict, List, Sequence, Tuple, Union
+from typing import List, Tuple, Union
 
 from deeplake.util.auto import ingestion_summary
 from deeplake.util.exceptions import (
@@ -12,7 +12,6 @@ from deeplake.util.exceptions import (
 )
 from deeplake.core.dataset import Dataset
 
-from tqdm import tqdm  # type: ignore
 
 from .base import UnstructuredDataset
 
@@ -83,27 +82,33 @@ class ImageClassification(UnstructuredDataset):
         return tuple(sorted(set_names))  # TODO: lexicographical sorting
 
     # TODO: make lazy/memoized property
-    def get_class_names(self) -> Tuple[str, ...]:
+    def get_class_names(self) -> List[str]:
         # TODO: move outside class
         class_names = set()
         for file_path in self._abs_file_paths:
             class_names.add(_class_name_from_path(file_path))
-        return tuple(sorted(class_names))  # TODO: lexicographical sorting
+        return list(sorted(class_names))  # TODO: lexicographical sorting
 
     def structure(  # type: ignore
         self,
         ds: Dataset,
         progressbar: bool = True,
         generate_summary: bool = True,
+        shuffle: bool = True,
         image_tensor_args: dict = {},
+        label_tensor_args: dict = {},
+        num_workers: int = 0,
     ) -> Dataset:
         """Create a structured dataset.
 
         Args:
-            ds (Dataset) : A Deep Lake dataset object.
+            ds (Dataset): A Deep Lake dataset object.
             progressbar (bool): Defines if the method uses a progress bar. Defaults to True.
             generate_summary (bool): Defines if the method generates ingestion summary. Defaults to True.
-            image_tensor_args (dict): Defines the sample compression of the dataset (jpeg or png).
+            shuffle (bool): Defines if the file paths should be shuffled prior to ingestion. Defaults to True.
+            image_tensor_args (dict): Defines the parameters for the images tensor.
+            label_tensor_args (dict): Defines the parameters for the class_labels tensor.
+            num_workers (int): The number of workers passed to compute.
 
         Returns:
             A Deep Lake dataset.
@@ -119,8 +124,12 @@ class ImageClassification(UnstructuredDataset):
             if not use_set_prefix:
                 set_name = ""
 
-            images_tensor_name = os.path.join(set_name, IMAGES_TENSOR_NAME)
-            labels_tensor_name = os.path.join(set_name, LABELS_TENSOR_NAME)
+            images_tensor_name = os.path.join(
+                set_name, image_tensor_args.pop("name", IMAGES_TENSOR_NAME)
+            )
+            labels_tensor_name = os.path.join(
+                set_name, label_tensor_args.pop("name", LABELS_TENSOR_NAME)
+            )
             images_tensor_map[set_name] = images_tensor_name.replace("\\", "/")
             labels_tensor_map[set_name] = labels_tensor_name.replace("\\", "/")
 
@@ -134,49 +143,42 @@ class ImageClassification(UnstructuredDataset):
                 labels_tensor_name.replace("\\", "/"),
                 htype="class_label",
                 class_names=self.class_names,
+                **label_tensor_args,
             )
 
-            paths = self._abs_file_paths
-            skipped_files: list = []
+        paths = self._abs_file_paths
+        if shuffle:
+            rshuffle(paths)
 
-            iterator = tqdm(
-                paths,
-                desc='Ingesting "%s" (%i files skipped)'
-                % (self.source.name, len(skipped_files)),
-                total=len(paths),
-                disable=not progressbar,
-            )
+        skipped_files: List[str] = []
 
-        with ds, iterator:
-            for file_path in iterator:
-                image = deeplake.read(file_path)
+        @deeplake.compute
+        def ingest_classification(file_path: Path, ds: Dataset):
+            image = deeplake.read(file_path)
+            class_name = _class_name_from_path(file_path)
+            set_name = _set_name_from_path(file_path) if use_set_prefix else ""
 
-                class_name = _class_name_from_path(file_path)
+            # if appending fails because of a shape mismatch, expand dims (might also fail)
+            try:
+                ds[images_tensor_map[set_name]].append(image)
+            except TensorInvalidSampleShapeError:
+                im = image.array
+                reshaped_image = np.expand_dims(im, -1)
+                ds[images_tensor_map[set_name]].append(reshaped_image)
+            except Exception:
+                skipped_files.append(file_path.name)
+                ds[images_tensor_map[set_name]].append(None)
 
-                label = np.uint32(self.class_names.index(class_name))
+            ds[labels_tensor_map[set_name]].append(class_name)
 
-                set_name = _set_name_from_path(file_path) if use_set_prefix else ""
+        ingest_classification().eval(
+            paths,
+            ds,
+            skip_ok=True,
+            progressbar=progressbar,
+            num_workers=num_workers,
+        )
 
-                # TODO: try to get all len(shape)s to match.
-                # if appending fails because of a shape mismatch, expand dims (might also fail)
-                try:
-                    ds[images_tensor_map[set_name]].append(image)
-
-                except TensorInvalidSampleShapeError:
-                    im = image.array
-                    reshaped_image = np.expand_dims(im, -1)
-                    ds[images_tensor_map[set_name]].append(reshaped_image)
-
-                except Exception:
-                    skipped_files.append(file_path.name)
-                    iterator.set_description(
-                        'Ingesting "%s" (%i files skipped)'
-                        % (self.source.name, len(skipped_files))
-                    )
-                    continue
-
-                ds[labels_tensor_map[set_name]].append(label)
-
-            if generate_summary:
-                ingestion_summary(str(self.source), skipped_files)
-            return ds
+        if generate_summary:
+            ingestion_summary(str(self.source), skipped_files)
+        return ds

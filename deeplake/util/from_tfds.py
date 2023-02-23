@@ -35,7 +35,7 @@ def from_tfds(tfds_ds: tensorflow.data.Dataset, ds: Dataset):
     """Converts a tfds dataset to Deep Lake dataset
     Args:
         tfds_ds (tensorflow.data.Dataset): A tfds_dataset object.
-        ds (Dataset) : A Hub dataset object where Tensor will be created.
+        ds (Dataset) : A Deep Lake dataset object where Tensor will be created.
     Returns:
         A Deep Lake dataset
     """
