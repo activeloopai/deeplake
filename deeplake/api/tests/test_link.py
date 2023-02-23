@@ -618,3 +618,19 @@ def test_shape_interval(local_ds_generator, cat_path, flower_path, shape_tensor)
         assert ds.img.shape_interval.astuple() == (3, 900, 900, 3)
         ds.img[1] = deeplake.link(flower_path)
         assert ds.img.meta.max_shape == [900, 900, 4]
+
+
+def test_rgb_gray(local_ds, cat_path, hopper_gray_path):
+    with local_ds as ds:
+        ds.create_tensor("abc", "link[image]", sample_compression="jpeg")
+        ds.abc.append(deeplake.link(cat_path))
+        ds.abc.append(deeplake.link(hopper_gray_path))
+
+        assert len(ds.abc.meta.max_shape) == 3
+        assert len(ds.abc.meta.min_shape) == 3
+        assert len(ds.abc[0].shape) == 3
+        assert len(ds.abc[1].shape) == 3
+        assert len(ds.abc[0].numpy().shape) == 3
+
+        # TODO: fix this, .shape should be the same as .numpy().shape
+        assert len(ds.abc[1].numpy().shape) == 2
