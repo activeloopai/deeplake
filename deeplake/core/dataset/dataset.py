@@ -285,7 +285,7 @@ class Dataset:
 
     def maybe_flush(self):
         if not self._read_only:
-            if not self.storage.read_only:
+            if self.storage.autoflush:
                 if self._vc_info_updated:
                     self._flush_vc_info()
                 self.storage.flush()
