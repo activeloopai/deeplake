@@ -28,6 +28,7 @@ def get_base_storage(storage: StorageProvider):
 
 def get_dataset_with_zero_size_cache(ds):
     """Returns a dataset with same storage but cache size set to zero."""
+    ds.flush()
     ds_base_storage = get_base_storage(ds.storage)
     zero_cache_storage = LRUCache(MemoryProvider(), ds_base_storage, 0)
     commit_id = ds.pending_commit_id
