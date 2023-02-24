@@ -483,6 +483,7 @@ class MMDetDataset(TorchDataset):
     ):
         super().__init__(*args, **kwargs)
         self.mode = mode
+        self.pipeline = pipeline
         if self.mode in ("val", "test"):
             self.bbox_info = bbox_info
             self.images = self._get_images(tensors_dict["images_tensor"])
@@ -496,7 +497,6 @@ class MMDetDataset(TorchDataset):
             coco_style_bbox = convert_to_coco_format(
                 self.bboxes, bbox_format, self.images
             )
-            self.pipeline = pipeline
 
             if self.metrics_format == "COCO":
                 self.evaluator = mmdet_utils.COCODatasetEvaluater(
