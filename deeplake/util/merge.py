@@ -280,17 +280,34 @@ def merge_common_tensors(
     updated_samples_dict: Dict[str, List[Tuple[int, int]]] = {}
     conflict_samples_dict: Dict[str, List[Tuple[int, int]]] = {}
     conflict_tensors = set()
+    idxs = {
+        tensor_name: find_new_updated_and_conflict_indexes(
+            tensor_name, dataset, target_dataset, nodes
+        )
+        for tensor_name in tensor_names
+    }
+    all_new_idxs = set()
+    for new_idxs, _, _ in idxs.values():
+        all_new_idxs.update(new_idxs)
+    for idx in all_new_idxs:
+        non_pad_found = False
+        for tensor_name in tensor_names:
+            enc = target_dataset[tensor_name].chunk_engine.chunk_id_encoder
+            if idx <= enc.num_smaples:
+                chunk_id = enc[idx][0]
+                if chunk_id != 0:
+                    non_pad_found = True
+                    break
+        if not non_pad_found:
+            for new_idxs, _, _ in idxs.values():
+                new_idxs.discard(idx)
+
     for tensor_name in tensor_names:
         (
             new_indexes,
             updated_indexes,
             conflict_indexes,
-        ) = find_new_updated_and_conflict_indexes(
-            tensor_name,
-            dataset,
-            target_dataset,
-            nodes,
-        )
+        ) = idxs[tensor_name]
         new_samples_dict[tensor_name] = new_indexes
         updated_samples_dict[tensor_name] = updated_indexes
         if conflict_indexes:

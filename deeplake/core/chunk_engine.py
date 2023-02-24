@@ -726,7 +726,7 @@ class ChunkEngine:
     ):
         enc = self.chunk_id_encoder
         arr = np.zeros((1, 2), dtype=enc._encoded.dtype)
-        
+
         if enc.num_samples:
             arr[0, 1] = enc._encoded[-1, 1] + pad_length
             enc._encoded = np.concatenate([enc._encoded, arr], axis=0)
@@ -1422,7 +1422,10 @@ class ChunkEngine:
         chunk_key = get_chunk_key(tkey, next_chunk_name, next_chunk_commit_id)
         next_chunk_size = self.cache.get_object_size(chunk_key)
         next_chunk = self.get_chunk_from_chunk_id(int(next_chunk_id))
-        if next_chunk and next_chunk_size + chunk.num_data_bytes < next_chunk.min_chunk_size:
+        if (
+            next_chunk
+            and next_chunk_size + chunk.num_data_bytes < next_chunk.min_chunk_size
+        ):
             if next_chunk_commit_id != self.commit_id:
                 next_chunk = self.copy_chunk_to_new_commit(next_chunk, next_chunk_name)
             # merge with next chunk
@@ -1448,7 +1451,10 @@ class ChunkEngine:
         prev_chunk_key = get_chunk_key(tkey, prev_chunk_name, prev_chunk_commit_id)
         prev_chunk_size = self.cache.get_object_size(prev_chunk_key)
         prev_chunk = self.get_chunk_from_chunk_id(int(prev_chunk_id))
-        if prev_chunk and prev_chunk_size + chunk.num_data_bytes < prev_chunk.min_chunk_size:
+        if (
+            prev_chunk
+            and prev_chunk_size + chunk.num_data_bytes < prev_chunk.min_chunk_size
+        ):
             if prev_chunk_commit_id != self.commit_id:
                 prev_chunk = self.copy_chunk_to_new_commit(prev_chunk, prev_chunk_name)
             # merge with previous chunk
