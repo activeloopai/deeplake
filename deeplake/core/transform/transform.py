@@ -24,6 +24,7 @@ from deeplake.util.transform import (
     sanitize_workers_scheduler,
     store_data_slice,
     store_data_slice_with_pbar,
+    rechunk_if_necessary,
 )
 from deeplake.util.encoder import merge_all_meta_info
 from deeplake.util.exceptions import (
@@ -375,6 +376,9 @@ class Pipeline:
                 scheduler=scheduler,
                 verbose=progressbar,
             )
+
+        if not kwargs.get("disable_rechunk"):
+            rechunk_if_necessary(target_ds, generated_tensors)
 
 
 def compose(functions: List[ComputeFunction]):  # noqa: DAR101, DAR102, DAR201, DAR401

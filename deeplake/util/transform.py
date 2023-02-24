@@ -19,10 +19,13 @@ from deeplake.util.exceptions import (
     InvalidOutputDatasetError,
     InvalidTransformDataset,
     TensorMismatchError,
+    TensorDoesNotExistError,
 )
 
 import posixpath
 import time
+
+import numpy as np
 
 try:
     import pandas as pd  # type: ignore
@@ -532,3 +535,39 @@ def process_transform_result(result: List[Dict]):
         for key in keys:
             final[key].append(item[key])
     return final
+
+
+def rechunk_if_necessary(ds, tensors):
+    for tensor in tensors:
+        try:
+            tensor = ds[tensor]
+        except TensorDoesNotExistError:
+            continue
+        if not tensor.meta.sample_compression and not tensor.meta.chunk_compression:
+            engine = tensor.chunk_engine
+            num_chunks = engine.num_chunks
+            if num_chunks > 1:
+                num_samples = engine.num_samples
+                max_shape = tensor.meta.max_shape
+                if len(max_shape) > 0:
+                    nbytes = (
+                        np.prod([num_samples] + max_shape)
+                        * np.dtype(tensor.dtype).itemsize
+                    )
+                    avg_chunk_size = nbytes / num_chunks
+
+                    if avg_chunk_size < 0.1 * engine.min_chunk_size:
+                        enc = tensor.chunk_engine.chunk_id_encoder
+                        rechunked = False
+                        while True:
+                            encoded = enc._encoded
+                            for row, chunk_id in enumerate(encoded[:, 0]):
+                                engine._check_rechunk(
+                                    engine.get_chunk_from_chunk_id(chunk_id), row
+                                )
+                                rechunked = len(encoded) != len(enc._encoded)
+                                if rechunked:
+                                    break
+                            if rechunked:
+                                continue
+                            break
