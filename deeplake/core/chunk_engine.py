@@ -718,7 +718,7 @@ class ChunkEngine:
         self.cache.maybe_flush()
         return labels
 
-    def _pad_and_append(
+    def pad_and_append(
         self,
         pad_length: int,
         value,
@@ -734,6 +734,7 @@ class ChunkEngine:
             arr[0, 1] = pad_length - 1
             enc._encoded = arr
         self.tensor_meta.length += pad_length
+        self.commit_diff.add_data(pad_length)
         self.extend([value], link_callback=extend_link_callback)
 
     def _samples_to_chunks(
@@ -1221,7 +1222,7 @@ class ChunkEngine:
             chunk, chunk_row=enc.__getitem__(global_sample_index, True)[0][1]
         )
 
-    def pad_and_append(
+    def _pad_and_append(
         self,
         num_samples_to_pad: int,
         value,
