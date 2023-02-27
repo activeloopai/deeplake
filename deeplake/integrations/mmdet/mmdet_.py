@@ -1218,7 +1218,7 @@ def _train_detector(
     # TODO verify required tensors are not None and raise Exception.
 
     if hasattr(model, "CLASSES"):
-        warnings.warn("model already has a CLASSES attribute. datasets.info.class_names will not be used.")
+        warnings.warn("model already has a CLASSES attribute. dataset.info.class_names will not be used.")
     elif hasattr(ds_train[train_labels_tensor].info, "class_names"):
         model.CLASSES = ds_train[train_labels_tensor].info.class_names
 
