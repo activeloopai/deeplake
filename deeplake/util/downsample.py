@@ -6,6 +6,7 @@ from deeplake.core.linked_tiled_sample import LinkedTiledSample
 import numpy as np
 import io
 from deeplake.core.tensor_link import read_linked_sample
+import warnings
 
 
 def validate_downsampling(downsampling):
@@ -54,30 +55,40 @@ def downsample_sample(
     partial: bool = False,
     link_creds=None,
 ):
-    if sample is None:
+    try:
+        if sample is None:
+            return None
+        elif isinstance(sample, PartialSample):
+            return sample.downsample(factor)
+        elif isinstance(sample, LinkedTiledSample):
+            return downsample_link_tiled(sample, factor, compression, htype, link_creds)
+
+        if not partial and not needs_downsampling(sample, factor):
+            arr = np.array(sample) if isinstance(sample, Image.Image) else sample
+            required_shape = tuple([0] * len(arr.shape))
+            required_dtype = arr.dtype
+            return np.ones(required_shape, dtype=required_dtype)
+
+        if isinstance(sample, np.ndarray):
+            downsampled_sample = sample[::factor, ::factor]
+            return downsampled_sample
+        size = sample.size[0] // factor, sample.size[1] // factor
+        downsampled_sample = sample.resize(size, get_filter(htype))
+        if compression is None:
+            return np.array(downsampled_sample)
+        with io.BytesIO() as f:
+            downsampled_sample.save(f, format=compression)  # type: ignore
+            image_bytes = f.getvalue()
+            return deeplake.core.sample.Sample(buffer=image_bytes, compression=compression)
+    except Exception as e:
+        if partial:
+            raise e
+        warnings.warn(f"Failed to downsample sample of type {type(sample)}")
         return None
-    elif isinstance(sample, PartialSample):
-        return sample.downsample(factor)
-    elif isinstance(sample, LinkedTiledSample):
-        return downsample_link_tiled(sample, factor, compression, htype, link_creds)
 
-    if not partial and not needs_downsampling(sample, factor):
-        arr = np.array(sample) if isinstance(sample, Image.Image) else sample
-        required_shape = tuple([0] * len(arr.shape))
-        required_dtype = arr.dtype
-        return np.ones(required_shape, dtype=required_dtype)
 
-    if isinstance(sample, np.ndarray):
-        downsampled_sample = sample[::factor, ::factor]
-        return downsampled_sample
-    size = sample.size[0] // factor, sample.size[1] // factor
-    downsampled_sample = sample.resize(size, get_filter(htype))
-    if compression is None:
-        return np.array(downsampled_sample)
-    with io.BytesIO() as f:
-        downsampled_sample.save(f, format=compression)  # type: ignore
-        image_bytes = f.getvalue()
-        return deeplake.core.sample.Sample(buffer=image_bytes, compression=compression)
+
+        
 
 
 def downsample_link_tiled(
