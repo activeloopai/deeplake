@@ -14,6 +14,7 @@ from deeplake.client.log import logger
 from deeplake.core.dataset import Dataset, dataset_factory
 from deeplake.core.meta.dataset_meta import DatasetMeta
 from deeplake.util.connect_dataset import connect_dataset_entry
+from deeplake.util.spinner import spinner
 from deeplake.util.path import convert_pathlib_to_string_if_needed, verify_dataset_name
 from deeplake.hooks import (
     dataset_created,
@@ -60,6 +61,7 @@ from deeplake.core.storage.deeplake_memory_object import DeepLakeMemoryObject
 
 class dataset:
     @staticmethod
+    @spinner
     def init(
         path: Union[str, pathlib.Path],
         read_only: Optional[bool] = None,
@@ -342,6 +344,7 @@ class dataset:
         return ret
 
     @staticmethod
+    @spinner
     def load(
         path: Union[str, pathlib.Path],
         read_only: Optional[bool] = None,
@@ -514,6 +517,7 @@ class dataset:
         return ds  # type: ignore
 
     @staticmethod
+    @spinner
     def delete(
         path: Union[str, pathlib.Path],
         force: bool = False,
@@ -584,6 +588,7 @@ class dataset:
                 raise
 
     @staticmethod
+    @spinner
     def like(
         dest: Union[str, pathlib.Path],
         src: Union[str, Dataset, pathlib.Path],
@@ -975,6 +980,7 @@ class dataset:
         return ret
 
     @staticmethod
+    @spinner
     def connect(
         src_path: str,
         creds_key: str,

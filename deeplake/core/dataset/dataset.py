@@ -19,6 +19,7 @@ from deeplake.util.connect_dataset import connect_dataset_entry
 from deeplake.util.downsample import validate_downsampling
 from deeplake.util.version_control import save_version_info
 from deeplake.util.invalid_view_op import invalid_view_op
+from deeplake.util.spinner import spinner
 from deeplake.util.iteration_warning import (
     suppress_iteration_warning,
     check_if_iteration,
@@ -275,6 +276,7 @@ class Dataset:
         self.storage.autoflush = False
         return self
 
+    @spinner
     def __exit__(self, exc_type, exc_val, exc_tb):
         autoflush = self._initial_autoflush.pop()
         if not self._read_only and autoflush:
@@ -1311,6 +1313,7 @@ class Dataset:
         except Exception:  # python shutting down
             pass
 
+    @spinner
     @invalid_view_op
     def commit(self, message: Optional[str] = None, allow_empty=False) -> str:
         """Stores a snapshot of the current state of the dataset.
@@ -1338,6 +1341,7 @@ class Dataset:
         return self._commit(message, None, False)
 
     @deeplake_reporter.record_call
+    @spinner
     @invalid_view_op
     @suppress_iteration_warning
     def merge(
@@ -2066,6 +2070,7 @@ class Dataset:
             self, tensors=tensors, tobytes=tobytes, fetch_chunks=fetch_chunks
         )
 
+    @spinner
     def flush(self):
         """Necessary operation after writes if caches are being used.
         Writes all the dirty data from the cache layers (if any) to the underlying storage.
@@ -3470,6 +3475,7 @@ class Dataset:
         )
 
     @invalid_view_op
+    @spinner
     def reset(self):
         """Resets the uncommitted changes present in the branch.
 
