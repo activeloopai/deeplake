@@ -2201,7 +2201,7 @@ def test_copy_label_sync_disabled(local_ds, capsys):
         f"{local_ds.path}_copy", overwrite=True, progressbar=False, num_workers=2
     )
     captured = capsys.readouterr().out
-    assert captured == ""
+    assert captured.strip() == ""
 
 
 def test_class_label_bug(memory_ds):

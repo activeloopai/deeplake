@@ -162,3 +162,6 @@ WANDB_INTEGRATION_ENABLED = True
 WANDB_JSON_FILENMAE = "wandb.json"
 
 SHOW_ITERATION_WARNING = True
+
+# Delay before spinner starts on time consuming functions (in seconds)
+SPINNER_START_DELAY = 2
