@@ -1265,6 +1265,10 @@ class Dataset:
         if not self.is_head_node or not self._locking_enabled:
             return True
         storage = self.base_storage
+        if storage.read_only and not self._locked_out:
+            if err:
+                raise ReadOnlyModeError()
+            return False
 
         if isinstance(storage, tuple(_LOCKABLE_STORAGES)) and (
             not self.read_only or self._locked_out
