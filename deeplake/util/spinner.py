@@ -1,3 +1,4 @@
+from deeplake.constants import SPINNER_START_DELAY
 from deeplake.client.log import configure_logger
 from logging import StreamHandler
 from itertools import cycle
@@ -62,7 +63,7 @@ class Spinner(threading.Thread):
         self.file = sys.stdout
 
     def run(self):
-        time.sleep(2)
+        time.sleep(SPINNER_START_DELAY)
         frames = cycle("/-\\|")
         self._hide_cursor()
         while not self._stop_event.is_set():
