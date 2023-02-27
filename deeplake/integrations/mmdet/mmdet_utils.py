@@ -21,6 +21,7 @@ from mmdet.datasets import pipelines
 from deeplake.util.warnings import always_warn
 import json
 import mmcv  # type: ignore
+import math
 
 
 def _isArrayLike(obj):
@@ -365,6 +366,8 @@ class COCODatasetEvaluater(mmdet_coco.CocoDataset):
         labels=None,
         iscrowds=None,
         bbox_format=None,
+        batch_size=1,
+        num_gpus=1,
     ):
         self.img_prefix = img_prefix
         self.seg_prefix = seg_prefix
@@ -374,6 +377,8 @@ class COCODatasetEvaluater(mmdet_coco.CocoDataset):
         self.filter_empty_gt = filter_empty_gt
         self.file_client = mmcv.FileClient(**file_client_args)
         self.CLASSES = classes
+        self.batch_size = 1
+        self.num_gpus = num_gpus
 
         self.data_infos = self.load_annotations(
             deeplake_dataset,
@@ -397,6 +402,10 @@ class COCODatasetEvaluater(mmdet_coco.CocoDataset):
             self._set_group_flag()
 
         # processing pipeline
+
+    def __len__(self):
+        length = super().__len__()
+        return math.ceil(length / (self.batch_size * self.num_gpus))
 
     def pipeline(self, x):
         return x

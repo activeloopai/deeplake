@@ -479,11 +479,15 @@ class MMDetDataset(TorchDataset):
         metrics_format="COCO",
         bbox_info=None,
         pipeline=None,
+        num_gpus=1,
+        batch_size=1,
         **kwargs,
     ):
         super().__init__(*args, **kwargs)
         self.mode = mode
         self.pipeline = pipeline
+        self.num_gpus = num_gpus
+        self.batch_size = batch_size
         if self.mode in ("val", "test"):
             self.bbox_info = bbox_info
             self.images = self._get_images(tensors_dict["images_tensor"])
@@ -509,13 +513,14 @@ class MMDetDataset(TorchDataset):
                     labels=self.labels,
                     iscrowds=self.iscrowds,
                     bbox_format=bbox_format,
+                    num_gpus=num_gpus,
                 )
             else:
                 self.evaluator = None
 
     def __len__(self):
         if self.mode == "eval":
-            return math.ceil(len(self.dataset) / self.batch_size)
+            return math.ceil(len(self.dataset) / (self.batch_size * self.num_gpus))
         return super().__len__()
 
     def _get_images(self, images_tensor):
@@ -982,6 +987,8 @@ def build_dataloader(
             mode=mode,
             bbox_info=bbox_info,
             decode_method=decode_method,
+            num_gpus=train_loader_config["num_gpus"],
+            batch_size=batch_size,
         )
 
         loader.dataset.mmdet_dataset = mmdet_ds
@@ -1014,6 +1021,8 @@ def build_dataloader(
             mode=mode,
             bbox_info=bbox_info,
             decode_method=decode_method,
+            num_gpus=train_loader_config["num_gpus"],
+            batch_size=batch_size,
         )
         loader.dataset = mmdet_ds
     loader.dataset.CLASSES = classes
@@ -1333,6 +1342,7 @@ def _train_detector(
             persistent_workers=False,
             mode="val",
             metrics_format=metrics_format,
+            num_gpus=len(cfg.gpu_ids),
         )
 
         val_dataloader_args = {
