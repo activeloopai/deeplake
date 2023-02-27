@@ -560,7 +560,6 @@ def rechunk_if_necessary(ds):
 
                         if avg_chunk_size < 0.1 * engine.min_chunk_size:
                             enc = tensor.chunk_engine.chunk_id_encoder
-                            print(enc._encoded)
                             rechunked = False
                             while True:
                                 encoded = enc._encoded
