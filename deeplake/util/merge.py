@@ -293,7 +293,7 @@ def merge_common_tensors(
         non_pad_found = False
         for tensor_name in tensor_names:
             enc = target_dataset[tensor_name].chunk_engine.chunk_id_encoder
-            if idx <= enc.num_smaples:
+            if idx <= enc.num_samples:
                 chunk_id = enc[idx][0]
                 if chunk_id != 0:
                     non_pad_found = True
