@@ -13,6 +13,7 @@ from deeplake.core.storage.s3 import S3Provider
 from deeplake.tests.common import is_opt_true
 from deeplake.util.exceptions import (
     ManagedCredentialsNotFoundError,
+    MissingCredsError,
     TensorMetaInvalidHtype,
     UnableToReadFromUrlError,
 )
@@ -82,16 +83,15 @@ def test_link_creds(request):
     link_creds.populate_creds("abc", {})
     link_creds.populate_creds("def", {})
 
-    with pytest.raises(KeyError):
+    with pytest.raises(MissingCredsError):
         link_creds.populate_creds("ghi", {})
 
-    assert link_creds.get_encoding("ENV") == 0
     assert link_creds.get_encoding(None) == 0
     with pytest.raises(ValueError):
         link_creds.get_encoding(None, "s3://my_bucket/my_key")
     assert link_creds.get_encoding("abc") == 1
     assert link_creds.get_encoding("def") == 2
-    with pytest.raises(ValueError):
+    with pytest.raises(MissingCredsError):
         link_creds.get_encoding("ghi")
 
     assert link_creds.get_creds_key(0) is None
@@ -106,16 +106,16 @@ def test_link_creds(request):
     link_creds.add_creds_key("ghi")
     assert link_creds.missing_keys == ["ghi"]
 
-    with pytest.raises(KeyError):
+    with pytest.raises(MissingCredsError):
         link_creds.get_storage_provider("xyz", "s3")
 
-    with pytest.raises(ValueError):
+    with pytest.raises(MissingCredsError):
         link_creds.get_storage_provider("ghi", "s3")
 
     if is_opt_true(request, GCS_OPT):
         assert isinstance(link_creds.get_storage_provider("def", "gcs"), GCSProvider)
         assert isinstance(link_creds.get_storage_provider("def", "gcs"), GCSProvider)
-        assert isinstance(link_creds.get_storage_provider("ENV", "gcs"), GCSProvider)
+        assert isinstance(link_creds.get_storage_provider(None, "gcs"), GCSProvider)
     if is_opt_true(request, S3_OPT):
         assert isinstance(link_creds.get_storage_provider("abc", "s3"), S3Provider)
         assert isinstance(link_creds.get_storage_provider("abc", "s3"), S3Provider)
@@ -189,8 +189,6 @@ def test_none_used_key(local_ds_generator, cat_path):
         ds.add_creds_key("my_s3_key")
         ds.populate_creds("my_s3_key", {})
         ds.xyz.append(deeplake.link(cat_path))
-        assert ds.link_creds.used_creds_keys == set()
-        ds.xyz.append(deeplake.link(cat_path, "ENV"))
         assert ds.link_creds.used_creds_keys == set()
         ds.xyz.append(deeplake.link(cat_path, "my_s3_key"))
         assert ds.link_creds.used_creds_keys == {"my_s3_key"}
@@ -313,6 +311,8 @@ def test_jwt_link(local_ds):
 def test_video(request, local_ds_generator, create_shape_tensor, verify):
     local_ds = local_ds_generator()
     with local_ds as ds:
+        ds.add_creds_key("ENV")
+        ds.populate_creds("ENV", from_environment=True)
         ds.create_tensor(
             "linked_videos",
             htype="link[video]",
@@ -340,6 +340,7 @@ def test_video(request, local_ds_generator, create_shape_tensor, verify):
             assert ds.linked_videos[3].shape == (361, 720, 1280, 3)
     # checking persistence
     ds = local_ds_generator()
+    ds.populate_creds("ENV", from_environment=True)
     for i in range(3):
         assert ds.linked_videos[i].shape == (361, 720, 1280, 3)
 

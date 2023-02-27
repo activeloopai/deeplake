@@ -234,7 +234,7 @@ def test_inplace_dataset_view_save(
     assert len(ds.get_views()) == int(stream)
     vds_path = view.save_view(optimize=optimize, id=id)
     assert len(ds.get_views()) == 1 + int(stream)
-    view2 = deeplake.dataset(vds_path)
+    view2 = deeplake.dataset(vds_path, token=ds.token)
     assert indices == list(view2.sample_indices)
     if ds.path.startswith("hub://"):
         assert vds_path.startswith("hub://")
@@ -243,7 +243,7 @@ def test_inplace_dataset_view_save(
         np.testing.assert_array_equal(view[t].numpy(), view2[t].numpy())
     ds_orig = ds
     if not read_only and is_hub:
-        ds = deeplake.load(ds.path, read_only=True)
+        ds = deeplake.load(ds.path, read_only=True, token=ds.token)
     entry = ds.get_view(id)
     assert entry.virtual == (not optimize)
     assert indices == list(entry.load().sample_indices)

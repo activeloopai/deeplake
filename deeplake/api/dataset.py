@@ -1034,6 +1034,7 @@ class dataset:
         dest_creds: Optional[Dict] = None,
         inspect_limit: int = 1000000,
         progressbar: bool = True,
+        shuffle: bool = False,
         num_workers: int = 0,
         token: Optional[str] = None,
         connect_kwargs: Optional[Dict] = None,
@@ -1085,6 +1086,7 @@ class dataset:
             dest_creds (Optional[Dict]): A dictionary containing credentials used to access the destination path of the dataset.
             inspect_limit (int): The maximum number of samples to inspect in the annotations json, in order to generate the set of COCO annotation keys. Set to ``1000000`` by default.
             progressbar (bool): Enables or disables ingestion progress bar. Set to ``True`` by default.
+            shuffle (bool): Shuffles the input data prior to ingestion. Set to ``False`` by default.
             num_workers (int): The number of workers to use for ingestion. Set to ``0`` by default.
             token (Optional[str]): The token to use for accessing the dataset and/or connecting it to Deep Lake.
             connect_kwargs (Optional[Dict]): If specified, the dataset will be connected to Deep Lake, and connect_kwargs will be passed to :meth:`Dataset.connect <deeplake.core.dataset.Dataset.connect>`.
@@ -1129,16 +1131,12 @@ class dataset:
             dest, creds=dest_creds, verbose=False, token=token, **dataset_kwargs
         )
         if connect_kwargs is not None:
-            connect_kwargs["token"] = token or connect_kwargs.get(token)
+            connect_kwargs["token"] = token or connect_kwargs.get("token")
             ds.connect(**connect_kwargs)
 
         structure.create_missing(ds)
 
-        unstructured.structure(
-            ds,
-            progressbar,
-            num_workers,
-        )
+        unstructured.structure(ds, progressbar, num_workers, shuffle)
 
         return ds
 
@@ -1157,6 +1155,7 @@ class dataset:
         image_creds_key: Optional[str] = None,
         inspect_limit: int = 1000,
         progressbar: bool = True,
+        shuffle: bool = False,
         num_workers: int = 0,
         token: Optional[str] = None,
         connect_kwargs: Optional[Dict] = None,
@@ -1202,6 +1201,7 @@ class dataset:
             image_creds_key (Optional[str]): creds_key for linked tensors, applicable if the htype for the images tensor is specified as 'link[image]' in the 'image_params' input.
             inspect_limit (int): The maximum number of annotations to inspect, in order to infer whether they are bounding boxes of polygons. This in put is ignored if the htype is specfied in the 'coordinates_params'.
             progressbar (bool): Enables or disables ingestion progress bar. Set to ``True`` by default.
+            shuffle (bool): Shuffles the input data prior to ingestion. Set to ``False`` by default.
             num_workers (int): The number of workers to use for ingestion. Set to ``0`` by default.
             token (Optional[str]): The token to use for accessing the dataset and/or connecting it to Deep Lake.
             connect_kwargs (Optional[Dict]): If specified, the dataset will be connected to Deep Lake, and connect_kwargs will be passed to :meth:`Dataset.connect <deeplake.core.dataset.Dataset.connect>`.
@@ -1264,34 +1264,45 @@ class dataset:
             ds,
             progressbar,
             num_workers,
+            shuffle,
         )
 
         return ds
 
     @staticmethod
-    def ingest(
+    def ingest_classification(
         src: Union[str, pathlib.Path],
         dest: Union[str, pathlib.Path],
-        images_compression: str = "auto",
+        image_params: Optional[Dict] = None,
+        label_params: Optional[Dict] = None,
         dest_creds: Optional[Dict] = None,
         progressbar: bool = True,
         summary: bool = True,
+        num_workers: int = 0,
+        shuffle: bool = True,
+        token: Optional[str] = None,
+        connect_kwargs: Optional[Dict] = None,
         **dataset_kwargs,
     ) -> Dataset:
-        """Ingests a dataset from a source and stores it as a structured dataset to destination.
+        """Ingests a dataset of images from a source and stores it as a structured dataset to destination.
 
         Args:
-            src (str, pathlib.Path): Local path to where the unstructured dataset is stored or path to csv file.
+            src (str, pathlib.Path): Local path to where the unstructured dataset of images is stored or path to csv file.
             dest (str, pathlib.Path): - The full path to the dataset. Can be:
-                - a Deep Lake cloud path of the form ``hub://username/datasetname``. To write to Deep Lake cloud datasets, ensure that you are logged in to Deep Lake (use 'activeloop login' from command line)
+                - a Deep Lake cloud path of the form ``hub://org_id/datasetname``. To write to Deep Lake cloud datasets, ensure that you are logged in to Deep Lake (use 'activeloop login' from command line)
                 - an s3 path of the form ``s3://bucketname/path/to/dataset``. Credentials are required in either the environment or passed to the creds argument.
                 - a local file system path of the form ``./path/to/dataset`` or ``~/path/to/dataset`` or ``path/to/dataset``.
                 - a memory path of the form ``mem://path/to/dataset`` which doesn't save the dataset but keeps it in memory instead. Should be used only for testing as it does not persist.
-            images_compression (str): For image classification datasets, this compression will be used for the `images` tensor. If ``images_compression`` is "auto", compression will be automatically determined by the most common extension in the directory.
+            image_params (Optional[Dict]): A dictionary containing parameters for the images tensor.
+            label_params (Optional[Dict]): A dictionary containing parameters for the labels tensor.
             dest_creds (Optional[Dict]): A dictionary containing credentials used to access the destination path of the dataset.
             progressbar (bool): Enables or disables ingestion progress bar. Defaults to ``True``.
             summary (bool): If ``True``, a summary of skipped files will be printed after completion. Defaults to ``True``.
-            **dataset_kwargs: Any arguments passed here will be forwarded to the dataset creator function.
+            num_workers (int): The number of workers to use for ingestion. Set to ``0`` by default.
+            shuffle (bool): Shuffles the input data prior to ingestion. Since data arranged in folders by class is highly non-random, shuffling is important in order to produce optimal results when training. Defaults to ``True``.
+            token (Optional[str]): The token to use for accessing the dataset.
+            connect_kwargs (Optional[Dict]): If specified, the dataset will be connected to Deep Lake, and connect_kwargs will be passed to :meth:`Dataset.connect <deeplake.core.dataset.Dataset.connect>`.
+            **dataset_kwargs: Any arguments passed here will be forwarded to the dataset creator function see :func:`deeplake.empty`.
 
         Returns:
             Dataset: New dataset object with structured dataset.
@@ -1346,13 +1357,12 @@ class dataset:
         dest = convert_pathlib_to_string_if_needed(dest)
         feature_report_path(
             dest,
-            "ingest",
+            "ingest_classification",
             {
-                "Images_Compression": images_compression,
                 "Progressbar": progressbar,
                 "Summary": summary,
             },
-            token=dataset_kwargs.get("token", None),
+            token=token,
         )
 
         src = convert_pathlib_to_string_if_needed(src)
@@ -1368,30 +1378,45 @@ class dataset:
                     raise InvalidPathException(src)
                 source = pd.read_csv(src, quotechar='"', skipinitialspace=True)
                 ds = dataset.ingest_dataframe(
-                    source, dest, dest_creds, progressbar, **dataset_kwargs
+                    source, dest, dest_creds, progressbar, token=token, **dataset_kwargs
                 )
                 return ds
 
             if not os.path.isdir(src):
                 raise InvalidPathException(src)
 
-            if images_compression == "auto":
+            if image_params is None:
+                image_params = {}
+            if label_params is None:
+                label_params = {}
+
+            if not image_params.get("sample_compression", None):
                 images_compression = get_most_common_extension(src)
                 if images_compression is None:
                     raise InvalidFileExtension(src)
+                image_params["sample_compression"] = images_compression
 
             # TODO: support more than just image classification (and update docstring)
             unstructured = ImageClassification(source=src)
 
-            ds = deeplake.dataset(dest, creds=dest_creds, **dataset_kwargs)
+            ds = deeplake.empty(
+                dest, creds=dest_creds, token=token, verbose=False, **dataset_kwargs
+            )
+            if connect_kwargs is not None:
+                connect_kwargs["token"] = token or connect_kwargs.get("token")
+                ds.connect(**connect_kwargs)
 
             # TODO: auto detect compression
             unstructured.structure(
                 ds,  # type: ignore
                 progressbar=progressbar,
                 generate_summary=summary,
-                image_tensor_args={"sample_compression": images_compression},
+                image_tensor_args=image_params,
+                label_tensor_args=label_params,
+                num_workers=num_workers,
+                shuffle=shuffle,
             )
+
         return ds  # type: ignore
 
     @staticmethod
@@ -1405,6 +1430,7 @@ class dataset:
         kaggle_credentials: Optional[dict] = None,
         progressbar: bool = True,
         summary: bool = True,
+        shuffle: bool = True,
         **dataset_kwargs,
     ) -> Dataset:
         """Download and ingest a kaggle dataset and store it as a structured dataset to destination.
@@ -1423,6 +1449,7 @@ class dataset:
             kaggle_credentials (dict): A dictionary containing kaggle credentials {"username":"YOUR_USERNAME", "key": "YOUR_KEY"}. If ``None``, environment variables/the kaggle.json file will be used if available.
             progressbar (bool): Enables or disables ingestion progress bar. Set to ``True`` by default.
             summary (bool): Generates ingestion summary. Set to ``True`` by default.
+            shuffle (bool): Shuffles the input data prior to ingestion. Since data arranged in folders by class is highly non-random, shuffling is important in order to produce optimal results when training. Defaults to ``True``.
             **dataset_kwargs: Any arguments passed here will be forwarded to the dataset creator function. See :func:`deeplake.dataset`.
 
         Returns:
@@ -1460,13 +1487,14 @@ class dataset:
             exist_ok=exist_ok,
         )
 
-        ds = deeplake.ingest(
+        ds = deeplake.ingest_classification(
             src=src,
             dest=dest,
-            images_compression=images_compression,
+            image_params={"sample_compression": images_compression},
             dest_creds=dest_creds,
             progressbar=progressbar,
             summary=summary,
+            shuffle=shuffle,
             **dataset_kwargs,
         )
 
@@ -1475,16 +1503,18 @@ class dataset:
     @staticmethod
     def ingest_dataframe(
         src,
-        dest: Union[str, pathlib.Path, Dataset],
+        dest: Union[str, pathlib.Path],
         dest_creds: Optional[Dict] = None,
         progressbar: bool = True,
+        token: Optional[str] = None,
+        connect_kwargs: Optional[Dict] = None,
         **dataset_kwargs,
     ):
         """Convert pandas dataframe to a Deep Lake Dataset.
 
         Args:
             src (pd.DataFrame): The pandas dataframe to be converted.
-            dest (str, pathlib.Path, Dataset):
+            dest (str, pathlib.Path):
                 - A Dataset or The full path to the dataset. Can be:
                 - a Deep Lake cloud path of the form ``hub://username/datasetname``. To write to Deep Lake cloud datasets, ensure that you are logged in to Deep Lake (use 'activeloop login' from command line)
                 - an s3 path of the form ``s3://bucketname/path/to/dataset``. Credentials are required in either the environment or passed to the creds argument.
@@ -1492,7 +1522,9 @@ class dataset:
                 - a memory path of the form ``mem://path/to/dataset`` which doesn't save the dataset but keeps it in memory instead. Should be used only for testing as it does not persist.
             dest_creds (Optional[Dict]): A dictionary containing credentials used to access the destination path of the dataset.
             progressbar (bool): Enables or disables ingestion progress bar. Set to ``True`` by default.
-            **dataset_kwargs: Any arguments passed here will be forwarded to the dataset creator function. See :func:`deeplake.dataset`.
+            token (Optional[str]): The token to use for accessing the dataset.
+            connect_kwargs (Optional[Dict]): A dictionary containing arguments to be passed to the dataset connect method. See :meth:`Dataset.connect`.
+            **dataset_kwargs: Any arguments passed here will be forwarded to the dataset creator function. See :func:`deeplake.empty`.
 
         Returns:
             Dataset: New dataset created from the dataframe.
@@ -1507,7 +1539,7 @@ class dataset:
             convert_pathlib_to_string_if_needed(dest),
             "ingest_dataframe",
             {},
-            token=dataset_kwargs.get("token", None),
+            token=token,
         )
 
         if not isinstance(src, pd.DataFrame):
@@ -1515,11 +1547,14 @@ class dataset:
 
         structured = DataFrame(src)
 
-        if isinstance(dest, Dataset):
-            ds = dest
-        else:
-            dest = convert_pathlib_to_string_if_needed(dest)
-            ds = deeplake.dataset(dest, creds=dest_creds, **dataset_kwargs)
+        dest = convert_pathlib_to_string_if_needed(dest)
+        ds = deeplake.empty(
+            dest, creds=dest_creds, token=token, verbose=False, **dataset_kwargs
+        )
+        if connect_kwargs is not None:
+            connect_kwargs["token"] = token or connect_kwargs.get("token")
+            ds.connect(**connect_kwargs)
 
         structured.fill_dataset(ds, progressbar)  # type: ignore
+
         return ds  # type: ignore

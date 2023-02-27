@@ -231,11 +231,7 @@ class Dataset:
         d["_temp_tensors"] = []
         dct = self.__dict__
         dct.update(d)
-        dct["enabled_tensors"] = (
-            set(self._resolve_tensor_list(enabled_tensors, root=True))
-            if enabled_tensors
-            else None
-        )
+
         try:
             self._set_derived_attributes()
         except LockedException:
@@ -246,6 +242,11 @@ class Dataset:
             raise ReadOnlyModeError(
                 "This dataset cannot be open for writing as you don't have permissions. Try loading the dataset with `read_only=True."
             )
+        dct["enabled_tensors"] = (
+            set(self._resolve_tensor_list(enabled_tensors, root=True))
+            if enabled_tensors
+            else None
+        )
         self._first_load_init()
         self._initial_autoflush: List[
             bool
@@ -306,8 +307,10 @@ class Dataset:
         """Returns the length of the smallest tensor."""
         tensor_lengths = [len(tensor) for tensor in self.tensors.values()]
         pad_tensors = self._pad_tensors
-        if not pad_tensors and min(tensor_lengths, default=0) != max(
-            tensor_lengths, default=0
+        if (
+            warn
+            and not pad_tensors
+            and min(tensor_lengths, default=0) != max(tensor_lengths, default=0)
         ):
             warning(
                 "The length of tensors in the dataset is different. The len(ds) returns the length of the "
@@ -3560,7 +3563,12 @@ class Dataset:
         self.link_creds.add_creds_key(creds_key)
         save_link_creds(self.link_creds, self.storage)
 
-    def populate_creds(self, creds_key: str, creds: dict):
+    def populate_creds(
+        self,
+        creds_key: str,
+        creds: Optional[dict] = None,
+        from_environment: bool = False,
+    ):
         """Populates the creds key added in add_creds_key with the given creds. These creds are used to fetch the external data.
         This needs to be done everytime the dataset is reloaded for datasets that contain links to external data.
 
@@ -3572,8 +3580,16 @@ class Dataset:
             >>> ds.add_creds_key("my_s3_key")
             >>> # populate the creds
             >>> ds.populate_creds("my_s3_key", {"aws_access_key_id": "my_access_key", "aws_secret_access_key": "my_secret_key"})
+            >>> # or
+            >>> ds.populate_creds("my_s3_key", from_environment=True)
 
         """
+        if creds and from_environment:
+            raise ValueError(
+                "Only one of creds or from_environment can be provided. Both cannot be provided at the same time."
+            )
+        if from_environment:
+            creds = {}
         self.link_creds.populate_creds(creds_key, creds)
 
     def update_creds_key(self, old_creds_key: str, new_creds_key: str):
