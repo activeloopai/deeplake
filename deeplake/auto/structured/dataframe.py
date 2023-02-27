@@ -3,15 +3,22 @@ from .base import StructuredDataset
 from deeplake import Dataset
 from deeplake import read, link
 from tqdm import tqdm  # type: ignore
+from deeplake.htype import HTYPE_SUPPORTED_COMPRESSIONS
+from collections import defaultdict
+from typing import  DefaultDict
+
+from deeplake.client.log import logger
+
 
 
 class DataFrame(StructuredDataset):
-    def __init__(self, source, column_params=None):
+    def __init__(self, source, column_params=None, creds=None):
         """Convert a pandas dataframe to a Deep Lake dataset.
 
         Args:
             source: Pandas dataframe object.
             column_params: Optional setting for the tensors corresponding to the dataframe columns
+            creds: Optional credentials for accessing the source data
 
         Raises:
             Exception: If source is not a pandas dataframe object.
@@ -22,9 +29,8 @@ class DataFrame(StructuredDataset):
         if not isinstance(self.source, pd.DataFrame):
             raise Exception("Source is not a pandas dataframe object.")
 
+        self.creds = creds
         self._initialize_params(column_params)
-
-        print("self.column_params: {}".format(self.column_params))
 
     def _sanitize_tensor(self, input: str):
         """Sanitize a string to be a valid tensor name
@@ -52,10 +58,35 @@ class DataFrame(StructuredDataset):
                 )  # Get the specified name, and if it doesn't exist, use the sanitized column name
             else:
                 column_params[key] = {
-                    "name": self._sanitize(key)
+                    "name": self._sanitize_tensor(key)
                 }  # If column parameters are not specified for a column, use the sanitized column name
 
         self.column_params = column_params
+
+    def _get_most_frequent_image_extension(self, fn_iterator):
+
+        supported_image_extensions = tuple(
+            HTYPE_SUPPORTED_COMPRESSIONS["image"] + ["jpg"]
+        )
+        invalid_files = []
+        image_extensions: DefaultDict[str, int] = defaultdict(int)
+
+        for file in fn_iterator:
+            if file.endswith(supported_image_extensions):
+                image_extensions[ext] += 1
+            else:
+                invalid_files.append(file)
+
+        if len(invalid_files) > 0:
+            logger.warning(
+                f"Encountered {len(invalid_files)} unsupported files the data folders and annotation folders (if specified)."
+            )
+
+        most_frequent_image_extension = max(
+            image_extensions, key=lambda k: image_extensions[k], default=None
+        )
+
+        return most_frequent_image_extension
 
     def fill_dataset(self, ds: Dataset, progressbar: bool = True) -> Dataset:
         """Fill dataset with data from the dataframe - one tensor per column
@@ -78,26 +109,19 @@ class DataFrame(StructuredDataset):
         with ds, iterator:
             for key in iterator:
                 if progressbar:
-                    print(f"\column={key}, dtype={self.source[key].dtype}")
-                try:
-                    # tensor_params = self.column_params.get(
-                    #     key, {"name": key}
-                    # )  # Pull columns settings if specified. If not, default the tensor name to the column name
-                    # if "name" not in tensor_params.keys():
-                    #     tensor_params.update(
-                    #         name=key
-                    #     )  # If column settings were specified but the name was omitted, the key should be used as the tensor name
+                    logger.info(f"\column={key}, dtype={self.source[key].dtype}")
+                # try:
 
-                    tensor_params = self.column_params[key]
+                tensor_params = self.column_params[key]
 
-                    dtype = self.source[key].dtype
-                    if (
-                        dtype == np.dtype("object")
-                        and "htype" not in tensor_params.keys()
-                    ):
+                dtype = self.source[key].dtype
+                if (
+                    "htype" not in tensor_params.keys()
+                ):  # Auto-set some typing parameters if htype is not specified
+                    if dtype == np.dtype("object"):
                         tensor_params.update(
                             htype="text"
-                        )  # Use "text" htype for text data, and if the htype is not specified
+                        )  # Use "text" htype for text data when the htype is not specified tensor_params
                     else:
                         tensor_params.update(
                             dtype=dtype,
@@ -106,36 +130,37 @@ class DataFrame(StructuredDataset):
                             ),
                         )  # htype will be auto-inferred for numeric data unless the htype is specified in tensor_params
 
-                    if key not in ds.tensors:
-                        ds.create_tensor(**tensor_params)
+                if tensor_params["name"] not in ds.tensors:
+                    ds.create_tensor(**tensor_params)
 
-                    if (
-                        "htype" in tensor_params.keys()
-                        and "link" in tensor_params["htype"]
-                    ):
-                        creds_key = tensor_params.get("creds_key", None)
-                        extend_values = [
-                            link(value, creds_key=creds_key)
-                            for value in self.source[key].values
-                        ]
-                    elif (
-                        "htype" in tensor_params.keys()
-                        and "image" in tensor_params["htype"]
-                    ):
-                        extend_values = [
-                            read(value) for value in self.source[key].values
-                        ]
-                    else:
-                        extend_values = self.source[key].values
+                if (
+                    "htype" in tensor_params.keys()
+                    and "link[" in tensor_params["htype"]
+                ):
+                    creds_key = tensor_params.get("creds_key", None)
+                    extend_values = [
+                        link(value, creds_key=creds_key)
+                        for value in self.source[key].values
+                    ]
+                elif (
+                    "htype" in tensor_params.keys()
+                    and "image" in tensor_params["htype"]
+                ):
+                    
+                    extend_values = [
+                        read(value, creds = self.creds) for value in self.source[key].values
+                    ]
+                else:
+                    extend_values = self.source[key].values
 
-                    ds[tensor_params["name"]].extend(
-                        extend_values, progressbar=progressbar
-                    )
-                except Exception as e:
-                    print(str(e))
-                    skipped_keys.append(key)
-                    iterator.set_description(
-                        "Ingesting... (%i columns skipped)" % (len(skipped_keys))
-                    )
-                    continue
+                ds[tensor_params["name"]].extend(
+                    extend_values, progressbar=progressbar
+                )
+                # except Exception as e:
+                #     print("Error: {}".format(str(e)))
+                #     skipped_keys.append(key)
+                #     iterator.set_description(
+                #         "Ingesting... (%i columns skipped)" % (len(skipped_keys))
+                #     )
+                #     continue
         return ds

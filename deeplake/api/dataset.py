@@ -1082,7 +1082,7 @@ class dataset:
             ignore_keys (List[str]): A list of COCO keys to ignore.
             image_params (Optional[Dict]): A dictionary containing parameters for the images tensor.
             image_creds_key (Optional[str]): The name of the managed credentials to use for accessing the images directory via linked tensor.
-            src_creds (Optional[Dict]): Credentials to access the source path. If not provided, will be inferred from the environment.
+            src_creds (Optional[Dict]): Credentials to access the source data. If not provided, will be inferred from the environment.
             dest_creds (Optional[Dict]): A dictionary containing credentials used to access the destination path of the dataset.
             inspect_limit (int): The maximum number of samples to inspect in the annotations json, in order to generate the set of COCO annotation keys. Set to ``1000000`` by default.
             progressbar (bool): Enables or disables ingestion progress bar. Set to ``True`` by default.
@@ -1196,7 +1196,7 @@ class dataset:
             image_params (Optional[Dict]): A dictionary containing parameters for the images tensor.
             label_params (Optional[Dict]): A dictionary containing parameters for the labels tensor.
             coordinates_params (Optional[Dict]): A dictionary containing parameters for the ccoordinates tensor. This tensor either contains bounding boxes or polygons.
-            src_creds (Optional[Dict]): Credentials to access the source path. If not provided, will be inferred from the environment.
+            src_creds (Optional[Dict]): Credentials to access the source data. If not provided, will be inferred from the environment.
             dest_creds (Optional[Dict]): A dictionary containing credentials used to access the destination path of the dataset.
             image_creds_key (Optional[str]): creds_key for linked tensors, applicable if the htype for the images tensor is specified as 'link[image]' in the 'image_params' input.
             inspect_limit (int): The maximum number of annotations to inspect, in order to infer whether they are bounding boxes of polygons. This in put is ignored if the htype is specfied in the 'coordinates_params'.
@@ -1506,6 +1506,7 @@ class dataset:
         dest: Union[str, pathlib.Path],
         dest_creds: Optional[Dict] = None,
         column_params: Optional[Dict] = None,
+        src_creds: Optional[Dict] = None,
         progressbar: bool = True,
         token: Optional[str] = None,
         connect_kwargs: Optional[Dict] = None,
@@ -1521,6 +1522,7 @@ class dataset:
                 - an s3 path of the form ``s3://bucketname/path/to/dataset``. Credentials are required in either the environment or passed to the creds argument.
                 - a local file system path of the form ``./path/to/dataset`` or ``~/path/to/dataset`` or ``path/to/dataset``.
                 - a memory path of the form ``mem://path/to/dataset`` which doesn't save the dataset but keeps it in memory instead. Should be used only for testing as it does not persist.
+            src_creds (Optional[Dict]): Credentials to access the source data. If not provided, will be inferred from the environment.
             dest_creds (Optional[Dict]): A dictionary containing credentials used to access the destination path of the dataset.
             column_params (Optional[Dict]): A dictionary containing parameters for the tensors corresponding to the dataframe columns.
             progressbar (bool): Enables or disables ingestion progress bar. Set to ``True`` by default.
@@ -1547,7 +1549,7 @@ class dataset:
         if not isinstance(src, pd.DataFrame):
             raise Exception("Source provided is not a valid pandas dataframe object")
 
-        structured = DataFrame(src, column_params)
+        structured = DataFrame(src, column_params, src_creds)
 
         dest = convert_pathlib_to_string_if_needed(dest)
         ds = deeplake.empty(
