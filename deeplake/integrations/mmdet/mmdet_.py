@@ -1326,9 +1326,9 @@ def _train_detector(
     # register eval hooks
     if validate:
         val_dataloader_default_args = dict(
-            samples_per_gpu=batch_size,
-            workers_per_gpu=num_workers,
-            dist=distributed,
+            samples_per_gpu=1,
+            workers_per_gpu=1,
+            dist=False,
             shuffle=False,
             persistent_workers=False,
             mode="val",
