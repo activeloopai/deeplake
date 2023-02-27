@@ -1219,7 +1219,7 @@ def _train_detector(
 
     if hasattr(model, "CLASSES"):
         warnings.warn("model already has a CLASSES attribute. Will be ignored.")
-    if hasattr(ds_train[train_labels_tensor].info, "class_names"):
+    elif hasattr(ds_train[train_labels_tensor].info, "class_names"):
         model.CLASSES = ds_train[train_labels_tensor].info.class_names
 
     metrics_format = cfg.get("deeplake_metrics_format", "COCO")
