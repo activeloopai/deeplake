@@ -241,11 +241,13 @@ class Pipeline:
                 load_meta(original_data_in)
                 if pad_data_in and not initial_padding_state:
                     original_data_in._disable_padding()
-                rechunk_if_necessary(original_data_in)
+                if not kwargs.get("disable_rechunk"):
+                    rechunk_if_necessary(original_data_in)
             else:
                 load_meta(target_ds)
                 target_ds.storage.autoflush = initial_autoflush
-                rechunk_if_necessary(target_ds)
+                if not kwargs.get("disable_rechunk"):
+                    rechunk_if_necessary(target_ds)
 
     def run(
         self,

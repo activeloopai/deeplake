@@ -564,9 +564,13 @@ def rechunk_if_necessary(ds):
                             while True:
                                 encoded = enc._encoded
                                 for row, chunk_id in enumerate(encoded[:, 0]):
-                                    engine._check_rechunk(
-                                        engine.get_chunk_from_chunk_id(chunk_id), row
-                                    )
+                                    try:
+                                        engine._check_rechunk(
+                                            engine.get_chunk_from_chunk_id(chunk_id), row
+                                        )
+                                    # not supported on gdrive
+                                    except NotImplementedError:
+                                        break
                                     rechunked = len(encoded) != len(enc._encoded)
                                     if rechunked:
                                         break
