@@ -2933,14 +2933,16 @@ class Dataset:
                 warnings.warn(
                     f"This view is already saved with id '{vds_id}'. A copy of this view will be created with the provided id '{id}'"
                 )
-        (self._view_base or self).flush()
+        base = self._view_base or self
+        if not base._read_only:
+            base.flush()
         if vds is None:
             if path is None:
                 if isinstance(self, MemoryProvider):
                     raise NotImplementedError(
                         "Saving views inplace is not supported for in-memory datasets."
                     )
-                if self.read_only and not (self._view_base or self)._locked_out:
+                if self.read_only and not base._locked_out:
                     if isinstance(self, deeplake.core.dataset.DeepLakeCloudDataset):
                         try:
                             with self._temp_write_access():
