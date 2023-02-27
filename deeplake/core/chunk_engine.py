@@ -1283,7 +1283,11 @@ class ChunkEngine:
 
         for idx in range(chunk.num_samples):
             sample_data = chunk.read_sample(idx, decompress=decompress)
-            sample_shape = chunk.shapes_encoder[idx]
+            try:
+                sample_shape = chunk.shapes_encoder[idx]
+            except IndexError:
+                all_samples_in_chunk.append(None)
+                continue
             new_sample = self._get_sample_object(
                 sample_data, sample_shape, chunk.compression, chunk.dtype, decompress
             )
@@ -1357,7 +1361,7 @@ class ChunkEngine:
             samples,
             start_chunk=to_chunk,
             register=True,
-            update_commit_diff=True,
+            update_commit_diff=False,  # merging chunks should not update diff
             update_tensor_meta=False,
             start_chunk_row=to_chunk_row,
             register_creds=False,

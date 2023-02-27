@@ -335,7 +335,8 @@ def test_chain_transform_list_small(local_ds, scheduler):
     for i in range(100):
         for index in range(6 * i, 6 * i + 6):
             np.testing.assert_array_equal(
-                ds_out[index].image.numpy(), 15 * i * np.ones((337, 200))
+                ds_out[index].image.numpy(),
+                np.asarray(15 * i * np.ones((337, 200)), dtype=np.uint8),
             )
             np.testing.assert_array_equal(
                 ds_out[index].label.numpy(), 15 * i * np.ones((1,))
@@ -396,7 +397,8 @@ def test_add_to_non_empty_dataset(local_ds, scheduler, do_commit):
     for i in range(100):
         for index in range(10 + 6 * i, 10 + 6 * i + 6):
             np.testing.assert_array_equal(
-                ds_out[index].image.numpy(), 15 * i * np.ones((337, 200))
+                ds_out[index].image.numpy(),
+                np.asarray(15 * i * np.ones((337, 200)), dtype=np.uint8),
             )
             np.testing.assert_array_equal(
                 ds_out[index].label.numpy(), 15 * i * np.ones((1,))
@@ -912,7 +914,7 @@ def test_transform_skip_ok(local_ds_generator):
     for i in range(100):
         for index in range(6 * i, 6 * i + 6):
             np.testing.assert_array_equal(
-                ds.image[index].numpy(), 15 * i * np.ones((337, 200))
+                ds.image[index].numpy(), np.asarray(15 * i * np.ones((337, 200)), dtype=np.uint8)
             )
             np.testing.assert_array_equal(
                 ds.label[index].numpy(), 15 * i * np.ones((1,))
@@ -925,7 +927,7 @@ def test_transform_skip_ok(local_ds_generator):
     for i in range(100):
         for index in range(6 * i, 6 * i + 6):
             np.testing.assert_array_equal(
-                ds.image[index].numpy(), 15 * i * np.ones((337, 200))
+                ds.image[index].numpy(), np.asarray(15 * i * np.ones((337, 200)), dtype=np.uint8)
             )
             np.testing.assert_array_equal(
                 ds.label[index].numpy(), 15 * i * np.ones((1,))

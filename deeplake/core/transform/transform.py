@@ -244,6 +244,12 @@ class Pipeline:
             else:
                 load_meta(target_ds)
                 target_ds.storage.autoflush = initial_autoflush
+            if not target_ds.read_only:
+                target_ds.img.chunk_engine.chunk_id_encoder.is_dirty = True
+                target_ds.flush()
+                print(target_ds.img.chunk_engine.num_chunks)
+            if not kwargs.get("disable_rechunk"):
+                rechunk_if_necessary(target_ds)
 
     def run(
         self,
@@ -376,9 +382,6 @@ class Pipeline:
                 scheduler=scheduler,
                 verbose=progressbar,
             )
-
-        if not kwargs.get("disable_rechunk"):
-            rechunk_if_necessary(target_ds, generated_tensors)
 
 
 def compose(functions: List[ComputeFunction]):  # noqa: DAR101, DAR102, DAR201, DAR401
