@@ -186,7 +186,7 @@ class DeeplakeQueryTensorWithSliceIndices(DeepLakeQueryTensor):
         )
         # TO DO: Optimize this, we shouldn't be loading indra tensor here.
         self.idxs = tuple([idx.value for idx in self.index.values])
-        self.shapes = self.indra_tensors.shape
+        # self.shapes = self.indra_tensors.shape
 
     # def _set_tensors_list(self):
     #     if len(self.index.values) == 1:
@@ -293,8 +293,7 @@ class DeeplakeQueryTensorWithSliceIndices(DeepLakeQueryTensor):
 
     @property
     def shape(self):
-        indra_tensors = self.indra_tensors
-        indra_tensor_shapes = indra_tensors[self.idxs].shape
+        indra_tensor_shapes = self.indra_tensors[self.idxs].shape
 
         if list not in map(type, self.tensors_list):
             return indra_tensor_shapes
