@@ -240,15 +240,15 @@ A bbox tensor can be created using
 >>> ds.create_tensor("boxes", htype="bbox", coords={"type": "fractional", "mode": "CCWH"})
 
 - Optional args:
-    - coords: A dictionary with keys "type" and "mode".
-        - type: Specifies the units of bounding box coordinates.
+    - **coords**: A dictionary with keys "type" and "mode".
+        - **type**: Specifies the units of bounding box coordinates.
             - "pixel": is in unit of pixels.
             - "fractional": is in units relative to the width and height of the image, such as in YOLO format.
-        - mode: Specifies the convention for the 4 coordinates
+        - **mode**: Specifies the convention for the 4 coordinates
             - "LTRB": left_x, top_y, right_x, bottom_y
             - "LTWH": left_x, top_y, width, height
             - "CCWH": center_x, center_y, width, height
-    - dtype: Defaults to ``float32``.
+    - **dtype**: Defaults to ``float32``.
     - :ref:`sample_compression <sample_compression>` or :ref:`chunk_compression <chunk_compression>`.
 
 - Supported compressions:
@@ -316,7 +316,36 @@ A 3d bbox tensor can be created using
 >>> ds.create_tensor("3d_boxes", htype="bbox.3d")
 
 - Optional args:
-    - dtype: Defaults to ``float32``.
+    - **coords**: A dictionary with keys "type" and "mode".
+        - **mode**: In order for bounding boxes to be correctly displayed by the visualizer, the format of the bounding box should be either of the following.
+                    If mode is not specified, visualizer defaults to "center" mode.
+            - "center": [center_x, center_y, center_z, length, width, height, rot_x, rot_y, rot_z]
+                - ``length`` - is the length of the bounding box along x direction
+                - ``width``  - is the width of the bounding box along y direction
+                - ``height``  - is the height of the bounding box along z direction
+                - ``rot_x`` - rotation angle along x axis, given in degrees
+                - ``rot_y`` - rotation angle along y axis, given in degrees
+                - ``rot_z`` - rotation angle along z axis, given in degrees
+            - "vertex": 8 3D vertices - [(x0, y0, z0), (x1, y1, z1), (x2, y2, z2), ....., (x7, y7, z7)]
+                The vertex order is of the following form:
+                ```
+                                 4_____________________ 5
+                                /|                    /|
+                               / |                   / |
+                              /  |                  /  |
+                             /___|_________________/   |
+                           0|    |                 | 1 |
+                            |    |                 |   |
+                            |    |                 |   |
+                            |    |                 |   |
+                            |    |_________________|___|
+                            |   /  7               |   / 6
+                            |  /                   |  /
+                            | /                    | /
+                            |/_____________________|/
+                             3                      2
+                ```
+    - **dtype**: Defaults to ``float32``.
     - :ref:`sample_compression <sample_compression>` or :ref:`chunk_compression <chunk_compression>`.
 
 - Supported compressions:
