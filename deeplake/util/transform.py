@@ -566,7 +566,8 @@ def rechunk_if_necessary(ds):
                                 for row, chunk_id in enumerate(encoded[:, 0]):
                                     try:
                                         engine._check_rechunk(
-                                            engine.get_chunk_from_chunk_id(chunk_id), row
+                                            engine.get_chunk_from_chunk_id(chunk_id),
+                                            row,
                                         )
                                     # not supported on gdrive
                                     except NotImplementedError:

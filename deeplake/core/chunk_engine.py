@@ -1277,9 +1277,9 @@ class ChunkEngine:
         samples_to_move.reverse()
         return samples_to_move
 
-    def _get_chunk_samples(self, chunk) -> List[Sample]:
+    def _get_chunk_samples(self, chunk) -> List[Optional[Sample]]:
         decompress = isinstance(chunk, ChunkCompressedChunk)
-        all_samples_in_chunk: List[Sample] = []
+        all_samples_in_chunk: List[Optional[Sample]] = []
 
         for idx in range(chunk.num_samples):
             sample_data = chunk.read_sample(idx, decompress=decompress)

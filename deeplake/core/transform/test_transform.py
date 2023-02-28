@@ -914,7 +914,8 @@ def test_transform_skip_ok(local_ds_generator):
     for i in range(100):
         for index in range(6 * i, 6 * i + 6):
             np.testing.assert_array_equal(
-                ds.image[index].numpy(), np.asarray(15 * i * np.ones((337, 200)), dtype=np.uint8)
+                ds.image[index].numpy(),
+                np.asarray(15 * i * np.ones((337, 200)), dtype=np.uint8),
             )
             np.testing.assert_array_equal(
                 ds.label[index].numpy(), 15 * i * np.ones((1,))
@@ -927,7 +928,8 @@ def test_transform_skip_ok(local_ds_generator):
     for i in range(100):
         for index in range(6 * i, 6 * i + 6):
             np.testing.assert_array_equal(
-                ds.image[index].numpy(), np.asarray(15 * i * np.ones((337, 200)), dtype=np.uint8)
+                ds.image[index].numpy(),
+                np.asarray(15 * i * np.ones((337, 200)), dtype=np.uint8),
             )
             np.testing.assert_array_equal(
                 ds.label[index].numpy(), 15 * i * np.ones((1,))
