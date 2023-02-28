@@ -398,6 +398,7 @@ class Dataset:
         state["_temp_tensors"] = []
         state["libdeeplake_dataset"] = None
         state["_vc_info_updated"] = False
+        state["_locked_out"] = False
         self.__dict__.update(state)
         self.__dict__["base_storage"] = get_base_storage(self.storage)
         # clear cache while restoring
