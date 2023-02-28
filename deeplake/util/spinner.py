@@ -1,4 +1,4 @@
-from deeplake.constants import SPINNER_START_DELAY
+from deeplake.constants import SPINNER_START_DELAY, DISABLE_SPINNER
 from deeplake.client.log import configure_logger
 from logging import StreamHandler
 from itertools import cycle
@@ -29,7 +29,7 @@ class DummyFile:
 @contextlib.contextmanager
 def run_spinner(spinner):
     try:
-        if not isinstance(sys.stdout, DummyFile) and "pytest" not in sys.modules:
+        if not isinstance(sys.stdout, DummyFile) and not DISABLE_SPINNER:
             spinner.start()
             spinner_started = True
             save_stdout = sys.stdout
