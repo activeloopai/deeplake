@@ -66,7 +66,6 @@ class Lock(object):
             if read_only:
                 storage.enable_readonly()
 
-
     def refresh_lock(self):
         storage = self.storage
         path = self.path
