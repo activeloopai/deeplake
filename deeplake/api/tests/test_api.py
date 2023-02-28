@@ -2439,3 +2439,11 @@ def test_extend_with_empty_tensor(memory_ds):
 
         for i in range(len(data)):
             np.testing.assert_array_equal(data[i], expected[i])
+
+
+def test_np_array_in_info():
+    info = deeplake.api.info.Info()
+    x = np.random.random((3, 4))
+    info['x'] = x
+    info2 = deeplake.api.info.Info.frombuffer(info.tobytes())
+    np.testing.assert_array_equal(x, info2['x'])
