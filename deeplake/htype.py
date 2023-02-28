@@ -31,7 +31,7 @@ class htype:
     DICOM = "dicom"
     NIFTI = "nifti"
     POINT_CLOUD = "point_cloud"
-    POINT_CLOUD_CALIBRATION_MATRIX = "point_cloud.calibration_matrix"
+    INTRINSICS = "intrinsics"
     POLYGON = "polygon"
     MESH = "mesh"
 
@@ -83,7 +83,7 @@ HTYPE_CONFIGURATIONS: Dict[str, Dict] = {
     htype.DICOM: {"sample_compression": "dcm"},
     htype.NIFTI: {},
     htype.POINT_CLOUD: {"dtype": "float32"},
-    htype.POINT_CLOUD_CALIBRATION_MATRIX: {"dtype": "float32"},
+    htype.INTRINSICS: {"dtype": "float32"},
     htype.POLYGON: {"dtype": "float32"},
     htype.MESH: {"sample_compression": "ply"},
 }

@@ -579,7 +579,7 @@ def test_htype(memory_ds: Dataset):
         "point_cloud", htype="point_cloud", sample_compression="las"
     )
     memory_ds.create_tensor(
-        "point_cloud_calibration_matrix", htype="point_cloud.calibration_matrix"
+        "intrinsics", htype="intrinsics"
     )
 
     image.append(np.ones((28, 28, 3), dtype=np.uint8))
@@ -602,7 +602,7 @@ def test_htype(memory_ds: Dataset):
     point_cloud.append(deeplake.read(point_cloud_dummy_data_path / "point_cloud.las"))
     # Along the forst direcection three matrices are concatenated, the first matrix is P,
     # the second one is Tr and the third one is R
-    memory_ds.point_cloud_calibration_matrix.append(
+    memory_ds.intrinsics.append(
         np.zeros((3, 4, 4), dtype=np.float32)
     )
 
@@ -1065,7 +1065,7 @@ def test_htypes_list():
         "nifti",
         "point",
         "point_cloud",
-        "point_cloud.calibration_matrix",
+        "intrinsics",
         "polygon",
         "segment_mask",
         "text",
