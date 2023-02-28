@@ -91,7 +91,8 @@ HTYPE_CONFIGURATIONS: Dict[str, Dict] = {
 }
 
 HTYPE_VERIFICATIONS: Dict[str, Dict] = {
-    htype.BBOX: {"coords": {"type": dict, "keys": ["type", "mode"]}}
+    htype.BBOX: {"coords": {"type": dict, "keys": ["type", "mode"]}},
+    htype.BBOX_3D: {"coords": {"type": dict, "keys": ["mode"]}},
 }
 
 _image_compressions = (
@@ -146,6 +147,6 @@ def verify_htype_key_value(htype, key, value):
             raise TypeError(f"{key} must be of type {expected_type}, not {type(value)}")
         if expected_type == dict:
             expected_keys = set(htype_verifications[key].get("keys"))
-            present_keys = set(value.keys())
+            present_keys = set(value)
             if expected_keys and not present_keys.issubset(expected_keys):
                 raise KeyError(f"{key} must have keys belong to {expected_keys}")

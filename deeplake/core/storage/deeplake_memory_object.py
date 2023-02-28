@@ -21,7 +21,9 @@ class DeepLakeMemoryObject(ABC):
 
     def tobytes(self) -> bytes:
         d = {str(k): v for k, v in self.__getstate__().items()}
-        return bytes(json.dumps(d, sort_keys=True, indent=4, cls=HubJsonEncoder), "utf-8")
+        return bytes(
+            json.dumps(d, sort_keys=True, indent=4, cls=HubJsonEncoder), "utf-8"
+        )
 
     @classmethod
     def frombuffer(cls, buffer: bytes):

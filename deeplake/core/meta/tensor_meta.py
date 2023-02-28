@@ -293,10 +293,7 @@ def _replace_unspecified_values(htype: str, htype_overwrite: dict):
         if isinstance(v, str) and v == UNSPECIFIED:
             htype_overwrite[k] = defaults[k]
 
-    if (
-        htype in ("json", "list", "text", "intrinsics")
-        and not htype_overwrite["dtype"]
-    ):
+    if htype in ("json", "list", "text", "intrinsics") and not htype_overwrite["dtype"]:
         htype_overwrite["dtype"] = HTYPE_CONFIGURATIONS[htype]["dtype"]
 
 
