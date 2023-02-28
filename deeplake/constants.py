@@ -167,4 +167,4 @@ SHOW_ITERATION_WARNING = True
 
 # Delay before spinner starts on time consuming functions (in seconds)
 SPINNER_START_DELAY = 2
-DISABLE_SPINNER = "pytest" in sys.modules
+SPINNER_ENABLED = "pytest" not in sys.modules
