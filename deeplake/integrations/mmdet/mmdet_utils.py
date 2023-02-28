@@ -22,6 +22,7 @@ from deeplake.util.warnings import always_warn
 import json
 import mmcv  # type: ignore
 import math
+from tqdm import tqdm
 
 
 def _isArrayLike(obj):
@@ -74,7 +75,11 @@ class _COCO(pycocotools_coco.COCO):
         all_imgs = self.imgs_orig
         all_iscrowds = self.iscrowds
 
-        for row_index, row in enumerate(self.dataset):
+        for row_index, row in tqdm(
+            enumerate(self.dataset),
+            desc="loading annotations",
+            total=len(self.dataset),
+        ):
             if all_imgs[row_index].size == 0:
                 always_warn(
                     "found empty image, skipping it. Please verify that your dataset is not corrupted."
