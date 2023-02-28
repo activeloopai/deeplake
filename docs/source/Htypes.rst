@@ -327,8 +327,8 @@ A 3d bbox tensor can be created using
                 - ``rot_y`` - rotation angle along y axis, given in degrees
                 - ``rot_z`` - rotation angle along z axis, given in degrees
             - "vertex": 8 3D vertices - [(x0, y0, z0), (x1, y1, z1), (x2, y2, z2), ....., (x7, y7, z7)]
-                The vertex order is of the following form:
-                ```
+                The vertex order is of the following form::
+
                                  4_____________________ 5
                                 /|                    /|
                                / |                   / |
@@ -344,7 +344,7 @@ A 3d bbox tensor can be created using
                             | /                    | /
                             |/_____________________|/
                              3                      2
-                ```
+
     - **dtype**: Defaults to ``float32``.
     - :ref:`sample_compression <sample_compression>` or :ref:`chunk_compression <chunk_compression>`.
 
