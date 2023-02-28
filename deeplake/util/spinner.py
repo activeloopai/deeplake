@@ -29,7 +29,7 @@ class DummyFile:
 @contextlib.contextmanager
 def run_spinner(spinner):
     try:
-        if not isinstance(sys.stdout, DummyFile):
+        if not isinstance(sys.stdout, DummyFile) and "pytest" not in sys.modules:
             spinner.start()
             spinner_started = True
             save_stdout = sys.stdout
@@ -43,6 +43,7 @@ def run_spinner(spinner):
             logger.addHandler(StreamHandler(stream=sys.stdout))
         else:
             # another spinner active
+            # or tests running
             spinner_started = False
         yield
     finally:
