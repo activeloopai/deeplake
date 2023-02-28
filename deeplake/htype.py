@@ -47,6 +47,8 @@ HTYPE_CONFIGURATIONS: Dict[str, Dict] = {
     htype.DEFAULT: {"dtype": None},
     htype.IMAGE: {
         "dtype": "uint8",
+        "intrinsics": None,
+        "_info": ["intrinsics"],
     },
     htype.IMAGE_RGB: {
         "dtype": "uint8",
