@@ -5,10 +5,11 @@ from deeplake import read, link
 from tqdm import tqdm  # type: ignore
 from deeplake.htype import HTYPE_SUPPORTED_COMPRESSIONS
 from collections import defaultdict
-from typing import  DefaultDict
+from typing import DefaultDict
+import pathlib
+
 
 from deeplake.client.log import logger
-
 
 
 class DataFrame(StructuredDataset):
@@ -65,6 +66,8 @@ class DataFrame(StructuredDataset):
 
     def _get_most_frequent_image_extension(self, fn_iterator):
 
+        # TODO: Make this generic and work for any htype that requires compression
+
         supported_image_extensions = tuple(
             HTYPE_SUPPORTED_COMPRESSIONS["image"] + ["jpg"]
         )
@@ -73,6 +76,9 @@ class DataFrame(StructuredDataset):
 
         for file in fn_iterator:
             if file.endswith(supported_image_extensions):
+                ext = pathlib.Path(file).suffix[
+                    1:
+                ]  # Get extension without the . symbol
                 image_extensions[ext] += 1
             else:
                 invalid_files.append(file)
@@ -87,6 +93,40 @@ class DataFrame(StructuredDataset):
         )
 
         return most_frequent_image_extension
+
+    def _parse_tensor_params(self, key):
+
+        tensor_params = {}
+
+        tensor_params = self.column_params[key]
+
+        dtype = self.source[key].dtype
+        if (
+            "htype" not in tensor_params.keys()
+        ):  # Auto-set some typing parameters if htype is not specified
+            if dtype == np.dtype("object"):
+                tensor_params.update(
+                    htype="text"
+                )  # Use "text" htype for text data when the htype is not specified tensor_params
+            else:
+                tensor_params.update(
+                    dtype=dtype,
+                    create_shape_tensor=tensor_params.get("create_shape_tensor", False),
+                )  # htype will be auto-inferred for numeric data unless the htype is specified in tensor_params
+
+        # TODO: Make this more robust so it works for all htypes where sample_compression is required and should be inferred from the data itself
+        if (
+            tensor_params.get("htype", None) == "image"
+            and "sample_compression" not in tensor_params.keys()
+            and "chunk_compression" not in tensor_params.keys()
+        ):
+            tensor_params.update(
+                sample_compression=self._get_most_frequent_image_extension(
+                    self.source[key].values
+                )
+            )
+
+        return tensor_params
 
     def fill_dataset(self, ds: Dataset, progressbar: bool = True) -> Dataset:
         """Fill dataset with data from the dataframe - one tensor per column
@@ -112,23 +152,7 @@ class DataFrame(StructuredDataset):
                     logger.info(f"\column={key}, dtype={self.source[key].dtype}")
                 # try:
 
-                tensor_params = self.column_params[key]
-
-                dtype = self.source[key].dtype
-                if (
-                    "htype" not in tensor_params.keys()
-                ):  # Auto-set some typing parameters if htype is not specified
-                    if dtype == np.dtype("object"):
-                        tensor_params.update(
-                            htype="text"
-                        )  # Use "text" htype for text data when the htype is not specified tensor_params
-                    else:
-                        tensor_params.update(
-                            dtype=dtype,
-                            create_shape_tensor=tensor_params.get(
-                                "create_shape_tensor", False
-                            ),
-                        )  # htype will be auto-inferred for numeric data unless the htype is specified in tensor_params
+                tensor_params = self._parse_tensor_params(key)
 
                 if tensor_params["name"] not in ds.tensors:
                     ds.create_tensor(**tensor_params)
@@ -146,16 +170,15 @@ class DataFrame(StructuredDataset):
                     "htype" in tensor_params.keys()
                     and "image" in tensor_params["htype"]
                 ):
-                    
+
                     extend_values = [
-                        read(value, creds = self.creds) for value in self.source[key].values
+                        read(value, creds=self.creds)
+                        for value in self.source[key].values
                     ]
                 else:
                     extend_values = self.source[key].values
 
-                ds[tensor_params["name"]].extend(
-                    extend_values, progressbar=progressbar
-                )
+                ds[tensor_params["name"]].extend(extend_values, progressbar=progressbar)
                 # except Exception as e:
                 #     print("Error: {}".format(str(e)))
                 #     skipped_keys.append(key)
