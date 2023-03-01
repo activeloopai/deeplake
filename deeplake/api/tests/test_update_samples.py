@@ -366,10 +366,16 @@ def test_sequence_htype_with_deeplake_read(local_ds, shape, compressed_image_pat
             else:
                 ds.x.append(arrs)
     ds.x[0][1] = new_imgs[1]
-    np.testing.assert_array_equal(ds.x[0][1].numpy(), new_imgs[1].array)
+    if len(new_imgs[1].shape) == 2:
+        np.testing.assert_array_equal(ds.x[0][1].numpy().squeeze(), new_imgs[1].array)
+    else:
+        np.testing.assert_array_equal(ds.x[0][1].numpy(), new_imgs[1].array)
     ds.x[1] = new_imgs
     for t, img in zip(ds.x[1], new_imgs):
-        np.testing.assert_array_equal(t.numpy(), img.array)
+        if len(img.shape) == 2:
+            np.testing.assert_array_equal(t.numpy().squeeze(), img.array)
+        else:
+            np.testing.assert_array_equal(t.numpy(), img.array)
 
 
 def test_byte_positions_encoder_update_bug(memory_ds):
