@@ -273,11 +273,10 @@ class Dataset:
         self.storage.autoflush = False
         return self
 
-    @spinner
     def __exit__(self, exc_type, exc_val, exc_tb):
         self.storage.autoflush = self._initial_autoflush.pop()
-        if not self._read_only:
-            self.storage.maybe_flush()
+        if not self._read_only and self.storage.autoflush:
+            spinner(self.storage.flush)()
 
     @property
     def num_samples(self) -> int:
@@ -2554,28 +2553,29 @@ class Dataset:
             >>> ds.append({"data": [1, 2, 3, 4], "labels":[0, 1, 2, 3]})
 
         """
+        tensors = self.tensors
         if isinstance(sample, Dataset):
             sample = sample.tensors
         if not isinstance(sample, dict):
             raise SampleAppendingError()
 
-        skipped_tensors = [k for k in self.tensors if k not in sample]
+        skipped_tensors = [k for k in tensors if k not in sample]
         if skipped_tensors and not skip_ok and not append_empty:
             raise KeyError(
                 f"Required tensors not provided: {skipped_tensors}. Pass either `skip_ok=True` to skip tensors or `append_empty=True` to append empty samples to unspecified tensors."
             )
         for k in sample:
-            if k not in self._tensors():
+            if k not in tensors:
                 raise TensorDoesNotExistError(k)
-        tensors_to_check_length = self.tensors if append_empty else sample
-        if len(set(map(len, (self[k] for k in tensors_to_check_length)))) != 1:
+        tensors_to_check_length = tensors if append_empty else sample
+        if len(set(map(len, (tensors[k] for k in tensors_to_check_length)))) != 1:
             raise ValueError(
                 "When appending using Dataset.append, all tensors being updated are expected to have the same length."
             )
         [f() for f in list(self._update_hooks.values())]
         tensors_appended = []
         with self:
-            for k in self.tensors:
+            for k in tensors:
                 if k in sample:
                     v = sample[k]
                 else:
@@ -2584,7 +2584,7 @@ class Dataset:
                     else:
                         v = None
                 try:
-                    tensor = self[k]
+                    tensor = tensors[k]
                     enc = tensor.chunk_engine.chunk_id_encoder
                     num_chunks = enc.num_chunks
                     tensor.append(v)
