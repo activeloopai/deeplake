@@ -2670,7 +2670,7 @@ class Dataset:
             info["message"] = message
         query = getattr(self, "_query", None)
         if query:
-            info["query"] = query
+            info["tql_query"] = query
             info["source-dataset-index"] = getattr(self, "_source_ds_idx", None)
         return info
 
@@ -3075,7 +3075,7 @@ class Dataset:
         ret = []
         for query in filtered_queries:
             ViewClass = ViewEntry
-            if query.get("query"):
+            if query.get("tql_query"):
                 ViewClass = NonlinearQueryView
 
             ret.append(ViewClass(info=query, dataset=self))
@@ -3085,7 +3085,7 @@ class Dataset:
             if queries:
                 for query in filtered_queries:
                     ViewClass = ViewEntry
-                    if query.get("query"):
+                    if query.get("tql_query"):
                         ViewClass = NonlinearQueryView
 
                     ret.append(
@@ -3123,7 +3123,7 @@ class Dataset:
         queries = self._read_queries_json()
         for q in queries:
             if q["id"] == id:
-                query = q.get("query")
+                query = q.get("tql_query")
                 if query:
                     return NonlinearQueryView(q, self)
                 return ViewEntry(q, self)
@@ -3132,7 +3132,7 @@ class Dataset:
             queries, qds = self._read_queries_json_from_user_account()
             for q in queries:
                 if q["id"] == f"[{self.org_id}][{self.ds_name}]{id}":
-                    query = q.get("query")
+                    query = q.get("tql_query")
                     if query:
                         return NonlinearQueryView(q, qds, self, True)
                     return ViewEntry(q, qds, self, True)
