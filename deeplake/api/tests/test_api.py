@@ -1950,8 +1950,9 @@ def test_text_label(local_ds_generator):
     verify_label_data(ds)
 
 
+@pytest.mark.parametrize("scheduler", ["threaded", "processed"])
 @pytest.mark.parametrize("num_workers", [0, 2])
-def test_text_labels_transform(local_ds_generator, num_workers):
+def test_text_labels_transform(local_ds_generator, scheduler, num_workers):
     with local_ds_generator() as ds:
         ds.create_tensor("labels", htype="class_label")
         ds.create_tensor("multiple_labels", htype="class_label")
@@ -1974,7 +1975,7 @@ def test_text_labels_transform(local_ds_generator, num_workers):
             return label_idx_map[data]
         return [convert_to_idx(label, label_idx_map) for label in data]
 
-    upload().eval(data, ds, num_workers=num_workers)
+    upload().eval(data, ds, scheduler=scheduler, num_workers=num_workers)
 
     for tensor in ("labels", "multiple_labels", "seq_labels"):
         class_names = ds[tensor].info.class_names
