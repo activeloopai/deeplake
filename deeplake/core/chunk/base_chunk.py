@@ -624,6 +624,8 @@ def catch_chunk_read_error(fn):
     def wrapper(self, *args, **kwargs):
         try:
             return fn(self, *args, **kwargs)
+        except EmptyTensorError:
+            raise
         except Exception as e:
             raise ReadSampleFromChunkError(self.key) from e
 
