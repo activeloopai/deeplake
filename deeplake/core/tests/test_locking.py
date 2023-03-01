@@ -10,6 +10,7 @@ from deeplake.tests.dataset_fixtures import (
     enabled_persistent_non_gdrive_dataset_generators,
 )
 from concurrent.futures import ThreadPoolExecutor
+import deeplake
 
 _counter = 0
 
@@ -37,42 +38,50 @@ class VM(object):
 
 @enabled_persistent_non_gdrive_dataset_generators
 def test_dataset_locking(ds_generator):
-    ds = ds_generator()
-    ds.create_tensor("x")
-    arr = np.random.random((32, 32))
-    ds.x.append(arr)
+    deeplake.constants.LOCK_LOCAL_DATASETS = True
+    try:
+        ds = ds_generator()
+        ds.create_tensor("x")
+        arr = np.random.random((32, 32))
+        ds.x.append(arr)
 
-    with VM():
-        # Make sure read only warning is raised
-        with pytest.warns(UserWarning):
-            ds = ds_generator()
-            np.testing.assert_array_equal(arr, ds.x[0].numpy())
-        assert ds.read_only == True
-        with pytest.raises(LockedException):
-            ds.read_only = False
-        # Raise error if user explicitly asks for write access
-        with pytest.raises(LockedException):
-            ds = ds_generator(read_only=False)
-        # No warnings if user requests read only mode
-        with warnings.catch_warnings(record=True) as ws:
-            ds = ds_generator(read_only=True)
-            np.testing.assert_array_equal(arr, ds.x[0].numpy())
-        assert not ws
+        with VM():
+            # Make sure read only warning is raised
+            with pytest.warns(UserWarning):
+                ds = ds_generator()
+                np.testing.assert_array_equal(arr, ds.x[0].numpy())
+            assert ds.read_only == True
+            with pytest.raises(LockedException):
+                ds.read_only = False
+            # Raise error if user explicitly asks for write access
+            with pytest.raises(LockedException):
+                ds = ds_generator(read_only=False)
+            # No warnings if user requests read only mode
+            with warnings.catch_warnings(record=True) as ws:
+                ds = ds_generator(read_only=True)
+                np.testing.assert_array_equal(arr, ds.x[0].numpy())
+            assert not ws
+    finally:
+        deeplake.constants.LOCK_LOCAL_DATASETS = False
 
 
 @enabled_persistent_non_gdrive_dataset_generators
 def test_vc_locking(ds_generator):
-    ds = ds_generator()
-    ds.create_tensor("x")
-    arr = np.random.random((32, 32))
-    ds.x.append(arr)
-    ds.commit()
-    ds.checkout("branch", create=True)
-    with VM():
-        with warnings.catch_warnings(record=True) as ws:
-            ds = ds_generator()
-        np.testing.assert_array_equal(arr, ds.x[0].numpy())
-        assert not ws, str(ws[0])
+    deeplake.constants.LOCK_LOCAL_DATASETS = True
+    try:
+        ds = ds_generator()
+        ds.create_tensor("x")
+        arr = np.random.random((32, 32))
+        ds.x.append(arr)
+        ds.commit()
+        ds.checkout("branch", create=True)
+        with VM():
+            with warnings.catch_warnings(record=True) as ws:
+                ds = ds_generator()
+            np.testing.assert_array_equal(arr, ds.x[0].numpy())
+            assert not ws, str(ws[0])
+    finally:
+        deeplake.constants.LOCK_LOCAL_DATASETS = False
 
 
 def test_lock_thread_leaking(s3_ds_generator):
