@@ -24,10 +24,7 @@ from deeplake.core.storage import (
 )
 from deeplake.core.tiling.deserialize import combine_chunks
 from deeplake.integrations.pytorch.common import check_tensors, validate_decode_method
-from deeplake.util.exceptions import (
-    DatasetUnsupportedPytorch,
-    SampleDecompressionError,
-)
+from deeplake.util.exceptions import DatasetUnsupportedPytorch, ReadSampleFromChunkError
 from deeplake.util.keys import get_chunk_key, get_tensor_meta_key
 from deeplake.util.remove_cache import get_base_storage
 from deeplake.util.storage import get_pytorch_local_storage
@@ -363,7 +360,7 @@ class SampleStreaming(Streaming):
                     else:
                         valid_sample_flag = False
                         break
-                except SampleDecompressionError:
+                except ReadSampleFromChunkError:
                     warn(
                         f"Skipping corrupt {engine.tensor_meta.sample_compression} sample at dataset.{key}[{idx}]"
                     )
