@@ -13,6 +13,10 @@ except ImportError:
     DistributedSampler = None  # type: ignore
 
 
+def identity(x):
+    return x
+
+
 def get_mode(tensor, raw_tensors, compressed_tensors):
     if tensor in raw_tensors:
         mode = "raw"
@@ -166,16 +170,17 @@ class DummyDataloader:
             compressed_tensors,
         )
         sampler = DistributedSampler(self.dataset) if distributed else None
+        prefetch_factor = prefetch_factor if num_workers and num_workers > 0 else 2
         self.loader = torch.utils.data.DataLoader(
             self.dataset,
             batch_size=batch_size or 1,
-            shuffle=shuffle,
-            num_workers=num_workers,
-            collate_fn=collate_fn,
+            shuffle=shuffle or False,
+            num_workers=num_workers or 0,
+            collate_fn=collate_fn or identity,
             sampler=sampler,
             prefetch_factor=prefetch_factor,
-            drop_last=drop_last,
-            persistent_workers=persistent_workers,
+            drop_last=drop_last or False,
+            persistent_workers=persistent_workers or False,
         )
 
     def __iter__(self):

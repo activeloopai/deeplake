@@ -17,6 +17,9 @@ try:
 except ImportError:
     pass
 
+from unittest.mock import patch
+
+
 # ensure tests have multiple chunks without a ton of data
 PYTORCH_TESTS_MAX_CHUNK_SIZE = 5 * KB
 
@@ -647,3 +650,37 @@ def test_pytorch_error_handling(hub_cloud_ds):
     ptds = ds.dataloader().pytorch(tensors=["x"])
     for _ in ptds:
         pass
+
+
+@patch("deeplake.constants.RETURN_DUMMY_DATA_FOR_DATALOADER", True)
+@requires_libdeeplake
+@requires_torch
+def test_pytorch_dummy_data(local_ds):
+    x_data = [
+        np.random.randint(0, 255, (100, 100, 3), dtype="uint8"),
+        np.random.randint(0, 255, (120, 120, 3), dtype="uint8"),
+    ]
+    y_data = [np.random.rand(100, 100, 3), np.random.rand(120, 120, 3)]
+    z_data = ["hello", "world"]
+    with local_ds as ds:
+        ds.create_tensor("x")
+        ds.create_tensor("y")
+        ds.create_tensor("z")
+        ds.x.extend(x_data)
+        ds.y.extend(y_data)
+        ds.z.extend(z_data)
+
+    ptds = ds.dataloader()
+    for i, batch in enumerate(ptds):
+        x = x_data[i]
+        dummy_x = batch[0]["x"]
+        assert dummy_x.shape == x.shape
+        assert dummy_x.dtype == x.dtype
+
+        y = y_data[i]
+        dummy_y = batch[0]["y"]
+        assert dummy_y.shape == y.shape
+        assert dummy_y.dtype == y.dtype
+
+        dummy_z = batch[0]["z"]
+        assert dummy_z[0] == "a"
