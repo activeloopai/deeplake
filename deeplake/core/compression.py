@@ -663,7 +663,7 @@ def read_meta_from_compressed_file(
         try:
             f = open(file, "rb")
         except FileNotFoundError as e:
-            raise SampleReadError(file) from e
+            raise SampleReadError(path) from e
         isfile = True
         close = True
     elif hasattr(file, "read"):

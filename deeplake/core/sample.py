@@ -444,7 +444,7 @@ class Sample:
                 elif path_type == "http":
                     self._buffer = self._read_from_http()
             except Exception as e:
-                raise SampleReadError(self.path) from e
+                raise SampleReadError(self.path) from e  # type: ignore
         return self._buffer  # type: ignore
 
     def _read_from_local(self) -> bytes:

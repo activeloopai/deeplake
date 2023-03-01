@@ -1869,6 +1869,9 @@ class ChunkEngine:
 
         Raises:
             DynamicTensorNumpyError: If shapes of the samples being read are not all the same.
+            GetChunkError: If a chunk cannot be retrieved from the storage.
+            ReadSampleFromChunkError: If a sample cannot be read from a chunk.
+            GetDataFromLinkError: If data cannot be retrieved from a link.
 
         Returns:
             Union[np.ndarray, List[np.ndarray]]: Either a list of numpy arrays or a single numpy array (depending on the `aslist` argument).
