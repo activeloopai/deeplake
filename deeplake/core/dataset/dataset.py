@@ -276,13 +276,13 @@ class Dataset:
         self.storage.autoflush = False
         return self
 
-    @spinner
     def __exit__(self, exc_type, exc_val, exc_tb):
+
         autoflush = self._initial_autoflush.pop()
         if not self._read_only and autoflush:
             if self._vc_info_updated:
                 self._flush_vc_info()
-            self.storage.flush()
+            spinner(self.storage.flush)()
         self.storage.autoflush = autoflush
 
     def maybe_flush(self):
@@ -291,6 +291,7 @@ class Dataset:
                 if self._vc_info_updated:
                     self._flush_vc_info()
                 self.storage.flush()
+
 
     @property
     def num_samples(self) -> int:
@@ -398,6 +399,7 @@ class Dataset:
         state["_temp_tensors"] = []
         state["libdeeplake_dataset"] = None
         state["_vc_info_updated"] = False
+        state["_locked_out"] = False
         self.__dict__.update(state)
         self.__dict__["base_storage"] = get_base_storage(self.storage)
         # clear cache while restoring
@@ -1273,6 +1275,10 @@ class Dataset:
         if isinstance(storage, tuple(_LOCKABLE_STORAGES)) and (
             not self.read_only or self._locked_out
         ):
+            if not deeplake.constants.LOCK_LOCAL_DATASETS and isinstance(
+                storage, LocalProvider
+            ):
+                return True
             try:
                 # temporarily disable read only on base storage, to try to acquire lock, if exception, it will be again made readonly
                 storage.disable_readonly()
@@ -2590,28 +2596,29 @@ class Dataset:
             >>> ds.append({"data": [1, 2, 3, 4], "labels":[0, 1, 2, 3]})
 
         """
+        tensors = self.tensors
         if isinstance(sample, Dataset):
             sample = sample.tensors
         if not isinstance(sample, dict):
             raise SampleAppendingError()
 
-        skipped_tensors = [k for k in self.tensors if k not in sample]
+        skipped_tensors = [k for k in tensors if k not in sample]
         if skipped_tensors and not skip_ok and not append_empty:
             raise KeyError(
                 f"Required tensors not provided: {skipped_tensors}. Pass either `skip_ok=True` to skip tensors or `append_empty=True` to append empty samples to unspecified tensors."
             )
         for k in sample:
-            if k not in self._tensors():
+            if k not in tensors:
                 raise TensorDoesNotExistError(k)
-        tensors_to_check_length = self.tensors if append_empty else sample
-        if len(set(map(len, (self[k] for k in tensors_to_check_length)))) != 1:
+        tensors_to_check_length = tensors if append_empty else sample
+        if len(set(map(len, (tensors[k] for k in tensors_to_check_length)))) != 1:
             raise ValueError(
                 "When appending using Dataset.append, all tensors being updated are expected to have the same length."
             )
         [f() for f in list(self._update_hooks.values())]
         tensors_appended = []
         with self:
-            for k in self.tensors:
+            for k in tensors:
                 if k in sample:
                     v = sample[k]
                 else:
@@ -2620,7 +2627,7 @@ class Dataset:
                     else:
                         v = None
                 try:
-                    tensor = self[k]
+                    tensor = tensors[k]
                     enc = tensor.chunk_engine.chunk_id_encoder
                     num_chunks = enc.num_chunks
                     tensor.append(v)
