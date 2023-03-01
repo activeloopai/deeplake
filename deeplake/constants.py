@@ -163,3 +163,6 @@ WANDB_JSON_FILENMAE = "wandb.json"
 
 SHOW_ITERATION_WARNING = True
 RETURN_DUMMY_DATA_FOR_DATALOADER = False
+
+# Delay before spinner starts on time consuming functions (in seconds)
+SPINNER_START_DELAY = 2

@@ -1,4 +1,4 @@
-name: Manual Hub Benchmark
+name: Manual Deep Lake Benchmark
 on:
   workflow_dispatch:
     inputs:
@@ -9,7 +9,7 @@ on:
           description: 'Ref to compare'
           required: true
       benchmark-repo-branch:
-          description: 'Hub Benchmark code repo branch to use'
+          description: 'Deep Lake Benchmark code repo branch to use'
           required: true
           default: units
 env:
@@ -29,20 +29,20 @@ jobs:
         run: rm -rdf baseline-source comparison-source benchmark-source
       - name: Installs FFMPEG
         run: sudo apt-get update && sudo apt-get install -y ffmpeg
-      - name: Checkout the Hub Benchmark source code
+      - name: Checkout the Deep Lake Benchmark source code
         uses: actions/checkout@v2
         with:
           repository: activeloopai/hub-benchmark
           ref: ${{ github.event.inputs.benchmark-repo-branch }}
           token: ${{ secrets.ACTIVELOOP_BOT_PAT }}
           path: benchmark-source
-      - name: Checkout the Hub source code to compare
+      - name: Checkout the Deep Lake source code to compare
         uses: actions/checkout@v2
         with:
           repository: activeloopai/hub
           ref: ${{ github.event.inputs.mainref }}
           path: comparison-source
-      - name: Checkout the Hub baseline source code
+      - name: Checkout the Deep Lake baseline source code
         uses: actions/checkout@v2
         with:
           repository: activeloopai/hub

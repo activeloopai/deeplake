@@ -274,7 +274,7 @@ class DeepLakeBackendClient:
         )
 
         if response.status_code == 200:
-            logger.info("Your Hub dataset has been successfully created!")
+            logger.info("Your Deep Lake dataset has been successfully created!")
             if public is False:
                 logger.info("The dataset is private so make sure you are logged in!")
 
