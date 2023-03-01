@@ -2374,10 +2374,9 @@ def test_pickle_bug(local_ds):
     file.seek(0)
     ds = pickle.load(file)
 
-    with pytest.raises(TensorDoesNotExistError):
-        ds["__temp_123"].numpy()
-
-    assert ds._temp_tensors == []
+    np.testing.assert_array_equal(
+        ds["__temp_123"].numpy(), np.array([1, 2, 3, 4, 5]).reshape(-1, 1)
+    )
 
 
 def test_max_view(memory_ds):
