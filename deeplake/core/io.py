@@ -125,9 +125,10 @@ class SequentialMultithreadScheduler(Scheduler):
         So that initial order would be reconstructed by the DataLoader
     """
 
-    def __init__(self, num_workers: int) -> None:
+    def __init__(self, num_workers: int, batch_size: int = 1) -> None:
         super().__init__()
         self.num_workers = num_workers
+        self.batch_size = batch_size
 
     def schedule(self, jobs: List[IOBlock]) -> List[Schedule]:
         per_worker: List[List[IOBlock]] = [list() for _ in range(self.num_workers)]
@@ -135,9 +136,10 @@ class SequentialMultithreadScheduler(Scheduler):
 
         for job in jobs:
             split: List[List[int]] = [list() for _ in range(self.num_workers)]
-
-            for ind in job.indices():
-                split[next(assigned_worker)].append(ind)
+            for i, index in enumerate(job.indices()):
+                if i % self.batch_size == 0:
+                    worker = next(assigned_worker)
+                split[worker].append(index)
 
             for worker_id, idx_list in enumerate(split):
                 if len(idx_list) > 0:
