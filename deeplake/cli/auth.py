@@ -11,34 +11,47 @@ from deeplake.util.bugout_reporter import (
     get_reporting_config,
     deeplake_reporter,
 )
-from deeplake.util.exceptions import AuthenticationException
+from deeplake.util.exceptions import AuthenticationException, LoginException
 
 
 @click.command()
 @click.option("--username", "-u", default=None, help="Your Activeloop Username")
 @click.option("--password", "-p", default=None, help="Your Activeloop Password")
-def login(username: str, password: str):
+@click.option("--token", "-t", default=None, help="Your Activeloop API token")
+def login(username: str, password: str, token: str):
     """Log in to Activeloop"""
     chances: int = 3
     while chances:
-        if not username:
-            click.echo("Login to Activeloop using your credentials.")
-            click.echo(
-                "If you don't have an account, register by using the 'activeloop register' command or by going to "
-                f"{HUB_REST_ENDPOINT}/register."
-            )
-            username = click.prompt("Username")
-            password = click.prompt("Password", hide_input=True)
-        if not password:
-            password = click.prompt(
-                f"Please enter password for user {username}", hide_input=True
-            )
-        username = username.strip()
-        password = password.strip()
+        if not (username or password) and token:
+            token = token.strip()
+        else:
+            if not username:
+                click.echo("Login to Activeloop using your credentials.")
+                click.echo(
+                    "If you don't have an account, register by using the 'activeloop register' command or by going to "
+                    f"{HUB_REST_ENDPOINT}/register."
+                )
+                username = click.prompt("Username")
+                password = click.prompt("Password", hide_input=True)
+            if not password:
+                password = click.prompt(
+                    f"Please enter password for user {username}", hide_input=True
+                )
+            username = username.strip()
+            password = password.strip()
         try:
-            client = DeepLakeBackendClient()
-            token = client.request_auth_token(username, password)
-            write_token(token)
+            if token is None:
+                client = DeepLakeBackendClient()
+                token = client.request_auth_token(username, password)
+                write_token(token)
+            else:
+                client = DeepLakeBackendClient(token)
+                orgs = client.get_user_organizations()
+                if orgs == ["public"]:
+                    raise LoginException(
+                        "Invalid API token. Please make sure the token is correct and try again."
+                    )
+                write_token(token)
             click.echo("Successfully logged in to Activeloop.")
             reporting_config = get_reporting_config()
             if reporting_config.get("username") != username:
@@ -54,6 +67,8 @@ def login(username: str, password: str):
                 print(
                     "3 unsuccessful attempts. Kindly retry logging in after sometime."
                 )
+        except LoginException:
+            raise
         except Exception as e:
             print(f"Encountered an error {e} Please try again later.")
             break

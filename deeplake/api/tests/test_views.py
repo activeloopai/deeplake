@@ -26,16 +26,9 @@ def populate(ds):
 def test_view_token_only(
     hub_cloud_path, hub_cloud_dev_token, hub_cloud_dev_credentials
 ):
-    username = get_user_name()
-    if username != "public":
-        state = "logged in"
-    else:
-        state = "logged out"
     runner = CliRunner()
     result = runner.invoke(logout)
     assert result.exit_code == 0
-
-    username, password = hub_cloud_dev_credentials
 
     ds = deeplake.empty(hub_cloud_path, token=hub_cloud_dev_token)
     with ds:
@@ -64,16 +57,8 @@ def test_view_token_only(
     ds.delete_view("25to100")
     deeplake.delete(hub_cloud_path, token=hub_cloud_dev_token)
 
-    if state == "logged in":
-        runner.invoke(login, f"-u {username} -p {password}")
-
 
 def test_view_public(hub_cloud_dev_credentials):
-    username = get_user_name()
-    if username != "public":
-        state = "logged in"
-    else:
-        state = "logged out"
     runner = CliRunner()
     result = runner.invoke(logout)
     assert result.exit_code == 0
@@ -94,8 +79,7 @@ def test_view_public(hub_cloud_dev_credentials):
     with pytest.raises(ReadOnlyModeError):
         view.save_view(id="100to200")
 
-    if state == "logged out":
-        runner.invoke(logout)
+    runner.invoke(logout)
 
 
 def test_view_with_empty_tensor(local_ds):

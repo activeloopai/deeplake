@@ -1,7 +1,6 @@
 from typing import Optional
 import numpy as np
 from deeplake.core.tensor_link import read_linked_sample
-from deeplake.util.creds import convert_creds_key
 from deeplake.util.path import get_path_type
 
 
@@ -19,7 +18,7 @@ class LinkedTiledSample:
         path_types = {get_path_type(path) for path in path_array.flat}
         if len(path_types) > 1:
             raise ValueError("Path array contains paths in different locations.")
-        self.creds_key = convert_creds_key(creds_key, self.path)
+        self.creds_key = creds_key
         self._tile_shape = None
         self._shape = None
 

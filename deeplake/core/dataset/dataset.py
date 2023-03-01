@@ -18,6 +18,7 @@ from deeplake.core.link_creds import LinkCreds
 from deeplake.util.connect_dataset import connect_dataset_entry
 from deeplake.util.downsample import validate_downsampling
 from deeplake.util.invalid_view_op import invalid_view_op
+from deeplake.util.spinner import spinner
 from deeplake.util.iteration_warning import (
     suppress_iteration_warning,
     check_if_iteration,
@@ -231,11 +232,7 @@ class Dataset:
         d["_temp_tensors"] = []
         dct = self.__dict__
         dct.update(d)
-        dct["enabled_tensors"] = (
-            set(self._resolve_tensor_list(enabled_tensors, root=True))
-            if enabled_tensors
-            else None
-        )
+
         try:
             self._set_derived_attributes()
         except LockedException:
@@ -246,6 +243,11 @@ class Dataset:
             raise ReadOnlyModeError(
                 "This dataset cannot be open for writing as you don't have permissions. Try loading the dataset with `read_only=True."
             )
+        dct["enabled_tensors"] = (
+            set(self._resolve_tensor_list(enabled_tensors, root=True))
+            if enabled_tensors
+            else None
+        )
         self._first_load_init()
         self._initial_autoflush: List[
             bool
@@ -273,8 +275,8 @@ class Dataset:
 
     def __exit__(self, exc_type, exc_val, exc_tb):
         self.storage.autoflush = self._initial_autoflush.pop()
-        if not self._read_only:
-            self.storage.maybe_flush()
+        if not self._read_only and self.storage.autoflush:
+            spinner(self.storage.flush)()
 
     @property
     def num_samples(self) -> int:
@@ -306,8 +308,10 @@ class Dataset:
         """Returns the length of the smallest tensor."""
         tensor_lengths = [len(tensor) for tensor in self.tensors.values()]
         pad_tensors = self._pad_tensors
-        if not pad_tensors and min(tensor_lengths, default=0) != max(
-            tensor_lengths, default=0
+        if (
+            warn
+            and not pad_tensors
+            and min(tensor_lengths, default=0) != max(tensor_lengths, default=0)
         ):
             warning(
                 "The length of tensors in the dataset is different. The len(ds) returns the length of the "
@@ -1298,6 +1302,7 @@ class Dataset:
         except Exception:  # python shutting down
             pass
 
+    @spinner
     @invalid_view_op
     def commit(self, message: Optional[str] = None, allow_empty=False) -> str:
         """Stores a snapshot of the current state of the dataset.
@@ -1325,6 +1330,7 @@ class Dataset:
         return self._commit(message)
 
     @deeplake_reporter.record_call
+    @spinner
     @invalid_view_op
     @suppress_iteration_warning
     def merge(
@@ -2037,6 +2043,7 @@ class Dataset:
             self, tensors=tensors, tobytes=tobytes, fetch_chunks=fetch_chunks
         )
 
+    @spinner
     def flush(self):
         """Necessary operation after writes if caches are being used.
         Writes all the dirty data from the cache layers (if any) to the underlying storage.
@@ -2546,28 +2553,29 @@ class Dataset:
             >>> ds.append({"data": [1, 2, 3, 4], "labels":[0, 1, 2, 3]})
 
         """
+        tensors = self.tensors
         if isinstance(sample, Dataset):
             sample = sample.tensors
         if not isinstance(sample, dict):
             raise SampleAppendingError()
 
-        skipped_tensors = [k for k in self.tensors if k not in sample]
+        skipped_tensors = [k for k in tensors if k not in sample]
         if skipped_tensors and not skip_ok and not append_empty:
             raise KeyError(
                 f"Required tensors not provided: {skipped_tensors}. Pass either `skip_ok=True` to skip tensors or `append_empty=True` to append empty samples to unspecified tensors."
             )
         for k in sample:
-            if k not in self._tensors():
+            if k not in tensors:
                 raise TensorDoesNotExistError(k)
-        tensors_to_check_length = self.tensors if append_empty else sample
-        if len(set(map(len, (self[k] for k in tensors_to_check_length)))) != 1:
+        tensors_to_check_length = tensors if append_empty else sample
+        if len(set(map(len, (tensors[k] for k in tensors_to_check_length)))) != 1:
             raise ValueError(
                 "When appending using Dataset.append, all tensors being updated are expected to have the same length."
             )
         [f() for f in list(self._update_hooks.values())]
         tensors_appended = []
         with self:
-            for k in self.tensors:
+            for k in tensors:
                 if k in sample:
                     v = sample[k]
                 else:
@@ -2576,7 +2584,7 @@ class Dataset:
                     else:
                         v = None
                 try:
-                    tensor = self[k]
+                    tensor = tensors[k]
                     enc = tensor.chunk_engine.chunk_id_encoder
                     num_chunks = enc.num_chunks
                     tensor.append(v)
@@ -3435,6 +3443,7 @@ class Dataset:
         )
 
     @invalid_view_op
+    @spinner
     def reset(self):
         """Resets the uncommitted changes present in the branch.
 
@@ -3560,7 +3569,12 @@ class Dataset:
         self.link_creds.add_creds_key(creds_key)
         save_link_creds(self.link_creds, self.storage)
 
-    def populate_creds(self, creds_key: str, creds: dict):
+    def populate_creds(
+        self,
+        creds_key: str,
+        creds: Optional[dict] = None,
+        from_environment: bool = False,
+    ):
         """Populates the creds key added in add_creds_key with the given creds. These creds are used to fetch the external data.
         This needs to be done everytime the dataset is reloaded for datasets that contain links to external data.
 
@@ -3572,8 +3586,16 @@ class Dataset:
             >>> ds.add_creds_key("my_s3_key")
             >>> # populate the creds
             >>> ds.populate_creds("my_s3_key", {"aws_access_key_id": "my_access_key", "aws_secret_access_key": "my_secret_key"})
+            >>> # or
+            >>> ds.populate_creds("my_s3_key", from_environment=True)
 
         """
+        if creds and from_environment:
+            raise ValueError(
+                "Only one of creds or from_environment can be provided. Both cannot be provided at the same time."
+            )
+        if from_environment:
+            creds = {}
         self.link_creds.populate_creds(creds_key, creds)
 
     def update_creds_key(self, old_creds_key: str, new_creds_key: str):

@@ -375,6 +375,14 @@ def flower_path():
 
 
 @pytest.fixture
+def hopper_gray_path():
+    """Path to a grayscale hopper image in the dummy data folder. Expected shape: (512, 512)"""
+
+    path = get_dummy_data_path("images")
+    return os.path.join(path, "hopper_gray.jpg")
+
+
+@pytest.fixture
 def color_image_paths():
     base = get_dummy_data_path("images")
     paths = {
