@@ -1,4 +1,6 @@
 import os
+import sys
+
 import numpy as np
 
 
@@ -165,3 +167,4 @@ SHOW_ITERATION_WARNING = True
 
 # Delay before spinner starts on time consuming functions (in seconds)
 SPINNER_START_DELAY = 2
+SPINNER_ENABLED = "pytest" not in sys.modules
