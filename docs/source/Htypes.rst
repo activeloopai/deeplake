@@ -304,7 +304,7 @@ A 3d bbox tensor can be created using
 >>> ds.create_tensor("3d_boxes", htype="bbox.3d")
 
 - Optional args:
-    - **coords**: A dictionary with keys "type" and "mode".
+    - **coords**: A dictionary with key "mode".
         - **mode**: Specifies the convention for the bbox coordinates.
             - "center": [center_x, center_y, center_z, length, width, height, rot_x, rot_y, rot_z]
                 - :bluebold:`Sample dimensions:` ``(# bounding boxes, 9)``
