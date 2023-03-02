@@ -228,9 +228,9 @@ Bounding Box Htype
 
 - :bluebold:`Sample dimensions:` ``(# bounding boxes, 4)``
 
-Bounding boxes have a variety of formats such as YOLO, COCO, Pascal-VOC and others. In order for bounding boxes
-to be correctly displayed by the visualizer, the format of the bounding box must be specified in the ``coords`` key in
-tensor meta information mentioned below.
+Bounding boxes have a variety of conventions such as those used in YOLO, COCO, Pascal-VOC and others.
+In order for bounding boxes to be correctly displayed by the visualizer, the format of the bounding box must be
+specified in the coords key in tensor meta information mentioned below.
 
 :blue:`Creating a bbox tensor`
 ------------------------------
@@ -292,20 +292,8 @@ array([[965, 110, 262,  77],
 3D Bounding Box Htype
 ~~~~~~~~~~~~~~~~~~~~~
 
-- :bluebold:`Sample dimensions:` ``(# bounding boxes, 9)``
-
-Bounding boxes are in KITTI format. In order for bounding boxes to be correctly displayed by the visualizer, the format of the bounding box should be as follows:
-
-``[x, y, z, length, width, hieght, rot_x, rot_y, rot_z]``
-
-where
-
-- ``length`` - is the length of the bounding box along x direction
-- ``width``  - is the width of the bounding box along y direction
-- ``height``  - is the height of the bounding box along z direction
-- ``rot_x`` - rotation angle along x axis, given in degrees
-- ``rot_y`` - rotation angle along y axis, given in degrees
-- ``rot_z`` - rotation angle along z axis, given in degrees
+In order for 3D bounding boxes to be correctly displayed by the visualizer, the format of the bounding box must
+be specified in the coords key in tensor meta information mentioned below.
 
 
 :blue:`Creating a 3d bbox tensor`
@@ -316,17 +304,18 @@ A 3d bbox tensor can be created using
 >>> ds.create_tensor("3d_boxes", htype="bbox.3d")
 
 - Optional args:
-    - **coords**: A dictionary with keys "type" and "mode".
-        - **mode**: In order for bounding boxes to be correctly displayed by the visualizer, the format of the bounding box should be either of the following.
-                    If mode is not specified, visualizer defaults to "center" mode.
+    - **coords**: A dictionary with key "mode".
+        - **mode**: Specifies the convention for the bbox coordinates.
             - "center": [center_x, center_y, center_z, length, width, height, rot_x, rot_y, rot_z]
+                - :bluebold:`Sample dimensions:` ``(# bounding boxes, 9)``
                 - ``length`` - is the length of the bounding box along x direction
                 - ``width``  - is the width of the bounding box along y direction
                 - ``height``  - is the height of the bounding box along z direction
                 - ``rot_x`` - rotation angle along x axis, given in degrees
                 - ``rot_y`` - rotation angle along y axis, given in degrees
                 - ``rot_z`` - rotation angle along z axis, given in degrees
-            - "vertex": 8 3D vertices - [(x0, y0, z0), (x1, y1, z1), (x2, y2, z2), ....., (x7, y7, z7)]
+            - "vertex": 8 3D vertices - [[x0, y0, z0], [x1, y1, z1], [x2, y2, z2], ....., [x7, y7, z7]]
+                - :bluebold:`Sample dimensions:` ``(# bounding boxes, 8)``
                 The vertex order is of the following form::
 
                                  4_____________________ 5
