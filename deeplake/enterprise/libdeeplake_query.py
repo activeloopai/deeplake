@@ -1,6 +1,6 @@
 from deeplake.enterprise.convert_to_libdeeplake import dataset_to_libdeeplake
 from deeplake.util.bugout_reporter import deeplake_reporter
-from deeplake.core.dataset.dataset import DeepLakeQueryDataset
+from deeplake.core.dataset import DeepLakeQueryDataset
 from typing import Optional, Union
 
 import numpy as np

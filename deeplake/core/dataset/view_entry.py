@@ -101,6 +101,10 @@ class ViewEntry:
 
         Returns:
             :class:`ViewEntry`
+
+        Raises:
+            Exception: When query view cannot be optimized.
+
         """
         if not self.virtual:
             raise Exception("Optimizing nonlinear query views is not supported")

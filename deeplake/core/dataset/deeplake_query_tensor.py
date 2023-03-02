@@ -9,26 +9,17 @@ from deeplake.util.exceptions import DynamicTensorNumpyError, InvalidKeyTypeErro
 from deeplake.util.pretty_print import summary_tensor
 
 
-try:
-    from indra.pytorch.loader import Loader
-    from indra.pytorch.common import collate_fn as default_collate
-
-    _INDRA_INSTALLED = True
-except ImportError:
-    _INDRA_INSTALLED = False
-
-
 class DeepLakeQueryTensor(tensor.Tensor):
     def __init__(
         self,
         deeplake_tensor,
-        indra_tensors,
+        indra_tensor,
         index=None,
         is_iteration: bool = False,
         key: str = None,
     ):
         self.deeplake_tensor = deeplake_tensor
-        self.indra_tensors = indra_tensors
+        self.indra_tensor = indra_tensor
         self.is_iteration = is_iteration
         self.set_deeplake_tensor_variables()
 
@@ -73,23 +64,23 @@ class DeepLakeQueryTensor(tensor.Tensor):
         if hasattr(self, "key"):
             key = self.key
 
-        DeeplakeIndraTensor = DeepLakeQueryTensor
+        indra_tensor = self.indra_tensor
         if self.index:
-            DeeplakeIndraTensor = cast_index_to_class(self.index[item])
+            indra_tensor = indra_tensor[self.index[item]]
 
-        return DeeplakeIndraTensor(
+        return DeepLakeQueryTensor(
             self.deeplake_tensor,
-            self.indra_tensors,
+            self.indra_tensor,
             index=self.index[item],
             is_iteration=is_iteration,
             key=key,
         )
 
     def numpy_aslist(self, aslist):
-        tensors_list = self.indra_tensors[:]
+        tensors_list = self.indra_tensor[:]
         idx = self.index.values[0].value
         if idx:
-            tensors_list = self.indra_tensors[idx]
+            tensors_list = self.indra_tensor[idx]
 
         if self.min_shape != self.max_shape and aslist == False:
             raise DynamicTensorNumpyError(self.key, self.index, "shape")
@@ -109,7 +100,7 @@ class DeepLakeQueryTensor(tensor.Tensor):
 
     @property
     def num_samples(self):
-        return len(self.indra_tensors)
+        return len(self.indra_tensor)
 
     def can_convert_to_numpy(self):
         if None in self.shape:
@@ -124,11 +115,11 @@ class DeepLakeQueryTensor(tensor.Tensor):
 
     @property
     def max_shape(self):
-        return self.indra_tensors.max_shape
+        return self.indra_tensor.max_shape
 
     @property
     def min_shape(self):
-        return self.indra_tensors.min_shape
+        return self.indra_tensor.min_shape
 
     def callect_final_shape(self):
         shape = (self.first_dim,)
@@ -152,13 +143,11 @@ class DeepLakeQueryTensor(tensor.Tensor):
 
     @property
     def shape_interval(self):
-        # min_shape = (len(self.indra_tensors),) + self.min_shape
-        # max_shape = (len(self.indra_tensors),) + self.max_shape
         return shape_interval.ShapeInterval(self.min_shape, self.max_shape)
 
     @property
     def ndim(self):
-        return len(self.indra_tensors.max_shape)
+        return len(self.indra_tensor.max_shape)
 
     @property
     def htype(self):
@@ -200,7 +189,7 @@ class DeepLakeQueryTensor(tensor.Tensor):
         print(pretty_print)
 
 
-class DeeplakeQueryTensorWithSliceIndices(DeepLakeQueryTensor): # int and slices, lists
+class DeeplakeQueryTensorWithSliceIndices(DeepLakeQueryTensor):  # int and slices, lists
     def __init__(self, *args, **kwargs):
         super().__init__(
             *args,
@@ -211,9 +200,9 @@ class DeeplakeQueryTensorWithSliceIndices(DeepLakeQueryTensor): # int and slices
 
     def _set_tensors_list(self):
         if len(self.index.values) == 1:
-            self.tensors_list = self.indra_tensors[self.idxs[0]]
+            self.tensors_list = self.indra_tensor[self.idxs[0]]
         else:
-            self.tensors_list = self.indra_tensors[self.idxs[0]]
+            self.tensors_list = self.indra_tensor[self.idxs[0]]
 
     @staticmethod
     def _find_first_dim(tensors_list):
@@ -223,7 +212,7 @@ class DeeplakeQueryTensorWithSliceIndices(DeepLakeQueryTensor): # int and slices
     def get_indra_tensor_shapes(self):
         shapes = []
         for idx in self.idxs:
-            shapes += self.indra_tensors.shape(idx)
+            shapes += self.indra_tensor.shape(idx)
         return np.array(shapes)
 
     @property
@@ -307,93 +296,3 @@ class DeeplakeQueryTensorWithSliceIndices(DeepLakeQueryTensor): # int and slices
 
         tensors = np.stack(tensors, axis=0)
         return tensors
-
-
-# class DeeplakeQueryTensorWithIntIndices(DeepLakeQueryTensor):
-#     def __init__(self, *args, **kwargs):
-#         super().__init__(
-#             *args,
-#             **kwargs,
-#         )
-#         # TO DO: optimize this, we shouldn't be loading indra tensor here.
-#         self.idx = self.index.values
-#         idx_value = self.idx[0].value
-#         self.tensors_list = self.indra_tensors[idx_value]
-
-#     @staticmethod
-#     def _compare_shapes(final_shape, shapes):
-#         for i, dim in enumerate(shapes):
-#             if final_shape[i + 1] != dim:
-#                 final_shape[i + 1] = None
-#         return final_shape
-
-#     def _append_first_dim(self, arr):
-#         arr = [len(self.tensors_list)] + list(arr.shape)
-#         return tuple(arr)
-
-#     @property
-#     def shape(self):
-#         # TO DO: optimize this
-#         shapes = {self._append_first_dim(arr) for arr in self.tensors_list}
-#         shape = list(shapes)[0]
-#         if len(shapes) > 1:
-#             shape_list = [len(self.tensors_list)] + list(shapes[0])
-#             for shape in shapes:
-#                 if shape != shape_list[1:]:
-#                     shape_list = self._compare_shapes(shape_list, shape)
-#             shape = shape_list
-#         return tuple(shape)
-
-#     def numpy(self, aslist=False):
-#         if len(self.idx) > 1:
-#             self.tensors_list = [self.indra_tensors[idx.value] for idx in self.idx]
-
-#         if aslist == False:
-#             try:
-#                 self.tensors_list = np.stack(self.tensors_list, axis=0)
-#             except:
-#                 raise DynamicTensorNumpyError(self.key, self.index, "shape")
-
-#         return self.tensors_list
-
-
-# class DeeplakeQueryTensorWithListIndices(DeepLakeQueryTensor):
-#     def __init__(self, *args, **kwargs):
-#         super().__init__(
-#             *args,
-#             **kwargs,
-#         )
-#         self.idx = self.index.values
-
-#     @property
-#     def shape(self):
-#         idx = self.index.values[0].value
-#         first_dim = len(idx)
-#         self.set_first_dim(first_dim)
-#         shape = self.callect_final_shape()
-#         return shape
-
-#     def numpy_aslist(self, aslist):
-#         tensors_list = [self.indra_tensors[idx] for idx in self.idx]
-
-#         if self.min_shape != self.max_shape and self.aslist == False:
-#             raise DynamicTensorNumpyError(self.key, self.index, "shape")
-
-#         return tensors_list
-
-
-INDEX_TO_CLASS = {
-    int: DeeplakeQueryTensorWithSliceIndices,
-    slice: DeeplakeQueryTensorWithSliceIndices,
-    list: DeeplakeQueryTensorWithListIndices,
-    tuple: DeeplakeQueryTensorWithListIndices,
-}
-
-
-def cast_index_to_class(index):
-    idx = index.values[0].value
-    index_type = type(idx)
-    if index_type in INDEX_TO_CLASS:
-        casting_class = INDEX_TO_CLASS[index_type]
-        return casting_class
-    raise Exception(f"index type {index_type} is not supported")

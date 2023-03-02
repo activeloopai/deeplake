@@ -1,7 +1,7 @@
 import deeplake as dp
 import numpy as np
 import pytest
-from deeplake.core.dataset.dataset import DeepLakeQueryDataset
+from deeplake.core.dataset import DeepLakeQueryDataset
 from indra import api
 import functools
 import os
