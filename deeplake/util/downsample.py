@@ -79,16 +79,14 @@ def downsample_sample(
         with io.BytesIO() as f:
             downsampled_sample.save(f, format=compression)  # type: ignore
             image_bytes = f.getvalue()
-            return deeplake.core.sample.Sample(buffer=image_bytes, compression=compression)
+            return deeplake.core.sample.Sample(
+                buffer=image_bytes, compression=compression
+            )
     except Exception as e:
         if partial:
             raise e
         warnings.warn(f"Failed to downsample sample of type {type(sample)}")
         return None
-
-
-
-        
 
 
 def downsample_link_tiled(
