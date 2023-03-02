@@ -29,7 +29,7 @@ def list_blocks(streaming=None):
 def emit_samples(streaming, schedule: Schedule):
     for block in schedule:
         for i in block.indices():
-            yield {"images": numpy.ones((5)) * i}
+            yield {"images": numpy.ones((5)) * i, "index": numpy.array([i])}
 
 
 def throws_exception(streaming, schedule: Schedule):
