@@ -292,7 +292,6 @@ class Dataset:
                     self._flush_vc_info()
                 self.storage.flush()
 
-
     @property
     def num_samples(self) -> int:
         """Returns the length of the smallest tensor.
