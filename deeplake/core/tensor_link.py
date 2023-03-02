@@ -115,9 +115,6 @@ def update_shape(new_sample, link_creds=None, tensor_meta=None):
         )
 
     if tensor_meta:
-        if tensor_meta.is_link and ret.size and np.prod(ret):
-            tensor_meta.update_shape_interval(ret.tolist())
-
         # if grayscale being appended but tensor has rgb samples, convert shape from (h, w) to (h, w, 1)
         if (
             tensor_meta.min_shape
@@ -135,6 +132,9 @@ def update_shape(new_sample, link_creds=None, tensor_meta=None):
             and len(tensor_meta.min_shape) == 3
         ):
             ret = np.concatenate([ret, (1,)])
+
+        if tensor_meta.is_link and ret.size and np.prod(ret):
+            tensor_meta.update_shape_interval(ret.tolist())
 
     return ret
 
