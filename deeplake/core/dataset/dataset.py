@@ -131,7 +131,6 @@ from deeplake.util.version_control import (
 from deeplake.util.pretty_print import summary_dataset
 from deeplake.core.dataset.view_entry import ViewEntry
 from deeplake.core.dataset.invalid_view import InvalidView
-from deeplake.core.dataset.deeplake_query_view import NonlinearQueryView
 from deeplake.hooks import dataset_read
 
 import warnings
@@ -3059,6 +3058,8 @@ class Dataset:
         filtered_queries = filter(f, queries)
 
         ret = []
+        from deeplake.core.dataset.deeplake_query_view import NonlinearQueryView
+
         for query in filtered_queries:
             ViewClass = ViewEntry
             if query.get("query"):
@@ -3106,6 +3107,8 @@ class Dataset:
         Raises:
             KeyError: If no such view exists.
         """
+        from deeplake.core.dataset.deeplake_query_view import NonlinearQueryView
+
         queries = self._read_queries_json()
         for q in queries:
             if q["id"] == id:

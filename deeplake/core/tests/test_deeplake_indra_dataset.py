@@ -1,29 +1,21 @@
 import deeplake as dp
 import numpy as np
-import pytest
-from deeplake.core.dataset import DeepLakeQueryDataset
-from indra import api
-import functools
-import os
+from deeplake.tests.common import requires_libdeeplake
+from deeplake.core.dataset import DeepLakeQueryDataset, DeepLakeQueryTensor
+import random
 
 
-# all of these tests should be performed for hub, s3 and local storage
+@requires_libdeeplake
+def test_indexing(local_ds_generator):
+    from deeplake.enterprise.convert_to_libdeeplake import dataset_to_libdeeplake
 
-# home_dir = "/Users/adilkhansarsen/Documents/work/Hub_2/"
-# path = "/Users/adilkhansarsen/Documents/work/Hub_2/deeplake/mnist-train"
-# path = "hub://activeloop/mnist-train"
-dp.client.config.USE_DEV_ENVIRONMENT = True
+    deeplake_ds = local_ds_generator()
+    with deeplake_ds:
+        deeplake_ds.create_tensor("label", htype="generic", dtype=np.int32)
+        for i in range(1000):
+            deeplake_ds.label.append(int(100 * random.uniform(0.0, 1.0)))
 
-path = "hub://activeloop/ucf-101-as_frames"
-TOKEN = "eyJhbGciOiJIUzUxMiIsImlhdCI6MTY2MDI5MzExNiwiZXhwIjo0ODEzODkzMTE2fQ.eyJpZCI6ImFkaWxraGFuIn0.wyvhu0z1ak72eyeiq8VKYKT9R268D0i4jH8724X6G0BJLFQNKFHL_BkD5BVDtPln3AdGkNHKeCM8Og2DQ038gA"
-
-indra_ds = api.dataset(path, token=TOKEN)
-indra_ds = indra_ds[:100]
-
-
-def test_indexing():
-    path = ""
-    deeplake_ds = dp.load(path)
+    indra_ds = dataset_to_libdeeplake(deeplake_ds)
     deeplake_indra_ds = DeepLakeQueryDataset(deeplake_ds=deeplake_ds, indra_ds=indra_ds)
 
     assert len(deeplake_indra_ds) == len(indra_ds)
@@ -79,8 +71,17 @@ def test_indexing():
     )
 
 
-def test_save_view():
-    deeplake_ds = dp.load(path, token=TOKEN)
+@requires_libdeeplake
+def test_save_view(local_ds_generator):
+    from deeplake.enterprise.convert_to_libdeeplake import dataset_to_libdeeplake
+
+    deeplake_ds = local_ds_generator()
+    with deeplake_ds:
+        deeplake_ds.create_tensor("label", htype="generic", dtype=np.int32)
+        for i in range(1000):
+            deeplake_ds.label.append(int(100 * random.uniform(0.0, 1.0)))
+
+    indra_ds = dataset_to_libdeeplake(deeplake_ds)
     deeplake_indra_ds = DeepLakeQueryDataset(deeplake_ds=deeplake_ds, indra_ds=indra_ds)
     deeplake_indra_ds.save_view()
     assert (
@@ -89,19 +90,23 @@ def test_save_view():
     )
 
 
-def test_load_view():
-    dp.client.config.USE_DEV_ENVIRONMENT = True
+@requires_libdeeplake
+def test_load_view(local_ds_generator):
+    from deeplake.enterprise.convert_to_libdeeplake import dataset_to_libdeeplake
 
-    path = "hub://activeloop/ucf-101-as_frames"
-    TOKEN = "eyJhbGciOiJIUzUxMiIsImlhdCI6MTY2MDI5MzExNiwiZXhwIjo0ODEzODkzMTE2fQ.eyJpZCI6ImFkaWxraGFuIn0.wyvhu0z1ak72eyeiq8VKYKT9R268D0i4jH8724X6G0BJLFQNKFHL_BkD5BVDtPln3AdGkNHKeCM8Og2DQ038gA"
-    deeplake_ds = dp.load(path, token=TOKEN)
-    # query_str = "SELECT * GROUP BY labels"
-    query_str = "select * group by label, video_id"
+    deeplake_ds = local_ds_generator()
+    with deeplake_ds:
+        deeplake_ds.create_tensor("label", htype="generic", dtype=np.int32)
+        for i in range(1000):
+            deeplake_ds.label.append(int(100 * random.uniform(0.0, 1.0)))
+
+    indra_ds = dataset_to_libdeeplake(deeplake_ds)
+    deeplake_indra_ds = DeepLakeQueryDataset(deeplake_ds=deeplake_ds, indra_ds=indra_ds)
+
+    query_str = "select * group by label"
     view = deeplake_ds.query(query_str)
-    # view.images.shape_interval
     view_path = view.save_view()
     view_id = view_path.split("/")[-1]
-    # deeplake_indra_ds = DeepLakeQueryDataset(deeplake_ds=deeplake_ds, indra_ds=indra_ds)
     view = deeplake_ds.load_view(view_id)
 
     dataloader = view[:3].pytorch()
@@ -112,25 +117,38 @@ def test_load_view():
     assert np.isclose(indra_ds.tensors[0][:], deeplake_indra_ds.image.numpy())
 
 
+@requires_libdeeplake
 def test_query():
     # can we run queries sequentially?
     pass
 
 
+@requires_libdeeplake
 def test_copy():
     pass
 
 
+@requires_libdeeplake
 def test_optimize_views():
     pass
 
 
+@requires_libdeeplake
 def test_parallel_computing():
     pass
 
 
-def test_acessing_data(path, indra_ds):
-    deeplake_ds = dp.load(path, token=TOKEN)
+@requires_libdeeplake
+def test_accessing_data(local_ds_generator):
+    from deeplake.enterprise.convert_to_libdeeplake import dataset_to_libdeeplake
+
+    deeplake_ds = local_ds_generator()
+    with deeplake_ds:
+        deeplake_ds.create_tensor("label", htype="generic", dtype=np.int32)
+        for i in range(1000):
+            deeplake_ds.label.append(int(100 * random.uniform(0.0, 1.0)))
+
+    indra_ds = dataset_to_libdeeplake(deeplake_ds)
     deeplake_indra_ds = DeepLakeQueryDataset(deeplake_ds=deeplake_ds, indra_ds=indra_ds)
 
     assert np.isclose(

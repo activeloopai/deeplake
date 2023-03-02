@@ -1,6 +1,6 @@
 import deeplake.util.shape_interval as shape_interval
 from deeplake.core import tensor
-from typing import List, Union
+from typing import List, Union, Optional
 from deeplake.core.index import Index
 import numpy as np
 import itertools
@@ -16,7 +16,7 @@ class DeepLakeQueryTensor(tensor.Tensor):
         indra_tensor,
         index=None,
         is_iteration: bool = False,
-        key: str = None,
+        key: Optional[str] = None,
     ):
         self.deeplake_tensor = deeplake_tensor
         self.indra_tensor = indra_tensor

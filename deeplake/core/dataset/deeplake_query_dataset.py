@@ -1,14 +1,10 @@
-import os
-import uuid
-import json
 import posixpath
-from logging import warning
-from typing import Any, Callable, Dict, List, Optional, Sequence, Tuple, Union
+from typing import Any, Callable, Dict, List, Optional, Tuple, Union
 from functools import partial
+from deeplake.constants import SHOW_ITERATION_WARNING
 
 from time import time
 
-import deeplake
 from deeplake.util.iteration_warning import (
     check_if_iteration,
 )
@@ -29,9 +25,6 @@ from deeplake.util.exceptions import (
 )
 from deeplake.core.dataset import Dataset
 
-# from deeplake.enterprise.util import (
-#     handle_mode,
-# )
 import warnings
 
 from deeplake.core.dataset.deeplake_query_tensor import DeepLakeQueryTensor
@@ -231,7 +224,7 @@ class DeepLakeQueryDataset(Dataset):
             else:
                 if not is_iteration and isinstance(item, int):
                     is_iteration = check_if_iteration(self._indexing_history, item)
-                    if is_iteration and deeplake.constants.SHOW_ITERATION_WARNING:
+                    if is_iteration and SHOW_ITERATION_WARNING:
                         warnings.warn(
                             "Indexing by integer in a for loop, like `for i in range(len(ds)): ... ds[i]` can be quite slow. Use `for i, sample in enumerate(ds)` instead."
                         )
