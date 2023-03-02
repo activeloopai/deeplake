@@ -519,8 +519,8 @@ class MMDetDataset(TorchDataset):
                 self.evaluator = None
 
     def __len__(self):
-        if self.mode == "eval":
-            return math.ceil(len(self.dataset) / (self.batch_size * self.num_gpus))
+        if self.mode == "val":
+            return math.ceil(len(self.dataset) / self.batch_size)
         return super().__len__()
 
     def _get_images(self, images_tensor):
@@ -1415,6 +1415,8 @@ def _train_detector(
         )
         eval_cfg["by_epoch"] = cfg.runner["type"] != "IterBasedRunner"
         eval_hook = EvalHook
+        if distributed:
+            eval_hook = DistEvalHook
         # In this PR (https://github.com/open-mmlab/mmcv/pull/1193), the
         # priority of IterTimerHook has been modified from 'NORMAL' to 'LOW'.
         runner.register_hook(eval_hook(val_dataloader, **eval_cfg), priority="LOW")

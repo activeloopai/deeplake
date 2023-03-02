@@ -23,6 +23,10 @@ import json
 import mmcv  # type: ignore
 import math
 from tqdm import tqdm
+from mmdet.core.evaluation.eval_hooks import DistEvalHook, _calc_dynamic_intervals
+from torch.nn.modules.batchnorm import _BatchNorm
+import torch.distributed as dist
+import os
 
 
 def _isArrayLike(obj):
@@ -408,10 +412,6 @@ class COCODatasetEvaluater(mmdet_coco.CocoDataset):
 
         # processing pipeline
 
-    def __len__(self):
-        length = super().__len__()
-        return math.ceil(length / (self.batch_size * self.num_gpus))
-
     def pipeline(self, x):
         return x
 
@@ -536,3 +536,51 @@ def check_dataset_augmentation_formats(cfg):
         always_warn(
             "train_dataset is going to be unused. Datset types like: ConcatDataset, RepeatDataset, ClassBalancedDataset, MultiImageMixDataset are not supported."
         )
+
+
+# Note: Considering that MMCV's EvalHook updated its interface in V1.3.16,
+# in order to avoid strong version dependency, we did not directly
+# inherit EvalHook but BaseDistEvalHook.
+class DeeplakeDistEvalHook(DistEvalHook):
+    def __init__(self, *args, dynamic_intervals=None, **kwargs):
+        super(DistEvalHook, self).__init__(*args, **kwargs)
+
+    def _do_evaluate(self, runner):
+        """perform evaluation and save ckpt."""
+        # Synchronization of BatchNorm's buffer (running_mean
+        # and running_var) is not supported in the DDP of pytorch,
+        # which may cause the inconsistent performance of models in
+        # different ranks, so we broadcast BatchNorm's buffers
+        # of rank 0 to other ranks to avoid this.
+        if self.broadcast_bn_buffer:
+            model = runner.model
+            for name, module in model.named_modules():
+                if isinstance(module, _BatchNorm) and module.track_running_stats:
+                    dist.broadcast(module.running_var, 0)
+                    dist.broadcast(module.running_mean, 0)
+
+        if not self._should_evaluate(runner):
+            return
+
+        tmpdir = self.tmpdir
+        if tmpdir is None:
+            tmpdir = os.path.join(runner.work_dir, ".eval_hook")
+
+        from mmdet.apis import multi_gpu_test
+
+        # Changed results to self.results so that MMDetWandbHook can access
+        # the evaluation results and log them to wandb.
+        results = multi_gpu_test(
+            runner.model, self.dataloader, tmpdir=tmpdir, gpu_collect=self.gpu_collect
+        )
+
+        self.latest_results = results
+        if runner.rank == 0:
+            print("\n")
+            runner.log_buffer.output["eval_iter_num"] = len(self.dataloader)
+            key_score = self.evaluate(runner, results)
+
+            # the key_score may be `None` so it needs to skip
+            # the action to save the best checkpoint
+            if self.save_best and key_score:
+                self._save_ckpt(runner, key_score)
