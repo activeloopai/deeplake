@@ -5,6 +5,7 @@ from deeplake.constants import ALL_CLOUD_PREFIXES
 from deeplake.core.storage.deeplake_memory_object import DeepLakeMemoryObject
 from deeplake.core.storage.provider import StorageProvider
 from deeplake.core.storage.s3 import S3Provider
+from deeplake.util.exceptions import MissingCredsError, MissingManagedCredsError
 from deeplake.util.token import expires_in_to_expires_at, is_expired_token
 from deeplake.client.log import logger
 
@@ -23,14 +24,19 @@ class LinkCreds(DeepLakeMemoryObject):
         self.org_id = None
 
     def get_creds(self, key: Optional[str]):
-        if key in {"ENV", None}:
+        if key is None:
             return {}
         if key not in self.creds_keys:
-            raise KeyError(f"Creds key {key} does not exist")
+            raise MissingCredsError(f"Creds key {key} does not exist")
         if key not in self.creds_dict:
-            raise ValueError(
-                f"Creds key {key} hasn't been populated. Populate it using ds.populate_creds()"
-            )
+            if key not in self.managed_creds_keys:
+                raise MissingCredsError(
+                    f"Creds key {key} hasn't been populated. Populate it using ds.populate_creds()"
+                )
+            else:
+                raise MissingManagedCredsError(
+                    f"Managed creds key {key} hasn't been fetched."
+                )
         if (
             self.client is not None
             and key in self.managed_creds_keys
@@ -60,7 +66,7 @@ class LinkCreds(DeepLakeMemoryObject):
 
     def get_storage_provider(self, key: Optional[str], provider_type: str):
         assert provider_type in {"s3", "gcs"}
-        if key in {"ENV", None}:
+        if key is None:
             return self.get_default_provider(provider_type)
 
         provider: StorageProvider
@@ -130,7 +136,7 @@ class LinkCreds(DeepLakeMemoryObject):
 
     def populate_creds(self, creds_key: str, creds):
         if creds_key not in self.creds_keys:
-            raise KeyError(f"Creds key {creds_key} does not exist")
+            raise MissingCredsError(f"Creds key {creds_key} does not exist")
         expires_in_to_expires_at(creds)
         self.creds_dict[creds_key] = creds
         self.storage_providers.pop(creds_key, None)
@@ -158,19 +164,20 @@ class LinkCreds(DeepLakeMemoryObject):
             obj.creds_mapping = {k: i + 1 for i, k in enumerate(obj.creds_keys)}
             obj.managed_creds_keys = set(d["managed_creds_keys"])
             obj.used_creds_keys = set(d["used_creds_keys"])
+            if "ENV" in obj.used_creds_keys:
+                obj.creds_keys = ["ENV"] + obj.creds_keys
+                obj.creds_mapping["ENV"] = 0
         obj.is_dirty = False
         return obj
 
     def get_encoding(self, key: Optional[str] = None, path: Optional[str] = None):
-        if key == "ENV":
-            return 0
         if key is None:
             if path and path.startswith(ALL_CLOUD_PREFIXES):
                 raise ValueError("Creds key must always be specified for cloud storage")
             return 0
 
         if key not in self.creds_keys:
-            raise ValueError(f"Creds key {key} does not exist")
+            raise MissingCredsError(f"Creds key {key} does not exist")
         return self.creds_mapping[key]
 
     def get_creds_key(self, encoding):
