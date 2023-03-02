@@ -257,7 +257,7 @@ A bbox tensor can be created using
 
 You can also choose to set the class names after tensor creation.
 
->>> ds.labels.info.update(coords = {"type": "pixel", "LTRB"})
+>>> ds.labels.info.update(coords = {"type": "pixel", "mode": "LTRB"})
 
 .. note::
     If the bounding box format is not specified, the visualizer will assume a YOLO format (``fractional`` + ``CCWH``) 
@@ -299,9 +299,16 @@ be specified in the coords key in tensor meta information mentioned below.
 :blue:`Creating a 3d bbox tensor`
 ---------------------------------
 
+.. note::
+    In order for 3D bounding boxes to be correctly displayed by the visualizer, the format of the bounding box 
+    must be specified in the coords key in tensor meta information mentioned below. In addition, for projecting 
+    3D bounding boxes onto 2D data (such as an image), the :ref:`intrinsics <intrinsics-htype>` tensor must exist 
+    in the dataset, or the intrinsics matrix must be specified in the ``ds.img_tensor.info`` dictionary, where the key is 
+    ``"intrinsics"`` and the value is the matrix.
+
 A 3d bbox tensor can be created using
 
->>> ds.create_tensor("3d_boxes", htype="bbox.3d")
+>>> ds.create_tensor("3d_boxes", htype="bbox.3d", coords={"mode": "center"})
 
 - Optional args:
     - **coords**: A dictionary with key "mode".
@@ -315,7 +322,7 @@ A 3d bbox tensor can be created using
                 - ``rot_y`` - rotation angle along y axis, given in degrees
                 - ``rot_z`` - rotation angle along z axis, given in degrees
             - "vertex": 8 3D vertices - [[x0, y0, z0], [x1, y1, z1], [x2, y2, z2], ....., [x7, y7, z7]]
-                - :bluebold:`Sample dimensions:` ``(# bounding boxes, 8)``
+                - :bluebold:`Sample dimensions:` ``(# bounding boxes, 8, 3)``
                 The vertex order is of the following form::
 
                                  4_____________________ 5
@@ -366,6 +373,52 @@ array([[965, 110, 262,  77, 22, 36, 44, 18, 0, 28, 0],
 >>> boxes.shape
 (9, 4)
 >>> ds.3d_boxes.append(boxes)
+
+.. _intrinsics-htype:
+
+Intrinsics Htype
+~~~~~~~~~~~~~~~~
+
+- :bluebold:`Sample dimensions`: ``(3, 3)``
+
+The intrinsic matrix represents a projective transformation from the 3-D camera's coordinates into the 2-D image coordinates.
+The intrinsic parameters include the focal length, the optical center, also known as the principal point.
+The camera intrinsic matrix, :math:`K`, is defined as:
+
+.. math::
+
+    \begin{bmatrix}
+    f_x & 0 & c_x \\
+    0 & f_y & c_y \\
+    0 & 0 & 1 
+    \end{bmatrix}
+
+- :math:`[c_x, c_y]` - Optical center (the principal point), in pixels.
+- :math:`[f_x, f_y]` - Focal length in pixels.
+- :math:`f_x = F / p_x`
+- :math:`f_y = F / p_y`
+- :math:`F` - Focal length in world units, typically expressed in millimeters.
+- :math:`(p_x, p_y)` - Size of the pixel in world units.
+
+:blue:`Creating an intrinsics tensor`
+-------------------------------------
+
+An intrinsics tensor can be created using
+
+>>> ds.create_tensor("intrinsics", htype="intrinsics")
+
+- Optional args:
+    - :ref:`sample_compression <sample_compression>` or :ref:`chunk_compression <chunk_compression>`.
+    - dtype: Defaults to ``float32``.
+- Supported compressions:
+
+>>> ["lz4"]
+
+:blue:`Appending intrinsics matrices`
+-------------------------------------
+
+>>> intrinsic_params = np.zeros((3, 3))
+>>> ds.intrinsics.append(intrinsic_params)
 
 
 .. _segment-mask-htype:
