@@ -13,7 +13,7 @@ from deeplake.client.log import logger
 
 
 class DataFrame(StructuredDataset):
-    def __init__(self, source, column_params=None, creds=None):
+    def __init__(self, source, column_params=None, creds=None, creds_key=None):
         """Convert a pandas dataframe to a Deep Lake dataset.
 
         Args:
@@ -31,6 +31,7 @@ class DataFrame(StructuredDataset):
             raise Exception("Source is not a pandas dataframe object.")
 
         self.creds = creds
+        self.creds_key = creds_key
         self._initialize_params(column_params)
 
     def _sanitize_tensor(self, input: str):
@@ -147,6 +148,8 @@ class DataFrame(StructuredDataset):
             disable=not progressbar,
         )
         with ds, iterator:
+            if self.creds_key is not None and self.creds_key not in ds.get_creds_keys():
+                ds.add_creds_key(self.creds_key, managed=True)
             for key in iterator:
                 if progressbar:
                     logger.info(f"\column={key}, dtype={self.source[key].dtype}")
@@ -161,9 +164,8 @@ class DataFrame(StructuredDataset):
                     "htype" in tensor_params.keys()
                     and "link[" in tensor_params["htype"]
                 ):
-                    creds_key = tensor_params.get("creds_key", None)
                     extend_values = [
-                        link(value, creds_key=creds_key)
+                        link(value, creds_key=self.creds_key)
                         for value in self.source[key].values
                     ]
                 elif (
