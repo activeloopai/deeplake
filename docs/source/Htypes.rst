@@ -257,7 +257,7 @@ A bbox tensor can be created using
 
 You can also choose to set the class names after tensor creation.
 
->>> ds.labels.info.update(coords = {"type": "pixel", "LTRB"})
+>>> ds.labels.info.update(coords = {"type": "pixel", "mode": "LTRB"})
 
 .. note::
     If the bounding box format is not specified, the visualizer will assume a YOLO format (``fractional`` + ``CCWH``) 
