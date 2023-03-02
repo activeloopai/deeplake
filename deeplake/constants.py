@@ -1,4 +1,6 @@
 import os
+import sys
+
 import numpy as np
 
 
@@ -166,3 +168,9 @@ RETURN_DUMMY_DATA_FOR_DATALOADER = False
 
 # Delay before spinner starts on time consuming functions (in seconds)
 SPINNER_START_DELAY = 2
+
+PYTEST_ENABLED = os.environ.get("DEEPLAKE_PYTEST_ENABLED", "").lower().strip() == "true"
+
+SPINNER_ENABLED = not PYTEST_ENABLED
+
+LOCK_LOCAL_DATASETS = not PYTEST_ENABLED
