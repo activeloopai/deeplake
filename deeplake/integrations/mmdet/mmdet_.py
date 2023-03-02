@@ -636,6 +636,13 @@ class MMDetDataset(TorchDataset):
         Returns:
             OrderedDict: Evaluation metrics dictionary
         """
+
+        if self.num_gpus > 1:
+            results_ordered = []
+            for i in range(self.num_gpus):
+                results_ordered += results[i :: self.num_gpus]
+            results = results_ordered
+
         if self.evaluator is None:
             if not isinstance(metric, str):
                 assert len(metric) == 1
