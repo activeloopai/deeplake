@@ -1977,6 +1977,8 @@ def test_text_labels_transform(local_ds_generator, scheduler, num_workers):
 
     upload().eval(data, ds, scheduler=scheduler, num_workers=num_workers)
 
+    assert all(not tensor.startswith("__temp") for tensor in ds._tensors())
+
     for tensor in ("labels", "multiple_labels", "seq_labels"):
         class_names = ds[tensor].info.class_names
         label_idx_map = {class_names[i]: i for i in range(len(class_names))}
