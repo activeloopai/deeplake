@@ -58,7 +58,9 @@ def import_indra_loader():
         INDRA_LOADER = Loader
         return Loader
     except Exception as e:
-        raise_indra_installation_error(e)
+        if not deeplake.constants.RETURN_DUMMY_DATA_FOR_DATALOADER:
+            raise_indra_installation_error(e)
+        INDRA_LOADER = None
 
 
 class DeepLakeDataLoader(DataLoader):

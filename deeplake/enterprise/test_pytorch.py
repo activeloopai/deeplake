@@ -653,7 +653,6 @@ def test_pytorch_error_handling(hub_cloud_ds):
 
 
 @patch("deeplake.constants.RETURN_DUMMY_DATA_FOR_DATALOADER", True)
-@requires_libdeeplake
 @requires_torch
 def test_pytorch_dummy_data(local_ds):
     x_data = [
