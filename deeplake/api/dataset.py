@@ -541,6 +541,7 @@ class dataset:
 
         Raises:
             DatasetHandlerError: If a Dataset does not exist at the given path and ``force = False``.
+            UserNotLoggedInException: When user is not logged in.
             NotImplementedError: When attempting to delete a managed view.
 
         Warning:
