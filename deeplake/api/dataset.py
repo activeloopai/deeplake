@@ -1384,7 +1384,12 @@ class dataset:
                     raise InvalidPathException(src)
                 source = pd.read_csv(src, quotechar='"', skipinitialspace=True)
                 ds = dataset.ingest_dataframe(
-                    source, dest, dest_creds, progressbar, token=token, **dataset_kwargs
+                    source,
+                    dest,
+                    dest_creds=dest_creds,
+                    progressbar=progressbar,
+                    token=token,
+                    **dataset_kwargs,
                 )
                 return ds
 

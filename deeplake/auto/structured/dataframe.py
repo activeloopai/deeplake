@@ -143,6 +143,24 @@ class DataFrame(StructuredDataset):
 
         return tensor_params
 
+    def _get_extend_values(self, tensor_params: dict, key: str):
+        """Method creates a list of values to be extended to the tensor, based on the tensor parameters and the data in the dataframe column"""
+
+        if "htype" in tensor_params.keys() and "link[" in tensor_params["htype"]:
+            extend_values = [
+                link(value, creds_key=self.creds_key)
+                for value in self.source[key].values
+            ]
+        elif "htype" in tensor_params.keys() and "image" in tensor_params["htype"]:
+
+            extend_values = [
+                read(value, creds=self.creds) for value in self.source[key].values
+            ]
+        else:
+            extend_values = self.source[key].values
+
+        return extend_values
+
     def fill_dataset(self, ds: Dataset, progressbar: bool = True) -> Dataset:
         """Fill dataset with data from the dataframe - one tensor per column
 
@@ -167,39 +185,22 @@ class DataFrame(StructuredDataset):
             for key in iterator:
                 if progressbar:
                     logger.info(f"\column={key}, dtype={self.source[key].dtype}")
-                # try:
+                try:
 
-                tensor_params = self._parse_tensor_params(key)
+                    tensor_params = self._parse_tensor_params(key)
 
-                if tensor_params["name"] not in ds.tensors:
-                    ds.create_tensor(**tensor_params)
+                    if tensor_params["name"] not in ds.tensors:
+                        ds.create_tensor(**tensor_params)
 
-                if (
-                    "htype" in tensor_params.keys()
-                    and "link[" in tensor_params["htype"]
-                ):
-                    extend_values = [
-                        link(value, creds_key=self.creds_key)
-                        for value in self.source[key].values
-                    ]
-                elif (
-                    "htype" in tensor_params.keys()
-                    and "image" in tensor_params["htype"]
-                ):
-
-                    extend_values = [
-                        read(value, creds=self.creds)
-                        for value in self.source[key].values
-                    ]
-                else:
-                    extend_values = self.source[key].values
-
-                ds[tensor_params["name"]].extend(extend_values, progressbar=progressbar)
-                # except Exception as e:
-                #     print("Error: {}".format(str(e)))
-                #     skipped_keys.append(key)
-                #     iterator.set_description(
-                #         "Ingesting... (%i columns skipped)" % (len(skipped_keys))
-                #     )
-                #     continue
+                    ds[tensor_params["name"]].extend(
+                        self._get_extend_values(tensor_params, key),
+                        progressbar=progressbar,
+                    )
+                except Exception as e:
+                    print("Error: {}".format(str(e)))
+                    skipped_keys.append(key)
+                    iterator.set_description(
+                        "Ingesting... (%i columns skipped)" % (len(skipped_keys))
+                    )
+                    continue
         return ds
