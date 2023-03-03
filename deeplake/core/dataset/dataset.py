@@ -277,7 +277,6 @@ class Dataset:
         return self
 
     def __exit__(self, exc_type, exc_val, exc_tb):
-
         autoflush = self._initial_autoflush.pop()
         if not self._read_only and autoflush:
             if self._vc_info_updated:
