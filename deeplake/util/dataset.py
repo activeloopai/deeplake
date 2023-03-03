@@ -4,7 +4,7 @@ from deeplake.util.exceptions import ReadOnlyModeError, TensorDoesNotExistError
 
 def try_flushing(ds):
     try:
-        ds.flush()
+        ds.storage.flush()
     except ReadOnlyModeError:
         pass
 
