@@ -520,7 +520,11 @@ class MMDetDataset(TorchDataset):
 
     def __len__(self):
         if self.mode == "val":
-            return math.ceil(len(self.dataset) / self.batch_size)
+            per_gpu_length = math.floor(
+                len(self.dataset) / (self.batch_size * self.num_gpus)
+            )
+            total_length = per_gpu_length * self.num_gpus
+            return total_length
         return super().__len__()
 
     def _get_images(self, images_tensor):
@@ -636,7 +640,6 @@ class MMDetDataset(TorchDataset):
         Returns:
             OrderedDict: Evaluation metrics dictionary
         """
-
         if self.num_gpus > 1:
             results_ordered = []
             for i in range(self.num_gpus):
@@ -686,7 +689,11 @@ class MMDetDataset(TorchDataset):
             return eval_results
 
         return self.evaluator.evaluate(
-            results, metric=metric, logger=logger, proposal_nums=proposal_nums, **kwargs
+            results,
+            metric=metric,
+            logger=logger,
+            proposal_nums=proposal_nums,
+            **kwargs,
         )
 
     @staticmethod
