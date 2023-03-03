@@ -165,3 +165,7 @@ SHOW_ITERATION_WARNING = True
 
 # Delay before spinner starts on time consuming functions (in seconds)
 SPINNER_START_DELAY = 2
+
+# Rechunk after transform if average chunk size is less than
+# this fraction of min chunk size
+TRANSFORM_RECHUNK_AVG_SIZE_BOUND = 0.1

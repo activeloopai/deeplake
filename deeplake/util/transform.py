@@ -11,7 +11,11 @@ from deeplake.core.chunk_engine import ChunkEngine
 from deeplake.core.transform.transform_dataset import TransformDataset
 from deeplake.core.index import Index
 
-from deeplake.constants import MB, TRANSFORM_PROGRESSBAR_UPDATE_INTERVAL
+from deeplake.constants import (
+    MB,
+    TRANSFORM_PROGRESSBAR_UPDATE_INTERVAL,
+    TRANSFORM_RECHUNK_AVG_SIZE_BOUND,
+)
 from deeplake.util.remove_cache import get_base_storage
 from deeplake.util.keys import get_tensor_meta_key
 from deeplake.util.exceptions import (
@@ -537,6 +541,12 @@ def process_transform_result(result: List[Dict]):
     return final
 
 
+def _get_avg_chunk_size(num_samples, max_shape, num_chunks, dtype):
+    nbytes = np.prod([num_samples] + max_shape) * np.dtype(dtype).itemsize
+    avg_chunk_size = nbytes / num_chunks
+    return avg_chunk_size
+
+
 def rechunk_if_necessary(ds):
     with ds:
         for tensor in ds.tensors:
@@ -552,26 +562,20 @@ def rechunk_if_necessary(ds):
                     num_samples = engine.num_samples
                     max_shape = tensor.meta.max_shape
                     if len(max_shape) > 0:
-                        nbytes = (
-                            np.prod([num_samples] + max_shape)
-                            * np.dtype(tensor.dtype).itemsize
+                        avg_chunk_size = _get_avg_chunk_size(
+                            num_samples, max_shape, num_chunks, tensor.dtype
                         )
-                        avg_chunk_size = nbytes / num_chunks
-
-                        if avg_chunk_size < 0.1 * engine.min_chunk_size:
+                        if (
+                            avg_chunk_size
+                            < TRANSFORM_RECHUNK_AVG_SIZE_BOUND * engine.min_chunk_size
+                        ):
                             enc = tensor.chunk_engine.chunk_id_encoder
                             rechunked = False
                             while True:
                                 encoded = enc._encoded
                                 for row, chunk_id in enumerate(encoded[:, 0]):
-                                    try:
-                                        engine._check_rechunk(
-                                            engine.get_chunk_from_chunk_id(chunk_id),
-                                            row,
-                                        )
-                                    # not supported on gdrive
-                                    except NotImplementedError:
-                                        break
+                                    chunk = engine.get_chunk_from_chunk_id(chunk_id)
+                                    engine._check_rechunk(chunk, row)
                                     rechunked = len(encoded) != len(enc._encoded)
                                     if rechunked:
                                         break

@@ -1467,13 +1467,13 @@ class ChunkEngine:
             chunk.num_data_bytes < RANDOM_MINIMAL_CHUNK_SIZE
             and self.max_chunk_size > RANDOM_MINIMAL_CHUNK_SIZE
         ):
-            return self._try_merge_with_neighbor_and_split(chunk=chunk, row=chunk_row)
+            self._try_merge_with_neighbor_and_split(chunk=chunk, row=chunk_row)
 
         elif (
             chunk.num_data_bytes > RANDOM_MAX_ALLOWED_CHUNK_SIZE
             or chunk.num_data_bytes > self.max_chunk_size + RANDOM_MINIMAL_CHUNK_SIZE
         ):
-            return self.__rechunk(chunk, chunk_row)
+            self.__rechunk(chunk, chunk_row)
 
     def _update(
         self,
