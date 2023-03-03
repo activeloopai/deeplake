@@ -4,6 +4,7 @@ from deeplake import Dataset
 from deeplake import read, link
 from tqdm import tqdm  # type: ignore
 from deeplake.htype import HTYPE_SUPPORTED_COMPRESSIONS
+from deeplake.util.exceptions import IngestionError
 from collections import defaultdict
 from typing import DefaultDict
 import pathlib
@@ -95,7 +96,8 @@ class DataFrame(StructuredDataset):
 
         return most_frequent_image_extension
 
-    def _parse_tensor_params(self, key):
+    def _parse_tensor_params(self, key, inspect_limit = 1000):
+        """Parse the tensor parameters for a column. Required parameters that are not specified will be inferred by inspecting up to 'inspect_limit' rows in the data."""
 
         tensor_params = {}
 
@@ -105,10 +107,18 @@ class DataFrame(StructuredDataset):
         if (
             "htype" not in tensor_params.keys()
         ):  # Auto-set some typing parameters if htype is not specified
+            
             if dtype == np.dtype("object"):
-                tensor_params.update(
-                    htype="text"
-                )  # Use "text" htype for text data when the htype is not specified tensor_params
+
+                types = [type(v) for v in self.source[key][0:inspect_limit].values]
+                
+                if len(set(types))!=1:
+                    raise IngestionError("Dataframe has different data types inside '{}' column. Please make sure all data is given column is compatible with a single Deep Lake htype, or try specifying the htype manually.".format(key))
+
+                if types[0] == str:
+                    tensor_params.update(
+                        htype="text"
+                    )  # Use "text" htype for text data when the htype is not specified tensor_params
             else:
                 tensor_params.update(
                     dtype=dtype,
