@@ -22,11 +22,7 @@ from deeplake.util.warnings import always_warn
 import json
 import mmcv  # type: ignore
 import math
-from tqdm import tqdm
-from mmdet.core.evaluation.eval_hooks import DistEvalHook, _calc_dynamic_intervals
-from torch.nn.modules.batchnorm import _BatchNorm
-import torch.distributed as dist
-import os
+from tqdm import tqdm  # type: ignore
 
 
 def _isArrayLike(obj):
