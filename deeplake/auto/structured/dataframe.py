@@ -19,8 +19,10 @@ class DataFrame(StructuredDataset):
 
         Args:
             source: Pandas dataframe object.
-            column_params: Optional setting for the tensors corresponding to the dataframe columns
-            creds: Optional credentials for accessing the source data
+            column_params: Optional setting for the tensors corresponding to the dataframe columns.
+            creds: Optional credentials for accessing the source data.
+            creds_key: Optional managed credentials key for accessing source data in linked tensors.
+
 
         Raises:
             Exception: If source is not a pandas dataframe object.
@@ -39,7 +41,10 @@ class DataFrame(StructuredDataset):
         """Sanitize a string to be a valid tensor name
 
         Args:
-            input: A string that will be sanitized
+            input (str): A string that will be sanitized
+
+        Returns:
+            str: A string with the sanitized tensor name
         """
 
         invalid_chars = ["?", "!", "/", "\\", "#", "'", '"']

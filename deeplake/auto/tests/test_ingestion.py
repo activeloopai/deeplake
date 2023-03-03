@@ -12,7 +12,6 @@ import numpy as np
 import pytest
 import deeplake
 import pandas as pd  # type: ignore
-from typing import Dict
 
 
 @pytest.mark.parametrize("convert_to_pathlib", [True, False])
@@ -225,7 +224,7 @@ def test_csv(memory_ds: Dataset):
 
 @pytest.mark.parametrize("convert_to_pathlib", [True, False])
 def test_dataframe_basic(
-    memory_ds: Dataset, dataframe_ingestion_data: Dict, convert_to_pathlib: bool
+    memory_ds: Dataset, dataframe_ingestion_data: dict, convert_to_pathlib: bool
 ):
     # path = get_dummy_data_path("tests_auto/csv/deniro.csv")
     df = pd.read_csv(
