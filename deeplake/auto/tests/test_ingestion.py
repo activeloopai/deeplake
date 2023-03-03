@@ -5,6 +5,7 @@ from deeplake.util.exceptions import (
     InvalidPathException,
     SamePathException,
     DatasetHandlerError,
+    IngestionError,
 )
 from os.path import splitext
 import numpy as np
@@ -291,6 +292,68 @@ def test_dataframe_files(memory_ds: Dataset, dataframe_ingestion_data):
 
     assert len(ds[df_keys[0]][0].numpy().shape) == 3
     assert ds[df_keys[2]][2].data()["value"] == df[df_keys[2]][2]
+
+
+def test_dataframe_array(memory_ds: Dataset):
+
+    # Create DataFrame
+    data = {
+        "AA": ["Alice", "Bob", "Charlie", "Steve"],
+        "BB": [
+            np.array([80, 75, 85]),
+            np.array([80, 22, 1]),
+            np.array([0, 565, 234]),
+            np.array([0, 565, 234]),
+        ],
+        "CC": [45, 67, 88, 77],
+    }
+
+    df = pd.DataFrame(data)
+    df_keys = df.keys()
+
+    ds = deeplake.ingest_dataframe(
+        df,
+        memory_ds.path,
+        progressbar=False,
+    )
+    tensors_names = list(ds.tensors.keys())
+
+    assert tensors_names == [df_keys[0], df_keys[1], df_keys[2]]
+    assert ds[df_keys[0]].htype == "text"
+
+    np.testing.assert_array_equal(
+        ds[df_keys[1]].numpy(), np.stack([arr for arr in df[df_keys[1]].values], axis=0)
+    )
+
+    np.testing.assert_array_equal(
+        ds[df_keys[2]].numpy().reshape(-1), df[df_keys[2]].values
+    )
+    assert ds[df_keys[2]].dtype == df[df_keys[2]].dtype
+
+
+def test_dataframe_array_bad(memory_ds: Dataset):
+
+    # Create DataFrame
+
+    data = {
+        "AA": ["Alice", "Bob", "Charlie", "Steve"],
+        "BB": [
+            np.array([80, 75, 85]),
+            np.array([80, 22, 1]),
+            np.array([0, 565, 234]),
+            "bad_data",
+        ],
+        "CC": [45, 67, 88, 77],
+    }
+
+    df = pd.DataFrame(data)
+
+    with pytest.raises(IngestionError):
+        ds = deeplake.ingest_dataframe(
+            df,
+            memory_ds.path,
+            progressbar=False,
+        )
 
 
 def test_dataframe_with_connect(
