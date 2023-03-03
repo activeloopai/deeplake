@@ -6,10 +6,12 @@ from deeplake.util.exceptions import (
     SamePathException,
     DatasetHandlerError,
 )
+from os.path import splitext
 import numpy as np
 import pytest
 import deeplake
 import pandas as pd  # type: ignore
+from typing import Dict
 
 
 @pytest.mark.parametrize("convert_to_pathlib", [True, False])
@@ -221,10 +223,26 @@ def test_csv(memory_ds: Dataset):
 
 
 @pytest.mark.parametrize("convert_to_pathlib", [True, False])
-def test_dataframe(memory_ds: Dataset, convert_to_pathlib: bool):
-    path = get_dummy_data_path("tests_auto/csv/deniro.csv")
-    df = pd.read_csv(path, quotechar='"', skipinitialspace=True)
-    ds = deeplake.ingest_dataframe(df, memory_ds.path, progressbar=False)
+def test_dataframe_basic(
+    memory_ds: Dataset, dataframe_ingestion_data: Dict, convert_to_pathlib: bool
+):
+    # path = get_dummy_data_path("tests_auto/csv/deniro.csv")
+    df = pd.read_csv(
+        dataframe_ingestion_data["basic_dataframe_w_sanitize_path"],
+        quotechar='"',
+        skipinitialspace=True,
+    )
+
+    df_keys = df.keys()
+    key_0_new_name = "year_new"
+
+    ds = deeplake.ingest_dataframe(
+        df,
+        memory_ds.path,
+        progressbar=False,
+        column_params={df_keys[0]: {"name": key_0_new_name}},
+    )
+    tensors_names = list(ds.tensors.keys())
 
     with pytest.raises(Exception):
         memory_ds.path = convert_string_to_pathlib_if_needed(
@@ -232,17 +250,47 @@ def test_dataframe(memory_ds: Dataset, convert_to_pathlib: bool):
         )
         deeplake.ingest_dataframe(123, memory_ds.path)
 
-    assert list(ds.tensors) == ["Year", "Score", "Title"]
+    assert key_0_new_name in tensors_names and df_keys[2] in tensors_names
+    assert df_keys[1] not in tensors_names  # Second columnd should have been sanitized
 
-    assert ds["Year"].dtype == df["Year"].dtype
-    np.testing.assert_array_equal(ds["Year"].numpy().reshape(-1), df["Year"].values)
+    assert ds[key_0_new_name].dtype == df[df_keys[0]].dtype
+    np.testing.assert_array_equal(
+        ds[key_0_new_name].numpy().reshape(-1), df[df_keys[0]].values
+    )
 
-    assert ds["Score"].dtype == df["Score"].dtype
-    np.testing.assert_array_equal(ds["Score"].numpy().reshape(-1), df["Score"].values)
+    assert ds[df_keys[2]].htype == "text"
+    assert ds[df_keys[2]].dtype == str
+    np.testing.assert_array_equal(
+        ds[df_keys[2]].numpy().reshape(-1), df[df_keys[2]].values
+    )
 
-    assert ds["Title"].htype == "text"
-    assert ds["Title"].dtype == str
-    np.testing.assert_array_equal(ds["Title"].numpy().reshape(-1), df["Title"].values)
+
+def test_dataframe_files(memory_ds: Dataset, dataframe_ingestion_data):
+    # path = get_dummy_data_path("tests_auto/csv/deniro.csv")
+    df = pd.read_csv(dataframe_ingestion_data["csv_w_images_path"])
+    df_keys = df.keys()
+
+    ds = deeplake.ingest_dataframe(
+        df,
+        memory_ds.path,
+        column_params={
+            df_keys[0]: {"htype": "image"},
+            df_keys[2]: {"htype": "class_label"},
+        },
+        progressbar=False,
+    )
+    tensors_names = list(ds.tensors.keys())
+
+    assert tensors_names == [df_keys[0], df_keys[1], df_keys[2]]
+    assert df_keys[1] not in tensors_names  # Second columnd should have been sanitized
+    assert ds[df_keys[0]].htype == "image"
+    assert ds[df_keys[2]].htype == "class_label"
+    assert (
+        ds[df_keys[0]].meta.sample_compression == splitext(df[df_keys[0]][0])[1].lower()
+    )
+
+    assert len(ds[df_keys[0]][0].numpy().shape) == 3
+    assert ds[df_keys[2]][2].data()["value"] == df[df_keys[2]][2]
 
 
 def test_dataframe_with_connect(
@@ -250,9 +298,16 @@ def test_dataframe_with_connect(
     hub_cloud_path,
     hub_cloud_dev_token,
     hub_cloud_dev_managed_creds_key,
+    dataframe_ingestion_data,
 ):
-    path = get_dummy_data_path("tests_auto/csv/deniro.csv")
-    df = pd.read_csv(path, quotechar='"', skipinitialspace=True)
+    # path = get_dummy_data_path("tests_auto/csv/deniro.csv")
+    df = pd.read_csv(
+        dataframe_ingestion_data["basic_dataframe_w_sanitize_path"],
+        quotechar='"',
+        skipinitialspace=True,
+    )
+    df_keys = df.keys()
+
     ds = deeplake.ingest_dataframe(
         df,
         s3_path,
@@ -265,13 +320,14 @@ def test_dataframe_with_connect(
     )
 
     assert ds.path == hub_cloud_path
-    assert list(ds.tensors) == ["Year", "Score", "Title"]
-    assert ds["Year"].dtype == df["Year"].dtype
-    np.testing.assert_array_equal(ds["Year"].numpy().reshape(-1), df["Year"].values)
 
-    assert ds["Score"].dtype == df["Score"].dtype
-    np.testing.assert_array_equal(ds["Score"].numpy().reshape(-1), df["Score"].values)
+    assert ds[df_keys[0]].dtype == df[df_keys[0]].dtype
+    np.testing.assert_array_equal(
+        ds[df_keys[0]].numpy().reshape(-1), df[df_keys[0]].values
+    )
 
-    assert ds["Title"].htype == "text"
-    assert ds["Title"].dtype == str
-    np.testing.assert_array_equal(ds["Title"].numpy().reshape(-1), df["Title"].values)
+    assert ds[df_keys[2]].htype == "text"
+    assert ds[df_keys[2]].dtype == str
+    np.testing.assert_array_equal(
+        ds[df_keys[2]].numpy().reshape(-1), df[df_keys[2]].values
+    )

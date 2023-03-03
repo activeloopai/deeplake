@@ -112,6 +112,14 @@ def _download_hub_test_yolo_data():
     }
 
 
+def _download_hub_test_dataframe_data():
+    path = _git_clone(_HUB_TEST_RESOURCES_URL)
+    return {
+        "basic_dataframe_w_sanitize_path": path + "/dataframe/text_w_sanitization.txt",
+        "csv_w_images_path": path + "/dataframe/csv_w_local_files.csv",
+    }
+
+
 def _download_pil_test_images(ext=[".jpg", ".png"]):
     paths = {e: [] for e in ext}
     corrupt_file_keys = [
@@ -538,3 +546,8 @@ def coco_ingestion_data():
 @pytest.fixture(scope="session")
 def yolo_ingestion_data():
     return _download_hub_test_yolo_data()
+
+
+@pytest.fixture(scope="session")
+def dataframe_ingestion_data():
+    return _download_hub_test_dataframe_data()

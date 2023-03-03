@@ -96,7 +96,7 @@ class DataFrame(StructuredDataset):
 
         return most_frequent_image_extension
 
-    def _parse_tensor_params(self, key, inspect_limit = 1000):
+    def _parse_tensor_params(self, key, inspect_limit=1000):
         """Parse the tensor parameters for a column. Required parameters that are not specified will be inferred by inspecting up to 'inspect_limit' rows in the data."""
 
         tensor_params = {}
@@ -107,13 +107,17 @@ class DataFrame(StructuredDataset):
         if (
             "htype" not in tensor_params.keys()
         ):  # Auto-set some typing parameters if htype is not specified
-            
+
             if dtype == np.dtype("object"):
 
                 types = [type(v) for v in self.source[key][0:inspect_limit].values]
-                
-                if len(set(types))!=1:
-                    raise IngestionError("Dataframe has different data types inside '{}' column. Please make sure all data is given column is compatible with a single Deep Lake htype, or try specifying the htype manually.".format(key))
+
+                if len(set(types)) != 1:
+                    raise IngestionError(
+                        "Dataframe has different data types inside '{}' column. Please make sure all data is given column is compatible with a single Deep Lake htype, or try specifying the htype manually.".format(
+                            key
+                        )
+                    )
 
                 if types[0] == str:
                     tensor_params.update(
