@@ -136,7 +136,10 @@ class TransformTensor:
                 self._ndim = len(shape)
             else:
                 if len(shape) != self._ndim:
-                    raise TensorInvalidSampleShapeError(shape, self._ndim)
+                    if not (
+                        isinstance(item, Sample) and len(shape) == 2 and self._ndim == 3
+                    ):
+                        raise TensorInvalidSampleShapeError(shape, self._ndim)
 
         self.items.append(item)
 

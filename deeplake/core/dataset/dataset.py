@@ -9,7 +9,7 @@ from functools import partial
 
 import pathlib
 import numpy as np
-from time import time
+from time import time, sleep
 from tqdm import tqdm  # type: ignore
 
 import deeplake
@@ -17,7 +17,9 @@ from deeplake.core.index.index import IndexEntry
 from deeplake.core.link_creds import LinkCreds
 from deeplake.util.connect_dataset import connect_dataset_entry
 from deeplake.util.downsample import validate_downsampling
+from deeplake.util.version_control import save_version_info
 from deeplake.util.invalid_view_op import invalid_view_op
+from deeplake.util.spinner import spinner
 from deeplake.util.iteration_warning import (
     suppress_iteration_warning,
     check_if_iteration,
@@ -42,6 +44,7 @@ from deeplake.core.storage import (
     S3Provider,
     GCSProvider,
     MemoryProvider,
+    LocalProvider,
 )
 from deeplake.core.tensor import Tensor, create_tensor, delete_tensor
 from deeplake.core.version_control.commit_node import CommitNode  # type: ignore
@@ -136,7 +139,7 @@ import warnings
 import jwt
 
 
-_LOCKABLE_STORAGES = {S3Provider, GCSProvider}
+_LOCKABLE_STORAGES = {S3Provider, GCSProvider, LocalProvider}
 
 
 class Dataset:
@@ -229,13 +232,10 @@ class Dataset:
         d["_pad_tensors"] = pad_tensors
         d["_locking_enabled"] = lock
         d["_temp_tensors"] = []
+        d["_vc_info_updated"] = False
         dct = self.__dict__
         dct.update(d)
-        dct["enabled_tensors"] = (
-            set(self._resolve_tensor_list(enabled_tensors, root=True))
-            if enabled_tensors
-            else None
-        )
+
         try:
             self._set_derived_attributes()
         except LockedException:
@@ -246,6 +246,11 @@ class Dataset:
             raise ReadOnlyModeError(
                 "This dataset cannot be open for writing as you don't have permissions. Try loading the dataset with `read_only=True."
             )
+        dct["enabled_tensors"] = (
+            set(self._resolve_tensor_list(enabled_tensors, root=True))
+            if enabled_tensors
+            else None
+        )
         self._first_load_init()
         self._initial_autoflush: List[
             bool
@@ -272,9 +277,19 @@ class Dataset:
         return self
 
     def __exit__(self, exc_type, exc_val, exc_tb):
-        self.storage.autoflush = self._initial_autoflush.pop()
+        autoflush = self._initial_autoflush.pop()
+        if not self._read_only and autoflush:
+            if self._vc_info_updated:
+                self._flush_vc_info()
+            spinner(self.storage.flush)()
+        self.storage.autoflush = autoflush
+
+    def maybe_flush(self):
         if not self._read_only:
-            self.storage.maybe_flush()
+            if self.storage.autoflush:
+                if self._vc_info_updated:
+                    self._flush_vc_info()
+                self.storage.flush()
 
     @property
     def num_samples(self) -> int:
@@ -306,8 +321,10 @@ class Dataset:
         """Returns the length of the smallest tensor."""
         tensor_lengths = [len(tensor) for tensor in self.tensors.values()]
         pad_tensors = self._pad_tensors
-        if not pad_tensors and min(tensor_lengths, default=0) != max(
-            tensor_lengths, default=0
+        if (
+            warn
+            and not pad_tensors
+            and min(tensor_lengths, default=0) != max(tensor_lengths, default=0)
         ):
             warning(
                 "The length of tensors in the dataset is different. The len(ds) returns the length of the "
@@ -379,16 +396,14 @@ class Dataset:
         state["_client"] = state["org_id"] = state["ds_name"] = None
         state["_temp_tensors"] = []
         state["libdeeplake_dataset"] = None
+        state["_vc_info_updated"] = False
+        state["_locked_out"] = False
         self.__dict__.update(state)
         self.__dict__["base_storage"] = get_base_storage(self.storage)
         # clear cache while restoring
         self.storage.clear_cache_without_flush()
         self._set_derived_attributes(verbose=False)
         self._indexing_history = []
-
-        for temp_tensor in self._temp_tensors:
-            self.delete_tensor(temp_tensor, large_ok=True)
-        self._temp_tensors = []
 
     def _reload_version_state(self):
         version_state = self.version_state
@@ -1243,7 +1258,7 @@ class Dataset:
         self.link_creds = link_creds
 
     def _lock(self, err=False, verbose=True):
-        if not self._locking_enabled:
+        if not self.is_head_node or not self._locking_enabled:
             return True
         storage = self.base_storage
         if storage.read_only and not self._locked_out:
@@ -1254,6 +1269,10 @@ class Dataset:
         if isinstance(storage, tuple(_LOCKABLE_STORAGES)) and (
             not self.read_only or self._locked_out
         ):
+            if not deeplake.constants.LOCK_LOCAL_DATASETS and isinstance(
+                storage, LocalProvider
+            ):
+                return True
             try:
                 # temporarily disable read only on base storage, to try to acquire lock, if exception, it will be again made readonly
                 storage.disable_readonly()
@@ -1298,6 +1317,7 @@ class Dataset:
         except Exception:  # python shutting down
             pass
 
+    @spinner
     @invalid_view_op
     def commit(self, message: Optional[str] = None, allow_empty=False) -> str:
         """Stores a snapshot of the current state of the dataset.
@@ -1322,9 +1342,10 @@ class Dataset:
                 "There are no changes, commit is not done. Try again with allow_empty=True."
             )
 
-        return self._commit(message)
+        return self._commit(message, None, False)
 
     @deeplake_reporter.record_call
+    @spinner
     @invalid_view_op
     @suppress_iteration_warning
     def merge(
@@ -1371,12 +1392,17 @@ class Dataset:
 
         self._initial_autoflush.append(self.storage.autoflush)
         self.storage.autoflush = False
-
         merge(self, target_id, conflict_resolution, delete_removed_tensors, force)
-
+        self.__dict__["_vc_info_updated"] = False
         self.storage.autoflush = self._initial_autoflush.pop()
+        self.storage.maybe_flush()
 
-    def _commit(self, message: Optional[str] = None, hash: Optional[str] = None) -> str:
+    def _commit(
+        self,
+        message: Optional[str] = None,
+        hash: Optional[str] = None,
+        flush_version_control_info: bool = True,
+    ) -> str:
         if self._is_filtered_view:
             raise Exception(
                 "Cannot perform version control operations on a filtered dataset view."
@@ -1388,7 +1414,9 @@ class Dataset:
         self.storage.autoflush = False
         try:
             self._unlock()
-            commit(self, message, hash)
+            commit(self, message, hash, flush_version_control_info)
+            if not flush_version_control_info:
+                self.__dict__["_vc_info_updated"] = True
             self._lock()
         finally:
             self.storage.autoflush = self._initial_autoflush.pop()
@@ -1397,7 +1425,7 @@ class Dataset:
         [f() for f in list(self._commit_hooks.values())]
         # do not store commit message
         deeplake_reporter.feature_report(feature_name="commit", parameters={})
-
+        self.maybe_flush()
         return self.commit_id  # type: ignore
 
     @invalid_view_op
@@ -1435,40 +1463,33 @@ class Dataset:
         Note:
             Checkout from a head node in any branch that contains uncommitted data will lead to an automatic commit before the checkout.
         """
-        return self._checkout(address, create)
+        return self._checkout(address, create, None, False)
 
     def _checkout(
         self,
         address: str,
         create: bool = False,
         hash: Optional[str] = None,
-        verbose=True,
+        verbose: bool = True,
+        flush_version_control_info: bool = False,
     ) -> Optional[str]:
         if self._is_filtered_view:
             raise Exception(
                 "Cannot perform version control operations on a filtered dataset view."
             )
-        if self._locked_out:
-            self.storage.disable_readonly()
-            self._read_only = False
-            self.base_storage.disable_readonly()
+        read_only = self._read_only
+        if read_only and create:
+            raise ReadOnlyModeError()
         try_flushing(self)
         self._initial_autoflush.append(self.storage.autoflush)
         self.storage.autoflush = False
-        err = False
         try:
             self._unlock()
-            checkout(self, address, create, hash)
-        except Exception as e:
-            err = True
-            if self._locked_out:
-                self.storage.enable_readonly()
-                self._read_only = True
-                self.base_storage.enable_readonly()
-            raise e
+            checkout(self, address, create, hash, flush_version_control_info)
+            if not flush_version_control_info and create:
+                self.__dict__["_vc_info_updated"] = True
         finally:
-            if not (err and self._locked_out):
-                self._lock(verbose=verbose)
+            self._set_read_only(read_only, err=True)
             self.storage.autoflush = self._initial_autoflush.pop()
         self._info = None
         self._ds_diff = None
@@ -1482,7 +1503,8 @@ class Dataset:
         commit_node = self.version_state["commit_node"]
         if self.verbose:
             warn_node_checkout(commit_node, create)
-
+        if create:
+            self.maybe_flush()
         return self.commit_id
 
     @deeplake_reporter.record_call
@@ -1621,13 +1643,27 @@ class Dataset:
             self.version_state, self.storage
         )
 
+    def _acquire_lock(self, timeout: Optional[int] = None):
+        if timeout is not None:
+            start_time = time()
+        while True:
+            try:
+                self._set_read_only(False, True)
+                return
+            except LockedException:
+                if timeout is not None and time() - start_time > timeout:
+                    raise LockedException()
+                sleep(1)
+
     def _set_read_only(self, value: bool, err: bool):
         storage = self.storage
         self.__dict__["_read_only"] = value
+
         if value:
             storage.enable_readonly()
             if isinstance(storage, LRUCache) and storage.next_storage is not None:
                 storage.next_storage.enable_readonly()
+            self._unlock()
         else:
             try:
                 locked = self._lock(err=err)
@@ -1642,7 +1678,8 @@ class Dataset:
                     self.__dict__["_read_only"] = True
             except LockedException as e:
                 self.__dict__["_read_only"] = True
-                raise e
+                if err:
+                    raise e
 
     @read_only.setter
     @invalid_view_op
@@ -2037,13 +2074,20 @@ class Dataset:
             self, tensors=tensors, tobytes=tobytes, fetch_chunks=fetch_chunks
         )
 
+    @spinner
     def flush(self):
         """Necessary operation after writes if caches are being used.
         Writes all the dirty data from the cache layers (if any) to the underlying storage.
         Here dirty data corresponds to data that has been changed/assigned and but hasn't yet been sent to the
         underlying storage.
         """
+        self._flush_vc_info()
         self.storage.flush()
+
+    def _flush_vc_info(self):
+        if self._vc_info_updated:
+            save_version_info(self.version_state, self.storage)
+            self.__dict__["_vc_info_updated"] = False
 
     def clear_cache(self):
         """
@@ -2546,28 +2590,29 @@ class Dataset:
             >>> ds.append({"data": [1, 2, 3, 4], "labels":[0, 1, 2, 3]})
 
         """
+        tensors = self.tensors
         if isinstance(sample, Dataset):
             sample = sample.tensors
         if not isinstance(sample, dict):
             raise SampleAppendingError()
 
-        skipped_tensors = [k for k in self.tensors if k not in sample]
+        skipped_tensors = [k for k in tensors if k not in sample]
         if skipped_tensors and not skip_ok and not append_empty:
             raise KeyError(
                 f"Required tensors not provided: {skipped_tensors}. Pass either `skip_ok=True` to skip tensors or `append_empty=True` to append empty samples to unspecified tensors."
             )
         for k in sample:
-            if k not in self._tensors():
+            if k not in tensors:
                 raise TensorDoesNotExistError(k)
-        tensors_to_check_length = self.tensors if append_empty else sample
-        if len(set(map(len, (self[k] for k in tensors_to_check_length)))) != 1:
+        tensors_to_check_length = tensors if append_empty else sample
+        if len(set(map(len, (tensors[k] for k in tensors_to_check_length)))) != 1:
             raise ValueError(
                 "When appending using Dataset.append, all tensors being updated are expected to have the same length."
             )
         [f() for f in list(self._update_hooks.values())]
         tensors_appended = []
         with self:
-            for k in self.tensors:
+            for k in tensors:
                 if k in sample:
                     v = sample[k]
                 else:
@@ -2576,7 +2621,7 @@ class Dataset:
                     else:
                         v = None
                 try:
-                    tensor = self[k]
+                    tensor = tensors[k]
                     enc = tensor.chunk_engine.chunk_id_encoder
                     num_chunks = enc.num_chunks
                     tensor.append(v)
@@ -2647,7 +2692,7 @@ class Dataset:
                     # Ignore storage level lock since we have file level lock
                     storage.read_only = False
                 lock = Lock(storage, get_queries_lock_key())
-                lock.acquire(timeout=10, force=True)
+                lock.acquire(timeout=10)
                 self2.lock = lock
 
             def __exit__(self2, *_, **__):
@@ -2752,63 +2797,6 @@ class Dataset:
         self._append_to_queries_json(info)
         return vds
 
-    def _save_view_in_user_queries_dataset(
-        self,
-        id: Optional[str],
-        message: Optional[str],
-        copy: bool,
-        tensors: Optional[List[str]],
-        num_workers: int,
-        scheduler: str,
-    ):
-        """Saves this view under hub://username/queries
-        Only applicable for views of Deep Lake cloud datasets.
-        """
-        if len(self.index.values) > 1:
-            raise NotImplementedError("Storing sub-sample slices is not supported yet.")
-
-        username = jwt.decode(self.token, options={"verify_signature": False})["id"]
-
-        if username == "public":
-            raise DatasetViewSavingError(
-                "You are not logged in. Please login through the activeloop CLI or provide an API token using the `token` "
-                "parameter when loading the dataset to save the view to your user account."
-            )
-
-        info = self._get_view_info(id, message, copy)
-        base = self._view_base or self
-        org_id, ds_name = base.org_id, base.ds_name
-        hash = f"[{org_id}][{ds_name}]{info['id']}"
-        info["id"] = hash
-        queries_ds_path = f"hub://{username}/queries"
-
-        try:
-            queries_ds = deeplake.load(
-                queries_ds_path,
-                verbose=False,
-                token=self.token,
-            )  # create if doesn't exist
-        except PathNotEmptyException:
-            deeplake.delete(queries_ds_path, force=True, token=self.token)
-            queries_ds = deeplake.empty(
-                queries_ds_path, verbose=False, token=self.token
-            )
-        except DatasetHandlerError:
-            queries_ds = deeplake.empty(
-                queries_ds_path, verbose=False, token=self.token
-            )
-
-        queries_ds._unlock()  # we don't need locking as no data will be added to this ds.
-
-        path = f"hub://{username}/queries/{hash}"
-
-        vds = deeplake.empty(path, overwrite=True, verbose=False, token=self.token)
-
-        self._write_vds(vds, info, copy, tensors, num_workers, scheduler)
-        queries_ds._append_to_queries_json(info)
-
-        return vds
-
     def _save_view_in_path(
         self,
         path: str,
@@ -2867,7 +2855,6 @@ class Dataset:
             message (Optional, str): Custom user message.
             path (Optional, str, pathlib.Path): - The VDS will be saved as a standalone dataset at the specified path.
                 - If not specified, the VDS is saved under ``.queries`` subdirectory of the source dataset's storage.
-                - If the user doesn't have write access to the source dataset and the source dataset is a Deep Lake cloud dataset, then the VDS is saved is saved under the user's Deep Lake account and can be accessed using ``deeplake.load(f"hub://{username}/queries/{query_hash}")``.
             id (Optional, str): Unique id for this view. Random id will be generated if not specified.
             optimize (bool):
                 - If ``True``, the dataset view will be optimized by copying and rechunking the required data. This is necessary to achieve fast streaming speeds when training models using the dataset view. The optimization process will take some time, depending on the size of the data.
@@ -2919,9 +2906,7 @@ class Dataset:
 
         Args:
             path (Optional, str, pathlib.Path): If specified, the VDS will saved as a standalone dataset at the specified path. If not,
-                the VDS is saved under `.queries` subdirectory of the source dataset's storage. If the user doesn't have
-                write access to the source dataset and the source dataset is a Deep Lake cloud dataset, then the VDS is saved
-                is saved under the user's Deep Lake account and can be accessed using deeplake.load(f"hub://{username}/queries/{query_hash}").
+                the VDS is saved under `.queries` subdirectory of the source dataset's storage.
             id (Optional, str): Unique id for this view.
             message (Optional, message): Custom user message.
             optimize (bool): Whether the view should be optimized by copying the required data. Default False.
@@ -2943,7 +2928,6 @@ class Dataset:
         """
 
         path = convert_pathlib_to_string_if_needed(path)
-
         ds_args["verbose"] = False
         vds = None
         if path is None and hasattr(self, "_vds"):
@@ -2954,13 +2938,16 @@ class Dataset:
                 warnings.warn(
                     f"This view is already saved with id '{vds_id}'. A copy of this view will be created with the provided id '{id}'"
                 )
+        base = self._view_base or self
+        if not base._read_only:
+            base.flush()
         if vds is None:
             if path is None:
                 if isinstance(self, MemoryProvider):
                     raise NotImplementedError(
                         "Saving views inplace is not supported for in-memory datasets."
                     )
-                if self.read_only and not (self._view_base or self)._locked_out:
+                if self.read_only and not base._locked_out:
                     if isinstance(self, deeplake.core.dataset.DeepLakeCloudDataset):
                         try:
                             with self._temp_write_access():
@@ -2972,15 +2959,11 @@ class Dataset:
                                     num_workers,
                                     scheduler,
                                 )
-                        except ReadOnlyModeError:
-                            vds = self._save_view_in_user_queries_dataset(
-                                id,
-                                message,
-                                optimize,
-                                tensors,
-                                num_workers,
-                                scheduler,
-                            )
+                        except ReadOnlyModeError as e:
+                            raise ReadOnlyModeError(
+                                "Cannot save a view in this dataset because you are not a member of its organization."
+                                "Please specify a `path` in order to save the view at a custom location."
+                            ) from e
                     else:
                         raise ReadOnlyModeError(
                             "Cannot save view in read only dataset. Speicify a path to save the view in a different location."
@@ -3072,36 +3055,6 @@ class Dataset:
             view._query = query
         return view._save_view(vds_path, _ret_ds=True, **vds_args)
 
-    @staticmethod
-    def _get_queries_ds_from_user_account(token: Optional[str] = None):
-        if token:
-            username = jwt.decode(token, options={"verify_signature": False})["id"]
-        else:
-            username = get_user_name()
-
-        if username == "public":
-            return
-        try:
-            return deeplake.load(
-                f"hub://{username}/queries", verbose=False, token=token
-            )
-        except DatasetHandlerError:
-            return
-
-    def _read_queries_json_from_user_account(self):
-        queries_ds = Dataset._get_queries_ds_from_user_account(self.token)
-        if not queries_ds:
-            return [], None
-        return (
-            list(
-                filter(
-                    lambda x: x["source-dataset"] == self.path,
-                    queries_ds._read_queries_json(),
-                )
-            ),
-            queries_ds,
-        )
-
     def get_views(self, commit_id: Optional[str] = None) -> List[ViewEntry]:
         """Returns list of views stored in this Dataset.
 
@@ -3121,18 +3074,6 @@ class Dataset:
             filter(f, queries),
         )
 
-        if self.path.startswith("hub://"):
-            queries, qds = self._read_queries_json_from_user_account()
-            if queries:
-                ret = chain(
-                    ret,
-                    map(
-                        partial(
-                            ViewEntry, dataset=qds, source_dataset=self, external=True
-                        ),
-                        filter(f, queries),
-                    ),
-                )
         return list(ret)
 
     def get_view(self, id: str) -> ViewEntry:
@@ -3161,11 +3102,6 @@ class Dataset:
         for q in queries:
             if q["id"] == id:
                 return ViewEntry(q, self)
-        if self.path.startswith("hub://"):
-            queries, qds = self._read_queries_json_from_user_account()
-            for q in queries:
-                if q["id"] == f"[{self.org_id}][{self.ds_name}]{id}":
-                    return ViewEntry(q, qds, self, True)
         raise KeyError(f"No view with id {id} found in the dataset.")
 
     def load_view(
@@ -3234,19 +3170,6 @@ class Dataset:
         except TokenPermissionError:
             pass
 
-        if self.path.startswith("hub://"):
-            qds = Dataset._get_queries_ds_from_user_account(self.token)
-            if qds:
-                with qds._lock_queries_json():
-                    qjson = qds._read_queries_json()
-                    for i, q in enumerate(qjson):
-                        if q["id"] == f"[{self.org_id}][{self.ds_name}]{id}":
-                            qjson.pop(i)
-                            qds.base_storage.subdir(
-                                ".queries/" + (q.get("path") or q["id"])
-                            ).clear()
-                            qds._write_queries_json(qjson)
-                            return
         raise KeyError(f"No view with id {id} found in the dataset.")
 
     def _sub_ds(
@@ -3559,6 +3482,7 @@ class Dataset:
         )
 
     @invalid_view_op
+    @spinner
     def reset(self):
         """Resets the uncommitted changes present in the branch.
 
@@ -3684,7 +3608,12 @@ class Dataset:
         self.link_creds.add_creds_key(creds_key)
         save_link_creds(self.link_creds, self.storage)
 
-    def populate_creds(self, creds_key: str, creds: dict):
+    def populate_creds(
+        self,
+        creds_key: str,
+        creds: Optional[dict] = None,
+        from_environment: bool = False,
+    ):
         """Populates the creds key added in add_creds_key with the given creds. These creds are used to fetch the external data.
         This needs to be done everytime the dataset is reloaded for datasets that contain links to external data.
 
@@ -3696,8 +3625,16 @@ class Dataset:
             >>> ds.add_creds_key("my_s3_key")
             >>> # populate the creds
             >>> ds.populate_creds("my_s3_key", {"aws_access_key_id": "my_access_key", "aws_secret_access_key": "my_secret_key"})
+            >>> # or
+            >>> ds.populate_creds("my_s3_key", from_environment=True)
 
         """
+        if creds and from_environment:
+            raise ValueError(
+                "Only one of creds or from_environment can be provided. Both cannot be provided at the same time."
+            )
+        if from_environment:
+            creds = {}
         self.link_creds.populate_creds(creds_key, creds)
 
     def update_creds_key(self, old_creds_key: str, new_creds_key: str):
@@ -3793,52 +3730,57 @@ class Dataset:
         scheduler="threaded",
         progressbar=True,
     ):
-        with self._temp_write_access():
-            with self._lock_queries_json():
-                qjson = self._read_queries_json()
-                idx = -1
-                for i in range(len(qjson)):
-                    if qjson[i]["id"] == id:
-                        idx = i
-                        break
-                if idx == -1:
-                    raise KeyError(f"View with id {id} not found.")
-                info = qjson[i]
-                if not info["virtual-datasource"]:
-                    # Already optimized
-                    return info
-                path = info.get("path", info["id"])
-                vds = self._sub_ds(".queries/" + path, verbose=False)
-                view = vds._get_view(not external)
-                new_path = path + "_OPTIMIZED"
-                optimized = self._sub_ds(
-                    ".queries/" + new_path, empty=True, verbose=False
-                )
-                view._copy(
-                    optimized,
-                    tensors=tensors,
-                    overwrite=True,
-                    unlink=unlink,
-                    create_vds_index_tensor=True,
-                    num_workers=num_workers,
-                    scheduler=scheduler,
-                    progressbar=progressbar,
-                )
-                optimized.info.update(vds.info.__getstate__())
-                optimized.info["virtual-datasource"] = False
-                optimized.info["path"] = new_path
-                optimized.flush()
-                info["virtual-datasource"] = False
-                info["path"] = new_path
-                self._write_queries_json(qjson)
-            vds.base_storage.disable_readonly()
-            try:
-                vds.base_storage.clear()
-            except Exception as e:
-                warnings.warn(
-                    f"Error while deleting old view after writing optimized version: {e}"
-                )
-            return info
+        try:
+            with self._temp_write_access():
+                with self._lock_queries_json():
+                    qjson = self._read_queries_json()
+                    idx = -1
+                    for i in range(len(qjson)):
+                        if qjson[i]["id"] == id:
+                            idx = i
+                            break
+                    if idx == -1:
+                        raise KeyError(f"View with id {id} not found.")
+                    info = qjson[i]
+                    if not info["virtual-datasource"]:
+                        # Already optimized
+                        return info
+                    path = info.get("path", info["id"])
+                    vds = self._sub_ds(".queries/" + path, verbose=False)
+                    view = vds._get_view(not external)
+                    new_path = path + "_OPTIMIZED"
+                    optimized = self._sub_ds(
+                        ".queries/" + new_path, empty=True, verbose=False
+                    )
+                    view._copy(
+                        optimized,
+                        tensors=tensors,
+                        overwrite=True,
+                        unlink=unlink,
+                        create_vds_index_tensor=True,
+                        num_workers=num_workers,
+                        scheduler=scheduler,
+                        progressbar=progressbar,
+                    )
+                    optimized.info.update(vds.info.__getstate__())
+                    optimized.info["virtual-datasource"] = False
+                    optimized.info["path"] = new_path
+                    optimized.flush()
+                    info["virtual-datasource"] = False
+                    info["path"] = new_path
+                    self._write_queries_json(qjson)
+                vds.base_storage.disable_readonly()
+                try:
+                    vds.base_storage.clear()
+                except Exception as e:
+                    warnings.warn(
+                        f"Error while deleting old view after writing optimized version: {e}"
+                    )
+                return info
+        except ReadOnlyModeError as e:
+            raise ReadOnlyModeError(
+                f"You do not have permission to materialize views in this dataset ({self.path})."
+            ) from e
 
     def _sample_indices(self, maxlen: int):
         vds_index = self._tensors(include_hidden=True).get("VDS_INDEX")

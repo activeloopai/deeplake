@@ -28,6 +28,8 @@ def get_base_storage(storage: StorageProvider):
 
 def get_dataset_with_zero_size_cache(ds):
     """Returns a dataset with same storage but cache size set to zero."""
+    if not ds._read_only:
+        ds.flush()
     ds_base_storage = get_base_storage(ds.storage)
     zero_cache_storage = LRUCache(MemoryProvider(), ds_base_storage, 0)
     commit_id = ds.pending_commit_id
@@ -41,6 +43,7 @@ def get_dataset_with_zero_size_cache(ds):
         verbose=False,
         link_creds=ds.link_creds,
         pad_tensors=ds._pad_tensors,
+        enabled_tensors=ds.enabled_tensors,
     )
     if ds.pending_commit_id != commit_id:
         ds.checkout(commit_id)
@@ -74,6 +77,7 @@ def create_read_copy_dataset(dataset, commit_id: Optional[str] = None):
         token=dataset._token,
         verbose=False,
         path=dataset.path,
+        version_state=dataset.version_state,
     )
     if commit_id is not None:
         ds.checkout(commit_id)

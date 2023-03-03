@@ -129,7 +129,7 @@ class S3Provider(StorageProvider):
             aws_region=self.aws_region,
             endpoint_url=self.endpoint_url,
         )
-        if sd.expiration:
+        if self.expiration:
             sd._set_hub_creds_info(self.hub_path, self.expiration)  # type: ignore
         return sd
 

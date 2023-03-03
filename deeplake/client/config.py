@@ -23,7 +23,6 @@ UPDATE_SUFFIX = "/api/org/{}/dataset/{}"
 GET_MANAGED_CREDS_SUFFIX = "/api/org/{}/storage/name"
 ACCEPT_AGREEMENTS_SUFFIX = "/api/organization/{}/dataset/{}/agree"
 REJECT_AGREEMENTS_SUFFIX = "/api/organization/{}/dataset/{}/disagree"
-LIST_DATASETS = "/api/datasets/{}"
 GET_USER_PROFILE = "/api/user/profile"
 CONNECT_DATASET_SUFFIX = "/api/dataset/connect"
 

@@ -1,4 +1,6 @@
 import os
+import sys
+
 import numpy as np
 
 
@@ -162,3 +164,12 @@ WANDB_INTEGRATION_ENABLED = True
 WANDB_JSON_FILENMAE = "wandb.json"
 
 SHOW_ITERATION_WARNING = True
+
+# Delay before spinner starts on time consuming functions (in seconds)
+SPINNER_START_DELAY = 2
+
+PYTEST_ENABLED = os.environ.get("DEEPLAKE_PYTEST_ENABLED", "").lower().strip() == "true"
+
+SPINNER_ENABLED = not PYTEST_ENABLED
+
+LOCK_LOCAL_DATASETS = not PYTEST_ENABLED

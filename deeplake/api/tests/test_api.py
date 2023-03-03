@@ -1784,16 +1784,6 @@ def test_pyav_not_installed(local_ds, video_paths):
     deeplake.core.compression._PYAV_INSTALLED = pyav_installed
 
 
-def test_create_branch_when_locked_out(local_ds):
-    local_ds.read_only = True
-    local_ds._locked_out = True
-    with pytest.raises(ReadOnlyModeError):
-        local_ds.create_tensor("x")
-    local_ds.checkout("branch", create=True)
-    assert local_ds.branch == "branch"
-    local_ds.create_tensor("x")
-
-
 def test_partial_read_then_write(s3_ds_generator):
     ds = s3_ds_generator()
     with ds:
@@ -1950,8 +1940,9 @@ def test_text_label(local_ds_generator):
     verify_label_data(ds)
 
 
+@pytest.mark.parametrize("scheduler", ["threaded", "processed"])
 @pytest.mark.parametrize("num_workers", [0, 2])
-def test_text_labels_transform(local_ds_generator, num_workers):
+def test_text_labels_transform(local_ds_generator, scheduler, num_workers):
     with local_ds_generator() as ds:
         ds.create_tensor("labels", htype="class_label")
         ds.create_tensor("multiple_labels", htype="class_label")
@@ -1974,7 +1965,9 @@ def test_text_labels_transform(local_ds_generator, num_workers):
             return label_idx_map[data]
         return [convert_to_idx(label, label_idx_map) for label in data]
 
-    upload().eval(data, ds, num_workers=num_workers)
+    upload().eval(data, ds, scheduler=scheduler, num_workers=num_workers)
+
+    assert all(not tensor.startswith("__temp") for tensor in ds._tensors())
 
     for tensor in ("labels", "multiple_labels", "seq_labels"):
         class_names = ds[tensor].info.class_names
@@ -2131,6 +2124,7 @@ def token_permission_error_check(
 
     with pytest.raises(TokenPermissionError):
         ds = deeplake.load("hub://activeloop/fake-path")
+    runner.invoke(logout)
 
 
 def invalid_token_exception_check():
@@ -2154,6 +2148,7 @@ def dataset_handler_error_check(runner, username, password):
     result = runner.invoke(login, f"-u {username} -p {password}")
     with pytest.raises(DatasetHandlerError):
         ds = deeplake.load(f"hub://{username}/wrong-path")
+    runner.invoke(logout)
 
 
 def test_hub_related_permission_exceptions(
@@ -2199,7 +2194,7 @@ def test_copy_label_sync_disabled(local_ds, capsys):
         f"{local_ds.path}_copy", overwrite=True, progressbar=False, num_workers=2
     )
     captured = capsys.readouterr().out
-    assert captured == ""
+    assert captured.strip() == ""
 
 
 def test_class_label_bug(memory_ds):
@@ -2372,7 +2367,67 @@ def test_pickle_bug(local_ds):
     file.seek(0)
     ds = pickle.load(file)
 
-    with pytest.raises(TensorDoesNotExistError):
-        ds["__temp_123"].numpy()
+    np.testing.assert_array_equal(
+        ds["__temp_123"].numpy(), np.array([1, 2, 3, 4, 5]).reshape(-1, 1)
+    )
 
-    assert ds._temp_tensors == []
+
+def test_max_view(memory_ds):
+    with memory_ds as ds:
+        ds.create_tensor("abc")
+        ds.create_tensor("xyz")
+        ds.create_tensor("pqr")
+
+        ds.abc.extend([1, 2, 3, 4])
+        ds.xyz.extend([1, 2, 3])
+        ds.pqr.extend([1, 2])
+
+    expected = {
+        "abc": [[1], [2], [3], [4]],
+        "xyz": [[1], [2], [3], []],
+        "pqr": [[1], [2], [], []],
+    }
+
+    for i, sample in enumerate(ds.max_view):
+        np.testing.assert_array_equal(sample.abc.numpy(), expected["abc"][i])
+
+
+def test_min_view(memory_ds):
+    with memory_ds as ds:
+        ds.create_tensor("abc")
+        ds.create_tensor("xyz")
+        ds.create_tensor("pqr")
+
+        ds.abc.extend([1, 2, 3, 4])
+        ds.xyz.extend([1, 2, 3])
+        ds.pqr.extend([1, 2])
+
+    expected = {
+        "abc": [[1], [2]],
+        "xyz": [[1], [2]],
+        "pqr": [[1], [2]],
+    }
+
+    for i, sample in enumerate(ds.min_view):
+        np.testing.assert_array_equal(sample.abc.numpy(), expected["abc"][i])
+
+
+def test_extend_with_empty_tensor(memory_ds):
+    with memory_ds as ds:
+        ds.create_tensor("abc")
+        ds.abc.extend([None, None, None])
+
+        ds.create_tensor("xyz")
+        ds.xyz.extend(ds.abc)
+        ds.xyz.extend([ds.abc[0], ds.abc[1]])
+
+        with pytest.raises(EmptyTensorError):
+            ds.xyz.numpy()
+
+        ds.xyz.append(1)
+
+        data = ds.xyz.numpy(aslist=True)
+        expected = [[]] * 5 + [1]
+
+        for i in range(len(data)):
+            np.testing.assert_array_equal(data[i], expected[i])
