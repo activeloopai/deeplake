@@ -415,6 +415,12 @@ class COCODatasetEvaluater(mmdet_coco.CocoDataset):
     def pipeline(self, x):
         return x
 
+    def __len__(self):
+        length = super().__len__()
+        per_gpu_length = math.floor(length / (self.batch_size * self.num_gpus))
+        total_length = per_gpu_length * self.num_gpus
+        return total_length
+
     def load_annotations(
         self,
         deeplake_dataset,
