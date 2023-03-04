@@ -119,9 +119,7 @@ class DataFrame(StructuredDataset):
 
                 if len(set(types)) != 1:
                     raise IngestionError(
-                        "Dataframe has different data types inside '{}' column. Please make sure all data is given column is compatible with a single Deep Lake htype, or try specifying the htype manually.".format(
-                            key
-                        )
+                        f"Dataframe has different data types inside '{key}' column. Please make sure all data is given column is compatible with a single Deep Lake htype, or try specifying the htype manually."
                     )
 
                 if types[0] == str:
@@ -153,13 +151,14 @@ class DataFrame(StructuredDataset):
 
         if "htype" in tensor_params.keys() and "link[" in tensor_params["htype"]:
             extend_values = [
-                link(value, creds_key=self.creds_key)
+                link(value, creds_key=self.creds_key) if value is not None else None
                 for value in self.source[key].values
             ]
         elif "htype" in tensor_params.keys() and "image" in tensor_params["htype"]:
 
             extend_values = [
-                read(value, creds=self.creds) for value in self.source[key].values
+                read(value, creds=self.creds) if value is not None else None
+                for value in self.source[key].values
             ]
         else:
             extend_values = self.source[key].values

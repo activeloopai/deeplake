@@ -282,7 +282,6 @@ def test_dataframe_files(memory_ds: Dataset, dataframe_ingestion_data):
     tensors_names = list(ds.tensors.keys())
 
     assert tensors_names == [df_keys[0], df_keys[1], df_keys[2]]
-    assert df_keys[1] not in tensors_names  # Second columnd should have been sanitized
     assert ds[df_keys[0]].htype == "image"
     assert ds[df_keys[2]].htype == "class_label"
     assert (
