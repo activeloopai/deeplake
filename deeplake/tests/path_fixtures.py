@@ -116,7 +116,8 @@ def _download_hub_test_dataframe_data():
     path = _git_clone(_HUB_TEST_RESOURCES_URL)
     return {
         "basic_dataframe_w_sanitize_path": path + "/dataframe/text_w_sanitization.txt",
-        "csv_w_images_path": path + "/dataframe/csv_w_local_files.csv",
+        "dataframe_w_images_path": path + "/dataframe/csv_w_local_files.csv",
+        "images_basepath": path + "/dataframe/images",
     }
 
 

@@ -177,10 +177,10 @@ class DataFrame(StructuredDataset):
 
         """
         keys = list(self.source.columns)
-        skipped_keys: list = []
+        # skipped_keys: list = []
         iterator = tqdm(
             keys,
-            desc="Ingesting... (%i columns skipped)" % (len(skipped_keys)),
+            # desc="Ingesting... (%i columns skipped)" % (len(skipped_keys)),
             disable=not progressbar,
         )
         with ds, iterator:
@@ -189,22 +189,22 @@ class DataFrame(StructuredDataset):
             for key in iterator:
                 if progressbar:
                     logger.info(f"\column={key}, dtype={self.source[key].dtype}")
-                try:
+                # try:
 
-                    tensor_params = self._parse_tensor_params(key)
+                tensor_params = self._parse_tensor_params(key)
 
-                    if tensor_params["name"] not in ds.tensors:
-                        ds.create_tensor(**tensor_params)
+                if tensor_params["name"] not in ds.tensors:
+                    ds.create_tensor(**tensor_params)
 
-                    ds[tensor_params["name"]].extend(
-                        self._get_extend_values(tensor_params, key),
-                        progressbar=progressbar,
-                    )
-                except Exception as e:
-                    print("Error: {}".format(str(e)))
-                    skipped_keys.append(key)
-                    iterator.set_description(
-                        "Ingesting... (%i columns skipped)" % (len(skipped_keys))
-                    )
-                    continue
+                ds[tensor_params["name"]].extend(
+                    self._get_extend_values(tensor_params, key),
+                    progressbar=progressbar,
+                )
+                # except Exception as e:
+                #     print("Error: {}".format(str(e)))
+                #     skipped_keys.append(key)
+                #     iterator.set_description(
+                #         "Ingesting... (%i columns skipped)" % (len(skipped_keys))
+                #     )
+                #     continue
         return ds

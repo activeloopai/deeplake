@@ -267,8 +267,10 @@ def test_dataframe_basic(
 
 def test_dataframe_files(memory_ds: Dataset, dataframe_ingestion_data):
     # path = get_dummy_data_path("tests_auto/csv/deniro.csv")
-    df = pd.read_csv(dataframe_ingestion_data["csv_w_images_path"])
+    df = pd.read_csv(dataframe_ingestion_data["dataframe_w_images_path"])
     df_keys = df.keys()
+
+    df[df_keys[0]] = dataframe_ingestion_data["images_basepath"] + df[df_keys[0]]
 
     ds = deeplake.ingest_dataframe(
         df,
