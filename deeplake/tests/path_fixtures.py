@@ -117,6 +117,7 @@ def _download_hub_test_dataframe_data():
     return {
         "basic_dataframe_w_sanitize_path": path + "/dataframe/text_w_sanitization.txt",
         "dataframe_w_images_path": path + "/dataframe/csv_w_local_files.csv",
+        "dataframe_w_bad_images_path": path + "/dataframe/csv_w_local_bad_file.csv",
         "images_basepath": path + "/dataframe/images",
     }
 

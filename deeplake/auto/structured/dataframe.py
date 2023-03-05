@@ -78,7 +78,6 @@ class DataFrame(StructuredDataset):
         supported_image_extensions = tuple(
             HTYPE_SUPPORTED_COMPRESSIONS["image"] + ["jpg"]
         )
-        invalid_files = []
         image_extensions: DefaultDict[str, int] = defaultdict(int)
 
         for file in fn_iterator:
@@ -88,12 +87,7 @@ class DataFrame(StructuredDataset):
                 ]  # Get extension without the . symbol
                 image_extensions[ext] += 1
             else:
-                invalid_files.append(file)
-
-        if len(invalid_files) > 0:
-            logger.warning(
-                f"Encountered {len(invalid_files)} unsupported files the data folders and annotation folders (if specified)."
-            )
+                raise IngestionError(f"The following file is not supported: {file}")
 
         most_frequent_image_extension = max(
             image_extensions, key=lambda k: image_extensions[k], default=None
@@ -177,7 +171,6 @@ class DataFrame(StructuredDataset):
 
         """
         keys = list(self.source.columns)
-        # skipped_keys: list = []
         iterator = tqdm(
             keys,
             # desc="Ingesting... (%i columns skipped)" % (len(skipped_keys)),
@@ -200,11 +193,4 @@ class DataFrame(StructuredDataset):
                     self._get_extend_values(tensor_params, key),
                     progressbar=progressbar,
                 )
-                # except Exception as e:
-                #     print("Error: {}".format(str(e)))
-                #     skipped_keys.append(key)
-                #     iterator.set_description(
-                #         "Ingesting... (%i columns skipped)" % (len(skipped_keys))
-                #     )
-                #     continue
         return ds

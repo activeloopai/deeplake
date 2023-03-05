@@ -7,7 +7,6 @@ from deeplake.util.exceptions import (
     DatasetHandlerError,
     IngestionError,
 )
-from os.path import splitext
 import numpy as np
 import pytest
 import deeplake
@@ -189,8 +188,8 @@ def test_ingestion_with_connection(
     assert len(ds.labels.info["class_names"]) > 0
 
 
-def test_csv(memory_ds: Dataset):
-    path = get_dummy_data_path("tests_auto/csv/deniro.csv")
+def test_csv(memory_ds: Dataset, dataframe_ingestion_data: dict):
+
     with pytest.raises(InvalidPathException):
         deeplake.ingest_classification(
             src="tests_auto/csv/cities.csv",
@@ -201,7 +200,7 @@ def test_csv(memory_ds: Dataset):
         )
 
     ds = deeplake.ingest_classification(
-        src=path,
+        src=dataframe_ingestion_data["basic_dataframe_w_sanitize_path"],
         dest=memory_ds.path,
         progressbar=False,
         summary=False,
@@ -226,7 +225,6 @@ def test_csv(memory_ds: Dataset):
 def test_dataframe_basic(
     memory_ds: Dataset, dataframe_ingestion_data: dict, convert_to_pathlib: bool
 ):
-    # path = get_dummy_data_path("tests_auto/csv/deniro.csv")
     df = pd.read_csv(
         dataframe_ingestion_data["basic_dataframe_w_sanitize_path"],
         quotechar='"',
@@ -266,7 +264,6 @@ def test_dataframe_basic(
 
 
 def test_dataframe_files(memory_ds: Dataset, dataframe_ingestion_data):
-    # path = get_dummy_data_path("tests_auto/csv/deniro.csv")
     df = pd.read_csv(dataframe_ingestion_data["dataframe_w_images_path"])
     df_keys = df.keys()
 
@@ -355,6 +352,24 @@ def test_dataframe_array_bad(memory_ds: Dataset):
         )
 
 
+def test_dataframe_unsupported_file(memory_ds: Dataset, dataframe_ingestion_data):
+    df = pd.read_csv(dataframe_ingestion_data["dataframe_w_bad_images_path"])
+    df_keys = df.keys()
+
+    df[df_keys[0]] = dataframe_ingestion_data["images_basepath"] + df[df_keys[0]]
+
+    with pytest.raises(IngestionError):
+        ds = deeplake.ingest_dataframe(
+            df,
+            memory_ds.path,
+            column_params={
+                df_keys[0]: {"htype": "image"},
+                df_keys[2]: {"htype": "class_label"},
+            },
+            progressbar=False,
+        )
+
+
 def test_dataframe_with_connect(
     s3_path,
     hub_cloud_path,
@@ -362,7 +377,6 @@ def test_dataframe_with_connect(
     hub_cloud_dev_managed_creds_key,
     dataframe_ingestion_data,
 ):
-    # path = get_dummy_data_path("tests_auto/csv/deniro.csv")
     df = pd.read_csv(
         dataframe_ingestion_data["basic_dataframe_w_sanitize_path"],
         quotechar='"',
