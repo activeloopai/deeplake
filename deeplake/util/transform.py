@@ -541,12 +541,6 @@ def process_transform_result(result: List[Dict]):
     return final
 
 
-def _get_avg_chunk_size(num_samples, max_shape, num_chunks, dtype):
-    nbytes = np.prod([num_samples] + max_shape) * np.dtype(dtype).itemsize
-    avg_chunk_size = nbytes / num_chunks
-    return avg_chunk_size
-
-
 def rechunk_if_necessary(ds):
     with ds:
         for tensor in ds.tensors:
@@ -559,12 +553,9 @@ def rechunk_if_necessary(ds):
                 engine = tensor.chunk_engine
                 num_chunks = engine.num_chunks
                 if num_chunks > 1:
-                    num_samples = engine.num_samples
                     max_shape = tensor.meta.max_shape
                     if len(max_shape) > 0:
-                        avg_chunk_size = _get_avg_chunk_size(
-                            num_samples, max_shape, num_chunks, tensor.dtype
-                        )
+                        avg_chunk_size = engine.get_avg_chunk_size()
                         if (
                             avg_chunk_size
                             < TRANSFORM_RECHUNK_AVG_SIZE_BOUND * engine.min_chunk_size
