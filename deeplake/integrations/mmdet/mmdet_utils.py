@@ -21,6 +21,8 @@ from mmdet.datasets import pipelines
 from deeplake.util.warnings import always_warn
 import json
 import mmcv  # type: ignore
+import math
+from tqdm import tqdm  # type: ignore
 
 
 def _isArrayLike(obj):
@@ -73,7 +75,11 @@ class _COCO(pycocotools_coco.COCO):
         all_imgs = self.imgs_orig
         all_iscrowds = self.iscrowds
 
-        for row_index, row in enumerate(self.dataset):
+        for row_index, row in tqdm(
+            enumerate(self.dataset),
+            desc="loading annotations",
+            total=len(self.dataset),
+        ):
             if all_imgs[row_index].size == 0:
                 always_warn(
                     "found empty image, skipping it. Please verify that your dataset is not corrupted."
@@ -365,6 +371,8 @@ class COCODatasetEvaluater(mmdet_coco.CocoDataset):
         labels=None,
         iscrowds=None,
         bbox_format=None,
+        batch_size=1,
+        num_gpus=1,
     ):
         self.img_prefix = img_prefix
         self.seg_prefix = seg_prefix
@@ -374,6 +382,8 @@ class COCODatasetEvaluater(mmdet_coco.CocoDataset):
         self.filter_empty_gt = filter_empty_gt
         self.file_client = mmcv.FileClient(**file_client_args)
         self.CLASSES = classes
+        self.batch_size = batch_size
+        self.num_gpus = num_gpus
 
         self.data_infos = self.load_annotations(
             deeplake_dataset,
@@ -400,6 +410,12 @@ class COCODatasetEvaluater(mmdet_coco.CocoDataset):
 
     def pipeline(self, x):
         return x
+
+    def __len__(self):
+        length = super().__len__()
+        per_gpu_length = math.floor(length / (self.batch_size * self.num_gpus))
+        total_length = per_gpu_length * self.num_gpus
+        return total_length
 
     def load_annotations(
         self,
