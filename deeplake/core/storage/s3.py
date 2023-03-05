@@ -125,6 +125,7 @@ class S3Provider(StorageProvider):
         )
         if self.expiration:
             sd._set_hub_creds_info(self.hub_path, self.expiration)  # type: ignore
+        sd.read_only = self.read_only
         return sd
 
     def _set(self, path, content):
