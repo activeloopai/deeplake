@@ -286,12 +286,11 @@ def test_dataframe_files(memory_ds: Dataset, dataframe_ingestion_data):
     assert tensors_names == [df_keys[0], df_keys[1], df_keys[2]]
     assert ds[df_keys[0]].htype == "image"
     assert ds[df_keys[2]].htype == "class_label"
-    assert (
-        ds[df_keys[0]].meta.sample_compression == splitext(df[df_keys[0]][0])[1].lower()
-    )
+
+    assert ds[df_keys[0]].meta.sample_compression == "jpeg"
 
     assert len(ds[df_keys[0]][0].numpy().shape) == 3
-    assert ds[df_keys[2]][2].data()["value"] == df[df_keys[2]][2]
+    assert ds[df_keys[2]][2].data()["text"][0] == df[df_keys[2]][2]
 
 
 def test_dataframe_array(memory_ds: Dataset):
