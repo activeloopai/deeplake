@@ -44,6 +44,7 @@ def dataset_to_libdeeplake(hub2_dataset):
             if isinstance(provider, S3Provider):
                 libdeeplake_dataset = api.dataset(
                     path,
+                    origin_path=provider.root,
                     token=token,
                 )
             elif isinstance(provider, GCSProvider):
