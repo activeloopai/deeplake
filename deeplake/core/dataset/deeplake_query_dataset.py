@@ -64,6 +64,7 @@ class DeepLakeQueryDataset(Dataset):
             "link_creds",
             "_locked_out",
             "_indexing_history",
+            "_vc_info_updated",
         ]
 
         for k in keys:

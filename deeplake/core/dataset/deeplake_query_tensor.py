@@ -44,8 +44,6 @@ class DeepLakeQueryTensor(tensor.Tensor):
             if hasattr(self.deeplake_tensor, k):
                 setattr(self, k, getattr(self.deeplake_tensor, k))
 
-        commit_id = self.deeplake_tensor.version_state["commit_id"]
-
     def __getitem__(
         self,
         item,
