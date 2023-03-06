@@ -12,6 +12,14 @@ from typing import List, Tuple, Optional
 TIME_INTERVAL_FOR_CUDA_MEMORY_CLEANING = 10 * 60
 
 
+def empty_cuda():
+    try:
+        torch.cuda.empty_cache()
+    except Exception:
+        pass
+    return
+
+
 @runner.RUNNERS.register_module()
 class DeeplakeIterBasedRunner(runner.IterBasedRunner):
     def run(
@@ -80,7 +88,7 @@ class DeeplakeIterBasedRunner(runner.IterBasedRunner):
                     iter_time = time.time()
 
                     if iter_time - start_time > TIME_INTERVAL_FOR_CUDA_MEMORY_CLEANING:
-                        torch.cuda.empty_cache()
+                        empty_cuda()
                         start_time = iter_time
                     iter_runner(iter_loaders[i], **kwargs)
 
@@ -109,7 +117,7 @@ class DeeplakeEpochBasedRunner(runner.EpochBasedRunner):
             self._iter += 1
             iter_time = time.time()
             if iter_time - start_time > TIME_INTERVAL_FOR_CUDA_MEMORY_CLEANING:
-                torch.cuda.empty_cache()
+                empty_cuda()
                 start_time = iter_time
 
         self.call_hook("after_train_epoch")
@@ -132,6 +140,6 @@ class DeeplakeEpochBasedRunner(runner.EpochBasedRunner):
             del self.data_batch
             iter_time = time.time()
             if iter_time - start_time > TIME_INTERVAL_FOR_CUDA_MEMORY_CLEANING:
-                torch.cuda.empty_cache()
+                empty_cuda()
                 iter_time = start_time
         self.call_hook("after_val_epoch")
