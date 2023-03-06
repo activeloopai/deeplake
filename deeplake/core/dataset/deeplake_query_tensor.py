@@ -106,7 +106,7 @@ class DeepLakeQueryTensor(tensor.Tensor):
                     shape.append(None)
             return shape
         return self.indra_tensor.shape
-    
+
     @property
     def index(self):
         return Index(self.indra_tensor.indexes)
