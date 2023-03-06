@@ -1316,7 +1316,7 @@ def _train_detector(
         cfg.runner.type = "DeeplakeIterBasedRunner"
     elif cfg.runner.type == "EpochBasedRunner":
         cfg.runner.type = "DeeplakeEpochBasedRunner"
-        
+
     runner = build_runner(
         cfg.runner,
         default_args=dict(
@@ -1437,7 +1437,8 @@ def _train_detector(
             implementation=dl_impl,
             **val_dataloader_args,
         )
-        eval_cfg["by_epoch"] = cfg.runner["type"] != "IterBasedRunner"
+
+        eval_cfg["by_epoch"] = cfg.runner["type"] != "DeeplakeIterBasedRunner"
         eval_hook = EvalHook
         if distributed:
             eval_hook = DistEvalHook
