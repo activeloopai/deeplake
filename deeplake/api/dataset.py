@@ -170,7 +170,7 @@ class dataset:
                     "the ‘token’ parameter. The CLI commands are ‘activeloop login’ and "
                     "‘activeloop register."
                 )
-                raise UserNotLoggedInException(message)
+                raise UserNotLoggedInException(message) from None
             raise
         ds_exists = dataset_exists(cache_chain)
 
@@ -319,7 +319,7 @@ class dataset:
                     f"or create an API token in the UI and pass it to this method using the "
                     f"‘token’ parameter. The CLI commands are ‘activeloop login’ and ‘activeloop register’."
                 )
-                raise UserNotLoggedInException(message)
+                raise UserNotLoggedInException(message) from None
             raise
 
         if overwrite and dataset_exists(cache_chain):
@@ -439,7 +439,7 @@ class dataset:
                     "the ‘token’ parameter. The CLI commands are ‘activeloop login’ and "
                     "‘activeloop register’."
                 )
-                raise UserNotLoggedInException(message)
+                raise UserNotLoggedInException(message) from None
             raise
         if not dataset_exists(cache_chain):
             raise DatasetHandlerError(
@@ -541,6 +541,7 @@ class dataset:
 
         Raises:
             DatasetHandlerError: If a Dataset does not exist at the given path and ``force = False``.
+            UserNotLoggedInException: When user is not logged in.
             NotImplementedError: When attempting to delete a managed view.
 
         Warning:
@@ -562,7 +563,15 @@ class dataset:
                     raise NotImplementedError(
                         "Deleting managed views by path is not supported. Load the source dataset and do `ds.delete_view(id)` instead."
                     )
-            ds = deeplake.load(path, verbose=False, token=token, creds=creds)
+            try:
+                ds = deeplake.load(path, verbose=False, token=token, creds=creds)
+            except UserNotLoggedInException:
+                message = (
+                    f"Please log in through the CLI in order to delete this dataset, "
+                    f"or create an API token in the UI and pass it to this method using the "
+                    f"‘token’ parameter. The CLI commands are ‘activeloop login’ and ‘activeloop register’."
+                )
+                raise UserNotLoggedInException(message) from None
             ds.delete(large_ok=large_ok)
             if verbose:
                 logger.info(f"{path} dataset deleted successfully.")

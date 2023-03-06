@@ -1940,8 +1940,9 @@ def test_text_label(local_ds_generator):
     verify_label_data(ds)
 
 
+@pytest.mark.parametrize("scheduler", ["threaded", "processed"])
 @pytest.mark.parametrize("num_workers", [0, 2])
-def test_text_labels_transform(local_ds_generator, num_workers):
+def test_text_labels_transform(local_ds_generator, scheduler, num_workers):
     with local_ds_generator() as ds:
         ds.create_tensor("labels", htype="class_label")
         ds.create_tensor("multiple_labels", htype="class_label")
@@ -1964,7 +1965,9 @@ def test_text_labels_transform(local_ds_generator, num_workers):
             return label_idx_map[data]
         return [convert_to_idx(label, label_idx_map) for label in data]
 
-    upload().eval(data, ds, num_workers=num_workers)
+    upload().eval(data, ds, scheduler=scheduler, num_workers=num_workers)
+
+    assert all(not tensor.startswith("__temp") for tensor in ds._tensors())
 
     for tensor in ("labels", "multiple_labels", "seq_labels"):
         class_names = ds[tensor].info.class_names
@@ -2364,10 +2367,9 @@ def test_pickle_bug(local_ds):
     file.seek(0)
     ds = pickle.load(file)
 
-    with pytest.raises(TensorDoesNotExistError):
-        ds["__temp_123"].numpy()
-
-    assert ds._temp_tensors == []
+    np.testing.assert_array_equal(
+        ds["__temp_123"].numpy(), np.array([1, 2, 3, 4, 5]).reshape(-1, 1)
+    )
 
 
 def test_max_view(memory_ds):

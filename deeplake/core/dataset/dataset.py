@@ -277,7 +277,6 @@ class Dataset:
         return self
 
     def __exit__(self, exc_type, exc_val, exc_tb):
-
         autoflush = self._initial_autoflush.pop()
         if not self._read_only and autoflush:
             if self._vc_info_updated:
@@ -405,10 +404,6 @@ class Dataset:
         self.storage.clear_cache_without_flush()
         self._set_derived_attributes(verbose=False)
         self._indexing_history = []
-
-        for temp_tensor in self._temp_tensors:
-            self.delete_tensor(temp_tensor, large_ok=True)
-        self._temp_tensors = []
 
     def _reload_version_state(self):
         version_state = self.version_state
