@@ -170,19 +170,15 @@ class DataFrame(StructuredDataset):
             A Deep Lake dataset.
 
         """
+
         keys = list(self.source.columns)
-        iterator = tqdm(
-            keys,
-            # desc="Ingesting... (%i columns skipped)" % (len(skipped_keys)),
-            disable=not progressbar,
-        )
-        with ds, iterator:
+
+        with ds:
             if self.creds_key is not None and self.creds_key not in ds.get_creds_keys():
                 ds.add_creds_key(self.creds_key, managed=True)
-            for key in iterator:
+            for key in keys:
                 if progressbar:
-                    logger.info(f"\column={key}, dtype={self.source[key].dtype}")
-                # try:
+                    logger.info(f"Ingesting column '{key}'")
 
                 tensor_params = self._parse_tensor_params(key)
 
