@@ -205,19 +205,34 @@ def test_csv(memory_ds: Dataset, dataframe_ingestion_data: dict):
         summary=False,
         overwrite=False,
     )
-    df = pd.read_csv(path, quotechar='"', skipinitialspace=True)
+    tensors_names = list(ds.tensors.keys())
 
-    assert list(ds.tensors) == ["Year", "Score", "Title"]
+    df = pd.read_csv(
+        dataframe_ingestion_data["basic_dataframe_w_sanitize_path"],
+        quotechar='"',
+        skipinitialspace=True,
+    )
+    df_keys = df.keys()
 
-    assert ds["Year"].dtype == df["Year"].dtype
-    np.testing.assert_array_equal(ds["Year"].numpy().reshape(-1), df["Year"].values)
+    assert (
+        df_keys[0] in tensors_names and df_keys[2] in tensors_names
+    )  # Second column should have been sanitized and got a new name
 
-    assert ds["Score"].dtype == df["Score"].dtype
-    np.testing.assert_array_equal(ds["Score"].numpy().reshape(-1), df["Score"].values)
+    assert ds[tensors_names[0]].dtype == df[df_keys[0]].dtype
+    np.testing.assert_array_equal(
+        ds[tensors_names[0]].numpy().reshape(-1), df[df_keys[0]].values
+    )
 
-    assert ds["Title"].htype == "text"
-    assert ds["Title"].dtype == str
-    np.testing.assert_array_equal(ds["Title"].numpy().reshape(-1), df["Title"].values)
+    assert ds[tensors_names[1]].dtype == df[df_keys[1]].dtype
+    np.testing.assert_array_equal(
+        ds[tensors_names[1]].numpy().reshape(-1), df[df_keys[1]].values
+    )
+
+    assert ds[tensors_names[2]].htype == "text"
+    assert ds[tensors_names[2]].dtype == str
+    np.testing.assert_array_equal(
+        ds[tensors_names[2]].numpy().reshape(-1), df[df_keys[2]].values
+    )
 
 
 @pytest.mark.parametrize("convert_to_pathlib", [True, False])

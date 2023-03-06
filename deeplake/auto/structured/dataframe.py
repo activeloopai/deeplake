@@ -137,7 +137,7 @@ class DataFrame(StructuredDataset):
 
         return tensor_params
 
-    def _get_extend_values(self, tensor_params: dict, key: str):
+    def _get_extend_values(self, tensor_params: dict, key: str):  # type: ignore
         """Method creates a list of values to be extended to the tensor, based on the tensor parameters and the data in the dataframe column"""
 
         if "htype" in tensor_params.keys() and "link[" in tensor_params["htype"]:

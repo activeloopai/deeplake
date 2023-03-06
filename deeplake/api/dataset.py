@@ -1386,7 +1386,7 @@ class dataset:
             if os.path.isdir(dest) and os.path.samefile(src, dest):
                 raise SamePathException(src)
 
-            if src.endswith(".csv"):
+            if src.endswith(".csv") or src.endswith(".txt"):
                 import pandas as pd  # type:ignore
 
                 if not os.path.isfile(src):
