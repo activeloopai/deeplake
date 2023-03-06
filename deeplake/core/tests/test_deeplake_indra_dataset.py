@@ -125,13 +125,17 @@ def test_query(local_ds_generator):
     view = deeplake_indra_ds.query("SELECT * GROUP BY label")
     assert len(view) == 10
     for i in range(len(view)):
-        assert view.label[i].numpy().shape == (1, 10)
-        assert np.all(view.label[i].numpy() == i)
+        arr = view.label[i].numpy()
+        assert len(arr) == 10
+        for a in arr:
+            assert np.all(a == i)
 
     view2 = view.query("SELECT * WHERE all(label == 2)")
     assert len(view2) == 1
-    assert view2.label.numpy().shape == (1, 10)
-    assert np.all(view2.label.numpy() == 2)
+    arr = view2.label.numpy()
+    assert len(arr) == 10
+    for a in arr:
+        assert np.all(a == 2)
 
 
 @requires_libdeeplake
