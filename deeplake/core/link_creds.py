@@ -241,7 +241,8 @@ class LinkCreds(DeepLakeMemoryObject):
             self.populate_creds(creds_key, creds)
         else:
             self.managed_creds_keys.discard(creds_key)
-
+            self.creds_dict.pop(creds_key, None)
+            self.storage_providers.pop(creds_key, None)
         return True
 
     def warn_missing_managed_creds(self):

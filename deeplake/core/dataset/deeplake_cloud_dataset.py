@@ -280,52 +280,59 @@ class DeepLakeCloudDataset(Dataset):
         save_link_creds(self.link_creds, self.storage)
         self.link_creds.warn_missing_managed_creds()
 
-    def update_creds_key(self, old_creds_key: str, new_creds_key: str):
-        """Replaces the old creds key with the new creds key. This is used to replace the creds key used for external data."""
-        if old_creds_key in self.link_creds.managed_creds_keys:
-            raise ValueError(
-                f"""Cannot update managed creds key directly. If you want to update it, follow these steps:-
-                1. ds.change_creds_management("{old_creds_key}", False)
-                2. ds.update_creds_key("{old_creds_key}", "{new_creds_key}")
-                3. [OPTIONAL] ds.change_creds_management("{new_creds_key}", True)
-                """
-            )
-        super().update_creds_key(old_creds_key, new_creds_key)
-        self.link_creds.warn_missing_managed_creds()
-
-    def change_creds_management(self, creds_key: str, managed: bool):
-        """Changes the management status of the creds key.
+    def update_creds_key(
+        self,
+        creds_key: str,
+        new_creds_key: Optional[str] = None,
+        managed: Optional[bool] = None,
+    ):
+        """Updates the name and/or management status of a creds key.
 
         Args:
             creds_key (str): The key whose management status is to be changed.
+            new_creds_key (str, optional): The new key to replace the old key. If not provided, the old key will be used.
             managed (bool): The target management status. If ``True``, the creds corresponding to the key will be fetched from activeloop platform.
 
         Raises:
             ValueError: If the dataset is not connected to activeloop platform.
+            ValueError: If both ``new_creds_key`` and ``managed`` are ``None``.
             KeyError: If the creds key is not present in the dataset.
 
         Examples:
 
             >>> # create/load a dataset
-            >>> ds = deeplake.dataset("hub://username/dataset")
+            >>> ds = deeplake.dataset("path/to/dataset")
             >>> # add a new creds key
             >>> ds.add_creds_key("my_s3_key")
             >>> # Populate the name added with creds dictionary
             >>> # These creds are only present temporarily and will have to be repopulated on every reload
             >>> ds.populate_creds("my_s3_key", {})
-            >>> # Change the management status of the key to True. Before doing this, ensure that the creds have been created on activeloop platform
+            >>> # Rename the key and change the management status of the key to True. Before doing this, ensure that the creds have been created on activeloop platform
             >>> # Now, this key will no longer use the credentials populated in the previous step but will instead fetch them from activeloop platform
             >>> # These creds don't have to be populated again on every reload and will be fetched every time the dataset is loaded
-            >>> ds.change_creds_management("my_s3_key", True)
-
+            >>> ds.update_creds_key("my_s3_key", "my_managed_key", True)
         """
-
-        key_index = self.link_creds.creds_mapping[creds_key] - 1
-        changed = self.link_creds.change_creds_management(creds_key, managed)
-        if changed:
-            save_link_creds(
-                self.link_creds, self.storage, managed_info=(managed, key_index)
+        if new_creds_key is None and managed is None:
+            raise ValueError(
+                "Atleast one of new_creds_key or managed must be provided."
             )
+        key_index = self.link_creds.creds_mapping[creds_key] - 1
+        managed_info, replaced_index = None, None
+        if managed is not None:
+            management_changed = self.link_creds.change_creds_management(
+                creds_key, managed
+            )
+            if management_changed:
+                managed_info = (managed, key_index)
+        if new_creds_key is not None and new_creds_key != creds_key:
+            replaced_index = self.link_creds.replace_creds(creds_key, new_creds_key)
+        save_link_creds(
+            self.link_creds,
+            self.storage,
+            replaced_index=replaced_index,
+            managed_info=managed_info,
+        )
+        self.link_creds.warn_missing_managed_creds()
 
     def _load_link_creds(self):
         """Loads the link creds from the storage."""
