@@ -1,4 +1,3 @@
-from deeplake.core.lock import _LOCKS, _REFS
 import os
 import logging
 
@@ -7,8 +6,13 @@ import logging
 os.environ["BUGGER_OFF"] = "true"
 os.environ["DEEPLAKE_DOWNLOAD_PATH"] = "./testing/local_storage"
 
+os.environ["DEEPLAKE_PYTEST_ENABLED"] = "true"
+
 os.environ["TF_CPP_MIN_LOG_LEVEL"] = "2"
 logging.disable(logging.INFO)
+
+
+from deeplake.core.lock import _LOCKS, _REFS
 
 # Use staging environment for tests.
 import deeplake.client.config

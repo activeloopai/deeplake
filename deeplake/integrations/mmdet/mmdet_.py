@@ -479,11 +479,15 @@ class MMDetDataset(TorchDataset):
         metrics_format="COCO",
         bbox_info=None,
         pipeline=None,
+        num_gpus=1,
+        batch_size=1,
         **kwargs,
     ):
         super().__init__(*args, **kwargs)
         self.mode = mode
         self.pipeline = pipeline
+        self.num_gpus = num_gpus
+        self.batch_size = batch_size
         if self.mode in ("val", "test"):
             self.bbox_info = bbox_info
             self.images = self._get_images(tensors_dict["images_tensor"])
@@ -509,13 +513,18 @@ class MMDetDataset(TorchDataset):
                     labels=self.labels,
                     iscrowds=self.iscrowds,
                     bbox_format=bbox_format,
+                    num_gpus=num_gpus,
                 )
             else:
                 self.evaluator = None
 
     def __len__(self):
-        if self.mode == "eval":
-            return math.ceil(len(self.dataset) / self.batch_size)
+        if self.mode == "val":
+            per_gpu_length = math.floor(
+                len(self.dataset) / (self.batch_size * self.num_gpus)
+            )
+            total_length = per_gpu_length * self.num_gpus
+            return total_length
         return super().__len__()
 
     def _get_images(self, images_tensor):
@@ -631,6 +640,12 @@ class MMDetDataset(TorchDataset):
         Returns:
             OrderedDict: Evaluation metrics dictionary
         """
+        if self.num_gpus > 1:
+            results_ordered = []
+            for i in range(self.num_gpus):
+                results_ordered += results[i :: self.num_gpus]
+            results = results_ordered
+
         if self.evaluator is None:
             if not isinstance(metric, str):
                 assert len(metric) == 1
@@ -674,7 +689,11 @@ class MMDetDataset(TorchDataset):
             return eval_results
 
         return self.evaluator.evaluate(
-            results, metric=metric, logger=logger, proposal_nums=proposal_nums, **kwargs
+            results,
+            metric=metric,
+            logger=logger,
+            proposal_nums=proposal_nums,
+            **kwargs,
         )
 
     @staticmethod
@@ -982,6 +1001,8 @@ def build_dataloader(
             mode=mode,
             bbox_info=bbox_info,
             decode_method=decode_method,
+            num_gpus=train_loader_config["num_gpus"],
+            batch_size=batch_size,
         )
 
         loader.dataset.mmdet_dataset = mmdet_ds
@@ -1014,6 +1035,8 @@ def build_dataloader(
             mode=mode,
             bbox_info=bbox_info,
             decode_method=decode_method,
+            num_gpus=train_loader_config["num_gpus"],
+            batch_size=batch_size,
         )
         loader.dataset = mmdet_ds
     loader.dataset.CLASSES = classes
@@ -1326,13 +1349,14 @@ def _train_detector(
     # register eval hooks
     if validate:
         val_dataloader_default_args = dict(
-            samples_per_gpu=1,
-            workers_per_gpu=1,
-            dist=False,
+            samples_per_gpu=batch_size,
+            workers_per_gpu=num_workers,
+            dist=distributed,
             shuffle=False,
             persistent_workers=False,
             mode="val",
             metrics_format=metrics_format,
+            num_gpus=len(cfg.gpu_ids),
         )
 
         val_dataloader_args = {
@@ -1405,6 +1429,8 @@ def _train_detector(
         )
         eval_cfg["by_epoch"] = cfg.runner["type"] != "IterBasedRunner"
         eval_hook = EvalHook
+        if distributed:
+            eval_hook = DistEvalHook
         # In this PR (https://github.com/open-mmlab/mmcv/pull/1193), the
         # priority of IterTimerHook has been modified from 'NORMAL' to 'LOW'.
         runner.register_hook(eval_hook(val_dataloader, **eval_cfg), priority="LOW")
