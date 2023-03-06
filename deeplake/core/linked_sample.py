@@ -1,9 +1,8 @@
 from typing import Optional
+from deeplake.util.exceptions import MissingCredsError
 from deeplake.util.path import get_path_type
 import deeplake
 import numpy as np
-
-from deeplake.util.creds import convert_creds_key
 
 
 class LinkedSample:
@@ -11,7 +10,7 @@ class LinkedSample:
 
     def __init__(self, path: str, creds_key: Optional[str] = None):
         self.path = path
-        self.creds_key = convert_creds_key(creds_key, path)
+        self.creds_key = creds_key
 
     @property
     def dtype(self) -> str:
@@ -19,7 +18,7 @@ class LinkedSample:
 
 
 def read_linked_sample(
-    sample_path: str, sample_creds_key: str, link_creds, verify: bool
+    sample_path: str, sample_creds_key: Optional[str], link_creds, verify: bool
 ):
     provider_type = get_path_type(sample_path)
     if provider_type == "local":
@@ -38,9 +37,13 @@ def retry_refresh_managed_creds(f):
     def wrapper(linked_creds, sample_creds_key, *args, **kwargs):
         try:
             return f(linked_creds, sample_creds_key, *args, **kwargs)
+        except MissingCredsError:
+            raise
         except Exception as e:
-            linked_creds.populate_all_managed_creds()
-            return f(linked_creds, sample_creds_key, *args, **kwargs)
+            if linked_creds.client is not None:
+                linked_creds.populate_all_managed_creds()
+                return f(linked_creds, sample_creds_key, *args, **kwargs)
+            raise e
 
     return wrapper
 
