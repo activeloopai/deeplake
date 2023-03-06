@@ -36,7 +36,10 @@ def query(dataset, query_string: str):
         >>> ds_train = deeplake.load('hub://activeloop/coco-train')
         >>> query_ds_train = query(ds_train, "(select * where contains(categories, 'car') limit 1000) union (select * where contains(categories, 'motorcycle') limit 1000)")
     """
-    ds = dataset_to_libdeeplake(dataset)
+    if isinstance(dataset, DeepLakeQueryDataset):
+        ds = dataset.indra_ds
+    else:
+        ds = dataset_to_libdeeplake(dataset)
     dsv = ds.query(query_string)
     try:
         indexes = dsv.indexes

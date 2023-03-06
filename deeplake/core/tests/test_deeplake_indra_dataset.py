@@ -1,7 +1,7 @@
 import deeplake as dp
 import numpy as np
 from deeplake.tests.common import requires_libdeeplake
-from deeplake.core.dataset.deeplake_query_dataset import DeepLakeQueryDataset, DeepLakeQueryTensor
+from deeplake.core.dataset.deeplake_query_dataset import DeepLakeQueryDataset
 import random
 
 
@@ -96,9 +96,30 @@ def test_load_view(local_ds_generator):
 
 
 @requires_libdeeplake
-def test_query():
-    # can we run queries sequentially?
-    pass
+def test_query(local_ds_generator):
+    from deeplake.enterprise.convert_to_libdeeplake import dataset_to_libdeeplake
+
+    deeplake_ds = local_ds_generator()
+    with deeplake_ds:
+        deeplake_ds.create_tensor("label", htype="generic", dtype=np.int32)
+        deeplake_ds.create_tensor("image", htype="image", dtype=np.uint8, sample_compression="jpg")
+        for i in range(100):
+            deeplake_ds.label.append(int(i / 10))
+            deeplake_ds.image.append(np.random.randint(0, 255, (100, 200, 3), np.uint8))
+
+    indra_ds = dataset_to_libdeeplake(deeplake_ds)
+    deeplake_indra_ds = DeepLakeQueryDataset(deeplake_ds=deeplake_ds, indra_ds=indra_ds)
+
+    view = deeplake_indra_ds.query("SELECT * GROUP BY label")
+    assert len(view) == 10
+    for i in range(len(view)):
+        assert view.label[i].numpy().shape == (1, 10)
+        assert np.all(view.label[i].numpy() == i)
+
+    view2 = view.query("SELECT * WHERE all(label == 2)")
+    assert len(view2) == 1
+    assert view2.label.numpy().shape == (1, 10)
+    assert np.all(view2.label.numpy() == 2)
 
 
 @requires_libdeeplake

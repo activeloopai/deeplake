@@ -34,6 +34,7 @@ class DeepLakeQueryTensor(tensor.Tensor):
             "dataset",
             "storage",
             "version_state",
+            "chunk_engine",
             "link_creds",
             "_skip_next_setitem",
             "_indexing_history",
@@ -103,11 +104,12 @@ class DeepLakeQueryTensor(tensor.Tensor):
                     shape.append(self.min_shape[i])
                 else:
                     shape.append(None)
-        return shape
+            return shape
+        return self.indra_tensor.shape
     
     @property
     def index(self):
-        return self.indra_tensor.indexes
+        return Index(self.indra_tensor.indexes)
 
     @property
     def shape_interval(self):
