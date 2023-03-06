@@ -114,3 +114,24 @@ class DeeplakeEpochBasedRunner(runner.EpochBasedRunner):
 
         self.call_hook("after_train_epoch")
         self._epoch += 1
+
+    @torch.no_grad()
+    def val(self, data_loader, **kwargs):
+        start_time = time.time()
+        self.model.eval()
+        self.mode = "val"
+        self.data_loader = data_loader
+        self.call_hook("before_val_epoch")
+        time.sleep(2)  # Prevent possible deadlock during epoch transition
+        for i, data_batch in enumerate(self.data_loader):
+            self.data_batch = data_batch
+            self._inner_iter = i
+            self.call_hook("before_val_iter")
+            self.run_iter(data_batch, train_mode=False)
+            self.call_hook("after_val_iter")
+            del self.data_batch
+            iter_time = time.time()
+            if iter_time - start_time > TIME_INTERVAL_FOR_CUDA_MEMORY_CLEANING:
+                torch.cuda.empty_cache()
+                iter_time = start_time
+        self.call_hook("after_val_epoch")
