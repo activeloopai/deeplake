@@ -2519,7 +2519,7 @@ class ChunkEngine:
             and self.active_updated_chunk.key == chunk_key
         ):
             self.active_updated_chunk = None
-    
+
     def get_avg_chunk_size(self):
         num_chunks, num_samples = self.num_chunks, self.num_samples
         max_shape = self.tensor_meta.max_shape
