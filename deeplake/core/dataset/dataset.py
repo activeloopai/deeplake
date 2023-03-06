@@ -135,8 +135,6 @@ from deeplake.hooks import dataset_read
 
 import warnings
 
-from deeplake.core.dataset.deeplake_query_tensor import DeepLakeQueryTensor
-
 _LOCKABLE_STORAGES = {S3Provider, GCSProvider}
 
 
@@ -1906,7 +1904,6 @@ class Dataset:
 
         view = query(self, query_string)
         try:
-            indices = view.indra_index
             return view
         except RuntimeError:
             view._query = query_string

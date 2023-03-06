@@ -1,7 +1,7 @@
 import deeplake as dp
 import numpy as np
 from deeplake.tests.common import requires_libdeeplake
-from deeplake.core.dataset import DeepLakeQueryDataset, DeepLakeQueryTensor
+from deeplake.core.dataset.deeplake_query_dataset import DeepLakeQueryDataset, DeepLakeQueryTensor
 import random
 
 
@@ -22,53 +22,25 @@ def test_indexing(local_ds_generator):
     assert deeplake_indra_ds.__getstate__() == deeplake_ds.__getstate__()
 
     # test slice indices
-    np.isclose(
-        deeplake_indra_ds.images.numpy(),
-        np.dstack(indra_ds.tensors[0][:]).transpose(2, 0, 1),
-    )
-    np.isclose(
-        deeplake_indra_ds.images[5:55].numpy(),
-        np.dstack(indra_ds.tensors[0][5:55]).transpose(2, 0, 1),
-    )
+    assert np.all(deeplake_indra_ds.label.numpy() == indra_ds.label.numpy())
+    assert np.all(deeplake_indra_ds.label[5:55].numpy() == indra_ds.label[5:55].numpy())
 
-    np.isclose(
-        deeplake_indra_ds[5:55].images.numpy(),
-        np.dstack(indra_ds.tensors[0][5:55]).transpose(2, 0, 1),
-    )
+    assert np.all(deeplake_indra_ds[5:55].label.numpy() == indra_ds.label[5:55].numpy())
 
     # test int indices
-    np.isclose(
-        deeplake_indra_ds.images[0].numpy(),
-        np.dstack(indra_ds.tensors[0][0]).transpose(2, 0, 1),
-    )
+    assert np.all(deeplake_indra_ds.label[0].numpy() == indra_ds.label[0].numpy())
 
-    np.isclose(
-        deeplake_indra_ds[0].images.numpy(),
-        np.dstack(indra_ds.tensors[0][0]).transpose(2, 0, 1),
-    )
+    assert np.all(deeplake_indra_ds[0].label.numpy() == indra_ds.label[0].numpy())
 
     # test list indices
-    np.isclose(
-        deeplake_indra_ds.images[[0, 1]].numpy(),
-        np.dstack(indra_ds.tensors[0][[0, 1]]).transpose(2, 0, 1),
-    )
+    assert np.all(deeplake_indra_ds.label[[0, 1]].numpy() == indra_ds.label[[0, 1]].numpy())
 
-    np.isclose(
-        deeplake_indra_ds[[0, 1]].images.numpy(),
-        np.dstack(indra_ds.tensors[0][[0, 1]]).transpose(2, 0, 1),
-    )
+    assert np.all(deeplake_indra_ds[[0, 1]].label.numpy() == indra_ds.label[[0, 1]].numpy())
 
     # test tuple indices
+    assert np.all(deeplake_indra_ds[(0, 1),].label.numpy() == indra_ds.label[(0, 1),].numpy())
 
-    np.isclose(
-        deeplake_indra_ds[(0, 1)].images.numpy(),
-        np.dstack(indra_ds.tensors[0][(0, 1)]).transpose(2, 0, 1),
-    )
-
-    np.isclose(
-        deeplake_indra_ds[(0, 1)].images.numpy(),
-        np.dstack(indra_ds.tensors[0][(0, 1)]).transpose(2, 0, 1),
-    )
+    assert np.all(deeplake_indra_ds[(0, 1),].label.numpy() == indra_ds.label[(0, 1),].numpy())
 
 
 @requires_libdeeplake
@@ -80,6 +52,8 @@ def test_save_view(local_ds_generator):
         deeplake_ds.create_tensor("label", htype="generic", dtype=np.int32)
         for i in range(1000):
             deeplake_ds.label.append(int(100 * random.uniform(0.0, 1.0)))
+    
+    deeplake_ds.commit("First")
 
     indra_ds = dataset_to_libdeeplake(deeplake_ds)
     deeplake_indra_ds = DeepLakeQueryDataset(deeplake_ds=deeplake_ds, indra_ds=indra_ds)
@@ -97,8 +71,12 @@ def test_load_view(local_ds_generator):
     deeplake_ds = local_ds_generator()
     with deeplake_ds:
         deeplake_ds.create_tensor("label", htype="generic", dtype=np.int32)
-        for i in range(1000):
+        deeplake_ds.create_tensor("image", htype="image", dtype=np.uint8, sample_compression="jpg")
+        for i in range(100):
             deeplake_ds.label.append(int(100 * random.uniform(0.0, 1.0)))
+            deeplake_ds.image.append(np.random.randint(0, 255, (100, 200, 3), np.uint8))
+
+    deeplake_ds.commit("First")
 
     indra_ds = dataset_to_libdeeplake(deeplake_ds)
     deeplake_indra_ds = DeepLakeQueryDataset(deeplake_ds=deeplake_ds, indra_ds=indra_ds)
@@ -114,7 +92,7 @@ def test_load_view(local_ds_generator):
     for i, batch in enumerate(dataloader):
         iss.append(i)
 
-    assert np.isclose(indra_ds.tensors[0][:], deeplake_indra_ds.image.numpy())
+    assert np.all(indra_ds.image.numpy() == deeplake_indra_ds.image.numpy())
 
 
 @requires_libdeeplake
@@ -151,15 +129,8 @@ def test_accessing_data(local_ds_generator):
     indra_ds = dataset_to_libdeeplake(deeplake_ds)
     deeplake_indra_ds = DeepLakeQueryDataset(deeplake_ds=deeplake_ds, indra_ds=indra_ds)
 
-    assert np.isclose(
-        deeplake_indra_ds.images.numpy(), deeplake_indra_ds["images"].numpy()
+    assert np.all(
+        np.isclose(
+            deeplake_indra_ds.label.numpy(), deeplake_indra_ds["label"].numpy()
+        )
     )
-
-    # test with hirarcy
-    # some code goes here
-
-    deeplake_indra_ds_data = deeplake_indra_ds.labels[0].data()
-    deeplake_indra_ds_value = deeplake_indra_ds_data["value"]
-    assert isinstance(deeplake_indra_ds_value, dict)
-    assert len(deeplake_indra_ds_value) == 100
-    assert isinstance(deeplake_indra_ds_value, list)

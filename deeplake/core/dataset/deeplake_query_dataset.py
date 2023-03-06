@@ -31,18 +31,11 @@ from deeplake.core.dataset.deeplake_query_tensor import DeepLakeQueryTensor
 
 
 class DeepLakeQueryDataset(Dataset):
-    def __init__(
-        self, deeplake_ds, indra_ds, group_index=None, enabled_tensors=None, index=None
-    ):
+    def __init__(self, deeplake_ds, indra_ds, group_index=None, enabled_tensors=None):
         self.deeplake_ds = deeplake_ds
         self.indra_ds = indra_ds
         self.group_index = group_index or deeplake_ds.group_index
         self.enabled_tensors = enabled_tensors or deeplake_ds.enabled_tensors
-        # self.indra_index = index or deeplake_ds.index
-
-        # for tensor in self.deeplake_ds:
-        #     self._create_sample_shape_tensor(tensor)
-
         self.set_deeplake_dataset_variables()
 
     def set_deeplake_dataset_variables(self):
@@ -169,17 +162,13 @@ class DeepLakeQueryDataset(Dataset):
         ],
         is_iteration: bool = False,
     ):
-        is_iteration = is_iteration or self.is_iteration
         if isinstance(item, str):
             fullpath = posixpath.join(self.group_index, item)
             enabled_tensors = self.enabled_tensors
             if enabled_tensors is None or fullpath in enabled_tensors:
                 tensor = self._get_tensor_from_root(fullpath)
                 if tensor is not None:
-                    index = self.index
-                    if index.is_trivial() and is_iteration == tensor.is_iteration:
-                        return tensor
-                    return tensor.__getitem__(index, is_iteration=is_iteration)
+                    return tensor
             if self._has_group_in_root(fullpath):
                 ret = DeepLakeQueryDataset(
                     deeplake_ds=self.deeplake_ds,
@@ -229,9 +218,8 @@ class DeepLakeQueryDataset(Dataset):
                             "Indexing by integer in a for loop, like `for i in range(len(ds)): ... ds[i]` can be quite slow. Use `for i, sample in enumerate(ds)` instead."
                         )
                 ret = DeepLakeQueryDataset(
-                    deeplake_ds=self.deeplake_ds,
-                    indra_ds=self.indra_ds,
-                    index=self.index[item],
+                    deeplake_ds=self.deeplake_ds[item],
+                    indra_ds=self.indra_ds[item],
                 )
         else:
             raise InvalidKeyTypeError(item)
@@ -240,12 +228,16 @@ class DeepLakeQueryDataset(Dataset):
             ret._view_entry = self._view_entry
         return ret
 
+    def __getattr__(self, key):
+        try:
+            return self.__getitem__(key)
+        except TensorDoesNotExistError as ke:
+            raise AttributeError(
+                f"'{self.__class__}' object has no attribute '{key}'"
+            ) from ke
+
     def __len__(self):
-        indra_dataset = self.indra_ds
-        if self.index:
-            idx = self.index.values[0].value
-            indra_dataset = self.indra_ds[idx]
-        return len(indra_dataset)
+        return len(self.indra_ds)
 
     @deeplake_reporter.record_call
     def dataloader(self):
@@ -318,10 +310,6 @@ class DeepLakeQueryDataset(Dataset):
         return dataloader
 
     @property
-    def indra_index(self):
-        return self.indra_ds.indexes
-
-    @property
     def index(self):
         return self.deeplake_ds.index
 
@@ -330,10 +318,9 @@ class DeepLakeQueryDataset(Dataset):
     ) -> Dict[str, Tensor]:
         """All tensors belonging to this group, including those within sub groups. Always returns the sliced tensors."""
         version_state = self.version_state
-        index = self.index
         group_index = self.group_index
         all_tensors = self._all_tensors_filtered(include_hidden, include_disabled)
-        return {t: self[posixpath.join(group_index, t)][index] for t in all_tensors}
+        return {t: self[posixpath.join(group_index, t)] for t in all_tensors}
 
     def __str__(self):
         path_str = ""
@@ -344,8 +331,8 @@ class DeepLakeQueryDataset(Dataset):
         if self.read_only:
             mode_str = f"read_only=True, "
 
-        index_str = f"index={self.index}, "
-        if self.index.is_trivial():
+        index_str = f"index={self.deeplake_ds.index}, "
+        if self.deeplake_ds.index.is_trivial():
             index_str = ""
 
         group_index_str = (

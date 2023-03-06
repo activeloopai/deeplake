@@ -1,7 +1,5 @@
 from .dataset import Dataset  # type: ignore
 from .deeplake_cloud_dataset import DeepLakeCloudDataset
-from .deeplake_query_dataset import DeepLakeQueryDataset
-from .deeplake_query_tensor import DeepLakeQueryTensor
 from .view_entry import ViewEntry
 
 from deeplake.util.path import is_hub_cloud_path
