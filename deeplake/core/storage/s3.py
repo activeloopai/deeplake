@@ -44,13 +44,13 @@ except ImportError:
 
 try:
     import aioboto3  # type: ignore
-    import asyncio # type: ignore
+    import asyncio  # type: ignore
     import nest_asyncio  # type: ignore
 
     nest_asyncio.apply()  # needed to run asyncio in jupyter notebook
 except ImportError:
-    aioboto3 = None
-    asyncio = None
+    aioboto3 = None  # type: ignore
+    asyncio = None  # type: ignore
 
 
 class S3ResetReloadCredentialsManager:
