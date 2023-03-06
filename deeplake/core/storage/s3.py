@@ -1,5 +1,3 @@
-import aioboto3  # type: ignore
-import asyncio
 import deeplake
 from math import ceil
 import time
@@ -44,9 +42,15 @@ try:
 except ImportError:
     pass
 
-import nest_asyncio  # type: ignore
+try:
+    import aioboto3  # type: ignore
+    import asyncio # type: ignore
+    import nest_asyncio  # type: ignore
 
-nest_asyncio.apply()  # needed to run asyncio in jupyter notebook
+    nest_asyncio.apply()  # needed to run asyncio in jupyter notebook
+except ImportError:
+    aioboto3 = None
+    asyncio = None
 
 
 class S3ResetReloadCredentialsManager:
@@ -518,7 +522,10 @@ class S3Provider(StorageProvider):
         session = boto3.session.Session(profile_name=self.profile_name)
         self.client = session.client("s3", **kwargs)
         self.resource = session.resource("s3", **kwargs)
-        self.async_session = aioboto3.session.Session(profile_name=self.profile_name)
+        if aioboto3 is not None:
+            self.async_session = aioboto3.session.Session(
+                profile_name=self.profile_name
+            )
 
     @property
     def s3_kwargs(self):

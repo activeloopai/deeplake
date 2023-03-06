@@ -18,5 +18,5 @@ flask
 pyjwt
 laspy
 nibabel
-aioboto3 == 10.4.0
-nest_asyncio
+aioboto3 == 10.4.0; python_version >= '3.7'
+nest_asyncio; python_version >= '3.7'
