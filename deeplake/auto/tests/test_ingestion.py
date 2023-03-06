@@ -189,7 +189,6 @@ def test_ingestion_with_connection(
 
 
 def test_csv(memory_ds: Dataset, dataframe_ingestion_data: dict):
-
     with pytest.raises(InvalidPathException):
         deeplake.ingest_classification(
             src="tests_auto/csv/cities.csv",
@@ -291,7 +290,6 @@ def test_dataframe_files(memory_ds: Dataset, dataframe_ingestion_data):
 
 
 def test_dataframe_array(memory_ds: Dataset):
-
     # Create DataFrame
     data = {
         "AA": ["Alice", "Bob", "Charlie", "Steve"],
@@ -328,7 +326,6 @@ def test_dataframe_array(memory_ds: Dataset):
 
 
 def test_dataframe_array_bad(memory_ds: Dataset):
-
     # Create DataFrame
 
     data = {
