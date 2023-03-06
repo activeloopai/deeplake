@@ -114,7 +114,7 @@ class S3Provider(StorageProvider):
         self._initialize_s3_parameters()
         self._presigned_urls: Dict[str, Tuple[str, float]] = {}
 
-    def subdir(self, path: str):
+    def subdir(self, path: str, read_only: bool):
         sd = self.__class__(
             root=posixpath.join(self.root, path),
             aws_access_key_id=self.aws_access_key_id,
@@ -125,6 +125,7 @@ class S3Provider(StorageProvider):
         )
         if self.expiration:
             sd._set_hub_creds_info(self.hub_path, self.expiration)  # type: ignore
+        sd.read_only = read_only
         return sd
 
     def _set(self, path, content):
