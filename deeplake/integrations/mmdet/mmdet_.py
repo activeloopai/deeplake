@@ -229,6 +229,7 @@ import os
 from mmdet.core import BitmapMasks, PolygonMasks
 import math
 import types
+from deeplake.integrations.mmdet.mmdet_runners import DeeplakeIterBasedRunner
 
 
 class Dummy:
@@ -1306,7 +1307,11 @@ def _train_detector(
     # build optimizer
     auto_scale_lr(cfg, distributed, logger)
     optimizer = build_optimizer(model, cfg.optimizer)
-
+    if cfg.runner.type == "IterBasedRunner":
+        cfg.custom_imports = dict(
+            imports=["deeplake.integrations.mmdet.mmdet_runners"], allow_failed_imports=False
+        )
+        cfg.runner.type = "DeeplakeIterBasedRunner"
     runner = build_runner(
         cfg.runner,
         default_args=dict(
