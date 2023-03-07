@@ -813,8 +813,6 @@ use them just by adding the keys to your dataset. For example if you have manage
 >>> ds.img.append(deeplake.link("https://picsum.photos/200/300")) # http path doesn’t need creds
 >>> ds.img.append(deeplake.link("./path/to/cat.jpeg")) # local path doesn’t need creds
 >>> ds.img.append(deeplake.link("s3://abc/def.jpeg"))  # this will throw an exception as cloud paths always need creds_key
->>> ds.img.append(deeplake.link("s3://abc/def.jpeg", creds_key="ENV"))  # this will use creds from environment
-
 :bluebold:`Accessing the data`
 
 >>> for i in range(5):

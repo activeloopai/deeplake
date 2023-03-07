@@ -269,3 +269,28 @@ def test_rechunk_cloud_link(local_ds_generator):
     assert sample_2.path == s3_path_1, sample_2.creds_key == "my_s3_key_1"
 
     assert ds.abc.chunk_engine.creds_encoder.num_samples == 3
+
+
+@deeplake.compute
+def add_samples(sample_in, samples_out):
+    samples_out.labels.append(np.ones((200,), dtype=np.int64))
+
+
+def test_rechunk_vc_bug(local_ds):
+    ds = local_ds
+    with ds:
+        ds.create_tensor("labels", dtype="int64")
+    add_samples().eval(list(range(200)), ds, num_workers=2)
+    ds.commit()
+    add_samples().eval(list(range(100)), ds, num_workers=2)
+    ds.commit()
+    ds.checkout("alt", True)
+    ds.labels[8] = ds.labels[8].numpy()
+    ds.commit()
+    np.testing.assert_array_equal(
+        ds.labels.numpy(), np.ones((300, 200), dtype=np.int64)
+    )
+    ds.checkout("main")
+    np.testing.assert_array_equal(
+        ds.labels.numpy(), np.ones((300, 200), dtype=np.int64)
+    )

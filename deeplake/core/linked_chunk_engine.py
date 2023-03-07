@@ -211,7 +211,11 @@ class LinkedChunkEngine(ChunkEngine):
         sample = self.get_deeplake_read_sample(global_sample_index, fetch_chunks)
         if sample is None:
             return np.ones((0,))
-        return sample.array[tuple(entry.value for entry in index.values[1:])]
+        arr = sample.array
+        max_shape = self.tensor_meta.max_shape
+        if len(arr.shape) == 2 and max_shape and len(max_shape) == 3:
+            arr = arr.reshape(arr.shape + (1,))
+        return arr[tuple(entry.value for entry in index.values[1:])]
 
     def get_path(self, global_sample_index, fetch_chunks=False) -> str:
         return super().get_basic_sample(

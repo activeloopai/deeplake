@@ -185,6 +185,8 @@ def test_video_data(local_ds, video_paths):
 )
 def test_linked_video_timestamps(local_ds):
     with local_ds as ds:
+        local_ds.add_creds_key("ENV")
+        local_ds.populate_creds("ENV", from_environment=True)
         ds.create_tensor("videos", htype="link[video]", sample_compression="mp4")
         ds.videos.append(
             deeplake.link(
