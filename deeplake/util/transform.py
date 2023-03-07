@@ -557,8 +557,8 @@ def rechunk_if_necessary(ds):
                     if len(max_shape) > 0:
                         avg_chunk_size = engine.get_avg_chunk_size()
                         if (
-                            avg_chunk_size is not None and
-                            avg_chunk_size
+                            avg_chunk_size is not None
+                            and avg_chunk_size
                             < TRANSFORM_RECHUNK_AVG_SIZE_BOUND * engine.min_chunk_size
                         ):
                             enc = tensor.chunk_engine.chunk_id_encoder
