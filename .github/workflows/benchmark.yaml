@@ -17,11 +17,19 @@ on:
       - "main"
       - "release/**"
 
+concurrency:
+  group: ${{ github.workflow }}-${{ github.head_ref || github.ref_name }}
+
 jobs:
   remove_label:
     name: Remove run-benchmarks label
     if: github.event_name == 'pull_request' && github.event.label.name == 'run-benchmarks'
     runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        machine: 
+        - linux_cpu
     steps:
       - name: Remove run-benchmarks label
         continue-on-error: true
@@ -31,11 +39,105 @@ jobs:
 
   benchmark:
     if: github.event_name == 'push' || (github.event_name == 'pull_request' &&  github.event.label.name == 'run-benchmarks')
-    uses: activeloopai/shared-github-actions/.github/workflows/benchmark.yaml@main
-    secrets:
-      benchmarks_aws_role_arn: ${{ secrets.BENCHMARKS_AWS_ROLE_ARN }}
-      slack_url: ${{ secrets.SLACK_URL }}
-      activeloop_username: ${{ secrets.ACTIVELOOP_HUB_USERNAME }}
-      activeloop_password: ${{ secrets.ACTIVELOOP_HUB_PASSWORD }}
-      benchmarks_repo: ${{ secrets.BENCHMARKS_REPO }}
-      benchmark_report: ${{ secrets.BENCHMARK_REPORT }}
+    runs-on: deeplake-linux-cpu-benchmarks
+    steps:
+      - name: pull deeplake
+        uses: actions/checkout@v3
+        with:
+          path: "deeplake"
+
+      - name: pull benchmarks
+        uses: actions/checkout@v3
+        with:
+          repository: ${{ secrets.BENCHMARKS_REPO }}
+          path: "benchmarks"
+          token: ${{ secrets.BENCHMARK_REPO_TOKEN }}
+
+      - name: pull benchmark results
+        uses: actions/checkout@v3
+        with:
+          repository: ${{ secrets.BENCHMARK_REPORT }}
+          path: "reports"
+          token: ${{ secrets.BENCHMARK_REPO_TOKEN }}
+      
+      - name: install deeplake 
+        shell: bash
+        working-directory: ./deeplake
+        run: |
+          python3.9 -m pip install -U pip
+          python3.9 -m pip install -U setuptools
+          python3.9 -m pip install -r deeplake/requirements/common.txt
+          python3.9 -m pip install -r deeplake/requirements/plugins.txt
+          python3.9 -m pip install -r deeplake/requirements/tests.txt
+          python3.9 -m pip install -e .[all]
+          python3.9 -m pip install deeplake[enterprise]
+          activeloop login -u ${{ secrets.ACTIVELOOP_HUB_USERNAME}} -p ${{ secrets.ACTIVELOOP_HUB_PASSWORD }}
+      
+      - name: install benchmark dependencies
+        shell: bash
+        working-directory: ./benchmarks
+        run: |
+          python3.9 -m pip install -r requirements/requirements.txt
+      
+      - name: run benchmarks
+        shell: bash
+        working-directory: ./benchmarks
+        run: |
+          bash run.sh ${{ matrix.machine }}
+
+      - name: create report
+        shell: bash
+        run: |
+          python3 benchmarks/scripts/report.py \
+            -t md \
+            -n benchmarks/results.csv \
+            -b reports/${{ matrix.machine }}/latest/results.csv \
+            -o report.md
+
+          python3 benchmarks/scripts/report.py \
+            -t csv \
+            -n benchmarks/results.csv \
+            -b reports/${{ matrix.machine }}/latest/results.csv \
+            -o report.csv
+
+      - name: update reports
+        if: github.event_name == 'push'
+        shell: bash
+        run: |
+          if [ ${{ github.ref_name }} == 'main' ]
+          then
+            /usr/bin/cp results.csv reports/${{ matrix.machine }}/main/results.csv
+            /usr/bin/cp report.md   reports/${{ matrix.machine }}/main/report.md
+            /usr/bin/cp report.csv  reports/${{ matrix.machine }}/main/report.csv
+            /usr/bin/cp results.csv reports/${{ matrix.machine }}/main/results-${{ github.sha }}.csv
+            /usr/bin/cp report.md   reports/${{ matrix.machine }}/main/report-${{ github.sha }}.md
+            /usr/bin/cp report.csv  reports/${{ matrix.machine }}/main/report-${{ github.sha }}.csv
+          else
+            mkdir "reports/${{ matrix.machine }}/${GITHUB_REF_NAME/\//-}"
+            /usr/bin/cp results.csv "reports/${{ matrix.machine }}/${GITHUB_REF_NAME/\//-}/"
+            /usr/bin/cp report.md   "reports/${{ matrix.machine }}/${GITHUB_REF_NAME/\//-}/"
+            /usr/bin/cp report.csv  "reports/${{ matrix.machine }}/${GITHUB_REF_NAME/\//-}/"
+          fi
+
+          cd reports
+          git config user.name github-actions
+          git config user.email github-actions@github.com
+          git add .
+          git commit -m "Becnhmark report for ${GITHUB_REF_NAME}"
+          git push origin main 
+      
+      - name: notify
+        if: github.event_name == 'push'
+        shell: bash
+        working-directory: ./benchmarks
+        env:
+          NODE: ${{ matrix.machine }}
+          URL: ${{ secrets.SLACK_URL }}
+        run: |
+          python3.9 scripts/notify.py 
+
+      - name: comment pr
+        if: github.event_name == 'pull_request'
+        uses: thollander/actions-comment-pull-request@v2
+        with:
+          filePath: ./report.md
