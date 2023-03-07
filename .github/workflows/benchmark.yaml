@@ -53,7 +53,7 @@ jobs:
           path: "benchmarks"
           token: ${{ secrets.BENCHMARK_REPO_TOKEN }}
 
-      - name: pull benchmark results
+      - name: pull reports
         uses: actions/checkout@v3
         with:
           repository: ${{ secrets.BENCHMARK_REPORT }}
