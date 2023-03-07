@@ -114,7 +114,7 @@ class S3Provider(StorageProvider):
         self._initialize_s3_parameters()
         self._presigned_urls: Dict[str, Tuple[str, float]] = {}
 
-    def subdir(self, path: str, read_only: bool):
+    def subdir(self, path: str, read_only: bool = False):
         sd = self.__class__(
             root=posixpath.join(self.root, path),
             aws_access_key_id=self.aws_access_key_id,

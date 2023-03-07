@@ -272,7 +272,7 @@ class GCSProvider(StorageProvider):
         self._presigned_urls: Dict[str, Tuple[str, float]] = {}
         self.expiration: Optional[str] = None
 
-    def subdir(self, path: str, read_only: bool):
+    def subdir(self, path: str, read_only: bool = False):
         sd = self.__class__(
             root=posixpath.join(self.root, path),
             token=self.token,
