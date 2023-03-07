@@ -2,11 +2,12 @@ import numpy as np
 from .base import StructuredDataset
 from deeplake import Dataset
 from deeplake import read, link
-from tqdm import tqdm  # type: ignore
 from deeplake.htype import HTYPE_SUPPORTED_COMPRESSIONS
 from deeplake.util.exceptions import IngestionError
 from collections import defaultdict
-from typing import DefaultDict
+from typing import DefaultDict, List, Union, Optional
+from deeplake.core.sample import Sample
+from deeplake.core.linked_sample import LinkedSample
 import pathlib
 
 
@@ -139,6 +140,8 @@ class DataFrame(StructuredDataset):
 
     def _get_extend_values(self, tensor_params: dict, key: str):  # type: ignore
         """Method creates a list of values to be extended to the tensor, based on the tensor parameters and the data in the dataframe column"""
+
+        extend_values: List[Optional[Union[Sample, LinkedSample, np.ndarray]]]
 
         if "htype" in tensor_params.keys() and "link[" in tensor_params["htype"]:
             extend_values = [
