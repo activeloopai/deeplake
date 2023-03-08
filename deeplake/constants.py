@@ -164,6 +164,7 @@ WANDB_INTEGRATION_ENABLED = True
 WANDB_JSON_FILENMAE = "wandb.json"
 
 SHOW_ITERATION_WARNING = True
+RETURN_DUMMY_DATA_FOR_DATALOADER = False
 
 # Delay before spinner starts on time consuming functions (in seconds)
 SPINNER_START_DELAY = 2
@@ -177,3 +178,5 @@ LOCK_LOCAL_DATASETS = not PYTEST_ENABLED
 # Rechunk after transform if average chunk size is less than
 # this fraction of min chunk size
 TRANSFORM_RECHUNK_AVG_SIZE_BOUND = 0.1
+
+TIME_INTERVAL_FOR_CUDA_MEMORY_CLEANING = 10 * 60
