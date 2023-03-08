@@ -8,8 +8,7 @@ import time
 import warnings
 from typing import List, Tuple, Optional
 
-
-TIME_INTERVAL_FOR_CUDA_MEMORY_CLEANING = 10 * 60
+from deeplake.constants import TIME_INTERVAL_FOR_CUDA_MEMORY_CLEANING
 
 
 def empty_cuda():
@@ -141,5 +140,5 @@ class DeeplakeEpochBasedRunner(runner.EpochBasedRunner):
             iter_time = time.time()
             if iter_time - start_time > TIME_INTERVAL_FOR_CUDA_MEMORY_CLEANING:
                 empty_cuda()
-                iter_time = start_time
+                start_time = iter_time
         self.call_hook("after_val_epoch")
