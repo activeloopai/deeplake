@@ -175,4 +175,8 @@ SPINNER_ENABLED = not PYTEST_ENABLED
 
 LOCK_LOCAL_DATASETS = not PYTEST_ENABLED
 
+# Rechunk after transform if average chunk size is less than
+# this fraction of min chunk size
+TRANSFORM_RECHUNK_AVG_SIZE_BOUND = 0.1
+
 TIME_INTERVAL_FOR_CUDA_MEMORY_CLEANING = 10 * 60
