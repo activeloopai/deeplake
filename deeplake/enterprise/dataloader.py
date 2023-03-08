@@ -569,7 +569,6 @@ class DeepLakeDataLoader(DataLoader):
             buffer_size = self._buffer_size
 
             tensors = self._tensors or map_tensor_keys(self._orig_dataset, None)
-            dataset = dataset_to_libdeeplake(self._orig_dataset)
 
             jpeg_png_compressed_tensors = check_tensors(self._orig_dataset, tensors)
             raw_tensors, compressed_tensors = validate_decode_method(
@@ -595,6 +594,7 @@ class DeepLakeDataLoader(DataLoader):
                     persistent_workers=self._persistent_workers,
                 )
             else:
+                dataset = dataset_to_libdeeplake(self._orig_dataset)
                 self._dataloader = INDRA_LOADER(
                     dataset,
                     batch_size=self._batch_size,
