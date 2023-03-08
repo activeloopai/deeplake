@@ -4,6 +4,8 @@ from deeplake import Dataset
 from deeplake import read, link
 from deeplake.htype import HTYPE_SUPPORTED_COMPRESSIONS
 from deeplake.util.exceptions import IngestionError
+from deeplake.util.dataset import sanitize_tensor_name
+
 from collections import defaultdict
 from typing import DefaultDict, List, Union, Optional
 from deeplake.core.sample import Sample
@@ -38,22 +40,22 @@ class DataFrame(StructuredDataset):
         self.creds_key = creds_key
         self._initialize_params(column_params)
 
-    def _sanitize_tensor(self, input: str):
-        """Sanitize a string to be a valid tensor name
+    # def _sanitize_tensor(self, input: str):
+    #     """Sanitize a string to be a valid tensor name
 
-        Args:
-            input (str): A string that will be sanitized
+    #     Args:
+    #         input (str): A string that will be sanitized
 
-        Returns:
-            str: A string with the sanitized tensor name
-        """
+    #     Returns:
+    #         str: A string with the sanitized tensor name
+    #     """
 
-        invalid_chars = ["?", "!", "/", "\\", "#", "'", '"']
-        new_char = "_"
-        for char in invalid_chars:
-            input = input.replace(char, new_char)
+    #     invalid_chars = ["[", "]", "@", ".", ",", "?", "!", "/", "\\", "#", "'", '"']
+    #     new_char = "_"
+    #     for char in invalid_chars:
+    #         input = input.replace(char, new_char)
 
-        return input
+    #     return input
 
     def _initialize_params(self, column_params):
         column_params = column_params if column_params is not None else {}
@@ -63,11 +65,11 @@ class DataFrame(StructuredDataset):
         for key in keys:
             if key in column_params.keys():
                 column_params[key]["name"] = column_params[key].get(
-                    "name", self._sanitize_tensor(key)
+                    "name", sanitize_tensor_name(key)
                 )  # Get the specified name, and if it doesn't exist, use the sanitized column name
             else:
                 column_params[key] = {
-                    "name": self._sanitize_tensor(key)
+                    "name": sanitize_tensor_name(key)
                 }  # If column parameters are not specified for a column, use the sanitized column name
 
         self.column_params = column_params

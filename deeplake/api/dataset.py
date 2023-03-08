@@ -1068,7 +1068,7 @@ class dataset:
             >>>     token="my_activeloop_token",
             >>>     num_workers=4,
             >>> )
-            >>> # or ingest data from cloud
+            >>> # or ingest data from the cloud
             >>> ds = deeplake.ingest_coco(
             >>>     "s3://bucket/images/directory",
             >>>     "s3://bucket/annotation/file1.json",
@@ -1076,7 +1076,7 @@ class dataset:
             >>>     ignore_one_group=True,
             >>>     ignore_keys=["area", "image_id", "id"],
             >>>     image_settings={"name": "images", "htype": "link[image]", "sample_compression": "jpeg"},
-            >>>     image_creds_key="my_managed_creds"
+            >>>     image_creds_key="my_s3_managed_credentials"
             >>>     src_creds=aws_creds, # Can also be inferred from environment
             >>>     token="my_activeloop_token",
             >>>     num_workers=4,
@@ -1186,12 +1186,12 @@ class dataset:
             >>>     token="my_activeloop_token",
             >>>     num_workers=4,
             >>> )
-            >>> # or ingest data from cloud
+            >>> # or ingest data from the cloud
             >>> ds = deeplake.ingest_yolo(
             >>>     "s3://bucket/data_directory",
             >>>     dest="hub://org_id/dataset",
             >>>     image_params={"name": "image_links", "htype": "link[image]"},
-            >>>     image_creds_key='my_s3_managed_crerendials",
+            >>>     image_creds_key="my_s3_managed_credentials",
             >>>     src_creds=aws_creds, # Can also be inferred from environment
             >>>     token="my_activeloop_token",
             >>>     num_workers=4,
@@ -1533,7 +1533,27 @@ class dataset:
         connect_kwargs: Optional[Dict] = None,
         **dataset_kwargs,
     ):
-        """Convert pandas dataframe to a Deep Lake Dataset.
+        """Convert pandas dataframe to a Deep Lake Dataset. The contents of the dataframe can be parsed literally, or can be treated as links to local or cloud files.
+
+        Examples:
+            >>> ds = deeplake.dataframe(
+            >>>     df,
+            >>>     dest="hub://org_id/dataset",
+            >>> )
+            >>> # or ingest data as images from the cloud
+            >>> ds = deeplake.dataframe(
+            >>>     df,
+            >>>     dest="hub://org_id/dataset",
+            >>>     column_params={"df_column_with_cloud_paths": {"name": "images", "htype": "image"}}
+            >>>     src_creds=aws_creds
+            >>> )
+            >>> # or ingest data as linked images in the cloud
+            >>> ds = deeplake.dataframe(
+            >>>     df,
+            >>>     dest="hub://org_id/dataset",
+            >>>     column_params={"df_column_with_cloud_paths": {"name": "image_links", "htype": "link[image]"}}
+            >>>     creds_key="my_s3_managed_credentials"
+            >>> )
 
         Args:
             src (pd.DataFrame): The pandas dataframe to be converted.

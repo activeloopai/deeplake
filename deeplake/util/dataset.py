@@ -25,3 +25,21 @@ def map_tensor_keys(dataset, tensor_keys: Optional[Sequence[str]] = None) -> Lis
 
     # Get full path in case of groups
     return [tensors[k].meta.name or tensors[k].key for k in tensor_keys]
+
+
+def sanitize_tensor_name(input: str) -> str:
+    """Sanitize a string to be a valid tensor name
+
+    Args:
+        input (str): A string that will be sanitized
+
+    Returns:
+        str: A string with the sanitized tensor name
+    """
+
+    invalid_chars = ["[", "]", "@", ".", ",", "?", "!", "/", "\\", "#", "'", '"']
+    new_char = "_"
+    for char in invalid_chars:
+        input = input.replace(char, new_char)
+
+    return input
