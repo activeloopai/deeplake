@@ -1,4 +1,4 @@
-import mmcv
+import mmcv  # type: ignore
 import torch
 import logging
 from mmcv import runner
@@ -28,17 +28,6 @@ class DeeplakeIterBasedRunner(runner.IterBasedRunner):
         max_iters: Optional[int] = None,
         **kwargs,
     ) -> None:
-        """Start running.
-
-        Args:
-            data_loaders (list[:obj:`DataLoader`]): Dataloaders for training
-                and validation.
-            workflow (list[tuple]): A list of (phase, iters) to specify the
-                running order and iterations. E.g, [('train', 10000),
-                ('val', 1000)] means running 10000 iterations for training and
-                1000 iterations for validation, iteratively.
-            kwargs (dict): keyword arguments to be passed to DeeplakeIterBasedRunner.
-        """
         assert isinstance(data_loaders, list)
         assert mmcv.is_list_of(workflow, tuple)
         assert len(data_loaders) == len(workflow)
