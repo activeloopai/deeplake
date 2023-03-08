@@ -220,8 +220,13 @@ class LinkCreds(DeepLakeMemoryObject):
         assert self.client is not None
         assert self.org_id is not None
         for creds_key in self.managed_creds_keys:
-            creds = self.fetch_managed_creds(creds_key, verbose=verbose)
-            self.populate_creds(creds_key, creds)
+            self.populate_single_manged_creds(creds_key, verbose=verbose)
+
+    def populate_single_manged_creds(self, creds_key: str, verbose: bool = True):
+        assert self.client is not None
+        assert self.org_id is not None
+        creds = self.fetch_managed_creds(creds_key, verbose=verbose)
+        self.populate_creds(creds_key, creds)
 
     def fetch_managed_creds(self, creds_key: str, verbose: bool = True):
         creds = self.client.get_managed_creds(self.org_id, creds_key)
