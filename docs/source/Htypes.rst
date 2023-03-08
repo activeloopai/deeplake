@@ -313,11 +313,11 @@ A 3d bbox tensor can be created using
 - Optional args:
     - **coords**: A dictionary with key "mode".
         - **mode**: Specifies the convention for the bbox coordinates.
-            - "center": [center_x, center_y, center_z, length, width, height, rot_x, rot_y, rot_z]
+            - "center": [center_x, center_y, center_z, size_x, size_y, size_z, rot_x, rot_y, rot_z]
                 - :bluebold:`Sample dimensions:` ``(# bounding boxes, 9)``
-                - ``length`` - is the length of the bounding box along x direction
-                - ``width``  - is the width of the bounding box along y direction
-                - ``height``  - is the height of the bounding box along z direction
+                - ``size_x`` - is the length of the bounding box along x direction
+                - ``size_y``  - is the width of the bounding box along y direction
+                - ``size_z``  - is the height of the bounding box along z direction
                 - ``rot_x`` - rotation angle along x axis, given in degrees
                 - ``rot_y`` - rotation angle along y axis, given in degrees
                 - ``rot_z`` - rotation angle along z axis, given in degrees
