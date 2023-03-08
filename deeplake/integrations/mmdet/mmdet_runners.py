@@ -37,6 +37,7 @@ class DeeplakeIterBasedRunner(runner.IterBasedRunner):
                 running order and iterations. E.g, [('train', 10000),
                 ('val', 1000)] means running 10000 iterations for training and
                 1000 iterations for validation, iteratively.
+            kwargs (dict): keyword arguments to be passed to DeeplakeIterBasedRunner.
         """
         assert isinstance(data_loaders, list)
         assert mmcv.is_list_of(workflow, tuple)
