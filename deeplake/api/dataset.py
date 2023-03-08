@@ -14,6 +14,7 @@ from deeplake.client.log import logger
 from deeplake.core.dataset import Dataset, dataset_factory
 from deeplake.core.meta.dataset_meta import DatasetMeta
 from deeplake.util.connect_dataset import connect_dataset_entry
+from deeplake.util.spinner import spinner
 from deeplake.util.path import convert_pathlib_to_string_if_needed, verify_dataset_name
 from deeplake.hooks import (
     dataset_created,
@@ -60,6 +61,7 @@ from deeplake.core.storage.deeplake_memory_object import DeepLakeMemoryObject
 
 class dataset:
     @staticmethod
+    @spinner
     def init(
         path: Union[str, pathlib.Path],
         read_only: Optional[bool] = None,
@@ -168,7 +170,7 @@ class dataset:
                     "the ‘token’ parameter. The CLI commands are ‘activeloop login’ and "
                     "‘activeloop register."
                 )
-                raise UserNotLoggedInException(message)
+                raise UserNotLoggedInException(message) from None
             raise
         ds_exists = dataset_exists(cache_chain)
 
@@ -317,7 +319,7 @@ class dataset:
                     f"or create an API token in the UI and pass it to this method using the "
                     f"‘token’ parameter. The CLI commands are ‘activeloop login’ and ‘activeloop register’."
                 )
-                raise UserNotLoggedInException(message)
+                raise UserNotLoggedInException(message) from None
             raise
 
         if overwrite and dataset_exists(cache_chain):
@@ -342,6 +344,7 @@ class dataset:
         return ret
 
     @staticmethod
+    @spinner
     def load(
         path: Union[str, pathlib.Path],
         read_only: Optional[bool] = None,
@@ -436,7 +439,7 @@ class dataset:
                     "the ‘token’ parameter. The CLI commands are ‘activeloop login’ and "
                     "‘activeloop register’."
                 )
-                raise UserNotLoggedInException(message)
+                raise UserNotLoggedInException(message) from None
             raise
         if not dataset_exists(cache_chain):
             raise DatasetHandlerError(
@@ -514,6 +517,7 @@ class dataset:
         return ds  # type: ignore
 
     @staticmethod
+    @spinner
     def delete(
         path: Union[str, pathlib.Path],
         force: bool = False,
@@ -537,6 +541,7 @@ class dataset:
 
         Raises:
             DatasetHandlerError: If a Dataset does not exist at the given path and ``force = False``.
+            UserNotLoggedInException: When user is not logged in.
             NotImplementedError: When attempting to delete a managed view.
 
         Warning:
@@ -558,7 +563,15 @@ class dataset:
                     raise NotImplementedError(
                         "Deleting managed views by path is not supported. Load the source dataset and do `ds.delete_view(id)` instead."
                     )
-            ds = deeplake.load(path, verbose=False, token=token, creds=creds)
+            try:
+                ds = deeplake.load(path, verbose=False, token=token, creds=creds)
+            except UserNotLoggedInException:
+                message = (
+                    f"Please log in through the CLI in order to delete this dataset, "
+                    f"or create an API token in the UI and pass it to this method using the "
+                    f"‘token’ parameter. The CLI commands are ‘activeloop login’ and ‘activeloop register’."
+                )
+                raise UserNotLoggedInException(message) from None
             ds.delete(large_ok=large_ok)
             if verbose:
                 logger.info(f"{path} dataset deleted successfully.")
@@ -584,6 +597,7 @@ class dataset:
                 raise
 
     @staticmethod
+    @spinner
     def like(
         dest: Union[str, pathlib.Path],
         src: Union[str, Dataset, pathlib.Path],
@@ -975,6 +989,7 @@ class dataset:
         return ret
 
     @staticmethod
+    @spinner
     def connect(
         src_path: str,
         creds_key: str,
