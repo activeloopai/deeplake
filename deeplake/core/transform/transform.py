@@ -24,6 +24,7 @@ from deeplake.util.transform import (
     sanitize_workers_scheduler,
     store_data_slice,
     store_data_slice_with_pbar,
+    rechunk_if_necessary,
 )
 from deeplake.util.encoder import merge_all_meta_info
 from deeplake.util.exceptions import (
@@ -240,9 +241,13 @@ class Pipeline:
                 load_meta(original_data_in)
                 if pad_data_in and not initial_padding_state:
                     original_data_in._disable_padding()
+                if not kwargs.get("disable_rechunk"):
+                    rechunk_if_necessary(original_data_in)
             else:
                 load_meta(target_ds)
                 target_ds.storage.autoflush = initial_autoflush
+                if not kwargs.get("disable_rechunk"):
+                    rechunk_if_necessary(target_ds)
 
     def run(
         self,

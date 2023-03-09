@@ -34,8 +34,10 @@ class LocalProvider(StorageProvider):
         self.files: Optional[Set[str]] = None
         self._all_keys()
 
-    def subdir(self, path: str):
-        return self.__class__(os.path.join(self.root, path))
+    def subdir(self, path: str, read_only: bool = False):
+        sd = self.__class__(os.path.join(self.root, path))
+        sd.read_only = read_only
+        return sd
 
     def __getitem__(self, path: str):
         """Gets the object present at the path within the given byte range.

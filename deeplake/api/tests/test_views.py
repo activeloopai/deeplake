@@ -103,3 +103,20 @@ def test_view_with_empty_tensor(local_ds):
     np.testing.assert_array_equal(
         view.images.numpy(), np.array([1, 2, 3]).reshape(3, 1)
     )
+
+
+def test_vds_read_only(hub_cloud_path, hub_cloud_dev_token):
+    ds = deeplake.empty(hub_cloud_path, token=hub_cloud_dev_token)
+    with ds:
+        ds.create_tensor("abc")
+        ds.abc.extend([1, 2, 3, 4, 5])
+        ds.commit()
+
+    ds[:3].save_view(id="first_3")
+
+    ds = deeplake.load(hub_cloud_path, read_only=True, token=hub_cloud_dev_token)
+
+    view = ds.load_view("first_3")
+
+    assert view.base_storage.read_only == True
+    assert view._vds.base_storage.read_only == True

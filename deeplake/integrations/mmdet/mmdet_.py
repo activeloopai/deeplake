@@ -229,6 +229,7 @@ import os
 from mmdet.core import BitmapMasks, PolygonMasks
 import math
 import types
+from deeplake.integrations.mmdet.mmdet_runners import DeeplakeIterBasedRunner
 
 
 class Dummy:
@@ -1307,6 +1308,15 @@ def _train_detector(
     auto_scale_lr(cfg, distributed, logger)
     optimizer = build_optimizer(model, cfg.optimizer)
 
+    cfg.custom_imports = dict(
+        imports=["deeplake.integrations.mmdet.mmdet_runners"],
+        allow_failed_imports=False,
+    )
+    if cfg.runner.type == "IterBasedRunner":
+        cfg.runner.type = "DeeplakeIterBasedRunner"
+    elif cfg.runner.type == "EpochBasedRunner":
+        cfg.runner.type = "DeeplakeEpochBasedRunner"
+
     runner = build_runner(
         cfg.runner,
         default_args=dict(
@@ -1427,7 +1437,8 @@ def _train_detector(
             implementation=dl_impl,
             **val_dataloader_args,
         )
-        eval_cfg["by_epoch"] = cfg.runner["type"] != "IterBasedRunner"
+
+        eval_cfg["by_epoch"] = cfg.runner["type"] != "DeeplakeIterBasedRunner"
         eval_hook = EvalHook
         if distributed:
             eval_hook = DistEvalHook
