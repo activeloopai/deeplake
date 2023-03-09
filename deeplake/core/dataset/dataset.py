@@ -1237,6 +1237,10 @@ class Dataset:
         except Exception as e:
             if isinstance(e, CheckoutError):
                 raise e from None
+            if address != "main":
+                raise CheckoutError(
+                    f"Address {address} not found. Ensure the commit id / branch name is correct."
+                )
             branch = "main"
             version_state["branch"] = branch
             version_state["branch_commit_map"] = {}

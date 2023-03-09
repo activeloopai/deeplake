@@ -14,6 +14,7 @@ from deeplake.client.log import logger
 from deeplake.core.dataset import Dataset, dataset_factory
 from deeplake.core.meta.dataset_meta import DatasetMeta
 from deeplake.util.connect_dataset import connect_dataset_entry
+from deeplake.util.version_control import load_version_info
 from deeplake.util.spinner import spinner
 from deeplake.util.path import (
     convert_pathlib_to_string_if_needed,
@@ -52,6 +53,7 @@ from deeplake.util.exceptions import (
     TokenPermissionError,
     UnsupportedParameterException,
     DatasetCorruptError,
+    CheckoutError,
 )
 from deeplake.util.storage import (
     get_storage_and_cache_chain,
@@ -498,11 +500,33 @@ class dataset:
         except Exception as e:
             if isinstance(e, AgreementError):
                 raise e from None
+            if isinstance(e, CheckoutError):
+                raise e from None
+
             if not reset:
                 raise DatasetCorruptError(
                     "Exception occured (see Traceback). The dataset maybe corrupted."
                     "Try using `reset=True` to reset HEAD changes and load the previous commit."
                 ) from e
+            try:
+                version_info = load_version_info(cache_chain)
+            except KeyError:
+                raise e
+            dataset.reset_storage(cache_chain, version_info, version)
+
+    @staticmethod
+    def reset_storage(storage, version_info, version):
+        if version in version_info["branch_commit_map"]:
+            commit_id = version_info["branch_commit_map"][version]
+            commit_node = version_info["commit_node_map"][commit_id]
+            if commit_node.parent is None:
+                storage.clear()
+                previous_commit_id = None
+            else:
+                deletion_folder = "/".join(("versions", commit_id))
+                storage.clear(prefix=deletion_folder)
+                previous_commit_id = commit_node.parent.commit_id
+        return previous_commit_id
 
     @staticmethod
     def rename(
