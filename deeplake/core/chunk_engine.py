@@ -1296,13 +1296,17 @@ class ChunkEngine:
         samples_to_move.reverse()
         return samples_to_move
 
-    def _get_chunk_samples(self, chunk) -> List[Sample]:
+    def _get_chunk_samples(self, chunk) -> List[Optional[Sample]]:
         decompress = isinstance(chunk, ChunkCompressedChunk)
-        all_samples_in_chunk: List[Sample] = []
+        all_samples_in_chunk: List[Optional[Sample]] = []
 
         for idx in range(chunk.num_samples):
             sample_data = chunk.read_sample(idx, decompress=decompress)
-            sample_shape = chunk.shapes_encoder[idx]
+            try:
+                sample_shape = chunk.shapes_encoder[idx]
+            except IndexError:
+                all_samples_in_chunk.append(None)
+                continue
             new_sample = self._get_sample_object(
                 sample_data, sample_shape, chunk.compression, chunk.dtype, decompress
             )
@@ -1376,7 +1380,7 @@ class ChunkEngine:
             samples,
             start_chunk=to_chunk,
             register=True,
-            update_commit_diff=True,
+            update_commit_diff=False,  # merging chunks should not update diff
             update_tensor_meta=False,
             start_chunk_row=to_chunk_row,
             register_creds=False,
@@ -2551,3 +2555,13 @@ class ChunkEngine:
             and self.active_updated_chunk.key == chunk_key
         ):
             self.active_updated_chunk = None
+
+    def get_avg_chunk_size(self):
+        num_chunks, num_samples = self.num_chunks, self.num_samples
+        max_shape = self.tensor_meta.max_shape
+        dtype = self.tensor_meta.dtype
+        if dtype in ("Any", "List", None):
+            return None
+        nbytes = np.prod([num_samples] + max_shape) * np.dtype(dtype).itemsize
+        avg_chunk_size = nbytes / num_chunks
+        return avg_chunk_size

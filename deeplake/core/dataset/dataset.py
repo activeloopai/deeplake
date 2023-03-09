@@ -405,10 +405,6 @@ class Dataset:
         self._set_derived_attributes(verbose=False)
         self._indexing_history = []
 
-        for temp_tensor in self._temp_tensors:
-            self.delete_tensor(temp_tensor, large_ok=True)
-        self._temp_tensors = []
-
     def _reload_version_state(self):
         version_state = self.version_state
         # share version state if at HEAD
@@ -2509,6 +2505,7 @@ class Dataset:
             skip_ok=True,
             extend_only=True,
             disable_label_sync=True,
+            disable_rechunk=True,
         )
 
     # the below methods are used by cloudpickle dumps
@@ -3205,7 +3202,7 @@ class Dataset:
         Note:
             Virtual datasets are returned as such, they are not converted to views.
         """
-        sub_storage = self.base_storage.subdir(path)
+        sub_storage = self.base_storage.subdir(path, read_only=read_only)
 
         if empty:
             sub_storage.clear()

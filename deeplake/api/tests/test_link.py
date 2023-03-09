@@ -632,6 +632,14 @@ def test_rgb_gray(local_ds, cat_path, hopper_gray_path):
         assert len(ds.abc[0].shape) == 3
         assert len(ds.abc[1].shape) == 3
         assert len(ds.abc[0].numpy().shape) == 3
+        assert len(ds.abc[1].numpy().shape) == 3
+        ds.commit()
+        ds.save_view(id="testing", optimize=True)
 
-        # TODO: fix this, .shape should be the same as .numpy().shape
-        assert len(ds.abc[1].numpy().shape) == 2
+        ds = ds.load_view("testing")
+        assert len(ds.abc.meta.max_shape) == 3
+        assert len(ds.abc.meta.min_shape) == 3
+        assert len(ds.abc[0].shape) == 3
+        assert len(ds.abc[1].shape) == 3
+        assert len(ds.abc[0].numpy().shape) == 3
+        assert len(ds.abc[1].numpy().shape) == 3
