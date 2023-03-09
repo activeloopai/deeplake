@@ -943,3 +943,13 @@ class MissingCredsError(Exception):
 
 class MissingManagedCredsError(Exception):
     pass
+
+
+class SampleAppendError(Exception):
+    def __init__(self, key: str):
+        super().__init__(f"Unable to append sample to tensor {key}.")
+
+
+class SampleUpdateError(Exception):
+    def __init__(self, key: str):
+        super().__init__(f"Unable to update sample in tensor {key}.")

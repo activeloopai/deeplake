@@ -90,7 +90,9 @@ from deeplake.util.exceptions import (
     GetDataFromLinkError,
     ReadOnlyModeError,
     ReadSampleFromChunkError,
+    SampleAppendError,
     SampleHtypeMismatchError,
+    SampleUpdateError,
 )
 from deeplake.util.remove_cache import get_base_storage
 from deeplake.util.image import convert_sample, convert_img_arr
@@ -1004,65 +1006,71 @@ class ChunkEngine:
         link_callback: Optional[Callable] = None,
         pg_callback=None,
     ):
-        assert not (progressbar and pg_callback)
-        self.check_link_ready()
-        if not self.write_initialization_done:
-            self._write_initialization()
-            self.write_initialization_done = True
+        try:
+            assert not (progressbar and pg_callback)
+            self.check_link_ready()
+            if not self.write_initialization_done:
+                self._write_initialization()
+                self.write_initialization_done = True
 
-        initial_autoflush = self.cache.autoflush
-        self.cache.autoflush = False
+            initial_autoflush = self.cache.autoflush
+            self.cache.autoflush = False
 
-        if self.is_sequence:
-            samples = tqdm(samples) if progressbar else samples
-            verified_samples = []
-            for sample in samples:
-                if sample is None:
-                    sample = []
-                verified_sample = self._extend(
-                    sample, progressbar=False, update_commit_diff=False
-                )
-                self.sequence_encoder.register_samples(len(sample), 1)
-                self.commit_diff.add_data(1)
-                verified_samples.append(verified_sample or sample)
-            if link_callback:
-                samples = [None if is_empty_list(s) else s for s in verified_samples]
-                link_callback(
-                    verified_samples,
-                    flat=False,
-                    progressbar=progressbar,
-                )
-                for s in verified_samples:
+            if self.is_sequence:
+                samples = tqdm(samples) if progressbar else samples
+                verified_samples = []
+                for sample in samples:
+                    if sample is None:
+                        sample = []
+                    verified_sample = self._extend(
+                        sample, progressbar=False, update_commit_diff=False
+                    )
+                    self.sequence_encoder.register_samples(len(sample), 1)
+                    self.commit_diff.add_data(1)
+                    verified_samples.append(verified_sample or sample)
+                if link_callback:
+                    samples = [
+                        None if is_empty_list(s) else s for s in verified_samples
+                    ]
                     link_callback(
-                        s,
-                        flat=True,
+                        verified_samples,
+                        flat=False,
+                        progressbar=progressbar,
+                    )
+                    for s in verified_samples:
+                        link_callback(
+                            s,
+                            flat=True,
+                            progressbar=progressbar,
+                        )
+
+            else:
+                verified_samples = (
+                    self._extend(samples, progressbar, pg_callback=pg_callback)
+                    or samples
+                )
+                if link_callback:
+                    if not isinstance(verified_samples, np.ndarray):
+                        samples = [
+                            None
+                            if is_empty_list(s)
+                            or (
+                                isinstance(s, deeplake.core.tensor.Tensor)
+                                and s.is_empty_tensor
+                            )
+                            else s
+                            for s in verified_samples
+                        ]
+                    link_callback(
+                        samples,
+                        flat=None,
                         progressbar=progressbar,
                     )
 
-        else:
-            verified_samples = (
-                self._extend(samples, progressbar, pg_callback=pg_callback) or samples
-            )
-            if link_callback:
-                if not isinstance(verified_samples, np.ndarray):
-                    samples = [
-                        None
-                        if is_empty_list(s)
-                        or (
-                            isinstance(s, deeplake.core.tensor.Tensor)
-                            and s.is_empty_tensor
-                        )
-                        else s
-                        for s in verified_samples
-                    ]
-                link_callback(
-                    samples,
-                    flat=None,
-                    progressbar=progressbar,
-                )
-
-        self.cache.autoflush = initial_autoflush
-        self.cache.maybe_flush()
+            self.cache.autoflush = initial_autoflush
+            self.cache.maybe_flush()
+        except Exception as e:
+            raise SampleAppendError(self.key) from e
 
     def _create_new_chunk(self, register=True, row: Optional[int] = None) -> BaseChunk:
         """Creates and returns a new `Chunk`. Automatically creates an ID for it and puts a reference in the cache."""
@@ -1259,13 +1267,16 @@ class ChunkEngine:
         link_callback: Optional[Callable] = None,
     ):
         """Update data at `index` with `samples`."""
-        self.check_link_ready()
-        (self._sequence_update if self.is_sequence else self._update)(  # type: ignore
-            index,
-            samples,
-            operator,
-            link_callback=link_callback,
-        )
+        try:
+            self.check_link_ready()
+            (self._sequence_update if self.is_sequence else self._update)(  # type: ignore
+                index,
+                samples,
+                operator,
+                link_callback=link_callback,
+            )
+        except Exception as e:
+            raise SampleUpdateError(self.key) from e
 
     def _get_samples_to_move(self, chunk) -> List[Sample]:
         decompress = isinstance(chunk, ChunkCompressedChunk)
