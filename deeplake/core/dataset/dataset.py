@@ -85,12 +85,12 @@ from deeplake.util.exceptions import (
     RenameError,
     EmptyCommitError,
     DatasetViewSavingError,
-    DatasetHandlerError,
     SampleAppendingError,
     DatasetTooLargeToDelete,
     TensorTooLargeToDelete,
     GroupInfoNotSupportedError,
     TokenPermissionError,
+    CheckoutError,
 )
 from deeplake.util.keys import (
     dataset_exists,
@@ -104,14 +104,6 @@ from deeplake.util.keys import (
     get_sample_shape_tensor_key,
     get_downsampled_tensor_key,
     filter_name,
-    get_tensor_meta_key,
-    get_tensor_commit_diff_key,
-    get_tensor_tile_encoder_key,
-    get_tensor_info_key,
-    get_tensor_commit_chunk_map_key,
-    get_chunk_id_encoder_key,
-    get_dataset_diff_key,
-    get_sequence_encoder_key,
     get_dataset_linked_creds_key,
 )
 from deeplake.util.path import get_path_from_storage
@@ -155,6 +147,7 @@ class Dataset:
         verbose: bool = True,
         version_state: Optional[Dict[str, Any]] = None,
         path: Optional[Union[str, pathlib.Path]] = None,
+        version: Optional[str] = None,
         is_iteration: bool = False,
         link_creds=None,
         pad_tensors: bool = False,
@@ -203,6 +196,7 @@ class Dataset:
         d["path"] = convert_pathlib_to_string_if_needed(path) or get_path_from_storage(
             storage
         )
+        d["version"] = version
         d["storage"] = storage
         d["_read_only_error"] = read_only is False
         d["_read_only"] = DEFAULT_READONLY if read_only is None else read_only
@@ -1213,21 +1207,38 @@ class Dataset:
                 i, is_iteration=not isinstance(self.index.values[0], list)
             )
 
-    def _load_version_info(self):
+    def _load_version_info(self, address=None):
         """Loads data from version_control_file otherwise assume it doesn't exist and load all empty"""
         if self.version_state:
             return
 
-        branch = "main"
-        version_state = {"branch": branch}
+        if address is None:
+            address = "main"
+
+        version_state = {}
         try:
             version_info = load_version_info(self.storage)
             version_state["branch_commit_map"] = version_info["branch_commit_map"]
             version_state["commit_node_map"] = version_info["commit_node_map"]
-            commit_id = version_state["branch_commit_map"][branch]
+
+            if address in version_state["branch_commit_map"]:
+                branch = address
+                commit_id = version_state["branch_commit_map"][branch]
+            elif address in version_state["commit_node_map"]:
+                commit_id = address
+            else:
+                raise CheckoutError(
+                    f"Address {address} not found. Ensure the commit id / branch name is correct."
+                )
+
             version_state["commit_id"] = commit_id
             version_state["commit_node"] = version_state["commit_node_map"][commit_id]
-        except Exception:
+            version_state["branch"] = version_state["commit_node"].branch
+        except Exception as e:
+            if isinstance(e, CheckoutError):
+                raise e from None
+            branch = "main"
+            version_state["branch"] = branch
             version_state["branch_commit_map"] = {}
             version_state["commit_node_map"] = {}
             # used to identify that this is the first commit so its data will not be in similar directory structure to the rest
@@ -2000,7 +2011,7 @@ class Dataset:
         """Sets derived attributes during init and unpickling."""
         if self.is_first_load:
             self.storage.autoflush = True
-            self._load_version_info()
+            self._load_version_info(self.version)
             self._load_link_creds()
             self._set_read_only(
                 self._read_only, err=self._read_only_error

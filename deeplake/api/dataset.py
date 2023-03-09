@@ -15,7 +15,11 @@ from deeplake.core.dataset import Dataset, dataset_factory
 from deeplake.core.meta.dataset_meta import DatasetMeta
 from deeplake.util.connect_dataset import connect_dataset_entry
 from deeplake.util.spinner import spinner
-from deeplake.util.path import convert_pathlib_to_string_if_needed, verify_dataset_name
+from deeplake.util.path import (
+    convert_pathlib_to_string_if_needed,
+    verify_dataset_name,
+    process_dataset_path,
+)
 from deeplake.hooks import (
     dataset_created,
     dataset_loaded,
@@ -44,10 +48,10 @@ from deeplake.util.exceptions import (
     InvalidPathException,
     PathNotEmptyException,
     SamePathException,
-    AuthorizationException,
     UserNotLoggedInException,
     TokenPermissionError,
     UnsupportedParameterException,
+    DatasetCorruptError,
 )
 from deeplake.util.storage import (
     get_storage_and_cache_chain,
@@ -144,8 +148,8 @@ class dataset:
         """
         access_method, num_workers, scheduler = parse_access_method(access_method)
         check_access_method(access_method, overwrite)
-        path = convert_pathlib_to_string_if_needed(path)
 
+        path, version = process_dataset_path(path)
         verify_dataset_name(path)
 
         if creds is None:
@@ -183,10 +187,16 @@ class dataset:
         else:
             create = True
 
+        if create and version:
+            raise ValueError(
+                "deeplake.dataset does not accept version address when writing a dataset."
+            )
+
         try:
             if access_method == "stream":
                 ret = dataset_factory(
                     path=path,
+                    version=version,
                     storage=cache_chain,
                     read_only=read_only,
                     public=public,
@@ -233,7 +243,12 @@ class dataset:
         Returns:
             A boolean confirming whether the dataset exists or not at the given path.
         """
-        path = convert_pathlib_to_string_if_needed(path)
+        path, version = process_dataset_path(path)
+
+        if version:
+            raise ValueError(
+                "deeplake.exists does not accept version address in the dataset path."
+            )
 
         if creds is None:
             creds = {}
@@ -294,7 +309,12 @@ class dataset:
         Danger:
             Setting ``overwrite`` to ``True`` will delete all of your data if it exists! Be very careful when setting this parameter.
         """
-        path = convert_pathlib_to_string_if_needed(path)
+        path, version = process_dataset_path(path)
+
+        if version:
+            raise ValueError(
+                "deeplake.empty does not accept version address in the dataset path."
+            )
 
         verify_dataset_name(path)
 
@@ -355,6 +375,7 @@ class dataset:
         org_id: Optional[str] = None,
         verbose: bool = True,
         access_method: str = "stream",
+        reset: bool = True,
     ) -> Dataset:
         """Loads an existing dataset
 
@@ -415,7 +436,8 @@ class dataset:
         """
         access_method, num_workers, scheduler = parse_access_method(access_method)
         check_access_method(access_method, overwrite=False)
-        path = convert_pathlib_to_string_if_needed(path)
+
+        path, version = process_dataset_path(path)
 
         if creds is None:
             creds = {}
@@ -450,6 +472,7 @@ class dataset:
             if access_method == "stream":
                 ret = dataset_factory(
                     path=path,
+                    version=version,
                     storage=cache_chain,
                     read_only=read_only,
                     token=token,
@@ -472,8 +495,14 @@ class dataset:
                 num_workers=num_workers,
                 scheduler=scheduler,
             )
-        except AgreementError as e:
-            raise e from None
+        except Exception as e:
+            if isinstance(e, AgreementError):
+                raise e from None
+            if not reset:
+                raise DatasetCorruptError(
+                    "Exception occured (see Traceback). The dataset maybe corrupted."
+                    "Try using `reset=True` to reset HEAD changes and load the previous commit."
+                ) from e
 
     @staticmethod
     def rename(
@@ -547,7 +576,12 @@ class dataset:
         Warning:
             This is an irreversible operation. Data once deleted cannot be recovered.
         """
-        path = convert_pathlib_to_string_if_needed(path)
+        path, version = process_dataset_path(path)
+
+        if version:
+            raise ValueError(
+                "deeplake.delete does not accept version address in the dataset path."
+            )
 
         if creds is None:
             creds = {}

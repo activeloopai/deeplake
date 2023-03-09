@@ -2385,3 +2385,40 @@ def test_reset_delete_group(local_ds):
         ds.commit()
         ds.delete_group("abc")
         assert ds.has_head_changes
+
+
+def test_load_to_version(local_path):
+    with deeplake.empty(local_path, overwrite=True) as ds:
+        ds.create_tensor("abc")
+        ds.abc.append(1)
+        main_1 = ds.commit()
+        ds.create_tensor("xyz")
+        main_2 = ds.commit()
+
+        ds.checkout("alt", create=True)
+        ds.abc.append(2)
+        alt_1 = ds.commit()
+        ds.xyz.append(1)
+        ds.xyz.append(2)
+        alt_2 = ds.commit()
+
+    ds = deeplake.load(f"{local_path}@{main_1}")
+    set(ds.tensors.keys()) == {"abc"}
+    np.testing.assert_array_equal(ds.abc.numpy(), [[1]])
+
+    for address in ("main", main_2):
+        ds = deeplake.load(f"{local_path}@{address}")
+        set(ds.tensors.keys()) == {"abc", "xyz"}
+        np.testing.assert_array_equal(ds.abc.numpy(), [[1]])
+        np.testing.assert_array_equal(ds.xyz.numpy(), [])
+
+    ds = deeplake.load(f"{local_path}@{alt_1}")
+    set(ds.tensors.keys()) == {"abc", "xyz"}
+    np.testing.assert_array_equal(ds.abc.numpy(), [[1], [2]])
+    np.testing.assert_array_equal(ds.xyz.numpy(), [])
+
+    for address in ("alt", alt_2):
+        ds = deeplake.load(f"{local_path}@{address}")
+        set(ds.tensors.keys()) == {"abc", "xyz"}
+        np.testing.assert_array_equal(ds.abc.numpy(), [[1], [2]])
+        np.testing.assert_array_equal(ds.xyz.numpy(), [[1], [2]])
