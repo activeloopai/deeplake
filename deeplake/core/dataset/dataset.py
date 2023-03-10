@@ -121,6 +121,7 @@ from deeplake.util.version_control import (
     create_commit_chunk_maps,
     save_version_info,
     generate_hash,
+    replace_head,
 )
 from deeplake.util.pretty_print import summary_dataset
 from deeplake.core.dataset.view_entry import ViewEntry
@@ -1594,8 +1595,6 @@ class Dataset:
     def _populate_meta(self, verbose=True):
         """Populates the meta information for the dataset."""
         if dataset_exists(self.storage):
-            if verbose and self.verbose:
-                logger.info(f"{self.path} loaded successfully.")
             load_meta(self)
 
         elif not self.storage.empty():
@@ -3518,35 +3517,14 @@ class Dataset:
             self._populate_meta()
             load_meta(self)
         else:
-            reset_commit_id = self.pending_commit_id
-            deletion_folder = "/".join(("versions", reset_commit_id))
-            new_commit_id = generate_hash()
-            new_branch = self.branch
-
             parent_commit_id = self.commit_id
+            reset_commit_id = self.pending_commit_id
 
             # checkout to get list of tensors in previous commit, needed for copying metas and create_commit_chunk_set
             self.checkout(parent_commit_id)
 
-            # populate new commit folder
-            copy_metas(parent_commit_id, new_commit_id, storage, version_state)
-            create_commit_chunk_maps(new_commit_id, storage, version_state)
+            new_commit_id = replace_head(storage, version_state, reset_commit_id)
 
-            # update and save version state
-            parent_node: CommitNode = version_state["commit_node"]
-            new_node = CommitNode(new_branch, new_commit_id)
-            new_node.parent = parent_node
-            version_state["branch_commit_map"][new_branch] = new_commit_id
-            version_state["commit_node_map"][new_commit_id] = new_node
-            del version_state["commit_node_map"][reset_commit_id]
-            for i, child in enumerate(parent_node.children):
-                if child.commit_id == reset_commit_id:
-                    parent_node.children[i] = new_node
-                    break
-            save_version_info(version_state, storage)
-
-            # clear the old folder
-            storage.clear(prefix=deletion_folder)
             self.checkout(new_commit_id)
 
     def connect(

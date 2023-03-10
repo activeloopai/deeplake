@@ -14,7 +14,12 @@ from deeplake.client.log import logger
 from deeplake.core.dataset import Dataset, dataset_factory
 from deeplake.core.meta.dataset_meta import DatasetMeta
 from deeplake.util.connect_dataset import connect_dataset_entry
-from deeplake.util.version_control import load_version_info
+from deeplake.util.version_control import (
+    load_version_info,
+    get_parent_and_reset_commit_ids,
+    replace_head,
+    integrity_check,
+)
 from deeplake.util.spinner import spinner
 from deeplake.util.path import (
     convert_pathlib_to_string_if_needed,
@@ -80,6 +85,7 @@ class dataset:
         org_id: Optional[str] = None,
         verbose: bool = True,
         access_method: str = "stream",
+        reset: bool = False,
     ):
         """Returns a :class:`~deeplake.core.dataset.Dataset` object referencing either a new or existing dataset.
 
@@ -194,40 +200,48 @@ class dataset:
                 "deeplake.dataset does not accept version address when writing a dataset."
             )
 
-        try:
-            if access_method == "stream":
-                ret = dataset_factory(
-                    path=path,
-                    version=version,
-                    storage=cache_chain,
-                    read_only=read_only,
-                    public=public,
-                    token=token,
-                    org_id=org_id,
-                    verbose=verbose,
-                )
-                if create:
-                    dataset_created(ret)
-                else:
-                    dataset_loaded(ret)
-                return ret
+        if access_method == "stream":
+            dataset_kwargs = {
+                "path": path,
+                "version": version,
+                "storage": cache_chain,
+                "read_only": read_only,
+                "public": public,
+                "token": token,
+                "org_id": org_id,
+                "verbose": verbose,
+            }
+        else:
+            dataset_kwargs = {
+                "access_method": access_method,
+                "path": path,
+                "read_only": read_only,
+                "memory_cache_size": memory_cache_size,
+                "local_cache_size": local_cache_size,
+                "creds": creds,
+                "token": token,
+                "org_id": org_id,
+                "verbose": verbose,
+                "ds_exists": ds_exists,
+                "num_workers": num_workers,
+                "scheduler": scheduler,
+            }
 
-            return get_local_dataset(
-                access_method=access_method,
-                path=path,
-                read_only=read_only,
-                memory_cache_size=memory_cache_size,
-                local_cache_size=local_cache_size,
-                creds=creds,
-                token=token,
-                org_id=org_id,
-                verbose=verbose,
-                ds_exists=ds_exists,
-                num_workers=num_workers,
-                scheduler=scheduler,
-            )
-        except AgreementError as e:
+        try:
+            return dataset._load(dataset_kwargs, access_method, create)
+        except (AgreementError, CheckoutError) as e:
             raise e from None
+        except Exception as e:
+            if not reset and not create:
+                if isinstance(e, DatasetCorruptError):
+                    raise e from None
+                raise DatasetCorruptError(
+                    "Exception occured (see Traceback). The dataset maybe corrupted."
+                    "Try using `reset=True` to reset HEAD changes and load the previous commit."
+                ) from e
+            return dataset._reset_and_load(
+                cache_chain, access_method, dataset_kwargs, version, e
+            )
 
     @staticmethod
     def exists(
@@ -352,17 +366,17 @@ class dataset:
                 f" a new empty dataset, either specify another path or use overwrite=True. "
                 f"If you want to load the dataset that exists at this path, use deeplake.load() instead."
             )
-        read_only = storage.read_only
-        ret = dataset_factory(
-            path=path,
-            storage=cache_chain,
-            read_only=read_only,
-            public=public,
-            token=token,
-            org_id=org_id,
-            verbose=verbose,
-        )
-        dataset_created(ret)
+
+        dataset_kwargs = {
+            "path": path,
+            "storage": cache_chain,
+            "read_only": storage.read_only,
+            "public": public,
+            "token": token,
+            "org_id": org_id,
+            "verbose": verbose,
+        }
+        ret = dataset._load(dataset_kwargs)
         return ret
 
     @staticmethod
@@ -377,7 +391,7 @@ class dataset:
         org_id: Optional[str] = None,
         verbose: bool = True,
         access_method: str = "stream",
-        reset: bool = True,
+        reset: bool = False,
     ) -> Dataset:
         """Loads an existing dataset
 
@@ -470,63 +484,101 @@ class dataset:
                 f"A Deep Lake dataset does not exist at the given path ({path}). Check the path provided or in case you want to create a new dataset, use deeplake.empty()."
             )
 
-        try:
-            if access_method == "stream":
-                ret = dataset_factory(
-                    path=path,
-                    version=version,
-                    storage=cache_chain,
-                    read_only=read_only,
-                    token=token,
-                    org_id=org_id,
-                    verbose=verbose,
-                )
-                dataset_loaded(ret)
-                return ret
-            return get_local_dataset(
-                access_method=access_method,
-                path=path,
-                read_only=read_only,
-                memory_cache_size=memory_cache_size,
-                local_cache_size=local_cache_size,
-                creds=creds,
-                token=token,
-                org_id=org_id,
-                verbose=verbose,
-                ds_exists=True,
-                num_workers=num_workers,
-                scheduler=scheduler,
-            )
-        except Exception as e:
-            if isinstance(e, AgreementError):
-                raise e from None
-            if isinstance(e, CheckoutError):
-                raise e from None
+        if access_method == "stream":
+            dataset_kwargs = {
+                "path": path,
+                "version": version,
+                "storage": cache_chain,
+                "read_only": read_only,
+                "token": token,
+                "org_id": org_id,
+                "versbose": verbose,
+            }
+        else:
+            dataset_kwargs = {
+                "access_method": access_method,
+                "path": path,
+                "read_only": read_only,
+                "memory_cache_size": memory_cache_size,
+                "local_cache_size": local_cache_size,
+                "creds": creds,
+                "token": token,
+                "org_id": org_id,
+                "verbose": verbose,
+                "ds_exists": True,
+                "num_workers": num_workers,
+                "scheduler": scheduler,
+            }
 
+        try:
+            return dataset._load(dataset_kwargs, access_method)
+        except (AgreementError, CheckoutError) as e:
+            raise e from None
+        except Exception as e:
             if not reset:
+                if isinstance(e, DatasetCorruptError):
+                    raise e from None
                 raise DatasetCorruptError(
                     "Exception occured (see Traceback). The dataset maybe corrupted."
                     "Try using `reset=True` to reset HEAD changes and load the previous commit."
+                    "This will delete all uncommitted changes on the branch you are trying to load."
                 ) from e
-            try:
-                version_info = load_version_info(cache_chain)
-            except KeyError:
-                raise e
-            dataset.reset_storage(cache_chain, version_info, version)
+            return dataset._reset_and_load(
+                cache_chain, access_method, dataset_kwargs, version, e
+            )
 
     @staticmethod
-    def reset_storage(storage, version_info, version):
-        if version in version_info["branch_commit_map"]:
-            commit_id = version_info["branch_commit_map"][version]
-            commit_node = version_info["commit_node_map"][commit_id]
-            if commit_node.parent is None:
-                storage.clear()
-                previous_commit_id = None
+    def _reset_and_load(storage, access_method, dataset_kwargs, version, err):
+        """Reset and then load the dataset. Only called when loading dataset normally errored out with `err`."""
+        try:
+            version_info = load_version_info(storage)
+        except KeyError:
+            # no version control info - cant do anything
+            raise err
+
+        version = version or "main"
+        parent_commit_id, reset_commit_id = get_parent_and_reset_commit_ids(
+            version_info, version
+        )
+        if parent_commit_id is False:
+            # non-head node corrupted
+            raise err
+        if parent_commit_id is None:
+            # no commits in the dataset
+            storage.clear()
+            ds = dataset._load(access_method, dataset_kwargs)
+            return ds
+
+        # load previous version, replace head and checkout to new head
+        dataset_kwargs["version"] = parent_commit_id
+        ds = dataset._load(dataset_kwargs, access_method)
+        new_commit_id = replace_head(storage, ds.version_state, reset_commit_id)
+        ds.checkout(new_commit_id)
+
+        current_node = ds.version_state["commit_node_map"][ds.commit_id]
+        verbose = dataset_kwargs.get("verbose")
+        if verbose:
+            logger.info(f"HEAD reset. Current version:\n{current_node}")
+        return ds
+
+    @staticmethod
+    def _load(dataset_kwargs, access_method=None, create=False):
+        if access_method in ("stream", None):
+            ret = dataset_factory(**dataset_kwargs)
+            if create:
+                dataset_created(ret)
             else:
-                deletion_folder = "/".join(("versions", commit_id))
-                storage.clear(prefix=deletion_folder)
-                previous_commit_id = commit_node.parent.commit_id
-        return previous_commit_id
+                dataset_loaded(ret)
+        else:
+            ret = get_local_dataset(**dataset_kwargs)
+
+        integrity_check(ret)
+
+        verbose = dataset_kwargs.get("verbose")
+        path = dataset_kwargs.get("path")
+        if verbose and not create:
+            logger.info(f"{path} loaded successfully.")
+        return ret
 
     @staticmethod
     def rename(
