@@ -1509,7 +1509,7 @@ class Dataset:
                 ) from e
             return self._reset_and_checkout(address, e)
 
-    def _reset_and_checkout(self, version, e, verbose=True):
+    def _reset_and_checkout(self, version, err, verbose=True):
         storage = self.storage
         version_state = self.version_state
 
@@ -1533,8 +1533,7 @@ class Dataset:
         current_node = version_state["commit_node_map"][self.commit_id]
         if verbose:
             logger.info(f"HEAD reset. Current version:\n{current_node}")
-        print(self.version_state)
-        return new_commit_id
+        return self.commit_id
 
     def _checkout(
         self,
