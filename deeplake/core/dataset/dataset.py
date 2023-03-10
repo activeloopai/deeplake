@@ -17,7 +17,11 @@ from deeplake.core.index.index import IndexEntry
 from deeplake.core.link_creds import LinkCreds
 from deeplake.util.connect_dataset import connect_dataset_entry
 from deeplake.util.downsample import validate_downsampling
-from deeplake.util.version_control import save_version_info
+from deeplake.util.version_control import (
+    save_version_info,
+    integrity_check,
+    get_parent_and_reset_commit_ids,
+)
 from deeplake.util.invalid_view_op import invalid_view_op
 from deeplake.util.spinner import spinner
 from deeplake.util.iteration_warning import (
@@ -91,6 +95,7 @@ from deeplake.util.exceptions import (
     GroupInfoNotSupportedError,
     TokenPermissionError,
     CheckoutError,
+    DatasetCorruptError,
 )
 from deeplake.util.keys import (
     dataset_exists,
@@ -1445,7 +1450,9 @@ class Dataset:
         return self.commit_id  # type: ignore
 
     @invalid_view_op
-    def checkout(self, address: str, create: bool = False) -> Optional[str]:
+    def checkout(
+        self, address: str, create: bool = False, reset: bool = False
+    ) -> Optional[str]:
         """Checks out to a specific commit_id or branch. If ``create = True``, creates a new branch with name ``address``.
 
         Args:
@@ -1479,7 +1486,55 @@ class Dataset:
         Note:
             Checkout from a head node in any branch that contains uncommitted data will lead to an automatic commit before the checkout.
         """
-        return self._checkout(address, create, None, False)
+        try:
+            ret = self._checkout(address, create, None, False)
+            integrity_check(self)
+            return ret
+        except (ReadOnlyModeError, CheckoutError) as e:
+            raise e from None
+        except Exception as e:
+            if create:
+                raise e
+            if not reset:
+                if isinstance(e, DatasetCorruptError):
+                    raise DatasetCorruptError(
+                        message=e.message,
+                        action="Try using `reset=True` to reset HEAD changes and load the previous commit.",
+                        cause=e.__cause__,
+                    )
+                raise DatasetCorruptError(
+                    "Exception occured (see Traceback). The branch you are checking out to maybe corrupted."
+                    "Try using `reset=True` to reset HEAD changes and load the previous commit."
+                    "This will delete all uncommitted changes on the branch you are trying to load."
+                ) from e
+            return self._reset_and_checkout(address, e)
+
+    def _reset_and_checkout(self, version, e, verbose=True):
+        storage = self.storage
+        version_state = self.version_state
+
+        parent_commit_id, reset_commit_id = get_parent_and_reset_commit_ids(
+            version_state, version
+        )
+        if parent_commit_id is False:
+            # non-head node corrupted
+            raise err
+        if parent_commit_id is None:
+            # no commits in the dataset
+            storage.clear()
+            self._populate_meta()
+            load_meta(self)
+            return None
+
+        self.checkout(parent_commit_id)
+        new_commit_id = replace_head(storage, version_state, reset_commit_id)
+        self.checkout(new_commit_id)
+
+        current_node = version_state["commit_node_map"][self.commit_id]
+        if verbose:
+            logger.info(f"HEAD reset. Current version:\n{current_node}")
+        print(self.version_state)
+        return new_commit_id
 
     def _checkout(
         self,

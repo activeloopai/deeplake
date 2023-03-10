@@ -122,7 +122,8 @@ def integrity_check(dataset):
             engine.creds_encoder
     except Exception as e:
         raise DatasetCorruptError(
-            f"The HEAD node of the branch {dataset.branch} of this dataset is in a corrupted state and is likely not recoverable. Please run `ds.reset()` to revert the uncommitted changes in order to continue making updates on this branch."
+            f"The HEAD node of the branch {dataset.branch} of this dataset is in a corrupted state and is likely not recoverable.",
+            "Please run `ds.reset()` to revert the uncommitted changes in order to continue making updates on this branch.",
         ) from e
 
 
@@ -492,7 +493,7 @@ def replace_head(storage, version_state, reset_commit_id):
     """Replace HEAD of current branch with new HEAD"""
     new_commit_id = generate_hash()
     parent_commit_id = version_state["commit_id"]
-    branch = version_state["branch"]
+    branch = version_state["commit_node_map"][reset_commit_id].branch
 
     # populate new commit folder
     copy_metas(parent_commit_id, new_commit_id, storage, version_state)
@@ -504,6 +505,7 @@ def replace_head(storage, version_state, reset_commit_id):
     new_node.parent = parent_node
     version_state["branch_commit_map"][branch] = new_commit_id
     version_state["commit_node_map"][new_commit_id] = new_node
+    del version_state["commit_node_map"][reset_commit_id]
     for i, child in enumerate(parent_node.children):
         if child.commit_id == reset_commit_id:
             parent_node.children[i] = new_node
@@ -513,6 +515,7 @@ def replace_head(storage, version_state, reset_commit_id):
     deletion_folder = "/".join(("versions", reset_commit_id))
     # clear the old folder
     storage.clear(prefix=deletion_folder)
+    storage.flush()
     return new_commit_id
 
 

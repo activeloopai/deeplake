@@ -232,9 +232,15 @@ class dataset:
         except (AgreementError, CheckoutError) as e:
             raise e from None
         except Exception as e:
-            if not reset and not create:
+            if create:
+                raise e
+            if not reset:
                 if isinstance(e, DatasetCorruptError):
-                    raise e from None
+                    raise DatasetCorruptError(
+                        message=e.message,
+                        action="Try using `reset=True` to reset HEAD changes and load the previous commit.",
+                        cause=e.__cause__,
+                    )
                 raise DatasetCorruptError(
                     "Exception occured (see Traceback). The dataset maybe corrupted."
                     "Try using `reset=True` to reset HEAD changes and load the previous commit."
@@ -492,7 +498,7 @@ class dataset:
                 "read_only": read_only,
                 "token": token,
                 "org_id": org_id,
-                "versbose": verbose,
+                "verbose": verbose,
             }
         else:
             dataset_kwargs = {
@@ -517,7 +523,11 @@ class dataset:
         except Exception as e:
             if not reset:
                 if isinstance(e, DatasetCorruptError):
-                    raise e from None
+                    raise DatasetCorruptError(
+                        message=e.message,
+                        action="Try using `reset=True` to reset HEAD changes and load the previous commit.",
+                        cause=e.__cause__,
+                    )
                 raise DatasetCorruptError(
                     "Exception occured (see Traceback). The dataset maybe corrupted."
                     "Try using `reset=True` to reset HEAD changes and load the previous commit."
@@ -576,7 +586,7 @@ class dataset:
 
         verbose = dataset_kwargs.get("verbose")
         path = dataset_kwargs.get("path")
-        if verbose and not create:
+        if verbose:
             logger.info(f"{path} loaded successfully.")
         return ret
 

@@ -863,7 +863,12 @@ class UnsupportedExtensionError(Exception):
 
 
 class DatasetCorruptError(Exception):
-    pass
+    def __init__(self, message, action="", cause=None):
+        self.message = message
+        self.action = action
+        self.__cause__ = cause
+
+        super().__init__(self.message + (" " + self.action if self.action else ""))
 
 
 class MissingCredsError(Exception):
