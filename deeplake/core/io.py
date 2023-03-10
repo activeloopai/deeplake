@@ -131,12 +131,14 @@ class SequentialMultithreadScheduler(Scheduler):
         per_worker: List[List[IOBlock]] = [list() for _ in range(self.num_workers)]
         assigned_worker = iter(cycle(range(self.num_workers)))
 
+        index_count = 0
         for job in jobs:
             split: List[List[int]] = [list() for _ in range(self.num_workers)]
             for i, index in enumerate(job.indices()):
-                if i % self.batch_size == 0:
+                if index_count % self.batch_size == 0:
                     worker = next(assigned_worker)
                 split[worker].append(index)
+                index_count += 1
 
             for worker_id, idx_list in enumerate(split):
                 if len(idx_list) > 0:
