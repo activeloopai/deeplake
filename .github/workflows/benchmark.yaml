@@ -16,6 +16,7 @@ on:
     branches:
       - "main"
       - "release/**"
+      - "add-benchmarks"
 
 concurrency:
   group: ${{ github.workflow }}-${{ github.head_ref || github.ref_name }}
@@ -34,12 +35,13 @@ jobs:
 
   benchmark:
     if: github.event_name == 'push' || (github.event_name == 'pull_request' &&  github.event.label.name == 'run-benchmarks')
-    runs-on: deeplake-linux-cpu-benchmarks
+    runs-on: benchmarks_${{ matrix.machine }}
     strategy:
       fail-fast: false
       matrix:
         machine: 
-          - linux_cpu
+          # - linux_cpu
+          - macos_intel
     steps:
       - name: pull deeplake
         uses: actions/checkout@v3
@@ -53,44 +55,56 @@ jobs:
           path: "benchmarks"
           token: ${{ secrets.BENCHMARK_REPO_TOKEN }}
 
+      - name: create virtual environment
+        shell: bash
+        run: |
+          python3.9 -m venv env
+
+      - name: install benchmark dependencies
+        shell: bash
+        working-directory: ./benchmarks
+        run: |
+          . ../env/bin/activate
+          python3.9 -m pip install -r requirements/requirements.txt
+          python3.9 -m pip install -r requirements/scripts.txt
+
+      - name: install deeplake 
+        shell: bash
+        working-directory: ./deeplake
+        run: |
+          . ../env/bin/activate
+          python3.9 -m pip install -U pip
+          python3.9 -m pip install -U setuptools
+          python3.9 -m pip install -r deeplake/requirements/common.txt
+          python3.9 -m pip install -r deeplake/requirements/plugins.txt
+          python3.9 -m pip install -r deeplake/requirements/tests.txt
+          python3.9 -m pip install -e .[all]
+
+      - name: run benchmarks
+        shell: bash
+        working-directory: ./benchmarks
+        run: |
+          export PATH='/home/runner/.local/bin:/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin'
+          . ../env/bin/activate
+          activeloop login -u ${{ secrets.ACTIVELOOP_HUB_USERNAME}} -p ${{ secrets.ACTIVELOOP_HUB_PASSWORD }}
+          ulimit -Hn 204800
+          ulimit -n 204800
+          bash run.sh ${{ matrix.machine }}
+
       - name: pull reports
         uses: actions/checkout@v3
         with:
           repository: ${{ secrets.BENCHMARK_REPORT }}
           path: "reports"
           token: ${{ secrets.BENCHMARK_REPO_TOKEN }}
-      
-      - name: install deeplake 
-        shell: bash
-        working-directory: ./deeplake
-        run: |
-          python3.9 -m pip install -U pip
-          python3.9 -m pip install -U setuptools
-          python3.9 -m pip install -U -r deeplake/requirements/common.txt
-          python3.9 -m pip install -U -r deeplake/requirements/plugins.txt
-          python3.9 -m pip install -U -r deeplake/requirements/tests.txt
-          python3.9 -m pip install -U -e .[all]
-          python3.9 -m pip install -U deeplake[enterprise]
-      
-      - name: install benchmark dependencies
-        shell: bash
-        working-directory: ./benchmarks
-        run: |
-          python3.9 -m pip install -U -r requirements/requirements.txt
-          python3.9 -m pip install -U -r requirements/scripts.txt
-      
-      - name: run benchmarks
-        shell: bash
-        working-directory: ./benchmarks
-        run: |
-          export PATH='/home/runner/.local/bin:/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin'
-          activeloop login -u ${{ secrets.ACTIVELOOP_HUB_USERNAME}} -p ${{ secrets.ACTIVELOOP_HUB_PASSWORD }}
-          bash run.sh ${{ matrix.machine }}
 
       - name: create report
         shell: bash
+        env:
+          NODE: ${{ matrix.machine }}
         run: |
           export PATH='/home/runner/.local/bin:/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin'
+          . ../env/bin/activate
           python3 benchmarks/scripts/report.py \
             -t md \
             -n benchmarks/results.csv \
