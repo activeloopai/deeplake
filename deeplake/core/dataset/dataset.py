@@ -177,6 +177,7 @@ class Dataset:
             verbose (bool): If ``True``, logs will be printed. Defaults to True.
             version_state (Dict[str, Any], Optional): The version state of the dataset, includes commit_id, commit_node, branch, branch_commit_map and commit_node_map.
             path (str, pathlib.Path): The path to the dataset.
+            version (Optional[str]): The version address of the dataset.
             is_iteration (bool): If this Dataset is being used as an iterator.
             link_creds (LinkCreds, Optional): The LinkCreds object used to access tensors that have external data linked to them.
             pad_tensors (bool): If ``True``, shorter tensors will be padded to the length of the longest tensor.
@@ -202,7 +203,7 @@ class Dataset:
         d["path"] = convert_pathlib_to_string_if_needed(path) or get_path_from_storage(
             storage
         )
-        d["version"] = version
+        d["version"] = version # only used for loading version once
         d["storage"] = storage
         d["_read_only_error"] = read_only is False
         d["_read_only"] = DEFAULT_READONLY if read_only is None else read_only
@@ -1458,11 +1459,16 @@ class Dataset:
         Args:
             address (str): The commit_id or branch to checkout to.
             create (bool): If ``True``, creates a new branch with name as address.
+            reset (bool): If checkout fails due to a corrupted HEAD state of the branch, setting ``reset=True`` will
+                          reset HEAD changes and attempt the checkout again.
 
         Returns:
             Optional[str]: The commit_id of the dataset after checkout.
 
         Raises:
+            CheckoutError: If ``address`` could not be found.
+            ReadOnlyModeError: If branch creation or reset is attempted in read-only mode.
+            DatasetCorruptError: If checkout failed due to dataset corruption and ``reset`` is not ``True``.
             Exception: If the dataset is a filtered view.
 
         Examples:
@@ -1507,6 +1513,8 @@ class Dataset:
                     "Try using `reset=True` to reset HEAD changes and load the previous commit."
                     "This will delete all uncommitted changes on the branch you are trying to load."
                 ) from e
+            if self.read_only:
+                raise ReadOnlyModeError("Cannot reset HEAD in read-only mode.")
             return self._reset_and_checkout(address, e)
 
     def _reset_and_checkout(self, version, err, verbose=True):

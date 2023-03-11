@@ -151,8 +151,9 @@ class dataset:
             InvalidTokenException: If the specified token is invalid
             TokenPermissionError: When there are permission or other errors related to token
             CheckoutError: If version address specified in the path cannot be found
-            DatasetCorruptError: If loading the dataset failed due to corruption and `reset` is not `True`
+            DatasetCorruptError: If loading the dataset failed due to corruption and ``reset`` is not ``True``
             ValueError: If version is specified in the path when creating a dataset
+            ReadOnlyModeError: If reset is attempted in read-only mode
             Exception: Re-raises caught exception if reset cannot fix the issue
 
         Danger:
@@ -259,7 +260,7 @@ class dataset:
                     ) from e
                 if storage.read_only:
                     raise ReadOnlyModeError(
-                        "Cannot reset when loading dataset in read-only mode."
+                        "Cannot reset HEAD when loading dataset in read-only mode."
                     )
                 return dataset._reset_and_load(
                     cache_chain, access_method, dataset_kwargs, version, e
@@ -475,7 +476,8 @@ class dataset:
             InvalidTokenException: If the specified toke is invalid
             TokenPermissionError: When there are permission or other errors related to token
             CheckoutError: If version address specified in the path cannot be found
-            DatasetCorruptError: If loading the dataset failed due to corruption and `reset` is not `True`
+            DatasetCorruptError: If loading the dataset failed due to corruption and ``reset`` is not ``True``
+            ReadOnlyModeError: If reset is attempted in read-only mode
             Exception: Re-raises caught exception if reset cannot fix the issue
 
         Warning:
@@ -986,6 +988,7 @@ class dataset:
             DatasetHandlerError: If a dataset already exists at destination path and overwrite is False.
             TypeError: If source is not a path to a dataset.
             UnsupportedParameterException: If parameter that is no longer supported is beeing called.
+            DatasetCorruptError: If loading source dataset fails with DatasetCorruptedError
         """
 
         if "src_token" in kwargs:
