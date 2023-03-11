@@ -379,7 +379,7 @@ array([[965, 110, 262,  77, 22, 36, 44, 18, 0, 28, 0],
 Intrinsics Htype
 ~~~~~~~~~~~~~~~~
 
-- :bluebold:`Sample dimensions`: ``(3, 3)``
+- :bluebold:`Sample dimensions`: ``(# intrinsics matrices, 3, 3)``
 
 The intrinsic matrix represents a projective transformation from the 3-D camera's coordinates into the 2-D image coordinates.
 The intrinsic parameters include the focal length, the optical center, also known as the principal point.

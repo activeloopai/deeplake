@@ -42,6 +42,16 @@ try:
 except ImportError:
     pass
 
+try:
+    import aioboto3  # type: ignore
+    import asyncio  # type: ignore
+    import nest_asyncio  # type: ignore
+
+    nest_asyncio.apply()  # needed to run asyncio in jupyter notebook
+except ImportError:
+    aioboto3 = None  # type: ignore
+    asyncio = None  # type: ignore
+
 
 class S3ResetReloadCredentialsManager:
     """Tries to reload the credentials if the error is due to expired token, if error still occurs, it raises it."""
@@ -509,7 +519,18 @@ class S3Provider(StorageProvider):
             )
 
     def _set_s3_client_and_resource(self):
-        args = {
+        kwargs = self.s3_kwargs
+        session = boto3.session.Session(profile_name=self.profile_name)
+        self.client = session.client("s3", **kwargs)
+        self.resource = session.resource("s3", **kwargs)
+        if aioboto3 is not None:
+            self.async_session = aioboto3.session.Session(
+                profile_name=self.profile_name
+            )
+
+    @property
+    def s3_kwargs(self):
+        return {
             "aws_access_key_id": self.aws_access_key_id,
             "aws_secret_access_key": self.aws_secret_access_key,
             "aws_session_token": self.aws_session_token,
@@ -517,9 +538,6 @@ class S3Provider(StorageProvider):
             "endpoint_url": self.endpoint_url,
             "config": self.client_config,
         }
-        session = boto3.session.Session(profile_name=self.profile_name)
-        self.client = session.client("s3", **args)
-        self.resource = session.resource("s3", **args)
 
     def need_to_reload_creds(self, err: botocore.exceptions.ClientError) -> bool:
         """Checks if the credentials need to be reloaded.
@@ -596,3 +614,43 @@ class S3Provider(StorageProvider):
             raise S3GetError(err) from err
         except Exception as err:
             raise S3GetError(err) from err
+
+    def _set_items(self, items: dict):
+        async def set_items_async(items):
+            async with self.async_session.client("s3", **self.s3_kwargs) as client:
+                tasks = []
+                for k, v in items.items():
+                    tasks.append(
+                        asyncio.ensure_future(
+                            client.put_object(
+                                Bucket=self.bucket, Key=self.path + k, Body=v
+                            )
+                        )
+                    )
+                await asyncio.gather(*tasks)
+
+        loop = asyncio.new_event_loop()
+        asyncio.set_event_loop(loop)
+        loop.run_until_complete(set_items_async(items))
+
+    def set_items(self, items: dict):
+        try:
+            self._set_items(items)
+        except botocore.exceptions.ClientError as err:
+            with S3ResetReloadCredentialsManager(self, S3SetError):
+                self._set_items(items)
+        except CONNECTION_ERRORS as err:
+            tries = self.num_tries
+            for i in range(1, tries + 1):
+                always_warn(f"Encountered connection error, retry {i} out of {tries}")
+                try:
+                    self._set_items(items)
+                    always_warn(
+                        f"Connection re-established after {i} {['retries', 'retry'][i==1]}."
+                    )
+                    return
+                except Exception:
+                    pass
+            raise S3SetError(err) from err
+        except Exception as err:
+            raise S3SetError(err) from err

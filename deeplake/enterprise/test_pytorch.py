@@ -654,6 +654,7 @@ def test_pytorch_error_handling(hub_cloud_ds):
 
 @patch("deeplake.constants.RETURN_DUMMY_DATA_FOR_DATALOADER", True)
 @requires_torch
+@requires_libdeeplake
 def test_pytorch_dummy_data(local_ds):
     x_data = [
         np.random.randint(0, 255, (100, 100, 3), dtype="uint8"),
