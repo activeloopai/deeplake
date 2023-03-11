@@ -203,7 +203,6 @@ class Dataset:
         d["path"] = convert_pathlib_to_string_if_needed(path) or get_path_from_storage(
             storage
         )
-        d["version"] = version  # only used for loading version once
         d["storage"] = storage
         d["_read_only_error"] = read_only is False
         d["_read_only"] = DEFAULT_READONLY if read_only is None else read_only
@@ -238,7 +237,7 @@ class Dataset:
         dct.update(d)
 
         try:
-            self._set_derived_attributes()
+            self._set_derived_attributes(address=version)
         except LockedException:
             raise LockedException(
                 "This dataset cannot be open for writing as it is locked by another machine. Try loading the dataset with `read_only=True`."
@@ -2072,11 +2071,13 @@ class Dataset:
             for tensor_key, tensor_value in self.version_state["full_tensors"].items()
         }
 
-    def _set_derived_attributes(self, verbose: bool = True):
+    def _set_derived_attributes(
+        self, verbose: bool = True, address: Optional[str] = None
+    ):
         """Sets derived attributes during init and unpickling."""
         if self.is_first_load:
             self.storage.autoflush = True
-            self._load_version_info(self.version)
+            self._load_version_info(address)
             self._load_link_creds()
             self._set_read_only(
                 self._read_only, err=self._read_only_error

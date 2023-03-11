@@ -103,10 +103,16 @@ def test_persist_keys(local_ds_generator):
         "dataset_meta.json",
         "image/commit_diff",
         "image/tensor_meta.json",
+        "image/chunks_index/unsharded",
+        "image/tiles_index/unsharded",
         "_image_id/tensor_meta.json",
         "_image_id/commit_diff",
+        "_image_id/chunks_index/unsharded",
+        "_image_id/tiles_index/unsharded",
         "_image_shape/tensor_meta.json",
         "_image_shape/commit_diff",
+        "_image_shape/chunks_index/unsharded",
+        "_image_shape/tiles_index/unsharded",
     }
 
 
