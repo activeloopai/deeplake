@@ -2422,3 +2422,16 @@ def test_load_to_version(local_path):
         set(ds.tensors.keys()) == {"abc", "xyz"}
         np.testing.assert_array_equal(ds.abc.numpy(), [[1], [2]])
         np.testing.assert_array_equal(ds.xyz.numpy(), [[1], [2]])
+
+def test_version_in_path(local_path):
+    with pytest.raises(ValueError):
+        deeplake.empty(f"{local_path}@main")
+    
+    with pytest.raises(ValueError):
+        deeplake.delete(f"{local_path}@main")
+    
+    with pytest.raises(ValueError):
+        deeplake.dataset(f"{local_path}@main")
+    
+    with pytest.raises(ValueError):
+        deeplake.exists(f"{local_path}@main")
