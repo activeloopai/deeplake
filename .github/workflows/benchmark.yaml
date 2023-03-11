@@ -20,6 +20,7 @@ on:
 
 concurrency:
   group: ${{ github.workflow }}-${{ github.head_ref || github.ref_name }}
+  cancel-in-progress: true
 
 jobs:
   remove_label:
@@ -44,6 +45,14 @@ jobs:
           - linux_gpu
           - macos_intel
     steps:
+      - name: Configure AWS credentials
+        if: matrix.machine == 'macos_intel'
+        uses: aws-actions/configure-aws-credentials@v1-node16
+        with:
+          role-to-assume: ${{ secrets.BENCHMARKS_AWS_ROLE_ARN }}
+          aws-region: us-east-1
+          role-duration-seconds: 14400
+
       - name: pull deeplake
         uses: actions/checkout@v3
         with:
