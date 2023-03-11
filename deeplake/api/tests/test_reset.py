@@ -1,4 +1,4 @@
-from deeplake.util.exceptions import DatasetCorruptError
+from deeplake.util.exceptions import DatasetCorruptError, ReadOnlyModeError
 
 import numpy as np
 
@@ -22,22 +22,38 @@ def verify_reset_on_checkout(ds, branch, commit_id, old_head, data):
         np.testing.assert_array_equal(ds[tensor].numpy(), data[tensor])
 
 
-def test_load_corrupt_dataset(local_path):
-    ds = deeplake.empty(local_path, overwrite=True)
-    ds.create_tensor("abc")
-    ds.abc.append(1)
-    first = ds.commit()
+@pytest.mark.parametrize("path", ["local_path", "s3_path"], indirect=True)
+def test_load_corrupt_dataset(path):
+    ds = deeplake.empty(path, overwrite=True)
 
-    ds.abc.append(2)
-    second = ds.commit()
+    access_method = "local" if path.startswith("s3://") else "stream"
+
+    with ds:
+        ds.create_tensor("abc")
+        ds.abc.append(1)
+        first = ds.commit()
+
+        ds.abc.append(2)
+        second = ds.commit()
+
+    ds = deeplake.load(path, access_method=access_method)
 
     corrupt_ds(ds, "abc", 3)
     save_head = ds.pending_commit_id
 
     with pytest.raises(DatasetCorruptError):
-        ds = deeplake.load(local_path)
+        ds = deeplake.load(path, access_method=access_method)
 
-    ds = deeplake.load(local_path, reset=True)
+    with pytest.raises(ReadOnlyModeError):
+        ds = deeplake.load(
+            path, read_only=True, access_method=access_method, reset=True
+        )
+
+    ds = deeplake.load(
+        path,
+        reset=True,
+        access_method=access_method,
+    )
     verify_reset_on_checkout(ds, "main", second, save_head, {"abc": [[1], [2]]})
 
 

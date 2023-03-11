@@ -59,6 +59,7 @@ from deeplake.util.exceptions import (
     UnsupportedParameterException,
     DatasetCorruptError,
     CheckoutError,
+    ReadOnlyModeError,
 )
 from deeplake.util.storage import (
     get_storage_and_cache_chain,
@@ -136,6 +137,11 @@ class dataset:
                           If dataset needs to be downloaded, 'local:2:processed' will use 2 workers and use processed scheduler, while 'local:3' will use 3 workers
                           and default scheduler (threaded), and 'local:processed' will use a single worker and use processed scheduler.
 
+            reset (bool): If the specified dataset cannot be loaded due to a corrupted HEAD state of the branch being loaded,
+                          setting ``reset=True`` will reset HEAD changes and load the previous version.
+
+            # noqa: DAR101 reset
+
         Returns:
             Dataset: Dataset created using the arguments provided.
 
@@ -144,6 +150,10 @@ class dataset:
             UserNotLoggedInException: When user is not logged in
             InvalidTokenException: If the specified token is invalid
             TokenPermissionError: When there are permission or other errors related to token
+            CheckoutError: If version address specified in the path cannot be found
+            DatasetCorruptError: If loading the dataset failed due to corruption and `reset` is not `True`
+            ValueError: If version is specified in the path when creating a dataset
+            Exception: Re-raises caught exception if reset cannot fix the issue
 
         Danger:
             Setting ``overwrite`` to ``True`` will delete all of your data if it exists! Be very careful when setting this parameter.
@@ -225,6 +235,7 @@ class dataset:
                 "ds_exists": ds_exists,
                 "num_workers": num_workers,
                 "scheduler": scheduler,
+                "reset": reset,
             }
 
         try:
@@ -234,20 +245,25 @@ class dataset:
         except Exception as e:
             if create:
                 raise e
-            if not reset:
-                if isinstance(e, DatasetCorruptError):
+            if access_method == "stream":
+                if not reset:
+                    if isinstance(e, DatasetCorruptError):
+                        raise DatasetCorruptError(
+                            message=e.message,
+                            action="Try using `reset=True` to reset HEAD changes and load the previous commit.",
+                            cause=e.__cause__,
+                        )
                     raise DatasetCorruptError(
-                        message=e.message,
-                        action="Try using `reset=True` to reset HEAD changes and load the previous commit.",
-                        cause=e.__cause__,
+                        "Exception occured (see Traceback). The dataset maybe corrupted."
+                        "Try using `reset=True` to reset HEAD changes and load the previous commit."
+                    ) from e
+                if storage.read_only:
+                    raise ReadOnlyModeError(
+                        "Cannot reset when loading dataset in read-only mode."
                     )
-                raise DatasetCorruptError(
-                    "Exception occured (see Traceback). The dataset maybe corrupted."
-                    "Try using `reset=True` to reset HEAD changes and load the previous commit."
-                ) from e
-            return dataset._reset_and_load(
-                cache_chain, access_method, dataset_kwargs, version, e
-            )
+                return dataset._reset_and_load(
+                    cache_chain, access_method, dataset_kwargs, version, e
+                )
 
     @staticmethod
     def exists(
@@ -264,6 +280,9 @@ class dataset:
 
         Returns:
             A boolean confirming whether the dataset exists or not at the given path.
+
+        Raises:
+            ValueError: If version is specified in the path
         """
         path, version = process_dataset_path(path)
 
@@ -327,6 +346,7 @@ class dataset:
             UserNotLoggedInException: When user is not logged in
             InvalidTokenException: If the specified toke is invalid
             TokenPermissionError: When there are permission or other errors related to token
+            ValueError: If version is specified in the path
 
         Danger:
             Setting ``overwrite`` to ``True`` will delete all of your data if it exists! Be very careful when setting this parameter.
@@ -440,6 +460,11 @@ class dataset:
                           If dataset needs to be downloaded, 'local:2:processed' will use 2 workers and use processed scheduler, while 'local:3' will use 3 workers
                           and default scheduler (threaded), and 'local:processed' will use a single worker and use processed scheduler.
 
+            reset (bool): If the specified dataset cannot be loaded due to a corrupted HEAD state of the branch being loaded,
+                          setting ``reset=True`` will reset HEAD changes and load the previous version.
+
+            # noqa: DAR101 reset
+
         Returns:
             Dataset: Dataset loaded using the arguments provided.
 
@@ -449,6 +474,9 @@ class dataset:
             UserNotLoggedInException: When user is not logged in
             InvalidTokenException: If the specified toke is invalid
             TokenPermissionError: When there are permission or other errors related to token
+            CheckoutError: If version address specified in the path cannot be found
+            DatasetCorruptError: If loading the dataset failed due to corruption and `reset` is not `True`
+            Exception: Re-raises caught exception if reset cannot fix the issue
 
         Warning:
             Setting ``access_method`` to download will overwrite the local copy of the dataset if it was previously downloaded.
@@ -514,6 +542,7 @@ class dataset:
                 "ds_exists": True,
                 "num_workers": num_workers,
                 "scheduler": scheduler,
+                "reset": reset,
             }
 
         try:
@@ -521,25 +550,36 @@ class dataset:
         except (AgreementError, CheckoutError) as e:
             raise e from None
         except Exception as e:
-            if not reset:
-                if isinstance(e, DatasetCorruptError):
+            if access_method == "stream":
+                if not reset:
+                    if isinstance(e, DatasetCorruptError):
+                        raise DatasetCorruptError(
+                            message=e.message,
+                            action="Try using `reset=True` to reset HEAD changes and load the previous commit.",
+                            cause=e.__cause__,
+                        )
                     raise DatasetCorruptError(
-                        message=e.message,
-                        action="Try using `reset=True` to reset HEAD changes and load the previous commit.",
-                        cause=e.__cause__,
+                        "Exception occured (see Traceback). The dataset maybe corrupted."
+                        "Try using `reset=True` to reset HEAD changes and load the previous commit."
+                        "This will delete all uncommitted changes on the branch you are trying to load."
+                    ) from e
+                if storage.read_only:
+                    raise ReadOnlyModeError(
+                        "Cannot reset when loading dataset in read-only mode."
                     )
-                raise DatasetCorruptError(
-                    "Exception occured (see Traceback). The dataset maybe corrupted."
-                    "Try using `reset=True` to reset HEAD changes and load the previous commit."
-                    "This will delete all uncommitted changes on the branch you are trying to load."
-                ) from e
-            return dataset._reset_and_load(
-                cache_chain, access_method, dataset_kwargs, version, e
-            )
+                return dataset._reset_and_load(
+                    cache_chain, access_method, dataset_kwargs, version, e
+                )
+            raise e
 
     @staticmethod
     def _reset_and_load(storage, access_method, dataset_kwargs, version, err):
-        """Reset and then load the dataset. Only called when loading dataset normally errored out with `err`."""
+        """Reset and then load the dataset. Only called when loading dataset errored out with `err`."""
+        if access_method != "stream":
+            dataset_kwargs["reset"] = True
+            ds = dataset._load(dataset_kwargs, access_method)
+            return ds
+
         try:
             version_info = load_version_info(storage)
         except KeyError:
@@ -579,15 +619,15 @@ class dataset:
                 dataset_created(ret)
             else:
                 dataset_loaded(ret)
+
+            integrity_check(ret)
+
+            verbose = dataset_kwargs.get("verbose")
+            path = dataset_kwargs.get("path")
+            if verbose:
+                logger.info(f"{path} loaded successfully.")
         else:
             ret = get_local_dataset(**dataset_kwargs)
-
-        integrity_check(ret)
-
-        verbose = dataset_kwargs.get("verbose")
-        path = dataset_kwargs.get("path")
-        if verbose:
-            logger.info(f"{path} loaded successfully.")
         return ret
 
     @staticmethod
@@ -658,6 +698,7 @@ class dataset:
             DatasetHandlerError: If a Dataset does not exist at the given path and ``force = False``.
             UserNotLoggedInException: When user is not logged in.
             NotImplementedError: When attempting to delete a managed view.
+            ValueError: If version is specified in the path
 
         Warning:
             This is an irreversible operation. Data once deleted cannot be recovered.
@@ -978,9 +1019,17 @@ class dataset:
             report_params["Dest"] = dest
         feature_report_path(src, "deepcopy", report_params, token=token)
 
-        src_ds = deeplake.load(
-            src, read_only=True, creds=src_creds, token=token, verbose=False
-        )
+        try:
+            src_ds = deeplake.load(
+                src, read_only=True, creds=src_creds, token=token, verbose=False
+            )
+        except DatasetCorruptError as e:
+            raise DatasetCorruptError(
+                "The source dataset is corrupted.",
+                "You can try to fix this by loading the dataset with `reset=True` "
+                "which will attempt to reset uncommitted HEAD changes and load the previous version.",
+                e.__cause__,
+            )
         src_storage = get_base_storage(src_ds.storage)
 
         dest_storage, cache_chain = get_storage_and_cache_chain(
