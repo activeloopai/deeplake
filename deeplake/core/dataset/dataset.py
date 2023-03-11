@@ -203,7 +203,7 @@ class Dataset:
         d["path"] = convert_pathlib_to_string_if_needed(path) or get_path_from_storage(
             storage
         )
-        d["version"] = version # only used for loading version once
+        d["version"] = version  # only used for loading version once
         d["storage"] = storage
         d["_read_only_error"] = read_only is False
         d["_read_only"] = DEFAULT_READONLY if read_only is None else read_only
