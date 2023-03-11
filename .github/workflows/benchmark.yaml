@@ -40,7 +40,8 @@ jobs:
       fail-fast: false
       matrix:
         machine: 
-          # - linux_cpu
+          - linux_cpu
+          - linux_gpu
           - macos_intel
     steps:
       - name: pull deeplake
@@ -55,40 +56,13 @@ jobs:
           path: "benchmarks"
           token: ${{ secrets.BENCHMARK_REPO_TOKEN }}
 
-      - name: create virtual environment
-        shell: bash
-        run: |
-          python3.9 -m venv env
-
-      - name: install benchmark dependencies
-        shell: bash
-        working-directory: ./benchmarks
-        run: |
-          . ../env/bin/activate
-          python3.9 -m pip install -r requirements/requirements.txt
-          python3.9 -m pip install -r requirements/scripts.txt
-
-      - name: install deeplake 
-        shell: bash
-        working-directory: ./deeplake
-        run: |
-          . ../env/bin/activate
-          python3.9 -m pip install -U pip
-          python3.9 -m pip install -U setuptools
-          python3.9 -m pip install -r deeplake/requirements/common.txt
-          python3.9 -m pip install -r deeplake/requirements/plugins.txt
-          python3.9 -m pip install -r deeplake/requirements/tests.txt
-          python3.9 -m pip install -e .[all]
-
       - name: run benchmarks
         shell: bash
         working-directory: ./benchmarks
+        env:
+          DEEPLAKE_USER: ${{ secrets.ACTIVELOOP_HUB_USERNAME}}
+          DEEPLAKE_PASS: ${{ secrets.ACTIVELOOP_HUB_PASSWORD }}
         run: |
-          export PATH='/home/runner/.local/bin:/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin'
-          . ../env/bin/activate
-          activeloop login -u ${{ secrets.ACTIVELOOP_HUB_USERNAME}} -p ${{ secrets.ACTIVELOOP_HUB_PASSWORD }}
-          ulimit -Hn 204800
-          ulimit -n 204800
           bash run.sh ${{ matrix.machine }}
 
       - name: pull reports
@@ -103,8 +77,6 @@ jobs:
         env:
           NODE: ${{ matrix.machine }}
         run: |
-          export PATH='/home/runner/.local/bin:/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin'
-          . ../env/bin/activate
           python3 benchmarks/scripts/report.py \
             -t md \
             -n benchmarks/results.csv \
@@ -121,18 +93,17 @@ jobs:
         if: github.event_name == 'push'
         shell: bash
         run: |
-          export PATH='/home/runner/.local/bin:/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin'
           if [ ${{ github.ref_name }} == 'main' ]
           then
-            /usr/bin/cp results.csv reports/${{ matrix.machine }}/main/results.csv
+            /usr/bin/cp benchmarks/results.csv reports/${{ matrix.machine }}/main/results.csv
             /usr/bin/cp report.md   reports/${{ matrix.machine }}/main/report.md
             /usr/bin/cp report.csv  reports/${{ matrix.machine }}/main/report.csv
-            /usr/bin/cp results.csv reports/${{ matrix.machine }}/main/results-${{ github.sha }}.csv
+            /usr/bin/cp benchmarks/results.csv reports/${{ matrix.machine }}/main/results-${{ github.sha }}.csv
             /usr/bin/cp report.md   reports/${{ matrix.machine }}/main/report-${{ github.sha }}.md
             /usr/bin/cp report.csv  reports/${{ matrix.machine }}/main/report-${{ github.sha }}.csv
           else
             mkdir "reports/${{ matrix.machine }}/${GITHUB_REF_NAME/\//-}"
-            /usr/bin/cp results.csv "reports/${{ matrix.machine }}/${GITHUB_REF_NAME/\//-}/"
+            /usr/bin/cp benchmarks/results.csv "reports/${{ matrix.machine }}/${GITHUB_REF_NAME/\//-}/"
             /usr/bin/cp report.md   "reports/${{ matrix.machine }}/${GITHUB_REF_NAME/\//-}/"
             /usr/bin/cp report.csv  "reports/${{ matrix.machine }}/${GITHUB_REF_NAME/\//-}/"
           fi
@@ -152,8 +123,7 @@ jobs:
           NODE: ${{ matrix.machine }}
           URL: ${{ secrets.SLACK_URL }}
         run: |
-          export PATH='/home/runner/.local/bin:/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin'
-          python3.9 scripts/notify.py 
+          python3 scripts/notify.py 
 
       - name: comment pr
         if: github.event_name == 'pull_request'
