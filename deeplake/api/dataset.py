@@ -60,6 +60,7 @@ from deeplake.util.exceptions import (
     DatasetCorruptError,
     CheckoutError,
     ReadOnlyModeError,
+    LockedException,
 )
 from deeplake.util.storage import (
     get_storage_and_cache_chain,
@@ -154,6 +155,7 @@ class dataset:
             DatasetCorruptError: If loading the dataset failed due to corruption and ``reset`` is not ``True``
             ValueError: If version is specified in the path when creating a dataset
             ReadOnlyModeError: If reset is attempted in read-only mode
+            LockedException: When attempting to open a dataset for writing when it is locked by another machine
             Exception: Re-raises caught exception if reset cannot fix the issue
 
         Danger:
@@ -241,7 +243,7 @@ class dataset:
 
         try:
             return dataset._load(dataset_kwargs, access_method, create)
-        except (AgreementError, CheckoutError) as e:
+        except (AgreementError, CheckoutError, LockedException) as e:
             raise e from None
         except Exception as e:
             if create:
@@ -255,7 +257,7 @@ class dataset:
                             cause=e.__cause__,
                         )
                     raise DatasetCorruptError(
-                        "Exception occured (see Traceback). The dataset maybe corrupted."
+                        "Exception occured (see Traceback). The dataset maybe corrupted. "
                         "Try using `reset=True` to reset HEAD changes and load the previous commit."
                     ) from e
                 if storage.read_only:
@@ -478,6 +480,7 @@ class dataset:
             CheckoutError: If version address specified in the path cannot be found
             DatasetCorruptError: If loading the dataset failed due to corruption and ``reset`` is not ``True``
             ReadOnlyModeError: If reset is attempted in read-only mode
+            LockedException: When attempting to open a dataset for writing when it is locked by another machine
             Exception: Re-raises caught exception if reset cannot fix the issue
 
         Warning:
@@ -549,7 +552,7 @@ class dataset:
 
         try:
             return dataset._load(dataset_kwargs, access_method)
-        except (AgreementError, CheckoutError) as e:
+        except (AgreementError, CheckoutError, LockedException) as e:
             raise e from None
         except Exception as e:
             if access_method == "stream":

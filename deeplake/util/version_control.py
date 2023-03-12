@@ -37,6 +37,8 @@ from deeplake.util.keys import (
 from deeplake.util.remove_cache import get_base_storage
 from deeplake.hooks import dataset_committed
 from datetime import datetime
+
+import posixpath
 import json
 
 
@@ -95,9 +97,7 @@ def generate_hash() -> str:
 
 def integrity_check(dataset):
     try:
-        rev_tensor_names = {v: k for k, v in dataset.meta.tensor_names.items()}
-        for k in dataset.meta.tensor_names:
-            t = dataset[k]
+        for k, t in dataset._tensors(include_disabled=False).items():
             n1 = t.meta.length
             engine = t.chunk_engine
             n2 = engine.chunk_id_encoder.num_samples
@@ -107,7 +107,7 @@ def integrity_check(dataset):
                 )
             num_sequences = getattr(engine.sequence_encoder, "num_samples", None)
             for l, info in t.meta.links.items():
-                l = rev_tensor_names[l]
+                l = posixpath.relpath(l, dataset.group_index)
                 if num_sequences is not None and not info["flatten_sequence"]:
                     n2 = num_sequences
                 else:
