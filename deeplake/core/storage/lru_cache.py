@@ -14,6 +14,14 @@ def _get_nbytes(obj: Union[bytes, memoryview, DeepLakeMemoryObject]):
     return len(obj)
 
 
+def obj_to_bytes(obj):
+    if isinstance(obj, DeepLakeMemoryObject):
+        obj = obj.tobytes()
+    if isinstance(obj, memoryview):
+        obj = bytes(obj)
+    return obj
+
+
 class LRUCache(StorageProvider):
     """LRU Cache that uses StorageProvider for caching"""
 
@@ -49,6 +57,7 @@ class LRUCache(StorageProvider):
 
         self.cache_used = 0
         self.deeplake_objects: Dict[str, DeepLakeMemoryObject] = {}
+        self.supports_async = sys.version_info >= (3, 7) and sys.platform != "win32"
 
     def register_deeplake_object(self, path: str, obj: DeepLakeMemoryObject):
         """Registers a new object in the cache."""
@@ -84,10 +93,18 @@ class LRUCache(StorageProvider):
                 obj.is_dirty = False
 
         if self.dirty_keys:
-            for key in self.dirty_keys.copy():
-                self._forward(key)
-            if self.next_storage is not None:
-                self.next_storage.flush()
+            if hasattr(self.next_storage, "set_items") and self.supports_async:
+                d = {
+                    key: obj_to_bytes(self.cache_storage[key])
+                    for key in self.dirty_keys
+                }
+                self.next_storage.set_items(d)
+                self.dirty_keys.clear()
+            else:
+                for key in self.dirty_keys.copy():
+                    self._forward(key)
+                if self.next_storage is not None:
+                    self.next_storage.flush()
 
         self.autoflush = initial_autoflush
 

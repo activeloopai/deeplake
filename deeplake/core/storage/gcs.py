@@ -272,7 +272,7 @@ class GCSProvider(StorageProvider):
         self._presigned_urls: Dict[str, Tuple[str, float]] = {}
         self.expiration: Optional[str] = None
 
-    def subdir(self, path: str):
+    def subdir(self, path: str, read_only: bool = False):
         sd = self.__class__(
             root=posixpath.join(self.root, path),
             token=self.token,
@@ -280,6 +280,7 @@ class GCSProvider(StorageProvider):
         )
         if self.expiration:
             sd._set_hub_creds_info(self.hub_path, self.expiration)
+        sd.read_only = read_only
         return sd
 
     def _initialize_provider(self):

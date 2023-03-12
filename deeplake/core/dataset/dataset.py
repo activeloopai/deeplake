@@ -2508,6 +2508,7 @@ class Dataset:
             skip_ok=True,
             extend_only=True,
             disable_label_sync=True,
+            disable_rechunk=True,
         )
 
     # the below methods are used by cloudpickle dumps
@@ -3261,7 +3262,7 @@ class Dataset:
         Note:
             Virtual datasets are returned as such, they are not converted to views.
         """
-        sub_storage = self.base_storage.subdir(path)
+        sub_storage = self.base_storage.subdir(path, read_only=read_only)
 
         if empty:
             sub_storage.clear()

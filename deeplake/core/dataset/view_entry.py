@@ -56,6 +56,7 @@ class ViewEntry:
             lock=False,
             verbose=False,
             token=self._src_ds.token,
+            read_only=True,
         )
         sub_ds_path = ds.path
         if self.virtual:
