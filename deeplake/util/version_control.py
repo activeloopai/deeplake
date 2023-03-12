@@ -97,6 +97,7 @@ def generate_hash() -> str:
 
 def integrity_check(dataset):
     try:
+        rev_tensor_names = {v: k for k, v in dataset.meta.tensor_names.items()}
         for k, t in dataset._tensors(include_disabled=False).items():
             n1 = t.meta.length
             engine = t.chunk_engine
@@ -107,6 +108,7 @@ def integrity_check(dataset):
                 )
             num_sequences = getattr(engine.sequence_encoder, "num_samples", None)
             for l, info in t.meta.links.items():
+                l = rev_tensor_names[l]
                 l = posixpath.relpath(l, dataset.group_index)
                 if num_sequences is not None and not info["flatten_sequence"]:
                     n2 = num_sequences
