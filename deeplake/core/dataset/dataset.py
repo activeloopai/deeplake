@@ -3104,22 +3104,6 @@ class Dataset:
 
             ret.append(ViewClass(info=query, dataset=self))
 
-        if self.path.startswith("hub://"):
-            queries, qds = self._read_queries_json_from_user_account()
-            if queries:
-                for query in filtered_queries:
-                    ViewClass = ViewEntry
-                    if query.get("query"):
-                        ViewClass = NonlinearQueryView
-
-                    ret.append(
-                        ViewClass(
-                            info=query,
-                            dataset=qds,
-                            source_dataset=self,
-                            external=True,
-                        )
-                    )
         return ret
 
     def get_view(self, id: str) -> ViewEntry:
@@ -3153,15 +3137,6 @@ class Dataset:
                 if query:
                     return NonlinearQueryView(q, self)
                 return ViewEntry(q, self)
-
-        if self.path.startswith("hub://"):
-            queries, qds = self._read_queries_json_from_user_account()
-            for q in queries:
-                if q["id"] == f"[{self.org_id}][{self.ds_name}]{id}":
-                    query = q.get("query")
-                    if query:
-                        return NonlinearQueryView(q, qds, self, True)
-                    return ViewEntry(q, qds, self, True)
 
         raise KeyError(f"No view with id {id} found in the dataset.")
 
