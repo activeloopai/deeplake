@@ -1933,12 +1933,7 @@ class Dataset:
         """
         from deeplake.enterprise import query
 
-        view = query(self, query_string)
-        try:
-            return view
-        except RuntimeError:
-            view._query = query_string
-            return view
+        return query(self, query_string)
 
     def sample_by(
         self,
