@@ -57,13 +57,14 @@ jobs:
         uses: actions/checkout@v3
         with:
           path: "deeplake"
-          ref: "release/3.2.13"
+          ref: "release/3.2.14"
 
       - name: pull benchmarks
         uses: actions/checkout@v3
         with:
           repository: ${{ secrets.BENCHMARKS_REPO }}
           path: "benchmarks"
+          ref: "main"
           token: ${{ secrets.BENCHMARK_REPO_TOKEN }}
 
       - name: run benchmarks
@@ -80,6 +81,7 @@ jobs:
         with:
           repository: ${{ secrets.BENCHMARK_REPORT }}
           path: "reports"
+          ref: "main"
           token: ${{ secrets.BENCHMARK_REPO_TOKEN }}
 
       - name: create report
@@ -105,20 +107,24 @@ jobs:
         run: |
           if [ ${{ github.ref_name }} == 'main' ]
           then
-            /usr/bin/cp benchmarks/results.csv reports/${{ matrix.machine }}/main/results.csv
-            /usr/bin/cp report.md   reports/${{ matrix.machine }}/main/report.md
-            /usr/bin/cp report.csv  reports/${{ matrix.machine }}/main/report.csv
-            /usr/bin/cp benchmarks/results.csv reports/${{ matrix.machine }}/main/results-${{ github.sha }}.csv
-            /usr/bin/cp report.md   reports/${{ matrix.machine }}/main/report-${{ github.sha }}.md
-            /usr/bin/cp report.csv  reports/${{ matrix.machine }}/main/report-${{ github.sha }}.csv
+            cp benchmarks/results.csv reports/${{ matrix.machine }}/main/results.csv
+            cp report.md   reports/${{ matrix.machine }}/main/report.md
+            cp report.csv  reports/${{ matrix.machine }}/main/report.csv
+            cp benchmarks/results.csv reports/${{ matrix.machine }}/main/results-${{ github.sha }}.csv
+            cp report.md   reports/${{ matrix.machine }}/main/report-${{ github.sha }}.md
+            cp report.csv  reports/${{ matrix.machine }}/main/report-${{ github.sha }}.csv
           else
 
-            GITHUB_REF_NAME='release/3.2.13'
+            GITHUB_REF_NAME='release/3.2.14'
 
             mkdir "reports/${{ matrix.machine }}/${GITHUB_REF_NAME/\//-}" || true
-            /usr/bin/cp benchmarks/results.csv "reports/${{ matrix.machine }}/${GITHUB_REF_NAME/\//-}/"
-            /usr/bin/cp report.md   "reports/${{ matrix.machine }}/${GITHUB_REF_NAME/\//-}/"
-            /usr/bin/cp report.csv  "reports/${{ matrix.machine }}/${GITHUB_REF_NAME/\//-}/"
+            cp benchmarks/results.csv "reports/${{ matrix.machine }}/${GITHUB_REF_NAME/\//-}/"
+            cp report.md   "reports/${{ matrix.machine }}/${GITHUB_REF_NAME/\//-}/"
+            cp report.csv  "reports/${{ matrix.machine }}/${GITHUB_REF_NAME/\//-}/"
+            cp benchmarks/results.csv "reports/${{ matrix.machine }}/latest/"
+            cp report.md   "reports/${{ matrix.machine }}/latest/"
+            cp report.csv  "reports/${{ matrix.machine }}/latest/"
+            
           fi
 
           cd reports
