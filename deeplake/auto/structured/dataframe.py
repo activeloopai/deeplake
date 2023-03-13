@@ -145,7 +145,7 @@ class DataFrame(StructuredDataset):
 
         extend_values: List[Optional[Union[Sample, LinkedSample, np.ndarray]]]
 
-        if "htype" in tensor_params.keys() and "link[" in tensor_params["htype"]:
+        if "htype" in tensor_params and "link[" in tensor_params["htype"]:
             extend_values = [
                 link(value, creds_key=self.creds_key) if value is not None else None
                 for value in self.source[key].values
