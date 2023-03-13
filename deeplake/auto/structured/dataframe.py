@@ -129,8 +129,8 @@ class DataFrame(StructuredDataset):
         # TODO: Make this more robust so it works for all htypes where sample_compression is required and should be inferred from the data itself
         if (
             "image" in tensor_params.get("htype", "")
-            and "sample_compression" not in tensor_params.keys()
-            and "chunk_compression" not in tensor_params.keys()
+            and "sample_compression" not in tensor_params
+            and "chunk_compression" not in tensor_params
         ):
             tensor_params.update(
                 sample_compression=self._get_most_frequent_image_extension(
