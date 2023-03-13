@@ -93,12 +93,6 @@ jobs:
           path: "benchmarks"
           token: ${{ secrets.BENCHMARK_REPO_TOKEN }}
 
-      - name: Setup tmate session
-        if: matrix.machine == 'linux_gpu'
-        uses: mxschmitt/action-tmate@v3
-        with:
-          limit-access-to-actor: true
-
       - name: run benchmarks
         shell: bash
         working-directory: ./benchmarks
