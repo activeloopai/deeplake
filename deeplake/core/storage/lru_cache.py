@@ -7,6 +7,8 @@ from typing import Any, Dict, Optional, Union
 
 from deeplake.core.storage.provider import StorageProvider
 
+ASYNC_INSTALLED = True
+
 try:
     import aioboto3  # type: ignore
     import asyncio  # type: ignore
