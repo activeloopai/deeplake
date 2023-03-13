@@ -28,6 +28,8 @@ def map_tensor_keys(dataset, tensor_keys: Optional[Sequence[str]] = None) -> Lis
 
 
 _invalid_chars = {"[", "]", "@", ".", ",", "?", "!", "/", "\\", "#", "'", '"'}
+
+
 def sanitize_tensor_name(input: str) -> str:
     """Sanitize a string to be a valid tensor name
 
@@ -37,4 +39,4 @@ def sanitize_tensor_name(input: str) -> str:
     Returns:
         str: A string with the sanitized tensor name
     """
-    return "".join("_" if c in invalid_chars else c for c in input)
+    return "".join("_" if c in _invalid_chars else c for c in input)
