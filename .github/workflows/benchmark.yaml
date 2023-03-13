@@ -34,31 +34,31 @@ jobs:
         with:
           labels: run-benchmarks
 
-  start_gpu:
-    name: Start GPU
-    if: github.event_name == 'push' || (github.event_name == 'pull_request' &&  github.event.label.name == 'run-benchmarks')
-    runs-on: ubuntu-latest
-    steps:
-      - name: Configure AWS credentials
-        if: matrix.machine == 'macos_intel'
-        uses: aws-actions/configure-aws-credentials@v1-node16
-        with:
-          role-to-assume: ${{ secrets.BENCHMARKS_AWS_ROLE_ARN }}
-          aws-region: us-east-1
+  # start_gpu:
+  #   name: Start GPU
+  #   if: github.event_name == 'push' || (github.event_name == 'pull_request' &&  github.event.label.name == 'run-benchmarks')
+  #   runs-on: ubuntu-latest
+  #   steps:
+  #     - name: Configure AWS credentials
+  #       if: matrix.machine == 'macos_intel'
+  #       uses: aws-actions/configure-aws-credentials@v1-node16
+  #       with:
+  #         role-to-assume: ${{ secrets.BENCHMARKS_AWS_ROLE_ARN }}
+  #         aws-region: us-east-1
       
-      - name: pull benchmarks
-        uses: actions/checkout@v3
-        with:
-          repository: ${{ secrets.BENCHMARKS_REPO }}
-          path: "benchmarks"
-          token: ${{ secrets.BENCHMARK_REPO_TOKEN }}
+  #     - name: pull benchmarks
+  #       uses: actions/checkout@v3
+  #       with:
+  #         repository: ${{ secrets.BENCHMARKS_REPO }}
+  #         path: "benchmarks"
+  #         token: ${{ secrets.BENCHMARK_REPO_TOKEN }}
       
-      - name: start gpu instances
-        shell: bash
-        working-directory: ./benchmarks/scripts
-        run: |
-          python3 -m pip install boto3
-          python3 ec2.py start
+  #     - name: start gpu instances
+  #       shell: bash
+  #       working-directory: ./benchmarks/scripts
+  #       run: |
+  #         python3 -m pip install boto3
+  #         python3 ec2.py start
 
   benchmark:
     if: github.event_name == 'push' || (github.event_name == 'pull_request' &&  github.event.label.name == 'run-benchmarks')
@@ -84,7 +84,6 @@ jobs:
         with:
           path: "deeplake"
           ref: "release/3.2.15"
-          
 
       - name: pull benchmarks
         uses: actions/checkout@v3
@@ -139,7 +138,10 @@ jobs:
             /usr/bin/cp report.md   reports/${{ matrix.machine }}/main/report-${{ github.sha }}.md
             /usr/bin/cp report.csv  reports/${{ matrix.machine }}/main/report-${{ github.sha }}.csv
           else
-            mkdir "reports/${{ matrix.machine }}/${GITHUB_REF_NAME/\//-}"
+
+            GITHUB_REF_NAME='release/3.2.15'
+
+            mkdir "reports/${{ matrix.machine }}/${GITHUB_REF_NAME/\//-}" || true
             /usr/bin/cp benchmarks/results.csv "reports/${{ matrix.machine }}/${GITHUB_REF_NAME/\//-}/"
             /usr/bin/cp report.md   "reports/${{ matrix.machine }}/${GITHUB_REF_NAME/\//-}/"
             /usr/bin/cp report.csv  "reports/${{ matrix.machine }}/${GITHUB_REF_NAME/\//-}/"
