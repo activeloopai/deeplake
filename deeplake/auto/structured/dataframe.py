@@ -100,9 +100,7 @@ class DataFrame(StructuredDataset):
     def _parse_tensor_params(self, key, inspect_limit=1000):
         """Parse the tensor parameters for a column. Required parameters that are not specified will be inferred by inspecting up to 'inspect_limit' rows in the data."""
 
-        tensor_params = {}
-
-        tensor_params = self.column_params[key]
+        tensor_params: Dict = self.column_params[key]
 
         dtype = self.source[key].dtype
         if (
