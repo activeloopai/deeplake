@@ -106,7 +106,7 @@ class DataFrame(StructuredDataset):
 
         dtype = self.source[key].dtype
         if (
-            "htype" not in tensor_params.keys()
+            "htype" not in tensor_params
         ):  # Auto-set some typing parameters if htype is not specified
             if dtype == np.dtype("object"):
                 types = [type(v) for v in self.source[key][0:inspect_limit].values]
