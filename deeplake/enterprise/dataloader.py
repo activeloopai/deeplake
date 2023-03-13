@@ -570,9 +570,20 @@ class DeepLakeDataLoader(DataLoader):
 
             tensors = self._tensors or map_tensor_keys(self._orig_dataset, None)
 
-            jpeg_png_compressed_tensors, json_tensors, list_tensors = check_tensors(self._orig_dataset, tensors)
-            raw_tensors, pil_compressed_tensors, json_tensors, list_tensors = validate_decode_method(
-                self._decode_method, tensors, jpeg_png_compressed_tensors, json_tensors, list_tensors
+            jpeg_png_compressed_tensors, json_tensors, list_tensors = check_tensors(
+                self._orig_dataset, tensors
+            )
+            (
+                raw_tensors,
+                pil_compressed_tensors,
+                json_tensors,
+                list_tensors,
+            ) = validate_decode_method(
+                self._decode_method,
+                tensors,
+                jpeg_png_compressed_tensors,
+                json_tensors,
+                list_tensors,
             )
             if deeplake.constants.RETURN_DUMMY_DATA_FOR_DATALOADER:
                 self._dataloader = DummyDataloader(

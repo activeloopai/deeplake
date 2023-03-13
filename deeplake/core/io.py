@@ -287,12 +287,23 @@ class SampleStreaming(Streaming):
         self.decode_method = decode_method
         self.return_index = return_index
 
-        jpeg_png_compressed_tensors, json_tensors, list_tensors = check_tensors(self.dataset, tensors)
-        raw_tensors, compressed_tensors, json_tensors, list_tensors = validate_decode_method(
-            self.decode_method, tensors, jpeg_png_compressed_tensors, json_tensors, list_tensors
+        jpeg_png_compressed_tensors, json_tensors, list_tensors = check_tensors(
+            self.dataset, tensors
+        )
+        (
+            raw_tensors,
+            pil_compressed_tensors,
+            json_tensors,
+            list_tensors,
+        ) = validate_decode_method(
+            self.decode_method,
+            tensors,
+            jpeg_png_compressed_tensors,
+            json_tensors,
+            list_tensors,
         )
         self.raw_tensors = set(raw_tensors)
-        self.compressed_tensors = set(compressed_tensors)
+        self.pil_compressed_tensors = set(pil_compressed_tensors)
 
         self.chunk_engines: ChunkEngineMap = self._map_chunk_engines(self.tensors)
 
@@ -318,7 +329,7 @@ class SampleStreaming(Streaming):
             for keyid, (key, engine) in enumerate(self.chunk_engines.items()):
                 rel_key = key[self._group_index_length :]
                 decompress = key not in self.raw_tensors
-                to_pil = key in self.compressed_tensors
+                to_pil = key in self.pil_compressed_tensors
                 chunk_class = engine.chunk_class
                 try:
                     chunks: List[BaseChunk] = []

@@ -80,7 +80,7 @@ def check_tensors(dataset, tensors):
             list_tensors.append(tensor_name)
 
     if json_tensors or list_tensors:
-        json_list_tensors = set(json_tensors  + list_tensors)
+        json_list_tensors = set(json_tensors + list_tensors)
         warnings.warn(
             f"The following tensors have json or list htype: {json_list_tensors}. Collation of these tensors will fail by default. Ensure that these tensors are either transformed by specifying a transform or a custom collate_fn is specified to handle them."
         )
@@ -88,7 +88,13 @@ def check_tensors(dataset, tensors):
     return jpeg_png_compressed_tensors, json_tensors, list_tensors
 
 
-def validate_decode_method(decode_method, all_tensor_keys, jpeg_png_compressed_tensors, json_tensors, list_tensors):
+def validate_decode_method(
+    decode_method,
+    all_tensor_keys,
+    jpeg_png_compressed_tensors,
+    json_tensors,
+    list_tensors,
+):
     raw_tensors = []
     pil_compressed_tensors = []
     if decode_method is None:
@@ -99,7 +105,7 @@ def validate_decode_method(decode_method, all_tensor_keys, jpeg_png_compressed_t
         return raw_tensors, pil_compressed_tensors, json_tensors, list_tensors
 
     jpeg_png_compressed_tensors_set = set(jpeg_png_compressed_tensors)
-    json_list_tensors_set = set(json_tensors  + list_tensors)
+    json_list_tensors_set = set(json_tensors + list_tensors)
     generic_supported_decode_methods = {"numpy", "tobytes"}
     jpeg_png_supported_decode_methods = {"numpy", "tobytes", "pil"}
     json_list_supported_decode_methods = {"numpy"}
