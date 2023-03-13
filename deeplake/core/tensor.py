@@ -970,7 +970,13 @@ class Tensor:
         dataset_read(self.dataset)
         return ret
 
-    def _extend_links(self, samples, flat: Optional[bool], progressbar: bool = False):
+    def _extend_links(
+        self,
+        samples,
+        flat: Optional[bool],
+        progressbar: bool = False,
+        pad_length: int = 0,
+    ):
         has_shape_tensor = False
         for k, v in self.meta.links.items():
             if flat is None or v["flatten_sequence"] == flat:
@@ -996,7 +1002,10 @@ class Tensor:
                         vs = cast_to_type(vs, dtype)
                     else:
                         vs = [cast_to_type(v, dtype) for v in vs]
-                tensor.extend(vs)
+                if pad_length:
+                    tensor.chunk_engine.pad_and_append(pad_length, vs[0])
+                else:
+                    tensor.extend(vs)
         # if self.meta.is_link and not has_shape_tensor:
         #     func = get_link_transform("extend_shape")
         #     func(samples, tensor_meta=self.meta)

@@ -746,7 +746,12 @@ class ChunkEngine:
             if self.active_appended_chunk:
                 self.write_chunk_to_storage(self.active_appended_chunk)
                 self.active_appended_chunk = None
-        self.extend([value], link_callback=extend_link_callback)
+            if self.active_updated_chunk:
+                self.write_chunk_to_storage(self.active_updated_chunk)
+                self.active_updated_chunk = None
+        self.extend(
+            [value], link_callback=extend_link_callback, link_pad_length=pad_length
+        )
         if pad_length:
             max_shape = self.tensor_meta.max_shape
             if max_shape is not None:
@@ -1030,6 +1035,7 @@ class ChunkEngine:
         samples,
         progressbar: bool = False,
         link_callback: Optional[Callable] = None,
+        link_pad_length: int = 0,
         pg_callback=None,
     ):
         assert not (progressbar and pg_callback)
@@ -1087,6 +1093,7 @@ class ChunkEngine:
                     samples,
                     flat=None,
                     progressbar=progressbar,
+                    pad_length=link_pad_length,
                 )
 
         self.cache.autoflush = initial_autoflush
@@ -1227,21 +1234,31 @@ class ChunkEngine:
                 chunk = self.get_chunk_from_chunk_id(prev_chunk_id, copy=True)
                 enc._encoded[row_index - 1, 1] += 1
             local_sample_index = chunk.num_samples
+            n = chunk.num_samples
+            chunk._update_tensor_meta_length = False
             extended = chunk.extend_if_has_space([None])
-            assert extended
+            if extended != 1:
+                enc._encoded[row_index - 1, 1] -= 1
+                chunk = self._create_new_chunk(row=row_index - 1)
+                row_index += 1
+                enc._encoded[row_index - 1, 1] += 1
+                chunk._update_tensor_meta_length = False
+                chunk.extend_if_has_space([None])
+                local_sample_index = 0
             if enc._encoded[row_index - 1, 1] == enc._encoded[row_index, 1]:
                 if row_index == len(enc._encoded - 1):
                     enc._encoded = enc._encoded[:-1]
                 else:
                     enc._encoded = np.concatenate(
-                        [enc._ecoded[:row_index], enc._encoded[row_index + 1 :]], axis=0
+                        [enc._encoded[:row_index], enc._encoded[row_index + 1 :]],
+                        axis=0,
                     )
+            enc.is_dirty = True
         else:
             chunk = self.get_chunk_from_chunk_id(chunk_id, copy=True)
             local_sample_index = enc.translate_index_relative_to_chunks(
                 global_sample_index
             )
-
         if len(index.values) <= 1 + int(self.is_sequence):
             chunk.update_sample(local_sample_index, sample)
         else:
@@ -1254,11 +1271,11 @@ class ChunkEngine:
         ):
             self.write_chunk_to_storage(self.active_updated_chunk)
         self.active_updated_chunk = chunk
-
         # only care about deltas if it isn't the last chunk
         if chunk.key != self.last_chunk_key:  # type: ignore
             nbytes_after_updates.append(chunk.nbytes)
-        self._check_rechunk(chunk, chunk_row=row_index)
+        if chunk_id:
+            self._check_rechunk(chunk, chunk_row=row_index)
 
     def _pad_and_append(
         self,
@@ -1481,7 +1498,7 @@ class ChunkEngine:
 
     def _try_merge_with_previous_chunk(self, chunk: BaseChunk, row: int) -> bool:
         prev_chunk_id = self.chunk_id_encoder.get_prev_chunk_id(row)
-        if prev_chunk_id is None:
+        if not prev_chunk_id:
             return False
 
         prev_chunk_row = row - 1
@@ -1500,12 +1517,13 @@ class ChunkEngine:
             if prev_chunk_commit_id != self.commit_id:
                 prev_chunk = self.copy_chunk_to_new_commit(prev_chunk, prev_chunk_name)
             # merge with previous chunk
-            return self._merge_chunks(
+            ret = self._merge_chunks(
                 from_chunk=chunk,
                 from_chunk_row=row,
                 to_chunk=prev_chunk,
                 to_chunk_row=prev_chunk_row,
             )
+            return ret
         return False
 
     def _try_merge_with_neighbor_and_split(self, chunk: BaseChunk, row: int):
@@ -1525,7 +1543,6 @@ class ChunkEngine:
 
     def _check_rechunk(self, chunk: BaseChunk, chunk_row: int):
         """function to check if there is a need to re-chunk the current one"""
-
         if self.is_tensor_hidden():
             return
         if (
@@ -2141,9 +2158,20 @@ class ChunkEngine:
     def pop_item(self, global_sample_index):
         enc = self.chunk_id_encoder
         if not self._is_tiled_sample(global_sample_index):
-            local_sample_index = enc.translate_index_relative_to_chunks(
-                global_sample_index
+
+            local_sample_index, chunk_index = enc.translate_index_relative_to_chunks(
+                global_sample_index, return_chunk_index=True
             )
+            if enc._encoded[chunk_index, 0] == 0:
+                enc._encoded[chunk_id, 1] -= 1
+                if chunk_index == 0:
+                    enc._encoded = enc._encoded[1:]
+                else:
+                    enc._encoded = np.concatenate(
+                        [enc._encoded[:chunk_index], enc._encoded[chunk_index + 1]],
+                        axis=0,
+                    )
+                return
         chunk_ids, rows, delete = enc.pop(global_sample_index)
         if len(chunk_ids) > 1:  # Tiled sample, delete all chunks
             pass
@@ -2539,7 +2567,11 @@ class ChunkEngine:
         return ShapeInterval(min_shape, max_shape)
 
     def _transform_callback(
-        self, samples, flat: Optional[bool], progressbar: bool = False
+        self,
+        samples,
+        flat: Optional[bool],
+        progressbar: bool = False,
+        pad_length: int = 0,
     ):
         """Used in transforms to handle linked tensors."""
         for k, v in self.tensor_meta.links.items():
@@ -2567,8 +2599,11 @@ class ChunkEngine:
                     else:
                         vs = [cast_to_type(v, dtype) for v in vs]
                 chunk_engine = self._all_chunk_engines[k]
-                chunk_engine.extend(vs)
-                chunk_engine._transform_callback(vs, flat)
+                if pad_length:
+                    chunk_engine.pad_and_append(pad_length, vs[0])
+                else:
+                    chunk_engine.extend(vs)
+                chunk_engine._transform_callback(vs, flat, pad_length=pad_length)
 
     def get_empty_sample(self):
         if self.num_samples == 0:

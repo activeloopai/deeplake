@@ -49,17 +49,13 @@ class ChunkIdEncoder(Encoder, DeepLakeMemoryObject):
         return len(self._encoded)
 
     def get_next_chunk_id(self, row) -> Optional[str]:
-        if (
-            self.num_chunks is None
-            or self._encoded is None
-            or not row < self.num_chunks - 1
-        ):
+        if not self.num_chunks or not row < self.num_chunks - 1:
             return None
 
         return self._encoded[row + 1][0]
 
     def get_prev_chunk_id(self, row) -> Optional[str]:
-        if self.num_chunks is None or self._encoded is None or row == 0:
+        if not self.num_chunks or row == 0:
             return None
 
         return self._encoded[row - 1][0]
@@ -155,7 +151,9 @@ class ChunkIdEncoder(Encoder, DeepLakeMemoryObject):
 
         super().register_samples(None, num_samples, row=row)
 
-    def translate_index_relative_to_chunks(self, global_sample_index: int) -> int:
+    def translate_index_relative_to_chunks(
+        self, global_sample_index: int, return_chunk_index=False
+    ) -> int:
         """Converts `global_sample_index` into a new index that is relative to the chunk the sample belongs to.
 
         Example:
@@ -194,7 +192,10 @@ class ChunkIdEncoder(Encoder, DeepLakeMemoryObject):
         current_entry = self._encoded[chunk_index - 1]  # type: ignore
         last_num_samples = current_entry[LAST_SEEN_INDEX_COLUMN] + 1
 
-        return int(global_sample_index - last_num_samples)
+        ret = int(global_sample_index - last_num_samples)
+        if return_chunk_index:
+            return ret, chunk_index
+        return ret
 
     def _validate_incoming_item(self, _, num_samples: int):
         if num_samples < 0:
