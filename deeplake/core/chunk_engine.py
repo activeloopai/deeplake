@@ -740,7 +740,9 @@ class ChunkEngine:
                 enc._encoded = arr
             self.tensor_meta.length += pad_length
             self.commit_diff.add_data(pad_length)
-
+            creds_enc = self.creds_encoder
+            if creds_enc:
+                creds_enc.register_samples((0,), pad_length)
         self.extend([value], link_callback=extend_link_callback)
         if pad_length:
             max_shape = self.tensor_meta.max_shape
@@ -1842,8 +1844,8 @@ class ChunkEngine:
         chunk = self.get_chunk_from_chunk_id(
             chunk_id, partial_chunk_bytes=worst_case_header_size
         )
-        if not chunk:
-            return np.empty((0,), dtype=self.tensor_meta.dtype)
+        if chunk is None:
+            return self._get_indexed_empty_sample(index)
         ret = chunk.read_sample(
             local_sample_index,
             cast=self.tensor_meta.htype != "dicom",
@@ -1886,15 +1888,28 @@ class ChunkEngine:
         sample = sample[sample_index]
         return sample
 
+    def _get_indexed_empty_sample(self, index):
+        if self.is_text_like:
+            htype = self.tensor_meta.htype
+            if htype == "json":
+                ret = np.empty(1, dtype=object)
+                ret[0] = {}
+            elif htype == "list":
+                ret = np.empty(0, dtype=object)
+            else:
+                ret = np.empty(1, dtype=object)
+                ret[0] = ""
+            return ret
+        else:
+            return np.empty(
+                (0,) * len(self.tensor_meta.min_shape), dtype=self.tensor_meta.dtype
+            )
+
     def get_single_sample(
         self, global_sample_index, index, fetch_chunks=False, pad_tensor=False
     ):
         if pad_tensor and global_sample_index >= self.tensor_meta.length:
-            sample = self.get_empty_sample()
-            try:
-                return sample[tuple(entry.value for entry in index.values[1:])]
-            except IndexError:
-                return sample
+            return self._get_indexed_empty_sample(index)
 
         if not self._is_tiled_sample(global_sample_index):
             sample = self.get_non_tiled_sample(

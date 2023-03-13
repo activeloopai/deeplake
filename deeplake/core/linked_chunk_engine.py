@@ -209,8 +209,8 @@ class LinkedChunkEngine(ChunkEngine):
 
     def get_basic_sample(self, global_sample_index, index, fetch_chunks=False):
         sample = self.get_deeplake_read_sample(global_sample_index, fetch_chunks)
-        if sample is None:
-            return np.ones((0,))
+        if not sample:
+            return np.empty((0,))
         arr = sample.array
         max_shape = self.tensor_meta.max_shape
         if len(arr.shape) == 2 and max_shape and len(max_shape) == 3:
@@ -218,9 +218,12 @@ class LinkedChunkEngine(ChunkEngine):
         return arr[tuple(entry.value for entry in index.values[1:])]
 
     def get_path(self, global_sample_index, fetch_chunks=False) -> str:
-        return super().get_basic_sample(
+        ret = super().get_basic_sample(
             global_sample_index, Index(global_sample_index), fetch_chunks
         )[0]
+        if not ret:
+            return None
+        return ret
 
     def get_deeplake_read_sample(self, global_sample_index, fetch_chunks=False):
         creds_encoder = self.creds_encoder
