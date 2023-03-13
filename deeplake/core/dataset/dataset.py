@@ -520,7 +520,9 @@ class Dataset:
                     for x in item
                 ]
                 for x in enabled_tensors:
-                    enabled_tensors.extend(self[x].meta.links.keys())
+                    enabled_tensors.extend(
+                        self[posixpath.relpath(x, self.group_index)].meta.links.keys()
+                    )
                 ret = self.__class__(
                     storage=self.storage,
                     index=self.index,
