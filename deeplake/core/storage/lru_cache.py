@@ -6,6 +6,14 @@ from deeplake.core.chunk.base_chunk import BaseChunk
 from typing import Any, Dict, Optional, Union
 
 from deeplake.core.storage.provider import StorageProvider
+try:
+    import aioboto3  # type: ignore
+    import asyncio  # type: ignore
+    import nest_asyncio  # type: ignore
+
+    nest_asyncio.apply()  # needed to run asyncio in jupyter notebook
+except ImportError:
+    ASYNC_INSTALLED = False
 
 
 def _get_nbytes(obj: Union[bytes, memoryview, DeepLakeMemoryObject]):
@@ -57,7 +65,7 @@ class LRUCache(StorageProvider):
 
         self.cache_used = 0
         self.deeplake_objects: Dict[str, DeepLakeMemoryObject] = {}
-        self.supports_async = sys.version_info >= (3, 7) and sys.platform != "win32"
+        self.use_async = sys.version_info >= (3, 7) and sys.platform != "win32" and ASYNC_INSTALLED
 
     def register_deeplake_object(self, path: str, obj: DeepLakeMemoryObject):
         """Registers a new object in the cache."""
@@ -93,7 +101,7 @@ class LRUCache(StorageProvider):
                 obj.is_dirty = False
 
         if self.dirty_keys:
-            if hasattr(self.next_storage, "set_items") and self.supports_async:
+            if hasattr(self.next_storage, "set_items") and self.use_async:
                 d = {
                     key: obj_to_bytes(self.cache_storage[key])
                     for key in self.dirty_keys
