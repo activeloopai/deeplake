@@ -187,6 +187,8 @@ class ChunkIdEncoder(Encoder, DeepLakeMemoryObject):
         chunk_index = ls[0][1]
 
         if chunk_index == 0:
+            if return_chunk_index:
+                return global_sample_index, 0
             return global_sample_index
 
         current_entry = self._encoded[chunk_index - 1]  # type: ignore
