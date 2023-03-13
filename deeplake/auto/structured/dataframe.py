@@ -83,13 +83,11 @@ class DataFrame(StructuredDataset):
     def _parse_tensor_params(self, key, inspect_limit=1000):
         """Parse the tensor parameters for a column. Required parameters that are not specified will be inferred by inspecting up to 'inspect_limit' rows in the data."""
 
-        tensor_params = {}
-
-        tensor_params = self.column_params[key]
+        tensor_params: Dict = self.column_params[key]
 
         dtype = self.source[key].dtype
         if (
-            "htype" not in tensor_params.keys()
+            "htype" not in tensor_params
         ):  # Auto-set some typing parameters if htype is not specified
             if dtype == np.dtype("object"):
                 types = [type(v) for v in self.source[key][0:inspect_limit].values]
@@ -112,8 +110,8 @@ class DataFrame(StructuredDataset):
         # TODO: Make this more robust so it works for all htypes where sample_compression is required and should be inferred from the data itself
         if (
             "image" in tensor_params.get("htype", "")
-            and "sample_compression" not in tensor_params.keys()
-            and "chunk_compression" not in tensor_params.keys()
+            and "sample_compression" not in tensor_params
+            and "chunk_compression" not in tensor_params
         ):
             tensor_params.update(
                 sample_compression=self._get_most_frequent_image_extension(
@@ -128,12 +126,12 @@ class DataFrame(StructuredDataset):
 
         extend_values: List[Optional[Union[Sample, LinkedSample, np.ndarray]]]
 
-        if "htype" in tensor_params.keys() and "link[" in tensor_params["htype"]:
+        if "htype" in tensor_params and "link[" in tensor_params["htype"]:
             extend_values = [
                 link(value, creds_key=self.creds_key) if value is not None else None
                 for value in self.source[key].values
             ]
-        elif "htype" in tensor_params.keys() and "image" in tensor_params["htype"]:
+        elif "htype" in tensor_params and "image" in tensor_params["htype"]:
             extend_values = [
                 read(value, creds=self.creds) if value is not None else None
                 for value in self.source[key].values
