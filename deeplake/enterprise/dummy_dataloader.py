@@ -17,11 +17,11 @@ def identity(x):
     return x
 
 
-def get_mode(tensor, raw_tensors, compressed_tensors):
-    if tensor in raw_tensors:
+def get_mode(tensor, raw_tensors, pil_compressed_tensors):
+    if tensor in pil_compressed_tensors:
+        mode = "pil"
+    elif tensor in raw_tensors:
         mode = "raw"
-    elif tensor in compressed_tensors:
-        mode = "compressed"
     else:
         mode = "numpy"
     return mode
@@ -96,7 +96,7 @@ class DummyTensor:
             return data
         elif mode == "raw":
             return compress_array(data, compression)
-        elif self.mode == "compressed":
+        elif self.mode == "pil":
             return Image.fromarray(data)
 
     def __getitem__(self, index):
@@ -112,12 +112,12 @@ class DummyDataset:
         upcast,
         return_index,
         raw_tensors,
-        compressed_tensors,
+        pil_compressed_tensors,
     ):
         self.tensors = {}
         self.length = len(deeplake_dataset)
         for tensor in tensors:
-            mode = get_mode(tensor, raw_tensors, compressed_tensors)
+            mode = get_mode(tensor, raw_tensors, pil_compressed_tensors)
             self.tensors[tensor] = DummyTensor(deeplake_dataset, tensor, mode)
         self.upcast = upcast
         self.return_index = return_index
@@ -157,7 +157,7 @@ class DummyDataloader:
         upcast,
         return_index,
         raw_tensors,
-        compressed_tensors,
+        pil_compressed_tensors,
         persistent_workers,
     ):
         self.dataset = DummyDataset(
@@ -167,7 +167,7 @@ class DummyDataloader:
             upcast,
             return_index,
             raw_tensors,
-            compressed_tensors,
+            pil_compressed_tensors,
         )
         sampler = DistributedSampler(self.dataset) if distributed else None
         prefetch_factor = prefetch_factor if num_workers and num_workers > 0 else 2

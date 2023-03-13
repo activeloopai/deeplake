@@ -570,11 +570,10 @@ class DeepLakeDataLoader(DataLoader):
 
             tensors = self._tensors or map_tensor_keys(self._orig_dataset, None)
 
-            jpeg_png_compressed_tensors = check_tensors(self._orig_dataset, tensors)
-            raw_tensors, compressed_tensors = validate_decode_method(
-                self._decode_method, tensors, jpeg_png_compressed_tensors
+            jpeg_png_compressed_tensors, json_tensors, list_tensors = check_tensors(self._orig_dataset, tensors)
+            raw_tensors, pil_compressed_tensors, json_tensors, list_tensors = validate_decode_method(
+                self._decode_method, tensors, jpeg_png_compressed_tensors, json_tensors, list_tensors
             )
-            raw_tensors.extend(compressed_tensors)
             if deeplake.constants.RETURN_DUMMY_DATA_FOR_DATALOADER:
                 self._dataloader = DummyDataloader(
                     deeplake_dataset=self._orig_dataset,
@@ -590,10 +589,13 @@ class DeepLakeDataLoader(DataLoader):
                     upcast=upcast,
                     return_index=self._return_index,
                     raw_tensors=raw_tensors,
-                    compressed_tensors=compressed_tensors,
+                    pil_compressed_tensors=pil_compressed_tensors,
                     persistent_workers=self._persistent_workers,
                 )
             else:
+                raw_tensors.extend(pil_compressed_tensors)
+                raw_tensors.extend(json_tensors)
+                raw_tensors.extend(list_tensors)
                 dataset = dataset_to_libdeeplake(self._orig_dataset)
                 self._dataloader = INDRA_LOADER(
                     dataset,
@@ -612,7 +614,9 @@ class DeepLakeDataLoader(DataLoader):
                     primary_tensor=primary_tensor_name,
                     buffer_size=buffer_size,
                     raw_tensors=raw_tensors,
-                    compressed_tensors=compressed_tensors,
+                    pil_compressed_tensors=pil_compressed_tensors,
+                    json_tensors=json_tensors,
+                    list_tensors=list_tensors,
                     persistent_workers=self._persistent_workers,
                 )
         dataset_read(self._orig_dataset)

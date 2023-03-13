@@ -287,9 +287,9 @@ class SampleStreaming(Streaming):
         self.decode_method = decode_method
         self.return_index = return_index
 
-        jpeg_png_compressed_tensors = check_tensors(self.dataset, tensors)
-        raw_tensors, compressed_tensors = validate_decode_method(
-            self.decode_method, tensors, jpeg_png_compressed_tensors
+        jpeg_png_compressed_tensors, json_tensors, list_tensors = check_tensors(self.dataset, tensors)
+        raw_tensors, compressed_tensors, json_tensors, list_tensors = validate_decode_method(
+            self.decode_method, tensors, jpeg_png_compressed_tensors, json_tensors, list_tensors
         )
         self.raw_tensors = set(raw_tensors)
         self.compressed_tensors = set(compressed_tensors)
