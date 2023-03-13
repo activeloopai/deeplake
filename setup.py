@@ -85,9 +85,6 @@ def get_property(prop):
     return result.group(1)
 
 
-install_requires.append("hub>=2.8.7")
-
-
 config = {
     "name": project_name,
     "version": get_property("__version__"),
