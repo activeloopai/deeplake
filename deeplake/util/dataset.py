@@ -27,6 +27,7 @@ def map_tensor_keys(dataset, tensor_keys: Optional[Sequence[str]] = None) -> Lis
     return [tensors[k].meta.name or tensors[k].key for k in tensor_keys]
 
 
+_invalid_chars = {"[", "]", "@", ".", ",", "?", "!", "/", "\\", "#", "'", '"'}
 def sanitize_tensor_name(input: str) -> str:
     """Sanitize a string to be a valid tensor name
 
@@ -36,10 +37,4 @@ def sanitize_tensor_name(input: str) -> str:
     Returns:
         str: A string with the sanitized tensor name
     """
-
-    invalid_chars = ["[", "]", "@", ".", ",", "?", "!", "/", "\\", "#", "'", '"']
-    new_char = "_"
-    for char in invalid_chars:
-        input = input.replace(char, new_char)
-
-    return input
+    return "".join("_" if c in invalid_chars else c for c in input)
