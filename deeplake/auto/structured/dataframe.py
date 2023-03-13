@@ -150,7 +150,7 @@ class DataFrame(StructuredDataset):
                 link(value, creds_key=self.creds_key) if value is not None else None
                 for value in self.source[key].values
             ]
-        elif "htype" in tensor_params.keys() and "image" in tensor_params["htype"]:
+        elif "htype" in tensor_params and "image" in tensor_params["htype"]:
             extend_values = [
                 read(value, creds=self.creds) if value is not None else None
                 for value in self.source[key].values
