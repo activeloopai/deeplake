@@ -743,6 +743,9 @@ class ChunkEngine:
             creds_enc = self.creds_encoder
             if creds_enc:
                 creds_enc.register_samples((0,), pad_length)
+            if self.active_appended_chunk:
+                self.write_chunk_to_storage(self.active_appended_chunk)
+                self.active_appended_chunk = None
         self.extend([value], link_callback=extend_link_callback)
         if pad_length:
             max_shape = self.tensor_meta.max_shape
@@ -1250,7 +1253,7 @@ class ChunkEngine:
             and self.active_updated_chunk.key != chunk.key  # type: ignore
         ):
             self.write_chunk_to_storage(self.active_updated_chunk)
-            self.active_updated_chunk = chunk
+        self.active_updated_chunk = chunk
 
         # only care about deltas if it isn't the last chunk
         if chunk.key != self.last_chunk_key:  # type: ignore
