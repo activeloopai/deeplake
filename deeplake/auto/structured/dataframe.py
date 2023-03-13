@@ -40,23 +40,6 @@ class DataFrame(StructuredDataset):
         self.creds_key = creds_key
         self._initialize_params(column_params)
 
-    # def _sanitize_tensor(self, input: str):
-    #     """Sanitize a string to be a valid tensor name
-
-    #     Args:
-    #         input (str): A string that will be sanitized
-
-    #     Returns:
-    #         str: A string with the sanitized tensor name
-    #     """
-
-    #     invalid_chars = ["[", "]", "@", ".", ",", "?", "!", "/", "\\", "#", "'", '"']
-    #     new_char = "_"
-    #     for char in invalid_chars:
-    #         input = input.replace(char, new_char)
-
-    #     return input
-
     def _initialize_params(self, column_params):
         column_params = column_params if column_params is not None else {}
 
