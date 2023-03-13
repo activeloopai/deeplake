@@ -68,6 +68,8 @@ ENCODED_TILE_NAMES_FOLDER = "tiles_index"
 ENCODED_CREDS_FOLDER = "creds_index"
 ENCODED_CHUNK_NAMES_FOLDER = "chunks_index"
 ENCODED_SEQUENCE_NAMES_FOLDER = "sequence_index"
+ENCODED_PAD_NAMES_FOLDER = "pad_index"
+
 # unsharded naming will help with backwards compatibility
 UNSHARDED_ENCODER_FILENAME = "unsharded"
 

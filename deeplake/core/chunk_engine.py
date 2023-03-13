@@ -61,6 +61,7 @@ from deeplake.core.fast_forwarding import ffw_chunk_id_encoder
 from deeplake.core.index.index import Index, IndexEntry
 from deeplake.core.meta.encode.chunk_id import CHUNK_ID_COLUMN, ChunkIdEncoder
 from deeplake.core.meta.encode.sequence import SequenceEncoder
+from deeplake.core.meta.encode.pad import PadEncoder
 from deeplake.core.meta.tensor_meta import TensorMeta
 from deeplake.core.storage.lru_cache import LRUCache
 from deeplake.util.casting import get_dtype, get_htype
@@ -184,6 +185,9 @@ class ChunkEngine:
 
         self._sequence_encoder: Optional[SequenceEncoder] = None
         self._sequence_encoder_commit_id: Optional[str] = None
+
+        self._pad_encoder: Optional[PadEncoder] = None
+        self._pad_encoder_commit_id: Optional[str] = None
 
         self._tile_encoder: Optional[TileEncoder] = None
         self._tile_encoder_commit_id: Optional[str] = None
@@ -1212,13 +1216,13 @@ class ChunkEngine:
         self.check_link_ready()
         self.start_chunk = self.last_appended_chunk()  # type: ignore
         update_first_sample = False
+        num_samples = self.num_samples
         if num_samples_to_pad > 0:
-            if self.num_samples == 0:
+            if num_samples == 0:
                 # set htype, dtype, shape, we later update it with empty sample
                 self.extend([value], link_callback=extend_link_callback)
                 num_samples_to_pad -= 1
                 update_first_sample = True
-
             htype = self.tensor_meta.htype
             if htype in ("json", "text", "list"):
                 empty_sample = get_empty_text_like_sample(htype)
@@ -1237,10 +1241,10 @@ class ChunkEngine:
 
             if update_first_sample:
                 self.update(Index(0), empty_sample, link_callback=update_link_callback)
-
+            self.pad_encoder
             # pad
             self.extend(empty_samples, link_callback=extend_link_callback)
-
+            self.pad_encoder.add_padding(num_samples, num_samples_to_pad)
         self.extend([value], link_callback=extend_link_callback)
 
     def update(
@@ -2121,6 +2125,21 @@ class ChunkEngine:
             return False
 
     @property
+    def pad_encoder_exists(self) -> bool:
+        commit_id = self.commit_id
+        if (
+            self._pad_encoder is not None
+            and self._pad_encoder_commit_id == commit_id
+        ):
+            return True
+        try:
+            key = get_pad_encoder_key(self.key, commit_id)
+            self.meta_cache[key]
+            return True
+        except KeyError:
+            return False
+
+    @property
     def _sequence_length(self):
         return self.sequence_encoder.num_samples
 
@@ -2156,6 +2175,31 @@ class ChunkEngine:
             self._sequence_encoder_commit_id = commit_id
             self.meta_cache.register_deeplake_object(key, enc)
         return self._sequence_encoder
+
+
+    @property
+    def pad_encoder(self) -> PadEncoder:
+
+        commit_id = self.commit_id
+        if (
+            self._pad_encoder is None
+            or self._pad_encoder_commit_id != commit_id
+        ):
+            commit_id = self.commit_id
+            key = get_pad_encoder_key(self.key, commit_id)
+            if not self.pad_encoder_exists:
+                enc = padEncoder()
+                try:
+                    self.meta_cache[key] = enc
+                except ReadOnlyModeError:
+                    pass
+            else:
+                enc = self.meta_cache.get_deeplake_object(key, PadEncoder)
+            self._pad_encoder = enc
+            self._pad_encoder_commit_id = commit_id
+            self.meta_cache.register_deeplake_object(key, enc)
+        return self._pad_encoder
+
 
     def _sequence_numpy(
         self,

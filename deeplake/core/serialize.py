@@ -402,6 +402,21 @@ def serialize_sequence_or_creds_encoder(version: str, enc: np.ndarray) -> bytes:
     return len(version).to_bytes(1, "little") + version.encode("ascii") + enc.tobytes()
 
 
+def serialize_pad_encoder(version: str, enc: np.ndarray) -> bytes:
+    return len(version).to_bytes(1, "little") + version.encode("ascii") + enc.tobytes()
+
+
+def deserialize_pad_encoder(version: str, enc: np.ndarray) -> Tuple[str, np.ndarray]:
+    byts = memoryview(byts)
+    len_version = byts[0]
+    version = str(byts[1 : 1 + len_version], "ascii")
+    enc = (
+        np.frombuffer(byts[1 + len_version :], dtype=deeplake.constants.ENCODING_DTYPE)
+        .reshape(-1, 1)
+        .copy()
+    )
+    return version, enc
+
 def deserialize_sequence_or_creds_encoder(
     byts: Union[bytes, memoryview], enc_type: str
 ) -> Tuple[str, np.ndarray]:
