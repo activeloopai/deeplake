@@ -250,6 +250,7 @@ class ChunkEngine:
             and tensor_meta.max_shape
             and (tensor_meta.max_shape == tensor_meta.min_shape)
             and (np.prod(tensor_meta.max_shape) < 20)
+            and np.all(self.chunk_id_encoder._encoded[:, 0])
         )
 
     @property
@@ -527,7 +528,7 @@ class ChunkEngine:
 
     def last_appended_chunk(self) -> Optional[BaseChunk]:
         last_index = self.num_samples - 1
-        
+
         if self.num_chunks == 0 or last_index in self.tile_encoder:
             return None
         last_appended_chunk_id = self.last_appended_chunk_id
@@ -728,18 +729,23 @@ class ChunkEngine:
         value,
         extend_link_callback=None,
     ):
-        enc = self.chunk_id_encoder
-        arr = np.zeros((1, 2), dtype=enc._encoded.dtype)
+        if pad_length:
+            enc = self.chunk_id_encoder
+            arr = np.zeros((1, 2), dtype=enc._encoded.dtype)
+            if enc.num_samples:
+                arr[0, 1] = enc._encoded[-1, 1] + pad_length
+                enc._encoded = np.concatenate([enc._encoded, arr], axis=0)
+            else:
+                arr[0, 1] = pad_length - 1
+                enc._encoded = arr
+            self.tensor_meta.length += pad_length
+            self.commit_diff.add_data(pad_length)
 
-        if enc.num_samples:
-            arr[0, 1] = enc._encoded[-1, 1] + pad_length
-            enc._encoded = np.concatenate([enc._encoded, arr], axis=0)
-        else:
-            arr[0, 1] = pad_length - 1
-            enc._encoded = arr
-        self.tensor_meta.length += pad_length
-        self.commit_diff.add_data(pad_length)
         self.extend([value], link_callback=extend_link_callback)
+        if pad_length:
+            max_shape = self.tensor_meta.max_shape
+            if max_shape is not None:
+                self.tensor_meta.min_shape = [0] * len(max_shape)
 
     def _samples_to_chunks(
         self,
@@ -1203,8 +1209,33 @@ class ChunkEngine:
         self, global_sample_index: int, index: Index, sample, nbytes_after_updates
     ):
         enc = self.chunk_id_encoder
-        chunk = self.get_chunks_for_sample(global_sample_index, copy=True)[0]
-        local_sample_index = enc.translate_index_relative_to_chunks(global_sample_index)
+        chunk_id, row_index = enc.__getitem__(
+            global_sample_index, return_row_index=True
+        )[0]
+        if chunk_id == 0:
+            if row_index == 0:
+                chunk = self._create_new_chunk(register=False)
+                chunk_id = chunk.id
+                enc._encoded = np.insert(enc._encoded, 0, [chunk_id, 0], axis=0)
+            else:
+                prev_chunk_id = enc._encoded[row_index - 1, 0]
+                chunk = self.get_chunk_from_chunk_id(prev_chunk_id, copy=True)
+                enc._encoded[row_index - 1, 1] += 1
+            local_sample_index = chunk.num_samples
+            extended = chunk.extend_if_has_space([None])
+            assert extended
+            if enc._encoded[row_index - 1, 1] == enc._encoded[row_index, 1]:
+                if row_index == len(enc._encoded - 1):
+                    enc._encoded = enc._encoded[:-1]
+                else:
+                    enc._encoded = np.concatenate(
+                        [enc._ecoded[:row_index], enc._encoded[row_index + 1 :]], axis=0
+                    )
+        else:
+            chunk = self.get_chunk_from_chunk_id(chunk_id, copy=True)
+            local_sample_index = enc.translate_index_relative_to_chunks(
+                global_sample_index
+            )
 
         if len(index.values) <= 1 + int(self.is_sequence):
             chunk.update_sample(local_sample_index, sample)
@@ -1217,14 +1248,12 @@ class ChunkEngine:
             and self.active_updated_chunk.key != chunk.key  # type: ignore
         ):
             self.write_chunk_to_storage(self.active_updated_chunk)
-        self.active_updated_chunk = chunk
+            self.active_updated_chunk = chunk
 
         # only care about deltas if it isn't the last chunk
         if chunk.key != self.last_chunk_key:  # type: ignore
             nbytes_after_updates.append(chunk.nbytes)
-        self._check_rechunk(
-            chunk, chunk_row=enc.__getitem__(global_sample_index, True)[0][1]
-        )
+        self._check_rechunk(chunk, chunk_row=row_index)
 
     def _pad_and_append(
         self,
@@ -1419,7 +1448,7 @@ class ChunkEngine:
 
     def _try_merge_with_next_chunk(self, chunk: BaseChunk, row: int) -> bool:
         next_chunk_id = self.chunk_id_encoder.get_next_chunk_id(row)
-        if next_chunk_id is None:
+        if not next_chunk_id:
             return False
         next_chunk_row = row + 1
         if self._is_tiled(next_chunk_row):
