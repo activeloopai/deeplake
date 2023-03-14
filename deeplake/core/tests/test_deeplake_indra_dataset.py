@@ -3,6 +3,7 @@ import numpy as np
 from deeplake.tests.common import requires_libdeeplake
 from deeplake.core.dataset.deeplake_query_dataset import DeepLakeQueryDataset
 import random
+import pytest
 
 
 @requires_libdeeplake
@@ -91,17 +92,21 @@ def test_load_view(local_ds_generator):
     indra_ds = dataset_to_libdeeplake(deeplake_ds)
     deeplake_indra_ds = DeepLakeQueryDataset(deeplake_ds=deeplake_ds, indra_ds=indra_ds)
 
+    with pytest.raises(Exception):
+        dataloader = deeplake_indra_ds.pytorch()
+
     query_str = "select * group by label"
     view = deeplake_ds.query(query_str)
     view_path = view.save_view()
     view_id = view_path.split("/")[-1]
     view = deeplake_ds.load_view(view_id)
 
-    dataloader = view[:3].pytorch()
+    dataloader = view[:3].dataloader().pytorch()
     iss = []
     for i, batch in enumerate(dataloader):
         iss.append(i)
 
+    assert iss == [0, 1, 2]
     assert np.all(indra_ds.image.numpy() == deeplake_indra_ds.image.numpy())
 
 
@@ -148,6 +153,7 @@ def test_metadata(local_ds_generator):
         deeplake_ds.create_tensor(
             "image", htype="image", dtype=np.uint8, sample_compression="jpeg"
         )
+        deeplake_ds.create_tensor("none_metadata")
         deeplake_ds.create_tensor(
             "sequence", htype="sequence[class_label]", dtype=np.uint8
         )
@@ -163,6 +169,9 @@ def test_metadata(local_ds_generator):
     assert deeplake_indra_ds.sequence.htype == "sequence[class_label]"
     assert deeplake_indra_ds.sequence.dtype == "uint8"
     assert deeplake_indra_ds.sequence.sample_compression == None
+    assert deeplake_indra_ds.none_metadata.htype == None
+    assert deeplake_indra_ds.none_metadata.dtype == None
+    assert deeplake_indra_ds.none_metadata.sample_compression == None
 
 
 @requires_libdeeplake
