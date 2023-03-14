@@ -77,6 +77,24 @@ class DeepLakeQueryTensor(tensor.Tensor):
         return self.indra_tensor.bytes()
 
     @property
+    def dtype(self):
+        return self.indra_tensor.dtype
+
+    @property
+    def htype(self):
+        if self.indra_tensor.is_sequence:
+            return f"sequence[{self.indra_tensor.htype}]"
+        return self.indra_tensor.htype
+
+    @property
+    def sample_compression(self):
+        return self.indra_tensor.sample_compression
+
+    @property
+    def chunk_compression(self):
+        return None
+
+    @property
     def num_samples(self):
         return len(self.indra_tensor)
 
@@ -116,11 +134,6 @@ class DeepLakeQueryTensor(tensor.Tensor):
     @property
     def ndim(self):
         return len(self.max_shape)
-
-    @property
-    def htype(self):
-        """Htype of the tensor."""
-        htype = self.indra_tensor.htype
 
     @property
     def meta(self):

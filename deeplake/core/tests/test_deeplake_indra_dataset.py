@@ -139,18 +139,30 @@ def test_query(local_ds_generator):
 
 
 @requires_libdeeplake
-def test_copy():
-    pass
+def test_metadata(local_ds_generator):
+    from deeplake.enterprise.convert_to_libdeeplake import dataset_to_libdeeplake
 
+    deeplake_ds = local_ds_generator()
+    with deeplake_ds:
+        deeplake_ds.create_tensor("label", htype="generic", dtype=np.int32)
+        deeplake_ds.create_tensor(
+            "image", htype="image", dtype=np.uint8, sample_compression="jpeg"
+        )
+        deeplake_ds.create_tensor(
+            "sequence", htype="sequence[class_label]", dtype=np.uint8
+        )
 
-@requires_libdeeplake
-def test_optimize_views():
-    pass
-
-
-@requires_libdeeplake
-def test_parallel_computing():
-    pass
+    indra_ds = dataset_to_libdeeplake(deeplake_ds)
+    deeplake_indra_ds = DeepLakeQueryDataset(deeplake_ds=deeplake_ds, indra_ds=indra_ds)
+    assert deeplake_indra_ds.label.htype == "generic"
+    assert deeplake_indra_ds.label.dtype == "int32"
+    assert deeplake_indra_ds.label.sample_compression == None
+    assert deeplake_indra_ds.image.htype == "image"
+    assert deeplake_indra_ds.image.dtype == "uint8"
+    assert deeplake_indra_ds.image.sample_compression == "jpg"
+    assert deeplake_indra_ds.sequence.htype == "sequence[class_label]"
+    assert deeplake_indra_ds.sequence.dtype == "uint8"
+    assert deeplake_indra_ds.sequence.sample_compression == None
 
 
 @requires_libdeeplake
