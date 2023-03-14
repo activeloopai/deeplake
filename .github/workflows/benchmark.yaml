@@ -16,11 +16,10 @@ on:
     branches:
       - "main"
       - "release/**"
-      - "add-benchmarks"
 
-# concurrency:
-#   group: ${{ github.workflow }}-${{ github.head_ref || github.ref_name }}
-#   cancel-in-progress: true
+concurrency:
+  group: ${{ github.workflow }}-${{ github.head_ref || github.ref_name }}
+  cancel-in-progress: true
 
 jobs:
   remove_label:
@@ -57,7 +56,6 @@ jobs:
         uses: actions/checkout@v3
         with:
           path: "deeplake"
-          ref: "release/3.2.15"
 
       - name: pull benchmarks
         uses: actions/checkout@v3
@@ -114,9 +112,6 @@ jobs:
             cp report.md   reports/${{ matrix.machine }}/main/report-${{ github.sha }}.md
             cp report.csv  reports/${{ matrix.machine }}/main/report-${{ github.sha }}.csv
           else
-
-            GITHUB_REF_NAME='release/3.2.15'
-
             mkdir "reports/${{ matrix.machine }}/${GITHUB_REF_NAME/\//-}" || true
             cp benchmarks/results.csv "reports/${{ matrix.machine }}/${GITHUB_REF_NAME/\//-}/"
             cp report.md   "reports/${{ matrix.machine }}/${GITHUB_REF_NAME/\//-}/"
@@ -124,7 +119,6 @@ jobs:
             cp benchmarks/results.csv "reports/${{ matrix.machine }}/latest/"
             cp report.md   "reports/${{ matrix.machine }}/latest/"
             cp report.csv  "reports/${{ matrix.machine }}/latest/"
-            
           fi
 
           cd reports
@@ -133,7 +127,7 @@ jobs:
           git add .
           git commit -m "Becnhmark report for ${GITHUB_REF_NAME}"
           git push origin main 
-      
+
       - name: notify
         if: github.event_name == 'push'
         shell: bash
@@ -150,7 +144,7 @@ jobs:
         with:
           filePath: ./report.md
 
-      - name: fail if needed
+      - name: fail
         shell: bash
         run: |
           if [ -s /tmp/failed_datasets.txt ]
