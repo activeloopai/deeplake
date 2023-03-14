@@ -150,6 +150,7 @@ jobs:
           if [ -s /tmp/failed_datasets.txt ]
           then
             cat /tmp/failed_datasets.txt
+            rm  /tmp/failed_datasets.txt
             exit 1
           fi
           exit 0
