@@ -48,7 +48,7 @@ class DataFrame(StructuredDataset):
                 if "name" not in params:
                     params["name"] = sanitize_tensor_name(key)
             else:
-                 column_params[key] = {"name": sanitize_tensor_name(key)}
+                column_params[key] = {"name": sanitize_tensor_name(key)}
         self.column_params = column_params
 
     def _get_most_frequent_image_extension(self, fn_iterator):
