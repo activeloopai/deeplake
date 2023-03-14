@@ -161,13 +161,13 @@ def test_metadata(local_ds_generator):
     indra_ds = dataset_to_libdeeplake(deeplake_ds)
     deeplake_indra_ds = DeepLakeQueryDataset(deeplake_ds=deeplake_ds, indra_ds=indra_ds)
     assert deeplake_indra_ds.label.htype == "generic"
-    assert deeplake_indra_ds.label.dtype == "int32"
+    assert deeplake_indra_ds.label.dtype == np.int32
     assert deeplake_indra_ds.label.sample_compression == None
     assert deeplake_indra_ds.image.htype == "image"
-    assert deeplake_indra_ds.image.dtype == "uint8"
+    assert deeplake_indra_ds.image.dtype == np.uint8
     assert deeplake_indra_ds.image.sample_compression == "jpg"
     assert deeplake_indra_ds.sequence.htype == "sequence[class_label]"
-    assert deeplake_indra_ds.sequence.dtype == "uint8"
+    assert deeplake_indra_ds.sequence.dtype == np.uint8
     assert deeplake_indra_ds.sequence.sample_compression == None
     assert deeplake_indra_ds.none_metadata.htype == None
     assert deeplake_indra_ds.none_metadata.dtype == None
