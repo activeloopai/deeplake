@@ -62,7 +62,7 @@ class DeepLakeQueryTensor(tensor.Tensor):
         indra_tensor = self.indra_tensor[item]
 
         return DeepLakeQueryTensor(
-            self.deeplake_tensor[item],
+            self.deeplake_tensor,
             indra_tensor,
             is_iteration=is_iteration,
             key=key,
