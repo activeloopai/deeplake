@@ -1,9 +1,8 @@
-name: Deep Lake benchmarks
+name: Manual Deep Lake benchmarks
 
 permissions:
   id-token: write
   contents: read
-  pull-requests: 'write'
 
 on:
   workflow_dispatch:
