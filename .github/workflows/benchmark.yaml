@@ -143,6 +143,7 @@ jobs:
         uses: thollander/actions-comment-pull-request@v2
         with:
           filePath: ./report.md
+          comment_tag: ${{ matrix.machine }}
 
       - name: fail
         shell: bash
