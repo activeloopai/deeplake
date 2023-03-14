@@ -297,7 +297,7 @@ class DeepLakeCloudDataset(Dataset):
             ValueError: If the dataset is not connected to activeloop platform.
             ValueError: If both ``new_creds_key`` and ``managed`` are ``None``.
             KeyError: If the creds key is not present in the dataset.
-            Exception: All other errors such as populate managed creds.
+            Exception: All other errors such as during population of managed creds.
 
         Examples:
 
