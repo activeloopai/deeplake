@@ -34,6 +34,8 @@ from deeplake.util.keys import (
     get_sequence_encoder_key,
     get_dataset_meta_key,
 )
+
+from deeplake.core.meta.encode.pad import PadEncoder
 from os.path import dirname
 import numpy as np
 
@@ -814,8 +816,22 @@ def _merge_creds_encoders(
         end,
     )
 
+def _merge_pad_encoders(
+        src_pad_encoder, dest_pad_encoder, start: int, end: int
+) -> None:
+    enc = PadEncoder()
+    idx = None
+    for i in range(start, end):
+        if src_pad_encoder.is_padding(i) and dest_pad_encoder.is_padding(i):
+            if idx is None:
+                idx = i
+        else:
+            if idx is not None:
+                enc.add_padding(idx, i - idx)
+                idx = None
+    return enc
 
-def _mergs_tile_encoders(
+def _merge_tile_encoders(
     src_tile_encoder, dest_tile_encoder, start: int, end: int
 ) -> None:
     src_entries = src_tile_encoder.entries
@@ -891,6 +907,8 @@ def copy_tensor_slice(
         is_link = src_meta.is_link
         src_tile_enc = src_eng.tile_encoder
         dest_tile_enc = dest_eng.tile_encoder
+        src_pad_enc = src_eng.pad_encoder
+        dest_pad_enc = dest_eng.pad_encoder
         if is_link:
             src_creds_encoder = src_eng.creds_encoder
             dest_creds_encoder = dest_eng.creds_encoder
@@ -914,7 +932,8 @@ def copy_tensor_slice(
                     _merge_creds_encoders(
                         src_creds_encoder, dest_creds_encoder, start, end
                     )
-                _mergs_tile_encoders(src_tile_enc, dest_tile_enc, start, end)
+                _merge_tile_encoders(src_tile_enc, dest_tile_enc, start, end)
+                _merge_pad_encoders(src_pad_enc, dest_pad_enc, start, end)
                 (
                     chunks_to_copy,
                     left_edge_samples,

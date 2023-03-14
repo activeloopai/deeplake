@@ -240,7 +240,7 @@ def get_downsampled_tensor_key(key: str, factor: int):
     return posixpath.join(group, final_key)
 
 
-def get_tensor_pad_encoder_key(key: str, commit_id: str) -> str:
+def get_pad_encoder_key(key: str, commit_id: str) -> str:
     if commit_id == FIRST_COMMIT_ID:
         return "/".join((key, ENCODED_PAD_NAMES_FOLDER, UNSHARDED_ENCODER_FILENAME))
     return "/".join(

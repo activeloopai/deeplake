@@ -1201,6 +1201,9 @@ class ChunkEngine:
         # only care about deltas if it isn't the last chunk
         if chunk.key != self.last_chunk_key:  # type: ignore
             nbytes_after_updates.append(chunk.nbytes)
+
+        self.pad_encoder.unpad(global_sample_index)
+
         self._check_rechunk(
             chunk, chunk_row=enc.__getitem__(global_sample_index, True)[0][1]
         )
@@ -2052,7 +2055,7 @@ class ChunkEngine:
             self.sequence_encoder.pop(global_sample_index)
         else:
             self.pop_item(global_sample_index)
-
+        self.pad_encoder.pop(global_sample_index)
         self.cache.autoflush = initial_autoflush
         self.cache.maybe_flush()
 
