@@ -2192,7 +2192,7 @@ class ChunkEngine:
             commit_id = self.commit_id
             key = get_pad_encoder_key(self.key, commit_id)
             if not self.pad_encoder_exists:
-                enc = padEncoder()
+                enc = PadEncoder()
                 try:
                     self.meta_cache[key] = enc
                 except ReadOnlyModeError:
