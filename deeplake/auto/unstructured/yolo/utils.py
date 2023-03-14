@@ -71,7 +71,7 @@ class YoloData:
             A tuple with, respectively, list of supported images, list of encountered invalid files, list of encountered extensions and the most frequent extension
         """
         supported_image_extensions = tuple(
-            HTYPE_SUPPORTED_COMPRESSIONS["image"] + ["jpg"]
+            "." + fmt for fmt in HTYPE_SUPPORTED_COMPRESSIONS["image"] + ["jpg"]
         )
         supported_images = []
         supported_annotations = []
@@ -80,7 +80,7 @@ class YoloData:
 
         if self.separate_annotations:
             for file in self.provider_annotations:
-                if file.endswith(".txt"):
+                if file.lower().endswith(".txt"):
                     supported_annotations.append(file)
                 else:
                     invalid_files.append(file)
@@ -88,9 +88,7 @@ class YoloData:
             for file in self.provider:
                 if file.endswith(supported_image_extensions):
                     supported_images.append(file)
-                    ext = pathlib.Path(file).suffix[
-                        1:
-                    ]  # Get extension without the . symbol
+                    ext = file.split(".")[1]
                     image_extensions[ext] += 1
                 else:
                     invalid_files.append(file)
@@ -110,7 +108,9 @@ class YoloData:
 
         if len(invalid_files) > 0:
             logger.warning(
-                f"Encountered {len(invalid_files)} unsupported files the data folders and annotation folders (if specified)."
+                f"Encountered {len(invalid_files)} unsupported files in the data folders and annotation folders (if specified)."
+                + "\nUp to first 10 invalid files are:\n"
+                + "\n".join(invalid_files[0:10])
             )
 
         most_frequent_image_extension = max(

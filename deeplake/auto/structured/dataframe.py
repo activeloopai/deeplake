@@ -51,10 +51,11 @@ class DataFrame(StructuredDataset):
                 column_params[key] = {"name": sanitize_tensor_name(key)}
         self.column_params = column_params
 
-
     def _get_most_frequent_image_extension(self, fn_iterator):
         # TODO: Make this generic and work for any htype that requires compression
-        supported_image_extensions = tuple("." + fmt for fmt in HTYPE_SUPPORTED_COMPRESSIONS["image"] + ["jpg"])
+        supported_image_extensions = tuple(
+            "." + fmt for fmt in HTYPE_SUPPORTED_COMPRESSIONS["image"] + ["jpg"]
+        )
         image_extensions: DefaultDict[str, int] = defaultdict(int)
         for file in fn_iterator:
             if file.lower().endswith(supported_image_extensions):
