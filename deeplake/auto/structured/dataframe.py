@@ -41,20 +41,14 @@ class DataFrame(StructuredDataset):
         self._initialize_params(column_params)
 
     def _initialize_params(self, column_params):
-        column_params = column_params if column_params is not None else {}
-
-        keys = list(self.source.columns)
-
-        for key in keys:
-            if key in column_params.keys():
-                column_params[key]["name"] = column_params[key].get(
-                    "name", sanitize_tensor_name(key)
-                )  # Get the specified name, and if it doesn't exist, use the sanitized column name
+        column_params = column_params or {}
+        for key in self.source.columns:
+            params = column_params.get(key)
+            if params:
+                if "name" not in params:
+                    params["name"] = sanitize_tensor_name(key)
             else:
-                column_params[key] = {
-                    "name": sanitize_tensor_name(key)
-                }  # If column parameters are not specified for a column, use the sanitized column name
-
+                 column_params[key] = {"name": sanitize_tensor_name(key)}
         self.column_params = column_params
 
     def _get_most_frequent_image_extension(self, fn_iterator):
