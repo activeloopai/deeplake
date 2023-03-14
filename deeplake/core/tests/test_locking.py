@@ -27,7 +27,7 @@ class VM(object):
 
     def __enter__(self):
         self._getnode = uuid.getnode
-        uuid.getnode = lambda: self.id
+        uuid.getnode = lambda: self.id  # type: ignore
         self._locks = deeplake.core.lock._LOCKS.copy()
         deeplake.core.lock._LOCKS.clear()
 
