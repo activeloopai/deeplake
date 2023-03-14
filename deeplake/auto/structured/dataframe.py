@@ -51,19 +51,14 @@ class DataFrame(StructuredDataset):
                 column_params[key] = {"name": sanitize_tensor_name(key)}
         self.column_params = column_params
 
+
     def _get_most_frequent_image_extension(self, fn_iterator):
         # TODO: Make this generic and work for any htype that requires compression
-
-        supported_image_extensions = tuple(
-            HTYPE_SUPPORTED_COMPRESSIONS["image"] + ["jpg"]
-        )
+        supported_image_extensions = tuple("." + fmt for fmt in HTYPE_SUPPORTED_COMPRESSIONS["image"] + ["jpg"])
         image_extensions: DefaultDict[str, int] = defaultdict(int)
-
         for file in fn_iterator:
-            if file.endswith(supported_image_extensions):
-                ext = pathlib.Path(file).suffix[
-                    1:
-                ]  # Get extension without the . symbol
+            if file.lower().endswith(supported_image_extensions):
+                ext = file.split(".")[1]
                 image_extensions[ext] += 1
             else:
                 raise IngestionError(f"The following file is not supported: {file}")
@@ -71,7 +66,6 @@ class DataFrame(StructuredDataset):
         most_frequent_image_extension = max(
             image_extensions, key=lambda k: image_extensions[k], default=None
         )
-
         return most_frequent_image_extension
 
     def _parse_tensor_params(self, key, inspect_limit=1000):
