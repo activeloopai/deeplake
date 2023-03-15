@@ -102,6 +102,8 @@ def update_info(
 
 @link
 def update_shape(new_sample, link_creds=None, tensor_meta=None):
+    if new_sample is None:
+        return np.zeros(1, dtype=np.int64)
     if isinstance(new_sample, deeplake.core.linked_sample.LinkedSample):
         new_sample = read_linked_sample(
             new_sample.path, new_sample.creds_key, link_creds, verify=False
