@@ -374,15 +374,13 @@ def merge_all_pad_encoders(
     for tensor in tensors:
         rel_path = posixpath.relpath(tensor, target_ds.group_index)
         actual_tensor = target_ds[rel_path]
-        if not actual_tensor.is_pad:
-            continue
         pad_encoder = None if overwrite else actual_tensor.chunk_engine.pad_encoder
         for current_worker_pad_encoder in all_workers_pad_encoders:
             current_pad_encoder = current_worker_pad_encoder[tensor]
             if pad_encoder is None:
                 pad_encoder = current_pad_encoder
             else:
-                combine_pad_encoders(pad_encoder, current_pad_encoder)
+                pad_encoder = combine_pad_encoders(pad_encoder, current_pad_encoder)
 
         pad_key = get_pad_encoder_key(tensor, commit_id)
         storage[pad_key] = pad_encoder.tobytes()  # type: ignore
