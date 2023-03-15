@@ -508,7 +508,7 @@ def test_link_managed(hub_cloud_ds_generator, cat_path):
     assert ds.img[0].shape == shape_target
     assert ds.img[0].numpy().shape == shape_target
 
-    with pytest.raises(ValueError):
+    with pytest.raises(ManagedCredentialsNotFoundError):
         # managed creds_key can't be updated
         ds.update_creds_key(key_name, "something_else")
 
