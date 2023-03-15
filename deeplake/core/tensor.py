@@ -253,6 +253,7 @@ class Tensor:
             )
         else:
             self.chunk_engine = ChunkEngine(self.key, self.storage, self.version_state)
+        self.chunk_engine.tensor = self
         if not self.pad_tensor and not self.is_iteration:
             self.index.validate(self.num_samples)
 

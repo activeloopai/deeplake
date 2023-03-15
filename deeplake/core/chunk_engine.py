@@ -700,6 +700,11 @@ class ChunkEngine:
             tensor_info = self.cache.get_deeplake_object(tensor_info_path, Info)
         except KeyError:
             tensor_info = Info()
+            tensor = getattr(self, "tensor", None)
+            if tensor:
+                tensor_info._key = tensor.key
+                tensor_info._dataset = tensor.dataset
+
         self.cache.register_deeplake_object(tensor_info_path, tensor_info)
         tensor_name = self.tensor_meta.name or self.key
         class_names = tensor_info.class_names

@@ -2435,3 +2435,11 @@ def test_np_array_in_info():
     info["x"] = x
     info2 = deeplake.api.info.Info.frombuffer(info.tobytes())
     np.testing.assert_array_equal(x, info2["x"])
+
+
+def test_class_labels_info_flush(local_ds_generator):
+    ds = local_ds_generator()
+    ds.create_tensor("x", htype="class_label")
+    ds.x.append(["a", "b", "c", "d"])
+    ds = local_ds_generator()
+    assert ds.x.info.class_names == ["a", "b", "c", "d"]
