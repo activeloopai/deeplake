@@ -699,6 +699,7 @@ class ChunkEngine:
         try:
             tensor_info = self.cache.get_deeplake_object(tensor_info_path, Info)
         except KeyError:
+            raise Exception()
             tensor_info = Info()
             tensor = getattr(self, "tensor", None)
             if tensor:
