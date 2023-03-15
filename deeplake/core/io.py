@@ -509,8 +509,7 @@ class SampleStreaming(Streaming):
                 version_state,
                 link_creds=self.dataset.link_creds,
             )
-        ret = ChunkEngine(tensor_key, cache, version_state)
-        ret.tensor = self.dataset[tensor_name]
+        return ChunkEngine(tensor_key, cache, version_state)
 
     def _get_dataset_length(self):
         version_state = self.dataset.version_state
