@@ -392,12 +392,12 @@ def discard_old_metas(
             pass
 
 
-def reset_and_checkout(ds, version, err, verbose=True):
+def reset_and_checkout(ds, address, err, verbose=True):
     storage = ds.storage
     version_state = ds.version_state
 
     parent_commit_id, reset_commit_id = get_parent_and_reset_commit_ids(
-        version_state, version
+        version_state, address
     )
     if parent_commit_id is False:
         # non-head node corrupted

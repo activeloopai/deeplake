@@ -578,7 +578,7 @@ class dataset:
             raise e
 
     @staticmethod
-    def _reset_and_load(storage, access_method, dataset_kwargs, version, err):
+    def _reset_and_load(storage, access_method, dataset_kwargs, address, err):
         """Reset and then load the dataset. Only called when loading dataset errored out with `err`."""
         if access_method != "stream":
             dataset_kwargs["reset"] = True
@@ -591,9 +591,9 @@ class dataset:
             # no version control info - cant do anything
             raise err
 
-        version = version or "main"
+        address = address or "main"
         parent_commit_id, reset_commit_id = get_parent_and_reset_commit_ids(
-            version_info, version
+            version_info, address
         )
         if parent_commit_id is False:
             # non-head node corrupted
