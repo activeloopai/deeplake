@@ -392,6 +392,33 @@ def discard_old_metas(
             pass
 
 
+def reset_and_checkout(ds, version, err, verbose=True):
+    storage = ds.storage
+    version_state = ds.version_state
+
+    parent_commit_id, reset_commit_id = get_parent_and_reset_commit_ids(
+        version_state, version
+    )
+    if parent_commit_id is False:
+        # non-head node corrupted
+        raise err
+    if parent_commit_id is None:
+        # no commits in the dataset
+        storage.clear()
+        ds._populate_meta()
+        load_meta(ds)
+        return None
+
+    ds.checkout(parent_commit_id)
+    new_commit_id = replace_head(storage, version_state, reset_commit_id)
+    ds.checkout(new_commit_id)
+
+    current_node = version_state["commit_node_map"][ds.commit_id]
+    if verbose:
+        logger.info(f"HEAD reset. Current version:\n{current_node}")
+    return ds.commit_id
+
+
 def _merge_commit_node_maps(map1, map2):
     merged_map = {}
 

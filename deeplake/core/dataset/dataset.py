@@ -122,11 +122,9 @@ from deeplake.util.version_control import (
     load_meta,
     warn_node_checkout,
     load_version_info,
-    copy_metas,
-    create_commit_chunk_maps,
     save_version_info,
-    generate_hash,
     replace_head,
+    reset_and_checkout
 )
 from deeplake.util.pretty_print import summary_dataset
 from deeplake.core.dataset.view_entry import ViewEntry
@@ -1518,33 +1516,7 @@ class Dataset:
                 ) from e
             if self.read_only:
                 raise ReadOnlyModeError("Cannot reset HEAD in read-only mode.")
-            return self._reset_and_checkout(address, e)
-
-    def _reset_and_checkout(self, version, err, verbose=True):
-        storage = self.storage
-        version_state = self.version_state
-
-        parent_commit_id, reset_commit_id = get_parent_and_reset_commit_ids(
-            version_state, version
-        )
-        if parent_commit_id is False:
-            # non-head node corrupted
-            raise err
-        if parent_commit_id is None:
-            # no commits in the dataset
-            storage.clear()
-            self._populate_meta()
-            load_meta(self)
-            return None
-
-        self.checkout(parent_commit_id)
-        new_commit_id = replace_head(storage, version_state, reset_commit_id)
-        self.checkout(new_commit_id)
-
-        current_node = version_state["commit_node_map"][self.commit_id]
-        if verbose:
-            logger.info(f"HEAD reset. Current version:\n{current_node}")
-        return self.commit_id
+            return reset_and_checkout(self, address, e)
 
     def _checkout(
         self,
