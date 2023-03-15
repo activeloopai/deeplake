@@ -283,11 +283,11 @@ def merge_common_tensors(
     conflict_samples_dict: Dict[str, List[Tuple[int, int]]] = {}
     conflict_tensors = set()
     idxs = {
-            tensor_name: find_new_updated_and_conflict_indexes(
-                tensor_name, dataset, target_dataset, nodes
-            )
-            for tensor_name in tensor_names
-        }
+        tensor_name: find_new_updated_and_conflict_indexes(
+            tensor_name, dataset, target_dataset, nodes
+        )
+        for tensor_name in tensor_names
+    }
     all_new_idxs = set()
     for new_idxs, _, _ in idxs.values():
         all_new_idxs.update(new_idxs)
@@ -816,8 +816,9 @@ def _merge_creds_encoders(
         end,
     )
 
+
 def _merge_pad_encoders(
-        src_pad_encoder, dest_pad_encoder, start: int, end: int
+    src_pad_encoder, dest_pad_encoder, start: int, end: int
 ) -> None:
     enc = PadEncoder()
     idx = None
@@ -830,6 +831,7 @@ def _merge_pad_encoders(
                 enc.add_padding(idx, i - idx)
                 idx = None
     return enc
+
 
 def _merge_tile_encoders(
     src_tile_encoder, dest_tile_encoder, start: int, end: int

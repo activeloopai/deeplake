@@ -346,11 +346,13 @@ def combine_sequence_encoders(
 
 
 def combine_pad_encoders(
-        ds_pad_encoder: PadEncoder, worker_pad_encoder: PadEncoder
+    ds_pad_encoder: PadEncoder, worker_pad_encoder: PadEncoder
 ) -> None:
     enc = PadEncoder()
     idx = None
-    for i in range(int(max(ds_pad_encoder.array.max(), worker_pad_encoder.array.max()))):
+    for i in range(
+        int(max(ds_pad_encoder.array.max(), worker_pad_encoder.array.max()))
+    ):
         if ds_pad_encoder.is_padding(i) and worker_pad_encoder.is_padding(i):
             if idx is None:
                 idx = i
@@ -374,9 +376,7 @@ def merge_all_pad_encoders(
         actual_tensor = target_ds[rel_path]
         if not actual_tensor.is_pad:
             continue
-        pad_encoder = (
-            None if overwrite else actual_tensor.chunk_engine.pad_encoder
-        )
+        pad_encoder = None if overwrite else actual_tensor.chunk_engine.pad_encoder
         for current_worker_pad_encoder in all_workers_pad_encoders:
             current_pad_encoder = current_worker_pad_encoder[tensor]
             if pad_encoder is None:

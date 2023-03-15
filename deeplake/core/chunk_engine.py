@@ -2131,10 +2131,7 @@ class ChunkEngine:
     @property
     def pad_encoder_exists(self) -> bool:
         commit_id = self.commit_id
-        if (
-            self._pad_encoder is not None
-            and self._pad_encoder_commit_id == commit_id
-        ):
+        if self._pad_encoder is not None and self._pad_encoder_commit_id == commit_id:
             return True
         try:
             key = get_pad_encoder_key(self.key, commit_id)
@@ -2180,19 +2177,15 @@ class ChunkEngine:
             self.meta_cache.register_deeplake_object(key, enc)
         return self._sequence_encoder
 
-
     @property
     def pad_encoder(self) -> PadEncoder:
 
         commit_id = self.commit_id
-        if (
-            self._pad_encoder is None
-            or self._pad_encoder_commit_id != commit_id
-        ):
+        if self._pad_encoder is None or self._pad_encoder_commit_id != commit_id:
             commit_id = self.commit_id
             key = get_pad_encoder_key(self.key, commit_id)
             if not self.pad_encoder_exists:
-                enc = padEncoder()
+                enc = PadEncoder()
                 try:
                     self.meta_cache[key] = enc
                 except ReadOnlyModeError:
@@ -2203,7 +2196,6 @@ class ChunkEngine:
             self._pad_encoder_commit_id = commit_id
             self.meta_cache.register_deeplake_object(key, enc)
         return self._pad_encoder
-
 
     def _sequence_numpy(
         self,

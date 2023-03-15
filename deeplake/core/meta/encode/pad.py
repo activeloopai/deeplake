@@ -38,21 +38,34 @@ class PadEncoder(DeepLakeMemoryObject):
 
     def tobytes(self) -> memoryview:
         self._flush()
-        return memoryview(
-            serialize_pad_encoder(deeplake.__version__, self._encoded)
-        )
+        return memoryview(serialize_pad_encoder(deeplake.__version__, self._encoded))
 
     def _unpad(self, global_sample_index: int, idx: int) -> None:
-        if global_sample_index == self._encoded[idx] and self._encoded[idx] + 1 == self._encoded[idx + 1]:
-            self._encoded = np.concatenate([self._encoded[:idx], self._encoded[idx + 2:]], axis=0)
+        if (
+            global_sample_index == self._encoded[idx]
+            and self._encoded[idx] + 1 == self._encoded[idx + 1]
+        ):
+            self._encoded = np.concatenate(
+                [self._encoded[:idx], self._encoded[idx + 2 :]], axis=0
+            )
         elif global_sample_index + 1 == self._encoded[idx]:
-            self._encoded = np.concatenate([
-                self._encoded[:idx], [global_sample_index, global_sample_index + 1], self._encoded[idx + 1:]
-            ], axis=0)
+            self._encoded = np.concatenate(
+                [
+                    self._encoded[:idx],
+                    [global_sample_index, global_sample_index + 1],
+                    self._encoded[idx + 1 :],
+                ],
+                axis=0,
+            )
         else:
-            self._encoded = np.concatenate([
-                self._encoded[:idx], [global_sample_index, global_sample_index + 1], self._encoded[idx:]
-            ], axis=0)
+            self._encoded = np.concatenate(
+                [
+                    self._encoded[:idx],
+                    [global_sample_index, global_sample_index + 1],
+                    self._encoded[idx:],
+                ],
+                axis=0,
+            )
 
     def unpad(self, global_sample_index: int) -> None:
         self._flush()
@@ -69,7 +82,7 @@ class PadEncoder(DeepLakeMemoryObject):
             self._encoded[idx + 1] -= 1
         else:
             self._encoded[idx:] -= 1
-        
+
     @classmethod
     def frombuffer(cls, buffer: bytes):
         isinstance = cls()
