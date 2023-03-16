@@ -17,7 +17,6 @@ def collate_fn(batch):
             (key, collate_fn([d[key] for d in batch])) for key in elem.keys()
         )
 
-
     if isinstance(elem, np.ndarray) and elem.size > 0 and isinstance(elem[0], str):
         batch = [it[0] for it in batch]
     elif isinstance(elem, (tuple, list)) and len(elem) > 0 and isinstance(elem[0], str):
