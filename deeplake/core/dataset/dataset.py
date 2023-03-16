@@ -151,7 +151,7 @@ class Dataset:
         verbose: bool = True,
         version_state: Optional[Dict[str, Any]] = None,
         path: Optional[Union[str, pathlib.Path]] = None,
-        version: Optional[str] = None,
+        address: Optional[str] = None,
         is_iteration: bool = False,
         link_creds=None,
         pad_tensors: bool = False,
@@ -235,7 +235,7 @@ class Dataset:
         dct.update(d)
 
         try:
-            self._set_derived_attributes(address=version)
+            self._set_derived_attributes(address=address)
         except LockedException:
             raise LockedException(
                 "This dataset cannot be open for writing as it is locked by another machine. Try loading the dataset with `read_only=True`."
