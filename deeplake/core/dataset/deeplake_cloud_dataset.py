@@ -320,7 +320,9 @@ class DeepLakeCloudDataset(Dataset):
         key_index = self.link_creds.creds_mapping[creds_key] - 1
         managed_info, replaced_index = None, None
         original_creds_key = creds_key
-        original_key_is_managed = original_creds_key in self.link_creds.managed_creds
+        original_key_is_managed = (
+            original_creds_key in self.link_creds.managed_creds_keys
+        )
 
         if new_creds_key is not None and new_creds_key != creds_key:
             replaced_index = self.link_creds.replace_creds(creds_key, new_creds_key)
