@@ -134,8 +134,9 @@ from deeplake.util.pretty_print import summary_dataset
 from deeplake.core.dataset.view_entry import ViewEntry
 from deeplake.core.dataset.invalid_view import InvalidView
 from deeplake.hooks import dataset_read
-
+from itertools import chain
 import warnings
+import jwt
 
 _LOCKABLE_STORAGES = {S3Provider, GCSProvider, LocalProvider}
 
@@ -2647,20 +2648,12 @@ class Dataset:
 
     def _view_hash(self) -> str:
         """Generates a unique hash for a filtered dataset view."""
-        # try:
-        hash = hash_inputs(
+        return hash_inputs(
             self.path,
             *[e.value for e in self.index.values],
             self.pending_commit_id,
             getattr(self, "_query", None),
         )
-        # except RuntimeError:
-        #     hash = hash_inputs(
-        #         self.path,
-        #         self.pending_commit_id,
-        #         getattr(self, "_query", None),
-        #     )
-        return hash
 
     def _get_view_info(
         self,
