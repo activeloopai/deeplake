@@ -124,7 +124,7 @@ from deeplake.util.version_control import (
     load_version_info,
     save_version_info,
     replace_head,
-    reset_and_checkout
+    reset_and_checkout,
 )
 from deeplake.util.pretty_print import summary_dataset
 from deeplake.core.dataset.view_entry import ViewEntry
