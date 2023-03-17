@@ -297,16 +297,18 @@ def merge_common_tensors(
     for idx in all_new_idxs:
         non_pad_found = False
         for tensor_name in tensor_names:
-            target_engine = target_dataset[tensor_name]
+            target_engine = target_dataset[tensor_name].chunk_engine
             enc = target_engine.chunk_id_encoder
             if idx <= enc.num_samples:
-                if not target_engine.pad_encoder.is_padding(idx):
+                if not target_engine.pad_encoder.is_padded(idx):
                     non_pad_found = True
                     break
         if not non_pad_found:
             for new_idxs, _, _ in idxs.values():
-                new_idxs.discard(idx)
-
+                try:
+                    new_idxs.remove(idx)
+                except ValueError:
+                    pass
     for tensor_name in tensor_names:
         (
             new_indexes,
@@ -494,7 +496,6 @@ def merge_tensor_data(
 
     original_tensor = dataset[tensor_name]
     target_tensor = target_dataset[tensor_name]
-    id_tensor_name = get_sample_id_tensor_key(tensor_name)
 
     new_indexes = new_samples_dict[tensor_name]
     new_indexes.sort()
@@ -826,7 +827,7 @@ def _merge_pad_encoders(
     enc = PadEncoder()
     idx = None
     for i in range(start, end):
-        if src_pad_encoder.is_padding(i) and dest_pad_encoder.is_padding(i):
+        if src_pad_encoder.is_padded(i) and dest_pad_encoder.is_padded(i):
             if idx is None:
                 idx = i
         else:

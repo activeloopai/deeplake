@@ -412,7 +412,7 @@ def deserialize_pad_encoder(byts: Union[bytes, memoryview]) -> Tuple[str, np.nda
     version = str(byts[1 : 1 + len_version], "ascii")
     enc = (
         np.frombuffer(byts[1 + len_version :], dtype=deeplake.constants.ENCODING_DTYPE)
-        .reshape(-1, 1)
+        .reshape(-1)
         .copy()
     )
     return version, enc

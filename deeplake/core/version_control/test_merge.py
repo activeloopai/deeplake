@@ -602,3 +602,29 @@ def test_get_required_chunks(memory_ds):
     assert get_chunks(abc, 1, 6) == ((1, 3), (1, 2), None)
     assert get_chunks(abc, 1, 5) == ((1, 2), (1, 2), (4, 5))
     assert get_chunks(abc, 0, 6) == ((0, 3), None, None)
+
+
+def test_merge_with_padding(memory_ds):
+    with memory_ds as ds:
+        ds.create_tensor("x")
+        cid = ds.commit()
+        ds.checkout("branch1", create=True)
+        ds.x[100] = 2
+        for i in range(0, 100):
+            assert ds.x.chunk_engine.pad_encoder.is_padded(i), i
+        # print(ds.x.chunk_engine.pad_encoder.array)
+        ds.x[200] = 3
+        # print(ds.x.chunk_engine.pad_encoder.array)
+        ds.x[300] = 4
+        # print(ds.x.chunk_engine.pad_encoder.array)
+        print(ds.x.chunk_engine.pad_encoder.array)
+        ds.checkout(cid)
+        ds.checkout("branch2", create=True)
+        ds.x[150] = 10
+        ds.x[250] = 20
+        ds.x[350] = 30
+        print(ds.x.chunk_engine.pad_encoder.array)
+        ds.checkout("branch1")
+        print(ds.x.chunk_engine.pad_encoder.array)
+        ds.merge("branch2")
+        assert len(ds.x) == 304
