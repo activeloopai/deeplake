@@ -178,7 +178,6 @@ class ChunkEngine:
         self.base_storage = get_base_storage(cache)
         self._meta_cache = meta_cache
         self.version_state = version_state
-        self.name = version_state["tensor_names"].get(self.key)
         self.compression = None
         self.chunk_class = BaseChunk
 
@@ -213,6 +212,7 @@ class ChunkEngine:
         self._chunk_compression = None
 
         tensor_meta = self.tensor_meta
+        self.name = tensor_meta.name or self.key
         numpy_extend_optimization_enabled = False
 
         if tensor_meta.sample_compression:
@@ -1070,7 +1070,7 @@ class ChunkEngine:
             self.cache.autoflush = initial_autoflush
             self.cache.maybe_flush()
         except Exception as e:
-            raise SampleAppendError(self.key) from e
+            raise SampleAppendError(self.name) from e
 
     def _create_new_chunk(self, register=True, row: Optional[int] = None) -> BaseChunk:
         """Creates and returns a new `Chunk`. Automatically creates an ID for it and puts a reference in the cache."""
@@ -1276,7 +1276,7 @@ class ChunkEngine:
                 link_callback=link_callback,
             )
         except Exception as e:
-            raise SampleUpdateError(self.key) from e
+            raise SampleUpdateError(self.name) from e
 
     def _get_samples_to_move(self, chunk) -> List[Sample]:
         decompress = isinstance(chunk, ChunkCompressedChunk)
@@ -2231,7 +2231,7 @@ class ChunkEngine:
                         index.length_at(0, self._sequence_length), -1, *arr.shape[1:]  # type: ignore
                     )
                 except ValueError as ve:
-                    raise DynamicTensorNumpyError(self.key, index, "shape") from ve
+                    raise DynamicTensorNumpyError(self.name, index, "shape") from ve
         return arr
 
     def _translate_2d_index(
