@@ -1189,8 +1189,8 @@ class Tensor:
 
     def _pop_from_sequence(
         self,
-        index: Optional[int] = None,
-        rev_tensor_names: Optional[Dict[str, str]] = None,
+        index: int,
+        rev_tensor_names: Dict[str, str],
     ):
         flat_links: List[str] = []
         non_flat_links: List[str] = []
