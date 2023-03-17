@@ -7,11 +7,28 @@ from typing import Any, Dict, Optional, Union
 
 from deeplake.core.storage.provider import StorageProvider
 
+ASYNC_INSTALLED = True
+
+try:
+    import aioboto3  # type: ignore
+    import asyncio  # type: ignore
+    import nest_asyncio  # type: ignore
+except ImportError:
+    ASYNC_INSTALLED = False
+
 
 def _get_nbytes(obj: Union[bytes, memoryview, DeepLakeMemoryObject]):
     if isinstance(obj, DeepLakeMemoryObject):
         return obj.nbytes
     return len(obj)
+
+
+def obj_to_bytes(obj):
+    if isinstance(obj, DeepLakeMemoryObject):
+        obj = obj.tobytes()
+    if isinstance(obj, memoryview):
+        obj = bytes(obj)
+    return obj
 
 
 class LRUCache(StorageProvider):
@@ -49,6 +66,9 @@ class LRUCache(StorageProvider):
 
         self.cache_used = 0
         self.deeplake_objects: Dict[str, DeepLakeMemoryObject] = {}
+        self.use_async = (
+            sys.version_info >= (3, 7) and sys.platform != "win32" and ASYNC_INSTALLED
+        )
 
     def register_deeplake_object(self, path: str, obj: DeepLakeMemoryObject):
         """Registers a new object in the cache."""
@@ -84,10 +104,18 @@ class LRUCache(StorageProvider):
                 obj.is_dirty = False
 
         if self.dirty_keys:
-            for key in self.dirty_keys.copy():
-                self._forward(key)
-            if self.next_storage is not None:
-                self.next_storage.flush()
+            if hasattr(self.next_storage, "set_items") and self.use_async:
+                d = {
+                    key: obj_to_bytes(self.cache_storage[key])
+                    for key in self.dirty_keys
+                }
+                self.next_storage.set_items(d)
+                self.dirty_keys.clear()
+            else:
+                for key in self.dirty_keys.copy():
+                    self._forward(key)
+                if self.next_storage is not None:
+                    self.next_storage.flush()
 
         self.autoflush = initial_autoflush
 

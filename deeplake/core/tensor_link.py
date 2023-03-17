@@ -1,4 +1,5 @@
 from typing import Callable
+import warnings
 from deeplake.core.compression import to_image
 from deeplake.core.index import Index
 from deeplake.constants import _NO_LINK_UPDATE
@@ -189,19 +190,23 @@ def update_len(new_sample, link_creds=None):
 
 
 def convert_sample_for_downsampling(sample, link_creds=None):
-    if isinstance(sample, deeplake.core.linked_sample.LinkedSample):
-        sample = read_linked_sample(
-            sample.path, sample.creds_key, link_creds, verify=False
-        )
-    if isinstance(sample, deeplake.core.sample.Sample):
-        sample = sample.pil
-    if (
-        isinstance(sample, np.ndarray)
-        and sample.dtype != bool
-        and 0 not in sample.shape
-    ):
-        sample = to_image(sample)
-    return sample
+    try:
+        if isinstance(sample, deeplake.core.linked_sample.LinkedSample):
+            sample = read_linked_sample(
+                sample.path, sample.creds_key, link_creds, verify=False
+            )
+        if isinstance(sample, deeplake.core.sample.Sample):
+            sample = sample.pil
+        if (
+            isinstance(sample, np.ndarray)
+            and sample.dtype != bool
+            and 0 not in sample.shape
+        ):
+            sample = to_image(sample)
+        return sample
+    except Exception as e:
+        warnings.warn(f"Failed to downsample sample of type {type(sample)}")
+        return None
 
 
 @link

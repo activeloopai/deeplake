@@ -42,6 +42,7 @@ def dataset_to_libdeeplake(hub2_dataset):
             token = hub2_dataset._token
             provider = hub2_dataset.storage.next_storage
             if isinstance(provider, S3Provider):
+                provider._check_update_creds()
                 libdeeplake_dataset = api.dataset(
                     path,
                     origin_path=provider.root,

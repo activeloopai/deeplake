@@ -10,19 +10,28 @@ from deeplake.core.storage import StorageProvider, MemoryProvider, LRUCache
 from deeplake.core.chunk_engine import ChunkEngine
 from deeplake.core.transform.transform_dataset import TransformDataset
 from deeplake.core.index import Index
+from deeplake.core.tensor import Tensor
 
-from deeplake.constants import MB, TRANSFORM_PROGRESSBAR_UPDATE_INTERVAL
+from deeplake.constants import (
+    MB,
+    TRANSFORM_PROGRESSBAR_UPDATE_INTERVAL,
+    TRANSFORM_RECHUNK_AVG_SIZE_BOUND,
+)
 from deeplake.util.remove_cache import get_base_storage
 from deeplake.util.keys import get_tensor_meta_key
+from deeplake.util.version_control import load_meta
 from deeplake.util.exceptions import (
     InvalidInputDataError,
     InvalidOutputDatasetError,
     InvalidTransformDataset,
     TensorMismatchError,
+    TensorDoesNotExistError,
 )
 
 import posixpath
 import time
+
+import numpy as np
 
 try:
     import pandas as pd  # type: ignore
@@ -466,7 +475,21 @@ def get_pbar_description(compute_functions: List):
 
 def create_slices(data_in, num_workers):
     size = math.ceil(len(data_in) / num_workers)
-    ret = [data_in[i * size : (i + 1) * size] for i in range(num_workers)]
+
+    if isinstance(data_in, Tensor):
+        ret = [
+            Tensor(data_in.key, data_in.dataset)[i * size : (i + 1) * size]
+            for i in range(num_workers)
+        ]
+    else:
+        ret = [data_in[i * size : (i + 1) * size] for i in range(num_workers)]
+
+    if isinstance(data_in, deeplake.Dataset):
+        for ds in ret:
+            ds.version_state["full_tensors"] = {}
+            _tensors = ds.version_state["full_tensors"]
+            for tensor_key in data_in.version_state["tensor_names"].values():
+                _tensors[tensor_key] = Tensor(tensor_key, ds)
     return ret
 
 
@@ -532,3 +555,38 @@ def process_transform_result(result: List[Dict]):
         for key in keys:
             final[key].append(item[key])
     return final
+
+
+def rechunk_if_necessary(ds):
+    with ds:
+        for tensor in ds.tensors:
+            try:
+                tensor = ds[tensor]
+            # temp tensors
+            except TensorDoesNotExistError:
+                continue
+            if not tensor.meta.sample_compression and not tensor.meta.chunk_compression:
+                engine = tensor.chunk_engine
+                num_chunks = engine.num_chunks
+                if num_chunks > 1:
+                    max_shape = tensor.meta.max_shape
+                    if len(max_shape) > 0:
+                        avg_chunk_size = engine.get_avg_chunk_size()
+                        if (
+                            avg_chunk_size is not None
+                            and avg_chunk_size
+                            < TRANSFORM_RECHUNK_AVG_SIZE_BOUND * engine.min_chunk_size
+                        ):
+                            enc = tensor.chunk_engine.chunk_id_encoder
+                            rechunked = False
+                            while True:
+                                encoded = enc._encoded
+                                for row, chunk_id in enumerate(encoded[:, 0]):
+                                    chunk = engine.get_chunk_from_chunk_id(chunk_id)
+                                    engine._check_rechunk(chunk, row)
+                                    rechunked = len(encoded) != len(enc._encoded)
+                                    if rechunked:
+                                        break
+                                if rechunked:
+                                    continue
+                                break
