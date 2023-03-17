@@ -13,6 +13,7 @@ class PadEncoder(DeepLakeMemoryObject):
         self.is_dirty = False
         self._encoded = np.zeros((0,), dtype=ENCODING_DTYPE)
         self._buffer = []
+        self.version = deeplake.__version__
 
     def _flush(self):
         if self._buffer:
@@ -40,7 +41,7 @@ class PadEncoder(DeepLakeMemoryObject):
 
     def tobytes(self) -> memoryview:
         self._flush()
-        return memoryview(serialize_pad_encoder(deeplake.__version__, self._encoded))
+        return memoryview(serialize_pad_encoder(self.version, self._encoded))
 
     def _unpad(self, global_sample_index: int, idx: int) -> None:
         if (

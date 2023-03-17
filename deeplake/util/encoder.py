@@ -347,7 +347,7 @@ def combine_sequence_encoders(
 
 def combine_pad_encoders(
     ds_pad_encoder: PadEncoder, worker_pad_encoder: PadEncoder
-) -> None:
+) -> PadEncoder:
     enc = PadEncoder()
     idx = None
     arr1 = ds_pad_encoder.array
