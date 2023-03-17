@@ -34,7 +34,7 @@ from PIL import Image  # type: ignore
 
 image_compressions = IMAGE_COMPRESSIONS[:]
 image_compressions.remove("wmf")
-image_compressions.remove("apng")
+# image_compressions.remove("apng")
 image_compressions.remove("dcm")
 image_compressions.remove("fli")
 image_compressions.remove("mpo")
@@ -181,32 +181,32 @@ def test_point_cloud(point_cloud_paths, compression):
         assert len(arr[0]) == 18
 
 
-def test_apng(memory_ds):
-    ds = memory_ds
+# def test_apng(memory_ds):
+#     ds = memory_ds
 
-    arrays = {
-        "binary": [
-            np.random.randint(
-                0, 256, (25, 50, np.random.randint(100, 200)), dtype=np.uint8
-            )
-            for _ in range(10)
-        ],
-        "rgb": [
-            np.random.randint(
-                0, 256, (np.random.randint(100, 200), 32, 64, 3), dtype=np.uint8
-            )
-            for _ in range(10)
-        ],
-        "rgba": [
-            np.random.randint(
-                0, 256, (np.random.randint(100, 200), 16, 32, 4), dtype=np.uint8
-            )
-            for _ in range(10)
-        ],
-    }
-    for k, v in arrays.items():
-        with ds:
-            ds.create_tensor(k, htype="image", sample_compression="apng")
-            ds[k].extend(v)
-        for arr1, arr2 in zip(ds[k].numpy(aslist=True), v):
-            np.testing.assert_array_equal(arr1, arr2)
+#     arrays = {
+#         "binary": [
+#             np.random.randint(
+#                 0, 256, (25, 50, np.random.randint(100, 200)), dtype=np.uint8
+#             )
+#             for _ in range(10)
+#         ],
+#         "rgb": [
+#             np.random.randint(
+#                 0, 256, (np.random.randint(100, 200), 32, 64, 3), dtype=np.uint8
+#             )
+#             for _ in range(10)
+#         ],
+#         "rgba": [
+#             np.random.randint(
+#                 0, 256, (np.random.randint(100, 200), 16, 32, 4), dtype=np.uint8
+#             )
+#             for _ in range(10)
+#         ],
+#     }
+#     for k, v in arrays.items():
+#         with ds:
+#             ds.create_tensor(k, htype="image", sample_compression="apng")
+#             ds[k].extend(v)
+#         for arr1, arr2 in zip(ds[k].numpy(aslist=True), v):
+#             np.testing.assert_array_equal(arr1, arr2)
