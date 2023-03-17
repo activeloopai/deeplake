@@ -127,7 +127,7 @@ def _download_pil_test_images(ext=[".jpg", ".png"]):
         path + x
         for x in [
             "/Tests/images",
-            "/Tests/images/apng",
+            # "/Tests/images/apng",
             "/Tests/images/imagedraw",
         ]
     ]
