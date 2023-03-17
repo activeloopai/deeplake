@@ -892,6 +892,7 @@ class GetChunkError(Exception):
             message += f" while retrieving data at index {global_index}"
         if tensor_name is not None:
             message += f" in tensor {tensor_name}"
+        message += "."
         super().__init__(message)
 
 
@@ -911,6 +912,7 @@ class ReadSampleFromChunkError(Exception):
             message += f" '{chunk_key}'"
         if tensor_name is not None:
             message += f" in tensor {tensor_name}"
+        message += "."
         super().__init__(message)
 
 
@@ -924,16 +926,17 @@ class GetDataFromLinkError(Exception):
         self.link = link
         message = f"Unable to get data from link {link}"
         if global_index is not None:
-            message += f" while retrieving data with index {global_index}"
+            message += f" while retrieving data at index {global_index}"
         if tensor_name is not None:
-            message += f" for tensor {tensor_name}"
+            message += f" in tensor {tensor_name}"
+        message += "."
         super().__init__(message)
 
 
 class TransformFailedError(Exception):
     def __init__(self, global_index):
         super().__init__(
-            f"Transform failed while processing sample with index {global_index}"
+            f"Dataloader transform failed while processing sample at index {global_index}."
         )
 
 
