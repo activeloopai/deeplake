@@ -6,7 +6,6 @@ from deeplake.tests.storage_fixtures import (
     enabled_persistent_storages,
 )
 from deeplake.tests.cache_fixtures import enabled_cache_chains
-from deeplake.core.storage import storage_factory
 from deeplake.core.storage.gcs import GCloudCredentials
 from deeplake.core.storage.google_drive import GDriveProvider
 from deeplake.util.exceptions import GCSDefaultCredsNotFoundError
@@ -181,7 +180,7 @@ def test_gdrive_from_token(request, gdrive_path, gdrive_creds):
     with open("gdrive_token.json", "w") as token_file:
         token_file.write(creds.to_json())
 
-    storage = storage_factory(GDriveProvider, gdrive_path)
+    storage = GDriveProvider(gdrive_path)
     assert storage.client_id
 
     os.remove("gdrive_token.json")

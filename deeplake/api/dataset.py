@@ -429,7 +429,6 @@ class dataset:
                 memory_cache_size=memory_cache_size,
                 local_cache_size=local_cache_size,
             )
-
             feature_report_path(path, "load", {}, token=token)
         except Exception as e:
             if isinstance(e, UserNotLoggedInException):

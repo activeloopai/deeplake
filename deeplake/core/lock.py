@@ -147,11 +147,11 @@ class PersistentLock(Lock):
 
     Example:
         From machine 1:
-        s3 = deeplake.core.storage.storage_factory(S3Provider, S3_URL)
+        s3 = deeplake.core.storage.S3Provider(S3_URL)
         lock = deeplake.core.lock.Lock(s3)  # Works
 
         From machine 2:
-        s3 = deeplake.core.storage.storage_factoryt(S3Provider, S3_URL)
+        s3 = deeplake.core.storage.S3Provider(S3_URL)
         lock = deeplake.core.lock.Lock(s3)  # Raises LockedException
 
         The lock is updated every 2 mins by an internal thread. The lock is valid for 5 mins after the last update.

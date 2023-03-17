@@ -13,12 +13,14 @@ _STORAGES = {}
 
 
 def storage_factory(cls, root: str = "", *args, **kwargs) -> "StorageProvider":
+    if cls.__name__ == "MemoryProvider":
+        return cls(root, *args, **kwargs)
     thread_id = threading.get_ident()
     try:
-        return _STORAGES[f"{thread_id}_{root}"]
+        return _STORAGES[f"{thread_id}_{root}_{args}_{kwargs}"]
     except KeyError:
         storage = cls(root, *args, **kwargs)
-        _STORAGES[f"{thread_id}_{root}"] = storage
+        _STORAGES[f"{thread_id}_{root}_{args}_{kwargs}"] = storage
         return storage
 
 

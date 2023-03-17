@@ -1,4 +1,3 @@
-from deeplake.core.storage import storage_factory
 from deeplake.core.storage.gcs import GCSProvider
 from deeplake.util.storage import storage_provider_from_hub_path
 from deeplake.core.storage.s3 import S3Provider
@@ -43,27 +42,27 @@ enabled_remote_storages = pytest.mark.parametrize(
 
 @pytest.fixture
 def memory_storage(memory_path):
-    return storage_factory(MemoryProvider, memory_path)
+    return MemoryProvider(memory_path)
 
 
 @pytest.fixture
 def local_storage(local_path):
-    return storage_factory(LocalProvider, local_path)
+    return LocalProvider(local_path)
 
 
 @pytest.fixture
 def s3_storage(s3_path):
-    return storage_factory(S3Provider, s3_path)
+    return S3Provider(s3_path)
 
 
 @pytest.fixture
 def gdrive_storage(gdrive_path, gdrive_creds):
-    return storage_factory(GDriveProvider, gdrive_path, token=gdrive_creds)
+    return GDriveProvider(gdrive_path, token=gdrive_creds)
 
 
 @pytest.fixture
 def gcs_storage(gcs_path):
-    return storage_factory(GCSProvider, gcs_path)
+    return GCSProvider(gcs_path)
 
 
 @pytest.fixture
@@ -72,7 +71,7 @@ def s3_root_storage(request):
         pytest.skip()
         return
 
-    return storage_factory(S3Provider, PYTEST_S3_PROVIDER_BASE_ROOT)
+    return S3Provider(PYTEST_S3_PROVIDER_BASE_ROOT)
 
 
 @pytest.fixture
@@ -81,7 +80,7 @@ def gcs_root_storage(request, gcs_creds):
         pytest.skip()
         return
 
-    return storage_factory(PYTEST_GCS_PROVIDER_BASE_ROOT, token=gcs_creds)
+    return GCSProvider(PYTEST_GCS_PROVIDER_BASE_ROOT, token=gcs_creds)
 
 
 @pytest.fixture
