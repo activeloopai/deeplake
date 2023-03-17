@@ -3,7 +3,7 @@ from typing import Dict, Optional, Union
 import uuid
 from flask import Flask, request, Response
 from deeplake.core.link_creds import LinkCreds  # type: ignore
-from deeplake.core.storage.provider import StorageProvider
+from deeplake.core.storage import StorageProvider, storage_factory
 from deeplake.core.storage.s3 import S3Provider
 from deeplake.util.threading import terminate_thread
 from deeplake.client.config import (
@@ -174,7 +174,7 @@ def access_creds(path: str):
     if creds_key in visualizer.get_link_creds(id).creds_keys:
         creds = visualizer.get_link_creds(id).get_creds(creds_key)
         if len(creds) == 0:
-            p = S3Provider("")
+            p = storage_factory(S3Provider, "")
             creds = {
                 "aws_access_key_id": p.aws_access_key_id,
                 "aws_secret_access_key": p.aws_secret_access_key,

@@ -8,6 +8,7 @@ from typing import Optional
 from deeplake.core.storage.provider import StorageProvider
 import os
 from deeplake.core.storage import (
+    storage_factory,
     LocalProvider,
     S3Provider,
     MemoryProvider,
@@ -55,7 +56,8 @@ def storage_provider_from_path(
         endpoint_url = creds.get("endpoint_url")
         region = creds.get("aws_region") or creds.get("region")
         profile = creds.get("profile_name")
-        storage: StorageProvider = S3Provider(
+        storage: StorageProvider = storage_factory(
+            S3Provider,
             path,
             key,
             secret,
@@ -70,16 +72,16 @@ def storage_provider_from_path(
         or path.startswith("gcs://")
         or path.startswith("gs://")
     ):
-        storage = GCSProvider(path, creds)
+        storage = storage_factory(GCSProvider, path, creds)
     elif path.startswith("gdrive://"):
-        storage = GDriveProvider(path, creds)
+        storage = storage_factory(GDriveProvider, path, creds)
     elif path.startswith("mem://"):
-        storage = MemoryProvider(path)
+        storage = storage_factory(MemoryProvider, path)
     elif path.startswith("hub://"):
         storage = storage_provider_from_hub_path(path, read_only, token=token)
     else:
         if not os.path.exists(path) or os.path.isdir(path):
-            storage = LocalProvider(path)
+            storage = storage_factory(LocalProvider, path)
         else:
             raise ValueError(f"Local path {path} must be a path to a local directory")
     if not storage._is_hub_path:
@@ -175,4 +177,4 @@ def get_pytorch_local_storage(dataset):
     local_cache_name: str = f"{dataset.path}_pytorch"
     local_cache_prefix = os.getenv("LOCAL_CACHE_PREFIX", default=LOCAL_CACHE_PREFIX)
     local_cache_path = get_local_storage_path(local_cache_name, local_cache_prefix)
-    return LocalProvider(local_cache_path)
+    return storage_factory(LocalProvider, local_cache_path)

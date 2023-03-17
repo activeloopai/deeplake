@@ -2,7 +2,12 @@ from deeplake.constants import LOCAL_CACHE_PREFIX
 from typing import List, Optional
 from uuid import uuid1
 import os
-from deeplake.core.storage import StorageProvider, MemoryProvider, LocalProvider
+from deeplake.core.storage import (
+    StorageProvider,
+    MemoryProvider,
+    LocalProvider,
+    storage_factory,
+)
 from deeplake.core.storage.lru_cache import LRUCache
 from deeplake.util.exceptions import ProviderSizeListMismatch, ProviderListEmptyError
 
@@ -71,13 +76,15 @@ def generate_chain(
     size_list: List[int] = []
 
     # Always have a memory cache prefix. Required for support for HubMemoryObjects.
-    storage_list.append(MemoryProvider(f"cache/{cached_dataset_name}"))
+    storage_list.append(storage_factory(MemoryProvider, f"cache/{cached_dataset_name}"))
     size_list.append(memory_cache_size)
 
     if local_cache_size > 0:
         local_cache_prefix = os.getenv("LOCAL_CACHE_PREFIX", default=LOCAL_CACHE_PREFIX)
         storage_list.append(
-            LocalProvider(f"{local_cache_prefix}/{cached_dataset_name}")
+            storage_factory(
+                LocalProvider, f"{local_cache_prefix}/{cached_dataset_name}"
+            )
         )
         size_list.append(local_cache_size)
     storage_list.append(base_storage)

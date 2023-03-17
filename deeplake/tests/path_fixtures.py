@@ -1,6 +1,7 @@
 from deeplake.core.storage.gcs import GCSProvider
 from deeplake.core.storage.google_drive import GDriveProvider
 from deeplake.util.storage import storage_provider_from_hub_path
+from deeplake.core.storage import storage_factory
 from deeplake.core.storage.s3 import S3Provider
 from deeplake.core.storage.local import LocalProvider
 import os
@@ -231,13 +232,13 @@ def local_path(request):
         return
 
     path = _get_storage_path(request, LOCAL)
-    LocalProvider(path).clear()
+    storage_factory(LocalProvider, path).clear()
 
     yield path
 
     # clear storage unless flagged otherwise
     if not is_opt_true(request, KEEP_STORAGE_OPT):
-        LocalProvider(path).clear()
+        storage_factory(LocalProvider, path).clear()
 
 
 @pytest.fixture
@@ -247,13 +248,13 @@ def s3_path(request):
         return
 
     path = _get_storage_path(request, S3)
-    S3Provider(path).clear()
+    storage_factory(S3Provider, path).clear()
 
     yield path
 
     # clear storage unless flagged otherwise
     if not is_opt_true(request, KEEP_STORAGE_OPT):
-        S3Provider(path).clear()
+        storage_factory(S3Provider, path).clear()
 
 
 @pytest.fixture
@@ -291,13 +292,13 @@ def gcs_path(request, gcs_creds):
         return
 
     path = _get_storage_path(request, GCS)
-    GCSProvider(path, token=gcs_creds).clear()
+    storage_factory(GCSProvider, path, token=gcs_creds).clear()
 
     yield path
 
     # clear storage unless flagged otherwise
     if not is_opt_true(request, KEEP_STORAGE_OPT):
-        GCSProvider(path, token=gcs_creds).clear()
+        storage_factory(GCSProvider, path, token=gcs_creds).clear()
 
 
 @pytest.fixture
@@ -317,12 +318,12 @@ def gdrive_path(request, gdrive_creds):
         return
 
     path = _get_storage_path(request, GDRIVE, with_current_test_name=False)
-    GDriveProvider(path, token=gdrive_creds).clear()
+    storage_factory(GDriveProvider, path, token=gdrive_creds).clear()
 
     yield path
 
     if not is_opt_true(request, KEEP_STORAGE_OPT):
-        GDriveProvider(path, token=gdrive_creds).clear()
+        storage_factory(GDriveProvider, path, token=gdrive_creds).clear()
 
 
 @pytest.fixture

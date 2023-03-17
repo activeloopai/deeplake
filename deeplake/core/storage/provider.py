@@ -7,6 +7,19 @@ from deeplake.util.assert_byte_indexes import assert_byte_indexes
 from deeplake.util.exceptions import ReadOnlyModeError
 from deeplake.util.keys import get_dataset_lock_key
 import posixpath
+import threading
+
+_STORAGES = {}
+
+
+def storage_factory(cls, root: str = "", *args, **kwargs) -> "StorageProvider":
+    thread_id = threading.get_ident()
+    try:
+        return _STORAGES[f"{thread_id}_{root}"]
+    except KeyError:
+        storage = cls(root, *args, **kwargs)
+        _STORAGES[f"{thread_id}_{root}"] = storage
+        return storage
 
 
 class StorageProvider(ABC, MutableMapping):

@@ -17,6 +17,7 @@ from deeplake.core.meta.encode.base_encoder import LAST_SEEN_INDEX_COLUMN
 from deeplake.core.meta.encode.chunk_id import CHUNK_ID_COLUMN, ChunkIdEncoder
 from deeplake.core.meta.tensor_meta import TensorMeta
 from deeplake.core.storage import (
+    storage_factory,
     LRUCache,
     MemoryProvider,
     StorageProvider,

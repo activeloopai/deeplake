@@ -1,6 +1,6 @@
 from typing import Optional
 import deeplake
-from deeplake.core.storage.provider import StorageProvider
+from deeplake.core.storage import StorageProvider, storage_factory
 from deeplake.core.storage.lru_cache import LRUCache
 from deeplake.core.storage import MemoryProvider
 from deeplake.core.index import Index

@@ -32,6 +32,7 @@ from PIL.ExifTags import TAGS  # type: ignore
 from io import BytesIO
 
 from deeplake.core.storage.s3 import S3Provider
+from deeplake.core.storage import storage_factory
 from deeplake.core.storage.google_drive import GDriveProvider
 
 try:
@@ -463,7 +464,7 @@ class Sample:
             return self.storage.get_object_from_full_url(self.path)
         path = self.path.replace("s3://", "")  # type: ignore
         root, key = self._get_root_and_key(path)
-        s3 = S3Provider(root, **self._creds)
+        s3 = storage_factory(S3Provider, root, **self._creds)
         return s3[key]
 
     def _read_from_gcs(self) -> bytes:
@@ -477,12 +478,14 @@ class Sample:
             return self.storage.get_object_from_full_url(self.path)
         path = self.path.replace("gcp://", "").replace("gcs://", "")  # type: ignore
         root, key = self._get_root_and_key(path)
-        gcs = GCSProvider(root, token=self._creds)
+        gcs = storage_factory(GCSProvider, root, token=self._creds)
         return gcs[key]
 
     def _read_from_gdrive(self) -> bytes:
         assert self.path is not None
-        gdrive = GDriveProvider("gdrive://", token=self._creds, makemap=False)
+        gdrive = storage_factory(
+            GDriveProvider, "gdrive://", token=self._credsm, makemap=False
+        )
         return gdrive.get_object_from_full_url(self.path)
 
     def _read_from_http(self) -> bytes:
