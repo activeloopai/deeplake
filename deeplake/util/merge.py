@@ -18,7 +18,7 @@ from deeplake.util.exceptions import (
     TensorDoesNotExistError,
 )
 from deeplake.util.remove_cache import create_read_copy_dataset
-from deeplake.util.version_control import auto_checkout, auto_commit, commit
+from deeplake.util.version_control import auto_checkout, auto_commit, commit, checkout
 from deeplake.core.version_control.commit_diff import CommitDiff
 from deeplake.core.version_control.commit_chunk_map import CommitChunkMap
 from deeplake.core.index.index import Index, IndexEntry
@@ -54,10 +54,11 @@ def merge(
     """
     version_state = dataset.version_state
     commit_node_map = version_state["commit_node_map"]
-    auto_checkout(dataset)
+    auto_checkout(dataset, flush_version_control_info=False)
     target_commit_id = sanitize_commit(target_id, version_state)
-    target_commit_id = auto_commit_target_commit(dataset, target_commit_id)
-
+    target_commit_id = auto_commit_target_commit(
+        dataset, target_commit_id, flush_version_control_info=False
+    )
     nodes: Dict[str, CommitNode] = {}
     nodes["original"] = original_node = version_state["commit_node"]
     nodes["target"] = target_node = commit_node_map[target_commit_id]
@@ -68,13 +69,11 @@ def merge(
         print("No merge needed, target id is an ancestor of the current commit")
         return
     nodes["lca"] = commit_node_map[lca_id]
-
     (
         new_tensors,
         common_tensors,
         deleted_tensors,
     ) = get_new_common_deleted_tensors(dataset, target_ds, lca_id, force)
-
     merge_common_tensors(common_tensors, dataset, target_ds, nodes, conflict_resolution)
     copy_new_tensors(new_tensors, dataset, target_ds)
     delete_tensors(deleted_tensors, dataset, delete_removed_tensors)
@@ -88,15 +87,12 @@ def get_new_common_deleted_tensors(
     original_tensors: Set[str] = set(dataset.tensors)
     all_original_tensors: Set[str] = set(dataset._all_tensors_filtered())
     check_id_tensors_exist(original_tensors, all_original_tensors)
-
     target_tensors: Set[str] = set(target_ds.tensors)
     all_target_tensors: Set[str] = set(target_ds._all_tensors_filtered())
     check_id_tensors_exist(target_tensors, all_target_tensors)
-
     lca_tensors = get_lca_tensors(dataset, lca_id)
     new_tensors = target_tensors - original_tensors
     common_tensors = target_tensors & original_tensors
-
     # present in dataset at lca, but deleted or renamed in target
     target_deleted_tensors = lca_tensors - target_tensors
 
@@ -122,6 +118,7 @@ def get_new_common_deleted_tensors(
         original_renamed_tensors,
         target_renamed_tensors,
     )
+
     process_deleted_tensors(new_tensors, original_deleted_tensors, target_tensor_diff)
     return new_tensors, common_tensors, target_deleted_tensors
 
@@ -187,20 +184,26 @@ def finalize_merge(dataset, nodes: Dict[str, CommitNode]):
 def get_lca_tensors(dataset, lca_id: str) -> Set[str]:
     """Gets the names of tensors present in the lca commit"""
     original_id = dataset.pending_commit_id
-    dataset.checkout(lca_id)
+    checkout(dataset, lca_id)
     lca_tensors: Set[str] = set(dataset.tensors.keys())
-    dataset.checkout(original_id)
+    checkout(dataset, original_id)
     return lca_tensors
 
 
-def auto_commit_target_commit(dataset, target_commit_id: str) -> str:
+def auto_commit_target_commit(
+    dataset, target_commit_id: str, flush_version_control_info: bool = True
+) -> str:
     """Automatically commits the dataset at the target id if it is the head of a branch."""
     original_id = dataset.pending_commit_id
     original_branch = dataset.branch
-    dataset.checkout(target_commit_id)
-    auto_commit(dataset, f"Auto commit before merging into {original_branch}")
+    checkout(dataset, target_commit_id)
+    auto_commit(
+        dataset,
+        f"Auto commit before merging into {original_branch}",
+        flush_version_control_info=flush_version_control_info,
+    )
     target_commit_id = dataset.pending_commit_id
-    dataset.checkout(original_id)
+    checkout(dataset, original_id)
     return target_commit_id
 
 

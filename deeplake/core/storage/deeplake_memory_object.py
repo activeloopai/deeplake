@@ -1,6 +1,7 @@
 from abc import ABC, abstractmethod
 import json
 from typing import Any, Dict
+from deeplake.util.json import HubJsonEncoder, HubJsonDecoder
 
 
 class DeepLakeMemoryObject(ABC):
@@ -20,13 +21,15 @@ class DeepLakeMemoryObject(ABC):
 
     def tobytes(self) -> bytes:
         d = {str(k): v for k, v in self.__getstate__().items()}
-        return bytes(json.dumps(d, sort_keys=True, indent=4), "utf-8")
+        return bytes(
+            json.dumps(d, sort_keys=True, indent=4, cls=HubJsonEncoder), "utf-8"
+        )
 
     @classmethod
     def frombuffer(cls, buffer: bytes):
         instance = cls()
         if len(buffer) > 0:
-            instance.__setstate__(json.loads(buffer))
+            instance.__setstate__(json.loads(buffer, cls=HubJsonDecoder))
             instance.is_dirty = False
             return instance
         raise BufferError("Unable to instantiate the object as the buffer was empty.")
