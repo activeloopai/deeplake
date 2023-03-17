@@ -350,9 +350,11 @@ def combine_pad_encoders(
 ) -> None:
     enc = PadEncoder()
     idx = None
-    for i in range(
-        int(max(ds_pad_encoder.array.max(), worker_pad_encoder.array.max()))
-    ):
+    arr1 = ds_pad_encoder.array
+    arr2 = worker_pad_encoder.array
+    if not arr1.size or not arr2.size:
+        return enc
+    for i in range(int(max(arr1.max(), arr2.max())) + 1):
         if ds_pad_encoder.is_padding(i) and worker_pad_encoder.is_padding(i):
             if idx is None:
                 idx = i

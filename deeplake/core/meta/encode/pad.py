@@ -24,6 +24,8 @@ class PadEncoder(DeepLakeMemoryObject):
         self.is_dirty = True
 
     def _is_padded(self, global_sample_index: int, idx: int) -> bool:
+        if idx >= len(self._encoded):
+            return False
         m = idx % 2
         edge = self._encoded[idx]
         if m == 0:
