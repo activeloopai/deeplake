@@ -17,7 +17,9 @@ class PadEncoder(DeepLakeMemoryObject):
 
     def _flush(self):
         if self._buffer:
-            self._encoded = np.concatenate([self._encoded, np.array(self._buffer, dtype=ENCODING_DTYPE)], axis=0)
+            self._encoded = np.concatenate(
+                [self._encoded, np.array(self._buffer, dtype=ENCODING_DTYPE)], axis=0
+            )
             self._buffer = []
 
     def add_padding(self, start_index: int, pad_length: int) -> None:
@@ -49,13 +51,17 @@ class PadEncoder(DeepLakeMemoryObject):
             and self._encoded[idx] + 1 == self._encoded[idx + 1]
         ):
             self._encoded = np.concatenate(
-                [self._encoded[:idx], self._encoded[idx + 2 :]], axis=0,
+                [self._encoded[:idx], self._encoded[idx + 2 :]],
+                axis=0,
             )
         elif global_sample_index + 1 == self._encoded[idx]:
             self._encoded = np.concatenate(
                 [
                     self._encoded[:idx],
-                    np.array([global_sample_index, global_sample_index + 1], dtype=ENCODING_DTYPE),
+                    np.array(
+                        [global_sample_index, global_sample_index + 1],
+                        dtype=ENCODING_DTYPE,
+                    ),
                     self._encoded[idx + 1 :],
                 ],
                 axis=0,
@@ -64,11 +70,14 @@ class PadEncoder(DeepLakeMemoryObject):
             self._encoded = np.concatenate(
                 [
                     self._encoded[:idx],
-                    np.array([global_sample_index, global_sample_index + 1], dtype=ENCODING_DTYPE),
+                    np.array(
+                        [global_sample_index, global_sample_index + 1],
+                        dtype=ENCODING_DTYPE,
+                    ),
                     self._encoded[idx:],
                 ],
                 axis=0,
-                dtype=ENCODING_DTYPE
+                dtype=ENCODING_DTYPE,
             )
 
     def unpad(self, global_sample_index: int) -> None:
