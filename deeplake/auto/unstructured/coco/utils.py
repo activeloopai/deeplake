@@ -118,7 +118,7 @@ class CocoImages:
         for file in self.provider:
             if file.lower().endswith(supported_image_extensions):
                 supported_images.append(file)
-                ext = file.split(".")[1]
+                ext = file.rsplit(".", 1)[1]
                 extensions[ext] += 1
             else:
                 invalid_files.append(file)

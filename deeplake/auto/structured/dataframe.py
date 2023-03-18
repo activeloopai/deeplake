@@ -59,7 +59,7 @@ class DataFrame(StructuredDataset):
         image_extensions: DefaultDict[str, int] = defaultdict(int)
         for file in fn_iterator:
             if file.lower().endswith(supported_image_extensions):
-                ext = file.split(".")[1]
+                ext = file.rsplit(".", 1)[1]
                 image_extensions[ext] += 1
             else:
                 raise IngestionError(f"The following file is not supported: {file}")
