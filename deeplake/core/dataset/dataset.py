@@ -20,7 +20,6 @@ from deeplake.util.downsample import validate_downsampling
 from deeplake.util.version_control import (
     save_version_info,
     integrity_check,
-    get_parent_and_reset_commit_ids,
 )
 from deeplake.util.invalid_view_op import invalid_view_op
 from deeplake.util.spinner import spinner

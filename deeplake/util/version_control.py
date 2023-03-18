@@ -407,7 +407,7 @@ def reset_and_checkout(ds, address, err, verbose=True):
         storage.clear()
         ds._populate_meta()
         load_meta(ds)
-        return None
+        return
 
     ds.checkout(parent_commit_id)
     new_commit_id = replace_head(storage, version_state, reset_commit_id)
@@ -502,14 +502,14 @@ def load_version_info(storage: LRUCache) -> Dict:
 
 
 def get_parent_and_reset_commit_ids(version_info, address):
-    """Returns parent commit id and commit id which will be reset. Returns False if address is a non-HEAD commit id"""
+    """Returns parent commit id and commit id which will be reset. Returns (False, False) if address is a non-HEAD commit id"""
     if address in version_info["branch_commit_map"]:
         commit_id = version_info["branch_commit_map"][address]
     elif address in version_info["commit_node_map"]:
         commit_id = address
     commit_node = version_info["commit_node_map"][commit_id]
     if not commit_node.is_head_node:
-        return False
+        return False, False
     parent_node = commit_node.parent
     if parent_node is None:
         previous_commit_id = None
