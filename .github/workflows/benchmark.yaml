@@ -1,0 +1,158 @@
+name: Deep Lake benchmarks
+
+permissions:
+  id-token: write
+  contents: read
+  pull-requests: 'write'
+
+on:
+  pull_request:
+    branches:
+      - "main"
+    types:
+      - "labeled"
+
+  push:
+    branches:
+      - "main"
+      - "release/**"
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.head_ref || github.ref_name }}
+  cancel-in-progress: true
+
+jobs:
+  remove_label:
+    name: Remove run-benchmarks label
+    if: github.event_name == 'pull_request' && github.event.label.name == 'run-benchmarks'
+    runs-on: ubuntu-latest
+    steps:
+      - name: Remove run-benchmarks label
+        continue-on-error: true
+        uses: actions-ecosystem/action-remove-labels@v1
+        with:
+          labels: run-benchmarks
+
+  benchmark:
+    if: github.event_name == 'push' || (github.event_name == 'pull_request' &&  github.event.label.name == 'run-benchmarks')
+    runs-on: benchmarks_${{ matrix.machine }}
+    timeout-minutes: 360
+    strategy:
+      fail-fast: false
+      matrix:
+        machine: 
+          - linux_cpu
+          - linux_gpu
+          - macos_intel
+    steps:
+      - name: Configure AWS credentials
+        if: matrix.machine == 'macos_intel'
+        uses: aws-actions/configure-aws-credentials@v1-node16
+        with:
+          role-to-assume: ${{ secrets.BENCHMARKS_AWS_ROLE_ARN }}
+          aws-region: us-east-1
+          role-duration-seconds: 14400
+
+      - name: pull deeplake
+        uses: actions/checkout@v3
+        with:
+          path: "deeplake"
+
+      - name: pull benchmarks
+        uses: actions/checkout@v3
+        with:
+          repository: ${{ secrets.BENCHMARKS_REPO }}
+          path: "benchmarks"
+          ref: "main"
+          token: ${{ secrets.BENCHMARK_REPO_TOKEN }}
+
+      - name: run benchmarks
+        shell: bash
+        working-directory: ./benchmarks
+        env:
+          DEEPLAKE_USER: ${{ secrets.ACTIVELOOP_HUB_USERNAME}}
+          DEEPLAKE_PASS: ${{ secrets.ACTIVELOOP_HUB_PASSWORD }}
+        run: |
+          bash run.sh ${{ matrix.machine }}
+
+      - name: pull reports
+        uses: actions/checkout@v3
+        with:
+          repository: ${{ secrets.BENCHMARK_REPORT }}
+          path: "reports"
+          ref: "main"
+          token: ${{ secrets.BENCHMARK_REPO_TOKEN }}
+
+      - name: create report
+        shell: bash
+        env:
+          NODE: ${{ matrix.machine }}
+        run: |
+          python3 benchmarks/scripts/report.py \
+            -t md \
+            -n benchmarks/results.csv \
+            -b reports/${{ matrix.machine }}/latest/results.csv \
+            -o report.md
+
+          python3 benchmarks/scripts/report.py \
+            -t csv \
+            -n benchmarks/results.csv \
+            -b reports/${{ matrix.machine }}/latest/results.csv \
+            -o report.csv
+
+      - name: update reports
+        if: github.event_name == 'push'
+        shell: bash
+        run: |
+          if [ ${{ github.ref_name }} == 'main' ]
+          then
+            cp benchmarks/results.csv reports/${{ matrix.machine }}/main/results.csv
+            cp report.md   reports/${{ matrix.machine }}/main/report.md
+            cp report.csv  reports/${{ matrix.machine }}/main/report.csv
+            cp benchmarks/results.csv reports/${{ matrix.machine }}/main/results-${{ github.sha }}.csv
+            cp report.md   reports/${{ matrix.machine }}/main/report-${{ github.sha }}.md
+            cp report.csv  reports/${{ matrix.machine }}/main/report-${{ github.sha }}.csv
+          else
+            mkdir "reports/${{ matrix.machine }}/${GITHUB_REF_NAME/\//-}" || true
+            cp benchmarks/results.csv "reports/${{ matrix.machine }}/${GITHUB_REF_NAME/\//-}/"
+            cp report.md   "reports/${{ matrix.machine }}/${GITHUB_REF_NAME/\//-}/"
+            cp report.csv  "reports/${{ matrix.machine }}/${GITHUB_REF_NAME/\//-}/"
+            cp benchmarks/results.csv "reports/${{ matrix.machine }}/latest/"
+            cp report.md   "reports/${{ matrix.machine }}/latest/"
+            cp report.csv  "reports/${{ matrix.machine }}/latest/"
+          fi
+
+          cd reports
+          git config user.name github-actions
+          git config user.email github-actions@github.com
+          git add .
+          git commit -m "Becnhmark report for ${GITHUB_REF_NAME}"
+          git push origin main 
+
+      - name: notify
+        if: github.event_name == 'push'
+        shell: bash
+        working-directory: ./benchmarks
+        env:
+          NODE: ${{ matrix.machine }}
+          URL: ${{ secrets.SLACK_URL }}
+        run: |
+          python3 scripts/notify.py 
+
+      - name: comment pr
+        if: github.event_name == 'pull_request'
+        uses: thollander/actions-comment-pull-request@v2
+        with:
+          filePath: ./report.md
+          comment_tag: ${{ matrix.machine }}
+
+      - name: fail
+        shell: bash
+        run: |
+          if [ -s /tmp/failed_datasets.txt ]
+          then
+            cat /tmp/failed_datasets.txt
+            rm  /tmp/failed_datasets.txt
+            exit 1
+          fi
+          exit 0
