@@ -14,6 +14,7 @@ from deeplake.tests.common import is_opt_true
 from deeplake.util.exceptions import (
     ManagedCredentialsNotFoundError,
     MissingCredsError,
+    SampleAppendError,
     TensorMetaInvalidHtype,
     UnableToReadFromUrlError,
 )
@@ -209,7 +210,7 @@ def test_basic(local_ds_generator, cat_path, flower_path, create_shape_tensor, v
             verify=verify,
             sample_compression="png",
         )
-        with pytest.raises(TypeError):
+        with pytest.raises(SampleAppendError):
             ds.linked_images.append(np.ones((100, 100, 3)))
 
         for _ in range(10):
