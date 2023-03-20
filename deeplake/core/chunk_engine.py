@@ -1216,7 +1216,6 @@ class ChunkEngine:
         extend_link_callback=None,
         update_link_callback=None,
     ):
-        print("pad_and_append", num_samples_to_pad)
         """Pads the tensor with empty samples and appends value at the end."""
         self.check_link_ready()
         self.start_chunk = self.last_appended_chunk()  # type: ignore
