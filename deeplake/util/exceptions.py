@@ -378,7 +378,7 @@ class SampleDecompressionError(CompressionError):
         message = "Could not decompress sample"
         if path:
             message += f" at {path}"
-        message += ". Either the sample's buffer is corrupted, or it is in an unsupported format. Supported compressions: {deeplake.compressions}."
+        message += f". Either the sample's buffer is corrupted, or it is in an unsupported format. Supported compressions: {deeplake.compressions}."
         super().__init__(message)
 
 
@@ -617,7 +617,7 @@ class CorruptedSampleError(Exception):
     def __init__(self, compression, path: Optional[str] = None):
         message = f"Unable to decompress {compression} file"
         if path is not None:
-            message += f"at {path}"
+            message += f" at {path}"
         message += "."
         super().__init__(message)
 
@@ -889,9 +889,10 @@ class GetChunkError(Exception):
         if chunk_key is not None:
             message += f" '{chunk_key}'"
         if global_index is not None:
-            message += f" while retrieving data with index {global_index}"
+            message += f" while retrieving data at index {global_index}"
         if tensor_name is not None:
-            message += f" for tensor {tensor_name}"
+            message += f" in tensor {tensor_name}"
+        message += "."
         super().__init__(message)
 
 
@@ -905,12 +906,13 @@ class ReadSampleFromChunkError(Exception):
         self.chunk_key = chunk_key
         message = "Unable to read sample"
         if global_index is not None:
-            message += f" with index {global_index}"
+            message += f" at index {global_index}"
         message += " from chunk"
         if chunk_key is not None:
             message += f" '{chunk_key}'"
         if tensor_name is not None:
-            message += f" for tensor {tensor_name}"
+            message += f" in tensor {tensor_name}"
+        message += "."
         super().__init__(message)
 
 
@@ -924,16 +926,17 @@ class GetDataFromLinkError(Exception):
         self.link = link
         message = f"Unable to get data from link {link}"
         if global_index is not None:
-            message += f" while retrieving data with index {global_index}"
+            message += f" while retrieving data at index {global_index}"
         if tensor_name is not None:
-            message += f" for tensor {tensor_name}"
+            message += f" in tensor {tensor_name}"
+        message += "."
         super().__init__(message)
 
 
 class TransformFailedError(Exception):
     def __init__(self, global_index):
         super().__init__(
-            f"Transform failed while processing sample with index {global_index}"
+            f"Dataloader transform failed while processing sample at index {global_index}."
         )
 
 
@@ -943,3 +946,13 @@ class MissingCredsError(Exception):
 
 class MissingManagedCredsError(Exception):
     pass
+
+
+class SampleAppendError(Exception):
+    def __init__(self, key: str):
+        super().__init__(f"Unable to append sample to tensor {key}.")
+
+
+class SampleUpdateError(Exception):
+    def __init__(self, key: str):
+        super().__init__(f"Unable to update sample in tensor {key}.")
