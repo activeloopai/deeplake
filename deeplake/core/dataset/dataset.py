@@ -174,7 +174,7 @@ class Dataset:
             verbose (bool): If ``True``, logs will be printed. Defaults to True.
             version_state (Dict[str, Any], Optional): The version state of the dataset, includes commit_id, commit_node, branch, branch_commit_map and commit_node_map.
             path (str, pathlib.Path): The path to the dataset.
-            version (Optional[str]): The version address of the dataset.
+            address (Optional[str]): The version address of the dataset.
             is_iteration (bool): If this Dataset is being used as an iterator.
             link_creds (LinkCreds, Optional): The LinkCreds object used to access tensors that have external data linked to them.
             pad_tensors (bool): If ``True``, shorter tensors will be padded to the length of the longest tensor.
