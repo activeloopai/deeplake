@@ -822,8 +822,8 @@ def _merge_creds_encoders(
 
 
 def _merge_pad_encoders(
-    src_pad_encoder, dest_pad_encoder, start: int, end: int
-) -> None:
+    src_pad_encoder: PadEncoder, dest_pad_encoder: PadEncoder, start: int, end: int
+) -> PadEncoder:
     enc = PadEncoder()
     idx = None
     for i in range(start, end):

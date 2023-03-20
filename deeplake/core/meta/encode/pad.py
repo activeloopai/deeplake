@@ -89,7 +89,7 @@ class PadEncoder(DeepLakeMemoryObject):
     def pop(self, global_sample_index: int) -> None:
         self._flush()
         idx = np.searchsorted(self._encoded, global_sample_index)
-        is_padded = self._is_padded(global_sample_index, idx)
+        is_padded = self._is_padded(global_sample_index, idx)  # type: ignore
         if is_padded:
             self._unpad(global_sample_index, idx)  # type: ignore
             self._encoded[idx + 1] -= 1
