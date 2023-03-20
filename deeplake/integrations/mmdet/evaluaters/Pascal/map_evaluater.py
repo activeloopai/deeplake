@@ -1,7 +1,9 @@
 from collections import OrderedDict
 from typing import List, Dict, Any
 
-from deeplake.integrations.mmdet.evaluaters import base_evaluater
+from matterport.deeplake.deeplake.integrations.mmdet.evaluaters.Pascal import (
+    base_evaluater,
+)
 
 from mmdet.core import eval_map
 from mmdet.utils import print_log
@@ -11,6 +13,7 @@ class MAPEvaluator(base_evaluater.BaseEvaluator):
     """
     Mean Average Precision Evaluator class.
     """
+
     def evaluate(self) -> Dict[str, float]:
         if self.num_gpus > 1:
             results_ordered = []
@@ -25,7 +28,9 @@ class MAPEvaluator(base_evaluater.BaseEvaluator):
 
         return eval_results
 
-    def calculate_mAP(self, results: List[Any], annotations: List[Any], iou_thrs: List[float]) -> Dict[str, float]:
+    def calculate_mAP(
+        self, results: List[Any], annotations: List[Any], iou_thrs: List[float]
+    ) -> Dict[str, float]:
         """
         Calculates mAP for given results, annotations, and IoU thresholds.
 

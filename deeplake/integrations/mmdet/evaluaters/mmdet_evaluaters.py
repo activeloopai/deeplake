@@ -1,6 +1,8 @@
 from typing import Union
 from deeplake.integrations.mmdet import mmdet_utils
-from deeplake.integrations.mmdet.evaluaters import pascal_evaluater
+from matterport.deeplake.deeplake.integrations.mmdet.evaluaters.Pascal import (
+    pascal_evaluater,
+)
 from deeplake.util.exceptions import UnsupportedMMDetMetric
 
 

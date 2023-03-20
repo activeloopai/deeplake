@@ -1,7 +1,12 @@
 from typing import List, Tuple, Dict, Any
 
 import deeplake
-from deeplake.integrations.mmdet.evaluaters import map_evaluater, recall_evaluater
+from matterport.deeplake.deeplake.integrations.mmdet.evaluaters.Pascal import (
+    recall_evaluater,
+)
+from matterport.deeplake.deeplake.integrations.mmdet.evaluaters.Pascal import (
+    map_evaluater,
+)
 
 
 class Evaluator:
