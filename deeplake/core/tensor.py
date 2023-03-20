@@ -1187,13 +1187,41 @@ class Tensor:
         else:
             webbrowser.open(self._get_video_stream_url())
 
+    def _pop_from_sequence(
+        self,
+        index: int,
+        rev_tensor_names: Dict[str, str],
+    ):
+        flat_links: List[str] = []
+        non_flat_links: List[str] = []
+        for link, props in self.meta.links.items():
+            (flat_links if props["flatten_sequence"] else non_flat_links).append(link)
+
+        if flat_links:
+            seq_enc = self.chunk_engine.sequence_encoder
+            for link in flat_links:
+                link_tensor = self.dataset[rev_tensor_names.get(link)]
+                for idx in reversed(range(*seq_enc[index])):
+                    link_tensor.pop(idx)
+        [self.dataset[rev_tensor_names.get(link)].pop(index) for link in non_flat_links]
+
     @invalid_view_op
     def pop(self, index: Optional[int] = None):
         """Removes an element at the given index."""
         if index is None:
             index = self.num_samples - 1
+
+        # meta.links contain tensor keys not names
+        rev_tensor_names = {v: k for k, v in self.dataset.meta.tensor_names.items()}
+
+        if self.meta.is_sequence:
+            self._pop_from_sequence(index, rev_tensor_names)
+        else:
+            links = list(self.meta.links.keys())
+            [self.dataset[rev_tensor_names.get(link)].pop(index) for link in links]
+
         self.chunk_engine.pop(index)
-        [self.dataset[link].pop(index) for link in self.meta.links]
+
         self.invalidate_libdeeplake_dataset()
 
     @property

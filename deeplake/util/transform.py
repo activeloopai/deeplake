@@ -10,6 +10,7 @@ from deeplake.core.storage import StorageProvider, MemoryProvider, LRUCache
 from deeplake.core.chunk_engine import ChunkEngine
 from deeplake.core.transform.transform_dataset import TransformDataset
 from deeplake.core.index import Index
+from deeplake.core.tensor import Tensor
 
 from deeplake.constants import (
     MB,
@@ -18,6 +19,7 @@ from deeplake.constants import (
 )
 from deeplake.util.remove_cache import get_base_storage
 from deeplake.util.keys import get_tensor_meta_key
+from deeplake.util.version_control import load_meta
 from deeplake.util.exceptions import (
     InvalidInputDataError,
     InvalidOutputDatasetError,
@@ -476,7 +478,21 @@ def get_pbar_description(compute_functions: List):
 
 def create_slices(data_in, num_workers):
     size = math.ceil(len(data_in) / num_workers)
-    ret = [data_in[i * size : (i + 1) * size] for i in range(num_workers)]
+
+    if isinstance(data_in, Tensor):
+        ret = [
+            Tensor(data_in.key, data_in.dataset)[i * size : (i + 1) * size]
+            for i in range(num_workers)
+        ]
+    else:
+        ret = [data_in[i * size : (i + 1) * size] for i in range(num_workers)]
+
+    if isinstance(data_in, deeplake.Dataset):
+        for ds in ret:
+            ds.version_state["full_tensors"] = {}
+            _tensors = ds.version_state["full_tensors"]
+            for tensor_key in data_in.version_state["tensor_names"].values():
+                _tensors[tensor_key] = Tensor(tensor_key, ds)
     return ret
 
 
