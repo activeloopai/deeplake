@@ -104,10 +104,10 @@ def convert_pathlib_to_string_if_needed(path: Union[str, pathlib.Path]) -> str:
 
 
 def process_dataset_path(path: Union[str, pathlib.Path]) -> Tuple[str, Optional[str]]:
-    dataset_path, at, version = str(path).partition("@")
-    if not version:
-        version = None  # type: ignore
-    return dataset_path, version
+    dataset_path, at, address = str(path).partition("@")
+    if not address:
+        address = None  # type: ignore
+    return dataset_path, address
 
 
 def get_org_id_and_ds_name(path):

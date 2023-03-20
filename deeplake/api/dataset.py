@@ -170,7 +170,7 @@ class dataset:
         access_method, num_workers, scheduler = parse_access_method(access_method)
         check_access_method(access_method, overwrite)
 
-        path, version = process_dataset_path(path)
+        path, address = process_dataset_path(path)
         verify_dataset_name(path)
 
         if creds is None:
@@ -208,7 +208,7 @@ class dataset:
         else:
             create = True
 
-        if create and version:
+        if create and address:
             raise ValueError(
                 "deeplake.dataset does not accept version address when writing a dataset."
             )
@@ -216,7 +216,7 @@ class dataset:
         if access_method == "stream":
             dataset_kwargs = {
                 "path": path,
-                "version": version,
+                "address": address,
                 "storage": cache_chain,
                 "read_only": read_only,
                 "public": public,
@@ -265,7 +265,7 @@ class dataset:
                         "Cannot reset HEAD when loading dataset in read-only mode."
                     )
                 return dataset._reset_and_load(
-                    cache_chain, access_method, dataset_kwargs, version, e
+                    cache_chain, access_method, dataset_kwargs, address, e
                 )
 
     @staticmethod
@@ -287,9 +287,9 @@ class dataset:
         Raises:
             ValueError: If version is specified in the path
         """
-        path, version = process_dataset_path(path)
+        path, address = process_dataset_path(path)
 
-        if version:
+        if address:
             raise ValueError(
                 "deeplake.exists does not accept version address in the dataset path."
             )
@@ -354,9 +354,9 @@ class dataset:
         Danger:
             Setting ``overwrite`` to ``True`` will delete all of your data if it exists! Be very careful when setting this parameter.
         """
-        path, version = process_dataset_path(path)
+        path, address = process_dataset_path(path)
 
-        if version:
+        if address:
             raise ValueError(
                 "deeplake.empty does not accept version address in the dataset path."
             )
@@ -492,7 +492,7 @@ class dataset:
         access_method, num_workers, scheduler = parse_access_method(access_method)
         check_access_method(access_method, overwrite=False)
 
-        path, version = process_dataset_path(path)
+        path, address = process_dataset_path(path)
 
         if creds is None:
             creds = {}
@@ -526,7 +526,7 @@ class dataset:
         if access_method == "stream":
             dataset_kwargs = {
                 "path": path,
-                "version": version,
+                "address": address,
                 "storage": cache_chain,
                 "read_only": read_only,
                 "token": token,
@@ -573,7 +573,7 @@ class dataset:
                         "Cannot reset when loading dataset in read-only mode."
                     )
                 return dataset._reset_and_load(
-                    cache_chain, access_method, dataset_kwargs, version, e
+                    cache_chain, access_method, dataset_kwargs, address, e
                 )
             raise e
 
@@ -605,7 +605,7 @@ class dataset:
             return ds
 
         # load previous version, replace head and checkout to new head
-        dataset_kwargs["version"] = parent_commit_id
+        dataset_kwargs["address"] = parent_commit_id
         ds = dataset._load(dataset_kwargs, access_method)
         new_commit_id = replace_head(storage, ds.version_state, reset_commit_id)
         ds.checkout(new_commit_id)
@@ -708,9 +708,9 @@ class dataset:
         Warning:
             This is an irreversible operation. Data once deleted cannot be recovered.
         """
-        path, version = process_dataset_path(path)
+        path, address = process_dataset_path(path)
 
-        if version:
+        if address:
             raise ValueError(
                 "deeplake.delete does not accept version address in the dataset path."
             )
