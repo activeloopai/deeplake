@@ -39,7 +39,7 @@ class PadEncoder(DeepLakeMemoryObject):
     def is_padded(self, global_sample_index: int) -> bool:
         self._flush()
         idx = np.searchsorted(self._encoded, global_sample_index)
-        return self._is_padded(global_sample_index, idx)
+        return self._is_padded(global_sample_index, idx)  # type: ignore
 
     def tobytes(self) -> memoryview:
         self._flush()
@@ -83,18 +83,18 @@ class PadEncoder(DeepLakeMemoryObject):
     def unpad(self, global_sample_index: int) -> None:
         self._flush()
         idx = np.searchsorted(self._encoded, global_sample_index)
-        if self._is_padded(global_sample_index, idx):
-            self._unpad(global_sample_index, idx)
+        if self._is_padded(global_sample_index, idx):  # type: ignore
+            self._unpad(global_sample_index, idx)  # type: ignore
 
     def pop(self, global_sample_index: int) -> None:
         self._flush()
         idx = np.searchsorted(self._encoded, global_sample_index)
         is_padded = self._is_padded(global_sample_index, idx)
         if is_padded:
-            self._unpad(global_sample_index, idx)
+            self._unpad(global_sample_index, idx)  # type: ignore
             self._encoded[idx + 1] -= 1
         else:
-            self._encoded[idx:] -= 1
+            self._encoded[idx:] -= 1  # type: ignore
 
     @classmethod
     def frombuffer(cls, buffer: bytes):
