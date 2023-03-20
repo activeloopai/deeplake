@@ -1,5 +1,5 @@
 import pathlib
-from typing import Union, Set
+from typing import Union, Set, Any
 from deeplake.core.dataset import Dataset
 import posixpath
 import deeplake
@@ -25,7 +25,7 @@ def _is_seq_convertible(seq):
     return True
 
 
-def _create_tensor_from_feature(key, feature, src, ds):
+def _create_tensor_from_feature(key: str, feature: Any, src: str, ds: str, exist_ok: bool = False):
     from datasets import Sequence, ClassLabel
     from datasets import Dataset as hfDataset
 
@@ -33,7 +33,7 @@ def _create_tensor_from_feature(key, feature, src, ds):
     if isinstance(feature, (dict, Sequence, list)):
         if isinstance(feature, dict):
             for x in feature:
-                _create_tensor_from_feature(f"{key}/{x}", feature[x], src[curr], ds)
+                _create_tensor_from_feature(f"{key}/{x}", feature[x], src[curr], ds, exist_ok=exist_ok)
             return True
         elif isinstance(feature, (Sequence, list)):
             if isinstance(feature, Sequence):
@@ -41,18 +41,18 @@ def _create_tensor_from_feature(key, feature, src, ds):
             else:
                 inner = feature[0]
             if isinstance(inner, dict):
-                _create_tensor_from_feature(key, feature.feature, src, ds)
+                _create_tensor_from_feature(key, feature.feature, src, ds, exist_ok=exist_ok)
                 return True
             elif _is_seq_convertible(feature):
-                ds.create_tensor(key)
+                ds.create_tensor(key, exist_ok=exist_ok)
             else:
                 return False
     elif feature.dtype in ("string", "large_string"):
-        ds.create_tensor(key, htype="text")
+        ds.create_tensor(key, htype="text", exist_ok=exist_ok)
     elif isinstance(feature, ClassLabel):
-        ds.create_tensor(key, htype="class_label", class_names=feature.names)
+        ds.create_tensor(key, htype="class_label", class_names=feature.names, exist_ok=exist_ok)
     else:
-        ds.create_tensor(key)
+        ds.create_tensor(key, exist_ok=exist_ok)
 
     if isinstance(src, (hfDataset, dict)):
         ds[key].extend(src[curr])
@@ -65,9 +65,10 @@ def _create_tensor_from_feature(key, feature, src, ds):
 
 
 def ingest_huggingface(
-    src,
-    dest,
-    use_progressbar=True,
+    src: str,
+    dest: str,
+    use_progressbar: bool = True,
+    exist_ok: bool = False,
 ) -> Dataset:
     """Converts Hugging Face datasets to Deep Lake format.
 
@@ -110,7 +111,7 @@ def ingest_huggingface(
     if isinstance(src, DatasetDict):
         for split, src_ds in src.items():
             for key, feature in src_ds.features.items():
-                _create_tensor_from_feature(f"{split}/{key}", feature, src_ds, ds)
+                _create_tensor_from_feature(f"{split}/{key}", feature, src_ds, ds, exist_ok=exist_ok)
     else:
         skipped_keys: Set[str] = set()
         features = tqdm(
