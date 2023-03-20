@@ -25,7 +25,7 @@ def _is_seq_convertible(seq):
     return True
 
 
-def _create_tensor_from_feature(key: str, feature: Any, src: str, ds: str, exist_ok: bool = False):
+def _create_tensor_from_feature(key: str, feature: Any, src: Any, ds: Dataset, exist_ok: bool = False):
     from datasets import Sequence, ClassLabel
     from datasets import Dataset as hfDataset
 
