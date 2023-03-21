@@ -165,6 +165,7 @@ def store_data_slice_with_pbar(pg_callback, transform_input: Tuple) -> Dict:
     all_chunk_id_encoders = {}
     all_tile_encoders = {}
     all_sequence_encoders = {}
+    all_pad_encoders = {}
     all_chunk_maps = {}
     all_commit_diffs = {}
     all_creds_encoders = {}
@@ -176,6 +177,7 @@ def store_data_slice_with_pbar(pg_callback, transform_input: Tuple) -> Dict:
         all_chunk_id_encoders[tensor] = chunk_engine.chunk_id_encoder
         all_tile_encoders[tensor] = chunk_engine.tile_encoder
         all_sequence_encoders[tensor] = chunk_engine.sequence_encoder
+        all_pad_encoders[tensor] = chunk_engine.pad_encoder
         all_chunk_maps[tensor] = chunk_engine.commit_chunk_map
         all_commit_diffs[tensor] = chunk_engine.commit_diff
         all_creds_encoders[tensor] = chunk_engine.creds_encoder
@@ -186,6 +188,7 @@ def store_data_slice_with_pbar(pg_callback, transform_input: Tuple) -> Dict:
         "tensor_metas": all_tensor_metas,
         "chunk_id_encoders": all_chunk_id_encoders,
         "sequence_encoders": all_sequence_encoders,
+        "pad_encoders": all_pad_encoders,
         "tile_encoders": all_tile_encoders,
         "commit_chunk_maps": all_chunk_maps,
         "commit_diffs": all_commit_diffs,
