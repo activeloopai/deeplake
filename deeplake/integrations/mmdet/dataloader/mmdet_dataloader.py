@@ -3,7 +3,7 @@ from typing import Optional, List
 from mmcv.parallel import collate  # type: ignore
 from functools import partial
 import deeplake as dp
-from ..trainer.transform import transform
+from ..transform.Transform import transform
 from mmdet.utils.util_distribution import *  # type: ignore
 from deeplake.enterprise.dataloader import dataloader
 import types
