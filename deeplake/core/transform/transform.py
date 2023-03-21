@@ -57,6 +57,7 @@ class ComputeFunction:
         check_lengths: bool = True,
         pad_data_in: bool = False,
         read_only_ok: bool = False,
+        ignore_errors: bool = False,
         **kwargs,
     ):
         """Evaluates the ComputeFunction on data_in to produce an output dataset ds_out.
@@ -98,6 +99,7 @@ class ComputeFunction:
             check_lengths,
             pad_data_in,
             read_only_ok,
+            ignore_errors,
             **kwargs,
         )
 
@@ -124,6 +126,7 @@ class Pipeline:
         check_lengths: bool = True,
         pad_data_in: bool = False,
         read_only_ok: bool = False,
+        ignore_errors: bool = False,
         **kwargs,
     ):
         """Evaluates the pipeline on ``data_in`` to produce an output dataset ``ds_out``.
@@ -145,6 +148,7 @@ class Pipeline:
                 Defaults to ``False``.
             read_only_ok (bool): If ``True`` and output dataset is same as input dataset, the read-only check is skipped.
                 Defaults to False.
+            ignore_errors (bool): If ``True``, input samples that causes transform to fail will be skipped and the errors will be ignored **if possible**.
             **kwargs: Additional arguments.
 
         Raises:
@@ -228,12 +232,13 @@ class Pipeline:
                 overwrite,
                 skip_ok,
                 read_only_ok and overwrite,
+                ignore_errors,
                 **kwargs,
             )
             target_ds._send_compute_progress(**progress_end_args, status="success")
-        except Exception as e:
+        except Exception:
             target_ds._send_compute_progress(**progress_end_args, status="failed")
-            raise TransformError(e).with_traceback(sys.exc_info()[2])
+            raise
         finally:
             compute_provider.close()
             if overwrite:
@@ -260,6 +265,7 @@ class Pipeline:
         overwrite: bool = False,
         skip_ok: bool = False,
         read_only: bool = False,
+        ignore_errors: bool = False,
         **kwargs,
     ):
         """Runs the pipeline on the input data to produce output samples and stores in the dataset.
@@ -267,7 +273,7 @@ class Pipeline:
         """
         if isinstance(data_in, deeplake.Dataset):
             dataset_read(data_in)
-        slices = create_slices(data_in, num_workers)
+        slices, offsets = create_slices(data_in, num_workers)
         storage = get_base_storage(target_ds.storage)
         class_label_tensors = (
             [
@@ -331,8 +337,9 @@ class Pipeline:
             target_ds.link_creds,
             skip_ok,
             extend_only,
+            ignore_errors,
         )
-        map_inp = zip(slices, storages, repeat(args))
+        map_inp = zip(slices, offsets, storages, repeat(args))
         try:
             if progressbar:
                 desc = get_pbar_description(self.functions)
@@ -344,10 +351,9 @@ class Pipeline:
                 )
             else:
                 result = compute.map(store_data_slice, map_inp)
-        except Exception as e:
+        finally:
             for tensor in label_temp_tensors.values():
                 target_ds.delete_tensor(tensor)
-            raise e
 
         if read_only:
             return

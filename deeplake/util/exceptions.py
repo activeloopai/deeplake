@@ -503,8 +503,68 @@ class ReadOnlyModeError(Exception):
         super().__init__(custom_message)
 
 
+def is_primitive(sample):
+    if isinstance(sample, (str, int, float, bool)):
+        return True
+    if isinstance(sample, dict):
+        for x, y in sample.items():
+            if not is_primitive(x) or not is_primitive(y):
+                return False
+        return True
+    if isinstance(sample, (list, tuple)):
+        for x in sample:
+            if not is_primitive(x):
+                return False
+        return True
+    return False
+
+
+def has_path(sample):
+    from deeplake.core.sample import Sample
+    from deeplake.core.linked_sample import LinkedSample
+
+    return isinstance(sample, LinkedSample) or (
+        isinstance(sample, Sample) and sample.path is not None
+    )
+
+
 class TransformError(Exception):
-    pass
+    def __init__(self, index, sample):
+        print_item = is_primitive(sample)
+        print_path = has_path(sample)
+
+        msg = f"Transform failed at index {index} of the input data"
+
+        if print_item:
+            msg += f" on the item: {sample}."
+        elif print_path:
+            msg += f"on the sample at path: '{sample.path}'."
+        else:
+            msg += "."
+
+        msg += " See traceback for more details."
+
+        super().__init__(msg)
+
+
+class DatasetAppendError(Exception):
+    def __init__(self, tensor, sample):
+        print_item = is_primitive(sample)
+        print_path = has_path(sample)
+
+        if print_item or print_path:
+            msg = "Failed to append the sample "
+
+            if print_item:
+                msg += str(sample) + " "
+            elif print_path:
+                msg += f"at path '{sample.path}' "
+        else:
+            msg = f"Failed to append a sample "
+
+        msg += f"to the tensor '{tensor}'. See more details in the traceback."
+
+        super().__init__(msg)
 
 
 class FilterError(Exception):
