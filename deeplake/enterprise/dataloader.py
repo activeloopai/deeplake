@@ -575,7 +575,8 @@ class DeepLakeDataLoader(DataLoader):
             else:
                 indra_dataset = self._indra_dataset
             if (
-                "pil" in self._decode_method.values()
+                isinstance(self._decode_method, dict)
+                and "pil" in self._decode_method.values()
                 and self._collate is None
                 and self._transform is None
             ):

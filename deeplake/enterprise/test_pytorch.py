@@ -659,6 +659,10 @@ def test_pil_decode_method(local_ds):
         ds.create_tensor("x", htype="image", sample_compression="jpeg")
         ds.x.extend(np.random.randint(0, 255, (10, 10), np.uint8))
 
+    ptds = ds.dataloader().pytorch()
+    for _ in ptds:
+        pass
+
     ptds = ds.dataloader().pytorch(decode_method={"x": "pil"})
     with pytest.raises(ValueError):
         for _ in ptds:
