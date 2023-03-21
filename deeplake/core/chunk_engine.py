@@ -2183,7 +2183,6 @@ class ChunkEngine:
 
     @property
     def pad_encoder(self) -> PadEncoder:
-
         commit_id = self.commit_id
         if self._pad_encoder is None or self._pad_encoder_commit_id != commit_id:
             commit_id = self.commit_id

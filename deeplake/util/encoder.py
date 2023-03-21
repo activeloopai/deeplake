@@ -355,7 +355,7 @@ def combine_pad_encoders(
     if not arr1.size or not arr2.size:
         return enc
     for i in range(int(max(arr1.max(), arr2.max())) + 1):
-        if ds_pad_encoder.is_padded(i) and worker_pad_encoder.is_padd(i):
+        if ds_pad_encoder.is_padded(i) and worker_pad_encoder.is_padded(i):
             if idx is None:
                 idx = i
         else:
