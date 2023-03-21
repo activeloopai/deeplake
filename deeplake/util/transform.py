@@ -337,9 +337,7 @@ def create_worker_chunk_engines(
                     64 * MB,
                 )
                 memory_cache.autoflush = False
-                storage_cache = LRUCache(
-                    MemoryProvider(), output_storage, 64 * MB
-                )
+                storage_cache = LRUCache(MemoryProvider(), output_storage, 64 * MB)
                 storage_cache.autoflush = False
 
                 # this chunk engine is used to retrieve actual tensor meta and chunk_size

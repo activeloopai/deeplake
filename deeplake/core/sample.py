@@ -484,9 +484,9 @@ class Sample:
     def _read_from_gdrive(self) -> bytes:
         assert self.path is not None
         gdrive = storage_factory(
-            GDriveProvider, "gdrive://", token=self._credsm, makemap=False
+            GDriveProvider, "gdrive://", token=self._creds, makemap=False
         )
-        return gdrive.get_object_from_full_url(self.path)
+        return gdrive.get_object_from_full_url(self.path)  # type: ignore
 
     def _read_from_http(self) -> bytes:
         assert self.path is not None
