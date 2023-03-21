@@ -2877,6 +2877,10 @@ class Dataset:
             Specifying ``path`` makes the view external. External views cannot be accessed using the parent dataset's :func:`Dataset.get_view`,
             :func:`Dataset.load_view`, :func:`Dataset.delete_view` methods. They have to be loaded using :func:`deeplake.load`.
         """
+        if id is not None and not isinstance(id, str):
+            raise TypeError(
+                f"id {id} is of type {type(id)} must be of type string."
+            )
         return self._save_view(
             path,
             id,
