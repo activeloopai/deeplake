@@ -509,18 +509,18 @@ def test_link_managed(hub_cloud_ds_generator, cat_path):
     assert ds.img[0].shape == shape_target
     assert ds.img[0].numpy().shape == shape_target
 
-    with pytest.raises(ValueError):
+    with pytest.raises(ManagedCredentialsNotFoundError):
         # managed creds_key can't be updated
         ds.update_creds_key(key_name, "something_else")
 
     with pytest.raises(KeyError):
-        ds.change_creds_management("random_key", False)
+        ds.update_creds_key("random_key", managed=False)
 
     # this is a no-op
-    ds.change_creds_management(key_name, True)
+    ds.update_creds_key(key_name, managed=True)
 
     # no longer managed
-    ds.change_creds_management(key_name, False)
+    ds.update_creds_key(key_name, managed=False)
 
     ds = hub_cloud_ds_generator()
     with pytest.raises(ValueError):
@@ -531,7 +531,7 @@ def test_link_managed(hub_cloud_ds_generator, cat_path):
     assert ds.img[0].numpy().shape == shape_target
 
     ds = hub_cloud_ds_generator()
-    ds.change_creds_management(key_name, True)
+    ds.update_creds_key(key_name, managed=True)
     assert ds.img[0].shape == shape_target
     assert ds.img[0].numpy().shape == shape_target
 

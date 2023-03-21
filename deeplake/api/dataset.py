@@ -1055,7 +1055,7 @@ class dataset:
         connect_kwargs: Optional[Dict] = None,
         **dataset_kwargs,
     ) -> Dataset:
-        """Ingest images and annotations in COCO format to a Deep Lake Dataset.
+        """Ingest images and annotations in COCO format to a Deep Lake Dataset. The source data can be stored locally or in the cloud.
 
         Examples:
             >>> ds = deeplake.ingest_coco(
@@ -1068,7 +1068,7 @@ class dataset:
             >>>     token="my_activeloop_token",
             >>>     num_workers=4,
             >>> )
-            >>> # or ingest data from cloud
+            >>> # or ingest data from the cloud
             >>> ds = deeplake.ingest_coco(
             >>>     "s3://bucket/images/directory",
             >>>     "s3://bucket/annotation/file1.json",
@@ -1076,7 +1076,7 @@ class dataset:
             >>>     ignore_one_group=True,
             >>>     ignore_keys=["area", "image_id", "id"],
             >>>     image_settings={"name": "images", "htype": "link[image]", "sample_compression": "jpeg"},
-            >>>     image_creds_key="my_managed_creds"
+            >>>     image_creds_key="my_s3_managed_credentials"
             >>>     src_creds=aws_creds, # Can also be inferred from environment
             >>>     token="my_activeloop_token",
             >>>     num_workers=4,
@@ -1096,8 +1096,8 @@ class dataset:
             ignore_one_group (bool): Skip creation of group in case of a single annotation file. Set to ``False`` by default.
             ignore_keys (List[str]): A list of COCO keys to ignore.
             image_params (Optional[Dict]): A dictionary containing parameters for the images tensor.
-            image_creds_key (Optional[str]): The name of the managed credentials to use for accessing the images directory via linked tensor.
-            src_creds (Optional[Dict]): Credentials to access the source path. If not provided, will be inferred from the environment.
+            image_creds_key (Optional[str]): The name of the managed credentials to use for accessing the images in the linked tensor (is applicable).
+            src_creds (Optional[Dict]): Credentials to access the source data. If not provided, will be inferred from the environment.
             dest_creds (Optional[Dict]): A dictionary containing credentials used to access the destination path of the dataset.
             inspect_limit (int): The maximum number of samples to inspect in the annotations json, in order to generate the set of COCO annotation keys. Set to ``1000000`` by default.
             progressbar (bool): Enables or disables ingestion progress bar. Set to ``True`` by default.
@@ -1176,7 +1176,7 @@ class dataset:
         connect_kwargs: Optional[Dict] = None,
         **dataset_kwargs,
     ) -> Dataset:
-        """Ingest images and annotations (bounding boxes or polygons) in YOLO format to a Deep Lake Dataset.
+        """Ingest images and annotations (bounding boxes or polygons) in YOLO format to a Deep Lake Dataset. The source data can be stored locally or in the cloud.
 
         Examples:
             >>> ds = deeplake.ingest_yolo(
@@ -1186,12 +1186,12 @@ class dataset:
             >>>     token="my_activeloop_token",
             >>>     num_workers=4,
             >>> )
-            >>> # or ingest data from cloud
+            >>> # or ingest data from the cloud
             >>> ds = deeplake.ingest_yolo(
             >>>     "s3://bucket/data_directory",
             >>>     dest="hub://org_id/dataset",
             >>>     image_params={"name": "image_links", "htype": "link[image]"},
-            >>>     image_creds_key='my_s3_managed_crerendials",
+            >>>     image_creds_key="my_s3_managed_credentials",
             >>>     src_creds=aws_creds, # Can also be inferred from environment
             >>>     token="my_activeloop_token",
             >>>     num_workers=4,
@@ -1211,7 +1211,7 @@ class dataset:
             image_params (Optional[Dict]): A dictionary containing parameters for the images tensor.
             label_params (Optional[Dict]): A dictionary containing parameters for the labels tensor.
             coordinates_params (Optional[Dict]): A dictionary containing parameters for the ccoordinates tensor. This tensor either contains bounding boxes or polygons.
-            src_creds (Optional[Dict]): Credentials to access the source path. If not provided, will be inferred from the environment.
+            src_creds (Optional[Dict]): Credentials to access the source data. If not provided, will be inferred from the environment.
             dest_creds (Optional[Dict]): A dictionary containing credentials used to access the destination path of the dataset.
             image_creds_key (Optional[str]): creds_key for linked tensors, applicable if the htype for the images tensor is specified as 'link[image]' in the 'image_params' input.
             inspect_limit (int): The maximum number of annotations to inspect, in order to infer whether they are bounding boxes of polygons. This in put is ignored if the htype is specfied in the 'coordinates_params'.
@@ -1299,7 +1299,7 @@ class dataset:
         connect_kwargs: Optional[Dict] = None,
         **dataset_kwargs,
     ) -> Dataset:
-        """Ingests a dataset of images from a source and stores it as a structured dataset to destination.
+        """Ingest a dataset of images from a local folder to a Deep Lake Dataset. Images should be stored in subfolders by class name.
 
         Args:
             src (str, pathlib.Path): Local path to where the unstructured dataset of images is stored or path to csv file.
@@ -1386,14 +1386,19 @@ class dataset:
             if os.path.isdir(dest) and os.path.samefile(src, dest):
                 raise SamePathException(src)
 
-            if src.endswith(".csv"):
+            if src.lower().endswith((".csv", ".txt")):
                 import pandas as pd  # type:ignore
 
                 if not os.path.isfile(src):
                     raise InvalidPathException(src)
                 source = pd.read_csv(src, quotechar='"', skipinitialspace=True)
                 ds = dataset.ingest_dataframe(
-                    source, dest, dest_creds, progressbar, token=token, **dataset_kwargs
+                    source,
+                    dest,
+                    dest_creds=dest_creds,
+                    progressbar=progressbar,
+                    token=token,
+                    **dataset_kwargs,
                 )
                 return ds
 
@@ -1519,13 +1524,36 @@ class dataset:
     def ingest_dataframe(
         src,
         dest: Union[str, pathlib.Path],
+        column_params: Optional[Dict] = None,
+        src_creds: Optional[Dict] = None,
         dest_creds: Optional[Dict] = None,
+        creds_key: Optional[Dict] = None,
         progressbar: bool = True,
         token: Optional[str] = None,
         connect_kwargs: Optional[Dict] = None,
         **dataset_kwargs,
     ):
-        """Convert pandas dataframe to a Deep Lake Dataset.
+        """Convert pandas dataframe to a Deep Lake Dataset. The contents of the dataframe can be parsed literally, or can be treated as links to local or cloud files.
+
+        Examples:
+            >>> ds = deeplake.dataframe(
+            >>>     df,
+            >>>     dest="hub://org_id/dataset",
+            >>> )
+            >>> # or ingest data as images from the cloud
+            >>> ds = deeplake.dataframe(
+            >>>     df,
+            >>>     dest="hub://org_id/dataset",
+            >>>     column_params={"df_column_with_cloud_paths": {"name": "images", "htype": "image"}}
+            >>>     src_creds=aws_creds
+            >>> )
+            >>> # or ingest data as linked images in the cloud
+            >>> ds = deeplake.dataframe(
+            >>>     df,
+            >>>     dest="hub://org_id/dataset",
+            >>>     column_params={"df_column_with_cloud_paths": {"name": "image_links", "htype": "link[image]"}}
+            >>>     creds_key="my_s3_managed_credentials"
+            >>> )
 
         Args:
             src (pd.DataFrame): The pandas dataframe to be converted.
@@ -1535,7 +1563,10 @@ class dataset:
                 - an s3 path of the form ``s3://bucketname/path/to/dataset``. Credentials are required in either the environment or passed to the creds argument.
                 - a local file system path of the form ``./path/to/dataset`` or ``~/path/to/dataset`` or ``path/to/dataset``.
                 - a memory path of the form ``mem://path/to/dataset`` which doesn't save the dataset but keeps it in memory instead. Should be used only for testing as it does not persist.
+            column_params (Optional[Dict]): A dictionary containing parameters for the tensors corresponding to the dataframe columns.
+            src_creds (Optional[Dict]): Credentials to access the source data. If not provided, will be inferred from the environment.
             dest_creds (Optional[Dict]): A dictionary containing credentials used to access the destination path of the dataset.
+            creds_key (Optional[str]): creds_key for linked tensors, applicable if the htype any tensor is specified as 'link[...]' in the 'column_params' input.
             progressbar (bool): Enables or disables ingestion progress bar. Set to ``True`` by default.
             token (Optional[str]): The token to use for accessing the dataset.
             connect_kwargs (Optional[Dict]): A dictionary containing arguments to be passed to the dataset connect method. See :meth:`Dataset.connect`.
@@ -1560,7 +1591,7 @@ class dataset:
         if not isinstance(src, pd.DataFrame):
             raise Exception("Source provided is not a valid pandas dataframe object")
 
-        structured = DataFrame(src)
+        structured = DataFrame(src, column_params, src_creds, creds_key)
 
         dest = convert_pathlib_to_string_if_needed(dest)
         ds = deeplake.empty(

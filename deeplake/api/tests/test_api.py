@@ -1001,7 +1001,7 @@ def test_invalid_tensor_name(memory_ds):
 
 def test_compressions_list():
     assert deeplake.compressions == [
-        "apng",
+        # "apng",
         "avi",
         "bmp",
         "dcm",

@@ -60,6 +60,16 @@ import deeplake
 _WANDB_INSTALLED = bool(importlib.util.find_spec("wandb"))
 
 
+def ignore_exceptions(f):
+    def wrapper(*args, **kwargs):
+        try:
+            return f(*args, **kwargs)
+        except Exception:
+            pass
+
+    return wrapper
+
+
 def wandb_run():
     if not deeplake.constants.WANDB_INTEGRATION_ENABLED:
         return
@@ -183,10 +193,12 @@ def log_dataset(dsconfig):
     )
 
 
+@ignore_exceptions
 def dataset_written(ds):
     pass
 
 
+@ignore_exceptions
 def dataset_committed(ds):
     run = wandb_run()
     key = get_ds_key(ds)
@@ -254,6 +266,7 @@ def _filter_input_datasets(input_datasets):
     return ret
 
 
+@ignore_exceptions
 def dataset_read(ds):
     run = wandb_run()
     if not run:
