@@ -132,6 +132,7 @@ class S3Provider(StorageProvider):
             aws_session_token=self.aws_session_token,
             aws_region=self.aws_region,
             endpoint_url=self.endpoint_url,
+            token=self.token,
         )
         if self.expiration:
             sd._set_hub_creds_info(self.hub_path, self.expiration)  # type: ignore
