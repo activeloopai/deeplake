@@ -652,6 +652,29 @@ def test_pytorch_error_handling(hub_cloud_ds):
         pass
 
 
+@requires_libdeeplake
+@requires_torch
+def test_pil_decode_method(local_ds):
+    with local_ds as ds:
+        ds.create_tensor("x", htype="image", sample_compression="jpeg")
+        ds.x.extend(np.random.randint(0, 255, (10, 10), np.uint8))
+
+    ptds = ds.dataloader().pytorch(decode_method={"x": "pil"})
+    with pytest.raises(ValueError):
+        for _ in ptds:
+            pass
+
+    def custom_transform(batch):
+        batch["x"] = np.array(batch["x"])
+        return batch
+
+    ptds = (
+        ds.dataloader().pytorch(decode_method={"x": "pil"}).transform(custom_transform)
+    )
+    for _ in ptds:
+        pass
+
+
 @patch("deeplake.constants.RETURN_DUMMY_DATA_FOR_DATALOADER", True)
 @requires_torch
 @requires_libdeeplake
