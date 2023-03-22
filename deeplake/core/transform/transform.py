@@ -267,18 +267,18 @@ class Pipeline:
                 if not overwrite:
                     load_meta(target_ds)
 
-            compute_provider.close()
-            if overwrite:
-                original_data_in.storage.clear_cache_without_flush()
-                load_meta(original_data_in)
-                if pad_data_in and not initial_padding_state:
-                    original_data_in._disable_padding()
-                if not kwargs.get("disable_rechunk"):
-                    rechunk_if_necessary(original_data_in)
-            else:
-                target_ds.storage.autoflush = initial_autoflush
-                if not kwargs.get("disable_rechunk"):
-                    rechunk_if_necessary(target_ds)
+        compute_provider.close()
+        if overwrite:
+            original_data_in.storage.clear_cache_without_flush()
+            load_meta(original_data_in)
+            if pad_data_in and not initial_padding_state:
+                original_data_in._disable_padding()
+            if not kwargs.get("disable_rechunk"):
+                rechunk_if_necessary(original_data_in)
+        else:
+            target_ds.storage.autoflush = initial_autoflush
+            if not kwargs.get("disable_rechunk"):
+                rechunk_if_necessary(target_ds)
 
     def run(
         self,
