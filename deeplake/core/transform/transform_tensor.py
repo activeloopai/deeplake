@@ -118,28 +118,28 @@ class TransformTensor:
                 self._non_numpy()
         if isinstance(item, list) and len(item) == 0:
             item = None
-        if (
-            not isinstance(item, (LinkedSample, LinkedTiledSample, Tensor))
-            and item is not None
-        ):
-            shape = getattr(item, "shape", None)
-            if shape is None:
-                if isinstance(item, (int, float)):
-                    shape = (1,)
-                else:
-                    try:
-                        item = np.asarray(item)
-                        shape = item.shape
-                    except ValueError:
-                        shape = (1,)
-            if self._ndim is None:
-                self._ndim = len(shape)
-            else:
-                if len(shape) != self._ndim:
-                    if not (
-                        isinstance(item, Sample) and len(shape) == 2 and self._ndim == 3
-                    ):
-                        raise TensorInvalidSampleShapeError(shape, self._ndim)
+        # if (
+        #     not isinstance(item, (LinkedSample, LinkedTiledSample, Tensor))
+        #     and item is not None
+        # ):
+        #     shape = getattr(item, "shape", None)
+        #     if shape is None:
+        #         if isinstance(item, (int, float)):
+        #             shape = (1,)
+        #         else:
+        #             try:
+        #                 item = np.asarray(item)
+        #                 shape = item.shape
+        #             except ValueError:
+        #                 shape = (1,)
+        #     if self._ndim is None:
+        #         self._ndim = len(shape)
+        #     else:
+        #         if len(shape) != self._ndim:
+        #             if not (
+        #                 isinstance(item, Sample) and len(shape) == 2 and self._ndim == 3
+        #             ):
+        #                 raise TensorInvalidSampleShapeError(shape, self._ndim)
 
         self.items.append(item)
 

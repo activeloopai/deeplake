@@ -231,12 +231,12 @@ def _transform_sample_and_update_chunk_engines(
     elif set(result_keys) != set(actual_tensors):
         raise TensorMismatchError(list(actual_tensors), list(result_keys), skip_ok)
 
-    updated_tensors = defaultdict(int)
-    num_chunks = {}
+    updated_tensors = {}
     try:
         for tensor, value in result.items():
-            chunk_engine = all_chunk_engines[label_temp_tensors.get(tensor) or tensor]
-            num_chunks[tensor] = chunk_engine.num_chunks
+            tensor = label_temp_tensors.get(tensor) or tensor
+            updated_tensors[tensor] = 0
+            chunk_engine = all_chunk_engines[tensor]
             callback = chunk_engine._transform_callback
             if value._numpy_only:
                 for batch in value.numpy_compressed():
@@ -249,14 +249,26 @@ def _transform_sample_and_update_chunk_engines(
             value.items.clear()
     except Exception as e:
         for t in updated_tensors:
-            for _ in range(updated_tensors[t]):
-                chunk_engine = all_chunk_engines[
-                    label_temp_tensors.get(t) or t
-                ]
+            chunk_engine = all_chunk_engines[t]
+            num_samples = updated_tensors[t]
+            for _ in range(num_samples):
                 chunk_engine.pop()
-                for link in chunk_engine.tensor_meta.links:
-                    link_chunk_engine = all_chunk_engines[link]
-                    link_chunk_engine.pop()
+                if chunk_engine.is_sequence:
+                    flat = []
+                    non_flat = []
+                    for link, props in chunk_engine.tensor_meta.links.items():
+                        (flat if props["flatten_sequence"] else non_flat).append(link)
+                    if flat:
+                        seq_enc = chunk_engine.sequence_encoder
+                        for link in flat:
+                            link_chunk_engine = all_chunk_engines[link]
+                            for idx in reversed(range(*seq_enc[-1])):
+                                link_chunk_engine.pop(idx)
+                    for link in non_flat:
+                        all_chunk_engines[link].pop()
+                else:
+                    for link in chunk_engine.tensor_meta.links:
+                        all_chunk_engines[link].pop()
         raise DatasetAppendError(tensor, value) from e
 
 
@@ -318,15 +330,15 @@ def transform_data_slice_and_append(
     ignore_errors=False,
 ) -> None:
     """Transforms the data_slice with the pipeline and adds the resultant samples to chunk_engines."""
-    try:
-        n = len(data_slice)
-        last_reported_time = time.time()
-        last_reported_num_samples = 0
-        for i, sample in enumerate(
-            (data_slice[i : i + 1] for i in range(n))
-            if pd and isinstance(data_slice, pd.DataFrame)
-            else data_slice
-        ):
+    n = len(data_slice)
+    last_reported_time = time.time()
+    last_reported_num_samples = 0
+    for i, sample in enumerate(
+        (data_slice[i : i + 1] for i in range(n))
+        if pd and isinstance(data_slice, pd.DataFrame)
+        else data_slice
+    ):
+        try:
             _transform_sample_and_update_chunk_engines(
                 sample,
                 pipeline,
@@ -348,11 +360,11 @@ def transform_data_slice_and_append(
                     pg_callback(num_samples - last_reported_num_samples)
                     last_reported_num_samples = num_samples
                     last_reported_time = curr_time
-    except Exception as e:
-        if isinstance(e, DatasetAppendError) and ignore_errors:
-            pass
-        else:
-            raise TransformError(offset + i, sample) from e
+        except Exception as e:
+            if isinstance(e, DatasetAppendError) and ignore_errors:
+                continue
+            else:
+                raise TransformError(offset + i, sample) from e
 
 
 def create_worker_chunk_engines(

@@ -2039,7 +2039,9 @@ class ChunkEngine:
             "requires StorageProvider to be able to list all chunks"
         )
 
-    def pop(self, global_sample_index: int):
+    def pop(self, global_sample_index: Optional[int] = None):
+        if not global_sample_index:
+            global_sample_index = self.num_samples - 1
         self._write_initialization()
         if self.tensor_meta.length == 0:
             raise ValueError("There are no samples to pop")
