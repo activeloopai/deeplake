@@ -57,6 +57,7 @@ class ComputeFunction:
         check_lengths: bool = True,
         pad_data_in: bool = False,
         read_only_ok: bool = False,
+        checkpoint_interval: int = 0,
         **kwargs,
     ):
         """Evaluates the ComputeFunction on data_in to produce an output dataset ds_out.
@@ -78,6 +79,8 @@ class ComputeFunction:
                 Defaults to False.
             read_only_ok (bool): If ``True`` and output dataset is same as input dataset, the read-only check is skipped. This can be used to read data in parallel without making changes to underlying dataset.
                 Defaults to False.
+            checkpoint_interval (int): If > 0, the transform will be checkpointed with a commit every ``checkpoint_interval`` input samples to avoid restarting full transform due to intermitten failures. If <= 0, no checkpointing is done.
+                Defaults to 0.
             **kwargs: Additional arguments.
 
         Raises:
@@ -85,6 +88,7 @@ class ComputeFunction:
             InvalidOutputDatasetError: If all the tensors of ds_out passed to transform don't have the same length. Using scheduler other than "threaded" with deeplake dataset having base storage as memory as ds_out will also raise this.
             TensorMismatchError: If one or more of the outputs generated during transform contain different tensors than the ones present in 'ds_out' provided to transform.
             UnsupportedSchedulerError: If the scheduler passed is not recognized. Supported values include: 'serial', 'threaded', 'processed' and 'ray'.
+            ValueError: If ``num_workers`` > 0 and ``checkpoint_interval`` is not a multiple of ``num_workers`` or if ``checkpoint_interval`` > 0 and ds_out is None.
         """
 
         pipeline = Pipeline([self])
@@ -124,6 +128,7 @@ class Pipeline:
         check_lengths: bool = True,
         pad_data_in: bool = False,
         read_only_ok: bool = False,
+        checkpoint_interval: int = 0,
         **kwargs,
     ):
         """Evaluates the pipeline on ``data_in`` to produce an output dataset ``ds_out``.
@@ -145,6 +150,8 @@ class Pipeline:
                 Defaults to ``False``.
             read_only_ok (bool): If ``True`` and output dataset is same as input dataset, the read-only check is skipped.
                 Defaults to False.
+            checkpoint_interval (int): If > 0, the transform will be checkpointed with a commit every ``checkpoint_interval`` input samples to avoid restarting full transform due to intermitten failures. If <= 0, no checkpointing is done.
+                Checkpoint interval should be a multiple of num_workers if num_workers > 0. Defaults to 0.
             **kwargs: Additional arguments.
 
         Raises:
@@ -153,6 +160,7 @@ class Pipeline:
             TensorMismatchError: If one or more of the outputs generated during transform contain different tensors than the ones present in 'ds_out' provided to transform.
             UnsupportedSchedulerError: If the scheduler passed is not recognized. Supported values include: 'serial', 'threaded', 'processed' and 'ray'.
             TransformError: All other exceptions raised if there are problems while running the pipeline.
+            ValueError: If ``num_workers`` > 0 and ``checkpoint_interval`` is not a multiple of ``num_workers`` or if ``checkpoint_interval`` > 0 and ds_out is None.
 
 
         # noqa: DAR401
@@ -212,29 +220,53 @@ class Pipeline:
 
         initial_autoflush = target_ds.storage.autoflush
         target_ds.storage.autoflush = False
-        progress_end_args = {"compute_id": compute_id, "progress": 100, "end": True}
 
         if not check_lengths:
             skip_ok = True
 
-        try:
-            self.run(
-                data_in,
-                target_ds,
-                compute_provider,
-                num_workers,
-                scheduler,
-                progressbar,
-                overwrite,
-                skip_ok,
-                read_only_ok and overwrite,
-                **kwargs,
-            )
-            target_ds._send_compute_progress(**progress_end_args, status="success")
-        except Exception as e:
-            target_ds._send_compute_progress(**progress_end_args, status="failed")
-            raise TransformError(e).with_traceback(sys.exc_info()[2])
-        finally:
+        if checkpoint_interval > 0:
+            if num_workers > 0 and checkpoint_interval % num_workers != 0:
+                raise ValueError(
+                    "checkpoint_interval should be a multiple of num_workers if num_workers > 0"
+                )
+            if overwrite:
+                raise ValueError(
+                    "checkpoint_interval > 0 and ds_out is None. Cannot checkpoint during inplace transform."
+                )
+            datas_in = [data_in[i:i + checkpoint_interval] for i in range(0, len(data_in), checkpoint_interval)]
+
+        else:
+            datas_in = [data_in]
+
+        for i, data_in in enumerate(datas_in):
+            progress = int((i + 1) / len(datas_in) * 100)
+            end = progress == 100
+            progress_args = {"compute_id": compute_id, "progress": progress, "end": end}
+
+            try:
+                self.run(
+                    data_in,
+                    target_ds,
+                    compute_provider,
+                    num_workers,
+                    scheduler,
+                    progressbar,
+                    overwrite,
+                    skip_ok,
+                    read_only_ok and overwrite,
+                    **kwargs,
+                )
+                target_ds._send_compute_progress(**progress_args, status="success")
+                desc = get_pbar_description(self.functions)
+                target_ds.commit(f"Auto-commit during {desc} after {progress}% progress")
+            except Exception as e:
+                target_ds._send_compute_progress(**progress_args, status="failed")
+                compute_provider.close()
+                raise TransformError(e).with_traceback(sys.exc_info()[2]) from e
+            finally:
+                if not overwrite:
+                    load_meta(target_ds)
+
             compute_provider.close()
             if overwrite:
                 original_data_in.storage.clear_cache_without_flush()
@@ -244,7 +276,6 @@ class Pipeline:
                 if not kwargs.get("disable_rechunk"):
                     rechunk_if_necessary(original_data_in)
             else:
-                load_meta(target_ds)
                 target_ds.storage.autoflush = initial_autoflush
                 if not kwargs.get("disable_rechunk"):
                     rechunk_if_necessary(target_ds)
