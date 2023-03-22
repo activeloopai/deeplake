@@ -87,8 +87,6 @@ def storage_provider_from_path(
 
     if read_only:
         storage.enable_readonly()
-    else:
-        storage.disable_readonly()
     return storage
 
 
@@ -162,8 +160,6 @@ def get_storage_and_cache_chain(
     )
     if storage.read_only:
         storage_chain.enable_readonly()
-    else:
-        storage_chain.disable_readonly()
     return storage, storage_chain
 
 
