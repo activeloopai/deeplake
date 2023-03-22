@@ -3,7 +3,7 @@ from typing import Dict, Optional, Union
 import uuid
 from flask import Flask, request, Response
 from deeplake.core.link_creds import LinkCreds  # type: ignore
-from deeplake.core.storage.provider import StorageProvider
+from deeplake.core.storage import StorageProvider
 from deeplake.core.storage.s3 import S3Provider
 from deeplake.util.threading import terminate_thread
 from deeplake.client.config import (

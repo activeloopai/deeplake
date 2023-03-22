@@ -3,7 +3,7 @@ from typing import Optional
 import warnings
 from deeplake.constants import ALL_CLOUD_PREFIXES
 from deeplake.core.storage.deeplake_memory_object import DeepLakeMemoryObject
-from deeplake.core.storage.provider import StorageProvider
+from deeplake.core.storage import StorageProvider, storage_factory
 from deeplake.core.storage.s3 import S3Provider
 from deeplake.util.exceptions import MissingCredsError, MissingManagedCredsError
 from deeplake.util.token import expires_in_to_expires_at, is_expired_token
@@ -55,13 +55,17 @@ class LinkCreds(DeepLakeMemoryObject):
     def get_default_provider(self, provider_type: str):
         if provider_type == "s3":
             if self.default_s3_provider is None:
-                self.default_s3_provider = S3Provider("s3://bucket/path")
+                self.default_s3_provider = storage_factory(
+                    S3Provider, "s3://bucket/path"
+                )
             return self.default_s3_provider
         else:
             if self.default_gcs_provider is None:
                 from deeplake.core.storage.gcs import GCSProvider
 
-                self.default_gcs_provider = GCSProvider("gcs://bucket/path")
+                self.default_gcs_provider = storage_factory(
+                    GCSProvider, "gcs://bucket/path"
+                )
             return self.default_gcs_provider
 
     def get_storage_provider(self, key: Optional[str], provider_type: str):
@@ -78,7 +82,7 @@ class LinkCreds(DeepLakeMemoryObject):
                 if isinstance(provider, S3Provider):
                     return provider
 
-            provider = S3Provider("s3://bucket/path", **creds)
+            provider = storage_factory(S3Provider, "s3://bucket/path", **creds)
         else:
             from deeplake.core.storage.gcs import GCSProvider
 
@@ -87,7 +91,7 @@ class LinkCreds(DeepLakeMemoryObject):
                 if isinstance(provider, GCSProvider):
                     return provider
 
-            provider = GCSProvider("gcs://bucket/path", **creds)
+            provider = storage_factory(GCSProvider, "gcs://bucket/path", **creds)
         self.storage_providers[key] = provider
         return provider
 
