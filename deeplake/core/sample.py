@@ -20,7 +20,7 @@ from deeplake.compression import (
     MESH_COMPRESSION,
     NIFTI_COMPRESSION,
 )
-from deeplake.util.exceptions import UnableToReadFromUrlError
+from deeplake.util.exceptions import SampleReadError, UnableToReadFromUrlError
 from deeplake.util.exif import getexif
 from deeplake.core.storage.provider import StorageProvider
 from deeplake.util.path import get_path_type, is_remote_path
@@ -432,16 +432,19 @@ class Sample:
     def _read_from_path(self) -> bytes:  # type: ignore
         if self._buffer is None:
             path_type = get_path_type(self.path)
-            if path_type == "local":
-                self._buffer = self._read_from_local()
-            elif path_type == "gcs":
-                self._buffer = self._read_from_gcs()
-            elif path_type == "s3":
-                self._buffer = self._read_from_s3()
-            elif path_type == "gdrive":
-                self._buffer = self._read_from_gdrive()
-            elif path_type == "http":
-                self._buffer = self._read_from_http()
+            try:
+                if path_type == "local":
+                    self._buffer = self._read_from_local()
+                elif path_type == "gcs":
+                    self._buffer = self._read_from_gcs()
+                elif path_type == "s3":
+                    self._buffer = self._read_from_s3()
+                elif path_type == "gdrive":
+                    self._buffer = self._read_from_gdrive()
+                elif path_type == "http":
+                    self._buffer = self._read_from_http()
+            except Exception as e:
+                raise SampleReadError(self.path) from e  # type: ignore
         return self._buffer  # type: ignore
 
     def _read_from_local(self) -> bytes:

@@ -4,9 +4,7 @@ import deeplake
 from deeplake.core.dataset import Dataset
 from deeplake.core.compression import compress_multiple
 from deeplake.tests.common import get_dummy_data_path
-from deeplake.util.exceptions import CorruptedSampleError
-from deeplake.util.exceptions import DynamicTensorNumpyError
-
+from deeplake.util.exceptions import SampleAppendError
 import numpy as np
 
 
@@ -83,12 +81,12 @@ def test_point_cloud(local_ds, point_cloud_paths):
         htype="point_cloud",
         sample_compression="las",
     )
-    with pytest.raises(NotImplementedError):
+    with pytest.raises(SampleAppendError):
         local_ds.point_cloud_with_sample_compression.append(
             np.zeros((1000, 3), dtype=np.float32)
         )
 
-    with pytest.raises(CorruptedSampleError):
+    with pytest.raises(SampleAppendError):
         local_ds.point_cloud_with_sample_compression.append(
             deeplake.read(get_dummy_data_path("point_cloud/corrupted_point_cloud.las"))
         )
