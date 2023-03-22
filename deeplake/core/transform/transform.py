@@ -351,9 +351,10 @@ class Pipeline:
                 )
             else:
                 result = compute.map(store_data_slice, map_inp)
-        finally:
+        except Exception:
             for tensor in label_temp_tensors.values():
                 target_ds.delete_tensor(tensor)
+            raise
 
         if read_only:
             return

@@ -247,9 +247,17 @@ def _transform_sample_and_update_chunk_engines(
                 chunk_engine.extend(samples, link_callback=callback)
                 updated_tensors[tensor] = len(samples)
             value.items.clear()
-    finally:
-        for tensor in updated_tensors:
-            ...
+    except Exception as e:
+        for t in updated_tensors:
+            for _ in range(updated_tensors[t]):
+                chunk_engine = all_chunk_engines[
+                    label_temp_tensors.get(t) or t
+                ]
+                chunk_engine.pop()
+                for link in chunk_engine.tensor_meta.links:
+                    link_chunk_engine = all_chunk_engines[link]
+                    link_chunk_engine.pop()
+        raise DatasetAppendError(tensor, value) from e
 
 
 def normalize_pg(pg_callback, num_tensors):
