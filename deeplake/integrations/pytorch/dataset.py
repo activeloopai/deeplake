@@ -34,14 +34,14 @@ def identity(x):
     return x
 
 
-def use_scheduler(num_workers: int, ensure_order: bool):
+def use_scheduler(num_workers: int, ensure_order: bool, batch_size: int = 1):
     if num_workers <= 1:
         return SingleThreadScheduler()
     else:
         if ensure_order:
             return MultiThreadedNaiveScheduler(num_workers)
         else:
-            return SequentialMultithreadScheduler(num_workers)
+            return SequentialMultithreadScheduler(num_workers, batch_size)
 
 
 def cast_type(tensor):
@@ -100,6 +100,7 @@ class TorchDataset(torch.utils.data.IterableDataset):
         return_index: bool = True,
         pad_tensors: bool = False,
         decode_method: Optional[Dict[str, str]] = None,
+        batch_size: int = 1,
     ) -> None:
         super().__init__()
 
@@ -111,9 +112,10 @@ class TorchDataset(torch.utils.data.IterableDataset):
         self.return_index: bool = return_index
         self.pad_tensors = pad_tensors
         self.decode_method = decode_method
+        self.batch_size = batch_size
 
         self.use_local_cache = use_local_cache
-        self.scheduler = use_scheduler(num_workers, shuffle)
+        self.scheduler = use_scheduler(num_workers, shuffle, batch_size)
 
         if dist.is_initialized():
             self.scheduler = DistributedScheduler(num_workers)

@@ -126,6 +126,7 @@ def dataset_to_pytorch(
                 return_index=return_index,
                 pad_tensors=pad_tensors,
                 decode_method=decode_method,
+                batch_size=batch_size,
             ),
             batch_size=batch_size,
             collate_fn=collate_fn,

@@ -180,6 +180,7 @@ class ChunkEngine:
         self.base_storage = get_base_storage(cache)
         self._meta_cache = meta_cache
         self.version_state = version_state
+        self.name = version_state["tensor_names"].get(self.key)
         self.compression = None
         self.chunk_class = BaseChunk
 
