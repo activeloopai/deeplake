@@ -227,7 +227,7 @@ class dataset:
                 "deeplake.dataset does not accept version address when writing a dataset."
             )
 
-        dataset_kwargs = {
+        dataset_kwargs: Dict[str, Union[None, str, bool, int, Dict]] = {
             "path": path,
             "read_only": read_only,
             "token": token,
@@ -559,7 +559,7 @@ class dataset:
                 f"A Deep Lake dataset does not exist at the given path ({path}). Check the path provided or in case you want to create a new dataset, use deeplake.empty()."
             )
 
-        dataset_kwargs = {
+        dataset_kwargs: Dict[str, Union[None, str, bool, int, Dict]] = {
             "path": path,
             "read_only": read_only,
             "token": token,
