@@ -1,19 +1,21 @@
-from typing import Optional, List
+from typing import Optional, List, Dict, Union
+
+import types
+from functools import partial
 
 from mmcv.parallel import collate  # type: ignore
-from functools import partial
-import deeplake as dp
+from mmdet.utils.util_distribution import *  # type: ignore
+
+import deeplake
+from deeplake.enterprise.dataloader import dataloader
 from ..transform.transform import transform
 from ..dataset import mmdet_dataset, subiterable_dataset
-from mmdet.utils.util_distribution import *  # type: ignore
-from deeplake.enterprise.dataloader import dataloader
-import types
 
 
 class MMDetDataLoader:
     def __init__(
         self,
-        dataset: dp.Dataset,
+        dataset: deeplake.Dataset,
         images_tensor: str,
         masks_tensor: Optional[str],
         boxes_tensor: str,
@@ -28,6 +30,25 @@ class MMDetDataLoader:
         shuffle: str = False,
         num_gpus: int = 1,
     ):
+        """
+        MMDetDataLoader constructor.
+
+        Args:
+            dataset (deeplake.Dataset): Deeplake dataset object.
+            images_tensor (str): Name of the images tensor.
+            masks_tensor (Optional[str]): Name of the masks tensor, if available.
+            boxes_tensor (str): Name of the boxes tensor.
+            labels_tensor (str): Name of the labels tensor.
+            implementation (str): Implementation type, either "python" or "c++".
+            pipeline (List): List of pipeline configurations.
+            batch_size (int): Batch size for the data loader.
+            num_workers (int): Number of workers to use for data loading.
+            mode (str, optional): Mode of the data loader, "train" or "test". Defaults to "train".
+            metric_format (str, optional): Format of the metric, e.g., "COCO". Defaults to "COCO".
+            dist (str, optional): Distributed training flag. Defaults to False.
+            shuffle (str, optional): Shuffle data flag. Defaults to False.
+            num_gpus (int, optional): Number of GPUs to use for data loading. Defaults to 1.
+        """
         self.dataset = dataset
         self.dataset.CLASSES = self.classes
         self.images_tensor = images_tensor
@@ -46,6 +67,12 @@ class MMDetDataLoader:
 
     @property
     def poly2mask(self):
+        """
+        Indicates if masks are of "polygon" htype.
+
+        Returns:
+            bool: True if masks are of "polygon" type, False otherwise.
+        """
         _poly2mask = False
         if self.masks_tensor is not None:
             if self.dataset[self.masks_tensor].htype == "polygon":
@@ -53,19 +80,43 @@ class MMDetDataLoader:
         return _poly2mask
 
     @property
-    def bbox_info(self):
+    def bbox_info(self) -> Dict[str, Dict[str, str]]:
+        """
+        Get bounding box information.
+
+        Returns:
+            Dict: Bounding box information.
+        """
         return self.dataset[self.boxes_tensor].info
 
     @property
-    def classes(self):
+    def classes(self) -> List[str]:
+        """
+        Get list of class names.
+
+        Returns:
+            List[str]: List of class names.
+        """
         return self.dataset[self.labels_tensor].info.class_names
 
     @property
     def pipeline(self):
+        """
+        Build mmdet pipeline.
+
+        Returns:
+            List: Built pipeline.
+        """
         return build_pipeline(self.pipeline)
 
     @property
     def tensors_dict(self):
+        """
+        Get dictionary mapping of mmdet tensor names to deeplake tensor names.
+
+        Returns:
+            Dict[str, str]: Dictionary of tensor names.
+        """
         _tensors_dict = {
             "images_tensor": self.images_tensor,
             "boxes_tensor": self.boxes_tensor,
@@ -78,6 +129,12 @@ class MMDetDataLoader:
 
     @property
     def tensors(self):
+        """
+        Get list of deeplake tensor names.
+
+        Returns:
+            List[str]: List of deeplake tensor names.
+        """
         _tensors = [self.images_tensor, self.labels_tensor, self.boxes_tensor]
         if self.masks_tensor is not None:
             _tensors.append(self.masks_tensor)
@@ -85,14 +142,32 @@ class MMDetDataLoader:
 
     @property
     def collate_fn(self):
+        """
+        Get collate function.
+
+        Returns:
+            partial: Collate function.
+        """
         return partial(collate, samples_per_gpu=self.batch_size)
 
     @property
-    def decode_method(self):
+    def decode_method(self) -> Dict[str, str]:
+        """
+        Get the decode method for image tensor for dataloader.
+
+        Returns:
+            Dict[str, str]: Dictionary containing the decode method for image tensor.
+        """
         return {self.images_tensor: "numpy"}
 
     @property
-    def transform_fn(self):
+    def transform_fn(self) -> partial:
+        """
+        Get the transform function. Used for deeplake dataloader to conver things from deeplake format to what mmdet expects.
+
+        Returns:
+            partial: Transform function.
+        """
         _transform_fn = partial(
             transform,
             images_tensor=self.images_tensor,
@@ -105,7 +180,20 @@ class MMDetDataLoader:
         )
         return _transform_fn
 
-    def buld_dataloader(self):
+    def buld_dataloader(
+        self,
+    ) -> Union[
+        torch.utils.data.DataLoader, deeplake.enterprise.dataloader.DeepLakeDataLoader
+    ]:
+        """
+        Build the deeplake data loader based on the implementation type.
+
+        Raises:
+            NotImplementedError: when using distributed training python data loader.
+
+        Returns:
+            dataloader (Union[torch.utils.data.DataLoader, deeplake.enterprise.dataloader.DeepLakeDataLoader): Built data loader.
+        """
         if self.dist and self.implementation == "python":
             raise NotImplementedError(
                 "Distributed training is not supported by the python data loader. Set deeplake_dataloader_type='c++' to use the C++ dtaloader instead."
@@ -115,7 +203,13 @@ class MMDetDataLoader:
             return self.load_python_dataloader()
         return self.load_indra_dataloader()
 
-    def load_python_dataloader(self):
+    def load_python_dataloader(self) -> torch.utils.data.DataLoader:
+        """
+        Load the python data loader.
+
+        Returns:
+            dataloader (torch.utils.data.DataLoader): Loaded python data loader.
+        """
         loader = self.dataset.pytorch(
             tensors_dict=self.tensors_dict,
             num_workers=self.num_workers,
@@ -152,7 +246,15 @@ class MMDetDataLoader:
         loader.dataset.CLASSES = self.classes
         return loader
 
-    def load_indra_dataloader(self):
+    def load_indra_dataloader(
+        self,
+    ) -> deeplake.enterprise.dataloader.DeepLakeDataLoader:
+        """
+        Load the Indra data loader.
+
+        Returns:
+            dataloader (deeplake.enterprise.dataloader.DeepLakeDataLoader): Loaded Indra data loader.
+        """
         loader = (
             dataloader(self.dataset)
             .transform(self.transform_fn)

@@ -2,6 +2,7 @@ import math
 import os.path as osp
 import tempfile
 import warnings
+from typing import Any, Dict, List, Optional, Sequence, Tuple, Union
 
 import numpy as np
 
@@ -54,16 +55,16 @@ class MMDetDataset(TorchDataset):
 
     def __init__(
         self,
-        *args,
-        tensors_dict=None,
-        mode="train",
-        metrics_format="COCO",
-        bbox_info=None,
-        pipeline=None,
-        num_gpus=1,
-        batch_size=1,
-        **kwargs,
-    ):
+        *args: Any,
+        tensors_dict: Optional[Dict[str, Any]] = None,
+        mode: str = "train",
+        metrics_format: str = "COCO",
+        bbox_info: Optional[Dict[str, Any]] = None,
+        pipeline: Optional[List[Any]] = None,
+        num_gpus: int = 1,
+        batch_size: int = 1,
+        **kwargs: Any,
+    ) -> None:
         """
         Initialize the MMDetDataset.
 
@@ -92,7 +93,7 @@ class MMDetDataset(TorchDataset):
             self._initialize_metrics()
             self._initialize_dataset_info()
 
-    def _initialize_dataset_info(self):
+    def _initialize_dataset_info(self) -> None:
         """
         Initialize the dataset infor class that's used when print() is called on this class.
         """
@@ -103,14 +104,14 @@ class MMDetDataset(TorchDataset):
 
     def _initialize_mmdet_related_attributes(
         self,
-        tensors_dict,
-        bbox_info,
-        metrics_format,
-        pipeline,
-        mode,
-        num_gpus,
-        batch_size,
-    ):
+        tensors_dict: Dict[str, Any],
+        bbox_info: Dict[str, Any],
+        metrics_format: str,
+        pipeline: List[Any],
+        mode: str,
+        num_gpus: int,
+        batch_size: int,
+    ) -> None:
         """
         Initialize the MMDetection related attributes.
 
@@ -142,7 +143,7 @@ class MMDetDataset(TorchDataset):
             self.bboxes, self.bbox_format, self.images
         )
 
-    def _initialize_metrics(self):
+    def _initialize_metrics(self) -> None:
         """
         Initialize the evaluator used during evaluation.
         """
@@ -160,7 +161,7 @@ class MMDetDataset(TorchDataset):
             num_gpus=self.num_gpus,
         )
 
-    def __len__(self):
+    def __len__(self) -> int:
         """
         Return the length of the dataset.
 
@@ -175,7 +176,7 @@ class MMDetDataset(TorchDataset):
             return total_length
         return super().__len__()
 
-    def _get_images(self, images_tensor):
+    def _get_images(self, images_tensor: str) -> Any:
         """
         Return the images from the dataset.
 
@@ -188,7 +189,7 @@ class MMDetDataset(TorchDataset):
         image_tensor = self.dataset[images_tensor]
         return image_tensor
 
-    def _get_masks(self, masks_tensor):
+    def _get_masks(self, masks_tensor: Optional[str]) -> List[Any]:
         """
         Return the masks from the dataset.
 
@@ -202,7 +203,7 @@ class MMDetDataset(TorchDataset):
             return []
         return self.dataset[masks_tensor]
 
-    def _get_iscrowds(self, iscrowds_tensor):
+    def _get_iscrowds(self, iscrowds_tensor: Optional[str]) -> Union[List[int], None]:
         """
         Return the iscrowd values from the dataset.
 
@@ -223,7 +224,7 @@ class MMDetDataset(TorchDataset):
         always_warn("iscrowds tensor was not found, setting its value to 0.")
         return iscrowds_tensor
 
-    def _get_bboxes(self, boxes_tensor):
+    def _get_bboxes(self, boxes_tensor: str) -> List[np.ndarray]:
         """
         Return the bounding boxes from the dataset.
 
@@ -235,7 +236,7 @@ class MMDetDataset(TorchDataset):
         """
         return self.dataset[boxes_tensor].numpy(aslist=True)
 
-    def _get_labels(self, labels_tensor):
+    def _get_labels(self, labels_tensor: str) -> List[np.ndarray]:
         """
         Return the labels from the dataset.
 
@@ -247,7 +248,7 @@ class MMDetDataset(TorchDataset):
         """
         return self.dataset[labels_tensor].numpy(aslist=True)
 
-    def _get_class_names(self, labels_tensor):
+    def _get_class_names(self, labels_tensor: str) -> List[str]:
         """
         Return the class names from the dataset.
 
@@ -259,7 +260,7 @@ class MMDetDataset(TorchDataset):
         """
         return self.dataset[labels_tensor].info.class_names
 
-    def get_ann_info(self, idx):
+    def get_ann_info(self, idx: int) -> Dict[str, Any]:
         """Get annotation by index.
 
         Args:
@@ -276,7 +277,7 @@ class MMDetDataset(TorchDataset):
         )
         return {"bboxes": bboxes, "labels": self.labels[idx]}
 
-    def get_cat_ids(self, idx):
+    def get_cat_ids(self, idx: int) -> List[int]:
         """Get category ids by index.
 
         Args:
@@ -290,7 +291,7 @@ class MMDetDataset(TorchDataset):
 
         return cat_ids
 
-    def _filter_imgs(self, min_size=32):
+    def _filter_imgs(self, min_size: int = 32) -> List[int]:
         """Filter images too small."""
         if self.filter_empty_gt:
             warnings.warn("CustomDataset does not support filtering empty gt images.")
@@ -300,7 +301,7 @@ class MMDetDataset(TorchDataset):
                 valid_inds.append(i)
         return valid_inds
 
-    def get_classes(self, classes):
+    def get_classes(self, classes: str) -> List[str]:
         """Get class names of current dataset.
 
         Args:
@@ -311,7 +312,9 @@ class MMDetDataset(TorchDataset):
         """
         return self.dataset[classes].info.class_names
 
-    def _reorder_results(self, results):
+    def _reorder_results(
+        self, results: List[Union[Tuple, np.ndarray]]
+    ) -> List[Union[Tuple, np.ndarray]]:
         """Reordering results after ddp so that eval occurs correctly
 
         Args:
@@ -326,14 +329,14 @@ class MMDetDataset(TorchDataset):
 
     def evaluate(
         self,
-        results,
-        metric="mAP",
-        logger=None,
-        proposal_nums=(100, 300, 1000),
-        iou_thr=0.5,
-        scale_ranges=None,
-        **kwargs,
-    ):
+        results: List[Union[Tuple, np.ndarray]],
+        metric: Union[str, List[str]] = "mAP",
+        logger: Optional[Union[logging.Logger, str]] = None,
+        proposal_nums: Sequence[int] = (100, 300, 1000),
+        iou_thr: Union[float, List[float]] = 0.5,
+        scale_ranges: Optional[List[Tuple]] = None,
+        **kwargs: Any,
+    ) -> OrderedDict:
         """Evaluate the dataset.
 
         Args:
@@ -366,11 +369,16 @@ class MMDetDataset(TorchDataset):
             **kwargs,
         )
 
-    def __repr__(self):
+    def __repr__(self) -> self:
         """Print the number of instance number."""
         return self.dataset_info
 
-    def format_results(self, results, jsonfile_prefix=None, **kwargs):
+    def format_results(
+        self,
+        results: List[Union[Tuple, np.ndarray]],
+        jsonfile_prefix: Optional[str] = None,
+        **kwargs: Any,
+    ) -> Tuple[Dict[str, Any], Optional[tempfile.TemporaryDirectory]]:
         """Format the results to json (standard format for COCO evaluation).
 
         Args:

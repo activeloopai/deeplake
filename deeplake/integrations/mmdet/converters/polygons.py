@@ -1,9 +1,21 @@
 import numpy as np
+from typing import Any, List, Union, Tuple
 
 from mmdet.core import BitmapMasks, PolygonMasks
 
 
-def convert_to_coco_format(masks):
+def convert_to_coco_format(
+    masks: Union[np.ndarray, List[np.ndarray]]
+) -> List[List[float]]:
+    """
+    Convert masks to COCO format.
+
+    Args:
+        masks (Union[np.ndarray, List[np.ndarray]]): Masks to be converted.
+
+    Returns:
+        List[List[float]]: Masks in COCO format.
+    """
     if isinstance(masks, np.ndarray):
         px = masks[..., 0]
         py = masks[..., 1]
@@ -17,16 +29,16 @@ def convert_to_coco_format(masks):
     return poly
 
 
-def process(polygons):
-    """Convert polygons to list of ndarray and filter invalid polygons.
+def process(polygons: List[List]) -> List[np.ndarray]:
+    """
+    Convert polygons to list of ndarray and filter invalid polygons.
 
     Args:
-        polygons (list[list]): Polygons of one instance.
+        polygons (List[List]): Polygons of one instance.
 
     Returns:
-        list[numpy.ndarray]: Processed polygons.
+        List[np.ndarray]: Processed polygons.
     """
-
     polygons = [np.array(p) for p in polygons]
     valid_polygons = []
     for polygon in polygons:
@@ -35,7 +47,20 @@ def process(polygons):
     return valid_polygons
 
 
-def convert_polygons_to_mask(masks, poly2mask, shape):
+def convert_polygons_to_mask(
+    masks: List[np.ndarray], poly2mask: bool, shape: Tuple[int, int]
+) -> Union[BitmapMasks, PolygonMasks]:
+    """
+    Convert polygons to mask instances (BitmapMasks or PolygonMasks) based on the poly2mask flag.
+
+    Args:
+        masks (List[np.ndarray]): Masks to be converted.
+        poly2mask (bool): Flag to determine whether to convert masks to PolygonMasks.
+        shape (Tuple[int, int]): Shape of the mask.
+
+    Returns:
+        Union[BitmapMasks, PolygonMasks]: Converted masks as BitmapMasks or PolygonMasks instances.
+    """
     if poly2mask:
         masks = convert_to_coco_format(masks)
         masks = PolygonMasks(
@@ -44,6 +69,5 @@ def convert_polygons_to_mask(masks, poly2mask, shape):
             shape[1],
         )
     else:
-        masks = BitmapMasks(
-            masks.astype(np.uint8).transpose(2, 0, 1), *shape[:2]
-        )
+        masks = BitmapMasks(masks.astype(np.uint8).transpose(2, 0, 1), *shape[:2])
+    return masks

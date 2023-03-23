@@ -1,9 +1,21 @@
 import numpy as np
 from PIL import Image, ImageDraw  # type: ignore
+from typing import Any, Dict, List, Tuple
 
 
-def coco_pixel_2_pascal_pixel(boxes, shape):
-    # Convert bounding boxes to Pascal VOC format and clip bounding boxes to make sure they have non-negative width and height
+def coco_pixel_2_pascal_pixel(boxes: np.ndarray, shape: Tuple[int, int]) -> np.ndarray:
+    """
+    Convert bounding boxes from COCO format (top-left x, top-left y, width, height)
+    to Pascal VOC format (top-left x, top-left y, bottom-right x, bottom-right y)
+    in pixel coordinates.
+
+    Args:
+        boxes (np.ndarray): Array of bounding boxes in COCO format.
+        shape (Tuple[int, int]): The shape of the image as (height, width).
+
+    Returns:
+        np.ndarray: Array of bounding boxes in Pascal VOC format.
+    """
     pascal_boxes = np.empty((0, 4), dtype=boxes.dtype)
     if boxes.size != 0:
         pascal_boxes = np.stack(
@@ -18,7 +30,19 @@ def coco_pixel_2_pascal_pixel(boxes, shape):
     return pascal_boxes
 
 
-def poly_2_mask(polygons, shape):
+def poly_2_mask(
+    polygons: List[List[Tuple[float, float]]], shape: Tuple[int, int]
+) -> np.ndarray:
+    """
+    Convert polygons to binary masks.
+
+    Args:
+        polygons (List[List[Tuple[float, float]]]): List of polygons, where each polygon is a list of (x, y) coordinates.
+        shape (Tuple[int, int]): The shape of the image as (height, width).
+
+    Returns:
+        np.ndarray: Array of binary masks with the same shape as the input image.
+    """
     # TODO This doesnt fill the array inplace.    out = np.zeros(shape + (len(polygons),), dtype=np.uint8)
     out = np.zeros(shape + (len(polygons),), dtype=np.uint8)
     for i, polygon in enumerate(polygons):
@@ -29,7 +53,19 @@ def poly_2_mask(polygons, shape):
     return out
 
 
-def coco_frac_2_pascal_pixel(boxes, shape):
+def coco_frac_2_pascal_pixel(boxes: np.ndarray, shape: Tuple[int, int]) -> np.ndarray:
+    """
+    Convert bounding boxes from COCO format (top-left x, top-left y, width, height)
+    in fractional coordinates to Pascal VOC format (top-left x, top-left y, bottom-right x, bottom-right y)
+    in pixel coordinates.
+
+    Args:
+        boxes (np.ndarray): Array of bounding boxes in COCO format.
+        shape (Tuple[int, int]): The shape of the image as (height, width).
+
+    Returns:
+        np.ndarray: Array of bounding boxes in Pascal VOC format.
+    """
     bbox = np.empty((0, 4), dtype=boxes.dtype)
 
     if boxes.size != 0:
@@ -41,7 +77,19 @@ def coco_frac_2_pascal_pixel(boxes, shape):
     return coco_pixel_2_pascal_pixel(bbox, shape)
 
 
-def pascal_frac_2_pascal_pixel(boxes, shape):
+def pascal_frac_2_pascal_pixel(boxes: np.ndarray, shape: Tuple[int, int]) -> np.ndarray:
+    """
+    Convert bounding boxes from Pascal VOC format (top-left x, top-left y, bottom-right x, bottom-right y)
+    in fractional coordinates to Pascal VOC format in pixel coordinates.
+
+    Args:
+        boxes (np.ndarray): Array of bounding boxes in Pascal VOC format.
+        shape (Tuple[int, int]): The shape of the image as (height, width).
+
+    Returns:
+        np.ndarray: Array of bounding boxes in Pascal VOC format.
+    """
+
     bbox = np.empty((0, 4), dtype=boxes.dtype)
     if boxes.size != 0:
         x_top = boxes[:, 0] * shape[1]
@@ -52,7 +100,19 @@ def pascal_frac_2_pascal_pixel(boxes, shape):
     return bbox
 
 
-def yolo_pixel_2_pascal_pixel(boxes, shape):
+def yolo_pixel_2_pascal_pixel(boxes: np.ndarray, shape: Tuple[int, int]) -> np.ndarray:
+    """
+    Convert bounding boxes from YOLO format (center x, center y, width, height)
+    in pixel coordinates to Pascal VOC format (top-left x, top-left y, bottom-right x, bottom-right y)
+    in pixel coordinates.
+
+    Args:
+        boxes (np.ndarray): Array of bounding boxes in YOLO format.
+        shape (Tuple[int, int]): The shape of the image as (height, width).
+
+    Returns:
+        np.ndarray: Array of bounding boxes in Pascal VOC format.
+    """
     bbox = np.empty((0, 4), dtype=boxes.dtype)
 
     if boxes.size != 0:
@@ -64,7 +124,19 @@ def yolo_pixel_2_pascal_pixel(boxes, shape):
     return bbox
 
 
-def yolo_frac_2_pascal_pixel(boxes, shape):
+def yolo_frac_2_pascal_pixel(boxes: np.ndarray, shape: Tuple[int, int]) -> np.ndarray:
+    """
+    Convert bounding boxes from YOLO format (center x, center y, width, height)
+    in fractional coordinates to Pascal VOC format (top-left x, top-left y, bottom-right x, bottom-right y)
+    in pixel coordinates.
+
+    Args:
+        boxes (np.ndarray): Array of bounding boxes in YOLO format.
+        shape (Tuple[int, int]): The shape of the image as (height, width).
+
+    Returns:
+        np.ndarray: Array of bounding boxes in Pascal VOC format.
+    """
     bbox = np.empty((0, 4), dtype=boxes.dtype)
 
     if boxes.size != 0:
@@ -76,7 +148,17 @@ def yolo_frac_2_pascal_pixel(boxes, shape):
     return yolo_pixel_2_pascal_pixel(bbox, shape)
 
 
-def get_bbox_format(bbox, bbox_info):
+def get_bbox_format(bbox: List[float], bbox_info: Dict[str, Any]) -> Tuple[str, str]:
+    """
+    Determines the bounding box format based on the given bounding box and information.
+
+    Args:
+        bbox (List[float]): The bounding box coordinates.
+        bbox_info (Dict[str, Any]): The bounding box information dictionary.
+
+    Returns:
+        Tuple[str, str]: A tuple containing the mode and type of the bounding box format.
+    """
     bbox_info = bbox_info.get("coords", {})
     mode = bbox_info.get("mode", "LTWH")
     type = bbox_info.get("type", "pixel")
@@ -85,4 +167,3 @@ def get_bbox_format(bbox, bbox_info):
         mode = "CCWH"
         type = "fractional"
     return (mode, type)
-
