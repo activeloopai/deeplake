@@ -1,20 +1,19 @@
 from typing import Union
 from deeplake.integrations.mmdet import mmdet_utils
-from matterport.deeplake.deeplake.integrations.mmdet.evaluaters.Pascal import (
-    pascal_evaluater,
-)
+from COCO import coco_evaluater
+from Pascal import pascal_evaluater
 from deeplake.util.exceptions import UnsupportedMMDetMetric
 
 
 METRIC_FORMAT_TO_EVALUATER_TYPE = {
-    "COCO": mmdet_utils.COCODatasetEvaluater,
+    "COCO": coco_evaluater.Evaluater,
     "PascalVOC": pascal_evaluater.Evaluator,
 }
 
 
 def create_metric_class(
     metric: str,
-) -> Union[mmdet_utils.COCODatasetEvaluater, pascal_evaluater.Evaluator]:
+) -> Union[coco_evaluater.Evaluater, pascal_evaluater.Evaluator]:
     """
     Creates a metric evaluator for a specified metric.
 

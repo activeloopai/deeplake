@@ -1,9 +1,7 @@
 from collections import OrderedDict
 from typing import List, Dict, Any
 
-from matterport.deeplake.deeplake.integrations.mmdet.evaluaters.Pascal import (
-    base_evaluater,
-)
+import base_evaluater
 
 from mmdet.core import eval_map
 from mmdet.utils import print_log

@@ -4,7 +4,8 @@ from mmdet.core import BitmapMasks  # type: ignore
 import numpy as np
 from mmdet.utils.util_distribution import *  # type: ignore
 from deeplake.integrations.mmdet import mmdet_utils
-from mmdet.core import BitmapMasks, PolygonMasks
+
+from ..converters import pascal_format, polygons
 
 
 class Transform:
@@ -53,7 +54,7 @@ class Transform:
     def bboxes(self):
         _bboxes = self.sample_in[self.boxes_tensor]
         # TODO bbox format should be recognized outside the transform, not per sample basis.
-        _bboxes = convert_to_pascal_format(_bboxes, self.bbox_info, self.orig_img_shape)
+        _bboxes = pascal_format.convert(_bboxes, self.bbox_info, self.orig_img_shape)
         if _bboxes.shape == (0, 0):  # TO DO: remove after bug will be fixed
             _bboxes = np.empty((0, 4), dtype=self.sample_in[self.boxes_tensor].dtype)
         return _bboxes
@@ -90,17 +91,7 @@ class Transform:
 
     def get_masks_tensor(self):
         masks = self.sample_in[self.masks_tensor]
-        if self.poly2mask:
-            masks = mmdet_utils.convert_poly_to_coco_format(masks)
-            masks = PolygonMasks(
-                [process_polygons(polygons) for polygons in masks],
-                self.shape[0],
-                self.shape[1],
-            )
-        else:
-            masks = BitmapMasks(
-                masks.astype(np.uint8).transpose(2, 0, 1), *self.shape[:2]
-            )
-
+        return polygons.convert_polygons_to_mask(masks, self.poly2mask, self.shape)
+        
     def process(self):
         return pipeline(self.pipeline_dict)

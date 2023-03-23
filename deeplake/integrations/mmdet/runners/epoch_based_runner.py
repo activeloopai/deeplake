@@ -5,7 +5,6 @@ from torch.utils.data import DataLoader
 
 import time
 import warnings
-from typing import List, Tuple, Optional
 
 from deeplake.constants import TIME_INTERVAL_FOR_CUDA_MEMORY_CLEANING
 from .empty_memory import empty_cuda

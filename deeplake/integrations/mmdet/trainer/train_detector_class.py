@@ -1,5 +1,3 @@
-from typing import Optional
-
 from mmdet.apis.train import auto_scale_lr  # type: ignore
 from mmdet.utils import (  # type: ignore
     build_dp,
@@ -15,18 +13,17 @@ from mmcv.runner import (  # type: ignore
     OptimizerHook,
     build_runner,
 )
-from mmdet.datasets import replace_ImageToTensor  # type: ignor
 import deeplake as dp
 from deeplake.util.warnings import always_warn
+from deeplake.constants import MMDET_BATCH_SIZE as BATCH_SIZE
+from deeplake.constants import MMDET_NUM_WORKERS as NUM_WORKERS
 import warnings
-import mmcv  # type: ignore
 from mmdet.utils.util_distribution import *  # type: ignore
-from deeplake.enterprise.dataloader import indra_available
+
+import ddp_utils
 from ..dataloader import dataloader
-
-
-BATCH_SIZE = 256
-NUM_WORKERS = 1
+from ..utils import integration_tools, collect_keys
+from ..cfg import cfg
 
 
 class TrainDectector:
@@ -102,9 +99,9 @@ class TrainDectector:
             #                                           output_device=local_rank,
             #                                           broadcast_buffers=False,
             #                                           find_unused_parameters=find_unused_parameters)
-            force_cudnn_initialization(self.cfg.gpu_ids[self.local_rank])
-            ddp_setup(self.local_rank, len(self.cfg.gpu_ids), self.port)
-            self.model = build_ddp(
+            ddp_utils.force_cudnn_initialization(self.cfg.gpu_ids[self.local_rank])
+            ddp_utils.ddp_setup(self.local_rank, len(self.cfg.gpu_ids), self.port)
+            self.model = ddp_utils.build_ddp(
                 model,
                 self.cfg.device,
                 device_ids=[self.cfg.gpu_ids[self.local_rank]],
@@ -123,7 +120,7 @@ class TrainDectector:
     
     def _init_train_dataset(self, ds_train, ds_train_tensors):
         if ds_train is None:
-            self.ds_train = load_ds_from_cfg(self.cfg.data.train)
+            self.ds_train = cfg.load(self.cfg.data.train)
             self.ds_train_tensors = self.cfg.data.train.get("deeplake_tensors", {})
         else:
             cfg_data = self.cfg.data.train.get("deeplake_path")
@@ -136,7 +133,7 @@ class TrainDectector:
     
     def _init_val_dataset(self, ds_val, ds_val_tensors):
         if ds_val is None:
-            self.ds_val = load_ds_from_cfg(self.cfg.data.val)
+            self.ds_val = cfg.load(self.cfg.data.val)
             self.ds_val_tensors = self.cfg.data.val.get("deeplake_tensors", {})
         else:
             cfg_data = self.cfg.data.val.get("deeplake_path")
@@ -185,9 +182,9 @@ class TrainDectector:
         return self._fetch_tensors(ds)
     
     def _fetch_tensors(self, ds):
-        images_tensor = _find_tensor_with_htype(ds, "image", "img")
-        boxes_tensor = _find_tensor_with_htype(ds, "bbox", "gt_bboxes")
-        labels_tensor = _find_tensor_with_htype(
+        images_tensor = integration_tools.find_tensor_with_htype(ds, "image", "img")
+        boxes_tensor = integration_tools.find_tensor_with_htype(ds, "bbox", "gt_bboxes")
+        labels_tensor = integration_tools.find_tensor_with_htype(
             ds, "class_label", "train gt_labels"
         )
         masks_tensor = self._get_masks_tensor(ds)
@@ -200,15 +197,15 @@ class TrainDectector:
         
     def _get_masks_tensor(self, ds):
         train_masks_tensor = None
-        collection_keys = get_collect_keys(self.cfg)
+        collection_keys = collect_keys.get_collect_keys(self.cfg)
         if "gt_masks" in collection_keys:
-            train_masks_tensor = _find_tensor_with_htype(
+            train_masks_tensor = integration_tools.find_tensor_with_htype(
                 ds, "binary_mask", "gt_masks"
-            ) or _find_tensor_with_htype(ds, "polygon", "gt_masks")
+            ) or integration_tools.find_tensor_with_htype(ds, "polygon", "gt_masks")
         return train_masks_tensor        
     
     def _set_model_classes(self):
-        if hasattr(model, "CLASSES"):
+        if hasattr(self.model, "CLASSES"):
             warnings.warn(
                 "model already has a CLASSES attribute. dataset.info.class_names will not be used."
             )
@@ -293,11 +290,11 @@ class TrainDectector:
         self.runner = build_runner(
             self.cfg.runner,
             default_args=dict(
-            model=self.model,
-            optimizer=optimizer,
-            work_dir=self.cfg.work_dir,
-            logger=self.logger,
-            meta=self.meta,
+                model=self.model,
+                optimizer=optimizer,
+                work_dir=self.cfg.work_dir,
+                logger=self.logger,
+                meta=self.meta,
             ),
         )
         

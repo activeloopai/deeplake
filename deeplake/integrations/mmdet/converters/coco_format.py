@@ -1,6 +1,8 @@
+from typing import dict, tuple
+
 import numpy as np
 
-from deeplake.integrations.mmdet.converters import pascal_format_converters, bbox_format
+import pascal_format_converters
 
 
 BBOX_FORMAT_TO_PASCAL_CONVERTER = {

@@ -187,7 +187,7 @@ from mmdet.utils.util_distribution import *  # type: ignore
 from deeplake.integrations.mmdet import mmdet_utils
 
 from utils import unsupported_functionalities
-from trainer 
+from trainer import trainer
 
 @deeplake_reporter.record_call
 def train_detector(
@@ -275,7 +275,7 @@ def train_detector(
         cfg.gpu_ids = range(torch.cuda.device_count() if distributed else 1)
     if distributed:
         return torch.multiprocessing.spawn(
-            _train_detector,
+            trainer._train_detector,
             args=(
                 model,
                 cfg,
@@ -291,7 +291,7 @@ def train_detector(
             ),
             nprocs=len(cfg.gpu_ids),
         )
-    _train_detector(
+    trainer._train_detector(
         0,
         model,
         cfg,

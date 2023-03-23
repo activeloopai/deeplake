@@ -1,4 +1,4 @@
-from typing import Callable
+from typing import Callable, str, bool
 
 from .transform_class import Transform
 

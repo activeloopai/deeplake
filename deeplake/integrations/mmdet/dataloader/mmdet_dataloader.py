@@ -1,9 +1,10 @@
-from typing import Optional, List
+from typing import Optional, List, str, int
 
 from mmcv.parallel import collate  # type: ignore
 from functools import partial
 import deeplake as dp
-from ..transform.Transform import transform
+from ..transform.transform import transform
+from ..dataset import mmdet_dataset, subiterable_dataset
 from mmdet.utils.util_distribution import *  # type: ignore
 from deeplake.enterprise.dataloader import dataloader
 import types
@@ -130,7 +131,7 @@ class MMDetDataLoader:
             decode_method=self.decode_method,
         )
 
-        mmdet_ds = MMDetDataset(
+        mmdet_ds = mmdet_dataset.MMDetDataset(
             dataset=self.dataset,
             metrics_format=self.metrics_format,
             pipeline=self.pipeline,
@@ -146,7 +147,7 @@ class MMDetDataLoader:
         loader.dataset.mmdet_dataset = mmdet_ds
         loader.dataset.pipeline = loader.dataset.mmdet_dataset.pipeline
         loader.dataset.evaluate = types.MethodType(
-            mmdet_subiterable_dataset_eval, loader.dataset
+            subiterable_dataset.mmdet_subiterable_dataset_eval, loader.dataset
         )
         loader.dataset.CLASSES = self.classes
         return loader
@@ -166,7 +167,7 @@ class MMDetDataLoader:
             )
         )
 
-        mmdet_ds = MMDetDataset(
+        mmdet_ds = mmdet_dataset.MMDetDataset(
             dataset=self.dataset,
             metrics_format=self.metrics_format,
             pipeline=self.pipeline,
