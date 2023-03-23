@@ -2878,7 +2878,7 @@ class Dataset:
             :func:`Dataset.load_view`, :func:`Dataset.delete_view` methods. They have to be loaded using :func:`deeplake.load`.
         """
         if id is not None and not isinstance(id, str):
-            raise TypeError(f"id {id} is of type {type(id)} must be of type string.")
+            raise TypeError(f"id {id} is of type {type(id)}, expected `str`.")
         return self._save_view(
             path,
             id,
