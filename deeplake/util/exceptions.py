@@ -77,7 +77,7 @@ class TensorDoesNotExistError(KeyError, AttributeError):
 class TensorAlreadyExistsError(Exception):
     def __init__(self, key: str):
         super().__init__(
-            f"Tensor '{key}' already exists. If applicable, you can use the `overwrite=True` parameter!"
+            f"Tensor '{key}' already exists. You can use the `exist_ok=True` parameter to ignore this error message."
         )
 
 
