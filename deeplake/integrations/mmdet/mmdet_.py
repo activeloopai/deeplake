@@ -184,7 +184,6 @@ from deeplake.util.bugout_reporter import deeplake_reporter
 import mmcv  # type: ignore
 import torch
 from mmdet.utils.util_distribution import *  # type: ignore
-from deeplake.integrations.mmdet import mmdet_utils
 
 from utils import unsupported_functionalities
 from trainer import trainer
