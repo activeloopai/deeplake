@@ -86,10 +86,15 @@ from deeplake.util.keys import (
     get_tensor_info_key,
 )
 from deeplake.util.exceptions import (
+    GetChunkError,
     CorruptedMetaError,
     DynamicTensorNumpyError,
+    GetDataFromLinkError,
     ReadOnlyModeError,
+    ReadSampleFromChunkError,
+    SampleAppendError,
     SampleHtypeMismatchError,
+    SampleUpdateError,
 )
 from deeplake.util.remove_cache import get_base_storage
 from deeplake.util.image import convert_sample, convert_img_arr
@@ -175,6 +180,7 @@ class ChunkEngine:
         self.base_storage = get_base_storage(cache)
         self._meta_cache = meta_cache
         self.version_state = version_state
+        self.name = version_state["tensor_names"].get(self.key)
         self.compression = None
         self.chunk_class = BaseChunk
 
@@ -212,6 +218,7 @@ class ChunkEngine:
         self._chunk_compression = None
 
         tensor_meta = self.tensor_meta
+        self.name = tensor_meta.name or self.key
         numpy_extend_optimization_enabled = False
 
         if tensor_meta.sample_compression:
@@ -564,15 +571,19 @@ class ChunkEngine:
     def get_chunk_from_chunk_id(
         self, chunk_id, copy: bool = False, partial_chunk_bytes=0
     ) -> BaseChunk:
-        chunk_name = ChunkIdEncoder.name_from_id(chunk_id)
-        chunk_commit_id, tkey = self.get_chunk_commit(chunk_name)
-        chunk_key = get_chunk_key(tkey, chunk_name, chunk_commit_id)
-        chunk = self.get_chunk(chunk_key, partial_chunk_bytes=partial_chunk_bytes)
-        chunk.key = chunk_key
-        chunk.id = chunk_id
-        if copy and chunk_commit_id != self.commit_id:
-            chunk = self.copy_chunk_to_new_commit(chunk, chunk_name)
-        return chunk
+        chunk_key = None
+        try:
+            chunk_name = ChunkIdEncoder.name_from_id(chunk_id)
+            chunk_commit_id, tkey = self.get_chunk_commit(chunk_name)
+            chunk_key = get_chunk_key(tkey, chunk_name, chunk_commit_id)
+            chunk = self.get_chunk(chunk_key, partial_chunk_bytes=partial_chunk_bytes)
+            chunk.key = chunk_key
+            chunk.id = chunk_id
+            if copy and chunk_commit_id != self.commit_id:
+                chunk = self.copy_chunk_to_new_commit(chunk, chunk_name)
+            return chunk
+        except Exception as e:
+            raise GetChunkError(chunk_key) from e
 
     def get_video_chunk(self, chunk_id, copy: bool = False):
         """Returns video chunks. Chunk will contain presigned url to the video instead of data if the chunk is large."""
@@ -1001,65 +1012,71 @@ class ChunkEngine:
         link_callback: Optional[Callable] = None,
         pg_callback=None,
     ):
-        assert not (progressbar and pg_callback)
-        self.check_link_ready()
-        if not self.write_initialization_done:
-            self._write_initialization()
-            self.write_initialization_done = True
+        try:
+            assert not (progressbar and pg_callback)
+            self.check_link_ready()
+            if not self.write_initialization_done:
+                self._write_initialization()
+                self.write_initialization_done = True
 
-        initial_autoflush = self.cache.autoflush
-        self.cache.autoflush = False
+            initial_autoflush = self.cache.autoflush
+            self.cache.autoflush = False
 
-        if self.is_sequence:
-            samples = tqdm(samples) if progressbar else samples
-            verified_samples = []
-            for sample in samples:
-                if sample is None:
-                    sample = []
-                verified_sample = self._extend(
-                    sample, progressbar=False, update_commit_diff=False
-                )
-                self.sequence_encoder.register_samples(len(sample), 1)
-                self.commit_diff.add_data(1)
-                verified_samples.append(verified_sample or sample)
-            if link_callback:
-                samples = [None if is_empty_list(s) else s for s in verified_samples]
-                link_callback(
-                    verified_samples,
-                    flat=False,
-                    progressbar=progressbar,
-                )
-                for s in verified_samples:
+            if self.is_sequence:
+                samples = tqdm(samples) if progressbar else samples
+                verified_samples = []
+                for sample in samples:
+                    if sample is None:
+                        sample = []
+                    verified_sample = self._extend(
+                        sample, progressbar=False, update_commit_diff=False
+                    )
+                    self.sequence_encoder.register_samples(len(sample), 1)
+                    self.commit_diff.add_data(1)
+                    verified_samples.append(verified_sample or sample)
+                if link_callback:
+                    samples = [
+                        None if is_empty_list(s) else s for s in verified_samples
+                    ]
                     link_callback(
-                        s,
-                        flat=True,
+                        verified_samples,
+                        flat=False,
+                        progressbar=progressbar,
+                    )
+                    for s in verified_samples:
+                        link_callback(
+                            s,
+                            flat=True,
+                            progressbar=progressbar,
+                        )
+
+            else:
+                verified_samples = (
+                    self._extend(samples, progressbar, pg_callback=pg_callback)
+                    or samples
+                )
+                if link_callback:
+                    if not isinstance(verified_samples, np.ndarray):
+                        samples = [
+                            None
+                            if is_empty_list(s)
+                            or (
+                                isinstance(s, deeplake.core.tensor.Tensor)
+                                and s.is_empty_tensor
+                            )
+                            else s
+                            for s in verified_samples
+                        ]
+                    link_callback(
+                        samples,
+                        flat=None,
                         progressbar=progressbar,
                     )
 
-        else:
-            verified_samples = (
-                self._extend(samples, progressbar, pg_callback=pg_callback) or samples
-            )
-            if link_callback:
-                if not isinstance(verified_samples, np.ndarray):
-                    samples = [
-                        None
-                        if is_empty_list(s)
-                        or (
-                            isinstance(s, deeplake.core.tensor.Tensor)
-                            and s.is_empty_tensor
-                        )
-                        else s
-                        for s in verified_samples
-                    ]
-                link_callback(
-                    samples,
-                    flat=None,
-                    progressbar=progressbar,
-                )
-
-        self.cache.autoflush = initial_autoflush
-        self.cache.maybe_flush()
+            self.cache.autoflush = initial_autoflush
+            self.cache.maybe_flush()
+        except Exception as e:
+            raise SampleAppendError(self.name) from e
 
     def _create_new_chunk(self, register=True, row: Optional[int] = None) -> BaseChunk:
         """Creates and returns a new `Chunk`. Automatically creates an ID for it and puts a reference in the cache."""
@@ -1259,13 +1276,16 @@ class ChunkEngine:
         link_callback: Optional[Callable] = None,
     ):
         """Update data at `index` with `samples`."""
-        self.check_link_ready()
-        (self._sequence_update if self.is_sequence else self._update)(  # type: ignore
-            index,
-            samples,
-            operator,
-            link_callback=link_callback,
-        )
+        try:
+            self.check_link_ready()
+            (self._sequence_update if self.is_sequence else self._update)(  # type: ignore
+                index,
+                samples,
+                operator,
+                link_callback=link_callback,
+            )
+        except Exception as e:
+            raise SampleUpdateError(self.name) from e
 
     def _get_samples_to_move(self, chunk) -> List[Sample]:
         decompress = isinstance(chunk, ChunkCompressedChunk)
@@ -1877,6 +1897,9 @@ class ChunkEngine:
 
         Raises:
             DynamicTensorNumpyError: If shapes of the samples being read are not all the same.
+            GetChunkError: If a chunk cannot be retrieved from the storage.
+            ReadSampleFromChunkError: If a sample cannot be read from a chunk.
+            GetDataFromLinkError: If data cannot be retrieved from a link.
 
         Returns:
             Union[np.ndarray, List[np.ndarray]]: Either a list of numpy arrays or a single numpy array (depending on the `aslist` argument).
@@ -1891,12 +1914,26 @@ class ChunkEngine:
         else:
             samples = []
             for global_sample_index in index.values[0].indices(length):
-                sample = self.get_single_sample(
-                    global_sample_index,
-                    index,
-                    fetch_chunks=fetch_chunks,
-                    pad_tensor=pad_tensor,
-                )
+                try:
+                    sample = self.get_single_sample(
+                        global_sample_index,
+                        index,
+                        fetch_chunks=fetch_chunks,
+                        pad_tensor=pad_tensor,
+                    )
+                except GetChunkError as e:
+                    raise GetChunkError(
+                        e.chunk_key, global_sample_index, self.name
+                    ) from e
+                except ReadSampleFromChunkError as e:
+                    raise ReadSampleFromChunkError(
+                        e.chunk_key, global_sample_index, self.name
+                    ) from e
+                except GetDataFromLinkError as e:
+                    raise GetDataFromLinkError(
+                        e.link, global_sample_index, self.name
+                    ) from e
+
                 check_sample_shape(sample.shape, last_shape, self.key, index, aslist)
                 last_shape = sample.shape
                 if ispolygon:
@@ -2236,7 +2273,7 @@ class ChunkEngine:
                         index.length_at(0, self._sequence_length), -1, *arr.shape[1:]  # type: ignore
                     )
                 except ValueError as ve:
-                    raise DynamicTensorNumpyError(self.key, index, "shape") from ve
+                    raise DynamicTensorNumpyError(self.name, index, "shape") from ve
         return arr
 
     def _translate_2d_index(

@@ -1147,7 +1147,7 @@ class Tensor:
 
     def _get_video_stream_url(self):
         if self.is_link:
-            return self.chunk_engine.get_video_url(self.index.values[0].value)
+            return self.chunk_engine.get_video_url(self.index.values[0].value)[0]
 
         from deeplake.visualizer.video_streaming import get_video_stream_url
 
@@ -1255,7 +1255,7 @@ class Tensor:
             sub_index = index.values[1].value if len(index.values) > 1 else None
         global_sample_index = next(index.values[0].indices(self.num_samples))
         if self.is_link:
-            sample = self.chunk_engine.get_video_url(global_sample_index)  # type: ignore
+            sample = self.chunk_engine.get_video_url(global_sample_index)[0]  # type: ignore
         else:
             sample = self.chunk_engine.get_video_sample(
                 global_sample_index, index, decompress=False
