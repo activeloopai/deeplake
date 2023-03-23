@@ -1,4 +1,5 @@
 from typing import Optional
+from deeplake.util.exceptions import GetDataFromLinkError
 from deeplake.util.exceptions import MissingCredsError
 from deeplake.util.path import get_path_type
 import deeplake
@@ -21,16 +22,19 @@ def read_linked_sample(
     sample_path: str, sample_creds_key: Optional[str], link_creds, verify: bool
 ):
     provider_type = get_path_type(sample_path)
-    if provider_type == "local":
-        return deeplake.read(sample_path, verify=verify)
-    elif provider_type == "http":
-        return _read_http_linked_sample(
-            link_creds, sample_creds_key, sample_path, verify
-        )
-    else:
-        return _read_cloud_linked_sample(
-            link_creds, sample_creds_key, sample_path, provider_type, verify
-        )
+    try:
+        if provider_type == "local":
+            return deeplake.read(sample_path, verify=verify)
+        elif provider_type == "http":
+            return _read_http_linked_sample(
+                link_creds, sample_creds_key, sample_path, verify
+            )
+        else:
+            return _read_cloud_linked_sample(
+                link_creds, sample_creds_key, sample_path, provider_type, verify
+            )
+    except Exception as e:
+        raise GetDataFromLinkError(sample_path) from e
 
 
 def retry_refresh_managed_creds(f):

@@ -38,9 +38,13 @@ from deeplake.core.serialize import (
 )
 from deeplake.core.storage.deeplake_memory_object import DeepLakeMemoryObject
 from deeplake.core.tiling.sample_tiles import SampleTiles
-from deeplake.util.exceptions import TensorInvalidSampleShapeError, EmptyTensorError
+from deeplake.util.exceptions import (
+    ReadSampleFromChunkError,
+    TensorInvalidSampleShapeError,
+    EmptyTensorError,
+)
 from deeplake.core.polygon import Polygons
-from functools import reduce
+from functools import reduce, wraps
 from operator import mul
 
 InputSample = Union[
@@ -613,3 +617,16 @@ class BaseChunk(DeepLakeMemoryObject):
                 "This tensor has only been populated with empty samples. "
                 "Need to add at least one non-empty sample before retrieving data."
             )
+
+
+def catch_chunk_read_error(fn):
+    @wraps(fn)
+    def wrapper(self, *args, **kwargs):
+        try:
+            return fn(self, *args, **kwargs)
+        except EmptyTensorError:
+            raise
+        except Exception as e:
+            raise ReadSampleFromChunkError(self.key) from e
+
+    return wrapper
