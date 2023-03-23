@@ -45,9 +45,9 @@ class Evaluater(mmdet_coco.CocoDataset):
         filter_empty_gt: bool = True,
         file_client_args: Dict[str, Any] = dict(backend="disk"),
         imgs: Optional[List[Any]] = None,
-        masks: Optional[deeplake.core.Tensor] = None,
-        bboxes: Optional[List[deeplake.core.Tensor]] = None,
-        labels: Optional[List[deeplake.core.Tensor]] = None,
+        masks: Optional[deeplake.core.tensor.Tensor] = None,
+        bboxes: Optional[List[deeplake.core.tensor.Tensor]] = None,
+        labels: Optional[List[deeplake.core.tensor.Tensor]] = None,
         iscrowds: Optional[List[int]] = None,
         bbox_format: Optional[str] = None,
         batch_size: int = 1,
@@ -108,7 +108,7 @@ class Evaluater(mmdet_coco.CocoDataset):
         bboxes: List[np.ndarray] = None,
         iscrowds: List[np.ndarray] = None,
         class_names: List[str] = None,
-        bbox_format: Dict[Dict[str, str]] = None,
+        bbox_format: Dict[str, Dict[str, str]] = None,
     ):
         """Load annotation from COCO style annotation file.
 
@@ -120,7 +120,7 @@ class Evaluater(mmdet_coco.CocoDataset):
             bboxes (List[numpy]): List of bboxes for every every detection for each image in numpy.
             iscrowds (List[numpy]): List of iscrowds for every every detection for each image in numpy format.
             class_names (List[str]): List of class names for every every detection for each image.
-            bbox_format (Dict[Dict[str, str]]): Dictionary contatining bbox format information.
+            bbox_format (Dict[str, Dict[str, str]]): Dictionary contatining bbox format information.
 
         Returns:
             list[dict]: Annotation info from COCO api.

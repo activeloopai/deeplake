@@ -1,8 +1,8 @@
 from typing import List, Tuple, Dict, Any
 
 import deeplake
-import recall_evaluater
-import map_evaluater
+import deeplake.integrations.mmdet.evaluaters.Pascal.recall_evaluater as recall_evaluater
+import deeplake.integrations.mmdet.evaluaters.Pascal.map_evaluater as map_evaluater
 
 
 class Evaluator:

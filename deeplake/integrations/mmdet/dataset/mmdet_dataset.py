@@ -6,7 +6,7 @@ import warnings
 import numpy as np
 
 from deeplake.integrations.mmdet.evaluaters import mmdet_evaluaters
-from deeplake.integrations.mmdet import mmdataset_info
+from deeplake.integrations.mmdet.utils import mmdataset_info
 from deeplake.integrations.pytorch.dataset import TorchDataset
 from deeplake.util.warnings import always_warn
 from deeplake.integrations.mmdet.converters import (

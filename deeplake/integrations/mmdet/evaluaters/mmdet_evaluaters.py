@@ -1,7 +1,6 @@
 from typing import Union
-from deeplake.integrations.mmdet import mmdet_utils
-from COCO import coco_evaluater
-from Pascal import pascal_evaluater
+from .COCO import coco_evaluater
+from .Pascal import pascal_evaluater
 from deeplake.util.exceptions import UnsupportedMMDetMetric
 
 
@@ -21,7 +20,7 @@ def create_metric_class(
         metric (str): The name of the metric to evaluate.
 
     Returns:
-        Union[mmdet_utils.COCODatasetEvaluater, pascal_evaluater.Evaluator]: An evaluator for the specified metric.
+        Union[coco_evaluater.Evaluater, pascal_evaluater.Evaluator]: An evaluator for the specified metric.
 
     Raises:
         UnsupportedMMDetMetric: If the specified metric is not supported.

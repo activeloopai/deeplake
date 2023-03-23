@@ -1,4 +1,4 @@
-from typing import Optional, List, str, int
+from typing import Optional, List
 
 from mmcv.parallel import collate  # type: ignore
 from functools import partial

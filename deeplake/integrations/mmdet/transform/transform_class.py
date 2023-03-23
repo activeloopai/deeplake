@@ -3,7 +3,6 @@ from typing import Callable
 from mmdet.core import BitmapMasks  # type: ignore
 import numpy as np
 from mmdet.utils.util_distribution import *  # type: ignore
-from deeplake.integrations.mmdet import mmdet_utils
 
 from ..converters import pascal_format, polygons
 
@@ -92,6 +91,6 @@ class Transform:
     def get_masks_tensor(self):
         masks = self.sample_in[self.masks_tensor]
         return polygons.convert_polygons_to_mask(masks, self.poly2mask, self.shape)
-        
+
     def process(self):
         return pipeline(self.pipeline_dict)

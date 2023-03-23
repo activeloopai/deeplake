@@ -1,10 +1,10 @@
 from collections import OrderedDict
 from typing import List, Dict, Any
 
-import base_evaluater
+import deeplake.integrations.mmdet.evaluaters.Pascal.base_evaluater as base_evaluater
 
 from mmdet.core import eval_map
-from mmdet.utils import print_log
+from mmcv.utils import print_log
 
 
 class MAPEvaluator(base_evaluater.BaseEvaluator):

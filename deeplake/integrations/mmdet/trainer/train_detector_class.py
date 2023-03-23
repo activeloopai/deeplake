@@ -20,7 +20,7 @@ from deeplake.constants import MMDET_NUM_WORKERS as NUM_WORKERS
 import warnings
 from mmdet.utils.util_distribution import *  # type: ignore
 
-import ddp_utils
+import deeplake.integrations.mmdet.trainer.ddp_utils as ddp_utils
 from ..dataloader import dataloader
 from ..utils import integration_tools, collect_keys
 from ..cfg import cfg
@@ -30,9 +30,9 @@ class TrainDectector:
     def __init__(
         self,
         local_rank,
-        model, 
-        cfg, 
-        ds_train, 
+        model,
+        cfg,
+        ds_train,
         ds_train_tensors,
         ds_val,
         ds_val_tensors,
@@ -52,8 +52,7 @@ class TrainDectector:
         self.port = port
         self.local_rank = local_rank
         self.put_model_on_gpus(model)
-        
-        
+
         # initialize dataloaders:
         # train dataloader
         train_tensor = self.get_tensors(ds_train, ds_train_tensors)
@@ -70,7 +69,7 @@ class TrainDectector:
             shuffle=self.shuffle,
             num_gpus=self.num_gpus,
         )
-        
+
         if validate:
             # validation dataloader
             val_tensor = self.get_tensors(ds_val, ds_val_tensors)
@@ -87,7 +86,7 @@ class TrainDectector:
                 shuffle=False,
                 num_gpus=self.num_gpus,
             )
-    
+
     def put_model_on_gpus(self, model):
         # put model on gpus
         if self.distributed:
@@ -111,13 +110,12 @@ class TrainDectector:
         else:
             self.model = build_dp(model, self.cfg.device, device_ids=self.cfg.gpu_ids)
 
-        
     def check_shuffle_for_val_config(self):
         deeplake_dataloader = self.cfg.data.val.get("deeplake_dataloader", False)
         if deeplake_dataloader:
             if deeplake_dataloader.get("shuffle", False):
                 always_warn("shuffle argument for validation dataset will be ignored.")
-    
+
     def _init_train_dataset(self, ds_train, ds_train_tensors):
         if ds_train is None:
             self.ds_train = cfg.load(self.cfg.data.train)
@@ -130,7 +128,7 @@ class TrainDectector:
                 )
             self.ds_train = ds_train
             self.ds_train_tensors = ds_train_tensors
-    
+
     def _init_val_dataset(self, ds_val, ds_val_tensors):
         if ds_val is None:
             self.ds_val = cfg.load(self.cfg.data.val)
@@ -143,32 +141,32 @@ class TrainDectector:
                 )
             self.ds_val = ds_val
             self.ds_val_tensors = ds_val_tensors
-            
+
     @property
     def batch_size_per_mode(self):
         return {
             "train": self.ds_train.get("batch_size"),
-            "val": self.ds_val.get("batch_size")
+            "val": self.ds_val.get("batch_size"),
         }
-        
+
     @property
     def num_workers_per_mode(self):
         return {
             "train": self.ds_train.get("num_workers"),
-            "val": self.ds_val.get("num_workers")
+            "val": self.ds_val.get("num_workers"),
         }
-    
+
     def batch_size(self, mode):
         # if batch size is not spicified use degault value
-        samples_per_gpu = self.cfg.data.get("samples_per_gpu", BATCH_SIZE)        
-        
+        samples_per_gpu = self.cfg.data.get("samples_per_gpu", BATCH_SIZE)
+
         batch_size = self.batch_size_per_mode[mode]
         return batch_size or samples_per_gpu
-    
+
     def num_workers(self, mode):
         workers_per_gpu = self.cfg.data.get("workers_per_gpu", NUM_WORKERS)
-        
-        num_workers =  self.num_workers_per_mode[mode]
+
+        num_workers = self.num_workers_per_mode[mode]
         return num_workers or workers_per_gpu
 
     def get_tensors(self, ds, ds_tensors):
@@ -177,10 +175,10 @@ class TrainDectector:
                 "images_tensor": ds_tensors["img"],
                 "boxes_tensor": ds_tensors["gt_bboxes"],
                 "labels_tensor": ds_tensors["gt_labels"],
-                "masks_tensor": ds_tensors.get("gt_masks")
+                "masks_tensor": ds_tensors.get("gt_masks"),
             }
         return self._fetch_tensors(ds)
-    
+
     def _fetch_tensors(self, ds):
         images_tensor = integration_tools.find_tensor_with_htype(ds, "image", "img")
         boxes_tensor = integration_tools.find_tensor_with_htype(ds, "bbox", "gt_bboxes")
@@ -194,7 +192,7 @@ class TrainDectector:
             "labels_tensor": labels_tensor,
             "masks_tensor": masks_tensor,
         }
-        
+
     def _get_masks_tensor(self, ds):
         train_masks_tensor = None
         collection_keys = collect_keys.get_collect_keys(self.cfg)
@@ -202,71 +200,75 @@ class TrainDectector:
             train_masks_tensor = integration_tools.find_tensor_with_htype(
                 ds, "binary_mask", "gt_masks"
             ) or integration_tools.find_tensor_with_htype(ds, "polygon", "gt_masks")
-        return train_masks_tensor        
-    
+        return train_masks_tensor
+
     def _set_model_classes(self):
         if hasattr(self.model, "CLASSES"):
             warnings.warn(
                 "model already has a CLASSES attribute. dataset.info.class_names will not be used."
             )
         elif hasattr(self.ds_train[self.train_labels_tensor].info, "class_names"):
-            self.model.CLASSES = self.ds_train[self.train_labels_tensor].info.class_names
-    
+            self.model.CLASSES = self.ds_train[
+                self.train_labels_tensor
+            ].info.class_names
+
     @property
     def metrics_format(self):
         return self.cfg.get("deeplake_metrics_format", "COCO")
-    
+
     @property
     def logger(self):
         return get_root_logger(log_level=self.cfg.log_level)
-    
+
     @property
     def runner_type(self):
-        return "EpochBasedRunner" if "runner" not in self.cfg else self.cfg.runner["type"]
-    
+        return (
+            "EpochBasedRunner" if "runner" not in self.cfg else self.cfg.runner["type"]
+        )
+
     @property
     def dl_impl(self):
         return self.cfg.get("deeplake_dataloader_type", "auto").lower()
-    
+
     def build_dataloader(self, *args, **kwargs):
         return dataloader.build_dataloader(*args, **kwargs)
-    
+
     def build_train_dataloader(self):
         tensors = self.get_tensors(self.ds_train, self.ds_train_tensors)
         return self.build_dataloader(
-            dataset = self.ds_train,
-            implementation = self.implementation,
-            pipeline = self.pipeline,
-            mode = self.mode,
-            metric_format = self.metrics_format,
-            dist = self.dist,
-            shuffle = self.shuffle,
-            num_gpus = self.num_gpus,
-            persistent_workers = False,
+            dataset=self.ds_train,
+            implementation=self.implementation,
+            pipeline=self.pipeline,
+            mode=self.mode,
+            metric_format=self.metrics_format,
+            dist=self.dist,
+            shuffle=self.shuffle,
+            num_gpus=self.num_gpus,
+            persistent_workers=False,
             **tensors,
         )
-        
+
     def build_val_dataloader(self):
         tensors = self.get_tensors(self.ds_val, self.ds_val_tensors)
         return self.build_dataloader(
-            dataset = self.ds_val,
-            implementation = self.implementation,
-            pipeline = self.pipeline,
-            mode = self.mode,
-            metric_format = self.metrics_format,
-            dist = self.dist,
-            shuffle = self.shuffle,
-            num_gpus = self.num_gpus,
-            persistent_workers = False,
+            dataset=self.ds_val,
+            implementation=self.implementation,
+            pipeline=self.pipeline,
+            mode=self.mode,
+            metric_format=self.metrics_format,
+            dist=self.dist,
+            shuffle=self.shuffle,
+            num_gpus=self.num_gpus,
+            persistent_workers=False,
             **tensors,
         )
-    
+
     def cast_runner_type(self):
         if self.cfg.runner.type == "IterBasedRunner":
             self.cfg.runner.type = "DeeplakeIterBasedRunner"
         elif self.cfg.runner.type == "EpochBasedRunner":
             self.cfg.runner.type = "DeeplakeEpochBasedRunner"
-    
+
     def fp16_settings(self):
         # fp16 setting
         fp16_cfg = self.cfg.get("fp16", None)
@@ -278,12 +280,12 @@ class TrainDectector:
             optimizer_config = OptimizerHook(**self.cfg.optimizer_config)
         else:
             optimizer_config = self.cfg.optimizer_config
-        
+
         return optimizer_config
-    
+
     def build_runner(self):
         self.cast_runner_type()
-        
+
         # build optimizer
         auto_scale_lr(self.cfg, self.distributed, self.logger)
         optimizer = build_optimizer(self.model, self.cfg.optimizer)
@@ -297,20 +299,20 @@ class TrainDectector:
                 meta=self.meta,
             ),
         )
-        
+
         # an ugly workaround to make .log and .log.json filenames the same
         self.runner.timestamp = self.timestamp
         self.optimizer_config = self.fp16_settings()
         self.register_training_hooks()
-        
+
         if self.validate:
             self.register_validation_hooks()
-    
+
     def run(self):
         self.build_runner()
         self.resume_from()
         self.runner.run([self.train_dataloader], self.cfg.workflow)
-    
+
     def resume_from(self):
         resume_from = None
         if self.cfg.resume_from is None and self.cfg.get("auto_resume"):
@@ -322,7 +324,7 @@ class TrainDectector:
             self.runner.resume(self.cfg.resume_from)
         elif self.cfg.load_from:
             self.runner.load_checkpoint(self.cfg.load_from)
-    
+
     def register_training_hooks(self):
         # register hooks
         self.runner.register_training_hooks(
@@ -333,11 +335,11 @@ class TrainDectector:
             self.cfg.get("momentum_config", None),
             custom_hooks_config=self.cfg.get("custom_hooks", None),
         )
-    
+
         if self.distributed:
             if isinstance(self.runner, EpochBasedRunner):
                 self.runner.register_hook(DistSamplerSeedHook())
-        
+
     def register_validation_hooks(self):
         eval_cfg = self.cfg.get("evaluation", {})
         eval_cfg["by_epoch"] = self.cfg.runner["type"] != "DeeplakeIterBasedRunner"
@@ -346,4 +348,6 @@ class TrainDectector:
             eval_hook = DistEvalHook
         # In this PR (https://github.com/open-mmlab/mmcv/pull/1193), the
         # priority of IterTimerHook has been modified from 'NORMAL' to 'LOW'.
-        self.runner.register_hook(eval_hook(self.val_dataloader, **eval_cfg), priority="LOW")  
+        self.runner.register_hook(
+            eval_hook(self.val_dataloader, **eval_cfg), priority="LOW"
+        )

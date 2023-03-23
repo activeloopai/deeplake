@@ -1,4 +1,4 @@
-import coco_format_converters
+import deeplake.integrations.mmdet.converters.coco_format_converters as coco_format_converters
 
 
 BBOX_FORMAT_TO_COCO_CONVERTER = {

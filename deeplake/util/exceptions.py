@@ -956,3 +956,8 @@ class SampleAppendError(Exception):
 class SampleUpdateError(Exception):
     def __init__(self, key: str):
         super().__init__(f"Unable to update sample in tensor {key}.")
+
+
+class UnsupportedMMDetMetric(Exception):
+    def __init__(self, metric: str):
+        super().__init__(f"{metric} is not supported")

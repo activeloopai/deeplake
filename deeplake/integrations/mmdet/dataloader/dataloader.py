@@ -1,4 +1,4 @@
-from typing import Optional, List, str, int
+from typing import Optional, List
 
 import deeplake as dp
 
