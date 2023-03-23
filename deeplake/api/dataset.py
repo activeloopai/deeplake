@@ -116,7 +116,6 @@ class dataset:
                     - You can also specify a ``commit_id`` or ``branch`` to load the dataset to that version directly by using the ``@`` symbol.
                     - The path will then be of the form ``hub://username/dataset@{branch}`` or ``hub://username/dataset@{commit_id}``.
                     - See examples above.
-
             read_only (bool, optional): Opens dataset in read only mode if this is passed as ``True``. Defaults to ``False``.
                 Datasets stored on Deep Lake cloud that your account does not have write access to will automatically open in read mode.
             overwrite (bool): If set to ``True`` this overwrites the dataset if it already exists. Defaults to ``False``.
@@ -151,11 +150,11 @@ class dataset:
                         - The 'local' access method can be modified to specify num_workers and/or scheduler to be used in case dataset needs to be downloaded.
                           If dataset needs to be downloaded, 'local:2:processed' will use 2 workers and use processed scheduler, while 'local:3' will use 3 workers
                           and default scheduler (threaded), and 'local:processed' will use a single worker and use processed scheduler.
-
             reset (bool): If the specified dataset cannot be loaded due to a corrupted HEAD state of the branch being loaded,
                           setting ``reset=True`` will reset HEAD changes and load the previous version.
 
-            # noqa: DAR101 reset
+        ..
+            # noqa: DAR101
 
         Returns:
             Dataset: Dataset created using the arguments provided.
@@ -465,7 +464,6 @@ class dataset:
                         - You can also specify a ``commit_id`` or ``branch`` to load the dataset to that version directly by using the ``@`` symbol.
                         - The path will then be of the form ``hub://username/dataset@{branch}`` or ``hub://username/dataset@{commit_id}``.
                         - See examples above.
-
             read_only (bool, optional): Opens dataset in read only mode if this is passed as ``True``. Defaults to ``False``.
                 Datasets stored on Deep Lake cloud that your account does not have write access to will automatically open in read mode.
             memory_cache_size (int): The size of the memory cache to be used in MB.
@@ -498,11 +496,11 @@ class dataset:
                         - The 'local' access method can be modified to specify num_workers and/or scheduler to be used in case dataset needs to be downloaded.
                           If dataset needs to be downloaded, 'local:2:processed' will use 2 workers and use processed scheduler, while 'local:3' will use 3 workers
                           and default scheduler (threaded), and 'local:processed' will use a single worker and use processed scheduler.
-
             reset (bool): If the specified dataset cannot be loaded due to a corrupted HEAD state of the branch being loaded,
                           setting ``reset=True`` will reset HEAD changes and load the previous version.
 
-            # noqa: DAR101 reset
+        ..
+            # noqa: DAR101
 
         Returns:
             Dataset: Dataset loaded using the arguments provided.
