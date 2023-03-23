@@ -229,7 +229,7 @@ class Dataset:
         d["_pad_tensors"] = pad_tensors
         d["_locking_enabled"] = lock
         d["_temp_tensors"] = []
-        d["_vc_info_updated"] = False
+        d["_vc_info_updated"] = True
         dct = self.__dict__
         dct.update(d)
 

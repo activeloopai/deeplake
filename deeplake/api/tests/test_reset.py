@@ -146,3 +146,21 @@ def test_checkout_corrupted_branch(local_path):
 
     ds.checkout("main", reset=True)
     verify_reset_on_checkout(ds, "main", main_2, main_head, {"abc": [[1], [2]]})
+
+
+def test_load_corrupt_dataset_with_no_commits(local_path):
+    ds = deeplake.dataset(local_path, overwrite=True)
+
+    ds.create_tensor("abc")
+
+    corrupt_ds(ds, "abc", 1)
+
+    with pytest.raises(DatasetCorruptError):
+        ds = deeplake.load(local_path)
+
+    with pytest.raises(ReadOnlyModeError):
+        ds = deeplake.load(local_path, read_only=True, reset=True)
+
+    ds = deeplake.load(local_path, reset=True)
+
+    assert set(ds._tensors()) == set()

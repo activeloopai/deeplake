@@ -97,12 +97,26 @@ class dataset:
             >>> ds = deeplake.dataset("s3://mybucket/my_dataset")
             >>> ds = deeplake.dataset("./datasets/my_dataset", overwrite=True)
 
+            Loading to a specfic version:
+
+            >>> ds = deeplake.dataset("hub://username/dataset@new_branch")
+            >>> ds = deeplake.dataset("hub://username/dataset@3e49cded62b6b335c74ff07e97f8451a37aca7b2)
+
+            >>> my_commit_id = "3e49cded62b6b335c74ff07e97f8451a37aca7b2"
+            >>> ds = deeplake.dataset(f"hub://username/dataset@{my_commit_id}")
+
         Args:
             path (str, pathlib.Path): - The full path to the dataset. Can be:
                 - a Deep Lake cloud path of the form ``hub://username/datasetname``. To write to Deep Lake cloud datasets, ensure that you are logged in to Deep Lake (use 'activeloop login' from command line)
                 - an s3 path of the form ``s3://bucketname/path/to/dataset``. Credentials are required in either the environment or passed to the creds argument.
                 - a local file system path of the form ``./path/to/dataset`` or ``~/path/to/dataset`` or ``path/to/dataset``.
                 - a memory path of the form ``mem://path/to/dataset`` which doesn't save the dataset but keeps it in memory instead. Should be used only for testing as it does not persist.
+                - Loading to a specific version:
+
+                    - You can also specify a ``commit_id`` or ``branch`` to load the dataset to that version directly by using the ``@`` symbol.
+                    - The path will then be of the form ``hub://username/dataset@{branch}`` or ``hub://username/dataset@{commit_id}``.
+                    - See examples above.
+
             read_only (bool, optional): Opens dataset in read only mode if this is passed as ``True``. Defaults to ``False``.
                 Datasets stored on Deep Lake cloud that your account does not have write access to will automatically open in read mode.
             overwrite (bool): If set to ``True`` this overwrites the dataset if it already exists. Defaults to ``False``.
@@ -213,33 +227,35 @@ class dataset:
                 "deeplake.dataset does not accept version address when writing a dataset."
             )
 
+        dataset_kwargs = {
+            "path": path,
+            "read_only": read_only,
+            "token": token,
+            "org_id": org_id,
+            "verbose": verbose,
+        }
+
         if access_method == "stream":
-            dataset_kwargs = {
-                "path": path,
-                "address": address,
-                "storage": cache_chain,
-                "read_only": read_only,
-                "public": public,
-                "token": token,
-                "org_id": org_id,
-                "verbose": verbose,
-            }
+            dataset_kwargs.update(
+                {
+                    "address": address,
+                    "storage": cache_chain,
+                    "public": public,
+                }
+            )
         else:
-            dataset_kwargs = {
-                "access_method": access_method,
-                "path": path,
-                "read_only": read_only,
-                "memory_cache_size": memory_cache_size,
-                "local_cache_size": local_cache_size,
-                "creds": creds,
-                "token": token,
-                "org_id": org_id,
-                "verbose": verbose,
-                "ds_exists": ds_exists,
-                "num_workers": num_workers,
-                "scheduler": scheduler,
-                "reset": reset,
-            }
+            dataset_kwargs.update(
+                {
+                    "access_method": access_method,
+                    "memory_cache_size": memory_cache_size,
+                    "local_cache_size": local_cache_size,
+                    "creds": creds,
+                    "ds_exists": ds_exists,
+                    "num_workers": num_workers,
+                    "scheduler": scheduler,
+                    "reset": reset,
+                }
+            )
 
         try:
             return dataset._load(dataset_kwargs, access_method, create)
@@ -424,12 +440,32 @@ class dataset:
     ) -> Dataset:
         """Loads an existing dataset
 
+        Examples:
+
+            >>> ds = deeplake.load("hub://username/dataset")
+            >>> ds = deeplake.load("s3://mybucket/my_dataset")
+            >>> ds = deeplake.load("./datasets/my_dataset", overwrite=True)
+
+            Loading to a specfic version:
+
+            >>> ds = deeplake.load("hub://username/dataset@new_branch")
+            >>> ds = deeplake.load("hub://username/dataset@3e49cded62b6b335c74ff07e97f8451a37aca7b2)
+
+            >>> my_commit_id = "3e49cded62b6b335c74ff07e97f8451a37aca7b2"
+            >>> ds = deeplake.load(f"hub://username/dataset@{my_commit_id}")
+
         Args:
             path (str, pathlib.Path): - The full path to the dataset. Can be:
                 - a Deep Lake cloud path of the form ``hub://username/datasetname``. To write to Deep Lake cloud datasets, ensure that you are logged in to Deep Lake (use 'activeloop login' from command line)
                 - an s3 path of the form ``s3://bucketname/path/to/dataset``. Credentials are required in either the environment or passed to the creds argument.
                 - a local file system path of the form ``./path/to/dataset`` or ``~/path/to/dataset`` or ``path/to/dataset``.
                 - a memory path of the form ``mem://path/to/dataset`` which doesn't save the dataset but keeps it in memory instead. Should be used only for testing as it does not persist.
+                - Loading to a specific version:
+
+                        - You can also specify a ``commit_id`` or ``branch`` to load the dataset to that version directly by using the ``@`` symbol.
+                        - The path will then be of the form ``hub://username/dataset@{branch}`` or ``hub://username/dataset@{commit_id}``.
+                        - See examples above.
+
             read_only (bool, optional): Opens dataset in read only mode if this is passed as ``True``. Defaults to ``False``.
                 Datasets stored on Deep Lake cloud that your account does not have write access to will automatically open in read mode.
             memory_cache_size (int): The size of the memory cache to be used in MB.
@@ -523,32 +559,34 @@ class dataset:
                 f"A Deep Lake dataset does not exist at the given path ({path}). Check the path provided or in case you want to create a new dataset, use deeplake.empty()."
             )
 
+        dataset_kwargs = {
+            "path": path,
+            "read_only": read_only,
+            "token": token,
+            "org_id": org_id,
+            "verbose": verbose,
+        }
+
         if access_method == "stream":
-            dataset_kwargs = {
-                "path": path,
-                "address": address,
-                "storage": cache_chain,
-                "read_only": read_only,
-                "token": token,
-                "org_id": org_id,
-                "verbose": verbose,
-            }
+            dataset_kwargs.update(
+                {
+                    "address": address,
+                    "storage": cache_chain,
+                }
+            )
         else:
-            dataset_kwargs = {
-                "access_method": access_method,
-                "path": path,
-                "read_only": read_only,
-                "memory_cache_size": memory_cache_size,
-                "local_cache_size": local_cache_size,
-                "creds": creds,
-                "token": token,
-                "org_id": org_id,
-                "verbose": verbose,
-                "ds_exists": True,
-                "num_workers": num_workers,
-                "scheduler": scheduler,
-                "reset": reset,
-            }
+            dataset_kwargs.update(
+                {
+                    "access_method": access_method,
+                    "memory_cache_size": memory_cache_size,
+                    "local_cache_size": local_cache_size,
+                    "creds": creds,
+                    "ds_exists": True,
+                    "num_workers": num_workers,
+                    "scheduler": scheduler,
+                    "reset": reset,
+                }
+            )
 
         try:
             return dataset._load(dataset_kwargs, access_method)
@@ -564,14 +602,10 @@ class dataset:
                             cause=e.__cause__,
                         )
                     raise DatasetCorruptError(
-                        "Exception occured (see Traceback). The dataset maybe corrupted."
-                        "Try using `reset=True` to reset HEAD changes and load the previous commit."
+                        "Exception occured (see Traceback). The dataset maybe corrupted. "
+                        "Try using `reset=True` to reset HEAD changes and load the previous commit. "
                         "This will delete all uncommitted changes on the branch you are trying to load."
                     ) from e
-                if storage.read_only:
-                    raise ReadOnlyModeError(
-                        "Cannot reset when loading dataset in read-only mode."
-                    )
                 return dataset._reset_and_load(
                     cache_chain, access_method, dataset_kwargs, address, e
                 )
@@ -598,10 +632,16 @@ class dataset:
         if parent_commit_id is False:
             # non-head node corrupted
             raise err
+        if storage.read_only:
+            msg = "Cannot reset when loading dataset in read-only mode."
+            if parent_commit_id:
+                msg += f" However, you can try loading the previous commit using "
+                msg += f"`deeplake.load('{dataset_kwargs.get('path')}@{parent_commit_id}')`."
+            raise ReadOnlyModeError(msg)
         if parent_commit_id is None:
             # no commits in the dataset
             storage.clear()
-            ds = dataset._load(access_method, dataset_kwargs)
+            ds = dataset._load(dataset_kwargs, access_method)
             return ds
 
         # load previous version, replace head and checkout to new head
