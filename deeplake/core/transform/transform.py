@@ -289,6 +289,8 @@ class Pipeline:
 
         compute_provider.close()
         pbar.close()
+        if pqueue and hasattr(pqueue, "close"):
+            pqueue.close()
         if overwrite:
             original_data_in.storage.clear_cache_without_flush()
             load_meta(original_data_in)
