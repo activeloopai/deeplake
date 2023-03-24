@@ -2,7 +2,7 @@ from uuid import uuid4
 import deeplake
 from typing import Callable, List, Optional
 from itertools import repeat
-from deeplake.core.compute.provider import ComputeProvider
+from deeplake.core.compute.provider import ComputeProvider, get_progressbar
 from deeplake.core.storage.memory import MemoryProvider
 from deeplake.util.bugout_reporter import deeplake_reporter
 from deeplake.util.compute import get_compute_provider
@@ -102,6 +102,7 @@ class ComputeFunction:
             check_lengths,
             pad_data_in,
             read_only_ok,
+            checkpoint_interval,
             **kwargs,
         )
 
@@ -233,11 +234,18 @@ class Pipeline:
                 raise ValueError(
                     "checkpoint_interval > 0 and ds_out is None. Cannot checkpoint during inplace transform."
                 )
-            datas_in = [data_in[i:i + checkpoint_interval] for i in range(0, len(data_in), checkpoint_interval)]
+            datas_in = [
+                data_in[i : i + checkpoint_interval]
+                for i in range(0, len(data_in), checkpoint_interval)
+            ]
 
         else:
             datas_in = [data_in]
 
+        samples_processed = 0
+        desc = get_pbar_description(self.functions)
+        pbar = get_progressbar(len(data_in), desc)
+        pqueue = compute_provider.create_queue()
         for i, data_in in enumerate(datas_in):
             progress = int((i + 1) / len(datas_in) * 100)
             end = progress == 100
@@ -254,20 +262,33 @@ class Pipeline:
                     overwrite,
                     skip_ok,
                     read_only_ok and overwrite,
+                    pbar,
+                    pqueue,
                     **kwargs,
                 )
                 target_ds._send_compute_progress(**progress_args, status="success")
-                desc = get_pbar_description(self.functions)
-                target_ds.commit(f"Auto-commit during {desc} after {progress}% progress")
+                target_ds.commit(
+                    f"Auto-commit during {desc} compute after {progress}% progress"
+                )
+                samples_processed += len(data_in)
             except Exception as e:
+                if checkpoint_interval > 0:
+                    print(
+                        "Transform failed. Resetting back to last committed checkpoint."
+                    )
+                    target_ds.reset(force=True)
                 target_ds._send_compute_progress(**progress_args, status="failed")
                 compute_provider.close()
-                raise TransformError(e).with_traceback(sys.exc_info()[2]) from e
+                pbar.close()
+                raise TransformError(samples_processed).with_traceback(
+                    sys.exc_info()[2]
+                ) from e
             finally:
                 if not overwrite:
                     load_meta(target_ds)
 
         compute_provider.close()
+        pbar.close()
         if overwrite:
             original_data_in.storage.clear_cache_without_flush()
             load_meta(original_data_in)
@@ -291,6 +312,8 @@ class Pipeline:
         overwrite: bool = False,
         skip_ok: bool = False,
         read_only: bool = False,
+        pbar=None,
+        pqueue=None,
         **kwargs,
     ):
         """Runs the pipeline on the input data to produce output samples and stores in the dataset.
@@ -372,6 +395,8 @@ class Pipeline:
                     map_inp,
                     total_length=len(data_in),
                     desc=desc,
+                    pbar=pbar,
+                    pqueue=pqueue,
                 )
             else:
                 result = compute.map(store_data_slice, map_inp)

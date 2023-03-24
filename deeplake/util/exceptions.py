@@ -506,7 +506,11 @@ class ReadOnlyModeError(Exception):
 
 
 class TransformError(Exception):
-    pass
+    def __init__(self, samples_processed=0):
+        msg = "Transform failed"
+        if samples_processed > 0:
+            msg += f", last checkpoint: {samples_processed} samples processed. You can slice the input to resume from this point."
+        super().__init__(msg)
 
 
 class FilterError(Exception):
