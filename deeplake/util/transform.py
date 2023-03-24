@@ -29,6 +29,7 @@ from deeplake.util.exceptions import (
     TensorDoesNotExistError,
     TransformError,
     DatasetAppendError,
+    SampleAppendError,
 )
 
 import posixpath
@@ -249,26 +250,12 @@ def _transform_sample_and_update_chunk_engines(
             value.items.clear()
     except Exception as e:
         for t in updated_tensors:
+            print(f"rolling back tensor: {t}")
             chunk_engine = all_chunk_engines[t]
             num_samples = updated_tensors[t]
             for _ in range(num_samples):
-                chunk_engine.pop()
-                if chunk_engine.is_sequence:
-                    flat = []
-                    non_flat = []
-                    for link, props in chunk_engine.tensor_meta.links.items():
-                        (flat if props["flatten_sequence"] else non_flat).append(link)
-                    if flat:
-                        seq_enc = chunk_engine.sequence_encoder
-                        for link in flat:
-                            link_chunk_engine = all_chunk_engines[link]
-                            for idx in reversed(range(*seq_enc[-1])):
-                                link_chunk_engine.pop(idx)
-                    for link in non_flat:
-                        all_chunk_engines[link].pop()
-                else:
-                    for link in chunk_engine.tensor_meta.links:
-                        all_chunk_engines[link].pop()
+                chunk_engine.pop(link_callback=chunk_engine._transform_pop_callback)
+        e = e.__cause__ if isinstance(e, SampleAppendError) else e
         raise DatasetAppendError(tensor, value) from e
 
 
