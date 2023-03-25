@@ -374,10 +374,12 @@ class SampleCompressionError(CompressionError):
 
 
 class SampleDecompressionError(CompressionError):
-    def __init__(self):
-        super().__init__(
-            f"Could not decompress sample buffer into an array. Either the sample's buffer is corrupted, or it is in an unsupported format. Supported compressions: {deeplake.compressions}."
-        )
+    def __init__(self, path: Optional[str] = None):
+        message = "Could not decompress sample"
+        if path:
+            message += f" at {path}"
+        message += f". Either the sample's buffer is corrupted, or it is in an unsupported format. Supported compressions: {deeplake.compressions}."
+        super().__init__(message)
 
 
 class InvalidImageDimensions(Exception):
@@ -612,8 +614,12 @@ class MemoryDatasetCanNotBePickledError(Exception):
 
 
 class CorruptedSampleError(Exception):
-    def __init__(self, compression):
-        super().__init__(f"Invalid {compression} file.")
+    def __init__(self, compression, path: Optional[str] = None):
+        message = f"Unable to decompress {compression} file"
+        if path is not None:
+            message += f" at {path}"
+        message += "."
+        super().__init__(message)
 
 
 class VersionControlError(Exception):
@@ -863,7 +869,80 @@ class UnsupportedExtensionError(Exception):
 
 
 class DatasetCorruptError(Exception):
-    pass
+    def __init__(self, message, action="", cause=None):
+        self.message = message
+        self.action = action
+        self.__cause__ = cause
+
+        super().__init__(self.message + (" " + self.action if self.action else ""))
+
+
+class SampleReadError(Exception):
+    def __init__(self, path: str):
+        super().__init__(f"Unable to read sample from {path}")
+
+
+class GetChunkError(Exception):
+    def __init__(
+        self,
+        chunk_key: Optional[str],
+        global_index: Optional[int] = None,
+        tensor_name: Optional[str] = None,
+    ):
+        self.chunk_key = chunk_key
+        message = "Unable to get chunk"
+        if chunk_key is not None:
+            message += f" '{chunk_key}'"
+        if global_index is not None:
+            message += f" while retrieving data at index {global_index}"
+        if tensor_name is not None:
+            message += f" in tensor {tensor_name}"
+        message += "."
+        super().__init__(message)
+
+
+class ReadSampleFromChunkError(Exception):
+    def __init__(
+        self,
+        chunk_key: Optional[str],
+        global_index: Optional[int] = None,
+        tensor_name: Optional[str] = None,
+    ):
+        self.chunk_key = chunk_key
+        message = "Unable to read sample"
+        if global_index is not None:
+            message += f" at index {global_index}"
+        message += " from chunk"
+        if chunk_key is not None:
+            message += f" '{chunk_key}'"
+        if tensor_name is not None:
+            message += f" in tensor {tensor_name}"
+        message += "."
+        super().__init__(message)
+
+
+class GetDataFromLinkError(Exception):
+    def __init__(
+        self,
+        link: str,
+        global_index: Optional[int] = None,
+        tensor_name: Optional[str] = None,
+    ):
+        self.link = link
+        message = f"Unable to get data from link {link}"
+        if global_index is not None:
+            message += f" while retrieving data at index {global_index}"
+        if tensor_name is not None:
+            message += f" in tensor {tensor_name}"
+        message += "."
+        super().__init__(message)
+
+
+class TransformFailedError(Exception):
+    def __init__(self, global_index):
+        super().__init__(
+            f"Dataloader transform failed while processing sample at index {global_index}."
+        )
 
 
 class MissingCredsError(Exception):
@@ -872,3 +951,13 @@ class MissingCredsError(Exception):
 
 class MissingManagedCredsError(Exception):
     pass
+
+
+class SampleAppendError(Exception):
+    def __init__(self, key: str):
+        super().__init__(f"Unable to append sample to tensor {key}.")
+
+
+class SampleUpdateError(Exception):
+    def __init__(self, key: str):
+        super().__init__(f"Unable to update sample in tensor {key}.")

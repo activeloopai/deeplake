@@ -34,6 +34,8 @@ from deeplake.util.keys import (
     get_sequence_encoder_key,
     get_dataset_meta_key,
 )
+
+from deeplake.core.meta.encode.pad import PadEncoder
 from os.path import dirname
 import numpy as np
 
@@ -283,17 +285,36 @@ def merge_common_tensors(
     updated_samples_dict: Dict[str, List[Tuple[int, int]]] = {}
     conflict_samples_dict: Dict[str, List[Tuple[int, int]]] = {}
     conflict_tensors = set()
+    idxs = {
+        tensor_name: find_new_updated_and_conflict_indexes(
+            tensor_name, dataset, target_dataset, nodes
+        )
+        for tensor_name in tensor_names
+    }
+    all_new_idxs = set()
+    for new_idxs, _, _ in idxs.values():
+        all_new_idxs.update(new_idxs)
+    for idx in all_new_idxs:
+        non_pad_found = False
+        for tensor_name in tensor_names:
+            target_engine = target_dataset[tensor_name].chunk_engine
+            enc = target_engine.chunk_id_encoder
+            if idx <= enc.num_samples:
+                if not target_engine.pad_encoder.is_padded(idx):
+                    non_pad_found = True
+                    break
+        if not non_pad_found:
+            for new_idxs, _, _ in idxs.values():
+                try:
+                    new_idxs.remove(idx)
+                except ValueError:
+                    pass
     for tensor_name in tensor_names:
         (
             new_indexes,
             updated_indexes,
             conflict_indexes,
-        ) = find_new_updated_and_conflict_indexes(
-            tensor_name,
-            dataset,
-            target_dataset,
-            nodes,
-        )
+        ) = idxs[tensor_name]
         new_samples_dict[tensor_name] = new_indexes
         updated_samples_dict[tensor_name] = updated_indexes
         if conflict_indexes:
@@ -475,7 +496,6 @@ def merge_tensor_data(
 
     original_tensor = dataset[tensor_name]
     target_tensor = target_dataset[tensor_name]
-    id_tensor_name = get_sample_id_tensor_key(tensor_name)
 
     new_indexes = new_samples_dict[tensor_name]
     new_indexes.sort()
@@ -801,7 +821,23 @@ def _merge_creds_encoders(
     )
 
 
-def _mergs_tile_encoders(
+def _merge_pad_encoders(
+    src_pad_encoder: PadEncoder, dest_pad_encoder: PadEncoder, start: int, end: int
+) -> PadEncoder:
+    enc = PadEncoder()
+    idx = None
+    for i in range(start, end):
+        if src_pad_encoder.is_padded(i) and dest_pad_encoder.is_padded(i):
+            if idx is None:
+                idx = i
+        else:
+            if idx is not None:
+                enc.add_padding(idx, i - idx)
+                idx = None
+    return enc
+
+
+def _merge_tile_encoders(
     src_tile_encoder, dest_tile_encoder, start: int, end: int
 ) -> None:
     src_entries = src_tile_encoder.entries
@@ -877,6 +913,8 @@ def copy_tensor_slice(
         is_link = src_meta.is_link
         src_tile_enc = src_eng.tile_encoder
         dest_tile_enc = dest_eng.tile_encoder
+        src_pad_enc = src_eng.pad_encoder
+        dest_pad_enc = dest_eng.pad_encoder
         if is_link:
             src_creds_encoder = src_eng.creds_encoder
             dest_creds_encoder = dest_eng.creds_encoder
@@ -900,7 +938,8 @@ def copy_tensor_slice(
                     _merge_creds_encoders(
                         src_creds_encoder, dest_creds_encoder, start, end
                     )
-                _mergs_tile_encoders(src_tile_enc, dest_tile_enc, start, end)
+                _merge_tile_encoders(src_tile_enc, dest_tile_enc, start, end)
+                _merge_pad_encoders(src_pad_enc, dest_pad_enc, start, end)
                 (
                     chunks_to_copy,
                     left_edge_samples,
