@@ -253,7 +253,7 @@ def _transform_sample_and_update_chunk_engines(
             num_samples = updated_tensors[t]
             for _ in range(num_samples):
                 chunk_engine.pop(link_callback=chunk_engine._transform_pop_callback)
-        e = e.__cause__ if isinstance(e, SampleAppendError) else e
+        e = e.__cause__ if isinstance(e, SampleAppendError) else e  # type: ignore
         raise SampleAppendError(tensor) from e
 
 

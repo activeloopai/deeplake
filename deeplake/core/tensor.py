@@ -1058,8 +1058,8 @@ class Tensor:
         rev_tensor_names = {v: k for k, v in self.dataset.meta.tensor_names.items()}
 
         if self.meta.is_sequence:
-            flat_links = []
-            links = []
+            flat_links: List[str] = []
+            links: List[str] = []
             for link, props in self.meta.links.items():
                 (flat_links if props["flatten_sequence"] else links).append(link)
 

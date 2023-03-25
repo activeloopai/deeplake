@@ -78,6 +78,7 @@ class ComputeFunction:
                 Defaults to False.
             read_only_ok (bool): If ``True`` and output dataset is same as input dataset, the read-only check is skipped. This can be used to read data in parallel without making changes to underlying dataset.
                 Defaults to False.
+            ignore_errors (bool): If ``True``, input samples that causes transform to fail will be skipped and the errors will be ignored **if possible**.
             **kwargs: Additional arguments.
 
         Raises:
@@ -428,6 +429,8 @@ def compose(functions: List[ComputeFunction]):  # noqa: DAR101, DAR102, DAR201, 
         - This allows the user to skip certain tensors in the function definition.
         - This is especially useful for inplace transformations in which certain tensors are not modified. Defaults to ``False``.
 
+    - ``ignore_errors (bool)``: If ``True``, input samples that causes transform to fail will be skipped and the errors will be ignored **if possible**.
+
     It raises the following errors:
 
     - ``InvalidInputDataError``: If data_in passed to transform is invalid. It should support ``__getitem__`` and ``__len__`` operations. Using scheduler other than "threaded" with deeplake dataset having base storage as memory as data_in will also raise this.
@@ -513,6 +516,8 @@ def compute(
     - ``check_lengths (bool)``: If ``True``, checks whether ``ds_out`` has tensors of same lengths initially.
 
     - ``pad_data_in (bool)``: If ``True``, pads tensors of ``data_in`` to match the length of the largest tensor in ``data_in``. Defaults to ``False``.
+
+    - ``ignore_errors (bool)``: If ``True``, input samples that causes transform to fail will be skipped and the errors will be ignored **if possible**.
 
     Note:
         ``pad_data_in`` is only applicable if ``data_in`` is a Deep Lake dataset.

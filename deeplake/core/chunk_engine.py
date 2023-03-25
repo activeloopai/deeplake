@@ -2577,16 +2577,16 @@ class ChunkEngine:
                 chunk_engine.extend(vs)
                 chunk_engine._transform_callback(vs, flat)
 
-    def _transform_pop_callback(self, index: Optional[int] = None):
+    def _transform_pop_callback(self, index: int):
         if self._all_chunk_engines:
             if self.is_sequence:
-                flat_links = []
-                links = []
+                flat_links: List[str] = []
+                links: List[str] = []
                 for link, props in self.tensor_meta.links.items():
                     (flat_links if props["flatten_sequence"] else links).append(link)
 
                 if flat_links:
-                    seq_enc = self.chunk_engine.sequence_encoder
+                    seq_enc = self.sequence_encoder
                     for link in flat_links:
                         link_chunk_engine = self._all_chunk_engines[link]
                         for idx in reversed(range(*seq_enc[index])):
