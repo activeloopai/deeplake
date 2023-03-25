@@ -207,11 +207,15 @@ def test_stringify(memory_ds, capsys):
         capsys.readouterr().out
         == "Dataset(path='mem://hub_pytest/test_api/test_stringify', tensors=['image'])\n\n tensor    htype    shape    dtype  compression\n -------  -------  -------  -------  ------- \n  image   generic  (4, 4)    None     None   \n"
     )
-    ds[1:2].summary()
-    assert (
-        capsys.readouterr().out
-        == "Dataset(path='mem://hub_pytest/test_api/test_stringify', index=Index([slice(1, 2, None)]), tensors=['image'])\n\n tensor    htype    shape    dtype  compression\n -------  -------  -------  -------  ------- \n  image   generic  (1, 4)    None     None   \n"
-    )
+    with pytest.raises(NotImplementedError):
+        ds[1:2].summary()
+    # TODO - Bring this back after summary is supported for views
+    # ds[1:2].summary()
+    # assert (
+    #     capsys.readouterr().out
+    #     == "Dataset(path='mem://hub_pytest/test_api/test_stringify', index=Index([slice(1, 2, None)]), tensors=['image'])\n\n tensor    htype    shape    dtype  compression\n -------  -------  -------  -------  ------- \n  image   generic  (1, 4)    None     None   \n"
+    # )
+
     ds.image.summary()
     assert (
         capsys.readouterr().out
