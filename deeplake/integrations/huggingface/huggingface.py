@@ -3,6 +3,7 @@ from typing import Union, Set
 from deeplake.core.dataset import Dataset
 import posixpath
 import deeplake
+from typing import Optional
 from tqdm import tqdm  # type: ignore
 
 
@@ -68,6 +69,9 @@ def ingest_huggingface(
     src,
     dest,
     use_progressbar=True,
+    token: Optional[str] = None,
+    connect_kwargs: Optional[Dict] = None,
+    **dataset_kwargs,
 ) -> Dataset:
     """Converts Hugging Face datasets to Deep Lake format.
 
@@ -76,6 +80,9 @@ def ingest_huggingface(
             DatasetDict will be stored under respective tensor groups.
         dest (Dataset, str, pathlib.Path): Destination dataset or path to it.
         use_progressbar (bool): Defines if progress bar should be used to show conversion progress.
+        token (Optional[str]): The token to use for accessing the dataset and/or connecting it to Deep Lake.
+        connect_kwargs (Optional[Dict]): If specified, the dataset will be connected to Deep Lake, and connect_kwargs will be passed to :meth:`Dataset.connect <deeplake.core.dataset.Dataset.connect>`.
+        **dataset_kwargs: Any arguments passed here will be forwarded to the dataset creator function. See :func:`deeplake.empty`.
 
     Returns:
         Dataset: The destination Deep Lake dataset.
@@ -103,9 +110,13 @@ def ingest_huggingface(
     from datasets import DatasetDict
 
     if isinstance(dest, (str, pathlib.Path)):
-        ds = deeplake.dataset(dest)
+        ds = deeplake.empty(dest, **dataset_kwargs)
     else:
         ds = dest  # type: ignore
+
+    if connect_kwargs is not None:
+        connect_kwargs["token"] = token or connect_kwargs.get("token")
+        ds.connect(**connect_kwargs)
 
     if isinstance(src, DatasetDict):
         for split, src_ds in src.items():
