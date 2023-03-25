@@ -28,7 +28,6 @@ from deeplake.util.exceptions import (
     TensorMismatchError,
     TensorDoesNotExistError,
     TransformError,
-    DatasetAppendError,
     SampleAppendError,
 )
 
@@ -250,13 +249,12 @@ def _transform_sample_and_update_chunk_engines(
             value.items.clear()
     except Exception as e:
         for t in updated_tensors:
-            print(f"rolling back tensor: {t}")
             chunk_engine = all_chunk_engines[t]
             num_samples = updated_tensors[t]
             for _ in range(num_samples):
                 chunk_engine.pop(link_callback=chunk_engine._transform_pop_callback)
         e = e.__cause__ if isinstance(e, SampleAppendError) else e
-        raise DatasetAppendError(tensor, value) from e
+        raise SampleAppendError(tensor) from e
 
 
 def normalize_pg(pg_callback, num_tensors):
@@ -348,7 +346,7 @@ def transform_data_slice_and_append(
                     last_reported_num_samples = num_samples
                     last_reported_time = curr_time
         except Exception as e:
-            if isinstance(e, DatasetAppendError) and ignore_errors:
+            if isinstance(e, SampleAppendError) and ignore_errors:
                 continue
             else:
                 raise TransformError(offset + i, sample) from e

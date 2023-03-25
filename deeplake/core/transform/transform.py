@@ -30,7 +30,6 @@ from deeplake.util.encoder import merge_all_meta_info
 from deeplake.util.exceptions import (
     HubComposeEmptyListError,
     HubComposeIncompatibleFunction,
-    TransformError,
 )
 from deeplake.hooks import dataset_written, dataset_read
 from deeplake.util.version_control import auto_checkout, load_meta

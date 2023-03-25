@@ -1,5 +1,5 @@
 from deeplake.core.transform.transform_tensor import TransformTensor
-from deeplake.util.exceptions import TensorDoesNotExistError, DatasetAppendError
+from deeplake.util.exceptions import TensorDoesNotExistError, SampleAppendError
 
 
 class TransformDataset:
@@ -42,4 +42,4 @@ class TransformDataset:
                 self[k].append(v)
             except Exception as e:
                 self.tensors.clear()
-                raise DatasetAppendError(k, v) from e
+                raise SampleAppendError(k, v) from e

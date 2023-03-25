@@ -2082,7 +2082,10 @@ class ChunkEngine:
         link_callback: Optional[Callable] = None,
     ):
         if global_sample_index is None:
-            global_sample_index = self.num_samples - 1
+            if self.is_sequence:
+                global_sample_index = self.sequence_encoder.num_samples - 1
+            else:
+                global_sample_index = self.num_samples - 1
         self._write_initialization()
         if self.tensor_meta.length == 0:
             raise ValueError("There are no samples to pop")

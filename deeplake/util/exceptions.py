@@ -531,29 +531,36 @@ def has_path(sample):
 
 
 class TransformError(Exception):
-    def __init__(self, index, sample):
-        print_item = is_primitive(sample)
-        print_path = has_path(sample)
-
-        msg = f"Transform failed at index {index} of the input data"
-
-        if print_item:
-            msg += f" on the item: {sample}."
-        elif print_path:
-            msg += f"on the sample at path: '{sample.path}'."
+    def __init__(self, index, sample=None):
+        # multiprocessing re raises error with str
+        if isinstance(index, str):
+            super().__init__(index)
         else:
-            msg += "."
+            print_item = print_path = False
+            if sample:
+                print_item = is_primitive(sample)
+                print_path = has_path(sample)
 
-        msg += " See traceback for more details."
+            msg = f"Transform failed at index {index} of the input data"
 
-        super().__init__(msg)
+            if print_item:
+                msg += f" on the item: {sample}."
+            elif print_path:
+                msg += f"on the sample at path: '{sample.path}'."
+            else:
+                msg += "."
+
+            msg += " See traceback for more details."
+
+            super().__init__(msg)
 
 
-class DatasetAppendError(Exception):
-    def __init__(self, tensor, sample):
-        print_item = is_primitive(sample)
-        print_path = has_path(sample)
-
+class SampleAppendError(Exception):
+    def __init__(self, tensor, sample=None):
+        print_item = print_path = False
+        if sample:
+            print_item = is_primitive(sample)
+            print_path = has_path(sample)
         if print_item or print_path:
             msg = "Failed to append the sample "
 
@@ -1006,11 +1013,6 @@ class MissingCredsError(Exception):
 
 class MissingManagedCredsError(Exception):
     pass
-
-
-class SampleAppendError(Exception):
-    def __init__(self, key: str):
-        super().__init__(f"Unable to append sample to tensor {key}.")
 
 
 class SampleUpdateError(Exception):
