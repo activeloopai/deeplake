@@ -113,14 +113,6 @@ class DeepLakeQueryTensor(tensor.Tensor):
 
     @property
     def shape(self):
-        if self.max_shape != self.min_shape:
-            shape = []
-            for i, dim_len in enumerate(self.max_shape):
-                if dim_len == self.min_shape[i]:
-                    shape.append(self.min_shape[i])
-                else:
-                    shape.append(None)
-            return shape
         return self.indra_tensor.shape
 
     @property
