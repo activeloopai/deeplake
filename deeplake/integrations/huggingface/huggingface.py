@@ -110,7 +110,7 @@ def ingest_huggingface(
     from datasets import DatasetDict
 
     if isinstance(dest, (str, pathlib.Path)):
-        ds = deeplake.empty(dest, **dataset_kwargs)
+        ds = deeplake.empty(dest, token=token, **dataset_kwargs)
     else:
         ds = dest  # type: ignore
 
