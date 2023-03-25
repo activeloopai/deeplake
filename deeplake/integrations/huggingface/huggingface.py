@@ -5,6 +5,7 @@ import posixpath
 import deeplake
 from typing import Optional
 from tqdm import tqdm  # type: ignore
+from deeplake.util.bugout_reporter import feature_report_path, deeplake_reporter
 
 
 def _is_seq_convertible(seq):
@@ -107,6 +108,13 @@ def ingest_huggingface(
         Features of the type ``Sequence(feature=Value(dtype='string'))`` are not supported. Columns of such type are skipped.
 
     """
+
+    feature_report_path(
+        dest,
+        "ingest_huggingface",
+        token=token,
+    )
+
     from datasets import DatasetDict
 
     if isinstance(dest, (str, pathlib.Path)):
