@@ -1,5 +1,5 @@
 import pathlib
-from typing import Union, Set
+from typing import Dict, Set
 from deeplake.core.dataset import Dataset
 import posixpath
 import deeplake
