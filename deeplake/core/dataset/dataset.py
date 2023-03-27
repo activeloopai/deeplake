@@ -3977,3 +3977,15 @@ class Dataset:
     def _temp_write_access(self):
         # Defined in DeepLakeCloudDataset
         return memoryview(b"")  # No-op context manager
+
+    @property
+    def creds_keys(self):
+        """Returns the keys of the credentials used to access linked tensors in the dataset."""
+        return list(self.link_creds.creds_keys)
+
+    @property
+    def managed_creds_keys(self):
+        """Returns the keys of the credentials used to access linked tensors in the dataset that are managed by Activeloop platform."""
+        raise ValueError(
+            "Managed creds are not supported for datasets that are not connected to activeloop platform."
+        )
