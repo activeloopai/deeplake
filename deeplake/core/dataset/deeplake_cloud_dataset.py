@@ -384,7 +384,6 @@ class DeepLakeCloudDataset(Dataset):
             f"The dataset being connected is already accessible via Deep Lake path {self.path}"
         )
 
-    @property
-    def managed_creds_keys(self):
-        """Returns the keys of the credentials used to access linked tensors in the dataset that are managed by Activeloop platform."""
+    def get_managed_creds_keys(self):
+        """Returns the list of creds keys added to the dataset that are managed by Activeloop platform. These are used to fetch external data in linked tensors."""
         return list(self.link_creds.managed_creds_keys)
