@@ -88,6 +88,9 @@ def ingest_huggingface(
     Returns:
         Dataset: The destination Deep Lake dataset.
 
+    Raises:
+        ValueError: If ``dest`` is not a path or a Deep Lake :class:`Dataset <deeplake.core.dataset.Dataset>`.
+
     Note:
         - if DatasetDict looks like:
 
