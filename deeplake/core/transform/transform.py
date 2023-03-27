@@ -6,25 +6,24 @@ from deeplake.core.compute.provider import ComputeProvider, get_progressbar
 from deeplake.core.storage.memory import MemoryProvider
 from deeplake.util.bugout_reporter import deeplake_reporter
 from deeplake.util.compute import get_compute_provider
-from deeplake.util.dataset import try_flushing
-from deeplake.util.remove_cache import (
-    get_base_storage,
-    get_dataset_with_zero_size_cache,
-)
+from deeplake.util.remove_cache import get_base_storage
 from deeplake.util.transform import (
     check_lengths,
     check_transform_data_in,
     check_transform_ds_out,
+    close_states,
     create_slices,
     delete_overwritten_chunks,
     get_lengths_generated,
     get_old_chunk_paths,
     get_pbar_description,
+    prepare_data_in,
     process_transform_result,
+    reload_and_rechunk,
     sanitize_workers_scheduler,
     store_data_slice,
     store_data_slice_with_pbar,
-    rechunk_if_necessary,
+    check_checkpoint_interval,
 )
 from deeplake.util.encoder import merge_all_meta_info
 from deeplake.util.exceptions import (
@@ -194,16 +193,9 @@ class Pipeline:
         )
         check_transform_data_in(data_in, scheduler)
 
-        if isinstance(data_in, deeplake.Dataset):
-            try_flushing(data_in)
-            if overwrite:
-                auto_checkout(data_in)
-            original_data_in = data_in
-            data_in = get_dataset_with_zero_size_cache(data_in)
-            if pad_data_in:
-                initial_padding_state = data_in._pad_tensors
-                data_in._enable_padding()
-
+        data_in, original_data_in, initial_padding_state = prepare_data_in(
+            data_in, pad_data_in, overwrite
+        )
         target_ds = data_in if overwrite else ds_out
 
         check_transform_ds_out(
@@ -225,15 +217,12 @@ class Pipeline:
         if not check_lengths:
             skip_ok = True
 
-        if checkpoint_interval > 0:
-            if num_workers > 0 and checkpoint_interval % num_workers != 0:
-                raise ValueError(
-                    "checkpoint_interval should be a multiple of num_workers if num_workers > 0"
-                )
-            if overwrite:
-                raise ValueError(
-                    "checkpoint_interval > 0 and ds_out is None. Cannot checkpoint during inplace transform."
-                )
+        checkpointing_enabled = checkpoint_interval > 0
+        total_samples = len(data_in)
+        if checkpointing_enabled:
+            check_checkpoint_interval(
+                data_in, checkpoint_interval, num_workers, overwrite
+            )
             datas_in = [
                 data_in[i : i + checkpoint_interval]
                 for i in range(0, len(data_in), checkpoint_interval)
@@ -246,8 +235,11 @@ class Pipeline:
         desc = get_pbar_description(self.functions)
         pbar = get_progressbar(len(data_in), desc)
         pqueue = compute_provider.create_queue()
-        for i, data_in in enumerate(datas_in):
-            progress = int((i + 1) / len(datas_in) * 100)
+        desc = desc.split()[1]
+        for data_in in datas_in:
+            progress = round(
+                (samples_processed + len(data_in)) / total_samples * 100, 2
+            )
             end = progress == 100
             progress_args = {"compute_id": compute_id, "progress": progress, "end": end}
 
@@ -267,19 +259,19 @@ class Pipeline:
                     **kwargs,
                 )
                 target_ds._send_compute_progress(**progress_args, status="success")
-                target_ds.commit(
-                    f"Auto-commit during {desc} compute after {progress}% progress"
-                )
+                if checkpointing_enabled:
+                    target_ds.commit(
+                        f"Auto-commit during deeplake.compute of {desc} after {progress}% progress"
+                    )
                 samples_processed += len(data_in)
             except Exception as e:
-                if checkpoint_interval > 0:
+                if checkpointing_enabled:
                     print(
                         "Transform failed. Resetting back to last committed checkpoint."
                     )
                     target_ds.reset(force=True)
                 target_ds._send_compute_progress(**progress_args, status="failed")
-                compute_provider.close()
-                pbar.close()
+                close_states(compute_provider, pbar, pqueue)
                 raise TransformError(samples_processed).with_traceback(
                     sys.exc_info()[2]
                 ) from e
@@ -287,21 +279,16 @@ class Pipeline:
                 if not overwrite:
                     load_meta(target_ds)
 
-        compute_provider.close()
-        pbar.close()
-        if pqueue and hasattr(pqueue, "close"):
-            pqueue.close()
-        if overwrite:
-            original_data_in.storage.clear_cache_without_flush()
-            load_meta(original_data_in)
-            if pad_data_in and not initial_padding_state:
-                original_data_in._disable_padding()
-            if not kwargs.get("disable_rechunk"):
-                rechunk_if_necessary(original_data_in)
-        else:
-            target_ds.storage.autoflush = initial_autoflush
-            if not kwargs.get("disable_rechunk"):
-                rechunk_if_necessary(target_ds)
+        close_states(compute_provider, pbar, pqueue)
+        reload_and_rechunk(
+            overwrite,
+            original_data_in,
+            target_ds,
+            initial_autoflush,
+            pad_data_in,
+            initial_padding_state,
+            kwargs,
+        )
 
     def run(
         self,

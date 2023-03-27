@@ -1296,15 +1296,24 @@ def test_transform_checkpointing(local_ds, scheduler):
     with local_ds as ds:
         ds.create_tensor("abc")
 
+    # not divisible by num_workers
     with pytest.raises(ValueError):
         upload().eval(
-            data_in, ds, num_workers=2, scheduler=scheduler, checkpoint_interval=5
+            data_in, ds, num_workers=2, scheduler=scheduler, checkpoint_interval=51
         )
 
-    with pytest.raises(TransformError):
+    # greater than len(data_in)
+    with pytest.raises(ValueError):
         upload().eval(
-            data_in, ds, num_workers=2, scheduler=scheduler, checkpoint_interval=10
+            data_in, ds, num_workers=2, scheduler=scheduler, checkpoint_interval=102
         )
+
+    # less than 10% of data_in, shows warning
+    with pytest.warns(UserWarning, match="10%"):
+        with pytest.raises(TransformError):
+            upload().eval(
+                data_in, ds, num_workers=2, scheduler=scheduler, checkpoint_interval=8
+            )
 
     assert len(ds.abc) == 40
     assert ds.abc.numpy(aslist=True) == list(range(40))
