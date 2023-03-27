@@ -55,6 +55,8 @@ class ViewEntry:
         Returns:
             Dataset: Loaded dataset view.
         """
+        if self.commit_id != self._ds.commit_id:
+            print(f"Loading view from commit id {self.commit_id}.")
         ds = self._ds._sub_ds(
             ".queries/" + (self.info.get("path") or self.info["id"]),
             lock=False,

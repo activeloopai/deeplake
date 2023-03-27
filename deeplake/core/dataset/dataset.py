@@ -3183,8 +3183,6 @@ class Dataset:
             KeyError: if view with given id does not exist.
         """
         view = self.get_view(id)
-        if view.commit_id != self.commit_id:
-            print(f"Loading view from commit id {view.commit_id}.")
         if optimize:
             return view.optimize(
                 tensors=tensors,
