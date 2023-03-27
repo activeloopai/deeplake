@@ -3182,18 +3182,17 @@ class Dataset:
         Raises:
             KeyError: if view with given id does not exist.
         """
+        view = self.get_view(id)
+        if view.commit_id != self.commit_id:
+            print(f"Loading view from commit id {view.commit_id}.")
         if optimize:
-            return (
-                self.get_view(id)
-                .optimize(
-                    tensors=tensors,
-                    num_workers=num_workers,
-                    scheduler=scheduler,
-                    progressbar=progressbar,
-                )
-                .load()
-            )
-        return self.get_view(id).load()
+            return view.optimize(
+                tensors=tensors,
+                num_workers=num_workers,
+                scheduler=scheduler,
+                progressbar=progressbar,
+            ).load()
+        return view.load()
 
     def delete_view(self, id: str):
         """Deletes the view with given view id.
