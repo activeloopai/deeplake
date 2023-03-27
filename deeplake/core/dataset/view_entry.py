@@ -35,7 +35,7 @@ class ViewEntry:
 
     @property
     def commit_id(self) -> str:
-        return self.info.get("source-dataset-version")
+        return self.info["source-dataset-version"]
 
     def __str__(self):
         return f"View(id='{self.id}', message='{self.message}', virtual={self.virtual}, commit_id={self.commit_id})"
