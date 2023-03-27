@@ -112,6 +112,7 @@ def ingest_huggingface(
     feature_report_path(
         dest,
         "ingest_huggingface",
+        parameters={},
         token=token,
     )
 
