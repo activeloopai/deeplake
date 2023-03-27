@@ -33,8 +33,12 @@ class ViewEntry:
         """Returns the message with which the view was saved."""
         return self.info.get("message", "")
 
+    @property
+    def commit_id(self) -> str:
+        return self.info.get("source-dataset-version")
+
     def __str__(self):
-        return f"View(id='{self.id}', message='{self.message}', virtual={self.virtual})"
+        return f"View(id='{self.id}', message='{self.message}', virtual={self.virtual}, commit_id={self.commit_id})"
 
     __repr__ = __str__
 
