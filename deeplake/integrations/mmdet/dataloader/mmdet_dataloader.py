@@ -180,11 +180,7 @@ class MMDetDataLoader:
         )
         return _transform_fn
 
-    def buld_dataloader(
-        self,
-    ) -> Union[
-        torch.utils.data.DataLoader, deeplake.enterprise.dataloader.DeepLakeDataLoader
-    ]:
+    def buld_dataloader(self):
         """
         Build the deeplake data loader based on the implementation type.
 
@@ -203,7 +199,7 @@ class MMDetDataLoader:
             return self.load_python_dataloader()
         return self.load_indra_dataloader()
 
-    def load_python_dataloader(self) -> torch.utils.data.DataLoader:
+    def load_python_dataloader(self):
         """
         Load the python data loader.
 
@@ -246,9 +242,7 @@ class MMDetDataLoader:
         loader.dataset.CLASSES = self.classes
         return loader
 
-    def load_indra_dataloader(
-        self,
-    ) -> deeplake.enterprise.dataloader.DeepLakeDataLoader:
+    def load_indra_dataloader(self):
         """
         Load the Indra data loader.
 

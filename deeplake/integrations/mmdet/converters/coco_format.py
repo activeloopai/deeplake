@@ -1,30 +1,35 @@
-import numpy as np
+import deeplake.integrations.mmdet.converters.coco_format_converters as coco_format_converters
+import deeplake.integrations.mmdet.converters.bbox_format as bbox_format
 
-import deeplake.integrations.mmdet.converters.pascal_format_converters as pascal_format_converters
+from typing import Any, Callable, Dict, Tuple, List
 
-
-BBOX_FORMAT_TO_PASCAL_CONVERTER = {
-    ("LTWH", "pixel"): pascal_format_converters.coco_pixel_2_pascal_pixel,
-    ("LTWH", "fractional"): pascal_format_converters.coco_frac_2_pascal_pixel,
-    ("LTRB", "pixel"): lambda x, y: x,
-    ("LTRB", "fractional"): pascal_format_converters.pascal_frac_2_pascal_pixel,
-    ("CCWH", "pixel"): pascal_format_converters.yolo_pixel_2_pascal_pixel,
-    ("CCWH", "fractional"): pascal_format_converters.yolo_frac_2_pascal_pixel,
+BBOX_FORMAT_TO_COCO_CONVERTER: Dict[Tuple[str, str], Callable] = {
+    ("LTWH", "pixel"): lambda x, y: x,
+    ("LTWH", "fractional"): coco_format_converters.coco_frac_2_coco_pixel,
+    ("LTRB", "pixel"): coco_format_converters.pascal_pixel_2_coco_pixel,
+    ("LTRB", "fractional"): coco_format_converters.pascal_frac_2_coco_pixel,
+    ("CCWH", "pixel"): coco_format_converters.yolo_pixel_2_coco_pixel,
+    ("CCWH", "fractional"): coco_format_converters.yolo_frac_2_coco_pixel,
 }
 
 
-def convert(bbox: np.ndarray, bbox_info: dict, shape: tuple) -> np.ndarray:
+def convert(
+    bbox: List[float], bbox_info: Dict[str, Dict[str, str]], shape: Tuple[int, int]
+) -> List[float]:
     """
-    Converts bounding box coordinates to Pascal format.
+    Convert bounding boxes to COCO format (top-left x, top-left y, width, height)
+    in pixel coordinates using the appropriate converter function based on the provided bbox_format.
 
     Args:
-        bbox (np.ndarray): A Numpy array containing bounding box coordinates.
-        bbox_info (dict): A dictionary containing information about the bounding box format. Ex: {"coords", {"mode": "LTWH", "type": "pixel"}}
-        shape (tuple): A tuple containing the shape of the image.
+        bbox (List[float]): Bounding boxes to be converted.
+        bbox_format (Tuple[str, str]): The format of the input bounding boxes.
+            First element of the tuple represents the mode (e.g. 'LTWH', 'LTRB', 'CCWH').
+            Second element of the tuple represents the type (e.g. 'pixel', 'fractional').
+        images (Any): Images associated with the bounding boxes.
 
     Returns:
-        np.ndarray: A Numpy array containing bounding box coordinates in Pascal format.
+        List[float]: Bounding boxes in COCO format.
     """
-    bbox_format = bbox_format.get_bbox_format(bbox, bbox_info)
-    converter = BBOX_FORMAT_TO_PASCAL_CONVERTER[bbox_format]
+    bbox_info = bbox_format.get_bbox_format(bbox, bbox_info)
+    converter = BBOX_FORMAT_TO_COCO_CONVERTER[bbox_info]
     return converter(bbox, shape)

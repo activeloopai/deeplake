@@ -1,7 +1,10 @@
+import logging
 import math
 import os.path as osp
 import tempfile
 import warnings
+from collections import OrderedDict
+
 from typing import Any, Dict, List, Optional, Sequence, Tuple, Union
 
 import numpy as np
@@ -369,8 +372,8 @@ class MMDetDataset(TorchDataset):
             **kwargs,
         )
 
-    def __repr__(self) -> self:
-        """Print the number of instance number."""
+    def __repr__(self) -> mmdataset_info.DatasetInfo:
+        """Print the dataset info."""
         return self.dataset_info
 
     def format_results(
