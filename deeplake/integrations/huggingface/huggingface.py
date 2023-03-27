@@ -120,8 +120,15 @@ def ingest_huggingface(
 
     if isinstance(dest, (str, pathlib.Path)):
         ds = deeplake.empty(dest, token=token, **dataset_kwargs)
+    elif isinstance(dest, Dataset):
+        if dataset_kwargs.get("overwrite"):
+            ds = deeplake.empty(dest.path, token=token, **dataset_kwargs)
+        else:
+            ds = dest  # type: ignore
     else:
-        ds = dest  # type: ignore
+        raise ValueError(
+            f"Expected `dest` to be a path or deeplake Dataset object, got {type(dest)}."
+        )
 
     if connect_kwargs is not None:
         connect_kwargs["token"] = token or connect_kwargs.get("token")
