@@ -2076,7 +2076,16 @@ class ChunkEngine:
             "requires StorageProvider to be able to list all chunks"
         )
 
-    def pop(self, global_sample_index: int):
+    def pop(
+        self,
+        global_sample_index: Optional[int] = None,
+        link_callback: Optional[Callable] = None,
+    ):
+        if global_sample_index is None:
+            if self.is_sequence:
+                global_sample_index = self.sequence_encoder.num_samples - 1
+            else:
+                global_sample_index = self.num_samples - 1
         self._write_initialization()
         if self.tensor_meta.length == 0:
             raise ValueError("There are no samples to pop")
@@ -2088,6 +2097,10 @@ class ChunkEngine:
         self.cached_data = None
         initial_autoflush = self.cache.autoflush
         self.cache.autoflush = False
+
+        # pop links
+        if link_callback:
+            link_callback(global_sample_index)
 
         self.commit_diff.pop(global_sample_index)
         if self.is_sequence:
@@ -2563,6 +2576,24 @@ class ChunkEngine:
                 chunk_engine = self._all_chunk_engines[k]
                 chunk_engine.extend(vs)
                 chunk_engine._transform_callback(vs, flat)
+
+    def _transform_pop_callback(self, index: int):
+        if self._all_chunk_engines:
+            if self.is_sequence:
+                flat_links: List[str] = []
+                links: List[str] = []
+                for link, props in self.tensor_meta.links.items():
+                    (flat_links if props["flatten_sequence"] else links).append(link)
+
+                if flat_links:
+                    seq_enc = self.sequence_encoder
+                    for link in flat_links:
+                        link_chunk_engine = self._all_chunk_engines[link]
+                        for idx in reversed(range(*seq_enc[index])):
+                            link_chunk_engine.pop(idx)
+            else:
+                links = list(self.tensor_meta.links.keys())
+            [self._all_chunk_engines[link].pop() for link in links]
 
     def get_empty_sample(self):
         if self.num_samples == 0:

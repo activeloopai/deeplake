@@ -2695,7 +2695,7 @@ class Dataset:
                             self[k].pop()
                         except Exception as e2:
                             raise Exception(
-                                "Error while attepting to rollback appends"
+                                "Error while attempting to rollback appends"
                             ) from e2
                     raise e
 
