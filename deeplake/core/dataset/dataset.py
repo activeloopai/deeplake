@@ -137,7 +137,7 @@ import warnings
 import jwt
 
 
-_LOCKABLE_STORAGES = {S3Provider, GCSProvider, LocalProvider}
+_LOCKABLE_STORAGES = {}
 
 
 class Dataset:
