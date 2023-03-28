@@ -16,7 +16,6 @@ class SerialProvider(ComputeProvider):
         desc=None,
         pbar=None,
         pqueue=None,
-        pthread=None,
     ):
         progress_bar = pbar or get_progress_bar(total_length, desc)
 

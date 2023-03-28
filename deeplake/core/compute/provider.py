@@ -46,7 +46,6 @@ class ComputeProvider(ABC):
         desc: Optional[str] = None,
         pbar=None,
         pqueue=None,
-        pthread=None,
     ):
         progress_bar = pbar or get_progress_bar(total_length, desc)
         progress_queue = pqueue or self.create_queue()
@@ -57,16 +56,15 @@ class ComputeProvider(ABC):
 
             return func(pg_callback, *args, **kwargs)
 
-        progress_thread = pthread or get_progress_thread(progress_bar, progress_queue)
+        progress_thread = get_progress_thread(progress_bar, progress_queue)
 
         try:
             result = self.map(sub_func, iterable)
         finally:
+            progress_queue.put(None)  # type: ignore[trust]
             if pqueue is None and hasattr(progress_queue, "close"):
-                progress_queue.put(None)  # type: ignore[trust]
                 progress_queue.close()
-            if pthread is None:
-                progress_thread.join()
+            progress_thread.join()
             if pbar is None:
                 progress_bar.close()
 

@@ -597,12 +597,8 @@ def rechunk_if_necessary(ds):
                                 break
 
 
-def close_states(compute_provider, pbar, pqueue, pthread):
+def close_states(compute_provider, pbar, pqueue):
     compute_provider.close()
-    if pqueue:
-        pqueue.put(None)
-    if pthread and hasattr(pthread, "join"):
-        pthread.join()
     if pbar and hasattr(pbar, "close"):
         pbar.close()
     if pqueue and hasattr(pqueue, "close"):
