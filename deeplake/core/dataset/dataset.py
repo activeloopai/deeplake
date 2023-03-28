@@ -3077,6 +3077,7 @@ class Dataset:
         )
 
         ds.index = Index()
+        ds.version_state = ds.version_state.copy()
         ds._checkout(commit_id, verbose=False)
         first_index_subscriptable = self.info.get("first-index-subscriptable", True)
         if first_index_subscriptable:
@@ -3117,21 +3118,17 @@ class Dataset:
 
         Args:
             commit_id (str, optional): - Commit from which views should be returned.
-                - If not specified, views from current commit is returned.
-                - If not specified, views from the currently checked out commit will be returned.
+                - If not specified, views from all commits are returned.
 
         Returns:
             List[ViewEntry]: List of :class:`ViewEntry` instances.
         """
-        commit_id = commit_id or self.commit_id
         queries = self._read_queries_json()
-        f = lambda x: x["source-dataset-version"] == commit_id
-        ret = map(
-            partial(ViewEntry, dataset=self),
-            filter(f, queries),
-        )
-
-        return list(ret)
+        if commit_id is not None:
+            queries = filter(
+                lambda x: x["source-dataset-version"] == commit_id, queries
+            )
+        return list(map(partial(ViewEntry, dataset=self), queries))
 
     def get_view(self, id: str) -> ViewEntry:
         """Returns the dataset view corresponding to ``id``.
@@ -3189,18 +3186,15 @@ class Dataset:
         Raises:
             KeyError: if view with given id does not exist.
         """
+        view = self.get_view(id)
         if optimize:
-            return (
-                self.get_view(id)
-                .optimize(
-                    tensors=tensors,
-                    num_workers=num_workers,
-                    scheduler=scheduler,
-                    progressbar=progressbar,
-                )
-                .load()
-            )
-        return self.get_view(id).load()
+            return view.optimize(
+                tensors=tensors,
+                num_workers=num_workers,
+                scheduler=scheduler,
+                progressbar=progressbar,
+            ).load()
+        return view.load()
 
     def delete_view(self, id: str):
         """Deletes the view with given view id.
@@ -3886,6 +3880,10 @@ class Dataset:
             or hasattr(self, "_vds")
             or hasattr(self, "_view_entry")
         )
+
+    @property
+    def is_optimized(self) -> bool:
+        return not getattr(getattr(self, "_view_entry", None), "virtual", True)
 
     @property
     def min_view(self):
