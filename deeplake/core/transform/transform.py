@@ -2,7 +2,11 @@ from uuid import uuid4
 import deeplake
 from typing import Callable, List, Optional
 from itertools import repeat
-from deeplake.core.compute.provider import ComputeProvider, get_progressbar
+from deeplake.core.compute.provider import (
+    ComputeProvider,
+    get_progress_bar,
+    get_progress_thread,
+)
 from deeplake.core.storage.memory import MemoryProvider
 from deeplake.util.bugout_reporter import deeplake_reporter
 from deeplake.util.compute import get_compute_provider
@@ -233,8 +237,12 @@ class Pipeline:
 
         samples_processed = 0
         desc = get_pbar_description(self.functions)
-        pbar = get_progressbar(len(data_in), desc)
-        pqueue = compute_provider.create_queue()
+        if progressbar:
+            pbar = get_progress_bar(len(data_in), desc)
+            pqueue = compute_provider.create_queue()
+            pthread = get_progress_thread(pbar, pqueue)
+        else:
+            pbar, pqueue, pthread = None, None, None
         desc = desc.split()[1]
         for data_in in datas_in:
             progress = round(
@@ -256,6 +264,7 @@ class Pipeline:
                     read_only_ok and overwrite,
                     pbar,
                     pqueue,
+                    pthread,
                     **kwargs,
                 )
                 target_ds._send_compute_progress(**progress_args, status="success")
@@ -271,7 +280,17 @@ class Pipeline:
                     )
                     target_ds.reset(force=True)
                 target_ds._send_compute_progress(**progress_args, status="failed")
-                close_states(compute_provider, pbar, pqueue)
+                close_states(compute_provider, pbar, pqueue, pthread)
+                reload_and_rechunk(
+                    overwrite,
+                    original_data_in,
+                    target_ds,
+                    initial_autoflush,
+                    pad_data_in,
+                    initial_padding_state,
+                    kwargs,
+                    rechunk=False,
+                )
                 raise TransformError(samples_processed).with_traceback(
                     sys.exc_info()[2]
                 ) from e
@@ -279,7 +298,7 @@ class Pipeline:
                 if not overwrite:
                     load_meta(target_ds)
 
-        close_states(compute_provider, pbar, pqueue)
+        close_states(compute_provider, pbar, pqueue, pthread)
         reload_and_rechunk(
             overwrite,
             original_data_in,
@@ -303,6 +322,7 @@ class Pipeline:
         read_only: bool = False,
         pbar=None,
         pqueue=None,
+        pthread=None,
         **kwargs,
     ):
         """Runs the pipeline on the input data to produce output samples and stores in the dataset.
@@ -379,13 +399,14 @@ class Pipeline:
         try:
             if progressbar:
                 desc = get_pbar_description(self.functions)
-                result = compute.map_with_progressbar(
+                result = compute.map_with_progress_bar(
                     store_data_slice_with_pbar,
                     map_inp,
                     total_length=len(data_in),
                     desc=desc,
                     pbar=pbar,
                     pqueue=pqueue,
+                    pthread=pthread,
                 )
             else:
                 result = compute.map(store_data_slice, map_inp)

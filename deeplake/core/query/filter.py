@@ -219,7 +219,7 @@ def filter_with_compute(
 
     try:
         if progressbar:
-            result = compute.map_with_progressbar(pg_filter_slice, idx, total_length=len(dataset))  # type: ignore
+            result = compute.map_with_progress_bar(pg_filter_slice, idx, total_length=len(dataset))  # type: ignore
         else:
             result = compute.map(filter_slice, idx)  # type: ignore
         index_map = [k for x in result for k in x]  # unfold the result map
@@ -446,7 +446,7 @@ def query_inplace(
             ]
 
             if progressbar:
-                result = compute.map_with_progressbar(pg_subquery, subdatasets, total_length=num_samples)  # type: ignore
+                result = compute.map_with_progress_bar(pg_subquery, subdatasets, total_length=num_samples)  # type: ignore
             else:
                 result = compute.map(subquery, subdatasets)  # type: ignore
 

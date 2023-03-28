@@ -597,9 +597,14 @@ def rechunk_if_necessary(ds):
                                 break
 
 
-def close_states(compute_provider, pbar, pqueue):
+def close_states(compute_provider, pbar, pqueue, pthread):
     compute_provider.close()
-    pbar.close()
+    if pqueue:
+        pqueue.put(None)
+    if pthread and hasattr(pthread, "join"):
+        pthread.join()
+    if pbar and hasattr(pbar, "close"):
+        pbar.close()
     if pqueue and hasattr(pqueue, "close"):
         pqueue.close()
 
@@ -612,17 +617,18 @@ def reload_and_rechunk(
     pad_data_in,
     initial_padding_state,
     kwargs,
+    rechunk=True,
 ):
     if overwrite:
         original_data_in.storage.clear_cache_without_flush()
         load_meta(original_data_in)
         if pad_data_in and not initial_padding_state:
             original_data_in._disable_padding()
-        if not kwargs.get("disable_rechunk"):
+        if rechunk and not kwargs.get("disable_rechunk"):
             rechunk_if_necessary(original_data_in)
     else:
         target_ds.storage.autoflush = initial_autoflush
-        if not kwargs.get("disable_rechunk"):
+        if rechunk and not kwargs.get("disable_rechunk"):
             rechunk_if_necessary(target_ds)
 
 
