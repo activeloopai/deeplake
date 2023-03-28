@@ -116,7 +116,7 @@ class LinkedChunkEngine(ChunkEngine):
         sample_creds_encoded = self.creds_encoder.get_encoded_creds_key(
             global_sample_index
         )
-        return self.link_creds.get_creds_key(sample_creds_encoded)
+        return self.link_creds.get_creds_key(sample_creds_encoded)  # type: ignore
 
     def get_video_url(self, global_sample_index):
         sample_path = self.get_path(global_sample_index)
