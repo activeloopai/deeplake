@@ -2214,6 +2214,10 @@ class Dataset:
 
     def summary(self):
         """Prints a summary of the dataset."""
+
+        if self.is_view:
+            raise NotImplementedError("Summary is not currently supported for views.")
+
         pretty_print = summary_dataset(self)
 
         print(self)
