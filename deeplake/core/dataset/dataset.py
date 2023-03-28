@@ -2872,6 +2872,7 @@ class Dataset:
         Raises:
             ReadOnlyModeError: When attempting to save a view inplace and the user doesn't have write access.
             DatasetViewSavingError: If HEAD node has uncommitted changes.
+            TypeError: If ``id`` is not of type ``str``.
 
         Note:
             Specifying ``path`` makes the view external. External views cannot be accessed using the parent dataset's :func:`Dataset.get_view`,
