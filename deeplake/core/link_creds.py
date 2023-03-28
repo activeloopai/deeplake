@@ -224,19 +224,19 @@ class LinkCreds(DeepLakeMemoryObject):
         assert self.client is not None
         assert self.org_id is not None
         for creds_key in self.managed_creds_keys:
-            self.populate_single_manged_creds(creds_key, verbose=verbose)
+            try:
+                self.populate_single_managed_creds(creds_key, verbose=verbose)
+            except ManagedCredentialsNotFoundError:
+                logger.warning(
+                    f"Credentials '{creds_key}' not found in Activeloop platform. "
+                    f"Please make sure the credentials are added to the platform and reload the dataset. "
+                    f"Alternatively, use ds.update_creds_key(key_name, managed=False) to disable the managed credentials.)"
+                )
 
-    def populate_single_manged_creds(self, creds_key: str, verbose: bool = True):
+    def populate_single_managed_creds(self, creds_key: str, verbose: bool = True):
         assert self.client is not None
         assert self.org_id is not None
-        try:
-            creds = self.fetch_managed_creds(creds_key, verbose=verbose)
-        except ManagedCredentialsNotFoundError:
-            logger.warning(
-                f"Credentials '{creds_key}' not found in Activeloop platform. "
-                f"Please make sure the credentials are added to the platform."
-            )
-            return
+        creds = self.fetch_managed_creds(creds_key, verbose=verbose)
         self.populate_creds(creds_key, creds)
 
     def fetch_managed_creds(self, creds_key: str, verbose: bool = True):

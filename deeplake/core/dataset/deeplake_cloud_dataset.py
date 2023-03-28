@@ -336,7 +336,7 @@ class DeepLakeCloudDataset(Dataset):
                 if management_changed:
                     managed_info = (managed, key_index)
             if original_key_is_managed and managed is not False:
-                self.link_creds.populate_single_manged_creds(creds_key)
+                self.link_creds.populate_single_managed_creds(creds_key)
         except Exception:
             if replaced_index is not None:
                 # revert the change
