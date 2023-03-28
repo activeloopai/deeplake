@@ -262,7 +262,7 @@ class Pipeline:
                     **kwargs,
                 )
                 target_ds._send_compute_progress(**progress_args, status="success")
-                if checkpointing_enabled:
+                if checkpointing_enabled and not end:
                     target_ds.commit(
                         f"Auto-commit during deeplake.compute of {desc} after {progress}% progress"
                     )
