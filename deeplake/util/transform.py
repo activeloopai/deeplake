@@ -619,15 +619,12 @@ def rechunk_if_necessary(ds):
                             < TRANSFORM_RECHUNK_AVG_SIZE_BOUND * engine.min_chunk_size
                         ):
                             enc = tensor.chunk_engine.chunk_id_encoder
-                            rechunked = False
-                            while True:
+                            row = 0
+                            while row < len(enc._encoded) - 1:
                                 encoded = enc._encoded
-                                for row, chunk_id in enumerate(encoded[:, 0]):
-                                    chunk = engine.get_chunk_from_chunk_id(chunk_id)
-                                    engine._check_rechunk(chunk, row)
-                                    rechunked = len(encoded) != len(enc._encoded)
-                                    if rechunked:
-                                        break
-                                if rechunked:
-                                    continue
-                                break
+                                chunk_id = encoded[row, 0]
+                                chunk = engine.get_chunk_from_chunk_id(chunk_id)
+                                engine._check_rechunk(chunk, row)
+                                rechunked = len(encoded) != len(enc._encoded)
+                                if not rechunked:
+                                    row += 1
