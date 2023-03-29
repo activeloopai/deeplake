@@ -650,19 +650,21 @@ def reload_and_rechunk(
     pad_data_in,
     initial_padding_state,
     kwargs,
-    rechunk=True,
+    completed=True,
 ):
     if overwrite:
         original_data_in.storage.clear_cache_without_flush()
         load_meta(original_data_in)
         if pad_data_in and not initial_padding_state:
             original_data_in._disable_padding()
-        if rechunk and not kwargs.get("disable_rechunk"):
+        if completed and not kwargs.get("disable_rechunk"):
             rechunk_if_necessary(original_data_in)
     else:
-        target_ds.storage.autoflush = initial_autoflush
-        if rechunk and not kwargs.get("disable_rechunk"):
-            rechunk_if_necessary(target_ds)
+        load_meta(target_ds)
+        if completed:
+            target_ds.storage.autoflush = initial_autoflush
+            if not kwargs.get("disable_rechunk"):
+                    rechunk_if_necessary(target_ds)
 
 
 def check_checkpoint_interval(data_in, checkpoint_interval, num_workers, overwrite):

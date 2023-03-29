@@ -244,7 +244,13 @@ class Pipeline:
         else:
             pbar, pqueue = None, None
         desc = desc.split()[1]
+        completed = False
+        progress = 0
         for data_in in datas_in:
+            if checkpointing_enabled and progress > 0:
+                target_ds.commit(
+                    f"Auto-commit during deeplake.compute of {desc} after {progress}% progress"
+                )
             progress = round(
                 (samples_processed + len(data_in)) / total_samples * 100, 2
             )
@@ -268,11 +274,8 @@ class Pipeline:
                     **kwargs,
                 )
                 target_ds._send_compute_progress(**progress_args, status="success")
-                if checkpointing_enabled and not end:
-                    target_ds.commit(
-                        f"Auto-commit during deeplake.compute of {desc} after {progress}% progress"
-                    )
                 samples_processed += len(data_in)
+                completed = end
             except Exception as e:
                 if checkpointing_enabled:
                     print(
@@ -281,16 +284,6 @@ class Pipeline:
                     target_ds.reset(force=True)
                 target_ds._send_compute_progress(**progress_args, status="failed")
                 close_states(compute_provider, pbar, pqueue)
-                reload_and_rechunk(
-                    overwrite,
-                    original_data_in,
-                    target_ds,
-                    initial_autoflush,
-                    pad_data_in,
-                    initial_padding_state,
-                    kwargs,
-                    rechunk=False,
-                )
                 index, sample = None, None
                 if isinstance(e, TransformError):
                     index, sample = e.index, e.sample
@@ -300,19 +293,18 @@ class Pipeline:
                     samples_processed=samples_processed,
                 ).with_traceback(e.__traceback__)
             finally:
-                if not overwrite:
-                    load_meta(target_ds)
+                reload_and_rechunk(
+                    overwrite,
+                    original_data_in,
+                    target_ds,
+                    initial_autoflush,
+                    pad_data_in,
+                    initial_padding_state,
+                    kwargs,
+                    completed,
+                )
 
         close_states(compute_provider, pbar, pqueue)
-        reload_and_rechunk(
-            overwrite,
-            original_data_in,
-            target_ds,
-            initial_autoflush,
-            pad_data_in,
-            initial_padding_state,
-            kwargs,
-        )
 
     def run(
         self,
