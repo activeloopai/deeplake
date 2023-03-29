@@ -9,7 +9,6 @@ General Functions
     :toctree:
     :nosignatures:
 
-    list
     exists
 
 Making Deep Lake Samples

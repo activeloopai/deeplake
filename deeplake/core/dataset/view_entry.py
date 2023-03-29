@@ -33,8 +33,12 @@ class ViewEntry:
         """Returns the message with which the view was saved."""
         return self.info.get("message", "")
 
+    @property
+    def commit_id(self) -> str:
+        return self.info["source-dataset-version"]
+
     def __str__(self):
-        return f"View(id='{self.id}', message='{self.message}', virtual={self.virtual})"
+        return f"View(id='{self.id}', message='{self.message}', virtual={self.virtual}, commit_id={self.commit_id})"
 
     __repr__ = __str__
 
@@ -51,6 +55,8 @@ class ViewEntry:
         Returns:
             Dataset: Loaded dataset view.
         """
+        if self.commit_id != self._ds.commit_id:
+            print(f"Loading view from commit id {self.commit_id}.")
         ds = self._ds._sub_ds(
             ".queries/" + (self.info.get("path") or self.info["id"]),
             lock=False,

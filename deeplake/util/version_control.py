@@ -37,6 +37,8 @@ from deeplake.util.keys import (
 from deeplake.util.remove_cache import get_base_storage
 from deeplake.hooks import dataset_committed
 from datetime import datetime
+
+import posixpath
 import json
 
 
@@ -96,8 +98,7 @@ def generate_hash() -> str:
 def integrity_check(dataset):
     try:
         rev_tensor_names = {v: k for k, v in dataset.meta.tensor_names.items()}
-        for k in dataset.meta.tensor_names:
-            t = dataset[k]
+        for k, t in dataset._tensors(include_disabled=False).items():
             n1 = t.meta.length
             engine = t.chunk_engine
             n2 = engine.chunk_id_encoder.num_samples
@@ -108,6 +109,7 @@ def integrity_check(dataset):
             num_sequences = getattr(engine.sequence_encoder, "num_samples", None)
             for l, info in t.meta.links.items():
                 l = rev_tensor_names[l]
+                l = posixpath.relpath(l, dataset.group_index)
                 if num_sequences is not None and not info["flatten_sequence"]:
                     n2 = num_sequences
                 else:
@@ -122,7 +124,8 @@ def integrity_check(dataset):
             engine.creds_encoder
     except Exception as e:
         raise DatasetCorruptError(
-            f"The HEAD node of the branch {dataset.branch} of this dataset is in a corrupted state and is likely not recoverable. Please run `ds.reset()` to revert the uncommitted changes in order to continue making updates on this branch."
+            f"The HEAD node of the branch {dataset.branch} of this dataset is in a corrupted state and is likely not recoverable.",
+            "Please run `ds.reset()` to revert the uncommitted changes in order to continue making updates on this branch.",
         ) from e
 
 
@@ -389,6 +392,33 @@ def discard_old_metas(
             pass
 
 
+def reset_and_checkout(ds, address, err, verbose=True):
+    storage = ds.storage
+    version_state = ds.version_state
+
+    parent_commit_id, reset_commit_id = get_parent_and_reset_commit_ids(
+        version_state, address
+    )
+    if parent_commit_id is False:
+        # non-head node corrupted
+        raise err
+    if parent_commit_id is None:
+        # no commits in the dataset
+        storage.clear()
+        ds._populate_meta()
+        load_meta(ds)
+        return
+
+    ds.checkout(parent_commit_id)
+    new_commit_id = replace_head(storage, version_state, reset_commit_id)
+    ds.checkout(new_commit_id)
+
+    current_node = version_state["commit_node_map"][ds.commit_id]
+    if verbose:
+        logger.info(f"HEAD reset. Current version:\n{current_node}")
+    return ds.commit_id
+
+
 def _merge_commit_node_maps(map1, map2):
     merged_map = {}
 
@@ -469,6 +499,53 @@ def load_version_info(storage: LRUCache) -> Dict:
         return pickle.loads(
             storage[get_version_control_info_key_old()]
         )  # backward compatiblity
+
+
+def get_parent_and_reset_commit_ids(version_info, address):
+    """Returns parent commit id and commit id which will be reset. Returns (False, False) if address is a non-HEAD commit id"""
+    if address in version_info["branch_commit_map"]:
+        commit_id = version_info["branch_commit_map"][address]
+    elif address in version_info["commit_node_map"]:
+        commit_id = address
+    commit_node = version_info["commit_node_map"][commit_id]
+    if not commit_node.is_head_node:
+        return False, False
+    parent_node = commit_node.parent
+    if parent_node is None:
+        previous_commit_id = None
+    else:
+        previous_commit_id = parent_node.commit_id
+    return previous_commit_id, commit_id
+
+
+def replace_head(storage, version_state, reset_commit_id):
+    """Replace HEAD of current branch with new HEAD"""
+    new_commit_id = generate_hash()
+    parent_commit_id = version_state["commit_id"]
+    branch = version_state["commit_node_map"][reset_commit_id].branch
+
+    # populate new commit folder
+    copy_metas(parent_commit_id, new_commit_id, storage, version_state)
+    create_commit_chunk_maps(new_commit_id, storage, version_state)
+
+    # update and save version state
+    parent_node: CommitNode = version_state["commit_node"]
+    new_node = CommitNode(branch, new_commit_id)
+    new_node.parent = parent_node
+    version_state["branch_commit_map"][branch] = new_commit_id
+    version_state["commit_node_map"][new_commit_id] = new_node
+    del version_state["commit_node_map"][reset_commit_id]
+    for i, child in enumerate(parent_node.children):
+        if child.commit_id == reset_commit_id:
+            parent_node.children[i] = new_node
+            break
+    save_version_info(version_state, storage)
+
+    deletion_folder = "/".join(("versions", reset_commit_id))
+    # clear the old folder
+    storage.clear(prefix=deletion_folder)
+    storage.flush()
+    return new_commit_id
 
 
 def auto_checkout(dataset, flush_version_control_info: bool = True) -> bool:

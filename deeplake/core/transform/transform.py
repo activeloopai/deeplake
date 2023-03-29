@@ -57,6 +57,7 @@ class ComputeFunction:
         pad_data_in: bool = False,
         read_only_ok: bool = False,
         checkpoint_interval: int = 0,
+        ignore_errors: bool = False,
         **kwargs,
     ):
         """Evaluates the ComputeFunction on data_in to produce an output dataset ds_out.
@@ -80,6 +81,7 @@ class ComputeFunction:
                 Defaults to False.
             checkpoint_interval (int): If > 0, the transform will be checkpointed with a commit every ``checkpoint_interval`` input samples to avoid restarting full transform due to intermitten failures. If the transform is interrupted, the intermediate data is deleted and the dataset is reset to the last commit.
                 If <= 0, no checkpointing is done. Checkpoint interval should be a multiple of num_workers if num_workers > 0. Defaults to 0.
+            ignore_errors (bool): If ``True``, input samples that causes transform to fail will be skipped and the errors will be ignored **if possible**.
             **kwargs: Additional arguments.
 
         Raises:
@@ -102,6 +104,7 @@ class ComputeFunction:
             pad_data_in,
             read_only_ok,
             checkpoint_interval,
+            ignore_errors,
             **kwargs,
         )
 
@@ -129,6 +132,7 @@ class Pipeline:
         pad_data_in: bool = False,
         read_only_ok: bool = False,
         checkpoint_interval: int = 0,
+        ignore_errors: bool = False,
         **kwargs,
     ):
         """Evaluates the pipeline on ``data_in`` to produce an output dataset ``ds_out``.
@@ -152,6 +156,7 @@ class Pipeline:
                 Defaults to False.
             checkpoint_interval (int): If > 0, the transform will be checkpointed with a commit every ``checkpoint_interval`` input samples to avoid restarting full transform due to intermitten failures. If the transform is interrupted, the intermediate data is deleted and the dataset is reset to the last commit.
                 If <= 0, no checkpointing is done. Checkpoint interval should be a multiple of num_workers if num_workers > 0. Defaults to 0.
+            ignore_errors (bool): If ``True``, input samples that causes transform to fail will be skipped and the errors will be ignored **if possible**.
             **kwargs: Additional arguments.
 
         Raises:
@@ -259,6 +264,7 @@ class Pipeline:
                     read_only_ok and overwrite,
                     pbar,
                     pqueue,
+                    ignore_errors,
                     **kwargs,
                 )
                 target_ds._send_compute_progress(**progress_args, status="success")
@@ -285,8 +291,11 @@ class Pipeline:
                     kwargs,
                     rechunk=False,
                 )
-                raise TransformError(samples_processed).with_traceback(
-                    sys.exc_info()[2]
+                index, sample = None, None
+                if isinstance(e, TransformError):
+                    index, sample = e.index, e.sample
+                raise TransformError(
+                    index=index, sample=sample, samples_processed=samples_processed
                 ) from e
             finally:
                 if not overwrite:
@@ -316,6 +325,7 @@ class Pipeline:
         read_only: bool = False,
         pbar=None,
         pqueue=None,
+        ignore_errors: bool = False,
         **kwargs,
     ):
         """Runs the pipeline on the input data to produce output samples and stores in the dataset.
@@ -323,7 +333,7 @@ class Pipeline:
         """
         if isinstance(data_in, deeplake.Dataset):
             dataset_read(data_in)
-        slices = create_slices(data_in, num_workers)
+        slices, offsets = create_slices(data_in, num_workers)
         storage = get_base_storage(target_ds.storage)
         class_label_tensors = (
             [
@@ -387,8 +397,9 @@ class Pipeline:
             target_ds.link_creds,
             skip_ok,
             extend_only,
+            ignore_errors,
         )
-        map_inp = zip(slices, storages, repeat(args))
+        map_inp = zip(slices, offsets, storages, repeat(args))
         try:
             if progressbar:
                 desc = get_pbar_description(self.functions)
@@ -402,10 +413,10 @@ class Pipeline:
                 )
             else:
                 result = compute.map(store_data_slice, map_inp)
-        except Exception as e:
+        except Exception:
             for tensor in label_temp_tensors.values():
                 target_ds.delete_tensor(tensor)
-            raise e
+            raise
 
         if read_only:
             return
@@ -479,6 +490,8 @@ def compose(functions: List[ComputeFunction]):  # noqa: DAR101, DAR102, DAR201, 
 
         - This allows the user to skip certain tensors in the function definition.
         - This is especially useful for inplace transformations in which certain tensors are not modified. Defaults to ``False``.
+
+    - ``ignore_errors (bool)``: If ``True``, input samples that causes transform to fail will be skipped and the errors will be ignored **if possible**.
 
     It raises the following errors:
 
@@ -565,6 +578,8 @@ def compute(
     - ``check_lengths (bool)``: If ``True``, checks whether ``ds_out`` has tensors of same lengths initially.
 
     - ``pad_data_in (bool)``: If ``True``, pads tensors of ``data_in`` to match the length of the largest tensor in ``data_in``. Defaults to ``False``.
+
+    - ``ignore_errors (bool)``: If ``True``, input samples that causes transform to fail will be skipped and the errors will be ignored **if possible**.
 
     Note:
         ``pad_data_in`` is only applicable if ``data_in`` is a Deep Lake dataset.

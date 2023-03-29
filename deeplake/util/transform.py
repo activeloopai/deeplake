@@ -30,6 +30,8 @@ from deeplake.util.exceptions import (
     InvalidTransformDataset,
     TensorMismatchError,
     TensorDoesNotExistError,
+    TransformError,
+    SampleAppendError,
 )
 
 import posixpath
@@ -121,7 +123,7 @@ def store_data_slice(transform_input: Tuple) -> Dict:
 
 
 def store_data_slice_with_pbar(pg_callback, transform_input: Tuple) -> Dict:
-    data_slice, output_storage, inp = transform_input
+    data_slice, offset, output_storage, inp = transform_input
     (
         group_index,
         tensors,
@@ -133,6 +135,7 @@ def store_data_slice_with_pbar(pg_callback, transform_input: Tuple) -> Dict:
         link_creds,
         skip_ok,
         extend_only,
+        ignore_errors,
     ) = inp
     all_chunk_engines = create_worker_chunk_engines(
         tensors, label_temp_tensors, output_storage, version_state, link_creds
@@ -144,6 +147,7 @@ def store_data_slice_with_pbar(pg_callback, transform_input: Tuple) -> Dict:
     if extend_only:
         extend_data_slice(
             data_slice,
+            offset,
             pipeline,
             all_chunk_engines,
             group_index,
@@ -152,6 +156,7 @@ def store_data_slice_with_pbar(pg_callback, transform_input: Tuple) -> Dict:
     else:
         transform_data_slice_and_append(
             data_slice,
+            offset,
             pipeline,
             visible_tensors,
             label_temp_tensors,
@@ -160,6 +165,7 @@ def store_data_slice_with_pbar(pg_callback, transform_input: Tuple) -> Dict:
             group_index,
             pg_callback,
             skip_ok,
+            ignore_errors,
         )
 
     # retrieve relevant objects from memory
@@ -226,15 +232,30 @@ def _transform_sample_and_update_chunk_engines(
     elif set(result_keys) != set(actual_tensors):
         raise TensorMismatchError(list(actual_tensors), list(result_keys), skip_ok)
 
-    for tensor, value in result.items():
-        chunk_engine = all_chunk_engines[label_temp_tensors.get(tensor) or tensor]
-        callback = chunk_engine._transform_callback
-        if value._numpy_only:
-            for batch in value.numpy_compressed():
-                chunk_engine.extend(batch, link_callback=callback)
-        else:
-            chunk_engine.extend(value.numpy_compressed(), link_callback=callback)
-        value.items.clear()
+    updated_tensors = {}
+    try:
+        for tensor, value in result.items():
+            tensor = label_temp_tensors.get(tensor) or tensor
+            updated_tensors[tensor] = 0
+            chunk_engine = all_chunk_engines[tensor]
+            callback = chunk_engine._transform_callback
+            if value._numpy_only:
+                for batch in value.numpy_compressed():
+                    chunk_engine.extend(batch, link_callback=callback)
+                    updated_tensors[tensor] += len(batch)
+            else:
+                samples = value.numpy_compressed()
+                chunk_engine.extend(samples, link_callback=callback)
+                updated_tensors[tensor] = len(samples)
+            value.items.clear()
+    except Exception as e:
+        for t in updated_tensors:
+            chunk_engine = all_chunk_engines[t]
+            num_samples = updated_tensors[t]
+            for _ in range(num_samples):
+                chunk_engine.pop(link_callback=chunk_engine._transform_pop_callback)
+        e = e.__cause__ if isinstance(e, SampleAppendError) else e  # type: ignore
+        raise SampleAppendError(tensor) from e
 
 
 def normalize_pg(pg_callback, num_tensors):
@@ -246,6 +267,7 @@ def normalize_pg(pg_callback, num_tensors):
 
 def extend_data_slice(
     data_slice,
+    offset,
     pipeline,
     all_chunk_engines,
     group_index: str,
@@ -282,6 +304,7 @@ def extend_data_slice(
 
 def transform_data_slice_and_append(
     data_slice,
+    offset,
     pipeline,
     tensors: List[str],
     label_temp_tensors: Dict[str, str],
@@ -290,6 +313,7 @@ def transform_data_slice_and_append(
     group_index: str,
     pg_callback=None,
     skip_ok=False,
+    ignore_errors=False,
 ) -> None:
     """Transforms the data_slice with the pipeline and adds the resultant samples to chunk_engines."""
     n = len(data_slice)
@@ -300,26 +324,33 @@ def transform_data_slice_and_append(
         if pd and isinstance(data_slice, pd.DataFrame)
         else data_slice
     ):
-        _transform_sample_and_update_chunk_engines(
-            sample,
-            pipeline,
-            tensors,
-            label_temp_tensors,
-            actual_tensors,
-            all_chunk_engines,
-            group_index,
-            skip_ok,
-        )
-        if pg_callback is not None:
-            curr_time = time.time()
-            if (
-                curr_time - last_reported_time > TRANSFORM_PROGRESSBAR_UPDATE_INTERVAL
-                or i == n - 1
-            ):
-                num_samples = i + 1
-                pg_callback(num_samples - last_reported_num_samples)
-                last_reported_num_samples = num_samples
-                last_reported_time = curr_time
+        try:
+            _transform_sample_and_update_chunk_engines(
+                sample,
+                pipeline,
+                tensors,
+                label_temp_tensors,
+                actual_tensors,
+                all_chunk_engines,
+                group_index,
+                skip_ok,
+            )
+            if pg_callback is not None:
+                curr_time = time.time()
+                if (
+                    curr_time - last_reported_time
+                    > TRANSFORM_PROGRESSBAR_UPDATE_INTERVAL
+                    or i == n - 1
+                ):
+                    num_samples = i + 1
+                    pg_callback(num_samples - last_reported_num_samples)
+                    last_reported_num_samples = num_samples
+                    last_reported_time = curr_time
+        except Exception as e:
+            if isinstance(e, SampleAppendError) and ignore_errors:
+                continue
+            else:
+                raise TransformError(offset + i, sample) from e
 
 
 def create_worker_chunk_engines(
@@ -338,7 +369,11 @@ def create_worker_chunk_engines(
         for i in range(num_tries):
             try:
                 # TODO: replace this with simply a MemoryProvider once we get rid of cachable
-                memory_cache = LRUCache(MemoryProvider(), MemoryProvider(), 64 * MB)
+                memory_cache = LRUCache(
+                    MemoryProvider(),
+                    MemoryProvider(),
+                    64 * MB,
+                )
                 memory_cache.autoflush = False
                 storage_cache = LRUCache(MemoryProvider(), output_storage, 64 * MB)
                 storage_cache.autoflush = False
@@ -495,7 +530,9 @@ def create_slices(data_in, num_workers):
             _tensors = ds.version_state["full_tensors"]
             for tensor_key in data_in.version_state["tensor_names"].values():
                 _tensors[tensor_key] = Tensor(tensor_key, ds)
-    return ret
+
+    offsets = list(range(0, len(data_in), size))
+    return ret, offsets
 
 
 def get_old_chunk_paths(target_ds, generated_tensors, overwrite):

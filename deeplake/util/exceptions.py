@@ -77,7 +77,7 @@ class TensorDoesNotExistError(KeyError, AttributeError):
 class TensorAlreadyExistsError(Exception):
     def __init__(self, key: str):
         super().__init__(
-            f"Tensor '{key}' already exists. If applicable, you can use the `overwrite=True` parameter!"
+            f"Tensor '{key}' already exists. You can use the `exist_ok=True` parameter to ignore this error message."
         )
 
 
@@ -505,11 +505,76 @@ class ReadOnlyModeError(Exception):
         super().__init__(custom_message)
 
 
+def is_primitive(sample):
+    if isinstance(sample, (str, int, float, bool)):
+        return True
+    if isinstance(sample, dict):
+        for x, y in sample.items():
+            if not is_primitive(x) or not is_primitive(y):
+                return False
+        return True
+    if isinstance(sample, (list, tuple)):
+        for x in sample:
+            if not is_primitive(x):
+                return False
+        return True
+    return False
+
+
+def has_path(sample):
+    from deeplake.core.sample import Sample
+    from deeplake.core.linked_sample import LinkedSample
+
+    return isinstance(sample, LinkedSample) or (
+        isinstance(sample, Sample) and sample.path is not None
+    )
+
+
 class TransformError(Exception):
-    def __init__(self, samples_processed=0):
-        msg = "Transform failed"
-        if samples_processed > 0:
-            msg += f", last checkpoint: {samples_processed} samples processed. You can slice the input to resume from this point."
+    def __init__(self, index, sample=None, samples_processed=0):
+        # multiprocessing re raises error with str
+        if isinstance(index, str):
+            super().__init__(index)
+        else:
+            print_item = print_path = False
+            if sample:
+                print_item = is_primitive(sample)
+                print_path = has_path(sample)
+
+            msg = f"Transform failed at index {index} of the input data"
+
+            if print_item:
+                msg += f" on the item: {sample}."
+            elif print_path:
+                msg += f"on the sample at path: '{sample.path}'."
+            else:
+                msg += "."
+
+            if samples_processed > 0:
+                msg += f"Last checkpoint: {samples_processed} samples processed. You can slice the input to resume from this point."
+
+            msg += " See traceback for more details."
+            super().__init__(msg)
+
+
+class SampleAppendError(Exception):
+    def __init__(self, tensor, sample=None):
+        print_item = print_path = False
+        if sample:
+            print_item = is_primitive(sample)
+            print_path = has_path(sample)
+        if print_item or print_path:
+            msg = "Failed to append the sample "
+
+            if print_item:
+                msg += str(sample) + " "
+            elif print_path:
+                msg += f"at path '{sample.path}' "
+        else:
+            msg = f"Failed to append a sample "
+
+        msg += f"to the tensor '{tensor}'. See more details in the traceback."
+
         super().__init__(msg)
 
 
@@ -873,7 +938,12 @@ class UnsupportedExtensionError(Exception):
 
 
 class DatasetCorruptError(Exception):
-    pass
+    def __init__(self, message, action="", cause=None):
+        self.message = message
+        self.action = action
+        self.__cause__ = cause
+
+        super().__init__(self.message + (" " + self.action if self.action else ""))
 
 
 class SampleReadError(Exception):
@@ -950,11 +1020,6 @@ class MissingCredsError(Exception):
 
 class MissingManagedCredsError(Exception):
     pass
-
-
-class SampleAppendError(Exception):
-    def __init__(self, key: str):
-        super().__init__(f"Unable to append sample to tensor {key}.")
 
 
 class SampleUpdateError(Exception):

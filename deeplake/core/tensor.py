@@ -1043,6 +1043,39 @@ class Tensor:
         #     func = get_link_transform("update_shape")
         #     func(new_sample, link_creds=self.link_creds, tensor_meta=self.meta)
 
+    @invalid_view_op
+    def pop(self, index: Optional[int] = None):
+        """Removes an element at the given index."""
+
+        self.chunk_engine.pop(
+            index, link_callback=self._pop_links if self.meta.links else None
+        )
+
+        self.invalidate_libdeeplake_dataset()
+
+    def _pop_links(self, global_sample_index: int):
+        # meta.links contain tensor keys not names
+        rev_tensor_names = {v: k for k, v in self.dataset.meta.tensor_names.items()}
+
+        if self.meta.is_sequence:
+            flat_links: List[str] = []
+            links: List[str] = []
+            for link, props in self.meta.links.items():
+                (flat_links if props["flatten_sequence"] else links).append(link)
+
+            if flat_links:
+                seq_enc = self.chunk_engine.sequence_encoder
+                for link in flat_links:
+                    link_tensor = self.dataset[rev_tensor_names.get(link)]
+                    for idx in reversed(range(*seq_enc[global_sample_index])):
+                        link_tensor.pop(idx)
+        else:
+            links = list(self.meta.links.keys())
+        [
+            self.dataset[rev_tensor_names.get(link)].pop(global_sample_index)
+            for link in links
+        ]
+
     def _all_tensor_links(self):
         ds = self.dataset
         return [
@@ -1186,43 +1219,6 @@ class Tensor:
             )
         else:
             webbrowser.open(self._get_video_stream_url())
-
-    def _pop_from_sequence(
-        self,
-        index: int,
-        rev_tensor_names: Dict[str, str],
-    ):
-        flat_links: List[str] = []
-        non_flat_links: List[str] = []
-        for link, props in self.meta.links.items():
-            (flat_links if props["flatten_sequence"] else non_flat_links).append(link)
-
-        if flat_links:
-            seq_enc = self.chunk_engine.sequence_encoder
-            for link in flat_links:
-                link_tensor = self.dataset[rev_tensor_names.get(link)]
-                for idx in reversed(range(*seq_enc[index])):
-                    link_tensor.pop(idx)
-        [self.dataset[rev_tensor_names.get(link)].pop(index) for link in non_flat_links]
-
-    @invalid_view_op
-    def pop(self, index: Optional[int] = None):
-        """Removes an element at the given index."""
-        if index is None:
-            index = self.num_samples - 1
-
-        # meta.links contain tensor keys not names
-        rev_tensor_names = {v: k for k, v in self.dataset.meta.tensor_names.items()}
-
-        if self.meta.is_sequence:
-            self._pop_from_sequence(index, rev_tensor_names)
-        else:
-            links = list(self.meta.links.keys())
-            [self.dataset[rev_tensor_names.get(link)].pop(index) for link in links]
-
-        self.chunk_engine.pop(index)
-
-        self.invalidate_libdeeplake_dataset()
 
     @property
     def timestamps(self) -> np.ndarray:
