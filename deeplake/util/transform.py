@@ -664,7 +664,7 @@ def reload_and_rechunk(
         if completed:
             target_ds.storage.autoflush = initial_autoflush
             if not kwargs.get("disable_rechunk"):
-                    rechunk_if_necessary(target_ds)
+                rechunk_if_necessary(target_ds)
 
 
 def check_checkpoint_interval(data_in, checkpoint_interval, num_workers, overwrite):
