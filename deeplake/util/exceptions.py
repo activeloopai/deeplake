@@ -545,7 +545,7 @@ class TransformError(Exception):
 
             msg = f"Transform failed"
             if index is not None:
-                msg += " at index {index} of the input data"
+                msg += f" at index {index} of the input data"
 
             if print_item:
                 msg += f" on the item: {sample}"
@@ -554,7 +554,7 @@ class TransformError(Exception):
             msg += "."
 
             if samples_processed > 0:
-                msg += f"Last checkpoint: {samples_processed} samples processed. You can slice the input to resume from this point."
+                msg += f" Last checkpoint: {samples_processed} samples processed. You can slice the input to resume from this point."
 
             msg += " See traceback for more details."
             super().__init__(msg)

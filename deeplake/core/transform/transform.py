@@ -295,8 +295,10 @@ class Pipeline:
                 if isinstance(e, TransformError):
                     index, sample = e.index, e.sample
                 raise TransformError(
-                    index=index, sample=sample, samples_processed=samples_processed
-                ) from e
+                    index=index,
+                    sample=sample,
+                    samples_processed=samples_processed,
+                ).with_traceback(e.__traceback__)
             finally:
                 if not overwrite:
                     load_meta(target_ds)
