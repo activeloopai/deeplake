@@ -1399,6 +1399,7 @@ class ChunkEngine:
             del self.cache[from_chunk.key]  # type: ignore
         except KeyError:
             pass
+        self.cache[to_chunk.key] = to_chunk  # type: ignore
         return True
 
     def _is_tiled(self, row: int) -> bool:
