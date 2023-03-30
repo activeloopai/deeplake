@@ -187,7 +187,7 @@ class LinkCreds(DeepLakeMemoryObject):
     def get_creds_key(self, encoding):
         if encoding > len(self.creds_keys):
             raise KeyError(f"Encoding {encoding} not found.")
-        return "ENV" if encoding == 0 else self.creds_keys[encoding - 1]
+        return None if encoding == 0 else self.creds_keys[encoding - 1]
 
     @property
     def nbytes(self):
