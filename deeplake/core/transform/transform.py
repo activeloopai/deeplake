@@ -29,11 +29,11 @@ from deeplake.util.encoder import merge_all_meta_info
 from deeplake.util.exceptions import (
     HubComposeEmptyListError,
     HubComposeIncompatibleFunction,
+    TransformError,
 )
 from deeplake.hooks import dataset_written, dataset_read
-from deeplake.util.version_control import auto_checkout, load_meta
+from deeplake.util.version_control import auto_checkout
 from deeplake.util.class_label import sync_labels
-import sys
 
 
 class ComputeFunction:
@@ -244,7 +244,7 @@ class Pipeline:
             pbar, pqueue = None, None
         desc = desc.split()[1]
         completed = False
-        progress = 0
+        progress = 0.0
         for data_in in datas_in:
             if checkpointing_enabled and progress > 0:
                 target_ds.commit(
