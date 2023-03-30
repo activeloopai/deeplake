@@ -1,5 +1,5 @@
 import posixpath
-from typing import Any, Dict, Optional, Union
+from typing import Any, Dict, List, Optional, Union
 from deeplake.client.utils import get_user_name
 from deeplake.constants import HUB_CLOUD_DEV_USERNAME
 from deeplake.core.dataset import Dataset
@@ -384,6 +384,6 @@ class DeepLakeCloudDataset(Dataset):
             f"The dataset being connected is already accessible via Deep Lake path {self.path}"
         )
 
-    def get_managed_creds_keys(self):
+    def get_managed_creds_keys(self) -> List[str]:
         """Returns the list of creds keys added to the dataset that are managed by Activeloop platform. These are used to fetch external data in linked tensors."""
         return list(self.link_creds.managed_creds_keys)
