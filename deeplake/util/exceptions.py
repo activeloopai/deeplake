@@ -550,7 +550,7 @@ class TransformError(Exception):
             if print_item:
                 msg += f" on the item: {sample}"
             elif print_path:
-                msg += f"on the sample at path: '{sample.path}'"
+                msg += f" on the sample at path: '{sample.path}'"
             msg += "."
 
             if samples_processed > 0:
