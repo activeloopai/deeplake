@@ -1,6 +1,6 @@
 import pytest
 import deeplake
-from deeplake.util.exceptions import TensorInvalidSampleShapeError
+from deeplake.util.exceptions import SampleAppendError
 
 WARNING_STR = "Grayscale images will be reshaped"
 
@@ -67,7 +67,7 @@ def test_extend_grayscale_second(local_ds_generator, deeplake_read_images):
     assert ds.images.meta.max_shape[-1] == 3
 
 
-@pytest.mark.xfail(raises=TensorInvalidSampleShapeError, strict=True)
+@pytest.mark.xfail(raises=SampleAppendError, strict=True)
 def test_append_grayscale_first(local_ds_generator, deeplake_read_images):
     "Append a gray first, color second."
     ds = local_ds_generator()
@@ -86,7 +86,7 @@ def test_append_grayscale_second_generic_ds(local_ds_generator, deeplake_read_im
         assert ds.images[i].numpy().shape == ds.images[i].shape
 
 
-@pytest.mark.xfail(raises=TensorInvalidSampleShapeError, strict=True)
+@pytest.mark.xfail(raises=SampleAppendError, strict=True)
 def test_append_grayscale_second_generic_ds_unspecified_comp(
     local_ds_generator, deeplake_read_images
 ):

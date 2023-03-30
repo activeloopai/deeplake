@@ -77,7 +77,7 @@ class TensorDoesNotExistError(KeyError, AttributeError):
 class TensorAlreadyExistsError(Exception):
     def __init__(self, key: str):
         super().__init__(
-            f"Tensor '{key}' already exists. If applicable, you can use the `overwrite=True` parameter!"
+            f"Tensor '{key}' already exists. You can use the `exist_ok=True` parameter to ignore this error message."
         )
 
 
@@ -374,10 +374,12 @@ class SampleCompressionError(CompressionError):
 
 
 class SampleDecompressionError(CompressionError):
-    def __init__(self):
-        super().__init__(
-            f"Could not decompress sample buffer into an array. Either the sample's buffer is corrupted, or it is in an unsupported format. Supported compressions: {deeplake.compressions}."
-        )
+    def __init__(self, path: Optional[str] = None):
+        message = "Could not decompress sample"
+        if path:
+            message += f" at {path}"
+        message += f". Either the sample's buffer is corrupted, or it is in an unsupported format. Supported compressions: {deeplake.compressions}."
+        super().__init__(message)
 
 
 class InvalidImageDimensions(Exception):
@@ -503,8 +505,75 @@ class ReadOnlyModeError(Exception):
         super().__init__(custom_message)
 
 
+def is_primitive(sample):
+    if isinstance(sample, (str, int, float, bool)):
+        return True
+    if isinstance(sample, dict):
+        for x, y in sample.items():
+            if not is_primitive(x) or not is_primitive(y):
+                return False
+        return True
+    if isinstance(sample, (list, tuple)):
+        for x in sample:
+            if not is_primitive(x):
+                return False
+        return True
+    return False
+
+
+def has_path(sample):
+    from deeplake.core.sample import Sample
+    from deeplake.core.linked_sample import LinkedSample
+
+    return isinstance(sample, LinkedSample) or (
+        isinstance(sample, Sample) and sample.path is not None
+    )
+
+
 class TransformError(Exception):
-    pass
+    def __init__(self, index, sample=None):
+        # multiprocessing re raises error with str
+        if isinstance(index, str):
+            super().__init__(index)
+        else:
+            print_item = print_path = False
+            if sample:
+                print_item = is_primitive(sample)
+                print_path = has_path(sample)
+
+            msg = f"Transform failed at index {index} of the input data"
+
+            if print_item:
+                msg += f" on the item: {sample}."
+            elif print_path:
+                msg += f"on the sample at path: '{sample.path}'."
+            else:
+                msg += "."
+
+            msg += " See traceback for more details."
+
+            super().__init__(msg)
+
+
+class SampleAppendError(Exception):
+    def __init__(self, tensor, sample=None):
+        print_item = print_path = False
+        if sample:
+            print_item = is_primitive(sample)
+            print_path = has_path(sample)
+        if print_item or print_path:
+            msg = "Failed to append the sample "
+
+            if print_item:
+                msg += str(sample) + " "
+            elif print_path:
+                msg += f"at path '{sample.path}' "
+        else:
+            msg = f"Failed to append a sample "
+
+        msg += f"to the tensor '{tensor}'. See more details in the traceback."
+
+        super().__init__(msg)
 
 
 class FilterError(Exception):
@@ -612,8 +681,12 @@ class MemoryDatasetCanNotBePickledError(Exception):
 
 
 class CorruptedSampleError(Exception):
-    def __init__(self, compression):
-        super().__init__(f"Invalid {compression} file.")
+    def __init__(self, compression, path: Optional[str] = None):
+        message = f"Unable to decompress {compression} file"
+        if path is not None:
+            message += f" at {path}"
+        message += "."
+        super().__init__(message)
 
 
 class VersionControlError(Exception):
@@ -863,7 +936,80 @@ class UnsupportedExtensionError(Exception):
 
 
 class DatasetCorruptError(Exception):
-    pass
+    def __init__(self, message, action="", cause=None):
+        self.message = message
+        self.action = action
+        self.__cause__ = cause
+
+        super().__init__(self.message + (" " + self.action if self.action else ""))
+
+
+class SampleReadError(Exception):
+    def __init__(self, path: str):
+        super().__init__(f"Unable to read sample from {path}")
+
+
+class GetChunkError(Exception):
+    def __init__(
+        self,
+        chunk_key: Optional[str],
+        global_index: Optional[int] = None,
+        tensor_name: Optional[str] = None,
+    ):
+        self.chunk_key = chunk_key
+        message = "Unable to get chunk"
+        if chunk_key is not None:
+            message += f" '{chunk_key}'"
+        if global_index is not None:
+            message += f" while retrieving data at index {global_index}"
+        if tensor_name is not None:
+            message += f" in tensor {tensor_name}"
+        message += "."
+        super().__init__(message)
+
+
+class ReadSampleFromChunkError(Exception):
+    def __init__(
+        self,
+        chunk_key: Optional[str],
+        global_index: Optional[int] = None,
+        tensor_name: Optional[str] = None,
+    ):
+        self.chunk_key = chunk_key
+        message = "Unable to read sample"
+        if global_index is not None:
+            message += f" at index {global_index}"
+        message += " from chunk"
+        if chunk_key is not None:
+            message += f" '{chunk_key}'"
+        if tensor_name is not None:
+            message += f" in tensor {tensor_name}"
+        message += "."
+        super().__init__(message)
+
+
+class GetDataFromLinkError(Exception):
+    def __init__(
+        self,
+        link: str,
+        global_index: Optional[int] = None,
+        tensor_name: Optional[str] = None,
+    ):
+        self.link = link
+        message = f"Unable to get data from link {link}"
+        if global_index is not None:
+            message += f" while retrieving data at index {global_index}"
+        if tensor_name is not None:
+            message += f" in tensor {tensor_name}"
+        message += "."
+        super().__init__(message)
+
+
+class TransformFailedError(Exception):
+    def __init__(self, global_index):
+        super().__init__(
+            f"Dataloader transform failed while processing sample at index {global_index}."
+        )
 
 
 class MissingCredsError(Exception):
@@ -872,3 +1018,8 @@ class MissingCredsError(Exception):
 
 class MissingManagedCredsError(Exception):
     pass
+
+
+class SampleUpdateError(Exception):
+    def __init__(self, key: str):
+        super().__init__(f"Unable to update sample in tensor {key}.")

@@ -6,12 +6,14 @@ from deeplake.core.meta.tensor_meta import TensorMeta
 from deeplake.core.meta.encode.chunk_id import ChunkIdEncoder
 from deeplake.core.meta.encode.tile import TileEncoder
 from deeplake.core.meta.encode.sequence import SequenceEncoder
+from deeplake.core.meta.encode.pad import PadEncoder
 from deeplake.core.storage.provider import StorageProvider
 from deeplake.core.version_control.commit_chunk_map import CommitChunkMap
 from deeplake.core.version_control.commit_diff import CommitDiff
 from deeplake.util.keys import (
     get_creds_encoder_key,
     get_sequence_encoder_key,
+    get_pad_encoder_key,
     get_tensor_commit_chunk_map_key,
     get_tensor_commit_diff_key,
     get_tensor_meta_key,
@@ -47,6 +49,9 @@ def merge_all_meta_info(
     )
     merge_all_sequence_encoders(
         result["sequence_encoders"], target_ds, storage, overwrite, generated_tensors
+    )
+    merge_all_pad_encoders(
+        result["pad_encoders"], target_ds, storage, overwrite, generated_tensors
     )
     if target_ds.commit_id is not None:
         merge_all_commit_chunk_maps(
@@ -338,3 +343,46 @@ def combine_sequence_encoders(
         next_last_index = arr[i][2]
         ds_sequence_encoder.register_samples(arr[i][0], next_last_index - last_index)
         last_index = next_last_index
+
+
+def combine_pad_encoders(
+    ds_pad_encoder: PadEncoder, worker_pad_encoder: PadEncoder
+) -> PadEncoder:
+    enc = PadEncoder()
+    idx = None
+    arr1 = ds_pad_encoder.array
+    arr2 = worker_pad_encoder.array
+    if not arr1.size or not arr2.size:
+        return enc
+    for i in range(int(max(arr1.max(), arr2.max())) + 1):
+        if ds_pad_encoder.is_padded(i) and worker_pad_encoder.is_padded(i):
+            if idx is None:
+                idx = i
+        else:
+            if idx is not None:
+                enc.add_padding(idx, i - idx)
+                idx = None
+    return enc
+
+
+def merge_all_pad_encoders(
+    all_workers_pad_encoders: List[Dict[str, PadEncoder]],
+    target_ds: deeplake.Dataset,
+    storage: StorageProvider,
+    overwrite: bool,
+    tensors: List[str],
+) -> None:
+    commit_id = target_ds.version_state["commit_id"]
+    for tensor in tensors:
+        rel_path = posixpath.relpath(tensor, target_ds.group_index)
+        actual_tensor = target_ds[rel_path]
+        pad_encoder = None if overwrite else actual_tensor.chunk_engine.pad_encoder
+        for current_worker_pad_encoder in all_workers_pad_encoders:
+            current_pad_encoder = current_worker_pad_encoder[tensor]
+            if pad_encoder is None:
+                pad_encoder = current_pad_encoder
+            else:
+                pad_encoder = combine_pad_encoders(pad_encoder, current_pad_encoder)
+
+        pad_key = get_pad_encoder_key(tensor, commit_id)
+        storage[pad_key] = pad_encoder.tobytes()  # type: ignore

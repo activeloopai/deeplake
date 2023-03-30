@@ -103,12 +103,19 @@ session_id = str(uuid.uuid4())
 bugout_reporting_config = get_reporting_config()
 client_id = bugout_reporting_config.get("client_id")
 
+
+def blacklist_token_parameters_fn(params: Dict[str, Any]) -> Dict[str, Any]:
+    admissible_params = {k: v for k, v in params.items() if "token" not in k.lower()}
+    return admissible_params
+
+
 deeplake_reporter = HumbugReporter(
     name="activeloopai/Hub",
     consent=consent,
     client_id=client_id,
     session_id=session_id,
     bugout_token=BUGOUT_TOKEN,
+    blacklist_fn=blacklist_token_parameters_fn,
     tags=[],
 )
 
