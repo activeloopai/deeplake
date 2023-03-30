@@ -477,8 +477,11 @@ class Tensor:
         shape = self.chunk_engine.shape(
             self.index, sample_shape_provider=sample_shape_provider
         )
-        if np.sum(shape) == 0 and self.meta.max_shape:
-            shape = (0,) * len(self.meta.max_shape)
+        try:
+            if np.sum(shape) == 0 and self.meta.max_shape:
+                shape = (0,) * len(self.meta.max_shape)
+        except TypeError:
+            pass
         if self.meta.max_shape == [0, 0, 0]:
             shape = ()
         return shape
