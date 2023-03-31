@@ -2,28 +2,28 @@ from uuid import uuid4
 import deeplake
 from typing import Callable, List, Optional
 from itertools import repeat
-from deeplake.core.compute.provider import ComputeProvider
+from deeplake.core.compute.provider import ComputeProvider, get_progress_bar
 from deeplake.core.storage.memory import MemoryProvider
 from deeplake.util.bugout_reporter import deeplake_reporter
 from deeplake.util.compute import get_compute_provider
-from deeplake.util.dataset import try_flushing
-from deeplake.util.remove_cache import (
-    get_base_storage,
-    get_dataset_with_zero_size_cache,
-)
+from deeplake.util.remove_cache import get_base_storage
 from deeplake.util.transform import (
     check_lengths,
     check_transform_data_in,
     check_transform_ds_out,
+    close_states,
     create_slices,
     delete_overwritten_chunks,
     get_lengths_generated,
     get_old_chunk_paths,
     get_pbar_description,
+    prepare_data_in,
     process_transform_result,
+    reload_and_rechunk,
     sanitize_workers_scheduler,
     store_data_slice,
     store_data_slice_with_pbar,
+    check_checkpoint_interval,
 )
 from deeplake.util.encoder import merge_all_meta_info
 from deeplake.util.exceptions import (
@@ -32,9 +32,8 @@ from deeplake.util.exceptions import (
     TransformError,
 )
 from deeplake.hooks import dataset_written, dataset_read
-from deeplake.util.version_control import auto_checkout, load_meta
+from deeplake.util.version_control import auto_checkout
 from deeplake.util.class_label import sync_labels
-import sys
 
 
 class ComputeFunction:
@@ -56,6 +55,8 @@ class ComputeFunction:
         check_lengths: bool = True,
         pad_data_in: bool = False,
         read_only_ok: bool = False,
+        checkpoint_interval: int = 0,
+        ignore_errors: bool = False,
         **kwargs,
     ):
         """Evaluates the ComputeFunction on data_in to produce an output dataset ds_out.
@@ -77,6 +78,9 @@ class ComputeFunction:
                 Defaults to False.
             read_only_ok (bool): If ``True`` and output dataset is same as input dataset, the read-only check is skipped. This can be used to read data in parallel without making changes to underlying dataset.
                 Defaults to False.
+            checkpoint_interval (int): If > 0, the transform will be checkpointed with a commit every ``checkpoint_interval`` input samples to avoid restarting full transform due to intermitten failures. If the transform is interrupted, the intermediate data is deleted and the dataset is reset to the last commit.
+                If <= 0, no checkpointing is done. Checkpoint interval should be a multiple of num_workers if num_workers > 0. Defaults to 0.
+            ignore_errors (bool): If ``True``, input samples that causes transform to fail will be skipped and the errors will be ignored **if possible**.
             **kwargs: Additional arguments.
 
         Raises:
@@ -84,6 +88,7 @@ class ComputeFunction:
             InvalidOutputDatasetError: If all the tensors of ds_out passed to transform don't have the same length. Using scheduler other than "threaded" with deeplake dataset having base storage as memory as ds_out will also raise this.
             TensorMismatchError: If one or more of the outputs generated during transform contain different tensors than the ones present in 'ds_out' provided to transform.
             UnsupportedSchedulerError: If the scheduler passed is not recognized. Supported values include: 'serial', 'threaded', 'processed' and 'ray'.
+            ValueError: If ``num_workers`` > 0 and ``checkpoint_interval`` is not a multiple of ``num_workers`` or if ``checkpoint_interval`` > 0 and ds_out is None.
         """
 
         pipeline = Pipeline([self])
@@ -97,6 +102,8 @@ class ComputeFunction:
             check_lengths,
             pad_data_in,
             read_only_ok,
+            checkpoint_interval,
+            ignore_errors,
             **kwargs,
         )
 
@@ -123,6 +130,8 @@ class Pipeline:
         check_lengths: bool = True,
         pad_data_in: bool = False,
         read_only_ok: bool = False,
+        checkpoint_interval: int = 0,
+        ignore_errors: bool = False,
         **kwargs,
     ):
         """Evaluates the pipeline on ``data_in`` to produce an output dataset ``ds_out``.
@@ -144,6 +153,9 @@ class Pipeline:
                 Defaults to ``False``.
             read_only_ok (bool): If ``True`` and output dataset is same as input dataset, the read-only check is skipped.
                 Defaults to False.
+            checkpoint_interval (int): If > 0, the transform will be checkpointed with a commit every ``checkpoint_interval`` input samples to avoid restarting full transform due to intermitten failures. If the transform is interrupted, the intermediate data is deleted and the dataset is reset to the last commit.
+                If <= 0, no checkpointing is done. Checkpoint interval should be a multiple of num_workers if num_workers > 0. Defaults to 0.
+            ignore_errors (bool): If ``True``, input samples that causes transform to fail will be skipped and the errors will be ignored **if possible**.
             **kwargs: Additional arguments.
 
         Raises:
@@ -152,6 +164,7 @@ class Pipeline:
             TensorMismatchError: If one or more of the outputs generated during transform contain different tensors than the ones present in 'ds_out' provided to transform.
             UnsupportedSchedulerError: If the scheduler passed is not recognized. Supported values include: 'serial', 'threaded', 'processed' and 'ray'.
             TransformError: All other exceptions raised if there are problems while running the pipeline.
+            ValueError: If ``num_workers`` > 0 and ``checkpoint_interval`` is not a multiple of ``num_workers`` or if ``checkpoint_interval`` > 0 and ds_out is None.
 
 
         # noqa: DAR401
@@ -184,16 +197,9 @@ class Pipeline:
         )
         check_transform_data_in(data_in, scheduler)
 
-        if isinstance(data_in, deeplake.Dataset):
-            try_flushing(data_in)
-            if overwrite:
-                auto_checkout(data_in)
-            original_data_in = data_in
-            data_in = get_dataset_with_zero_size_cache(data_in)
-            if pad_data_in:
-                initial_padding_state = data_in._pad_tensors
-                data_in._enable_padding()
-
+        data_in, original_data_in, initial_padding_state = prepare_data_in(
+            data_in, pad_data_in, overwrite
+        )
         target_ds = data_in if overwrite else ds_out
 
         check_transform_ds_out(
@@ -211,38 +217,93 @@ class Pipeline:
 
         initial_autoflush = target_ds.storage.autoflush
         target_ds.storage.autoflush = False
-        progress_end_args = {"compute_id": compute_id, "progress": 100, "end": True}
 
         if not check_lengths:
             skip_ok = True
 
-        try:
-            self.run(
-                data_in,
-                target_ds,
-                compute_provider,
-                num_workers,
-                scheduler,
-                progressbar,
-                overwrite,
-                skip_ok,
-                read_only_ok and overwrite,
-                **kwargs,
+        checkpointing_enabled = checkpoint_interval > 0
+        total_samples = len(data_in)
+        if checkpointing_enabled:
+            check_checkpoint_interval(
+                data_in, checkpoint_interval, num_workers, overwrite
             )
-            target_ds._send_compute_progress(**progress_end_args, status="success")
-        except Exception as e:
-            target_ds._send_compute_progress(**progress_end_args, status="failed")
-            raise TransformError(e).with_traceback(sys.exc_info()[2])
-        finally:
-            compute_provider.close()
-            if overwrite:
-                original_data_in.storage.clear_cache_without_flush()
-                load_meta(original_data_in)
-                if pad_data_in and not initial_padding_state:
-                    original_data_in._disable_padding()
-            else:
-                load_meta(target_ds)
-                target_ds.storage.autoflush = initial_autoflush
+            datas_in = [
+                data_in[i : i + checkpoint_interval]
+                for i in range(0, len(data_in), checkpoint_interval)
+            ]
+
+        else:
+            datas_in = [data_in]
+
+        samples_processed = 0
+        desc = get_pbar_description(self.functions)
+        if progressbar:
+            pbar = get_progress_bar(len(data_in), desc)
+            pqueue = compute_provider.create_queue()
+        else:
+            pbar, pqueue = None, None
+        desc = desc.split()[1]
+        completed = False
+        progress = 0.0
+        for data_in in datas_in:
+            if checkpointing_enabled and progress > 0:
+                target_ds.commit(
+                    f"Auto-commit during deeplake.compute of {desc} after {progress}% progress"
+                )
+            progress = round(
+                (samples_processed + len(data_in)) / total_samples * 100, 2
+            )
+            end = progress == 100
+            progress_args = {"compute_id": compute_id, "progress": progress, "end": end}
+
+            try:
+                self.run(
+                    data_in,
+                    target_ds,
+                    compute_provider,
+                    num_workers,
+                    scheduler,
+                    progressbar,
+                    overwrite,
+                    skip_ok,
+                    read_only_ok and overwrite,
+                    pbar,
+                    pqueue,
+                    ignore_errors,
+                    **kwargs,
+                )
+                target_ds._send_compute_progress(**progress_args, status="success")
+                samples_processed += len(data_in)
+                completed = end
+            except Exception as e:
+                if checkpointing_enabled:
+                    print(
+                        "Transform failed. Resetting back to last committed checkpoint."
+                    )
+                    target_ds.reset(force=True)
+                target_ds._send_compute_progress(**progress_args, status="failed")
+                close_states(compute_provider, pbar, pqueue)
+                index, sample = None, None
+                if isinstance(e, TransformError):
+                    index, sample = e.index, e.sample
+                raise TransformError(
+                    index=index,
+                    sample=sample,
+                    samples_processed=samples_processed,
+                ).with_traceback(e.__traceback__)
+            finally:
+                reload_and_rechunk(
+                    overwrite,
+                    original_data_in,
+                    target_ds,
+                    initial_autoflush,
+                    pad_data_in,
+                    initial_padding_state,
+                    kwargs,
+                    completed,
+                )
+
+        close_states(compute_provider, pbar, pqueue)
 
     def run(
         self,
@@ -255,6 +316,9 @@ class Pipeline:
         overwrite: bool = False,
         skip_ok: bool = False,
         read_only: bool = False,
+        pbar=None,
+        pqueue=None,
+        ignore_errors: bool = False,
         **kwargs,
     ):
         """Runs the pipeline on the input data to produce output samples and stores in the dataset.
@@ -262,7 +326,7 @@ class Pipeline:
         """
         if isinstance(data_in, deeplake.Dataset):
             dataset_read(data_in)
-        slices = create_slices(data_in, num_workers)
+        slices, offsets = create_slices(data_in, num_workers)
         storage = get_base_storage(target_ds.storage)
         class_label_tensors = (
             [
@@ -326,23 +390,26 @@ class Pipeline:
             target_ds.link_creds,
             skip_ok,
             extend_only,
+            ignore_errors,
         )
-        map_inp = zip(slices, storages, repeat(args))
+        map_inp = zip(slices, offsets, storages, repeat(args))
         try:
             if progressbar:
                 desc = get_pbar_description(self.functions)
-                result = compute.map_with_progressbar(
+                result = compute.map_with_progress_bar(
                     store_data_slice_with_pbar,
                     map_inp,
                     total_length=len(data_in),
                     desc=desc,
+                    pbar=pbar,
+                    pqueue=pqueue,
                 )
             else:
                 result = compute.map(store_data_slice, map_inp)
-        except Exception as e:
+        except Exception:
             for tensor in label_temp_tensors.values():
                 target_ds.delete_tensor(tensor)
-            raise e
+            raise
 
         if read_only:
             return
@@ -416,6 +483,8 @@ def compose(functions: List[ComputeFunction]):  # noqa: DAR101, DAR102, DAR201, 
 
         - This allows the user to skip certain tensors in the function definition.
         - This is especially useful for inplace transformations in which certain tensors are not modified. Defaults to ``False``.
+
+    - ``ignore_errors (bool)``: If ``True``, input samples that causes transform to fail will be skipped and the errors will be ignored **if possible**.
 
     It raises the following errors:
 
@@ -502,6 +571,8 @@ def compute(
     - ``check_lengths (bool)``: If ``True``, checks whether ``ds_out`` has tensors of same lengths initially.
 
     - ``pad_data_in (bool)``: If ``True``, pads tensors of ``data_in`` to match the length of the largest tensor in ``data_in``. Defaults to ``False``.
+
+    - ``ignore_errors (bool)``: If ``True``, input samples that causes transform to fail will be skipped and the errors will be ignored **if possible**.
 
     Note:
         ``pad_data_in`` is only applicable if ``data_in`` is a Deep Lake dataset.

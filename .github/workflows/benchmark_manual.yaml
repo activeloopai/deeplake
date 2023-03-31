@@ -1,0 +1,129 @@
+name: Manual Deep Lake benchmarks
+
+permissions:
+  id-token: write
+  contents: read
+
+on:
+  workflow_dispatch:
+    inputs:
+      deeplake_ref:
+        type: string
+        required: true
+        description: deeplake ref to checkout
+      config_file:
+        type: string
+        required: true
+        description: config file name
+      machine:
+        type: choice
+        options:
+          - linux_cpu
+          - linux_gpu
+          - linux_4_gpu
+          - macos_intel
+        required: true
+        description: benchmarks machine
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.event.inputs.deeplake_ref }}
+  cancel-in-progress: true
+
+jobs:
+  benchmark:
+    if: github.event_name == 'push' || (github.event_name == 'pull_request' &&  github.event.label.name == 'run-benchmarks')
+    env:
+      NODE: ${{ github.event.inputs.machine }}
+      CONFIG: ${{ github.event.inputs.config_file }}
+      REPORT_PATH: ${{ github.input.event.deeplake_ref }}
+    runs-on: benchmarks_${{ github.event.inputs.machine }}
+    timeout-minutes: 480
+    steps:
+      - name: Configure AWS credentials
+        if: github.event.inputs.machine == 'macos_intel'
+        uses: aws-actions/configure-aws-credentials@v1-node16
+        with:
+          role-to-assume: ${{ secrets.BENCHMARKS_AWS_ROLE_ARN }}
+          aws-region: us-east-1
+          role-duration-seconds: 14400
+
+      - name: pull deeplake
+        uses: actions/checkout@v3
+        with:
+          path: "deeplake"
+
+      - name: pull benchmarks
+        uses: actions/checkout@v3
+        with:
+          repository: ${{ secrets.BENCHMARKS_REPO }}
+          path: "benchmarks"
+          ref: "main"
+          token: ${{ secrets.BENCHMARK_REPO_TOKEN }}
+
+      - name: run benchmarks
+        shell: bash
+        working-directory: ./benchmarks
+        env:
+          DEEPLAKE_USER: ${{ secrets.ACTIVELOOP_HUB_USERNAME}}
+          DEEPLAKE_PASS: ${{ secrets.ACTIVELOOP_HUB_PASSWORD }}
+        run: |
+          bash run.sh ${MACHINE} ${CONFIG}
+
+      - name: pull reports
+        uses: actions/checkout@v3
+        with:
+          repository: ${{ secrets.BENCHMARK_REPORT }}
+          path: "reports"
+          ref: "main"
+          token: ${{ secrets.BENCHMARK_REPO_TOKEN }}
+
+      - name: create report
+        shell: bash
+        run: |
+          python3 benchmarks/scripts/report.py \
+            -t md \
+            -n benchmarks/results.csv \
+            -b reports/${NODE}/latest/results.csv \
+            -o report.md
+
+          python3 benchmarks/scripts/report.py \
+            -t csv \
+            -n benchmarks/results.csv \
+            -b reports/${NODE}/latest/results.csv \
+            -o report.csv
+
+      - name: update reports
+        if: github.event_name == 'push'
+        shell: bash
+        run: |
+          mkdir "reports/${NODE}/${REPORT_PATH}" || true
+          cp benchmarks/results.csv "reports/${NODE}/${REPORT_PATH}/"
+          cp report.md   "reports/${NODE}/${REPORT_PATH}/"
+          cp report.csv  "reports/${NODE}/${REPORT_PATH}/"
+
+          cd reports
+          git config user.name github-actions
+          git config user.email github-actions@github.com
+          git add .
+          git commit -m "Becnhmark report for ${REPORT_PATH}"
+          git push origin main 
+
+      - name: notify
+        if: github.event_name == 'push'
+        shell: bash
+        working-directory: ./benchmarks
+        env:
+          URL: ${{ secrets.SLACK_URL }}
+        run: |
+          GITHUB_REF_NAME=${REPORT_PATH} python3 scripts/notify.py 
+
+      - name: fail
+        shell: bash
+        run: |
+          if [ -s /tmp/failed_datasets.txt ]
+          then
+            cat /tmp/failed_datasets.txt
+            rm  /tmp/failed_datasets.txt
+            exit 1
+          fi
+          exit 0

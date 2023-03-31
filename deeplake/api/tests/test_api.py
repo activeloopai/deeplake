@@ -15,15 +15,13 @@ from deeplake.tests.common import (
 from deeplake.tests.storage_fixtures import enabled_remote_storages
 from deeplake.core.storage import GCSProvider
 from deeplake.util.exceptions import (
-    BadLinkError,
     GroupInfoNotSupportedError,
     InvalidOperationError,
-    TensorDtypeMismatchError,
+    SampleAppendError,
     TensorDoesNotExistError,
     TensorAlreadyExistsError,
     TensorGroupDoesNotExistError,
     TensorGroupAlreadyExistsError,
-    TensorInvalidSampleShapeError,
     DatasetHandlerError,
     TransformError,
     UnsupportedCompressionError,
@@ -32,7 +30,6 @@ from deeplake.util.exceptions import (
     RenameError,
     PathNotEmptyException,
     BadRequestException,
-    ReadOnlyModeError,
     EmptyTensorError,
     InvalidTokenException,
     TokenPermissionError,
@@ -103,10 +100,17 @@ def test_persist_keys(local_ds_generator):
         "dataset_meta.json",
         "image/commit_diff",
         "image/tensor_meta.json",
+        "image/chunks_index/unsharded",
+        "image/tiles_index/unsharded",
         "_image_id/tensor_meta.json",
         "_image_id/commit_diff",
+        "_image_id/chunks_index/unsharded",
+        "_image_id/tiles_index/unsharded",
         "_image_shape/tensor_meta.json",
         "_image_shape/commit_diff",
+        "_image_shape/chunks_index/unsharded",
+        "_image_shape/tiles_index/unsharded",
+        "version_control_info.json",
     }
 
 
@@ -203,11 +207,15 @@ def test_stringify(memory_ds, capsys):
         capsys.readouterr().out
         == "Dataset(path='mem://hub_pytest/test_api/test_stringify', tensors=['image'])\n\n tensor    htype    shape    dtype  compression\n -------  -------  -------  -------  ------- \n  image   generic  (4, 4)    None     None   \n"
     )
-    ds[1:2].summary()
-    assert (
-        capsys.readouterr().out
-        == "Dataset(path='mem://hub_pytest/test_api/test_stringify', index=Index([slice(1, 2, None)]), tensors=['image'])\n\n tensor    htype    shape    dtype  compression\n -------  -------  -------  -------  ------- \n  image   generic  (1, 4)    None     None   \n"
-    )
+    with pytest.raises(NotImplementedError):
+        ds[1:2].summary()
+    # TODO - Bring this back after summary is supported for views
+    # ds[1:2].summary()
+    # assert (
+    #     capsys.readouterr().out
+    #     == "Dataset(path='mem://hub_pytest/test_api/test_stringify', index=Index([slice(1, 2, None)]), tensors=['image'])\n\n tensor    htype    shape    dtype  compression\n -------  -------  -------  -------  ------- \n  image   generic  (1, 4)    None     None   \n"
+    # )
+
     ds.image.summary()
     assert (
         capsys.readouterr().out
@@ -335,11 +343,11 @@ def test_safe_downcasting(local_ds):
     int_tensor.extend([2, 3, 4])
     int_tensor.extend([5, 6, np.uint8(7)])
     int_tensor.append(np.zeros((0,), dtype="uint64"))
-    with pytest.raises(TensorDtypeMismatchError):
+    with pytest.raises(SampleAppendError):
         int_tensor.append(-8)
     int_tensor.append(np.array([1]))
     assert len(int_tensor) == 10
-    with pytest.raises(TensorDtypeMismatchError):
+    with pytest.raises(SampleAppendError):
         int_tensor.append(np.array([1.0]))
 
     float_tensor = local_ds.create_tensor("float", dtype="float32")
@@ -347,7 +355,7 @@ def test_safe_downcasting(local_ds):
     float_tensor.append(1)
     float_tensor.extend([2, 3.0, 4.0])
     float_tensor.extend([5.0, 6.0, np.float32(7.0)])
-    with pytest.raises(TensorDtypeMismatchError):
+    with pytest.raises(SampleAppendError):
         float_tensor.append(float(np.finfo(np.float32).max + 1))
     float_tensor.append(np.array([1]))
     float_tensor.append(np.array([1.0]))
@@ -363,7 +371,7 @@ def test_scalar_samples(local_ds):
     tensor.append(5)
     assert tensor.meta.dtype == MAX_INT_DTYPE
 
-    with pytest.raises(TensorDtypeMismatchError):
+    with pytest.raises(SampleAppendError):
         tensor.append(5.1)
 
     tensor.append(10)
@@ -372,7 +380,7 @@ def test_scalar_samples(local_ds):
 
     tensor.append(np.int16(4))
 
-    with pytest.raises(TensorDtypeMismatchError):
+    with pytest.raises(SampleAppendError):
         tensor.append(np.float32(4))
 
     tensor.append(np.uint8(3))
@@ -392,7 +400,7 @@ def test_scalar_samples(local_ds):
     tensor.extend([[1], [2], [3, 4]])
     tensor.append(np.empty(0, dtype=int))
 
-    with pytest.raises(TensorInvalidSampleShapeError):
+    with pytest.raises(SampleAppendError):
         tensor.append([[[1]]])
 
     expected = [
@@ -578,15 +586,13 @@ def test_htype(memory_ds: Dataset):
     point_cloud = memory_ds.create_tensor(
         "point_cloud", htype="point_cloud", sample_compression="las"
     )
-    memory_ds.create_tensor(
-        "point_cloud_calibration_matrix", htype="point_cloud.calibration_matrix"
-    )
+    memory_ds.create_tensor("intrinsics", htype="intrinsics")
 
     image.append(np.ones((28, 28, 3), dtype=np.uint8))
     bbox.append(np.array([1.0, 1.0, 0.0, 0.5], dtype=np.float32))
     # label.append(5)
     label.append(np.array(5, dtype=np.uint32))
-    with pytest.raises(NotImplementedError):
+    with pytest.raises(SampleAppendError):
         video.append(np.ones((10, 28, 28, 3), dtype=np.uint8))
     bin_mask.append(np.zeros((28, 28), dtype=bool))
     segment_mask.append(np.ones((28, 28), dtype=np.uint32))
@@ -602,9 +608,7 @@ def test_htype(memory_ds: Dataset):
     point_cloud.append(deeplake.read(point_cloud_dummy_data_path / "point_cloud.las"))
     # Along the forst direcection three matrices are concatenated, the first matrix is P,
     # the second one is Tr and the third one is R
-    memory_ds.point_cloud_calibration_matrix.append(
-        np.zeros((3, 4, 4), dtype=np.float32)
-    )
+    memory_ds.intrinsics.append(np.zeros((3, 4, 4), dtype=np.float32))
 
 
 def test_dtype(memory_ds: Dataset):
@@ -638,10 +642,10 @@ def test_dtype(memory_ds: Dataset):
     np_dtyped_tensor.append(np.ones((10, 10), dtype="float32"))
     py_dtyped_tensor.append(np.ones((10, 10), dtype="float32"))
 
-    with pytest.raises(TensorDtypeMismatchError):
+    with pytest.raises(SampleAppendError):
         tensor.append(np.ones((10, 10), dtype="float64"))
 
-    with pytest.raises(TensorDtypeMismatchError):
+    with pytest.raises(SampleAppendError):
         dtyped_tensor.append(np.ones((10, 10), dtype="uint64") * 256)
 
     assert tensor.dtype == np.float32
@@ -1008,7 +1012,7 @@ def test_invalid_tensor_name(memory_ds):
 
 def test_compressions_list():
     assert deeplake.compressions == [
-        "apng",
+        # "apng",
         "avi",
         "bmp",
         "dcm",
@@ -1058,6 +1062,7 @@ def test_htypes_list():
         "image.gray",
         "image.rgb",
         "instance_label",
+        "intrinsics",
         "json",
         "keypoints_coco",
         "list",
@@ -1065,7 +1070,6 @@ def test_htypes_list():
         "nifti",
         "point",
         "point_cloud",
-        "point_cloud.calibration_matrix",
         "polygon",
         "segment_mask",
         "text",
@@ -1132,7 +1136,7 @@ def test_tensor_delete(local_ds_generator):
     ds.create_tensor("x", max_chunk_size=2 * MB)
     ds.x.extend(np.ones((3, 253, 501, 5)))
     ds.delete_tensor("x")
-    assert list(ds.storage.keys()) == ["dataset_meta.json"]
+    assert set(ds.storage.keys()) == {"dataset_meta.json", "version_control_info.json"}
     assert ds.tensors == {}
 
     ds.create_tensor("x/y")
@@ -1140,7 +1144,7 @@ def test_tensor_delete(local_ds_generator):
     ds.create_tensor("x/y")
     ds["x"].delete_tensor("y")
     ds.delete_group("x")
-    assert list(ds.storage.keys()) == ["dataset_meta.json"]
+    assert set(ds.storage.keys()) == {"dataset_meta.json", "version_control_info.json"}
     assert ds.tensors == {}
 
     ds.create_tensor("x/y/z")
@@ -1150,7 +1154,7 @@ def test_tensor_delete(local_ds_generator):
     ds.create_tensor("x/y/z")
     ds["x/y"].delete_tensor("z")
     ds.delete_group("x")
-    assert list(ds.storage.keys()) == ["dataset_meta.json"]
+    assert set(ds.storage.keys()) == {"dataset_meta.json", "version_control_info.json"}
     assert ds.tensors == {}
     assert ds.meta.hidden_tensors == []
 
@@ -1373,7 +1377,7 @@ def test_ds_append(memory_ds, x_args, y_args, x_size, htype):
     ds = memory_ds
     ds.create_tensor("x", **x_args, max_chunk_size=2**20, htype=htype)
     ds.create_tensor("y", dtype="uint8", htype=htype, **y_args)
-    with pytest.raises(TensorDtypeMismatchError):
+    with pytest.raises(SampleAppendError):
         ds.append({"x": np.ones(2), "y": np.zeros(1)})
     ds.append({"x": np.ones(2), "y": [1, 2, 3]})
     ds.create_tensor("z", htype=htype)
@@ -1383,7 +1387,7 @@ def test_ds_append(memory_ds, x_args, y_args, x_size, htype):
     ds.append({"x": np.ones(4), "y": [2, 3, 4]}, skip_ok=True)
     with pytest.raises(ValueError):
         ds.append({"x": np.ones(2), "y": [4, 5], "z": np.ones(4)})
-    with pytest.raises(TensorDtypeMismatchError):
+    with pytest.raises(SampleAppendError):
         ds.append({"x": np.ones(x_size), "y": np.zeros(2)}, skip_ok=True)
     assert len(ds.x) == 3
     assert len(ds.y) == 3
@@ -1779,19 +1783,9 @@ def test_pyav_not_installed(local_ds, video_paths):
     pyav_installed = deeplake.core.compression._PYAV_INSTALLED
     deeplake.core.compression._PYAV_INSTALLED = False
     local_ds.create_tensor("videos", htype="video", sample_compression="mp4")
-    with pytest.raises(deeplake.util.exceptions.CorruptedSampleError):
+    with pytest.raises(SampleAppendError):
         local_ds.videos.append(deeplake.read(video_paths["mp4"][0]))
     deeplake.core.compression._PYAV_INSTALLED = pyav_installed
-
-
-def test_create_branch_when_locked_out(local_ds):
-    local_ds.read_only = True
-    local_ds._locked_out = True
-    with pytest.raises(ReadOnlyModeError):
-        local_ds.create_tensor("x")
-    local_ds.checkout("branch", create=True)
-    assert local_ds.branch == "branch"
-    local_ds.create_tensor("x")
 
 
 def test_partial_read_then_write(s3_ds_generator):
@@ -1950,8 +1944,9 @@ def test_text_label(local_ds_generator):
     verify_label_data(ds)
 
 
+@pytest.mark.parametrize("scheduler", ["threaded", "processed"])
 @pytest.mark.parametrize("num_workers", [0, 2])
-def test_text_labels_transform(local_ds_generator, num_workers):
+def test_text_labels_transform(local_ds_generator, scheduler, num_workers):
     with local_ds_generator() as ds:
         ds.create_tensor("labels", htype="class_label")
         ds.create_tensor("multiple_labels", htype="class_label")
@@ -1974,7 +1969,9 @@ def test_text_labels_transform(local_ds_generator, num_workers):
             return label_idx_map[data]
         return [convert_to_idx(label, label_idx_map) for label in data]
 
-    upload().eval(data, ds, num_workers=num_workers)
+    upload().eval(data, ds, scheduler=scheduler, num_workers=num_workers)
+
+    assert all(not tensor.startswith("__temp") for tensor in ds._tensors())
 
     for tensor in ("labels", "multiple_labels", "seq_labels"):
         class_names = ds[tensor].info.class_names
@@ -2038,7 +2035,10 @@ def test_ignore_temp_tensors(local_path):
     with deeplake.load(local_path) as ds:
         assert list(ds.tensors) == []
         assert ds.meta.hidden_tensors == []
-        assert list(ds.storage.keys()) == ["dataset_meta.json"]
+        assert set(ds.storage.keys()) == {
+            "dataset_meta.json",
+            "version_control_info.json",
+        }
 
     with deeplake.dataset(local_path, overwrite=True) as ds:
         ds.create_tensor(
@@ -2176,7 +2176,7 @@ def test_hub_related_permission_exceptions(
 
 def test_incompat_dtype_msg(local_ds, capsys):
     local_ds.create_tensor("abc", dtype="uint32")
-    with pytest.raises(TensorDtypeMismatchError):
+    with pytest.raises(SampleAppendError):
         local_ds.abc.append([0.0])
     captured = capsys.readouterr()
     assert "True" not in captured
@@ -2201,7 +2201,7 @@ def test_copy_label_sync_disabled(local_ds, capsys):
         f"{local_ds.path}_copy", overwrite=True, progressbar=False, num_workers=2
     )
     captured = capsys.readouterr().out
-    assert captured == ""
+    assert captured.strip() == ""
 
 
 def test_class_label_bug(memory_ds):
@@ -2244,7 +2244,7 @@ def test_bad_link(local_ds_generator, verify):
             "images", htype="link[image]", sample_compression="jpg", verify=verify
         )
         ds.images.append(deeplake.link("https://picsum.photos/200/200"))
-        with pytest.raises(BadLinkError):
+        with pytest.raises(SampleAppendError):
             ds.images.append(deeplake.link("https://picsum.photos/lalala"))
 
     with local_ds_generator() as ds:
@@ -2374,10 +2374,9 @@ def test_pickle_bug(local_ds):
     file.seek(0)
     ds = pickle.load(file)
 
-    with pytest.raises(TensorDoesNotExistError):
-        ds["__temp_123"].numpy()
-
-    assert ds._temp_tensors == []
+    np.testing.assert_array_equal(
+        ds["__temp_123"].numpy(), np.array([1, 2, 3, 4, 5]).reshape(-1, 1)
+    )
 
 
 def test_max_view(memory_ds):
@@ -2439,3 +2438,11 @@ def test_extend_with_empty_tensor(memory_ds):
 
         for i in range(len(data)):
             np.testing.assert_array_equal(data[i], expected[i])
+
+
+def test_np_array_in_info():
+    info = deeplake.api.info.Info()
+    x = np.random.random((3, 4))
+    info["x"] = x
+    info2 = deeplake.api.info.Info.frombuffer(info.tobytes())
+    np.testing.assert_array_equal(x, info2["x"])

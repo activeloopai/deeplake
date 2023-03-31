@@ -13,6 +13,8 @@ from deeplake.core.storage.s3 import S3Provider
 from deeplake.tests.common import is_opt_true
 from deeplake.util.exceptions import (
     ManagedCredentialsNotFoundError,
+    MissingCredsError,
+    SampleAppendError,
     TensorMetaInvalidHtype,
     UnableToReadFromUrlError,
 )
@@ -82,16 +84,15 @@ def test_link_creds(request):
     link_creds.populate_creds("abc", {})
     link_creds.populate_creds("def", {})
 
-    with pytest.raises(KeyError):
+    with pytest.raises(MissingCredsError):
         link_creds.populate_creds("ghi", {})
 
-    assert link_creds.get_encoding("ENV") == 0
     assert link_creds.get_encoding(None) == 0
     with pytest.raises(ValueError):
         link_creds.get_encoding(None, "s3://my_bucket/my_key")
     assert link_creds.get_encoding("abc") == 1
     assert link_creds.get_encoding("def") == 2
-    with pytest.raises(ValueError):
+    with pytest.raises(MissingCredsError):
         link_creds.get_encoding("ghi")
 
     assert link_creds.get_creds_key(0) is None
@@ -106,16 +107,16 @@ def test_link_creds(request):
     link_creds.add_creds_key("ghi")
     assert link_creds.missing_keys == ["ghi"]
 
-    with pytest.raises(KeyError):
+    with pytest.raises(MissingCredsError):
         link_creds.get_storage_provider("xyz", "s3")
 
-    with pytest.raises(ValueError):
+    with pytest.raises(MissingCredsError):
         link_creds.get_storage_provider("ghi", "s3")
 
     if is_opt_true(request, GCS_OPT):
         assert isinstance(link_creds.get_storage_provider("def", "gcs"), GCSProvider)
         assert isinstance(link_creds.get_storage_provider("def", "gcs"), GCSProvider)
-        assert isinstance(link_creds.get_storage_provider("ENV", "gcs"), GCSProvider)
+        assert isinstance(link_creds.get_storage_provider(None, "gcs"), GCSProvider)
     if is_opt_true(request, S3_OPT):
         assert isinstance(link_creds.get_storage_provider("abc", "s3"), S3Provider)
         assert isinstance(link_creds.get_storage_provider("abc", "s3"), S3Provider)
@@ -190,8 +191,6 @@ def test_none_used_key(local_ds_generator, cat_path):
         ds.populate_creds("my_s3_key", {})
         ds.xyz.append(deeplake.link(cat_path))
         assert ds.link_creds.used_creds_keys == set()
-        ds.xyz.append(deeplake.link(cat_path, "ENV"))
-        assert ds.link_creds.used_creds_keys == set()
         ds.xyz.append(deeplake.link(cat_path, "my_s3_key"))
         assert ds.link_creds.used_creds_keys == {"my_s3_key"}
 
@@ -211,7 +210,7 @@ def test_basic(local_ds_generator, cat_path, flower_path, create_shape_tensor, v
             verify=verify,
             sample_compression="png",
         )
-        with pytest.raises(TypeError):
+        with pytest.raises(SampleAppendError):
             ds.linked_images.append(np.ones((100, 100, 3)))
 
         for _ in range(10):
@@ -313,6 +312,8 @@ def test_jwt_link(local_ds):
 def test_video(request, local_ds_generator, create_shape_tensor, verify):
     local_ds = local_ds_generator()
     with local_ds as ds:
+        ds.add_creds_key("ENV")
+        ds.populate_creds("ENV", from_environment=True)
         ds.create_tensor(
             "linked_videos",
             htype="link[video]",
@@ -340,6 +341,7 @@ def test_video(request, local_ds_generator, create_shape_tensor, verify):
             assert ds.linked_videos[3].shape == (361, 720, 1280, 3)
     # checking persistence
     ds = local_ds_generator()
+    ds.populate_creds("ENV", from_environment=True)
     for i in range(3):
         assert ds.linked_videos[i].shape == (361, 720, 1280, 3)
 
@@ -507,18 +509,18 @@ def test_link_managed(hub_cloud_ds_generator, cat_path):
     assert ds.img[0].shape == shape_target
     assert ds.img[0].numpy().shape == shape_target
 
-    with pytest.raises(ValueError):
+    with pytest.raises(ManagedCredentialsNotFoundError):
         # managed creds_key can't be updated
         ds.update_creds_key(key_name, "something_else")
 
     with pytest.raises(KeyError):
-        ds.change_creds_management("random_key", False)
+        ds.update_creds_key("random_key", managed=False)
 
     # this is a no-op
-    ds.change_creds_management(key_name, True)
+    ds.update_creds_key(key_name, managed=True)
 
     # no longer managed
-    ds.change_creds_management(key_name, False)
+    ds.update_creds_key(key_name, managed=False)
 
     ds = hub_cloud_ds_generator()
     with pytest.raises(ValueError):
@@ -529,7 +531,7 @@ def test_link_managed(hub_cloud_ds_generator, cat_path):
     assert ds.img[0].numpy().shape == shape_target
 
     ds = hub_cloud_ds_generator()
-    ds.change_creds_management(key_name, True)
+    ds.update_creds_key(key_name, managed=True)
     assert ds.img[0].shape == shape_target
     assert ds.img[0].numpy().shape == shape_target
 
@@ -618,3 +620,46 @@ def test_shape_interval(local_ds_generator, cat_path, flower_path, shape_tensor)
         assert ds.img.shape_interval.astuple() == (3, 900, 900, 3)
         ds.img[1] = deeplake.link(flower_path)
         assert ds.img.meta.max_shape == [900, 900, 4]
+
+
+def test_rgb_gray(local_ds, cat_path, hopper_gray_path):
+    with local_ds as ds:
+        ds.create_tensor("abc", "link[image]", sample_compression="jpeg")
+        ds.abc.append(deeplake.link(cat_path))
+        ds.abc.append(deeplake.link(hopper_gray_path))
+
+        assert len(ds.abc.meta.max_shape) == 3
+        assert len(ds.abc.meta.min_shape) == 3
+        assert len(ds.abc[0].shape) == 3
+        assert len(ds.abc[1].shape) == 3
+        assert len(ds.abc[0].numpy().shape) == 3
+        assert len(ds.abc[1].numpy().shape) == 3
+        ds.commit()
+        ds.save_view(id="testing", optimize=True)
+
+        ds = ds.load_view("testing")
+        assert len(ds.abc.meta.max_shape) == 3
+        assert len(ds.abc.meta.min_shape) == 3
+        assert len(ds.abc[0].shape) == 3
+        assert len(ds.abc[1].shape) == 3
+        assert len(ds.abc[0].numpy().shape) == 3
+        assert len(ds.abc[1].numpy().shape) == 3
+
+
+def test_creds(hub_cloud_ds_generator, cat_path):
+    creds_key = "ENV"
+    ds = hub_cloud_ds_generator()
+    ds.add_creds_key(creds_key)
+    ds.populate_creds(creds_key, from_environment=True)
+    with ds:
+        tensor = ds.create_tensor("abc", "link[image]", sample_compression="jpeg")
+        tensor.append(deeplake.link(cat_path, creds_key))
+
+    assert tensor[0].creds_key() == creds_key
+    ds.add_creds_key("my_s3_creds", True)
+    assert ds.get_managed_creds_keys() == ["my_s3_creds"]
+    assert set(ds.get_creds_keys()) == {"my_s3_creds", "ENV"}
+    ds.update_creds_key("my_s3_creds", managed=True)
+    ds = hub_cloud_ds_generator()
+    assert ds.get_managed_creds_keys() == ["my_s3_creds"]
+    assert set(ds.get_creds_keys()) == {"my_s3_creds", "ENV"}

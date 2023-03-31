@@ -1,5 +1,5 @@
 from deeplake.core.transform.transform_tensor import TransformTensor
-from deeplake.util.exceptions import TensorDoesNotExistError
+from deeplake.util.exceptions import TensorDoesNotExistError, SampleAppendError
 
 
 class TransformDataset:
@@ -36,5 +36,10 @@ class TransformDataset:
                     raise TensorDoesNotExistError(k)
         if len(set(map(len, (self[k] for k in sample)))) != 1:
             raise ValueError("All tensors are expected to have the same length.")
+
         for k, v in sample.items():
-            self[k].append(v)
+            try:
+                self[k].append(v)
+            except Exception as e:
+                self.tensors.clear()
+                raise SampleAppendError(k, v) from e

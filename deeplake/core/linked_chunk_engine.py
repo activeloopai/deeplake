@@ -18,8 +18,8 @@ from deeplake.core.tiling.deserialize import (
 from deeplake.core.linked_sample import read_linked_sample
 from deeplake.util.exceptions import (
     BadLinkError,
+    GetDataFromLinkError,
     ReadOnlyModeError,
-    UnableToReadFromUrlError,
 )
 from deeplake.util.keys import get_creds_encoder_key
 from deeplake.util.link import get_path_creds_key, save_link_creds
@@ -96,9 +96,7 @@ class LinkedChunkEngine(ChunkEngine):
     def linked_sample(
         self, global_sample_index: int
     ) -> Union[LinkedSample, LinkedTiledSample]:
-        creds_encoder = self.creds_encoder
-        sample_creds_encoded = creds_encoder.get_encoded_creds_key(global_sample_index)
-        sample_creds_key = self.link_creds.get_creds_key(sample_creds_encoded)  # type: ignore
+        sample_creds_key = self.creds_key(global_sample_index)
         if self._is_tiled_sample(global_sample_index):
             path_array: np.ndarray = (
                 super()
@@ -114,11 +112,15 @@ class LinkedChunkEngine(ChunkEngine):
         sample_path = self.get_path(global_sample_index, fetch_chunks=True)
         return LinkedSample(sample_path, sample_creds_key)
 
+    def creds_key(self, global_sample_index: int):
+        sample_creds_encoded = self.creds_encoder.get_encoded_creds_key(
+            global_sample_index
+        )
+        return self.link_creds.get_creds_key(sample_creds_encoded)  # type: ignore
+
     def get_video_url(self, global_sample_index):
-        creds_encoder = self.creds_encoder
         sample_path = self.get_path(global_sample_index)
-        sample_creds_encoded = creds_encoder.get_encoded_creds_key(global_sample_index)
-        sample_creds_key = self.link_creds.get_creds_key(sample_creds_encoded)
+        sample_creds_key = self.creds_key(global_sample_index)
         storage = None
         if sample_path.startswith(("gcs://", "gcp://", "s3://")):
             provider_type = "s3" if sample_path.startswith("s3://") else "gcs"
@@ -128,24 +130,27 @@ class LinkedChunkEngine(ChunkEngine):
             url = storage.get_presigned_url(sample_path, full=True)
         else:
             url = sample_path
-        return url
+        return url, sample_path
 
     def get_video_sample(self, global_sample_index, index):
-        url = self.get_video_url(global_sample_index)
-        squeeze = isinstance(index, int)
-        shape = _read_video_shape(url)
-        sub_index = index.values[1].value if len(index.values) > 1 else None  # type: ignore
-        start, stop, step, reverse = normalize_index(sub_index, shape[0])
-        video_sample = _decompress_video(
-            url,
-            start,
-            stop,
-            step,
-            reverse,
-        )
-        if squeeze:
-            video_sample.squeeze(0)
-        return video_sample
+        url, path = self.get_video_url(global_sample_index)
+        try:
+            squeeze = isinstance(index, int)
+            shape = _read_video_shape(url)
+            sub_index = index.values[1].value if len(index.values) > 1 else None  # type: ignore
+            start, stop, step, reverse = normalize_index(sub_index, shape[0])
+            video_sample = _decompress_video(
+                url,
+                start,
+                stop,
+                step,
+                reverse,
+            )
+            if squeeze:
+                video_sample.squeeze(0)
+            return video_sample
+        except Exception as e:
+            raise GetDataFromLinkError(path)
 
     def get_full_tiled_sample(self, global_sample_index, fetch_chunks=False):
         tile_enc = self.tile_encoder
@@ -163,10 +168,7 @@ class LinkedChunkEngine(ChunkEngine):
             .path_array
         )
 
-        sample_creds_encoded = self.creds_encoder.get_encoded_creds_key(
-            global_sample_index
-        )
-        sample_creds_key = self.link_creds.get_creds_key(sample_creds_encoded)
+        sample_creds_key = self.creds_key(global_sample_index)
         tiled_arrays = [
             read_linked_sample(path, sample_creds_key, self.link_creds, False).array
             for path in iter(path_array.flat)
@@ -192,10 +194,7 @@ class LinkedChunkEngine(ChunkEngine):
         )
         required_tile_paths = ordered_tile_paths[tiles_index]
 
-        sample_creds_encoded = self.creds_encoder.get_encoded_creds_key(
-            global_sample_index
-        )
-        sample_creds_key = self.link_creds.get_creds_key(sample_creds_encoded)
+        sample_creds_key = self.creds_key(global_sample_index)
 
         tiles = np.vectorize(
             lambda path: read_linked_sample(
@@ -211,7 +210,11 @@ class LinkedChunkEngine(ChunkEngine):
         sample = self.get_deeplake_read_sample(global_sample_index, fetch_chunks)
         if sample is None:
             return np.ones((0,))
-        return sample.array[tuple(entry.value for entry in index.values[1:])]
+        arr = sample.array
+        max_shape = self.tensor_meta.max_shape
+        if len(arr.shape) == 2 and max_shape and len(max_shape) == 3:
+            arr = arr.reshape(arr.shape + (1,))
+        return arr[tuple(entry.value for entry in index.values[1:])]
 
     def get_path(self, global_sample_index, fetch_chunks=False) -> str:
         return super().get_basic_sample(
@@ -223,8 +226,7 @@ class LinkedChunkEngine(ChunkEngine):
         sample_path = self.get_path(global_sample_index, fetch_chunks)
         if not sample_path:
             return None
-        sample_creds_encoded = creds_encoder.get_encoded_creds_key(global_sample_index)
-        sample_creds_key = self.link_creds.get_creds_key(sample_creds_encoded)
+        sample_creds_key = self.creds_key(global_sample_index)
         return read_linked_sample(sample_path, sample_creds_key, self.link_creds, False)
 
     @property
@@ -322,11 +324,9 @@ class LinkedChunkEngine(ChunkEngine):
             local_sample_index, cast=cast, copy=copy, decompress=decompress
         )[0]
 
-        creds_encoder = self.creds_encoder
         if not sample_path:
             return self.get_empty_sample()
-        sample_creds_encoded = creds_encoder.get_encoded_creds_key(global_sample_index)
-        sample_creds_key = self.link_creds.get_creds_key(sample_creds_encoded)  # type: ignore
+        sample_creds_key = self.creds_key(global_sample_index)
         read_sample = read_linked_sample(
             sample_path, sample_creds_key, self.link_creds, False
         )

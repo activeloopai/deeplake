@@ -1,12 +1,27 @@
 from abc import ABC, abstractmethod
 from collections.abc import MutableMapping
-from typing import Optional, Set, Sequence
+from typing import Optional, Set, Sequence, Dict
 
 from deeplake.constants import BYTE_PADDING
 from deeplake.util.assert_byte_indexes import assert_byte_indexes
 from deeplake.util.exceptions import ReadOnlyModeError
 from deeplake.util.keys import get_dataset_lock_key
 import posixpath
+import threading
+
+_STORAGES: Dict[str, "StorageProvider"] = {}
+
+
+def storage_factory(cls, root: str = "", *args, **kwargs) -> "StorageProvider":
+    if cls.__name__ == "MemoryProvider":
+        return cls(root, *args, **kwargs)
+    thread_id = threading.get_ident()
+    try:
+        return _STORAGES[f"{thread_id}_{root}_{args}_{kwargs}"]
+    except KeyError:
+        storage = cls(root, *args, **kwargs)
+        _STORAGES[f"{thread_id}_{root}_{args}_{kwargs}"] = storage
+        return storage
 
 
 class StorageProvider(ABC, MutableMapping):
