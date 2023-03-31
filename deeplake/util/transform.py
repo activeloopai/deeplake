@@ -625,6 +625,8 @@ def rechunk_if_necessary(ds):
                                 chunk_id = encoded[row, 0]
                                 chunk = engine.get_chunk_from_chunk_id(chunk_id)
                                 engine._check_rechunk(chunk, row)
+                                # np.delete will replace enc._encoded with new array
+                                # so this check works
                                 rechunked = len(encoded) != len(enc._encoded)
                                 if not rechunked:
                                     row += 1
