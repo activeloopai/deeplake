@@ -20,7 +20,7 @@ from deeplake.compression import (
     MESH_COMPRESSION,
     NIFTI_COMPRESSION,
 )
-from deeplake.util.exceptions import UnableToReadFromUrlError
+from deeplake.util.exceptions import SampleReadError, UnableToReadFromUrlError
 from deeplake.util.exif import getexif
 from deeplake.core.storage.provider import StorageProvider
 from deeplake.util.path import get_path_type, is_remote_path
@@ -32,6 +32,7 @@ from PIL.ExifTags import TAGS  # type: ignore
 from io import BytesIO
 
 from deeplake.core.storage.s3 import S3Provider
+from deeplake.core.storage import storage_factory
 from deeplake.core.storage.google_drive import GDriveProvider
 
 try:
@@ -432,16 +433,19 @@ class Sample:
     def _read_from_path(self) -> bytes:  # type: ignore
         if self._buffer is None:
             path_type = get_path_type(self.path)
-            if path_type == "local":
-                self._buffer = self._read_from_local()
-            elif path_type == "gcs":
-                self._buffer = self._read_from_gcs()
-            elif path_type == "s3":
-                self._buffer = self._read_from_s3()
-            elif path_type == "gdrive":
-                self._buffer = self._read_from_gdrive()
-            elif path_type == "http":
-                self._buffer = self._read_from_http()
+            try:
+                if path_type == "local":
+                    self._buffer = self._read_from_local()
+                elif path_type == "gcs":
+                    self._buffer = self._read_from_gcs()
+                elif path_type == "s3":
+                    self._buffer = self._read_from_s3()
+                elif path_type == "gdrive":
+                    self._buffer = self._read_from_gdrive()
+                elif path_type == "http":
+                    self._buffer = self._read_from_http()
+            except Exception as e:
+                raise SampleReadError(self.path) from e  # type: ignore
         return self._buffer  # type: ignore
 
     def _read_from_local(self) -> bytes:
@@ -463,7 +467,7 @@ class Sample:
             return self.storage.get_object_from_full_url(self.path)
         path = self.path.replace("s3://", "")  # type: ignore
         root, key = self._get_root_and_key(path)
-        s3 = S3Provider(root, **self._creds)
+        s3 = storage_factory(S3Provider, root, **self._creds)
         return s3[key]
 
     def _read_from_gcs(self) -> bytes:
@@ -477,13 +481,15 @@ class Sample:
             return self.storage.get_object_from_full_url(self.path)
         path = self.path.replace("gcp://", "").replace("gcs://", "")  # type: ignore
         root, key = self._get_root_and_key(path)
-        gcs = GCSProvider(root, token=self._creds)
+        gcs = storage_factory(GCSProvider, root, token=self._creds)
         return gcs[key]
 
     def _read_from_gdrive(self) -> bytes:
         assert self.path is not None
-        gdrive = GDriveProvider("gdrive://", token=self._creds, makemap=False)
-        return gdrive.get_object_from_full_url(self.path)
+        gdrive = storage_factory(
+            GDriveProvider, "gdrive://", token=self._creds, makemap=False
+        )
+        return gdrive.get_object_from_full_url(self.path)  # type: ignore
 
     def _read_from_http(self) -> bytes:
         assert self.path is not None

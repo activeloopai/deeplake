@@ -119,8 +119,6 @@ def sync_labels(
                 class_label_sync(label_tensor=tensor, hash_idx_map=hash_idx_map).eval(
                     ds[temp_tensor],
                     ds,
-                    num_workers=num_workers,
-                    scheduler=scheduler,
                     progressbar=True,
                     check_lengths=False,
                     skip_ok=True,

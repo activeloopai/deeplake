@@ -1,5 +1,5 @@
 from deeplake.constants import KB
-from deeplake.util.exceptions import TensorInvalidSampleShapeError
+from deeplake.util.exceptions import SampleUpdateError
 import pytest
 from typing import Callable
 from deeplake.tests.common import assert_array_lists_equal
@@ -210,19 +210,19 @@ def test_failures(memory_ds):
     _add_dummy_mnist(memory_ds)
 
     # primary axis doesn't match
-    with pytest.raises(ValueError):
+    with pytest.raises(SampleUpdateError):
         memory_ds.images[0:3] = np.zeros((25, 30), dtype="uint8")
-    with pytest.raises(ValueError):
+    with pytest.raises(SampleUpdateError):
         memory_ds.images[0:3] = np.zeros((2, 25, 30), dtype="uint8")
-    with pytest.raises(TensorInvalidSampleShapeError):
+    with pytest.raises(SampleUpdateError):
         memory_ds.images[0] = np.zeros((2, 25, 30), dtype="uint8")
-    with pytest.raises(ValueError):
+    with pytest.raises(SampleUpdateError):
         memory_ds.labels[0:3] = [1, 2, 3, 4]
 
     # dimensionality doesn't match
-    with pytest.raises(TensorInvalidSampleShapeError):
+    with pytest.raises(SampleUpdateError):
         memory_ds.images[0:5] = np.zeros((5, 30), dtype="uint8")
-    with pytest.raises(TensorInvalidSampleShapeError):
+    with pytest.raises(SampleUpdateError):
         memory_ds.labels[0:5] = np.zeros((5, 2, 3), dtype="uint8")
 
     # make sure no data changed

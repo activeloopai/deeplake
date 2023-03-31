@@ -6,7 +6,7 @@ Tensor Query Language
 .. role:: sql(code)
     :language: sql
 
-This page describes the Tensor Query Language (TQL), an SQL-like language used for `Querying in Activeloop Platform <https://docs.activeloop.ai/tutorials/querying-datasets>`_
+This page describes the Tensor Query Language (TQL), an SQL-like language used for `Querying in Activeloop Platform <https://docs.activeloop.ai/enterprise-features/querying-datasets>`_
 as well as in :meth:`ds.query <deeplake.core.dataset.Dataset.query>` in our Python API. To use queries, install deeplake with ``pip install deeplake[enterprise]``.
 
 Querying datasets is part of our Growth and Enterprise Plan.

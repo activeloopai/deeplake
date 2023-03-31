@@ -1,7 +1,7 @@
 import numpy as np
 import deeplake
 import pytest
-from deeplake.util.json import JsonValidationError
+from deeplake.util.exceptions import SampleAppendError
 from deeplake.tests.dataset_fixtures import (
     enabled_non_gcs_gdrive_datasets,
     enabled_non_gcs_datasets,
@@ -168,9 +168,9 @@ def test_json_with_schema(memory_ds):
     ds = memory_ds
     ds.create_tensor("json", htype="json", dtype=List[Dict[str, int]])
     ds.json.append([{"x": 1, "y": 2}])
-    with pytest.raises(JsonValidationError):
+    with pytest.raises(SampleAppendError):
         ds.json.append({"x": 1, "y": 2})
-    with pytest.raises(JsonValidationError):
+    with pytest.raises(SampleAppendError):
         ds.json.append([{"x": 1, "y": "2"}])
 
     assert ds.json.numpy()[0, 0] == [{"x": 1, "y": 2}]
