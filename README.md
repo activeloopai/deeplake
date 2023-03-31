@@ -260,6 +260,9 @@ Deep Lake offers integrations with other tools in order to streamline your deep 
   
 * **Experiment Tracking**
   * Track experiments and achieve full model reproducibility using Deep Lake and [Weights & Biases](https://wandb.ai/). Our integration automatically pushes dataset-related information (uri, commit hash, view id) to your W&B runs. Further details are available [in our model-reproducibility playbook](https://docs.activeloop.ai/playbooks/training-reproducibility-with-wandb).
+  
+* **LLM Apps**
+  * Use Deep Lake as a vector store for LLM apps built using [Langchain](https://github.com/hwchase17/langchain). Our integration enables you to combine the [Langchain VectorStores API](https://python.langchain.com/en/latest/reference/modules/vectorstore.html?highlight=pinecone#langchain.vectorstores.DeepLake) with Deep Lake datasets as the underlying data storage. The integration provides a serverless vector store that can be deployed locally or in a cloud of your choice. 
 
 ## 📚 Documentation
 Getting started guides, examples, tutorials, API reference, and other useful information can be found on our [documentation page](http://docs.activeloop.ai/?utm_source=github&utm_medium=repo&utm_campaign=readme). 
