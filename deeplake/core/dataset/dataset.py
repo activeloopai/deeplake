@@ -3716,7 +3716,13 @@ class Dataset:
 
     def get_creds_keys(self) -> List[str]:
         """Returns the list of creds keys added to the dataset. These are used to fetch external data in linked tensors"""
-        return self.link_creds.creds_keys
+        return list(self.link_creds.creds_keys)
+
+    def get_managed_creds_keys(self) -> List[str]:
+        """Returns the list of creds keys added to the dataset that are managed by Activeloop platform. These are used to fetch external data in linked tensors."""
+        raise ValueError(
+            "Managed creds are not supported for datasets that are not connected to activeloop platform."
+        )
 
     def visualize(
         self, width: Union[int, str, None] = None, height: Union[int, str, None] = None
