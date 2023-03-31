@@ -646,18 +646,14 @@ def test_rgb_gray(local_ds, cat_path, hopper_gray_path):
         assert len(ds.abc[1].numpy().shape) == 3
 
 
-def test_creds(hub_cloud_ds_generator):
+def test_creds(hub_cloud_ds_generator, cat_path):
     creds_key = "ENV"
     ds = hub_cloud_ds_generator()
     ds.add_creds_key(creds_key)
     ds.populate_creds(creds_key, from_environment=True)
     with ds:
         tensor = ds.create_tensor("abc", "link[image]", sample_compression="jpeg")
-        tensor.append(
-            deeplake.link(
-                "/Users/abhinavtuli/Documents/Activeloop/DeepLakeOG/cat.jpeg", creds_key
-            )
-        )
+        tensor.append(deeplake.link(cat_path, creds_key))
 
     assert tensor[0].creds_key() == creds_key
     ds.add_creds_key("my_s3_creds", True)
