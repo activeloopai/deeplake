@@ -191,6 +191,7 @@ def test_accessing_data(local_ds_generator):
         np.isclose(deeplake_indra_ds.label.numpy(), deeplake_indra_ds["label"].numpy())
     )
 
+@requires_libdeeplake
 def test_random_split(local_ds_generator):
     from deeplake.enterprise.convert_to_libdeeplake import dataset_to_libdeeplake
 
