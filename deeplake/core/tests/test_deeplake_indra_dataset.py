@@ -190,3 +190,36 @@ def test_accessing_data(local_ds_generator):
     assert np.all(
         np.isclose(deeplake_indra_ds.label.numpy(), deeplake_indra_ds["label"].numpy())
     )
+
+def test_random_split(local_ds_generator):
+    from deeplake.enterprise.convert_to_libdeeplake import dataset_to_libdeeplake
+
+    deeplake_ds = local_ds_generator()
+    with deeplake_ds:
+        deeplake_ds.create_tensor("label", htype="generic", dtype=np.int32)
+        for i in range(1000):
+            deeplake_ds.label.append(int(i % 100))
+
+    deeplake_indra_ds = deeplake_ds.query("SELECT * GROUP BY label")
+
+    split = deeplake_indra_ds.random_split([0.2, 0.2, 0.6])
+    assert(len(split) == 3)
+    assert(len(split[0]) == 20)
+    l = split[0].dataloader().pytorch()
+    for b in l:
+        pass
+    assert(len(split[1]) == 20)
+    l = split[1].dataloader().pytorch()
+    for b in l:
+        pass
+    assert(len(split[2]) == 60)
+    l = split[1].dataloader().pytorch()
+    for b in l:
+        pass
+
+    split = deeplake_indra_ds.random_split([30, 20, 10, 40])
+    assert(len(split) == 4)
+    assert(len(split[0]) == 30)
+    assert(len(split[1]) == 20)
+    assert(len(split[2]) == 10)
+    assert(len(split[3]) == 40)
