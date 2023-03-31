@@ -307,14 +307,14 @@ def test_single_transform_deeplake_dataset_htypes(local_ds, num_workers, schedul
     assert len(ds_out) == 99
     for index in range(1, 100):
         np.testing.assert_array_equal(
-            ds_out[index - 1].image.numpy(), 2 * index * np.ones((index, index))
+            ds_out[index - 1].image.numpy(), 2 * index * np.ones((index, index, 1))
         )
         np.testing.assert_array_equal(
             ds_out[index - 1].label.numpy(), 2 * index * np.ones((1,))
         )
 
-    assert ds_out.image.shape_interval.lower == (99, 1, 1)
-    assert ds_out.image.shape_interval.upper == (99, 99, 99)
+    assert ds_out.image.shape_interval.lower == (99, 1, 1, 1)
+    assert ds_out.image.shape_interval.upper == (99, 99, 99, 1)
     data_in.delete()
 
 
@@ -491,14 +491,14 @@ def test_deeplake_like(local_ds, scheduler="threaded"):
         assert len(ds_out) == 99
         for index in range(1, 100):
             np.testing.assert_array_equal(
-                ds_out[index - 1].image.numpy(), 2 * index * np.ones((index, index))
+                ds_out[index - 1].image.numpy(), 2 * index * np.ones((index, index, 1))
             )
             np.testing.assert_array_equal(
                 ds_out[index - 1].label.numpy(), 2 * index * np.ones((1,))
             )
 
-        assert ds_out.image.shape_interval.lower == (99, 1, 1)
-        assert ds_out.image.shape_interval.upper == (99, 99, 99)
+        assert ds_out.image.shape_interval.lower == (99, 1, 1, 1)
+        assert ds_out.image.shape_interval.upper == (99, 99, 99, 1)
 
 
 def test_transform_empty(local_ds):
@@ -581,14 +581,14 @@ def test_transform_persistance(local_ds_generator, num_workers=2, scheduler="thr
         assert len(ds_out) == 99
         for index in range(1, 100):
             np.testing.assert_array_equal(
-                ds_out[index - 1].image.numpy(), 2 * index * np.ones((index, index))
+                ds_out[index - 1].image.numpy(), 2 * index * np.ones((index, index, 1))
             )
             np.testing.assert_array_equal(
                 ds_out[index - 1].label.numpy(), 2 * index * np.ones((1,))
             )
 
-        assert ds_out.image.shape_interval.lower == (99, 1, 1)
-        assert ds_out.image.shape_interval.upper == (99, 99, 99)
+        assert ds_out.image.shape_interval.lower == (99, 1, 1, 1)
+        assert ds_out.image.shape_interval.upper == (99, 99, 99, 1)
 
     test_ds_out()
     ds_out = local_ds_generator()
