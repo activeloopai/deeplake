@@ -38,7 +38,7 @@ Use one API to upload, download, and stream datasets to/from AWS S3/S3-compatibl
 </details>
 <details>
   <summary><b>Native Compression with Lazy NumPy-like Indexing</b></summary>
-Store images, audios and videos in their native compression. Slide, index, iterate and interact with your data like a collection of NumPy arrays in your system's memory. Deeplake lazily loads data only when needed, e.g., when training a model.
+Store images, audios and videos in their native compression. Slide, index, iterate and interact with your data like a collection of NumPy arrays in your system's memory. Deep Lake lazily loads data only when needed, e.g., when training a model.
 </details>
 <details>
   <summary><b>Dataset Version Control</b></summary>
