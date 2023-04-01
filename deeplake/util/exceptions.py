@@ -77,7 +77,7 @@ class TensorDoesNotExistError(KeyError, AttributeError):
 class TensorAlreadyExistsError(Exception):
     def __init__(self, key: str):
         super().__init__(
-            f"Tensor '{key}' already exists. If applicable, you can use the `overwrite=True` parameter!"
+            f"Tensor '{key}' already exists. You can use the `exist_ok=True` parameter to ignore this error message."
         )
 
 
@@ -531,7 +531,9 @@ def has_path(sample):
 
 
 class TransformError(Exception):
-    def __init__(self, index, sample=None):
+    def __init__(self, index=None, sample=None, samples_processed=0):
+        self.index = index
+        self.sample = sample
         # multiprocessing re raises error with str
         if isinstance(index, str):
             super().__init__(index)
@@ -541,17 +543,20 @@ class TransformError(Exception):
                 print_item = is_primitive(sample)
                 print_path = has_path(sample)
 
-            msg = f"Transform failed at index {index} of the input data"
+            msg = f"Transform failed"
+            if index is not None:
+                msg += f" at index {index} of the input data"
 
             if print_item:
-                msg += f" on the item: {sample}."
+                msg += f" on the item: {sample}"
             elif print_path:
-                msg += f"on the sample at path: '{sample.path}'."
-            else:
-                msg += "."
+                msg += f" on the sample at path: '{sample.path}'"
+            msg += "."
+
+            if samples_processed > 0:
+                msg += f" Last checkpoint: {samples_processed} samples processed. You can slice the input to resume from this point."
 
             msg += " See traceback for more details."
-
             super().__init__(msg)
 
 

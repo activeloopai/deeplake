@@ -5,7 +5,11 @@ from deeplake.constants import ALL_CLOUD_PREFIXES
 from deeplake.core.storage.deeplake_memory_object import DeepLakeMemoryObject
 from deeplake.core.storage import StorageProvider, storage_factory
 from deeplake.core.storage.s3 import S3Provider
-from deeplake.util.exceptions import MissingCredsError, MissingManagedCredsError
+from deeplake.util.exceptions import (
+    ManagedCredentialsNotFoundError,
+    MissingCredsError,
+    MissingManagedCredsError,
+)
 from deeplake.util.token import expires_in_to_expires_at, is_expired_token
 from deeplake.client.log import logger
 
@@ -168,7 +172,7 @@ class LinkCreds(DeepLakeMemoryObject):
             obj.creds_mapping = {k: i + 1 for i, k in enumerate(obj.creds_keys)}
             obj.managed_creds_keys = set(d["managed_creds_keys"])
             obj.used_creds_keys = set(d["used_creds_keys"])
-            if "ENV" in obj.used_creds_keys:
+            if "ENV" in obj.used_creds_keys and "ENV" not in obj.creds_keys:
                 obj.creds_keys = ["ENV"] + obj.creds_keys
                 obj.creds_mapping["ENV"] = 0
         obj.is_dirty = False
@@ -224,9 +228,16 @@ class LinkCreds(DeepLakeMemoryObject):
         assert self.client is not None
         assert self.org_id is not None
         for creds_key in self.managed_creds_keys:
-            self.populate_single_manged_creds(creds_key, verbose=verbose)
+            try:
+                self.populate_single_managed_creds(creds_key, verbose=verbose)
+            except ManagedCredentialsNotFoundError:
+                logger.warning(
+                    f"Credentials '{creds_key}' not found in Activeloop platform. "
+                    f"Please make sure the credentials are added to the platform and reload the dataset. "
+                    f"Alternatively, use ds.update_creds_key(key_name, managed=False) to disable the managed credentials.)"
+                )
 
-    def populate_single_manged_creds(self, creds_key: str, verbose: bool = True):
+    def populate_single_managed_creds(self, creds_key: str, verbose: bool = True):
         assert self.client is not None
         assert self.org_id is not None
         creds = self.fetch_managed_creds(creds_key, verbose=verbose)

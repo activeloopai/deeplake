@@ -120,3 +120,22 @@ def test_vds_read_only(hub_cloud_path, hub_cloud_dev_token):
 
     assert view.base_storage.read_only == True
     assert view._vds.base_storage.read_only == True
+
+
+def test_view_from_different_commit(local_ds):
+    with local_ds as ds:
+        ds.create_tensor("x")
+        ds.x.extend(list(range(10)))
+        cid = ds.commit()
+        view = ds[4:9]
+        view.save_view(id="abcd")
+        ds.x.extend(list(range(10, 20)))
+        cid2 = ds.commit()
+        view2 = ds.load_view("abcd")
+        assert view2.commit_id == cid
+        assert ds.commit_id == cid2
+        assert not view2.is_optimized
+        view2.save_view(id="efg", optimize=True)
+        view3 = ds.load_view("efg")
+        assert ds.commit_id == cid2
+        assert view3.is_optimized

@@ -406,7 +406,6 @@ class Tensor:
     def clear(self):
         """Deletes all samples from the tensor"""
         self.chunk_engine.clear()
-        sample_id_key = get_sample_id_tensor_key(self.key)
         try:
             for t in self._all_tensor_links():
                 t.chunk_engine.clear()
@@ -1039,9 +1038,6 @@ class Tensor:
                     else:
                         val = cast_to_type(val, tensor.dtype)
                         tensor[global_sample_index] = val
-        # if self.meta.is_link and not has_shape_tensor:
-        #     func = get_link_transform("update_shape")
-        #     func(new_sample, link_creds=self.link_creds, tensor_meta=self.meta)
 
     @invalid_view_op
     def pop(self, index: Optional[int] = None):
@@ -1315,6 +1311,15 @@ class Tensor:
             raise Exception(f"Only supported for linked tensors.")
         assert isinstance(self.chunk_engine, LinkedChunkEngine)
         return self.chunk_engine.path(self.index, fetch_chunks=fetch_chunks)
+
+    def creds_key(self):
+        """Return path data. Only applicable for linked tensors"""
+        if not self.is_link:
+            raise Exception(f"Only supported for linked tensors.")
+        if self.index.values[0].subscriptable() or len(self.index.values) > 1:
+            raise ValueError("_linked_sample can be used only on exatcly 1 sample.")
+        assert isinstance(self.chunk_engine, LinkedChunkEngine)
+        return self.chunk_engine.creds_key(self.index.values[0].value)
 
     def invalidate_libdeeplake_dataset(self):
         """Invalidates the libdeeplake dataset object."""
