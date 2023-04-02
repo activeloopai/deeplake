@@ -1228,7 +1228,7 @@ class Dataset:
         try:
             try:
                 version_info = load_version_info(self.storage)
-            except Exception:
+            except Exception as e:
                 version_info = rebuild_version_info(self.storage)
                 if version_info == -1:
                     raise
@@ -3575,8 +3575,11 @@ class Dataset:
 
             self.checkout(new_commit_id)
 
-    def fix(self):
-        """Fixes the dataset's version history and finds missing commits, if any."""
+    def fix_vc(self):
+        """Rebuilds version control info. To be used when the version control info is corrupted."""
+        version_info = rebuild_version_info(self.storage)
+        self.version_state["commit_node_map"] = version_info["commit_node_map"]
+        self.version_state["branch_commit_map"] = version_info["branch_commit_map"]
 
     def connect(
         self,

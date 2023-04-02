@@ -72,6 +72,7 @@ def _version_info_from_json(info):
     while stack:
         commit_id = stack.pop()
         commit_data = commits[commit_id]
+        branch_commit_map[commit_data["branch"]] # we will rebuild version info if this fails
         node = CommitNode(commit_data["branch"], commit_id)
         node.commit_message = commit_data["commit_message"]
         commit_time = commit_data["commit_time"]
@@ -577,7 +578,7 @@ def replace_head(storage, version_state, reset_commit_id):
     return new_commit_id
 
 
-def find_commits(storage) -> Optional[List]:
+def find_commits(storage) -> List:
     """Finds commits from the storage using commit info files."""
     found = [
         x.split("/")[-2] if len(x.split("/")) > 1 else FIRST_COMMIT_ID
@@ -587,7 +588,7 @@ def find_commits(storage) -> Optional[List]:
     return found
 
 
-def rebuild_version_info(storage) -> Optional[List]:
+def rebuild_version_info(storage):
     """Rebuilds version info from commit info."""
     branch_commit_map = {}
     commits = {}

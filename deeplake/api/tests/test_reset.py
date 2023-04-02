@@ -1,4 +1,4 @@
-from deeplake.util.exceptions import DatasetCorruptError, ReadOnlyModeError
+from deeplake.util.exceptions import DatasetCorruptError, ReadOnlyModeError, CheckoutError
 from deeplake.util.version_control import rebuild_version_info
 from deeplake.util.testing import compare_version_info
 
@@ -232,3 +232,39 @@ def test_rebuild_vc_info(local_ds):
     reloaded = json.loads(local_ds.storage["version_control_info.json"])
 
     compare_version_info(saved, reloaded)
+
+def test_fix_vc(local_path):
+    ds = deeplake.empty(local_path, overwrite=True)
+
+    with ds:
+        ds.create_tensor('abc')
+        ds.abc.append(1)
+        ds.commit()
+        ds.checkout('alt', create=True)
+        ds.abc.append(2)
+        ds.commit()
+        ds.checkout("main")
+        ds.abc.append(3)
+        ds.commit()
+    
+    saved = json.loads(ds.storage["version_control_info.json"].decode("utf-8"))
+
+    for commit_id, commit in saved["commits"].items():
+        commit["children"] = [c for c in commit["children"] if saved["commits"][c]["branch"] != "alt"]
+    alt_id = saved["branches"].pop("alt")
+    del saved["commits"][alt_id]
+    saved["commits"] = dict(filter(lambda x: x[0] != alt_id and x[1]["branch"] != "alt", saved["commits"].items()))
+
+    ds.storage["version_control_info.json"] = json.dumps(saved).encode("utf-8")
+    ds.storage.flush()
+
+    ds = deeplake.load(local_path)
+
+    with pytest.raises(CheckoutError):
+        ds.checkout("alt")
+    
+    ds.fix_vc()
+
+    ds.checkout("alt")
+    
+    np.testing.assert_array_equal(ds.abc.numpy(), [[1], [2]])
