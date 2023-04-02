@@ -59,6 +59,7 @@ def test_load_corrupt_dataset(path):
     )
     verify_reset_on_checkout(ds, "main", second, save_head, {"abc": [[1], [2]]})
 
+
 def test_load_corrupt_dataset_no_vc(local_path):
     ds = deeplake.empty(local_path)
 
@@ -69,7 +70,7 @@ def test_load_corrupt_dataset_no_vc(local_path):
 
         ds.abc.append(2)
         second = ds.commit()
-    
+
     ds = deeplake.load(local_path)
     corrupt_ds(ds, "abc", 3)
     save_head = ds.pending_commit_id
@@ -82,10 +83,10 @@ def test_load_corrupt_dataset_no_vc(local_path):
 
     with pytest.raises(DatasetCorruptError):
         ds = deeplake.load(local_path)
-    
+
     reloaded = json.loads(ds.storage["version_control_info.json"].decode("utf-8"))
     compare_version_info(saved, reloaded)
-    
+
     ds = deeplake.load(local_path, reset=True)
 
     verify_reset_on_checkout(ds, "main", second, save_head, {"abc": [[1], [2]]})
@@ -199,9 +200,10 @@ def test_load_corrupt_dataset_with_no_commits(local_path):
 
     assert set(ds._tensors()) == set()
 
+
 def test_rebuild_vc_info(local_ds):
     with local_ds as ds:
-        ds.create_tensor('abc')
+        ds.create_tensor("abc")
         ds.abc.append(1)
         ds.commit()
         ds.checkout("alt1", create=True)
@@ -224,7 +226,7 @@ def test_rebuild_vc_info(local_ds):
 
     with pytest.raises(KeyError):
         local_ds.storage["version_control_info.json"]
-    
+
     rebuild_version_info(local_ds.storage)
 
     reloaded = json.loads(local_ds.storage["version_control_info.json"])

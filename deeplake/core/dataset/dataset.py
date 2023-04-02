@@ -21,7 +21,7 @@ from deeplake.util.version_control import (
     save_version_info,
     integrity_check,
     save_commit_info,
-    rebuild_version_info
+    rebuild_version_info,
 )
 from deeplake.util.invalid_view_op import invalid_view_op
 from deeplake.util.spinner import spinner
@@ -3574,10 +3574,9 @@ class Dataset:
             new_commit_id = replace_head(storage, version_state, reset_commit_id)
 
             self.checkout(new_commit_id)
-    
+
     def fix(self):
         """Fixes the dataset's version history and finds missing commits, if any."""
-        
 
     def connect(
         self,

@@ -443,7 +443,10 @@ def _merge_commit_node_maps(map1, map2):
 
             for attr in ("commit_message", "commit_user_name", "commit_time"):
                 setattr(merged_node, attr, getattr(node1, attr) or getattr(node2, attr))
-            for child in set([node.commit_id for node in node1.children] + [node.commit_id for node in node2.children]):
+            for child in set(
+                [node.commit_id for node in node1.children]
+                + [node.commit_id for node in node2.children]
+            ):
                 merged_node.add_child(_merge_node(child))
         else:
             if commit_id in map1:
@@ -472,6 +475,7 @@ def _merge_version_info(info1, info2):
         "branch_commit_map": branch_commit_map,
     }
 
+
 def save_commit_info(commit_node: CommitNode, storage: LRUCache) -> None:
     """Saves the commit info to the storage."""
     storage = get_base_storage(storage)
@@ -479,12 +483,14 @@ def save_commit_info(commit_node: CommitNode, storage: LRUCache) -> None:
     storage[key] = json.dumps(commit_node.to_json()).encode("utf-8")
     commit_node._info_updated = False
 
+
 def load_commit_info(commit_id: str, storage: LRUCache) -> Dict:
     """Loads the commit info from the storage."""
     storage = get_base_storage(storage)
     key = get_commit_info_key(commit_id)
     commit_info = json.loads(storage[key].decode("utf-8"))
     return commit_info
+
 
 def save_version_info(version_state: Dict[str, Any], storage: LRUCache) -> None:
     """Saves the current version info to the storage."""
@@ -570,10 +576,16 @@ def replace_head(storage, version_state, reset_commit_id):
     storage.flush()
     return new_commit_id
 
+
 def find_commits(storage) -> Optional[List]:
     """Finds commits from the storage using commit info files."""
-    found = [x.split("/")[-2] if len(x.split("/")) > 1 else FIRST_COMMIT_ID for x in storage.keys() if x.endswith(COMMIT_INFO_FILENAME)]
+    found = [
+        x.split("/")[-2] if len(x.split("/")) > 1 else FIRST_COMMIT_ID
+        for x in storage.keys()
+        if x.endswith(COMMIT_INFO_FILENAME)
+    ]
     return found
+
 
 def rebuild_version_info(storage) -> Optional[List]:
     """Rebuilds version info from commit info."""
@@ -584,7 +596,7 @@ def rebuild_version_info(storage) -> Optional[List]:
         return -1
 
     missing = []
-    
+
     while found:
         commit_id = found.pop(0)
         if commits.get(commit_id):
@@ -600,7 +612,7 @@ def rebuild_version_info(storage) -> Optional[List]:
         if commit_info["parent"] is not None:
             found.append(commit_info["parent"])
         found += commit_info["children"]
-    
+
     base_storage = get_base_storage(storage)
     lock = Lock(storage, get_version_control_info_lock_key(), duration=10)
     lock.acquire()  # Blocking
@@ -615,7 +627,7 @@ def rebuild_version_info(storage) -> Optional[List]:
 
     if missing:
         logger.warn(f"The following commits could not be found: {missing}")
-    
+
     return _version_info_from_json(version_info)
 
 
