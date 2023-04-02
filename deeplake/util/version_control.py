@@ -169,10 +169,13 @@ def commit(
     commit_time = stored_commit_node.commit_time
     commit_message = stored_commit_node.commit_message
     author = stored_commit_node.commit_user_name
-    save_commit_info(stored_commit_node, storage)
-    save_commit_info(new_node, storage)
     if flush_version_control_info:
         save_version_info(version_state, storage)
+        save_commit_info(stored_commit_node, storage)
+        save_commit_info(new_node, storage)
+    else:
+        stored_commit_node._info_updated = True
+        new_node._info_updated = True
     dataset._send_commit_event(
         commit_message=commit_message, commit_time=commit_time, author=author
     )
@@ -237,10 +240,13 @@ def checkout(
         version_state["branch"] = address
         version_state["commit_node_map"][new_commit_id] = new_node
         version_state["branch_commit_map"][address] = new_commit_id
-        save_commit_info(new_node, storage)
-        save_commit_info(stored_commit_node, storage)
         if flush_version_control_info:
             save_version_info(version_state, storage)
+            save_commit_info(new_node, storage)
+            save_commit_info(stored_commit_node, storage)
+        else:
+            stored_commit_node._info_updated = True
+            new_node._info_updated = True
         copy_metas(original_commit_id, new_commit_id, storage, version_state)
         create_commit_chunk_maps(new_commit_id, storage, version_state)
         dataset._send_branch_creation_event(address)
@@ -471,6 +477,7 @@ def save_commit_info(commit_node: CommitNode, storage: LRUCache) -> None:
     storage = get_base_storage(storage)
     key = get_commit_info_key(commit_node.commit_id)
     storage[key] = json.dumps(commit_node.to_json()).encode("utf-8")
+    commit_node._info_updated = False
 
 def load_commit_info(commit_id: str, storage: LRUCache) -> Dict:
     """Loads the commit info from the storage."""
@@ -563,13 +570,19 @@ def replace_head(storage, version_state, reset_commit_id):
     storage.flush()
     return new_commit_id
 
+def find_commits(storage) -> Optional[List]:
+    """Finds commits from the storage using commit info files."""
+    found = [x.split("/")[-2] if len(x.split("/")) > 1 else FIRST_COMMIT_ID for x in storage.keys() if x.endswith(COMMIT_INFO_FILENAME)]
+    return found
+
 def rebuild_version_info(storage) -> Optional[List]:
     """Rebuilds version info from commit info."""
     branch_commit_map = {}
     commits = {}
-    found = [x.split("/")[-2] if len(x.split("/")) > 1 else FIRST_COMMIT_ID for x in storage.keys() if x.endswith(COMMIT_INFO_FILENAME)]
-    if not found:
-        return
+    found = find_commits(storage)
+    if found in ([], [FIRST_COMMIT_ID]):
+        return -1
+
     missing = []
     
     while found:
@@ -596,10 +609,14 @@ def rebuild_version_info(storage) -> Optional[List]:
     except KeyError:
         pass
     key = get_version_control_info_key()
-    base_storage[key] = json.dumps({"commits": commits, "branches": branch_commit_map}).encode("utf-8")
+    version_info = {"commits": commits, "branches": branch_commit_map}
+    base_storage[key] = json.dumps(version_info).encode("utf-8")
     lock.release()
+
+    if missing:
+        logger.warn(f"The following commits could not be found: {missing}")
     
-    return missing
+    return _version_info_from_json(version_info)
 
 
 def auto_checkout(dataset, flush_version_control_info: bool = True) -> bool:

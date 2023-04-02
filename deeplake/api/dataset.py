@@ -616,12 +616,7 @@ class dataset:
         try:
             version_info = load_version_info(storage)
         except Exception:
-            # loading version control info failed
-            missing_commits = rebuild_version_info(storage)
-            # old dataset that does not have backup
-            if missing_commits is None:
-                raise err
-            version_info = load_version_info(storage)
+            raise err
 
         address = address or "main"
         parent_commit_id, reset_commit_id = get_parent_and_reset_commit_ids(

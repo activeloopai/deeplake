@@ -15,6 +15,7 @@ class CommitNode:
         self.commit_time: Optional[datetime] = None
         self.commit_user_name: Optional[str] = None
         self.merge_parent: Optional["CommitNode"] = None
+        self._info_updated: bool = False
 
     def add_child(self, node: "CommitNode"):
         """Adds a child to the node, used for branching."""

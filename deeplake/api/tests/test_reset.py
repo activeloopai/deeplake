@@ -59,6 +59,37 @@ def test_load_corrupt_dataset(path):
     )
     verify_reset_on_checkout(ds, "main", second, save_head, {"abc": [[1], [2]]})
 
+def test_load_corrupt_dataset_no_vc(local_path):
+    ds = deeplake.empty(local_path)
+
+    with ds:
+        ds.create_tensor("abc")
+        ds.abc.append(1)
+        first = ds.commit()
+
+        ds.abc.append(2)
+        second = ds.commit()
+    
+    ds = deeplake.load(local_path)
+    corrupt_ds(ds, "abc", 3)
+    save_head = ds.pending_commit_id
+
+    saved = json.loads(ds.storage["version_control_info.json"].decode("utf-8"))
+    del ds.storage["version_control_info.json"]
+
+    with pytest.raises(KeyError):
+        ds.storage["version_control_info.json"]
+
+    with pytest.raises(DatasetCorruptError):
+        ds = deeplake.load(local_path)
+    
+    reloaded = json.loads(ds.storage["version_control_info.json"].decode("utf-8"))
+    compare_version_info(saved, reloaded)
+    
+    ds = deeplake.load(local_path, reset=True)
+
+    verify_reset_on_checkout(ds, "main", second, save_head, {"abc": [[1], [2]]})
+
 
 def test_load_corrupted_branch(local_path):
     ds = deeplake.empty(local_path, overwrite=True)
@@ -187,8 +218,6 @@ def test_rebuild_vc_info(local_ds):
         ds.checkout("main")
         ds.merge("alt2")
         ds.merge("alt1")
-    
-    print(ds.abc.numpy())
 
     saved = json.loads(local_ds.storage["version_control_info.json"])
     del local_ds.storage["version_control_info.json"]
