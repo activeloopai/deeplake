@@ -1,9 +1,11 @@
 from deeplake.util.exceptions import DatasetCorruptError, ReadOnlyModeError
+from deeplake.util.version_control import rebuild_version_info
 
 import numpy as np
 
 import deeplake
 import pytest
+import json
 
 
 def corrupt_ds(ds, tensor, data):
@@ -164,3 +166,27 @@ def test_load_corrupt_dataset_with_no_commits(local_path):
     ds = deeplake.load(local_path, reset=True)
 
     assert set(ds._tensors()) == set()
+
+def test_rebuild_vc_info(local_ds):
+    with local_ds as ds:
+        ds.create_tensor('abc')
+        ds.abc.append(1)
+        ds.commit()
+        ds.checkout("alt1", create=True)
+        ds.abc.append(2)
+        ds.commit()
+        ds.checkout("main")
+        ds.abc.append(3)
+        ds.commit()
+
+    saved = json.loads(local_ds.storage["version_control_info.json"])
+    del local_ds.storage["version_control_info.json"]
+
+    with pytest.raises(KeyError):
+        local_ds.storage["version_control_info.json"]
+    
+    rebuild_version_info(local_ds.storage)
+
+    reloaded = json.loads(local_ds.storage["version_control_info.json"])
+
+    assert reloaded == saved

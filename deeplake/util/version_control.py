@@ -2,7 +2,7 @@ import random
 import time
 import hashlib
 import pickle
-from typing import Any, Dict, Optional
+from typing import Any, Dict, Optional, List
 import warnings
 from deeplake.client.log import logger
 from deeplake.constants import FIRST_COMMIT_ID
@@ -33,7 +33,9 @@ from deeplake.util.keys import (
     get_version_control_info_key,
     get_version_control_info_key_old,
     get_version_control_info_lock_key,
+    get_commit_info_key,
 )
+from deeplake.constants import COMMIT_INFO_FILENAME
 from deeplake.util.remove_cache import get_base_storage
 from deeplake.hooks import dataset_committed
 from datetime import datetime
@@ -153,6 +155,8 @@ def commit(
     version_state["commit_id"] = hash
     new_node = CommitNode(version_state["branch"], hash)
     version_state["commit_node"].add_successor(new_node, message)
+    save_commit_info(stored_commit_node, storage)
+    save_commit_info(new_node, storage)
     version_state["commit_node"] = new_node
     version_state["branch_commit_map"][version_state["branch"]] = version_state[
         "commit_id"
@@ -227,6 +231,8 @@ def checkout(
             new_commit_id = generate_hash()
         new_node = CommitNode(address, new_commit_id)
         version_state["commit_node"].add_child(new_node)
+        save_commit_info(new_node, storage)
+        save_commit_info(version_state["commit_node"], storage)
         version_state["commit_id"] = new_commit_id
         version_state["commit_node"] = new_node
         version_state["branch"] = address
@@ -430,10 +436,10 @@ def _merge_commit_node_maps(map1, map2):
 
             for attr in ("commit_message", "commit_user_name", "commit_time"):
                 setattr(merged_node, attr, getattr(node1, attr) or getattr(node2, attr))
-            for child in set(
-                [node.commit_id for node in node1.children]
-                + [node.commit_id for node in node2.children]
-            ):
+            children = [node.commit_id for node in node1.children]
+            node2_children = [node.commit_id for node in node2.children]
+            children.extend([child for child in node2_children if child not in children])
+            for child in children:
                 merged_node.add_child(_merge_node(child))
         else:
             if commit_id in map1:
@@ -462,6 +468,18 @@ def _merge_version_info(info1, info2):
         "branch_commit_map": branch_commit_map,
     }
 
+def save_commit_info(commit_node: CommitNode, storage: LRUCache) -> None:
+    """Saves the commit info to the storage."""
+    storage = get_base_storage(storage)
+    key = get_commit_info_key(commit_node.commit_id)
+    storage[key] = json.dumps(commit_node.to_json()).encode("utf-8")
+
+def load_commit_info(commit_id: str, storage: LRUCache) -> Dict:
+    """Loads the commit info from the storage."""
+    storage = get_base_storage(storage)
+    key = get_commit_info_key(commit_id)
+    commit_info = json.loads(storage[key].decode("utf-8"))
+    return commit_info
 
 def save_version_info(version_state: Dict[str, Any], storage: LRUCache) -> None:
     """Saves the current version info to the storage."""
@@ -546,6 +564,40 @@ def replace_head(storage, version_state, reset_commit_id):
     storage.clear(prefix=deletion_folder)
     storage.flush()
     return new_commit_id
+
+def rebuild_version_info(storage) -> Optional[List]:
+    """Rebuilds version info from commit info."""
+    branch_commit_map = {}
+    commits = {}
+    found = [x.split("/")[-2] if len(x.split("/")) > 1 else FIRST_COMMIT_ID for x in storage.keys() if x.endswith(COMMIT_INFO_FILENAME)]
+    if not found:
+        return
+    missing = []
+    
+    while found:
+        commit_id = found.pop(0)
+        if commits.get(commit_id):
+            continue
+        try:
+            commit_info = load_commit_info(commit_id, storage)
+        except KeyError:
+            missing.append(commit_id)
+            continue
+        commits[commit_id] = commit_info
+        if commit_info["commit_time"] is None:
+            branch_commit_map[commit_info["branch"]] = commit_id
+        if commit_info["parent"] is not None:
+            found.append(commit_info["parent"])
+        found += commit_info["children"]
+    
+    storage = get_base_storage(storage)
+    lock = Lock(storage, get_version_control_info_lock_key(), duration=10)
+    lock.acquire()  # Blocking
+    key = get_version_control_info_key()
+    storage[key] = json.dumps({"commits": commits, "branches": branch_commit_map}).encode("utf-8")
+    lock.release()
+    
+    return missing
 
 
 def auto_checkout(dataset, flush_version_control_info: bool = True) -> bool:

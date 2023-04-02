@@ -3565,6 +3565,10 @@ class Dataset:
             new_commit_id = replace_head(storage, version_state, reset_commit_id)
 
             self.checkout(new_commit_id)
+    
+    def fix(self):
+        """Fixes the dataset's version history and finds missing commits, if any."""
+        
 
     def connect(
         self,

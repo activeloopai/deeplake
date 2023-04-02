@@ -54,3 +54,13 @@ class CommitNode:
         return self.commit_time is None
 
     __str__ = __repr__
+
+    def to_json(self):
+        return {
+            "branch": self.branch,
+            "children": [node.commit_id for node in self.children],
+            "parent": self.parent.commit_id if self.parent else None,
+            "commit_message": self.commit_message,
+            "commit_time": self.commit_time.timestamp() if self.commit_time else None,
+            "commit_user_name": self.commit_user_name,
+        }
