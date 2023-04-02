@@ -157,8 +157,8 @@ def extend_shape(samples, link_creds=None, tensor_meta=None):
         for sample in samples
     ]
 
-    max_ndim = max(map(len, shapes))
-    min_ndim = min(map(len, shapes))
+    max_ndim = max(map(len, shapes)) if shapes else 0
+    min_ndim = min(map(len, shapes)) if shapes else 0
     mixed_ndim = max_ndim != min_ndim
 
     if mixed_ndim:
