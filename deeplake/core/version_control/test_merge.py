@@ -1,8 +1,10 @@
 import numpy as np
 import pytest
 import deeplake
+import json
 
-from deeplake.util.testing import assert_array_equal
+from deeplake.util.testing import assert_array_equal, compare_version_info
+from deeplake.util.version_control import rebuild_version_info
 from deeplake.util.exceptions import (
     MergeConflictError,
     MergeMismatchError,
@@ -106,6 +108,18 @@ def test_complex_merge(local_ds):
             np.testing.assert_array_equal(
                 ds.image[i].numpy(), i * np.ones((200, 200, 3))
             )
+    
+    saved = json.loads(ds.storage["version_control_info.json"])
+    del ds.storage["version_control_info.json"]
+
+    with pytest.raises(KeyError):
+        ds.storage["version_control_info.json"]
+    
+    rebuild_version_info(ds.storage)
+
+    reloaded = json.loads(ds.storage["version_control_info.json"])
+
+    compare_version_info(saved, reloaded)
 
 
 def test_merge_not_supported(local_ds):
@@ -128,6 +142,18 @@ def test_merge_not_supported(local_ds):
         ds.checkout("main")
         with pytest.raises(MergeNotSupportedError):
             ds.merge("other")
+    
+    saved = json.loads(ds.storage["version_control_info.json"])
+    del ds.storage["version_control_info.json"]
+
+    with pytest.raises(KeyError):
+        ds.storage["version_control_info.json"]
+    
+    rebuild_version_info(ds.storage)
+
+    reloaded = json.loads(ds.storage["version_control_info.json"])
+
+    compare_version_info(saved, reloaded)
 
 
 def test_tensor_mismatch(local_ds):

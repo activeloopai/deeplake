@@ -1,5 +1,6 @@
 from deeplake.util.exceptions import DatasetCorruptError, ReadOnlyModeError
 from deeplake.util.version_control import rebuild_version_info
+from deeplake.util.testing import compare_version_info
 
 import numpy as np
 
@@ -178,6 +179,16 @@ def test_rebuild_vc_info(local_ds):
         ds.checkout("main")
         ds.abc.append(3)
         ds.commit()
+        ds.checkout("alt2", create=True)
+        ds.abc.append(4)
+        ds.commit()
+        ds.abc.append(5)
+        ds.commit()
+        ds.checkout("main")
+        ds.merge("alt2")
+        ds.merge("alt1")
+    
+    print(ds.abc.numpy())
 
     saved = json.loads(local_ds.storage["version_control_info.json"])
     del local_ds.storage["version_control_info.json"]
@@ -189,4 +200,4 @@ def test_rebuild_vc_info(local_ds):
 
     reloaded = json.loads(local_ds.storage["version_control_info.json"])
 
-    assert reloaded == saved
+    compare_version_info(saved, reloaded)

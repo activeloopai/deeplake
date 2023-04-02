@@ -155,8 +155,6 @@ def commit(
     version_state["commit_id"] = hash
     new_node = CommitNode(version_state["branch"], hash)
     version_state["commit_node"].add_successor(new_node, message)
-    save_commit_info(stored_commit_node, storage)
-    save_commit_info(new_node, storage)
     version_state["commit_node"] = new_node
     version_state["branch_commit_map"][version_state["branch"]] = version_state[
         "commit_id"
@@ -171,6 +169,8 @@ def commit(
     commit_time = stored_commit_node.commit_time
     commit_message = stored_commit_node.commit_message
     author = stored_commit_node.commit_user_name
+    save_commit_info(stored_commit_node, storage)
+    save_commit_info(new_node, storage)
     if flush_version_control_info:
         save_version_info(version_state, storage)
     dataset._send_commit_event(
@@ -230,14 +230,15 @@ def checkout(
         else:
             new_commit_id = generate_hash()
         new_node = CommitNode(address, new_commit_id)
-        version_state["commit_node"].add_child(new_node)
-        save_commit_info(new_node, storage)
-        save_commit_info(version_state["commit_node"], storage)
+        stored_commit_node = version_state["commit_node"]
+        stored_commit_node.add_child(new_node)
         version_state["commit_id"] = new_commit_id
         version_state["commit_node"] = new_node
         version_state["branch"] = address
         version_state["commit_node_map"][new_commit_id] = new_node
         version_state["branch_commit_map"][address] = new_commit_id
+        save_commit_info(new_node, storage)
+        save_commit_info(stored_commit_node, storage)
         if flush_version_control_info:
             save_version_info(version_state, storage)
         copy_metas(original_commit_id, new_commit_id, storage, version_state)
@@ -436,10 +437,7 @@ def _merge_commit_node_maps(map1, map2):
 
             for attr in ("commit_message", "commit_user_name", "commit_time"):
                 setattr(merged_node, attr, getattr(node1, attr) or getattr(node2, attr))
-            children = [node.commit_id for node in node1.children]
-            node2_children = [node.commit_id for node in node2.children]
-            children.extend([child for child in node2_children if child not in children])
-            for child in children:
+            for child in set([node.commit_id for node in node1.children] + [node.commit_id for node in node2.children]):
                 merged_node.add_child(_merge_node(child))
         else:
             if commit_id in map1:
@@ -590,11 +588,15 @@ def rebuild_version_info(storage) -> Optional[List]:
             found.append(commit_info["parent"])
         found += commit_info["children"]
     
-    storage = get_base_storage(storage)
+    base_storage = get_base_storage(storage)
     lock = Lock(storage, get_version_control_info_lock_key(), duration=10)
     lock.acquire()  # Blocking
+    try:
+        del storage[get_version_control_info_key()]
+    except KeyError:
+        pass
     key = get_version_control_info_key()
-    storage[key] = json.dumps({"commits": commits, "branches": branch_commit_map}).encode("utf-8")
+    base_storage[key] = json.dumps({"commits": commits, "branches": branch_commit_map}).encode("utf-8")
     lock.release()
     
     return missing
