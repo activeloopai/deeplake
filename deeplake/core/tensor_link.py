@@ -103,6 +103,8 @@ def update_info(
 
 @link
 def update_shape(new_sample, link_creds=None, tensor_meta=None):
+    if new_sample is None:
+        return np.zeros(1, dtype=np.int64)
     if isinstance(new_sample, deeplake.core.linked_sample.LinkedSample):
         new_sample = read_linked_sample(
             new_sample.path, new_sample.creds_key, link_creds, verify=False
@@ -154,22 +156,18 @@ def extend_shape(samples, link_creds=None, tensor_meta=None):
         update_shape.f(sample, link_creds=link_creds, tensor_meta=tensor_meta)
         for sample in samples
     ]
-    mixed_ndim = False
-    try:
-        arr = np.array(shapes)
-        if arr.dtype == object:
-            mixed_ndim = True
-    except ValueError:
-        mixed_ndim = True
+
+    max_ndim = max(map(len, shapes), default=0)
+    min_ndim = min(map(len, shapes), default=0)
+    mixed_ndim = max_ndim != min_ndim
 
     if mixed_ndim:
-        ndim = max(map(len, shapes))
         for i, s in enumerate(shapes):
-            if len(s) < ndim:
+            if len(s) < max_ndim:
                 shapes[i] = np.concatenate(
-                    [s, (int(bool(np.prod(s))),) * (ndim - len(s))]
+                    [s, (int(bool(np.any(s) and np.prod(s))),) * (max_ndim - len(s))]
                 )
-        arr = np.array(shapes)
+    arr = np.array(shapes)
     return arr
 
 
