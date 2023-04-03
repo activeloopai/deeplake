@@ -1207,7 +1207,11 @@ class ChunkEngine:
             chunk.update_sample(local_sample_index, sample)
         else:
             orig_sample = chunk.read_sample(local_sample_index, copy=True)
-            orig_sample[tuple(e.value for e in index.values[1:])] = sample
+            sample = np.array(sample)
+            lhs = orig_sample[tuple(e.value for e in index.values[1:])]
+            if lhs.ndim > sample.ndim:
+                sample = np.expand_dims(sample, tuple(range(sample.ndim, lhs.ndim)))
+            lhs[:] = sample
             chunk.update_sample(local_sample_index, orig_sample)
         if (
             self.active_updated_chunk is not None
