@@ -2279,15 +2279,11 @@ class ChunkEngine:
             return self.get_empty_sample()
         if index.subscriptable_at(0) and index.subscriptable_at(1):
             item_lengths = []
-            item_length = self._sequence_item_length
-            if item_length:
-                item_lengths = [item_length] * self._sequence_length
-            else:
-                for i in index.values[0].indices(self._sequence_length):
-                    item_length = index.length_at(
-                        1, -int(np.subtract(*self.sequence_encoder[i]))
-                    )
-                    item_lengths.append(item_length)
+            for i in index.values[0].indices(self._sequence_length):
+                item_length = index.length_at(
+                    1, -int(np.subtract(*self.sequence_encoder[i]))
+                )
+                item_lengths.append(item_length)
 
             if aslist:
                 ret = []
