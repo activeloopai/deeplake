@@ -313,8 +313,12 @@ class DeepLakeQueryDataset(Dataset):
         return dataloader
 
     @property
+    def no_view_dataset(self):
+        return self
+
+    @property
     def index(self):
-        return self.deeplake_ds.index
+        return Index(slice(0, len(self)))
 
     def _tensors(
         self, include_hidden: bool = True, include_disabled=True

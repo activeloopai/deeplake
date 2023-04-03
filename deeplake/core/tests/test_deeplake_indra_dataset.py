@@ -20,7 +20,6 @@ def test_indexing(local_ds_generator):
     deeplake_indra_ds = DeepLakeQueryDataset(deeplake_ds=deeplake_ds, indra_ds=indra_ds)
 
     assert len(deeplake_indra_ds) == len(indra_ds)
-    assert deeplake_indra_ds.__getstate__() == deeplake_ds.__getstate__()
 
     # test slice indices
     assert np.all(deeplake_indra_ds.label.numpy() == indra_ds.label.numpy())
@@ -194,8 +193,6 @@ def test_accessing_data(local_ds_generator):
 
 @requires_libdeeplake
 def test_random_split(local_ds_generator):
-    from deeplake.enterprise.convert_to_libdeeplake import dataset_to_libdeeplake
-
     deeplake_ds = local_ds_generator()
     with deeplake_ds:
         deeplake_ds.create_tensor("label", htype="generic", dtype=np.int32)
@@ -225,3 +222,13 @@ def test_random_split(local_ds_generator):
     assert len(split[1]) == 20
     assert len(split[2]) == 10
     assert len(split[3]) == 40
+
+    train, val = deeplake_indra_ds[0:50].random_split([0.8, 0.2])
+    assert len(train) == 40
+    l = train.dataloader().pytorch().shuffle()
+    for b in l:
+        pass
+    assert len(val) == 10
+    l = val.dataloader().pytorch().shuffle()
+    for b in l:
+        pass
