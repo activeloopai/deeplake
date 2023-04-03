@@ -72,7 +72,9 @@ def _version_info_from_json(info):
     while stack:
         commit_id = stack.pop()
         commit_data = commits[commit_id]
-        branch_commit_map[commit_data["branch"]] # we will rebuild version info if this fails
+        branch_commit_map[
+            commit_data["branch"]
+        ]  # we will rebuild version info if this fails
         node = CommitNode(commit_data["branch"], commit_id)
         node.commit_message = commit_data["commit_message"]
         commit_time = commit_data["commit_time"]
