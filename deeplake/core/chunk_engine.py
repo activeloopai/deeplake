@@ -1207,7 +1207,11 @@ class ChunkEngine:
             chunk.update_sample(local_sample_index, sample)
         else:
             orig_sample = chunk.read_sample(local_sample_index, copy=True)
-            orig_sample[tuple(e.value for e in index.values[1:])] = sample
+            sample = np.array(sample)
+            lhs = orig_sample[tuple(e.value for e in index.values[1:])]
+            if lhs.ndim > sample.ndim:
+                sample = np.expand_dims(sample, tuple(range(sample.ndim, lhs.ndim)))
+            lhs[:] = sample
             chunk.update_sample(local_sample_index, orig_sample)
         if (
             self.active_updated_chunk is not None
@@ -1399,6 +1403,7 @@ class ChunkEngine:
             del self.cache[from_chunk.key]  # type: ignore
         except KeyError:
             pass
+        self.cache[to_chunk.key] = to_chunk  # type: ignore
         return True
 
     def _is_tiled(self, row: int) -> bool:
@@ -1436,7 +1441,11 @@ class ChunkEngine:
         if next_chunk_size + chunk.num_data_bytes < next_chunk.min_chunk_size:
             if next_chunk_commit_id != self.commit_id:
                 next_chunk = self.copy_chunk_to_new_commit(next_chunk, next_chunk_name)
-            # merge with next chunk
+            chunk_id = chunk.id
+            chunk_name = ChunkIdEncoder.name_from_id(chunk_id)
+            chunk_commit_id, tkey = self.get_chunk_commit(chunk_name)
+            if chunk_commit_id != self.commit_id:
+                chunk = self.copy_chunk_to_new_commit(chunk, chunk_name)
             return self._merge_chunks(
                 from_chunk=next_chunk,
                 from_chunk_row=next_chunk_row,
@@ -1462,6 +1471,11 @@ class ChunkEngine:
         if prev_chunk_size + chunk.num_data_bytes < prev_chunk.min_chunk_size:
             if prev_chunk_commit_id != self.commit_id:
                 prev_chunk = self.copy_chunk_to_new_commit(prev_chunk, prev_chunk_name)
+            chunk_id = chunk.id
+            chunk_name = ChunkIdEncoder.name_from_id(chunk_id)
+            chunk_commit_id, tkey = self.get_chunk_commit(chunk_name)
+            if chunk_commit_id != self.commit_id:
+                chunk = self.copy_chunk_to_new_commit(chunk, chunk_name)
             # merge with previous chunk
             return self._merge_chunks(
                 from_chunk=chunk,
