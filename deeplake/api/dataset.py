@@ -987,7 +987,7 @@ class dataset:
 
     @staticmethod
     def deepcopy(
-        src: Union[str, pathlib.Path],
+        src: Union[str, pathlib.Path, Dataset],
         dest: Union[str, pathlib.Path],
         tensors: Optional[List[str]] = None,
         overwrite: bool = False,
@@ -1004,7 +1004,7 @@ class dataset:
         """Copies dataset at ``src`` to ``dest`` including version control history.
 
         Args:
-            src (str, pathlib.Path): Path to the dataset to be copied.
+            src (str, pathlib.Path, Dataset): The Dataset or the path to the dataset to be copied.
             dest (str, pathlib.Path): Destination path to copy to.
             tensors (List[str], optional): Names of tensors (and groups) to be copied. If not specified all tensors are copied.
             overwrite (bool): If True and a dataset exists at `destination`, it will be overwritten. Defaults to False.
@@ -1031,26 +1031,6 @@ class dataset:
             DatasetCorruptError: If loading source dataset fails with DatasetCorruptedError
         """
 
-        if "src_token" in kwargs:
-            raise UnsupportedParameterException(
-                "src_token is now not supported. You should use `token` instead."
-            )
-
-        if "dest_token" in kwargs:
-            raise UnsupportedParameterException(
-                "dest_token is now not supported. You should use `token` instead."
-            )
-
-        if not isinstance(src, (str, pathlib.Path)):
-            raise TypeError(
-                f"Source for `deepcopy` should be path to a dataset. Got {type(src)}."
-            )
-
-        src = convert_pathlib_to_string_if_needed(src)
-        dest = convert_pathlib_to_string_if_needed(dest)
-
-        verify_dataset_name(dest)
-
         report_params = {
             "Overwrite": overwrite,
             "Num_Workers": num_workers,
@@ -1062,17 +1042,39 @@ class dataset:
             report_params["Dest"] = dest
         feature_report_path(src, "deepcopy", report_params, token=token)
 
-        try:
+        if "src_token" in kwargs:
+            raise UnsupportedParameterException(
+                "src_token is now not supported. You should use `token` instead."
+            )
+
+        if "dest_token" in kwargs:
+            raise UnsupportedParameterException(
+                "dest_token is now not supported. You should use `token` instead."
+            )
+
+        if isinstance(src, (str, pathlib.Path)):
+            src = convert_pathlib_to_string_if_needed(src)
             src_ds = deeplake.load(
                 src, read_only=True, creds=src_creds, token=token, verbose=False
             )
-        except DatasetCorruptError as e:
-            raise DatasetCorruptError(
-                "The source dataset is corrupted.",
-                "You can try to fix this by loading the dataset with `reset=True` "
-                "which will attempt to reset uncommitted HEAD changes and load the previous version.",
-                e.__cause__,
-            )
+        else:
+            src_ds = src
+
+        dest = convert_pathlib_to_string_if_needed(dest)
+
+        verify_dataset_name(dest)
+
+        # try:
+        #     src_ds = deeplake.load(
+        #         src, read_only=True, creds=src_creds, token=token, verbose=False
+        #     )
+        # except DatasetCorruptError as e:
+        #     raise DatasetCorruptError(
+        #         "The source dataset is corrupted.",
+        #         "You can try to fix this by loading the dataset with `reset=True` "
+        #         "which will attempt to reset uncommitted HEAD changes and load the previous version.",
+        #         e.__cause__,
+        #     )
         src_storage = get_base_storage(src_ds.storage)
 
         dest_storage, cache_chain = get_storage_and_cache_chain(
@@ -1099,7 +1101,7 @@ class dataset:
                 src_storage,
                 memory_cache_size=DEFAULT_MEMORY_CACHE_SIZE,
                 local_cache_size=DEFAULT_LOCAL_CACHE_SIZE,
-                path=src,
+                path=src_ds.path,
             )
             for key in keys:
                 val = metas.get(key) or cache[key]

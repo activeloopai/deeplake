@@ -927,6 +927,15 @@ def test_dataset_deepcopy(path, hub_token, num_workers, progressbar):
         deeplake.deepcopy(src_path, dest_path, token=hub_token)
 
     deeplake.deepcopy(
+        src_ds,
+        dest_path,
+        overwrite=True,
+        token=hub_token,
+        num_workers=num_workers,
+        progressbar=progressbar,
+    )
+
+    deeplake.deepcopy(
         src_path,
         dest_path,
         overwrite=True,
