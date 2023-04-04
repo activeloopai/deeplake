@@ -577,11 +577,20 @@ def test_shape_property(memory_ds):
 def test_htype(memory_ds: Dataset):
     image = memory_ds.create_tensor("image", htype="image", sample_compression="png")
     bbox = memory_ds.create_tensor("bbox", htype="bbox")
-    label = memory_ds.create_tensor("label", htype="class_label")
+    label = memory_ds.create_tensor(
+        "label", htype="class_label", class_names=["a", "b", "c", "d", "e", "f"]
+    )
     video = memory_ds.create_tensor("video", htype="video", sample_compression="mkv")
     bin_mask = memory_ds.create_tensor("bin_mask", htype="binary_mask")
-    segment_mask = memory_ds.create_tensor("segment_mask", htype="segment_mask")
-    keypoints_coco = memory_ds.create_tensor("keypoints_coco", htype="keypoints_coco")
+    segment_mask = memory_ds.create_tensor(
+        "segment_mask", htype="segment_mask", class_names=["a", "b", "c"]
+    )
+    keypoints_coco = memory_ds.create_tensor(
+        "keypoints_coco",
+        htype="keypoints_coco",
+        keypoints=["arm", "leg", "torso"],
+        connections=[[0, 2], [1, 2]],
+    )
     point = memory_ds.create_tensor("point", htype="point")
     point_cloud = memory_ds.create_tensor(
         "point_cloud", htype="point_cloud", sample_compression="las"
