@@ -38,6 +38,7 @@ from deeplake.util.exceptions import (
     DatasetTooLargeToDelete,
     InvalidDatasetNameException,
     UnsupportedParameterException,
+    DynamicTensorNumpyError,
 )
 from deeplake.util.path import convert_string_to_pathlib_if_needed, verify_dataset_name
 from deeplake.util.testing import assert_array_equal
@@ -2446,3 +2447,15 @@ def test_np_array_in_info():
     info["x"] = x
     info2 = deeplake.api.info.Info.frombuffer(info.tobytes())
     np.testing.assert_array_equal(x, info2["x"])
+
+
+def test_sequence_numpy_bug(memory_ds):
+    with memory_ds as ds:
+        ds.create_tensor("abc", htype="sequence")
+        # issue was when number of samples (flattened) was a multiple of length of tensor
+        ds.abc.extend([[1, 2], [1, 2, 3], [1, 2, 3, 4]])
+
+        with pytest.raises(DynamicTensorNumpyError):
+            ds.abc.numpy()
+
+        assert ds.abc.numpy(aslist=True) == [[1, 2], [1, 2, 3], [1, 2, 3, 4]]
