@@ -31,9 +31,8 @@ concurrency:
 
 jobs:
   benchmark:
-    if: github.event_name == 'push' || (github.event_name == 'pull_request' &&  github.event.label.name == 'run-benchmarks')
     env:
-      NODE: ${{ github.event.inputs.machine }}
+      MACHINE: ${{ github.event.inputs.machine }}
       CONFIG: ${{ github.event.inputs.config_file }}
       REPORT_PATH: ${{ github.input.event.deeplake_ref }}
     runs-on: benchmarks_${{ github.event.inputs.machine }}
@@ -83,23 +82,22 @@ jobs:
           python3 benchmarks/scripts/report.py \
             -t md \
             -n benchmarks/results.csv \
-            -b reports/${NODE}/latest/results.csv \
+            -b reports/${MACHINE}/latest/results.csv \
             -o report.md
 
           python3 benchmarks/scripts/report.py \
             -t csv \
             -n benchmarks/results.csv \
-            -b reports/${NODE}/latest/results.csv \
+            -b reports/${MACHINE}/latest/results.csv \
             -o report.csv
 
       - name: update reports
-        if: github.event_name == 'push'
         shell: bash
         run: |
-          mkdir "reports/${NODE}/${REPORT_PATH}" || true
-          cp benchmarks/results.csv "reports/${NODE}/${REPORT_PATH}/"
-          cp report.md   "reports/${NODE}/${REPORT_PATH}/"
-          cp report.csv  "reports/${NODE}/${REPORT_PATH}/"
+          mkdir "reports/${MACHINE}/${REPORT_PATH}" || true
+          cp benchmarks/results.csv "reports/${MACHINE}/${REPORT_PATH}/"
+          cp report.md   "reports/${MACHINE}/${REPORT_PATH}/"
+          cp report.csv  "reports/${MACHINE}/${REPORT_PATH}/"
 
           cd reports
           git config user.name github-actions
@@ -109,7 +107,6 @@ jobs:
           git push origin main 
 
       - name: notify
-        if: github.event_name == 'push'
         shell: bash
         working-directory: ./benchmarks
         env:
