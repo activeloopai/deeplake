@@ -1,5 +1,5 @@
+from deeplake.util.exceptions import TensorDoesNotExistError, SampleAppendError
 from deeplake.core.linked_tiled_sample import LinkedTiledSample
-from deeplake.util.exceptions import TensorDoesNotExistError
 from deeplake.core.partial_sample import PartialSample
 from deeplake.core.linked_sample import LinkedSample
 from deeplake.core.sample import Sample
@@ -84,14 +84,24 @@ class TransformTensor:
             self.numpy_only = False
 
     def append(self, item):
-        if self.is_group:
-            raise TensorDoesNotExistError(self.name)
-        if self.numpy_only:
-            # optimization applicable only if extending
-            self.non_numpy_only()
-        self.items.append(item)
-        if self.dataset.all_chunk_engines:
-            self.dataset.item_added(item)
+        """Adds an item to the tensor."""
+        try:
+            if self.is_group:
+                raise TensorDoesNotExistError(self.name)
+            if self.numpy_only:
+                # optimization applicable only if extending
+                self.non_numpy_only()
+            if (
+                    not isinstance(item, (LinkedSample, LinkedTiledSample, Tensor))
+                    and item is not None
+                ):
+                    shape = getattr(item, "shape", None)    # verify sample
+            self.items.append(item)
+            if self.dataset.all_chunk_engines:
+                self.dataset.item_added(item)
+        except Exception as e:
+            self.items.clear()
+            raise SampleAppendError(self.name, item) from e
 
     def extend(self, items):
         if self.numpy_only:

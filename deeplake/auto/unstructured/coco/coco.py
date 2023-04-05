@@ -13,6 +13,8 @@ from ..util import DatasetStructure, GroupStructure, TensorStructure
 from .utils import CocoAnnotation, CocoImages
 from .convert import coco_to_deeplake
 
+from random import shuffle as rshuffle
+
 from .constants import (
     DEFAULT_GENERIC_TENSOR_PARAMS,
     DEFAULT_COCO_TENSOR_PARAMS,
@@ -137,8 +139,12 @@ class CocoDataset(UnstructuredDataset):
         self._structure = structure
         return structure
 
-    def structure(self, ds: Dataset, progressbar: bool = True, num_workers: int = 0):  # type: ignore
+    def structure(self, ds: Dataset, progressbar: bool = True, num_workers: int = 0, shuffle: bool = True):  # type: ignore
         image_files = self.images.supported_images
+
+        if shuffle:
+            rshuffle(image_files)
+
         tensors = ds.tensors
 
         if self._image_creds_key is not None:

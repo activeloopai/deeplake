@@ -33,7 +33,7 @@ class Info(DeepLakeMemoryObject):
 
     def __exit__(self, exc_type, exc_val, exc_tb):
         if self._dataset is not None:
-            self._dataset.storage.maybe_flush()
+            self._dataset.maybe_flush()
 
     @property
     def nbytes(self):

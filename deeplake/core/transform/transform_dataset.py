@@ -1,5 +1,6 @@
 from deeplake.core.transform.transform_tensor import TransformTensor
 from deeplake.core.linked_tiled_sample import LinkedTiledSample
+from deeplake.util.exceptions import SampleAppendError
 from deeplake.core.partial_sample import PartialSample
 from deeplake.core.linked_sample import LinkedSample
 from deeplake.core.sample import Sample
@@ -31,6 +32,11 @@ class TransformDataset:
         self.cache_used = 0
         self.idx = idx
         self.pg_callback = None
+        self.start_input_idx = None
+    
+    def set_start_input_idx(self, start_input_idx):
+        if self.start_input_idx is None:
+            self.start_input_idx = start_input_idx
 
     def __len__(self):
         return max(len(self[tensor]) for tensor in self.data)
@@ -56,6 +62,7 @@ class TransformDataset:
     def append(self, sample):
         if len(set(map(len, (self[k] for k in sample)))) != 1:
             raise ValueError("All tensors are expected to have the same length.")
+
         for k, v in sample.items():
             self[k].append(v)
 
@@ -74,31 +81,52 @@ class TransformDataset:
             sizeof_item = np.asarray(item, dtype=object).nbytes
 
         self.cache_used += sizeof_item
-        if self.cache_used >= self.cache_size:
-            self.flush()
 
     def set_pg_callback(self, callback):
         self.pg_callback = callback
+    
+    def check_flush(self):
+        if self.cache_used >= self.cache_size:
+            self.flush()
 
     def flush(self):
         all_chunk_engines = self.all_chunk_engines
         label_temp_tensors = self.label_temp_tensors
-        for name, tensor in self.data.items():
-            if not tensor.is_group:
-                name = posixpath.join(self.group_index, name)
-                chunk_engine = all_chunk_engines[label_temp_tensors.get(name, name)]
-                callback = chunk_engine._transform_callback
-                if tensor.numpy_only:
-                    items = tensor[:].numpy_compressed()
-                    for item in items:
+        updated_tensors = {}
+        try:
+            for name, tensor in self.data.items():
+                if not tensor.is_group:
+                    name = posixpath.join(self.group_index, name)
+                    name = label_temp_tensors.get(name, name)
+                    updated_tensors[name] = 0
+                    chunk_engine = all_chunk_engines[name]
+                    callback = chunk_engine._transform_callback
+                    if tensor.numpy_only:
+                            items = tensor[:].numpy_compressed()
+                            for i, item in enumerate(items):
+                                chunk_engine.extend(
+                                    item, link_callback=callback, pg_callback=self.pg_callback
+                                )
+                                updated_tensors[name] += len(item)
+                    else:
+                        items = tensor[:].numpy_compressed()
                         chunk_engine.extend(
-                            item, link_callback=callback, pg_callback=self.pg_callback
+                            items,
+                            link_callback=callback,
+                            pg_callback=self.pg_callback,
                         )
-                else:
-                    chunk_engine.extend(
-                        tensor[:].numpy_compressed(),
-                        link_callback=callback,
-                        pg_callback=self.pg_callback,
-                    )
+                        updated_tensors[name] = len(items)
+                    tensor.items.clear()
+            self.start_input_idx = None
+        except Exception as e:
+            for t in updated_tensors:
+                chunk_engine = all_chunk_engines[t]
+                num_samples = updated_tensors[t]
+                for _ in range(num_samples):
+                    chunk_engine.pop(link_callback=chunk_engine._transform_pop_callback)
+            e = e.__cause__ if isinstance(e, SampleAppendError) else e # type: ignore
+            raise SampleAppendError(name) from e
+        finally:
+            for tensor in self.data.values():
                 tensor.items.clear()
-        self.cache_used = 0
+            self.cache_used = 0

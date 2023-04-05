@@ -96,7 +96,8 @@ def test_missing_dataset_structure(local_ds):
     assert "annotations/sub_annotations/sub_tensor1" in tensors
 
 
-def test_minimal_coco_ingestion(local_path, coco_ingestion_data):
+@pytest.mark.parametrize("shuffle", [True, False])
+def test_minimal_coco_ingestion(local_path, coco_ingestion_data, shuffle):
     key_to_tensor = {"segmentation": "mask", "bbox": "bboxes"}
     file_to_group = {"annotations1": "group1", "annotations2": "group2"}
     ignore_keys = ["area", "iscrowd"]
@@ -108,6 +109,7 @@ def test_minimal_coco_ingestion(local_path, coco_ingestion_data):
         file_to_group_mapping=file_to_group,
         ignore_keys=ignore_keys,
         ignore_one_group=False,
+        shuffle=shuffle,
     )
 
     assert ds.path == local_path
@@ -122,20 +124,57 @@ def test_minimal_coco_ingestion(local_path, coco_ingestion_data):
     assert "group2/iscrowd" not in ds.tensors
 
 
-def test_coco_ingestion_with_linked_images(local_path, coco_ingestion_data):
+def test_minimal_coco_with_connect(
+    s3_path,
+    coco_ingestion_data,
+    hub_cloud_path,
+    hub_cloud_dev_token,
+    hub_cloud_dev_managed_creds_key,
+):
+    params = {**coco_ingestion_data}
+
+    ds = deeplake.ingest_coco(
+        **params,
+        dest=s3_path,
+        connect_kwargs={
+            "dest_path": hub_cloud_path,
+            "creds_key": hub_cloud_dev_managed_creds_key,
+            "token": hub_cloud_dev_token,
+        },
+    )
+
+    assert ds.path == hub_cloud_path
+    assert "images" in ds.tensors
+    assert "annotations1/bbox" in ds.tensors
+
+
+def test_coco_ingestion_with_linked_images(
+    s3_path,
+    coco_ingestion_data,
+    hub_cloud_path,
+    hub_cloud_dev_token,
+    hub_cloud_dev_managed_creds_key,
+):
     file_to_group = {"annotations1.json": "base_annotations"}
     ds = deeplake.ingest_coco(
         **coco_ingestion_data,
         file_to_group_mapping=file_to_group,
-        dest=local_path,
+        dest=s3_path,
         image_params={"name": "linked_images", "htype": "link[image]"},
+        image_creds_key=hub_cloud_dev_managed_creds_key,
+        connect_kwargs={
+            "dest_path": hub_cloud_path,
+            "creds_key": hub_cloud_dev_managed_creds_key,
+            "token": hub_cloud_dev_token,
+        },
     )
 
-    assert ds.path == local_path
+    assert ds.path == hub_cloud_path
     assert "linked_images" in ds.tensors
+    assert ds.linked_images.num_samples > 0
+    assert ds.linked_images.htype == "link[image]"
     assert "base_annotations/bbox" in ds.tensors
     assert "base_annotations/segmentation" in ds.tensors
-    assert ds.linked_images.htype == "link[image]"
 
 
 def test_flat_coco_ingestion(local_path, coco_ingestion_data):

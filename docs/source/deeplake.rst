@@ -7,7 +7,7 @@ deeplake
 .. autofunction:: dataset
 .. autofunction:: empty
 .. autofunction:: like
-.. autofunction:: ingest
+.. autofunction:: ingest_classification
 .. autofunction:: ingest_coco
 .. autofunction:: ingest_yolo
 .. autofunction:: ingest_kaggle
@@ -19,7 +19,6 @@ deeplake
 .. autofunction:: copy
 .. autofunction:: deepcopy
 .. autofunction:: connect
-.. autofunction:: list
 .. autofunction:: exists
 .. autofunction:: read
 .. autofunction:: link

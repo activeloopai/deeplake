@@ -39,15 +39,15 @@ deeplake.api.dataset
 
         See :func:`deeplake.connect`.
     
-    .. staticmethod:: ingest(src: Union[str, pathlib.Path], dest: Union[str, pathlib.Path], images_compression: str = "auto", dest_creds: dict = None, progressbar: bool = True, summary: bool = True, **dataset_kwargs) -> Dataset
+    .. staticmethod:: ingest_classification(src: Union[str, pathlib.Path], dest: Union[str, pathlib.Path], image_params: Optional[Dict] = None, label_params: Optional[Dict]: None, dest_creds: Optional[Dict] = None, progressbar: bool = True, summary: bool = True, num_workers: int = 0, shuffle: bool = False, token: Optional[str] = None, connect_kwargs: Optional[Dict] = None, **dataset_kwargs) -> Dataset
 
-        See :func:`deeplake.ingest`.
+        See :func:`deeplake.ingest_classification`.
 
-    .. staticmethod:: ingest_coco(images_directory: Union[str, pathlib.Path], annotation_files: Union[str, pathlib.Path, List[str]], dest: Union[str, pathlib.Path], key_to_tensor_mapping: Optional[Dict] = None, file_to_group_mapping: Optional[Dict] = None, ignore_one_group: bool = False, ignore_keys: Optional[List[str]] = None, image_settings: Optional[Dict] = None, src_creds: Optional[Dict] = None, dest_creds: Optional[Dict] = None, inspect_limit: int = 1000000, progressbar: bool = True, num_workers: int = 0, **dataset_kwargs) -> Dataset
+    .. staticmethod:: ingest_coco(images_directory: Union[str, pathlib.Path], annotation_files: Union[str, pathlib.Path, List[str]], dest: Union[str, pathlib.Path], key_to_tensor_mapping: Optional[Dict] = None, file_to_group_mapping: Optional[Dict] = None, ignore_one_group: bool = False, ignore_keys: Optional[List[str]] = None, image_settings: Optional[Dict] = None, src_creds: Optional[Dict] = None, dest_creds: Optional[Dict] = None, inspect_limit: int = 1000000, progressbar: bool = True, shuffle: bool = False, num_workers: int = 0, token: Optional[str] = None, connect_kwargs: Optional[Dict] = None, **dataset_kwargs) -> Dataset
 
         See :func:`deeplake.ingest_coco`.
     
-    .. staticmethod:: def ingest_yolo(data_directory: Union[str, pathlib.Path], dest: Union[str, pathlib.Path], class_names_file: Optional[Union[str, pathlib.Path]] = None, annotations_directory: Optional[Union[str, pathlib.Path]] = None, allow_no_annotation: bool = False, image_params: Optional[Dict] = None, label_params: Optional[Dict] = None, coordinates_params: Optional[Dict] = None, src_creds: Optional[Dict] = None, dest_creds: Optional[Dict] = None, image_creds_key: Optional[str] = None, inspect_limit: int = 1000, progressbar: bool = True, num_workers: int = 0, token: Optional[str] = None, connect_kwargs: Optional[Dict] = None, **dataset_kwargs) -> Dataset:
+    .. staticmethod:: def ingest_yolo(data_directory: Union[str, pathlib.Path], dest: Union[str, pathlib.Path], class_names_file: Optional[Union[str, pathlib.Path]] = None, annotations_directory: Optional[Union[str, pathlib.Path]] = None, allow_no_annotation: bool = False, image_params: Optional[Dict] = None, label_params: Optional[Dict] = None, coordinates_params: Optional[Dict] = None, src_creds: Optional[Dict] = None, dest_creds: Optional[Dict] = None, image_creds_key: Optional[str] = None, inspect_limit: int = 1000, progressbar: bool = True, shuffle: bool = False, num_workers: int = 0, token: Optional[str] = None, connect_kwargs: Optional[Dict] = None, **dataset_kwargs) -> Dataset:
     
         See :func:`deeplake.ingest_yolo`
         
@@ -55,7 +55,7 @@ deeplake.api.dataset
 
         See :func:`deeplake.ingest_kaggle`.
     
-    .. staticmethod:: ingest_dataframe(src, dest: Union[str, pathlib.Path], dest_creds: Optional[Dict] = None, progressbar: bool = True,**dataset_kwargs)
+    .. staticmethod:: ingest_dataframe(src, dest: Union[str, pathlib.Path], column_params: Optional[Dict] = None, src_creds: Optional[Dict] = None, dest_creds: Optional[Dict] = None, creds_key: Optional[Dict] = None, progressbar: bool = True, token: Optional[str] = None, connect_kwargs: Optional[Dict] = None, **dataset_kwargs)
 
         See :func:`deeplake.ingest_dataframe`.
     

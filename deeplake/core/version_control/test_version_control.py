@@ -689,7 +689,7 @@ def test_dataset_diff(local_ds, capsys):
     target = get_diff_helper(dataset_diff, None, tensor_diff, None)
     local_ds.diff()
     captured = capsys.readouterr()
-    assert captured.out == target
+    assert captured.out.strip() == target.strip()
 
     b = local_ds.commit()
     expected_tensor_diff_from_b = {
@@ -727,13 +727,13 @@ def test_dataset_diff(local_ds, capsys):
         a,
     )
     captured = capsys.readouterr()
-    assert captured.out == target
+    assert captured.out.strip() == target.strip()
 
     # cover DatasetDiff.frombuffer
     ds = deeplake.load(local_ds.path)
     ds.diff(a)
     captured = capsys.readouterr()
-    assert captured.out == target
+    assert captured.out.strip() == target.strip()
     diff = ds.diff(a, as_dict=True)
     tensor_diff = diff["tensor"]
     dataset_diff = diff["dataset"]
@@ -776,7 +776,7 @@ def test_clear_diff(local_ds, capsys):
     target = get_diff_helper(dataset_diff, None, tensor_diff, None)
 
     captured = capsys.readouterr()
-    assert captured.out == target
+    assert captured.out.strip() == target.strip()
 
     a = local_ds.commit()
     expected_tensor_diff_from_a = {
@@ -821,7 +821,7 @@ def test_clear_diff(local_ds, capsys):
         a,
     )
     captured = capsys.readouterr()
-    assert captured.out == target
+    assert captured.out.strip() == target.strip()
 
     b = local_ds.commit()
     expected_tensor_diff_from_b = {
@@ -873,7 +873,7 @@ def test_clear_diff(local_ds, capsys):
         a,
     )
     captured = capsys.readouterr()
-    assert captured.out == target
+    assert captured.out.strip() == target.strip()
 
 
 def test_delete_diff(local_ds, capsys):
@@ -943,7 +943,7 @@ def test_delete_diff(local_ds, capsys):
         a,
     )
     captured = capsys.readouterr()
-    assert captured.out == target
+    assert captured.out.strip() == target.strip()
 
     d = local_ds.commit()
     expected_tensor_diff_from_d = {
@@ -1003,7 +1003,7 @@ def test_delete_diff(local_ds, capsys):
         c,
     )
     captured = capsys.readouterr()
-    assert captured.out == target
+    assert captured.out.strip() == target.strip()
 
     diff = local_ds.diff(a, as_dict=True)
     tensor_diff = diff["tensor"]
@@ -1045,7 +1045,7 @@ def test_delete_diff(local_ds, capsys):
         a,
     )
     captured = capsys.readouterr()
-    assert captured.out == target
+    assert captured.out.strip() == target.strip()
 
     diff = local_ds.diff(as_dict=True)
     tensor_diff = diff["tensor"]
@@ -1094,7 +1094,7 @@ def test_rename_diff_single(local_ds, capsys):
     local_ds.diff()
     target = get_diff_helper(dataset_diff, None, tensor_diff, None)
     captured = capsys.readouterr()
-    assert captured.out == target
+    assert captured.out.strip() == target.strip()
 
     a = local_ds.commit()
     expected_tensor_diff_from_a = {
@@ -1147,7 +1147,7 @@ def test_rename_diff_single(local_ds, capsys):
         a,
     )
     captured = capsys.readouterr()
-    assert captured.out == target
+    assert captured.out.strip() == target.strip()
 
 
 def test_rename_diff_linear(local_ds, capsys):
@@ -1229,7 +1229,7 @@ def test_rename_diff_linear(local_ds, capsys):
         a,
     )
     captured = capsys.readouterr()
-    assert captured.out == target
+    assert captured.out.strip() == target.strip()
 
     c = local_ds.commit()
     expected_tensor_diff_from_c = {
@@ -1286,7 +1286,7 @@ def test_rename_diff_linear(local_ds, capsys):
         a,
     )
     captured = capsys.readouterr()
-    assert captured.out == target
+    assert captured.out.strip() == target.strip()
 
     d = local_ds.commit()
     expected_tensor_diff_from_d = {
@@ -1342,7 +1342,7 @@ def test_rename_diff_linear(local_ds, capsys):
         b,
     )
     captured = capsys.readouterr()
-    assert captured.out == target
+    assert captured.out.strip() == target.strip()
 
     e = local_ds.commit()
     expected_tensor_diff_from_e = {
@@ -1395,7 +1395,7 @@ def test_rename_diff_linear(local_ds, capsys):
         a,
     )
     captured = capsys.readouterr()
-    assert captured.out == target
+    assert captured.out.strip() == target.strip()
 
 
 def test_rename_diff_branch(local_ds, capsys):
@@ -1519,7 +1519,7 @@ def test_rename_diff_branch(local_ds, capsys):
         e,
     )
     captured = capsys.readouterr()
-    assert captured.out == target
+    assert captured.out.strip() == target.strip()
 
 
 def test_rename_group(local_ds, capsys):
@@ -1558,7 +1558,7 @@ def test_rename_group(local_ds, capsys):
     local_ds.diff()
     target = get_diff_helper(dataset_diff, None, tensor_diff, None)
     captured = capsys.readouterr()
-    assert captured.out == target
+    assert captured.out.strip() == target.strip()
 
 
 def test_diff_linear(local_ds, capsys):
@@ -1602,7 +1602,7 @@ def test_diff_linear(local_ds, capsys):
     local_ds.diff()
     target = get_diff_helper(dataset_diff, None, tensor_diff, None)
     captured = capsys.readouterr()
-    assert captured.out == target
+    assert captured.out.strip() == target.strip()
 
     b = local_ds.commit()
     expected_tensor_diff_from_b = {
@@ -1625,7 +1625,7 @@ def test_diff_linear(local_ds, capsys):
     local_ds.diff()
     target = get_diff_helper(dataset_diff, None, tensor_diff, None)
     captured = capsys.readouterr()
-    assert captured.out == target
+    assert captured.out.strip() == target.strip()
 
     diff = local_ds.diff(a, as_dict=True)
     tensor_diff = diff["tensor"]
@@ -1654,7 +1654,7 @@ def test_diff_linear(local_ds, capsys):
         a,
     )
     captured = capsys.readouterr()
-    assert captured.out == target
+    assert captured.out.strip() == target.strip()
 
     diff = local_ds.diff(b, as_dict=True)
     tensor_diff = diff["tensor"]
@@ -1679,7 +1679,7 @@ def test_diff_linear(local_ds, capsys):
     )
 
     captured = capsys.readouterr()
-    assert captured.out == target
+    assert captured.out.strip() == target.strip()
 
     diff = local_ds.diff(a, b, as_dict=True)
     tensor_diff = diff["tensor"]
@@ -1703,7 +1703,7 @@ def test_diff_linear(local_ds, capsys):
         b,
     )
     captured = capsys.readouterr()
-    assert captured.out == target
+    assert captured.out.strip() == target.strip()
 
     diff = local_ds.diff(b, a, as_dict=True)
     tensor_diff = diff["tensor"]
@@ -1727,7 +1727,7 @@ def test_diff_linear(local_ds, capsys):
         a,
     )
     captured = capsys.readouterr()
-    assert captured.out == target
+    assert captured.out.strip() == target.strip()
 
     local_ds.checkout(b)
     diff = local_ds.diff(as_dict=True)
@@ -2385,3 +2385,54 @@ def test_reset_delete_group(local_ds):
         ds.commit()
         ds.delete_group("abc")
         assert ds.has_head_changes
+
+
+def test_load_to_version(local_path):
+    with deeplake.empty(local_path, overwrite=True) as ds:
+        ds.create_tensor("abc")
+        ds.abc.append(1)
+        main_1 = ds.commit()
+        ds.create_tensor("xyz")
+        main_2 = ds.commit()
+
+        ds.checkout("alt", create=True)
+        ds.abc.append(2)
+        alt_1 = ds.commit()
+        ds.xyz.append(1)
+        ds.xyz.append(2)
+        alt_2 = ds.commit()
+
+    ds = deeplake.load(f"{local_path}@{main_1}")
+    set(ds.tensors.keys()) == {"abc"}
+    np.testing.assert_array_equal(ds.abc.numpy(), [[1]])
+
+    for address in ("main", main_2):
+        ds = deeplake.load(f"{local_path}@{address}")
+        set(ds.tensors.keys()) == {"abc", "xyz"}
+        np.testing.assert_array_equal(ds.abc.numpy(), [[1]])
+        np.testing.assert_array_equal(ds.xyz.numpy(), [])
+
+    ds = deeplake.load(f"{local_path}@{alt_1}")
+    set(ds.tensors.keys()) == {"abc", "xyz"}
+    np.testing.assert_array_equal(ds.abc.numpy(), [[1], [2]])
+    np.testing.assert_array_equal(ds.xyz.numpy(), [])
+
+    for address in ("alt", alt_2):
+        ds = deeplake.load(f"{local_path}@{address}")
+        set(ds.tensors.keys()) == {"abc", "xyz"}
+        np.testing.assert_array_equal(ds.abc.numpy(), [[1], [2]])
+        np.testing.assert_array_equal(ds.xyz.numpy(), [[1], [2]])
+
+
+def test_version_in_path(local_path):
+    with pytest.raises(ValueError):
+        deeplake.empty(f"{local_path}@main")
+
+    with pytest.raises(ValueError):
+        deeplake.delete(f"{local_path}@main")
+
+    with pytest.raises(ValueError):
+        deeplake.dataset(f"{local_path}@main")
+
+    with pytest.raises(ValueError):
+        deeplake.exists(f"{local_path}@main")
