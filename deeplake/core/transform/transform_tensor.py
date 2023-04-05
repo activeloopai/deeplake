@@ -92,10 +92,10 @@ class TransformTensor:
                 # optimization applicable only if extending
                 self.non_numpy_only()
             if (
-                    not isinstance(item, (LinkedSample, LinkedTiledSample, Tensor))
-                    and item is not None
-                ):
-                    shape = getattr(item, "shape", None)    # verify sample
+                not isinstance(item, (LinkedSample, LinkedTiledSample, Tensor))
+                and item is not None
+            ):
+                shape = getattr(item, "shape", None)  # verify sample
             self.items.append(item)
             if self.dataset.all_chunk_engines:
                 self.dataset.item_added(item)

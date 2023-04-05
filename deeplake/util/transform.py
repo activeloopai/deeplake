@@ -111,7 +111,9 @@ def _normalize_pg(pg_callback, num_tensors):
     return inner
 
 
-def _extend_data_slice(data_slice, offset, transform_dataset, transform_fn, pg_callback):
+def _extend_data_slice(
+    data_slice, offset, transform_dataset, transform_fn, pg_callback
+):
     extend_fn, args, kwargs = (
         transform_fn.func,
         transform_fn.args,
@@ -136,6 +138,7 @@ def _check_pipeline(out, tensors, skip_ok):
     elif set(result_keys) != set(tensors):
         raise TensorMismatchError(list(tensors), list(result_keys), skip_ok)
 
+
 def write_sample_to_transform_dataset(out, transform_dataset):
     if not is_empty_transform_dataset(out):
         for tensor in out.tensors:
@@ -149,12 +152,23 @@ def write_sample_to_transform_dataset(out, transform_dataset):
                 transform_tensor.extend(out_tensor.items)
             out_tensor.items.clear()
 
+
 def _handle_transform_error(
-        data_slice, offset, transform_dataset, pipeline, tensors, end_input_idx, ignore_errors
+    data_slice,
+    offset,
+    transform_dataset,
+    pipeline,
+    tensors,
+    end_input_idx,
+    ignore_errors,
 ):
     start_input_idx = transform_dataset.start_input_idx
     for i in range(start_input_idx, end_input_idx + 1):
-        sample = data_slice[i : i + 1] if pd and isinstance(data_slice, pd.DataFrame) else data_slice[i]
+        sample = (
+            data_slice[i : i + 1]
+            if pd and isinstance(data_slice, pd.DataFrame)
+            else data_slice[i]
+        )
         try:
             out = transform_sample(sample, pipeline, tensors)
 
@@ -165,10 +179,17 @@ def _handle_transform_error(
             if isinstance(e, SampleAppendError) and ignore_errors:
                 continue
             raise TransformError(offset + i, sample) from e
-    
+
 
 def _transform_and_append_data_slice(
-    data_slice, offset, transform_dataset, pipeline, tensors, skip_ok, pg_callback, ignore_errors
+    data_slice,
+    offset,
+    transform_dataset,
+    pipeline,
+    tensors,
+    skip_ok,
+    pg_callback,
+    ignore_errors,
 ):
     n = len(data_slice)
 
@@ -205,7 +226,15 @@ def _transform_and_append_data_slice(
         except SampleAppendError:
             # failure at chunk_engine
             # retry one sample at a time
-            _handle_transform_error(data_slice, offset, transform_dataset, pipeline, tensors, i, ignore_errors)
+            _handle_transform_error(
+                data_slice,
+                offset,
+                transform_dataset,
+                pipeline,
+                tensors,
+                i,
+                ignore_errors,
+            )
             continue
 
 
@@ -284,7 +313,14 @@ def store_data_slice_with_pbar(pg_callback, transform_input: Tuple) -> Dict:
         )
     else:
         _transform_and_append_data_slice(
-            data_slice, offset, transform_dataset, pipeline, rel_tensors, skip_ok, pg_callback, ignore_errors
+            data_slice,
+            offset,
+            transform_dataset,
+            pipeline,
+            rel_tensors,
+            skip_ok,
+            pg_callback,
+            ignore_errors,
         )
 
     # retrieve relevant objects from memory

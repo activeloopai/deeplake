@@ -33,7 +33,7 @@ class TransformDataset:
         self.idx = idx
         self.pg_callback = None
         self.start_input_idx = None
-    
+
     def set_start_input_idx(self, start_input_idx):
         if self.start_input_idx is None:
             self.start_input_idx = start_input_idx
@@ -84,7 +84,7 @@ class TransformDataset:
 
     def set_pg_callback(self, callback):
         self.pg_callback = callback
-    
+
     def check_flush(self):
         if self.cache_used >= self.cache_size:
             self.flush()
@@ -102,12 +102,14 @@ class TransformDataset:
                     chunk_engine = all_chunk_engines[name]
                     callback = chunk_engine._transform_callback
                     if tensor.numpy_only:
-                            items = tensor[:].numpy_compressed()
-                            for i, item in enumerate(items):
-                                chunk_engine.extend(
-                                    item, link_callback=callback, pg_callback=self.pg_callback
-                                )
-                                updated_tensors[name] += len(item)
+                        items = tensor[:].numpy_compressed()
+                        for i, item in enumerate(items):
+                            chunk_engine.extend(
+                                item,
+                                link_callback=callback,
+                                pg_callback=self.pg_callback,
+                            )
+                            updated_tensors[name] += len(item)
                     else:
                         items = tensor[:].numpy_compressed()
                         chunk_engine.extend(
@@ -124,7 +126,7 @@ class TransformDataset:
                 num_samples = updated_tensors[t]
                 for _ in range(num_samples):
                     chunk_engine.pop(link_callback=chunk_engine._transform_pop_callback)
-            e = e.__cause__ if isinstance(e, SampleAppendError) else e # type: ignore
+            e = e.__cause__ if isinstance(e, SampleAppendError) else e  # type: ignore
             raise SampleAppendError(name) from e
         finally:
             for tensor in self.data.values():

@@ -1024,6 +1024,7 @@ class MissingCredsError(Exception):
 class EmptyPolygonError(Exception):
     pass
 
+
 class MissingManagedCredsError(Exception):
     pass
 
