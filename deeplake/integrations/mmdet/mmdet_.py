@@ -17,7 +17,7 @@ Deeplake integration requires the following parameters to be specified in the co
     - pipeline: list of transformations. This parameter exists for train as well as for val.
     Example:
     
->>>    pipeline =  [dict(type="Resize", img_scale=[(320, 320), (608, 608)], keep_ratio=True), dict(type="RandomFlip", flip_ratio=0.5), dict(type="PhotoMetricDistortion")]
+>>> pipeline =  [dict(type="Resize", img_scale=[(320, 320), (608, 608)], keep_ratio=True), dict(type="RandomFlip", flip_ratio=0.5), dict(type="PhotoMetricDistortion")]
 
     - deeplake_path: path to the deeplake dataset. This parameter exists for train as well as for val.
     - deeplake_credentials: optional parameter. Required only when using private nonlocal datasets. See documendataion for `deeplake.load() <https://docs.deeplake.ai/en/latest/deeplake.html#deeplake.load>`_ for details. This parameter exists for train as well as for val.
@@ -38,8 +38,8 @@ Deeplake integration requires the following parameters to be specified in the co
   
 Ex:
 
->>>  deeplake_metrics_format = "COCO"
->>>  evaluation = dict(metric=["bbox"], interval=1)
+>>> deeplake_metrics_format = "COCO"
+>>> evaluation = dict(metric=["bbox"], interval=1)
 
 - train_detector: Function to train the MMDetection model. Parameters are: model, cfg: mmcv.ConfigDict, ds_train=None, ds_train_tensors=None, ds_val: Optional[dp.Dataset] = None, ds_val_tensors=None, distributed: bool = False, timestamp=None, meta=None, validate: bool = True.
     - model: MMDetection model that is going to be used.
@@ -62,95 +62,84 @@ Below is the example of the deeplake mmdet configuration:
 
 
 >>> _base_ = "../mmdetection/configs/yolo/yolov3_d53_mstrain-416_273e_coco.py"
->>> 
 >>> # use caffe img_norm
 >>> img_norm_cfg = dict(mean=[0, 0, 0], std=[255., 255., 255.], to_rgb=True)
->>> 
 >>> train_pipeline = [
->>>     dict(type='LoadImageFromFile'),
->>>     dict(type='LoadAnnotations', with_bbox=True),
->>>     dict(
->>>         type='Expand',
->>>         mean=img_norm_cfg['mean'],
->>>         to_rgb=img_norm_cfg['to_rgb'],
->>>         ratio_range=(1, 2)),
->>>     dict(type='Resize', img_scale=[(320, 320), (416, 416)], keep_ratio=True),
->>>     dict(type='RandomFlip', flip_ratio=0.0),
->>>     dict(type='PhotoMetricDistortion'),
->>>     dict(type='Normalize', **img_norm_cfg),
->>>     dict(type='Pad', size_divisor=32),
->>>     dict(type='DefaultFormatBundle'),
->>>     dict(type='Collect', keys=['img', 'gt_bboxes', 'gt_labels'])
->>> ]
+...     dict(type='LoadImageFromFile'),
+...     dict(type='LoadAnnotations', with_bbox=True),
+...     dict(
+...         type='Expand',
+...         mean=img_norm_cfg['mean'],
+...         to_rgb=img_norm_cfg['to_rgb'],
+...         ratio_range=(1, 2)),
+...     dict(type='Resize', img_scale=[(320, 320), (416, 416)], keep_ratio=True),
+...     dict(type='RandomFlip', flip_ratio=0.0),
+...     dict(type='PhotoMetricDistortion'),
+...     dict(type='Normalize', **img_norm_cfg),
+...     dict(type='Pad', size_divisor=32),
+...     dict(type='DefaultFormatBundle'),
+...     dict(type='Collect', keys=['img', 'gt_bboxes', 'gt_labels'])
+... ]
 >>> test_pipeline = [
->>>     dict(type='LoadImageFromFile'),
->>>     dict(
->>>         type='MultiScaleFlipAug',
->>>         img_scale=(416, 416),
->>>         flip=False,
->>>         transforms=[
->>>             dict(type='Resize', keep_ratio=True),
->>>             dict(type='RandomFlip', flip_ratio=0.0),
->>>             dict(type='Normalize', **img_norm_cfg),
->>>             dict(type='Pad', size_divisor=32),
->>>             dict(type='ImageToTensor', keys=['img']),
->>>             dict(type='Collect', keys=['img'])
->>>         ])
->>> ]
+...     dict(type='LoadImageFromFile'),
+...     dict(
+...         type='MultiScaleFlipAug',
+...         img_scale=(416, 416),
+...         flip=False,
+...         transforms=[
+...             dict(type='Resize', keep_ratio=True),
+...             dict(type='RandomFlip', flip_ratio=0.0),
+...             dict(type='Normalize', **img_norm_cfg),
+...             dict(type='Pad', size_divisor=32),
+...             dict(type='ImageToTensor', keys=['img']),
+...             dict(type='Collect', keys=['img'])
+...         ])
+... ]
 >>> #--------------------------------------DEEPLAKE INPUTS------------------------------------------------------------#
->>> TOKEN = "INSERT_YOUR_DEEPLAKE_TOKEN"
-​>>> 
->>> 
+>>> TOKEN = "INSERT_YOUR_DEEPLAKE_TOKEN" 
 >>> data = dict(
->>>     # samples_per_gpu=4, # Is used instead of batch_size if deeplake_dataloader is not specified below
->>>     # workers_per_gpu=8, # Is used instead of num_workers if deeplake_dataloader is not specified below
->>>     train=dict(
->>>         pipeline=train_pipeline,
-​>>> 
->>>         # Credentials for authentication. See documendataion for deeplake.load() for details
->>>         deeplake_path="hub://activeloop/coco-train",
->>>         deeplake_credentials={
->>>             "username": None,
->>>             "password": None,
->>>             "token": TOKEN,
->>>             "creds": None,
->>>         },
->>>         #OPTIONAL - Checkout the specified commit_id before training
->>>         deeplake_commit_id="",
->>>         #OPTIONAL - Loads a dataset view for training based on view_id
->>>         deeplake_view_id="",
-​
->>>         # OPTIONAL - {"mmdet_key": "deep_lake_tensor",...} - Maps Deep Lake tensors to MMDET dictionary keys. 
->>>         # If not specified, Deep Lake will auto-infer the mapping, but it might make mistakes if datasets have many tensors
->>>         deeplake_tensors = {"img": "images", "gt_bboxes": "boxes", "gt_labels": "categories", "gt_masks": "masks},
->>>         
->>>         # OPTIONAL - Parameters to use for the Deep Lake dataloader. If unspecified, the integration uses
->>>         # the parameters in other parts of the cfg file such as samples_per_gpu, and others.
->>>         deeplake_dataloader = {"shuffle": True, "batch_size": 4, 'num_workers': 8}
->>>     ),
->>> ​
->>>     # Parameters as the same as for train
->>>     val=dict(
->>>         pipeline=test_pipeline,
->>>         deeplake_path="hub://activeloop/coco-val",
->>>         deeplake_credentials={
->>>             "username": None,
->>>             "password": None,
->>>             "token": TOKEN,
->>>             "creds": None,
->>>         },
->>>         deeplake_tensors = {"img": "images", "gt_bboxes": "boxes", "gt_labels": "categories"},
->>>         deeplake_dataloader = {"shuffle": False, "batch_size": 1, 'num_workers': 8}
->>>     ),
->>> )
-​>>> 
+...     # samples_per_gpu=4, # Is used instead of batch_size if deeplake_dataloader is not specified below
+...     # workers_per_gpu=8, # Is used instead of num_workers if deeplake_dataloader is not specified below
+...     train=dict(
+...         pipeline=train_pipeline,
+...         # Credentials for authentication. See documendataion for deeplake.load() for details
+...         deeplake_path="hub://activeloop/coco-train",
+...          deeplake_credentials={
+...             "username": None,
+...             "password": None,
+...             "token": TOKEN,
+...             "creds": None,
+...         },
+...         #OPTIONAL - Checkout the specified commit_id before training
+...         deeplake_commit_id="",
+...         #OPTIONAL - Loads a dataset view for training based on view_id
+...         deeplake_view_id="",
+...         # OPTIONAL - {"mmdet_key": "deep_lake_tensor",...} - Maps Deep Lake tensors to MMDET dictionary keys. 
+...         # If not specified, Deep Lake will auto-infer the mapping, but it might make mistakes if datasets have many tensors
+...         deeplake_tensors = {"img": "images", "gt_bboxes": "boxes", "gt_labels": "categories", "gt_masks": "masks},         
+...         # OPTIONAL - Parameters to use for the Deep Lake dataloader. If unspecified, the integration uses
+...         # the parameters in other parts of the cfg file such as samples_per_gpu, and others.
+...         deeplake_dataloader = {"shuffle": True, "batch_size": 4, 'num_workers': 8}
+...     ),
+...     # Parameters as the same as for train
+...     val=dict(
+...         pipeline=test_pipeline,
+...         deeplake_path="hub://activeloop/coco-val",
+...         deeplake_credentials={
+...             "username": None,
+...             "password": None,
+...             "token": TOKEN,
+...             "creds": None,
+...         },
+...         deeplake_tensors = {"img": "images", "gt_bboxes": "boxes", "gt_labels": "categories"},
+...         deeplake_dataloader = {"shuffle": False, "batch_size": 1, 'num_workers': 8}
+...     ),
+... )
 >>> # Which dataloader to use
 >>> deeplake_dataloader_type = "c++"  # "c++" is available to enterprise users. Otherwise use "python"
-​
 >>> # Which metrics to use for evaulation. In MMDET (without Deeplake), this is inferred from the dataset type.
 >>> # In the Deep Lake integration, since the format is standardized, a variety of metrics can be used for a given dataset.
 >>> deeplake_metrics_format = "COCO"
-​
 >>> #----------------------------------END DEEPLAKE INPUTS------------------------------------------------------------#
 
 And config for training:
@@ -159,18 +148,12 @@ And config for training:
 >>> from mmcv import Config
 >>> import mmcv
 >>> from deeplake.integrations import mmdet as mmdet_deeplake
->>> 
->>> 
 >>> cfg = Config.fromfile(cfg_file)
->>> 
 >>> cfg.model.bbox_head.num_classes = num_classes
->>> 
 >>> # Build the detector
 >>> model = mmdet_deeplake.build_detector(cfg.model)
->>> 
 >>> # Create work_dir
 >>> mmcv.mkdir_or_exist(os.path.abspath(cfg.work_dir))
->>> 
 >>> # Run the training
 >>> mmdet_deeplake.train_detector(model, cfg, distributed=args.distributed, validate=args.validate)
 """
