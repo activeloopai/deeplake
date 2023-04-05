@@ -38,6 +38,7 @@ from deeplake.util.exceptions import (
     DatasetTooLargeToDelete,
     InvalidDatasetNameException,
     UnsupportedParameterException,
+    DynamicTensorNumpyError,
 )
 from deeplake.util.path import convert_string_to_pathlib_if_needed, verify_dataset_name
 from deeplake.util.testing import assert_array_equal
@@ -207,11 +208,15 @@ def test_stringify(memory_ds, capsys):
         capsys.readouterr().out
         == "Dataset(path='mem://hub_pytest/test_api/test_stringify', tensors=['image'])\n\n tensor    htype    shape    dtype  compression\n -------  -------  -------  -------  ------- \n  image   generic  (4, 4)    None     None   \n"
     )
-    ds[1:2].summary()
-    assert (
-        capsys.readouterr().out
-        == "Dataset(path='mem://hub_pytest/test_api/test_stringify', index=Index([slice(1, 2, None)]), tensors=['image'])\n\n tensor    htype    shape    dtype  compression\n -------  -------  -------  -------  ------- \n  image   generic  (1, 4)    None     None   \n"
-    )
+    with pytest.raises(NotImplementedError):
+        ds[1:2].summary()
+    # TODO - Bring this back after summary is supported for views
+    # ds[1:2].summary()
+    # assert (
+    #     capsys.readouterr().out
+    #     == "Dataset(path='mem://hub_pytest/test_api/test_stringify', index=Index([slice(1, 2, None)]), tensors=['image'])\n\n tensor    htype    shape    dtype  compression\n -------  -------  -------  -------  ------- \n  image   generic  (1, 4)    None     None   \n"
+    # )
+
     ds.image.summary()
     assert (
         capsys.readouterr().out
@@ -2442,3 +2447,15 @@ def test_np_array_in_info():
     info["x"] = x
     info2 = deeplake.api.info.Info.frombuffer(info.tobytes())
     np.testing.assert_array_equal(x, info2["x"])
+
+
+def test_sequence_numpy_bug(memory_ds):
+    with memory_ds as ds:
+        ds.create_tensor("abc", htype="sequence")
+        # issue was when number of samples (flattened) was a multiple of length of tensor
+        ds.abc.extend([[1, 2], [1, 2, 3], [1, 2, 3, 4]])
+
+        with pytest.raises(DynamicTensorNumpyError):
+            ds.abc.numpy()
+
+        assert ds.abc.numpy(aslist=True) == [[1, 2], [1, 2, 3], [1, 2, 3, 4]]

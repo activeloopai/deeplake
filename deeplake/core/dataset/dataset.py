@@ -2214,6 +2214,10 @@ class Dataset:
 
     def summary(self):
         """Prints a summary of the dataset."""
+
+        if self.is_view:
+            raise NotImplementedError("Summary is not currently supported for views.")
+
         pretty_print = summary_dataset(self)
 
         print(self)
@@ -2924,11 +2928,14 @@ class Dataset:
         Raises:
             ReadOnlyModeError: When attempting to save a view inplace and the user doesn't have write access.
             DatasetViewSavingError: If HEAD node has uncommitted changes.
+            TypeError: If ``id`` is not of type ``str``.
 
         Note:
             Specifying ``path`` makes the view external. External views cannot be accessed using the parent dataset's :func:`Dataset.get_view`,
             :func:`Dataset.load_view`, :func:`Dataset.delete_view` methods. They have to be loaded using :func:`deeplake.load`.
         """
+        if id is not None and not isinstance(id, str):
+            raise TypeError(f"id {id} is of type {type(id)}, expected `str`.")
         return self._save_view(
             path,
             id,
@@ -3073,6 +3080,7 @@ class Dataset:
         )
 
         ds.index = Index()
+        ds.version_state = ds.version_state.copy()
         ds._checkout(commit_id, verbose=False)
         first_index_subscriptable = self.info.get("first-index-subscriptable", True)
         if first_index_subscriptable:
@@ -3113,21 +3121,17 @@ class Dataset:
 
         Args:
             commit_id (str, optional): - Commit from which views should be returned.
-                - If not specified, views from current commit is returned.
-                - If not specified, views from the currently checked out commit will be returned.
+                - If not specified, views from all commits are returned.
 
         Returns:
             List[ViewEntry]: List of :class:`ViewEntry` instances.
         """
-        commit_id = commit_id or self.commit_id
         queries = self._read_queries_json()
-        f = lambda x: x["source-dataset-version"] == commit_id
-        ret = map(
-            partial(ViewEntry, dataset=self),
-            filter(f, queries),
-        )
-
-        return list(ret)
+        if commit_id is not None:
+            queries = filter(
+                lambda x: x["source-dataset-version"] == commit_id, queries
+            )
+        return list(map(partial(ViewEntry, dataset=self), queries))
 
     def get_view(self, id: str) -> ViewEntry:
         """Returns the dataset view corresponding to ``id``.
@@ -3185,18 +3189,15 @@ class Dataset:
         Raises:
             KeyError: if view with given id does not exist.
         """
+        view = self.get_view(id)
         if optimize:
-            return (
-                self.get_view(id)
-                .optimize(
-                    tensors=tensors,
-                    num_workers=num_workers,
-                    scheduler=scheduler,
-                    progressbar=progressbar,
-                )
-                .load()
-            )
-        return self.get_view(id).load()
+            return view.optimize(
+                tensors=tensors,
+                num_workers=num_workers,
+                scheduler=scheduler,
+                progressbar=progressbar,
+            ).load()
+        return view.load()
 
     def delete_view(self, id: str):
         """Deletes the view with given view id.
@@ -3536,7 +3537,7 @@ class Dataset:
 
     @invalid_view_op
     @spinner
-    def reset(self):
+    def reset(self, force: bool = False):
         """Resets the uncommitted changes present in the branch.
 
         Note:
@@ -3546,7 +3547,7 @@ class Dataset:
         if version_state["commit_node"].children:
             print("You are not at the head node of the branch, cannot reset.")
             return
-        if not self.has_head_changes:
+        if not self.has_head_changes and not force:
             print("There are no uncommitted changes on this branch.")
             return
 
@@ -3715,7 +3716,13 @@ class Dataset:
 
     def get_creds_keys(self) -> List[str]:
         """Returns the list of creds keys added to the dataset. These are used to fetch external data in linked tensors"""
-        return self.link_creds.creds_keys
+        return list(self.link_creds.creds_keys)
+
+    def get_managed_creds_keys(self) -> List[str]:
+        """Returns the list of creds keys added to the dataset that are managed by Activeloop platform. These are used to fetch external data in linked tensors."""
+        raise ValueError(
+            "Managed creds are not supported for datasets that are not connected to activeloop platform."
+        )
 
     def visualize(
         self, width: Union[int, str, None] = None, height: Union[int, str, None] = None
@@ -3882,6 +3889,10 @@ class Dataset:
             or hasattr(self, "_vds")
             or hasattr(self, "_view_entry")
         )
+
+    @property
+    def is_optimized(self) -> bool:
+        return not getattr(getattr(self, "_view_entry", None), "virtual", True)
 
     @property
     def min_view(self):
