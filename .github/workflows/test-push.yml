@@ -15,7 +15,7 @@ jobs:
           all_but_latest: true
   full-test:
     name: Full Test
-    uses: activeloopai/shared-github-actions/.github/workflows/full_test.yml@main
+    uses: activeloopai/shared-github-actions/.github/workflows/full_test.yml@temp-ssh
     if: github.repository == 'activeloopai/deeplake'
     with:
       repo: ${{ github.repository }}
