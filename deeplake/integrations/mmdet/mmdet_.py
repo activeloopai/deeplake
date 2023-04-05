@@ -2,7 +2,7 @@
 Deep Lake offers an integration with MMDetection, a popular open-source object detection toolbox based on PyTorch. 
 The integration enables users to train models while streaming Deep Lake dataset using the transformation, training, and evaluation tools built by MMDet.
 
-Learn more about MMDetection `here <https://mmsegmentation.readthedocs.io/en/latest/>`_.
+Learn more about MMDetection `here <https://mmdetection.readthedocs.io/en/latest/>`_.
 
 Integration Interface
 ~~~~~~~~~~~~~~~~~~~~~
