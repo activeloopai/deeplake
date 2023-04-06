@@ -250,6 +250,8 @@ def compress_array(array: np.ndarray, compression: Optional[str]) -> bytes:
     if compression == "apng":
         return _compress_apng(array)
     try:
+        if array.shape == (1, 1, 1):
+            array = array[0]
         img = to_image(array)
         out = BytesIO()
         out._close = out.close  # type: ignore

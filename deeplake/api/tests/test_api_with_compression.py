@@ -337,13 +337,13 @@ def test_forced_htypes(
             ds.create_tensor("abc", htype="image.gray")
 
     for sample in gray:
-        assert len(sample.shape) == 2
+        assert len(sample.shape) == 3
 
     for sample in rgb:
         assert len(sample.shape) == 3
 
     for sample in gray_png:
-        assert len(sample.shape) == 2
+        assert len(sample.shape) == 3
 
     for sample in rgb_png:
         assert len(sample.shape) == 3

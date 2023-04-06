@@ -1175,7 +1175,7 @@ class dataset:
         compute_provider = get_compute_provider(scheduler, num_workers)
         try:
             if progressbar:
-                compute_provider.map_with_progressbar(
+                compute_provider.map_with_progress_bar(
                     copy_func_with_progress_bar,
                     keys,
                     len_keys,
