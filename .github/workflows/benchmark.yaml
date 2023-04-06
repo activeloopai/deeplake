@@ -155,4 +155,5 @@ jobs:
             rm  /tmp/failed_datasets.txt
             exit 1
           fi
+          python3 benchmarks/scripts/report.py -f /tmp/benchmark_diffs.txt -t ${{ vars.BENCHMARKS_THRESHOLD }}
           exit 0
