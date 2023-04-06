@@ -876,6 +876,7 @@ def test_dataset_rename(ds_generator, path, hub_token, convert_to_pathlib):
 @pytest.mark.parametrize(
     "path,hub_token",
     [
+        ["local_path", "hub_cloud_dev_token"],
         ["hub_cloud_path", "hub_cloud_dev_token"],
     ],
     indirect=True,
