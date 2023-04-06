@@ -115,14 +115,9 @@ jobs:
         run: |
           GITHUB_REF_NAME=${REPORT_PATH} python3 scripts/notify.py 
 
-      - name: fail
+      - name: complete
         shell: bash
-        run: |
-          if [ -s /tmp/failed_datasets.txt ]
-          then
-            cat /tmp/failed_datasets.txt
-            rm  /tmp/failed_datasets.txt
-            exit 1
-          fi
-          python3 benchmarks/scripts/report.py -f /tmp/benchmark_diffs.txt -t ${{ vars.BENCHMARKS_THRESHOLD }}
-          exit 0
+        env:
+          BENCHMARKS_THRESHOLD: ${{ vars.BENCHMARKS_THRESHOLD }}
+        working-directory: ./benchmarks
+        run: bash scripts/complete_benchmark.sh
