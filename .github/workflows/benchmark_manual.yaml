@@ -36,7 +36,7 @@ jobs:
       CONFIG: ${{ github.event.inputs.config_file }}
       REPORT_PATH: ${{ github.input.event.deeplake_ref }}
     runs-on: benchmarks_${{ github.event.inputs.machine }}
-    timeout-minutes: 480
+    timeout-minutes: 600
     steps:
       - name: Configure AWS credentials
         if: github.event.inputs.machine == 'macos_intel'
