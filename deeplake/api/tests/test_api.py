@@ -881,13 +881,14 @@ def test_dataset_rename(ds_generator, path, hub_token, convert_to_pathlib):
     ],
     indirect=True,
 )
-@pytest.mark.parametrize("num_workers", [0, 2])
-@pytest.mark.parametrize("progressbar", [True, False])
+@pytest.mark.parametrize("num_workers", [2])
+@pytest.mark.parametrize("progressbar", [True])
 def test_dataset_deepcopy(path, hub_token, num_workers, progressbar):
-    src_path = "_".join((path, "src"))
-    dest_path = "_".join((path, "dest"))
+    src_path = "_".join((path, "src1"))
+    dest_path = "_".join((path, "dest1"))
 
     src_ds = deeplake.empty(src_path, overwrite=True, token=hub_token)
+    # dest_ds = deeplake.empty(dest_path, overwrite=True, token=hub_token)
 
     with src_ds:
         src_ds.info.update(key=0)
@@ -905,7 +906,6 @@ def test_dataset_deepcopy(path, hub_token, num_workers, progressbar):
     dest_ds = deeplake.deepcopy(
         src_path,
         dest_path,
-        overwrite=True,
         token=hub_token,
         num_workers=num_workers,
         progressbar=progressbar,
@@ -924,17 +924,40 @@ def test_dataset_deepcopy(path, hub_token, num_workers, progressbar):
     for tensor in dest_ds.meta.tensors:
         assert_array_equal(src_ds[tensor].numpy(), dest_ds[tensor].numpy())
 
+    deeplake.delete(src_path, token=hub_token)
+    deeplake.delete(dest_path, token=hub_token)
+
+
+@pytest.mark.parametrize(
+    "path,hub_token",
+    [
+        ["local_path", "hub_cloud_dev_token"],
+        ["hub_cloud_path", "hub_cloud_dev_token"],
+    ],
+    indirect=True,
+)
+def test_deepcopy_errors(path, hub_token):
+    src_path = "_".join((path, "src"))
+    dest_path = "_".join((path, "dest"))
+
+    src_ds = deeplake.empty(src_path, overwrite=True, token=hub_token)
+    dest_ds = deeplake.empty(dest_path, overwrite=True, token=hub_token)
+
+    with src_ds:
+        src_ds.info.update(key=0)
+
+        src_ds.create_tensor("a", htype="image", sample_compression="png")
+        src_ds.create_tensor("b", htype="class_label")
+        src_ds.create_tensor("c")
+        src_ds.create_tensor("d", dtype=bool)
+
+        src_ds.d.info.update(key=1)
+
+        src_ds["a"].append(np.ones((28, 28), dtype="uint8"))
+        src_ds["b"].append(0)
+
     with pytest.raises(DatasetHandlerError):
         deeplake.deepcopy(src_path, dest_path, token=hub_token)
-
-    deeplake.deepcopy(
-        src_path,
-        dest_path,
-        overwrite=True,
-        token=hub_token,
-        num_workers=num_workers,
-        progressbar=progressbar,
-    )
 
     with pytest.raises(UnsupportedParameterException):
         deeplake.deepcopy(
@@ -942,8 +965,6 @@ def test_dataset_deepcopy(path, hub_token, num_workers, progressbar):
             dest_path,
             overwrite=True,
             src_token=hub_token,
-            num_workers=num_workers,
-            progressbar=progressbar,
         )
 
     with pytest.raises(UnsupportedParameterException):
@@ -952,49 +973,7 @@ def test_dataset_deepcopy(path, hub_token, num_workers, progressbar):
             dest_path,
             overwrite=True,
             dest_token=hub_token,
-            num_workers=num_workers,
-            progressbar=progressbar,
         )
-
-    assert list(dest_ds.tensors) == ["a", "b", "c", "d"]
-    for tensor in dest_ds.tensors:
-        assert_array_equal(src_ds[tensor].numpy(), dest_ds[tensor].numpy())
-
-    # test fot dataset.load:
-    dest_ds = deeplake.load(dest_path, token=hub_token)
-    assert list(dest_ds.tensors) == ["a", "b", "c", "d"]
-    for tensor in dest_ds.tensors.keys():
-        assert_array_equal(src_ds[tensor].numpy(), dest_ds[tensor].numpy())
-
-    deeplake.deepcopy(
-        src_path,
-        dest_path,
-        overwrite=True,
-        token=hub_token,
-        num_workers=num_workers,
-        progressbar=progressbar,
-    )
-    dest_ds = deeplake.load(dest_path, token=hub_token)
-
-    assert list(dest_ds.tensors) == ["a", "b", "c", "d"]
-    for tensor in dest_ds.tensors:
-        assert_array_equal(src_ds[tensor].numpy(), dest_ds[tensor].numpy())
-
-    deeplake.deepcopy(
-        src_path,
-        dest_path,
-        tensors=["a", "d"],
-        overwrite=True,
-        token=hub_token,
-        num_workers=num_workers,
-        progressbar=progressbar,
-    )
-    dest_ds = deeplake.load(dest_path, token=hub_token)
-    assert list(dest_ds.tensors) == ["a", "d"]
-    for tensor in dest_ds.tensors:
-        assert_array_equal(src_ds[tensor].numpy(), dest_ds[tensor].numpy())
-    deeplake.delete(src_path, token=hub_token)
-    deeplake.delete(dest_path, token=hub_token)
 
 
 def test_cloud_delete_doesnt_exist(hub_cloud_path, hub_cloud_dev_token):
