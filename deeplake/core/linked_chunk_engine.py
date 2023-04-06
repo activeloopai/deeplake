@@ -96,9 +96,7 @@ class LinkedChunkEngine(ChunkEngine):
     def linked_sample(
         self, global_sample_index: int
     ) -> Union[LinkedSample, LinkedTiledSample]:
-        creds_encoder = self.creds_encoder
-        sample_creds_encoded = creds_encoder.get_encoded_creds_key(global_sample_index)
-        sample_creds_key = self.link_creds.get_creds_key(sample_creds_encoded)  # type: ignore
+        sample_creds_key = self.creds_key(global_sample_index)
         if self._is_tiled_sample(global_sample_index):
             path_array: np.ndarray = (
                 super()
@@ -114,11 +112,15 @@ class LinkedChunkEngine(ChunkEngine):
         sample_path = self.get_path(global_sample_index, fetch_chunks=True)
         return LinkedSample(sample_path, sample_creds_key)
 
+    def creds_key(self, global_sample_index: int):
+        sample_creds_encoded = self.creds_encoder.get_encoded_creds_key(
+            global_sample_index
+        )
+        return self.link_creds.get_creds_key(sample_creds_encoded)  # type: ignore
+
     def get_video_url(self, global_sample_index):
-        creds_encoder = self.creds_encoder
         sample_path = self.get_path(global_sample_index)
-        sample_creds_encoded = creds_encoder.get_encoded_creds_key(global_sample_index)
-        sample_creds_key = self.link_creds.get_creds_key(sample_creds_encoded)
+        sample_creds_key = self.creds_key(global_sample_index)
         storage = None
         if sample_path.startswith(("gcs://", "gcp://", "s3://")):
             provider_type = "s3" if sample_path.startswith("s3://") else "gcs"
@@ -166,10 +168,7 @@ class LinkedChunkEngine(ChunkEngine):
             .path_array
         )
 
-        sample_creds_encoded = self.creds_encoder.get_encoded_creds_key(
-            global_sample_index
-        )
-        sample_creds_key = self.link_creds.get_creds_key(sample_creds_encoded)
+        sample_creds_key = self.creds_key(global_sample_index)
         tiled_arrays = [
             read_linked_sample(path, sample_creds_key, self.link_creds, False).array
             for path in iter(path_array.flat)
@@ -195,10 +194,7 @@ class LinkedChunkEngine(ChunkEngine):
         )
         required_tile_paths = ordered_tile_paths[tiles_index]
 
-        sample_creds_encoded = self.creds_encoder.get_encoded_creds_key(
-            global_sample_index
-        )
-        sample_creds_key = self.link_creds.get_creds_key(sample_creds_encoded)
+        sample_creds_key = self.creds_key(global_sample_index)
 
         tiles = np.vectorize(
             lambda path: read_linked_sample(
@@ -230,8 +226,7 @@ class LinkedChunkEngine(ChunkEngine):
         sample_path = self.get_path(global_sample_index, fetch_chunks)
         if not sample_path:
             return None
-        sample_creds_encoded = creds_encoder.get_encoded_creds_key(global_sample_index)
-        sample_creds_key = self.link_creds.get_creds_key(sample_creds_encoded)
+        sample_creds_key = self.creds_key(global_sample_index)
         return read_linked_sample(sample_path, sample_creds_key, self.link_creds, False)
 
     @property
@@ -329,11 +324,9 @@ class LinkedChunkEngine(ChunkEngine):
             local_sample_index, cast=cast, copy=copy, decompress=decompress
         )[0]
 
-        creds_encoder = self.creds_encoder
         if not sample_path:
             return self.get_empty_sample()
-        sample_creds_encoded = creds_encoder.get_encoded_creds_key(global_sample_index)
-        sample_creds_key = self.link_creds.get_creds_key(sample_creds_encoded)  # type: ignore
+        sample_creds_key = self.creds_key(global_sample_index)
         read_sample = read_linked_sample(
             sample_path, sample_creds_key, self.link_creds, False
         )

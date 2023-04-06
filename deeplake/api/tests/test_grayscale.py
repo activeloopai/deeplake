@@ -67,7 +67,6 @@ def test_extend_grayscale_second(local_ds_generator, deeplake_read_images):
     assert ds.images.meta.max_shape[-1] == 3
 
 
-@pytest.mark.xfail(raises=SampleAppendError, strict=True)
 def test_append_grayscale_first(local_ds_generator, deeplake_read_images):
     "Append a gray first, color second."
     ds = local_ds_generator()
@@ -102,12 +101,11 @@ def test_append_two_grayscale(local_ds_generator, deeplake_read_images):
     imgtype, gray, _ = deeplake_read_images
     make_tensor_and_append(ds, "image", imgtype, [gray, gray])
     assert len(ds.images) == 2
-    assert ds.images._sample_shape_tensor.shape == (2, 2)
+    assert ds.images._sample_shape_tensor.shape == (2, 3)
     for i in range(2):
         assert ds.images[i].numpy().shape == ds.images[i].shape
-    assert len(ds.images.meta.min_shape) == 2
-    assert list(ds.images.meta.min_shape) == list(gray.shape)
-    assert list(ds.images.meta.max_shape) == list(gray.shape)
+    assert list(ds.images.meta.min_shape) == list(gray.shape) + [1]
+    assert list(ds.images.meta.max_shape) == list(gray.shape) + [1]
 
 
 def test_append_many_grayscale(local_ds_generator, deeplake_read_images):
@@ -116,9 +114,8 @@ def test_append_many_grayscale(local_ds_generator, deeplake_read_images):
     imgtype, gray, _ = deeplake_read_images
     make_tensor_and_append(ds, "image", imgtype, [gray, gray, gray, gray])
     assert len(ds.images) == 4
-    assert ds.images._sample_shape_tensor.shape == (4, 2)
+    assert ds.images._sample_shape_tensor.shape == (4, 3)
     for i in range(4):
         assert ds.images[i].numpy().shape == ds.images[i].shape
-    assert len(ds.images.meta.min_shape) == 2
-    assert list(ds.images.meta.min_shape) == list(gray.shape)
-    assert list(ds.images.meta.max_shape) == list(gray.shape)
+    assert list(ds.images.meta.min_shape) == list(gray.shape) + [1]
+    assert list(ds.images.meta.max_shape) == list(gray.shape) + [1]

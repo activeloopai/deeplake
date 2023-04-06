@@ -1207,7 +1207,11 @@ class ChunkEngine:
             chunk.update_sample(local_sample_index, sample)
         else:
             orig_sample = chunk.read_sample(local_sample_index, copy=True)
-            orig_sample[tuple(e.value for e in index.values[1:])] = sample
+            sample = np.array(sample)
+            lhs = orig_sample[tuple(e.value for e in index.values[1:])]
+            if lhs.ndim > sample.ndim:
+                sample = np.expand_dims(sample, tuple(range(sample.ndim, lhs.ndim)))
+            lhs[:] = sample
             chunk.update_sample(local_sample_index, orig_sample)
         if (
             self.active_updated_chunk is not None
@@ -1399,6 +1403,7 @@ class ChunkEngine:
             del self.cache[from_chunk.key]  # type: ignore
         except KeyError:
             pass
+        self.cache[to_chunk.key] = to_chunk  # type: ignore
         return True
 
     def _is_tiled(self, row: int) -> bool:
@@ -1436,7 +1441,11 @@ class ChunkEngine:
         if next_chunk_size + chunk.num_data_bytes < next_chunk.min_chunk_size:
             if next_chunk_commit_id != self.commit_id:
                 next_chunk = self.copy_chunk_to_new_commit(next_chunk, next_chunk_name)
-            # merge with next chunk
+            chunk_id = chunk.id
+            chunk_name = ChunkIdEncoder.name_from_id(chunk_id)
+            chunk_commit_id, tkey = self.get_chunk_commit(chunk_name)
+            if chunk_commit_id != self.commit_id:
+                chunk = self.copy_chunk_to_new_commit(chunk, chunk_name)
             return self._merge_chunks(
                 from_chunk=next_chunk,
                 from_chunk_row=next_chunk_row,
@@ -1462,6 +1471,11 @@ class ChunkEngine:
         if prev_chunk_size + chunk.num_data_bytes < prev_chunk.min_chunk_size:
             if prev_chunk_commit_id != self.commit_id:
                 prev_chunk = self.copy_chunk_to_new_commit(prev_chunk, prev_chunk_name)
+            chunk_id = chunk.id
+            chunk_name = ChunkIdEncoder.name_from_id(chunk_id)
+            chunk_commit_id, tkey = self.get_chunk_commit(chunk_name)
+            if chunk_commit_id != self.commit_id:
+                chunk = self.copy_chunk_to_new_commit(chunk, chunk_name)
             # merge with previous chunk
             return self._merge_chunks(
                 from_chunk=chunk,
@@ -2076,7 +2090,16 @@ class ChunkEngine:
             "requires StorageProvider to be able to list all chunks"
         )
 
-    def pop(self, global_sample_index: int):
+    def pop(
+        self,
+        global_sample_index: Optional[int] = None,
+        link_callback: Optional[Callable] = None,
+    ):
+        if global_sample_index is None:
+            if self.is_sequence:
+                global_sample_index = self.sequence_encoder.num_samples - 1
+            else:
+                global_sample_index = self.num_samples - 1
         self._write_initialization()
         if self.tensor_meta.length == 0:
             raise ValueError("There are no samples to pop")
@@ -2088,6 +2111,10 @@ class ChunkEngine:
         self.cached_data = None
         initial_autoflush = self.cache.autoflush
         self.cache.autoflush = False
+
+        # pop links
+        if link_callback:
+            link_callback(global_sample_index)
 
         self.commit_diff.pop(global_sample_index)
         if self.is_sequence:
@@ -2255,17 +2282,22 @@ class ChunkEngine:
         if isinstance(arr, np.ndarray) and arr.size == 0:
             return self.get_empty_sample()
         if index.subscriptable_at(0) and index.subscriptable_at(1):
+            item_lengths = []
+            for i in index.values[0].indices(self._sequence_length):
+                item_length = index.length_at(
+                    1, -int(np.subtract(*self.sequence_encoder[i]))
+                )
+                item_lengths.append(item_length)
+
             if aslist:
-                _item_length = self._sequence_item_length
                 ret = []
-                for i in index.values[0].indices(self._sequence_length):
-                    item_length = _item_length or index.length_at(
-                        1, -int(np.subtract(*self.sequence_encoder[i]))
-                    )
+                for item_length in item_lengths:
                     ret.append(arr[:item_length])
                     arr = arr[item_length:]
                 return ret
             else:
+                if len(set(item_lengths)) > 1:
+                    raise DynamicTensorNumpyError(self.name, index, "shape")
                 try:
                     return arr.reshape(  # type: ignore
                         index.length_at(0, self._sequence_length), -1, *arr.shape[1:]  # type: ignore
@@ -2563,6 +2595,24 @@ class ChunkEngine:
                 chunk_engine = self._all_chunk_engines[k]
                 chunk_engine.extend(vs)
                 chunk_engine._transform_callback(vs, flat)
+
+    def _transform_pop_callback(self, index: int):
+        if self._all_chunk_engines:
+            if self.is_sequence:
+                flat_links: List[str] = []
+                links: List[str] = []
+                for link, props in self.tensor_meta.links.items():
+                    (flat_links if props["flatten_sequence"] else links).append(link)
+
+                if flat_links:
+                    seq_enc = self.sequence_encoder
+                    for link in flat_links:
+                        link_chunk_engine = self._all_chunk_engines[link]
+                        for idx in reversed(range(*seq_enc[index])):
+                            link_chunk_engine.pop(idx)
+            else:
+                links = list(self.tensor_meta.links.keys())
+            [self._all_chunk_engines[link].pop() for link in links]
 
     def get_empty_sample(self):
         if self.num_samples == 0:

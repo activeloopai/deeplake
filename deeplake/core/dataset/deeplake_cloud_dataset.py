@@ -1,5 +1,5 @@
 import posixpath
-from typing import Any, Dict, Optional, Union
+from typing import Any, Dict, List, Optional, Union
 from deeplake.client.utils import get_user_name
 from deeplake.constants import HUB_CLOUD_DEV_USERNAME
 from deeplake.core.dataset import Dataset
@@ -336,7 +336,7 @@ class DeepLakeCloudDataset(Dataset):
                 if management_changed:
                     managed_info = (managed, key_index)
             if original_key_is_managed and managed is not False:
-                self.link_creds.populate_single_manged_creds(creds_key)
+                self.link_creds.populate_single_managed_creds(creds_key)
         except Exception:
             if replaced_index is not None:
                 # revert the change
@@ -383,3 +383,7 @@ class DeepLakeCloudDataset(Dataset):
         raise InvalidSourcePathError(
             f"The dataset being connected is already accessible via Deep Lake path {self.path}"
         )
+
+    def get_managed_creds_keys(self) -> List[str]:
+        """Returns the list of creds keys added to the dataset that are managed by Activeloop platform. These are used to fetch external data in linked tensors."""
+        return list(self.link_creds.managed_creds_keys)

@@ -3,7 +3,7 @@ from deeplake.core.linked_sample import LinkedSample
 from deeplake.core.linked_tiled_sample import LinkedTiledSample
 from deeplake.core.sample import Sample  # type: ignore
 from deeplake.core.tensor import Tensor
-from deeplake.util.exceptions import TensorInvalidSampleShapeError
+from deeplake.util.exceptions import TensorInvalidSampleShapeError, SampleAppendError
 from deeplake.util.array_list import slice_array_list
 import numpy as np
 
@@ -111,37 +111,43 @@ class TransformTensor:
 
     def append(self, item):
         """Adds an item to the tensor."""
-        if self._numpy_only:
-            if isinstance(item, np.ndarray):
-                return self.extend(np.expand_dims(item, 0))
-            else:
-                self._non_numpy()
-        if isinstance(item, list) and len(item) == 0:
-            item = None
-        if (
-            not isinstance(item, (LinkedSample, LinkedTiledSample, Tensor))
-            and item is not None
-        ):
-            shape = getattr(item, "shape", None)
-            if shape is None:
-                if isinstance(item, (int, float)):
-                    shape = (1,)
+        try:
+            if self._numpy_only:
+                if isinstance(item, np.ndarray):
+                    return self.extend(np.expand_dims(item, 0))
                 else:
-                    try:
-                        item = np.asarray(item)
-                        shape = item.shape
-                    except ValueError:
+                    self._non_numpy()
+            if isinstance(item, list) and len(item) == 0:
+                item = None
+            if (
+                not isinstance(item, (LinkedSample, LinkedTiledSample, Tensor))
+                and item is not None
+            ):
+                shape = getattr(item, "shape", None)
+                if shape is None:
+                    if isinstance(item, (int, float)):
                         shape = (1,)
-            if self._ndim is None:
-                self._ndim = len(shape)
-            else:
-                if len(shape) != self._ndim:
-                    if not (
-                        isinstance(item, Sample) and len(shape) == 2 and self._ndim == 3
-                    ):
-                        raise TensorInvalidSampleShapeError(shape, self._ndim)
+                    else:
+                        try:
+                            item = np.asarray(item)
+                            shape = item.shape
+                        except ValueError:
+                            shape = (1,)
+                if self._ndim is None:
+                    self._ndim = len(shape)
+                else:
+                    if len(shape) != self._ndim:
+                        if not (
+                            isinstance(item, Sample)
+                            and len(shape) == 2
+                            and self._ndim == 3
+                        ):
+                            raise TensorInvalidSampleShapeError(shape, self._ndim)
 
-        self.items.append(item)
+            self.items.append(item)
+        except Exception as e:
+            self.items.clear()
+            raise SampleAppendError(self.name, item) from e
 
     def extend(self, items):
         """Adds multiple items to the tensor."""

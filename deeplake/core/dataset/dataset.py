@@ -17,7 +17,10 @@ from deeplake.core.index.index import IndexEntry
 from deeplake.core.link_creds import LinkCreds
 from deeplake.util.connect_dataset import connect_dataset_entry
 from deeplake.util.downsample import validate_downsampling
-from deeplake.util.version_control import save_version_info
+from deeplake.util.version_control import (
+    save_version_info,
+    integrity_check,
+)
 from deeplake.util.invalid_view_op import invalid_view_op
 from deeplake.util.spinner import spinner
 from deeplake.util.iteration_warning import (
@@ -85,12 +88,13 @@ from deeplake.util.exceptions import (
     RenameError,
     EmptyCommitError,
     DatasetViewSavingError,
-    DatasetHandlerError,
     SampleAppendingError,
     DatasetTooLargeToDelete,
     TensorTooLargeToDelete,
     GroupInfoNotSupportedError,
     TokenPermissionError,
+    CheckoutError,
+    DatasetCorruptError,
 )
 from deeplake.util.keys import (
     dataset_exists,
@@ -104,14 +108,6 @@ from deeplake.util.keys import (
     get_sample_shape_tensor_key,
     get_downsampled_tensor_key,
     filter_name,
-    get_tensor_meta_key,
-    get_tensor_commit_diff_key,
-    get_tensor_tile_encoder_key,
-    get_tensor_info_key,
-    get_tensor_commit_chunk_map_key,
-    get_chunk_id_encoder_key,
-    get_dataset_diff_key,
-    get_sequence_encoder_key,
     get_dataset_linked_creds_key,
 )
 from deeplake.util.path import get_path_from_storage
@@ -125,10 +121,9 @@ from deeplake.util.version_control import (
     load_meta,
     warn_node_checkout,
     load_version_info,
-    copy_metas,
-    create_commit_chunk_maps,
     save_version_info,
-    generate_hash,
+    replace_head,
+    reset_and_checkout,
 )
 from deeplake.util.pretty_print import summary_dataset
 from deeplake.core.dataset.view_entry import ViewEntry
@@ -155,6 +150,7 @@ class Dataset:
         verbose: bool = True,
         version_state: Optional[Dict[str, Any]] = None,
         path: Optional[Union[str, pathlib.Path]] = None,
+        address: Optional[str] = None,
         is_iteration: bool = False,
         link_creds=None,
         pad_tensors: bool = False,
@@ -178,6 +174,7 @@ class Dataset:
             verbose (bool): If ``True``, logs will be printed. Defaults to True.
             version_state (Dict[str, Any], Optional): The version state of the dataset, includes commit_id, commit_node, branch, branch_commit_map and commit_node_map.
             path (str, pathlib.Path): The path to the dataset.
+            address (Optional[str]): The version address of the dataset.
             is_iteration (bool): If this Dataset is being used as an iterator.
             link_creds (LinkCreds, Optional): The LinkCreds object used to access tensors that have external data linked to them.
             pad_tensors (bool): If ``True``, shorter tensors will be padded to the length of the longest tensor.
@@ -232,12 +229,12 @@ class Dataset:
         d["_pad_tensors"] = pad_tensors
         d["_locking_enabled"] = lock
         d["_temp_tensors"] = []
-        d["_vc_info_updated"] = False
+        d["_vc_info_updated"] = True
         dct = self.__dict__
         dct.update(d)
 
         try:
-            self._set_derived_attributes()
+            self._set_derived_attributes(address=address)
         except LockedException:
             raise LockedException(
                 "This dataset cannot be open for writing as it is locked by another machine. Try loading the dataset with `read_only=True`."
@@ -519,6 +516,10 @@ class Dataset:
                     )
                     for x in item
                 ]
+                for x in enabled_tensors:
+                    enabled_tensors.extend(
+                        self[posixpath.relpath(x, self.group_index)].meta.links.keys()
+                    )
                 ret = self.__class__(
                     storage=self.storage,
                     index=self.index,
@@ -1213,21 +1214,42 @@ class Dataset:
                 i, is_iteration=not isinstance(self.index.values[0], list)
             )
 
-    def _load_version_info(self):
+    def _load_version_info(self, address=None):
         """Loads data from version_control_file otherwise assume it doesn't exist and load all empty"""
         if self.version_state:
             return
 
-        branch = "main"
-        version_state = {"branch": branch}
+        if address is None:
+            address = "main"
+
+        version_state = {}
         try:
             version_info = load_version_info(self.storage)
             version_state["branch_commit_map"] = version_info["branch_commit_map"]
             version_state["commit_node_map"] = version_info["commit_node_map"]
-            commit_id = version_state["branch_commit_map"][branch]
+
+            if address in version_state["branch_commit_map"]:
+                branch = address
+                commit_id = version_state["branch_commit_map"][branch]
+            elif address in version_state["commit_node_map"]:
+                commit_id = address
+            else:
+                raise CheckoutError(
+                    f"Address {address} not found. Ensure the commit id / branch name is correct."
+                )
+
             version_state["commit_id"] = commit_id
             version_state["commit_node"] = version_state["commit_node_map"][commit_id]
-        except Exception:
+            version_state["branch"] = version_state["commit_node"].branch
+        except Exception as e:
+            if isinstance(e, CheckoutError):
+                raise e from None
+            if address != "main":
+                raise CheckoutError(
+                    f"Address {address} not found. Ensure the commit id / branch name is correct."
+                )
+            branch = "main"
+            version_state["branch"] = branch
             version_state["branch_commit_map"] = {}
             version_state["commit_node_map"] = {}
             # used to identify that this is the first commit so its data will not be in similar directory structure to the rest
@@ -1429,17 +1451,24 @@ class Dataset:
         return self.commit_id  # type: ignore
 
     @invalid_view_op
-    def checkout(self, address: str, create: bool = False) -> Optional[str]:
+    def checkout(
+        self, address: str, create: bool = False, reset: bool = False
+    ) -> Optional[str]:
         """Checks out to a specific commit_id or branch. If ``create = True``, creates a new branch with name ``address``.
 
         Args:
             address (str): The commit_id or branch to checkout to.
             create (bool): If ``True``, creates a new branch with name as address.
+            reset (bool): If checkout fails due to a corrupted HEAD state of the branch, setting ``reset=True`` will
+                          reset HEAD changes and attempt the checkout again.
 
         Returns:
             Optional[str]: The commit_id of the dataset after checkout.
 
         Raises:
+            CheckoutError: If ``address`` could not be found.
+            ReadOnlyModeError: If branch creation or reset is attempted in read-only mode.
+            DatasetCorruptError: If checkout failed due to dataset corruption and ``reset`` is not ``True``.
             Exception: If the dataset is a filtered view.
 
         Examples:
@@ -1463,7 +1492,30 @@ class Dataset:
         Note:
             Checkout from a head node in any branch that contains uncommitted data will lead to an automatic commit before the checkout.
         """
-        return self._checkout(address, create, None, False)
+        try:
+            ret = self._checkout(address, create, None, False)
+            integrity_check(self)
+            return ret
+        except (ReadOnlyModeError, CheckoutError) as e:
+            raise e from None
+        except Exception as e:
+            if create:
+                raise e
+            if not reset:
+                if isinstance(e, DatasetCorruptError):
+                    raise DatasetCorruptError(
+                        message=e.message,
+                        action="Try using `reset=True` to reset HEAD changes and load the previous commit.",
+                        cause=e.__cause__,
+                    )
+                raise DatasetCorruptError(
+                    "Exception occured (see Traceback). The branch you are checking out to maybe corrupted."
+                    "Try using `reset=True` to reset HEAD changes and load the previous commit."
+                    "This will delete all uncommitted changes on the branch you are trying to load."
+                ) from e
+            if self.read_only:
+                raise ReadOnlyModeError("Cannot reset HEAD in read-only mode.")
+            return reset_and_checkout(self, address, e)
 
     def _checkout(
         self,
@@ -1579,8 +1631,6 @@ class Dataset:
     def _populate_meta(self, verbose=True):
         """Populates the meta information for the dataset."""
         if dataset_exists(self.storage):
-            if verbose and self.verbose:
-                logger.info(f"{self.path} loaded successfully.")
             load_meta(self)
 
         elif not self.storage.empty():
@@ -1996,11 +2046,13 @@ class Dataset:
             for tensor_key, tensor_value in self.version_state["full_tensors"].items()
         }
 
-    def _set_derived_attributes(self, verbose: bool = True):
+    def _set_derived_attributes(
+        self, verbose: bool = True, address: Optional[str] = None
+    ):
         """Sets derived attributes during init and unpickling."""
         if self.is_first_load:
             self.storage.autoflush = True
-            self._load_version_info()
+            self._load_version_info(address)
             self._load_link_creds()
             self._set_read_only(
                 self._read_only, err=self._read_only_error
@@ -2162,6 +2214,10 @@ class Dataset:
 
     def summary(self):
         """Prints a summary of the dataset."""
+
+        if self.is_view:
+            raise NotImplementedError("Summary is not currently supported for views.")
+
         pretty_print = summary_dataset(self)
 
         print(self)
@@ -2643,7 +2699,7 @@ class Dataset:
                             self[k].pop()
                         except Exception as e2:
                             raise Exception(
-                                "Error while attepting to rollback appends"
+                                "Error while attempting to rollback appends"
                             ) from e2
                     raise e
 
@@ -2872,11 +2928,14 @@ class Dataset:
         Raises:
             ReadOnlyModeError: When attempting to save a view inplace and the user doesn't have write access.
             DatasetViewSavingError: If HEAD node has uncommitted changes.
+            TypeError: If ``id`` is not of type ``str``.
 
         Note:
             Specifying ``path`` makes the view external. External views cannot be accessed using the parent dataset's :func:`Dataset.get_view`,
             :func:`Dataset.load_view`, :func:`Dataset.delete_view` methods. They have to be loaded using :func:`deeplake.load`.
         """
+        if id is not None and not isinstance(id, str):
+            raise TypeError(f"id {id} is of type {type(id)}, expected `str`.")
         return self._save_view(
             path,
             id,
@@ -3021,6 +3080,7 @@ class Dataset:
         )
 
         ds.index = Index()
+        ds.version_state = ds.version_state.copy()
         ds._checkout(commit_id, verbose=False)
         first_index_subscriptable = self.info.get("first-index-subscriptable", True)
         if first_index_subscriptable:
@@ -3061,21 +3121,17 @@ class Dataset:
 
         Args:
             commit_id (str, optional): - Commit from which views should be returned.
-                - If not specified, views from current commit is returned.
-                - If not specified, views from the currently checked out commit will be returned.
+                - If not specified, views from all commits are returned.
 
         Returns:
             List[ViewEntry]: List of :class:`ViewEntry` instances.
         """
-        commit_id = commit_id or self.commit_id
         queries = self._read_queries_json()
-        f = lambda x: x["source-dataset-version"] == commit_id
-        ret = map(
-            partial(ViewEntry, dataset=self),
-            filter(f, queries),
-        )
-
-        return list(ret)
+        if commit_id is not None:
+            queries = filter(
+                lambda x: x["source-dataset-version"] == commit_id, queries
+            )
+        return list(map(partial(ViewEntry, dataset=self), queries))
 
     def get_view(self, id: str) -> ViewEntry:
         """Returns the dataset view corresponding to ``id``.
@@ -3133,18 +3189,15 @@ class Dataset:
         Raises:
             KeyError: if view with given id does not exist.
         """
+        view = self.get_view(id)
         if optimize:
-            return (
-                self.get_view(id)
-                .optimize(
-                    tensors=tensors,
-                    num_workers=num_workers,
-                    scheduler=scheduler,
-                    progressbar=progressbar,
-                )
-                .load()
-            )
-        return self.get_view(id).load()
+            return view.optimize(
+                tensors=tensors,
+                num_workers=num_workers,
+                scheduler=scheduler,
+                progressbar=progressbar,
+            ).load()
+        return view.load()
 
     def delete_view(self, id: str):
         """Deletes the view with given view id.
@@ -3484,7 +3537,7 @@ class Dataset:
 
     @invalid_view_op
     @spinner
-    def reset(self):
+    def reset(self, force: bool = False):
         """Resets the uncommitted changes present in the branch.
 
         Note:
@@ -3494,7 +3547,7 @@ class Dataset:
         if version_state["commit_node"].children:
             print("You are not at the head node of the branch, cannot reset.")
             return
-        if not self.has_head_changes:
+        if not self.has_head_changes and not force:
             print("There are no uncommitted changes on this branch.")
             return
 
@@ -3503,35 +3556,14 @@ class Dataset:
             self._populate_meta()
             load_meta(self)
         else:
-            reset_commit_id = self.pending_commit_id
-            deletion_folder = "/".join(("versions", reset_commit_id))
-            new_commit_id = generate_hash()
-            new_branch = self.branch
-
             parent_commit_id = self.commit_id
+            reset_commit_id = self.pending_commit_id
 
             # checkout to get list of tensors in previous commit, needed for copying metas and create_commit_chunk_set
             self.checkout(parent_commit_id)
 
-            # populate new commit folder
-            copy_metas(parent_commit_id, new_commit_id, storage, version_state)
-            create_commit_chunk_maps(new_commit_id, storage, version_state)
+            new_commit_id = replace_head(storage, version_state, reset_commit_id)
 
-            # update and save version state
-            parent_node: CommitNode = version_state["commit_node"]
-            new_node = CommitNode(new_branch, new_commit_id)
-            new_node.parent = parent_node
-            version_state["branch_commit_map"][new_branch] = new_commit_id
-            version_state["commit_node_map"][new_commit_id] = new_node
-            del version_state["commit_node_map"][reset_commit_id]
-            for i, child in enumerate(parent_node.children):
-                if child.commit_id == reset_commit_id:
-                    parent_node.children[i] = new_node
-                    break
-            save_version_info(version_state, storage)
-
-            # clear the old folder
-            storage.clear(prefix=deletion_folder)
             self.checkout(new_commit_id)
 
     def connect(
@@ -3684,7 +3716,13 @@ class Dataset:
 
     def get_creds_keys(self) -> List[str]:
         """Returns the list of creds keys added to the dataset. These are used to fetch external data in linked tensors"""
-        return self.link_creds.creds_keys
+        return list(self.link_creds.creds_keys)
+
+    def get_managed_creds_keys(self) -> List[str]:
+        """Returns the list of creds keys added to the dataset that are managed by Activeloop platform. These are used to fetch external data in linked tensors."""
+        raise ValueError(
+            "Managed creds are not supported for datasets that are not connected to activeloop platform."
+        )
 
     def visualize(
         self, width: Union[int, str, None] = None, height: Union[int, str, None] = None
@@ -3851,6 +3889,10 @@ class Dataset:
             or hasattr(self, "_vds")
             or hasattr(self, "_view_entry")
         )
+
+    @property
+    def is_optimized(self) -> bool:
+        return not getattr(getattr(self, "_view_entry", None), "virtual", True)
 
     @property
     def min_view(self):
