@@ -4,7 +4,7 @@ from deeplake.util.cache_chain import generate_chain
 from deeplake.constants import LOCAL_CACHE_PREFIX, MB
 from deeplake.util.exceptions import AgreementNotAcceptedError
 from deeplake.util.tag import process_hub_path
-from typing import Optional
+from typing import Optional, Union
 from deeplake.core.storage.provider import StorageProvider
 import os
 from deeplake.core.storage import (
@@ -20,7 +20,7 @@ from deeplake.constants import DEFAULT_READONLY
 
 def storage_provider_from_path(
     path: str,
-    creds: Optional[dict],
+    creds: Optional[Union[dict, str]] = None,
     read_only: bool = False,
     token: Optional[str] = None,
     is_hub_path: bool = False,
@@ -76,7 +76,7 @@ def storage_provider_from_path(
     elif path.startswith("mem://"):
         storage = MemoryProvider(path)
     elif path.startswith("hub://"):
-        storage = storage_provider_from_hub_path(path, read_only, token=token)
+        storage = storage_provider_from_hub_path(path, read_only, token=token, creds=creds)
     else:
         if not os.path.exists(path) or os.path.isdir(path):
             storage = LocalProvider(path)
@@ -91,21 +91,20 @@ def storage_provider_from_path(
 
 
 def storage_provider_from_hub_path(
-    path: str, read_only: bool = False, token: Optional[str] = None
+    path: str, read_only: bool = False, token: Optional[str] = None, creds: Optional[Union[dict, str]] = None
 ):
     path, org_id, ds_name, subdir = process_hub_path(path)
     client = DeepLakeBackendClient(token=token)
 
     mode = "r" if read_only else None
-
     # this will give the proper url (s3, gcs, etc) and corresponding creds, depending on where the dataset is stored.
     try:
-        url, creds, mode, expiration = client.get_dataset_credentials(
+        url, final_creds, mode, expiration = client.get_dataset_credentials(
             org_id, ds_name, mode=mode
         )
     except AgreementNotAcceptedError as e:
         handle_dataset_agreements(client, e.agreements, org_id, ds_name)
-        url, creds, mode, expiration = client.get_dataset_credentials(
+        url, final_creds, mode, expiration = client.get_dataset_credentials(
             org_id, ds_name, mode=mode
         )
 
@@ -122,10 +121,33 @@ def storage_provider_from_hub_path(
 
     url = posixpath.join(url, subdir)
 
+    creds_used = "PLATFORM"
+    if url.startswith("s3://"):
+        if creds == "ENV":
+            final_creds = {}
+            creds_used = "ENV"
+        elif isinstance(creds, dict) and set(creds.keys()) == {"profile_name"}:
+            final_creds = creds
+            creds_used = "ENV"
+        elif creds is not None:
+            final_creds = creds
+            creds_used = "DICT"
+
+    if creds_used != "PLATFORM":
+        msg = "Overriding platform credentials with"
+        if creds_used == "ENV":
+            msg += "credentials loaded from environment."
+        elif creds_used == "DICT":
+            msg += " credentials from user passed dictionary."
+        print(msg)
+
     storage = storage_provider_from_path(
-        path=url, creds=creds, read_only=read_only, is_hub_path=True, token=token
+        path=url, creds=final_creds, read_only=read_only, is_hub_path=True, token=token
     )
-    storage._set_hub_creds_info(path, expiration)
+    storage.creds_used = creds_used
+    if creds_used == "PLATFORM":
+        storage._set_hub_creds_info(path, expiration)
+
     return storage
 
 
