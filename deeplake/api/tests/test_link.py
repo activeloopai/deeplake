@@ -644,3 +644,22 @@ def test_rgb_gray(local_ds, cat_path, hopper_gray_path):
         assert len(ds.abc[1].shape) == 3
         assert len(ds.abc[0].numpy().shape) == 3
         assert len(ds.abc[1].numpy().shape) == 3
+
+
+def test_creds(hub_cloud_ds_generator, cat_path):
+    creds_key = "ENV"
+    ds = hub_cloud_ds_generator()
+    ds.add_creds_key(creds_key)
+    ds.populate_creds(creds_key, from_environment=True)
+    with ds:
+        tensor = ds.create_tensor("abc", "link[image]", sample_compression="jpeg")
+        tensor.append(deeplake.link(cat_path, creds_key))
+
+    assert tensor[0].creds_key() == creds_key
+    ds.add_creds_key("my_s3_creds", True)
+    assert ds.get_managed_creds_keys() == ["my_s3_creds"]
+    assert set(ds.get_creds_keys()) == {"my_s3_creds", "ENV"}
+    ds.update_creds_key("my_s3_creds", managed=True)
+    ds = hub_cloud_ds_generator()
+    assert ds.get_managed_creds_keys() == ["my_s3_creds"]
+    assert set(ds.get_creds_keys()) == {"my_s3_creds", "ENV"}

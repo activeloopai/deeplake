@@ -307,14 +307,14 @@ def test_single_transform_deeplake_dataset_htypes(local_ds, num_workers, schedul
     assert len(ds_out) == 99
     for index in range(1, 100):
         np.testing.assert_array_equal(
-            ds_out[index - 1].image.numpy(), 2 * index * np.ones((index, index))
+            ds_out[index - 1].image.numpy(), 2 * index * np.ones((index, index, 1))
         )
         np.testing.assert_array_equal(
             ds_out[index - 1].label.numpy(), 2 * index * np.ones((1,))
         )
 
-    assert ds_out.image.shape_interval.lower == (99, 1, 1)
-    assert ds_out.image.shape_interval.upper == (99, 99, 99)
+    assert ds_out.image.shape_interval.lower == (99, 1, 1, 1)
+    assert ds_out.image.shape_interval.upper == (99, 99, 99, 1)
     data_in.delete()
 
 
@@ -491,14 +491,14 @@ def test_deeplake_like(local_ds, scheduler="threaded"):
         assert len(ds_out) == 99
         for index in range(1, 100):
             np.testing.assert_array_equal(
-                ds_out[index - 1].image.numpy(), 2 * index * np.ones((index, index))
+                ds_out[index - 1].image.numpy(), 2 * index * np.ones((index, index, 1))
             )
             np.testing.assert_array_equal(
                 ds_out[index - 1].label.numpy(), 2 * index * np.ones((1,))
             )
 
-        assert ds_out.image.shape_interval.lower == (99, 1, 1)
-        assert ds_out.image.shape_interval.upper == (99, 99, 99)
+        assert ds_out.image.shape_interval.lower == (99, 1, 1, 1)
+        assert ds_out.image.shape_interval.upper == (99, 99, 99, 1)
 
 
 def test_transform_empty(local_ds):
@@ -581,14 +581,14 @@ def test_transform_persistance(local_ds_generator, num_workers=2, scheduler="thr
         assert len(ds_out) == 99
         for index in range(1, 100):
             np.testing.assert_array_equal(
-                ds_out[index - 1].image.numpy(), 2 * index * np.ones((index, index))
+                ds_out[index - 1].image.numpy(), 2 * index * np.ones((index, index, 1))
             )
             np.testing.assert_array_equal(
                 ds_out[index - 1].label.numpy(), 2 * index * np.ones((1,))
             )
 
-        assert ds_out.image.shape_interval.lower == (99, 1, 1)
-        assert ds_out.image.shape_interval.upper == (99, 99, 99)
+        assert ds_out.image.shape_interval.lower == (99, 1, 1, 1)
+        assert ds_out.image.shape_interval.upper == (99, 99, 99, 1)
 
     test_ds_out()
     ds_out = local_ds_generator()
@@ -1278,6 +1278,56 @@ def test_none_rechunk_post_transform(local_ds):
     num_chunks = ds.abc.chunk_engine.num_chunks
 
     assert num_chunks == 2
+
+
+@pytest.mark.parametrize("scheduler", ["serial", "threaded", "processed"])
+def test_transform_checkpointing(local_ds, scheduler):
+    @deeplake.compute
+    def upload(i, ds):
+        if i == 45:
+            raise Exception("test")
+        ds.abc.append(i)
+
+    @deeplake.compute
+    def double(data_in, ds):
+        ds.abc.append(data_in.abc * 2)
+
+    data_in = list(range(100))
+
+    with local_ds as ds:
+        ds.create_tensor("abc")
+
+    # not divisible by num_workers
+    with pytest.raises(ValueError):
+        upload().eval(
+            data_in, ds, num_workers=2, scheduler=scheduler, checkpoint_interval=51
+        )
+
+    # greater than len(data_in)
+    with pytest.raises(ValueError):
+        upload().eval(
+            data_in, ds, num_workers=2, scheduler=scheduler, checkpoint_interval=102
+        )
+
+    # less than 10% of data_in, shows warning
+    with pytest.warns(UserWarning, match="10%"):
+        with pytest.raises(TransformError):
+            upload().eval(
+                data_in, ds, num_workers=2, scheduler=scheduler, checkpoint_interval=8
+            )
+
+    assert len(ds.abc) == 40
+    assert ds.abc.numpy(aslist=True) == list(range(40))
+    with pytest.raises(ValueError):
+        double().eval(ds, num_workers=2, scheduler=scheduler, checkpoint_interval=10)
+
+    # fix input data
+    data_in[45] = 0
+
+    upload().eval(
+        data_in[40:], ds, num_workers=2, scheduler=scheduler, checkpoint_interval=10
+    )
+    assert ds.abc.numpy(aslist=True) == data_in
 
 
 def create_test_ds(path):

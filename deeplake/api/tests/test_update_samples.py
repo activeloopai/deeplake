@@ -220,8 +220,8 @@ def test_failures(memory_ds):
         memory_ds.labels[0:3] = [1, 2, 3, 4]
 
     # dimensionality doesn't match
-    with pytest.raises(SampleUpdateError):
-        memory_ds.images[0:5] = np.zeros((5, 30), dtype="uint8")
+
+    memory_ds.images[0:5] = np.zeros((5, 30), dtype="uint8")
     with pytest.raises(SampleUpdateError):
         memory_ds.labels[0:5] = np.zeros((5, 2, 3), dtype="uint8")
 
@@ -229,12 +229,15 @@ def test_failures(memory_ds):
     assert len(memory_ds.images) == 10
     assert len(memory_ds.labels) == 10
     np.testing.assert_array_equal(
-        memory_ds.images.numpy(), np.ones((10, 28, 28), dtype="uint8")
+        memory_ds.images[:5].numpy(), np.zeros((5, 30, 1), dtype="uint8")
+    )
+    np.testing.assert_array_equal(
+        memory_ds.images[5:].numpy(), np.ones((5, 28, 28), dtype="uint8")
     )
     np.testing.assert_array_equal(
         memory_ds.labels.numpy(), np.ones((10, 1), dtype="uint8")
     )
-    assert memory_ds.images.shape == (10, 28, 28)
+    assert memory_ds.images.shape == (10, None, None)
     assert memory_ds.labels.shape == (10, 1)
 
 
@@ -409,15 +412,15 @@ def test_update_partial(memory_ds, htype, args):
         ds.create_tensor("x", htype=htype, **args)
         ds.x.append(np.ones((10, 10, 3), dtype=np.uint8))
         ds.x[0][0:2, 0:3, :1] = np.zeros((2, 3, 1), dtype=np.uint8)
-    assert ds.x[0].shape == (10, 10, 3)
+    assert ds.x[0].shape[:3] == (10, 10, 3)
     arr = ds.x[0].numpy()
     exp = np.ones((10, 10, 3), dtype=np.uint8)
     exp[0:2, 0:3, 0] *= 0
-    np.testing.assert_array_equal(arr, exp)
+    np.testing.assert_array_equal(arr.reshape(-1), exp.reshape(-1))
     with ds:
         ds.x[0][1] += 1
         ds.x[0][1] *= 3
     exp[1] += 1
     exp[1] *= 3
     arr = ds.x[0].numpy()
-    np.testing.assert_array_equal(arr, exp)
+    np.testing.assert_array_equal(arr.reshape(-1), exp.reshape(-1))
