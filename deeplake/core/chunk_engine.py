@@ -2477,7 +2477,7 @@ class ChunkEngine:
     def shape(
         self, index: Index, sample_shape_provider: Optional[Callable] = None
     ) -> Tuple[Optional[int], ...]:
-        shape = self.shape_interval.astuple()
+        shape = self.shape_interval(index).astuple()
         idxs = index.values
         skip_dims = 0
         if None in shape or self.tensor_meta.is_link:
@@ -2533,8 +2533,7 @@ class ChunkEngine:
                     ndim -= 1
         return ndim
 
-    @property
-    def shape_interval(self) -> ShapeInterval:
+    def shape_interval(self, index: Index) -> ShapeInterval:
         """Returns a `ShapeInterval` object that describes this tensor's shape more accurately. Length is included.
 
         Note:
@@ -2553,12 +2552,12 @@ class ChunkEngine:
         """
         meta = self.tensor_meta
         if self.is_sequence:
-            seq_length = self._sequence_length
+            seq_length = index.length(self._sequence_length)
             min_item_length, max_item_length = self._sequence_item_length_range
             min_length = [seq_length, min_item_length]
             max_length = [seq_length, max_item_length]
         else:
-            min_length = max_length = [meta.length]
+            min_length = max_length = [index.length(meta.length)]
         min_shape = min_length + list(meta.min_shape)
         max_shape = max_length + list(meta.max_shape)
 
