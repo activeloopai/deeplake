@@ -6,7 +6,7 @@ from deeplake.core.dataset.view_entry import ViewEntry
 from deeplake.util.logging import log_visualizer_link
 
 
-class NonlinearQueryView(ViewEntry):
+class NonLinearQueryView(ViewEntry):
     def __init__(
         self, info: Dict, dataset, source_dataset=None, external: bool = False
     ):
@@ -30,8 +30,6 @@ class NonlinearQueryView(ViewEntry):
             verbose=False,
         )
         sub_ds_path = sub_ds.path.split("/.queries/")[0]
-        # ds = dp.load(sub_ds_path)
-
         self._ds._view_entry = self
         if verbose:
             log_visualizer_link(sub_ds_path, source_ds_url=self.info["source-dataset"])

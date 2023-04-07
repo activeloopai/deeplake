@@ -2857,8 +2857,8 @@ class Dataset:
         else:
             if message is None:
                 message = self._query
-            view_path = os.path.join(".queries", info["id"])
-            self.path = os.path.join(self.path, view_path)
+            view_path = posixpath.join(".queries", info["id"])
+            self.path = posixpath.join(self.path, view_path)
             info["virtual"] = False
             info["message"] = message
             self._append_to_queries_json(info)
@@ -3134,7 +3134,7 @@ class Dataset:
                 - If not specified, views from all commits are returned.
 
         Returns:
-            List[Union(ViewEntry, NonlinearQueryView)]: List of :class:`ViewEntry` or `NonlinearQueryView` instances.
+            List[Union(ViewEntry, NonLinearQueryView)]: List of :class:`ViewEntry` or `NonLinearQueryView` instances.
         """
         queries = self._read_queries_json()
         if commit_id is not None:
@@ -3143,12 +3143,12 @@ class Dataset:
             )
 
         ret = []
-        from deeplake.core.dataset.deeplake_query_view import NonlinearQueryView
+        from deeplake.core.dataset.deeplake_query_view import NonLinearQueryView
 
         for query in queries:
             ViewClass = ViewEntry
             if query.get("query"):
-                ViewClass = NonlinearQueryView
+                ViewClass = NonLinearQueryView
 
             ret.append(ViewClass(info=query, dataset=self))
 
@@ -3176,14 +3176,14 @@ class Dataset:
         Raises:
             KeyError: If no such view exists.
         """
-        from deeplake.core.dataset.deeplake_query_view import NonlinearQueryView
+        from deeplake.core.dataset.deeplake_query_view import NonLinearQueryView
 
         queries = self._read_queries_json()
         for q in queries:
             if q["id"] == id:
                 query = q.get("query")
                 if query:
-                    return NonlinearQueryView(q, self)
+                    return NonLinearQueryView(q, self)
                 return ViewEntry(q, self)
 
         raise KeyError(f"No view with id {id} found in the dataset.")

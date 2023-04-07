@@ -31,7 +31,6 @@ except ImportError:
 import numpy as np
 
 import math
-from collections import OrderedDict
 
 # Load lazy to avoid cycylic import.
 INDRA_LOADER = None

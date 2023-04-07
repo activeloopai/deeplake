@@ -67,8 +67,8 @@ class ViewEntry:
         sub_ds_path = ds.path
         if self.virtual:
             ds = ds._get_view(inherit_creds=not self._external)
-        else:
-            query_str = self.info.get("query")
+        elif not self.query is None:
+            query_str = self.query
             ds = self._ds.query(query_str)
 
         ds._view_entry = self
@@ -113,7 +113,7 @@ class ViewEntry:
             Exception: When query view cannot be optimized.
 
         """
-        if not self.virtual:
+        if not self.query is None:
             raise Exception("Optimizing nonlinear query views is not supported")
         self.info = self._ds._optimize_saved_view(
             self.info["id"],

@@ -114,48 +114,12 @@ class DeepLakeQueryDataset(Dataset):
         buffer_size: int = 2048,
         persistent_workers: bool = False,
     ):
-        """Returns a dataloader object referencing to C++ dataloader instance.
-
-        Args:
-            batch_size (int, optional): how many samples per batch to load
-                (default: ``1``).
-            shuffle (bool): set to ``True`` to have the data reshuffled at every epoch
-                (default: ``False``).
-            drop_last (bool): set to ``True`` to drop the last incomplete batch,
-                if the dataset size is not divisible by the batch size. If ``False`` and
-                the size of dataset is not divisible by the batch size, then the last batch
-                will be smaller. (default: ``False``)
-            return_index (bool): Showing wheter Loader needs to return the sample index during iteration.Defaults to True.
-            transform (Callable, optional): Callable object which is needed to be applyed on each sample on batch. Defaults to None.
-            num_workers (int): How many subprocesses to use for data
-                loading. ``0`` means that the data will be loaded in the main process.
-                (default: ``0``)
-            num_threads (int, optional): Number of threads that nedes to be spinned up during data loading. Defaults to None.
-                if it is none then we are detecting the hardware concurency count to set.
-                Note: We don't set any threading flags (eg. OMP_NUM_THREADS, MKL_NUM_THREADS, etc)
-                to get more performant Loader consider of not setting those flags which can affect on 3rd party libraries worflow performance
-            collate_fn (callable, optional): merges a list of samples to form a
-                mini-batch of Tensor(s).  Used when using batched loading from a
-                map-style dataset.
-            distributed (bool): Flag that is showing whether Loader needes to work in DDP or not. Defaults to ``False``
-            tensors (List[str], optinal): List of tensors thet are participating to in Loadeing process.
-                Defaults to ``None`` which means that Loader will fetch samples for all of the tensors
-            raw_tensors (List[str], optional): List of the tensors that needs to return raw data instead of decompression.
-                Defaults to ``None`` if raw_tensors is None then all the tensors will send decompression data
-                E.g raw_tensors['images'] then only the images tensor data will be sent as a row array
-            compressed_tensors (List[str], optional): Subset of raw tensors, these will be decompressed by python workers.
-            prefetch_factor (int): Number of samples loaded in advance by workers. Defaults to 10
-            upcast (bool): Flag that is showing wheter we need to upcast object if dtype is not supported this is needed only for
-                pytorch as it is not support all the dtypes. Defaults to True.
-            primary_tensor (Optional[str]): Name of primary tensor.
-            buffer_size (int): The size of the buffer used to shuffle the data in MBs. Defaults to 2048 MB. Increasing the buffer_size will increase the extent of shuffling.
-            persistent_workers (bool): If ``True``, the data loader will not shutdown the worker processes after a dataset has been consumed once. Defaults to ``False``.
-
+        """
         Raises:
             Exception: OSS dataloader is not supported on query dataset.
         """
         raise Exception(
-            "OSS dataloader is not supported for non-linear views. Use `view.dataloader().pytorch` instead."
+            "OSS dataloader is not supported for non-linear views. Use `view.dataloader().pytorch()` instead."
         )
 
     def __getitem__(
@@ -358,18 +322,3 @@ class DeepLakeQueryDataset(Dataset):
             lengths = calculate_absolute_lengths(lengths, len(self))
         vs = self.indra_ds.random_split(lengths)
         return [DeepLakeQueryDataset(self.deeplake_ds, v) for v in vs]
-
-    def _create_sample_shape_tensor(self, tensor: str):
-        shape_tensor_name = f"_{tensor}_shape"
-        shape_tensor = self.create_tensor(
-            shape_tensor_name,
-            dtype="int64",
-            hidden=True,
-            create_id_tensor=False,
-            create_sample_info_tensor=False,
-            create_shape_tensor=False,
-            max_chunk_size=SAMPLE_INFO_TENSOR_MAX_CHUNK_SIZE,
-        )
-
-        indra_tensor = getattr(self.indra_ds, tensor)
-        shape_tensor.extend(indra_tensor)

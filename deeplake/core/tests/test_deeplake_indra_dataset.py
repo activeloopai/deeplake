@@ -1,4 +1,4 @@
-import deeplake as dp
+import deeplake
 import numpy as np
 from deeplake.tests.common import requires_libdeeplake
 from deeplake.core.dataset.deeplake_query_dataset import DeepLakeQueryDataset

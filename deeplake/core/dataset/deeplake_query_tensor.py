@@ -4,9 +4,8 @@ from typing import List, Union, Optional
 from deeplake.core.index import Index
 from deeplake.core.tensor import Any
 import numpy as np
-import itertools
 from deeplake.core.index import replace_ellipsis_with_slices
-from deeplake.util.exceptions import DynamicTensorNumpyError, InvalidKeyTypeError
+from deeplake.util.exceptions import InvalidKeyTypeError
 from deeplake.util.pretty_print import summary_tensor
 
 
@@ -55,9 +54,7 @@ class DeepLakeQueryTensor(tensor.Tensor):
         if isinstance(item, tuple) or item is Ellipsis:
             item = replace_ellipsis_with_slices(item, self.ndim)
 
-        key = None
-        if hasattr(self, "key"):
-            key = self.key
+        key = getattr(self, key, None)
 
         indra_tensor = self.indra_tensor[item]
 
@@ -82,9 +79,12 @@ class DeepLakeQueryTensor(tensor.Tensor):
 
     @property
     def htype(self):
+        htype = self.indra_tensor.htype
         if self.indra_tensor.is_sequence:
-            return f"sequence[{self.indra_tensor.htype}]"
-        return self.indra_tensor.htype
+            htype = f"sequence[{htype}]"
+        if self.deeplake_tensor.is_link:
+            htype = f"link[{htype}]"
+        return htype
 
     @property
     def sample_compression(self):
@@ -99,9 +99,7 @@ class DeepLakeQueryTensor(tensor.Tensor):
         return len(self.indra_tensor)
 
     def can_convert_to_numpy(self):
-        if None in self.shape:
-            return False
-        return True
+        return None not in self.shape
 
     @property
     def max_shape(self):
