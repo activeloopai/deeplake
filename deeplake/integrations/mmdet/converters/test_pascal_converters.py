@@ -10,21 +10,46 @@ import deeplake.integrations.mmdet.converters.bbox_format as bbox_format
 BBOX_INFO_TO_CORRECT_BBOX = {
     ("LTWH", "pixel"): np.array([[4, 5, 6, 7]]),
     ("LTWH", "fractional"): np.array([[8, 10, 12, 14]]),
-    ("LTRB", "pixel"):  np.array([[4, 5, 6, 7]]),
-    ("LTRB", "fractional"):  np.array([[8, 10, 12, 15]]),
+    ("LTRB", "pixel"): np.array([[4, 5, 6, 7]]),
+    ("LTRB", "fractional"): np.array([[8, 10, 12, 14]]),
     ("CCWH", "pixel"): np.array([[3, 4, 5, 6]]),
     ("CCWH", "fractional"): np.array([[7.5, 10, 12.5, 15]]),
 }
 
+
 @pytest.mark.parametrize(
     "bbox, bbox_info, shape",
     [
-        [np.array([[4, 5, 6, 7]]), {"coords": {"mode": "LTRB", "type": "pixel"}}, (10, 10)],
-        [np.array([[[0.4, 0.5, 0.6, 0.7]]]), {"coords": {"mode": "LTRB", "type": "fractional"}}, [np.zeros((20, 20))]],
-        [np.array([[[4, 5, 2, 2]]]), {"coords": {"mode": "CCWH", "type": "pixel"}}, [np.zeros((10, 10))]],
-        [np.array([[[0.4, 0.5, 0.2, 0.2]]]), {"coords": {"mode": "CCWH", "type": "fractional"}}, [np.zeros((20, 20))]],
-        [np.array([[[4, 5, 2, 2]]]), {"coords": {"mode": "LTWH", "type": "pixel"}}, [np.zeros((10, 10))]],
-        [np.array([[[0.4, 0.5, 0.2, 0.2]]]), {"coords": {"mode": "LTWH", "type": "fractional"}}, [np.zeros((25, 25))]],
+        [
+            np.array([[4, 5, 6, 7]]),
+            {"coords": {"mode": "LTRB", "type": "pixel"}},
+            (10, 10),
+        ],
+        [
+            np.array([[0.4, 0.5, 0.6, 0.7]]),
+            {"coords": {"mode": "LTRB", "type": "fractional"}},
+            (20, 20),
+        ],
+        [
+            np.array([[4, 5, 2, 2]]),
+            {"coords": {"mode": "CCWH", "type": "pixel"}},
+            (10, 10),
+        ],
+        [
+            np.array([[0.4, 0.5, 0.2, 0.2]]),
+            {"coords": {"mode": "CCWH", "type": "fractional"}},
+            (25, 25),
+        ],
+        [
+            np.array([[4, 5, 2, 2]]),
+            {"coords": {"mode": "LTWH", "type": "pixel"}},
+            (10, 10),
+        ],
+        [
+            np.array([[0.4, 0.5, 0.2, 0.2]]),
+            {"coords": {"mode": "LTWH", "type": "fractional"}},
+            (20, 20),
+        ],
     ],
 )
 def test_conveter(bbox: np.ndarray, bbox_info: Tuple, shape: Tuple):

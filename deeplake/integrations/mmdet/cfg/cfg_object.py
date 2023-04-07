@@ -44,29 +44,22 @@ class CfgObject:
             deeplake.core.dataset.Dataset: The loaded dataset or query result.
         """
         ds_path = self.cfg["deeplake_path"]
-        ds = deeplake.load(ds_path, token=self.token, read_only=True)
-        self.load_commit(ds)
-        return self.load_view_or_query(ds)
 
-    def load_commit(self, ds: deeplake.core.dataset.Dataset) -> None:
+        self.ds = deeplake.load(ds_path, token=self.token, read_only=True)
+        self.load_commit()
+        return self.load_view_or_query()
+
+    def load_commit(self) -> None:
         """
         Checks out the specified commit from the dataset.
-
-        Args:
-            ds (deeplake.core.dataset.Dataset): The dataset to perform the checkout on.
         """
         deeplake_commit = self.cfg.get("deeplake_commit")
         if deeplake_commit:
-            ds.checkout(deeplake_commit)
+            self.ds.checkout(deeplake_commit)
 
-    def load_view_or_query(
-        self, ds: deeplake.core.dataset.Dataset
-    ) -> deeplake.core.dataset.Dataset:
+    def load_view_or_query(self) -> deeplake.core.dataset.Dataset:
         """
         Loads a view or performs a query on the dataset.
-
-        Args:
-            ds (deeplake.core.dataset.Dataset): The dataset to load the view or perform the query on.
 
         Returns:
             deeplake.core.dataset.Dataset: The loaded view or query result.
@@ -83,5 +76,5 @@ class CfgObject:
             )
 
         if deeplake_view_id:
-            return ds.load_view(id=deeplake_view_id)
-        return ds.query(deeplake_query)
+            return self.ds.load_view(id=deeplake_view_id)
+        return self.ds.query(deeplake_query)

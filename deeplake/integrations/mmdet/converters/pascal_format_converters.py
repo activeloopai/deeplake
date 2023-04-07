@@ -116,10 +116,10 @@ def yolo_pixel_2_pascal_pixel(boxes: np.ndarray, shape: Tuple[int, int]) -> np.n
     bbox = np.empty((0, 4), dtype=boxes.dtype)
 
     if boxes.size != 0:
-        x_top = np.array(boxes[:, 0]) - np.floor(np.array(boxes[:, 2]) / 2)
-        y_top = np.array(boxes[:, 1]) - np.floor(np.array(boxes[:, 3]) / 2)
-        x_bottom = np.array(boxes[:, 0]) + np.floor(np.array(boxes[:, 2]) / 2)
-        y_bottom = np.array(boxes[:, 1]) + np.floor(np.array(boxes[:, 3]) / 2)
+        x_top = np.array(boxes[:, 0]) - np.array(boxes[:, 2]) / 2
+        y_top = np.array(boxes[:, 1]) - np.array(boxes[:, 3]) / 2
+        x_bottom = np.array(boxes[:, 0]) + np.array(boxes[:, 2]) / 2
+        y_bottom = np.array(boxes[:, 1]) + np.array(boxes[:, 3]) / 2
         bbox = np.stack((x_top, y_top, x_bottom, y_bottom), axis=1)
     return bbox
 
