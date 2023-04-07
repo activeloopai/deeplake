@@ -38,39 +38,6 @@ class DeepLakeQueryDataset(Dataset):
         self.indra_ds = indra_ds
         self.group_index = group_index or deeplake_ds.group_index
         self.enabled_tensors = enabled_tensors or deeplake_ds.enabled_tensors
-        self.set_deeplake_dataset_variables()
-
-    def set_deeplake_dataset_variables(self):
-        self.path = self.deeplake_ds.path
-        if self.path.startswith("mem://"):
-            raise MemoryDatasetCanNotBePickledError
-
-        keys = [
-            "base_storage",
-            "_read_only",
-            "public",
-            "storage",
-            "_token",
-            "verbose",
-            "version_state",
-            "org_id",
-            "ds_name",
-            "_is_filtered_view",
-            "_view_id",
-            "_view_use_parent_commit",
-            "_parent_dataset",
-            "_pad_tensors",
-            "_locking_enabled",
-            "is_iteration",
-            "_view_base",
-            "link_creds",
-            "_locked_out",
-            "_indexing_history",
-            "_vc_info_updated",
-        ]
-
-        for k in keys:
-            setattr(self, k, getattr(self.deeplake_ds, k))
 
     @property
     def meta(self):
@@ -199,9 +166,12 @@ class DeepLakeQueryDataset(Dataset):
         try:
             return self.__getitem__(key)
         except TensorDoesNotExistError as ke:
-            raise AttributeError(
-                f"'{self.__class__}' object has no attribute '{key}'"
-            ) from ke
+            try:
+                return getattr(self.deeplake_ds, key)
+            except AttributeError:
+                raise AttributeError(
+                    f"'{self.__class__}' object has no attribute '{key}'"
+                ) from ke
 
     def __len__(self):
         return len(self.indra_ds)

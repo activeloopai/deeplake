@@ -20,28 +20,14 @@ class DeepLakeQueryTensor(tensor.Tensor):
         self.deeplake_tensor = deeplake_tensor
         self.indra_tensor = indra_tensor
         self.is_iteration = is_iteration
-        self.set_deeplake_tensor_variables()
 
         if key:
             self.key = key
 
         self.first_dim = None
 
-    def set_deeplake_tensor_variables(self):
-        attrs = [
-            "key",
-            "dataset",
-            "storage",
-            "version_state",
-            "chunk_engine",
-            "link_creds",
-            "_skip_next_setitem",
-            "_indexing_history",
-        ]
-
-        for k in attrs:
-            if hasattr(self.deeplake_tensor, k):
-                setattr(self, k, getattr(self.deeplake_tensor, k))
+    def __getattr__(self, key):
+        return getattr(self.deeplake_tensor, key)
 
     def __getitem__(
         self,
@@ -54,7 +40,7 @@ class DeepLakeQueryTensor(tensor.Tensor):
         if isinstance(item, tuple) or item is Ellipsis:
             item = replace_ellipsis_with_slices(item, self.ndim)
 
-        key = getattr(self, key, None)
+        key = getattr(self, "key", None)
 
         indra_tensor = self.indra_tensor[item]
 
