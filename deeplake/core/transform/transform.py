@@ -294,7 +294,7 @@ class Pipeline:
                 index, sample = None, None
                 if isinstance(e, TransformError):
                     index, sample = e.index, e.sample
-                    e = e.__cause__
+                    e = e.__cause__ # type: ignore
                 raise TransformError(
                     index=index,
                     sample=sample,
