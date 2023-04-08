@@ -2505,7 +2505,7 @@ class ChunkEngine:
                                 if sample_index and not sample_index[0].subscriptable():
                                     shape = tuple(shape[sample_index[0].value].tolist())  # type: ignore
                                 else:
-                                    is_same = np.all(shape == shape[0, :], axis=0) # type: ignore
+                                    is_same = np.all(shape == shape[0, :], axis=0)  # type: ignore
                                     shape = (len(shape),) + (
                                         tuple(
                                             int(shape[0, i])  # type: ignore
@@ -2536,12 +2536,12 @@ class ChunkEngine:
                     squeeze_dims.add(j)
 
         is_same = np.all(sample_shapes == sample_shapes[0, :], axis=0)
-        shape = [   # type: ignore
+        shape = [  # type: ignore
             sample_shapes[0, i] if is_same[i] else None for i in range(sample_ndim)
         ]
 
         if index_0.subscriptable():
-            shape = [num_samples, *shape]   # type: ignore
+            shape = [num_samples, *shape]  # type: ignore
 
         return tuple(shape[i] for i in range(len(shape)) if i not in squeeze_dims)
 
