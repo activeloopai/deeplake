@@ -2536,6 +2536,9 @@ class ChunkEngine:
     def shape_interval(self, index: Index) -> ShapeInterval:
         """Returns a `ShapeInterval` object that describes this tensor's shape more accurately. Length is included.
 
+        Args:
+            index (Index): Index to use for shape calculation.
+
         Note:
             If you are expecting a `tuple`, use `tensor.shape` instead.
 
