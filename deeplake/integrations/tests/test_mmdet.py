@@ -284,13 +284,13 @@ def get_test_config(
     if model_name == "mask_rcnn":
         model_path = os.path.join(
             "mask_rcnn",
-            "mask_rcnn_r50_caffe_fpn_mstrain-poly_3x_coco.py",
+            "mask_rcnn_r50_caffe_fpn_mstrain-poly_1x_coco.py",
         )
 
     elif model_name == "yolo":
         model_path = os.path.join(
             "yolo",
-            "yolov3_d53_mstrain-608_273e_coco.py",
+            "yolov3_d53_8xb8-320-273e_coco.py",
         )
 
     cfg = Config.fromfile(
