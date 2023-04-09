@@ -2505,7 +2505,7 @@ class ChunkEngine:
                     if sample_shape_provider:
                         try:
                             shape = sample_shape_provider(idx) # type: ignore
-                            if shape == ():
+                            if isinstance(shape, tuple) and shape == ():
                                 shape = (1,)
                             if self.is_sequence:
                                 if sample_index and not sample_index[0].subscriptable():
@@ -2529,6 +2529,10 @@ class ChunkEngine:
                     else:
                         self.check_link_ready()
                         shape = self.read_shape_for_sample(idx)  # type: ignore
+                        # if link verification was not done
+                        if len(shape) > sample_ndim:
+                            sample_ndim = len(shape)
+                            sample_shapes = np.zeros((num_samples, sample_ndim), dtype=np.int32)
                     sample_shapes[i] = shape
         else:
             sample_shapes[:] = shape
