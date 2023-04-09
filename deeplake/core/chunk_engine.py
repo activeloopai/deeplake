@@ -2504,17 +2504,19 @@ class ChunkEngine:
                 else:
                     if sample_shape_provider:
                         try:
-                            shape = sample_shape_provider(idx) or (1,) # type: ignore
+                            shape = sample_shape_provider(idx) # type: ignore
+                            if shape == ():
+                                shape = (1,)
                             if self.is_sequence:
                                 if sample_index and not sample_index[0].subscriptable():
-                                    shape = tuple(shape[sample_index[0].value].tolist())  # type: ignore
+                                    shape = (1, *tuple(shape[sample_index[0].value].tolist()))  # type: ignore
                                 else:
                                     is_same = np.all(shape == shape[0, :], axis=0)  # type: ignore
                                     shape = (len(shape),) + (
                                         tuple(
                                             int(shape[0, i])  # type: ignore
                                             if is_same[i]  # type: ignore
-                                            else None
+                                            else -1
                                             for i in range(shape.shape[1])  # type: ignore
                                         )
                                         or (1,)
@@ -2535,13 +2537,14 @@ class ChunkEngine:
         for i in range(num_samples):
             for j in range(len(sample_index)):
                 if sample_index[j].subscriptable():
-                    sample_shapes[i, j] = sample_index[j].length(sample_shapes[i, j])
+                    if sample_shapes[i, j] != -1:
+                        sample_shapes[i, j] = sample_index[j].length(sample_shapes[i, j])
                 else:
                     squeeze_dims.add(j)
 
         is_same = np.all(sample_shapes == sample_shapes[0, :], axis=0)
         shape = [  # type: ignore
-            sample_shapes[0, i] if is_same[i] else None for i in range(sample_ndim)
+            int(sample_shapes[0, i]) if sample_shapes[0, i] != -1 and is_same[i] else None for i in range(sample_ndim)
         ]
 
         if index_0.subscriptable():
