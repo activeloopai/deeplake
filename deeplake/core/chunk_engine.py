@@ -2485,6 +2485,10 @@ class ChunkEngine:
             index_0.indices(self._sequence_length or self.num_samples)
         )
         num_samples = len(sample_indices)
+
+        if num_samples == 0:
+            return (0, *shape)
+
         sample_ndim = self.ndim() - 1
         sample_shapes = np.zeros((num_samples, sample_ndim), dtype=np.int32)
 
@@ -2500,7 +2504,7 @@ class ChunkEngine:
                 else:
                     if sample_shape_provider:
                         try:
-                            shape = sample_shape_provider(idx)  # type: ignore
+                            shape = sample_shape_provider(idx) or (1,) # type: ignore
                             if self.is_sequence:
                                 if sample_index and not sample_index[0].subscriptable():
                                     shape = tuple(shape[sample_index[0].value].tolist())  # type: ignore
@@ -2523,7 +2527,7 @@ class ChunkEngine:
                     else:
                         self.check_link_ready()
                         shape = self.read_shape_for_sample(idx)  # type: ignore
-                sample_shapes[i] = shape
+                    sample_shapes[i] = shape
         else:
             sample_shapes[:] = shape
 
