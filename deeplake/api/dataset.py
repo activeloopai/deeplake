@@ -967,7 +967,17 @@ class dataset:
 
         if isinstance(src, (str, pathlib.Path)):
             src = convert_pathlib_to_string_if_needed(src)
-            src_ds = deeplake.load(src, read_only=True, creds=src_creds, token=token)
+            try:
+                src_ds = deeplake.load(
+                    src, read_only=True, creds=src_creds, token=token, verbose=False
+                )
+            except DatasetCorruptError as e:
+                raise DatasetCorruptError(
+                    "The source dataset is corrupted.",
+                    "You can try to fix this by loading the dataset with `reset=True` "
+                    "which will attempt to reset uncommitted HEAD changes and load the previous version.",
+                    e.__cause__,
+                )
         else:
             src_ds = src
             src_ds.path = str(src_ds.path)
@@ -1031,17 +1041,6 @@ class dataset:
             DatasetCorruptError: If loading source dataset fails with DatasetCorruptedError
         """
 
-        report_params = {
-            "Overwrite": overwrite,
-            "Num_Workers": num_workers,
-            "Scheduler": scheduler,
-            "Progressbar": progressbar,
-            "Public": public,
-        }
-        if dest.startswith("hub://"):
-            report_params["Dest"] = dest
-        feature_report_path(src, "deepcopy", report_params, token=token)
-
         if "src_token" in kwargs:
             raise UnsupportedParameterException(
                 "src_token is now not supported. You should use `token` instead."
@@ -1052,29 +1051,37 @@ class dataset:
                 "dest_token is now not supported. You should use `token` instead."
             )
 
-        if isinstance(src, (str, pathlib.Path)):
-            src = convert_pathlib_to_string_if_needed(src)
-            src_ds = deeplake.load(
-                src, read_only=True, creds=src_creds, token=token, verbose=False
-            )
-        else:
-            src_ds = src
+        deeplake_reporter.feature_report(
+            feature_name="deepcopy",
+            parameters={
+                "Overwrite": overwrite,
+                "Num_Workers": num_workers,
+                "Scheduler": scheduler,
+                "Progressbar": progressbar,
+                "Public": public,
+            },
+        )
 
         dest = convert_pathlib_to_string_if_needed(dest)
 
+        if isinstance(src, (str, pathlib.Path)):
+            src = convert_pathlib_to_string_if_needed(src)
+            try:
+                src_ds = deeplake.load(
+                    src, read_only=True, creds=src_creds, token=token, verbose=False
+                )
+            except DatasetCorruptError as e:
+                raise DatasetCorruptError(
+                    "The source dataset is corrupted.",
+                    "You can try to fix this by loading the dataset with `reset=True` "
+                    "which will attempt to reset uncommitted HEAD changes and load the previous version.",
+                    e.__cause__,
+                )
+        else:
+            src_ds = src
+
         verify_dataset_name(dest)
 
-        # try:
-        #     src_ds = deeplake.load(
-        #         src, read_only=True, creds=src_creds, token=token, verbose=False
-        #     )
-        # except DatasetCorruptError as e:
-        #     raise DatasetCorruptError(
-        #         "The source dataset is corrupted.",
-        #         "You can try to fix this by loading the dataset with `reset=True` "
-        #         "which will attempt to reset uncommitted HEAD changes and load the previous version.",
-        #         e.__cause__,
-        #     )
         src_storage = get_base_storage(src_ds.storage)
 
         dest_storage, cache_chain = get_storage_and_cache_chain(
