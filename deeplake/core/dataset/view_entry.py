@@ -60,16 +60,13 @@ class ViewEntry:
 
         from deeplake.util.exceptions import CouldNotCreateNewDatasetException
 
-        try:
-            ds = self._ds._sub_ds(
-                ".queries/" + (self.info.get("path") or self.info["id"]),
-                lock=False,
-                verbose=False,
-                token=self._src_ds.token,
-                read_only=True,
-            )
-        except CouldNotCreateNewDatasetException:
-            ds = self._ds
+        ds = self._ds._sub_ds(
+            ".queries/" + (self.info.get("path") or self.info["id"]),
+            lock=False,
+            verbose=False,
+            token=self._src_ds.token,
+            read_only=True,
+        )
 
         sub_ds_path = ds.path
         if self.virtual:
