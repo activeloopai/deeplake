@@ -1,7 +1,6 @@
 import numpy as np
 import pytest
 import deeplake
-import json
 
 from deeplake.util.testing import assert_array_equal, compare_version_info
 from deeplake.util.version_control import rebuild_version_info
