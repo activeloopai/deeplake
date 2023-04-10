@@ -29,7 +29,10 @@ jobs:
       - name: checkout
         uses: actions/checkout@v3
         with:
-          path: 'benchmarks'
+          repository: ${{ secrets.BENCHMARKS_REPO }}
+          path: "benchmarks"
+          ref: "test-e2e"
+          token: ${{ secrets.BENCHMARK_REPO_TOKEN }}
 
       - uses: aws-actions/configure-aws-credentials@v1-node16
         with:
@@ -37,7 +40,7 @@ jobs:
           aws-region: us-east-1
       
       - name: start ec2
-        working-directory: benchmarks/scripts
+        working-directory: scripts
         shell: bash
         run: |
           pip install boto3
