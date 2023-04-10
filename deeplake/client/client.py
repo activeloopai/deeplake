@@ -13,7 +13,7 @@ from deeplake.util.exceptions import (
     UserNotLoggedInException,
     TokenPermissionError,
 )
-from deeplake.client.utils import check_response_status, write_token, read_token
+from deeplake.client.utils import check_response_status, write_token, read_token, remove_token
 from deeplake.client.config import (
     ACCEPT_AGREEMENTS_SUFFIX,
     REJECT_AGREEMENTS_SUFFIX,
@@ -47,11 +47,16 @@ class DeepLakeBackendClient:
     def __init__(self, token: Optional[str] = None):
         self.version = deeplake.__version__
         self.auth_header = None
-        if token is None:
-            self.token = self.get_token()
-        else:
-            self.token = token
+        self.token = token or self.get_token()
         self.auth_header = f"Bearer {self.token}"
+
+        # remove public token, otherwise env var will be ignored
+        # we can remove this after a while
+        orgs = self.get_user_organizations()
+        if orgs == ["public"]:
+            remove_token()
+            self.token = token or self.get_token()
+            self.auth_header = f"Bearer {self.token}"
 
     def get_token(self):
         """Returns a token"""
