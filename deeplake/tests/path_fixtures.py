@@ -67,7 +67,7 @@ def _git_clone(url):
         cwd = os.getcwd()
         os.chdir(_GIT_CLONE_CACHE_DIR)
         try:
-            os.system(f"git clone " + url)
+            os.system(f"git clone -b dev-2.x " + url)
         finally:
             os.chdir(cwd)
     assert os.path.isdir(cached_dir)
