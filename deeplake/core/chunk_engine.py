@@ -2504,7 +2504,7 @@ class ChunkEngine:
                 else:
                     if sample_shape_provider:
                         try:
-                            shape = sample_shape_provider(idx) # type: ignore
+                            shape = sample_shape_provider(idx)  # type: ignore
                             if isinstance(shape, tuple) and shape == ():
                                 shape = (1,)
                             if self.is_sequence:
@@ -2532,7 +2532,9 @@ class ChunkEngine:
                         # if link verification was not done
                         if len(shape) > sample_ndim:
                             sample_ndim = len(shape)
-                            sample_shapes = np.zeros((num_samples, sample_ndim), dtype=np.int32)
+                            sample_shapes = np.zeros(
+                                (num_samples, sample_ndim), dtype=np.int32
+                            )
                     sample_shapes[i] = shape
         else:
             sample_shapes[:] = shape
@@ -2542,13 +2544,18 @@ class ChunkEngine:
             for j in range(len(sample_index)):
                 if sample_index[j].subscriptable():
                     if sample_shapes[i, j] != -1:
-                        sample_shapes[i, j] = sample_index[j].length(sample_shapes[i, j])
+                        sample_shapes[i, j] = sample_index[j].length(
+                            sample_shapes[i, j]
+                        )
                 else:
                     squeeze_dims.add(j)
 
         is_same = np.all(sample_shapes == sample_shapes[0, :], axis=0)
         shape = [  # type: ignore
-            int(sample_shapes[0, i]) if sample_shapes[0, i] != -1 and is_same[i] else None for i in range(sample_ndim)
+            int(sample_shapes[0, i])
+            if sample_shapes[0, i] != -1 and is_same[i]
+            else None
+            for i in range(sample_ndim)
         ]
 
         if index_0.subscriptable():
