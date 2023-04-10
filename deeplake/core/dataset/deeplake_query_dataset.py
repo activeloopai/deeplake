@@ -82,6 +82,8 @@ class DeepLakeQueryDataset(Dataset):
         persistent_workers: bool = False,
     ):
         """
+        # noqa: DAR101
+
         Raises:
             Exception: OSS dataloader is not supported on query dataset.
         """
