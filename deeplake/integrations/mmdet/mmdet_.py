@@ -172,7 +172,16 @@ from collections import OrderedDict
 
 from typing import Callable, Optional, List, Dict
 
-from mmdet.apis.train import auto_scale_lr  # type: ignore
+
+try:
+    from mmdet.apis.train import auto_scale_lr  # type: ignore
+except Exception:
+    import mmdet
+
+    version = mmdet.__version__
+    raise Exception(
+        f"MMDet {version} version is not supported. The latest supported MMDet version with deeplake is 2.28.1."
+    )
 from mmdet.utils import (  # type: ignore
     build_dp,
     compat_cfg,
