@@ -2847,22 +2847,12 @@ class Dataset:
     ):
         """Saves this view under ".queries" sub directory of same storage."""
         info = self._get_view_info(id, message, copy)
-        if not hasattr(self, "_query"):
-            hash = info["id"]
-            path = f".queries/{hash}"
-            vds = self._sub_ds(path, empty=True, verbose=False)
-            self._write_vds(vds, info, copy, tensors, num_workers, scheduler)
-            self._append_to_queries_json(info)
-            return vds
-        else:
-            if message is None:
-                message = self._query
-            view_path = posixpath.join(".queries", info["id"])
-            self.path = posixpath.join(self.path, view_path)
-            info["virtual"] = False
-            info["message"] = message
-            self._append_to_queries_json(info)
-            return self
+        hash = info["id"]
+        path = f".queries/{hash}"
+        vds = self._sub_ds(path, empty=True, verbose=False)
+        self._write_vds(vds, info, copy, tensors, num_workers, scheduler)
+        self._append_to_queries_json(info)
+        return vds
 
     def _save_view_in_path(
         self,
@@ -3134,7 +3124,7 @@ class Dataset:
                 - If not specified, views from all commits are returned.
 
         Returns:
-            List[Union(ViewEntry, NonLinearQueryView)]: List of :class:`ViewEntry` or `NonLinearQueryView` instances.
+            List[ViewEntry]: List of :class:`ViewEntry` instances.
         """
         queries = self._read_queries_json()
         if commit_id is not None:
@@ -3143,14 +3133,9 @@ class Dataset:
             )
 
         ret = []
-        from deeplake.core.dataset.deeplake_query_view import NonLinearQueryView
 
         for query in queries:
-            ViewClass = ViewEntry
-            if query.get("query"):
-                ViewClass = NonLinearQueryView
-
-            ret.append(ViewClass(info=query, dataset=self))
+            ret.append(ViewEntry(info=query, dataset=self))
 
         return ret
 
@@ -3176,14 +3161,10 @@ class Dataset:
         Raises:
             KeyError: If no such view exists.
         """
-        from deeplake.core.dataset.deeplake_query_view import NonLinearQueryView
 
         queries = self._read_queries_json()
         for q in queries:
             if q["id"] == id:
-                query = q.get("query")
-                if query:
-                    return NonLinearQueryView(q, self)
                 return ViewEntry(q, self)
 
         raise KeyError(f"No view with id {id} found in the dataset.")

@@ -57,19 +57,27 @@ class ViewEntry:
         """
         if self.commit_id != self._ds.commit_id:
             print(f"Loading view from commit id {self.commit_id}.")
-        ds = self._ds._sub_ds(
-            ".queries/" + (self.info.get("path") or self.info["id"]),
-            lock=False,
-            verbose=False,
-            token=self._src_ds.token,
-            read_only=True,
-        )
+
+        from deeplake.util.exceptions import CouldNotCreateNewDatasetException
+
+        try:
+            ds = self._ds._sub_ds(
+                ".queries/" + (self.info.get("path") or self.info["id"]),
+                lock=False,
+                verbose=False,
+                token=self._src_ds.token,
+                read_only=True,
+            )
+        except CouldNotCreateNewDatasetException:
+            ds = self._ds
+
         sub_ds_path = ds.path
         if self.virtual:
             ds = ds._get_view(inherit_creds=not self._external)
-        elif not self.query is None:
+
+        if not self.query is None:
             query_str = self.query
-            ds = self._ds.query(query_str)
+            ds = ds.query(query_str)
 
         ds._view_entry = self
         if verbose:

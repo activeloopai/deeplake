@@ -109,7 +109,6 @@ def test_load_view(local_ds_generator):
     assert iss == [0, 1, 2]
     assert np.all(indra_ds.image.numpy() == deeplake_indra_ds.image.numpy())
 
-    """ TEST FOR SLICING+NON-LINEAR QUERY
     view = deeplake_ds[0:50].query(query_str)
     view_path = view.save_view()
     view_id = view_path.split("/")[-1]
@@ -120,7 +119,6 @@ def test_load_view(local_ds_generator):
     for i, batch in enumerate(dataloader):
         assert len(batch["label"][0]) == 5
         iss.append(i)
-    """
 
     assert iss == [0, 1, 2]
     assert np.all(indra_ds.image.numpy() == deeplake_indra_ds.image.numpy())
