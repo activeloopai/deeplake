@@ -83,7 +83,7 @@ def test_load_view(local_ds_generator):
             "image", htype="image", dtype=np.uint8, sample_compression="jpg"
         )
         for i in range(100):
-            deeplake_ds.label.append(int(100 * random.uniform(0.0, 1.0)))
+            deeplake_ds.label.append(i % 10)
             deeplake_ds.image.append(np.random.randint(0, 255, (100, 200, 3), np.uint8))
 
     deeplake_ds.commit("First")
@@ -103,7 +103,24 @@ def test_load_view(local_ds_generator):
     dataloader = view[:3].dataloader().pytorch()
     iss = []
     for i, batch in enumerate(dataloader):
+        assert len(batch["label"][0]) == 10
         iss.append(i)
+
+    assert iss == [0, 1, 2]
+    assert np.all(indra_ds.image.numpy() == deeplake_indra_ds.image.numpy())
+
+    """ TEST FOR SLICING+NON-LINEAR QUERY
+    view = deeplake_ds[0:50].query(query_str)
+    view_path = view.save_view()
+    view_id = view_path.split("/")[-1]
+    view = deeplake_ds.load_view(view_id)
+
+    dataloader = view[:3].dataloader().pytorch()
+    iss = []
+    for i, batch in enumerate(dataloader):
+        assert len(batch["label"][0]) == 5
+        iss.append(i)
+    """
 
     assert iss == [0, 1, 2]
     assert np.all(indra_ds.image.numpy() == deeplake_indra_ds.image.numpy())
