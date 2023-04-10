@@ -40,7 +40,7 @@ jobs:
           aws-region: us-east-1
       
       - name: start ec2
-        working-directory: scripts
+        working-directory: benchmarks/scripts
         shell: bash
         run: |
           pip install boto3
