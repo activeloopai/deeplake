@@ -58,7 +58,6 @@ class DeepLakeBackendClient:
         token = read_token()
         if token is None:
             token = self.request_auth_token(username="public", password="")
-            write_token(token)
 
         return token
 
