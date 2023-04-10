@@ -20,7 +20,7 @@ class DummyFile:
 
     def write(self, text):
         if len(text.strip()) > 0:
-            with self.spinner._stdout_lock:
+            with self.spinner._stderr_lock:
                 self.spinner._clear_line()
                 self.file.write(f"{text}\n")
 
@@ -32,7 +32,7 @@ class DummyFile:
 def run_spinner(spinner):
     global ACTIVE_SPINNER
     try:
-        if not isinstance(sys.stdout, DummyFile) and SPINNER_ENABLED:
+        if not isinstance(sys.stderr, DummyFile) and SPINNER_ENABLED:
             spinner.start()
             spinner_started = True
             save_stdout = sys.stdout
@@ -67,8 +67,8 @@ class Spinner(threading.Thread):
         self._hide_event = threading.Event()
         self._cur_line_len = 0
         self.daemon = True
-        self._stdout_lock = threading.Lock()
-        self.file = sys.stdout
+        self._stderr_lock = threading.Lock()
+        self.file = sys.stderr
 
     def run(self):
         time.sleep(SPINNER_START_DELAY)
@@ -79,7 +79,7 @@ class Spinner(threading.Thread):
             if self._hide_event.is_set():
                 time.sleep(0.1)
                 continue
-            with self._stdout_lock:
+            with self._stderr_lock:
                 self._clear_line()
                 self.file.write(next(frames))
                 self.file.flush()
@@ -89,7 +89,7 @@ class Spinner(threading.Thread):
 
     def hide(self):
         if not self._hide_event.is_set():
-            with self._stdout_lock:
+            with self._stderr_lock:
                 self._hide_event.set()
                 self._clear_line()
                 self.file.flush()
@@ -97,7 +97,7 @@ class Spinner(threading.Thread):
 
     def show(self):
         if self._hide_event.is_set():
-            with self._stdout_lock:
+            with self._stderr_lock:
                 self._hide_event.clear()
                 self._clear_line()
                 self._hide_cursor()
