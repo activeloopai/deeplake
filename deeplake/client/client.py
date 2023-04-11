@@ -13,7 +13,12 @@ from deeplake.util.exceptions import (
     UserNotLoggedInException,
     TokenPermissionError,
 )
-from deeplake.client.utils import check_response_status, write_token, read_token, remove_token
+from deeplake.client.utils import (
+    check_response_status,
+    write_token,
+    read_token,
+    remove_token,
+)
 from deeplake.client.config import (
     ACCEPT_AGREEMENTS_SUFFIX,
     REJECT_AGREEMENTS_SUFFIX,
