@@ -351,20 +351,20 @@ def get_test_config(
     "model_name",
     [
         "mask_rcnn",
-        # "yolo",
+        "yolo",
     ],
 )
 @pytest.mark.parametrize(
     "dataset_path",
     [
-        # "hub://activeloop/coco-train",
+        "hub://activeloop/coco-train",
         "hub://testingacc2/balloon-train",
     ],
 )
 @pytest.mark.parametrize(
     "tensors_specified",
     [
-        # "True",
+        "True",
         "False",
     ],
 )
@@ -380,7 +380,7 @@ def test_mmdet(
     cfg = get_test_config(mmdet_path, model_name=model_name, dataset_path=dataset_path)
     cfg = process_cfg(cfg, model_name, dataset_path)
     ds_train = dp.load(dataset_path, token=hub_cloud_dev_token)[:2]
-    ds_val = dp.load(dataset_path, token=hub_cloud_dev_token)[:2]
+    ds_val = dp.load(dataset_path,6 token=hub_cloud_dev_token)[:2]
     if dataset_path == "hub://testingacc2/balloon-train":
         ds_train_with_none = dp.empty("ds_train", overwrite=True)
         ds_val_with_none = dp.empty("ds_val", overwrite=True)
