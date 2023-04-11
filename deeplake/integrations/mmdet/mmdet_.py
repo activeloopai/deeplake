@@ -176,7 +176,7 @@ from typing import Callable, Optional, List, Dict
 try:
     from mmdet.apis.train import auto_scale_lr  # type: ignore
 except Exception:
-    import mmdet # type: ignore
+    import mmdet  # type: ignore
 
     version = mmdet.__version__
     raise Exception(

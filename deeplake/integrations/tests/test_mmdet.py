@@ -15,7 +15,7 @@ os.system("wandb offline")
 
 _THIS_FILE = pathlib.Path(__file__).parent.absolute()
 _COCO_PATH = "hub://activeloop/coco-train"
-_BALLOON_PATH = "hub://adilkhan/balloon-train"
+_BALLOON_PATH = "hub://activeloop-test/balloon-train"
 _MMDET_KEYS = ["img", "gt_bboxes", "gt_labels", "gt_masks"]
 _COCO_KEYS = ["images", "boxes", "categories", "masks"]
 _BALLOON_KEYS = ["images", "bounding_boxes", "labels", "segmentation_polygons"]
@@ -356,7 +356,7 @@ def get_test_config(
     "dataset_path",
     [
         "hub://activeloop/coco-train",
-        "hub://adilkhan/balloon-train",
+        "hub://activeloop-test/balloon-train",
     ],
 )
 @pytest.mark.parametrize(
@@ -377,7 +377,7 @@ def test_mmdet(mmdet_path, model_name, dataset_path, tensors_specified):
     cfg = process_cfg(cfg, model_name, dataset_path)
     ds_train = dp.load(dataset_path)[:2]
     ds_val = dp.load(dataset_path)[:2]
-    if dataset_path == "hub://adilkhan/balloon-train":
+    if dataset_path == "hub://activeloop-test/balloon-train":
         ds_train_with_none = dp.empty("ds_train", overwrite=True)
         ds_val_with_none = dp.empty("ds_val", overwrite=True)
 
