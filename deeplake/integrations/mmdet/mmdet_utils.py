@@ -490,17 +490,6 @@ def check_unsupported_functionalities(cfg):
     check_unsupported_train_pipeline_fields(cfg, mode="train")
     check_unsupported_train_pipeline_fields(cfg, mode="val")
     check_dataset_augmentation_formats(cfg)
-    check_mmdet_version()
-
-
-def check_mmdet_version():
-    import mmdet
-
-    version = mmdet.__version__
-    if version >= "3.0.0":
-        raise Exception(
-            f"MMDet {version} version is not supported. The latest supported MMDet version is 2.28.1."
-        )
 
 
 def check_unused_dataset_fields(cfg):
