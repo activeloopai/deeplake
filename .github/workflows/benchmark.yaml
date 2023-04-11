@@ -14,7 +14,6 @@ on:
 
   push:
     branches:
-      - "main"
       - "release/**"
 
 concurrency:
@@ -83,6 +82,7 @@ jobs:
           DEEPLAKE_PATH: '../deeplake'
           REPORTS_PATH: '../reports'
           NODE: ${{ matrix.machine }}
+          BENCHMARKS_THRESHOLD: ${{ vars.BENCHMARKS_THRESHOLD }}
         run: |
           bash benchmarks.sh ${{ matrix.machine }}
 
@@ -96,7 +96,6 @@ jobs:
       - name: complete
         shell: bash
         env:
-          BENCHMARKS_THRESHOLD: ${{ vars.BENCHMARKS_THRESHOLD }}
           BENCHMARK_TYPE: 'general'
           NODE: ${{ matrix.machine }}
           URL: ${{ secrets.SLACK_URL }}
