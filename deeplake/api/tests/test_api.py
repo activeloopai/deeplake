@@ -208,14 +208,12 @@ def test_stringify(memory_ds, capsys):
         capsys.readouterr().out
         == "Dataset(path='mem://hub_pytest/test_api/test_stringify', tensors=['image'])\n\n tensor    htype    shape    dtype  compression\n -------  -------  -------  -------  ------- \n  image   generic  (4, 4)    None     None   \n"
     )
-    with pytest.raises(NotImplementedError):
-        ds[1:2].summary()
-    # TODO - Bring this back after summary is supported for views
-    # ds[1:2].summary()
-    # assert (
-    #     capsys.readouterr().out
-    #     == "Dataset(path='mem://hub_pytest/test_api/test_stringify', index=Index([slice(1, 2, None)]), tensors=['image'])\n\n tensor    htype    shape    dtype  compression\n -------  -------  -------  -------  ------- \n  image   generic  (1, 4)    None     None   \n"
-    # )
+
+    ds[1:2].summary()
+    assert (
+        capsys.readouterr().out
+        == "Dataset(path='mem://hub_pytest/test_api/test_stringify', index=Index([slice(1, 2, None)]), tensors=['image'])\n\n tensor    htype    shape    dtype  compression\n -------  -------  -------  -------  ------- \n  image   generic  (1, 4)    None     None   \n"
+    )
 
     ds.image.summary()
     assert (
@@ -578,11 +576,20 @@ def test_shape_property(memory_ds):
 def test_htype(memory_ds: Dataset):
     image = memory_ds.create_tensor("image", htype="image", sample_compression="png")
     bbox = memory_ds.create_tensor("bbox", htype="bbox")
-    label = memory_ds.create_tensor("label", htype="class_label")
+    label = memory_ds.create_tensor(
+        "label", htype="class_label", class_names=["a", "b", "c", "d", "e", "f"]
+    )
     video = memory_ds.create_tensor("video", htype="video", sample_compression="mkv")
     bin_mask = memory_ds.create_tensor("bin_mask", htype="binary_mask")
-    segment_mask = memory_ds.create_tensor("segment_mask", htype="segment_mask")
-    keypoints_coco = memory_ds.create_tensor("keypoints_coco", htype="keypoints_coco")
+    segment_mask = memory_ds.create_tensor(
+        "segment_mask", htype="segment_mask", class_names=["a", "b", "c"]
+    )
+    keypoints_coco = memory_ds.create_tensor(
+        "keypoints_coco",
+        htype="keypoints_coco",
+        keypoints=["arm", "leg", "torso"],
+        connections=[[0, 2], [1, 2]],
+    )
     point = memory_ds.create_tensor("point", htype="point")
     point_cloud = memory_ds.create_tensor(
         "point_cloud", htype="point_cloud", sample_compression="las"
@@ -1668,6 +1675,14 @@ def test_shape_bug(memory_ds):
     ds.create_tensor("x")
     ds.x.extend(np.ones((5, 9, 2)))
     assert ds.x[1:4, 3:7].shape == (3, 4, 2)
+
+    ds.x.extend(np.ones((5, 9, 3)))
+
+    assert ds.x[1:2].shape == (1, 9, 2)
+    assert ds.x[3:8].shape == (5, 9, None)
+    assert ds.x[1:4, 2:4, :1].shape == (3, 2, 1)
+    assert ds.x[3:7, 2:4, :1].shape == (4, 2, 1)
+    assert ds.x[3:7, 2:4, :3].shape == (4, 2, None)
 
 
 def test_hidden_tensors(local_ds_generator):

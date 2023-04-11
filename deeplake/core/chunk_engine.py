@@ -2210,7 +2210,9 @@ class ChunkEngine:
 
     @property
     def _sequence_length(self):
-        return self.sequence_encoder.num_samples
+        if self.is_sequence:
+            return self.sequence_encoder.num_samples
+        return
 
     @property
     def sequence_encoder(self) -> SequenceEncoder:
@@ -2477,27 +2479,44 @@ class ChunkEngine:
     def shape(
         self, index: Index, sample_shape_provider: Optional[Callable] = None
     ) -> Tuple[Optional[int], ...]:
-        shape = self.shape_interval.astuple()
-        idxs = index.values
-        skip_dims = 0
+        shape = self.shape_interval(index).astuple()[1:]
+        index_0, sample_index = index.values[0], index.values[1:]
+        sample_indices = list(
+            index_0.indices(self._sequence_length or self.num_samples)
+        )
+        num_samples = len(sample_indices)
+
+        if num_samples == 0:
+            return (0, *shape)
+
+        sample_ndim = self.ndim() - 1
+        sample_shapes = np.zeros((num_samples, sample_ndim), dtype=np.int32)
+
+        if len(sample_index) > sample_ndim:
+            raise IndexError(
+                f"Too many indices for tensor. Tensor is rank {sample_ndim + 1} but {len(sample_index) + 1} indices were provided."
+            )
+
         if None in shape or self.tensor_meta.is_link:
-            if not idxs[0].subscriptable():
+            for i, idx in enumerate(sample_indices):
                 if self.tensor_meta.htype in ("text", "json"):
                     shape = (1,)
                 else:
                     if sample_shape_provider:
                         try:
-                            shape = sample_shape_provider(idxs[0].value)  # type: ignore
+                            shape = sample_shape_provider(idx)  # type: ignore
+                            if isinstance(shape, tuple) and shape == ():
+                                shape = (1,)
                             if self.is_sequence:
-                                if len(idxs) > 1 and not idxs[1].subscriptable():
-                                    shape = tuple(shape[idxs[1].value].tolist())  # type: ignore
-                                    skip_dims += 1
+                                if sample_index and not sample_index[0].subscriptable():
+                                    shape = (1, *tuple(shape[sample_index[0].value].tolist()))  # type: ignore
                                 else:
+                                    is_same = np.all(shape == shape[0, :], axis=0)  # type: ignore
                                     shape = (len(shape),) + (
                                         tuple(
                                             int(shape[0, i])  # type: ignore
-                                            if np.all(shape[:, i] == shape[0, i])  # type: ignore
-                                            else None
+                                            if is_same[i]  # type: ignore
+                                            else -1
                                             for i in range(shape.shape[1])  # type: ignore
                                         )
                                         or (1,)
@@ -2506,21 +2525,42 @@ class ChunkEngine:
                         except (
                             IndexError
                         ):  # Happens during transforms, sample shape tensor is not populated yet
-                            shape = self.read_shape_for_sample(idxs[0].value)  # type: ignore
+                            shape = self.read_shape_for_sample(idx)  # type: ignore
                     else:
                         self.check_link_ready()
-                        shape = self.read_shape_for_sample(idxs[0].value)  # type: ignore
-                skip_dims += 1
-        elif not idxs[0].subscriptable():
-            shape = shape[1:]
-            skip_dims += 1
-        shape = list(shape)  # type: ignore
+                        shape = self.read_shape_for_sample(idx)  # type: ignore
+                        # if link verification was not done
+                        if len(shape) > sample_ndim:
+                            sample_ndim = len(shape)
+                            sample_shapes = np.zeros(
+                                (num_samples, sample_ndim), dtype=np.int32
+                            )
+                    sample_shapes[i] = shape
+        else:
+            sample_shapes[:] = shape
+
         squeeze_dims = set()
-        for i, idx in enumerate(idxs[skip_dims:]):
-            if idx.subscriptable():
-                shape[i] = idx.length(shape[i])  # type: ignore
-            else:
-                squeeze_dims.add(i)
+        for i in range(num_samples):
+            for j in range(len(sample_index)):
+                if sample_index[j].subscriptable():
+                    if sample_shapes[i, j] != -1:
+                        sample_shapes[i, j] = sample_index[j].length(
+                            sample_shapes[i, j]
+                        )
+                else:
+                    squeeze_dims.add(j)
+
+        is_same = np.all(sample_shapes == sample_shapes[0, :], axis=0)
+        shape = [  # type: ignore
+            int(sample_shapes[0, i])
+            if sample_shapes[0, i] != -1 and is_same[i]
+            else None
+            for i in range(sample_ndim)
+        ]
+
+        if index_0.subscriptable():
+            shape = [num_samples, *shape]  # type: ignore
+
         return tuple(shape[i] for i in range(len(shape)) if i not in squeeze_dims)
 
     def ndim(self, index: Optional[Index] = None) -> int:
@@ -2533,9 +2573,11 @@ class ChunkEngine:
                     ndim -= 1
         return ndim
 
-    @property
-    def shape_interval(self) -> ShapeInterval:
+    def shape_interval(self, index: Index) -> ShapeInterval:
         """Returns a `ShapeInterval` object that describes this tensor's shape more accurately. Length is included.
+
+        Args:
+            index (Index): Index to use for shape calculation.
 
         Note:
             If you are expecting a `tuple`, use `tensor.shape` instead.
@@ -2553,12 +2595,12 @@ class ChunkEngine:
         """
         meta = self.tensor_meta
         if self.is_sequence:
-            seq_length = self._sequence_length
+            seq_length = index.length(self._sequence_length)
             min_item_length, max_item_length = self._sequence_item_length_range
             min_length = [seq_length, min_item_length]
             max_length = [seq_length, max_item_length]
         else:
-            min_length = max_length = [meta.length]
+            min_length = max_length = [index.length(meta.length)]
         min_shape = min_length + list(meta.min_shape)
         max_shape = max_length + list(meta.max_shape)
 
