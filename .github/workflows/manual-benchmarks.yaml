@@ -41,6 +41,7 @@ on:
 
 jobs:
   set_matrix:
+    name: Set Default Benchmarks Matrix
     if: github.event.inputs.default == 'true'
     runs-on: ubuntu-latest
     outputs:
@@ -58,6 +59,7 @@ jobs:
 
   default_benchmark:
     needs: set_matrix
+    name: Run Benchmarks
     runs-on: benchmarks_${{ matrix.machine }}
     timeout-minutes: 720
     strategy:
@@ -121,7 +123,7 @@ jobs:
         run: bash scripts/complete_benchmark.sh
 
   start_ec2:
-    name: Start benchmarks ec2
+    name: Start benchmarks EC2
     if: github.event.inputs.use_cases == 'true'
     runs-on: ubuntu-latest
     steps:
@@ -147,6 +149,7 @@ jobs:
 
   benchmark:
       needs: start_ec2
+      name: Run Benchmarks
       runs-on: linux_gpu_a10
       timeout-minutes: 720
       steps:
