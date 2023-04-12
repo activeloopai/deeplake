@@ -35,7 +35,7 @@ jobs:
   benchmark:
     if: github.event_name == 'push' || (github.event_name == 'pull_request' &&  github.event.label.name == 'run-benchmarks')
     runs-on: benchmarks_${{ matrix.machine }}
-    timeout-minutes: 600
+    timeout-minutes: 720
     strategy:
       fail-fast: false
       matrix:
