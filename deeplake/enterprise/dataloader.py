@@ -32,6 +32,17 @@ import numpy as np
 
 import math
 
+import itertools
+
+
+def deeplake_islice(iterable, *args, **kwargs):
+    if not isinstance(iterable, DeepLakeDataLoader):
+        return itertools.islice(iterable, *args, **kwargs)
+    return iterable
+
+
+itertools.islice = deeplake_islice
+
 
 # Load lazy to avoid cycylic import.
 INDRA_LOADER = None
