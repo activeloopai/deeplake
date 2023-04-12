@@ -58,6 +58,22 @@ def _repo_name_from_git_url(url):
     return repo_name
 
 
+def _git_clone_with_branch(branch_name, url):
+    _repo_name = _repo_name_from_git_url(url)
+    cached_dir = _GIT_CLONE_CACHE_DIR + "/" + _repo_name
+    if not os.path.isdir(cached_dir):
+        if not os.path.isdir(_GIT_CLONE_CACHE_DIR):
+            os.mkdir(_GIT_CLONE_CACHE_DIR)
+        cwd = os.getcwd()
+        os.chdir(_GIT_CLONE_CACHE_DIR)
+        try:
+            os.system(f"git clone -b {branch_name} {url}")
+        finally:
+            os.chdir(cwd)
+    assert os.path.isdir(cached_dir)
+    return cached_dir
+
+
 def _git_clone(url):
     _repo_name = _repo_name_from_git_url(url)
     cached_dir = _GIT_CLONE_CACHE_DIR + "/" + _repo_name
@@ -412,7 +428,7 @@ def grayscale_image_paths():
 
 @pytest.fixture(scope="session")
 def mmdet_path():
-    return _git_clone(_MMDET_URL)
+    return _git_clone_with_branch("dev-2.x", _MMDET_URL)
 
 
 @pytest.fixture(scope="session")
