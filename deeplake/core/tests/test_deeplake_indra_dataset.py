@@ -1,6 +1,7 @@
 import deeplake
 import numpy as np
 from deeplake.tests.common import requires_libdeeplake
+from deeplake.util.exceptions import DynamicTensorNumpyError
 from deeplake.core.dataset.deeplake_query_dataset import DeepLakeQueryDataset
 import random
 import pytest
@@ -204,6 +205,34 @@ def test_accessing_data(local_ds_generator):
     assert np.all(
         np.isclose(deeplake_indra_ds.label.numpy(), deeplake_indra_ds["label"].numpy())
     )
+
+
+@requires_libdeeplake
+def test_sequences_accessing_data(local_ds_generator):
+    deeplake_ds = local_ds_generator()
+    with deeplake_ds:
+        deeplake_ds.create_tensor("label", htype="generic", dtype=np.int32)
+        for i in range(200):
+            deeplake_ds.label.append(int(i / 101))
+        deeplake_ds.create_tensor(
+            "image", htype="image", sample_compression="jpeg", dtype=np.uint8
+        )
+        for i in range(199):
+            deeplake_ds.image.append(np.zeros((10, 10, 3), dtype=np.uint8))
+        deeplake_ds.image.append(np.zeros((20, 10, 3), np.uint8))
+
+    deeplake_indra_ds = deeplake_ds.query("SELECT * GROUP BY label")
+    assert len(deeplake_indra_ds) == 2
+    assert deeplake_indra_ds.image.shape == [2, None, None, 10, 3]
+    assert deeplake_indra_ds[0].image.shape == [101, 10, 10, 3]
+    assert deeplake_indra_ds[0, 0].image.shape == [10, 10, 3]
+    assert deeplake_indra_ds[0].image.numpy().shape == (101, 10, 10, 3)
+    assert deeplake_indra_ds[1].image.shape == [99, None, 10, 3]
+    assert deeplake_indra_ds[1, 0].image.shape == [10, 10, 3]
+    assert deeplake_indra_ds[1, 98].image.shape == [20, 10, 3]
+    assert deeplake_indra_ds[1].image.numpy().shape == (99,)
+    assert deeplake_indra_ds[1].image.numpy()[0].shape == (10, 10, 3)
+    assert deeplake_indra_ds[1].image.numpy()[98].shape == (20, 10, 3)
 
 
 @requires_libdeeplake

@@ -5,7 +5,7 @@ from deeplake.core.index import Index
 from deeplake.core.tensor import Any
 import numpy as np
 from deeplake.core.index import replace_ellipsis_with_slices
-from deeplake.util.exceptions import InvalidKeyTypeError
+from deeplake.util.exceptions import InvalidKeyTypeError, DynamicTensorNumpyError
 from deeplake.util.pretty_print import summary_tensor
 
 
@@ -54,7 +54,14 @@ class DeepLakeQueryTensor(tensor.Tensor):
     def numpy(
         self, aslist=False, *args, **kwargs
     ) -> Union[np.ndarray, List[np.ndarray]]:
-        return self.indra_tensor.numpy(aslist=aslist)
+        r = self.indra_tensor.numpy(aslist=aslist)
+        if aslist or isinstance(r, np.ndarray):
+            return r
+        else:
+            try:
+                return np.array(r)
+            except ValueError:
+                raise DynamicTensorNumpyError(self.name, self.index, "shape")
 
     def data(self, aslist: bool = False, fetch_chunks: bool = False) -> Any:
         return self.indra_tensor.bytes()
