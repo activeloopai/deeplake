@@ -88,6 +88,39 @@ class TransformDataset:
     def check_flush(self):
         if self.cache_used >= self.cache_size:
             self.flush()
+    
+    def _flush_numpy_tensor_to_chunk_engine(self, full_name, tensor, chunk_engine, callback, updated_tensors):
+        items = tensor[:].numpy_compressed()
+        for item in items:
+            chunk_engine.extend(
+                item,
+                link_callback=callback,
+                pg_callback=self.pg_callback,
+            )
+            updated_tensors[full_name] += len(item)
+        tensor.items.clear()
+    
+    def _flush_tensor_to_chunk_engine(self, full_name, tensor, chunk_engine, callback, updated_tensors):
+        items = tensor[:].numpy_compressed()
+        chunk_engine.extend(
+            items,
+            link_callback=callback,
+            pg_callback=self.pg_callback,
+        )
+        updated_tensors[full_name] = len(items)
+        tensor.items.clear()
+    
+    def _rollback(self, updated_tensors):
+        for t in updated_tensors:
+            chunk_engine = self.all_chunk_engines[t]
+            num_samples = updated_tensors[t]
+            for _ in range(num_samples):
+                chunk_engine.pop(link_callback=chunk_engine._transform_pop_callback)
+    
+    def _clear(self):
+        for tensor in self.data.values():
+            tensor.items.clear()
+        self.cache_used = 0
 
     def flush(self):
         all_chunk_engines = self.all_chunk_engines
@@ -101,34 +134,15 @@ class TransformDataset:
                     updated_tensors[name] = 0
                     chunk_engine = all_chunk_engines[name]
                     callback = chunk_engine._transform_callback
+
                     if tensor.numpy_only:
-                        items = tensor[:].numpy_compressed()
-                        for i, item in enumerate(items):
-                            chunk_engine.extend(
-                                item,
-                                link_callback=callback,
-                                pg_callback=self.pg_callback,
-                            )
-                            updated_tensors[name] += len(item)
+                        self._flush_numpy_tensor_to_chunk_engine(name, tensor, chunk_engine, callback, updated_tensors)
                     else:
-                        items = tensor[:].numpy_compressed()
-                        chunk_engine.extend(
-                            items,
-                            link_callback=callback,
-                            pg_callback=self.pg_callback,
-                        )
-                        updated_tensors[name] = len(items)
-                    tensor.items.clear()
+                        self._flush_tensor_to_chunk_engine(name, tensor, chunk_engine, callback, updated_tensors)
             self.start_input_idx = None
         except Exception as e:
-            for t in updated_tensors:
-                chunk_engine = all_chunk_engines[t]
-                num_samples = updated_tensors[t]
-                for _ in range(num_samples):
-                    chunk_engine.pop(link_callback=chunk_engine._transform_pop_callback)
+            self._rollback(updated_tensors)
             e = e.__cause__ if isinstance(e, SampleAppendError) else e  # type: ignore
             raise SampleAppendError(name) from e
         finally:
-            for tensor in self.data.values():
-                tensor.items.clear()
-            self.cache_used = 0
+            self._clear()

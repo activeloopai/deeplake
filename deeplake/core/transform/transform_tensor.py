@@ -36,10 +36,31 @@ class TransformTensor:
             return self.__getattr__(item)
         self.idx = item
         return self
+    
+    def _get_output_sample(self, item):
+        if isinstance(item, Sample):
+            return item.array
+        
+        return_as_is = (LinkedSample, Tensor, type(None), PartialSample, LinkedTiledSample)
+        if isinstance(item, return_as_is):
+            return item
+
+        return np.asarray(item)
+
+    def _numpy_only_data(self):
+        idx = self.idx
+        if isinstance(idx, int):
+            i = bisect.bisect_right(self.cum_sizes, idx)
+            if i == 0:
+                j = idx
+            else:
+                j = idx - self.cum_sizes[i - 1]
+            return self.items[i][j]
+        return self.items[idx]
 
     def numpy(self) -> Union[List, np.ndarray]:
         if self.numpy_only:
-            return self.numpy_compressed()
+            return self._numpy_only_data()
 
         if isinstance(self.idx, int):
             items = [self.numpy_compressed()]
@@ -50,29 +71,18 @@ class TransformTensor:
 
         values: List[Any] = []
         for item in items:
-            if isinstance(item, Sample):
-                values.append(item.array)
-            elif not isinstance(
-                item,
-                (LinkedSample, Tensor, type(None), PartialSample, LinkedTiledSample),
-            ):
-                values.append(np.asarray(item))
-            else:
-                values.append(item)
+            values.append(self._get_output_sample(item))
+
         if squeeze:
             values = values[0]
+
         return values
 
     def numpy_compressed(self):
-        idx = self.idx
         if self.numpy_only:
-            if isinstance(idx, int):
-                i = bisect.bisect_right(self.cum_sizes, idx)
-                if i == 0:
-                    j = idx
-                else:
-                    j = idx - self.cum_sizes[i - 1]
-                return self.items[i][j]
+            return self._numpy_only_data()
+        
+        idx = self.idx
         return self.items[idx]
 
     def non_numpy_only(self):
@@ -82,40 +92,57 @@ class TransformTensor:
             self.items += items
             self.cum_sizes.clear()
             self.numpy_only = False
+    
+    def _item_added(self, item):
+        if self.dataset.all_chunk_engines:
+            self.dataset.item_added(item)
+    
+    def _verify_item(self, item):
+        if (
+                not isinstance(item, (LinkedSample, LinkedTiledSample, Tensor))
+                and item is not None
+            ):
+                shape = getattr(item, "shape", None)  # verify sample
 
     def append(self, item):
         """Adds an item to the tensor."""
         try:
             if self.is_group:
                 raise TensorDoesNotExistError(self.name)
-            if self.numpy_only:
-                # optimization applicable only if extending
-                self.non_numpy_only()
-            if (
-                not isinstance(item, (LinkedSample, LinkedTiledSample, Tensor))
-                and item is not None
-            ):
-                shape = getattr(item, "shape", None)  # verify sample
+            
+            # optimization applicable only if extending
+            self.non_numpy_only()
+
+            self._verify_item(item)
             self.items.append(item)
-            if self.dataset.all_chunk_engines:
-                self.dataset.item_added(item)
+            self._item_added(item)
         except Exception as e:
             self.items.clear()
             raise SampleAppendError(self.name, item) from e
+    
+    def _extend_numpy(self, items):
+        """Extend tensor with a numpy array in a numpy-only tensor.
+        Returns ``True`` if successful, ``False`` otherwise.
+        """
+        if isinstance(items, np.ndarray):
+            self.items.append(items)
+
+            # update cumulative sizes list
+            if len(self.cum_sizes) == 0:
+                self.cum_sizes.append(len(items))
+            else:
+                self.cum_sizes.append(self.cum_sizes[-1] + len(items))
+
+            self._item_added(items)
+            return True
+        else:
+            self.non_numpy_only()
+            return False
 
     def extend(self, items):
         if self.numpy_only:
-            if isinstance(items, np.ndarray):
-                self.items.append(items)
-                if len(self.cum_sizes) == 0:
-                    self.cum_sizes.append(len(items))
-                else:
-                    self.cum_sizes.append(self.cum_sizes[-1] + len(items))
-                if self.dataset.all_chunk_engines:
-                    self.dataset.item_added(items)
+            if self._extend_numpy(items):
                 return
-            else:
-                self.non_numpy_only()
 
         for item in items:
             self.append(item)
