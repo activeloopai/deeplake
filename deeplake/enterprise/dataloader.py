@@ -38,7 +38,7 @@ import itertools
 def deeplake_islice(iterable, *args, **kwargs):
     if not isinstance(iterable, DeepLakeDataLoader):
         return itertools.islice(iterable, *args, **kwargs)
-    return iterable
+    return iter(iterable)
 
 
 itertools.islice = deeplake_islice
