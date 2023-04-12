@@ -82,6 +82,8 @@ jobs:
           BENCHMARKS_DEEPLAKE_TOKEN: ${{ secrets.BENCHMARKS_DEEPLAKE_TOKEN }}
           BENCHMARKS_TRAIN_T5_DATASET: ${{ secrets.BENCHMARKS_TRAIN_T5_DATASET }}
           BENCHMARKS_TRAIN_NANO_DATASET: ${{ secrets.BENCHMARKS_TRAIN_NANO_DATASET }}
+          DEEPLAKE_USER: ${{ secrets.ACTIVELOOP_HUB_USERNAME}}
+          DEEPLAKE_PASS: ${{ secrets.ACTIVELOOP_HUB_PASSWORD }}
         run: |
           bash use-cases.sh
 

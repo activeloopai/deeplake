@@ -96,8 +96,8 @@ jobs:
       - name: complete
         shell: bash
         env:
-          BENCHMARK_TYPE: 'general'
-          NODE: ${{ matrix.machine }}
+          BENCHMARK_TYPE: 'default'
+          MACHINE: ${{ matrix.machine }}
           URL: ${{ secrets.SLACK_URL }}
         working-directory: ./benchmarks
         run: bash scripts/complete_benchmark.sh
