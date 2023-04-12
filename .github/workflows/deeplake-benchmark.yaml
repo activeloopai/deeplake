@@ -77,8 +77,8 @@ jobs:
         shell: bash
         working-directory: ./benchmarks
         env:
-          DEEPLAKE_USER: ${{ secrets.ACTIVELOOP_HUB_USERNAME}}
-          DEEPLAKE_PASS: ${{ secrets.ACTIVELOOP_HUB_PASSWORD }}
+          DEEPLAKE_USER: ${{ secrets.BENCHMARKS_DEEPLAKE_USERNAME}}
+          DEEPLAKE_PASS: ${{ secrets.BENCHMARKS_DEEPLAKE_PASSWORD }}
           DEEPLAKE_PATH: '../deeplake'
           REPORTS_PATH: '../reports'
           NODE: ${{ matrix.machine }}
