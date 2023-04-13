@@ -34,10 +34,12 @@ import math
 
 import itertools
 
+original_islice = itertools.islice
+
 
 def deeplake_islice(iterable, *args, **kwargs):
     if not isinstance(iterable, DeepLakeDataLoader):
-        return itertools.islice(iterable, *args, **kwargs)
+        return original_islice(iterable, *args, **kwargs)
     return iter(iterable)
 
 
