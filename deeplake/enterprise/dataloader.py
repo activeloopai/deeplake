@@ -43,7 +43,7 @@ def deeplake_islice(iterable, *args, **kwargs):
     return original_islice(iterable, *args, **kwargs)
 
 
-itertools.islice = deeplake_islice
+itertools.islice = deeplake_islice  # type: ignore
 
 
 # Load lazy to avoid cycylic import.
