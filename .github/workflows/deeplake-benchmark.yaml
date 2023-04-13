@@ -99,5 +99,6 @@ jobs:
           BENCHMARK_TYPE: 'default'
           MACHINE: ${{ matrix.machine }}
           URL: ${{ secrets.SLACK_URL }}
+          PR_NUMBER: ${{ github.event.number }}
         working-directory: ./benchmarks
         run: bash scripts/complete_benchmark.sh
