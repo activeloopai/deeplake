@@ -36,12 +36,18 @@ class TransformTensor:
             return self.__getattr__(item)
         self.idx = item
         return self
-    
+
     def _get_output_sample(self, item):
         if isinstance(item, Sample):
             return item.array
-        
-        return_as_is = (LinkedSample, Tensor, type(None), PartialSample, LinkedTiledSample)
+
+        return_as_is = (
+            LinkedSample,
+            Tensor,
+            type(None),
+            PartialSample,
+            LinkedTiledSample,
+        )
         if isinstance(item, return_as_is):
             return item
 
@@ -81,7 +87,7 @@ class TransformTensor:
     def numpy_compressed(self):
         if self.numpy_only:
             return self._numpy_only_data()
-        
+
         idx = self.idx
         return self.items[idx]
 
@@ -92,24 +98,24 @@ class TransformTensor:
             self.items += items
             self.cum_sizes.clear()
             self.numpy_only = False
-    
+
     def _item_added(self, item):
         if self.dataset.all_chunk_engines:
             self.dataset.item_added(item)
-    
+
     def _verify_item(self, item):
         if (
-                not isinstance(item, (LinkedSample, LinkedTiledSample, Tensor))
-                and item is not None
-            ):
-                shape = getattr(item, "shape", None)  # verify sample
+            not isinstance(item, (LinkedSample, LinkedTiledSample, Tensor))
+            and item is not None
+        ):
+            shape = getattr(item, "shape", None)  # verify sample
 
     def append(self, item):
         """Adds an item to the tensor."""
         try:
             if self.is_group:
                 raise TensorDoesNotExistError(self.name)
-            
+
             # optimization applicable only if extending
             self.non_numpy_only()
 
@@ -119,7 +125,7 @@ class TransformTensor:
         except Exception as e:
             self.items.clear()
             raise SampleAppendError(self.name, item) from e
-    
+
     def _extend_numpy(self, items):
         """Extend tensor with a numpy array in a numpy-only tensor.
         Returns ``True`` if successful, ``False`` otherwise.
