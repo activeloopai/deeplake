@@ -2,7 +2,7 @@ name: Test
 on:
   push:
     branches:
-      - 'main'
+      - '*'
 
 jobs:
   cancel-previous:
