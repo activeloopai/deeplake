@@ -195,6 +195,7 @@ class DeepLakeBackendClient:
         org_id: str,
         ds_name: str,
         mode: Optional[str] = None,
+        db_engine: Optional[dict] = None,
         no_cache: bool = False,
     ):
         """Retrieves temporary 12 hour credentials for the required dataset from the backend.
@@ -216,13 +217,14 @@ class DeepLakeBackendClient:
             AgreementNotAcceptedError: when user has not accepted the agreement
             NotLoggedInAgreementError: when user is not logged in and dataset has agreement which needs to be signed
         """
+        db_engine = db_engine or {}
         relative_url = GET_DATASET_CREDENTIALS_SUFFIX.format(org_id, ds_name)
         try:
             response = self.request(
                 "GET",
                 relative_url,
                 endpoint=self.endpoint(),
-                params={"mode": mode, "no_cache": no_cache},
+                params={"mode": mode, "no_cache": no_cache, "db_engine": db_engine},
             ).json()
         except Exception as e:
             if isinstance(e, AuthorizationException):

@@ -24,6 +24,7 @@ def storage_provider_from_path(
     read_only: bool = False,
     token: Optional[str] = None,
     is_hub_path: bool = False,
+    db_engine: bool = False,
 ):
     """Construct a StorageProvider given a path.
 
@@ -33,7 +34,8 @@ def storage_provider_from_path(
             This takes precedence over credentials present in the environment. Only used when url is provided. Currently only works with s3 urls.
         read_only (bool): Opens dataset in read only mode if this is passed as True. Defaults to False.
         token (str): token for authentication into activeloop.
-        is_hub_path (bool): whether the path points to a Deep Lake dataset.
+        is_hub_path (bool): Whether the path points to a Deep Lake dataset.
+        db_engine (bool): Whether to use Activeloop DB Engine. Only applicable for hub:// paths.
 
     Returns:
         If given a path starting with s3:// returns the S3Provider.
@@ -76,7 +78,7 @@ def storage_provider_from_path(
     elif path.startswith("mem://"):
         storage = MemoryProvider(path)
     elif path.startswith("hub://"):
-        storage = storage_provider_from_hub_path(path, read_only, token=token)
+        storage = storage_provider_from_hub_path(path, read_only, db_engine=db_engine, token=token)
     else:
         if not os.path.exists(path) or os.path.isdir(path):
             storage = LocalProvider(path)
@@ -91,7 +93,7 @@ def storage_provider_from_path(
 
 
 def storage_provider_from_hub_path(
-    path: str, read_only: bool = False, token: Optional[str] = None
+    path: str, read_only: bool = False, db_engine: bool = False, token: Optional[str] = None
 ):
     path, org_id, ds_name, subdir = process_hub_path(path)
     client = DeepLakeBackendClient(token=token)
@@ -101,12 +103,12 @@ def storage_provider_from_hub_path(
     # this will give the proper url (s3, gcs, etc) and corresponding creds, depending on where the dataset is stored.
     try:
         url, creds, mode, expiration = client.get_dataset_credentials(
-            org_id, ds_name, mode=mode
+            org_id, ds_name, mode=mode, db_egnine={"enabled": db_engine}
         )
     except AgreementNotAcceptedError as e:
         handle_dataset_agreements(client, e.agreements, org_id, ds_name)
         url, creds, mode, expiration = client.get_dataset_credentials(
-            org_id, ds_name, mode=mode
+            org_id, ds_name, mode=mode, db_engine={"enabled": db_engine}
         )
 
     if mode == "r":
@@ -130,7 +132,7 @@ def storage_provider_from_hub_path(
 
 
 def get_storage_and_cache_chain(
-    path, read_only, creds, token, memory_cache_size, local_cache_size
+    path, read_only, creds, token, memory_cache_size, local_cache_size, db_engine=False,
 ):
     """
     Returns storage provider and cache chain for a given path, according to arguments passed.
@@ -143,12 +145,14 @@ def get_storage_and_cache_chain(
         token (str): token for authentication into activeloop
         memory_cache_size (int): The size of the in-memory cache to use.
         local_cache_size (int): The size of the local cache to use.
+        db_engine (bool): Whether to use Activeloop DB Engine, only applicable for hub:// paths.
 
     Returns:
         A tuple of the storage provider and the storage chain.
     """
     storage = storage_provider_from_path(
         path=path,
+        db_engine=db_engine,
         creds=creds,
         read_only=read_only,
         token=token,
