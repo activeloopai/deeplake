@@ -52,7 +52,7 @@ jobs:
         run: |
           if [ "${{ github.event.inputs.machine }}" == 'all machines' ]
           then
-            echo machines='${{ vars.BENCHMARK_DEFAULT_MACHINES }}'' >> $GITHUB_OUTPUT
+            echo machines='${{ vars.BENCHMARK_DEFAULT_MACHINES }}' >> $GITHUB_OUTPUT
           else
             echo "machines=[ \"${{ github.event.inputs.machine }}\" ]" >> $GITHUB_OUTPUT
           fi
