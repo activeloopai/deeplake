@@ -58,7 +58,7 @@ class ShuffleBuffer:
             # fill buffer of not reach limit
             if self.buffer_used + sample_size <= self.size:
                 self.buffer_used += sample_size
-                self.pbar.update(1)
+                self.pbar.update(sample_size)
                 self.buffer.append(sample)
                 return None
             elif not self.pbar_closed:
