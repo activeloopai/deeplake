@@ -126,6 +126,7 @@ jobs:
 
   start_ec2:
     name: Start benchmarks EC2
+    if: github.event.inputs.use_cases == 'true'
     runs-on: ubuntu-latest
     steps:
       - name: checkout
@@ -151,7 +152,6 @@ jobs:
   use_cases_benchmark:
       name: Run Use Cases Benchmarks
       needs: start_ec2
-      if: always() && ( needs.start_ec2.result == 'success' || needs.start_ec2.result == 'skipped' )
       runs-on: linux_gpu_a10
       timeout-minutes: 720
       steps:

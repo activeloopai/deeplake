@@ -34,7 +34,7 @@ jobs:
 
   benchmark:
     name: Run Benchmarks
-    if: always() && ( github.event_name == 'push' || (github.event_name == 'pull_request' &&  github.event.label.name == 'run-benchmarks'))
+    if: github.event_name == 'push' || (github.event_name == 'pull_request' &&  github.event.label.name == 'run-benchmarks')
     runs-on: benchmarks_${{ matrix.machine }}
     timeout-minutes: 720
     strategy:
