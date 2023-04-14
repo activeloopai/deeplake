@@ -136,7 +136,7 @@ class ShuffleBuffer:
                 num_pixels = num_pixels * 4
             elif sample.mode == "L":
                 num_pixels = num_pixels * 1
-            num_bytes = num_pixels * 1 # change according to dtype of tensor later
+            num_bytes = num_pixels * 1  # change according to dtype of tensor later
             return num_bytes
         raise ValueError(
             f"Expected input of type bytes, dict, Sequence, torch.Tensor, np.ndarray or PIL image, got: {type(sample)}"
