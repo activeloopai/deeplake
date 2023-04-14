@@ -58,7 +58,7 @@ class ShuffleBuffer:
             # fill buffer of not reach limit
             if self.buffer_used + sample_size <= self.size:
                 self.buffer_used += sample_size
-                self.pbar.update(sample_size)
+                self.pbar.update(1)
                 self.buffer.append(sample)
                 return None
             elif not self.pbar_closed:
@@ -128,9 +128,16 @@ class ShuffleBuffer:
         elif isinstance(sample, np.ndarray):
             return sample.nbytes
         elif isinstance(sample, Image.Image):
-            img = BytesIO()
-            sample.save(img, sample.format)
-            return len(img.getvalue())
+            size = sample.size
+            num_pixels = size[0] * size[1]
+            if sample.mode == "RGB":
+                num_pixels = num_pixels * 3
+            elif sample.mode == "RGBA":
+                num_pixels = num_pixels * 4
+            elif sample.mode == "L":
+                num_pixels = num_pixels * 1
+            num_bytes = num_pixels * 1 # change according to dtype of tensor later
+            return num_bytes
         raise ValueError(
             f"Expected input of type bytes, dict, Sequence, torch.Tensor, np.ndarray or PIL image, got: {type(sample)}"
         )
