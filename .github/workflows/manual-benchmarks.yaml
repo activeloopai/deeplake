@@ -45,16 +45,16 @@ jobs:
     if: github.event.inputs.default == 'true'
     runs-on: ubuntu-latest
     outputs:
-      machines: ${{ steps.set-nodes.outputs.nodes }}
+      machine: ${{ steps.set-nodes.outputs.machine }}
     steps:
       - id: set-nodes
         shell: bash
         run: |
           if [ "${{ github.event.inputs.machine }}" == 'all machines' ]
           then
-            echo machines='${{ vars.BENCHMARK_DEFAULT_MACHINES }}' >> $GITHUB_OUTPUT
+            echo machine='${{ vars.BENCHMARK_DEFAULT_MACHINES }}' >> $GITHUB_OUTPUT
           else
-            echo "machines=[ \"${{ github.event.inputs.machine }}\" ]" >> $GITHUB_OUTPUT
+            echo "machine=[ \"${{ github.event.inputs.machine }}\" ]" >> $GITHUB_OUTPUT
           fi
 
   default_benchmark:
@@ -65,7 +65,7 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        machine: ${{ fromJSON(needs.set_matrix.outputs.machines) }}
+        machine: ${{ fromJSON(needs.set_matrix.outputs.machine) }}
     steps:
       - name: Configure AWS credentials
         if: matrix.machine == 'macos_intel'
