@@ -114,6 +114,7 @@ jobs:
             bash benchmarks.sh ${{ github.event.inputs.config }}
           else
             bash benchmarks.sh ${{ matrix.machine }}
+          fi
 
       - name: complete
         shell: bash
