@@ -23,7 +23,7 @@ concurrency:
 jobs:
   start-ec2:
     name: Start benchmarks ec2
-    if: vars.BENCHMARKS_RUNNERS_TYPE == 'self-hosted'
+    if: vars.BENCHMARKS_USE_CASES_RUNNERS_TYPE == 'self-hosted-ec2'
     runs-on: ubuntu-latest
     steps:
       - name: checkout
@@ -44,13 +44,13 @@ jobs:
         shell: bash
         run: |
           pip install -q boto3
-          python3 ec2.py start -t linux_gpu_a10
+          python3 ec2.py start -t ${{ vars.BENCHMARKS_USE_CASES_MACHINES }}
 
   benchmark:
     name: Run Benchmarks
     needs: start-ec2
-    if: always() && ( needs.test.result == 'success' || needs.test.result == 'skipped' ) && ( github.event_name == 'push' || (github.event_name == 'pull_request' &&  github.event.label.name == 'run-benchmarks'))
-    runs-on: ${{ vars.BENCHMARKS_USE_CASES_RUNNER }}
+    if: always() && ( needs.start-ec2.result == 'success' || needs.start-ec2.result == 'skipped' ) && ( github.event_name == 'push' || (github.event_name == 'pull_request' &&  github.event.label.name == 'run-benchmarks'))
+    runs-on: ${{ vars.BENCHMARKS_USE_CASES_MACHINES }}
     timeout-minutes: 720
     steps:
       - name: pull deeplake
@@ -109,7 +109,7 @@ jobs:
         run: bash scripts/complete_benchmark.sh
 
       - name: stop ec2
-        if: always()
+        if: always() && vars.BENCHMARKS_USE_CASES_RUNNERS_TYPE == 'self-hosted-ec2'
         shell: bash
         run: |
           echo /usr/local/bin/aws \
