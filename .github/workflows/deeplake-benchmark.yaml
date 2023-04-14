@@ -16,9 +16,9 @@ on:
     branches:
       - "release/**"
 
-concurrency:
-  group: ${{ github.workflow }}-${{ github.head_ref || github.ref_name }}
-  cancel-in-progress: true
+# concurrency:
+#   group: ${{ github.workflow }}-${{ github.head_ref || github.ref_name }}
+#   cancel-in-progress: true
 
 jobs:
   remove_label:
@@ -28,7 +28,7 @@ jobs:
     steps:
       - name: Remove run-benchmarks label
         continue-on-error: true
-        uses: actions-ecosystem/action-remove-labels@v1
+        uses: actions-ecosystem/action-remove-labels@v1.3.0
         with:
           labels: run-benchmarks
 
