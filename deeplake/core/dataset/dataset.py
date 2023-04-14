@@ -3342,6 +3342,7 @@ class Dataset:
     def _copy(
         self,
         dest: Union[str, pathlib.Path],
+        db_engine: bool = False,
         tensors: Optional[List[str]] = None,
         overwrite: bool = False,
         creds=None,
@@ -3357,6 +3358,7 @@ class Dataset:
 
         Args:
             dest (str, pathlib.Path): Destination dataset or path to copy to. If a Dataset instance is provided, it is expected to be empty.
+            db_engine (bool): Whether to use Activeloop DB Engine. Only applicable for hub:// paths.
             tensors (List[str], optional): Names of tensors (and groups) to be copied. If not specified all tensors are copied.
             overwrite (bool): If ``True`` and a dataset exists at `destination`, it will be overwritten. Defaults to False.
             creds (dict, Optional): creds required to create / overwrite datasets at `dest`.
@@ -3396,6 +3398,7 @@ class Dataset:
         dest_ds = deeplake.api.dataset.dataset._like(
             dest,
             self,
+            db_engine=db_engine,
             tensors=tensors,
             creds=creds,
             token=token,
@@ -3491,6 +3494,7 @@ class Dataset:
     def copy(
         self,
         dest: Union[str, pathlib.Path],
+        db_engine: bool = False,
         tensors: Optional[List[str]] = None,
         overwrite: bool = False,
         creds=None,
@@ -3505,6 +3509,7 @@ class Dataset:
         Args:
             dest (str, pathlib.Path): Destination dataset or path to copy to. If a Dataset instance is provided, it is expected to be empty.
             tensors (List[str], optional): Names of tensors (and groups) to be copied. If not specified all tensors are copied.
+            db_engine (bool): Whether to use Activeloop DB Engine for destination dataset. Only applicable for hub:// paths.
             overwrite (bool): If ``True`` and a dataset exists at `destination`, it will be overwritten. Defaults to False.
             creds (dict, Optional): creds required to create / overwrite datasets at `dest`.
             token (str, Optional): token used to for fetching credentials to `dest`.
@@ -3522,6 +3527,7 @@ class Dataset:
         """
         return self._copy(
             dest,
+            db_engine,
             tensors,
             overwrite,
             creds,

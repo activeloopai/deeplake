@@ -77,6 +77,7 @@ class dataset:
     @spinner
     def init(
         path: Union[str, pathlib.Path],
+        db_engine: bool = False,
         read_only: Optional[bool] = None,
         overwrite: bool = False,
         public: bool = False,
@@ -116,6 +117,7 @@ class dataset:
                     - You can also specify a ``commit_id`` or ``branch`` to load the dataset to that version directly by using the ``@`` symbol.
                     - The path will then be of the form ``hub://username/dataset@{branch}`` or ``hub://username/dataset@{commit_id}``.
                     - See examples above.
+            db_engine (bool): Whether to use Activeloop DB Engine. Only applicable for hub:// paths.
             read_only (bool, optional): Opens dataset in read only mode if this is passed as ``True``. Defaults to ``False``.
                 Datasets stored on Deep Lake cloud that your account does not have write access to will automatically open in read mode.
             overwrite (bool): If set to ``True`` this overwrites the dataset if it already exists. Defaults to ``False``.
@@ -192,6 +194,7 @@ class dataset:
         try:
             storage, cache_chain = get_storage_and_cache_chain(
                 path=path,
+                db_engine=db_engine,
                 read_only=read_only,
                 creds=creds,
                 token=token,
@@ -346,7 +349,7 @@ class dataset:
                 - an s3 path of the form ``s3://bucketname/path/to/dataset``. Credentials are required in either the environment or passed to the creds argument.
                 - a local file system path of the form ``./path/to/dataset`` or ``~/path/to/dataset`` or ``path/to/dataset``.
                 - a memory path of the form ``mem://path/to/dataset`` which doesn't save the dataset but keeps it in memory instead. Should be used only for testing as it does not persist.
-            db_engine (bool): TODO
+            db_engine (bool): Whether to use Activeloop DB Engine. Only applicable for hub:// paths.
             overwrite (bool): If set to ``True`` this overwrites the dataset if it already exists. Defaults to ``False``.
             public (bool): Defines if the dataset will have public access. Applicable only if Deep Lake cloud storage is used and a new Dataset is being created. Defaults to ``False``.
             memory_cache_size (int): The size of the memory cache to be used in MB.
@@ -807,6 +810,7 @@ class dataset:
     def like(
         dest: Union[str, pathlib.Path],
         src: Union[str, Dataset, pathlib.Path],
+        db_engine: bool = False,
         tensors: Optional[List[str]] = None,
         overwrite: bool = False,
         creds: Optional[dict] = None,
@@ -820,6 +824,7 @@ class dataset:
         Args:
             dest: Empty Dataset or Path where the new dataset will be created.
             src (Union[str, Dataset]): Path or dataset object that will be used as the template for the new dataset.
+            db_engine (bool): Whether to use Activeloop DB Engine. Only applicable for hub:// paths.
             tensors (List[str], optional): Names of tensors (and groups) to be replicated. If not specified all tensors in source dataset are considered.
             overwrite (bool): If True and a dataset exists at `destination`, it will be overwritten. Defaults to False.
             creds (dict, optional): - A dictionary containing credentials used to access the dataset at the path.
@@ -843,13 +848,14 @@ class dataset:
             token=token,
         )
         return dataset._like(
-            dest, src, tensors, overwrite, creds, token, org_id, public
+            dest, src, db_engine, tensors, overwrite, creds, token, org_id, public
         )
 
     @staticmethod
     def _like(  # (No reporting)
         dest,
         src: Union[str, Dataset],
+        db_engine: bool = False,
         tensors: Optional[List[str]] = None,
         overwrite: bool = False,
         creds: Optional[dict] = None,
@@ -863,6 +869,7 @@ class dataset:
         Args:
             dest: Empty Dataset or Path where the new dataset will be created.
             src (Union[str, Dataset]): Path or dataset object that will be used as the template for the new dataset.
+            db_engine (bool): Whether to use Activeloop DB Engine. Only applicable for hub:// paths.
             tensors (List[str], optional): Names of tensors (and groups) to be replicated. If not specified all tensors in source dataset are considered.
             dest (str, pathlib.Path, Dataset): Empty Dataset or Path where the new dataset will be created.
             src (Union[str, pathlib.Path, Dataset]): Path or dataset object that will be used as the template for the new dataset.
@@ -886,6 +893,7 @@ class dataset:
             dest_path = dest
             destination_ds = dataset.empty(
                 dest,
+                db_engine=db_engine,
                 creds=creds,
                 overwrite=overwrite,
                 token=token,
@@ -923,6 +931,7 @@ class dataset:
     def copy(
         src: Union[str, pathlib.Path, Dataset],
         dest: Union[str, pathlib.Path],
+        db_engine: bool = False,
         tensors: Optional[List[str]] = None,
         overwrite: bool = False,
         src_creds=None,
@@ -938,6 +947,7 @@ class dataset:
         Args:
             src (Union[str, Dataset, pathlib.Path]): The Dataset or the path to the dataset to be copied.
             dest (str, pathlib.Path): Destination path to copy to.
+            db_engine (bool): Whether to use Activeloop DB Engine. Only applicable for hub:// paths.
             tensors (List[str], optional): Names of tensors (and groups) to be copied. If not specified all tensors are copied.
             overwrite (bool): If True and a dataset exists at ``dest``, it will be overwritten. Defaults to ``False``.
             src_creds (dict, optional): - A dictionary containing credentials used to access the dataset at the path.
@@ -979,6 +989,7 @@ class dataset:
 
         return src_ds.copy(
             dest,
+            db_engine=db_engine,
             tensors=tensors,
             overwrite=overwrite,
             creds=dest_creds,
@@ -992,6 +1003,7 @@ class dataset:
     def deepcopy(
         src: Union[str, pathlib.Path],
         dest: Union[str, pathlib.Path],
+        db_engine: bool = False,
         tensors: Optional[List[str]] = None,
         overwrite: bool = False,
         src_creds=None,
@@ -1009,6 +1021,7 @@ class dataset:
         Args:
             src (str, pathlib.Path): Path to the dataset to be copied.
             dest (str, pathlib.Path): Destination path to copy to.
+            db_engine (bool): Whether to use Activeloop DB Engine for destination dataset. Only applicable for hub:// paths.
             tensors (List[str], optional): Names of tensors (and groups) to be copied. If not specified all tensors are copied.
             overwrite (bool): If True and a dataset exists at `destination`, it will be overwritten. Defaults to False.
             src_creds (dict, optional): - A dictionary containing credentials used to access the dataset at the path.
@@ -1080,6 +1093,7 @@ class dataset:
 
         dest_storage, cache_chain = get_storage_and_cache_chain(
             dest,
+            db_engine=db_engine,
             creds=dest_creds,
             token=token,
             read_only=False,

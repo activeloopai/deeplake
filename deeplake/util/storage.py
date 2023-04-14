@@ -78,7 +78,9 @@ def storage_provider_from_path(
     elif path.startswith("mem://"):
         storage = MemoryProvider(path)
     elif path.startswith("hub://"):
-        storage = storage_provider_from_hub_path(path, read_only, db_engine=db_engine, token=token)
+        storage = storage_provider_from_hub_path(
+            path, read_only, db_engine=db_engine, token=token
+        )
     else:
         if not os.path.exists(path) or os.path.isdir(path):
             storage = LocalProvider(path)
@@ -93,7 +95,10 @@ def storage_provider_from_path(
 
 
 def storage_provider_from_hub_path(
-    path: str, read_only: bool = False, db_engine: bool = False, token: Optional[str] = None
+    path: str,
+    read_only: bool = False,
+    db_engine: bool = False,
+    token: Optional[str] = None,
 ):
     path, org_id, ds_name, subdir = process_hub_path(path)
     client = DeepLakeBackendClient(token=token)
@@ -132,7 +137,13 @@ def storage_provider_from_hub_path(
 
 
 def get_storage_and_cache_chain(
-    path, read_only, creds, token, memory_cache_size, local_cache_size, db_engine=False,
+    path,
+    read_only,
+    creds,
+    token,
+    memory_cache_size,
+    local_cache_size,
+    db_engine=False,
 ):
     """
     Returns storage provider and cache chain for a given path, according to arguments passed.
