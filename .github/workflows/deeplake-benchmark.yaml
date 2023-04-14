@@ -16,9 +16,9 @@ on:
     branches:
       - "release/**"
 
-# concurrency:
-#   group: ${{ github.workflow }}-${{ github.head_ref || github.ref_name }}
-#   cancel-in-progress: true
+concurrency:
+  group: ${{ github.workflow }}-${{ github.head_ref || github.ref_name }}
+  cancel-in-progress: true
 
 jobs:
   remove_label:
@@ -138,14 +138,10 @@ jobs:
         run: bash scripts/complete_benchmark.sh
 
       - name: stop ec2
-        if: always()
+        if: ${{ vars.BENCHMARKS_DEFAULT_RUNNERS_TYPE == 'self-hosted-ec2 }} && ${{ matrix.machine != 'macos_intel' }}
         shell: bash
         run: |
-          if [ ${{ vars.BENCHMARKS_DEFAULT_RUNNERS_TYPE }} == 'self-hosted-ec2' ] && [ ${{ matrix.machine }} != 'macos_intel' ]
-          then
-            echo /usr/local/bin/aws \
-              ec2 stop-instances \
-              --instance-ids "$(curl -s http://169.254.169.254/latest/meta-data/instance-id)" \
-              | at now +1 minute
-          fi
-          exit 0
+          echo /usr/local/bin/aws \
+            ec2 stop-instances \
+            --instance-ids "$(curl -s http://169.254.169.254/latest/meta-data/instance-id)" \
+            | at now +1 minute
