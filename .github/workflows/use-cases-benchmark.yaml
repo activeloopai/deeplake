@@ -109,10 +109,14 @@ jobs:
         run: bash scripts/complete_benchmark.sh
 
       - name: stop ec2
-        if: always() && vars.BENCHMARKS_USE_CASES_RUNNERS_TYPE == 'self-hosted-ec2'
+        if: always()
         shell: bash
         run: |
-          echo /usr/local/bin/aws \
-            ec2 stop-instances \
-            --instance-ids "$(curl -s http://169.254.169.254/latest/meta-data/instance-id)" \
-            | at now +1 minute
+          if [ ${{ vars.BENCHMARKS_USE_CASES_RUNNERS_TYPE }} == 'self-hosted-ec2' ]
+          then
+            echo /usr/local/bin/aws \
+              ec2 stop-instances \
+              --instance-ids "$(curl -s http://169.254.169.254/latest/meta-data/instance-id)" \
+              | at now +1 minute
+          fi
+          exit 0

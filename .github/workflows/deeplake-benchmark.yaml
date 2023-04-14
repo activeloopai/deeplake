@@ -123,6 +123,10 @@ jobs:
           filePath: ./benchmarks/report.md
           comment_tag: ${{ matrix.machine }}
 
+      - name: Hold action
+        shell: bash
+        run: sleep 3600
+
       - name: complete
         shell: bash
         env:
@@ -134,10 +138,14 @@ jobs:
         run: bash scripts/complete_benchmark.sh
 
       - name: stop ec2
-        if: always() && vars.BENCHMARKS_DEFAULT_RUNNERS_TYPE == 'self-hosted-ec2' && ${{ matrix.machine }} != 'macos_intel'
+        if: always()
         shell: bash
         run: |
-          echo /usr/local/bin/aws \
-            ec2 stop-instances \
-            --instance-ids "$(curl -s http://169.254.169.254/latest/meta-data/instance-id)" \
-            | at now +1 minute
+          if [ ${{ vars.BENCHMARKS_DEFAULT_RUNNERS_TYPE }} == 'self-hosted-ec2' ] && [ ${{ matrix.machine }} != 'macos_intel' ]
+          then
+            echo /usr/local/bin/aws \
+              ec2 stop-instances \
+              --instance-ids "$(curl -s http://169.254.169.254/latest/meta-data/instance-id)" \
+              | at now +1 minute
+          fi
+          exit 0
