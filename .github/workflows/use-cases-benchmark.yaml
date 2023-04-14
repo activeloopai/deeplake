@@ -56,7 +56,6 @@ jobs:
         uses: actions/checkout@v3
         with:
           path: "deeplake"
-          ref: "release/3.2.21"
 
       - name: pull benchmarks
         uses: actions/checkout@v3

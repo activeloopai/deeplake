@@ -79,6 +79,7 @@ jobs:
         uses: actions/checkout@v3
         with:
           path: "deeplake"
+          ref: ${{ github.event.inputs.deeplake_ref }}
 
       - name: pull benchmarks
         uses: actions/checkout@v3
@@ -159,6 +160,7 @@ jobs:
           uses: actions/checkout@v3
           with:
             path: "deeplake"
+            ref: ${{ github.event.inputs.deeplake_ref }}
 
         - name: pull benchmarks
           uses: actions/checkout@v3
