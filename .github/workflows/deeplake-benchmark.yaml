@@ -124,10 +124,6 @@ jobs:
       #     filePath: ./benchmarks/report.md
       #     comment_tag: ${{ matrix.machine }}
 
-      - name: Hold action
-        shell: bash
-        run: sleep 3600
-
       - name: complete
         shell: bash
         env:
