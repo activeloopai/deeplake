@@ -1,5 +1,4 @@
 from typing import Union
-import torch
 from deeplake.core.compression import compress_array
 from deeplake.util.exceptions import TensorDoesNotExistError
 from deeplake.util.iterable_ordered_dict import IterableOrderedDict
@@ -8,8 +7,10 @@ import numpy as np
 from PIL import Image  # type: ignore
 
 try:
+    import torch
     from torch.utils.data.distributed import DistributedSampler
 except ImportError:
+    torch = None  # type: ignore
     DistributedSampler = None  # type: ignore
 
 
