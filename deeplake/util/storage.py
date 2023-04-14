@@ -49,6 +49,8 @@ def storage_provider_from_path(
     if creds is None:
         creds = {}
     if path.startswith("s3://"):
+        if isinstance(creds, str):
+            creds = {}
         key = creds.get("aws_access_key_id")
         secret = creds.get("aws_secret_access_key")
         session_token = creds.get("aws_session_token")
@@ -76,7 +78,9 @@ def storage_provider_from_path(
     elif path.startswith("mem://"):
         storage = MemoryProvider(path)
     elif path.startswith("hub://"):
-        storage = storage_provider_from_hub_path(path, read_only, token=token, creds=creds)
+        storage = storage_provider_from_hub_path(
+            path, read_only, token=token, creds=creds
+        )
     else:
         if not os.path.exists(path) or os.path.isdir(path):
             storage = LocalProvider(path)
@@ -91,7 +95,10 @@ def storage_provider_from_path(
 
 
 def storage_provider_from_hub_path(
-    path: str, read_only: bool = False, token: Optional[str] = None, creds: Optional[Union[dict, str]] = None
+    path: str,
+    read_only: bool = False,
+    token: Optional[str] = None,
+    creds: Optional[Union[dict, str]] = None,
 ):
     path, org_id, ds_name, subdir = process_hub_path(path)
     client = DeepLakeBackendClient(token=token)
