@@ -204,7 +204,6 @@ jobs:
             PR_NUMBER: ${{ github.event.number }}
           working-directory: ./benchmarks
           run: |
-            cat report.md
             bash scripts/complete_benchmark.sh
 
         - name: stop ec2
