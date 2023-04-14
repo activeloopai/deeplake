@@ -45,7 +45,7 @@ jobs:
     if: github.event.inputs.default == 'true'
     runs-on: ubuntu-latest
     outputs:
-      machines: ${{ steps.set-nodes.outputs.nodes }}
+      machine: ${{ steps.set-nodes.outputs.machine }}
     steps:
       - id: set-nodes
         shell: bash
@@ -65,7 +65,7 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        machine: ${{ fromJSON(needs.set_matrix.outputs.machines) }}
+        machine: ${{ fromJSON(needs.set_matrix.outputs.machine) }}
     steps:
       - name: Configure AWS credentials
         if: matrix.machine == 'macos_intel'
