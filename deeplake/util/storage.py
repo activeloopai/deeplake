@@ -146,7 +146,7 @@ def storage_provider_from_hub_path(
     if creds_used != "PLATFORM":
         msg = "Overriding platform credentials with"
         if creds_used == "ENV":
-            msg += "credentials loaded from environment."
+            msg += " credentials loaded from environment."
         elif creds_used == "DICT":
             msg += " credentials from user passed dictionary."
         print(msg)
@@ -179,6 +179,8 @@ def get_storage_and_cache_chain(
     Returns:
         A tuple of the storage provider and the storage chain.
     """
+    if isinstance(creds, str) and creds != "ENV":
+        raise ValueError("creds must be None, or a dictionary or the string 'ENV'")
     storage = storage_provider_from_path(
         path=path,
         creds=creds,
