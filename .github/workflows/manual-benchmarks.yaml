@@ -135,7 +135,7 @@ jobs:
         with:
           repository: ${{ secrets.BENCHMARKS_REPO }}
           path: "benchmarks"
-          ref: "test-e2e"
+          ref: "main"
           token: ${{ secrets.BENCHMARK_REPO_TOKEN }}
 
       - uses: aws-actions/configure-aws-credentials@v1-node16
