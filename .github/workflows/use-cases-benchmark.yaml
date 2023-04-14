@@ -23,6 +23,7 @@ concurrency:
 jobs:
   start-ec2:
     name: Start benchmarks ec2
+    if: vars.BENCHMARKS_RUNNERS_TYPE == 'self-hosted'
     runs-on: ubuntu-latest
     steps:
       - name: checkout
@@ -42,12 +43,14 @@ jobs:
         working-directory: benchmarks/scripts
         shell: bash
         run: |
-          pip install boto3
+          pip install -q boto3
           python3 ec2.py start -t linux_gpu_a10
 
   benchmark:
-    if: github.event_name == 'push' || (github.event_name == 'pull_request' &&  github.event.label.name == 'run-benchmarks')
-    runs-on: linux_gpu_a10
+    name: Run Benchmarks
+    needs: start-ec2
+    if: always() && ( needs.test.result == 'success' || needs.test.result == 'skipped' ) && ( github.event_name == 'push' || (github.event_name == 'pull_request' &&  github.event.label.name == 'run-benchmarks'))
+    runs-on: ${{ vars.BENCHMARKS_USE_CASES_RUNNER }}
     timeout-minutes: 720
     steps:
       - name: pull deeplake

@@ -56,6 +56,29 @@ jobs:
           else
             echo "machines=[ \"${{ github.event.inputs.machine }}\" ]" >> $GITHUB_OUTPUT
           fi
+      - name: checkout
+        if: vars.BENCHMARKS_RUNNERS_TYPE == 'self-hosted'
+        uses: actions/checkout@v3
+        with:
+          repository: ${{ secrets.BENCHMARKS_REPO }}
+          path: "benchmarks"
+          ref: "test-e2e"
+          token: ${{ secrets.BENCHMARK_REPO_TOKEN }}
+      
+      - uses: aws-actions/configure-aws-credentials@v1-node16
+        if: vars.BENCHMARKS_RUNNERS_TYPE == 'self-hosted'
+        with:
+          role-to-assume: ${{ secrets.BENCHMARKS_AWS_ROLE_ARN }}
+          aws-region: us-east-1
+      
+      - name: start ec2
+        if: vars.BENCHMARKS_RUNNERS_TYPE == 'self-hosted'
+        working-directory: benchmarks/scripts
+        shell: bash
+        run: |
+          pip install -q boto3
+          python3 ec2.py start -t linux_cpu
+          python3 ec2.py start -t linux_gpu
 
   default_benchmark:
     needs: set_matrix
@@ -126,7 +149,7 @@ jobs:
 
   start_ec2:
     name: Start benchmarks EC2
-    if: github.event.inputs.use_cases == 'true'
+    if: github.event.inputs.use_cases == 'true' && vars.BENCHMARKS_RUNNERS_TYPE == 'self-hosted'
     runs-on: ubuntu-latest
     steps:
       - name: checkout
@@ -146,13 +169,14 @@ jobs:
         working-directory: benchmarks/scripts
         shell: bash
         run: |
-          pip install boto3
+          pip install -q boto3
           python3 ec2.py start -t linux_gpu_a10
 
   benchmark:
-      needs: start_ec2
       name: Run Benchmarks
-      runs-on: linux_gpu_a10
+      needs: start_ec2
+      if: always() && ( needs.test.result == 'success' || needs.test.result == 'skipped' )
+      runs-on: ${{ vars.BENCHMARKS_USE_CASES_RUNNER }}
       timeout-minutes: 720
       steps:
         - name: pull deeplake
