@@ -82,6 +82,7 @@ jobs:
           DEEPLAKE_PATH: '../deeplake'
           REPORTS_PATH: '../reports'
           NODE: ${{ matrix.machine }}
+          PR_NUMBER: ${{ github.event.number }}
           BENCHMARKS_THRESHOLD: ${{ vars.BENCHMARKS_THRESHOLD }}
         run: |
           bash benchmarks.sh ${{ matrix.machine }}

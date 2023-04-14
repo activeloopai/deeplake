@@ -105,6 +105,7 @@ jobs:
           DEEPLAKE_PATH: '../deeplake'
           REPORTS_PATH: '../reports'
           NODE: ${{ matrix.machine }}
+          PR_NUMBER: ${{ github.event.number }}
           BENCHMARKS_THRESHOLD: ${{ vars.BENCHMARKS_THRESHOLD }}
         run: |
           if [ "${{ github.event.inputs.use_config }}" == 'true' ]
@@ -188,6 +189,7 @@ jobs:
             BENCHMARKS_TRAIN_NANO_DATASET: ${{ secrets.BENCHMARKS_TRAIN_NANO_DATASET }}
             DEEPLAKE_USER: ${{ secrets.BENCHMARKS_DEEPLAKE_USERNAME }}
             DEEPLAKE_PASS: ${{ secrets.BENCHMARKS_DEEPLAKE_PASSWORD }}
+            PR_NUMBER: ${{ github.event.number }}
           run: |
             bash use-cases.sh
 

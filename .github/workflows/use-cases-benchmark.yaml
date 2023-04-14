@@ -85,6 +85,7 @@ jobs:
           BENCHMARKS_TRAIN_NANO_DATASET: ${{ secrets.BENCHMARKS_TRAIN_NANO_DATASET }}
           DEEPLAKE_USER: ${{ secrets.BENCHMARKS_DEEPLAKE_USERNAME }}
           DEEPLAKE_PASS: ${{ secrets.BENCHMARKS_DEEPLAKE_PASSWORD }}
+          PR_NUMBER: ${{ github.event.number }}
         run: |
           bash use-cases.sh
 
