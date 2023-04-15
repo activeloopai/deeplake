@@ -108,12 +108,17 @@ jobs:
           URL: ${{ secrets.SLACK_URL }}
           PR_NUMBER: ${{ github.event.number }}
         working-directory: ./benchmarks
-        run: bash scripts/complete_benchmark.sh
-
-      - name: stop ec2
-        shell: bash
         run: |
+          bash scripts/complete_benchmark.sh
           echo /usr/local/bin/aws \
             ec2 stop-instances \
             --instance-ids "$(curl -s http://169.254.169.254/latest/meta-data/instance-id)" \
             | at now +1 minute
+
+      # - name: stop ec2
+      #   shell: bash
+      #   run: |
+      #     echo /usr/local/bin/aws \
+      #       ec2 stop-instances \
+      #       --instance-ids "$(curl -s http://169.254.169.254/latest/meta-data/instance-id)" \
+      #       | at now +1 minute
