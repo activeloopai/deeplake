@@ -33,6 +33,7 @@ on:
         type: choice
         options:
           - "all machines"
+          - "linux machines"
           - linux_cpu
           - linux_gpu
           - macos_intel
@@ -53,6 +54,16 @@ jobs:
           if [ "${{ github.event.inputs.machine }}" == 'all machines' ]
           then
             echo machine='${{ vars.BENCHMARK_DEFAULT_MACHINES }}' >> $GITHUB_OUTPUT
+          elif [ "${{ github.event.inputs.machine }}" == 'linux machines' ]
+          then
+            readarray -t machines_list <<< "$( echo -e 'for i in ${{ vars.RUNNERS }}:\n    if "linux" in i:\n        print(i)' | python3)"
+            machines='['
+            for i in "${machines_list[@]}"
+            do
+              machines+=\"$i\",
+            done
+            machines="$(sed 's/,$/]/' <<< $machines)"
+            echo "machine=$machines" >> $GITHUB_OUTPUT
           else
             echo "machine=[ \"${{ github.event.inputs.machine }}\" ]" >> $GITHUB_OUTPUT
           fi
@@ -185,7 +196,6 @@ jobs:
           env:
             DEEPLAKE_PATH: '../deeplake'
             REPORTS_PATH: '../reports'
-            URL: ${{ secrets.SLACK_URL }}
             BENCHMARKS_THRESHOLD: ${{ vars.BENCHMARKS_THRESHOLD }}
             BENCHMARKS_DEEPLAKE_TOKEN: ${{ secrets.BENCHMARKS_DEEPLAKE_TOKEN }}
             BENCHMARKS_TRAIN_T5_DATASET: ${{ secrets.BENCHMARKS_TRAIN_T5_DATASET }}
@@ -193,18 +203,21 @@ jobs:
             DEEPLAKE_USER: ${{ secrets.BENCHMARKS_DEEPLAKE_USERNAME }}
             DEEPLAKE_PASS: ${{ secrets.BENCHMARKS_DEEPLAKE_PASSWORD }}
             PR_NUMBER: ${{ github.event.number }}
+            URL: ${{ secrets.SLACK_URL }}
+            BENCHMARK_TYPE: 'use-cases'
           run: |
             bash use-cases.sh
-
-        - name: complete
-          shell: bash
-          env:
-            BENCHMARK_TYPE: 'use-cases'
-            URL: ${{ secrets.SLACK_URL }}
-            PR_NUMBER: ${{ github.event.number }}
-          working-directory: ./benchmarks
-          run: |
             bash scripts/complete_benchmark.sh
+
+        # - name: complete
+        #   shell: bash
+        #   env:
+        #     BENCHMARK_TYPE: 'use-cases'
+        #     URL: ${{ secrets.SLACK_URL }}
+        #     PR_NUMBER: ${{ github.event.number }}
+        #   working-directory: ./benchmarks
+        #   run: |
+        #     bash scripts/complete_benchmark.sh
 
         - name: stop ec2
           shell: bash
