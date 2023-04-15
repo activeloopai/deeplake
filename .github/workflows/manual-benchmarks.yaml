@@ -117,8 +117,11 @@ jobs:
           DEEPLAKE_PATH: '../deeplake'
           REPORTS_PATH: '../reports'
           NODE: ${{ matrix.machine }}
-          PR_NUMBER: ${{ github.event.number }}
           BENCHMARKS_THRESHOLD: ${{ vars.BENCHMARKS_THRESHOLD }}
+          BENCHMARK_TYPE: 'default'
+          MACHINE: ${{ matrix.machine }}
+          URL: ${{ secrets.SLACK_URL }}
+          PR_NUMBER: ${{ github.event.number }}
         run: |
           if [ "${{ github.event.inputs.use_config }}" == 'true' ]
           then
@@ -126,16 +129,17 @@ jobs:
           else
             bash benchmarks.sh ${{ matrix.machine }}
           fi
+          bash scripts/complete_benchmark.sh
 
-      - name: complete
-        shell: bash
-        env:
-          BENCHMARK_TYPE: 'default'
-          MACHINE: ${{ matrix.machine }}
-          URL: ${{ secrets.SLACK_URL }}
-          PR_NUMBER: ${{ github.event.number }}
-        working-directory: ./benchmarks
-        run: bash scripts/complete_benchmark.sh
+      # - name: complete
+      #   shell: bash
+      #   env:
+      #     BENCHMARK_TYPE: 'default'
+      #     MACHINE: ${{ matrix.machine }}
+      #     URL: ${{ secrets.SLACK_URL }}
+      #     PR_NUMBER: ${{ github.event.number }}
+      #   working-directory: ./benchmarks
+      #   run: bash scripts/complete_benchmark.sh
 
   start_ec2:
     name: Start benchmarks EC2
