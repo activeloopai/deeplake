@@ -195,8 +195,9 @@ jobs:
             token: ${{ secrets.BENCHMARK_REPO_TOKEN }}
 
         - name: run benchmarks
-          shell: bash
+          id: benchmarks
           continue-on-error: true
+          shell: bash
           working-directory: ./benchmarks
           env:
             DEEPLAKE_PATH: '../deeplake'
@@ -225,6 +226,7 @@ jobs:
         #     bash scripts/complete_benchmark.sh
 
         - name: stop ec2
+          if: steps.benchmarks.outcome == 'success' || steps.benchmarks.outcome == 'failure' || steps.benchmarks.outcome == 'skipped'
           shell: bash
           run: |
             echo /usr/local/bin/aws \
