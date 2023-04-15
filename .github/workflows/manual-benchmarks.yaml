@@ -196,6 +196,7 @@ jobs:
 
         - name: run benchmarks
           shell: bash
+          continue-on-error: true
           working-directory: ./benchmarks
           env:
             DEEPLAKE_PATH: '../deeplake'
