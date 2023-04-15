@@ -184,7 +184,7 @@ jobs:
             repository: ${{ secrets.BENCHMARKS_REPO }}
             path: "benchmarks"
             ref: "main"
-            token: ${{ secrets.BENCHMARK_REPO_TOKEN }}
+            # token: ${{ secrets.BENCHMARK_REPO_TOKEN }}
 
         - name: pull reports
           uses: actions/checkout@v3
@@ -192,7 +192,7 @@ jobs:
             repository: ${{ secrets.BENCHMARK_REPORT }}
             path: "reports"
             ref: "main"
-            token: ${{ secrets.BENCHMARK_REPO_TOKEN }}
+            # token: ${{ secrets.BENCHMARK_REPO_TOKEN }}
 
         - name: run benchmarks
           shell: bash
