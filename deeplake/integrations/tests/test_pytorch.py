@@ -1,4 +1,3 @@
-from random import shuffle
 import deeplake
 import numpy as np
 import pickle

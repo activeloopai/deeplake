@@ -7,7 +7,7 @@ from pathlib import Path
 from deeplake.client.config import (
     REPORTING_CONFIG_FILE_PATH,
     TOKEN_FILE_PATH,
-    HUB_AUTH_TOKEN,
+    DEEPLAKE_AUTH_TOKEN,
 )
 from deeplake.util.exceptions import (
     AuthenticationException,
@@ -42,7 +42,7 @@ def read_token():
         with open(TOKEN_FILE_PATH) as f:
             token = f.read()
     else:
-        token = os.environ.get(HUB_AUTH_TOKEN)
+        token = os.environ.get(DEEPLAKE_AUTH_TOKEN)
 
     return token
 

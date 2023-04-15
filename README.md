@@ -10,7 +10,7 @@
     <a href='https://docs.deeplake.ai/en/latest/?badge=latest'>
      <img src='https://readthedocs.org/projects/deep-lake/badge/?version=latest' alt='Documentation Status' />
      </a>
-    <a href="https://pepy.tech/project/deeplake"><img src="https://static.pepy.tech/personalized-badge/deeplake?period=month&units=international_system&left_color=grey&right_color=orange&left_text=Downloads" alt="PyPI version" height="18"></a>
+    <a href="https://pepy.tech/project/deeplake"><img src="https://static.pepy.tech/badge/deeplake" alt="PyPI version" height="18"></a>
      <a href="https://github.com/activeloopai/deeplake/issues">
     <img alt="GitHub issues" src="https://img.shields.io/github/issues/activeloopai/deeplake"> </a>
     <a href="https://codecov.io/gh/activeloopai/deeplake/branch/main"><img src="https://codecov.io/gh/activeloopai/deeplake/branch/main/graph/badge.svg" alt="codecov" height="18"></a>
@@ -30,19 +30,15 @@
 
 ## About Deep Lake
 
-Deep Lake (formerly known as Activeloop Hub) is a data lake for deep learning applications. Our open-source dataset format is optimized for rapid streaming and querying of data while training models at scale, and it includes a simple API for creating, storing, and collaborating on AI datasets of any size. It can be deployed locally or in the cloud, and it enables you to store all of your data in one place, ranging from simple annotations to large videos. Deep Lake is used by Google, Waymo, Red Cross, Omdena, Yale, & Oxford. Deep Lake includes the following features:
+Deep Lake (formerly known as Activeloop Hub) is a data lake for deep learning applications. Our open-source dataset format is optimized for rapid streaming and querying of data while training models at scale, and it includes a simple API for creating, storing, and collaborating on AI datasets of any size. It can be deployed locally or in the cloud, and it enables you to store all of your data in one place, ranging from simple annotations to large videos. Deep Lake is used by Google, Waymo, Matterport, Red Cross, Yale, & Oxford. Deep Lake includes the following features:
 
 <details>
   <summary><b>Storage Agnostic API</b></summary>
 Use one API to upload, download, and stream datasets to/from AWS S3/S3-compatible storage, GCP, Activeloop cloud, or local storage.
 </details>
 <details>
-  <summary><b>Native Compression</b></summary>
-Store images, audios and videos in their native compression. Deeplake automatically decompresses them to raw data only when needed, e.g., when training a model.
-</details>
-<details>
-  <summary><b>Lazy NumPy-like Indexing</b></summary>
-Treat your cloud datasets as if they are a collection of NumPy arrays in your system's memory. Slice them, index them, or iterate through them. Only the bytes you ask for will be downloaded!
+  <summary><b>Native Compression with Lazy NumPy-like Indexing</b></summary>
+Store images, audios and videos in their native compression. Slide, index, iterate and interact with your data like a collection of NumPy arrays in your system's memory. Deep Lake lazily loads data only when needed, e.g., when training a model.
 </details>
 <details>
   <summary><b>Dataset Version Control</b></summary>
@@ -51,6 +47,10 @@ Commits, branches, checkout - Concepts you are already familiar with in your cod
 <details>
   <summary><b>Dataloaders for Popular Deep Learning Frameworks</b></summary>
 Deep Lake comes with built-in dataloaders for Pytorch and Tensorflow. Train your model with a few lines of code - we even take care of dataset shuffling. :)
+</details>
+<details>
+  <summary><b>Integrations with Popular Tools</b></summary>
+Deep Lake has integrations with <a href="https://github.com/hwchase17/langchain">Langchain</a> as a vector store for LLM apps, <a href="https://wandb.ai/">Weights & Biases</a> for data lineage during model training, and <a href="https://github.com/open-mmlab/mmdetection">MMDetection</a> for training object detection models.
 </details>
 <details>
   <summary><b>Distributed Transformations</b></summary>
@@ -260,6 +260,9 @@ Deep Lake offers integrations with other tools in order to streamline your deep 
   
 * **Experiment Tracking**
   * Track experiments and achieve full model reproducibility using Deep Lake and [Weights & Biases](https://wandb.ai/). Our integration automatically pushes dataset-related information (uri, commit hash, view id) to your W&B runs. Further details are available [in our model-reproducibility playbook](https://docs.activeloop.ai/playbooks/training-reproducibility-with-wandb).
+  
+* **LLM Apps**
+  * Use [Deep Lake as a vector store for LLM apps](https://www.activeloop.ai/resources/ultimate-guide-to-lang-chain-deep-lake-build-chat-gpt-to-answer-questions-on-your-financial-data/). Our integration combines the [Langchain](https://github.com/hwchase17/langchain) [VectorStores API](https://python.langchain.com/en/latest/reference/modules/vectorstore.html?highlight=pinecone#langchain.vectorstores.DeepLake) with Deep Lake datasets as the underlying data storage. The integration is a serverless vector store that can be deployed locally or in a cloud of your choice. 
 
 ## 📚 Documentation
 Getting started guides, examples, tutorials, API reference, and other useful information can be found on our [documentation page](http://docs.activeloop.ai/?utm_source=github&utm_medium=repo&utm_campaign=readme). 

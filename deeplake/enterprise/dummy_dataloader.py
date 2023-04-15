@@ -1,5 +1,4 @@
 from typing import Union
-import torch
 from deeplake.core.compression import compress_array
 from deeplake.util.exceptions import TensorDoesNotExistError
 from deeplake.util.iterable_ordered_dict import IterableOrderedDict
@@ -8,8 +7,10 @@ import numpy as np
 from PIL import Image  # type: ignore
 
 try:
+    import torch
     from torch.utils.data.distributed import DistributedSampler
 except ImportError:
+    torch = None  # type: ignore
     DistributedSampler = None  # type: ignore
 
 
@@ -171,17 +172,18 @@ class DummyDataloader:
         )
         sampler = DistributedSampler(self.dataset) if distributed else None
         prefetch_factor = prefetch_factor if num_workers and num_workers > 0 else 2
-        self.loader = torch.utils.data.DataLoader(
-            self.dataset,
-            batch_size=batch_size or 1,
-            shuffle=shuffle or False,
-            num_workers=num_workers or 0,
-            collate_fn=collate_fn or identity,
-            sampler=sampler,
-            prefetch_factor=prefetch_factor,
-            drop_last=drop_last or False,
-            persistent_workers=persistent_workers or False,
-        )
+        kwargs = {
+            "batch_size": batch_size or 1,
+            "shuffle": shuffle or False,
+            "num_workers": num_workers or 0,
+            "collate_fn": collate_fn or identity,
+            "sampler": sampler,
+            "drop_last": drop_last or False,
+        }
+        if num_workers and num_workers > 0:
+            kwargs["prefetch_factor"] = prefetch_factor
+            kwargs["persistent_workers"] = persistent_workers
+        self.loader = torch.utils.data.DataLoader(self.dataset, **kwargs)
 
     def __iter__(self):
         return iter(self.loader)

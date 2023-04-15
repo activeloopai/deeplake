@@ -1,10 +1,11 @@
 --find-links https://download.openmmlab.com/mmcv/dist/cpu/torch1.13/index.html
-torch
-torchvision
+torch==1.13.1
+torchvision==0.14.1
 tensorflow
 tensorflow_datasets
 pickle5>=0.0.11; python_version < "3.8" and python_version >= "3.6"
 ray==1.6.0
 datasets~=1.17
-mmcv-full==1.7.0; platform_system == "Linux" and python_version >= "3.7"
-mmdet; platform_system == "Linux" and python_version >= "3.7"
+mmcv-full==1.7.1; platform_system == "Linux" and python_version >= "3.7"
+mmdet==2.28.1; platform_system == "Linux" and python_version >= "3.7"
+mmengine

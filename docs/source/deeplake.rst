@@ -19,7 +19,6 @@ deeplake
 .. autofunction:: copy
 .. autofunction:: deepcopy
 .. autofunction:: connect
-.. autofunction:: list
 .. autofunction:: exists
 .. autofunction:: read
 .. autofunction:: link

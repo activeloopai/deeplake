@@ -10,6 +10,8 @@ import logging
 import time
 import sys
 
+ACTIVE_SPINNER = None
+
 
 class DummyFile:
     def __init__(self, file, spinner):
@@ -18,7 +20,7 @@ class DummyFile:
 
     def write(self, text):
         if len(text.strip()) > 0:
-            with self.spinner._stdout_lock:
+            with self.spinner._stderr_lock:
                 self.spinner._clear_line()
                 self.file.write(f"{text}\n")
 
@@ -28,8 +30,9 @@ class DummyFile:
 
 @contextlib.contextmanager
 def run_spinner(spinner):
+    global ACTIVE_SPINNER
     try:
-        if not isinstance(sys.stdout, DummyFile) and SPINNER_ENABLED:
+        if not isinstance(sys.stderr, DummyFile) and SPINNER_ENABLED:
             spinner.start()
             spinner_started = True
             save_stdout = sys.stdout
@@ -41,6 +44,7 @@ def run_spinner(spinner):
             save_handlers = list(logger.handlers)
             logger.handlers.clear()
             logger.addHandler(StreamHandler(stream=sys.stdout))
+            ACTIVE_SPINNER = spinner
         else:
             # another spinner active
             # or tests running
@@ -48,33 +52,55 @@ def run_spinner(spinner):
         yield
     finally:
         if spinner_started:
+            spinner._show_cursor()
             spinner.stop()
             sys.stdout = save_stdout
             sys.stderr = save_stderr
             logger.handlers = save_handlers
+            ACTIVE_SPINNER = None
 
 
 class Spinner(threading.Thread):
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
         self._stop_event = threading.Event()
+        self._hide_event = threading.Event()
         self._cur_line_len = 0
         self.daemon = True
-        self._stdout_lock = threading.Lock()
-        self.file = sys.stdout
+        self._stderr_lock = threading.Lock()
+        self.file = sys.stderr
 
     def run(self):
         time.sleep(SPINNER_START_DELAY)
         frames = cycle("/-\\|")
-        self._hide_cursor()
+        if not self._hide_event.is_set():
+            self._hide_cursor()
         while not self._stop_event.is_set():
-            with self._stdout_lock:
+            if self._hide_event.is_set():
+                time.sleep(0.1)
+                continue
+            with self._stderr_lock:
                 self._clear_line()
                 self.file.write(next(frames))
                 self.file.flush()
                 self._cur_line_len = 1
 
             self._stop_event.wait(0.1)
+
+    def hide(self):
+        if not self._hide_event.is_set():
+            with self._stderr_lock:
+                self._hide_event.set()
+                self._clear_line()
+                self.file.flush()
+                self._show_cursor()
+
+    def show(self):
+        if self._hide_event.is_set():
+            with self._stderr_lock:
+                self._hide_event.clear()
+                self._clear_line()
+                self._hide_cursor()
 
     def stop(self):
         self._stop_event.set()

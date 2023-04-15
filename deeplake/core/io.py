@@ -24,10 +24,7 @@ from deeplake.core.storage import (
 )
 from deeplake.core.tiling.deserialize import combine_chunks
 from deeplake.integrations.pytorch.common import check_tensors, validate_decode_method
-from deeplake.util.exceptions import (
-    DatasetUnsupportedPytorch,
-    SampleDecompressionError,
-)
+from deeplake.util.exceptions import DatasetUnsupportedPytorch, ReadSampleFromChunkError
 from deeplake.util.keys import get_chunk_key, get_tensor_meta_key
 from deeplake.util.remove_cache import get_base_storage
 from deeplake.util.storage import get_pytorch_local_storage
@@ -125,19 +122,23 @@ class SequentialMultithreadScheduler(Scheduler):
         So that initial order would be reconstructed by the DataLoader
     """
 
-    def __init__(self, num_workers: int) -> None:
+    def __init__(self, num_workers: int, batch_size: int = 1) -> None:
         super().__init__()
         self.num_workers = num_workers
+        self.batch_size = batch_size
 
     def schedule(self, jobs: List[IOBlock]) -> List[Schedule]:
         per_worker: List[List[IOBlock]] = [list() for _ in range(self.num_workers)]
         assigned_worker = iter(cycle(range(self.num_workers)))
 
+        index_count = 0
         for job in jobs:
             split: List[List[int]] = [list() for _ in range(self.num_workers)]
-
-            for ind in job.indices():
-                split[next(assigned_worker)].append(ind)
+            for i, index in enumerate(job.indices()):
+                if index_count % self.batch_size == 0:
+                    worker = next(assigned_worker)
+                split[worker].append(index)
+                index_count += 1
 
             for worker_id, idx_list in enumerate(split):
                 if len(idx_list) > 0:
@@ -263,7 +264,6 @@ class SampleStreaming(Streaming):
         dataset,
         tensors: Sequence[str],
         use_local_cache: bool = False,
-        return_index: bool = True,
         pad_tensors: bool = False,
         decode_method: Optional[Dict[str, str]] = None,
         tobytes: Union[bool, Sequence[str]] = False,
@@ -285,7 +285,6 @@ class SampleStreaming(Streaming):
         self.tensors = tensors
         self.pad_tensors = pad_tensors
         self.decode_method = decode_method
-        self.return_index = return_index
 
         jpeg_png_compressed_tensors, json_tensors, list_tensors = check_tensors(
             self.dataset, tensors
@@ -376,7 +375,7 @@ class SampleStreaming(Streaming):
                     else:
                         valid_sample_flag = False
                         break
-                except SampleDecompressionError:
+                except ReadSampleFromChunkError:
                     warn(
                         f"Skipping corrupt {engine.tensor_meta.sample_compression} sample at dataset.{key}[{idx}]"
                     )
@@ -384,8 +383,7 @@ class SampleStreaming(Streaming):
                     break
 
             if valid_sample_flag:
-                if self.return_index:
-                    sample["index"] = np.array([idx])
+                sample["index"] = np.array([idx])
                 yield sample
 
     def _get_block_for_single_sample(self, idx):
