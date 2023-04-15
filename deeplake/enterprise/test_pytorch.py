@@ -684,3 +684,50 @@ def test_pytorch_dummy_data(local_ds):
 
         dummy_z = batch[0]["z"]
         assert dummy_z[0] == "a"
+
+
+@requires_libdeeplake
+@requires_torch
+def test_json_data_loader(hub_cloud_ds):
+    ds = hub_cloud_ds
+    with ds:
+        ds.create_tensor(
+            "json",
+            htype="json",
+            sample_compression=None,
+        )
+        d = {"x": 1, "y": 2, "z": 3}
+        for _ in range(10):
+            ds.json.append(d)
+
+    dl = ds.dataloader().batch(2)
+
+    for batch in dl:
+        sample1 = batch[0]["json"]
+        sample2 = batch[1]["json"]
+
+        assert sample1 == d
+        assert sample2 == d
+
+
+@requires_libdeeplake
+@requires_torch
+def test_list_data_loader(hub_cloud_ds):
+    ds = hub_cloud_ds
+    with ds:
+        ds.create_tensor(
+            "list",
+            htype="list",
+            sample_compression=None,
+        )
+        l = [1, 2, 3]
+        for _ in range(10):
+            ds.list.append(l)
+
+    dl = ds.dataloader().batch(2)
+
+    for batch in dl:
+        sample1 = batch[0]["list"]
+        sample2 = batch[1]["list"]
+        assert sample1.tolist() == l
+        assert sample2.tolist() == l

@@ -75,7 +75,15 @@ HTYPE_CONFIGURATIONS: Dict[str, Dict] = {
         "class_names": [],
         "_info": ["class_names"],
     },
-    htype.KEYPOINTS_COCO: {"dtype": "int32"},
+    htype.KEYPOINTS_COCO: {
+        "dtype": "int32",
+        "keypoints": [],
+        "connections": [],
+        "_info": [
+            "keypoints",
+            "connections",
+        ],  # keypoints and connections should be stored in info, not meta
+    },
     htype.POINT: {"dtype": "int32"},
     htype.JSON: {
         "dtype": "Any",

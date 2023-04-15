@@ -1,0 +1,215 @@
+name: Manual benchmarks
+
+permissions:
+  id-token: write
+  contents: read
+
+on:
+  workflow_dispatch:
+    inputs:
+      deeplake_ref:
+        type: string
+        required: true
+        default: main
+        description: DeepLake ref to checkout
+      use_cases:
+        type: boolean
+        default: true
+        description: Run use-cases benchmarks
+      default:
+        type: boolean
+        default: true
+        description: Run default benchmarks
+      use_config:
+        type: boolean
+        default: false
+        description: Use custom config file for default benchmarks
+      config:
+        type: string
+        required: true
+        default: default_config.json
+        description: Custom config file for default benchmarks
+      machine:
+        type: choice
+        options:
+          - "all machines"
+          - linux_cpu
+          - linux_gpu
+          - macos_intel
+        required: true
+        description: Default benchmarks machine
+
+jobs:
+  set_matrix:
+    name: Set Default Benchmarks Matrix
+    if: github.event.inputs.default == 'true'
+    runs-on: ubuntu-latest
+    outputs:
+      machine: ${{ steps.set-nodes.outputs.machine }}
+    steps:
+      - id: set-nodes
+        shell: bash
+        run: |
+          if [ "${{ github.event.inputs.machine }}" == 'all machines' ]
+          then
+            echo machine='${{ vars.BENCHMARK_DEFAULT_MACHINES }}' >> $GITHUB_OUTPUT
+          else
+            echo "machine=[ \"${{ github.event.inputs.machine }}\" ]" >> $GITHUB_OUTPUT
+          fi
+
+  default_benchmark:
+    needs: set_matrix
+    name: Run Default Benchmarks
+    runs-on: benchmarks_${{ matrix.machine }}
+    timeout-minutes: 720
+    strategy:
+      fail-fast: false
+      matrix:
+        machine: ${{ fromJSON(needs.set_matrix.outputs.machine) }}
+    steps:
+      - name: Configure AWS credentials
+        if: matrix.machine == 'macos_intel'
+        uses: aws-actions/configure-aws-credentials@v1-node16
+        with:
+          role-to-assume: ${{ secrets.BENCHMARKS_AWS_ROLE_ARN }}
+          aws-region: us-east-1
+          role-duration-seconds: 14400
+
+      - name: pull deeplake
+        uses: actions/checkout@v3
+        with:
+          path: "deeplake"
+          ref: ${{ github.event.inputs.deeplake_ref }}
+
+      - name: pull benchmarks
+        uses: actions/checkout@v3
+        with:
+          repository: ${{ secrets.BENCHMARKS_REPO }}
+          path: "benchmarks"
+          ref: "main"
+          token: ${{ secrets.BENCHMARK_REPO_TOKEN }}
+
+      - name: pull reports
+        uses: actions/checkout@v3
+        with:
+          repository: ${{ secrets.BENCHMARK_REPORT }}
+          path: "reports"
+          ref: "main"
+          token: ${{ secrets.BENCHMARK_REPO_TOKEN }}
+
+      - name: run benchmarks
+        shell: bash
+        working-directory: ./benchmarks
+        env:
+          DEEPLAKE_USER: ${{ secrets.BENCHMARKS_DEEPLAKE_USERNAME }}
+          DEEPLAKE_PASS: ${{ secrets.BENCHMARKS_DEEPLAKE_PASSWORD }}
+          DEEPLAKE_PATH: '../deeplake'
+          REPORTS_PATH: '../reports'
+          NODE: ${{ matrix.machine }}
+          PR_NUMBER: ${{ github.event.number }}
+          BENCHMARKS_THRESHOLD: ${{ vars.BENCHMARKS_THRESHOLD }}
+        run: |
+          if [ "${{ github.event.inputs.use_config }}" == 'true' ]
+          then
+            bash benchmarks.sh ${{ github.event.inputs.config }}
+          else
+            bash benchmarks.sh ${{ matrix.machine }}
+          fi
+
+      - name: complete
+        shell: bash
+        env:
+          BENCHMARK_TYPE: 'default'
+          MACHINE: ${{ matrix.machine }}
+          URL: ${{ secrets.SLACK_URL }}
+          PR_NUMBER: ${{ github.event.number }}
+        working-directory: ./benchmarks
+        run: bash scripts/complete_benchmark.sh
+
+  start_ec2:
+    name: Start benchmarks EC2
+    if: github.event.inputs.use_cases == 'true'
+    runs-on: ubuntu-latest
+    steps:
+      - name: checkout
+        uses: actions/checkout@v3
+        with:
+          repository: ${{ secrets.BENCHMARKS_REPO }}
+          path: "benchmarks"
+          ref: "main"
+          token: ${{ secrets.BENCHMARK_REPO_TOKEN }}
+
+      - uses: aws-actions/configure-aws-credentials@v1-node16
+        with:
+          role-to-assume: ${{ secrets.BENCHMARKS_AWS_ROLE_ARN }}
+          aws-region: us-east-1
+      
+      - name: start ec2
+        working-directory: benchmarks/scripts
+        shell: bash
+        run: |
+          pip install -q boto3
+          python3 ec2.py start -t linux_gpu_a10
+
+  use_cases_benchmark:
+      name: Run Use Cases Benchmarks
+      needs: start_ec2
+      runs-on: linux_gpu_a10
+      timeout-minutes: 720
+      steps:
+        - name: pull deeplake
+          uses: actions/checkout@v3
+          with:
+            path: "deeplake"
+            ref: ${{ github.event.inputs.deeplake_ref }}
+
+        - name: pull benchmarks
+          uses: actions/checkout@v3
+          with:
+            repository: ${{ secrets.BENCHMARKS_REPO }}
+            path: "benchmarks"
+            ref: "main"
+            token: ${{ secrets.BENCHMARK_REPO_TOKEN }}
+
+        - name: pull reports
+          uses: actions/checkout@v3
+          with:
+            repository: ${{ secrets.BENCHMARK_REPORT }}
+            path: "reports"
+            ref: "main"
+            token: ${{ secrets.BENCHMARK_REPO_TOKEN }}
+
+        - name: run benchmarks
+          shell: bash
+          working-directory: ./benchmarks
+          env:
+            DEEPLAKE_PATH: '../deeplake'
+            REPORTS_PATH: '../reports'
+            URL: ${{ secrets.SLACK_URL }}
+            BENCHMARKS_THRESHOLD: ${{ vars.BENCHMARKS_THRESHOLD }}
+            BENCHMARKS_DEEPLAKE_TOKEN: ${{ secrets.BENCHMARKS_DEEPLAKE_TOKEN }}
+            BENCHMARKS_TRAIN_T5_DATASET: ${{ secrets.BENCHMARKS_TRAIN_T5_DATASET }}
+            BENCHMARKS_TRAIN_NANO_DATASET: ${{ secrets.BENCHMARKS_TRAIN_NANO_DATASET }}
+            DEEPLAKE_USER: ${{ secrets.BENCHMARKS_DEEPLAKE_USERNAME }}
+            DEEPLAKE_PASS: ${{ secrets.BENCHMARKS_DEEPLAKE_PASSWORD }}
+            PR_NUMBER: ${{ github.event.number }}
+          run: |
+            bash use-cases.sh
+
+        - name: complete
+          shell: bash
+          env:
+            BENCHMARK_TYPE: 'use-cases'
+            URL: ${{ secrets.SLACK_URL }}
+            PR_NUMBER: ${{ github.event.number }}
+          working-directory: ./benchmarks
+          run: |
+            bash scripts/complete_benchmark.sh
+
+        - name: stop ec2
+          shell: bash
+          run: |
+            echo /usr/local/bin/aws \
+              ec2 stop-instances \
+              --instance-ids "$(curl -s http://169.254.169.254/latest/meta-data/instance-id)" \
+              | at now +1 minute

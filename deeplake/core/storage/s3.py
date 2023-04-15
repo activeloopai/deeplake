@@ -48,7 +48,7 @@ try:
     import nest_asyncio  # type: ignore
 
     nest_asyncio.apply()  # needed to run asyncio in jupyter notebook
-except ImportError:
+except Exception:
     aioboto3 = None  # type: ignore
     asyncio = None  # type: ignore
 
