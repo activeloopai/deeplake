@@ -1230,8 +1230,8 @@ class Dataset:
                 version_info = load_version_info(self.storage)
             except Exception as e:
                 version_info = rebuild_version_info(self.storage)
-                if version_info == -1:
-                    raise
+                if version_info is None:
+                    raise e
             version_state["branch_commit_map"] = version_info["branch_commit_map"]
             version_state["commit_node_map"] = version_info["commit_node_map"]
 

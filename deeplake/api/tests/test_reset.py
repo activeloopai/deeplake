@@ -5,6 +5,7 @@ from deeplake.util.exceptions import (
 )
 from deeplake.util.version_control import rebuild_version_info
 from deeplake.util.testing import compare_version_info
+from deeplake.util.keys import get_commit_info_key
 
 import numpy as np
 
@@ -280,3 +281,30 @@ def test_fix_vc(local_path):
     ds.checkout("alt")
 
     np.testing.assert_array_equal(ds.abc.numpy(), [[1], [2]])
+
+def test_missing_commit_infos(local_ds):
+    with local_ds as ds:
+        ds.create_tensor("abc")
+        ds.abc.append(1)
+        a = ds.commit()
+        ds.abc.append(2)
+        b = ds.commit()
+        ds.checkout("alt", create=True)
+        ds.abc.append(3)
+        c = ds.commit()
+        ds.abc.append(4)
+        d = ds.commit()
+        ds.abc.append(5)
+    
+    del ds.storage["version_control_info.json"]
+    del ds.storage[get_commit_info_key(d)]
+
+    ds = deeplake.load(local_ds.path)
+
+    np.testing.assert_array_equal(ds.abc.numpy(), [[1], [2]])
+
+    ds.checkout("alt")
+
+    np.testing.assert_array_equal(ds.abc.numpy(), [[1], [2], [3]])
+
+    assert ds.commit_id == c

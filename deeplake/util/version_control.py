@@ -163,8 +163,8 @@ def commit(
         "commit_id"
     ]
     version_state["commit_node_map"][hash] = new_node
-    copy_metas(stored_commit_id, hash, storage, version_state)
-    create_commit_chunk_maps(hash, storage, version_state)
+    copy_metas(stored_commit_id, hash, storage)
+    create_commit_chunk_maps(stored_commit_id, hash, storage)
     discard_old_metas(stored_commit_id, storage, version_state["full_tensors"])
     if reload_meta:
         load_meta(dataset)
@@ -250,8 +250,8 @@ def checkout(
         else:
             stored_commit_node._info_updated = True
             new_node._info_updated = True
-        copy_metas(original_commit_id, new_commit_id, storage, version_state)
-        create_commit_chunk_maps(new_commit_id, storage, version_state)
+        copy_metas(original_commit_id, new_commit_id, storage)
+        create_commit_chunk_maps(original_commit_id, new_commit_id, storage)
         dataset._send_branch_creation_event(address)
     else:
         raise CheckoutError(
@@ -277,17 +277,16 @@ def copy_metas(
     src_commit_id: str,
     dest_commit_id: str,
     storage: LRUCache,
-    version_state: Dict[str, Any],
 ) -> None:
     """Copies meta data from one commit to another."""
     initial_autoflush = storage.autoflush
     storage.autoflush = False
 
-    tensors = version_state["full_tensors"]
-    src_dataset_meta_key = get_dataset_meta_key(src_commit_id)
+    src_dataset_meta = _get_dataset_meta_at_commit(storage, src_commit_id)
+
     dest_dataset_meta_key = get_dataset_meta_key(dest_commit_id)
-    src_dataset_meta = storage[src_dataset_meta_key]
     dest_dataset_meta = convert_to_bytes(src_dataset_meta)
+
     storage[dest_dataset_meta_key] = dest_dataset_meta
 
     try:
@@ -299,7 +298,7 @@ def copy_metas(
     except KeyError:
         pass
 
-    tensor_list = list(tensors.keys())
+    tensor_list = src_dataset_meta.tensors
 
     for tensor in tensor_list:
         src_tensor_meta_key = get_tensor_meta_key(tensor, src_commit_id)
@@ -358,12 +357,12 @@ def copy_metas(
 
 
 def create_commit_chunk_maps(
+    src_commit_id: str,
     dest_commit_id: str,
     storage: LRUCache,
-    version_state: Dict[str, Any],
 ) -> None:
     """Creates commit chunk sets for all tensors in new commit."""
-    tensor_list = version_state["full_tensors"].keys()
+    tensor_list = _get_dataset_meta_at_commit(storage, src_commit_id).tensors
     for tensor in tensor_list:
         key = get_tensor_commit_chunk_map_key(tensor, dest_commit_id)
         storage[key] = CommitChunkMap()
@@ -549,73 +548,105 @@ def get_parent_and_reset_commit_ids(version_info, address):
         previous_commit_id = parent_node.commit_id
     return previous_commit_id, commit_id
 
-
-def replace_head(storage, version_state, reset_commit_id):
-    """Replace HEAD of current branch with new HEAD"""
-    new_commit_id = generate_hash()
-    parent_commit_id = version_state["commit_id"]
-    branch = version_state["commit_node_map"][reset_commit_id].branch
-
+def _create_new_head(storage, version_state, branch, parent_commit_id, new_commit_id):
     # populate new commit folder
-    copy_metas(parent_commit_id, new_commit_id, storage, version_state)
-    create_commit_chunk_maps(new_commit_id, storage, version_state)
+    copy_metas(parent_commit_id, new_commit_id, storage)
+    create_commit_chunk_maps(parent_commit_id, new_commit_id, storage)
 
-    # update and save version state
-    parent_node: CommitNode = version_state["commit_node"]
+    # create new node
+    parent_node: CommitNode = version_state["commit_node_map"][parent_commit_id]
     new_node = CommitNode(branch, new_commit_id)
     new_node.parent = parent_node
     version_state["branch_commit_map"][branch] = new_commit_id
     version_state["commit_node_map"][new_commit_id] = new_node
-    del version_state["commit_node_map"][reset_commit_id]
+
+    return new_node
+
+
+def _replace_head(storage, version_state, commit_id, new_head):
+    parent_node = new_head.parent
+    del version_state["commit_node_map"][commit_id]
     for i, child in enumerate(parent_node.children):
-        if child.commit_id == reset_commit_id:
-            parent_node.children[i] = new_node
+        if child.commit_id == commit_id:
+            parent_node.children[i] = new_head
             break
+    
     save_version_info(version_state, storage)
 
-    deletion_folder = "/".join(("versions", reset_commit_id))
-    # clear the old folder
+def delete_version_from_storage(storage, commit_id):
+    deletion_folder = "/".join(("versions", commit_id))
     storage.clear(prefix=deletion_folder)
     storage.flush()
-    return new_commit_id
 
 
-def find_commits(storage) -> List:
-    """Finds commits from the storage using commit info files."""
-    found = [
-        x.split("/")[-2] if len(x.split("/")) > 1 else FIRST_COMMIT_ID
-        for x in storage.keys()
-        if x.endswith(COMMIT_INFO_FILENAME)
-    ]
-    return found
+def replace_head(storage, version_state, reset_commit_id):
+    """Replace HEAD of current branch with new HEAD"""
+    branch = version_state["commit_node_map"][reset_commit_id].branch
+    parent_commit_id = version_state["commit_id"]
+    new_commit_id = generate_hash()
 
+    new_node = _create_new_head(storage, version_state, branch, parent_commit_id, new_commit_id)
+
+    _replace_head(storage, version_state, reset_commit_id, new_node)
+
+    delete_version_from_storage(storage, reset_commit_id)
+
+    return new_node.commit_id
+
+def _replace_missing_with_head(missing_id, commits, branch_commit_map):
+    new_commit_id = generate_hash()
+    branch = None
+    parent_commit_id = None
+    for commit_id, commit_info in commits.items():
+        if missing_id in commit_info["children"]:
+            commit_info["children"].remove(missing_id)
+            commit_info["children"].append(new_commit_id)
+            branch = commit_info["branch"]
+            parent_commit_id = commit_id
+            break
+
+    commit_info = {
+        "branch": branch,
+        "children": [],
+        "parent": parent_commit_id,
+        "commit_message": None,
+        "commit_time": None,
+        "commit_user_name": None,
+    }
+    commits[new_commit_id] = commit_info
+    branch_commit_map[branch] =  new_commit_id
+
+    return branch, parent_commit_id, new_commit_id
+    
 
 def rebuild_version_info(storage):
     """Rebuilds version info from commit info."""
     branch_commit_map = {}
     commits = {}
-    found = find_commits(storage)
-    if found in ([], [FIRST_COMMIT_ID]):
-        return -1
+    
+    stack = [FIRST_COMMIT_ID]
 
-    missing = []
+    new_heads = []
 
-    while found:
-        commit_id = found.pop(0)
-        if commits.get(commit_id):
-            continue
+    while stack:
+        commit_id = stack.pop()
+        
         try:
             commit_info = load_commit_info(commit_id, storage)
         except KeyError:
-            missing.append(commit_id)
-            continue
+            if commit_id != FIRST_COMMIT_ID:
+                new_head = _replace_missing_with_head(commit_id, commits, branch_commit_map)
+                new_heads.append(new_head)
+                continue
+            raise
         commits[commit_id] = commit_info
         if commit_info["commit_time"] is None:
             branch_commit_map[commit_info["branch"]] = commit_id
-        if commit_info["parent"] is not None:
-            found.append(commit_info["parent"])
-        found += commit_info["children"]
-
+        stack += commit_info["children"]
+    
+    if not commits:
+        return
+    
     base_storage = get_base_storage(storage)
     lock = Lock(storage, get_version_control_info_lock_key(), duration=10)
     lock.acquire()  # Blocking
@@ -628,10 +659,12 @@ def rebuild_version_info(storage):
     base_storage[key] = json.dumps(version_info).encode("utf-8")
     lock.release()
 
-    if missing:
-        logger.warn(f"The following commits could not be found: {missing}")
+    version_info = _version_info_from_json(version_info)
 
-    return _version_info_from_json(version_info)
+    for new_head in new_heads:
+        _create_new_head(storage, version_info, *new_head)
+    
+    return version_info
 
 
 def auto_checkout(dataset, flush_version_control_info: bool = True) -> bool:
@@ -745,6 +778,15 @@ def commit_diff_exists(
     except KeyError:
         return False
 
+def _get_dataset_meta_at_commit(storage, commit_id):
+    """Get dataset meta at commit."""
+    meta_key = get_dataset_meta_key(commit_id)
+    meta = storage.get_deeplake_object(meta_key, DatasetMeta)
+    if not meta.tensor_names: # backward compatibility
+        meta.tensor_names = {key: key for key in meta.tensors}
+    storage.register_deeplake_object(meta_key, meta)
+    return meta
+
 
 def load_meta(dataset):
     """Loads the meta info for the version state."""
@@ -755,15 +797,11 @@ def load_meta(dataset):
     storage.clear_deeplake_objects()
     dataset._info = None
     dataset._ds_diff = None
-    meta_key = get_dataset_meta_key(version_state["commit_id"])
-    meta = storage.get_deeplake_object(meta_key, DatasetMeta)
-    if not meta.tensor_names:  # backward compatibility
-        meta.tensor_names = {key: key for key in meta.tensors}
+    meta = _get_dataset_meta_at_commit(storage, version_state["commit_id"])
 
     ffw_dataset_meta(meta)
     version_state["meta"] = meta
 
-    storage.register_deeplake_object(meta_key, meta)
     _tensors = version_state["full_tensors"]
     _tensors.clear()
     _tensor_names = version_state["tensor_names"]
