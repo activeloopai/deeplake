@@ -56,7 +56,7 @@ jobs:
             echo machine='${{ vars.BENCHMARK_DEFAULT_MACHINES }}' >> $GITHUB_OUTPUT
           elif [ "${{ github.event.inputs.machine }}" == 'linux machines' ]
           then
-            readarray -t machines_list <<< "$( echo -e 'for i in ${{ vars.RUNNERS }}:\n    if "linux" in i:\n        print(i)' | python3)"
+            readarray -t machines_list <<< "$( echo -e 'for i in ${{ vars.BENCHMARK_DEFAULT_MACHINES }}:\n    if "linux" in i:\n        print(i)' | python3)"
             machines='['
             for i in "${machines_list[@]}"
             do
