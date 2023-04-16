@@ -282,6 +282,7 @@ def test_fix_vc(local_path):
 
     np.testing.assert_array_equal(ds.abc.numpy(), [[1], [2]])
 
+
 def test_missing_commit_infos(local_ds):
     with local_ds as ds:
         ds.create_tensor("abc")
@@ -295,7 +296,7 @@ def test_missing_commit_infos(local_ds):
         ds.abc.append(4)
         d = ds.commit()
         ds.abc.append(5)
-    
+
     del ds.storage["version_control_info.json"]
     del ds.storage[get_commit_info_key(d)]
 

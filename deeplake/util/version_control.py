@@ -548,6 +548,7 @@ def get_parent_and_reset_commit_ids(version_info, address):
         previous_commit_id = parent_node.commit_id
     return previous_commit_id, commit_id
 
+
 def _create_new_head(storage, version_state, branch, parent_commit_id, new_commit_id):
     # populate new commit folder
     copy_metas(parent_commit_id, new_commit_id, storage)
@@ -570,8 +571,9 @@ def _replace_head(storage, version_state, commit_id, new_head):
         if child.commit_id == commit_id:
             parent_node.children[i] = new_head
             break
-    
+
     save_version_info(version_state, storage)
+
 
 def delete_version_from_storage(storage, commit_id):
     deletion_folder = "/".join(("versions", commit_id))
@@ -585,13 +587,16 @@ def replace_head(storage, version_state, reset_commit_id):
     parent_commit_id = version_state["commit_id"]
     new_commit_id = generate_hash()
 
-    new_node = _create_new_head(storage, version_state, branch, parent_commit_id, new_commit_id)
+    new_node = _create_new_head(
+        storage, version_state, branch, parent_commit_id, new_commit_id
+    )
 
     _replace_head(storage, version_state, reset_commit_id, new_node)
 
     delete_version_from_storage(storage, reset_commit_id)
 
     return new_node.commit_id
+
 
 def _replace_missing_with_head(missing_id, commits, branch_commit_map):
     new_commit_id = generate_hash()
@@ -614,28 +619,30 @@ def _replace_missing_with_head(missing_id, commits, branch_commit_map):
         "commit_user_name": None,
     }
     commits[new_commit_id] = commit_info
-    branch_commit_map[branch] =  new_commit_id
+    branch_commit_map[branch] = new_commit_id
 
     return branch, parent_commit_id, new_commit_id
-    
+
 
 def rebuild_version_info(storage):
     """Rebuilds version info from commit info."""
     branch_commit_map = {}
     commits = {}
-    
+
     stack = [FIRST_COMMIT_ID]
 
     new_heads = []
 
     while stack:
         commit_id = stack.pop()
-        
+
         try:
             commit_info = load_commit_info(commit_id, storage)
         except KeyError:
             if commit_id != FIRST_COMMIT_ID:
-                new_head = _replace_missing_with_head(commit_id, commits, branch_commit_map)
+                new_head = _replace_missing_with_head(
+                    commit_id, commits, branch_commit_map
+                )
                 new_heads.append(new_head)
                 continue
             raise
@@ -643,10 +650,10 @@ def rebuild_version_info(storage):
         if commit_info["commit_time"] is None:
             branch_commit_map[commit_info["branch"]] = commit_id
         stack += commit_info["children"]
-    
+
     if not commits:
         return
-    
+
     base_storage = get_base_storage(storage)
     lock = Lock(storage, get_version_control_info_lock_key(), duration=10)
     lock.acquire()  # Blocking
@@ -663,7 +670,7 @@ def rebuild_version_info(storage):
 
     for new_head in new_heads:
         _create_new_head(storage, version_info, *new_head)
-    
+
     return version_info
 
 
@@ -778,11 +785,12 @@ def commit_diff_exists(
     except KeyError:
         return False
 
+
 def _get_dataset_meta_at_commit(storage, commit_id):
     """Get dataset meta at commit."""
     meta_key = get_dataset_meta_key(commit_id)
     meta = storage.get_deeplake_object(meta_key, DatasetMeta)
-    if not meta.tensor_names: # backward compatibility
+    if not meta.tensor_names:  # backward compatibility
         meta.tensor_names = {key: key for key in meta.tensors}
     storage.register_deeplake_object(meta_key, meta)
     return meta
