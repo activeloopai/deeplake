@@ -75,7 +75,7 @@ jobs:
   benchmark:
     name: Run Benchmarks
     needs: start-ec2
-    if: (needs.start-ec2.result == 'skipped' || needs.start-ec2.result == 'success') && ( github.event_name == 'push' || (github.event_name == 'pull_request' &&  github.event.label.name == 'run-benchmarks'))
+    if: always() && (needs.start-ec2.result == 'skipped' || needs.start-ec2.result == 'success') && ( github.event_name == 'push' || (github.event_name == 'pull_request' &&  github.event.label.name == 'run-benchmarks'))
     runs-on: benchmarks_${{ matrix.machine }}
     timeout-minutes: 720
     strategy:
