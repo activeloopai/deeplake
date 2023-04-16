@@ -159,12 +159,19 @@ jobs:
             bash benchmarks.sh ${{ matrix.machine }}
           fi
           bash scripts/complete_benchmark.sh
-          self_stop.sh
+          echo /usr/local/bin/aws \
+            ec2 stop-instances \
+            --instance-ids "$(curl -s http://169.254.169.254/latest/meta-data/instance-id)" \
+            | at now +1 minute
       
       - name: stop ec2
         if: cancelled()
         shell: bash
-        run: self_stop.sh
+        run: |
+          echo /usr/local/bin/aws \
+            ec2 stop-instances \
+            --instance-ids "$(curl -s http://169.254.169.254/latest/meta-data/instance-id)" \
+            | at now +1 minute
 
 
   start_ec2:
@@ -248,4 +255,8 @@ jobs:
         - name: stop ec2
           if: cancelled()
           shell: bash
-          run: self_stop.sh
+          run: |
+            echo /usr/local/bin/aws \
+            ec2 stop-instances \
+            --instance-ids "$(curl -s http://169.254.169.254/latest/meta-data/instance-id)" \
+            | at now +1 minute
