@@ -243,9 +243,12 @@ jobs:
           run: |
             bash use-cases.sh
             bash scripts/complete_benchmark.sh
-            self_stop.sh
+            if [ "${{ vars.BENCHMARKS_USE_CASES_RUNNERS_TYPE }}" == 'self-hosted-ec2' ]
+            then
+              self_stop.sh
+            fi 
 
         - name: stop ec2
-          if: cancelled()
+          if: vars.BENCHMARKS_USE_CASES_RUNNERS_TYPE == 'self-hosted-ec2' && cancelled()
           shell: bash
           run: self_stop.sh
