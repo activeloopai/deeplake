@@ -3152,12 +3152,10 @@ class Dataset:
         Raises:
             KeyError: If no such view exists.
         """
-
         queries = self._read_queries_json()
         for q in queries:
             if q["id"] == id:
                 return ViewEntry(q, self)
-
         raise KeyError(f"No view with id {id} found in the dataset.")
 
     def load_view(
