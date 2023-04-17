@@ -124,6 +124,9 @@ class S3Provider(StorageProvider):
         self._initialize_s3_parameters()
         self._presigned_urls: Dict[str, Tuple[str, float]] = {}
 
+    def async_supported(self) -> bool:
+        return asyncio is not None
+
     def subdir(self, path: str, read_only: bool = False):
         sd = self.__class__(
             root=posixpath.join(self.root, path),
