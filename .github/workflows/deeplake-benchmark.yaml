@@ -149,10 +149,12 @@ jobs:
           bash scripts/complete_benchmark.sh
           if [ "{{ vars.BENCHMARKS_DEFAULT_RUNNERS_TYPE }}"" == 'self-hosted-ec2' ]
           then
-            self_stop.sh
+            echo bash "$(pwd)/scripts/self_stop_ec2.sh" | at now +2 minutes
           fi
       
       - name: stop ec2
         if: vars.BENCHMARKS_DEFAULT_RUNNERS_TYPE == 'self-hosted-ec2' && cancelled()
+        working-directory: ./benchmarks
         shell: bash
-        run: self_stop.sh
+        run: |
+          echo bash "$(pwd)/scripts/self_stop_ec2.sh" | at now +2 minutes
