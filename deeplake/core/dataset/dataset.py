@@ -3128,13 +3128,7 @@ class Dataset:
             queries = filter(
                 lambda x: x["source-dataset-version"] == commit_id, queries
             )
-
-        ret = []
-
-        for query in queries:
-            ret.append(ViewEntry(info=query, dataset=self))
-
-        return ret
+        return list(map(partial(ViewEntry, dataset=self), queries))
 
     def get_view(self, id: str) -> ViewEntry:
         """Returns the dataset view corresponding to ``id``.
