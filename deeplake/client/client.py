@@ -40,6 +40,7 @@ from deeplake.client.config import (
     CONNECT_DATASET_SUFFIX,
 )
 from deeplake.client.log import logger
+from deeplake.util.bugout_reporter import save_reporting_config, get_reporting_config
 import jwt  # should add it to requirements.txt
 
 # for these codes, we will retry requests upto 3 times
@@ -51,6 +52,7 @@ class DeepLakeBackendClient:
 
     def __init__(self, token: Optional[str] = None):
         self.version = deeplake.__version__
+        self._token_from_env = False
         self.auth_header = None
         self.token = token or self.get_token()
         self.auth_header = f"Bearer {self.token}"
@@ -62,13 +64,21 @@ class DeepLakeBackendClient:
             remove_token()
             self.token = token or self.get_token()
             self.auth_header = f"Bearer {self.token}"
+        if self._token_from_env:
+            username_reporting = self.get_user_profile()["name"]
+            if get_reporting_config().get("username") != username_reporting:
+                save_reporting_config(True, username=username_reporting)
 
     def get_token(self):
         """Returns a token"""
-        token = read_token()
+        self._token_from_env = False
+        token = read_token(from_env=False)
         if token is None:
-            token = self.request_auth_token(username="public", password="")
-
+            token = read_token(from_env=True)
+            if token is None:
+                token = self.request_auth_token(username="public", password="")
+            else:
+                self._token_from_env = True
         return token
 
     def request(
