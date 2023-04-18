@@ -38,6 +38,7 @@ from deeplake.client.config import (
     UPDATE_SUFFIX,
     GET_PRESIGNED_URL_SUFFIX,
     CONNECT_DATASET_SUFFIX,
+    REMOTE_QUERY_SUFFIX,
 )
 from deeplake.client.log import logger
 import jwt  # should add it to requirements.txt
@@ -459,3 +460,23 @@ class DeepLakeBackendClient:
         ).json()
 
         return response["generated_id"]
+
+    def remote_query(self, org_id: str, ds_name: str, query_string: str):
+        """Queries a remote dataset.
+
+        Args:
+            org_id (str): The organization to which the dataset belongs.
+            ds_name (str): The name of the dataset.
+            query_string (str): The query string.
+
+        Returns:
+            dict: The indicies matching the query.
+        """
+        response = self.request(
+            "POST",
+            REMOTE_QUERY_SUFFIX.format(org_id, ds_name),
+            json={"query": query_string},
+            endpoint=self.endpoint(),
+        ).json()
+
+        return response["indices"]

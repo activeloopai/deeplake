@@ -30,6 +30,7 @@ from deeplake.util.iteration_warning import (
 from deeplake.api.info import load_info
 from deeplake.client.log import logger
 from deeplake.client.utils import get_user_name
+from deeplake.client.client import DeepLakeBackendClient
 from deeplake.constants import (
     FIRST_COMMIT_ID,
     DEFAULT_MEMORY_CACHE_SIZE,
@@ -1949,7 +1950,7 @@ class Dataset:
         dataset_read(self)
         return ret
 
-    def query(self, query_string: str):
+    def query(self, query_string: str, runtime: Optional[Dict] = None):
         """Returns a sliced :class:`~deeplake.core.dataset.Dataset` with given query results. To use this, install deeplake with ``pip install deeplake[enterprise]``.
 
         It allows to run SQL like queries on dataset and extract results. See supported keywords and the Tensor Query Language documentation
@@ -1983,6 +1984,13 @@ class Dataset:
         - Users of our Community plan can only perform queries on Activeloop datasets ("hub://activeloop/..." datasets).
         - To run queries on your own datasets, `upgrade your organization's plan <https://www.activeloop.ai/pricing/>`_.
         """
+        if runtime is not None and runtime.get("db_engine", False):
+            client = DeepLakeBackendClient(token=self._token)
+            org_id, ds_name = self.path[6:].split("/")
+            indicies = client.remote_query(org_id, ds_name, query_string).split(",")
+            indicies = [int(i) for i in indicies]
+            return self[indicies]
+
         from deeplake.enterprise import query
 
         return query(self, query_string)
