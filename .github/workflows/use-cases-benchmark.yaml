@@ -27,6 +27,7 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - name: checkout
+        if: vars.BENCHMARKS_USE_CASES_RUNNERS_TYPE == 'self-hosted-ec2'
         uses: actions/checkout@v3
         with:
           repository: ${{ secrets.BENCHMARKS_REPO }}
@@ -35,11 +36,13 @@ jobs:
           token: ${{ secrets.BENCHMARK_REPO_TOKEN }}
 
       - uses: aws-actions/configure-aws-credentials@v1-node16
+        if: vars.BENCHMARKS_USE_CASES_RUNNERS_TYPE == 'self-hosted-ec2'
         with:
           role-to-assume: ${{ secrets.BENCHMARKS_AWS_ROLE_ARN }}
           aws-region: us-east-1
       
       - name: start ec2
+        if: vars.BENCHMARKS_USE_CASES_RUNNERS_TYPE == 'self-hosted-ec2'
         working-directory: benchmarks/scripts
         shell: bash
         run: |
@@ -74,23 +77,26 @@ jobs:
           token: ${{ secrets.BENCHMARK_REPO_TOKEN }}
 
       - name: run benchmarks
+        continue-on-error: true
         shell: bash
         working-directory: ./benchmarks
         env:
           DEEPLAKE_PATH: '../deeplake'
           REPORTS_PATH: '../reports'
-          URL: ${{ secrets.SLACK_URL }}
           BENCHMARKS_THRESHOLD: ${{ vars.BENCHMARKS_THRESHOLD }}
           BENCHMARKS_DEEPLAKE_TOKEN: ${{ secrets.BENCHMARKS_DEEPLAKE_TOKEN }}
           BENCHMARKS_TRAIN_T5_DATASET: ${{ secrets.BENCHMARKS_TRAIN_T5_DATASET }}
           BENCHMARKS_TRAIN_NANO_DATASET: ${{ secrets.BENCHMARKS_TRAIN_NANO_DATASET }}
           DEEPLAKE_USER: ${{ secrets.BENCHMARKS_DEEPLAKE_USERNAME }}
           DEEPLAKE_PASS: ${{ secrets.BENCHMARKS_DEEPLAKE_PASSWORD }}
+          BENCHMARK_TYPE: 'use-cases'
+          URL: ${{ secrets.SLACK_URL }}
           PR_NUMBER: ${{ github.event.number }}
         run: |
           bash use-cases.sh
 
       - name: comment pr
+        continue-on-error: false
         if: github.event_name == 'pull_request'
         uses: thollander/actions-comment-pull-request@v2
         with:
@@ -98,18 +104,23 @@ jobs:
           comment_tag: 'report'
 
       - name: complete
+        continue-on-error: true
         shell: bash
         env:
           BENCHMARK_TYPE: 'use-cases'
           URL: ${{ secrets.SLACK_URL }}
           PR_NUMBER: ${{ github.event.number }}
         working-directory: ./benchmarks
-        run: bash scripts/complete_benchmark.sh
+        run: |
+          bash scripts/complete_benchmark.sh
+          if [ "${{ vars.BENCHMARKS_USE_CASES_RUNNERS_TYPE }}" == 'self-hosted-ec2' ]
+          then
+            echo bash "$(pwd)/scripts/self_stop_ec2.sh" | at now +2 minutes
+          fi
 
       - name: stop ec2
+        if: vars.BENCHMARKS_USE_CASES_RUNNERS_TYPE == 'self-hosted-ec2' && cancelled()
+        working-directory: ./benchmarks
         shell: bash
         run: |
-          echo /usr/local/bin/aws \
-            ec2 stop-instances \
-            --instance-ids "$(curl -s http://169.254.169.254/latest/meta-data/instance-id)" \
-            | at now +1 minute
+          echo bash "$(pwd)/scripts/self_stop_ec2.sh" | at now +2 minutes
