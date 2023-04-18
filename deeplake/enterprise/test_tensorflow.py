@@ -284,7 +284,12 @@ def test_readonly_with_two_workers(hub_cloud_ds):
     base_storage = get_base_storage(hub_cloud_ds.storage)
     base_storage.flush()
     base_storage.enable_readonly()
-    ds = Dataset(storage=hub_cloud_ds.storage, read_only=True, verbose=False)
+    ds = Dataset(
+        storage=hub_cloud_ds.storage,
+        token=hub_cloud_ds.token,
+        read_only=True,
+        verbose=False,
+    )
 
     ptds = ds.dataloader().tensorflow(num_workers=2)
     # no need to check input, only care that readonly works
@@ -318,7 +323,10 @@ def test_groups(hub_cloud_ds, compressed_image_paths):
             hub_cloud_ds.images.jpegs.cats.append(img1)
             hub_cloud_ds.images.pngs.flowers.append(img2)
 
-    another_ds = deeplake.dataset(hub_cloud_ds.path)
+    another_ds = deeplake.dataset(
+        hub_cloud_ds.path,
+        token=hub_cloud_ds.token,
+    )
     dl = another_ds.dataloader().tensorflow(return_index=False)
     for i, (cat, flower) in enumerate(dl):
         assert cat[0].shape == another_ds.images.jpegs.cats[i].numpy().shape
@@ -326,8 +334,8 @@ def test_groups(hub_cloud_ds, compressed_image_paths):
 
     dl = another_ds.images.dataloader().tensorflow(return_index=False)
     for sample in dl:
-        cat = sample["jpegs/cats"]
-        flower = sample["pngs/flowers"]
+        cat = sample["images/jpegs/cats"]
+        flower = sample["images/pngs/flowers"]
         np.testing.assert_array_equal(cat[0], img1.array)
         np.testing.assert_array_equal(flower[0], img2.array)
 
