@@ -40,7 +40,6 @@ from deeplake.client.config import (
     CONNECT_DATASET_SUFFIX,
 )
 from deeplake.client.log import logger
-from deeplake.util.bugout_reporter import save_reporting_config, get_reporting_config
 import jwt  # should add it to requirements.txt
 
 # for these codes, we will retry requests upto 3 times
@@ -51,6 +50,11 @@ class DeepLakeBackendClient:
     """Communicates with Activeloop Backend"""
 
     def __init__(self, token: Optional[str] = None):
+        from deeplake.util.bugout_reporter import (
+            save_reporting_config,
+            get_reporting_config,
+        )
+
         self.version = deeplake.__version__
         self._token_from_env = False
         self.auth_header = None
