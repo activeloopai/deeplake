@@ -382,6 +382,7 @@ def test_pytorch_collate(hub_cloud_ds, shuffle):
             hub_cloud_ds.b.append(1)
             hub_cloud_ds.c.append(2)
 
+
     ptds = hub_cloud_ds.dataloader().batch(4).pytorch(collate_fn=reorder_collate)
     if shuffle:
         ptds = ptds.shuffle()
