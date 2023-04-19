@@ -10,6 +10,7 @@ from deeplake.util.bugout_reporter import (
     save_reporting_config,
     get_reporting_config,
     deeplake_reporter,
+    set_username,
 )
 from deeplake.util.exceptions import AuthenticationException, LoginException
 
@@ -58,6 +59,7 @@ def login(username: str, password: str, token: str):
             reporting_config = get_reporting_config()
             if reporting_config.get("username") != username:
                 save_reporting_config(True, username=username)
+                set_username(deeplake_reporter, username)
             break
         except AuthenticationException:
             chances -= 1

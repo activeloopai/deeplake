@@ -53,6 +53,8 @@ class DeepLakeBackendClient:
         from deeplake.util.bugout_reporter import (
             save_reporting_config,
             get_reporting_config,
+            deeplake_reporter,
+            set_username,
         )
 
         self.version = deeplake.__version__
@@ -69,9 +71,10 @@ class DeepLakeBackendClient:
             self.token = token or self.get_token()
             self.auth_header = f"Bearer {self.token}"
         if self._token_from_env:
-            username_reporting = self.get_user_profile()["name"]
-            if get_reporting_config().get("username") != username_reporting:
-                save_reporting_config(True, username=username_reporting)
+            username = self.get_user_profile()["name"]
+            if get_reporting_config().get("username") != username:
+                save_reporting_config(True, username=username)
+                set_username(deeplake_reporter, username)
 
     def get_token(self):
         """Returns a token"""
