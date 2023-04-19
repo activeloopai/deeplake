@@ -583,6 +583,11 @@ class DeepLakeDataLoader(DataLoader):
 
             tensors = self._tensors or map_tensor_keys(self._orig_dataset, None)
 
+            # if not hasattr(self, "_indra_dataset"):
+            #     indra_dataset = dataset_to_libdeeplake(self._orig_dataset)
+            # else:
+            #     indra_dataset = self._indra_dataset
+
             jpeg_png_compressed_tensors, json_tensors, list_tensors = check_tensors(
                 self._orig_dataset, tensors
             )
@@ -617,12 +622,12 @@ class DeepLakeDataLoader(DataLoader):
                     persistent_workers=self._persistent_workers,
                 )
             else:
-                raw_tensors.extend(pil_compressed_tensors)
-                raw_tensors.extend(json_tensors)
-                raw_tensors.extend(list_tensors)
-                dataset = dataset_to_libdeeplake(self._orig_dataset)
+                if not hasattr(self, "_indra_dataset"):
+                    indra_dataset = dataset_to_libdeeplake(self._orig_dataset)
+                else:
+                    indra_dataset = self._indra_dataset
                 self._dataloader = INDRA_LOADER(
-                    dataset,
+                    indra_dataset,
                     batch_size=self._batch_size,
                     num_threads=self._num_threads,
                     shuffle=self._shuffle,
