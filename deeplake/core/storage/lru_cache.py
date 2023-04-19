@@ -58,9 +58,9 @@ class LRUCache(StorageProvider):
         self.cache_used = 0
         self.deeplake_objects: Dict[str, DeepLakeMemoryObject] = {}
         self.use_async = (
-            next_storage.async_supported() if next_storage else False
-            and sys.version_info >= (3, 7)
-            and sys.platform != "win32"
+            next_storage.async_supported()
+            if next_storage
+            else False and sys.version_info >= (3, 7) and sys.platform != "win32"
         )
 
     def register_deeplake_object(self, path: str, obj: DeepLakeMemoryObject):
