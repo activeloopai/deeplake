@@ -121,8 +121,6 @@ deeplake_reporter = HumbugReporter(
 
 
 def set_username(reporter: HumbugReporter, username: str) -> None:
-    print('In set_username')
-
     index, current_username = find_current_username(reporter)
 
     if current_username is None:
@@ -130,7 +128,6 @@ def set_username(reporter: HumbugReporter, username: str) -> None:
     else:
         if f"username:{username}" != current_username:
             reporter.tags[index] = f"username:{username}"
-    print('At end of set_username')
 
 
 hub_user = bugout_reporting_config.get("username")

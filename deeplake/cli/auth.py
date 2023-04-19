@@ -58,7 +58,6 @@ def login(username: str, password: str, token: str):
             click.echo("Successfully logged in to Activeloop.")
             reporting_config = get_reporting_config()
             if reporting_config.get("username") != username:
-                print('setting username')
                 save_reporting_config(True, username=username)
                 set_username(deeplake_reporter, username)
             break
