@@ -1,4 +1,4 @@
-from typing import Callable, Dict, List, Optional
+from typing import Callable, Dict, Optional
 import warnings
 from deeplake.util.exceptions import EmptyTensorError
 from deeplake.util.iterable_ordered_dict import IterableOrderedDict
@@ -8,6 +8,7 @@ import warnings
 
 
 def collate_fn(batch):
+    import torch
     from torch.utils.data._utils.collate import default_collate
 
     elem = batch[0]
@@ -18,8 +19,13 @@ def collate_fn(batch):
 
     if isinstance(elem, np.ndarray) and elem.size > 0 and isinstance(elem[0], str):
         batch = [it[0] for it in batch]
+    elif isinstance(elem, (tuple, list)) and len(elem) > 0 and isinstance(elem[0], str):
+        batch = [it[0] for it in batch]
     elif isinstance(elem, Polygons):
         batch = [it.numpy() for it in batch]
+    elif isinstance(elem, (tuple, list)):
+        elem_type = type(elem)
+        return [elem_type([torch.tensor(item) for item in sample]) for sample in batch]
     return default_collate(batch)
 
 

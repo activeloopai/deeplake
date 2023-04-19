@@ -583,6 +583,19 @@ class DeepLakeDataLoader(DataLoader):
 
             tensors = self._tensors or map_tensor_keys(self._orig_dataset, None)
 
+            if not hasattr(self, "_indra_dataset"):
+                indra_dataset = dataset_to_libdeeplake(self._orig_dataset)
+            else:
+                indra_dataset = self._indra_dataset
+            if (
+                isinstance(self._decode_method, dict)
+                and "pil" in self._decode_method.values()
+                and self._collate is None
+                and self._transform is None
+            ):
+                raise ValueError(
+                    "'pil' decode_method requires either a custom transform or collate function in order to batch the samples."
+                )
             jpeg_png_compressed_tensors = check_tensors(self._orig_dataset, tensors)
             raw_tensors, compressed_tensors = validate_decode_method(
                 self._decode_method, tensors, jpeg_png_compressed_tensors
@@ -607,7 +620,7 @@ class DeepLakeDataLoader(DataLoader):
                     persistent_workers=self._persistent_workers,
                 )
             else:
-                dataset = dataset_to_libdeeplake(self._orig_dataset)
+                dataset = indra_dataset
                 self._dataloader = INDRA_LOADER(
                     dataset,
                     batch_size=self._batch_size,

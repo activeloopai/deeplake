@@ -1,5 +1,6 @@
 from deeplake.enterprise.convert_to_libdeeplake import dataset_to_libdeeplake
 from deeplake.util.bugout_reporter import deeplake_reporter
+from deeplake.core.dataset.deeplake_query_dataset import DeepLakeQueryDataset
 from typing import Optional, Union
 
 import numpy as np
@@ -35,10 +36,20 @@ def query(dataset, query_string: str):
         >>> ds_train = deeplake.load('hub://activeloop/coco-train')
         >>> query_ds_train = query(ds_train, "(select * where contains(categories, 'car') limit 1000) union (select * where contains(categories, 'motorcycle') limit 1000)")
     """
-    ds = dataset_to_libdeeplake(dataset)
+    if isinstance(dataset, DeepLakeQueryDataset):
+        ds = dataset.indra_ds
+    else:
+        ds = dataset_to_libdeeplake(dataset)
     dsv = ds.query(query_string)
-    indexes = dsv.indexes
-    return dataset[indexes]
+    try:
+        indexes = dsv.indexes
+        return dataset[indexes]
+    except RuntimeError:
+        view = DeepLakeQueryDataset(deeplake_ds=dataset, indra_ds=dsv)
+        view._query = query_string
+        if hasattr(dataset, "is_actually_cloud"):
+            view.is_actually_cloud = dataset.is_actually_cloud
+        return view
 
 
 @deeplake_reporter.record_call
