@@ -629,6 +629,12 @@ def rebuild_version_info(storage):
     branch_commit_map = {}
     commits = {}
 
+    # dont do anything if first commit info is missing
+    try:
+        commit_info = load_commit_info(FIRST_COMMIT_ID, storage)
+    except Exception:
+        return
+
     stack = [FIRST_COMMIT_ID]
 
     new_heads = []

@@ -299,6 +299,7 @@ def test_missing_commit_infos(local_ds):
 
     del ds.storage["version_control_info.json"]
     del ds.storage[get_commit_info_key(d)]
+    ds.storage.flush()
 
     ds = deeplake.load(local_ds.path)
 
@@ -309,3 +310,16 @@ def test_missing_commit_infos(local_ds):
     np.testing.assert_array_equal(ds.abc.numpy(), [[1], [2], [3]])
 
     assert ds.commit_id == c
+
+def test_dataset_with_no_commits_unaffected(local_path):
+    ds = deeplake.empty(local_path, overwrite=True)
+
+    ds.create_tensor("abc")
+    ds.abc.append(1)
+
+    del ds.storage["version_control_info.json"]
+    ds.storage.flush()
+
+    ds = deeplake.load(local_path)
+
+    np.testing.assert_array_equal(ds.abc.numpy(), [[1]])
