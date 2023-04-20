@@ -20,6 +20,8 @@ from deeplake.util.downsample import validate_downsampling
 from deeplake.util.version_control import (
     save_version_info,
     integrity_check,
+    save_commit_info,
+    rebuild_version_info,
 )
 from deeplake.util.invalid_view_op import invalid_view_op
 from deeplake.util.spinner import spinner
@@ -1224,7 +1226,12 @@ class Dataset:
 
         version_state = {}
         try:
-            version_info = load_version_info(self.storage)
+            try:
+                version_info = load_version_info(self.storage)
+            except Exception as e:
+                version_info = rebuild_version_info(self.storage)
+                if version_info is None:
+                    raise e
             version_state["branch_commit_map"] = version_info["branch_commit_map"]
             version_state["commit_node_map"] = version_info["commit_node_map"]
 
@@ -1415,7 +1422,6 @@ class Dataset:
         self._initial_autoflush.append(self.storage.autoflush)
         self.storage.autoflush = False
         merge(self, target_id, conflict_resolution, delete_removed_tensors, force)
-        self.__dict__["_vc_info_updated"] = False
         self.storage.autoflush = self._initial_autoflush.pop()
         self.storage.maybe_flush()
 
@@ -2139,6 +2145,9 @@ class Dataset:
     def _flush_vc_info(self):
         if self._vc_info_updated:
             save_version_info(self.version_state, self.storage)
+            for node in self.version_state["commit_node_map"].values():
+                if node._info_updated:
+                    save_commit_info(node, self.storage)
             self.__dict__["_vc_info_updated"] = False
 
     def clear_cache(self):
@@ -3562,6 +3571,12 @@ class Dataset:
             new_commit_id = replace_head(storage, version_state, reset_commit_id)
 
             self.checkout(new_commit_id)
+
+    def fix_vc(self):
+        """Rebuilds version control info. To be used when the version control info is corrupted."""
+        version_info = rebuild_version_info(self.storage)
+        self.version_state["commit_node_map"] = version_info["commit_node_map"]
+        self.version_state["branch_commit_map"] = version_info["branch_commit_map"]
 
     def connect(
         self,
