@@ -46,7 +46,7 @@ def query(dataset, query_string: str):
         return dataset[indexes]
     except RuntimeError:
         view = DeepLakeQueryDataset(deeplake_ds=dataset, indra_ds=dsv)
-        view._query = query_string
+        view._tql_query = query_string
         if hasattr(dataset, "is_actually_cloud"):
             view.is_actually_cloud = dataset.is_actually_cloud
         return view

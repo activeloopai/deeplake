@@ -2735,6 +2735,9 @@ class Dataset:
         if query:
             info["query"] = query
             info["source-dataset-index"] = getattr(self, "_source_ds_idx", None)
+        tql_query = getattr(self, "_tql_query", None)
+        if tql_query:
+            info["tql_query"] = query
         return info
 
     def _lock_queries_json(self):
