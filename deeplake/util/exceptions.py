@@ -203,8 +203,8 @@ class UserNotLoggedInException(Exception):
         message = (
             "You are not logged in and an API token was not found. To complete the operation, you can\n"
             "1. Login with your username and password using the `activeloop login` CLI command.\n"
-            "2. Use an API token in any of the following ways:\n"
-            "    - Create an API token from Activeloop UI and set the environment variable `ACTIVELOOP_TOKEN` to the token value.\n"
+            "2. Create an API token at https://app.activeloop.ai and use it in any of the following ways:\n"
+            "    - Set the environment variable `ACTIVELOOP_TOKEN` to the token value.\n"
             "    - Use the CLI command `activeloop login -t <token>`.\n"
             "    - Pass the API token to the `token` parameter of this function.\n"
             "Visit https://docs.activeloop.ai/getting-started/using-activeloop-storage for more information."
