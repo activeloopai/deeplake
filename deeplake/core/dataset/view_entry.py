@@ -120,7 +120,7 @@ class ViewEntry:
             Exception: When query view cannot be optimized.
 
         """
-        if not self.query is None:
+        if not self.tql_query is None:
             raise Exception("Optimizing nonlinear query views is not supported")
         self.info = self._ds._optimize_saved_view(
             self.info["id"],
