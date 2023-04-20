@@ -530,9 +530,9 @@ def is_primitive(sample):
     return False
 
 
-def get_truncated_sample(sample, max_len=30):
-    if len(str(sample)) > max_len:
-        return str(sample)[:max_len / 2] + "..." + str(sample)[-(max_len / 2) - 1:]
+def get_truncated_sample(sample, max_half_len=50):
+    if len(str(sample)) > max_half_len * 2:
+        return str(sample)[:max_half_len] + "..." + str(sample)[int(-max_half_len - 1):]
     return str(sample)
 
 
