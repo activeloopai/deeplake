@@ -311,6 +311,7 @@ def test_missing_commit_infos(local_ds):
 
     assert ds.commit_id == c
 
+
 def test_dataset_with_no_commits_unaffected(local_path):
     ds = deeplake.empty(local_path, overwrite=True)
 
