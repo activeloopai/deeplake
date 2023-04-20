@@ -27,6 +27,10 @@ def to_tuple(sample, t1, t2):
     return sample[t1], sample[t2]
 
 
+def identity_collate(batch):
+    return batch
+
+
 def reorder_collate(batch):
     x = [((x["a"], x["b"]), x["c"]) for x in batch]
     return default_collate(x)
@@ -347,9 +351,9 @@ def test_string_tensors(hub_cloud_ds):
         hub_cloud_ds.create_tensor("strings", htype="text")
         hub_cloud_ds.strings.extend([f"string{idx}" for idx in range(5)])
 
-    ptds = hub_cloud_ds.dataloader().tensorflow()
+    ptds = hub_cloud_ds.dataloader().tensorflow(collate_fn=identity_collate)
     for idx, batch in enumerate(ptds):
-        np.testing.assert_array_equal(batch["strings"], f"string{idx}")
+        np.testing.assert_array_equal(batch[0]["strings"], f"string{idx}")
 
 
 @pytest.mark.xfail(raises=NotImplementedError, strict=True)
@@ -475,10 +479,12 @@ def test_tensorflow_decode(hub_cloud_ds, compressed_image_paths, compression):
             dl = hub_cloud_ds.dataloader()
         return
 
-    ptds = hub_cloud_ds.dataloader().tensorflow(decode_method={"image": "tobytes"})
+    ptds = hub_cloud_ds.dataloader().tensorflow(
+        collate_fn=identity_collate, decode_method={"image": "tobytes"}
+    )
 
     for i, batch in enumerate(ptds):
-        image = batch["image"][0]
+        image = batch[0]["image"]
         assert isinstance(image, bytes)
         if i < 5 and not compression:
             np.testing.assert_array_equal(
