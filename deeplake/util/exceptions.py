@@ -530,6 +530,12 @@ def is_primitive(sample):
     return False
 
 
+def get_truncated_sample(sample, max_len=30):
+    if len(str(sample)) > max_len:
+        return str(sample)[:max_len / 2] + "..." + str(sample)[-(max_len / 2) - 1:]
+    return str(sample)
+
+
 def has_path(sample):
     from deeplake.core.sample import Sample
     from deeplake.core.linked_sample import LinkedSample
@@ -557,7 +563,7 @@ class TransformError(Exception):
                 msg += f" at index {index} of the input data"
 
             if print_item:
-                msg += f" on the item: {sample}"
+                msg += f" on the item: {get_truncated_sample(sample)}"
             elif print_path:
                 msg += f" on the sample at path: '{sample.path}'"
             msg += "."
