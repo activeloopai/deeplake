@@ -207,6 +207,7 @@ class UserNotLoggedInException(Exception):
             "    - Create an API token from Activeloop UI and set the environment variable `ACTIVELOOP_TOKEN` to the token value.\n"
             "    - Use the CLI command `activeloop login -t <token>`.\n"
             "    - Pass the API token to the `token` parameter of this function.\n"
+            "Visit https://docs.activeloop.ai/getting-started/using-activeloop-storage for more information."
         )
         super().__init__(message)
 
