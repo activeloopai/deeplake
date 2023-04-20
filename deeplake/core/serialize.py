@@ -651,7 +651,7 @@ def serialize_tensor(
     min_chunk_size: int,
     break_into_tiles: bool = True,
     store_tiles: bool = False,
-    is_text: bool=False
+    is_text: bool = False,
 ):
     def _return_numpy():
         return serialize_numpy_and_base_types(
