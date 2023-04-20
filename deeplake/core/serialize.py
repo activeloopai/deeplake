@@ -444,7 +444,7 @@ def text_to_bytes(sample, dtype, htype):
             if sample.htype == htype or sample.htype == "json" and htype == "list":
                 return sample.tobytes(), sample.shape
         except (ValueError, NotImplementedError):  # sliced sample or tiled sample
-            sample = sample.data()
+            sample = sample.data()["value"]
     if htype in ("json", "list"):
         if isinstance(sample, np.ndarray):
             if htype == "list":
@@ -492,16 +492,17 @@ def serialize_text(
     htype: str,
 ):
     """Converts the sample into bytes"""
-    if isinstance(incoming_sample, deeplake.core.tensor.Tensor):
-        return serialize_tensor(
-            incoming_sample=incoming_sample,
-            sample_compression=sample_compression,
-            chunk_compression=None,
-            dtype=dtype,
-            htype=htype,
-            min_chunk_size=0,
-            break_into_tiles=False,
-        )
+    # if isinstance(incoming_sample, deeplake.core.tensor.Tensor):
+    #     return serialize_tensor(
+    #         incoming_sample=incoming_sample,
+    #         sample_compression=sample_compression,
+    #         chunk_compression=None,
+    #         dtype=dtype,
+    #         htype=htype,
+    #         min_chunk_size=0,
+    #         break_into_tiles=False,
+    #         is_text=True,
+    #     )
     incoming_sample, shape = text_to_bytes(incoming_sample, dtype, htype)
     if sample_compression:
         incoming_sample = compress_bytes(incoming_sample, sample_compression)  # type: ignore
@@ -650,6 +651,7 @@ def serialize_tensor(
     min_chunk_size: int,
     break_into_tiles: bool = True,
     store_tiles: bool = False,
+    is_text: bool=False
 ):
     def _return_numpy():
         return serialize_numpy_and_base_types(
