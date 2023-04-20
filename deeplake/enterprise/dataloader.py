@@ -583,11 +583,6 @@ class DeepLakeDataLoader(DataLoader):
 
             tensors = self._tensors or map_tensor_keys(self._orig_dataset, None)
 
-            # if not hasattr(self, "_indra_dataset"):
-            #     indra_dataset = dataset_to_libdeeplake(self._orig_dataset)
-            # else:
-            #     indra_dataset = self._indra_dataset
-
             jpeg_png_compressed_tensors, json_tensors, list_tensors = check_tensors(
                 self._orig_dataset, tensors
             )
