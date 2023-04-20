@@ -42,7 +42,7 @@ class ViewEntry:
         return self.info["source-dataset-version"]
 
     def __str__(self):
-        return f"View(id='{self.id}', message='{self.message}', virtual={self.virtual}, commit_id={self.commit_id}, query='{self.tql_query}')"
+        return f"View(id='{self.id}', message='{self.message}', virtual={self.virtual}, commit_id={self.commit_id}, query='{self.query}, tql_query='{self.tql_query}')"
 
     __repr__ = __str__
 
@@ -76,7 +76,7 @@ class ViewEntry:
 
         if not self.tql_query is None:
             query_str = self.tql_query
-            ds = ds.tql_query(query_str)
+            ds = ds.query(query_str)
 
         ds._view_entry = self
         if verbose:
