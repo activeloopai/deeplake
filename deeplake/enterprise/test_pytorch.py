@@ -28,6 +28,10 @@ def double(sample):
     return sample * 2
 
 
+def identity_collate(batch):
+    return batch
+
+
 def to_tuple(sample, t1, t2):
     return sample[t1], sample[t2]
 
@@ -129,14 +133,13 @@ def test_pytorch_transform(hub_cloud_ds):
         hub_cloud_ds.dataloader()
         .batch(1)
         .transform(to_tuple, t1="image", t2="image2")
-        .pytorch(num_workers=2)
+        .pytorch(num_workers=2, collate_fn=identity_collate)
     )
 
     for _ in range(2):
         for i, batch in enumerate(dl):
-            actual_image = batch[0].numpy()
+            actual_image, actual_image2 = batch[0]
             expected_image = i * np.ones((1, i + 1, i + 1))
-            actual_image2 = batch[1].numpy()
             expected_image2 = i * np.ones((1, 12, 12))
             np.testing.assert_array_equal(actual_image, expected_image)
             np.testing.assert_array_equal(actual_image2, expected_image2)
@@ -659,8 +662,8 @@ def test_pytorch_error_handling(hub_cloud_ds):
 
 @requires_libdeeplake
 @requires_torch
-def test_pil_decode_method(local_ds):
-    with local_ds as ds:
+def test_pil_decode_method(hub_cloud_ds):
+    with hub_cloud_ds as ds:
         ds.create_tensor("x", htype="image", sample_compression="jpeg")
         ds.x.extend(np.random.randint(0, 255, (10, 10, 10, 3), np.uint8))
 
@@ -671,7 +674,7 @@ def test_pil_decode_method(local_ds):
         assert batch["x"].shape == (1, 10, 10, 3)
 
     ptds = ds.dataloader().pytorch(decode_method={"x": "pil"})
-    with pytest.raises(ValueError):
+    with pytest.raises(TypeError):
         for _ in ptds:
             pass
 
