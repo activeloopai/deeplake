@@ -32,7 +32,7 @@ def test_polygons(local_ds, ndim, args):
             for p1, p2 in zip(s1, s2):
                 assert isinstance(p2, np.ndarray)
                 np.testing.assert_array_equal(p1, p2)
-    for i, sample in enumerate(ds.pytorch(num_workers=0)):
+    for i, sample in enumerate(ds.pytorch(num_workers=2)):
         assert len(samples[i]) == len(sample["polygons"][0])
         for p1, p2 in zip(samples[i], sample["polygons"][0]):
             np.testing.assert_array_equal(p1, p2)
