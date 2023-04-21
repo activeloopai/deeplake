@@ -492,17 +492,6 @@ def serialize_text(
     htype: str,
 ):
     """Converts the sample into bytes"""
-    # if isinstance(incoming_sample, deeplake.core.tensor.Tensor):
-    #     return serialize_tensor(
-    #         incoming_sample=incoming_sample,
-    #         sample_compression=sample_compression,
-    #         chunk_compression=None,
-    #         dtype=dtype,
-    #         htype=htype,
-    #         min_chunk_size=0,
-    #         break_into_tiles=False,
-    #         is_text=True,
-    #     )
     incoming_sample, shape = text_to_bytes(incoming_sample, dtype, htype)
     if sample_compression:
         incoming_sample = compress_bytes(incoming_sample, sample_compression)  # type: ignore
