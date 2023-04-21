@@ -39,6 +39,7 @@ from deeplake.constants import (
     MB,
     SAMPLE_INFO_TENSOR_MAX_CHUNK_SIZE,
     DEFAULT_READONLY,
+    ENV_HUB_DEV_USERNAME,
 )
 from deeplake.core.fast_forwarding import ffw_dataset_meta
 from deeplake.core.index import Index
@@ -1655,7 +1656,8 @@ class Dataset:
             self.flush()
 
     def _register_dataset(self):
-        """overridden in DeepLakeCloudDataset"""
+        if not self.__dict__["org_id"]:
+            self.org_id = os.environ.get(ENV_HUB_DEV_USERNAME)
 
     def _send_query_progress(self, *args, **kwargs):
         """overridden in DeepLakeCloudDataset"""
