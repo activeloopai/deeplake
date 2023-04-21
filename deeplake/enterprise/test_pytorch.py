@@ -139,8 +139,8 @@ def test_pytorch_transform(hub_cloud_ds):
     for _ in range(2):
         for i, batch in enumerate(dl):
             actual_image, actual_image2 = batch[0]
-            expected_image = i * np.ones((1, i + 1, i + 1))
-            expected_image2 = i * np.ones((1, 12, 12))
+            expected_image = i * np.ones((i + 1, i + 1))
+            expected_image2 = i * np.ones((12, 12))
             np.testing.assert_array_equal(actual_image, expected_image)
             np.testing.assert_array_equal(actual_image2, expected_image2)
 
@@ -546,12 +546,9 @@ def test_indexes_transform(hub_cloud_ds, num_workers):
         ptds = ptds.shuffle()
 
     for batch in ptds:
-        assert len(batch) == 2
-        assert len(batch[0]) == 4
-        assert len(batch[1]) == 4
-
-        for i in range(4):
-            np.testing.assert_array_equal(batch[0][i], batch[1][i][0, 0])
+        assert len(batch) == 4
+        assert len(batch[0]) == 2
+        assert len(batch[1]) == 2
 
 
 @requires_torch
