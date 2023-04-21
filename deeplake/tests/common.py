@@ -123,8 +123,7 @@ requires_linux = pytest.mark.skipif(
 
 
 requires_libdeeplake = pytest.mark.skipif(
-    sys.platform not in ["darwin", "Darwin"]
-    or (sys.version_info[0] == 3 and sys.version_info[1] == 6),
+    sys.platform not in ["Darwin", "darwin", "win32", "Win32"]
     reason="These tests require libdeeplake to be installed",
 )
 
