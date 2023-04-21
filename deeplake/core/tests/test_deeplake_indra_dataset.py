@@ -8,10 +8,10 @@ import pytest
 
 
 @requires_libdeeplake
-def test_indexing(local_ds_generator):
+def test_indexing(hub_cloud_ds_generator):
     from deeplake.enterprise.convert_to_libdeeplake import dataset_to_libdeeplake
 
-    deeplake_ds = local_ds_generator()
+    deeplake_ds = hub_cloud_ds_generator()
     with deeplake_ds:
         deeplake_ds.create_tensor("label", htype="generic", dtype=np.int32)
         for i in range(1000):
@@ -53,10 +53,10 @@ def test_indexing(local_ds_generator):
 
 
 @requires_libdeeplake
-def test_save_view(local_ds_generator):
+def test_save_view(hub_cloud_ds_generator):
     from deeplake.enterprise.convert_to_libdeeplake import dataset_to_libdeeplake
 
-    deeplake_ds = local_ds_generator()
+    deeplake_ds = hub_cloud_ds_generator()
     with deeplake_ds:
         deeplake_ds.create_tensor("label", htype="generic", dtype=np.int32)
         for i in range(1000):
@@ -74,10 +74,10 @@ def test_save_view(local_ds_generator):
 
 
 @requires_libdeeplake
-def test_load_view(local_ds_generator):
+def test_load_view(hub_cloud_ds_generator):
     from deeplake.enterprise.convert_to_libdeeplake import dataset_to_libdeeplake
 
-    deeplake_ds = local_ds_generator()
+    deeplake_ds = hub_cloud_ds_generator()
     with deeplake_ds:
         deeplake_ds.create_tensor("label", htype="generic", dtype=np.int32)
         deeplake_ds.create_tensor(
@@ -126,10 +126,10 @@ def test_load_view(local_ds_generator):
 
 
 @requires_libdeeplake
-def test_query(local_ds_generator):
+def test_query(hub_cloud_ds_generator):
     from deeplake.enterprise.convert_to_libdeeplake import dataset_to_libdeeplake
 
-    deeplake_ds = local_ds_generator()
+    deeplake_ds = hub_cloud_ds_generator()
     with deeplake_ds:
         deeplake_ds.create_tensor("label", htype="generic", dtype=np.int32)
         deeplake_ds.create_tensor(
@@ -159,10 +159,10 @@ def test_query(local_ds_generator):
 
 
 @requires_libdeeplake
-def test_metadata(local_ds_generator):
+def test_metadata(hub_cloud_ds_generator):
     from deeplake.enterprise.convert_to_libdeeplake import dataset_to_libdeeplake
 
-    deeplake_ds = local_ds_generator()
+    deeplake_ds = hub_cloud_ds_generator()
     with deeplake_ds:
         deeplake_ds.create_tensor("label", htype="generic", dtype=np.int32)
         deeplake_ds.create_tensor(
@@ -190,10 +190,10 @@ def test_metadata(local_ds_generator):
 
 
 @requires_libdeeplake
-def test_accessing_data(local_ds_generator):
+def test_accessing_data(hub_cloud_ds_generator):
     from deeplake.enterprise.convert_to_libdeeplake import dataset_to_libdeeplake
 
-    deeplake_ds = local_ds_generator()
+    deeplake_ds = hub_cloud_ds_generator()
     with deeplake_ds:
         deeplake_ds.create_tensor("label", htype="generic", dtype=np.int32)
         for i in range(1000):
@@ -208,8 +208,8 @@ def test_accessing_data(local_ds_generator):
 
 
 @requires_libdeeplake
-def test_sequences_accessing_data(local_ds_generator):
-    deeplake_ds = local_ds_generator()
+def test_sequences_accessing_data(hub_cloud_ds_generator):
+    deeplake_ds = hub_cloud_ds_generator()
     with deeplake_ds:
         deeplake_ds.create_tensor("label", htype="generic", dtype=np.int32)
         for i in range(200):
@@ -236,8 +236,8 @@ def test_sequences_accessing_data(local_ds_generator):
 
 
 @requires_libdeeplake
-def test_random_split(local_ds_generator):
-    deeplake_ds = local_ds_generator()
+def test_random_split(hub_cloud_ds_generator):
+    deeplake_ds = hub_cloud_ds_generator()
     with deeplake_ds:
         deeplake_ds.create_tensor("label", htype="generic", dtype=np.int32)
         for i in range(1000):

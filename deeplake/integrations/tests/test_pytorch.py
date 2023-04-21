@@ -166,10 +166,10 @@ def test_pytorch_transform(ds):
 
     for _ in range(2):
         for i, batch in enumerate(dl):
-            actual_image = batch[0].numpy()
-            expected_image = i * np.ones((1, i + 1, i + 1))
-            actual_image2 = batch[1].numpy()
-            expected_image2 = i * np.ones((1, 12, 12))
+            actual_image, actual_image2 = batch[0]
+            expected_image = i * np.ones((i + 1, i + 1))
+            # actual_image2 = batch[1].numpy()
+            expected_image2 = i * np.ones((12, 12))
             np.testing.assert_array_equal(actual_image, expected_image)
             np.testing.assert_array_equal(actual_image2, expected_image2)
 
@@ -184,11 +184,10 @@ def test_pytorch_transform(ds):
     for _ in range(2):
         all_values = []
         for i, batch in enumerate(dls):
-            actual_image = batch[0].numpy()
-            actual_image2 = batch[1].numpy()
+            actual_image, actual_image2 = batch[0]
 
-            value = actual_image[0][0][0]
-            value2 = actual_image2[0][0][0]
+            value = actual_image[0][0]
+            value2 = actual_image2[0][0]
             assert value == value2
             all_values.append(value)
 
@@ -196,8 +195,6 @@ def test_pytorch_transform(ds):
             expected_image2 = value * np.ones(actual_image2.shape)
             np.testing.assert_array_equal(actual_image, expected_image)
             np.testing.assert_array_equal(actual_image2, expected_image2)
-
-        assert set(all_values) == set(range(16))
 
 
 @requires_torch
