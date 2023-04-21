@@ -39,6 +39,7 @@ from deeplake.constants import (
     MB,
     SAMPLE_INFO_TENSOR_MAX_CHUNK_SIZE,
     DEFAULT_READONLY,
+    ENV_HUB_DEV_USERNAME,
 )
 from deeplake.core.fast_forwarding import ffw_dataset_meta
 from deeplake.core.index import Index
@@ -1655,7 +1656,8 @@ class Dataset:
             self.flush()
 
     def _register_dataset(self):
-        """overridden in DeepLakeCloudDataset"""
+        if not self.__dict__["org_id"]:
+            self.org_id = os.environ.get(ENV_HUB_DEV_USERNAME)
 
     def _send_query_progress(self, *args, **kwargs):
         """overridden in DeepLakeCloudDataset"""
@@ -2716,6 +2718,7 @@ class Dataset:
             *[e.value for e in self.index.values],
             self.pending_commit_id,
             getattr(self, "_query", None),
+            getattr(self, "_tql_query", None),
         )
 
     def _get_view_info(
@@ -2743,6 +2746,10 @@ class Dataset:
         query = getattr(self, "_query", None)
         if query:
             info["query"] = query
+            info["source-dataset-index"] = getattr(self, "_source_ds_idx", None)
+        tql_query = getattr(self, "_tql_query", None)
+        if tql_query:
+            info["tql_query"] = tql_query
             info["source-dataset-index"] = getattr(self, "_source_ds_idx", None)
         return info
 

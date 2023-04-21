@@ -3,7 +3,6 @@ import pytest
 import numpy as np
 from click.testing import CliRunner
 from deeplake.core.storage.memory import MemoryProvider
-from deeplake.core.transform.transform_tensor import TransformTensor
 from deeplake.core.version_control.test_version_control import (
     compare_dataset_diff,
     compare_tensor_diff,
@@ -1439,3 +1438,56 @@ def test_ds_append_errors(
         assert ds["boxes"].meta.max_shape == [20, 4]
 
         assert ds["labels"].numpy().shape == (40, 10)
+
+
+def test_transform_numpy_only(local_ds):
+    @deeplake.compute
+    def upload(i, ds):
+        ds.abc.extend(i * np.ones((10, 5, 5)))
+
+    with local_ds as ds:
+        ds.create_tensor("abc")
+
+        upload().eval(list(range(100)), ds, num_workers=2)
+
+    assert len(local_ds) == 1000
+
+    for i in range(100):
+        np.testing.assert_array_equal(
+            ds.abc[i * 10 : (i + 1) * 10].numpy(), i * np.ones((10, 5, 5))
+        )
+
+
+@deeplake.compute
+def add_samples(i, ds, flower_path):
+    ds.abc.extend(i * np.ones((5, 5, 5)))
+    ds.images.extend([deeplake.read(flower_path) for _ in range(5)])
+
+
+@deeplake.compute
+def mul_by_2(sample_in, samples_out):
+    samples_out.abc.append(2 * sample_in.abc.numpy())
+    samples_out.images.append(sample_in.images.numpy() - 1)
+
+
+def test_pipeline(local_ds, flower_path):
+    pipeline = deeplake.compose([add_samples(flower_path), mul_by_2()])
+
+    flower_arr = np.array(deeplake.read(flower_path))
+
+    with local_ds as ds:
+        ds.create_tensor("abc")
+        ds.create_tensor("images", htype="image", sample_compression="png")
+
+        pipeline.eval(list(range(10)), ds, num_workers=2)
+
+    assert len(local_ds) == 50
+
+    for i in range(10):
+        np.testing.assert_array_equal(
+            ds.abc[i * 5 : (i + 1) * 5].numpy(), i * 2 * np.ones((5, 5, 5))
+        )
+        np.testing.assert_array_equal(
+            ds.images[i * 5 : (i + 1) * 5].numpy(),
+            np.tile(flower_arr - 1, (5, 1, 1, 1)),
+        )
