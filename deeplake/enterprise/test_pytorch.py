@@ -28,6 +28,10 @@ def double(sample):
     return sample * 2
 
 
+def identity(batch):
+    return batch
+
+
 def identity_collate(batch):
     return batch
 
@@ -769,3 +773,54 @@ def test_list_data_loader(hub_cloud_ds):
         sample2 = batch[1]["list"]
         assert sample1.tolist() == l
         assert sample2.tolist() == l
+
+
+@requires_libdeeplake
+@requires_torch
+def test_pytorch_data_decode(hub_cloud_ds, cat_path):
+    with hub_cloud_ds as ds:
+        ds.create_tensor("generic")
+        for i in range(10):
+            ds.generic.append(i)
+        ds.create_tensor("text", htype="text")
+        for i in range(10):
+            ds.text.append(f"hello {i}")
+        ds.create_tensor("json", htype="json")
+        for i in range(10):
+            ds.json.append({"x": i})
+        ds.create_tensor("list", htype="list")
+        for i in range(10):
+            ds.list.append([i, i + 1])
+        ds.create_tensor("class_label", htype="class_label")
+        animals = [
+            "cat",
+            "dog",
+            "bird",
+            "fish",
+            "horse",
+            "cow",
+            "pig",
+            "sheep",
+            "goat",
+            "chicken",
+        ]
+        ds.class_label.extend(animals)
+        ds.create_tensor("image", htype="image", sample_compression="jpeg")
+        for i in range(10):
+            ds.image.append(deeplake.read(cat_path))
+
+    decode_method = {tensor: "data" for tensor in list(ds.tensors.keys())}
+    ptds = (
+        ds.dataloader()
+        .transform(identity)
+        .pytorch(decode_method=decode_method, collate_fn=identity_collate)
+    )
+    for i, batch in enumerate(ptds):
+        sample = batch[0]
+        assert sample["text"]["value"] == f"hello {i}"
+        assert sample["json"]["value"] == {"x": i}
+        assert sample["list"]["value"].tolist() == [i, i + 1]
+        assert sample["class_label"]["value"] == [i]
+        assert sample["class_label"]["text"] == [animals[i]]
+        assert sample["image"]["value"].shape == (900, 900, 3)
+        assert sample["generic"]["value"] == i
