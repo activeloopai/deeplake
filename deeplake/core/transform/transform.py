@@ -35,6 +35,8 @@ from deeplake.hooks import dataset_written, dataset_read
 from deeplake.util.version_control import auto_checkout
 from deeplake.util.class_label import sync_labels
 
+import posixpath
+
 
 class ComputeFunction:
     def __init__(self, func, args, kwargs, name: Optional[str] = None):
@@ -55,6 +57,7 @@ class ComputeFunction:
         check_lengths: bool = True,
         pad_data_in: bool = False,
         read_only_ok: bool = False,
+        cache_size: int = 16,
         checkpoint_interval: int = 0,
         ignore_errors: bool = False,
         **kwargs,
@@ -78,6 +81,7 @@ class ComputeFunction:
                 Defaults to False.
             read_only_ok (bool): If ``True`` and output dataset is same as input dataset, the read-only check is skipped. This can be used to read data in parallel without making changes to underlying dataset.
                 Defaults to False.
+            cache_size (int): Cache size to be used by transform per worker.
             checkpoint_interval (int): If > 0, the transform will be checkpointed with a commit every ``checkpoint_interval`` input samples to avoid restarting full transform due to intermitten failures. If the transform is interrupted, the intermediate data is deleted and the dataset is reset to the last commit.
                 If <= 0, no checkpointing is done. Checkpoint interval should be a multiple of num_workers if num_workers > 0. Defaults to 0.
             ignore_errors (bool): If ``True``, input samples that causes transform to fail will be skipped and the errors will be ignored **if possible**.
@@ -102,6 +106,7 @@ class ComputeFunction:
             check_lengths,
             pad_data_in,
             read_only_ok,
+            cache_size,
             checkpoint_interval,
             ignore_errors,
             **kwargs,
@@ -130,6 +135,7 @@ class Pipeline:
         check_lengths: bool = True,
         pad_data_in: bool = False,
         read_only_ok: bool = False,
+        cache_size: int = 16,
         checkpoint_interval: int = 0,
         ignore_errors: bool = False,
         **kwargs,
@@ -153,6 +159,7 @@ class Pipeline:
                 Defaults to ``False``.
             read_only_ok (bool): If ``True`` and output dataset is same as input dataset, the read-only check is skipped.
                 Defaults to False.
+            cache_size (int): Cache size to be used by transform per worker.
             checkpoint_interval (int): If > 0, the transform will be checkpointed with a commit every ``checkpoint_interval`` input samples to avoid restarting full transform due to intermitten failures. If the transform is interrupted, the intermediate data is deleted and the dataset is reset to the last commit.
                 If <= 0, no checkpointing is done. Checkpoint interval should be a multiple of num_workers if num_workers > 0. Defaults to 0.
             ignore_errors (bool): If ``True``, input samples that causes transform to fail will be skipped and the errors will be ignored **if possible**.
@@ -218,7 +225,7 @@ class Pipeline:
         initial_autoflush = target_ds.storage.autoflush
         target_ds.storage.autoflush = False
 
-        if not check_lengths:
+        if not check_lengths or read_only_ok:
             skip_ok = True
 
         checkpointing_enabled = checkpoint_interval > 0
@@ -267,6 +274,7 @@ class Pipeline:
                     overwrite,
                     skip_ok,
                     read_only_ok and overwrite,
+                    cache_size,
                     pbar,
                     pqueue,
                     ignore_errors,
@@ -286,11 +294,12 @@ class Pipeline:
                 index, sample = None, None
                 if isinstance(e, TransformError):
                     index, sample = e.index, e.sample
+                    e = e.__cause__  # type: ignore
                 raise TransformError(
                     index=index,
                     sample=sample,
                     samples_processed=samples_processed,
-                ).with_traceback(e.__traceback__)
+                ) from e
             finally:
                 reload_and_rechunk(
                     overwrite,
@@ -316,6 +325,7 @@ class Pipeline:
         overwrite: bool = False,
         skip_ok: bool = False,
         read_only: bool = False,
+        cache_size: int = 16,
         pbar=None,
         pqueue=None,
         ignore_errors: bool = False,
@@ -340,16 +350,14 @@ class Pipeline:
             else []
         )
         label_temp_tensors = {}
-        actual_tensors = (
-            None
-            if not class_label_tensors
-            else [target_ds[t].key for t in target_ds.tensors]
-        )
+
+        visible_tensors = list(target_ds.tensors)
+        visible_tensors = [target_ds[t].key for t in visible_tensors]
 
         if not read_only:
             for tensor in class_label_tensors:
                 actual_tensor = target_ds[tensor]
-                temp_tensor = f"__temp{tensor}_{uuid4().hex[:4]}"
+                temp_tensor = f"__temp{posixpath.relpath(tensor, target_ds.group_index)}_{uuid4().hex[:4]}"
                 with target_ds:
                     temp_tensor_obj = target_ds.create_tensor(
                         temp_tensor,
@@ -361,12 +369,8 @@ class Pipeline:
                         create_id_tensor=False,
                     )
                     temp_tensor_obj.meta._disable_temp_transform = True
-                    label_temp_tensors[tensor] = temp_tensor
+                    label_temp_tensors[tensor] = temp_tensor_obj.key
                 target_ds.flush()
-
-        visible_tensors = list(target_ds.tensors)
-        visible_tensors = [target_ds[t].key for t in visible_tensors]
-        visible_tensors = list(set(visible_tensors) - set(class_label_tensors))
 
         tensors = list(target_ds._tensors())
         tensors = [target_ds[t].key for t in tensors]
@@ -384,12 +388,12 @@ class Pipeline:
             tensors,
             visible_tensors,
             label_temp_tensors,
-            actual_tensors,
             self,
             version_state,
             target_ds.link_creds,
             skip_ok,
             extend_only,
+            cache_size,
             ignore_errors,
         )
         map_inp = zip(slices, offsets, storages, repeat(args))
