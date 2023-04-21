@@ -960,17 +960,3 @@ def test_pytorch_data_decode(local_ds, cat_path):
         assert sample["class_label"]["text"] == [animals[i]]
         assert sample["image"]["value"].shape == (900, 900, 3)
         assert sample["generic"]["value"] == i
-
-
-#  IterableOrderedDict([
-#     ('generic', {'value': array([0], dtype=int64)}),
-#     ('text', {'value': 'hello 0'}),
-#     ('json', {'value': {'x': 0}}),
-#     ('list', {'value': 0}),
-#     ('class_label', {'value': array([0], dtype=uint32), 'text': ['cat']})])
-#  IterableOrderedDict([
-#     ('generic', {'value': array([0])}),
-#     ('text', {'value': 'hello 0'}),
-#     ('json', {'value': {'x': b''}}),
-#     ('list', {'value': b''}),
-#     ('class_label', {'value': array([0]), 'text': ['cat']})\])
