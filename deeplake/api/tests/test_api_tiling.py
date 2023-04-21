@@ -209,6 +209,6 @@ def test_tiled_indexing(memory_ds):
         np.testing.assert_array_equal(ds.abc[:, 2], arr[:, 2])
         np.testing.assert_array_equal(ds.abc[:, [2]], arr[:, [2]])
         np.testing.assert_array_equal(ds.abc[:, [3, 4, 5]], arr[:, [3, 4, 5]])
-        np.testing.assert_array_equal(ds.abc[:, [3, 4, 5], [6, 7, 8]], arr[:, [3, 4, 5], [6, 7, 8]])
-
-
+        np.testing.assert_array_equal(
+            ds.abc[:, [3, 4, 5], [6, 7, 8]], arr[:, [3, 4, 5], [6, 7, 8]]
+        )
