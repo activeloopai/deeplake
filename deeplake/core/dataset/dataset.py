@@ -2716,6 +2716,7 @@ class Dataset:
             *[e.value for e in self.index.values],
             self.pending_commit_id,
             getattr(self, "_query", None),
+            getattr(self, "_tql_query", None),
         )
 
     def _get_view_info(
@@ -2743,6 +2744,10 @@ class Dataset:
         query = getattr(self, "_query", None)
         if query:
             info["query"] = query
+            info["source-dataset-index"] = getattr(self, "_source_ds_idx", None)
+        tql_query = getattr(self, "_tql_query", None)
+        if tql_query:
+            info["tql_query"] = tql_query
             info["source-dataset-index"] = getattr(self, "_source_ds_idx", None)
         return info
 
