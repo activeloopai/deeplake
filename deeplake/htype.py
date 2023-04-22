@@ -34,6 +34,7 @@ class htype:
     INTRINSICS = "intrinsics"
     POLYGON = "polygon"
     MESH = "mesh"
+    EMBEDDING = "embedding"
 
 
 # used for requiring the user to specify a value for htype properties. notates that the htype property has no default.
@@ -96,6 +97,7 @@ HTYPE_CONFIGURATIONS: Dict[str, Dict] = {
     htype.INTRINSICS: {"dtype": "float32"},
     htype.POLYGON: {"dtype": "float32"},
     htype.MESH: {"sample_compression": "ply"},
+    htype.EMBEDDING: {"dtype": "float32"},
 }
 
 HTYPE_VERIFICATIONS: Dict[str, Dict] = {

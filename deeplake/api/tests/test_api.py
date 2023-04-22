@@ -594,7 +594,8 @@ def test_htype(memory_ds: Dataset):
     point_cloud = memory_ds.create_tensor(
         "point_cloud", htype="point_cloud", sample_compression="las"
     )
-    memory_ds.create_tensor("intrinsics", htype="intrinsics")
+    intrinsics = memory_ds.create_tensor("intrinsics", htype="intrinsics")
+    embedding = memory_ds.create_tensor("embedding", htype="embedding")
 
     image.append(np.ones((28, 28, 3), dtype=np.uint8))
     bbox.append(np.array([1.0, 1.0, 0.0, 0.5], dtype=np.float32))
@@ -614,9 +615,10 @@ def test_htype(memory_ds: Dataset):
     )
     point_cloud_dummy_data_path = pathlib.Path(get_dummy_data_path("point_cloud"))
     point_cloud.append(deeplake.read(point_cloud_dummy_data_path / "point_cloud.las"))
-    # Along the forst direcection three matrices are concatenated, the first matrix is P,
+    # Along the first direcection three matrices are concatenated, the first matrix is P,
     # the second one is Tr and the third one is R
-    memory_ds.intrinsics.append(np.zeros((3, 4, 4), dtype=np.float32))
+    intrinsics.append(np.zeros((3, 4, 4), dtype=np.float32))
+    embedding.append(np.random.rand((100)))
 
 
 def test_dtype(memory_ds: Dataset):
