@@ -97,6 +97,7 @@ HTYPE_CONFIGURATIONS: Dict[str, Dict] = {
     htype.INTRINSICS: {"dtype": "float32"},
     htype.POLYGON: {"dtype": "float32"},
     htype.MESH: {"sample_compression": "ply"},
+    htype.EMBEDDING: {},
 }
 
 HTYPE_VERIFICATIONS: Dict[str, Dict] = {
