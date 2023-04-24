@@ -1,6 +1,8 @@
 --find-links https://download.openmmlab.com/mmcv/dist/cpu/torch1.13/index.html
 torch
 torchvision
+torch==1.13.1; python_version < "3.10"
+torchvision==0.14.1; python_version < "3.10"
 tensorflow
 tensorflow_datasets
 pickle5>=0.0.11; python_version < "3.8" and python_version >= "3.6"
