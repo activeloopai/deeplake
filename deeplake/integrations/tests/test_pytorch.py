@@ -658,7 +658,7 @@ def test_pytorch_decode(ds, compressed_image_paths, compression):
         return
 
     for i, batch in enumerate(ds.pytorch(decode_method={"image": "tobytes"})):
-        image = batch["image"][0]
+        image = convert_data_according_to_torch_version(batch)
         assert isinstance(image, bytes)
         if i < 5 and not compression:
             np.testing.assert_array_equal(
@@ -681,6 +681,16 @@ def test_pytorch_decode(ds, compressed_image_paths, compression):
             elif i >= 5:
                 with Image.open(compressed_image_paths["jpeg"][0]) as f:
                     np.testing.assert_array_equal(np.array(f), np.array(image))
+
+
+def convert_data_according_to_torch_version(batch):
+    import torch
+
+    if torch.__version__ < "2.0.0":
+        image = batch["image"][0]
+    else:
+        image = batch["image"]
+    return image
 
 
 @requires_torch
