@@ -4,7 +4,7 @@ torchvision==0.14.1
 tensorflow
 tensorflow_datasets
 pickle5>=0.0.11; python_version < "3.8" and python_version >= "3.6"
-ray==1.6.0
+ray==2.3.0
 datasets~=1.17
 mmcv-full==1.7.1; platform_system == "Linux" and python_version >= "3.7"
 mmdet==2.28.1; platform_system == "Linux" and python_version >= "3.7"
