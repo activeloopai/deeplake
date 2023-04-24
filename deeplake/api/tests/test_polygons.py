@@ -33,8 +33,8 @@ def test_polygons(local_ds, ndim, args):
                 assert isinstance(p2, np.ndarray)
                 np.testing.assert_array_equal(p1, p2)
     for i, sample in enumerate(ds.pytorch(num_workers=2)):
-        assert len(samples[i]) == len(sample["polygons"][0])
-        for p1, p2 in zip(samples[i], sample["polygons"][0]):
+        assert len(samples[i]) == len(sample["polygons"])
+        for p1, p2 in zip(samples[i], sample["polygons"]):
             np.testing.assert_array_equal(p1, p2)
     idxs = [2, 2, 6, 4, 6, 7]
     view = ds[idxs]
