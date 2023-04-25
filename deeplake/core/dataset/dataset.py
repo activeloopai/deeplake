@@ -3511,7 +3511,6 @@ class Dataset:
         scheduler="threaded",
         progressbar=True,
         public: bool = False,
-        unlink: bool = False,
     ):
         """Copies this dataset or dataset view to ``dest``. Version control history is not included.
 
@@ -3543,7 +3542,6 @@ class Dataset:
             scheduler,
             progressbar,
             public,
-            unlink,
         )
 
     @invalid_view_op
