@@ -3431,31 +3431,24 @@ class Dataset:
 
         def _copy_tensor(sample_in, sample_out):
             for tensor_name in dest_ds.tensors:
-                src = self[tensor_name]
+                src = sample_in[tensor_name]
                 if (
                     unlink
                     and src.is_link
                     and (src.base_htype != "video" or deeplake.constants._UNLINK_VIDEOS)
                 ):
-                    if len(self.index) > 1:
-                        sample_out[tensor_name].extend(sample_in[tensor_name])
+                    if len(sample_in.index) > 1:
+                        sample_out[tensor_name].extend(src)
                     else:
-                        if self.index.subscriptable_at(0):
-                            sample_idxs = list(
-                                sample_in.index.values[0].indices(len(self))
-                            )
-                        else:
-                            sample_idxs = [self.index.values[0].value]
+                        sample_idxs = sample_in.index.values[0].indices(src.num_samples)
                         sample_out[tensor_name].extend(
                             [
-                                sample_in[
-                                    tensor_name
-                                ].chunk_engine.get_deeplake_read_sample(sample_idx)
-                                for sample_idx in sample_idxs
+                                src.chunk_engine.get_deeplake_read_sample(i)
+                                for i in sample_idxs
                             ]
                         )
                 else:
-                    sample_out[tensor_name].extend(sample_in[tensor_name])
+                    sample_out[tensor_name].extend(src)
 
         if not self.index.subscriptable_at(0):
             old_first_index = self.index.values[0]
@@ -3515,6 +3508,7 @@ class Dataset:
         scheduler="threaded",
         progressbar=True,
         public: bool = False,
+        unlink: bool = False,
     ):
         """Copies this dataset or dataset view to ``dest``. Version control history is not included.
 
@@ -3546,6 +3540,7 @@ class Dataset:
             scheduler,
             progressbar,
             public,
+            unlink,
         )
 
     @invalid_view_op
