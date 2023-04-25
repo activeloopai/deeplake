@@ -3440,7 +3440,10 @@ class Dataset:
                     if len(sample_in.index) > 1:
                         sample_out[tensor_name].extend(src)
                     else:
-                        sample_idxs = sample_in.index.values[0].indices(src.num_samples)
+                        if sample_in.index.subscriptable_at(0):
+                            sample_idxs = sample_in.index.values[0].indices(src.num_samples)
+                        else:
+                            sample_idxs = [sample_in.index.values[0].value]
                         sample_out[tensor_name].extend(
                             [
                                 src.chunk_engine.get_deeplake_read_sample(i)
