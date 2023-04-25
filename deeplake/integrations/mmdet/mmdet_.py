@@ -939,6 +939,7 @@ def build_dataloader(
     dataset.CLASSES = classes
     pipeline = build_pipeline(pipeline)
     metrics_format = train_loader_config.get("metrics_format")
+    persistent_workers = train_loader_config.get("persistent_workers", False)
     dist = train_loader_config["dist"]
     if dist and implementation == "python":
         raise NotImplementedError(
@@ -992,6 +993,7 @@ def build_dataloader(
             mode=mode,
             bbox_info=bbox_info,
             decode_method=decode_method,
+            persistent_workers=persistent_workers,
         )
 
         mmdet_ds = MMDetDataset(
@@ -1025,6 +1027,7 @@ def build_dataloader(
                 tensors=tensors,
                 distributed=dist,
                 decode_method=decode_method,
+                persistent_workers=persistent_workers,
             )
         )
 
@@ -1263,7 +1266,6 @@ def _train_detector(
         dist=distributed,
         seed=cfg.seed,
         runner_type=runner_type,
-        persistent_workers=False,
         metrics_format=metrics_format,
     )
 
@@ -1364,7 +1366,6 @@ def _train_detector(
             workers_per_gpu=num_workers,
             dist=distributed,
             shuffle=False,
-            persistent_workers=False,
             mode="val",
             metrics_format=metrics_format,
             num_gpus=len(cfg.gpu_ids),
