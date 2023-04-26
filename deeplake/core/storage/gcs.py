@@ -271,6 +271,7 @@ class GCSProvider(StorageProvider):
         self._initialize_provider()
         self._presigned_urls: Dict[str, Tuple[str, float]] = {}
         self.expiration: Optional[str] = None
+        self.repository: Optional[str] = None
 
     def subdir(self, path: str, read_only: bool = False):
         sd = self.__class__(
@@ -279,7 +280,7 @@ class GCSProvider(StorageProvider):
             project=self.project,
         )
         if self.expiration:
-            sd._set_hub_creds_info(self.hub_path, self.expiration)
+            sd._set_hub_creds_info(self.hub_path, self.expiration, self.repository)
         sd.read_only = read_only
         return sd
 
@@ -316,7 +317,9 @@ class GCSProvider(StorageProvider):
         self._blob_objects = self.client_bucket.list_blobs(prefix=self.path)
         return {posixpath.relpath(obj.name, self.path) for obj in self._blob_objects}
 
-    def _set_hub_creds_info(self, hub_path: str, expiration: str):
+    def _set_hub_creds_info(
+        self, hub_path: str, expiration: str, repository: Optional[str] = None
+    ):
         """Sets the tag and expiration of the credentials. These are only relevant to datasets using Deep Lake storage.
         This info is used to fetch new credentials when the temporary 12 hour credentials expire.
 
@@ -327,6 +330,7 @@ class GCSProvider(StorageProvider):
         self.hub_path = hub_path
         self.tag = hub_path[6:]  # removing the hub:// part from the path
         self.expiration = expiration
+        self.repository = repository
 
     def clear(self, prefix=""):
         """Remove all keys with given prefix below root - empties out mapping.

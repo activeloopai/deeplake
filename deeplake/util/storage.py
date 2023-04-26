@@ -107,12 +107,12 @@ def storage_provider_from_hub_path(
 
     # this will give the proper url (s3, gcs, etc) and corresponding creds, depending on where the dataset is stored.
     try:
-        url, creds, mode, expiration = client.get_dataset_credentials(
+        url, creds, mode, expiration, repo = client.get_dataset_credentials(
             org_id, ds_name, mode=mode, db_egnine={"enabled": db_engine}
         )
     except AgreementNotAcceptedError as e:
         handle_dataset_agreements(client, e.agreements, org_id, ds_name)
-        url, creds, mode, expiration = client.get_dataset_credentials(
+        url, creds, mode, expiration, repo = client.get_dataset_credentials(
             org_id, ds_name, mode=mode, db_engine={"enabled": db_engine}
         )
 
@@ -132,7 +132,7 @@ def storage_provider_from_hub_path(
     storage = storage_provider_from_path(
         path=url, creds=creds, read_only=read_only, is_hub_path=True, token=token
     )
-    storage._set_hub_creds_info(path, expiration)
+    storage._set_hub_creds_info(path, expiration, repo)
     return storage
 
 

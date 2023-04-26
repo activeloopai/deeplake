@@ -115,6 +115,7 @@ class S3Provider(StorageProvider):
         self.aws_region: Optional[str] = aws_region
         self.endpoint_url: Optional[str] = endpoint_url
         self.expiration: Optional[str] = None
+        self.repository: Optional[str] = None
         self.tag: Optional[str] = None
         self.token: Optional[str] = token
         self.loaded_creds_from_environment = False
@@ -138,7 +139,7 @@ class S3Provider(StorageProvider):
             token=self.token,
         )
         if self.expiration:
-            sd._set_hub_creds_info(self.hub_path, self.expiration)  # type: ignore
+            sd._set_hub_creds_info(self.hub_path, self.expiration, self.repository)  # type: ignore
         sd.read_only = read_only
         return sd
 
@@ -435,6 +436,7 @@ class S3Provider(StorageProvider):
             "endpoint_url",
             "client_config",
             "expiration",
+            "repository",
             "tag",
             "token",
             "loaded_creds_from_environment",
@@ -462,17 +464,20 @@ class S3Provider(StorageProvider):
         if not self.path.endswith("/"):
             self.path += "/"
 
-    def _set_hub_creds_info(self, hub_path: str, expiration: str):
+    def _set_hub_creds_info(
+        self, hub_path: str, expiration: str, repository: Optional[str] = None
+    ):
         """Sets the tag and expiration of the credentials. These are only relevant to datasets using Deep Lake storage.
         This info is used to fetch new credentials when the temporary 12 hour credentials expire.
 
         Args:
-            hub_path (str): The Deep Lake cloud path to the dataset.
+            hub_path (str): The deeplake cloud path to the dataset.
             expiration (str): The time at which the credentials expire.
         """
         self.hub_path = hub_path
         self.tag = hub_path[6:]  # removing the hub:// part from the path
         self.expiration = expiration
+        self.repository = repository
 
     def _initialize_s3_parameters(self):
         self._set_bucket_and_path()
@@ -493,13 +498,14 @@ class S3Provider(StorageProvider):
 
             mode = "r" if self.read_only else "a"
 
-            url, creds, mode, expiration = client.get_dataset_credentials(
+            url, creds, mode, expiration, repo = client.get_dataset_credentials(
                 org_id,
                 ds_name,
                 mode,
                 True,
             )
             self.expiration = expiration
+            self.repository = repo
             self.aws_access_key_id = creds.get("aws_access_key_id")
             self.aws_secret_access_key = creds.get("aws_secret_access_key")
             self.aws_session_token = creds.get("aws_session_token")

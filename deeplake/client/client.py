@@ -274,7 +274,8 @@ class DeepLakeBackendClient:
         creds = response["creds"]
         mode = response["mode"]
         expiration = creds["expiration"]
-        return full_url, creds, mode, expiration
+        repository = creds.get("repository")
+        return full_url, creds, mode, expiration, repository
 
     def send_event(self, event_json: dict):
         """Sends an event to the backend.
@@ -284,7 +285,9 @@ class DeepLakeBackendClient:
         """
         self.request("POST", SEND_EVENT_SUFFIX, json=event_json)
 
-    def create_dataset_entry(self, username, dataset_name, meta, public=True):
+    def create_dataset_entry(
+        self, username, dataset_name, meta, public=True, repository=None
+    ):
         tag = f"{username}/{dataset_name}"
         repo = f"protected/{username}"
 
@@ -297,6 +300,7 @@ class DeepLakeBackendClient:
                 "public": public,
                 "rewrite": True,
                 "meta": meta,
+                "repository": repository,
             },
             endpoint=self.endpoint(),
         )
