@@ -10,6 +10,13 @@ import wandb
 import deeplake as dp
 from deeplake.client.client import DeepLakeBackendClient
 
+try:
+    import torch
+
+    torch_skip_condition = torch.__version__ >= "2.0.0"
+except ImportError:
+    torch_skip_condition = True
+
 
 os.system("wandb offline")
 os.environ["ACTIVELOOP_HUB_USERNAME"] = "testingacc2"
@@ -38,6 +45,10 @@ def load_pickle_file(pickle_file):
     sys.platform != "linux" or sys.version_info < (3, 7),
     reason="MMDet is installed on CI only for linux and python version >= 3.7.",
 )
+@pytest.mark.skipif(
+    torch_skip_condition,
+    reason="MMDet requires torch to be installed and its version to be < 2.0.0",
+)
 def test_check_unused_dataset_fields():
     import mmcv  # type: ignore
     from deeplake.integrations.mmdet import mmdet_utils
@@ -57,6 +68,10 @@ def test_check_unused_dataset_fields():
 @pytest.mark.skipif(
     sys.platform != "linux" or sys.version_info < (3, 7),
     reason="MMDet is installed on CI only for linux and python version >= 3.7.",
+)
+@pytest.mark.skipif(
+    torch_skip_condition,
+    reason="MMDet requires torch to be installed and its version to be < 2.0.0",
 )
 def test_check_unsupported_train_pipeline_fields():
     import mmcv  # type: ignore
@@ -100,6 +115,10 @@ def test_check_unsupported_train_pipeline_fields():
     sys.platform != "linux" or sys.version_info < (3, 7),
     reason="MMDet is installed on CI only for linux and python version >= 3.7.",
 )
+@pytest.mark.skipif(
+    torch_skip_condition,
+    reason="MMDet requires torch to be installed and its version to be < 2.0.0",
+)
 def test_check_dataset_augmentation_formats():
     import mmcv  # type: ignore
     from deeplake.integrations.mmdet import mmdet_utils
@@ -114,6 +133,10 @@ def test_check_dataset_augmentation_formats():
 @pytest.mark.skipif(
     sys.platform != "linux" or sys.version_info < (3, 7),
     reason="MMDet is installed on CI only for linux and python version >= 3.7.",
+)
+@pytest.mark.skipif(
+    torch_skip_condition,
+    reason="MMDet requires torch to be installed and its version to be < 2.0.0",
 )
 def test_coco_to_pascal_format():
     from deeplake.integrations.mmdet import mmdet_
@@ -134,6 +157,10 @@ def test_coco_to_pascal_format():
 @pytest.mark.skipif(
     sys.platform != "linux" or sys.version_info < (3, 7),
     reason="MMDet is installed on CI only for linux and python version >= 3.7.",
+)
+@pytest.mark.skipif(
+    torch_skip_condition,
+    reason="MMDet requires torch to be installed and its version to be < 2.0.0",
 )
 def test_yolo_to_pascal_format():
     from deeplake.integrations.mmdet import mmdet_
@@ -160,6 +187,10 @@ def test_yolo_to_pascal_format():
 @pytest.mark.skipif(
     sys.platform != "linux" or sys.version_info < (3, 7),
     reason="MMDet is installed on CI only for linux and python version >= 3.7.",
+)
+@pytest.mark.skipif(
+    torch_skip_condition,
+    reason="MMDet requires torch to be installed and its version to be < 2.0.0",
 )
 def test_pascal_to_pascal_format():
     from deeplake.integrations.mmdet import mmdet_
@@ -188,6 +219,10 @@ def test_pascal_to_pascal_format():
     sys.platform != "linux" or sys.version_info < (3, 7),
     reason="MMDet is installed on CI only for linux and python version >= 3.7.",
 )
+@pytest.mark.skipif(
+    torch_skip_condition,
+    reason="MMDet requires torch to be installed and its version to be < 2.0.0",
+)
 def test_pascal_to_coco_format():
     from deeplake.integrations.mmdet import mmdet_
 
@@ -213,6 +248,10 @@ def test_pascal_to_coco_format():
     sys.platform != "linux" or sys.version_info < (3, 7),
     reason="MMDet is installed on CI only for linux and python version >= 3.7.",
 )
+@pytest.mark.skipif(
+    torch_skip_condition,
+    reason="MMDet requires torch to be installed and its version to be < 2.0.0",
+)
 def test_yolo_to_coco_format():
     from deeplake.integrations.mmdet import mmdet_
 
@@ -237,6 +276,10 @@ def test_yolo_to_coco_format():
 @pytest.mark.skipif(
     sys.platform != "linux" or sys.version_info < (3, 7),
     reason="MMDet is installed on CI only for linux and python version >= 3.7.",
+)
+@pytest.mark.skipif(
+    torch_skip_condition,
+    reason="MMDet requires torch to be installed and its version to be < 2.0.0",
 )
 def test_coco_to_coco_format():
     from deeplake.integrations.mmdet import mmdet_
@@ -346,6 +389,10 @@ def get_test_config(
 @pytest.mark.skipif(
     sys.platform != "linux" or sys.version_info < (3, 7),
     reason="MMDet is installed on CI only for linux and python version >= 3.7.",
+)
+@pytest.mark.skipif(
+    torch_skip_condition,
+    reason="MMDet requires torch to be installed and its version to be < 2.0.0",
 )
 @pytest.mark.parametrize(
     "model_name",

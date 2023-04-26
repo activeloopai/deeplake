@@ -1,4 +1,6 @@
+from deeplake.util.exceptions import EmptyPolygonError
 from typing import Union, List
+
 import numpy as np
 import deeplake
 
@@ -7,6 +9,10 @@ class Polygon:
     """Represents a polygon."""
 
     def __init__(self, coords: Union[np.ndarray, List[float]], dtype="float32"):
+        if coords is None or len(coords) == 0:
+            raise EmptyPolygonError(
+                "A polygons sample can be empty or None but a polygon within a sample cannot be empty or None."
+            )
         self.coords = coords
         self.dtype = dtype
 

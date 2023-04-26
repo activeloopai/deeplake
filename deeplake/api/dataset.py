@@ -16,6 +16,7 @@ from deeplake.core.meta.dataset_meta import DatasetMeta
 from deeplake.util.connect_dataset import connect_dataset_entry
 from deeplake.util.version_control import (
     load_version_info,
+    rebuild_version_info,
     get_parent_and_reset_commit_ids,
     replace_head,
     integrity_check,
@@ -205,13 +206,7 @@ class dataset:
             feature_report_path(path, "dataset", {"Overwrite": overwrite}, token=token)
         except Exception as e:
             if isinstance(e, UserNotLoggedInException):
-                message = (
-                    f"Please log in through the CLI in order to create this dataset, "
-                    "or create an API token in the UI and pass it to this method using "
-                    "the ‘token’ parameter. The CLI commands are ‘activeloop login’ and "
-                    "‘activeloop register."
-                )
-                raise UserNotLoggedInException(message) from None
+                raise UserNotLoggedInException from None
             raise
         ds_exists = dataset_exists(cache_chain)
 
@@ -278,10 +273,6 @@ class dataset:
                         "Exception occured (see Traceback). The dataset maybe corrupted. "
                         "Try using `reset=True` to reset HEAD changes and load the previous commit."
                     ) from e
-                if storage.read_only:
-                    raise ReadOnlyModeError(
-                        "Cannot reset HEAD when loading dataset in read-only mode."
-                    )
                 return dataset._reset_and_load(
                     cache_chain, access_method, dataset_kwargs, address, e
                 )
@@ -400,12 +391,7 @@ class dataset:
             feature_report_path(path, "empty", {"Overwrite": overwrite}, token=token)
         except Exception as e:
             if isinstance(e, UserNotLoggedInException):
-                message = (
-                    f"Please log in through the CLI in order to create this dataset, "
-                    f"or create an API token in the UI and pass it to this method using the "
-                    f"‘token’ parameter. The CLI commands are ‘activeloop login’ and ‘activeloop register’."
-                )
-                raise UserNotLoggedInException(message) from None
+                raise UserNotLoggedInException from None
             raise
 
         if overwrite and dataset_exists(cache_chain):
@@ -549,13 +535,7 @@ class dataset:
             feature_report_path(path, "load", {}, token=token)
         except Exception as e:
             if isinstance(e, UserNotLoggedInException):
-                message = (
-                    "Please log in through the CLI in order to load this dataset, "
-                    "or create an API token in the UI and pass it to this method using "
-                    "the ‘token’ parameter. The CLI commands are ‘activeloop login’ and "
-                    "‘activeloop register’."
-                )
-                raise UserNotLoggedInException(message) from None
+                raise UserNotLoggedInException from None
             raise
         if not dataset_exists(cache_chain):
             raise DatasetHandlerError(
@@ -616,7 +596,7 @@ class dataset:
 
     @staticmethod
     def _reset_and_load(storage, access_method, dataset_kwargs, address, err):
-        """Reset and then load the dataset. Only called when loading dataset errored out with `err`."""
+        """Reset and then load the dataset. Only called when loading dataset errored out with ``err``."""
         if access_method != "stream":
             dataset_kwargs["reset"] = True
             ds = dataset._load(dataset_kwargs, access_method)
@@ -624,8 +604,7 @@ class dataset:
 
         try:
             version_info = load_version_info(storage)
-        except KeyError:
-            # no version control info - cant do anything
+        except Exception:
             raise err
 
         address = address or "main"
@@ -775,12 +754,7 @@ class dataset:
             try:
                 ds = deeplake.load(path, verbose=False, token=token, creds=creds)
             except UserNotLoggedInException:
-                message = (
-                    f"Please log in through the CLI in order to delete this dataset, "
-                    f"or create an API token in the UI and pass it to this method using the "
-                    f"‘token’ parameter. The CLI commands are ‘activeloop login’ and ‘activeloop register’."
-                )
-                raise UserNotLoggedInException(message) from None
+                raise UserNotLoggedInException from None
             ds.delete(large_ok=large_ok)
             if verbose:
                 logger.info(f"{path} dataset deleted successfully.")

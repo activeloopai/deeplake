@@ -664,9 +664,10 @@ class ChunkEngine:
         return False
 
     def check_each_sample(self, samples, verify=True):
+        # overridden in LinkedChunkEngine
         return
 
-    def _sanitize_samples(self, samples, verify=True):
+    def _sanitize_samples(self, samples, verify=True, pg_callback=None):
         check_samples_type(samples)
         if isinstance(samples, list):
             samples = [
@@ -994,7 +995,9 @@ class ChunkEngine:
             return
         if len(samples) == 0:
             return
-        samples, verified_samples = self._sanitize_samples(samples)
+        samples, verified_samples = self._sanitize_samples(
+            samples, pg_callback=pg_callback
+        )
         self._samples_to_chunks(
             samples,
             start_chunk=self.last_appended_chunk(),
@@ -1025,15 +1028,22 @@ class ChunkEngine:
             if self.is_sequence:
                 samples = tqdm(samples) if progressbar else samples
                 verified_samples = []
-                for sample in samples:
-                    if sample is None:
-                        sample = []
-                    verified_sample = self._extend(
-                        sample, progressbar=False, update_commit_diff=False
-                    )
-                    self.sequence_encoder.register_samples(len(sample), 1)
-                    self.commit_diff.add_data(1)
-                    verified_samples.append(verified_sample or sample)
+                num_samples_added = 0
+                try:
+                    for sample in samples:
+                        if sample is None:
+                            sample = []
+                        verified_sample = self._extend(
+                            sample, progressbar=False, update_commit_diff=False
+                        )
+                        self.sequence_encoder.register_samples(len(sample), 1)
+                        self.commit_diff.add_data(1)
+                        num_samples_added += 1
+                        verified_samples.append(verified_sample or sample)
+                except Exception:
+                    for _ in range(num_samples_added):
+                        self.pop()
+                    raise
                 if link_callback:
                     samples = [
                         None if is_empty_list(s) else s for s in verified_samples
@@ -1717,7 +1727,7 @@ class ChunkEngine:
                 start = self.num_samples + start
 
             if stop < 0:
-                stop = self.num_samples + start
+                stop = self.num_samples + stop
 
             numpy_array_length = (stop - start) // step
             return numpy_array_length > threshold
@@ -2051,6 +2061,9 @@ class ChunkEngine:
         """Return list of all chunks for current `version_state['commit_id']` and tensor"""
         commit_id = self.commit_id
         if commit_id == FIRST_COMMIT_ID:
+            arr = self.chunk_id_encoder._encoded
+            if not arr.size:
+                return []
             return [
                 ChunkIdEncoder.name_from_id(chunk_id)
                 for chunk_id in self.chunk_id_encoder._encoded[:, CHUNK_ID_COLUMN]
