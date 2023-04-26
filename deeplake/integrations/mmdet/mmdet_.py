@@ -983,7 +983,7 @@ def build_dataloader(
         if persistent_workers:
             always_warn(
                 "Persistent workers are not supported for OSS dataloader. "
-                "persisting_workers=False will be used instead."
+                "persistent_workers=False will be used instead."
             )
 
         loader = dataset.pytorch(
