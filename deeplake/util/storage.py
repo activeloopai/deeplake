@@ -139,7 +139,7 @@ def storage_provider_from_hub_path(
         elif isinstance(creds, dict) and set(creds.keys()) == {"profile_name"}:
             final_creds = creds
             creds_used = "ENV"
-        elif creds is not None:
+        elif isinstance(creds, dict) and bool(creds):
             final_creds = creds
             creds_used = "DICT"
 
