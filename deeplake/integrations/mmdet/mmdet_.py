@@ -980,6 +980,12 @@ def build_dataloader(
     decode_method = {images_tensor: "numpy"}
 
     if implementation == "python":
+        if persistent_workers:
+            always_warn(
+                "Persistent workers are not supported for OSS dataloader. "
+                "Persisting_workers=False will be used instead."
+            )
+
         loader = dataset.pytorch(
             tensors_dict=tensors_dict,
             num_workers=num_workers,
