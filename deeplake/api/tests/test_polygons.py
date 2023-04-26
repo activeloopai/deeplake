@@ -93,3 +93,26 @@ def test_polygon_chunk_compression_bug(memory_ds):
         ds.polygons.append(arr2)
     np.testing.assert_array_equal(ds.polygons.numpy()[0], arr1)
     np.testing.assert_array_equal(ds.polygons.numpy()[1], arr2)
+
+
+def test_polygon_transform_bug(local_ds):
+    @deeplake.compute
+    def upload(stuff, ds):
+        ds.p1.append(stuff["p_sample"])
+        ds.p2.append(stuff["p_chunk"])
+        ds.p3.append(stuff["p_none"])
+
+    with local_ds as ds:
+        ds.create_tensor("p_none", htype="polygon")
+        ds.p_none.extend(np.random.randint(0, 10, (10, 3, 3, 2)))
+        ds.create_tensor("p_sample", htype="polygon", sample_compression="lz4")
+        ds.p_sample.extend(np.random.randint(0, 10, (10, 3, 3, 2)))
+        ds.create_tensor("p_chunk", htype="polygon", chunk_compression="lz4")
+        ds.p_chunk.extend(np.random.randint(0, 10, (10, 3, 3, 2)))
+
+    ds2 = deeplake.empty(local_ds.path + "_2", overwrite=True)
+    ds2.create_tensor("p1", htype="polygon")
+    ds2.create_tensor("p2", htype="polygon", sample_compression="lz4")
+    ds2.create_tensor("p3", htype="polygon", chunk_compression="lz4")
+
+    upload().eval(ds, ds2, num_workers=2)
