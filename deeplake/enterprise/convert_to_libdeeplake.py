@@ -42,18 +42,39 @@ def dataset_to_libdeeplake(hub2_dataset):
             token = hub2_dataset._token
             provider = hub2_dataset.storage.next_storage
             if isinstance(provider, S3Provider):
-                provider._check_update_creds()
-                libdeeplake_dataset = api.dataset(
-                    path,
-                    origin_path=provider.root,
-                    token=token,
-                    aws_access_key_id=provider.aws_access_key_id,
-                    aws_secret_access_key=provider.aws_secret_access_key,
-                    aws_session_token=provider.aws_session_token,
-                    region_name=provider.aws_region,
-                    endpoint_url=provider.endpoint_url,
-                    expiration=str(provider.expiration),
-                )
+                creds_used = provider.creds_used
+                if creds_used == "PLATFORM":
+                    provider._check_update_creds()
+                    libdeeplake_dataset = api.dataset(
+                        path,
+                        origin_path=provider.root,
+                        token=token,
+                        aws_access_key_id=provider.aws_access_key_id,
+                        aws_secret_access_key=provider.aws_secret_access_key,
+                        aws_session_token=provider.aws_session_token,
+                        region_name=provider.aws_region,
+                        endpoint_url=provider.endpoint_url,
+                        expiration=str(provider.expiration),
+                    )
+                elif creds_used == "ENV":
+                    libdeeplake_dataset = api.dataset(
+                        path,
+                        origin_path=provider.root,
+                        token=token,
+                        profile_name=provider.profile_name,
+                    )
+                elif creds_used == "DICT":
+                    libdeeplake_dataset = api.dataset(
+                        path,
+                        origin_path=provider.root,
+                        token=token,
+                        aws_access_key_id=provider.aws_access_key_id,
+                        aws_secret_access_key=provider.aws_secret_access_key,
+                        aws_session_token=provider.aws_session_token,
+                        region_name=provider.aws_region,
+                        endpoint_url=provider.endpoint_url,
+                    )
+
             elif isinstance(provider, GCSProvider):
                 creds = provider.get_creds()
                 anon = creds.get("anon", "")
