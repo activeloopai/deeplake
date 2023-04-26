@@ -993,7 +993,6 @@ def build_dataloader(
             mode=mode,
             bbox_info=bbox_info,
             decode_method=decode_method,
-            persistent_workers=persistent_workers,
         )
 
         mmdet_ds = MMDetDataset(
