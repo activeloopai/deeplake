@@ -94,6 +94,7 @@ def test_polygon_chunk_compression_bug(memory_ds):
     np.testing.assert_array_equal(ds.polygons.numpy()[0], arr1)
     np.testing.assert_array_equal(ds.polygons.numpy()[1], arr2)
 
+
 def test_polygon_transform_bug(local_ds):
     @deeplake.compute
     def upload(stuff, ds):
@@ -108,7 +109,7 @@ def test_polygon_transform_bug(local_ds):
         ds.p_sample.extend(np.random.randint(0, 10, (10, 3, 3, 2)))
         ds.create_tensor("p_chunk", htype="polygon", chunk_compression="lz4")
         ds.p_chunk.extend(np.random.randint(0, 10, (10, 3, 3, 2)))
-    
+
     ds2 = deeplake.empty(local_ds.path + "_2", overwrite=True)
     ds2.create_tensor("p1", htype="polygon")
     ds2.create_tensor("p2", htype="polygon", sample_compression="lz4")

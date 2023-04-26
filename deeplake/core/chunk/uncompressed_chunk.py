@@ -224,7 +224,7 @@ class UncompressedChunk(BaseChunk):
             if not bps_empty:
                 sb, eb = bps[local_index]
                 buffer = buffer[sb:eb]
-        
+
         if self.tensor_meta.htype == "polygon":
             return Polygons.frombuffer(
                 bytes(buffer),
