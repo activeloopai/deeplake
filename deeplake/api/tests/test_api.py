@@ -2283,8 +2283,8 @@ def test_iter_warning(local_ds):
 
 
 @requires_libdeeplake
-def test_random_split(local_ds):
-    with local_ds as ds:
+def test_random_split(hub_cloud_ds):
+    with hub_cloud_ds as ds:
         ds.create_tensor("label")
         ds.label.extend([0, 1, 2, 3, 4, 5, 6, 7, 8, 9])
 
@@ -2316,8 +2316,8 @@ def test_random_split(local_ds):
 
 
 @requires_libdeeplake
-def test_random_split_views(local_ds):
-    with local_ds as ds:
+def test_random_split_views(hub_cloud_ds):
+    with hub_cloud_ds as ds:
         ds.create_tensor("label")
         ds.label.extend([0, 1, 2, 3, 4, 5, 6, 7, 8, 9])
 

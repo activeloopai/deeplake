@@ -993,7 +993,7 @@ class dataset:
             dest (str, pathlib.Path): Destination path to copy to.
             tensors (List[str], optional): Names of tensors (and groups) to be copied. If not specified all tensors are copied.
             overwrite (bool): If True and a dataset exists at `destination`, it will be overwritten. Defaults to False.
-            creds (dict, str, optional): The string ``ENV`` or a dictionary containing credentials used to access the dataset at the path.
+            src_creds (dict, str, optional): The string ``ENV`` or a dictionary containing credentials used to access the dataset at the path.
                 - If 'aws_access_key_id', 'aws_secret_access_key', 'aws_session_token' are present, these take precedence over credentials present in the environment or in credentials file. Currently only works with s3 paths.
                 - It supports 'aws_access_key_id', 'aws_secret_access_key', 'aws_session_token', 'endpoint_url', 'aws_region', 'profile_name' as keys.
                 - If 'ENV' is passed, credentials are fetched from the environment variables. This is also the case when creds is not passed for cloud datasets. For datasets connected to hub cloud, specifying 'ENV' will override the credentials fetched from Activeloop and use local ones.
@@ -1724,7 +1724,7 @@ class dataset:
         dest: Union[str, pathlib.Path],
         column_params: Optional[Dict] = None,
         src_creds: Optional[Union[str, Dict]] = None,
-        dest_creds: Optional[Dict] = None,
+        dest_creds: Optional[Union[str, Dict]] = None,
         creds_key: Optional[Dict] = None,
         progressbar: bool = True,
         token: Optional[str] = None,
@@ -1763,7 +1763,7 @@ class dataset:
                 - a memory path of the form ``mem://path/to/dataset`` which doesn't save the dataset but keeps it in memory instead. Should be used only for testing as it does not persist.
             column_params (Optional[Dict]): A dictionary containing parameters for the tensors corresponding to the dataframe columns.
             src_creds (Optional[Union[str, Dict]]): Credentials to access the source data. If not provided, will be inferred from the environment.
-            dest_creds (Optional[Dict]): A dictionary containing credentials used to access the destination path of the dataset.
+            dest_creds (Optional[Union[str, Dict]]): A dictionary containing credentials used to access the destination path of the dataset.
             creds_key (Optional[str]): creds_key for linked tensors, applicable if the htype any tensor is specified as 'link[...]' in the 'column_params' input.
             progressbar (bool): Enables or disables ingestion progress bar. Set to ``True`` by default.
             token (Optional[str]): The token to use for accessing the dataset.

@@ -540,7 +540,9 @@ def test_indexes_transform(hub_cloud_ds, num_workers):
         hub_cloud_ds.dataloader()
         .batch(4)
         .transform(index_transform)
-        .pytorch(num_workers=num_workers, return_index=True)
+        .pytorch(
+            num_workers=num_workers, return_index=True, collate_fn=identity_collate
+        )
     )
     if shuffle:
         ptds = ptds.shuffle()

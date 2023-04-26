@@ -44,21 +44,11 @@ def test_indexing(hub_cloud_ds_generator):
 
     # test tuple indices
     assert np.all(
-        deeplake_indra_ds[
-            (0, 1),
-        ].label.numpy()
-        == indra_ds.label[
-            (0, 1),
-        ].numpy()
+        deeplake_indra_ds[(0, 1),].label.numpy() == indra_ds.label[(0, 1),].numpy()
     )
 
     assert np.all(
-        deeplake_indra_ds[
-            (0, 1),
-        ].label.numpy()
-        == indra_ds.label[
-            (0, 1),
-        ].numpy()
+        deeplake_indra_ds[(0, 1),].label.numpy() == indra_ds.label[(0, 1),].numpy()
     )
 
 
