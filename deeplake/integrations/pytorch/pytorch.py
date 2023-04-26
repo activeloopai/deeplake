@@ -67,7 +67,7 @@ def dataset_to_pytorch(
     return_index: bool = True,
     pad_tensors: bool = True,
     decode_method: Optional[Dict[str, str]] = None,
-    persistant_workers: bool = False,
+    persistent_workers: bool = False,
     **kwargs,
 ):
     import torch
@@ -115,7 +115,7 @@ def dataset_to_pytorch(
             return_index,
             pad_tensors,
             decode_method,
-            persistant_workers,
+            persistent_workers,
         )
     else:
         return torch.utils.data.DataLoader(
@@ -137,5 +137,5 @@ def dataset_to_pytorch(
             pin_memory=pin_memory,
             num_workers=num_workers,
             drop_last=drop_last,
-            persistant_workers=persistant_workers,
+            persistent_workers=persistent_workers,
         )
