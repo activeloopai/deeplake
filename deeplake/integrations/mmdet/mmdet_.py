@@ -1381,6 +1381,10 @@ def _train_detector(
             **val_dataloader_default_args,
         }
 
+        train_persistent_workers = train_loader_cfg.get("persistent_workers", False)
+        val_persistent_workers = val_dataloader_args.get("persistent_workers", False)
+        check_persistent_workers(train_persistent_workers, val_persistent_workers)
+
         if val_dataloader_args.get("shuffle", False):
             always_warn("shuffle argument for validation dataset will be ignored.")
 
@@ -1464,6 +1468,24 @@ def _train_detector(
     elif cfg.load_from:
         runner.load_checkpoint(cfg.load_from)
     runner.run([data_loader], cfg.workflow)
+
+
+def check_persistent_workers(train_persistent_workers, val_persistent_workers):
+    if train_persistent_workers != val_persistent_workers:
+        if train_persistent_workers:
+            always_warn(
+                "persistent workers for training and evaluation should be identical, "
+                "otherwise, this could lead to performance issues. "
+                "Either both of then should be `True` or both of them should `False`. "
+                "If you want to use persistent workers set True for validation"
+            )
+        else:
+            always_warn(
+                "persistent workers for training and evaluation should be identical, "
+                "otherwise, this could lead to performance issues. "
+                "Either both of then should be `True` or both of them should `False`. "
+                "If you want to use persistent workers set True for training"
+            )
 
 
 def ddp_setup(rank: int, world_size: int, port: int):
