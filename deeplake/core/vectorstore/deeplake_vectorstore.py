@@ -35,7 +35,7 @@ class DeepLakeVectorStore:
             dataset_path, token, creds, logger, read_only, **kwargs
         )
         self._embedding_function = embedding_function
-        self.exec_option = exec_option
+        self._exec_option = exec_option
 
     def add(
         self,
@@ -76,20 +76,23 @@ class DeepLakeVectorStore:
         if self._embedding_function is None and embedding is None:
             view, scores, indices = self._exact_text_search(view, query)
         else:
-            emb = embedding or self._embedding_function.embed_query(
-                query
-            )  # type: ignore
+            emb = self._get_embedding(embedding, query)
             query_emb = np.array(emb, dtype=np.float32)
             embeddings = view.embedding.numpy(fetch_chunks=True)
             indices, scores = vector_search.search(
                 query_embedding=query_emb,
-                embeddings=embeddings,
+                embedding=embeddings,
                 k=k,
                 distance_metric=distance_metric.lower(),
                 exec_option=exec_option or self._exec_option,
                 deeplake_dataset=self.dataset,
             )
             return (view, indices, scores)
+
+    def _get_embedding(self, embedding, query):
+        if embedding is not None:
+            return embedding
+        return self._embedding_function.embed_query(query)  # type: ignore
 
     def delete(
         self,

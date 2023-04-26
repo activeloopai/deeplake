@@ -14,15 +14,15 @@ def convert_tensor_to_str(query_embedding):
     query_embedding_str = ""
 
     for item in query_embedding:
-        query_embedding_str += item
+        query_embedding_str += f"{item[0]}, "
 
-    return query_embedding_str
+    return query_embedding_str[:-2]
 
 
-def query_parser(metric_function, limit, query_embedding, embedding_tensor="embedding"):
+def query_parser(distance_metric, limit, query_embedding, embedding_tensor="embedding"):
     """Function for converting query_embedding into tql query."""
     query_embedding_str = convert_tensor_to_str(query_embedding)
-    tql_query = tql_metrics_functions.TQL_METRIC_TO_TQL_QUERY[metric_function](
-        query_embedding_str, embedding_tensor, limit
+    tql_query = tql_metrics_functions.TQL_METRIC_TO_TQL_QUERY[distance_metric](
+        embedding_tensor, query_embedding_str, limit
     )
     return tql_query

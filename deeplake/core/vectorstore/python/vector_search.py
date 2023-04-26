@@ -15,7 +15,7 @@ distance_metric_map = {
 
 def vector_search(
     query_embedding: np.ndarray,
-    data_vectors: np.ndarray,
+    embedding: np.ndarray,
     distance_metric: str = "L2",
     k: Optional[int] = 4,
     **kwargs,
@@ -23,7 +23,7 @@ def vector_search(
     """Naive search for nearest neighbors
     args:
         query_embedding: np.ndarray
-        data_vectors: np.ndarray
+        embedding: np.ndarray
         k (int): number of nearest neighbors
         distance_metric: distance function 'L2' for Euclidean, 'L1' for Nuclear, 'Max'
             l-infinity distnace, 'cos' for cosine similarity, 'dot' for dot product
@@ -31,11 +31,11 @@ def vector_search(
     returns:
         nearest_indices: List, indices of nearest neighbors
     """
-    if data_vectors.shape[0] == 0:
+    if embedding.shape[0] == 0:
         return [], []
 
     # Calculate the distance between the query_vector and all data_vectors
-    distances = distance_metric_map[distance_metric](query_embedding, data_vectors)
+    distances = distance_metric_map[distance_metric](query_embedding, embedding)
     nearest_indices = np.argsort(distances)
 
     nearest_indices = (
