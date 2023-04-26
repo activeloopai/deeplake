@@ -506,7 +506,7 @@ class S3Provider(StorageProvider):
                 org_id,
                 ds_name,
                 mode,
-                db_engine,
+                self.db_engine,
                 True,
             )
             self.expiration = expiration
