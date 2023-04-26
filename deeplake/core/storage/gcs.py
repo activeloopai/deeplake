@@ -281,7 +281,9 @@ class GCSProvider(StorageProvider):
             project=self.project,
         )
         if self.expiration:
-            sd._set_hub_creds_info(self.hub_path, self.expiration, self.db_engine, self.repository)
+            sd._set_hub_creds_info(
+                self.hub_path, self.expiration, self.db_engine, self.repository
+            )
         sd.read_only = read_only
         return sd
 
@@ -319,7 +321,11 @@ class GCSProvider(StorageProvider):
         return {posixpath.relpath(obj.name, self.path) for obj in self._blob_objects}
 
     def _set_hub_creds_info(
-        self, hub_path: str, expiration: str, db_engine: bool=True, repository: Optional[str] = None, 
+        self,
+        hub_path: str,
+        expiration: str,
+        db_engine: bool = True,
+        repository: Optional[str] = None,
     ):
         """Sets the tag and expiration of the credentials. These are only relevant to datasets using Deep Lake storage.
         This info is used to fetch new credentials when the temporary 12 hour credentials expire.

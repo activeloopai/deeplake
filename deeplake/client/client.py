@@ -277,10 +277,10 @@ class DeepLakeBackendClient:
                     raise TokenPermissionError()
             raise
         full_url = response.get("path")
+        repository = response.get("repository")
         creds = response["creds"]
         mode = response["mode"]
         expiration = creds["expiration"]
-        repository = creds.get("repository")
         return full_url, creds, mode, expiration, repository
 
     def send_event(self, event_json: dict):
