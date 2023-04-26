@@ -1046,6 +1046,7 @@ def test_htypes_list():
         "binary_mask",
         "class_label",
         "dicom",
+        "embedding",
         "generic",
         "image",
         "image.gray",
