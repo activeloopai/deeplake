@@ -3441,7 +3441,9 @@ class Dataset:
                         sample_out[tensor_name].extend(src)
                     else:
                         if sample_in.index.subscriptable_at(0):
-                            sample_idxs = sample_in.index.values[0].indices(src.num_samples)
+                            sample_idxs = sample_in.index.values[0].indices(
+                                src.num_samples
+                            )
                         else:
                             sample_idxs = [sample_in.index.values[0].value]
                         sample_out[tensor_name].extend(
