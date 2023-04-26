@@ -234,6 +234,8 @@ class DeepLakeBackendClient:
             AgreementNotAcceptedError: when user has not accepted the agreement
             NotLoggedInAgreementError: when user is not logged in and dataset has agreement which needs to be signed
         """
+        import json
+
         db_engine = db_engine or {}
         relative_url = GET_DATASET_CREDENTIALS_SUFFIX.format(org_id, ds_name)
         try:
@@ -241,7 +243,11 @@ class DeepLakeBackendClient:
                 "GET",
                 relative_url,
                 endpoint=self.endpoint(),
-                params={"mode": mode, "no_cache": no_cache, "db_engine": db_engine},
+                params={
+                    "mode": mode,
+                    "no_cache": no_cache,
+                    "db_engine": json.dumps(db_engine),
+                },
             ).json()
         except Exception as e:
             if isinstance(e, AuthorizationException):
@@ -289,14 +295,14 @@ class DeepLakeBackendClient:
         self, username, dataset_name, meta, public=True, repository=None
     ):
         tag = f"{username}/{dataset_name}"
-        repo = f"protected/{username}"
+        if repository is None:
+            repository = f"protected/{username}"
 
         response = self.request(
             "POST",
             CREATE_DATASET_SUFFIX,
             json={
                 "tag": tag,
-                "repository": repo,
                 "public": public,
                 "rewrite": True,
                 "meta": meta,
