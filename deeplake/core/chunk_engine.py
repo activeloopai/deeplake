@@ -489,10 +489,15 @@ class ChunkEngine:
 
     @property
     def num_samples(self) -> int:
-        """Returns the length of the primary axis of the tensor.
+        """Total length of tensor (includes samples in sequences)
         Ignores any applied indexing and returns the total length.
         """
         return self.tensor_meta.length
+    
+    @property
+    def tensor_length(self) -> int:
+        """Length of primary axis of tensor (does not include samples in sequences)"""
+        return self._sequence_length or self.tensor_meta.length
 
     @property
     def last_chunk_key(self) -> str:
@@ -1877,7 +1882,7 @@ class ChunkEngine:
     def get_single_sample(
         self, global_sample_index, index, fetch_chunks=False, pad_tensor=False
     ):
-        if pad_tensor and global_sample_index >= self.tensor_meta.length:
+        if pad_tensor and global_sample_index >= self.tensor_length:
             sample = self.get_empty_sample()
             try:
                 return sample[tuple(entry.value for entry in index.values[1:])]
@@ -1977,7 +1982,7 @@ class ChunkEngine:
         samples = []
         enc = self.chunk_id_encoder
         for global_sample_index in index.values[0].indices(length):
-            if pad_tensor and global_sample_index >= self.tensor_meta.length:
+            if pad_tensor and global_sample_index >= self.tensor_length:
                 sample = self.get_empty_sample()
                 try:
                     sample = sample[tuple(entry.value for entry in index.values[1:])]
@@ -2490,10 +2495,12 @@ class ChunkEngine:
         return
 
     def shape(
-        self, index: Index, sample_shape_provider: Optional[Callable] = None
+        self, index: Index, sample_shape_provider: Optional[Callable] = None, pad_tensor: bool = False
     ) -> Tuple[Optional[int], ...]:
-        shape = self.shape_interval(index).astuple()[1:]
         index_0, sample_index = index.values[0], index.values[1:]
+        if not index_0.subscriptable() and pad_tensor and index_0.value >= self.tensor_length:
+            return self.get_empty_sample().shape
+        shape = self.shape_interval(index).astuple()[1:]
         sample_indices = list(
             index_0.indices(self._sequence_length or self.num_samples)
         )

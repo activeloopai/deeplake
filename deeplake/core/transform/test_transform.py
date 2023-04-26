@@ -1491,3 +1491,32 @@ def test_pipeline(local_ds, flower_path):
             ds.images[i * 5 : (i + 1) * 5].numpy(),
             np.tile(flower_arr - 1, (5, 1, 1, 1)),
         )
+
+def test_pad_data_in_bug(local_ds):
+    @deeplake.compute
+    def upload(stuff, ds):
+        append_dict = {}
+        for tensor in ds.tensors:
+            append_dict[tensor] = stuff[tensor]
+        
+        ds.append(append_dict)
+
+    with local_ds as ds:
+        ds.create_tensor("abc", htype="class_label")
+        ds.create_tensor("xyz")
+
+        ds.abc.extend([1, 2, 3, 4, 5, 6, 7, 8, 9, 10])
+        ds.xyz.extend([1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11])
+    
+    ds2 = deeplake.empty(local_ds.path + "_2", overwrite=True)
+    ds2.create_tensor("abc", htype="class_label")
+    ds2.create_tensor("xyz")
+    
+    upload().eval(ds, ds2, num_workers=TRANSFORM_TEST_NUM_WORKERS, pad_data_in=True)
+
+    assert len(ds2) == 11
+    np.testing.assert_array_equal(ds2.abc[:10].numpy(), ds.abc.numpy())
+    np.testing.assert_array_equal(ds2.abc[10].numpy(), np.zeros((0,)))
+    np.testing.assert_array_equal(ds2.xyz.numpy(), ds.xyz.numpy())
+
+    ds2.delete()
