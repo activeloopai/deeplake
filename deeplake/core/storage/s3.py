@@ -116,6 +116,7 @@ class S3Provider(StorageProvider):
         self.endpoint_url: Optional[str] = endpoint_url
         self.expiration: Optional[str] = None
         self.repository: Optional[str] = None
+        self.db_engine: bool = False
         self.tag: Optional[str] = None
         self.token: Optional[str] = token
         self.loaded_creds_from_environment = False
@@ -139,7 +140,7 @@ class S3Provider(StorageProvider):
             token=self.token,
         )
         if self.expiration:
-            sd._set_hub_creds_info(self.hub_path, self.expiration, self.repository)  # type: ignore
+            sd._set_hub_creds_info(self.hub_path, self.expiration, self.db_engine, self.repository)  # type: ignore
         sd.read_only = read_only
         return sd
 
@@ -436,6 +437,7 @@ class S3Provider(StorageProvider):
             "endpoint_url",
             "client_config",
             "expiration",
+            "db_engine",
             "repository",
             "tag",
             "token",
@@ -465,7 +467,7 @@ class S3Provider(StorageProvider):
             self.path += "/"
 
     def _set_hub_creds_info(
-        self, hub_path: str, expiration: str, repository: Optional[str] = None
+        self, hub_path: str, expiration: str, db_engine: bool=True, repository: Optional[str] = None, 
     ):
         """Sets the tag and expiration of the credentials. These are only relevant to datasets using Deep Lake storage.
         This info is used to fetch new credentials when the temporary 12 hour credentials expire.
@@ -473,10 +475,12 @@ class S3Provider(StorageProvider):
         Args:
             hub_path (str): The deeplake cloud path to the dataset.
             expiration (str): The time at which the credentials expire.
+            db_engine (bool): Whether Activeloop DB Engine enabled.
         """
         self.hub_path = hub_path
         self.tag = hub_path[6:]  # removing the hub:// part from the path
         self.expiration = expiration
+        self.db_engine = db_engine
         self.repository = repository
 
     def _initialize_s3_parameters(self):
@@ -502,6 +506,7 @@ class S3Provider(StorageProvider):
                 org_id,
                 ds_name,
                 mode,
+                db_engine,
                 True,
             )
             self.expiration = expiration
