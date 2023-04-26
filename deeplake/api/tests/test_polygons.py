@@ -34,6 +34,7 @@ def test_polygons(local_ds, ndim, args):
                 np.testing.assert_array_equal(p1, p2)
     for i, sample in enumerate(ds.pytorch(num_workers=2)):
         assert len(samples[i]) == len(sample["polygons"])
+
         for p1, p2 in zip(samples[i], sample["polygons"]):
             np.testing.assert_array_equal(p1, p2[0])
     idxs = [2, 2, 6, 4, 6, 7]
