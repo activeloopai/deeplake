@@ -62,11 +62,11 @@ class DeepLakeVectorStore:
 
     def query(
         self,
-        query: Any[str, None] = None,
-        embedding: Any[float, None] = None,
+        query: Optional[str] = None,
+        embedding: Optional[float] = None,
         k: int = 4,
         distance_metric: str = "L2",
-        filter: Optional[Any[Dict[str, str], Callable, str]] = None,
+        filter: Optional[Any] = None,
         exec_option: Optional[str] = None,
     ):
         view = self._attribute_based_filtering(filter)
@@ -93,17 +93,17 @@ class DeepLakeVectorStore:
 
     def delete(
         self,
-        ids: Any[List[str], None] = None,
-        filter: Any[Dict[str, str], None] = None,
-        delete_all: Any[bool, None] = None,
+        ids: Optional[List[str]] = None,
+        filter: Optional[Dict[str, str]] = None,
+        delete_all: Optional[bool] = None,
     ) -> bool:
         """Delete the entities in the dataset
         Args:
-            ids (Optional[List[str]], optional): The document_ids to delete.
+            ids (Optional[List[str]]): The document_ids to delete.
                 Defaults to None.
-            filter (Optional[Dict[str, str]], optional): The filter to delete by.
+            filter (Optional[Dict[str, str]]): The filter to delete by.
                 Defaults to None.
-            delete_all (Optional[bool], optional): Whether to drop the dataset.
+            delete_all (Optional[bool]): Whether to drop the dataset.
                 Defaults to None.
         """
         if delete_all:
@@ -166,30 +166,30 @@ class DeepLakeVectorStore:
             elements[i : i + batch_size] for i in range(0, len(elements), batch_size)
         ]
 
-        self.ingest().eval(
+        self.ingest(_embedding_function=self._embedding_function).eval(
             batched,
             self.dataset,
             num_workers=min(self.num_workers, len(batched) // max(self.num_workers, 1)),
-            _embedding_function=self._embedding_function,
         )
 
+    @staticmethod
     @deeplake.compute
     def ingest(sample_in: list, sample_out: list, _embedding_function) -> None:
-        text_list = [s["text"] for s in sample_in]
+        text_list = [s["text"] for s in sample_in[0]]
 
         embeds = [None] * len(text_list)
         if _embedding_function is not None:
             embeddings = _embedding_function.embed_documents(text_list)
             embeds = [np.array(e, dtype=np.float32) for e in embeddings]
 
-        for s, e in zip(sample_in, embeds):
-            embedding = e if _embedding_function else sample_in["embedding"]
+        for s, e in zip(sample_in[0], embeds):
+            embedding = e if _embedding_function else s["embedding"]
             sample_out.append(
                 {
                     "text": s["text"],
                     "metadata": s["metadata"],
-                    "ids": s["ids"],
-                    "embedding": embedding,
+                    "ids": s["id"],
+                    "embedding": np.array(embedding, dtype=np.float32),
                 }
             )
 
@@ -206,8 +206,8 @@ class DeepLakeVectorStore:
         if embeddings is None:
             embeddings = [None] * len(texts)
 
-        elements = (
+        elements = [
             {"text": text, "metadata": metadata, "id": id_, "embedding": embedding}
             for text, metadata, id_, embedding in zip(texts, metadatas, ids, embeddings)
-        )
-        return elements
+        ]
+        return elements, len

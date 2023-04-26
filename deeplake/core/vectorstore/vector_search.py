@@ -1,11 +1,10 @@
 from typing import Optional, Any, Dict, Callable
 
-from vectorstore import python_vector_search, indra_vector_search
-
+from deeplake.core import vectorstore
 
 EXEC_OPTION_TO_SEARCH_TYPE = {
-    "indra": indra_vector_search,
-    "python": python_vector_search,
+    "indra": vectorstore.indra_vector_search,
+    "python": vectorstore.python_vector_search,
 }
 
 

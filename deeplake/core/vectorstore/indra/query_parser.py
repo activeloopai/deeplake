@@ -1,4 +1,4 @@
-from tql_metrics_functions import TQL_METRIC_TO_TQL_QUERY
+from deeplake.core.vectorstore.indra import tql_metrics_functions
 
 
 def convert_tensor_to_str(query_embedding):
@@ -22,7 +22,7 @@ def convert_tensor_to_str(query_embedding):
 def query_parser(metric_function, limit, query_embedding, embedding_tensor="embedding"):
     """Function for converting query_embedding into tql query."""
     query_embedding_str = convert_tensor_to_str(query_embedding)
-    tql_query = TQL_METRIC_TO_TQL_QUERY[metric_function](
+    tql_query = tql_metrics_functions.TQL_METRIC_TO_TQL_QUERY[metric_function](
         query_embedding_str, embedding_tensor, limit
     )
     return tql_query

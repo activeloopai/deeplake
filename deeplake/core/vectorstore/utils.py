@@ -9,6 +9,8 @@ from typing import Dict
 def create_or_load_dataset(dataset_path, token, creds, logger, read_only, **kwargs):
     if dataset_exists(dataset_path, token, creds, **kwargs):
         return load_dataset(dataset_path, token, creds, logger, read_only, **kwargs)
+    if "overwrite" in kwargs:
+        del kwargs["overwrite"]
     return create_deeplake_dataset(dataset_path, token, **kwargs)
 
 
