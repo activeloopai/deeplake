@@ -474,7 +474,9 @@ class Tensor:
         )
         shape: Tuple[Optional[int], ...]
         shape = self.chunk_engine.shape(
-            self.index, sample_shape_provider=sample_shape_provider, pad_tensor=self.pad_tensor
+            self.index,
+            sample_shape_provider=sample_shape_provider,
+            pad_tensor=self.pad_tensor,
         )
 
         if len(self.index.values) == 1 and not self.index.values[0].subscriptable():

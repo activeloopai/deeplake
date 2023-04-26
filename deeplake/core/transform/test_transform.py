@@ -1492,13 +1492,14 @@ def test_pipeline(local_ds, flower_path):
             np.tile(flower_arr - 1, (5, 1, 1, 1)),
         )
 
+
 def test_pad_data_in_bug(local_ds):
     @deeplake.compute
     def upload(stuff, ds):
         append_dict = {}
         for tensor in ds.tensors:
             append_dict[tensor] = stuff[tensor]
-        
+
         ds.append(append_dict)
 
     with local_ds as ds:
@@ -1507,11 +1508,11 @@ def test_pad_data_in_bug(local_ds):
 
         ds.abc.extend([1, 2, 3, 4, 5, 6, 7, 8, 9, 10])
         ds.xyz.extend([1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11])
-    
+
     ds2 = deeplake.empty(local_ds.path + "_2", overwrite=True)
     ds2.create_tensor("abc", htype="class_label")
     ds2.create_tensor("xyz")
-    
+
     upload().eval(ds, ds2, num_workers=TRANSFORM_TEST_NUM_WORKERS, pad_data_in=True)
 
     assert len(ds2) == 11

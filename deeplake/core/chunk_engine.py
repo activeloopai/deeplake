@@ -493,7 +493,7 @@ class ChunkEngine:
         Ignores any applied indexing and returns the total length.
         """
         return self.tensor_meta.length
-    
+
     @property
     def tensor_length(self) -> int:
         """Length of primary axis of tensor (does not include samples in sequences)"""
@@ -2495,10 +2495,17 @@ class ChunkEngine:
         return
 
     def shape(
-        self, index: Index, sample_shape_provider: Optional[Callable] = None, pad_tensor: bool = False
+        self,
+        index: Index,
+        sample_shape_provider: Optional[Callable] = None,
+        pad_tensor: bool = False,
     ) -> Tuple[Optional[int], ...]:
         index_0, sample_index = index.values[0], index.values[1:]
-        if not index_0.subscriptable() and pad_tensor and index_0.value >= self.tensor_length:
+        if (
+            not index_0.subscriptable()
+            and pad_tensor
+            and index_0.value >= self.tensor_length
+        ):
             return self.get_empty_sample().shape
         shape = self.shape_interval(index).astuple()[1:]
         sample_indices = list(
