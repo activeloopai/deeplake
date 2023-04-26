@@ -1,7 +1,7 @@
 import deeplake
 
 from pathlib import Path
-from typing import Dict, Optional
+from typing import Dict, Optional, Union
 
 from deeplake.core.dataset import Dataset
 from deeplake.util.exceptions import IngestionError
