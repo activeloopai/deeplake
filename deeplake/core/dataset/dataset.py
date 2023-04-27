@@ -574,7 +574,6 @@ class Dataset:
         return ret
 
     @invalid_view_op
-    @deeplake_reporter.record_call
     def create_tensor(
         self,
         name: str,
@@ -646,6 +645,20 @@ class Dataset:
             ValueError: If an illegal argument is specified.
         """
         # if not the head node, checkout to an auto branch that is newly created
+
+        # Don't log create_tensor if tensor is hidden becuase create_tensor gets called once for each hidden tensor
+        if not hidden:
+            deeplake_reporter.feature_report(
+                feature_name="create_tensor",
+                parameters={
+                    "name": name,
+                    "htype": htype,
+                    "dtype": dtype,
+                    "sample_compression": sample_compression,
+                    "chunk_compression": chunk_compression,
+                },
+            )
+
         auto_checkout(self)
 
         name = filter_name(name, self.group_index)
@@ -905,7 +918,6 @@ class Dataset:
         self.storage.maybe_flush()
 
     @invalid_view_op
-    @deeplake_reporter.record_call
     def delete_tensor(self, name: str, large_ok: bool = False):
         """Delete a tensor from the dataset.
 
@@ -924,6 +936,12 @@ class Dataset:
             TensorDoesNotExistError: If tensor of name ``name`` does not exist in the dataset.
             TensorTooLargeToDelete: If the tensor is larger than 1 GB and ``large_ok`` is ``False``.
         """
+
+        deeplake_reporter.feature_report(
+            feature_name="delete_tensor",
+            parameters={"name": name, "large_ok": large_ok},
+        )
+
         auto_checkout(self)
 
         name = filter_name(name, self.group_index)
@@ -974,7 +992,6 @@ class Dataset:
         self.storage.flush()
 
     @invalid_view_op
-    @deeplake_reporter.record_call
     def delete_group(self, name: str, large_ok: bool = False):
         """Delete a tensor group from the dataset.
 
@@ -991,6 +1008,12 @@ class Dataset:
         Raises:
             TensorGroupDoesNotExistError: If tensor group of name ``name`` does not exist in the dataset.
         """
+
+        deeplake_reporter.feature_report(
+            feature_name="delete_group",
+            parameters={"name": name, "large_ok": large_ok},
+        )
+
         auto_checkout(self)
 
         full_path = filter_name(name, self.group_index)
@@ -1030,7 +1053,6 @@ class Dataset:
         self.storage.maybe_flush()
 
     @invalid_view_op
-    @deeplake_reporter.record_call
     def create_tensor_like(
         self, name: str, source: "Tensor", unlink: bool = False
     ) -> "Tensor":
@@ -1047,6 +1069,11 @@ class Dataset:
         Returns:
             Tensor: New Tensor object.
         """
+
+        deeplake_reporter.feature_report(
+            feature_name="create_tensor_like",
+            parameters={"name": name},
+        )
 
         info = source.info.__getstate__().copy()
         meta = source.meta.__getstate__().copy()
@@ -1098,7 +1125,6 @@ class Dataset:
 
         return tensor
 
-    @deeplake_reporter.record_call
     def rename_tensor(self, name: str, new_name: str) -> "Tensor":
         """Renames tensor with name ``name`` to ``new_name``
 
@@ -1116,6 +1142,11 @@ class Dataset:
             InvalidTensorNameError: If ``new_name`` is in dataset attributes.
             RenameError: If ``new_name`` points to a group different from ``name``.
         """
+        deeplake_reporter.feature_report(
+            feature_name="rename_tensor",
+            parameters={"name": name, "new_name": new_name},
+        )
+
         auto_checkout(self)
 
         if name not in self._tensors():
@@ -1142,7 +1173,6 @@ class Dataset:
         self.storage.maybe_flush()
         return tensor
 
-    @deeplake_reporter.record_call
     def rename_group(self, name: str, new_name: str) -> None:
         """Renames group with name ``name`` to ``new_name``
 
@@ -1157,6 +1187,11 @@ class Dataset:
             InvalidTensorGroupNameError: If ``name`` is in dataset attributes.
             RenameError: If ``new_name`` points to a group different from ``name``.
         """
+
+        deeplake_reporter.feature_report(
+            feature_name="rename_group",
+            parameters={"name": name, "new_name": new_name},
+        )
         auto_checkout(self)
 
         name = filter_name(name, self.group_index)
@@ -1367,6 +1402,12 @@ class Dataset:
             - Commiting from a non-head node in any branch, will lead to an automatic checkout to a new branch.
             - This same behaviour will happen if new samples are added or existing samples are updated from a non-head node.
         """
+
+        # do not store commit message
+        deeplake_reporter.feature_report(
+            feature_name="commit", parameters={"allow_empty": allow_empty}
+        )
+
         if not allow_empty and not self.has_head_changes:
             raise EmptyCommitError(
                 "There are no changes, commit is not done. Try again with allow_empty=True."
@@ -1374,7 +1415,6 @@ class Dataset:
 
         return self._commit(message, None, False)
 
-    @deeplake_reporter.record_call
     @spinner
     @invalid_view_op
     @suppress_iteration_warning
@@ -1408,6 +1448,17 @@ class Dataset:
             Exception: if dataset is a filtered view.
             ValueError: if the conflict resolution strategy is not one of the None, "ours", or "theirs".
         """
+
+        deeplake_reporter.feature_report(
+            feature_name="merge",
+            parameters={
+                "target_id": target_id,
+                "conflict_resolution": conflict_resolution,
+                "delete_removed_tensors": delete_removed_tensors,
+                "force": force,
+            },
+        )
+
         if self._is_filtered_view:
             raise Exception(
                 "Cannot perform version control operations on a filtered dataset view."
@@ -1452,8 +1503,6 @@ class Dataset:
         self._info = None
         self._ds_diff = None
         [f() for f in list(self._commit_hooks.values())]
-        # do not store commit message
-        deeplake_reporter.feature_report(feature_name="commit", parameters={})
         self.maybe_flush()
         return self.commit_id  # type: ignore
 
@@ -1499,6 +1548,13 @@ class Dataset:
         Note:
             Checkout from a head node in any branch that contains uncommitted data will lead to an automatic commit before the checkout.
         """
+
+        # do not store address
+        deeplake_reporter.feature_report(
+            feature_name="checkout",
+            parameters={"create": str(create), "reset": str(reset)},
+        )
+
         try:
             ret = self._checkout(address, create, None, False)
             integrity_check(self)
@@ -1555,10 +1611,6 @@ class Dataset:
 
         [f() for f in list(self._checkout_hooks.values())]
 
-        # do not store address
-        deeplake_reporter.feature_report(
-            feature_name="checkout", parameters={"Create": str(create)}
-        )
         commit_node = self.version_state["commit_node"]
         if self.verbose:
             warn_node_checkout(commit_node, create)
@@ -1566,9 +1618,11 @@ class Dataset:
             self.maybe_flush()
         return self.commit_id
 
-    @deeplake_reporter.record_call
     def log(self):
         """Displays the details of all the past commits."""
+
+        deeplake_reporter.feature_report(feature_name="log", parameters={})
+
         commit_node = self.version_state["commit_node"]
         print("---------------\nDeep Lake Version Log\n---------------\n")
         print(f"Current Branch: {self.version_state['branch']}")
@@ -1580,7 +1634,6 @@ class Dataset:
                 print(f"{commit_node}\n")
             commit_node = commit_node.parent
 
-    @deeplake_reporter.record_call
     def diff(
         self, id_1: Optional[str] = None, id_2: Optional[str] = None, as_dict=False
     ) -> Optional[Dict]:
@@ -1616,6 +1669,11 @@ class Dataset:
 
             ``None`` is returned if ``as_dict`` is ``False``.
         """
+
+        deeplake_reporter.feature_report(
+            feature_name="diff", parameters={"as_dict": str(as_dict)}
+        )
+
         version_state, storage = self.version_state, self.storage
         res = get_changes_and_messages(version_state, storage, id_1, id_2)
         if as_dict:
@@ -1744,7 +1802,6 @@ class Dataset:
     def read_only(self, value: bool):
         self._set_read_only(value, True)
 
-    @deeplake_reporter.record_call
     def pytorch(
         self,
         transform: Optional[Callable] = None,
@@ -1809,6 +1866,24 @@ class Dataset:
         """
         from deeplake.integrations import dataset_to_pytorch as to_pytorch
 
+        deeplake_reporter.feature_report(
+            feature_name="pytorch",
+            parameters={
+                "tensors": tensors,
+                "num_workers": num_workers,
+                "batch_size": batch_size,
+                "drop_last": drop_last,
+                "pin_memory": pin_memory,
+                "shuffle": shuffle,
+                "buffer_size": buffer_size,
+                "use_local_cache": use_local_cache,
+                "progressbar": progressbar,
+                "return_index": return_index,
+                "pad_tensors": pad_tensors,
+                "decode_method": decode_method,
+            },
+        )
+
         if transform and transform_kwargs:
             transform = partial(transform, **transform_kwargs)
 
@@ -1836,7 +1911,6 @@ class Dataset:
         dataset_read(self)
         return dataloader
 
-    @deeplake_reporter.record_call
     def dataloader(self):
         """Returns a :class:`~deeplake.enterprise.DeepLakeDataLoader` object. To use this, install deeplake with ``pip install deeplake[enterprise]``.
 
@@ -1903,9 +1977,10 @@ class Dataset:
         """
         from deeplake.enterprise import dataloader
 
+        deeplake_reporter.feature_report(feature_name="dataloader", parameters={})
+
         return dataloader(self)
 
-    @deeplake_reporter.record_call
     def filter(
         self,
         function: Union[Callable, str],
@@ -1942,6 +2017,16 @@ class Dataset:
             >>> dataset.filter('labels == 2')
         """
         from deeplake.core.query import filter_dataset, query_dataset
+
+        deeplake_reporter.feature_report(
+            feature_name="filter",
+            parameters={
+                "num_workers": num_workers,
+                "scheduler": scheduler,
+                "progressbar": progressbar,
+                "save_result": save_result,
+            },
+        )
 
         fn = query_dataset if isinstance(function, str) else filter_dataset
         ret = fn(
@@ -1992,6 +2077,13 @@ class Dataset:
         - To run queries on your own datasets, `upgrade your organization's plan <https://www.activeloop.ai/pricing/>`_.
         """
         from deeplake.enterprise import query
+
+        deeplake_reporter.feature_report(
+            feature_name="query",
+            parameters={
+                "query_string": query_string,
+            },
+        )
 
         return query(self, query_string)
 
@@ -2110,7 +2202,6 @@ class Dataset:
             self.__dict__["_ds_diff"] = load_dataset_diff(self)
         return self._ds_diff
 
-    @deeplake_reporter.record_call
     def tensorflow(
         self,
         tensors: Optional[Sequence[str]] = None,
@@ -2129,6 +2220,15 @@ class Dataset:
         Returns:
             tf.data.Dataset object that can be used for tensorflow training.
         """
+        deeplake_reporter.feature_report(
+            feature_name="tensorflow",
+            parameters={
+                "tensors": tensors,
+                "tobytes": tobytes,
+                "fetch_chunks": fetch_chunks,
+            },
+        )
+
         dataset_read(self)
         return dataset_to_tensorflow(
             self, tensors=tensors, tobytes=tobytes, fetch_chunks=fetch_chunks
@@ -2174,7 +2274,6 @@ class Dataset:
         return size
 
     @invalid_view_op
-    @deeplake_reporter.record_call
     def rename(self, path: Union[str, pathlib.Path]):
         """Renames the dataset to `path`.
 
@@ -2189,6 +2288,9 @@ class Dataset:
         Raises:
             RenameError: If ``path`` points to a different directory.
         """
+
+        deeplake_reporter.feature_report(feature_name="rename", parameters={})
+
         path = convert_pathlib_to_string_if_needed(path)
         path = path.rstrip("/")
         if posixpath.split(path)[0] != posixpath.split(self.path)[0]:
@@ -2197,7 +2299,6 @@ class Dataset:
         self.path = path
 
     @invalid_view_op
-    @deeplake_reporter.record_call
     def delete(self, large_ok=False):
         """Deletes the entire dataset from the cache layers (if any) and the underlying storage.
         This is an **IRREVERSIBLE** operation. Data once deleted can not be recovered.
@@ -2208,6 +2309,10 @@ class Dataset:
         Raises:
             DatasetTooLargeToDelete: If the dataset is larger than 1 GB and ``large_ok`` is ``False``.
         """
+
+        deeplake_reporter.feature_report(
+            feature_name="delete", parameters={"large_ok": large_ok}
+        )
 
         if hasattr(self, "_view_entry"):
             self._view_entry.delete()
@@ -2225,6 +2330,8 @@ class Dataset:
 
     def summary(self):
         """Prints a summary of the dataset."""
+
+        deeplake_reporter.feature_report(feature_name="summary", parameters={})
 
         pretty_print = summary_dataset(self)
 
@@ -2496,7 +2603,6 @@ class Dataset:
             name, _ = posixpath.split(name)
         return self[fullname]
 
-    @deeplake_reporter.record_call
     def create_group(self, name: str, exist_ok=False) -> "Dataset":
         """Creates a tensor group. Intermediate groups in the path are also created.
 
@@ -2520,6 +2626,15 @@ class Dataset:
             >>> ds["images"].create_tensor("png")
             >>> ds["images/jpg"].create_group("dogs")
         """
+
+        deeplake_reporter.feature_report(
+            feature_name="create_group",
+            parameters={
+                "name": name,
+                "exist_ok": exist_ok,
+            },
+        )
+
         if not self._is_root():
             return self.root.create_group(
                 posixpath.join(self.group_index, name), exist_ok=exist_ok
@@ -3758,7 +3873,9 @@ class Dataset:
         """
         from deeplake.visualizer import visualize
 
-        deeplake_reporter.feature_report(feature_name="visualize", parameters={})
+        deeplake_reporter.feature_report(
+            feature_name="visualize", parameters={"width": width, "height": height}
+        )
         if is_colab():
             provider = self.storage.next_storage
             if isinstance(provider, S3Provider):

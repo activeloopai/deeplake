@@ -6,7 +6,6 @@ from typing import Optional, Union
 import numpy as np
 
 
-@deeplake_reporter.record_call
 def query(dataset, query_string: str):
     """Returns a sliced :class:`~deeplake.core.dataset.Dataset` with given query results.
 
