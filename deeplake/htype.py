@@ -124,6 +124,7 @@ HTYPE_SUPPORTED_COMPRESSIONS = {
     htype.NIFTI: ["nii", "nii.gz"],
     htype.POLYGON: BYTE_COMPRESSIONS[:],
     htype.MESH: MESH_COMPRESSIONS[:],
+    htype.EMBEDDING: BYTE_COMPRESSIONS[:],
 }
 
 
