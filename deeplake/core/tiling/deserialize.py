@@ -93,8 +93,13 @@ def translate_slices(
         elif isinstance(s, list):
             s = [x + sample_shape[i] if x < 0 else x for x in s]
             mn, mx = min(s), max(s)
+            if s != list(range(mn, mx + 1)):
+                raise NotImplementedError(
+                    "Non-contiguous indexing for tiled samples is not supported yet."
+                )
             tiles_index.append(slice(mn // tile_shape[i], mx // tile_shape[i] + 1))
-            sample_index.append([x - mn for x in s])
+            offset = mn - (mn % tile_shape[i])
+            sample_index.append([x - offset for x in s])
         elif isinstance(s, slice):
             start, stop, step = s.start, s.stop, s.step
             if start is None:
