@@ -259,7 +259,7 @@ class Dataset:
 
         if not self.read_only:
             for temp_tensor in self._temp_tensors:
-                self.delete_tensor(temp_tensor, large_ok=True)
+                self._delete_tensor(temp_tensor, large_ok=True)
             self._temp_tensors = []
 
     def _lock_lost_handler(self):
@@ -644,21 +644,54 @@ class Dataset:
             TensorMetaInvalidHtype: If invalid htype is specified.
             ValueError: If an illegal argument is specified.
         """
+
+        deeplake_reporter.feature_report(
+            feature_name="create_tensor",
+            parameters={
+                "name": name,
+                "htype": htype,
+                "dtype": dtype,
+                "sample_compression": sample_compression,
+                "chunk_compression": chunk_compression,
+            },
+        )
+
+        return self._create_tensor(
+            name,
+            htype,
+            dtype,
+            sample_compression,
+            chunk_compression,
+            hidden,
+            create_sample_info_tensor,
+            create_shape_tensor,
+            create_id_tensor,
+            verify,
+            exist_ok,
+            verbose,
+            downsampling,
+            **kwargs,
+        )
+
+    @invalid_view_op
+    def _create_tensor(
+        self,
+        name: str,
+        htype: str = UNSPECIFIED,
+        dtype: Union[str, np.dtype] = UNSPECIFIED,
+        sample_compression: str = UNSPECIFIED,
+        chunk_compression: str = UNSPECIFIED,
+        hidden: bool = False,
+        create_sample_info_tensor: bool = True,
+        create_shape_tensor: bool = True,
+        create_id_tensor: bool = True,
+        verify: bool = True,
+        exist_ok: bool = False,
+        verbose: bool = True,
+        downsampling: Optional[Tuple[int, int]] = None,
+        **kwargs,
+    ):
         # if not the head node, checkout to an auto branch that is newly created
-
-        # Don't log create_tensor if tensor is hidden becuase create_tensor gets called once for each hidden tensor
-        if not hidden:
-            deeplake_reporter.feature_report(
-                feature_name="create_tensor",
-                parameters={
-                    "name": name,
-                    "htype": htype,
-                    "dtype": dtype,
-                    "sample_compression": sample_compression,
-                    "chunk_compression": chunk_compression,
-                },
-            )
-
         auto_checkout(self)
 
         name = filter_name(name, self.group_index)
@@ -712,7 +745,7 @@ class Dataset:
         kwargs["verify"] = create_shape_tensor or create_sample_info_tensor or verify
 
         if not self._is_root():
-            return self.root.create_tensor(
+            return self.root._create_tensor(
                 name=key,
                 htype=htype,
                 dtype=dtype,
@@ -814,7 +847,7 @@ class Dataset:
 
     def _create_sample_shape_tensor(self, tensor: str, htype: str):
         shape_tensor = get_sample_shape_tensor_key(tensor)
-        self.create_tensor(
+        self._create_tensor(
             shape_tensor,
             dtype="int64",
             hidden=True,
@@ -839,7 +872,7 @@ class Dataset:
 
     def _create_sample_id_tensor(self, tensor: str):
         id_tensor = get_sample_id_tensor_key(tensor)
-        self.create_tensor(
+        self._create_tensor(
             id_tensor,
             hidden=True,
             create_id_tensor=False,
@@ -855,7 +888,7 @@ class Dataset:
 
     def _create_sample_info_tensor(self, tensor: str):
         sample_info_tensor = get_sample_info_tensor_key(tensor)
-        self.create_tensor(
+        self._create_tensor(
             sample_info_tensor,
             htype="json",
             max_chunk_size=SAMPLE_INFO_TENSOR_MAX_CHUNK_SIZE,
@@ -890,7 +923,7 @@ class Dataset:
             downsampling = (downsampling_factor, number_of_layers - 1)
         meta_kwargs = meta_kwargs.copy()
         meta_kwargs.pop("is_link", None)
-        new_tensor = self.create_tensor(
+        new_tensor = self._create_tensor(
             downsampled_tensor,
             htype=htype,
             dtype=dtype,
@@ -942,6 +975,10 @@ class Dataset:
             parameters={"name": name, "large_ok": large_ok},
         )
 
+        self._delete_tensor(name, large_ok)
+
+    @invalid_view_op
+    def _delete_tensor(self, name: str, large_ok: bool = False):
         auto_checkout(self)
 
         name = filter_name(name, self.group_index)
@@ -954,7 +991,7 @@ class Dataset:
             raise TensorDoesNotExistError(name)
 
         if not self._is_root():
-            return self.root.delete_tensor(name, large_ok)
+            return self.root._delete_tensor(name, large_ok)
 
         if not large_ok:
             chunk_engine = self.version_state["full_tensors"][key].chunk_engine
@@ -987,7 +1024,7 @@ class Dataset:
             if t_key and tensor_exists(
                 t_key, self.storage, self.version_state["commit_id"]
             ):
-                self.delete_tensor(t_name, large_ok=True)
+                self._delete_tensor(t_name, large_ok=True)
 
         self.storage.flush()
 
@@ -1086,7 +1123,7 @@ class Dataset:
         del meta["name"]
         del meta["links"]
 
-        destination_tensor = self.create_tensor(
+        destination_tensor = self._create_tensor(
             name,
             verbose=False,
             create_id_tensor=bool(source._sample_id_tensor),
@@ -3521,28 +3558,6 @@ class Dataset:
         unlink: bool = False,
         create_vds_index_tensor: bool = False,
     ):
-        """Copies this dataset or dataset view to `dest`. Version control history is not included.
-
-        Args:
-            dest (str, pathlib.Path): Destination dataset or path to copy to. If a Dataset instance is provided, it is expected to be empty.
-            tensors (List[str], optional): Names of tensors (and groups) to be copied. If not specified all tensors are copied.
-            overwrite (bool): If ``True`` and a dataset exists at `destination`, it will be overwritten. Defaults to False.
-            creds (dict, Optional): creds required to create / overwrite datasets at `dest`.
-            token (str, Optional): token used to for fetching credentials to `dest`.
-            num_workers (int): The number of workers to use for copying. Defaults to 0. When set to 0, it will always use serial processing, irrespective of the scheduler.
-            scheduler (str): The scheduler to be used for copying. Supported values include: 'serial', 'threaded', 'processed' and 'ray'.
-                Defaults to 'threaded'.
-            progressbar (bool): Displays a progress bar If ``True`` (default).
-            public (bool): Defines if the dataset will have public access. Applicable only if Deep Lake cloud storage is used and a new Dataset is being created. Defaults to False.
-            unlink (bool): Whether to copy the data from source for linked tensors. Does not apply for linked video tensors.
-            create_vds_index_tensor (bool): If ``True``, a hidden tensor called "VDS_INDEX" is created which contains the sample indices in the source view.
-
-        Returns:
-            Dataset: New dataset object.
-
-        Raises:
-            DatasetHandlerError: If a dataset already exists at destination path and overwrite is False.
-        """
         if isinstance(dest, str):
             path = dest
         else:
