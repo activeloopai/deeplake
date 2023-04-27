@@ -1621,7 +1621,7 @@ class ChunkEngine:
 
     def read_bytes_for_sample(self, global_sample_index: int) -> bytes:
         if self.chunk_compression:
-            raise Exception(
+            raise ValueError(
                 "Cannot retreive original bytes for samples in chunk-wise compressed tensors."
             )
         enc = self.chunk_id_encoder

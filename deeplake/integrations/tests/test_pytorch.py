@@ -145,6 +145,8 @@ def test_pytorch_small(ds):
 @requires_torch
 @enabled_non_gdrive_datasets
 def test_pytorch_transform(ds):
+    import torch
+
     with ds:
         ds.create_tensor("image", max_chunk_size=PYTORCH_TESTS_MAX_CHUNK_SIZE)
         ds.image.extend(([i * np.ones((i + 1, i + 1)) for i in range(16)]))
@@ -166,12 +168,20 @@ def test_pytorch_transform(ds):
 
     for _ in range(2):
         for i, batch in enumerate(dl):
-            actual_image, actual_image2 = batch[0]
-            expected_image = i * np.ones((i + 1, i + 1))
-            # actual_image2 = batch[1].numpy()
-            expected_image2 = i * np.ones((12, 12))
-            np.testing.assert_array_equal(actual_image, expected_image)
-            np.testing.assert_array_equal(actual_image2, expected_image2)
+            if torch.__version__ < "2.0.0":
+                actual_image, actual_image2 = batch[0]
+
+                expected_image = i * np.ones((i + 1, i + 1))
+                expected_image2 = i * np.ones((12, 12))
+                np.testing.assert_array_equal(actual_image, expected_image)
+                np.testing.assert_array_equal(actual_image2, expected_image2)
+            else:
+                actual_image, actual_image2 = batch
+
+                expected_image = i * np.ones((1, i + 1, i + 1))
+                expected_image2 = i * np.ones((1, 12, 12))
+                np.testing.assert_array_equal(actual_image, expected_image)
+                np.testing.assert_array_equal(actual_image2, expected_image2)
 
     dls = ds.pytorch(
         num_workers=0,
@@ -184,17 +194,39 @@ def test_pytorch_transform(ds):
     for _ in range(2):
         all_values = []
         for i, batch in enumerate(dls):
-            actual_image, actual_image2 = batch[0]
+            if torch.__version__ < "2.0.0":
+                actual_image, actual_image2 = batch[0]
 
-            value = actual_image[0][0]
-            value2 = actual_image2[0][0]
-            assert value == value2
-            all_values.append(value)
+                value = actual_image[0][0]
+                value2 = actual_image2[0][0]
+                assert value == value2
+                all_values.append(value)
 
-            expected_image = value * np.ones(actual_image.shape)
-            expected_image2 = value * np.ones(actual_image2.shape)
-            np.testing.assert_array_equal(actual_image, expected_image)
-            np.testing.assert_array_equal(actual_image2, expected_image2)
+                expected_image = value * np.ones(actual_image.shape)
+                expected_image2 = value * np.ones(actual_image2.shape)
+                np.testing.assert_array_equal(actual_image, expected_image)
+                np.testing.assert_array_equal(actual_image2, expected_image2)
+            else:
+                actual_image, actual_image2 = batch
+
+                value = actual_image[0][0][0]
+                value2 = actual_image2[0][0][0]
+                assert value == value2
+                all_values.append(value)
+
+                expected_image = value * np.ones(actual_image.shape)
+                expected_image2 = value * np.ones(actual_image2.shape)
+                np.testing.assert_array_equal(actual_image, expected_image)
+                np.testing.assert_array_equal(actual_image2, expected_image2)
+
+
+def convert_data_according_to_torch_version(batch):
+    import torch
+
+    if torch.__version__ < "2.0.0":
+        return batch[0]
+    else:
+        return batch
 
 
 @requires_torch
@@ -658,7 +690,7 @@ def test_pytorch_decode(ds, compressed_image_paths, compression):
         return
 
     for i, batch in enumerate(ds.pytorch(decode_method={"image": "tobytes"})):
-        image = batch["image"][0]
+        image = convert_data_according_to_torch_version(batch["image"])
         assert isinstance(image, bytes)
         if i < 5 and not compression:
             np.testing.assert_array_equal(
