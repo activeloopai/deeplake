@@ -178,12 +178,8 @@ def get_storage_and_cache_chain(
 
     Returns:
         A tuple of the storage provider and the storage chain.
-
-    Raises:
-        ValueError: If the given creds is string and not ENV.
     """
-    if isinstance(creds, str) and creds != "ENV":
-        raise ValueError("creds must be None, or a dictionary or the string 'ENV'")
+
     storage = storage_provider_from_path(
         path=path,
         creds=creds,
