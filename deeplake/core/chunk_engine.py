@@ -2504,7 +2504,7 @@ class ChunkEngine:
         if (
             not index_0.subscriptable()
             and pad_tensor
-            and index_0.value >= self.tensor_length # type: ignore
+            and index_0.value >= self.tensor_length  # type: ignore
         ):
             return self.get_empty_sample().shape
         shape = self.shape_interval(index).astuple()[1:]

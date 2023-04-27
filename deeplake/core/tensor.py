@@ -968,7 +968,7 @@ class Tensor:
         if self.index.values[0].subscriptable() or len(self.index.values) > 1:
             raise ValueError("tobytes() can be used only on exactly 1 sample.")
         idx = self.index.values[0].value
-        if self.pad_tensor and idx >= self.num_samples: # type: ignore
+        if self.pad_tensor and idx >= self.num_samples:  # type: ignore
             ret = self.chunk_engine.get_empty_sample().tobytes()
         else:
             ret = self.chunk_engine.read_bytes_for_sample(idx)  # type: ignore
