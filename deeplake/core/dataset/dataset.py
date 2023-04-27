@@ -1552,7 +1552,7 @@ class Dataset:
         # do not store address
         deeplake_reporter.feature_report(
             feature_name="checkout",
-            parameters={"create": str(create), "reset": str(reset)},
+            parameters={"create": create, "reset": reset},
         )
 
         try:
@@ -3070,6 +3070,19 @@ class Dataset:
             Specifying ``path`` makes the view external. External views cannot be accessed using the parent dataset's :func:`Dataset.get_view`,
             :func:`Dataset.load_view`, :func:`Dataset.delete_view` methods. They have to be loaded using :func:`deeplake.load`.
         """
+
+        deeplake_reporter.feature_report(
+            feature_name="save_view",
+            parameters={
+                "id": id,
+                "optimize": optimize,
+                "tensors": tensors,
+                "num_workers": num_workers,
+                "scheduler": scheduler,
+                "verbose": verbose,
+            },
+        )
+
         if id is not None and not isinstance(id, str):
             raise TypeError(f"id {id} is of type {type(id)}, expected `str`.")
         return self._save_view(
@@ -3325,6 +3338,17 @@ class Dataset:
         Raises:
             KeyError: if view with given id does not exist.
         """
+        deeplake_reporter.feature_report(
+            feature_name="load_view",
+            parameters={
+                "id": id,
+                "optimize": optimize,
+                "tensors": tensors,
+                "num_workers": num_workers,
+                "scheduler": scheduler,
+            },
+        )
+
         view = self.get_view(id)
         if optimize:
             return view.optimize(
@@ -3344,6 +3368,11 @@ class Dataset:
         Raises:
             KeyError: if view with given id does not exist.
         """
+
+        deeplake_reporter.feature_report(
+            feature_name="delete_view",
+            parameters={"id": id},
+        )
 
         try:
             with self._lock_queries_json():
@@ -3519,19 +3548,6 @@ class Dataset:
         else:
             path = dest.path
 
-        report_params = {
-            "Tensors": tensors,
-            "Overwrite": overwrite,
-            "Num_Workers": num_workers,
-            "Scheduler": scheduler,
-            "Progressbar": progressbar,
-            "Public": public,
-        }
-
-        if path.startswith("hub://"):
-            report_params["Dest"] = path
-        feature_report_path(self.path, "copy", report_params, token=token)
-
         dest_ds = deeplake.api.dataset.dataset._like(
             dest,
             self,
@@ -3659,6 +3675,19 @@ class Dataset:
         Raises:
             DatasetHandlerError: If a dataset already exists at destination path and overwrite is False.
         """
+
+        deeplake_reporter.feature_report(
+            feature_name="copy",
+            parameters={
+                "tensors": tensors,
+                "overwrite": overwrite,
+                "num_workers": num_workers,
+                "scheduler": scheduler,
+                "progressbar": progressbar,
+                "public": public,
+            },
+        )
+
         return self._copy(
             dest,
             tensors,
@@ -3679,6 +3708,12 @@ class Dataset:
         Note:
             The uncommitted data is deleted from underlying storage, this is not a reversible operation.
         """
+
+        deeplake_reporter.feature_report(
+            feature_name="reset",
+            parameters={"force": force},
+        )
+
         storage, version_state = self.storage, self.version_state
         if version_state["commit_node"].children:
             print("You are not at the head node of the branch, cannot reset.")
@@ -3884,6 +3919,7 @@ class Dataset:
         deeplake_reporter.feature_report(
             feature_name="visualize", parameters={"width": width, "height": height}
         )
+
         if is_colab():
             provider = self.storage.next_storage
             if isinstance(provider, S3Provider):
