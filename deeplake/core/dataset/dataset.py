@@ -975,7 +975,7 @@ class Dataset:
             parameters={"name": name, "large_ok": large_ok},
         )
 
-        self._delete_tensor(name, large_ok)
+        return self._delete_tensor(name, large_ok)
 
     @invalid_view_op
     def _delete_tensor(self, name: str, large_ok: bool = False):
