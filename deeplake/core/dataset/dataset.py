@@ -1072,7 +1072,7 @@ class Dataset:
 
         deeplake_reporter.feature_report(
             feature_name="create_tensor_like",
-            parameters={"name": name},
+            parameters={"name": name, "unlink": unlink},
         )
 
         info = source.info.__getstate__().copy()
@@ -2136,6 +2136,14 @@ class Dataset:
         - To use sampling functionality on your own datasets, `upgrade your organization's plan <https://www.activeloop.ai/pricing/>`_.
         """
         from deeplake.enterprise import sample_by
+
+        deeplake_reporter.feature_report(
+            feature_name="sample_by",
+            parameters={
+                "replace": replace,
+                "size": size,
+            },
+        )
 
         return sample_by(self, weights, replace, size)
 
