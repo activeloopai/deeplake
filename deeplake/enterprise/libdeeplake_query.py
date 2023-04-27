@@ -1,5 +1,4 @@
 from deeplake.enterprise.convert_to_libdeeplake import dataset_to_libdeeplake
-from deeplake.util.bugout_reporter import deeplake_reporter
 from deeplake.core.dataset.deeplake_query_dataset import DeepLakeQueryDataset
 from typing import Optional, Union
 
@@ -51,7 +50,6 @@ def query(dataset, query_string: str):
         return view
 
 
-@deeplake_reporter.record_call
 def sample_by(
     dataset,
     weights: Union[str, list, tuple, np.ndarray],
