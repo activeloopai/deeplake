@@ -35,15 +35,14 @@ def write_token(token: str):
         f.write(token)
 
 
-def read_token():
+def read_token(from_env=True):
     """Returns the token. Searches for the token first in token file and then in enviroment variables."""
     token = None
     if os.path.exists(TOKEN_FILE_PATH):
         with open(TOKEN_FILE_PATH) as f:
             token = f.read()
-    else:
+    elif from_env:
         token = os.environ.get(DEEPLAKE_AUTH_TOKEN)
-
     return token
 
 

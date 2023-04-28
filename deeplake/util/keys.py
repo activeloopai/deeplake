@@ -1,6 +1,7 @@
 import posixpath
 from deeplake.constants import (
     CHUNKS_FOLDER,
+    COMMIT_INFO_FILENAME,
     DATASET_DIFF_FILENAME,
     DATASET_INFO_FILENAME,
     DATASET_LOCK_FILENAME,
@@ -57,6 +58,12 @@ def get_dataset_diff_key(commit_id: str) -> str:
     if commit_id == FIRST_COMMIT_ID:
         return DATASET_DIFF_FILENAME
     return "/".join(("versions", commit_id, DATASET_DIFF_FILENAME))
+
+
+def get_commit_info_key(commit_id: str) -> str:
+    if commit_id == FIRST_COMMIT_ID:
+        return COMMIT_INFO_FILENAME
+    return "/".join(("versions", commit_id, COMMIT_INFO_FILENAME))
 
 
 def get_dataset_linked_creds_key() -> str:

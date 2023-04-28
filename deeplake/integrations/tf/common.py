@@ -4,6 +4,8 @@ import numpy as np
 
 
 def collate_fn(batch):
+    from tensorflow import convert_to_tensor
+
     elem = batch[0]
     if isinstance(elem, IterableOrderedDict):
         return IterableOrderedDict(

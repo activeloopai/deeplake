@@ -2,7 +2,8 @@ import numpy as np
 import pytest
 import deeplake
 
-from deeplake.util.testing import assert_array_equal
+from deeplake.util.testing import assert_array_equal, compare_version_info
+from deeplake.util.version_control import rebuild_version_info
 from deeplake.util.exceptions import (
     MergeConflictError,
     MergeMismatchError,
