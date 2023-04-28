@@ -56,8 +56,9 @@ class ShuffleBuffer:
             sample_size = self._sample_size(sample)
             num_torch_tensors = self._num_torch_tensors(sample)
             # fill buffer of not reach limit
-            if self.buffer_used + sample_size <= self.size and self.num_torch_tensors + num_torch_tensors < 10000:
+            if self.buffer_used + sample_size <= self.size and self.num_torch_tensors + num_torch_tensors < 32000:
                 self.buffer_used += sample_size
+                self.num_torch_tensors += num_torch_tensors
                 self.pbar.update(sample_size)
                 self.buffer.append(sample)
                 if (self.num_torch_tensors + num_torch_tensors) % 1000 == 0:
@@ -80,7 +81,7 @@ class ShuffleBuffer:
             self.buffer_used += sample_size
             self.buffer_used -= self._sample_size(val)
             self.num_torch_tensors += num_torch_tensors
-            # self.num_torch_tensors -= self._num_torch_tensors(val)
+            self.num_torch_tensors -= self._num_torch_tensors(val)
             return val
         else:
             if not self.pbar_closed:
