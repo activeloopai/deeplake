@@ -2465,7 +2465,7 @@ def test_env_creds(s3_path, hub_cloud_dev_token):
         ds.x.extend(list(range(100)))
 
     ds.connect(
-        org_id=HUB_CLOUD_DEV_USERNAME, token=hub_cloud_dev_token, creds_key="my_s3_key"
+        org_id=HUB_CLOUD_DEV_USERNAME, token=hub_cloud_dev_token, creds_key="my_s3_creds"
     )
     path = ds.path
     ds = deeplake.dataset(path, token=hub_cloud_dev_token, creds="ENV")
