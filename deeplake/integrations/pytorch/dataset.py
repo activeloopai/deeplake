@@ -4,6 +4,7 @@ from deeplake.integrations.pytorch.common import PytorchTransformFunction
 from deeplake.util.exceptions import TransformFailedError
 
 from deeplake.util.iterable_ordered_dict import IterableOrderedDict
+from deeplake.util.warnings import always_warn
 from deeplake.core.io import (
     DistributedScheduler,
     SampleStreaming,
@@ -211,7 +212,15 @@ class SubIterableDataset(torch.utils.data.IterableDataset):
             it = iter(sub_loader)
             try:
                 while True:
-                    next_batch = next(it)
+                    try:
+                        next_batch = next(it)
+                    except MemoryError as e:
+                        # Ran out of shared memory
+                        if buffer.emtpy():
+                            raise e
+                        while not buffer.emtpy():
+                            yield buffer.exchange(None)
+                        continue
                     for val in next_batch:
                         result = buffer.exchange(val)
                         if result:
