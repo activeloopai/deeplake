@@ -11,6 +11,7 @@ from deeplake.tests.common import (
     is_opt_true,
     get_dummy_data_path,
     requires_libdeeplake,
+    requires_torch,
 )
 from deeplake.tests.storage_fixtures import enabled_remote_storages
 from deeplake.core.storage import GCSProvider
@@ -43,7 +44,7 @@ from deeplake.util.exceptions import (
 from deeplake.util.path import convert_string_to_pathlib_if_needed, verify_dataset_name
 from deeplake.util.testing import assert_array_equal
 from deeplake.util.pretty_print import summary_tensor, summary_dataset
-from deeplake.constants import GDRIVE_OPT, HUB_CLOUD_DEV_USERNAME, MB
+from deeplake.constants import GDRIVE_OPT, MB
 from deeplake.client.config import REPORTING_CONFIG_FILE_PATH
 
 from click.testing import CliRunner
@@ -2286,8 +2287,8 @@ def test_iter_warning(local_ds):
 
 
 @requires_libdeeplake
-def test_random_split(hub_cloud_ds):
-    with hub_cloud_ds as ds:
+def test_random_split(local_ds):
+    with local_ds as ds:
         ds.create_tensor("label")
         ds.label.extend([0, 1, 2, 3, 4, 5, 6, 7, 8, 9])
 
@@ -2319,8 +2320,8 @@ def test_random_split(hub_cloud_ds):
 
 
 @requires_libdeeplake
-def test_random_split_views(hub_cloud_ds):
-    with hub_cloud_ds as ds:
+def test_random_split_views(local_ds):
+    with local_ds as ds:
         ds.create_tensor("label")
         ds.label.extend([0, 1, 2, 3, 4, 5, 6, 7, 8, 9])
 
@@ -2456,26 +2457,3 @@ def test_sequence_numpy_bug(memory_ds):
             ds.abc.numpy()
 
         assert ds.abc.numpy(aslist=True) == [[1, 2], [1, 2, 3], [1, 2, 3, 4]]
-
-
-@requires_torch
-@requires_libdeeplake
-def test_env_creds(s3_path, hub_cloud_dev_token):
-    ds = deeplake.dataset(s3_path)
-    with ds:
-        ds.create_tensor("x")
-        ds.x.extend(list(range(100)))
-
-    ds.connect(
-        org_id=HUB_CLOUD_DEV_USERNAME,
-        token=hub_cloud_dev_token,
-        creds_key="my_s3_creds",
-    )
-    path = ds.path
-    ds = deeplake.dataset(path, token=hub_cloud_dev_token, creds="ENV")
-    assert len(ds) == 100
-    dl = ds.dataloader().pytorch()
-    ct = 0
-    for i in dl:
-        ct += 1
-    assert ct == 100
