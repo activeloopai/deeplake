@@ -57,7 +57,11 @@ class ShuffleBuffer:
             sample_size = self._sample_size(sample)
             num_torch_tensors = self._num_torch_tensors(sample)
             # fill buffer of not reach limit
-            if self.buffer_used + sample_size <= self.size and self.num_torch_tensors + num_torch_tensors < deeplake.constants.MAX_TENSORS_IN_SHUFFLE_BUFFER:
+            if (
+                self.buffer_used + sample_size <= self.size
+                and self.num_torch_tensors + num_torch_tensors
+                < deeplake.constants.MAX_TENSORS_IN_SHUFFLE_BUFFER
+            ):
                 self.buffer_used += sample_size
                 self.num_torch_tensors += num_torch_tensors
                 self.pbar.update(sample_size)
@@ -113,7 +117,7 @@ class ShuffleBuffer:
         elif isinstance(sample, Sequence):
             return sum(self._num_torch_tensors(tensor) for tensor in sample)
         else:
-            return 0      
+            return 0
 
     def _sample_size(self, sample):
         try:
