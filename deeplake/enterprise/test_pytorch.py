@@ -257,8 +257,12 @@ def test_custom_tensor_order(hub_cloud_ds):
 @requires_libdeeplake
 def test_readonly_with_two_workers(hub_cloud_ds):
     with hub_cloud_ds:
-        hub_cloud_ds.create_tensor("images", max_chunk_size=PYTORCH_TESTS_MAX_CHUNK_SIZE)
-        hub_cloud_ds.create_tensor("labels", max_chunk_size=PYTORCH_TESTS_MAX_CHUNK_SIZE)
+        hub_cloud_ds.create_tensor(
+            "images", max_chunk_size=PYTORCH_TESTS_MAX_CHUNK_SIZE
+        )
+        hub_cloud_ds.create_tensor(
+            "labels", max_chunk_size=PYTORCH_TESTS_MAX_CHUNK_SIZE
+        )
         hub_cloud_ds.images.extend(np.ones((10, 12, 12)))
         hub_cloud_ds.labels.extend(np.ones(10))
 
