@@ -2107,6 +2107,7 @@ class ChunkEngine:
         self,
         global_sample_index: Optional[int] = None,
         link_callback: Optional[Callable] = None,
+        sample_id: Optional[str] = None,
     ):
         if global_sample_index is None:
             if self.is_sequence:
@@ -2129,7 +2130,7 @@ class ChunkEngine:
         if link_callback:
             link_callback(global_sample_index)
 
-        self.commit_diff.pop(global_sample_index)
+        self.commit_diff.pop(global_sample_index, sample_id)
         if self.is_sequence:
             # pop in reverse order else indices get shifted
             for idx in reversed(range(*self.sequence_encoder[global_sample_index])):

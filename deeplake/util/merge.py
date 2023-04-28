@@ -291,8 +291,10 @@ def merge_common_tensors(
         )
         for tensor_name in tensor_names
     }
+
     all_new_idxs = set()
     for new_idxs, _, _ in idxs.values():
+
         all_new_idxs.update(new_idxs)
     for idx in all_new_idxs:
         non_pad_found = False
@@ -437,6 +439,9 @@ def find_new_updated_and_conflict_indexes(
     target_id_tensor = target_dataset[id_tensor_name]
     original_id_tensor = dataset[id_tensor_name]
 
+    commit_diff = dataset[tensor_name].chunk_engine.commit_diff
+    deleted_samples = commit_diff.data_deleted_ids if commit_diff else set()
+
     original_node = nodes["original"]
     target_node = nodes["target"]
     lca_node = nodes["lca"]
@@ -456,11 +461,10 @@ def find_new_updated_and_conflict_indexes(
     target_id_to_index_map = {id: idx for idx, id in enumerate(target_ids)}
 
     new_elements_ids = set(target_ids) - set(original_ids)
-
+    new_elements_ids = new_elements_ids - deleted_samples
     new_indexes = get_indexes_from_ids(
         new_elements_ids, target_id_changes_commit_map, target_id_to_index_map
     )
-
     conflict_indexes: List[Tuple[int, int]] = []
     updated_indexes: List[Tuple[int, int]] = []
     updated_indexes, conflict_indexes = find_updated_and_conflicts(
