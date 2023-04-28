@@ -60,6 +60,8 @@ class ShuffleBuffer:
                 self.buffer_used += sample_size
                 self.pbar.update(sample_size)
                 self.buffer.append(sample)
+                if (self.num_torch_tensors + num_torch_tensors) % 1000 == 0:
+                    print(f"num_torch_tensors: {self.num_torch_tensors + num_torch_tensors}")
                 return None
             elif not self.pbar_closed:
                 self.close_buffer_pbar()
