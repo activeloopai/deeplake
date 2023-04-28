@@ -78,9 +78,7 @@ class ShuffleBuffer:
             self.buffer_used += sample_size
             self.buffer_used -= self._sample_size(val)
             self.num_torch_tensors += num_torch_tensors
-            self.num_torch_tensors -= self._num_torch_tensors(val)
-            import gc
-            gc.collect()
+            # self.num_torch_tensors -= self._num_torch_tensors(val)
             return val
         else:
             if not self.pbar_closed:
