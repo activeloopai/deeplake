@@ -216,6 +216,9 @@ class SubIterableDataset(torch.utils.data.IterableDataset):
                     try:
                         next_batch = next(it)
                     except Exception as e:
+                        print("=======MEM ERROR=======")
+                        print(len(buffer))
+                        print("=============")
                         # Ran out of shared memory
                         if buffer.emtpy():
                             raise e
