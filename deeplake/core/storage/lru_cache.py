@@ -58,12 +58,12 @@ class LRUCache(StorageProvider):
         self.cache_used = 0
         self.deeplake_objects: Dict[str, DeepLakeMemoryObject] = {}
         # TODO: BRING THIS BACK AFTER ASYNC IS FIXED
-        # self.use_async = (
-        #     next_storage.async_supported()
-        #     if next_storage
-        #     else False and sys.version_info >= (3, 7) and sys.platform != "win32"
-        # )
-        self.use_async = False
+        self.use_async = (
+            next_storage.async_supported()
+            if next_storage
+            else False and sys.version_info >= (3, 7) and sys.platform != "win32"
+        )
+        # self.use_async = False
 
     def register_deeplake_object(self, path: str, obj: DeepLakeMemoryObject):
         """Registers a new object in the cache."""
