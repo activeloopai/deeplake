@@ -51,9 +51,9 @@ class ShuffleBuffer:
             same sample if buffer is empty and sample doesn't fit
         """
         buffer_len = len(self.buffer)
-        print("==============BUFFER LENGTH=================")
-        print(buffer_len)
-        print("============================================")
+        # print("==============BUFFER LENGTH=================")
+        # print(buffer_len)
+        # print("============================================")
         if sample is not None:
             sample_size = self._sample_size(sample)
 
