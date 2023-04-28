@@ -311,7 +311,7 @@ class SampleStreaming(Streaming):
         sample_info_tensors, tensor_info_tensors = find_additional_tensors_and_info(
             dataset, data_tensors
         )
-        self.tensors.extend(sample_info_tensors)
+        self.tensors += sample_info_tensors
         (
             self.htype_dict,
             self.ndim_dict,
