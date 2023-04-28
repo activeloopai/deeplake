@@ -2458,6 +2458,8 @@ def test_sequence_numpy_bug(memory_ds):
         assert ds.abc.numpy(aslist=True) == [[1, 2], [1, 2, 3], [1, 2, 3, 4]]
 
 
+@requires_torch
+@requires_libdeeplake
 def test_env_creds(s3_path, hub_cloud_dev_token):
     ds = deeplake.dataset(s3_path)
     with ds:
@@ -2465,7 +2467,9 @@ def test_env_creds(s3_path, hub_cloud_dev_token):
         ds.x.extend(list(range(100)))
 
     ds.connect(
-        org_id=HUB_CLOUD_DEV_USERNAME, token=hub_cloud_dev_token, creds_key="my_s3_creds"
+        org_id=HUB_CLOUD_DEV_USERNAME,
+        token=hub_cloud_dev_token,
+        creds_key="my_s3_creds",
     )
     path = ds.path
     ds = deeplake.dataset(path, token=hub_cloud_dev_token, creds="ENV")
