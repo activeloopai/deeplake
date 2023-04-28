@@ -31,6 +31,7 @@ class ShuffleBuffer:
         self.size = size
         self.buffer: List[Any] = list()
         self.buffer_used = 0
+        self.num_torch_tensors = 0
         self.pbar = tqdm(
             total=self.size,
             desc="Please wait, filling up the shuffle buffer with samples.",
@@ -51,14 +52,11 @@ class ShuffleBuffer:
             same sample if buffer is empty and sample doesn't fit
         """
         buffer_len = len(self.buffer)
-        # print("==============BUFFER LENGTH=================")
-        # print(buffer_len)
-        # print("============================================")
         if sample is not None:
             sample_size = self._sample_size(sample)
-
+            num_torch_tensors = self._num_torch_tensors(sample)
             # fill buffer of not reach limit
-            if self.buffer_used + sample_size <= self.size:
+            if self.buffer_used + sample_size <= self.size and self.num_torch_tensors + num_torch_tensors < 32000:
                 self.buffer_used += sample_size
                 self.pbar.update(sample_size)
                 self.buffer.append(sample)
@@ -79,6 +77,8 @@ class ShuffleBuffer:
 
             self.buffer_used += sample_size
             self.buffer_used -= self._sample_size(val)
+            self.num_torch_tensors += num_torch_tensors
+            self.num_torch_tensors -= self._num_torch_tensors(val)
             return val
         else:
             if not self.pbar_closed:
@@ -95,6 +95,23 @@ class ShuffleBuffer:
 
     def emtpy(self) -> bool:
         return len(self.buffer) == 0
+
+    def _num_torch_tensors(self, sample):
+        try:
+            if sys.modules.get("torch"):
+                from torch import Tensor as TorchTensor
+            else:
+                return 0
+        except ImportError:
+            return 0
+        if isinstance(sample, TorchTensor):
+            return 1
+        elif isinstance(sample, dict):
+            return sum(self._num_torch_tensors(tensor) for tensor in sample.values())
+        elif isinstance(sample, Sequence):
+            return sum(self._num_torch_tensors(tensor) for tensor in sample)
+        else:
+            return 0      
 
     def _sample_size(self, sample):
         try:
