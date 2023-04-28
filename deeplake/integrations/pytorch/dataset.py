@@ -200,7 +200,6 @@ class SubIterableDataset(torch.utils.data.IterableDataset):
             warn("setting buffer_size = 0 will result in poor shuffling distribution")
 
     def __iter__(self):
-        print("======================OK!!====================")
         sub_loader = DataLoader(
             self.torch_datset,
             batch_size=self.batch_size,
@@ -216,7 +215,7 @@ class SubIterableDataset(torch.utils.data.IterableDataset):
                     next_batch = next(it)
                     for val in next_batch:
                         result = buffer.exchange(val)
-                        if result:
+                        if result is not None:
                             yield result
                     del next_batch
             except StopIteration:
