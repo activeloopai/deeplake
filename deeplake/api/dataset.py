@@ -322,7 +322,7 @@ class dataset:
     @staticmethod
     def empty(
         path: Union[str, pathlib.Path],
-        db_engine: bool = False,
+        runtime: Optional[dict] = None,
         overwrite: bool = False,
         public: bool = False,
         memory_cache_size: int = DEFAULT_MEMORY_CACHE_SIZE,
@@ -340,7 +340,7 @@ class dataset:
                 - an s3 path of the form ``s3://bucketname/path/to/dataset``. Credentials are required in either the environment or passed to the creds argument.
                 - a local file system path of the form ``./path/to/dataset`` or ``~/path/to/dataset`` or ``path/to/dataset``.
                 - a memory path of the form ``mem://path/to/dataset`` which doesn't save the dataset but keeps it in memory instead. Should be used only for testing as it does not persist.
-            db_engine (bool): Whether to use Activeloop DB Engine. Only applicable for hub:// paths.
+            runtime (dict): Parameters for Activeloop DB Engine. Only applicable for hub:// paths.
             overwrite (bool): If set to ``True`` this overwrites the dataset if it already exists. Defaults to ``False``.
             public (bool): Defines if the dataset will have public access. Applicable only if Deep Lake cloud storage is used and a new Dataset is being created. Defaults to ``False``.
             memory_cache_size (int): The size of the memory cache to be used in MB.
@@ -366,6 +366,9 @@ class dataset:
             Setting ``overwrite`` to ``True`` will delete all of your data if it exists! Be very careful when setting this parameter.
         """
         path, address = process_dataset_path(path)
+        if runtime is None:
+            runtime = {}
+        db_engine = runtime.get("db_engine", False)
 
         if address:
             raise ValueError(
