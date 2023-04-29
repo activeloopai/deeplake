@@ -268,7 +268,7 @@ class dataset:
                             cause=e.__cause__,
                         )
                     raise DatasetCorruptError(
-                        "Exception occured (see Traceback). The dataset maybe corrupted. "
+                        "Exception occurred (see Traceback). The dataset maybe corrupted. "
                         "Try using `reset=True` to reset HEAD changes and load the previous commit."
                     ) from e
                 return dataset._reset_and_load(
@@ -585,7 +585,7 @@ class dataset:
                             cause=e.__cause__,
                         )
                     raise DatasetCorruptError(
-                        "Exception occured (see Traceback). The dataset maybe corrupted. "
+                        "Exception occurred (see Traceback). The dataset maybe corrupted. "
                         "Try using `reset=True` to reset HEAD changes and load the previous commit. "
                         "This will delete all uncommitted changes on the branch you are trying to load."
                     ) from e
