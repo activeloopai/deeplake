@@ -2,8 +2,11 @@
      <img src="https://i.postimg.cc/rsjcWc3S/deeplake-logo.png" width="400"/>
 </h1>
     </br>
-    <h1 align="center">Deep Lake: Data Lake for Deep Learning
+    <h1 align="center">Deep Lake: AI Vector Database for ALL Data
  </h1>
+ </h3>
+    <h3 align="center">Deep Lake also acts as a Data Lake for Deep Learning
+ </h3>
 <p align="center">
     <a href="https://github.com/activeloopai/Hub/actions/workflows/test-pr-on-label.yml"><img src="https://github.com/activeloopai/Hub/actions/workflows/test-push.yml/badge.svg" alt="PyPI version" height="18"></a>
     <a href="https://pypi.org/project/deeplake/"><img src="https://badge.fury.io/py/deeplake.svg" alt="PyPI version" height="18"></a>
@@ -30,7 +33,7 @@
 
 ## About Deep Lake
 
-Deep Lake is a data lake for deep learning applications. Our open-source dataset format is optimized for rapid streaming and querying of data while training models at scale, and it includes a simple API for creating, storing, and versioning AI datasets of any size. It can be deployed locally or in the cloud, and it enables you to store all of your data in one place, ranging from simple annotations to vectors to large videos. Deep Lake is used by Google, Waymo, Matterport, Red Cross, Yale, & Oxford. Deep Lake includes the following features:
+Deep Lake combines the power of both Data Lakes and Vector Databases to build and fine-tune enterprise-grade, LLM-based solutions, and iteratively improve them over time. We enable storing any kind of data (embeddings, audio, text, videos, images, pdfs, annotations, etc.), querying and streaminf it rapidly to while training models at scale or when using with Large Language Models with LangChain or LlamaIndex. Deep Lake includes a simple API for creating, storing, and versioning AI datasets of any size. Deep Lake is serverless, and enables you to store all of your data in one place. Deep Lake is used by Google, Intel, Waymo, Matterport, Red Cross, Yale, & Oxford. Deep Lake includes the following features:
 
 <details>
   <summary><b>Storage Agnostic API</b></summary>
@@ -278,6 +281,28 @@ Deep Lake users can access and visualize a variety of popular datasets through a
 
 
 ## 👩‍💻 Comparisons to Familiar Tools
+
+<details>
+  <summary><b>Deep Lake vs Chroma </b></summary>
+  
+Both Deep Lake & ChromaDB enable users to store and search vectors (embeddings) and offer integrations with LangChain and LlamaIndex. However, they are architecturally very different. ChromaDB is a Vector Database that can be deployed locally or on a server using Docker and will offer a hosted solution shortly. Deep Lake is a serverless Vector Store deployed on the user’s own cloud, locally, or in-memory. All computations run client-side, which enables users to support lightweight production apps in seconds. Unlike ChromaDB, Deep Lake’s data format can store raw data such as images, videos, and text, in addition to embeddings. ChromaDB is limited to light metadata on top of the embeddings and has no visualization. Deep Lake datasets can be visualized and version controlled. Deep Lake also has a performant dataloader for fine-tuning your Large Language Models. 
+
+</details>
+
+
+<details>
+  <summary><b>Deep Lake vs Pinecone</b></summary>
+  
+Both Deep Lake and Pinecone enable users to store and search vectors (embeddings) and offer integrations with LangChain and LlamaIndex. However, they are  architecturally very different. Pinecone is a fully-managed Vector Database that is optimized for highly demanding applications requiring serach for billions of vectors. Deep Lake is a serverless. All computations run client-side, which enables users to get started in seconds. Unlike Pinecone, Deep Lake’s data format can store raw data such as images, videos, and text, in addition to embeddings. Deep Lake datasets can be visualized and version controlled. Pinecone is limited to light metadata on top of the embeddings and has no visualization. Deep Lake also has a performant dataloader for fine-tuning your Large Language Models. 
+
+</details>
+
+<details>
+  <summary><b>Deep Lake vs Weaviate</b></summary>
+  
+Both Deep Lake and Weaviate enable users to store and search vectors (embeddings) and offer integrations with LangChain and LlamaIndex. However, they are  architecturally very different. Weaviate is a Vector Database that can be deployed in a managed service or by the user via Kubernetes or Docker. Deep Lake is serverless. All computations run client-side, which enables users to support lightweight production apps in seconds. Unlike Weaviate, Deep Lake’s data format can store raw data such as images, videos, and text, in addition to embeddings. Deep Lake datasets can be visualized and version controlled. Weaviate is limited to light metadata on top of the embeddings and has no visualization. Deep Lake also has a performant dataloader for fine-tuning your Large Language Models. 
+
+</details>
 
 
 <details>
