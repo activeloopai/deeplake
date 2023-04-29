@@ -1995,8 +1995,7 @@ class Dataset:
         if runtime is not None and runtime.get("db_engine", False):
             client = DeepLakeBackendClient(token=self._token)
             org_id, ds_name = self.path[6:].split("/")
-            indicies = client.remote_query(org_id, ds_name, query_string).split(",")
-            indicies = [int(i) for i in indicies]
+            indicies = client.remote_query(org_id, ds_name, query_string)
             return self[indicies]
 
         from deeplake.enterprise import query

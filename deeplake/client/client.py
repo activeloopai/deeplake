@@ -1,6 +1,6 @@
 import deeplake
 import requests
-from typing import Optional
+from typing import Optional, List
 from deeplake.util.exceptions import (
     AgreementNotAcceptedError,
     AuthorizationException,
@@ -490,7 +490,7 @@ class DeepLakeBackendClient:
 
         return response["generated_id"]
 
-    def remote_query(self, org_id: str, ds_name: str, query_string: str):
+    def remote_query(self, org_id: str, ds_name: str, query_string: str) -> List[int]:
         """Queries a remote dataset.
 
         Args:
@@ -508,4 +508,9 @@ class DeepLakeBackendClient:
             endpoint=self.endpoint(),
         ).json()
 
-        return response["indices"]
+        indicies = response["indices"]
+        if len(indicies) == 0:
+            return []
+
+        indicies = [int(i) for i in indicies.split(",")]
+        return indicies
