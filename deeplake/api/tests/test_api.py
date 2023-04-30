@@ -11,6 +11,7 @@ from deeplake.tests.common import (
     is_opt_true,
     get_dummy_data_path,
     requires_libdeeplake,
+    requires_torch,
 )
 from deeplake.tests.storage_fixtures import enabled_remote_storages
 from deeplake.core.storage import GCSProvider
