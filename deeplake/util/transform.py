@@ -340,7 +340,9 @@ def create_worker_chunk_engines(
     """
     all_chunk_engines: Dict[str, ChunkEngine] = {}
     num_tries = 1000
-    storage_cache = LRUCache(MemoryProvider(), output_storage, TRANSFORM_CHUNK_CACHE_SIZE)
+    storage_cache = LRUCache(
+        MemoryProvider(), output_storage, TRANSFORM_CHUNK_CACHE_SIZE
+    )
     storage_cache.autoflush = False
     # TODO: replace this with simply a MemoryProvider once we get rid of cachable
     memory_cache = LRUCache(

@@ -2723,7 +2723,7 @@ class ChunkEngine:
             return None
         shape = [num_samples] + max_shape
         nbytes = 1
-        for dim in shape:   # not using np.prod to avoid overflow
+        for dim in shape:  # not using np.prod to avoid overflow
             nbytes *= dim
         nbytes = nbytes * np.dtype(dtype).itemsize
         avg_chunk_size = nbytes / num_chunks
