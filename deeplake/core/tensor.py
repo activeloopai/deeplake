@@ -1049,7 +1049,9 @@ class Tensor:
             index = self.num_samples - 1
         sample_id = int(sample_id_tensor[index].numpy()) if sample_id_tensor else None
         self.chunk_engine.pop(
-            index, link_callback=self._pop_links if self.meta.links else None, sample_id=sample_id
+            index,
+            link_callback=self._pop_links if self.meta.links else None,
+            sample_id=sample_id,
         )
         self.invalidate_libdeeplake_dataset()
 

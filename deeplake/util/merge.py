@@ -294,7 +294,6 @@ def merge_common_tensors(
 
     all_new_idxs = set()
     for new_idxs, _, _ in idxs.values():
-
         all_new_idxs.update(new_idxs)
     for idx in all_new_idxs:
         non_pad_found = False

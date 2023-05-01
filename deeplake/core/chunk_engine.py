@@ -2107,7 +2107,7 @@ class ChunkEngine:
         self,
         global_sample_index: Optional[int] = None,
         link_callback: Optional[Callable] = None,
-        sample_id: Optional[str] = None,
+        sample_id: Optional[int] = None,
     ):
         if global_sample_index is None:
             if self.is_sequence:
