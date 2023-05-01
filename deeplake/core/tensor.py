@@ -1045,6 +1045,8 @@ class Tensor:
     def pop(self, index: Optional[int] = None):
         """Removes an element at the given index."""
         sample_id_tensor = self._sample_id_tensor
+        if index is None:
+            index = self.num_samples - 1
         sample_id = int(sample_id_tensor[index].numpy()) if sample_id_tensor else None
         self.chunk_engine.pop(
             index, link_callback=self._pop_links if self.meta.links else None, sample_id=sample_id
