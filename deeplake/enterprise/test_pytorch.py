@@ -256,10 +256,15 @@ def test_custom_tensor_order(hub_cloud_ds):
 @requires_torch
 @requires_libdeeplake
 def test_readonly_with_two_workers(hub_cloud_ds):
-    hub_cloud_ds.create_tensor("images", max_chunk_size=PYTORCH_TESTS_MAX_CHUNK_SIZE)
-    hub_cloud_ds.create_tensor("labels", max_chunk_size=PYTORCH_TESTS_MAX_CHUNK_SIZE)
-    hub_cloud_ds.images.extend(np.ones((10, 12, 12)))
-    hub_cloud_ds.labels.extend(np.ones(10))
+    with hub_cloud_ds:
+        hub_cloud_ds.create_tensor(
+            "images", max_chunk_size=PYTORCH_TESTS_MAX_CHUNK_SIZE
+        )
+        hub_cloud_ds.create_tensor(
+            "labels", max_chunk_size=PYTORCH_TESTS_MAX_CHUNK_SIZE
+        )
+        hub_cloud_ds.images.extend(np.ones((10, 12, 12)))
+        hub_cloud_ds.labels.extend(np.ones(10))
 
     base_storage = get_base_storage(hub_cloud_ds.storage)
     base_storage.flush()
@@ -540,7 +545,9 @@ def test_indexes_transform(hub_cloud_ds, num_workers):
         hub_cloud_ds.dataloader()
         .batch(4)
         .transform(index_transform)
-        .pytorch(num_workers=num_workers, return_index=True)
+        .pytorch(
+            num_workers=num_workers, return_index=True, collate_fn=identity_collate
+        )
     )
     if shuffle:
         ptds = ptds.shuffle()
