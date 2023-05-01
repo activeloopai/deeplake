@@ -10,6 +10,7 @@ import sys
 from PIL import Image  # type: ignore
 from io import BytesIO
 from tqdm import tqdm  # type: ignore
+from deeplake.util.warnings import always_warn
 import deeplake
 
 
@@ -56,11 +57,11 @@ class ShuffleBuffer:
         if sample is not None:
             sample_size = self._sample_size(sample)
             num_torch_tensors = self._num_torch_tensors(sample)
+            max_tensors_reached = self.num_torch_tensors + num_torch_tensors >= deeplake.constants.MAX_TENSORS_IN_SHUFFLE_BUFFER
             # fill buffer of not reach limit
             if (
                 self.buffer_used + sample_size <= self.size
-                and self.num_torch_tensors + num_torch_tensors
-                < deeplake.constants.MAX_TENSORS_IN_SHUFFLE_BUFFER
+                and not max_tensors_reached
             ):
                 self.buffer_used += sample_size
                 self.num_torch_tensors += num_torch_tensors
@@ -68,6 +69,8 @@ class ShuffleBuffer:
                 self.buffer.append(sample)
                 return None
             elif not self.pbar_closed:
+                if max_tensors_reached:
+                    always_warn("`MAX_TENSORS_IN_SHUFFLE_BUFFER` reached. Shuffle buffer will not be filled up.")
                 self.close_buffer_pbar()
 
             if buffer_len == 0:
