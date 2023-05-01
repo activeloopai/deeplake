@@ -1,17 +1,34 @@
 import deeplake
 from deeplake.constants import MB
+from deeplake.enterprise.util import raise_indra_installation_error
+
+try:
+    from indra import api
+
+    _INDRA_INSTALLED = True
+except Exception:
+    _INDRA_INSTALLED = False
 
 import numpy as np
 
 from typing import Dict
 
 
-def create_or_load_dataset(dataset_path, token, creds, logger, read_only, **kwargs):
+def check_indra_installation(exec_option, indra_installed):
+    if exec_option == "indra" and not indra_installed:
+        raise raise_indra_installation_error(indra_import_error=False)
+
+
+def create_or_load_dataset(
+    dataset_path, token, creds, logger, read_only, exec_option, **kwargs
+):
+    check_indra_installation(exec_option=exec_option, indra_installed=_INDRA_INSTALLED)
     if dataset_exists(dataset_path, token, creds, **kwargs):
         return load_dataset(dataset_path, token, creds, logger, read_only, **kwargs)
+
     if "overwrite" in kwargs:
         del kwargs["overwrite"]
-    return create_deeplake_dataset(dataset_path, token, **kwargs)
+    return create_dataset(dataset_path, token, **kwargs)
 
 
 def dataset_exists(dataset_path, token, creds, **kwargs):
@@ -28,11 +45,10 @@ def load_dataset(dataset_path, token, creds, logger, read_only, **kwargs):
         f"Deep Lake Dataset in {dataset_path} already exists, "
         f"loading from the storage"
     )
-    dataset.summary()
     return dataset
 
 
-def create_deeplake_dataset(dataset_path, token, **kwargs):
+def create_dataset(dataset_path, token, **kwargs):
     dataset = deeplake.empty(dataset_path, token=token, overwrite=True, **kwargs)
 
     with dataset:

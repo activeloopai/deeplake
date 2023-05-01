@@ -1,6 +1,15 @@
 import deeplake
 from deeplake.core.vectorstore import utils, vector_search
+from deeplake.enterprise.util import raise_indra_installation_error
 
+try:
+    from indra import api
+
+    _INDRA_INSTALLED = True
+except Exception:
+    _INDRA_INSTALLED = False
+
+import time
 import logging
 import uuid
 from functools import partial
@@ -32,7 +41,7 @@ class DeepLakeVectorStore:
         self.num_workers = num_workers
         creds = {"creds": kwargs["creds"]} if "creds" in kwargs else {}
         self.dataset = utils.create_or_load_dataset(
-            dataset_path, token, creds, logger, read_only, **kwargs
+            dataset_path, token, creds, logger, read_only, exec_option, **kwargs
         )
         self._embedding_function = embedding_function
         self._exec_option = exec_option
@@ -70,6 +79,11 @@ class DeepLakeVectorStore:
         exec_option: Optional[str] = None,
     ):
         view = self._attribute_based_filtering(filter)
+        utils.check_indra_installation(exec_option, indra_installed=_INDRA_INSTALLED)
+
+        if exec_option == "indra" and _INDRA_INSTALLED:
+            view = api.dataset(view.path)
+
         if len(view) == 0:
             return view
 
@@ -78,16 +92,24 @@ class DeepLakeVectorStore:
         else:
             emb = self._get_embedding(embedding, query)
             query_emb = np.array(emb, dtype=np.float32)
-            embeddings = view.embedding.numpy(fetch_chunks=True)
+            exec_option = exec_option or self._exec_option
+            embeddings = self._fetch_embeddings(exec_option=exec_option, view=view)
             indices, scores = vector_search.search(
                 query_embedding=query_emb,
                 embedding=embeddings,
                 k=k,
                 distance_metric=distance_metric.lower(),
-                exec_option=exec_option or self._exec_option,
+                exec_option=exec_option,
                 deeplake_dataset=self.dataset,
             )
             return (view, indices, scores)
+
+    def _fetch_embeddings(self, exec_option, view):
+        if exec_option == "python":
+            embeddings = view.embedding.numpy()
+        elif exec_option == "indra":
+            embeddings = None
+        return embeddings
 
     def _get_embedding(self, embedding, query):
         if embedding is not None:
