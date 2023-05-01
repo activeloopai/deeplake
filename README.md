@@ -2,11 +2,8 @@
      <img src="https://i.postimg.cc/rsjcWc3S/deeplake-logo.png" width="400"/>
 </h1>
     </br>
-    <h1 align="center">Deep Lake: AI Vector Database for ALL Data
+    <h1 align="center">Deep Lake: Vector Database for any AI data
  </h1>
- </h3>
-    <h3 align="center">Deep Lake also acts as a Data Lake for Deep Learning
- </h3>
 <p align="center">
     <a href="https://github.com/activeloopai/Hub/actions/workflows/test-pr-on-label.yml"><img src="https://github.com/activeloopai/Hub/actions/workflows/test-push.yml/badge.svg" alt="PyPI version" height="18"></a>
     <a href="https://pypi.org/project/deeplake/"><img src="https://badge.fury.io/py/deeplake.svg" alt="PyPI version" height="18"></a>
@@ -33,7 +30,9 @@
 
 ## About Deep Lake
 
-Deep Lake combines the power of both Data Lakes and Vector Databases to build and fine-tune enterprise-grade, LLM-based solutions, and iteratively improve them over time. We enable storing any kind of data (embeddings, audio, text, videos, images, pdfs, annotations, etc.), querying and streaminf it rapidly to while training models at scale or when using with Large Language Models with LangChain or LlamaIndex. Deep Lake includes a simple API for creating, storing, and versioning AI datasets of any size. Deep Lake is serverless, and enables you to store all of your data in one place. Deep Lake is used by Google, Intel, Waymo, Matterport, Red Cross, Yale, & Oxford. Deep Lake includes the following features:
+Deep Lake is a Vector Database powered by a unique storage format optimized for deep-learning and Large Language Model (LLM) based applications. It simplifies the deployment of enterprise-grade LLM-based products by offering storage for all data types (embeddings, audio, text, videos, images, pdfs, annotations, etc.), querying and vector search, data streaming while training models at scale, data versioning and lineage for all workloads, and integrations with popular tools such as LangChain, LlamaIndex, Weights and Biases, and many more. Deep Lake works with data of any size, it is serverless, and it enables you to store all of your data in once place. Deep Lake is used by Google, Intel, Waymo, Matterport, Red Cross, Yale, & Oxford. 
+
+Deep Lake includes the following features:
 
 <details>
   <summary><b>Storage Agnostic API</b></summary>
