@@ -5,6 +5,7 @@ import boto3
 import botocore  # type: ignore
 import posixpath
 from typing import Dict, Optional, Tuple, Type
+from datetime import datetime
 from botocore.session import ComponentLocator
 from deeplake.client.client import DeepLakeBackendClient
 from deeplake.core.storage.provider import StorageProvider
@@ -115,6 +116,8 @@ class S3Provider(StorageProvider):
         self.aws_region: Optional[str] = aws_region
         self.endpoint_url: Optional[str] = endpoint_url
         self.expiration: Optional[str] = None
+        self.repository: Optional[str] = None
+        self.db_engine: bool = False
         self.tag: Optional[str] = None
         self.token: Optional[str] = token
         self.loaded_creds_from_environment = False
@@ -139,7 +142,7 @@ class S3Provider(StorageProvider):
             token=self.token,
         )
         if self.expiration:
-            sd._set_hub_creds_info(self.hub_path, self.expiration)  # type: ignore
+            sd._set_hub_creds_info(self.hub_path, self.expiration, self.db_engine, self.repository)  # type: ignore
         sd.read_only = read_only
         sd.creds_used = self.creds_used
         return sd
@@ -437,6 +440,8 @@ class S3Provider(StorageProvider):
             "endpoint_url",
             "client_config",
             "expiration",
+            "db_engine",
+            "repository",
             "tag",
             "token",
             "loaded_creds_from_environment",
@@ -465,17 +470,26 @@ class S3Provider(StorageProvider):
         if not self.path.endswith("/"):
             self.path += "/"
 
-    def _set_hub_creds_info(self, hub_path: str, expiration: str):
+    def _set_hub_creds_info(
+        self,
+        hub_path: str,
+        expiration: str,
+        db_engine: bool = True,
+        repository: Optional[str] = None,
+    ):
         """Sets the tag and expiration of the credentials. These are only relevant to datasets using Deep Lake storage.
         This info is used to fetch new credentials when the temporary 12 hour credentials expire.
 
         Args:
-            hub_path (str): The Deep Lake cloud path to the dataset.
+            hub_path (str): The deeplake cloud path to the dataset.
             expiration (str): The time at which the credentials expire.
+            db_engine (bool): Whether Activeloop DB Engine enabled.
         """
         self.hub_path = hub_path
         self.tag = hub_path[6:]  # removing the hub:// part from the path
         self.expiration = expiration
+        self.db_engine = db_engine
+        self.repository = repository
 
     def _initialize_s3_parameters(self):
         self._set_bucket_and_path()
@@ -490,19 +504,23 @@ class S3Provider(StorageProvider):
         """If the client has an expiration time, check if creds are expired and fetch new ones.
         This would only happen for datasets stored on Deep Lake storage for which temporary 12 hour credentials are generated.
         """
-        if self.expiration and (force or float(self.expiration) < time.time()):
+        if self.expiration and (
+            force or float(self.expiration) < datetime.utcnow().timestamp()
+        ):
             client = DeepLakeBackendClient(self.token)
             org_id, ds_name = self.tag.split("/")
 
             mode = "r" if self.read_only else "a"
 
-            url, creds, mode, expiration = client.get_dataset_credentials(
+            url, creds, mode, expiration, repo = client.get_dataset_credentials(
                 org_id,
                 ds_name,
                 mode,
+                {"enabled": self.db_engine},
                 True,
             )
             self.expiration = expiration
+            self.repository = repo
             self.aws_access_key_id = creds.get("aws_access_key_id")
             self.aws_secret_access_key = creds.get("aws_secret_access_key")
             self.aws_session_token = creds.get("aws_session_token")

@@ -1,6 +1,6 @@
 import deeplake
 import requests
-from typing import Optional
+from typing import Optional, List
 from deeplake.util.exceptions import (
     AgreementNotAcceptedError,
     AuthorizationException,
@@ -38,6 +38,7 @@ from deeplake.client.config import (
     UPDATE_SUFFIX,
     GET_PRESIGNED_URL_SUFFIX,
     CONNECT_DATASET_SUFFIX,
+    REMOTE_QUERY_SUFFIX,
 )
 from deeplake.client.log import logger
 import jwt  # should add it to requirements.txt
@@ -222,8 +223,8 @@ class DeepLakeBackendClient:
             ds_name (str): The name of the dataset being accessed.
             mode (str, optional): The mode in which the user has requested to open the dataset.
                 If not provided, the backend will set mode to 'a' if user has write permission, else 'r'.
+            db_engine (dict, optional): The database engine args to use for the dataset.
             no_cache (bool): If True, cached creds are ignored and new creds are returned. Default False.
-
         Returns:
             tuple: containing full url to dataset, credentials, mode and expiration time respectively.
 
@@ -234,6 +235,8 @@ class DeepLakeBackendClient:
             AgreementNotAcceptedError: when user has not accepted the agreement
             NotLoggedInAgreementError: when user is not logged in and dataset has agreement which needs to be signed
         """
+        import json
+
         db_engine = db_engine or {}
         relative_url = GET_DATASET_CREDENTIALS_SUFFIX.format(org_id, ds_name)
         try:
@@ -241,7 +244,11 @@ class DeepLakeBackendClient:
                 "GET",
                 relative_url,
                 endpoint=self.endpoint(),
-                params={"mode": mode, "no_cache": no_cache, "db_engine": db_engine},
+                params={
+                    "mode": mode,
+                    "no_cache": no_cache,
+                    "db_engine": json.dumps(db_engine),
+                },
             ).json()
         except Exception as e:
             if isinstance(e, AuthorizationException):
@@ -271,10 +278,11 @@ class DeepLakeBackendClient:
                     raise TokenPermissionError()
             raise
         full_url = response.get("path")
+        repository = response.get("repository")
         creds = response["creds"]
         mode = response["mode"]
         expiration = creds["expiration"]
-        return full_url, creds, mode, expiration
+        return full_url, creds, mode, expiration, repository
 
     def send_event(self, event_json: dict):
         """Sends an event to the backend.
@@ -284,19 +292,22 @@ class DeepLakeBackendClient:
         """
         self.request("POST", SEND_EVENT_SUFFIX, json=event_json)
 
-    def create_dataset_entry(self, username, dataset_name, meta, public=True):
+    def create_dataset_entry(
+        self, username, dataset_name, meta, public=True, repository=None
+    ):
         tag = f"{username}/{dataset_name}"
-        repo = f"protected/{username}"
+        if repository is None:
+            repository = f"protected/{username}"
 
         response = self.request(
             "POST",
             CREATE_DATASET_SUFFIX,
             json={
                 "tag": tag,
-                "repository": repo,
                 "public": public,
                 "rewrite": True,
                 "meta": meta,
+                "repository": repository,
             },
             endpoint=self.endpoint(),
         )
@@ -478,3 +489,28 @@ class DeepLakeBackendClient:
         ).json()
 
         return response["generated_id"]
+
+    def remote_query(self, org_id: str, ds_name: str, query_string: str) -> List[int]:
+        """Queries a remote dataset.
+
+        Args:
+            org_id (str): The organization to which the dataset belongs.
+            ds_name (str): The name of the dataset.
+            query_string (str): The query string.
+
+        Returns:
+            dict: The indicies matching the query.
+        """
+        response = self.request(
+            "POST",
+            REMOTE_QUERY_SUFFIX.format(org_id, ds_name),
+            json={"query": query_string},
+            endpoint=self.endpoint(),
+        ).json()
+
+        indicies = response["indices"]
+        if len(indicies) == 0:
+            return []
+
+        indicies = [int(i) for i in indicies.split(",")]
+        return indicies
