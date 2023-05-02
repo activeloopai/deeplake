@@ -52,21 +52,7 @@ def storage_provider_from_path(
         creds = {}
     if path.startswith("hub://"):
         storage: StorageProvider = storage_provider_from_hub_path(
-            path, read_only, token=token, creds=creds
-        )
-    elif (
-        path.startswith("gcp://")
-        or path.startswith("gcs://")
-        or path.startswith("gs://")
-    ):
-        storage = GCSProvider(path, creds)
-    elif path.startswith("gdrive://"):
-        storage = GDriveProvider(path, creds)
-    elif path.startswith("mem://"):
-        storage = MemoryProvider(path)
-    elif path.startswith("hub://"):
-        storage = storage_provider_from_hub_path(
-            path, read_only, db_engine=db_engine, token=token
+            path, read_only, db_engine=db_engine, token=token, creds=creds
         )
     else:
         if isinstance(creds, str):
@@ -118,6 +104,7 @@ def storage_provider_from_hub_path(
     read_only: bool = False,
     db_engine: bool = False,
     token: Optional[str] = None,
+    creds: Optional[Union[dict, str]] = None,
 ):
     path, org_id, ds_name, subdir = process_hub_path(path)
     client = DeepLakeBackendClient(token=token)
@@ -125,12 +112,12 @@ def storage_provider_from_hub_path(
     mode = "r" if read_only else None
     # this will give the proper url (s3, gcs, etc) and corresponding creds, depending on where the dataset is stored.
     try:
-        url, creds, mode, expiration = client.get_dataset_credentials(
+        url, final_creds, mode, expiration = client.get_dataset_credentials(
             org_id, ds_name, mode=mode, db_egnine={"enabled": db_engine}
         )
     except AgreementNotAcceptedError as e:
         handle_dataset_agreements(client, e.agreements, org_id, ds_name)
-        url, creds, mode, expiration = client.get_dataset_credentials(
+        url, final_creds, mode, expiration = client.get_dataset_credentials(
             org_id, ds_name, mode=mode, db_engine={"enabled": db_engine}
         )
 
