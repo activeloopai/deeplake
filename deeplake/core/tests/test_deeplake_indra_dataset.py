@@ -1,9 +1,6 @@
 import deeplake
 import numpy as np
-from deeplake.tests.common import (
-    requires_libdeeplake,
-    convert_data_according_to_torch_version,
-)
+from deeplake.tests.common import requires_libdeeplake
 from deeplake.util.exceptions import DynamicTensorNumpyError
 from deeplake.core.dataset.deeplake_query_dataset import DeepLakeQueryDataset
 import random
@@ -107,7 +104,7 @@ def test_load_view(hub_cloud_ds_generator):
     dataloader = view[:3].dataloader().pytorch()
     iss = []
     for i, batch in enumerate(dataloader):
-        assert len(convert_data_according_to_torch_version(batch["label"])) == 10
+        assert len(batch["label"]) == 10
         iss.append(i)
 
     assert iss == [0, 1, 2]
@@ -121,7 +118,7 @@ def test_load_view(hub_cloud_ds_generator):
     dataloader = view[:3].dataloader().pytorch()
     iss = []
     for i, batch in enumerate(dataloader):
-        assert len(convert_data_according_to_torch_version(batch["label"])) == 5
+        assert len(batch["label"]) == 5
         iss.append(i)
 
     assert iss == [0, 1, 2]

@@ -144,7 +144,7 @@ class LinkTransformTestContext:
 def convert_data_according_to_torch_version(batch):
     import torch
 
-    if torch.__version__ > "2.0.0":
+    if torch.__version__ < "2.0.0":
         return batch[0]
     else:
         return batch

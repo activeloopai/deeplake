@@ -684,7 +684,7 @@ def test_pytorch_decode(ds, compressed_image_paths, compression):
         return
 
     for i, batch in enumerate(ds.pytorch(decode_method={"image": "tobytes"})):
-        image = batch["image"][0]
+        image = convert_data_according_to_torch_version(batch["image"])
         assert isinstance(image, bytes)
         if i < 5 and not compression:
             np.testing.assert_array_equal(
