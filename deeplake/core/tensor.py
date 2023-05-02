@@ -1047,11 +1047,15 @@ class Tensor:
     @invalid_view_op
     def pop(self, index: Optional[int] = None):
         """Removes an element at the given index."""
-
+        sample_id_tensor = self._sample_id_tensor
+        if index is None:
+            index = self.num_samples - 1
+        sample_id = int(sample_id_tensor[index].numpy()) if sample_id_tensor else None
         self.chunk_engine.pop(
-            index, link_callback=self._pop_links if self.meta.links else None
+            index,
+            link_callback=self._pop_links if self.meta.links else None,
+            sample_id=sample_id,
         )
-
         self.invalidate_libdeeplake_dataset()
 
     def _pop_links(self, global_sample_index: int):
