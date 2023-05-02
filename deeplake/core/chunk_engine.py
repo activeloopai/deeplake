@@ -489,10 +489,15 @@ class ChunkEngine:
 
     @property
     def num_samples(self) -> int:
-        """Returns the length of the primary axis of the tensor.
+        """Total length of tensor (includes samples in sequences)
         Ignores any applied indexing and returns the total length.
         """
         return self.tensor_meta.length
+
+    @property
+    def tensor_length(self) -> int:
+        """Length of primary axis of tensor (does not include samples in sequences)"""
+        return self._sequence_length or self.tensor_meta.length
 
     @property
     def last_chunk_key(self) -> str:
@@ -1616,7 +1621,7 @@ class ChunkEngine:
 
     def read_bytes_for_sample(self, global_sample_index: int) -> bytes:
         if self.chunk_compression:
-            raise Exception(
+            raise ValueError(
                 "Cannot retreive original bytes for samples in chunk-wise compressed tensors."
             )
         enc = self.chunk_id_encoder
@@ -1877,7 +1882,7 @@ class ChunkEngine:
     def get_single_sample(
         self, global_sample_index, index, fetch_chunks=False, pad_tensor=False
     ):
-        if pad_tensor and global_sample_index >= self.tensor_meta.length:
+        if pad_tensor and global_sample_index >= self.tensor_length:
             sample = self.get_empty_sample()
             try:
                 return sample[tuple(entry.value for entry in index.values[1:])]
@@ -1977,7 +1982,7 @@ class ChunkEngine:
         samples = []
         enc = self.chunk_id_encoder
         for global_sample_index in index.values[0].indices(length):
-            if pad_tensor and global_sample_index >= self.tensor_meta.length:
+            if pad_tensor and global_sample_index >= self.tensor_length:
                 sample = self.get_empty_sample()
                 try:
                     sample = sample[tuple(entry.value for entry in index.values[1:])]
@@ -2107,6 +2112,7 @@ class ChunkEngine:
         self,
         global_sample_index: Optional[int] = None,
         link_callback: Optional[Callable] = None,
+        sample_id: Optional[int] = None,
     ):
         if global_sample_index is None:
             if self.is_sequence:
@@ -2129,7 +2135,7 @@ class ChunkEngine:
         if link_callback:
             link_callback(global_sample_index)
 
-        self.commit_diff.pop(global_sample_index)
+        self.commit_diff.pop(global_sample_index, sample_id)
         if self.is_sequence:
             # pop in reverse order else indices get shifted
             for idx in reversed(range(*self.sequence_encoder[global_sample_index])):
@@ -2490,10 +2496,19 @@ class ChunkEngine:
         return
 
     def shape(
-        self, index: Index, sample_shape_provider: Optional[Callable] = None
+        self,
+        index: Index,
+        sample_shape_provider: Optional[Callable] = None,
+        pad_tensor: bool = False,
     ) -> Tuple[Optional[int], ...]:
-        shape = self.shape_interval(index).astuple()[1:]
         index_0, sample_index = index.values[0], index.values[1:]
+        if (
+            not index_0.subscriptable()
+            and pad_tensor
+            and index_0.value >= self.tensor_length  # type: ignore
+        ):
+            return self.get_empty_sample().shape
+        shape = self.shape_interval(index).astuple()[1:]
         sample_indices = list(
             index_0.indices(self._sequence_length or self.num_samples)
         )
@@ -2707,6 +2722,10 @@ class ChunkEngine:
         dtype = self.tensor_meta.dtype
         if dtype in ("Any", "List", None):
             return None
-        nbytes = np.prod([num_samples] + max_shape) * np.dtype(dtype).itemsize
+        shape = [num_samples] + max_shape
+        nbytes = 1
+        for dim in shape:  # not using np.prod to avoid overflow
+            nbytes *= dim
+        nbytes = nbytes * np.dtype(dtype).itemsize
         avg_chunk_size = nbytes / num_chunks
         return avg_chunk_size

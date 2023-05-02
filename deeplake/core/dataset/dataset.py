@@ -32,6 +32,7 @@ from deeplake.util.iteration_warning import (
 from deeplake.api.info import load_info
 from deeplake.client.log import logger
 from deeplake.client.utils import get_user_name
+from deeplake.client.client import DeepLakeBackendClient
 from deeplake.constants import (
     FIRST_COMMIT_ID,
     DEFAULT_MEMORY_CACHE_SIZE,
@@ -1957,7 +1958,7 @@ class Dataset:
         dataset_read(self)
         return ret
 
-    def query(self, query_string: str):
+    def query(self, query_string: str, runtime: Optional[Dict] = None):
         """Returns a sliced :class:`~deeplake.core.dataset.Dataset` with given query results. To use this, install deeplake with ``pip install deeplake[enterprise]``.
 
         It allows to run SQL like queries on dataset and extract results. See supported keywords and the Tensor Query Language documentation
@@ -1991,6 +1992,12 @@ class Dataset:
         - Users of our Community plan can only perform queries on Activeloop datasets ("hub://activeloop/..." datasets).
         - To run queries on your own datasets, `upgrade your organization's plan <https://www.activeloop.ai/pricing/>`_.
         """
+        if runtime is not None and runtime.get("db_engine", False):
+            client = DeepLakeBackendClient(token=self._token)
+            org_id, ds_name = self.path[6:].split("/")
+            indicies = client.remote_query(org_id, ds_name, query_string)
+            return self[indicies]
+
         from deeplake.enterprise import query
 
         return query(self, query_string)
@@ -3358,6 +3365,7 @@ class Dataset:
     def _copy(
         self,
         dest: Union[str, pathlib.Path],
+        runtime: Optional[Dict] = None,
         tensors: Optional[List[str]] = None,
         overwrite: bool = False,
         creds=None,
@@ -3373,6 +3381,7 @@ class Dataset:
 
         Args:
             dest (str, pathlib.Path): Destination dataset or path to copy to. If a Dataset instance is provided, it is expected to be empty.
+            runtime (dict): Parameters for Activeloop DB Engine. Only applicable for hub:// paths.
             tensors (List[str], optional): Names of tensors (and groups) to be copied. If not specified all tensors are copied.
             overwrite (bool): If ``True`` and a dataset exists at `destination`, it will be overwritten. Defaults to False.
             creds (dict, Optional): creds required to create / overwrite datasets at `dest`.
@@ -3412,6 +3421,7 @@ class Dataset:
         dest_ds = deeplake.api.dataset.dataset._like(
             dest,
             self,
+            runtime=runtime,
             tensors=tensors,
             creds=creds,
             token=token,
@@ -3431,31 +3441,29 @@ class Dataset:
 
         def _copy_tensor(sample_in, sample_out):
             for tensor_name in dest_ds.tensors:
-                src = self[tensor_name]
+                src = sample_in[tensor_name]
                 if (
                     unlink
                     and src.is_link
                     and (src.base_htype != "video" or deeplake.constants._UNLINK_VIDEOS)
                 ):
-                    if len(self.index) > 1:
-                        sample_out[tensor_name].extend(sample_in[tensor_name])
+                    if len(sample_in.index) > 1:
+                        sample_out[tensor_name].extend(src)
                     else:
-                        if self.index.subscriptable_at(0):
-                            sample_idxs = list(
-                                sample_in.index.values[0].indices(len(self))
+                        if sample_in.index.subscriptable_at(0):
+                            sample_idxs = sample_in.index.values[0].indices(
+                                src.num_samples
                             )
                         else:
-                            sample_idxs = [self.index.values[0].value]
+                            sample_idxs = [sample_in.index.values[0].value]
                         sample_out[tensor_name].extend(
                             [
-                                sample_in[
-                                    tensor_name
-                                ].chunk_engine.get_deeplake_read_sample(sample_idx)
-                                for sample_idx in sample_idxs
+                                src.chunk_engine.get_deeplake_read_sample(i)
+                                for i in sample_idxs
                             ]
                         )
                 else:
-                    sample_out[tensor_name].extend(sample_in[tensor_name])
+                    sample_out[tensor_name].extend(src)
 
         if not self.index.subscriptable_at(0):
             old_first_index = self.index.values[0]
@@ -3507,6 +3515,7 @@ class Dataset:
     def copy(
         self,
         dest: Union[str, pathlib.Path],
+        runtime: Optional[dict] = None,
         tensors: Optional[List[str]] = None,
         overwrite: bool = False,
         creds=None,
@@ -3521,6 +3530,7 @@ class Dataset:
         Args:
             dest (str, pathlib.Path): Destination dataset or path to copy to. If a Dataset instance is provided, it is expected to be empty.
             tensors (List[str], optional): Names of tensors (and groups) to be copied. If not specified all tensors are copied.
+            runtime (dict): Parameters for Activeloop DB Engine. Only applicable for hub:// paths.
             overwrite (bool): If ``True`` and a dataset exists at `destination`, it will be overwritten. Defaults to False.
             creds (dict, Optional): creds required to create / overwrite datasets at `dest`.
             token (str, Optional): token used to for fetching credentials to `dest`.
@@ -3538,6 +3548,7 @@ class Dataset:
         """
         return self._copy(
             dest,
+            runtime,
             tensors,
             overwrite,
             creds,
@@ -4038,3 +4049,6 @@ class Dataset:
     def _temp_write_access(self):
         # Defined in DeepLakeCloudDataset
         return memoryview(b"")  # No-op context manager
+
+    def _get_storage_repository(self) -> Optional[str]:
+        return getattr(self.base_storage, "repository", None)

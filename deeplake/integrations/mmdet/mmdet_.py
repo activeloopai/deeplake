@@ -939,6 +939,7 @@ def build_dataloader(
     dataset.CLASSES = classes
     pipeline = build_pipeline(pipeline)
     metrics_format = train_loader_config.get("metrics_format")
+    persistent_workers = train_loader_config.get("persistent_workers", False)
     dist = train_loader_config["dist"]
     if dist and implementation == "python":
         raise NotImplementedError(
@@ -979,6 +980,12 @@ def build_dataloader(
     decode_method = {images_tensor: "numpy"}
 
     if implementation == "python":
+        if persistent_workers:
+            always_warn(
+                "Persistent workers are not supported for OSS dataloader. "
+                "persistent_workers=False will be used instead."
+            )
+
         loader = dataset.pytorch(
             tensors_dict=tensors_dict,
             num_workers=num_workers,
@@ -1025,6 +1032,7 @@ def build_dataloader(
                 tensors=tensors,
                 distributed=dist,
                 decode_method=decode_method,
+                persistent_workers=persistent_workers,
             )
         )
 
@@ -1263,7 +1271,6 @@ def _train_detector(
         dist=distributed,
         seed=cfg.seed,
         runner_type=runner_type,
-        persistent_workers=False,
         metrics_format=metrics_format,
     )
 
@@ -1364,7 +1371,6 @@ def _train_detector(
             workers_per_gpu=num_workers,
             dist=distributed,
             shuffle=False,
-            persistent_workers=False,
             mode="val",
             metrics_format=metrics_format,
             num_gpus=len(cfg.gpu_ids),
@@ -1374,6 +1380,10 @@ def _train_detector(
             **cfg.data.val.get("deeplake_dataloader", {}),
             **val_dataloader_default_args,
         }
+
+        train_persistent_workers = train_loader_cfg.get("persistent_workers", False)
+        val_persistent_workers = val_dataloader_args.get("persistent_workers", False)
+        check_persistent_workers(train_persistent_workers, val_persistent_workers)
 
         if val_dataloader_args.get("shuffle", False):
             always_warn("shuffle argument for validation dataset will be ignored.")
@@ -1458,6 +1468,24 @@ def _train_detector(
     elif cfg.load_from:
         runner.load_checkpoint(cfg.load_from)
     runner.run([data_loader], cfg.workflow)
+
+
+def check_persistent_workers(train_persistent_workers, val_persistent_workers):
+    if train_persistent_workers != val_persistent_workers:
+        if train_persistent_workers:
+            always_warn(
+                "persistent workers for training and evaluation should be identical, "
+                "otherwise, this could lead to performance issues. "
+                "Either both of then should be `True` or both of them should `False`. "
+                "If you want to use persistent workers set True for validation"
+            )
+        else:
+            always_warn(
+                "persistent workers for training and evaluation should be identical, "
+                "otherwise, this could lead to performance issues. "
+                "Either both of then should be `True` or both of them should `False`. "
+                "If you want to use persistent workers set True for training"
+            )
 
 
 def ddp_setup(rank: int, world_size: int, port: int):
