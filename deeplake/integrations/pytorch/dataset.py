@@ -59,7 +59,7 @@ def cast_type(tensor):
 
 def copy_tensor(x):
     if isinstance(x, dict):
-        return x
+        return x.copy()
     if isinstance(x, Sample):
         x = x.array
     if isinstance(x, Image.Image):
