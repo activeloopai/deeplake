@@ -123,6 +123,7 @@ class S3Provider(StorageProvider):
         self.profile_name = profile_name
         self._initialize_s3_parameters()
         self._presigned_urls: Dict[str, Tuple[str, float]] = {}
+        self.creds_used: Optional[str] = None
 
     def async_supported(self) -> bool:
         return asyncio is not None
@@ -140,6 +141,7 @@ class S3Provider(StorageProvider):
         if self.expiration:
             sd._set_hub_creds_info(self.hub_path, self.expiration)  # type: ignore
         sd.read_only = read_only
+        sd.creds_used = self.creds_used
         return sd
 
     def _set(self, path, content):
@@ -440,6 +442,7 @@ class S3Provider(StorageProvider):
             "loaded_creds_from_environment",
             "read_only",
             "profile_name",
+            "creds_used",
         }
 
     def __getstate__(self):
