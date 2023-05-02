@@ -458,7 +458,7 @@ def test_pytorch_decode(hub_cloud_ds, compressed_image_paths, compression):
     ptds = hub_cloud_ds.dataloader().pytorch(decode_method={"image": "tobytes"})
 
     for i, batch in enumerate(ptds):
-        image = batch["image"][0]
+        image = batch["image"]
         assert isinstance(image, bytes)
         if i < 5 and not compression:
             np.testing.assert_array_equal(
