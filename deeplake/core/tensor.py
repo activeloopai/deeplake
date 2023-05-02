@@ -474,7 +474,9 @@ class Tensor:
         )
         shape: Tuple[Optional[int], ...]
         shape = self.chunk_engine.shape(
-            self.index, sample_shape_provider=sample_shape_provider
+            self.index,
+            sample_shape_provider=sample_shape_provider,
+            pad_tensor=self.pad_tensor,
         )
 
         if len(self.index.values) == 1 and not self.index.values[0].subscriptable():
@@ -582,9 +584,7 @@ class Tensor:
         """Returns the length of the primary axis of the tensor.
         Ignores any applied indexing and returns the total length.
         """
-        if self.is_sequence:
-            return self.chunk_engine._sequence_length
-        return self.chunk_engine.num_samples
+        return self.chunk_engine.tensor_length
 
     def __len__(self):
         """Returns the length of the primary axis of the tensor.
@@ -968,7 +968,10 @@ class Tensor:
         if self.index.values[0].subscriptable() or len(self.index.values) > 1:
             raise ValueError("tobytes() can be used only on exactly 1 sample.")
         idx = self.index.values[0].value
-        ret = self.chunk_engine.read_bytes_for_sample(idx)  # type: ignore
+        if self.pad_tensor and idx >= self.num_samples:  # type: ignore
+            ret = self.chunk_engine.get_empty_sample().tobytes()
+        else:
+            ret = self.chunk_engine.read_bytes_for_sample(idx)  # type: ignore
         dataset_read(self.dataset)
         return ret
 
@@ -1044,11 +1047,15 @@ class Tensor:
     @invalid_view_op
     def pop(self, index: Optional[int] = None):
         """Removes an element at the given index."""
-
+        sample_id_tensor = self._sample_id_tensor
+        if index is None:
+            index = self.num_samples - 1
+        sample_id = int(sample_id_tensor[index].numpy()) if sample_id_tensor else None
         self.chunk_engine.pop(
-            index, link_callback=self._pop_links if self.meta.links else None
+            index,
+            link_callback=self._pop_links if self.meta.links else None,
+            sample_id=sample_id,
         )
-
         self.invalidate_libdeeplake_dataset()
 
     def _pop_links(self, global_sample_index: int):

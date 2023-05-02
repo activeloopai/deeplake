@@ -34,6 +34,7 @@ from deeplake.util.exceptions import (
 from deeplake.hooks import dataset_written, dataset_read
 from deeplake.util.version_control import auto_checkout
 from deeplake.util.class_label import sync_labels
+from deeplake.constants import DEFAULT_TRANSFORM_SAMPLE_CACHE_SIZE
 
 import posixpath
 
@@ -57,7 +58,7 @@ class ComputeFunction:
         check_lengths: bool = True,
         pad_data_in: bool = False,
         read_only_ok: bool = False,
-        cache_size: int = 16,
+        cache_size: int = DEFAULT_TRANSFORM_SAMPLE_CACHE_SIZE,
         checkpoint_interval: int = 0,
         ignore_errors: bool = False,
         **kwargs,
@@ -135,7 +136,7 @@ class Pipeline:
         check_lengths: bool = True,
         pad_data_in: bool = False,
         read_only_ok: bool = False,
-        cache_size: int = 16,
+        cache_size: int = DEFAULT_TRANSFORM_SAMPLE_CACHE_SIZE,
         checkpoint_interval: int = 0,
         ignore_errors: bool = False,
         **kwargs,

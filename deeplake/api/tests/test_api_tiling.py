@@ -199,3 +199,16 @@ def test_chunk_sizes(memory_ds):
             num_chunks += 1
             assert 16 * MB < len(chunk) < 20 * MB
     assert num_chunks == 4
+
+
+def test_tiled_indexing(memory_ds):
+    with memory_ds as ds:
+        ds.create_tensor("abc", sample_compression="lz4")
+        arr = np.random.randn(10, 50, 193, 501)
+        ds.abc.extend(arr)
+        np.testing.assert_array_equal(ds.abc[:, 2], arr[:, 2])
+        np.testing.assert_array_equal(ds.abc[:, [2]], arr[:, [2]])
+        np.testing.assert_array_equal(ds.abc[:, [3, 4, 5]], arr[:, [3, 4, 5]])
+        np.testing.assert_array_equal(
+            ds.abc[:, [3, 4, 5], [6, 7, 8]], arr[:, [3, 4, 5], [6, 7, 8]]
+        )
