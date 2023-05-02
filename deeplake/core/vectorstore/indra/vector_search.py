@@ -4,6 +4,7 @@ from deeplake.core.vectorstore.indra import query
 from indra import api
 
 
+@profile
 def vector_search(
     query_embedding,
     distance_metric,
@@ -15,14 +16,10 @@ def vector_search(
 ):
     tql_query = query.parse_query(distance_metric, k, query_embedding, embedding_tensor)
     indra_ds = api.dataset(deeplake_dataset.path)
-    view = indra_ds.query(tql_query, runtime={"db_engine": db_engine})
+    # view = indra_ds.query(tql_query, runtime={"db_engine": db_engine})
+
+    view = indra_ds.query(tql_query)
     indices = view.indexes
 
-    # TO DO: optimize next lines 14-17 when libdeeplake will support it.
-    scores = []
-    for i in range(len(view)):
-        score = view[i].score.numpy().tolist()
-        scores.append(score)
-
-    # scores = view.score.numpy()
+    scores = view.score.numpy()
     return indices, scores

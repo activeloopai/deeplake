@@ -89,7 +89,7 @@ class DeepLakeVectorStore:
         # TO DO:
         # 1. check filter with indra
 
-        view = filter_utlils.attribute_based_filtering(filter)
+        view = filter_utlils.attribute_based_filtering(self.dataset, filter)
         utils.check_indra_installation(exec_option, indra_installed=_INDRA_INSTALLED)
 
         if len(view) == 0:

@@ -25,7 +25,6 @@ def run_data_ingestion(
     )
 
 
-@staticmethod
 @deeplake.compute
 def ingest(sample_in: list, sample_out: list, _embedding_function) -> None:
     text_list = [s["text"] for s in sample_in]

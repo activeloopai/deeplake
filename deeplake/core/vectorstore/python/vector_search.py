@@ -16,6 +16,7 @@ distance_metric_map = {
 def vector_search(
     query_embedding: np.ndarray,
     embedding: np.ndarray,
+    db_engine: bool,
     distance_metric: str = "L2",
     k: Optional[int] = 4,
     **kwargs,
@@ -33,6 +34,9 @@ def vector_search(
     """
     if embedding.shape[0] == 0:
         return [], []
+
+    if db_engine:
+        raise Exception("Running query on a remote engine is not supported for python")
 
     # Calculate the distance between the query_vector and all data_vectors
     distances = distance_metric_map[distance_metric](query_embedding, embedding)
