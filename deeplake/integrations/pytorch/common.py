@@ -1,7 +1,11 @@
 from typing import Callable, Dict, Optional
 import warnings
+from deeplake.util.class_label import convert_to_text
 from deeplake.util.exceptions import EmptyTensorError
 from deeplake.util.iterable_ordered_dict import IterableOrderedDict
+from deeplake.util.keys import get_sample_info_tensor_key
+from deeplake.util.object_3d.mesh import parse_mesh_to_dict
+from deeplake.util.object_3d.point_cloud import parse_point_cloud_to_dict
 from deeplake.core.polygon import Polygons
 import numpy as np
 import warnings
@@ -26,7 +30,10 @@ def collate_fn(batch):
     elif isinstance(elem, list) and all(
         map(lambda e: isinstance(e, np.ndarray), elem)
     ):  # special case for video query api
-        if elem[0].shape[1] not in [2, 3]:  # checking whether it is not a polygon
+        if len(elem[0].shape) > 1 and elem[0].shape[1] not in [
+            2,
+            3,
+        ]:  # checking whether it is not a polygon
             elem_type = type(elem)
             return [
                 elem_type([torch.tensor(item) for item in sample]) for sample in batch
@@ -69,7 +76,7 @@ class PytorchTransformFunction:
         return data_in
 
 
-def check_tensors(dataset, tensors):
+def check_tensors(dataset, tensors, verbose=True):
     jpeg_png_compressed_tensors = []
     json_tensors = []
     list_tensors = []
@@ -90,7 +97,7 @@ def check_tensors(dataset, tensors):
         elif meta.htype == "list":
             list_tensors.append(tensor_name)
 
-    if json_tensors or list_tensors:
+    if verbose and (json_tensors or list_tensors):
         json_list_tensors = set(json_tensors + list_tensors)
         warnings.warn(
             f"The following tensors have json or list htype: {json_list_tensors}. Collation of these tensors will fail by default. Ensure that these tensors are either transformed by specifying a transform or a custom collate_fn is specified to handle them."
@@ -108,22 +115,29 @@ def validate_decode_method(
 ):
     raw_tensors = []
     pil_compressed_tensors = []
+    data_tensors = []
     if decode_method is None:
         if len(jpeg_png_compressed_tensors) > 0:
             warnings.warn(
                 f"Decode method for tensors {jpeg_png_compressed_tensors} is defaulting to numpy. Please consider specifying a decode_method in .pytorch() that maximizes the data preprocessing speed based on your transformation."
             )
-        return raw_tensors, pil_compressed_tensors, json_tensors, list_tensors
+        return (
+            raw_tensors,
+            pil_compressed_tensors,
+            json_tensors,
+            list_tensors,
+            data_tensors,
+        )
 
     jpeg_png_compressed_tensors_set = set(jpeg_png_compressed_tensors)
     json_list_tensors_set = set(json_tensors + list_tensors)
-    generic_supported_decode_methods = {"numpy", "tobytes"}
-    jpeg_png_supported_decode_methods = {"numpy", "tobytes", "pil"}
-    json_list_supported_decode_methods = {"numpy"}
+    generic_supported_decode_methods = {"numpy", "tobytes", "data"}
+    jpeg_png_supported_decode_methods = {"numpy", "tobytes", "pil", "data"}
+    json_list_supported_decode_methods = {"numpy", "data"}
     for tensor_name, decode_method in decode_method.items():
         if tensor_name not in all_tensor_keys:
             raise ValueError(
-                f"decode_method tensor {tensor_name} not found in tensors."
+                "tensor {tensor_name} specified in decode_method not found in tensors."
             )
         if tensor_name in jpeg_png_compressed_tensors_set:
             if decode_method not in jpeg_png_supported_decode_methods:
@@ -143,5 +157,89 @@ def validate_decode_method(
             raw_tensors.append(tensor_name)
         elif decode_method == "pil":
             pil_compressed_tensors.append(tensor_name)
+        elif decode_method == "data":
+            data_tensors.append(tensor_name)
+    return raw_tensors, pil_compressed_tensors, json_tensors, list_tensors, data_tensors
 
-    return raw_tensors, pil_compressed_tensors, json_tensors, list_tensors
+
+def find_additional_tensors_and_info(dataset, data_tensors):
+    sample_info_htypes = {
+        "image",
+        "image.rgb",
+        "image.gray",
+        "dicom",
+        "nifti",
+        "point_cloud",
+        "mesh",
+        "video",
+    }
+    tensor_info_htypes = {"class_label"}
+
+    sample_info_tensors = set()
+    tensor_info_tensors = set()
+    for tensor_name in data_tensors:
+        tensor = dataset._get_tensor_from_root(tensor_name)
+        htype = tensor.htype
+        if htype in sample_info_htypes:
+            info_tensor_name = get_sample_info_tensor_key(tensor_name)
+            if tensor._sample_info_tensor:
+                sample_info_tensors.add(info_tensor_name)
+        if htype in tensor_info_htypes:
+            tensor_info_tensors.add(tensor_name)
+        if htype == "video":
+            raise NotImplementedError(
+                "data decode method for video tensors isn't supported yet."
+            )
+    return sample_info_tensors, tensor_info_tensors
+
+
+def get_htype_ndim_tensor_info_dicts(dataset, data_tensors, tensor_info_tensors):
+    htype_dict = {}
+    ndim_dict = {}
+    tensor_info_dict = {}
+    for tensor_name in data_tensors:
+        tensor = dataset._get_tensor_from_root(tensor_name)
+        htype_dict[tensor_name] = tensor.htype
+        ndim_dict[tensor_name] = tensor.ndim
+        if tensor_name in tensor_info_tensors:
+            tensor_info_dict[tensor_name] = tensor.info._info
+    return htype_dict, ndim_dict, tensor_info_dict
+
+
+def convert_sample_to_data(sample: dict, htype_dict, ndim_dict, tensor_info_dict):
+    for tensor_name in htype_dict.keys():
+        value = sample[tensor_name]
+        htype = htype_dict[tensor_name]
+        ndim = ndim_dict[tensor_name]
+        tensor_info = tensor_info_dict.get(tensor_name)
+        sample_info = sample.pop(get_sample_info_tensor_key(tensor_name), None)
+        sample[tensor_name] = convert_value_to_data(
+            value, tensor_info, sample_info, htype, ndim
+        )
+
+
+def convert_value_to_data(value, tensor_info, sample_info, htype, ndim):
+    if htype in {"text", "json"}:
+        if not isinstance(value, str):
+            value = value[0]
+        return {"value": value}
+    elif htype == "video":
+        raise NotImplementedError
+    if htype == "class_label":
+        labels = value
+        data = {"value": labels}
+        class_names = tensor_info.get("class_names") if tensor_info else None
+        if class_names:
+            data["text"] = convert_to_text(labels, class_names)
+        return data
+    if htype in ("image", "image.rgb", "image.gray", "dicom", "nifti"):
+        return {
+            "value": value,
+            "sample_info": sample_info[0] or {},
+        }
+    elif htype == "point_cloud":
+        return parse_point_cloud_to_dict(value, ndim, sample_info)
+    elif htype == "mesh":
+        return parse_mesh_to_dict(value, sample_info)
+    else:
+        return {"value": value}
