@@ -199,7 +199,16 @@ class LoginException(Exception):
 
 
 class UserNotLoggedInException(Exception):
-    def __init__(self, message=""):
+    def __init__(self):
+        message = (
+            "You are not logged in and an API token was not found. To complete the operation, you can\n"
+            "1. Login with your username and password using the `activeloop login` CLI command.\n"
+            "2. Create an API token at https://app.activeloop.ai and use it in any of the following ways:\n"
+            "    - Set the environment variable `ACTIVELOOP_TOKEN` to the token value.\n"
+            "    - Use the CLI command `activeloop login -t <token>`.\n"
+            "    - Pass the API token to the `token` parameter of this function.\n"
+            "Visit https://docs.activeloop.ai/getting-started/using-activeloop-storage for more information."
+        )
         super().__init__(message)
 
 
@@ -521,6 +530,14 @@ def is_primitive(sample):
     return False
 
 
+def get_truncated_sample(sample, max_half_len=50):
+    if len(str(sample)) > max_half_len * 2:
+        return (
+            str(sample)[:max_half_len] + "..." + str(sample)[int(-max_half_len - 1) :]
+        )
+    return str(sample)
+
+
 def has_path(sample):
     from deeplake.core.sample import Sample
     from deeplake.core.linked_sample import LinkedSample
@@ -548,7 +565,7 @@ class TransformError(Exception):
                 msg += f" at index {index} of the input data"
 
             if print_item:
-                msg += f" on the item: {sample}"
+                msg += f" on the item: {get_truncated_sample(sample)}"
             elif print_path:
                 msg += f" on the sample at path: '{sample.path}'"
             msg += "."
@@ -1018,6 +1035,10 @@ class TransformFailedError(Exception):
 
 
 class MissingCredsError(Exception):
+    pass
+
+
+class EmptyPolygonError(Exception):
     pass
 
 

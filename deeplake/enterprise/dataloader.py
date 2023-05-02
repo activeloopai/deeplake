@@ -32,6 +32,19 @@ import numpy as np
 
 import math
 
+import itertools
+
+original_islice = itertools.islice
+
+
+def deeplake_islice(iterable, *args, **kwargs):
+    if isinstance(iterable, DeepLakeDataLoader):
+        return iter(iterable)
+    return original_islice(iterable, *args, **kwargs)
+
+
+itertools.islice = deeplake_islice  # type: ignore
+
 
 # Load lazy to avoid cycylic import.
 INDRA_LOADER = None
@@ -570,11 +583,21 @@ class DeepLakeDataLoader(DataLoader):
 
             tensors = self._tensors or map_tensor_keys(self._orig_dataset, None)
 
-            jpeg_png_compressed_tensors = check_tensors(self._orig_dataset, tensors)
-            raw_tensors, compressed_tensors = validate_decode_method(
-                self._decode_method, tensors, jpeg_png_compressed_tensors
+            jpeg_png_compressed_tensors, json_tensors, list_tensors = check_tensors(
+                self._orig_dataset, tensors
             )
-            raw_tensors.extend(compressed_tensors)
+            (
+                raw_tensors,
+                pil_compressed_tensors,
+                json_tensors,
+                list_tensors,
+            ) = validate_decode_method(
+                self._decode_method,
+                tensors,
+                jpeg_png_compressed_tensors,
+                json_tensors,
+                list_tensors,
+            )
             if deeplake.constants.RETURN_DUMMY_DATA_FOR_DATALOADER:
                 self._dataloader = DummyDataloader(
                     deeplake_dataset=self._orig_dataset,
@@ -590,13 +613,16 @@ class DeepLakeDataLoader(DataLoader):
                     upcast=upcast,
                     return_index=self._return_index,
                     raw_tensors=raw_tensors,
-                    compressed_tensors=compressed_tensors,
+                    pil_compressed_tensors=pil_compressed_tensors,
                     persistent_workers=self._persistent_workers,
                 )
             else:
-                dataset = dataset_to_libdeeplake(self._orig_dataset)
+                if not hasattr(self, "_indra_dataset"):
+                    indra_dataset = dataset_to_libdeeplake(self._orig_dataset)
+                else:
+                    indra_dataset = self._indra_dataset
                 self._dataloader = INDRA_LOADER(
-                    dataset,
+                    indra_dataset,
                     batch_size=self._batch_size,
                     num_threads=self._num_threads,
                     shuffle=self._shuffle,
@@ -612,7 +638,9 @@ class DeepLakeDataLoader(DataLoader):
                     primary_tensor=primary_tensor_name,
                     buffer_size=buffer_size,
                     raw_tensors=raw_tensors,
-                    compressed_tensors=compressed_tensors,
+                    pil_compressed_tensors=pil_compressed_tensors,
+                    json_tensors=json_tensors,
+                    list_tensors=list_tensors,
                     persistent_workers=self._persistent_workers,
                 )
         dataset_read(self._orig_dataset)

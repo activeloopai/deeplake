@@ -50,7 +50,15 @@ class DeepLakeBackendClient:
     """Communicates with Activeloop Backend"""
 
     def __init__(self, token: Optional[str] = None):
+        from deeplake.util.bugout_reporter import (
+            save_reporting_config,
+            get_reporting_config,
+            deeplake_reporter,
+            set_username,
+        )
+
         self.version = deeplake.__version__
+        self._token_from_env = False
         self.auth_header = None
         self.token = token or self.get_token()
         self.auth_header = f"Bearer {self.token}"
@@ -62,13 +70,22 @@ class DeepLakeBackendClient:
             remove_token()
             self.token = token or self.get_token()
             self.auth_header = f"Bearer {self.token}"
+        if self._token_from_env:
+            username = self.get_user_profile()["name"]
+            if get_reporting_config().get("username") != username:
+                save_reporting_config(True, username=username)
+                set_username(deeplake_reporter, username)
 
     def get_token(self):
         """Returns a token"""
-        token = read_token()
+        self._token_from_env = False
+        token = read_token(from_env=False)
         if token is None:
-            token = self.request_auth_token(username="public", password="")
-
+            token = read_token(from_env=True)
+            if token is None:
+                token = self.request_auth_token(username="public", password="")
+            else:
+                self._token_from_env = True
         return token
 
     def request(

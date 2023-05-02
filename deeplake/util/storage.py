@@ -4,7 +4,7 @@ from deeplake.util.cache_chain import generate_chain
 from deeplake.constants import LOCAL_CACHE_PREFIX, MB
 from deeplake.util.exceptions import AgreementNotAcceptedError
 from deeplake.util.tag import process_hub_path
-from typing import Optional
+from typing import Optional, Union
 from deeplake.core.storage.provider import StorageProvider
 import os
 from deeplake.core.storage import (
@@ -20,7 +20,7 @@ from deeplake.constants import DEFAULT_READONLY
 
 def storage_provider_from_path(
     path: str,
-    creds: Optional[dict],
+    creds: Optional[Union[dict, str]] = None,
     read_only: bool = False,
     token: Optional[str] = None,
     is_hub_path: bool = False,
@@ -50,22 +50,9 @@ def storage_provider_from_path(
     """
     if creds is None:
         creds = {}
-    if path.startswith("s3://"):
-        key = creds.get("aws_access_key_id")
-        secret = creds.get("aws_secret_access_key")
-        session_token = creds.get("aws_session_token")
-        endpoint_url = creds.get("endpoint_url")
-        region = creds.get("aws_region") or creds.get("region")
-        profile = creds.get("profile_name")
-        storage: StorageProvider = S3Provider(
-            path,
-            key,
-            secret,
-            session_token,
-            endpoint_url,
-            region,
-            profile_name=profile,
-            token=token,
+    if path.startswith("hub://"):
+        storage: StorageProvider = storage_provider_from_hub_path(
+            path, read_only, token=token, creds=creds
         )
     elif (
         path.startswith("gcp://")
@@ -82,10 +69,42 @@ def storage_provider_from_path(
             path, read_only, db_engine=db_engine, token=token
         )
     else:
-        if not os.path.exists(path) or os.path.isdir(path):
-            storage = LocalProvider(path)
+        if isinstance(creds, str):
+            creds = {}
+        if path.startswith("s3://"):
+            key = creds.get("aws_access_key_id")
+            secret = creds.get("aws_secret_access_key")
+            session_token = creds.get("aws_session_token")
+            endpoint_url = creds.get("endpoint_url")
+            region = creds.get("aws_region") or creds.get("region")
+            profile = creds.get("profile_name")
+            storage = S3Provider(
+                path,
+                key,
+                secret,
+                session_token,
+                endpoint_url,
+                region,
+                profile_name=profile,
+                token=token,
+            )
+        elif (
+            path.startswith("gcp://")
+            or path.startswith("gcs://")
+            or path.startswith("gs://")
+        ):
+            storage = GCSProvider(path, creds)
+        elif path.startswith("gdrive://"):
+            storage = GDriveProvider(path, creds)
+        elif path.startswith("mem://"):
+            storage = MemoryProvider(path)
         else:
-            raise ValueError(f"Local path {path} must be a path to a local directory")
+            if not os.path.exists(path) or os.path.isdir(path):
+                storage = LocalProvider(path)
+            else:
+                raise ValueError(
+                    f"Local path {path} must be a path to a local directory"
+                )
     if not storage._is_hub_path:
         storage._is_hub_path = is_hub_path
 
@@ -104,7 +123,6 @@ def storage_provider_from_hub_path(
     client = DeepLakeBackendClient(token=token)
 
     mode = "r" if read_only else None
-
     # this will give the proper url (s3, gcs, etc) and corresponding creds, depending on where the dataset is stored.
     try:
         url, creds, mode, expiration = client.get_dataset_credentials(
@@ -129,10 +147,33 @@ def storage_provider_from_hub_path(
 
     url = posixpath.join(url, subdir)
 
+    creds_used = "PLATFORM"
+    if url.startswith("s3://"):
+        if creds == "ENV":
+            final_creds = {}
+            creds_used = "ENV"
+        elif isinstance(creds, dict) and set(creds.keys()) == {"profile_name"}:
+            final_creds = creds
+            creds_used = "ENV"
+        elif isinstance(creds, dict) and bool(creds):
+            final_creds = creds
+            creds_used = "DICT"
+
+    if creds_used != "PLATFORM":
+        msg = "Overriding platform credentials with"
+        if creds_used == "ENV":
+            msg += " credentials loaded from environment."
+        elif creds_used == "DICT":
+            msg += " credentials from user passed dictionary."
+        print(msg)
+
     storage = storage_provider_from_path(
-        path=url, creds=creds, read_only=read_only, is_hub_path=True, token=token
+        path=url, creds=final_creds, read_only=read_only, is_hub_path=True, token=token
     )
-    storage._set_hub_creds_info(path, expiration)
+    storage.creds_used = creds_used
+    if creds_used == "PLATFORM":
+        storage._set_hub_creds_info(path, expiration)
+
     return storage
 
 
@@ -161,6 +202,7 @@ def get_storage_and_cache_chain(
     Returns:
         A tuple of the storage provider and the storage chain.
     """
+
     storage = storage_provider_from_path(
         path=path,
         db_engine=db_engine,
