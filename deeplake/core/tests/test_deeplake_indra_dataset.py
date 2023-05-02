@@ -104,7 +104,7 @@ def test_load_view(hub_cloud_ds_generator):
     dataloader = view[:3].dataloader().pytorch()
     iss = []
     for i, batch in enumerate(dataloader):
-        assert len(batch["label"][0]) == 10
+        assert len(batch["label"]) == 10
         iss.append(i)
 
     assert iss == [0, 1, 2]
@@ -118,7 +118,7 @@ def test_load_view(hub_cloud_ds_generator):
     dataloader = view[:3].dataloader().pytorch()
     iss = []
     for i, batch in enumerate(dataloader):
-        assert len(batch["label"][0]) == 5
+        assert len(batch["label"]) == 5
         iss.append(i)
 
     assert iss == [0, 1, 2]

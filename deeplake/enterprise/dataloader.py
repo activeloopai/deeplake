@@ -15,6 +15,8 @@ from deeplake.integrations.pytorch.common import (
     PytorchTransformFunction,
     check_tensors,
     validate_decode_method,
+    find_additional_tensors_and_info,
+    get_htype_ndim_tensor_info_dicts,
 )
 from deeplake.util.dataset import map_tensor_keys
 from functools import partial
@@ -575,22 +577,24 @@ class DeepLakeDataLoader(DataLoader):
 
     def __iter__(self):
         if self._dataloader is None:
+            dataset = self._orig_dataset
             collate_fn = self.collate_fn
             upcast = self._mode == "pytorch"  # upcast to handle unsupported dtypes
 
             primary_tensor_name = self._primary_tensor_name
             buffer_size = self._buffer_size
 
-            tensors = self._tensors or map_tensor_keys(self._orig_dataset, None)
+            tensors = self._tensors or map_tensor_keys(dataset, None)
 
             jpeg_png_compressed_tensors, json_tensors, list_tensors = check_tensors(
-                self._orig_dataset, tensors
+                dataset, tensors
             )
             (
                 raw_tensors,
                 pil_compressed_tensors,
                 json_tensors,
                 list_tensors,
+                data_tensors,
             ) = validate_decode_method(
                 self._decode_method,
                 tensors,
@@ -598,9 +602,16 @@ class DeepLakeDataLoader(DataLoader):
                 json_tensors,
                 list_tensors,
             )
+            sample_info_tensors, tensor_info_tensors = find_additional_tensors_and_info(
+                dataset, data_tensors
+            )
+            tensors.extend(sample_info_tensors)
+            htype_dict, ndim_dict, tensor_info_dict = get_htype_ndim_tensor_info_dicts(
+                dataset, data_tensors, tensor_info_tensors
+            )
             if deeplake.constants.RETURN_DUMMY_DATA_FOR_DATALOADER:
                 self._dataloader = DummyDataloader(
-                    deeplake_dataset=self._orig_dataset,
+                    deeplake_dataset=dataset,
                     batch_size=self._batch_size,
                     shuffle=self._shuffle,
                     num_workers=self._num_workers,
@@ -618,7 +629,7 @@ class DeepLakeDataLoader(DataLoader):
                 )
             else:
                 if not hasattr(self, "_indra_dataset"):
-                    indra_dataset = dataset_to_libdeeplake(self._orig_dataset)
+                    indra_dataset = dataset_to_libdeeplake(dataset)
                 else:
                     indra_dataset = self._indra_dataset
                 self._dataloader = INDRA_LOADER(
@@ -642,6 +653,9 @@ class DeepLakeDataLoader(DataLoader):
                     json_tensors=json_tensors,
                     list_tensors=list_tensors,
                     persistent_workers=self._persistent_workers,
+                    htype_dict=htype_dict,
+                    ndim_dict=ndim_dict,
+                    tensor_info_dict=tensor_info_dict,
                 )
         dataset_read(self._orig_dataset)
         return iter(self._dataloader)
