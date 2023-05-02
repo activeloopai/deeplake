@@ -45,7 +45,11 @@ def get_htype(val: Union[np.ndarray, Sequence, Sample]) -> str:
         return val.meta.htype
     if hasattr(val, "shape"):  # covers numpy arrays, numpy scalars and hub samples.
         return "generic"
-    if isinstance(val, list) and len(val) > 0 and isinstance(val[0], (Sample, LinkedSample)):
+    if (
+        isinstance(val, list)
+        and len(val) > 0
+        and isinstance(val[0], (Sample, LinkedSample))
+    ):
         return "generic"
     types = set((map(type, val)))  # type: ignore
     if dict in types:
