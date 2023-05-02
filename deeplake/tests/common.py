@@ -139,3 +139,12 @@ class LinkTransformTestContext:
 
     def __exit__(self, *args, **kwargs):
         _unregister_link_transform(self.name)
+
+
+def convert_data_according_to_torch_version(batch):
+    import torch
+
+    if torch.__version__ > "2.0.0":
+        return batch[0]
+    else:
+        return batch

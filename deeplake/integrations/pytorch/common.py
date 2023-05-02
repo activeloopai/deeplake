@@ -30,7 +30,10 @@ def collate_fn(batch):
     elif isinstance(elem, list) and all(
         map(lambda e: isinstance(e, np.ndarray), elem)
     ):  # special case for video query api
-        if elem[0].shape[1] not in [2, 3]:  # checking whether it is not a polygon
+        if len(elem[0].shape) > 1 and elem[0].shape[1] not in [
+            2,
+            3,
+        ]:  # checking whether it is not a polygon
             elem_type = type(elem)
             return [
                 elem_type([torch.tensor(item) for item in sample]) for sample in batch

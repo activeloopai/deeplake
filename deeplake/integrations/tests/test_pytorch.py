@@ -5,7 +5,10 @@ import pytest
 
 from deeplake.util.remove_cache import get_base_storage
 from deeplake.util.exceptions import DatasetUnsupportedPytorch, TensorDoesNotExistError
-from deeplake.tests.common import requires_torch
+from deeplake.tests.common import (
+    requires_torch,
+    convert_data_according_to_torch_version,
+)
 from deeplake.core.dataset import Dataset
 from deeplake.core.index.index import IndexEntry
 from deeplake.core.storage.memory import MemoryProvider
@@ -218,15 +221,6 @@ def test_pytorch_transform(ds):
                 expected_image2 = value * np.ones(actual_image2.shape)
                 np.testing.assert_array_equal(actual_image, expected_image)
                 np.testing.assert_array_equal(actual_image2, expected_image2)
-
-
-def convert_data_according_to_torch_version(batch):
-    import torch
-
-    if torch.__version__ < "2.0.0":
-        return batch[0]
-    else:
-        return batch
 
 
 @requires_torch

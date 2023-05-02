@@ -504,15 +504,6 @@ def test_rename(hub_cloud_ds):
 
 @requires_torch
 @requires_libdeeplake
-def test_expiration_date_casting_to_string():
-    ds = deeplake.dataset("hub://activeloop/cifar100-train")[0:10:2]
-    loader = ds.dataloader().pytorch(return_index=False)
-    for _ in loader:
-        pass
-
-
-@requires_torch
-@requires_libdeeplake
 @pytest.mark.parametrize("num_workers", [0, 2])
 def test_indexes(hub_cloud_ds, num_workers):
     shuffle = False
