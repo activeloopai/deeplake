@@ -334,6 +334,7 @@ class GCSProvider(StorageProvider):
             hub_path (str): The deeplake cloud path to the dataset.
             expiration (str): The time at which the credentials expire.
             db_engine (bool): Whether Activeloop DB Engine enabled.
+            repository (str, Optional): Backend repository where the dataset is stored.
         """
         self.hub_path = hub_path
         self.tag = hub_path[6:]  # removing the hub:// part from the path

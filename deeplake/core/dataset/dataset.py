@@ -1967,7 +1967,7 @@ class Dataset:
 
         Args:
             query_string (str): An SQL string adjusted with new functionalities to run on the given :class:`~deeplake.core.dataset.Dataset` object
-
+            runtime (dict): Parameters for Activeloop DB Engine. Only applicable for hub:// paths.
 
         Returns:
             Dataset: A :class:`~deeplake.core.dataset.Dataset` object.

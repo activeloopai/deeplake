@@ -225,6 +225,7 @@ class DeepLakeBackendClient:
                 If not provided, the backend will set mode to 'a' if user has write permission, else 'r'.
             db_engine (dict, optional): The database engine args to use for the dataset.
             no_cache (bool): If True, cached creds are ignored and new creds are returned. Default False.
+
         Returns:
             tuple: containing full url to dataset, credentials, mode and expiration time respectively.
 
