@@ -59,9 +59,13 @@ def cast_type(tensor):
 
 
 def copy_tensor(x):
+    if isinstance(x, dict):
+        return x.copy()
     if isinstance(x, Sample):
         x = x.array
     if isinstance(x, Image.Image):
+        return x
+    if isinstance(x, str):
         return x
 
     try:
@@ -130,6 +134,7 @@ class TorchDataset(torch.utils.data.IterableDataset):
             use_local_cache=use_local_cache,
             pad_tensors=self.pad_tensors,
             decode_method=self.decode_method,
+            verbose=False,
         )
 
         self.schedules: List[Schedule] = self.scheduler.schedule(

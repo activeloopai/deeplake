@@ -25,6 +25,7 @@ ACCEPT_AGREEMENTS_SUFFIX = "/api/organization/{}/dataset/{}/agree"
 REJECT_AGREEMENTS_SUFFIX = "/api/organization/{}/dataset/{}/disagree"
 GET_USER_PROFILE = "/api/user/profile"
 CONNECT_DATASET_SUFFIX = "/api/dataset/connect"
+REMOTE_QUERY_SUFFIX = "/api/query/dataset/{}/{}"
 
 DEFAULT_REQUEST_TIMEOUT = 170
 
