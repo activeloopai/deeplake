@@ -20,6 +20,8 @@ from deeplake.util.downsample import validate_downsampling
 from deeplake.util.version_control import (
     save_version_info,
     integrity_check,
+    save_commit_info,
+    rebuild_version_info,
 )
 from deeplake.util.invalid_view_op import invalid_view_op
 from deeplake.util.spinner import spinner
@@ -30,6 +32,7 @@ from deeplake.util.iteration_warning import (
 from deeplake.api.info import load_info
 from deeplake.client.log import logger
 from deeplake.client.utils import get_user_name
+from deeplake.client.client import DeepLakeBackendClient
 from deeplake.constants import (
     FIRST_COMMIT_ID,
     DEFAULT_MEMORY_CACHE_SIZE,
@@ -37,6 +40,7 @@ from deeplake.constants import (
     MB,
     SAMPLE_INFO_TENSOR_MAX_CHUNK_SIZE,
     DEFAULT_READONLY,
+    ENV_HUB_DEV_USERNAME,
 )
 from deeplake.core.fast_forwarding import ffw_dataset_meta
 from deeplake.core.index import Index
@@ -1224,7 +1228,12 @@ class Dataset:
 
         version_state = {}
         try:
-            version_info = load_version_info(self.storage)
+            try:
+                version_info = load_version_info(self.storage)
+            except Exception as e:
+                version_info = rebuild_version_info(self.storage)
+                if version_info is None:
+                    raise e
             version_state["branch_commit_map"] = version_info["branch_commit_map"]
             version_state["commit_node_map"] = version_info["commit_node_map"]
 
@@ -1415,7 +1424,6 @@ class Dataset:
         self._initial_autoflush.append(self.storage.autoflush)
         self.storage.autoflush = False
         merge(self, target_id, conflict_resolution, delete_removed_tensors, force)
-        self.__dict__["_vc_info_updated"] = False
         self.storage.autoflush = self._initial_autoflush.pop()
         self.storage.maybe_flush()
 
@@ -1649,7 +1657,8 @@ class Dataset:
             self.flush()
 
     def _register_dataset(self):
-        """overridden in DeepLakeCloudDataset"""
+        if not self.__dict__["org_id"]:
+            self.org_id = os.environ.get(ENV_HUB_DEV_USERNAME)
 
     def _send_query_progress(self, *args, **kwargs):
         """overridden in DeepLakeCloudDataset"""
@@ -1949,7 +1958,7 @@ class Dataset:
         dataset_read(self)
         return ret
 
-    def query(self, query_string: str):
+    def query(self, query_string: str, runtime: Optional[Dict] = None):
         """Returns a sliced :class:`~deeplake.core.dataset.Dataset` with given query results. To use this, install deeplake with ``pip install deeplake[enterprise]``.
 
         It allows to run SQL like queries on dataset and extract results. See supported keywords and the Tensor Query Language documentation
@@ -1958,7 +1967,7 @@ class Dataset:
 
         Args:
             query_string (str): An SQL string adjusted with new functionalities to run on the given :class:`~deeplake.core.dataset.Dataset` object
-
+            runtime (dict): Parameters for Activeloop DB Engine. Only applicable for hub:// paths.
 
         Returns:
             Dataset: A :class:`~deeplake.core.dataset.Dataset` object.
@@ -1983,6 +1992,12 @@ class Dataset:
         - Users of our Community plan can only perform queries on Activeloop datasets ("hub://activeloop/..." datasets).
         - To run queries on your own datasets, `upgrade your organization's plan <https://www.activeloop.ai/pricing/>`_.
         """
+        if runtime is not None and runtime.get("db_engine", False):
+            client = DeepLakeBackendClient(token=self._token)
+            org_id, ds_name = self.path[6:].split("/")
+            indicies = client.remote_query(org_id, ds_name, query_string)
+            return self[indicies]
+
         from deeplake.enterprise import query
 
         return query(self, query_string)
@@ -2139,6 +2154,9 @@ class Dataset:
     def _flush_vc_info(self):
         if self._vc_info_updated:
             save_version_info(self.version_state, self.storage)
+            for node in self.version_state["commit_node_map"].values():
+                if node._info_updated:
+                    save_commit_info(node, self.storage)
             self.__dict__["_vc_info_updated"] = False
 
     def clear_cache(self):
@@ -2707,6 +2725,7 @@ class Dataset:
             *[e.value for e in self.index.values],
             self.pending_commit_id,
             getattr(self, "_query", None),
+            getattr(self, "_tql_query", None),
         )
 
     def _get_view_info(
@@ -2734,6 +2753,10 @@ class Dataset:
         query = getattr(self, "_query", None)
         if query:
             info["query"] = query
+            info["source-dataset-index"] = getattr(self, "_source_ds_idx", None)
+        tql_query = getattr(self, "_tql_query", None)
+        if tql_query:
+            info["tql_query"] = tql_query
             info["source-dataset-index"] = getattr(self, "_source_ds_idx", None)
         return info
 
@@ -3342,6 +3365,7 @@ class Dataset:
     def _copy(
         self,
         dest: Union[str, pathlib.Path],
+        runtime: Optional[Dict] = None,
         tensors: Optional[List[str]] = None,
         overwrite: bool = False,
         creds=None,
@@ -3357,6 +3381,7 @@ class Dataset:
 
         Args:
             dest (str, pathlib.Path): Destination dataset or path to copy to. If a Dataset instance is provided, it is expected to be empty.
+            runtime (dict): Parameters for Activeloop DB Engine. Only applicable for hub:// paths.
             tensors (List[str], optional): Names of tensors (and groups) to be copied. If not specified all tensors are copied.
             overwrite (bool): If ``True`` and a dataset exists at `destination`, it will be overwritten. Defaults to False.
             creds (dict, Optional): creds required to create / overwrite datasets at `dest`.
@@ -3396,6 +3421,7 @@ class Dataset:
         dest_ds = deeplake.api.dataset.dataset._like(
             dest,
             self,
+            runtime=runtime,
             tensors=tensors,
             creds=creds,
             token=token,
@@ -3415,31 +3441,29 @@ class Dataset:
 
         def _copy_tensor(sample_in, sample_out):
             for tensor_name in dest_ds.tensors:
-                src = self[tensor_name]
+                src = sample_in[tensor_name]
                 if (
                     unlink
                     and src.is_link
                     and (src.base_htype != "video" or deeplake.constants._UNLINK_VIDEOS)
                 ):
-                    if len(self.index) > 1:
-                        sample_out[tensor_name].extend(sample_in[tensor_name])
+                    if len(sample_in.index) > 1:
+                        sample_out[tensor_name].extend(src)
                     else:
-                        if self.index.subscriptable_at(0):
-                            sample_idxs = list(
-                                sample_in.index.values[0].indices(len(self))
+                        if sample_in.index.subscriptable_at(0):
+                            sample_idxs = sample_in.index.values[0].indices(
+                                src.num_samples
                             )
                         else:
-                            sample_idxs = [self.index.values[0].value]
+                            sample_idxs = [sample_in.index.values[0].value]
                         sample_out[tensor_name].extend(
                             [
-                                sample_in[
-                                    tensor_name
-                                ].chunk_engine.get_deeplake_read_sample(sample_idx)
-                                for sample_idx in sample_idxs
+                                src.chunk_engine.get_deeplake_read_sample(i)
+                                for i in sample_idxs
                             ]
                         )
                 else:
-                    sample_out[tensor_name].extend(sample_in[tensor_name])
+                    sample_out[tensor_name].extend(src)
 
         if not self.index.subscriptable_at(0):
             old_first_index = self.index.values[0]
@@ -3491,6 +3515,7 @@ class Dataset:
     def copy(
         self,
         dest: Union[str, pathlib.Path],
+        runtime: Optional[dict] = None,
         tensors: Optional[List[str]] = None,
         overwrite: bool = False,
         creds=None,
@@ -3505,6 +3530,7 @@ class Dataset:
         Args:
             dest (str, pathlib.Path): Destination dataset or path to copy to. If a Dataset instance is provided, it is expected to be empty.
             tensors (List[str], optional): Names of tensors (and groups) to be copied. If not specified all tensors are copied.
+            runtime (dict): Parameters for Activeloop DB Engine. Only applicable for hub:// paths.
             overwrite (bool): If ``True`` and a dataset exists at `destination`, it will be overwritten. Defaults to False.
             creds (dict, Optional): creds required to create / overwrite datasets at `dest`.
             token (str, Optional): token used to for fetching credentials to `dest`.
@@ -3522,6 +3548,7 @@ class Dataset:
         """
         return self._copy(
             dest,
+            runtime,
             tensors,
             overwrite,
             creds,
@@ -3562,6 +3589,12 @@ class Dataset:
             new_commit_id = replace_head(storage, version_state, reset_commit_id)
 
             self.checkout(new_commit_id)
+
+    def fix_vc(self):
+        """Rebuilds version control info. To be used when the version control info is corrupted."""
+        version_info = rebuild_version_info(self.storage)
+        self.version_state["commit_node_map"] = version_info["commit_node_map"]
+        self.version_state["branch_commit_map"] = version_info["branch_commit_map"]
 
     def connect(
         self,
@@ -4016,3 +4049,6 @@ class Dataset:
     def _temp_write_access(self):
         # Defined in DeepLakeCloudDataset
         return memoryview(b"")  # No-op context manager
+
+    def _get_storage_repository(self) -> Optional[str]:
+        return getattr(self.base_storage, "repository", None)

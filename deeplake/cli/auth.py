@@ -10,6 +10,7 @@ from deeplake.util.bugout_reporter import (
     save_reporting_config,
     get_reporting_config,
     deeplake_reporter,
+    set_username,
 )
 from deeplake.util.exceptions import AuthenticationException, LoginException
 
@@ -33,6 +34,7 @@ def login(username: str, password: str, token: str):
                 )
                 username = click.prompt("Username")
                 password = click.prompt("Password", hide_input=True)
+                # username_reporting = username
             if not password:
                 password = click.prompt(
                     f"Please enter password for user {username}", hide_input=True
@@ -52,10 +54,12 @@ def login(username: str, password: str, token: str):
                         "Invalid API token. Please make sure the token is correct and try again."
                     )
                 write_token(token)
+                username = client.get_user_profile()["name"]
             click.echo("Successfully logged in to Activeloop.")
             reporting_config = get_reporting_config()
             if reporting_config.get("username") != username:
                 save_reporting_config(True, username=username)
+                set_username(deeplake_reporter, username)
             break
         except AuthenticationException:
             chances -= 1

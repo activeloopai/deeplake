@@ -5,7 +5,10 @@ import pytest
 
 from deeplake.util.remove_cache import get_base_storage
 from deeplake.util.exceptions import DatasetUnsupportedPytorch, TensorDoesNotExistError
-from deeplake.tests.common import requires_torch
+from deeplake.tests.common import (
+    requires_torch,
+    convert_data_according_to_torch_version,
+)
 from deeplake.core.dataset import Dataset
 from deeplake.core.index.index import IndexEntry
 from deeplake.core.storage.memory import MemoryProvider
@@ -145,6 +148,8 @@ def test_pytorch_small(ds):
 @requires_torch
 @enabled_non_gdrive_datasets
 def test_pytorch_transform(ds):
+    import torch
+
     with ds:
         ds.create_tensor("image", max_chunk_size=PYTORCH_TESTS_MAX_CHUNK_SIZE)
         ds.image.extend(([i * np.ones((i + 1, i + 1)) for i in range(16)]))
@@ -166,12 +171,20 @@ def test_pytorch_transform(ds):
 
     for _ in range(2):
         for i, batch in enumerate(dl):
-            actual_image = batch[0].numpy()
-            expected_image = i * np.ones((1, i + 1, i + 1))
-            actual_image2 = batch[1].numpy()
-            expected_image2 = i * np.ones((1, 12, 12))
-            np.testing.assert_array_equal(actual_image, expected_image)
-            np.testing.assert_array_equal(actual_image2, expected_image2)
+            if torch.__version__ < "2.0.0":
+                actual_image, actual_image2 = batch[0]
+
+                expected_image = i * np.ones((i + 1, i + 1))
+                expected_image2 = i * np.ones((12, 12))
+                np.testing.assert_array_equal(actual_image, expected_image)
+                np.testing.assert_array_equal(actual_image2, expected_image2)
+            else:
+                actual_image, actual_image2 = batch
+
+                expected_image = i * np.ones((1, i + 1, i + 1))
+                expected_image2 = i * np.ones((1, 12, 12))
+                np.testing.assert_array_equal(actual_image, expected_image)
+                np.testing.assert_array_equal(actual_image2, expected_image2)
 
     dls = ds.pytorch(
         num_workers=0,
@@ -184,20 +197,30 @@ def test_pytorch_transform(ds):
     for _ in range(2):
         all_values = []
         for i, batch in enumerate(dls):
-            actual_image = batch[0].numpy()
-            actual_image2 = batch[1].numpy()
+            if torch.__version__ < "2.0.0":
+                actual_image, actual_image2 = batch[0]
 
-            value = actual_image[0][0][0]
-            value2 = actual_image2[0][0][0]
-            assert value == value2
-            all_values.append(value)
+                value = actual_image[0][0]
+                value2 = actual_image2[0][0]
+                assert value == value2
+                all_values.append(value)
 
-            expected_image = value * np.ones(actual_image.shape)
-            expected_image2 = value * np.ones(actual_image2.shape)
-            np.testing.assert_array_equal(actual_image, expected_image)
-            np.testing.assert_array_equal(actual_image2, expected_image2)
+                expected_image = value * np.ones(actual_image.shape)
+                expected_image2 = value * np.ones(actual_image2.shape)
+                np.testing.assert_array_equal(actual_image, expected_image)
+                np.testing.assert_array_equal(actual_image2, expected_image2)
+            else:
+                actual_image, actual_image2 = batch
 
-        assert set(all_values) == set(range(16))
+                value = actual_image[0][0][0]
+                value2 = actual_image2[0][0][0]
+                assert value == value2
+                all_values.append(value)
+
+                expected_image = value * np.ones(actual_image.shape)
+                expected_image2 = value * np.ones(actual_image2.shape)
+                np.testing.assert_array_equal(actual_image, expected_image)
+                np.testing.assert_array_equal(actual_image2, expected_image2)
 
 
 @requires_torch
@@ -661,7 +684,7 @@ def test_pytorch_decode(ds, compressed_image_paths, compression):
         return
 
     for i, batch in enumerate(ds.pytorch(decode_method={"image": "tobytes"})):
-        image = batch["image"][0]
+        image = convert_data_according_to_torch_version(batch["image"])
         assert isinstance(image, bytes)
         if i < 5 and not compression:
             np.testing.assert_array_equal(
@@ -911,3 +934,55 @@ def test_pytorch_list(local_ds):
     ptds = ds.pytorch(collate_fn=list_collate_fn, batch_size=2)
     batch = next(iter(ptds))
     np.testing.assert_equal(batch, np.array([[1, 2], [3, 4]]))
+
+
+def test_pytorch_data_decode(local_ds, cat_path):
+    ds = local_ds
+    with ds:
+        ds.create_tensor("generic")
+        for i in range(10):
+            ds.generic.append(i)
+        ds.create_tensor("text", htype="text")
+        for i in range(10):
+            ds.text.append(f"hello {i}")
+        ds.create_tensor("json", htype="json")
+        for i in range(10):
+            ds.json.append({"x": i})
+        ds.create_tensor("list", htype="list")
+        for i in range(10):
+            ds.list.append([i, i + 1])
+        ds.create_tensor("class_label", htype="class_label")
+        animals = [
+            "cat",
+            "dog",
+            "bird",
+            "fish",
+            "horse",
+            "cow",
+            "pig",
+            "sheep",
+            "goat",
+            "chicken",
+        ]
+        ds.class_label.extend(animals)
+        ds.create_tensor("image", htype="image", sample_compression="jpeg")
+        for i in range(10):
+            ds.image.append(deeplake.read(cat_path))
+
+    decode_method = {tensor: "data" for tensor in list(ds.tensors.keys())}
+    ptds = ds.pytorch(
+        batch_size=1,
+        num_workers=0,
+        decode_method=decode_method,
+        transform=identity,
+        collate_fn=identity,
+    )
+    for i, batch in enumerate(ptds):
+        sample = batch[0]
+        assert sample["text"]["value"] == f"hello {i}"
+        assert sample["json"]["value"] == {"x": i}
+        assert sample["list"]["value"].tolist() == [i, i + 1]
+        assert sample["class_label"]["value"] == [i]
+        assert sample["class_label"]["text"] == [animals[i]]
+        assert sample["image"]["value"].shape == (900, 900, 3)
+        assert sample["generic"]["value"] == i

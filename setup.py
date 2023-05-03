@@ -49,14 +49,14 @@ extras = {
 def libdeeplake_availabe():
     py_ver = sys.version_info
     if sys.platform == "linux":
-        if py_ver >= (3, 6) and py_ver <= (3, 10):
+        if py_ver >= (3, 6) and py_ver <= (3, 11):
             return True
     if sys.platform == "darwin":
         mac_ver = list(map(int, platform.mac_ver()[0].split(".")))
         if (
             (mac_ver[0] > 10 or mac_ver[0] == 10 and mac_ver[1] >= 12)
             and py_ver >= (3, 7)
-            and py_ver <= (3, 10)
+            and py_ver <= (3, 11)
         ):
             return True
     return False
@@ -69,7 +69,7 @@ extras_require = {k: [req_map[r] for r in v] for k, v in extras.items()}
 extras_require["all"] = [req_map[r] for r in all_extras]
 
 if libdeeplake_availabe():
-    libdeeplake = "libdeeplake==0.0.41"
+    libdeeplake = "libdeeplake==0.0.51"
     extras_require["enterprise"] = [libdeeplake, "pyjwt"]
     extras_require["all"].append(libdeeplake)
 

@@ -27,6 +27,10 @@ def to_tuple(sample, t1, t2):
     return sample[t1], sample[t2]
 
 
+def identity_collate(batch):
+    return batch
+
+
 def reorder_collate(batch):
     x = [((x["a"], x["b"]), x["c"]) for x in batch]
     return default_collate(x)
@@ -284,7 +288,12 @@ def test_readonly_with_two_workers(hub_cloud_ds):
     base_storage = get_base_storage(hub_cloud_ds.storage)
     base_storage.flush()
     base_storage.enable_readonly()
-    ds = Dataset(storage=hub_cloud_ds.storage, read_only=True, verbose=False)
+    ds = Dataset(
+        storage=hub_cloud_ds.storage,
+        token=hub_cloud_ds.token,
+        read_only=True,
+        verbose=False,
+    )
 
     ptds = ds.dataloader().tensorflow(num_workers=2)
     # no need to check input, only care that readonly works
@@ -318,7 +327,10 @@ def test_groups(hub_cloud_ds, compressed_image_paths):
             hub_cloud_ds.images.jpegs.cats.append(img1)
             hub_cloud_ds.images.pngs.flowers.append(img2)
 
-    another_ds = deeplake.dataset(hub_cloud_ds.path)
+    another_ds = deeplake.dataset(
+        hub_cloud_ds.path,
+        token=hub_cloud_ds.token,
+    )
     dl = another_ds.dataloader().tensorflow(return_index=False)
     for i, (cat, flower) in enumerate(dl):
         assert cat[0].shape == another_ds.images.jpegs.cats[i].numpy().shape
@@ -326,8 +338,8 @@ def test_groups(hub_cloud_ds, compressed_image_paths):
 
     dl = another_ds.images.dataloader().tensorflow(return_index=False)
     for sample in dl:
-        cat = sample["jpegs/cats"]
-        flower = sample["pngs/flowers"]
+        cat = sample["images/jpegs/cats"]
+        flower = sample["images/pngs/flowers"]
         np.testing.assert_array_equal(cat[0], img1.array)
         np.testing.assert_array_equal(flower[0], img2.array)
 
@@ -339,9 +351,9 @@ def test_string_tensors(hub_cloud_ds):
         hub_cloud_ds.create_tensor("strings", htype="text")
         hub_cloud_ds.strings.extend([f"string{idx}" for idx in range(5)])
 
-    ptds = hub_cloud_ds.dataloader().tensorflow()
+    ptds = hub_cloud_ds.dataloader().tensorflow(collate_fn=identity_collate)
     for idx, batch in enumerate(ptds):
-        np.testing.assert_array_equal(batch["strings"], f"string{idx}")
+        np.testing.assert_array_equal(batch[0]["strings"], f"string{idx}")
 
 
 @pytest.mark.xfail(raises=NotImplementedError, strict=True)
@@ -467,10 +479,12 @@ def test_tensorflow_decode(hub_cloud_ds, compressed_image_paths, compression):
             dl = hub_cloud_ds.dataloader()
         return
 
-    ptds = hub_cloud_ds.dataloader().tensorflow(decode_method={"image": "tobytes"})
+    ptds = hub_cloud_ds.dataloader().tensorflow(
+        collate_fn=identity_collate, decode_method={"image": "tobytes"}
+    )
 
     for i, batch in enumerate(ptds):
-        image = batch["image"][0]
+        image = batch[0]["image"]
         assert isinstance(image, bytes)
         if i < 5 and not compression:
             np.testing.assert_array_equal(
@@ -512,15 +526,6 @@ def test_rename(hub_cloud_ds):
         np.testing.assert_array_equal(
             np.array(sample["red/green"]), np.array([[1, 2, 3, 4]])
         )
-
-
-@requires_tensorflow
-@requires_libdeeplake
-def test_expiration_date_casting_to_string():
-    ds = deeplake.dataset("hub://activeloop/cifar100-train")[0:10:2]
-    loader = ds.dataloader().tensorflow(return_index=False)
-    for _ in loader:
-        pass
 
 
 @requires_tensorflow

@@ -2,7 +2,8 @@ import numpy as np
 import pytest
 import deeplake
 
-from deeplake.util.testing import assert_array_equal
+from deeplake.util.testing import assert_array_equal, compare_version_info
+from deeplake.util.version_control import rebuild_version_info
 from deeplake.util.exceptions import (
     MergeConflictError,
     MergeMismatchError,
@@ -622,3 +623,19 @@ def test_merge_with_padding(memory_ds):
         ds.checkout("branch1")
         ds.merge("branch2")
         assert len(ds.x) == 304
+
+
+def test_merge_with_pop(memory_ds):
+    with memory_ds as ds:
+        ds.create_tensor("x")
+        ds.x.extend([1, 2, 3, 4, 5])
+        cid = ds.commit()
+        ds.checkout("branch1", create=True)
+        ds.pop(2)
+        ds.checkout(cid)
+        ds.checkout("branch2", create=True)
+        ds.pop(3)
+        ds.x.append(6)
+        ds.checkout("branch1")
+        ds.merge("branch2")
+        np.testing.assert_array_equal(ds.x.numpy().flatten(), [1, 2, 4, 5, 6])
