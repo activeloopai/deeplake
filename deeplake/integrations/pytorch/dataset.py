@@ -4,6 +4,7 @@ from deeplake.integrations.pytorch.common import PytorchTransformFunction
 from deeplake.util.exceptions import TransformFailedError
 
 from deeplake.util.iterable_ordered_dict import IterableOrderedDict
+from deeplake.util.warnings import always_warn
 from deeplake.core.io import (
     DistributedScheduler,
     SampleStreaming,
@@ -214,7 +215,7 @@ class SubIterableDataset(torch.utils.data.IterableDataset):
                     next_batch = next(it)
                     for val in next_batch:
                         result = buffer.exchange(val)
-                        if result:
+                        if result is not None:
                             yield result
                     del next_batch
             except StopIteration:
