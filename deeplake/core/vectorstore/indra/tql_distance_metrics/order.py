@@ -1,8 +1,8 @@
 METRIC_TO_ORDER_TYPE = {
-    "l1": "DESC",
-    "l2": "DESC",
-    "cos": "ASC",
-    "max": "DESC",
+    "l1": "ASC",
+    "l2": "ASC",
+    "cos": "DESC",
+    "max": "ASC",
 }
 
 

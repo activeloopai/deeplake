@@ -1,7 +1,7 @@
 from deeplake.core.vectorstore.indra import tql_distance_metrics
 
 
-def create_query_string(distance_metric, limit, order="DESC"):
+def create_query_string(distance_metric, limit, order="ASC"):
     return f"select *, {distance_metric} as score ORDER BY {distance_metric} {order} LIMIT {limit}"
 
 

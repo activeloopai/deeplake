@@ -7,7 +7,7 @@ try:
     from indra import api
 
     _INDRA_INSTALLED = True
-except Exception:
+except ImportError:
     _INDRA_INSTALLED = False
 
 import numpy as np
@@ -105,7 +105,7 @@ def delete_all_samples_if_specified(dataset, delete_all):
 def fetch_embeddings(exec_option, view):
     if exec_option == "python":
         embeddings = view.embedding.numpy()
-    elif exec_option == "indra":
+    elif exec_option in ("indra", "db_engine"):
         embeddings = None
     return embeddings
 

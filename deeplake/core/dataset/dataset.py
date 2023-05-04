@@ -1958,7 +1958,12 @@ class Dataset:
         dataset_read(self)
         return ret
 
-    def query(self, query_string: str, runtime: Optional[Dict] = None):
+    def query(
+        self,
+        query_string: str,
+        runtime: Optional[Dict] = None,
+        return_indices_and_scores: bool = False,
+    ):
         """Returns a sliced :class:`~deeplake.core.dataset.Dataset` with given query results. To use this, install deeplake with ``pip install deeplake[enterprise]``.
 
         It allows to run SQL like queries on dataset and extract results. See supported keywords and the Tensor Query Language documentation
@@ -1967,7 +1972,8 @@ class Dataset:
 
         Args:
             query_string (str): An SQL string adjusted with new functionalities to run on the given :class:`~deeplake.core.dataset.Dataset` object
-
+            runtime (Optional[Dict]): whether to run query on a remote engine
+            return_indices_and_scores (bool): by default False. Whether to return indices and scores.
 
         Returns:
             Dataset: A :class:`~deeplake.core.dataset.Dataset` object.
@@ -1995,10 +2001,17 @@ class Dataset:
         if runtime is not None and runtime.get("db_engine", False):
             client = DeepLakeBackendClient(token=self._token)
             org_id, ds_name = self.path[6:].split("/")
-            indicies = client.remote_query(org_id, ds_name, query_string)
-            return self[indicies]
+            indices, scores = client.remote_query(org_id, ds_name, query_string)
+            if return_indices_and_scores:
+                return indices, scores
+            return self[indices]
 
         from deeplake.enterprise import query
+
+        if return_indices_and_scores:
+            raise ValueError(
+                "return_indices_and_scores is not supported. Please add `db_engine=True` if you want to return indices and scores"
+            )
 
         return query(self, query_string)
 

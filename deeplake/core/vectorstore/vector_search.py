@@ -5,6 +5,7 @@ from deeplake.core import vectorstore
 EXEC_OPTION_TO_SEARCH_TYPE = {
     "indra": vectorstore.indra_vector_search,
     "python": vectorstore.python_vector_search,
+    "db_engine": vectorstore.remote_engine_vector_search,
 }
 
 
@@ -16,7 +17,6 @@ def search(
     exec_option: Optional[str],
     deeplake_dataset: Any,
     embedding_tensor: str = "embedding",
-    db_engine: bool = False,
 ):
     return EXEC_OPTION_TO_SEARCH_TYPE[exec_option](
         query_embedding=query_embedding,
@@ -25,5 +25,4 @@ def search(
         deeplake_dataset=deeplake_dataset,
         k=k,
         embedding_tensor=embedding_tensor,
-        db_engine=db_engine,
     )

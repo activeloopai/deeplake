@@ -84,7 +84,9 @@ class DeepLakeVectorStore:
         exec_option: Optional[str] = None,
         db_engine: bool = False,
     ):
-        exec_option = exec_option or self.exec_option
+        exec_option = self._parse_exec_option(
+            exec_option=exec_option, db_engine=db_engine
+        )
 
         # TO DO:
         # 1. check filter with indra
@@ -102,7 +104,6 @@ class DeepLakeVectorStore:
             query=query,
             k=k,
             distance_metric=distance_metric,
-            db_engine=db_engine,
         )
 
     def _search(
@@ -113,7 +114,6 @@ class DeepLakeVectorStore:
         query: Optional[str] = None,
         k: Optional[int] = 4,
         distance_metric: Optional[str] = "L2",
-        db_engine: bool = False,
     ):
         if self._embedding_function is None and embedding is None:
             view, scores, indices = filter_utlils.exact_text_search(view, query)
@@ -131,9 +131,13 @@ class DeepLakeVectorStore:
                 distance_metric=distance_metric.lower(),
                 exec_option=exec_option,
                 deeplake_dataset=self.dataset,
-                db_engine=db_engine,
             )
         return (view, indices, scores)
+
+    def _parse_exec_option(self, exec_option, db_engine=None):
+        if db_engine == True:
+            return "db_engine"
+        return exec_option or self._exec_option
 
     def delete(
         self,
