@@ -2790,8 +2790,9 @@ class Dataset:
                     f"Incoming samples are not of equal lengths. Incoming sample sizes: {sizes}"
                 )
         [f() for f in list(self._update_hooks.values())]
-        for i in range(n):
-            self.append({k: v[i] for k, v in samples.items()}, skip_ok=skip_ok)
+        with self:
+            for i in range(n):
+                self.append({k: v[i] for k, v in samples.items()}, skip_ok=skip_ok)
 
     @invalid_view_op
     def append(
