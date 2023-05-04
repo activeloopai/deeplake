@@ -11,7 +11,7 @@ from deeplake.core.version_control.test_version_control import (
 )
 from deeplake.util.remove_cache import remove_memory_cache
 from deeplake.util.check_installation import ray_installed
-from deeplake.util.exceptions import InvalidOutputDatasetError, TransformError
+from deeplake.util.exceptions import AllSamplesSkippedError, InvalidOutputDatasetError, TransformError
 from deeplake.tests.common import parametrize_num_workers
 from deeplake.util.transform import get_pbar_description
 import deeplake
@@ -1438,6 +1438,23 @@ def test_ds_append_errors(
         assert ds["boxes"].meta.max_shape == [20, 4]
 
         assert ds["labels"].numpy().shape == (40, 10)
+
+def test_all_samples_skipped(local_ds):
+    @deeplake.compute
+    def upload(stuff, ds):
+        if isinstance(stuff["images"], str):
+            sample = deeplake.read(stuff["images"])
+        else:
+            sample = stuff["images"]
+        ds.images.append(sample)
+    
+    with local_ds as ds:
+        ds.create_tensor("images", htype="image", sample_compression="png")
+    
+    samples = [{"images": "bad_path"}] * 10 + [{"images": BadSample()}] * 20 + [{"images": "bad_path"}] * 10
+
+    with pytest.raises(AllSamplesSkippedError) as e:
+        upload().eval(samples, ds, num_workers=TRANSFORM_TEST_NUM_WORKERS, ignore_errors=True)
 
 
 def test_transform_numpy_only(local_ds):
