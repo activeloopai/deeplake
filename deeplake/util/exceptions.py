@@ -1050,6 +1050,7 @@ class SampleUpdateError(Exception):
     def __init__(self, key: str):
         super().__init__(f"Unable to update sample in tensor {key}.")
 
+
 class AllSamplesSkippedError(Exception):
     def __init__(self):
         super().__init__(

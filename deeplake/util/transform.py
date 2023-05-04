@@ -217,7 +217,7 @@ def _transform_and_append_data_slice(
                 if not pipeline_checked:
                     _check_pipeline(out, tensors, skip_ok)
                     pipeline_checked = True
-                
+
                 write_sample_to_transform_dataset(out, transform_dataset)
 
             except SampleAppendError as e:
@@ -232,7 +232,7 @@ def _transform_and_append_data_slice(
                     transform_dataset.flush()
                 else:
                     transform_dataset.check_flush()
-            
+
                 # dataset flushed, reset skipped sample count
                 if transform_dataset.start_input_idx is None:
                     skipped_samples_in_current_batch = 0
