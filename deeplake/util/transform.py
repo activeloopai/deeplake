@@ -332,6 +332,7 @@ def store_data_slice_with_pbar(pg_callback, transform_input: Tuple) -> Dict:
         cache_size=cache_size,
     )
 
+    ret = True
     if extend_only:
         _extend_data_slice(
             data_slice, offset, transform_dataset, pipeline.functions[0], pg_callback
