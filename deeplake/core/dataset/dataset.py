@@ -1052,6 +1052,10 @@ class Dataset:
             parameters={"name": name, "large_ok": large_ok},
         )
 
+        return self._delete_group(name, large_ok)
+
+    @invalid_view_op
+    def _delete_group(self, name: str, large_ok: bool = False):
         auto_checkout(self)
 
         full_path = filter_name(name, self.group_index)
@@ -1060,7 +1064,7 @@ class Dataset:
             raise TensorGroupDoesNotExistError(name)
 
         if not self._is_root():
-            return self.root.delete_group(full_path, large_ok)
+            return self.root._delete_group(full_path, large_ok)
 
         if not large_ok:
             size_approx = self[name].size_approx()
