@@ -121,7 +121,7 @@ deeplake_reporter = HumbugReporter(
 
 
 def set_username(username: str) -> None:
-    index, current_username = find_current_username(deeplake_reporter)
+    index, current_username = find_current_username()
 
     if current_username is None:
         deeplake_reporter.tags.append(f"username:{username}")
