@@ -2691,16 +2691,13 @@ class Dataset:
             },
         )
 
-        if not self._is_root():
-            return self.root.create_group(
-                posixpath.join(self.group_index, name), exist_ok=exist_ok
-            )
-        name = filter_name(name)
-        if name in self._groups:
+        full_name = filter_name(name, self.group_index)
+        if full_name in self._groups:
             if not exist_ok:
                 raise TensorGroupAlreadyExistsError(name)
             return self[name]
-        return self._create_group(name)
+
+        return self.root._create_group(full_name)
 
     def rechunk(
         self,
