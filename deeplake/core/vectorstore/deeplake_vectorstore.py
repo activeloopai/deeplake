@@ -176,3 +176,6 @@ class DeepLakeVectorStore:
                 "Please install it with `pip install deeplake`."
             )
         deeplake.delete(path, large_ok=True, force=True)
+
+    def __len__(self):
+        return len(self.dataset)

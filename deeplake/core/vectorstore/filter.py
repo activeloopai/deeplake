@@ -42,13 +42,29 @@ def exact_text_search(view, query):
 
 
 def get_id_indices(dataset, ids):
+    filtered_ids = None
     if ids:
         view = dataset.filter(lambda x: x["ids"].data()["value"] in ids)
-        ids = list(view.sample_indices)
-    return ids
+        filtered_ids = list(view.sample_indices)
+
+        if len(filtered_ids) != len(ids):
+            ids_that_doesnt_exist = get_ids_that_does_not_exist(ids, filtered_ids)
+            raise ValueError(
+                f"The following ids: {ids_that_doesnt_exist} does not exist in the dataset"
+            )
+    return filtered_ids or ids
+
+
+def get_ids_that_does_not_exist(ids, filtered_ids):
+    ids_that_doesnt_exist = ""
+    for id in ids:
+        if id not in filtered_ids:
+            ids_that_doesnt_exist += f"`{id}`, "
+    return ids_that_doesnt_exist[:-2]
 
 
 def get_filtered_ids(dataset, filter, ids):
+    filtered_ids = None
     if filter:
         # TO DO:
         # 1. check filter with indra

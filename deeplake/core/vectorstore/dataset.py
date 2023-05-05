@@ -13,8 +13,10 @@ except ImportError:
 import numpy as np
 
 import uuid
-from functools import partial
-from typing import Optional, Any, Iterable, List, Dict, Callable, Union
+from typing import Iterable, List, Union
+
+from deeplake.constants import DEFAULT_DEEPLAKE_PATH
+from deeplake.util.warnings import always_warn
 
 
 def create_or_load_dataset(
@@ -23,6 +25,7 @@ def create_or_load_dataset(
     utils.check_indra_installation(
         exec_option=exec_option, indra_installed=_INDRA_INSTALLED
     )
+
     if "overwrite" in kwargs and kwargs["overwrite"] == False:
         del kwargs["overwrite"]
 
@@ -40,6 +43,13 @@ def dataset_exists(dataset_path, token, creds, **kwargs):
 
 
 def load_dataset(dataset_path, token, creds, logger, read_only, **kwargs):
+    if dataset_path == DEFAULT_DEEPLAKE_PATH:
+        always_warn(
+            f"Default deeplake path location is used: {DEFAULT_DEEPLAKE_PATH}"
+            " and it is not free. All addtionally added data will be added on"
+            " top of already existing deeplake dataset."
+        )
+
     dataset = deeplake.load(dataset_path, token=token, read_only=read_only, **kwargs)
 
     logger.warning(
