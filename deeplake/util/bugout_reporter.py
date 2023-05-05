@@ -139,6 +139,7 @@ if machine_id is not None:
     deeplake_reporter.tags.append(f"machine_id:{machine_id}")
 
 
+# TODO: Minor improvemnet. Make it so reporting calls that don't use feature_report_path update the username based on token.
 def feature_report_path(
     path: str,
     feature_name: str,
