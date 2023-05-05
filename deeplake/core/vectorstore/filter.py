@@ -2,13 +2,6 @@ import deeplake
 from deeplake.constants import MB
 from deeplake.enterprise.util import raise_indra_installation_error
 
-try:
-    from indra import api
-
-    _INDRA_INSTALLED = True
-except Exception:
-    _INDRA_INSTALLED = False
-
 import numpy as np
 
 import uuid
