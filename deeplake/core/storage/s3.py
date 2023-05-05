@@ -131,9 +131,6 @@ class S3Provider(StorageProvider):
     def async_supported(self) -> bool:
         return asyncio is not None
 
-    def async_supported(self) -> bool:
-        return asyncio is not None
-
     def subdir(self, path: str, read_only: bool = False):
         sd = self.__class__(
             root=posixpath.join(self.root, path),
