@@ -556,7 +556,7 @@ class TransformError(Exception):
             super().__init__(index)
         else:
             print_item = print_path = False
-            if sample:
+            if sample is not None:
                 print_item = is_primitive(sample)
                 print_path = has_path(sample)
 
@@ -580,7 +580,7 @@ class TransformError(Exception):
 class SampleAppendError(Exception):
     def __init__(self, tensor, sample=None):
         print_item = print_path = False
-        if sample:
+        if sample is not None:
             print_item = is_primitive(sample)
             print_path = has_path(sample)
         if print_item or print_path:
@@ -1049,3 +1049,11 @@ class MissingManagedCredsError(Exception):
 class SampleUpdateError(Exception):
     def __init__(self, key: str):
         super().__init__(f"Unable to update sample in tensor {key}.")
+
+
+class AllSamplesSkippedError(Exception):
+    def __init__(self):
+        super().__init__(
+            "All samples were skipped during the transform. "
+            "Ensure your transform pipeline is correct before you set `ignore_errors=True`."
+        )
