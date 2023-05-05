@@ -120,14 +120,14 @@ deeplake_reporter = HumbugReporter(
 )
 
 
-def set_username(reporter: HumbugReporter, username: str) -> None:
-    index, current_username = find_current_username(reporter)
+def set_username(username: str) -> None:
+    index, current_username = find_current_username()
 
     if current_username is None:
-        reporter.tags.append(f"username:{username}")
+        deeplake_reporter.tags.append(f"username:{username}")
     else:
         if f"username:{username}" != current_username:
-            reporter.tags[index] = f"username:{username}"
+            deeplake_reporter.tags[index] = f"username:{username}"
 
 
 hub_user = bugout_reporting_config.get("username")
@@ -156,7 +156,7 @@ def feature_report_path(
         client = DeepLakeBackendClient(token=token)
         username = client.get_user_profile()["name"]
 
-        set_username(deeplake_reporter, username)
+        set_username(username)
 
     deeplake_reporter.feature_report(
         feature_name=feature_name,
@@ -164,8 +164,8 @@ def feature_report_path(
     )
 
 
-def find_current_username(reporter: HumbugReporter):
-    for index, tag in enumerate(reporter.tags):
+def find_current_username():
+    for index, tag in enumerate(deeplake_reporter.tags):
         if "username" in tag:
             return index, tag
     return None, None
