@@ -23,11 +23,12 @@ def create_or_load_dataset(
     utils.check_indra_installation(
         exec_option=exec_option, indra_installed=_INDRA_INSTALLED
     )
+    if "overwrite" in kwargs and kwargs["overwrite"] == False:
+        del kwargs["overwrite"]
+
     if dataset_exists(dataset_path, token, creds, **kwargs):
         return load_dataset(dataset_path, token, creds, logger, read_only, **kwargs)
 
-    if "overwrite" in kwargs:
-        del kwargs["overwrite"]
     return create_dataset(dataset_path, token, **kwargs)
 
 
@@ -49,7 +50,7 @@ def load_dataset(dataset_path, token, creds, logger, read_only, **kwargs):
 
 
 def create_dataset(dataset_path, token, **kwargs):
-    dataset = deeplake.empty(dataset_path, token=token, overwrite=True, **kwargs)
+    dataset = deeplake.empty(dataset_path, token=token, **kwargs)
 
     with dataset:
         dataset.create_tensor(
