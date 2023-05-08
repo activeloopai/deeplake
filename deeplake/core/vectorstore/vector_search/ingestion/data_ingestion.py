@@ -1,6 +1,7 @@
 import numpy as np
 
 import deeplake
+from deeplake.core.vectorstore.vector_search import utils
 
 
 def run_data_ingestion(
@@ -38,9 +39,9 @@ def ingest(sample_in: list, sample_out: list, _embedding_function) -> None:
         embedding = e if _embedding_function else s["embedding"]
         sample_out.append(
             {
-                "text": s["text"],
-                "metadata": s["metadata"],
+                "texts": s["text"],
+                "metadatas": s["metadata"],
                 "ids": s["id"],
-                "embedding": np.array(embedding, dtype=np.float32),
+                "embeddings": np.array(embedding, dtype=np.float32),
             }
         )

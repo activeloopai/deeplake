@@ -1,8 +1,10 @@
 import deeplake
-from deeplake.core.vectorstore import data_ingestion, utils, vector_search
-from deeplake.core.vectorstore import dataset as dataset_utils
-from deeplake.core.vectorstore import filter as filter_utlils
+from deeplake.core.vectorstore.vector_search import utils
+from deeplake.core.vectorstore.vector_search import dataset as dataset_utils
+from deeplake.core.vectorstore.vector_search import filter as filter_utlils
 from deeplake.constants import DEFAULT_DEEPLAKE_PATH
+from deeplake.core.vectorstore.vector_search import vector_search
+from deeplake.core.vectorstore.vector_search.ingestion import data_ingestion
 
 try:
     from indra import api
@@ -154,7 +156,7 @@ class DeepLakeVectorStore:
             delete_all (Optional[bool]): Whether to drop the dataset.
                 Defaults to None.
         """
-        deleted = dataset_utils.delete_all_samples_if_specified(
+        self.dataset, deleted = dataset_utils.delete_all_samples_if_specified(
             self.dataset, delete_all
         )
         if deleted:
@@ -168,13 +170,6 @@ class DeepLakeVectorStore:
     @classmethod
     def force_delete_by_path(cls, path: str) -> None:
         """Force delete dataset by path"""
-        try:
-            import deeplake
-        except ImportError:
-            raise ValueError(
-                "Could not import deeplake python package. "
-                "Please install it with `pip install deeplake`."
-            )
         deeplake.delete(path, large_ok=True, force=True)
 
     def __len__(self):

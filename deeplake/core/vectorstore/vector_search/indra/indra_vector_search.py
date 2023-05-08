@@ -1,5 +1,5 @@
-from deeplake.core.vectorstore.indra import query
-from deeplake.core.vectorstore import utils
+from deeplake.core.vectorstore.vector_search.indra import query
+from deeplake.core.vectorstore.vector_search import utils
 
 
 def vector_search(

@@ -513,5 +513,7 @@ class DeepLakeBackendClient:
         if len(indicies) == 0:
             return []
 
+        scores = response.get("score")
+
         indicies = [int(i) for i in indicies.split(",")]
-        return indicies
+        return indicies, scores

@@ -1,7 +1,8 @@
 import deeplake
 from deeplake.constants import MB
 from deeplake.enterprise.util import raise_indra_installation_error
-from deeplake.core.vectorstore import utils
+from deeplake.core.vectorstore.vector_search import utils
+from deeplake.core import tensor as tensor_utils
 
 try:
     from indra import api
@@ -64,7 +65,7 @@ def create_dataset(dataset_path, token, **kwargs):
 
     with dataset:
         dataset.create_tensor(
-            "text",
+            "texts",
             htype="text",
             create_id_tensor=False,
             create_sample_info_tensor=False,
@@ -72,7 +73,7 @@ def create_dataset(dataset_path, token, **kwargs):
             chunk_compression="lz4",
         )
         dataset.create_tensor(
-            "metadata",
+            "metadatas",
             htype="json",
             create_id_tensor=False,
             create_sample_info_tensor=False,
@@ -80,7 +81,7 @@ def create_dataset(dataset_path, token, **kwargs):
             chunk_compression="lz4",
         )
         dataset.create_tensor(
-            "embedding",
+            "embeddings",
             htype="embedding",
             dtype=np.float32,
             create_id_tensor=False,
@@ -108,9 +109,9 @@ def delete_and_commit(dataset, ids):
 
 def delete_all_samples_if_specified(dataset, delete_all):
     if delete_all:
-        dataset.delete(large_ok=True)
-        return True
-    return False
+        dataset = deeplake.empty(dataset.path, overwrite=True)
+        return dataset, True
+    return dataset, False
 
 
 def fetch_embeddings(exec_option, view):
@@ -148,7 +149,14 @@ def preprocess_tensors(ids, texts, metadatas, embeddings):
     if embeddings is None:
         embeddings = [None] * len(texts)
 
-    return ids, texts, metadatas, embeddings
+    processed_tensors = {
+        "ids": ids,
+        "texts": texts,
+        "metadatas": metadatas,
+        "embeddings": embeddings,
+    }
+
+    return processed_tensors
 
 
 def create_elements(
@@ -157,12 +165,16 @@ def create_elements(
     metadatas: List[dict],
     embeddings: Union[List[float], np.ndarray],
 ):
-    ids, texts, metadatas, embeddings = preprocess_tensors(
-        ids, texts, metadatas, embeddings
-    )
+    processed_tensors = preprocess_tensors(ids, texts, metadatas, embeddings)
+    utils.check_length_of_each_tensor(processed_tensors)
 
     elements = [
-        {"text": text, "metadata": metadata, "id": id_, "embedding": embedding}
-        for text, metadata, id_, embedding in zip(texts, metadatas, ids, embeddings)
+        {
+            "text": processed_tensors["texts"][i],
+            "id": processed_tensors["ids"][i],
+            "metadata": processed_tensors["metadatas"][i],
+            "embedding": processed_tensors["embeddings"][i],
+        }
+        for i in range(0, len(processed_tensors["texts"]))
     ]
     return elements

@@ -1,4 +1,4 @@
-from deeplake.core.vectorstore.indra import tql_distance_metrics
+from deeplake.core.vectorstore.vector_search.indra import tql_distance_metrics
 
 
 def create_query_string(distance_metric, limit, order="ASC"):

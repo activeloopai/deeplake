@@ -1,4 +1,5 @@
 import numpy as np
+import os
 import pytest
 import random
 import string
@@ -32,14 +33,16 @@ def create_data(number_of_data, embedding_dim=100):
     return texts, embeddings, ids, metadata
 
 
+embedding_dim = 1536
 # create data
-texts, embeddings, ids, metadatas = create_data(number_of_data=1000)
+texts, embeddings, ids, metadatas = create_data(
+    number_of_data=1000, embedding_dim=embedding_dim
+)
 
 
 @pytest.mark.parametrize("distance_metric", ["L1", "L2", "COS", "MAX", "DOT"])
 def test_search(distance_metric):
     k = 4
-    embedding_dim = 1536
     query_embedding = np.random.randint(0, 255, (1, embedding_dim))
 
     # initialize vector store object:
@@ -80,3 +83,34 @@ def test_delete():
     assert len(vector_store) == 997
 
     vector_store.delete(filter={"abcdefg": 0})
+    assert len(vector_store) == 985
+
+    vector_store.delete(delete_all=True)
+    assert len(vector_store) == 0
+
+    vector_store.force_delete_by_path("./deeplake_vector_store")
+    dirs = os.listdir("./")
+    assert "./deeplake_vector_store" not in dirs
+
+
+def test_ingestion():
+    # initialize vector store object:
+    vector_store = DeepLakeVectorStore(
+        dataset_path="./deeplake_vector_store",
+        overwrite=True,
+    )
+
+    with pytest.raises(Exception):
+        # add data to the dataset:
+        vector_store.add(
+            embeddings=embeddings, texts=texts[:100], ids=ids, metadatas=metadatas
+        )
+
+    vector_store.add(embeddings=embeddings, texts=texts, ids=ids, metadatas=metadatas)
+    assert len(vector_store) == 1000
+    assert list(vector_store.dataset.tensors.keys()) == [
+        "embeddings",
+        "ids",
+        "metadatas",
+        "texts",
+    ]

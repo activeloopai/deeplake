@@ -59,8 +59,6 @@ def get_ids_that_does_not_exist(ids, filtered_ids):
 def get_filtered_ids(dataset, filter, ids):
     filtered_ids = None
     if filter:
-        # TO DO:
-        # 1. check filter with indra
         view = dataset.filter(partial(dp_filter, filter=filter))
         filtered_ids = list(view.sample_indices)
     return filtered_ids or ids

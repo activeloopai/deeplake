@@ -1,4 +1,4 @@
-from deeplake.core.vectorstore.indra import query
+from deeplake.core.vectorstore.vector_search.indra import query
 
 
 # TODO: move this logic inside of indra_vector_search.py after supporting vector search queries with deeplake datasets.
