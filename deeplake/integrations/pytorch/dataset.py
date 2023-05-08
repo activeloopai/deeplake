@@ -4,6 +4,7 @@ from deeplake.integrations.pytorch.common import PytorchTransformFunction
 from deeplake.util.exceptions import TransformFailedError
 
 from deeplake.util.iterable_ordered_dict import IterableOrderedDict
+from deeplake.util.warnings import always_warn
 from deeplake.core.io import (
     DistributedScheduler,
     SampleStreaming,
@@ -187,7 +188,7 @@ class SubIterableDataset(torch.utils.data.IterableDataset):
             dataset,
             tensors=tensors,
             use_local_cache=use_local_cache,
-            transform=None if buffer_size else transform,
+            transform=transform,
             num_workers=num_workers,
             shuffle=True,
             return_index=return_index,
@@ -219,13 +220,13 @@ class SubIterableDataset(torch.utils.data.IterableDataset):
                     next_batch = next(it)
                     for val in next_batch:
                         result = buffer.exchange(val)
-                        if result:
-                            yield _process(result, self.transform, self.return_index)
+                        if result is not None:
+                            yield result
                     del next_batch
             except StopIteration:
                 pass
             while not buffer.emtpy():
-                yield _process(buffer.exchange(None), self.transform, self.return_index)
+                yield buffer.exchange(None)
             del it
         else:
             for batch in sub_loader:
