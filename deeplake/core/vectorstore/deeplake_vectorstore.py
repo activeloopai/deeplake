@@ -1,7 +1,7 @@
 import deeplake
 from deeplake.core.vectorstore.vector_search import utils
 from deeplake.core.vectorstore.vector_search import dataset as dataset_utils
-from deeplake.core.vectorstore.vector_search import filter as filter_utlils
+from deeplake.core.vectorstore.vector_search import filter as filter_utils
 from deeplake.constants import DEFAULT_DEEPLAKE_PATH
 from deeplake.core.vectorstore.vector_search import vector_search
 from deeplake.core.vectorstore.vector_search.ingestion import data_ingestion
@@ -42,7 +42,7 @@ class DeepLakeVectorStore:
         self.dataset = dataset_utils.create_or_load_dataset(
             dataset_path, token, creds, logger, read_only, exec_option, **kwargs
         )
-        self._embedding_function = embedding_function
+        self.embedding_function = embedding_function
         self._exec_option = exec_option
 
     def add(
@@ -67,7 +67,7 @@ class DeepLakeVectorStore:
         data_ingestion.run_data_ingestion(
             elements=elements,
             dataset=self.dataset,
-            embedding_function=self._embedding_function,
+            embedding_function=self.embedding_function,
             ingestion_batch_size=self.ingestion_batch_size,
             num_workers=self.num_workers,
         )
@@ -84,16 +84,16 @@ class DeepLakeVectorStore:
         distance_metric: str = "L2",
         filter: Optional[Any] = None,
         exec_option: Optional[str] = None,
-        db_engine: bool = False,
+        # db_engine: bool = False,
     ):
-        exec_option = self._parse_exec_option(
-            exec_option=exec_option, db_engine=db_engine
-        )
-
-        # TO DO:
-        # 1. check filter with indra
-
-        view = filter_utlils.attribute_based_filtering(self.dataset, filter)
+        # exec_option = self._parse_exec_option(
+        #     exec_option=exec_option, db_engine=db_engine
+        # )
+        if exec_option not in ("python", "indra", "db_engine"):
+            raise ValueError(
+                "Invalid `exec_option` it should be either `python`, `indra` or `db_engine`."
+            )
+        view = filter_utils.attribute_based_filtering(self.dataset, filter, exec_option)
         utils.check_indra_installation(exec_option, indra_installed=_INDRA_INSTALLED)
 
         if len(view) == 0:
@@ -117,10 +117,12 @@ class DeepLakeVectorStore:
         k: Optional[int] = 4,
         distance_metric: Optional[str] = "L2",
     ):
-        if self._embedding_function is None and embedding is None:
-            view, scores, indices = filter_utlils.exact_text_search(view, query)
+        if self.embedding_function is None and embedding is None:
+            view, scores, indices = filter_utils.exact_text_search(view, query)
         else:
-            query_emb = dataset_utils.get_embedding(embedding, query)
+            query_emb = dataset_utils.get_embedding(
+                embedding, query, embedding_function=self.embedding_function
+            )
             exec_option = exec_option or self._exec_option
             embeddings = dataset_utils.fetch_embeddings(
                 exec_option=exec_option, view=view
@@ -156,14 +158,13 @@ class DeepLakeVectorStore:
             delete_all (Optional[bool]): Whether to drop the dataset.
                 Defaults to None.
         """
-        self.dataset, deleted = dataset_utils.delete_all_samples_if_specified(
+        self.dataset, dataset_deleted = dataset_utils.delete_all_samples_if_specified(
             self.dataset, delete_all
         )
-        if deleted:
+        if dataset_deleted:
             return True
 
-        ids = filter_utlils.get_id_indices(self.dataset, ids)
-        ids = filter_utlils.get_filtered_ids(self.dataset, filter, ids)
+        ids = filter_utils.get_converted_ids(self.dataset, filter, ids)
         dataset_utils.delete_and_commit(self.dataset, ids)
         return True
 

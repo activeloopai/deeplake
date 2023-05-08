@@ -32,7 +32,7 @@ def convert_tensor_to_str(query_embedding):
     return f"ARRAY[{query_embedding_str[:-2]}]"
 
 
-def parse_query(distance_metric, limit, query_embedding, embedding_tensor="embedding"):
+def parse_query(distance_metric, limit, query_embedding, embedding_tensor):
     """Function for converting query_embedding into tql query."""
     query_embedding_str = convert_tensor_to_str(query_embedding)
     tql_query = create_query(

@@ -39,9 +39,9 @@ def ingest(sample_in: list, sample_out: list, _embedding_function) -> None:
         embedding = e if _embedding_function else s["embedding"]
         sample_out.append(
             {
-                "texts": s["text"],
-                "metadatas": s["metadata"],
+                "text": s["text"],
+                "metadata": s["metadata"],
                 "ids": s["id"],
-                "embeddings": np.array(embedding, dtype=np.float32),
+                "embedding": np.array(embedding, dtype=np.float32),
             }
         )

@@ -5,37 +5,12 @@ import random
 import string
 
 from deeplake.core.vectorstore.deeplake_vectorstore import DeepLakeVectorStore
-
-random.seed(0)
-np.random.seed(0)
-
-
-def generate_random_string(length):
-    # Define the character set to include letters (both lowercase and uppercase) and digits
-    characters = string.ascii_letters + string.digits
-    # Generate a random string of the specified length
-    random_string = "".join(random.choice(characters) for _ in range(length))
-
-    return random_string
-
-
-def generate_random_json(length):
-    string = "abcdefg"
-    integer = np.random.randint(0, length)
-    return {string: integer}
-
-
-def create_data(number_of_data, embedding_dim=100):
-    embeddings = np.random.randint(0, 255, (number_of_data, embedding_dim))
-    texts = [generate_random_string(1000) for i in range(number_of_data)]
-    ids = [f"{i}" for i in range(number_of_data)]
-    metadata = [generate_random_json(100) for i in range(number_of_data)]
-    return texts, embeddings, ids, metadata
+from deeplake.core.vectorstore.deeplake_vectorstore import utils
 
 
 embedding_dim = 1536
 # create data
-texts, embeddings, ids, metadatas = create_data(
+texts, embeddings, ids, metadatas = utils.create_data(
     number_of_data=1000, embedding_dim=embedding_dim
 )
 
@@ -66,6 +41,10 @@ def test_search(distance_metric):
 
     np.testing.assert_almost_equal(python_indices, indra_indices)
     np.testing.assert_almost_equal(python_scores, indra_scores)
+
+    view, indices, scores = vector_store.search(query=texts[0])
+    assert len(view) == 1
+    assert indices == 0
 
 
 def test_delete():

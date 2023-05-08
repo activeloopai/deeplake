@@ -45,7 +45,7 @@ def dataset_exists(dataset_path, token, creds, **kwargs):
 
 def load_dataset(dataset_path, token, creds, logger, read_only, **kwargs):
     if dataset_path == DEFAULT_DEEPLAKE_PATH:
-        always_warn(
+        logger.warning(
             f"Default deeplake path location is used: {DEFAULT_DEEPLAKE_PATH}"
             " and it is not free. All addtionally added data will be added on"
             " top of already existing deeplake dataset."
@@ -65,7 +65,7 @@ def create_dataset(dataset_path, token, **kwargs):
 
     with dataset:
         dataset.create_tensor(
-            "texts",
+            "text",
             htype="text",
             create_id_tensor=False,
             create_sample_info_tensor=False,
@@ -73,7 +73,7 @@ def create_dataset(dataset_path, token, **kwargs):
             chunk_compression="lz4",
         )
         dataset.create_tensor(
-            "metadatas",
+            "metadata",
             htype="json",
             create_id_tensor=False,
             create_sample_info_tensor=False,
@@ -81,7 +81,7 @@ def create_dataset(dataset_path, token, **kwargs):
             chunk_compression="lz4",
         )
         dataset.create_tensor(
-            "embeddings",
+            "embedding",
             htype="embedding",
             dtype=np.float32,
             create_id_tensor=False,
@@ -122,13 +122,16 @@ def fetch_embeddings(exec_option, view):
     return embeddings
 
 
-def get_embedding(embedding, query, _embedding_function=None):
+def get_embedding(embedding, query, embedding_function=None):
     if embedding is None:
-        if _embedding_function is None:
+        if embedding_function is None:
             raise Exception(
                 "Either embedding array or embedding_function should be specified!"
             )
-        embedding = _embedding_function.embed_query(query)  # type: ignore
+
+        if embedding is not None:
+            always_warn("both embedding and embedding_function are specified. ")
+        embedding = embedding_function.embed_query(query)  # type: ignore
 
     if embedding.dtype != "float32":
         embedding = np.array(embedding, dtype=np.float32)

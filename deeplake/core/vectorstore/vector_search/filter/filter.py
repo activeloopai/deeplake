@@ -1,6 +1,7 @@
 import deeplake
 from deeplake.constants import MB
 from deeplake.enterprise.util import raise_indra_installation_error
+from deeplake.util.warnings import always_warn
 
 import numpy as np
 
@@ -15,7 +16,8 @@ def dp_filter(x: dict, filter: Dict[str, str]) -> bool:
     return all(k in metadata and v == metadata[k] for k, v in filter.items())
 
 
-def attribute_based_filtering(view, filter):
+def attribute_based_filtering(view, filter, exec_option):
+    filtering_execption(exec_option=exec_option)
     # attribute based filtering
     if filter is not None:
         if isinstance(filter, dict):
@@ -27,25 +29,45 @@ def attribute_based_filtering(view, filter):
     return view
 
 
+def filtering_execption(exec_option):
+    if exec_option in ("indra", "db_engine"):
+        case_specific_exception = ""
+        if "db_engine":
+            case_specific_exception += "To run filtering set `remote_db=False`."
+        else:
+            case_specific_exception += (
+                """To run filtering set `exec_option="python"`."""
+            )
+        raise NotImplementedError(
+            f"Filtering data is only supported for python implementations. {case_specific_exception}"
+        )
+
+
 def exact_text_search(view, query):
     view = view.filter(lambda x: query in x["text"].data()["value"])
     scores = [1.0] * len(view)
-    index = view.index.values[0].value[0]
+
+    if len(view) == 0:
+        always_warn(
+            "Exact text search wasn't able to find any files. Try other search options like embedding search."
+        )
+        index = None
+    else:
+        index = list(view.sample_indices)
     return (view, scores, index)
 
 
 def get_id_indices(dataset, ids):
     filtered_ids = None
-    if ids:
-        view = dataset.filter(lambda x: x["ids"].data()["value"] in ids)
-        filtered_ids = list(view.sample_indices)
+    view = dataset.filter(lambda x: x["ids"].data()["value"] in ids)
+    filtered_ids = list(view.sample_indices)
 
-        if len(filtered_ids) != len(ids):
-            ids_that_doesnt_exist = get_ids_that_does_not_exist(ids, filtered_ids)
-            raise ValueError(
-                f"The following ids: {ids_that_doesnt_exist} does not exist in the dataset"
-            )
-    return filtered_ids or ids
+    if len(filtered_ids) != len(ids):
+        ids_that_doesnt_exist = get_ids_that_does_not_exist(ids, filtered_ids)
+        raise ValueError(
+            f"The following ids: {ids_that_doesnt_exist} does not exist in the dataset"
+        )
+    return filtered_ids
 
 
 def get_ids_that_does_not_exist(ids, filtered_ids):
@@ -56,9 +78,21 @@ def get_ids_that_does_not_exist(ids, filtered_ids):
     return ids_that_doesnt_exist[:-2]
 
 
-def get_filtered_ids(dataset, filter, ids):
+def get_filtered_ids(dataset, filter):
     filtered_ids = None
-    if filter:
-        view = dataset.filter(partial(dp_filter, filter=filter))
-        filtered_ids = list(view.sample_indices)
-    return filtered_ids or ids
+    view = dataset.filter(partial(dp_filter, filter=filter))
+    filtered_ids = list(view.sample_indices)
+    if len(filtered_ids) == 0:
+        raise ValueError(f"{filter} does not exist in the dataset.")
+    return filtered_ids
+
+
+def get_converted_ids(dataset, filter, ids):
+    if ids and filter:
+        raise ValueError("Either filter or ids should be specified.")
+
+    if ids:
+        ids = get_id_indices(dataset, ids)
+    else:
+        ids = get_filtered_ids(dataset, filter)
+    return ids

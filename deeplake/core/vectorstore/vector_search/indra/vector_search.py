@@ -1,4 +1,4 @@
-from deeplake.core.vectorstore.indra import query_parser
+from deeplake.core.vectorstore.vector_search.indra import query_parser
 
 
 def vector_search(

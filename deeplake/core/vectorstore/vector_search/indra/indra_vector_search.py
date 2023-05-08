@@ -9,7 +9,6 @@ def vector_search(
 
     tql_query = query.parse_query(distance_metric, k, query_embedding, embedding_tensor)
     indra_ds = api.dataset(deeplake_dataset.path)
-    # view = indra_ds.query(tql_query, runtime={"db_engine": db_engine})
 
     view = indra_ds.query(tql_query)
     indices = view.indexes

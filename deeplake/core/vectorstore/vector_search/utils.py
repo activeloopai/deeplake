@@ -4,6 +4,8 @@ from deeplake.enterprise.util import raise_indra_installation_error
 
 import numpy as np
 
+import random
+import string
 import uuid
 from functools import partial
 from typing import Optional, Any, Iterable, List, Dict, Callable, Union
@@ -33,3 +35,30 @@ def create_tensor_to_length_str(tensors):
             f"length of {tensor_name} = {len(tensors[f'{tensor_name}'])}\n"
         )
     return tensor_lengthes
+
+
+random.seed(0)
+np.random.seed(0)
+
+
+def generate_random_string(length):
+    # Define the character set to include letters (both lowercase and uppercase) and digits
+    characters = string.ascii_letters + string.digits
+    # Generate a random string of the specified length
+    random_string = "".join(random.choice(characters) for _ in range(length))
+
+    return random_string
+
+
+def generate_random_json(length):
+    string = "abcdefg"
+    integer = np.random.randint(0, length)
+    return {string: integer}
+
+
+def create_data(number_of_data, embedding_dim=100):
+    embeddings = np.random.randint(0, 255, (number_of_data, embedding_dim))
+    texts = [generate_random_string(1000) for i in range(number_of_data)]
+    ids = [f"{i}" for i in range(number_of_data)]
+    metadata = [generate_random_json(100) for i in range(number_of_data)]
+    return texts, embeddings, ids, metadata

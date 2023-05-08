@@ -2,8 +2,10 @@ import numpy as np
 import pytest
 
 import deeplake
-from deeplake.core.vectorstore.indra import query
-from deeplake.core.vectorstore.indra.tql_distance_metrics import get_tql_distance_metric
+from deeplake.core.vectorstore.vector_search.indra import query
+from deeplake.core.vectorstore.vector_search.indra.tql_distance_metrics import (
+    get_tql_distance_metric,
+)
 
 array = np.array([1, 2, 3, 4, 5, 6, 7, 8], dtype=np.float32)
 METRIC_FUNC_TO_QUERY_STRING = {
