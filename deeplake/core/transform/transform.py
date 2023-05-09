@@ -450,7 +450,7 @@ class Pipeline:
                 scheduler=scheduler,
                 verbose=progressbar,
             )
-        
+
         for res in result["error"]:
             if res is not None:
                 raise res

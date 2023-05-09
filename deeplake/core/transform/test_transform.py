@@ -1550,6 +1550,7 @@ def test_pad_data_in_bug(local_ds):
 
     ds2.delete()
 
+
 def test_no_corruption(local_ds):
     @deeplake.compute
     def upload(stuff, ds):
@@ -1558,8 +1559,17 @@ def test_no_corruption(local_ds):
     with local_ds as ds:
         ds.create_tensor("images", htype="image", sample_compression="png")
         ds.create_tensor("labels", htype="class_label")
-    
-    samples = ([{"images": np.random.randint(0, 256, (10, 10, 3), dtype=np.uint8), "labels": 1} for _ in range(20)] + ["bad_sample"]) * 2
+
+    samples = (
+        [
+            {
+                "images": np.random.randint(0, 256, (10, 10, 3), dtype=np.uint8),
+                "labels": 1,
+            }
+            for _ in range(20)
+        ]
+        + ["bad_sample"]
+    ) * 2
 
     with pytest.raises(TransformError):
         upload().eval(samples, ds, num_workers=TRANSFORM_TEST_NUM_WORKERS)
