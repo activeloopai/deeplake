@@ -114,8 +114,13 @@ def delete_all_samples_if_specified(dataset, delete_all):
     return dataset, False
 
 
-def fetch_embeddings(exec_option, view):
+def fetch_embeddings(exec_option, view, logger):
     if exec_option == "python":
+        logger.warning(
+            "Python implementation fetches all of the dataset's embedding into a memory. "
+            "With big datasets this could be quite slow and potentially result in performance issues. "
+            "Better to use `exec_option = db_engine`."
+        )
         embeddings = view.embedding.numpy()
     elif exec_option in ("indra", "db_engine"):
         embeddings = None
