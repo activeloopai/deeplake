@@ -2812,9 +2812,6 @@ class Dataset:
         if not isinstance(sample, dict):
             raise SampleAppendingError()
 
-        if skip_ok and append_empty:
-            raise ValueError("Only one of `skip_ok` and `append_empty` can be True.")
-
         skipped_tensors = [k for k in tensors if k not in sample]
         if skipped_tensors and not skip_ok and not append_empty:
             raise KeyError(
