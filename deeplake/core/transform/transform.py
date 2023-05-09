@@ -450,6 +450,10 @@ class Pipeline:
                 scheduler=scheduler,
                 verbose=progressbar,
             )
+        
+        for res in result["error"]:
+            if res is not None:
+                raise res
 
 
 def compose(functions: List[ComputeFunction]):  # noqa: DAR101, DAR102, DAR201, DAR401
