@@ -333,26 +333,35 @@ def store_data_slice_with_pbar(pg_callback, transform_input: Tuple) -> Dict:
     )
 
     ret = True
-    if extend_only:
-        _extend_data_slice(
-            data_slice, offset, transform_dataset, pipeline.functions[0], pg_callback
-        )
-    else:
-        ret = _transform_and_append_data_slice(
-            data_slice,
-            offset,
-            transform_dataset,
-            pipeline,
-            rel_tensors,
-            skip_ok,
-            pg_callback,
-            ignore_errors,
-        )
-
-    # retrieve relevant objects from memory
-    meta = _retrieve_memory_objects(all_chunk_engines)
-    meta["all_samples_skipped"] = not ret
-    return meta
+    err = None
+    try:
+        if extend_only:
+            _extend_data_slice(
+                data_slice,
+                offset,
+                transform_dataset,
+                pipeline.functions[0],
+                pg_callback,
+            )
+        else:
+            ret = _transform_and_append_data_slice(
+                data_slice,
+                offset,
+                transform_dataset,
+                pipeline,
+                rel_tensors,
+                skip_ok,
+                pg_callback,
+                ignore_errors,
+            )
+    except Exception as e:
+        err = e
+    finally:
+        # retrieve relevant objects from memory
+        meta = _retrieve_memory_objects(all_chunk_engines)
+        meta["all_samples_skipped"] = not ret
+        meta["error"] = err
+        return meta
 
 
 def create_worker_chunk_engines(
@@ -568,7 +577,7 @@ def get_lengths_generated(all_tensor_metas, tensors):
 
 
 def check_lengths(all_tensors_generated_length, skip_ok):
-    if not skip_ok:
+    if skip_ok:
         return
 
     first_length = None
