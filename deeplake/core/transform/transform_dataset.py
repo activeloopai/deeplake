@@ -72,10 +72,9 @@ class TransformDataset:
 
         for k in self.tensors:
             if k in sample:
-                v = sample[k]
+                self[k].append(sample[k])
             elif append_empty:
-                v = None
-            self[k].append(v)
+                self[k].append(None)
 
     def item_added(self, item):
         if isinstance(item, Sample):
