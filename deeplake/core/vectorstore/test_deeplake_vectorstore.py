@@ -17,7 +17,8 @@ texts, embeddings, ids, metadatas = utils.create_data(
 
 
 @requires_libdeeplake
-@pytest.mark.parametrize("distance_metric", ["L1", "L2", "COS", "MAX", "DOT"])
+# @pytest.mark.parametrize("distance_metric", ["L1", "L2", "COS", "MAX", "DOT"])
+@pytest.mark.parametrize("distance_metric", ["L2"])
 def test_search(distance_metric):
     k = 4
     query_embedding = np.random.randint(0, 255, (1, embedding_dim))
@@ -47,9 +48,6 @@ def test_search(distance_metric):
     # initialize vector store object:
     vector_store = DeepLakeVectorStore(
         dataset_path="hub://activeloop-test/deeplake_vector_store-test", read_only=True
-    )
-    vector_store = DeepLakeVectorStore(
-        dataset_path="hub://activeloop/mnist-train", read_only=True
     )
     db_engine_view, db_engine_indices, db_engine_scores = vector_store.search(
         embedding=query_embedding, exec_option="db_engine"

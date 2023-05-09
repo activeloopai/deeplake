@@ -163,7 +163,7 @@ class DeepLakeVectorStore:
             )
             exec_option = exec_option or self._exec_option
             embeddings = dataset_utils.fetch_embeddings(
-                exec_option=exec_option, view=view, logger=self._logger
+                exec_option=exec_option, view=view, logger=logger
             )
 
             indices, scores = vector_search.search(
