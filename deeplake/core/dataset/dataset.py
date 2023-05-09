@@ -2119,14 +2119,14 @@ class Dataset:
             if return_indices_and_scores:
                 return indices, scores
             return self[indices]
-		
-		if return_indices_and_scores:
+
+        if return_indices_and_scores:
             raise ValueError(
                 "return_indices_and_scores is not supported. Please add `db_engine=True` if you want to return indices and scores"
             )
 
         from deeplake.enterprise import query
-	
+
         deeplake_reporter.feature_report(
             feature_name="query",
             parameters={
