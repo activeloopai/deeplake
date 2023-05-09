@@ -61,7 +61,9 @@ class TransformDataset:
 
     def append(self, sample, skip_ok=False, append_empty=False):
         if skip_ok:
-            raise ValueError("`skip_ok` is not supported for `ds.append` in transforms. Use `skip_ok` parameter of the `eval` method instead.")
+            raise ValueError(
+                "`skip_ok` is not supported for `ds.append` in transforms. Use `skip_ok` parameter of the `eval` method instead."
+            )
 
         if len(set(map(len, (self[k] for k in sample)))) != 1:
             raise ValueError(
