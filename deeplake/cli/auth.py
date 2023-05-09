@@ -59,7 +59,7 @@ def login(username: str, password: str, token: str):
             reporting_config = get_reporting_config()
             if reporting_config.get("username") != username:
                 save_reporting_config(True, username=username)
-                set_username(deeplake_reporter, username)
+                set_username(username)
             break
         except AuthenticationException:
             chances -= 1
@@ -138,7 +138,7 @@ def register(username: str, email: str, password: str):
             """
             Privacy policy:
             We collect basic system information and crash reports so that we can keep
-            improving your experience using Hub to work with your data.
+            improving your experience using Deep Lake to work with your data.
             You can find out more by reading our privacy policy:
                 https://www.activeloop.ai/privacy/
             If you would like to opt out of reporting crashes and system information,

@@ -1056,16 +1056,18 @@ class dataset:
 
         verify_dataset_name(dest)
 
-        report_params = {
-            "Overwrite": overwrite,
-            "Num_Workers": num_workers,
-            "Scheduler": scheduler,
-            "Progressbar": progressbar,
-            "Public": public,
-        }
-        if dest.startswith("hub://"):
-            report_params["Dest"] = dest
-        feature_report_path(src, "deepcopy", report_params, token=token)
+        deeplake_reporter.feature_report(
+            feature_name="deepcopy",
+            parameters={
+                "tensors": tensors,
+                "overwrite": overwrite,
+                "num_workers": num_workers,
+                "scheduler": scheduler,
+                "progressbar": progressbar,
+                "public": public,
+                "verbose": verbose,
+            },
+        )
 
         try:
             src_ds = deeplake.load(
