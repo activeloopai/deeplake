@@ -121,7 +121,6 @@ class DeepLakeVectorStore:
         utils.check_indra_installation(exec_option, indra_installed=_INDRA_INSTALLED)
 
         if len(view) == 0:
-            print("\n\nlength of view is 0\n\n")
             return view, [], []
 
         return self._search(
