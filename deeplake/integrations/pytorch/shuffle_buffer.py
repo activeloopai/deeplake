@@ -10,6 +10,9 @@ import sys
 from PIL import Image  # type: ignore
 from io import BytesIO
 from tqdm import tqdm  # type: ignore
+from deeplake.util.warnings import always_warn
+from deeplake.constants import MB
+import deeplake
 
 
 class ShuffleBuffer:
@@ -31,6 +34,7 @@ class ShuffleBuffer:
         self.size = size
         self.buffer: List[Any] = list()
         self.buffer_used = 0
+        self.num_torch_tensors = 0
         self.pbar = tqdm(
             total=self.size,
             desc="Please wait, filling up the shuffle buffer with samples.",
@@ -51,17 +55,25 @@ class ShuffleBuffer:
             same sample if buffer is empty and sample doesn't fit
         """
         buffer_len = len(self.buffer)
-
         if sample is not None:
             sample_size = self._sample_size(sample)
-
+            num_torch_tensors = self._num_torch_tensors(sample)
+            max_tensors = deeplake.constants.MAX_TENSORS_IN_SHUFFLE_BUFFER
+            max_tensors_reached = (
+                self.num_torch_tensors + num_torch_tensors >= max_tensors
+            )
             # fill buffer of not reach limit
-            if self.buffer_used + sample_size <= self.size:
+            if self.buffer_used + sample_size <= self.size and not max_tensors_reached:
                 self.buffer_used += sample_size
+                self.num_torch_tensors += num_torch_tensors
                 self.pbar.update(sample_size)
                 self.buffer.append(sample)
                 return None
             elif not self.pbar_closed:
+                if max_tensors_reached:
+                    always_warn(
+                        f"`MAX_TENSORS_IN_SHUFFLE_BUFFER` of {max_tensors} reached. Shuffle buffer will not be filled up to the `buffer_size` limit of {(self.size / MB):.3} MB."
+                    )
                 self.close_buffer_pbar()
 
             if buffer_len == 0:
@@ -77,6 +89,8 @@ class ShuffleBuffer:
 
             self.buffer_used += sample_size
             self.buffer_used -= self._sample_size(val)
+            self.num_torch_tensors += num_torch_tensors
+            self.num_torch_tensors -= self._num_torch_tensors(val)
             return val
         else:
             if not self.pbar_closed:
@@ -93,6 +107,23 @@ class ShuffleBuffer:
 
     def emtpy(self) -> bool:
         return len(self.buffer) == 0
+
+    def _num_torch_tensors(self, sample):
+        try:
+            if sys.modules.get("torch"):
+                from torch import Tensor as TorchTensor
+            else:
+                return 0
+        except ImportError:
+            return 0
+        if isinstance(sample, TorchTensor):
+            return 1
+        elif isinstance(sample, dict):
+            return sum(self._num_torch_tensors(tensor) for tensor in sample.values())
+        elif isinstance(sample, Sequence):
+            return sum(self._num_torch_tensors(tensor) for tensor in sample)
+        else:
+            return 0
 
     def _sample_size(self, sample):
         try:
@@ -128,9 +159,16 @@ class ShuffleBuffer:
         elif isinstance(sample, np.ndarray):
             return sample.nbytes
         elif isinstance(sample, Image.Image):
-            img = BytesIO()
-            sample.save(img, sample.format)
-            return len(img.getvalue())
+            size = sample.size
+            num_pixels = size[0] * size[1]
+            if sample.mode == "RGB":
+                num_pixels = num_pixels * 3
+            elif sample.mode == "RGBA":
+                num_pixels = num_pixels * 4
+            elif sample.mode == "L":
+                num_pixels = num_pixels * 1
+            num_bytes = num_pixels * 1  # change according to dtype of tensor later
+            return num_bytes
         raise ValueError(
             f"Expected input of type bytes, dict, Sequence, torch.Tensor, np.ndarray or PIL image, got: {type(sample)}"
         )

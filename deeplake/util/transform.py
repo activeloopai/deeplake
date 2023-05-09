@@ -26,6 +26,7 @@ from deeplake.util.remove_cache import (
 from deeplake.util.keys import get_tensor_meta_key
 from deeplake.util.version_control import auto_checkout, load_meta
 from deeplake.util.exceptions import (
+    AllSamplesSkippedError,
     InvalidInputDataError,
     InvalidOutputDatasetError,
     InvalidTransformDataset,
@@ -164,6 +165,7 @@ def _handle_transform_error(
     ignore_errors,
 ):
     start_input_idx = transform_dataset.start_input_idx
+    skipped_samples = 0
     for i in range(start_input_idx, end_input_idx + 1):
         sample = (
             data_slice[i : i + 1]
@@ -178,8 +180,10 @@ def _handle_transform_error(
             transform_dataset.flush()
         except Exception as e:
             if isinstance(e, SampleAppendError) and ignore_errors:
+                skipped_samples += 1
                 continue
             raise TransformError(offset + i, sample) from e
+    return skipped_samples
 
 
 def _transform_and_append_data_slice(
@@ -192,7 +196,10 @@ def _transform_and_append_data_slice(
     pg_callback,
     ignore_errors,
 ):
+    """Appends a data slice. Returns ``True`` if any samples were appended and ``False`` otherwise."""
     n = len(data_slice)
+    skipped_samples = 0
+    skipped_samples_in_current_batch = 0
 
     pipeline_checked = False
 
@@ -206,28 +213,41 @@ def _transform_and_append_data_slice(
 
             try:
                 out = transform_sample(sample, pipeline, tensors)
+
+                if not pipeline_checked:
+                    _check_pipeline(out, tensors, skip_ok)
+                    pipeline_checked = True
+
+                write_sample_to_transform_dataset(out, transform_dataset)
+
             except SampleAppendError as e:
                 if ignore_errors:
-                    continue
-                raise TransformError(offset + i, sample) from e
+                    skipped_samples += 1
+                    skipped_samples_in_current_batch += 1
+                else:
+                    raise TransformError(offset + i, sample) from e
 
-            if not pipeline_checked:
-                _check_pipeline(out, tensors, skip_ok)
-                pipeline_checked = True
+            finally:
+                if i == n - 1:
+                    transform_dataset.flush()
+                else:
+                    transform_dataset.check_flush()
 
-            write_sample_to_transform_dataset(out, transform_dataset)
+                # dataset flushed, reset skipped sample count
+                if transform_dataset.start_input_idx is None:
+                    skipped_samples_in_current_batch = 0
 
-            if i == n - 1:
-                transform_dataset.flush()
-            else:
-                transform_dataset.check_flush()
+                if pg_callback is not None:
+                    pg_callback(1)
 
-            if pg_callback is not None:
-                pg_callback(1)
+        # failure at chunk_engine
+        # retry one sample at a time
         except SampleAppendError:
-            # failure at chunk_engine
-            # retry one sample at a time
-            _handle_transform_error(
+            # reset skipped sample count to avoid double counting
+            skipped_samples -= skipped_samples_in_current_batch
+            skipped_samples_in_current_batch = 0
+
+            skipped_samples += _handle_transform_error(
                 data_slice,
                 offset,
                 transform_dataset,
@@ -237,6 +257,10 @@ def _transform_and_append_data_slice(
                 ignore_errors,
             )
             continue
+
+    if skipped_samples == n:
+        return False
+    return True
 
 
 def _retrieve_memory_objects(all_chunk_engines):
@@ -308,12 +332,13 @@ def store_data_slice_with_pbar(pg_callback, transform_input: Tuple) -> Dict:
         cache_size=cache_size,
     )
 
+    ret = True
     if extend_only:
         _extend_data_slice(
             data_slice, offset, transform_dataset, pipeline.functions[0], pg_callback
         )
     else:
-        _transform_and_append_data_slice(
+        ret = _transform_and_append_data_slice(
             data_slice,
             offset,
             transform_dataset,
@@ -325,7 +350,9 @@ def store_data_slice_with_pbar(pg_callback, transform_input: Tuple) -> Dict:
         )
 
     # retrieve relevant objects from memory
-    return _retrieve_memory_objects(all_chunk_engines)
+    meta = _retrieve_memory_objects(all_chunk_engines)
+    meta["all_samples_skipped"] = not ret
+    return meta
 
 
 def create_worker_chunk_engines(
@@ -565,6 +592,8 @@ def sanitize_workers_scheduler(num_workers, scheduler):
 
 
 def process_transform_result(result: List[Dict]):
+    if all(res.get("all_samples_skipped") for res in result):
+        raise AllSamplesSkippedError
     if not result:
         return result
     final = defaultdict(list)

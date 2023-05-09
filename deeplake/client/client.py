@@ -54,7 +54,6 @@ class DeepLakeBackendClient:
         from deeplake.util.bugout_reporter import (
             save_reporting_config,
             get_reporting_config,
-            deeplake_reporter,
             set_username,
         )
 
@@ -75,7 +74,7 @@ class DeepLakeBackendClient:
             username = self.get_user_profile()["name"]
             if get_reporting_config().get("username") != username:
                 save_reporting_config(True, username=username)
-                set_username(deeplake_reporter, username)
+                set_username(username)
 
     def get_token(self):
         """Returns a token"""

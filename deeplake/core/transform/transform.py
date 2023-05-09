@@ -27,6 +27,7 @@ from deeplake.util.transform import (
 )
 from deeplake.util.encoder import merge_all_meta_info
 from deeplake.util.exceptions import (
+    AllSamplesSkippedError,
     HubComposeEmptyListError,
     HubComposeIncompatibleFunction,
     TransformError,
@@ -296,6 +297,8 @@ class Pipeline:
                 if isinstance(e, TransformError):
                     index, sample = e.index, e.sample
                     e = e.__cause__  # type: ignore
+                if isinstance(e, AllSamplesSkippedError):
+                    raise e
                 raise TransformError(
                     index=index,
                     sample=sample,
