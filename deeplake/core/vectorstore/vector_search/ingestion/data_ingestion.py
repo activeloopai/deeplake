@@ -2,6 +2,7 @@ import numpy as np
 
 import deeplake
 from deeplake.core.vectorstore.vector_search import utils
+from deeplake.util.exceptions import TransformError
 
 
 def run_data_ingestion(
