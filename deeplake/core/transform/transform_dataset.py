@@ -1,6 +1,6 @@
+from deeplake.util.exceptions import SampleAppendError, TensorDoesNotExistError
 from deeplake.core.transform.transform_tensor import TransformTensor
 from deeplake.core.linked_tiled_sample import LinkedTiledSample
-from deeplake.util.exceptions import SampleAppendError
 from deeplake.core.partial_sample import PartialSample
 from deeplake.core.linked_sample import LinkedSample
 from deeplake.core.sample import Sample
@@ -59,11 +59,20 @@ class TransformDataset:
         for i in range(len(self)):
             yield self[i]
 
-    def append(self, sample):
-        if len(set(map(len, (self[k] for k in sample)))) != 1:
-            raise ValueError("All tensors are expected to have the same length.")
+    def append(self, sample, skip_ok=False, append_empty=False):
+        if skip_ok:
+            raise ValueError("`skip_ok` is not supported for `ds.append` in transforms. Use `skip_ok` parameter of the `eval` method instead.")
 
-        for k, v in sample.items():
+        if len(set(map(len, (self[k] for k in sample)))) != 1:
+            raise ValueError(
+                "All tensors are expected to have the same length before `ds.append`."
+            )
+
+        for k in self.tensors:
+            if k in sample:
+                v = sample[k]
+            elif append_empty:
+                v = None
             self[k].append(v)
 
     def item_added(self, item):

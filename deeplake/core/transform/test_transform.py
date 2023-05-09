@@ -13,6 +13,7 @@ from deeplake.util.remove_cache import remove_memory_cache
 from deeplake.util.check_installation import ray_installed
 from deeplake.util.exceptions import (
     AllSamplesSkippedError,
+    EmptyTensorError,
     InvalidOutputDatasetError,
     TransformError,
 )
@@ -1549,3 +1550,25 @@ def test_pad_data_in_bug(local_ds):
     np.testing.assert_array_equal(ds2.xyz.numpy(), ds.xyz.numpy())
 
     ds2.delete()
+
+
+def test_ds_append_empty(local_ds):
+    @deeplake.compute
+    def upload(stuff, ds):
+        ds.append(stuff, append_empty=True)
+    
+    with local_ds as ds:
+        ds.create_tensor("images", htype="image", sample_compression="png")
+        ds.create_tensor("label1", htype="class_label")
+        ds.create_tensor("label2", htype="class_label")
+
+    samples = [{"images": np.random.randint(0, 255, (10, 10, 3), dtype=np.uint8), "label1": 1} for _ in range(20)]
+
+    upload().eval(samples, ds, num_workers=TRANSFORM_TEST_NUM_WORKERS)
+
+    with pytest.raises(EmptyTensorError):
+        ds.label2.numpy()
+    
+    ds.label2.append(1)
+    
+    np.testing.assert_array_equal(ds.label2[:20].numpy(), np.array([]).reshape((20, 0)))
