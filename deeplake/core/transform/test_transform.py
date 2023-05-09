@@ -1554,7 +1554,7 @@ def test_pad_data_in_bug(local_ds):
 
 def test_ds_append_empty(local_ds):
     @deeplake.compute
-    def upload(stuff, ds):
+    def upload(stuff, ds): 
         ds.append(stuff, append_empty=True)
 
     with local_ds as ds:
