@@ -16,9 +16,9 @@ assignees: ''
 
 A clear and concise description of what the problem is. Ex. I have an issue when [...]
 
-### If your feature will improve `HUB`
+### If your feature will improve `deeplake`
 
-A clear and concise description of how it will help `HUB`. Please prefer references, if possible [...]
+A clear and concise description of how it will help `deeplake`. Use references, if possible [...]
 
 
 ### Description of the possible solution
