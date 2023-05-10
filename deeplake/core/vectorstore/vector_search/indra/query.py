@@ -22,7 +22,7 @@ def create_query_string(distance_metric: str, limit: int, order: str = "ASC"):
 def create_query(
     distance_metric: str,
     embeddings: str,
-    query_embedding: Union[List[float], np.ndarray],
+    query_embedding: str,
     limit: int,
 ):
     """Function for creating a query string from a distance metric, embeddings, query_embedding, and limit.
@@ -30,7 +30,7 @@ def create_query(
     Args:
         distance_metric (str): distance metric to compute similarity of the query embedding with dataset's embeddings.
         embeddings (str): name of the tensor in the dataset with `htype = "embedding"`.
-        query_embedding (Union[List[float], np.ndarray]): embedding representation of the query string.
+        query_embedding (str): embedding representation of the query string converted to str.
         limit (int): number of samples to return after the search.
 
     Returns:

@@ -73,16 +73,16 @@ def test_delete_all():
 
 def test_fetch_embeddings():
     dataset = deeplake.empty("./test-dataset", overwrite=True)
-    dataset.create_tensor("embeddings")
-    dataset.embeddings.extend([1, 2, 3, 4, 5, 6, 7, 8, 9])
+    dataset.create_tensor("embedding")
+    dataset.embedding.extend([1, 2, 3, 4, 5, 6, 7, 8, 9])
 
-    embedings = dataset_utils.fetch_embeddings("python", dataset)
+    embedings = dataset_utils.fetch_embeddings("python", dataset, logger)
     assert len(embedings) == 9
 
-    embedings = dataset_utils.fetch_embeddings("indra", dataset)
+    embedings = dataset_utils.fetch_embeddings("indra", dataset, logger)
     assert embedings is None
 
-    embedings = dataset_utils.fetch_embeddings("db_engine", dataset)
+    embedings = dataset_utils.fetch_embeddings("db_engine", dataset, logger)
     assert embedings is None
 
 
@@ -113,23 +113,23 @@ def test_get_embedding():
 
 
 def test_preprocess_tensors():
+    texts = ["a", "b", "c", "d"]
     processed_tensors = dataset_utils.preprocess_tensors(
-        ids=None, texts=None, metadatas=None, embeddings=None
+        ids=None, texts=texts, metadatas=None, embeddings=None
     )
 
-    assert processed_tensors["ids"] is None
-    assert processed_tensors["texts"] is None
-    assert processed_tensors["metadatas"] is None
-    assert processed_tensors["embeddings"] is None
+    assert len(processed_tensors["ids"]) == 4
+    assert processed_tensors["texts"] == texts
+    assert processed_tensors["metadatas"] == [{}, {}, {}, {}]
+    assert processed_tensors["embeddings"] == [None, None, None, None]
 
     ids = np.array([1, 2, 3, 4])
-    texts = ["a", "b", "c", "d"]
     metadatas = [{"a": 1}, {"b": 2}, {"c": 3}, {"d": 4}]
     embeddings = [np.array([0.1, 0.2, 0.3, 0.4])] * len(texts)
     processed_tensors = dataset_utils.preprocess_tensors(
         ids=ids, texts=texts, metadatas=metadatas, embeddings=embeddings
     )
-    assert processed_tensors["ids"] == ids
+    assert np.array_equal(processed_tensors["ids"], ids)
     assert processed_tensors["texts"] == texts
     assert processed_tensors["metadatas"] == metadatas
     assert processed_tensors["embeddings"] == embeddings
