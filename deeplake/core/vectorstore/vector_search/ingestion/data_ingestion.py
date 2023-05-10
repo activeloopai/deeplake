@@ -33,7 +33,7 @@ def run_data_ingestion(
         elements[i : i + batch_size] for i in range(0, len(elements), batch_size)
     ]
 
-    ingest(_embedding_function=embedding_function).eval(
+    ingest(embedding_function=embedding_function).eval(
         batched,
         dataset,
         num_workers=min(num_workers, len(batched) // max(num_workers, 1)),
@@ -41,16 +41,21 @@ def run_data_ingestion(
 
 
 @deeplake.compute
-def ingest(sample_in: list, sample_out: list, _embedding_function) -> None:
+def ingest(sample_in: list, sample_out: list, embedding_function) -> None:
     text_list = [s["text"] for s in sample_in]
 
     embeds = [None] * len(text_list)
-    if _embedding_function is not None:
-        embeddings = _embedding_function.embed_documents(text_list)
+    if embedding_function is not None:
+        try:
+            embeddings = embedding_function(text_list)
+        except Exception as e:
+            raise Exception(
+                "Could not use embedding function. Please try again with a different embedding function."
+            )
         embeds = [np.array(e, dtype=np.float32) for e in embeddings]
 
     for s, e in zip(sample_in, embeds):
-        embedding = e if _embedding_function else s["embedding"]
+        embedding = e if embedding_function else s["embedding"]
         sample_out.append(
             {
                 "text": s["text"],

@@ -7,7 +7,7 @@ from deeplake.core.dataset import Dataset as DeepLakeDataset
 
 
 def vector_search(
-    query_embedding: Optional[Union[List[float], np.ndarray]],
+    query_embedding: Optional[np.ndarray],
     distance_metric: str,
     deeplake_dataset: DeepLakeDataset,
     k: int,
@@ -24,7 +24,7 @@ def vector_search(
         embedding_tensor (str): name of the tensor in the dataset with `htype = "embedding"`.
         **kwargs (Any): Any additional parameters.
     """
-    from indra import api
+    from indra import api  # type: ignore
 
     tql_query = query.parse_query(distance_metric, k, query_embedding, embedding_tensor)
     indra_ds = api.dataset(deeplake_dataset.path)

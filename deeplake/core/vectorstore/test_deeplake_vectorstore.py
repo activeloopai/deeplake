@@ -100,8 +100,8 @@ def test_ingestion():
     vector_store.add(embeddings=embeddings, texts=texts, ids=ids, metadatas=metadatas)
     assert len(vector_store) == 1000
     assert list(vector_store.dataset.tensors.keys()) == [
-        "embeddings",
+        "embedding",
         "ids",
-        "metadatas",
-        "texts",
+        "metadata",
+        "text",
     ]

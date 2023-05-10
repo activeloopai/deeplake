@@ -1,8 +1,19 @@
 import numpy as np
 
+import random
+
 import deeplake
 from deeplake.constants import MB
 from deeplake.core.vectorstore.vector_search.ingestion import data_ingestion
+
+random.seed(1)
+
+
+def corrupted_embedding_function(emb):
+    p = random.uniform(0, 1)
+    if p > 0.9:
+        raise Exception("CorruptedEmbeddingFunction")
+    return np.zeros((1, 1536), dtype=np.float32)
 
 
 def test_data_ingestion():
@@ -77,3 +88,11 @@ def test_data_ingestion():
     )
 
     assert len(dataset) == 4
+    extended_data = data * 10
+    data_ingestion.run_data_ingestion(
+        dataset=dataset,
+        elements=extended_data,
+        embedding_function=corrupted_embedding_function,
+        ingestion_batch_size=1,
+        num_workers=2,
+    )

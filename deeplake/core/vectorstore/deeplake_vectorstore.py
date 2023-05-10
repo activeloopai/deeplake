@@ -34,6 +34,7 @@ class DeepLakeVectorStore:
         ingestion_batch_size: int = 1024,
         num_workers: int = 0,
         exec_option: str = "python",
+        verbose=False,
         **kwargs: Any,
     ) -> None:
         """DeepLakeVectorStore initialization
@@ -55,13 +56,14 @@ class DeepLakeVectorStore:
         )
         self.embedding_function = embedding_function
         self._exec_option = exec_option
+        self.verbose = verbose
 
     def add(
         self,
         texts: Iterable[str],
         metadatas: Optional[List[dict]] = None,
         ids: Optional[List[str]] = None,
-        embeddings: Optional[Union[List[float], np.ndarray]] = None,
+        embeddings: Optional[np.ndarray] = None,
         verbose: Optional[bool] = False,
     ) -> List[str]:
         """Adding elements to deeplake vector store
@@ -70,7 +72,7 @@ class DeepLakeVectorStore:
             texts (Iterable[str]): texts to add to deeplake vector store
             metadatas (Optional[List[dict]], optional): List of metadatas.. Defaults to None.
             ids (Optional[List[str]], optional): List of document IDs. Defaults to None.
-            embeddings (Optional[Union[List[float], np.ndarray]]): embedding of texts. Defaults to None.
+            embeddings (Optional[np.ndarray): embedding of texts. Defaults to None.
         Returns:
             ids (List[str]): List of document IDs
         """
@@ -83,14 +85,14 @@ class DeepLakeVectorStore:
             num_workers=self.num_workers,
         )
         self.dataset.commit(allow_empty=True)
-        if verbose:
+        if self.verbose:
             self.dataset.summary()
         return ids
 
     def search(
         self,
         query: Optional[str] = None,
-        embedding: Optional[Union[List[float], np.ndarray]] = None,
+        embedding: Optional[np.ndarray] = None,
         k: int = 4,
         distance_metric: str = "L2",
         filter: Optional[Any] = None,
@@ -100,7 +102,7 @@ class DeepLakeVectorStore:
 
         Args:
             query (Optional[str], optional): String representation of the query to run. Defaults to None.
-            embedding (Optional[Union[List[float], np.ndarray]], optional): Embedding representation of the query to run. Defaults to None.
+            embedding (Optional[np.ndarray, optional): Embedding representation of the query to run. Defaults to None.
             k (int, optional): Number of elements to return after running query. Defaults to 4.
             distance_metric (str, optional): Type of distance metric to use for sorting the data. Avaliable options are: "L1", "L2", "COS", "MAX". Defaults to "L2".
             filter (Optional[Any], optional): Metadata dictionary for exact search. Defaults to None.
@@ -135,10 +137,10 @@ class DeepLakeVectorStore:
     def _search(
         self,
         view,
-        exec_option: bool,
+        exec_option: str,
         embedding: Optional[Union[List[float], np.ndarray]] = None,
         query: Optional[str] = None,
-        k: Optional[int] = 4,
+        k: int = 4,
         distance_metric: Optional[str] = "L2",
     ):
         """Internal DeepLakeVectorStore search method
@@ -146,10 +148,10 @@ class DeepLakeVectorStore:
         Args:
             query (Optional[str], optional): String representation of the query to run. Defaults to None.
             embedding (Optional[Union[List[float], np.ndarray]], optional): Embedding representation of the query to run. Defaults to None.
-            k (int, optional): Number of elements to return after running query. Defaults to 4.
+            k (int): Number of elements to return after running query. Defaults to 4.
             distance_metric (str, optional): Type of distance metric to use for sorting the data. Avaliable options are: "L1", "L2", "COS", "MAX". Defaults to "L2".
             filter (Optional[Any], optional): Metadata dictionary for exact search. Defaults to None.
-            exec_option (Optional[str], optional): Type of query execution. It could be either "python", "indra" or "db_engine". Defaults to None.
+            exec_option (str): Type of query execution. It could be either "python", "indra" or "db_engine". Defaults to None.
 
         Returns:
             tuple (view, indices, scores): View is the dataset view generated from the queried samples, indices are the indices of the ordered samples, scores are respectively the scores of the ordered samples
