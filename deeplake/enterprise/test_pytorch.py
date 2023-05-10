@@ -6,7 +6,11 @@ from deeplake.util.exceptions import EmptyTensorError, TensorDoesNotExistError
 
 from deeplake.util.remove_cache import get_base_storage
 from deeplake.core.index.index import IndexEntry
-from deeplake.tests.common import requires_torch, requires_libdeeplake
+from deeplake.tests.common import (
+    requires_torch,
+    requires_libdeeplake,
+    convert_data_according_to_torch_version,
+)
 from deeplake.core.dataset import Dataset
 from deeplake.constants import KB
 
@@ -63,7 +67,6 @@ def index_transform(sample):
 @pytest.mark.parametrize(
     "ds",
     ["hub_cloud_ds", "hub_cloud_gcs_ds"],
-    indirect=True,
 )
 def test_pytorch_small(ds):
     with ds:
@@ -458,7 +461,7 @@ def test_pytorch_decode(hub_cloud_ds, compressed_image_paths, compression):
     ptds = hub_cloud_ds.dataloader().pytorch(decode_method={"image": "tobytes"})
 
     for i, batch in enumerate(ptds):
-        image = batch["image"]
+        image = convert_data_according_to_torch_version(batch["image"])
         assert isinstance(image, bytes)
         if i < 5 and not compression:
             np.testing.assert_array_equal(
