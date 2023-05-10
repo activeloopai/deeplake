@@ -1127,6 +1127,7 @@ class Dataset:
         del meta["version"]
         del meta["name"]
         del meta["links"]
+        meta["dtype"] = np.dtype(meta["typestr"]) if meta["typestr"] else meta["dtype"]
 
         destination_tensor = self._create_tensor(
             name,
