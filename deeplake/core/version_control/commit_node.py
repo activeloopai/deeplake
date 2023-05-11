@@ -16,6 +16,8 @@ class CommitNode:
         self.commit_user_name: Optional[str] = None
         self.merge_parent: Optional["CommitNode"] = None
         self._info_updated: bool = False
+        self.is_checkpoint: bool = False
+        self.total_samples_processed: int = 0
 
     def add_child(self, node: "CommitNode"):
         """Adds a child to the node, used for branching."""
@@ -27,6 +29,8 @@ class CommitNode:
         node.commit_message = self.commit_message
         node.commit_user_name = self.commit_user_name
         node.commit_time = self.commit_time
+        node.is_checkpoint = self.is_checkpoint
+        node.total_samples_processed = self.total_samples_processed
         return node
 
     def add_successor(self, node: "CommitNode", message: Optional[str] = None):
@@ -47,7 +51,10 @@ class CommitNode:
         return self.merge_parent is not None
 
     def __repr__(self) -> str:
-        return f"Commit : {self.commit_id} ({self.branch}) \nAuthor : {self.commit_user_name}\nTime   : {str(self.commit_time)[:-7]}\nMessage: {self.commit_message}"
+        return (
+            f"Commit : {self.commit_id} ({self.branch}) \nAuthor : {self.commit_user_name}\nTime   : {str(self.commit_time)[:-7]}\nMessage: {self.commit_message}"
+            + f"\nTotal samples processed in transform: {self.total_samples_processed}" if self.is_checkpoint else ""
+        )
 
     @property
     def is_head_node(self) -> bool:
@@ -64,4 +71,6 @@ class CommitNode:
             "commit_message": self.commit_message,
             "commit_time": self.commit_time.timestamp() if self.commit_time else None,
             "commit_user_name": self.commit_user_name,
+            "is_checkpoint": self.is_checkpoint,
+            "total_samples_processed": self.total_samples_processed,
         }

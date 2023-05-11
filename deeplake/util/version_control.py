@@ -58,6 +58,8 @@ def _version_info_to_json(info):
             "commit_message": node.commit_message,
             "commit_time": node.commit_time.timestamp() if node.commit_time else None,
             "commit_user_name": node.commit_user_name,
+            "is_checkpoint": node.is_checkpoint,
+            "total_samples_processed": node.total_samples_processed,
         }
     return {
         "commits": commits,
@@ -82,6 +84,8 @@ def _version_info_from_json(info):
             None if commit_time is None else datetime.fromtimestamp(commit_time)
         )
         node.commit_user_name = commit_data["commit_user_name"]
+        node.is_checkpoint = commit_data.get("is_checkpoint", False)
+        node.total_samples_processed = commit_data.get("total_samples_processed", 0)
         parent = commit_data["parent"]
         if parent:
             commit_node_map[parent].add_child(node)
@@ -140,6 +144,8 @@ def commit(
     hash: Optional[str] = None,
     flush_version_control_info: bool = True,
     reload_meta: bool = True,
+    is_checkpoint: bool = False,
+    total_samples_processed: int = 0,
 ) -> None:
     """Modifies the version state to reflect the commit and also copies required data to the new commit directory."""
     storage = dataset.storage
@@ -157,7 +163,9 @@ def commit(
         hash = generate_hash()
     version_state["commit_id"] = hash
     new_node = CommitNode(version_state["branch"], hash)
-    version_state["commit_node"].add_successor(new_node, message)
+    stored_commit_node.add_successor(new_node, message)
+    stored_commit_node.is_checkpoint = is_checkpoint
+    stored_commit_node.total_samples_processed = total_samples_processed
     version_state["commit_node"] = new_node
     version_state["branch_commit_map"][version_state["branch"]] = version_state[
         "commit_id"
@@ -443,7 +451,7 @@ def _merge_commit_node_maps(map1, map2):
             node2 = map2[commit_id]
             merged_node = CommitNode(node1.branch, node2.commit_id)
 
-            for attr in ("commit_message", "commit_user_name", "commit_time"):
+            for attr in ("commit_message", "commit_user_name", "commit_time", "is_checkpoint", "total_samples_processed"):
                 setattr(merged_node, attr, getattr(node1, attr) or getattr(node2, attr))
             for child in set(
                 [node.commit_id for node in node1.children]

@@ -256,8 +256,8 @@ class Pipeline:
         progress = 0.0
         for data_in in datas_in:
             if checkpointing_enabled and progress > 0:
-                target_ds.commit(
-                    f"Auto-commit during deeplake.compute of {desc} after {progress}% progress"
+                target_ds._commit(
+                    f"Auto-commit during deeplake.compute of {desc} after {progress}% progress", None, False, is_checkpoint=True, total_samples_processed=samples_processed
                 )
             progress = round(
                 (samples_processed + len(data_in)) / total_samples * 100, 2
