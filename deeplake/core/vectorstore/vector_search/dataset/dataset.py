@@ -119,7 +119,7 @@ def fetch_embeddings(exec_option, view, logger):
         logger.warning(
             "Python implementation fetches all of the dataset's embedding into memory. "
             "With big datasets this could be quite slow and potentially result in performance issues. "
-            "Better to use `exec_option = db_engine`."
+            "Use `exec_option = db_engine` for better performance."
         )
         embeddings = view.embedding.numpy()
     elif exec_option in ("indra", "db_engine"):
