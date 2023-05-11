@@ -1292,7 +1292,6 @@ class Dataset:
         dataset_read(self)
         for i in range(len(self)):
             is_iter = not isinstance(self.index.values[0], list)
-            print("is_iter:", is_iter)
             yield self.__getitem__(
                 i, is_iteration=is_iter
             )
