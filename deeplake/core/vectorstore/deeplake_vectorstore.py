@@ -71,7 +71,7 @@ class DeepLakeVectorStore:
         Args:
             texts (Iterable[str]): texts to add to deeplake vector store
             metadatas (List[dict], optional): List of metadatas. Defaults to None.
-            ids (Optional[List[str]], optional): List of document IDs. Defaults to None.
+            ids (List[str], optional): List of document IDs. Defaults to None.
             embeddings (Optional[np.ndarray): embedding of texts. Defaults to None.
         Returns:
             ids (List[str]): List of document IDs
