@@ -11,7 +11,7 @@ from deeplake.constants import DEFAULT_DEEPLAKE_PATH
 logger = logging.getLogger(__name__)
 
 
-def test_create_or_load_dataset(caplog):
+def test_create_or_load_dataset(caplog, hub_cloud_dev_token):
     # dataset creation
     dataset = dataset_utils.create_or_load_dataset(
         dataset_path="./test-dataset",
@@ -39,6 +39,7 @@ def test_create_or_load_dataset(caplog):
         exec_option="python",
         overwrite=False,
         read_only=True,
+        token=hub_cloud_dev_token,
     )
     assert len(dataset) == 10
 

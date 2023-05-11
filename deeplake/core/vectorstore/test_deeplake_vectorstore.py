@@ -18,35 +18,37 @@ texts, embeddings, ids, metadatas = utils.create_data(
 
 @requires_libdeeplake
 @pytest.mark.parametrize("distance_metric", ["L1", "L2", "COS", "MAX", "DOT"])
-def test_search(distance_metric):
+def test_search(distance_metric, hub_cloud_dev_token):
     k = 4
     query_embedding = np.random.randint(0, 255, (1, embedding_dim))
 
-    # # initialize vector store object:
-    # vector_store = DeepLakeVectorStore(
-    #     dataset_path="./deeplake_vector_store",
-    #     overwrite=True,
-    # )
+    # initialize vector store object:
+    vector_store = DeepLakeVectorStore(
+        dataset_path="./deeplake_vector_store",
+        overwrite=True,
+    )
 
-    # # add data to the dataset:
-    # vector_store.add(embeddings=embeddings, texts=texts)
+    # add data to the dataset:
+    vector_store.add(embeddings=embeddings, texts=texts)
 
-    # # use python implementation to search the data
-    # python_view, python_indices, python_scores = vector_store.search(
-    #     embedding=query_embedding, exec_option="python"
-    # )
+    # use python implementation to search the data
+    python_view, python_indices, python_scores = vector_store.search(
+        embedding=query_embedding, exec_option="python"
+    )
 
-    # # use indra implementation to search the data
-    # indra_view, indra_indices, indra_scores = vector_store.search(
-    #     embedding=query_embedding, exec_option="compute_engine"
-    # )
+    # use indra implementation to search the data
+    indra_view, indra_indices, indra_scores = vector_store.search(
+        embedding=query_embedding, exec_option="compute_engine"
+    )
 
-    # np.testing.assert_almost_equal(python_indices, indra_indices)
-    # np.testing.assert_almost_equal(python_scores, indra_scores)
+    np.testing.assert_almost_equal(python_indices, indra_indices)
+    np.testing.assert_almost_equal(python_scores, indra_scores)
 
     # initialize vector store object:
     vector_store = DeepLakeVectorStore(
-        dataset_path="hub://activeloop-test/deeplake_vectorstore-test1", read_only=True
+        dataset_path="hub://activeloop-test/deeplake_vectorstore-test1",
+        read_only=True,
+        token=hub_cloud_dev_token,
     )
     db_engine_view, db_engine_indices, db_engine_scores = vector_store.search(
         embedding=query_embedding, exec_option="db_engine"
