@@ -489,6 +489,7 @@ class Dataset:
                     verbose=False,
                     version_state=self.version_state,
                     path=self.path,
+                    is_iteration=is_iteration,
                     link_creds=self.link_creds,
                     pad_tensors=self._pad_tensors,
                     enabled_tensors=self.enabled_tensors,
@@ -1290,8 +1291,10 @@ class Dataset:
     def __iter__(self):
         dataset_read(self)
         for i in range(len(self)):
+            is_iter = not isinstance(self.index.values[0], list)
+            print("is_iter:", is_iter)
             yield self.__getitem__(
-                i, is_iteration=not isinstance(self.index.values[0], list)
+                i, is_iteration=is_iter
             )
 
     def _load_version_info(self, address=None):
