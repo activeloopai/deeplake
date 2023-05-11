@@ -70,7 +70,7 @@ class DeepLakeVectorStore:
 
         Args:
             texts (Iterable[str]): texts to add to deeplake vector store
-            metadatas (Optional[List[dict]], optional): List of metadatas.. Defaults to None.
+            metadatas (List[dict], optional): List of metadatas. Defaults to None.
             ids (Optional[List[str]], optional): List of document IDs. Defaults to None.
             embeddings (Optional[np.ndarray): embedding of texts. Defaults to None.
         Returns:
@@ -101,12 +101,12 @@ class DeepLakeVectorStore:
         """DeepLakeVectorStore search method
 
         Args:
-            query (Optional[str], optional): String representation of the query to run. Defaults to None.
+            query (str, optional): String representation of the query to run. Defaults to None.
             embedding (Optional[np.ndarray, optional): Embedding representation of the query to run. Defaults to None.
             k (int, optional): Number of elements to return after running query. Defaults to 4.
             distance_metric (str, optional): Type of distance metric to use for sorting the data. Avaliable options are: "L1", "L2", "COS", "MAX". Defaults to "L2".
-            filter (Optional[Any], optional): Metadata dictionary for exact search. Defaults to None.
-            exec_option (Optional[str], optional): Type of query execution. It could be either "python", "indra" or "db_engine". Defaults to None.
+            filter (Any, optional): Metadata dictionary for exact search. Defaults to None.
+            exec_option (str, optional): Type of query execution. It could be either "python", "indra" or "db_engine". Defaults to None.
 
         Raises:
             ValueError: When invalid execution option is specified
