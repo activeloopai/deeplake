@@ -117,7 +117,7 @@ def delete_all_samples_if_specified(dataset, delete_all):
 def fetch_embeddings(exec_option, view, logger):
     if exec_option == "python":
         logger.warning(
-            "Python implementation fetches all of the dataset's embedding into a memory. "
+            "Python implementation fetches all of the dataset's embedding into memory. "
             "With big datasets this could be quite slow and potentially result in performance issues. "
             "Better to use `exec_option = db_engine`."
         )
