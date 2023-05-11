@@ -2457,3 +2457,15 @@ def test_sequence_numpy_bug(memory_ds):
             ds.abc.numpy()
 
         assert ds.abc.numpy(aslist=True) == [[1, 2], [1, 2, 3], [1, 2, 3, 4]]
+
+def test_iterate_with_groups(memory_ds):
+    with memory_ds as ds:
+        ds.create_tensor("x/y/z")
+    
+    ds["x/y/z"].extend(list(range(100)))
+
+    for i, sample in enumerate(ds):
+        assert sample["x/y"].z.is_iteration == True
+    
+    for i, sample in enumerate(ds):
+        assert sample["x/y/z"].is_iteration == True
