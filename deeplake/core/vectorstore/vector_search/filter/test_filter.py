@@ -8,12 +8,12 @@ def test_attribute_based_filtering():
     view = deeplake.empty("mem://deeplake_test")
     view.create_tensor("metadata", htype="json")
     view.metadata.extend([{"abcd": 1}, {"abcd123": 2}, {"abcd32": 3}, {"abcrd": 4}])
-    exec_otion = "indra"
+    exec_otion = "compute_engine"
     filter_dict = {"abcd": 1}
 
     with pytest.raises(NotImplementedError):
         view = filter_utils.attribute_based_filtering(
-            view, filter=filter_dict, exec_option="indra"
+            view, filter=filter_dict, exec_option="compute_engine"
         )
 
     with pytest.raises(NotImplementedError):
@@ -26,6 +26,11 @@ def test_attribute_based_filtering():
     )
 
     assert view.metadata.data()["value"][0] == filter_dict
+
+    with pytest.raises(ValueError):
+        view = filter_utils.attribute_based_filtering(
+            view, filter={"aaaccc": 2}, exec_option="python"
+        )
 
 
 def test_exact_text_search():

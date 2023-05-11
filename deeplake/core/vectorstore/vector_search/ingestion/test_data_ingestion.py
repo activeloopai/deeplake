@@ -1,5 +1,6 @@
 import numpy as np
 
+import pytest
 import random
 
 import deeplake
@@ -89,10 +90,20 @@ def test_data_ingestion():
 
     assert len(dataset) == 4
     extended_data = data * 10
-    data_ingestion.run_data_ingestion(
-        dataset=dataset,
-        elements=extended_data,
-        embedding_function=corrupted_embedding_function,
-        ingestion_batch_size=1,
-        num_workers=2,
-    )
+    with pytest.raises(Exception):
+        data_ingestion.run_data_ingestion(
+            dataset=dataset,
+            elements=extended_data,
+            embedding_function=corrupted_embedding_function,
+            ingestion_batch_size=1,
+            num_workers=2,
+        )
+
+    with pytest.raises(ValueError):
+        data_ingestion.run_data_ingestion(
+            dataset=dataset,
+            elements=extended_data,
+            embedding_function=corrupted_embedding_function,
+            ingestion_batch_size=0,
+            num_workers=2,
+        )

@@ -7,7 +7,7 @@ from deeplake.core.dataset import Dataset as DeepLakeDataset
 from deeplake.core import vectorstore
 
 EXEC_OPTION_TO_SEARCH_TYPE = {
-    "indra": vectorstore.indra_vector_search,
+    "compute_engine": vectorstore.indra_vector_search,
     "python": vectorstore.python_vector_search,
     "db_engine": vectorstore.remote_engine_vector_search,
 }
@@ -28,7 +28,10 @@ def search(
         embedding (Union[List[float], np.ndarray) - full embeddings representation of the dataset, used only in python implementation.
         k (int) - number of samples to return after searching
         distance_metric (str, optional): Type of distance metric to use for sorting the data. Avaliable options are: "L1", "L2", "COS", "MAX".
-        exec_option (Optional[str], optional): Type of query execution. It could be either "python", "indra" or "db_engine".
+        exec_option (str, optional): Type of query execution. It could be either "python", "compute_engine" or "db_engine". Defaults to "python".
+            - `python` - runs on the client and can be used for any data stored anywhere. WARNING: using this option with big datasets is discouraged, because it can lead to some memory issues.
+            - `compute_engine` - runs on the client and can be used for any data stored in or connected to Deep Lake.
+            - `db_engine` - runs on the Deep Lake Managed Database and can be used for any data stored in the Deep Lake Managed.
         deeplake_dataset (DeepLakeDataset): deeplake dataset object.
         embedding_tensor (str): name of the tensor in the dataset with `htype="embedding"`. Defaults to "embedding".
     """

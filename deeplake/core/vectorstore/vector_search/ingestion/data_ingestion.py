@@ -27,16 +27,22 @@ def run_data_ingestion(
     """
     batch_size = min(ingestion_batch_size, len(elements))
     if batch_size == 0:
-        return []
+        raise ValueError("batch_size must be a positive number greater than zero.")
 
     batched = [
         elements[i : i + batch_size] for i in range(0, len(elements), batch_size)
     ]
 
+    num_workers = min(num_workers, len(batched) // max(num_workers, 1))
+    checkpoint_interval = int(
+        (0.1 * len(batched) // max(num_workers, 1)) * max(num_workers, 1)
+    )
+
     ingest(embedding_function=embedding_function).eval(
         batched,
         dataset,
-        num_workers=min(num_workers, len(batched) // max(num_workers, 1)),
+        num_workers=num_workers,
+        checkpoint_interval=checkpoint_interval,
     )
 
 

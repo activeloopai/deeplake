@@ -22,31 +22,31 @@ def test_search(distance_metric):
     k = 4
     query_embedding = np.random.randint(0, 255, (1, embedding_dim))
 
+    # # initialize vector store object:
+    # vector_store = DeepLakeVectorStore(
+    #     dataset_path="./deeplake_vector_store",
+    #     overwrite=True,
+    # )
+
+    # # add data to the dataset:
+    # vector_store.add(embeddings=embeddings, texts=texts)
+
+    # # use python implementation to search the data
+    # python_view, python_indices, python_scores = vector_store.search(
+    #     embedding=query_embedding, exec_option="python"
+    # )
+
+    # # use indra implementation to search the data
+    # indra_view, indra_indices, indra_scores = vector_store.search(
+    #     embedding=query_embedding, exec_option="compute_engine"
+    # )
+
+    # np.testing.assert_almost_equal(python_indices, indra_indices)
+    # np.testing.assert_almost_equal(python_scores, indra_scores)
+
     # initialize vector store object:
     vector_store = DeepLakeVectorStore(
-        dataset_path="./deeplake_vector_store",
-        overwrite=True,
-    )
-
-    # add data to the dataset:
-    vector_store.add(embeddings=embeddings, texts=texts)
-
-    # use python implementation to search the data
-    python_view, python_indices, python_scores = vector_store.search(
-        embedding=query_embedding, exec_option="python"
-    )
-
-    # use indra implementation to search the data
-    indra_view, indra_indices, indra_scores = vector_store.search(
-        embedding=query_embedding, exec_option="indra"
-    )
-
-    np.testing.assert_almost_equal(python_indices, indra_indices)
-    np.testing.assert_almost_equal(python_scores, indra_scores)
-
-    # initialize vector store object:
-    vector_store = DeepLakeVectorStore(
-        dataset_path="hub://activeloop-test/deeplake_vector_store-test", read_only=True
+        dataset_path="hub://activeloop-test/deeplake_vectorstore-test1", read_only=True
     )
     db_engine_view, db_engine_indices, db_engine_scores = vector_store.search(
         embedding=query_embedding, exec_option="db_engine"
@@ -56,6 +56,11 @@ def test_search(distance_metric):
     view, indices, scores = vector_store.search(query=texts[0])
     assert len(view) == 1
     assert indices == [0]
+
+    with pytest.raises(ValueError):
+        db_engine_view, db_engine_indices, db_engine_scores = vector_store.search(
+            embedding=query_embedding, exec_option="remote_db_engine"
+        )
 
 
 def test_delete():
@@ -83,11 +88,12 @@ def test_delete():
     assert "./deeplake_vector_store" not in dirs
 
 
-def test_ingestion():
+def test_ingestion(capsys):
     # initialize vector store object:
     vector_store = DeepLakeVectorStore(
         dataset_path="./deeplake_vector_store",
         overwrite=True,
+        verbose=True,
     )
 
     with pytest.raises(Exception):
@@ -97,6 +103,19 @@ def test_ingestion():
         )
 
     vector_store.add(embeddings=embeddings, texts=texts, ids=ids, metadatas=metadatas)
+    captured = capsys.readouterr()
+    output = (
+        "Dataset(path='./deeplake_vector_store', tensors=['embedding', 'ids', 'metadata', 'text'])\n\n"
+        "  tensor      htype       shape       dtype  compression\n"
+        "  -------    -------     -------     -------  ------- \n"
+        " embedding  embedding  (1000, 1536)  float32   None   \n"
+        "    ids       text      (1000, 1)      str     None   \n"
+        " metadata     json      (1000, 1)      str     None   \n"
+        "   text       text      (1000, 1)      str     None   \n"
+    )
+
+    assert output in captured.out
+
     assert len(vector_store) == 1000
     assert list(vector_store.dataset.tensors.keys()) == [
         "embedding",

@@ -5,12 +5,13 @@ import numpy as np
 
 import deeplake
 from deeplake.core.vectorstore.vector_search import dataset as dataset_utils
+from deeplake.constants import DEFAULT_DEEPLAKE_PATH
 
 
 logger = logging.getLogger(__name__)
 
 
-def test_create_or_load_dataset():
+def test_create_or_load_dataset(caplog):
     # dataset creation
     dataset = dataset_utils.create_or_load_dataset(
         dataset_path="./test-dataset",
@@ -18,7 +19,7 @@ def test_create_or_load_dataset():
         creds={},
         logger=logger,
         read_only=False,
-        exec_option="indra",
+        exec_option="compute_engine",
         overwrite=True,
     )
     assert len(dataset) == 0
@@ -31,14 +32,34 @@ def test_create_or_load_dataset():
 
     # dataset loading
     dataset = dataset_utils.create_or_load_dataset(
-        dataset_path="hub://activeloop/mnist-train",
+        dataset_path="hub://activeloop-test/deeplake_vectorstore-test1",
         token=None,
         creds={},
         logger=logger,
-        read_only=False,
         exec_option="python",
+        overwrite=False,
+        read_only=True,
     )
-    assert len(dataset) == 60000
+    assert len(dataset) == 10
+
+    ds = deeplake.empty(DEFAULT_DEEPLAKE_PATH, overwrite=True)
+
+    test_logger = logging.getLogger("test_logger")
+    with caplog.at_level(logging.WARNING, logger="test_logger"):
+        # dataset loading
+        dataset = dataset_utils.create_or_load_dataset(
+            dataset_path=DEFAULT_DEEPLAKE_PATH,
+            token=None,
+            creds={},
+            logger=test_logger,
+            read_only=False,
+            exec_option="python",
+        )
+        assert (
+            f"The default deeplake path location is used: {DEFAULT_DEEPLAKE_PATH}"
+            " and it is not free. All addtionally added data will be added on"
+            " top of already existing deeplake dataset." in caplog.text
+        )
 
 
 def test_delete_and_commit():
@@ -79,7 +100,7 @@ def test_fetch_embeddings():
     embedings = dataset_utils.fetch_embeddings("python", dataset, logger)
     assert len(embedings) == 9
 
-    embedings = dataset_utils.fetch_embeddings("indra", dataset, logger)
+    embedings = dataset_utils.fetch_embeddings("compute_engine", dataset, logger)
     assert embedings is None
 
     embedings = dataset_utils.fetch_embeddings("db_engine", dataset, logger)
@@ -87,9 +108,8 @@ def test_fetch_embeddings():
 
 
 def test_get_embedding():
-    class EmbeddingFunc:
-        def embed_query(self, query):
-            return np.array([0.5, 0.6, 4, 3, 5], dtype=np.float64)
+    def embedding_function(arr):
+        return np.array([0.5, 0.6, 4, 3, 5], dtype=np.float64)
 
     query = "tql query"
     with pytest.raises(Exception):
@@ -97,7 +117,7 @@ def test_get_embedding():
             embedding=None, query=query, embedding_function=None
         )
 
-    embedding_func = EmbeddingFunc()
+    embedding_func = embedding_function
     embedding = dataset_utils.get_embedding(
         embedding=None, query=query, embedding_function=embedding_func
     )
@@ -111,6 +131,11 @@ def test_get_embedding():
     assert embedding.dtype == np.float32
     assert embedding.shape == (1, 1538)
 
+    with pytest.warns(UserWarning):
+        embedding = dataset_utils.get_embedding(
+            embedding=embedding_vector, query=query, embedding_function=embedding_func
+        )
+
 
 def test_preprocess_tensors():
     texts = ["a", "b", "c", "d"]
@@ -123,6 +148,7 @@ def test_preprocess_tensors():
     assert processed_tensors["metadatas"] == [{}, {}, {}, {}]
     assert processed_tensors["embeddings"] == [None, None, None, None]
 
+    texts = ("a", "b", "c", "d")
     ids = np.array([1, 2, 3, 4])
     metadatas = [{"a": 1}, {"b": 2}, {"c": 3}, {"d": 4}]
     embeddings = [np.array([0.1, 0.2, 0.3, 0.4])] * len(texts)
@@ -130,7 +156,7 @@ def test_preprocess_tensors():
         ids=ids, texts=texts, metadatas=metadatas, embeddings=embeddings
     )
     assert np.array_equal(processed_tensors["ids"], ids)
-    assert processed_tensors["texts"] == texts
+    assert processed_tensors["texts"] == list(texts)
     assert processed_tensors["metadatas"] == metadatas
     assert processed_tensors["embeddings"] == embeddings
 

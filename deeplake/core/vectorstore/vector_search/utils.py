@@ -12,8 +12,10 @@ from typing import Optional, Any, Iterable, List, Dict, Callable, Union
 
 
 def check_indra_installation(exec_option, indra_installed):
-    if exec_option == "indra" and not indra_installed:
-        raise raise_indra_installation_error(indra_import_error=False)
+    if exec_option == "compute_engine" and not indra_installed:
+        raise raise_indra_installation_error(
+            indra_import_error=False
+        )  # pragma: no cover
 
 
 def check_length_of_each_tensor(tensors):

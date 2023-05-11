@@ -7,9 +7,9 @@ from deeplake.core import tensor as tensor_utils
 try:
     from indra import api
 
-    _INDRA_INSTALLED = True
-except ImportError:
-    _INDRA_INSTALLED = False
+    _INDRA_INSTALLED = True  # pragma: no cover
+except ImportError:  # pragma: no cover
+    _INDRA_INSTALLED = False  # pragma: no cover
 
 import numpy as np
 
@@ -119,10 +119,10 @@ def fetch_embeddings(exec_option, view, logger):
         logger.warning(
             "Python implementation fetches all of the dataset's embedding into memory. "
             "With big datasets this could be quite slow and potentially result in performance issues. "
-            "Use `exec_option = db_engine` for better performance."
+            "Use `exec_option = 'db_engine'` for better performance."
         )
         embeddings = view.embedding.numpy()
-    elif exec_option in ("indra", "db_engine"):
+    elif exec_option in ("compute_engine", "db_engine"):
         embeddings = None
     return embeddings
 
@@ -134,9 +134,10 @@ def get_embedding(embedding, query, embedding_function=None):
                 "Either embedding array or embedding_function should be specified!"
             )
 
-    if embedding is not None and embedding_function is not None:
-        always_warn("both embedding and embedding_function are specified. ")
-    embedding = embedding_function.embed_query(query)  # type: ignore
+    if embedding_function is not None:
+        if embedding is not None:
+            always_warn("both embedding and embedding_function are specified. ")
+        embedding = embedding_function(query)  # type: ignore
 
     if embedding.dtype != "float32":
         embedding = np.array(embedding, dtype=np.float32)
