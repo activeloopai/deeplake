@@ -14,7 +14,7 @@ def vector_search(
     embedding_tensor: str,
     **kwargs
 ):
-    """Vector Searching algorithm that uses indra uder the hood.
+    """Vector Searching algorithm that uses indra.
 
     Args:
         query_embedding (Optional[Union[List[float], np.ndarray): embedding representation of the query.
