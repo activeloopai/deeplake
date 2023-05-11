@@ -67,6 +67,7 @@ def index_transform(sample):
 @pytest.mark.parametrize(
     "ds",
     ["hub_cloud_ds", "hub_cloud_gcs_ds"],
+    indirect=True,
 )
 def test_pytorch_small(ds):
     with ds:
