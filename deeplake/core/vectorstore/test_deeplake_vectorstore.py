@@ -17,8 +17,7 @@ texts, embeddings, ids, metadatas = utils.create_data(
 
 
 @requires_libdeeplake
-# @pytest.mark.parametrize("distance_metric", ["L1", "L2", "COS", "MAX", "DOT"])
-@pytest.mark.parametrize("distance_metric", ["L2"])
+@pytest.mark.parametrize("distance_metric", ["L1", "L2", "COS", "MAX", "DOT"])
 def test_search(distance_metric):
     k = 4
     query_embedding = np.random.randint(0, 255, (1, embedding_dim))

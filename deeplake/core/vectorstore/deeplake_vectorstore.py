@@ -202,8 +202,8 @@ class DeepLakeVectorStore:
         dataset_utils.delete_and_commit(self.dataset, ids)
         return True
 
-    @classmethod
-    def force_delete_by_path(cls, path: str) -> None:
+    @staticmethod
+    def force_delete_by_path(path: str) -> None:
         """Force delete dataset by path"""
         deeplake.delete(path, large_ok=True, force=True)
 

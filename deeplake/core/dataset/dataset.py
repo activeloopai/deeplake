@@ -2122,7 +2122,7 @@ class Dataset:
 
         if return_indices_and_scores:
             raise ValueError(
-                "return_indices_and_scores is not supported. Please add `db_engine=True` if you want to return indices and scores"
+                "return_indices_and_scores is not supported. Please add `runtime = {'db_engine': True}` if you want to return indices and scores"
             )
 
         from deeplake.enterprise import query

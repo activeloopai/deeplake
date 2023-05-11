@@ -46,7 +46,7 @@ def dataset_exists(dataset_path, token, creds, **kwargs):
 def load_dataset(dataset_path, token, creds, logger, read_only, **kwargs):
     if dataset_path == DEFAULT_DEEPLAKE_PATH:
         logger.warning(
-            f"Default deeplake path location is used: {DEFAULT_DEEPLAKE_PATH}"
+            f"The default deeplake path location is used: {DEFAULT_DEEPLAKE_PATH}"
             " and it is not free. All addtionally added data will be added on"
             " top of already existing deeplake dataset."
         )
@@ -134,9 +134,9 @@ def get_embedding(embedding, query, embedding_function=None):
                 "Either embedding array or embedding_function should be specified!"
             )
 
-        if embedding is not None:
-            always_warn("both embedding and embedding_function are specified. ")
-        embedding = embedding_function.embed_query(query)  # type: ignore
+    if embedding is not None and embedding_function is not None:
+        always_warn("both embedding and embedding_function are specified. ")
+    embedding = embedding_function.embed_query(query)  # type: ignore
 
     if embedding.dtype != "float32":
         embedding = np.array(embedding, dtype=np.float32)

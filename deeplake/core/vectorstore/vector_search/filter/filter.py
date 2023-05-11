@@ -17,7 +17,7 @@ def dp_filter(x: dict, filter: Dict[str, str]) -> bool:
 
 
 def attribute_based_filtering(view, filter, exec_option):
-    filtering_execption(filter=filter, exec_option=exec_option)
+    filtering_exception(filter=filter, exec_option=exec_option)
     # attribute based filtering
     if filter is not None:
         if isinstance(filter, dict):
@@ -29,7 +29,7 @@ def attribute_based_filtering(view, filter, exec_option):
     return view
 
 
-def filtering_execption(filter, exec_option):
+def filtering_exception(filter, exec_option):
     if exec_option in ("indra", "db_engine") and filter is not None:
         case_specific_exception = ""
         if "db_engine":
