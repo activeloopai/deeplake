@@ -1524,6 +1524,9 @@ class Dataset:
         message: Optional[str] = None,
         hash: Optional[str] = None,
         flush_version_control_info: bool = True,
+        *,
+        is_checkpoint: bool = False,
+        total_samples_processed: int = 0,
     ) -> str:
         if self._is_filtered_view:
             raise Exception(
@@ -1536,7 +1539,14 @@ class Dataset:
         self.storage.autoflush = False
         try:
             self._unlock()
-            commit(self, message, hash, flush_version_control_info)
+            commit(
+                self,
+                message,
+                hash,
+                flush_version_control_info,
+                is_checkpoint=is_checkpoint,
+                total_samples_processed=total_samples_processed,
+            )
             if not flush_version_control_info:
                 self.__dict__["_vc_info_updated"] = True
             self._lock()
