@@ -39,10 +39,11 @@ def query(dataset, query_string: str):
     else:
         ds = dataset_to_libdeeplake(dataset)
     dsv = ds.query(query_string)
-    try:
+    from deeplake.enterprise.convert_to_libdeeplake import INDRA_API
+    if INDRA_API.tql.parse(query_string).is_filter:
         indexes = dsv.indexes
         return dataset[indexes]
-    except RuntimeError:
+    else:
         view = DeepLakeQueryDataset(deeplake_ds=dataset, indra_ds=dsv)
         view._tql_query = query_string
         if hasattr(dataset, "is_actually_cloud"):
