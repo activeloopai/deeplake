@@ -9,10 +9,10 @@ from deeplake.core.vectorstore.deeplake_vectorstore import utils
 from deeplake.tests.common import requires_libdeeplake
 
 
-embedding_dim = 1536
+embedding_dim = 100
 # create data
 texts, embeddings, ids, metadatas = utils.create_data(
-    number_of_data=1000, embedding_dim=embedding_dim
+    number_of_data=10, embedding_dim=embedding_dim
 )
 
 

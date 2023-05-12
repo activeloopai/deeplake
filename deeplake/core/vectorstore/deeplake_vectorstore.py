@@ -81,7 +81,9 @@ class DeepLakeVectorStore:
         Returns:
             ids (List[str], optional): List of document IDs
         """
-        elements = dataset_utils.create_elements(ids, texts, metadatas, embeddings)
+        elements = dataset_utils.create_elements(
+            ids=ids, texts=texts, metadatas=metadatas, embeddings=embeddings
+        )
         ingest_data.run_data_ingestion(
             elements=elements,
             dataset=self.dataset,
