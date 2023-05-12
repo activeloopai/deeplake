@@ -1334,13 +1334,14 @@ def test_transform_checkpointing(local_ds, scheduler):
     assert ds.abc.numpy(aslist=True) == data_in
 
 
-def test_transform_checkpoint_store_data(local_ds_generator):
+@pytest.mark.parametrize("bad_sample_index", [10, 50])
+def test_transform_checkpoint_store_data(local_ds_generator, bad_sample_index):
     @deeplake.compute
     def upload(i, ds):
         ds.abc.append(i)
 
     samples = list(range(100))
-    samples.insert(50, "bad sample")
+    samples.insert(bad_sample_index, "bad sample")
 
     with pytest.raises(TransformError):
         with local_ds_generator() as ds:
@@ -1354,10 +1355,11 @@ def test_transform_checkpoint_store_data(local_ds_generator):
 
     ds = local_ds_generator()
 
-    assert len(ds.abc) == 40
+    nsamples = 0 if bad_sample_index == 10 else 40
+    assert len(ds.abc) == nsamples
     last_checkpoint = ds.version_state["commit_node"].parent
     assert last_checkpoint.is_checkpoint == True
-    assert last_checkpoint.total_samples_processed == 40
+    assert last_checkpoint.total_samples_processed == nsamples
 
 
 def create_test_ds(path):
