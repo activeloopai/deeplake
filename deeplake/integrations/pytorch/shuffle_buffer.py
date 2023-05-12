@@ -118,6 +118,10 @@ class ShuffleBuffer:
             return 0
         if isinstance(sample, TorchTensor):
             return 1
+        elif isinstance(sample, bytes):
+            return 0
+        elif isinstance(sample, str):
+            return 0
         elif isinstance(sample, dict):
             return sum(self._num_torch_tensors(tensor) for tensor in sample.values())
         elif isinstance(sample, Sequence):
