@@ -451,6 +451,10 @@ class Pipeline:
                 verbose=progressbar,
             )
 
+        for res in result["error"]:
+            if res is not None:
+                raise res
+
 
 def compose(functions: List[ComputeFunction]):  # noqa: DAR101, DAR102, DAR201, DAR401
     """Takes a list of functions decorated using :func:`deeplake.compute` and creates a pipeline that can be evaluated using .eval

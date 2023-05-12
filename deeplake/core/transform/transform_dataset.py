@@ -1,4 +1,4 @@
-from deeplake.util.exceptions import SampleAppendError, TensorDoesNotExistError
+from deeplake.util.exceptions import SampleAppendError, SampleAppendingError
 from deeplake.core.transform.transform_tensor import TransformTensor
 from deeplake.core.linked_tiled_sample import LinkedTiledSample
 from deeplake.core.partial_sample import PartialSample
@@ -60,6 +60,9 @@ class TransformDataset:
             yield self[i]
 
     def append(self, sample, skip_ok=False, append_empty=False):
+        if not isinstance(sample, dict):
+            raise SampleAppendingError()
+
         if skip_ok:
             raise ValueError(
                 "`skip_ok` is not supported for `ds.append` in transforms. Use `skip_ok` parameter of the `eval` method instead."
