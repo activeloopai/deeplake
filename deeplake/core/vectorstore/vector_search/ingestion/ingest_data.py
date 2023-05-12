@@ -1,4 +1,4 @@
-from typing import Dict, List, Any, Callable
+from typing import Dict, List, Any, Callable, Optional
 
 from deeplake.core.dataset import Dataset as DeepLakeDataset
 from deeplake.core.vectorstore.vector_search.ingestion.data_ingestion import (
@@ -9,11 +9,11 @@ from deeplake.core.vectorstore.vector_search.ingestion.data_ingestion import (
 def run_data_ingestion(
     elements: List[Dict[str, Any]],
     dataset: DeepLakeDataset,
-    embedding_function: Callable,
     ingestion_batch_size: int,
     num_workers: int,
+    embedding_function: Optional[Callable] = None,
     retry_attempt: int = 0,
-    total_samples_processed=None,
+    total_samples_processed=0,
 ):
     """Running data ingestion into deeplake dataset.
 

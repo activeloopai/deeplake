@@ -5,7 +5,7 @@ from deeplake.core.vectorstore.vector_search import utils
 from deeplake.core import tensor as tensor_utils
 
 try:
-    from indra import api
+    from indra import api  # type: ignore
 
     _INDRA_INSTALLED = True  # pragma: no cover
 except ImportError:  # pragma: no cover
@@ -14,7 +14,7 @@ except ImportError:  # pragma: no cover
 import numpy as np
 
 import uuid
-from typing import Iterable, List, Union
+from typing import Iterable, List, Union, Optional
 
 from deeplake.constants import DEFAULT_DEEPLAKE_PATH
 from deeplake.util.warnings import always_warn
@@ -173,10 +173,10 @@ def preprocess_tensors(ids, texts, metadatas, embeddings):
 
 
 def create_elements(
-    ids: List[str],
     texts: Iterable[str],
-    metadatas: List[dict],
-    embeddings: Union[List[float], np.ndarray],
+    ids: Optional[List[str]] = None,
+    metadatas: Optional[List[dict]] = None,
+    embeddings: Optional[np.ndarray] = None,
 ):
     processed_tensors = preprocess_tensors(ids, texts, metadatas, embeddings)
     utils.check_length_of_each_tensor(processed_tensors)

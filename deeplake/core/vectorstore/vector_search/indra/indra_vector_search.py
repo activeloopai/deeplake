@@ -7,7 +7,7 @@ from deeplake.core.dataset import Dataset as DeepLakeDataset
 
 
 def vector_search(
-    query_embedding: Optional[np.ndarray],
+    query_embedding: Union[List[float], np.ndarray[Any, Any]],
     distance_metric: str,
     deeplake_dataset: DeepLakeDataset,
     k: int,

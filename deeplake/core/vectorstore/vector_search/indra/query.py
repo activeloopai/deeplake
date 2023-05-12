@@ -44,7 +44,7 @@ def create_query(
     return query
 
 
-def convert_tensor_to_str(query_embedding: Union[List[float], np.ndarray]):
+def convert_tensor_to_str(query_embedding: np.ndarray):
     """Function for converting a query embedding to a string
 
     We need to convert tensor to a string to be able to use tql
@@ -68,7 +68,7 @@ def convert_tensor_to_str(query_embedding: Union[List[float], np.ndarray]):
 def parse_query(
     distance_metric: str,
     limit: int,
-    query_embedding: Union[List[float], np.ndarray],
+    query_embedding: np.ndarray,
     embedding_tensor: str,
 ):
     """Function for converting query_embedding into tql query.

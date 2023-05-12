@@ -1,4 +1,4 @@
-from typing import Dict, List, Any, Callable
+from typing import Dict, List, Any, Callable, Optional
 
 import numpy as np
 
@@ -6,19 +6,19 @@ import deeplake
 from deeplake.core.dataset import Dataset as DeepLakeDataset
 from deeplake.core.vectorstore.vector_search import utils
 from deeplake.util.exceptions import TransformError
-from deeplake.constants import MAX_RETRY_ATTEMPTS
+from deeplake.constants import MAX_RETRY_ATTEMPTS, MAX_CHECKPOINTING_INTERVAL
 
 
 class DataIngestion:
     def __init__(
         self,
-        elements,
-        dataset,
+        elements: List[Dict[str, Any]],
+        dataset: DeepLakeDataset,
         embedding_function: Callable,
         ingestion_batch_size: int,
         num_workers: int,
         retry_attempt: int,
-        total_samples_processed=None,
+        total_samples_processed: int,
     ):
         self.elements = elements
         self.dataset = dataset
@@ -28,11 +28,13 @@ class DataIngestion:
         self.retry_attempt = retry_attempt
         self.total_samples_processed = total_samples_processed
 
-    def collect_batched_data(self):
-        batch_size = min(self.ingestion_batch_size, len(self.elements))
+    def collect_batched_data(self, ingestion_batch_size=None):
+        ingestion_batch_size = ingestion_batch_size or self.ingestion_batch_size
+        batch_size = min(ingestion_batch_size, len(self.elements))
         if batch_size == 0:
             raise ValueError("batch_size must be a positive number greater than zero.")
 
+        elements = self.elements
         if self.total_samples_processed:
             if self.total_samples_processed * batch_size >= len(self.elements):
                 return []
@@ -47,21 +49,26 @@ class DataIngestion:
     def get_num_workers(self, batched):
         return min(self.num_workers, len(batched) // max(self.num_workers, 1))
 
-    def get_checkpoint_interval(self, batched):
+    def get_checkpoint_interval_and_batched_data(self, batched, num_workers):
         checkpoint_interval = max(
             int(
-                (0.1 * len(batched) // max(self.num_workers, 1))
-                * max(self.num_workers, 1),
+                (0.1 * len(batched) // max(num_workers, 1)) * max(num_workers, 1),
             ),
-            self.num_workers,
+            num_workers,
             1,
         )
+
+        if checkpoint_interval * self.ingestion_batch_size > MAX_CHECKPOINTING_INTERVAL:
+            checkpoint_interval = 100
+
         return checkpoint_interval
 
     def run(self):
         batched_data = self.collect_batched_data()
         num_workers = self.get_num_workers(batched_data)
-        checkpoint_interval = self.get_checkpoint_interval(batched_data)
+        checkpoint_interval = self.get_checkpoint_interval_and_batched_data(
+            batched_data, num_workers=num_workers
+        )
 
         self._ingest(
             batched=batched_data,
@@ -84,23 +91,23 @@ class DataIngestion:
             )
         except Exception as e:
             self.retry_attempt += 1
-            if self.retry_attempt > MAX_RETRY_ATTEMPTS:
-                raise Exception(
-                    f"""Maximum retry attempts exceeded. You can resume ingestion, from the latest saved checkpoint.
-                    To do that you should run:
-                    ```
-                    deeplake_vector_store.add(
-                        texts=texts,
-                        metadatas=metadatas,
-                        ids=ids,
-                        embeddings=embeddings,
-                        total_samples_processed={self.total_samples_processed},
-                    )
-                    ```
-                    """
-                )
             last_checkpoint = self.dataset.version_state["commit_node"].parent
             self.total_samples_processed += last_checkpoint.total_samples_processed
+
+            if self.retry_attempt > MAX_RETRY_ATTEMPTS:
+                raise Exception(
+                    f"Maximum retry attempts exceeded. You can resume ingestion, from the latest saved checkpoint.\n"
+                    "To do that you should run:\n"
+                    "```\n"
+                    "deeplake_vector_store.add(\n"
+                    "    texts=texts,\n"
+                    "    metadatas=metadatas,\n"
+                    "    ids=ids,\n"
+                    "    embeddings=embeddings,\n"
+                    f"    total_samples_processed={self.total_samples_processed},\n"
+                    ")\n"
+                    "```"
+                )
 
             data_ingestion = DataIngestion(
                 elements=self.elements,
@@ -118,7 +125,7 @@ class DataIngestion:
 def ingest(sample_in: list, sample_out: list, embedding_function) -> None:
     text_list = [s["text"] for s in sample_in]
 
-    embeds = [None] * len(text_list)
+    embeds: List[Optional[np.ndarray]] = [None] * len(text_list)
     if embedding_function is not None:
         try:
             embeddings = embedding_function(text_list)
@@ -128,8 +135,8 @@ def ingest(sample_in: list, sample_out: list, embedding_function) -> None:
             )
         embeds = [np.array(e, dtype=np.float32) for e in embeddings]
 
-    for s, e in zip(sample_in, embeds):
-        embedding = e if embedding_function else s["embedding"]
+    for s, emb in zip(sample_in, embeds):
+        embedding = emb if embedding_function else s["embedding"]
         sample_out.append(
             {
                 "text": s["text"],

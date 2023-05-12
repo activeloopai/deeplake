@@ -499,7 +499,7 @@ class DeepLakeBackendClient:
             query_string (str): The query string.
 
         Returns:
-            dict: The indicies matching the query.
+            Tuple[Any, Any]: The indicies and scores matching the query.
         """
         response = self.request(
             "POST",

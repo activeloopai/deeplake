@@ -1,12 +1,13 @@
 import numpy as np
 
-from typing import Optional, Any, Dict, Callable, Union, List
+from typing import Any, Callable, Dict, List, Union
 
 import deeplake
 from deeplake.core.dataset import Dataset as DeepLakeDataset
 from deeplake.core import vectorstore
 
-EXEC_OPTION_TO_SEARCH_TYPE = {
+
+EXEC_OPTION_TO_SEARCH_TYPE: Dict[str, Callable] = {
     "compute_engine": vectorstore.indra_vector_search,
     "python": vectorstore.python_vector_search,
     "db_engine": vectorstore.remote_engine_vector_search,
