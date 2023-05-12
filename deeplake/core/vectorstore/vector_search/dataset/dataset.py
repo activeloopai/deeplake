@@ -33,7 +33,7 @@ def create_or_load_dataset(
     if dataset_exists(dataset_path, token, creds, **kwargs):
         return load_dataset(dataset_path, token, creds, logger, read_only, **kwargs)
 
-    return create_dataset(dataset_path, token, **kwargs)
+    return create_dataset(dataset_path, token, exec_option, **kwargs)
 
 
 def dataset_exists(dataset_path, token, creds, **kwargs):
@@ -60,8 +60,12 @@ def load_dataset(dataset_path, token, creds, logger, read_only, **kwargs):
     return dataset
 
 
-def create_dataset(dataset_path, token, **kwargs):
-    dataset = deeplake.empty(dataset_path, token=token, **kwargs)
+def create_dataset(dataset_path, token, exec_option, **kwargs):
+    runtime = None
+    if exec_option == "db_engite":
+        runtime = {"db_engite": True}
+
+    dataset = deeplake.empty(dataset_path, token=token, runtime=runtime, **kwargs)
 
     with dataset:
         dataset.create_tensor(

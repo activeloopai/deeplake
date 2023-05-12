@@ -5,7 +5,7 @@ import random
 
 import deeplake
 from deeplake.constants import MB
-from deeplake.core.vectorstore.vector_search.ingestion import data_ingestion
+from deeplake.core.vectorstore.vector_search.ingestion import ingest_data
 
 random.seed(1)
 
@@ -14,10 +14,10 @@ def corrupted_embedding_function(emb):
     p = random.uniform(0, 1)
     if p > 0.9:
         raise Exception("CorruptedEmbeddingFunction")
-    return np.zeros((1, 1536), dtype=np.float32)
+    return np.zeros((len(emb), 1536), dtype=np.float32)
 
 
-def test_data_ingestion():
+def test_ingest_data():
     data = [
         {
             "text": "a",
@@ -45,7 +45,7 @@ def test_data_ingestion():
         },
     ]
 
-    dataset = deeplake.empty("mem://xyz")
+    dataset = deeplake.empty("./xyzabc", overwrite=True)
     dataset.create_tensor(
         "text",
         htype="text",
@@ -80,7 +80,7 @@ def test_data_ingestion():
         chunk_compression="lz4",
     )
 
-    data_ingestion.run_data_ingestion(
+    ingest_data.run_data_ingestion(
         dataset=dataset,
         elements=data,
         embedding_function=None,
@@ -89,18 +89,18 @@ def test_data_ingestion():
     )
 
     assert len(dataset) == 4
-    extended_data = data * 10
+    extended_data = data * 10000
     with pytest.raises(Exception):
-        data_ingestion.run_data_ingestion(
+        ingest_data.run_data_ingestion(
             dataset=dataset,
             elements=extended_data,
             embedding_function=corrupted_embedding_function,
-            ingestion_batch_size=1,
+            ingestion_batch_size=1024,
             num_workers=2,
         )
 
     with pytest.raises(ValueError):
-        data_ingestion.run_data_ingestion(
+        ingest_data.run_data_ingestion(
             dataset=dataset,
             elements=extended_data,
             embedding_function=corrupted_embedding_function,

@@ -6,44 +6,112 @@ import deeplake
 from deeplake.core.dataset import Dataset as DeepLakeDataset
 from deeplake.core.vectorstore.vector_search import utils
 from deeplake.util.exceptions import TransformError
+from deeplake.constants import MAX_RETRY_ATTEMPTS
 
 
-def run_data_ingestion(
-    elements: List[Dict[str, Any]],
-    dataset: DeepLakeDataset,
-    embedding_function: Callable,
-    ingestion_batch_size: int,
-    num_workers: int,
-):
-    """Running data ingestion into deeplake dataset.
-
-    Args:
-        elements (List[Dict[str, Any]]): List of dictionaries. Each dictionary contains mapping of
-            names of 4 tensors (i.e. "embedding", "metadata", "ids", "text") to their corresponding values.
-        dataset (DeepLakeDataset): deeplake dataset object.
-        embedding_function (Callable): function used to convert query into an embedding.
-        ingestion_batch_size (int): The batch size to use during ingestion.
-        num_workers (int): The number of workers to use for ingesting data in parallel.
-    """
-    batch_size = min(ingestion_batch_size, len(elements))
-    if batch_size == 0:
-        raise ValueError("batch_size must be a positive number greater than zero.")
-
-    batched = [
-        elements[i : i + batch_size] for i in range(0, len(elements), batch_size)
-    ]
-
-    num_workers = min(num_workers, len(batched) // max(num_workers, 1))
-    checkpoint_interval = int(
-        (0.1 * len(batched) // max(num_workers, 1)) * max(num_workers, 1)
-    )
-
-    ingest(embedding_function=embedding_function).eval(
-        batched,
+class DataIngestion:
+    def __init__(
+        self,
+        elements,
         dataset,
-        num_workers=num_workers,
-        checkpoint_interval=checkpoint_interval,
-    )
+        embedding_function: Callable,
+        ingestion_batch_size: int,
+        num_workers: int,
+        retry_attempt: int,
+        total_samples_processed=None,
+    ):
+        self.elements = elements
+        self.dataset = dataset
+        self.embedding_function = embedding_function
+        self.ingestion_batch_size = ingestion_batch_size
+        self.num_workers = num_workers
+        self.retry_attempt = retry_attempt
+        self.total_samples_processed = total_samples_processed
+
+    def collect_batched_data(self):
+        batch_size = min(self.ingestion_batch_size, len(self.elements))
+        if batch_size == 0:
+            raise ValueError("batch_size must be a positive number greater than zero.")
+
+        if self.total_samples_processed:
+            if self.total_samples_processed * batch_size >= len(self.elements):
+                return []
+
+            elements = self.elements[self.total_samples_processed * batch_size :]
+
+        batched = [
+            elements[i : i + batch_size] for i in range(0, len(elements), batch_size)
+        ]
+        return batched
+
+    def get_num_workers(self, batched):
+        return min(self.num_workers, len(batched) // max(self.num_workers, 1))
+
+    def get_checkpoint_interval(self, batched):
+        checkpoint_interval = max(
+            int(
+                (0.1 * len(batched) // max(self.num_workers, 1))
+                * max(self.num_workers, 1),
+            ),
+            self.num_workers,
+            1,
+        )
+        return checkpoint_interval
+
+    def run(self):
+        batched_data = self.collect_batched_data()
+        num_workers = self.get_num_workers(batched_data)
+        checkpoint_interval = self.get_checkpoint_interval(batched_data)
+
+        self._ingest(
+            batched=batched_data,
+            num_workers=num_workers,
+            checkpoint_interval=checkpoint_interval,
+        )
+
+    def _ingest(
+        self,
+        batched,
+        num_workers,
+        checkpoint_interval,
+    ):
+        try:
+            ingest(embedding_function=self.embedding_function).eval(
+                batched,
+                self.dataset,
+                num_workers=num_workers,
+                checkpoint_interval=checkpoint_interval,
+            )
+        except Exception as e:
+            self.retry_attempt += 1
+            if self.retry_attempt > MAX_RETRY_ATTEMPTS:
+                raise Exception(
+                    f"""Maximum retry attempts exceeded. You can resume ingestion, from the latest saved checkpoint.
+                    To do that you should run:
+                    ```
+                    deeplake_vector_store.add(
+                        texts=texts,
+                        metadatas=metadatas,
+                        ids=ids,
+                        embeddings=embeddings,
+                        total_samples_processed={self.total_samples_processed},
+                    )
+                    ```
+                    """
+                )
+            last_checkpoint = self.dataset.version_state["commit_node"].parent
+            self.total_samples_processed += last_checkpoint.total_samples_processed
+
+            data_ingestion = DataIngestion(
+                elements=self.elements,
+                dataset=self.dataset,
+                embedding_function=self.embedding_function,
+                ingestion_batch_size=self.ingestion_batch_size,
+                num_workers=num_workers,
+                retry_attempt=self.retry_attempt,
+                total_samples_processed=self.total_samples_processed,
+            )
+            data_ingestion.run()
 
 
 @deeplake.compute

@@ -4,7 +4,7 @@ from deeplake.core.vectorstore.vector_search import dataset as dataset_utils
 from deeplake.core.vectorstore.vector_search import filter as filter_utils
 from deeplake.constants import DEFAULT_DEEPLAKE_PATH
 from deeplake.core.vectorstore.vector_search import vector_search
-from deeplake.core.vectorstore.vector_search.ingestion import data_ingestion
+from deeplake.core.vectorstore.vector_search.ingestion import ingest_data
 
 try:
     from indra import api
@@ -67,6 +67,7 @@ class DeepLakeVectorStore:
         metadatas: Optional[List[dict]] = None,
         ids: Optional[List[str]] = None,
         embeddings: Optional[np.ndarray] = None,
+        total_samples_processed: Optional[Any] = None,
     ) -> List[str]:
         """Adding elements to deeplake vector store
 
@@ -79,12 +80,13 @@ class DeepLakeVectorStore:
             ids (List[str]): List of document IDs
         """
         elements = dataset_utils.create_elements(ids, texts, metadatas, embeddings)
-        data_ingestion.run_data_ingestion(
+        ingest_data.run_data_ingestion(
             elements=elements,
             dataset=self.dataset,
             embedding_function=self.embedding_function,
             ingestion_batch_size=self.ingestion_batch_size,
             num_workers=self.num_workers,
+            total_samples_processed=total_samples_processed,
         )
         self.dataset.commit(allow_empty=True)
         if self.verbose:
