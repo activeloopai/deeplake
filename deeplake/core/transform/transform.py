@@ -255,7 +255,7 @@ class Pipeline:
         completed = False
         progress = 0.0
         for data_in in datas_in:
-            if checkpointing_enabled and progress > 0:
+            if checkpointing_enabled:
                 target_ds._commit(
                     f"Auto-commit during deeplake.compute of {desc} after {progress}% progress",
                     None,
