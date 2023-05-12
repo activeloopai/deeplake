@@ -112,10 +112,9 @@ class TransformTensor:
 
     def append(self, item):
         """Adds an item to the tensor."""
+        if self.is_group:
+            raise TensorDoesNotExistError(self.name)
         try:
-            if self.is_group:
-                raise TensorDoesNotExistError(self.name)
-
             # optimization applicable only if extending
             self.non_numpy_only()
 
