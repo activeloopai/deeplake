@@ -1539,7 +1539,14 @@ class Dataset:
         self.storage.autoflush = False
         try:
             self._unlock()
-            commit(self, message, hash, flush_version_control_info, is_checkpoint=is_checkpoint, total_samples_processed=total_samples_processed)
+            commit(
+                self,
+                message,
+                hash,
+                flush_version_control_info,
+                is_checkpoint=is_checkpoint,
+                total_samples_processed=total_samples_processed,
+            )
             if not flush_version_control_info:
                 self.__dict__["_vc_info_updated"] = True
             self._lock()

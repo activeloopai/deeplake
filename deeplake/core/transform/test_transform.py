@@ -1332,6 +1332,7 @@ def test_transform_checkpointing(local_ds, scheduler):
     )
     assert ds.abc.numpy(aslist=True) == data_in
 
+
 def test_transform_checkpoint_store_data(local_ds_generator):
     @deeplake.compute
     def upload(i, ds):
@@ -1343,7 +1344,12 @@ def test_transform_checkpoint_store_data(local_ds_generator):
     with pytest.raises(TransformError):
         with local_ds_generator() as ds:
             ds.create_tensor("abc")
-            upload().eval(samples, ds, num_workers=TRANSFORM_TEST_NUM_WORKERS, checkpoint_interval=20)
+            upload().eval(
+                samples,
+                ds,
+                num_workers=TRANSFORM_TEST_NUM_WORKERS,
+                checkpoint_interval=20,
+            )
 
     ds = local_ds_generator()
 

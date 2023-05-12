@@ -451,7 +451,13 @@ def _merge_commit_node_maps(map1, map2):
             node2 = map2[commit_id]
             merged_node = CommitNode(node1.branch, node2.commit_id)
 
-            for attr in ("commit_message", "commit_user_name", "commit_time", "is_checkpoint", "total_samples_processed"):
+            for attr in (
+                "commit_message",
+                "commit_user_name",
+                "commit_time",
+                "is_checkpoint",
+                "total_samples_processed",
+            ):
                 setattr(merged_node, attr, getattr(node1, attr) or getattr(node2, attr))
             for child in set(
                 [node.commit_id for node in node1.children]
