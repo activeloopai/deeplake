@@ -40,7 +40,8 @@ def query(dataset, query_string: str):
         ds = dataset_to_libdeeplake(dataset)
     dsv = ds.query(query_string)
     from deeplake.enterprise.convert_to_libdeeplake import INDRA_API
-    if INDRA_API.tql.parse(query_string).is_filter:
+
+    if INDRA_API.tql.parse(query_string).is_filter:  # type: ignore
         indexes = dsv.indexes
         return dataset[indexes]
     else:
