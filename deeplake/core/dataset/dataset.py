@@ -15,6 +15,7 @@ from tqdm import tqdm  # type: ignore
 import deeplake
 from deeplake.core.index.index import IndexEntry
 from deeplake.core.link_creds import LinkCreds
+from deeplake.core.concurrent import ConcurrentDatasetWriter
 from deeplake.util.connect_dataset import connect_dataset_entry
 from deeplake.util.downsample import validate_downsampling
 from deeplake.util.version_control import (
@@ -4212,3 +4213,6 @@ class Dataset:
 
     def _get_storage_repository(self) -> Optional[str]:
         return getattr(self.base_storage, "repository", None)
+
+    def concurrent(self):
+        return ConcurrentDatasetWriter(self)
