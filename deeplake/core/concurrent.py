@@ -12,6 +12,7 @@ class ConcurrentDatasetWriter:
         self.original_branch = ds.branch
         self.concurrent_branch = f"concurrent_{uuid.uuid4().hex[:8]}"
         ds.read_only = False
+        ds._locking_enabled = False
         ds.checkout(self.concurrent_branch, create=True)
 
     def __enter__(self):
@@ -26,15 +27,16 @@ class ConcurrentDatasetWriter:
     def __getattribute__(self, attr: str):
         return getattr(self.ds, attr)
 
-    def join(self):
+    def _merge(self):
         ds = self.ds
         lock = Lock(ds.base_storage, VERSION_CONTROL_INFO_LOCK_FILENAME)
         lock.acquire()
-        ds._locking_enabled = False
         try:
             ds.checkout(self.original_branch)
             ds.merge(self.concurrent_branch)
         finally:
-            ds._locking_enabled = True
             lock.release()
-    
+
+    def join(self):
+        self._merge()
+        self.ds.checkout(self.concurrent_branch)
