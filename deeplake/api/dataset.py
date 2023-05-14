@@ -1529,7 +1529,7 @@ class dataset:
         src: Union[str, pathlib.Path],
         dest: Union[str, pathlib.Path],
         sample_compression: str = "auto",
-        image_params: Optional[Dict] = None,
+        primary_params: Optional[Dict] = None,
         label_params: Optional[Dict] = None,
         dest_creds: Optional[Union[str, Dict]] = None,
         progressbar: bool = True,
@@ -1650,17 +1650,16 @@ class dataset:
 
             if sample_compression == "auto":
                 sample_compression = get_most_common_extension(src)
-                if sample_compression is None:
-            if image_params is None:
-                image_params = {}
+            if primary_params is None:
+                primary_params = {}
             if label_params is None:
                 label_params = {}
 
-            if not image_params.get("sample_compression", None):
-                images_compression = get_most_common_extension(src)
-                if images_compression is None:
+            if not primary_params.get("sample_compression", None):
+                sample_compression = get_most_common_extension(src)
+                if sample_compression is None:
                     raise InvalidFileExtension(src)
-                image_params["sample_compression"] = images_compression
+                primary_params["sample_compression"] = sample_compression
 
             # TODO: support more than just image classification (and update docstring)
             if sample_compression in _image_compressions:
