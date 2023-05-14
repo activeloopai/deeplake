@@ -29,12 +29,6 @@ class ConcurrentDatasetWriter:
             ds._locking_enabled = True
             lock.release()
 
-    def extend(self, data: dict):
-        pass
-
-    def append(self, data: dict):
-        pass
-
     def __getitem__(self, key: str):
         return self.ds[key]
 
