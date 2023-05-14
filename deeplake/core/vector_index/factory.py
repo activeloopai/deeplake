@@ -1,7 +1,7 @@
 from .indexer import Indexer
 from .mutable_indexer import MutableIndexer
 
-from typing import Callable, Dict, Tuple, Any, Optional
+from typing import Callable, Dict, Tuple, Any, Optional, Iterable
 
 
 class IndexFactory:
@@ -23,6 +23,10 @@ class IndexFactory:
             IndexFactory.factories[type] = (mutable_factory, mutable_factory)
         else:
             IndexFactory.factories[type] = (factory, mutable_factory)
+
+    @staticmethod
+    def supported_indices() -> Iterable[str]:
+        return IndexFactory.factories.keys()
 
     @staticmethod
     def create_index(type: str, params: Dict[str, Any]) -> Indexer:
