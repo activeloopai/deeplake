@@ -1,5 +1,5 @@
 from deeplake.constants import KB
-from deeplake.util.exceptions import TensorInvalidSampleShapeError
+from deeplake.util.exceptions import SampleUpdateError
 import pytest
 from typing import Callable
 from deeplake.tests.common import assert_array_lists_equal
@@ -210,31 +210,34 @@ def test_failures(memory_ds):
     _add_dummy_mnist(memory_ds)
 
     # primary axis doesn't match
-    with pytest.raises(ValueError):
+    with pytest.raises(SampleUpdateError):
         memory_ds.images[0:3] = np.zeros((25, 30), dtype="uint8")
-    with pytest.raises(ValueError):
+    with pytest.raises(SampleUpdateError):
         memory_ds.images[0:3] = np.zeros((2, 25, 30), dtype="uint8")
-    with pytest.raises(TensorInvalidSampleShapeError):
+    with pytest.raises(SampleUpdateError):
         memory_ds.images[0] = np.zeros((2, 25, 30), dtype="uint8")
-    with pytest.raises(ValueError):
+    with pytest.raises(SampleUpdateError):
         memory_ds.labels[0:3] = [1, 2, 3, 4]
 
     # dimensionality doesn't match
-    with pytest.raises(TensorInvalidSampleShapeError):
-        memory_ds.images[0:5] = np.zeros((5, 30), dtype="uint8")
-    with pytest.raises(TensorInvalidSampleShapeError):
+
+    memory_ds.images[0:5] = np.zeros((5, 30), dtype="uint8")
+    with pytest.raises(SampleUpdateError):
         memory_ds.labels[0:5] = np.zeros((5, 2, 3), dtype="uint8")
 
     # make sure no data changed
     assert len(memory_ds.images) == 10
     assert len(memory_ds.labels) == 10
     np.testing.assert_array_equal(
-        memory_ds.images.numpy(), np.ones((10, 28, 28), dtype="uint8")
+        memory_ds.images[:5].numpy(), np.zeros((5, 30, 1), dtype="uint8")
+    )
+    np.testing.assert_array_equal(
+        memory_ds.images[5:].numpy(), np.ones((5, 28, 28), dtype="uint8")
     )
     np.testing.assert_array_equal(
         memory_ds.labels.numpy(), np.ones((10, 1), dtype="uint8")
     )
-    assert memory_ds.images.shape == (10, 28, 28)
+    assert memory_ds.images.shape == (10, None, None)
     assert memory_ds.labels.shape == (10, 1)
 
 
@@ -366,10 +369,16 @@ def test_sequence_htype_with_deeplake_read(local_ds, shape, compressed_image_pat
             else:
                 ds.x.append(arrs)
     ds.x[0][1] = new_imgs[1]
-    np.testing.assert_array_equal(ds.x[0][1].numpy(), new_imgs[1].array)
+    if len(new_imgs[1].shape) == 2:
+        np.testing.assert_array_equal(ds.x[0][1].numpy().squeeze(), new_imgs[1].array)
+    else:
+        np.testing.assert_array_equal(ds.x[0][1].numpy(), new_imgs[1].array)
     ds.x[1] = new_imgs
     for t, img in zip(ds.x[1], new_imgs):
-        np.testing.assert_array_equal(t.numpy(), img.array)
+        if len(img.shape) == 2:
+            np.testing.assert_array_equal(t.numpy().squeeze(), img.array)
+        else:
+            np.testing.assert_array_equal(t.numpy(), img.array)
 
 
 def test_byte_positions_encoder_update_bug(memory_ds):
@@ -403,15 +412,15 @@ def test_update_partial(memory_ds, htype, args):
         ds.create_tensor("x", htype=htype, **args)
         ds.x.append(np.ones((10, 10, 3), dtype=np.uint8))
         ds.x[0][0:2, 0:3, :1] = np.zeros((2, 3, 1), dtype=np.uint8)
-    assert ds.x[0].shape == (10, 10, 3)
+    assert ds.x[0].shape[:3] == (10, 10, 3)
     arr = ds.x[0].numpy()
     exp = np.ones((10, 10, 3), dtype=np.uint8)
     exp[0:2, 0:3, 0] *= 0
-    np.testing.assert_array_equal(arr, exp)
+    np.testing.assert_array_equal(arr.reshape(-1), exp.reshape(-1))
     with ds:
         ds.x[0][1] += 1
         ds.x[0][1] *= 3
     exp[1] += 1
     exp[1] *= 3
     arr = ds.x[0].numpy()
-    np.testing.assert_array_equal(arr, exp)
+    np.testing.assert_array_equal(arr.reshape(-1), exp.reshape(-1))

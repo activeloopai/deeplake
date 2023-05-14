@@ -8,9 +8,9 @@ from deeplake.core.serialize import (
 )
 from deeplake.core.tiling.sample_tiles import SampleTiles
 from deeplake.core.polygon import Polygons
-from deeplake.util.exceptions import EmptyTensorError, TensorDtypeMismatchError
+from deeplake.util.exceptions import TensorDtypeMismatchError
 from deeplake.constants import ENCODING_DTYPE
-from .base_chunk import BaseChunk, InputSample
+from .base_chunk import BaseChunk, InputSample, catch_chunk_read_error
 
 
 class UncompressedChunk(BaseChunk):
@@ -184,6 +184,7 @@ class UncompressedChunk(BaseChunk):
 
         return num_samples
 
+    @catch_chunk_read_error
     def read_sample(
         self,
         local_index: int,
@@ -224,6 +225,13 @@ class UncompressedChunk(BaseChunk):
                 sb, eb = bps[local_index]
                 buffer = buffer[sb:eb]
 
+        if self.tensor_meta.htype == "polygon":
+            return Polygons.frombuffer(
+                bytes(buffer),
+                dtype=self.tensor_meta.dtype,
+                ndim=shape[-1],
+            )
+
         if not decompress:
             if copy:
                 buffer = bytes(buffer)
@@ -231,12 +239,6 @@ class UncompressedChunk(BaseChunk):
         if self.is_text_like:
             buffer = bytes(buffer)
             return bytes_to_text(buffer, self.htype)
-        if self.tensor_meta.htype == "polygon":
-            return Polygons.frombuffer(
-                bytes(buffer),
-                dtype=self.tensor_meta.dtype,
-                ndim=shape[-1],
-            )
         ret = np.frombuffer(buffer, dtype=self.dtype).reshape(shape)
         if copy and not ret.flags["WRITEABLE"]:
             ret = ret.copy()

@@ -2,59 +2,68 @@
 Deep Lake offers an integration with MMDetection, a popular open-source object detection toolbox based on PyTorch. 
 The integration enables users to train models while streaming Deep Lake dataset using the transformation, training, and evaluation tools built by MMDet.
 
-Learn more about MMDetection `here <https://mmsegmentation.readthedocs.io/en/latest/>`_.
+Learn more about MMDetection `here <https://mmdetection.readthedocs.io/en/latest/>`_.
 
 Integration Interface
 ~~~~~~~~~~~~~~~~~~~~~
-MMDetection works with configs. Deeplake adopted the strategy, and in order to train MMDet models, you need to create/specify your model and training/validation config. 
-Deeplake integration's logic is almost the same as MMDetection's with some minor modifications. The integrations with MMDET occurs in the deeplake.integrations.mmdet module. 
-At a high-level, Deep Lake is responsible for the pytorch dataloader that streams data to the training framework, while MMDET is used for the training, transformation, and evaluation logic. Let us take a look at the config with deeplake changes:
+MMDetection works with configs. Deeplake adopted this strategy, and in order to train MMDet models, you need to create/specify your model 
+and training/validation config. Deep Lake integration's logic is almost the same as MMDetection's with some minor modifications. The integrations 
+with MMDET occurs in the deeplake.integrations.mmdet module. At a high-level, Deep Lake is responsible for the pytorch dataloader that streams data 
+to the training framework, while MMDET is used for the training, transformation, and evaluation logic. Let us take a look at the config with deeplake changes:
 
 Deeplake integration requires the following parameters to be specified in the configuration file:
-- data: just like in the MMDetection configuration files, in data dictionary you can specify everything that you want to be applied to the data during training and validation
-    - train: is the keyword argument of data, and also a dictionary where one can specify dataset path, credentials, transformations of the training data
-    - val: is the keyword argument of data, and also a dictionary where one can specify dataset path, credentials, transformations of the validation data
-    - pipeline: list of transformations. This parameter exists for train as well as for val.
-    Example:
+
+- ``data``: Just like in the MMDetection configuration files, in data dictionary you can specify everything that you want to be applied to the data during training and validation
+    - ``train``: Keyword argument of data, a dictionary where one can specify dataset path, credentials, transformations of the training data
+    - ``val``: Keyword argument of data, a dictionary where one can specify dataset path, credentials, transformations of the validation data
+    - ``pipeline``: List of transformations. This parameter exists for train as well as for val.
     
->>>    pipeline =  [dict(type="Resize", img_scale=[(320, 320), (608, 608)], keep_ratio=True), dict(type="RandomFlip", flip_ratio=0.5), dict(type="PhotoMetricDistortion")]
+        - Example:
+    
+            >>> pipeline =  [dict(type="Resize", img_scale=[(320, 320), (608, 608)], keep_ratio=True), dict(type="RandomFlip", flip_ratio=0.5), dict(type="PhotoMetricDistortion")]
 
-    - deeplake_path: path to the deeplake dataset. This parameter exists for train as well as for val.
-    - deeplake_credentials: optional parameter. Required only when using private nonlocal datasets. See documendataion for `deeplake.load() <https://docs.deeplake.ai/en/latest/deeplake.html#deeplake.load>`_ for details. This parameter exists for train as well as for val.
-    - deeplake_commit_id: optional parameter. If specified, the dataset will checkout to the commit. This parameter exists for train as well as for val. See documentation for `Dataset.commit_id <https://deep-lake--2152.org.readthedocs.build/en/2152/deeplake.core.dataset.html#deeplake.core.dataset.Dataset.commit_id>`_
-    - deeplake_view_id: optional parameter. If specified the dataset will load saved view. This parameter exists for train as well as for val.
-    - deeplake_tensors: optional parameter. If specified maps MMDetection tensors to the associated tensors in the dataset. MMDet tensors are: "img", "gt_bboxes", "gt_labels", "gt_masks". This parameter exists for train as well as for val.
-        - "img": stands for image tensor.
-        - "gt_bboxes": stands for bounding box tensor.
-        - "gt_labels": stand for labels tensor.
-        - "gt_masks": stand for masks tensor.
-    - deeplake_dataloader: optional parameter. If specified represents the parameters of the deeplake dataloader. Deeplake dataloader parameters are: "shuffle", "batch_size", "num_workers". This parameter exists for train as well as for val.
-        - "shuffle": if True shuffles the dataset.
-        - "batch_size": size of batch. If not specified, dataloader will use samples_per_gpu.
-        - "num_workers": number of workers to use. If not specified, dataloader will use workers_per_gpu.
-- deeplake_dataloader_type: optional parameter. If specified represents the type of deeplake dataloader to use.
-- deeplake_metrics_format: optional parameter. If specified represents the format of the deeplake metrics that will be used during evaluation. Default COCO. Avaliable values are: "COCO", "PascalVOC". 
-  If COCO format is used, you can specify whether you want to evaluate on bbox only or also want to evaluate on masks. To do that you need to specify the format of the metric in metric. 
+    - ``deeplake_path``: Path to the deeplake dataset. This parameter exists for train as well as for val.
+    - ``deeplake_credentials``: Optional parameter. Required only when using private nonlocal datasets. See documendataion for `deeplake.load() <https://docs.deeplake.ai/en/latest/deeplake.html#deeplake.load>`_ for details. This parameter exists for train as well as for val.
+    - ``deeplake_commit_id``: Optional parameter. If specified, the dataset will checkout to the commit. This parameter exists for train as well as for val. See documentation for `Dataset.commit_id <https://deep-lake--2152.org.readthedocs.build/en/2152/deeplake.core.dataset.html#deeplake.core.dataset.Dataset.commit_id>`_
+    - ``deeplake_view_id``: Optional parameter. If specified the dataset will load saved view. This parameter exists for train as well as for val.
+    - ``deeplake_tensors``: Optional parameter. If specified maps MMDetection tensors to the associated tensors in the dataset. MMDet tensors are: "img", "gt_bboxes", "gt_labels", "gt_masks". This parameter exists for train as well as for val.
+        - ``"img"``: Stands for image tensor.
+        - ``"gt_bboxes"``: Stands for bounding box tensor.
+        - ``"gt_labels"``: Stands for labels tensor.
+        - ``"gt_masks"``: Stands for masks tensor.
+
+    - ``deeplake_dataloader``: Optional parameter. If specified represents the parameters of the deeplake dataloader. Deeplake dataloader parameters are: "shuffle", "batch_size", "num_workers". This parameter exists for train as well as for val.
+        - ``"shuffle"``: If ``True`` shuffles the dataset.
+        - ``"batch_size"``: Size of batch. If not specified, dataloader will use ``samples_per_gpu``.
+        - ``"num_workers"``: Number of workers to use. If not specified, dataloader will use ``workers_per_gpu``.
+
+- ``deeplake_dataloader_type``: Optional parameter. If specified, it represents the type of deeplake dataloader to use.
+- ``deeplake_metrics_format``: Optional parameter. If specified, it represents the format of the deeplake metrics that will be used during evaluation. Defaults to COCO. 
+    Avaliable values are: "COCO", "PascalVOC". If COCO format is used, you can specify whether you want to evaluate on bbox only or also want to evaluate on masks. 
+    To do that you need to specify the format of the metric in metric. 
   
-Ex:
+Example:
 
->>>  deeplake_metrics_format = "COCO"
->>>  evaluation = dict(metric=["bbox"], interval=1)
+>>> deeplake_metrics_format = "COCO"
+>>> evaluation = dict(metric=["bbox"], interval=1)
 
-- train_detector: Function to train the MMDetection model. Parameters are: model, cfg: mmcv.ConfigDict, ds_train=None, ds_train_tensors=None, ds_val: Optional[dp.Dataset] = None, ds_val_tensors=None, distributed: bool = False, timestamp=None, meta=None, validate: bool = True.
-    - model: MMDetection model that is going to be used.
-    - cfg: Configuration of the model as well as of the datasets and transforms that's going to be used.
-    - ds_train: Optional parameter. If provided will overwrite deeplake_path in train, and will pass this tensor directly to the dataloader.
-    - ds_val: Optional parameter. If provided will overwrite deeplake_path in val, and will pass this tensor directly to the dataloader.
-    - ds_train_tensors: Optional parameter. If provided will overwrite deeplake_tensors in train, and will pass this tensor mapping directly to dataloader.
-    - ds_val_tensors: Optional parameter. If provided will overwrite deeplake_tensors in val, and will pass this tensor mapping directly to dataloader.
-    - distributed: Optional parameter. If provided will run the code on all available gpus. Meta data used to build runner
-    - timestamp: variable used in runner to make .log and .log.json filenames the same.'
-    - validate: bool, whether validation should be conducted, by default True
+- ``train_detector``: Function to train the MMDetection model.
+
+    Parameters:
+
+        - ``model``: MMDetection model that is going to be used.
+        - ``cfg``: mmcv.ConfigDict, Configuration of the model as well as of the datasets and transforms that's going to be used.
+        - ``ds_train``: Optional parameter. If provided will overwrite deeplake_path in train, and will pass this tensor directly to the dataloader.
+        - ``ds_val``: Optional parameter. If provided will overwrite deeplake_path in val, and will pass this tensor directly to the dataloader.
+        - ``ds_train_tensors``: Optional parameter. If provided will overwrite deeplake_tensors in train, and will pass this tensor mapping directly to dataloader.
+        - ``ds_val_tensors``: Optional parameter. If provided will overwrite deeplake_tensors in val, and will pass this tensor mapping directly to dataloader.
+        - ``distributed``: Optional parameter. If provided will run the code on all available gpus. Meta data used to build runner.
+        - ``timestamp``: Variable used in runner to make .log and .log.json filenames the same.
+        - ``validate``: Bool, whether validation should be run, defaults to ``True``.
 
 NOTE:
-    gt_masks is optional parameter and lets say you want to train pure detecter this part is going to exclude. Other mappings are mandatory
-    if you don't specify them explicitly they are going to be searched in the dataset according to tensor htype. Better to specify them explicitly
+    ``gt_masks`` is optional parameter and lets say you want to train pure detector this part is going to exclude. Other mappings are mandatory
+    if you don't specify them explicitly they are going to be searched in the dataset according to tensor htype. Better to specify them explicitly.
 
 MMDetection Config Examples
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~
@@ -62,95 +71,84 @@ Below is the example of the deeplake mmdet configuration:
 
 
 >>> _base_ = "../mmdetection/configs/yolo/yolov3_d53_mstrain-416_273e_coco.py"
->>> 
 >>> # use caffe img_norm
 >>> img_norm_cfg = dict(mean=[0, 0, 0], std=[255., 255., 255.], to_rgb=True)
->>> 
 >>> train_pipeline = [
->>>     dict(type='LoadImageFromFile'),
->>>     dict(type='LoadAnnotations', with_bbox=True),
->>>     dict(
->>>         type='Expand',
->>>         mean=img_norm_cfg['mean'],
->>>         to_rgb=img_norm_cfg['to_rgb'],
->>>         ratio_range=(1, 2)),
->>>     dict(type='Resize', img_scale=[(320, 320), (416, 416)], keep_ratio=True),
->>>     dict(type='RandomFlip', flip_ratio=0.0),
->>>     dict(type='PhotoMetricDistortion'),
->>>     dict(type='Normalize', **img_norm_cfg),
->>>     dict(type='Pad', size_divisor=32),
->>>     dict(type='DefaultFormatBundle'),
->>>     dict(type='Collect', keys=['img', 'gt_bboxes', 'gt_labels'])
->>> ]
+...     dict(type='LoadImageFromFile'),
+...     dict(type='LoadAnnotations', with_bbox=True),
+...     dict(
+...         type='Expand',
+...         mean=img_norm_cfg['mean'],
+...         to_rgb=img_norm_cfg['to_rgb'],
+...         ratio_range=(1, 2)),
+...     dict(type='Resize', img_scale=[(320, 320), (416, 416)], keep_ratio=True),
+...     dict(type='RandomFlip', flip_ratio=0.0),
+...     dict(type='PhotoMetricDistortion'),
+...     dict(type='Normalize', **img_norm_cfg),
+...     dict(type='Pad', size_divisor=32),
+...     dict(type='DefaultFormatBundle'),
+...     dict(type='Collect', keys=['img', 'gt_bboxes', 'gt_labels'])
+... ]
 >>> test_pipeline = [
->>>     dict(type='LoadImageFromFile'),
->>>     dict(
->>>         type='MultiScaleFlipAug',
->>>         img_scale=(416, 416),
->>>         flip=False,
->>>         transforms=[
->>>             dict(type='Resize', keep_ratio=True),
->>>             dict(type='RandomFlip', flip_ratio=0.0),
->>>             dict(type='Normalize', **img_norm_cfg),
->>>             dict(type='Pad', size_divisor=32),
->>>             dict(type='ImageToTensor', keys=['img']),
->>>             dict(type='Collect', keys=['img'])
->>>         ])
->>> ]
+...     dict(type='LoadImageFromFile'),
+...     dict(
+...         type='MultiScaleFlipAug',
+...         img_scale=(416, 416),
+...         flip=False,
+...         transforms=[
+...             dict(type='Resize', keep_ratio=True),
+...             dict(type='RandomFlip', flip_ratio=0.0),
+...             dict(type='Normalize', **img_norm_cfg),
+...             dict(type='Pad', size_divisor=32),
+...             dict(type='ImageToTensor', keys=['img']),
+...             dict(type='Collect', keys=['img'])
+...         ])
+... ]
 >>> #--------------------------------------DEEPLAKE INPUTS------------------------------------------------------------#
->>> TOKEN = "INSERT_YOUR_DEEPLAKE_TOKEN"
-​>>> 
->>> 
+>>> TOKEN = "INSERT_YOUR_DEEPLAKE_TOKEN" 
 >>> data = dict(
->>>     # samples_per_gpu=4, # Is used instead of batch_size if deeplake_dataloader is not specified below
->>>     # workers_per_gpu=8, # Is used instead of num_workers if deeplake_dataloader is not specified below
->>>     train=dict(
->>>         pipeline=train_pipeline,
-​>>> 
->>>         # Credentials for authentication. See documendataion for deeplake.load() for details
->>>         deeplake_path="hub://activeloop/coco-train",
->>>         deeplake_credentials={
->>>             "username": None,
->>>             "password": None,
->>>             "token": TOKEN,
->>>             "creds": None,
->>>         },
->>>         #OPTIONAL - Checkout the specified commit_id before training
->>>         deeplake_commit_id="",
->>>         #OPTIONAL - Loads a dataset view for training based on view_id
->>>         deeplake_view_id="",
-​
->>>         # OPTIONAL - {"mmdet_key": "deep_lake_tensor",...} - Maps Deep Lake tensors to MMDET dictionary keys. 
->>>         # If not specified, Deep Lake will auto-infer the mapping, but it might make mistakes if datasets have many tensors
->>>         deeplake_tensors = {"img": "images", "gt_bboxes": "boxes", "gt_labels": "categories", "gt_masks": "masks},
->>>         
->>>         # OPTIONAL - Parameters to use for the Deep Lake dataloader. If unspecified, the integration uses
->>>         # the parameters in other parts of the cfg file such as samples_per_gpu, and others.
->>>         deeplake_dataloader = {"shuffle": True, "batch_size": 4, 'num_workers': 8}
->>>     ),
->>> ​
->>>     # Parameters as the same as for train
->>>     val=dict(
->>>         pipeline=test_pipeline,
->>>         deeplake_path="hub://activeloop/coco-val",
->>>         deeplake_credentials={
->>>             "username": None,
->>>             "password": None,
->>>             "token": TOKEN,
->>>             "creds": None,
->>>         },
->>>         deeplake_tensors = {"img": "images", "gt_bboxes": "boxes", "gt_labels": "categories"},
->>>         deeplake_dataloader = {"shuffle": False, "batch_size": 1, 'num_workers': 8}
->>>     ),
->>> )
-​>>> 
+...     # samples_per_gpu=4, # Is used instead of batch_size if deeplake_dataloader is not specified below
+...     # workers_per_gpu=8, # Is used instead of num_workers if deeplake_dataloader is not specified below
+...     train=dict(
+...         pipeline=train_pipeline,
+...         # Credentials for authentication. See documendataion for deeplake.load() for details
+...         deeplake_path="hub://activeloop/coco-train",
+...          deeplake_credentials={
+...             "username": None,
+...             "password": None,
+...             "token": TOKEN,
+...             "creds": None,
+...         },
+...         #OPTIONAL - Checkout the specified commit_id before training
+...         deeplake_commit_id="",
+...         #OPTIONAL - Loads a dataset view for training based on view_id
+...         deeplake_view_id="",
+...         # OPTIONAL - {"mmdet_key": "deep_lake_tensor",...} - Maps Deep Lake tensors to MMDET dictionary keys. 
+...         # If not specified, Deep Lake will auto-infer the mapping, but it might make mistakes if datasets have many tensors
+...         deeplake_tensors = {"img": "images", "gt_bboxes": "boxes", "gt_labels": "categories", "gt_masks": "masks},         
+...         # OPTIONAL - Parameters to use for the Deep Lake dataloader. If unspecified, the integration uses
+...         # the parameters in other parts of the cfg file such as samples_per_gpu, and others.
+...         deeplake_dataloader = {"shuffle": True, "batch_size": 4, 'num_workers': 8}
+...     ),
+...     # Parameters as the same as for train
+...     val=dict(
+...         pipeline=test_pipeline,
+...         deeplake_path="hub://activeloop/coco-val",
+...         deeplake_credentials={
+...             "username": None,
+...             "password": None,
+...             "token": TOKEN,
+...             "creds": None,
+...         },
+...         deeplake_tensors = {"img": "images", "gt_bboxes": "boxes", "gt_labels": "categories"},
+...         deeplake_dataloader = {"shuffle": False, "batch_size": 1, 'num_workers': 8}
+...     ),
+... )
 >>> # Which dataloader to use
 >>> deeplake_dataloader_type = "c++"  # "c++" is available to enterprise users. Otherwise use "python"
-​
 >>> # Which metrics to use for evaulation. In MMDET (without Deeplake), this is inferred from the dataset type.
 >>> # In the Deep Lake integration, since the format is standardized, a variety of metrics can be used for a given dataset.
 >>> deeplake_metrics_format = "COCO"
-​
 >>> #----------------------------------END DEEPLAKE INPUTS------------------------------------------------------------#
 
 And config for training:
@@ -159,18 +157,12 @@ And config for training:
 >>> from mmcv import Config
 >>> import mmcv
 >>> from deeplake.integrations import mmdet as mmdet_deeplake
->>> 
->>> 
 >>> cfg = Config.fromfile(cfg_file)
->>> 
 >>> cfg.model.bbox_head.num_classes = num_classes
->>> 
 >>> # Build the detector
 >>> model = mmdet_deeplake.build_detector(cfg.model)
->>> 
 >>> # Create work_dir
 >>> mmcv.mkdir_or_exist(os.path.abspath(cfg.work_dir))
->>> 
 >>> # Run the training
 >>> mmdet_deeplake.train_detector(model, cfg, distributed=args.distributed, validate=args.validate)
 """
@@ -180,7 +172,16 @@ from collections import OrderedDict
 
 from typing import Callable, Optional, List, Dict
 
-from mmdet.apis.train import auto_scale_lr  # type: ignore
+
+try:
+    from mmdet.apis.train import auto_scale_lr  # type: ignore
+except Exception:
+    import mmdet  # type: ignore
+
+    version = mmdet.__version__
+    raise Exception(
+        f"MMDet {version} version is not supported. The latest supported MMDet version with deeplake is 2.28.1."
+    )
 from mmdet.utils import (  # type: ignore
     build_dp,
     compat_cfg,
@@ -229,6 +230,7 @@ import os
 from mmdet.core import BitmapMasks, PolygonMasks
 import math
 import types
+from deeplake.integrations.mmdet.mmdet_runners import DeeplakeIterBasedRunner
 
 
 class Dummy:
@@ -479,40 +481,52 @@ class MMDetDataset(TorchDataset):
         metrics_format="COCO",
         bbox_info=None,
         pipeline=None,
+        num_gpus=1,
+        batch_size=1,
         **kwargs,
     ):
         super().__init__(*args, **kwargs)
-        self.bbox_info = bbox_info
-        self.images = self._get_images(tensors_dict["images_tensor"])
-        self.masks = self._get_masks(tensors_dict.get("masks_tensor", None))
-        self.bboxes = self._get_bboxes(tensors_dict["boxes_tensor"])
-        bbox_format = get_bbox_format(first_non_empty(self.bboxes), bbox_info)
-        self.labels = self._get_labels(tensors_dict["labels_tensor"])
-        self.iscrowds = self._get_iscrowds(tensors_dict.get("iscrowds"))
-        self.CLASSES = self.get_classes(tensors_dict["labels_tensor"])
         self.mode = mode
-        self.metrics_format = metrics_format
-        coco_style_bbox = convert_to_coco_format(self.bboxes, bbox_format, self.images)
         self.pipeline = pipeline
-
-        if self.metrics_format == "COCO" and self.mode in ("val", "test"):
-            self.evaluator = mmdet_utils.COCODatasetEvaluater(
-                pipeline,
-                classes=self.CLASSES,
-                deeplake_dataset=self.dataset,
-                imgs=self.images,
-                masks=self.masks,
-                bboxes=coco_style_bbox,
-                labels=self.labels,
-                iscrowds=self.iscrowds,
-                bbox_format=bbox_format,
+        self.num_gpus = num_gpus
+        self.batch_size = batch_size
+        if self.mode in ("val", "test"):
+            self.bbox_info = bbox_info
+            self.images = self._get_images(tensors_dict["images_tensor"])
+            self.masks = self._get_masks(tensors_dict.get("masks_tensor", None))
+            self.bboxes = self._get_bboxes(tensors_dict["boxes_tensor"])
+            bbox_format = get_bbox_format(first_non_empty(self.bboxes), bbox_info)
+            self.labels = self._get_labels(tensors_dict["labels_tensor"])
+            self.iscrowds = self._get_iscrowds(tensors_dict.get("iscrowds"))
+            self.CLASSES = self.get_classes(tensors_dict["labels_tensor"])
+            self.metrics_format = metrics_format
+            coco_style_bbox = convert_to_coco_format(
+                self.bboxes, bbox_format, self.images
             )
-        else:
-            self.evaluator = None
+
+            if self.metrics_format == "COCO":
+                self.evaluator = mmdet_utils.COCODatasetEvaluater(
+                    pipeline,
+                    classes=self.CLASSES,
+                    deeplake_dataset=self.dataset,
+                    imgs=self.images,
+                    masks=self.masks,
+                    bboxes=coco_style_bbox,
+                    labels=self.labels,
+                    iscrowds=self.iscrowds,
+                    bbox_format=bbox_format,
+                    num_gpus=num_gpus,
+                )
+            else:
+                self.evaluator = None
 
     def __len__(self):
-        if self.mode == "eval":
-            return math.ceil(len(self.dataset) / self.batch_size)
+        if self.mode == "val":
+            per_gpu_length = math.floor(
+                len(self.dataset) / (self.batch_size * self.num_gpus)
+            )
+            total_length = per_gpu_length * self.num_gpus
+            return total_length
         return super().__len__()
 
     def _get_images(self, images_tensor):
@@ -628,6 +642,12 @@ class MMDetDataset(TorchDataset):
         Returns:
             OrderedDict: Evaluation metrics dictionary
         """
+        if self.num_gpus > 1:
+            results_ordered = []
+            for i in range(self.num_gpus):
+                results_ordered += results[i :: self.num_gpus]
+            results = results_ordered
+
         if self.evaluator is None:
             if not isinstance(metric, str):
                 assert len(metric) == 1
@@ -671,7 +691,11 @@ class MMDetDataset(TorchDataset):
             return eval_results
 
         return self.evaluator.evaluate(
-            results, metric=metric, logger=logger, proposal_nums=proposal_nums, **kwargs
+            results,
+            metric=metric,
+            logger=logger,
+            proposal_nums=proposal_nums,
+            **kwargs,
         )
 
     @staticmethod
@@ -915,6 +939,7 @@ def build_dataloader(
     dataset.CLASSES = classes
     pipeline = build_pipeline(pipeline)
     metrics_format = train_loader_config.get("metrics_format")
+    persistent_workers = train_loader_config.get("persistent_workers", False)
     dist = train_loader_config["dist"]
     if dist and implementation == "python":
         raise NotImplementedError(
@@ -955,6 +980,12 @@ def build_dataloader(
     decode_method = {images_tensor: "numpy"}
 
     if implementation == "python":
+        if persistent_workers:
+            always_warn(
+                "Persistent workers are not supported for OSS dataloader. "
+                "persistent_workers=False will be used instead."
+            )
+
         loader = dataset.pytorch(
             tensors_dict=tensors_dict,
             num_workers=num_workers,
@@ -979,6 +1010,8 @@ def build_dataloader(
             mode=mode,
             bbox_info=bbox_info,
             decode_method=decode_method,
+            num_gpus=train_loader_config["num_gpus"],
+            batch_size=batch_size,
         )
 
         loader.dataset.mmdet_dataset = mmdet_ds
@@ -999,6 +1032,7 @@ def build_dataloader(
                 tensors=tensors,
                 distributed=dist,
                 decode_method=decode_method,
+                persistent_workers=persistent_workers,
             )
         )
 
@@ -1011,6 +1045,8 @@ def build_dataloader(
             mode=mode,
             bbox_info=bbox_info,
             decode_method=decode_method,
+            num_gpus=train_loader_config["num_gpus"],
+            batch_size=batch_size,
         )
         loader.dataset = mmdet_ds
     loader.dataset.CLASSES = classes
@@ -1215,9 +1251,11 @@ def _train_detector(
     # TODO verify required tensors are not None and raise Exception.
 
     if hasattr(model, "CLASSES"):
-        warnings.warn("model already has a CLASSES attribute. Will be ignored.")
-
-    model.CLASSES = ds_train[train_labels_tensor].info.class_names
+        warnings.warn(
+            "model already has a CLASSES attribute. dataset.info.class_names will not be used."
+        )
+    elif hasattr(ds_train[train_labels_tensor].info, "class_names"):
+        model.CLASSES = ds_train[train_labels_tensor].info.class_names
 
     metrics_format = cfg.get("deeplake_metrics_format", "COCO")
 
@@ -1233,7 +1271,6 @@ def _train_detector(
         dist=distributed,
         seed=cfg.seed,
         runner_type=runner_type,
-        persistent_workers=False,
         metrics_format=metrics_format,
     )
 
@@ -1279,6 +1316,15 @@ def _train_detector(
     auto_scale_lr(cfg, distributed, logger)
     optimizer = build_optimizer(model, cfg.optimizer)
 
+    cfg.custom_imports = dict(
+        imports=["deeplake.integrations.mmdet.mmdet_runners"],
+        allow_failed_imports=False,
+    )
+    if cfg.runner.type == "IterBasedRunner":
+        cfg.runner.type = "DeeplakeIterBasedRunner"
+    elif cfg.runner.type == "EpochBasedRunner":
+        cfg.runner.type = "DeeplakeEpochBasedRunner"
+
     runner = build_runner(
         cfg.runner,
         default_args=dict(
@@ -1321,19 +1367,23 @@ def _train_detector(
     # register eval hooks
     if validate:
         val_dataloader_default_args = dict(
-            samples_per_gpu=1,
-            workers_per_gpu=1,
-            dist=False,
+            samples_per_gpu=batch_size,
+            workers_per_gpu=num_workers,
+            dist=distributed,
             shuffle=False,
-            persistent_workers=False,
             mode="val",
             metrics_format=metrics_format,
+            num_gpus=len(cfg.gpu_ids),
         )
 
         val_dataloader_args = {
             **cfg.data.val.get("deeplake_dataloader", {}),
             **val_dataloader_default_args,
         }
+
+        train_persistent_workers = train_loader_cfg.get("persistent_workers", False)
+        val_persistent_workers = val_dataloader_args.get("persistent_workers", False)
+        check_persistent_workers(train_persistent_workers, val_persistent_workers)
 
         if val_dataloader_args.get("shuffle", False):
             always_warn("shuffle argument for validation dataset will be ignored.")
@@ -1398,8 +1448,11 @@ def _train_detector(
             implementation=dl_impl,
             **val_dataloader_args,
         )
-        eval_cfg["by_epoch"] = cfg.runner["type"] != "IterBasedRunner"
+
+        eval_cfg["by_epoch"] = cfg.runner["type"] != "DeeplakeIterBasedRunner"
         eval_hook = EvalHook
+        if distributed:
+            eval_hook = DistEvalHook
         # In this PR (https://github.com/open-mmlab/mmcv/pull/1193), the
         # priority of IterTimerHook has been modified from 'NORMAL' to 'LOW'.
         runner.register_hook(eval_hook(val_dataloader, **eval_cfg), priority="LOW")
@@ -1415,6 +1468,24 @@ def _train_detector(
     elif cfg.load_from:
         runner.load_checkpoint(cfg.load_from)
     runner.run([data_loader], cfg.workflow)
+
+
+def check_persistent_workers(train_persistent_workers, val_persistent_workers):
+    if train_persistent_workers != val_persistent_workers:
+        if train_persistent_workers:
+            always_warn(
+                "persistent workers for training and evaluation should be identical, "
+                "otherwise, this could lead to performance issues. "
+                "Either both of then should be `True` or both of them should `False`. "
+                "If you want to use persistent workers set True for validation"
+            )
+        else:
+            always_warn(
+                "persistent workers for training and evaluation should be identical, "
+                "otherwise, this could lead to performance issues. "
+                "Either both of then should be `True` or both of them should `False`. "
+                "If you want to use persistent workers set True for training"
+            )
 
 
 def ddp_setup(rank: int, world_size: int, port: int):

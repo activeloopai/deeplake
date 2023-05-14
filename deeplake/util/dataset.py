@@ -4,7 +4,7 @@ from deeplake.util.exceptions import ReadOnlyModeError, TensorDoesNotExistError
 
 def try_flushing(ds):
     try:
-        ds.flush()
+        ds.storage.flush()
     except ReadOnlyModeError:
         pass
 
@@ -25,3 +25,18 @@ def map_tensor_keys(dataset, tensor_keys: Optional[Sequence[str]] = None) -> Lis
 
     # Get full path in case of groups
     return [tensors[k].meta.name or tensors[k].key for k in tensor_keys]
+
+
+_invalid_chars = {"[", "]", "@", ".", ",", "?", "!", "/", "\\", "#", "'", '"'}
+
+
+def sanitize_tensor_name(input: str) -> str:
+    """Sanitize a string to be a valid tensor name
+
+    Args:
+        input (str): A string that will be sanitized
+
+    Returns:
+        str: A string with the sanitized tensor name
+    """
+    return "".join("_" if c in _invalid_chars else c for c in input)

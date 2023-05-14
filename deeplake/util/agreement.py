@@ -1,8 +1,13 @@
 from typing import List
 from deeplake.util.exceptions import AgreementNotAcceptedError
 
+import deeplake.util.spinner
+
 
 def agreement_prompt(agreements: List[str], org_id: str, ds_name: str):
+    spinner = deeplake.util.spinner.ACTIVE_SPINNER
+    if spinner:
+        spinner.hide()
     print(
         "\n\nThe owner of the dataset you are trying to access requires that you agree to the following terms first:\n"
     )
@@ -20,6 +25,8 @@ def agreement_prompt(agreements: List[str], org_id: str, ds_name: str):
     user_input = input(
         f"In order to accept, please type the dataset's name ({ds_name}) and press enter: "
     )
+    if spinner:
+        spinner.show()
     return user_input == ds_name
 
 

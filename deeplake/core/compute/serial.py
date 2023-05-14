@@ -1,4 +1,4 @@
-from deeplake.core.compute.provider import ComputeProvider
+from deeplake.core.compute.provider import ComputeProvider, get_progress_bar
 
 
 class SerialProvider(ComputeProvider):
@@ -8,8 +8,16 @@ class SerialProvider(ComputeProvider):
     def map(self, func, iterable):
         return list(map(func, iterable))
 
-    def map_with_progressbar(self, func, iterable, total_length: int, desc=None):
-        progress_bar = self.get_progressbar(total_length, desc)
+    def map_with_progress_bar(
+        self,
+        func,
+        iterable,
+        total_length: int,
+        desc=None,
+        pbar=None,
+        pqueue=None,
+    ):
+        progress_bar = pbar or get_progress_bar(total_length, desc)
 
         def sub_func(*args, **kwargs):
             def pg_callback(value: int):
@@ -22,7 +30,7 @@ class SerialProvider(ComputeProvider):
         return result
 
     def create_queue(self):
-        raise NotImplementedError("no queues in serial provider")
+        return None
 
     def close(self):
         return

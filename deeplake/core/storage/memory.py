@@ -1,6 +1,7 @@
 from typing import Any, Dict
 from deeplake.core.storage.lru_cache import _get_nbytes
 from deeplake.core.storage.provider import StorageProvider
+import os
 
 
 class MemoryProvider(StorageProvider):
@@ -124,3 +125,8 @@ class MemoryProvider(StorageProvider):
 
     def get_object_size(self, key: str) -> int:
         return _get_nbytes(self[key])
+
+    def subdir(self, path: str, read_only: bool = False):
+        sd = self.__class__(os.path.join(self.root, path))
+        sd.read_only = read_only
+        return sd

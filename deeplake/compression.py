@@ -31,7 +31,7 @@ IMAGE_COMPRESSIONS = [
 ]
 
 IMAGE_COMPRESSION_EXT_DICT = {
-    "apng": [".png"],
+    # "apng": [".png"],
     "bmp": [".bmp"],
     "eps": [".eps"],
     "fli": [".fli"],
@@ -144,7 +144,7 @@ IMAGE_COMPRESSIONS = [
 ]
 
 
-IMAGE_COMPRESSIONS.insert(0, "apng")
+# IMAGE_COMPRESSIONS.insert(0, "apng")
 IMAGE_COMPRESSIONS.insert(1, "dcm")
 IMAGE_COMPRESSIONS.insert(2, "mpo")
 IMAGE_COMPRESSIONS.insert(3, "fli")

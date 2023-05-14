@@ -1,3 +1,4 @@
+from deeplake.util.exceptions import SampleAppendError
 from nibabel.testing import data_path  # type: ignore
 
 import nibabel as nib  # type: ignore
@@ -83,7 +84,7 @@ def test_nifti_raw_compress(memory_ds):
     with memory_ds as ds:
         ds.create_tensor("abc", htype="nifti", sample_compression="nii.gz")
 
-        with pytest.raises(NotImplementedError):
+        with pytest.raises(SampleAppendError):
             ds.abc.append(np.ones((40, 40, 10)))
 
         ds.create_tensor("xyz", htype="nifti", sample_compression=None)

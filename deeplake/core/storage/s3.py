@@ -5,6 +5,7 @@ import boto3
 import botocore  # type: ignore
 import posixpath
 from typing import Dict, Optional, Tuple, Type
+from datetime import datetime
 from botocore.session import ComponentLocator
 from deeplake.client.client import DeepLakeBackendClient
 from deeplake.core.storage.provider import StorageProvider
@@ -41,6 +42,16 @@ try:
     CONNECTION_ERRORS = CONNECTION_ERRORS + (ResponseStreamingError,)  # type: ignore
 except ImportError:
     pass
+
+try:
+    import aioboto3  # type: ignore
+    import asyncio  # type: ignore
+    import nest_asyncio  # type: ignore
+
+    nest_asyncio.apply()  # needed to run asyncio in jupyter notebook
+except Exception:
+    aioboto3 = None  # type: ignore
+    asyncio = None  # type: ignore
 
 
 class S3ResetReloadCredentialsManager:
@@ -105,6 +116,8 @@ class S3Provider(StorageProvider):
         self.aws_region: Optional[str] = aws_region
         self.endpoint_url: Optional[str] = endpoint_url
         self.expiration: Optional[str] = None
+        self.repository: Optional[str] = None
+        self.db_engine: bool = False
         self.tag: Optional[str] = None
         self.token: Optional[str] = token
         self.loaded_creds_from_environment = False
@@ -113,8 +126,12 @@ class S3Provider(StorageProvider):
         self.profile_name = profile_name
         self._initialize_s3_parameters()
         self._presigned_urls: Dict[str, Tuple[str, float]] = {}
+        self.creds_used: Optional[str] = None
 
-    def subdir(self, path: str):
+    def async_supported(self) -> bool:
+        return asyncio is not None
+
+    def subdir(self, path: str, read_only: bool = False):
         sd = self.__class__(
             root=posixpath.join(self.root, path),
             aws_access_key_id=self.aws_access_key_id,
@@ -122,9 +139,12 @@ class S3Provider(StorageProvider):
             aws_session_token=self.aws_session_token,
             aws_region=self.aws_region,
             endpoint_url=self.endpoint_url,
+            token=self.token,
         )
-        if sd.expiration:
-            sd._set_hub_creds_info(self.hub_path, self.expiration)  # type: ignore
+        if self.expiration:
+            sd._set_hub_creds_info(self.hub_path, self.expiration, self.db_engine, self.repository)  # type: ignore
+        sd.read_only = read_only
+        sd.creds_used = self.creds_used
         return sd
 
     def _set(self, path, content):
@@ -420,11 +440,14 @@ class S3Provider(StorageProvider):
             "endpoint_url",
             "client_config",
             "expiration",
+            "db_engine",
+            "repository",
             "tag",
             "token",
             "loaded_creds_from_environment",
             "read_only",
             "profile_name",
+            "creds_used",
         }
 
     def __getstate__(self):
@@ -447,17 +470,27 @@ class S3Provider(StorageProvider):
         if not self.path.endswith("/"):
             self.path += "/"
 
-    def _set_hub_creds_info(self, hub_path: str, expiration: str):
+    def _set_hub_creds_info(
+        self,
+        hub_path: str,
+        expiration: str,
+        db_engine: bool = True,
+        repository: Optional[str] = None,
+    ):
         """Sets the tag and expiration of the credentials. These are only relevant to datasets using Deep Lake storage.
         This info is used to fetch new credentials when the temporary 12 hour credentials expire.
 
         Args:
-            hub_path (str): The Deep Lake cloud path to the dataset.
+            hub_path (str): The deeplake cloud path to the dataset.
             expiration (str): The time at which the credentials expire.
+            db_engine (bool): Whether Activeloop DB Engine enabled.
+            repository (str, Optional): Backend repository where the dataset is stored.
         """
         self.hub_path = hub_path
         self.tag = hub_path[6:]  # removing the hub:// part from the path
         self.expiration = expiration
+        self.db_engine = db_engine
+        self.repository = repository
 
     def _initialize_s3_parameters(self):
         self._set_bucket_and_path()
@@ -472,19 +505,23 @@ class S3Provider(StorageProvider):
         """If the client has an expiration time, check if creds are expired and fetch new ones.
         This would only happen for datasets stored on Deep Lake storage for which temporary 12 hour credentials are generated.
         """
-        if self.expiration and (force or float(self.expiration) < time.time()):
+        if self.expiration and (
+            force or float(self.expiration) < datetime.utcnow().timestamp()
+        ):
             client = DeepLakeBackendClient(self.token)
             org_id, ds_name = self.tag.split("/")
 
             mode = "r" if self.read_only else "a"
 
-            url, creds, mode, expiration = client.get_dataset_credentials(
+            url, creds, mode, expiration, repo = client.get_dataset_credentials(
                 org_id,
                 ds_name,
                 mode,
+                {"enabled": self.db_engine},
                 True,
             )
             self.expiration = expiration
+            self.repository = repo
             self.aws_access_key_id = creds.get("aws_access_key_id")
             self.aws_secret_access_key = creds.get("aws_secret_access_key")
             self.aws_session_token = creds.get("aws_session_token")
@@ -508,7 +545,18 @@ class S3Provider(StorageProvider):
             )
 
     def _set_s3_client_and_resource(self):
-        args = {
+        kwargs = self.s3_kwargs
+        session = boto3.session.Session(profile_name=self.profile_name)
+        self.client = session.client("s3", **kwargs)
+        self.resource = session.resource("s3", **kwargs)
+        if aioboto3 is not None:
+            self.async_session = aioboto3.session.Session(
+                profile_name=self.profile_name
+            )
+
+    @property
+    def s3_kwargs(self):
+        return {
             "aws_access_key_id": self.aws_access_key_id,
             "aws_secret_access_key": self.aws_secret_access_key,
             "aws_session_token": self.aws_session_token,
@@ -516,9 +564,6 @@ class S3Provider(StorageProvider):
             "endpoint_url": self.endpoint_url,
             "config": self.client_config,
         }
-        session = boto3.session.Session(profile_name=self.profile_name)
-        self.client = session.client("s3", **args)
-        self.resource = session.resource("s3", **args)
 
     def need_to_reload_creds(self, err: botocore.exceptions.ClientError) -> bool:
         """Checks if the credentials need to be reloaded.
@@ -595,3 +640,43 @@ class S3Provider(StorageProvider):
             raise S3GetError(err) from err
         except Exception as err:
             raise S3GetError(err) from err
+
+    def _set_items(self, items: dict):
+        async def set_items_async(items):
+            async with self.async_session.client("s3", **self.s3_kwargs) as client:
+                tasks = []
+                for k, v in items.items():
+                    tasks.append(
+                        asyncio.ensure_future(
+                            client.put_object(
+                                Bucket=self.bucket, Key=self.path + k, Body=v
+                            )
+                        )
+                    )
+                await asyncio.gather(*tasks)
+
+        loop = asyncio.new_event_loop()
+        asyncio.set_event_loop(loop)
+        loop.run_until_complete(set_items_async(items))
+
+    def set_items(self, items: dict):
+        try:
+            self._set_items(items)
+        except botocore.exceptions.ClientError as err:
+            with S3ResetReloadCredentialsManager(self, S3SetError):
+                self._set_items(items)
+        except CONNECTION_ERRORS as err:
+            tries = self.num_tries
+            for i in range(1, tries + 1):
+                always_warn(f"Encountered connection error, retry {i} out of {tries}")
+                try:
+                    self._set_items(items)
+                    always_warn(
+                        f"Connection re-established after {i} {['retries', 'retry'][i==1]}."
+                    )
+                    return
+                except Exception:
+                    pass
+            raise S3SetError(err) from err
+        except Exception as err:
+            raise S3SetError(err) from err

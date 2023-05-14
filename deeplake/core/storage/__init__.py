@@ -1,4 +1,5 @@
 from deeplake.core.storage.provider import StorageProvider
+from deeplake.core.storage.provider import storage_factory
 from deeplake.core.storage.s3 import S3Provider
 from deeplake.core.storage.google_drive import GDriveProvider
 from deeplake.core.storage.memory import MemoryProvider

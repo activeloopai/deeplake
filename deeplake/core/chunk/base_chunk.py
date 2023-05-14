@@ -38,9 +38,13 @@ from deeplake.core.serialize import (
 )
 from deeplake.core.storage.deeplake_memory_object import DeepLakeMemoryObject
 from deeplake.core.tiling.sample_tiles import SampleTiles
-from deeplake.util.exceptions import TensorInvalidSampleShapeError, EmptyTensorError
+from deeplake.util.exceptions import (
+    ReadSampleFromChunkError,
+    TensorInvalidSampleShapeError,
+    EmptyTensorError,
+)
 from deeplake.core.polygon import Polygons
-from functools import reduce
+from functools import reduce, wraps
 from operator import mul
 
 InputSample = Union[
@@ -404,12 +408,13 @@ class BaseChunk(DeepLakeMemoryObject):
 
     def convert_to_rgb(self, shape):
         if shape is not None and self.is_convert_candidate and CONVERT_GRAYSCALE:
+            ndim = len(shape)
             if self.num_dims is None:
-                self.num_dims = len(shape)
-            if len(shape) == 2 and self.num_dims == 3:
+                self.num_dims = max(3, ndim)
+            if ndim < self.num_dims:
                 message = "Grayscale images will be reshaped from (H, W) to (H, W, 1) to match tensor dimensions. This warning will be shown only once."
                 warnings.warn(message)
-                shape += (1,)  # type: ignore[assignment]
+                shape += (1,) * (self.num_dims - ndim)  # type: ignore[assignment]
         return shape
 
     def can_fit_sample(self, sample_nbytes, buffer_nbytes=0):
@@ -613,3 +618,16 @@ class BaseChunk(DeepLakeMemoryObject):
                 "This tensor has only been populated with empty samples. "
                 "Need to add at least one non-empty sample before retrieving data."
             )
+
+
+def catch_chunk_read_error(fn):
+    @wraps(fn)
+    def wrapper(self, *args, **kwargs):
+        try:
+            return fn(self, *args, **kwargs)
+        except EmptyTensorError:
+            raise
+        except Exception as e:
+            raise ReadSampleFromChunkError(self.key) from e
+
+    return wrapper

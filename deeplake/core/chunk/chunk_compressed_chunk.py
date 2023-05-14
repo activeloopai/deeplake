@@ -14,8 +14,8 @@ from deeplake.core.tiling.sample_tiles import SampleTiles
 from deeplake.core.polygon import Polygons
 from deeplake.util.casting import intelligent_cast
 from deeplake.util.compression import get_compression_ratio
-from deeplake.util.exceptions import EmptyTensorError, TensorDtypeMismatchError
-from .base_chunk import BaseChunk, InputSample
+from deeplake.util.exceptions import TensorDtypeMismatchError
+from .base_chunk import BaseChunk, InputSample, catch_chunk_read_error
 from deeplake.core.serialize import infer_chunk_num_bytes
 from deeplake.constants import ENCODING_DTYPE
 import deeplake
@@ -359,6 +359,7 @@ class ChunkCompressedChunk(BaseChunk):
             as_bytes=as_bytes
         )
 
+    @catch_chunk_read_error
     def read_sample(
         self,
         local_index: int,

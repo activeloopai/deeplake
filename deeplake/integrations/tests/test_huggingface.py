@@ -3,6 +3,7 @@ from datasets import Dataset  # type: ignore
 from deeplake.api.tests.test_api import convert_string_to_pathlib_if_needed
 from deeplake.integrations.huggingface import ingest_huggingface
 from deeplake.integrations.huggingface.huggingface import _is_seq_convertible
+from deeplake.util.exceptions import TensorAlreadyExistsError
 from numpy.testing import assert_array_equal
 
 import pytest
@@ -39,9 +40,9 @@ def test_split():
         assert_array_equal(dl_ds[column].numpy().reshape(-1), ds[column])
 
 
-def test_seq_with_dict():
+def test_seq_with_dict(local_path):
     ds = load_dataset("squad", split="train[:5%]")
-    dl_ds = deeplake.ingest_huggingface(ds, "mem://xyz")
+    dl_ds = deeplake.ingest_huggingface(ds, local_path)
 
     keys = set(ds.column_names) - {"answers"} | {"answers/text", "answers/answer_start"}
 
@@ -55,6 +56,16 @@ def test_seq_with_dict():
         answers["text"].extend(answer["text"])
         answers["answer_start"].extend(answer["answer_start"])
 
+    assert_array_equal(dl_ds["answers/text"].numpy().reshape(-1), answers["text"])
+    assert_array_equal(
+        dl_ds["answers/answer_start"].numpy().reshape(-1), answers["answer_start"]
+    )
+
+    # test overwrite
+    with pytest.raises(TensorAlreadyExistsError):
+        dl_ds = deeplake.ingest_huggingface(ds, dl_ds)
+
+    dl_ds = deeplake.ingest_huggingface(ds, dl_ds, overwrite=True)
     assert_array_equal(dl_ds["answers/text"].numpy().reshape(-1), answers["text"])
     assert_array_equal(
         dl_ds["answers/answer_start"].numpy().reshape(-1), answers["answer_start"]

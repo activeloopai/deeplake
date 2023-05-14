@@ -2,7 +2,7 @@ import random
 import time
 import hashlib
 import pickle
-from typing import Any, Dict, Optional
+from typing import Any, Dict, Optional, List
 import warnings
 from deeplake.client.log import logger
 from deeplake.constants import FIRST_COMMIT_ID
@@ -33,10 +33,14 @@ from deeplake.util.keys import (
     get_version_control_info_key,
     get_version_control_info_key_old,
     get_version_control_info_lock_key,
+    get_commit_info_key,
 )
+from deeplake.constants import COMMIT_INFO_FILENAME
 from deeplake.util.remove_cache import get_base_storage
 from deeplake.hooks import dataset_committed
 from datetime import datetime
+
+import posixpath
 import json
 
 
@@ -68,6 +72,9 @@ def _version_info_from_json(info):
     while stack:
         commit_id = stack.pop()
         commit_data = commits[commit_id]
+        branch_commit_map[
+            commit_data["branch"]
+        ]  # we will rebuild version info if this fails
         node = CommitNode(commit_data["branch"], commit_id)
         node.commit_message = commit_data["commit_message"]
         commit_time = commit_data["commit_time"]
@@ -96,8 +103,7 @@ def generate_hash() -> str:
 def integrity_check(dataset):
     try:
         rev_tensor_names = {v: k for k, v in dataset.meta.tensor_names.items()}
-        for k in dataset.meta.tensor_names:
-            t = dataset[k]
+        for k, t in dataset._tensors(include_disabled=False).items():
             n1 = t.meta.length
             engine = t.chunk_engine
             n2 = engine.chunk_id_encoder.num_samples
@@ -108,6 +114,7 @@ def integrity_check(dataset):
             num_sequences = getattr(engine.sequence_encoder, "num_samples", None)
             for l, info in t.meta.links.items():
                 l = rev_tensor_names[l]
+                l = posixpath.relpath(l, dataset.group_index)
                 if num_sequences is not None and not info["flatten_sequence"]:
                     n2 = num_sequences
                 else:
@@ -122,42 +129,56 @@ def integrity_check(dataset):
             engine.creds_encoder
     except Exception as e:
         raise DatasetCorruptError(
-            f"The HEAD node of the branch {dataset.branch} of this dataset is in a corrupted state and is likely not recoverable. Please run `ds.reset()` to revert the uncommitted changes in order to continue making updates on this branch."
+            f"The HEAD node of the branch {dataset.branch} of this dataset is in a corrupted state and is likely not recoverable.",
+            "Please run `ds.reset()` to revert the uncommitted changes in order to continue making updates on this branch.",
         ) from e
 
 
-def commit(dataset, message: Optional[str] = None, hash: Optional[str] = None) -> None:
+def commit(
+    dataset,
+    message: Optional[str] = None,
+    hash: Optional[str] = None,
+    flush_version_control_info: bool = True,
+    reload_meta: bool = True,
+) -> None:
     """Modifies the version state to reflect the commit and also copies required data to the new commit directory."""
     storage = dataset.storage
     version_state = dataset.version_state
     storage.check_readonly()
     integrity_check(dataset)
     # if not the head node, checkout to an auto branch that is newly created
-    auto_checkout(dataset)
+    auto_checkout(dataset, flush_version_control_info=False)
     stored_commit_node: CommitNode = version_state["commit_node"]
     stored_commit_id = version_state["commit_id"]
     if hash:
         if hash in version_state["commit_node_map"]:
             raise CommitError(f"Commit {hash} already exists")
-        version_state["commit_id"] = hash
     else:
-        version_state["commit_id"] = generate_hash()
-    new_node = CommitNode(version_state["branch"], version_state["commit_id"])
+        hash = generate_hash()
+    version_state["commit_id"] = hash
+    new_node = CommitNode(version_state["branch"], hash)
     version_state["commit_node"].add_successor(new_node, message)
     version_state["commit_node"] = new_node
     version_state["branch_commit_map"][version_state["branch"]] = version_state[
         "commit_id"
     ]
-    version_state["commit_node_map"][version_state["commit_id"]] = new_node
-    copy_metas(stored_commit_id, version_state["commit_id"], storage, version_state)
-    create_commit_chunk_maps(version_state["commit_id"], storage, version_state)
+    version_state["commit_node_map"][hash] = new_node
+    copy_metas(stored_commit_id, hash, storage)
+    create_commit_chunk_maps(stored_commit_id, hash, storage)
     discard_old_metas(stored_commit_id, storage, version_state["full_tensors"])
-    load_meta(dataset)
+    if reload_meta:
+        load_meta(dataset)
 
     commit_time = stored_commit_node.commit_time
     commit_message = stored_commit_node.commit_message
     author = stored_commit_node.commit_user_name
-    save_version_info(version_state, storage)
+    if flush_version_control_info:
+        save_version_info(version_state, storage)
+        save_commit_info(stored_commit_node, storage)
+        save_commit_info(new_node, storage)
+    else:
+        stored_commit_node._info_updated = True
+        new_node._info_updated = True
     dataset._send_commit_event(
         commit_message=commit_message, commit_time=commit_time, author=author
     )
@@ -169,6 +190,7 @@ def checkout(
     address: str,
     create: bool = False,
     hash: Optional[str] = None,
+    flush_version_control_info=True,
 ) -> None:
     """Modifies the version state to reflect the checkout and also copies required data to the new branch directory if a new one is being created."""
     storage = dataset.storage
@@ -202,7 +224,11 @@ def checkout(
     elif create:
         storage.check_readonly()
         # if the original commit is head of the branch, auto commit and checkout to original commit before creating new branch
-        auto_commit(dataset, f"auto commit before checkout to {address}")
+        auto_commit(
+            dataset,
+            f"auto commit before checkout to {address}",
+            flush_version_control_info=False,
+        )
         if hash:
             if hash in version_state["commit_node_map"]:
                 raise CommitError(f"Commit {hash} already exists")
@@ -210,15 +236,22 @@ def checkout(
         else:
             new_commit_id = generate_hash()
         new_node = CommitNode(address, new_commit_id)
-        version_state["commit_node"].add_child(new_node)
+        stored_commit_node = version_state["commit_node"]
+        stored_commit_node.add_child(new_node)
         version_state["commit_id"] = new_commit_id
         version_state["commit_node"] = new_node
         version_state["branch"] = address
         version_state["commit_node_map"][new_commit_id] = new_node
         version_state["branch_commit_map"][address] = new_commit_id
-        save_version_info(version_state, storage)
-        copy_metas(original_commit_id, new_commit_id, storage, version_state)
-        create_commit_chunk_maps(new_commit_id, storage, version_state)
+        if flush_version_control_info:
+            save_version_info(version_state, storage)
+            save_commit_info(new_node, storage)
+            save_commit_info(stored_commit_node, storage)
+        else:
+            stored_commit_node._info_updated = True
+            new_node._info_updated = True
+        copy_metas(original_commit_id, new_commit_id, storage)
+        create_commit_chunk_maps(original_commit_id, new_commit_id, storage)
         dataset._send_branch_creation_event(address)
     else:
         raise CheckoutError(
@@ -244,17 +277,16 @@ def copy_metas(
     src_commit_id: str,
     dest_commit_id: str,
     storage: LRUCache,
-    version_state: Dict[str, Any],
 ) -> None:
     """Copies meta data from one commit to another."""
     initial_autoflush = storage.autoflush
     storage.autoflush = False
 
-    tensors = version_state["full_tensors"]
-    src_dataset_meta_key = get_dataset_meta_key(src_commit_id)
+    src_dataset_meta = _get_dataset_meta_at_commit(storage, src_commit_id)
+
     dest_dataset_meta_key = get_dataset_meta_key(dest_commit_id)
-    src_dataset_meta = storage[src_dataset_meta_key]
     dest_dataset_meta = convert_to_bytes(src_dataset_meta)
+
     storage[dest_dataset_meta_key] = dest_dataset_meta
 
     try:
@@ -266,7 +298,7 @@ def copy_metas(
     except KeyError:
         pass
 
-    tensor_list = list(tensors.keys())
+    tensor_list = src_dataset_meta.tensors
 
     for tensor in tensor_list:
         src_tensor_meta_key = get_tensor_meta_key(tensor, src_commit_id)
@@ -325,12 +357,12 @@ def copy_metas(
 
 
 def create_commit_chunk_maps(
+    src_commit_id: str,
     dest_commit_id: str,
     storage: LRUCache,
-    version_state: Dict[str, Any],
 ) -> None:
     """Creates commit chunk sets for all tensors in new commit."""
-    tensor_list = version_state["full_tensors"].keys()
+    tensor_list = _get_dataset_meta_at_commit(storage, src_commit_id).tensors
     for tensor in tensor_list:
         key = get_tensor_commit_chunk_map_key(tensor, dest_commit_id)
         storage[key] = CommitChunkMap()
@@ -373,6 +405,33 @@ def discard_old_metas(
             del storage.cache_storage[key]
         except KeyError:
             pass
+
+
+def reset_and_checkout(ds, address, err, verbose=True):
+    storage = ds.storage
+    version_state = ds.version_state
+
+    parent_commit_id, reset_commit_id = get_parent_and_reset_commit_ids(
+        version_state, address
+    )
+    if parent_commit_id is False:
+        # non-head node corrupted
+        raise err
+    if parent_commit_id is None:
+        # no commits in the dataset
+        storage.clear()
+        ds._populate_meta()
+        load_meta(ds)
+        return
+
+    ds.checkout(parent_commit_id)
+    new_commit_id = replace_head(storage, version_state, reset_commit_id)
+    ds.checkout(new_commit_id)
+
+    current_node = version_state["commit_node_map"][ds.commit_id]
+    if verbose:
+        logger.info(f"HEAD reset. Current version:\n{current_node}")
+    return ds.commit_id
 
 
 def _merge_commit_node_maps(map1, map2):
@@ -419,11 +478,27 @@ def _merge_version_info(info1, info2):
     }
 
 
+def save_commit_info(commit_node: CommitNode, storage: LRUCache) -> None:
+    """Saves the commit info to the storage."""
+    storage = get_base_storage(storage)
+    key = get_commit_info_key(commit_node.commit_id)
+    storage[key] = json.dumps(commit_node.to_json()).encode("utf-8")
+    commit_node._info_updated = False
+
+
+def load_commit_info(commit_id: str, storage: LRUCache) -> Dict:
+    """Loads the commit info from the storage."""
+    storage = get_base_storage(storage)
+    key = get_commit_info_key(commit_id)
+    commit_info = json.loads(storage[key].decode("utf-8"))
+    return commit_info
+
+
 def save_version_info(version_state: Dict[str, Any], storage: LRUCache) -> None:
     """Saves the current version info to the storage."""
     storage = get_base_storage(storage)
-    lock = Lock(storage, get_version_control_info_lock_key())
-    lock.acquire(timeout=10, force=True)
+    lock = Lock(storage, get_version_control_info_lock_key(), duration=10)
+    lock.acquire()  # Blocking
     key = get_version_control_info_key()
     new_version_info = {
         "commit_node_map": version_state["commit_node_map"],
@@ -457,7 +532,155 @@ def load_version_info(storage: LRUCache) -> Dict:
         )  # backward compatiblity
 
 
-def auto_checkout(dataset) -> bool:
+def get_parent_and_reset_commit_ids(version_info, address):
+    """Returns parent commit id and commit id which will be reset. Returns (False, False) if address is a non-HEAD commit id"""
+    if address in version_info["branch_commit_map"]:
+        commit_id = version_info["branch_commit_map"][address]
+    elif address in version_info["commit_node_map"]:
+        commit_id = address
+    commit_node = version_info["commit_node_map"][commit_id]
+    if not commit_node.is_head_node:
+        return False, False
+    parent_node = commit_node.parent
+    if parent_node is None:
+        previous_commit_id = None
+    else:
+        previous_commit_id = parent_node.commit_id
+    return previous_commit_id, commit_id
+
+
+def _create_new_head(storage, version_state, branch, parent_commit_id, new_commit_id):
+    # populate new commit folder
+    copy_metas(parent_commit_id, new_commit_id, storage)
+    create_commit_chunk_maps(parent_commit_id, new_commit_id, storage)
+
+    # create new node
+    parent_node: CommitNode = version_state["commit_node_map"][parent_commit_id]
+    new_node = CommitNode(branch, new_commit_id)
+    new_node.parent = parent_node
+    version_state["branch_commit_map"][branch] = new_commit_id
+    version_state["commit_node_map"][new_commit_id] = new_node
+
+    return new_node
+
+
+def _replace_head(storage, version_state, commit_id, new_head):
+    parent_node = new_head.parent
+    del version_state["commit_node_map"][commit_id]
+    for i, child in enumerate(parent_node.children):
+        if child.commit_id == commit_id:
+            parent_node.children[i] = new_head
+            break
+
+    save_version_info(version_state, storage)
+
+
+def delete_version_from_storage(storage, commit_id):
+    deletion_folder = "/".join(("versions", commit_id))
+    storage.clear(prefix=deletion_folder)
+    storage.flush()
+
+
+def replace_head(storage, version_state, reset_commit_id):
+    """Replace HEAD of current branch with new HEAD"""
+    branch = version_state["commit_node_map"][reset_commit_id].branch
+    parent_commit_id = version_state["commit_id"]
+    new_commit_id = generate_hash()
+
+    new_node = _create_new_head(
+        storage, version_state, branch, parent_commit_id, new_commit_id
+    )
+
+    _replace_head(storage, version_state, reset_commit_id, new_node)
+
+    delete_version_from_storage(storage, reset_commit_id)
+
+    return new_node.commit_id
+
+
+def _replace_missing_with_head(missing_id, commits, branch_commit_map):
+    new_commit_id = generate_hash()
+    branch = None
+    parent_commit_id = None
+    for commit_id, commit_info in commits.items():
+        if missing_id in commit_info["children"]:
+            commit_info["children"].remove(missing_id)
+            commit_info["children"].append(new_commit_id)
+            branch = commit_info["branch"]
+            parent_commit_id = commit_id
+            break
+
+    commit_info = {
+        "branch": branch,
+        "children": [],
+        "parent": parent_commit_id,
+        "commit_message": None,
+        "commit_time": None,
+        "commit_user_name": None,
+    }
+    commits[new_commit_id] = commit_info
+    branch_commit_map[branch] = new_commit_id
+
+    return branch, parent_commit_id, new_commit_id
+
+
+def rebuild_version_info(storage):
+    """Rebuilds version info from commit info."""
+    branch_commit_map = {}
+    commits = {}
+
+    # dont do anything if first commit info is missing
+    try:
+        commit_info = load_commit_info(FIRST_COMMIT_ID, storage)
+    except Exception:
+        return
+
+    stack = [FIRST_COMMIT_ID]
+
+    new_heads = []
+
+    while stack:
+        commit_id = stack.pop()
+
+        try:
+            commit_info = load_commit_info(commit_id, storage)
+        except KeyError:
+            if commit_id != FIRST_COMMIT_ID:
+                new_head = _replace_missing_with_head(
+                    commit_id, commits, branch_commit_map
+                )
+                new_heads.append(new_head)
+                continue
+            raise
+        commits[commit_id] = commit_info
+        if commit_info["commit_time"] is None:
+            branch_commit_map[commit_info["branch"]] = commit_id
+        stack += commit_info["children"]
+
+    if not commits:
+        return
+
+    base_storage = get_base_storage(storage)
+    lock = Lock(storage, get_version_control_info_lock_key(), duration=10)
+    lock.acquire()  # Blocking
+    try:
+        del storage[get_version_control_info_key()]
+    except KeyError:
+        pass
+    key = get_version_control_info_key()
+    version_info = {"commits": commits, "branches": branch_commit_map}
+    base_storage[key] = json.dumps(version_info).encode("utf-8")
+    lock.release()
+
+    version_info = _version_info_from_json(version_info)
+
+    for new_head in new_heads:
+        _create_new_head(storage, version_info, *new_head)
+
+    return version_info
+
+
+def auto_checkout(dataset, flush_version_control_info: bool = True) -> bool:
     """Automatically checks out if current node is not the head node of the branch. This may happen either during commit/setitem/append/extend/create_tensor/delete_tensor/info updates."""
     version_state = dataset.version_state
     if not version_state["commit_node"].is_head_node:
@@ -466,12 +689,17 @@ def auto_checkout(dataset) -> bool:
         logger.info(
             f"Automatically checking out to branch '{auto_branch}' as not currently at the head node of branch '{current_branch}'."
         )
-        checkout(dataset, auto_branch, True)
+        checkout(
+            dataset,
+            auto_branch,
+            True,
+            flush_version_control_info=flush_version_control_info,
+        )
         return True
     return False
 
 
-def auto_commit(dataset, message: str) -> None:
+def auto_commit(dataset, message: str, flush_version_control_info: bool = True) -> None:
     """Automatically commits to the current branch before a checkout to a newly created branch if the current node is the head node and has changes."""
     version_state = dataset.version_state
     commit_node = version_state["commit_node"]
@@ -489,15 +717,20 @@ def auto_commit(dataset, message: str) -> None:
     logger.info(
         f"Auto commiting to branch '{branch}' before checkout as currently at head node."
     )
-    commit(dataset, message)
-    checkout(dataset, original_commit_id, False)
+    commit(
+        dataset,
+        message,
+        flush_version_control_info=flush_version_control_info,
+        reload_meta=False,
+    )
+    checkout(dataset, original_commit_id)
 
 
 def current_commit_has_change(version_state: Dict[str, Any], storage: LRUCache) -> bool:
     return (
-        current_commit_has_data(version_state, storage)
+        version_state["commit_id"] == FIRST_COMMIT_ID
+        or current_commit_has_data(version_state, storage)
         or current_commit_has_info_modified(version_state, storage)
-        or version_state["commit_id"] == FIRST_COMMIT_ID
     )
 
 
@@ -559,6 +792,16 @@ def commit_diff_exists(
         return False
 
 
+def _get_dataset_meta_at_commit(storage, commit_id):
+    """Get dataset meta at commit."""
+    meta_key = get_dataset_meta_key(commit_id)
+    meta = storage.get_deeplake_object(meta_key, DatasetMeta)
+    if not meta.tensor_names:  # backward compatibility
+        meta.tensor_names = {key: key for key in meta.tensors}
+    storage.register_deeplake_object(meta_key, meta)
+    return meta
+
+
 def load_meta(dataset):
     """Loads the meta info for the version state."""
     from deeplake.core.tensor import Tensor
@@ -568,15 +811,11 @@ def load_meta(dataset):
     storage.clear_deeplake_objects()
     dataset._info = None
     dataset._ds_diff = None
-    meta_key = get_dataset_meta_key(version_state["commit_id"])
-    meta = storage.get_deeplake_object(meta_key, DatasetMeta)
-    if not meta.tensor_names:  # backward compatibility
-        meta.tensor_names = {key: key for key in meta.tensors}
+    meta = _get_dataset_meta_at_commit(storage, version_state["commit_id"])
 
     ffw_dataset_meta(meta)
     version_state["meta"] = meta
 
-    storage.register_deeplake_object(meta_key, meta)
     _tensors = version_state["full_tensors"]
     _tensors.clear()
     _tensor_names = version_state["tensor_names"]

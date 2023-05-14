@@ -1,6 +1,6 @@
 import pathlib
 import posixpath
-from typing import Optional, Union
+from typing import Optional, Union, Tuple
 from deeplake.core.storage.provider import StorageProvider
 from deeplake.util.tag import process_hub_path
 from deeplake.constants import HUB_CLOUD_DEV_USERNAME
@@ -101,6 +101,13 @@ def convert_pathlib_to_string_if_needed(path: Union[str, pathlib.Path]) -> str:
     if isinstance(path, pathlib.Path):
         path = str(path)
     return path
+
+
+def process_dataset_path(path: Union[str, pathlib.Path]) -> Tuple[str, Optional[str]]:
+    dataset_path, at, address = str(path).partition("@")
+    if not address:
+        address = None  # type: ignore
+    return dataset_path, address
 
 
 def get_org_id_and_ds_name(path):

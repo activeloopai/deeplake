@@ -1,5 +1,7 @@
 from typing import Callable, Dict, List, Optional, Union
-from deeplake.enterprise.convert_to_libdeeplake import dataset_to_libdeeplake  # type: ignore
+import deeplake
+from deeplake.enterprise.convert_to_libdeeplake import dataset_to_libdeeplake
+from deeplake.enterprise.dummy_dataloader import DummyDataloader  # type: ignore
 from deeplake.util.scheduling import create_fetching_schedule, find_primary_tensor
 from deeplake.enterprise.util import (
     handle_mode,
@@ -13,6 +15,8 @@ from deeplake.integrations.pytorch.common import (
     PytorchTransformFunction,
     check_tensors,
     validate_decode_method,
+    find_additional_tensors_and_info,
+    get_htype_ndim_tensor_info_dicts,
 )
 from deeplake.util.dataset import map_tensor_keys
 from functools import partial
@@ -29,6 +33,19 @@ except ImportError:
 import numpy as np
 
 import math
+
+import itertools
+
+original_islice = itertools.islice
+
+
+def deeplake_islice(iterable, *args, **kwargs):
+    if isinstance(iterable, DeepLakeDataLoader):
+        return iter(iterable)
+    return original_islice(iterable, *args, **kwargs)
+
+
+itertools.islice = deeplake_islice  # type: ignore
 
 
 # Load lazy to avoid cycylic import.
@@ -56,7 +73,9 @@ def import_indra_loader():
         INDRA_LOADER = Loader
         return Loader
     except Exception as e:
-        raise_indra_installation_error(e)
+        if not deeplake.constants.RETURN_DUMMY_DATA_FOR_DATALOADER:
+            raise_indra_installation_error(e)
+        INDRA_LOADER = None
 
 
 class DeepLakeDataLoader(DataLoader):
@@ -558,40 +577,86 @@ class DeepLakeDataLoader(DataLoader):
 
     def __iter__(self):
         if self._dataloader is None:
+            dataset = self._orig_dataset
             collate_fn = self.collate_fn
             upcast = self._mode == "pytorch"  # upcast to handle unsupported dtypes
 
             primary_tensor_name = self._primary_tensor_name
             buffer_size = self._buffer_size
 
-            tensors = self._tensors or map_tensor_keys(self._orig_dataset, None)
-            dataset = dataset_to_libdeeplake(self._orig_dataset)
+            tensors = self._tensors or map_tensor_keys(dataset, None)
 
-            jpeg_png_compressed_tensors = check_tensors(self._orig_dataset, tensors)
-            raw_tensors, compressed_tensors = validate_decode_method(
-                self._decode_method, tensors, jpeg_png_compressed_tensors
+            jpeg_png_compressed_tensors, json_tensors, list_tensors = check_tensors(
+                dataset, tensors
             )
-            raw_tensors.extend(compressed_tensors)
-            self._dataloader = INDRA_LOADER(
-                dataset,
-                batch_size=self._batch_size,
-                num_threads=self._num_threads,
-                shuffle=self._shuffle,
-                num_workers=self._num_workers,
-                collate_fn=collate_fn,
-                transform_fn=self._transform,
-                distributed=self._distributed,
-                prefetch_factor=self._prefetch_factor,
-                tensors=tensors,
-                drop_last=self._drop_last,
-                upcast=upcast,
-                return_index=self._return_index,
-                primary_tensor=primary_tensor_name,
-                buffer_size=buffer_size,
-                raw_tensors=raw_tensors,
-                compressed_tensors=compressed_tensors,
-                persistent_workers=self._persistent_workers,
+            (
+                raw_tensors,
+                pil_compressed_tensors,
+                json_tensors,
+                list_tensors,
+                data_tensors,
+            ) = validate_decode_method(
+                self._decode_method,
+                tensors,
+                jpeg_png_compressed_tensors,
+                json_tensors,
+                list_tensors,
             )
+            sample_info_tensors, tensor_info_tensors = find_additional_tensors_and_info(
+                dataset, data_tensors
+            )
+            tensors.extend(sample_info_tensors)
+            htype_dict, ndim_dict, tensor_info_dict = get_htype_ndim_tensor_info_dicts(
+                dataset, data_tensors, tensor_info_tensors
+            )
+            if deeplake.constants.RETURN_DUMMY_DATA_FOR_DATALOADER:
+                self._dataloader = DummyDataloader(
+                    deeplake_dataset=dataset,
+                    batch_size=self._batch_size,
+                    shuffle=self._shuffle,
+                    num_workers=self._num_workers,
+                    collate_fn=collate_fn,
+                    transform_fn=self._transform,
+                    distributed=self._distributed,
+                    prefetch_factor=self._prefetch_factor,
+                    tensors=tensors,
+                    drop_last=self._drop_last,
+                    upcast=upcast,
+                    return_index=self._return_index,
+                    raw_tensors=raw_tensors,
+                    pil_compressed_tensors=pil_compressed_tensors,
+                    persistent_workers=self._persistent_workers,
+                )
+            else:
+                if not hasattr(self, "_indra_dataset"):
+                    indra_dataset = dataset_to_libdeeplake(dataset)
+                else:
+                    indra_dataset = self._indra_dataset
+                self._dataloader = INDRA_LOADER(
+                    indra_dataset,
+                    batch_size=self._batch_size,
+                    num_threads=self._num_threads,
+                    shuffle=self._shuffle,
+                    num_workers=self._num_workers,
+                    collate_fn=collate_fn,
+                    transform_fn=self._transform,
+                    distributed=self._distributed,
+                    prefetch_factor=self._prefetch_factor,
+                    tensors=tensors,
+                    drop_last=self._drop_last,
+                    upcast=upcast,
+                    return_index=self._return_index,
+                    primary_tensor=primary_tensor_name,
+                    buffer_size=buffer_size,
+                    raw_tensors=raw_tensors,
+                    pil_compressed_tensors=pil_compressed_tensors,
+                    json_tensors=json_tensors,
+                    list_tensors=list_tensors,
+                    persistent_workers=self._persistent_workers,
+                    htype_dict=htype_dict,
+                    ndim_dict=ndim_dict,
+                    tensor_info_dict=tensor_info_dict,
+                )
         dataset_read(self._orig_dataset)
         return iter(self._dataloader)
 

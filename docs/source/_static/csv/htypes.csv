@@ -8,6 +8,7 @@ generic, None, None
 :ref:`class_label <class-label-htype>`, uint32, None
 :ref:`bbox <bbox-htype>`, float32, None
 :ref:`bbox.3d <bbox-3d-htype>`, float32, None
+:ref:`intrinsics <intrinsics-htype>`,float32,None
 :ref:`segment_mask <segment-mask-htype>`, uint32, None
 :ref:`binary_mask <binary-mask-htype>`, bool, None
 :ref:`keypoints_coco <keypoints-coco-htype>`, int32, None
@@ -21,5 +22,6 @@ dicom, None, dcm
 :ref:`point_cloud <point_cloud-htype>`, None, las
 :ref:`mesh <mesh-htype>`, None, ply
 instance_label, uint32, None
+:ref:`embedding <embedding-htype>`, None, None
 :ref:`link <link-htype>`, str, None
 :ref:`sequence <sequence-htype>`, None, None

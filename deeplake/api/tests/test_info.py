@@ -245,7 +245,6 @@ def test_info_persistence_bug(local_ds_generator):
     ds.commit()
     ds.xyz.info.update(abc=123)
     assert ds.xyz.info.abc == 123
-
     ds = local_ds_generator()
     assert ds.xyz.info.abc == 123
 

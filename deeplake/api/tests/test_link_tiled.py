@@ -3,6 +3,8 @@ import itertools
 import numpy as np
 import pytest
 
+from deeplake.util.exceptions import SampleUpdateError
+
 
 @deeplake.compute
 def add_link_tiled(sample_in, samples_out):
@@ -66,7 +68,7 @@ def test_link_tiled(local_ds_generator, cat_path):
     ds = local_ds_generator()
     index = 0
     check_data(actual_data, ds, index, downsampled=True)
-    with pytest.raises(ValueError):
+    with pytest.raises(SampleUpdateError):
         ds.image[index][100:1000, 100:1000, :] = deeplake.link(cat_path)
 
     with ds:
@@ -89,5 +91,5 @@ def test_link_tiled_transform(local_ds_generator, cat_path):
     ds = local_ds_generator()
     for index in range(2):
         check_data(actual_data, ds, index)
-        with pytest.raises(ValueError):
+        with pytest.raises(SampleUpdateError):
             ds.image[index][100:1000, 100:1000, :] = deeplake.link(cat_path)

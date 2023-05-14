@@ -33,7 +33,7 @@ class CocoDataset(UnstructuredDataset):
         ignore_keys: Optional[List[str]] = None,
         image_params: Optional[Dict] = None,
         image_creds_key: Optional[str] = None,
-        creds: Optional[Dict] = None,
+        creds: Optional[Union[str, Dict]] = None,
     ):
         super().__init__(source)
         self._creds = creds

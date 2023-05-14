@@ -19,7 +19,19 @@ from deeplake.client.log import logger
 from deeplake.core.dataset import Dataset, dataset_factory
 from deeplake.core.meta.dataset_meta import DatasetMeta
 from deeplake.util.connect_dataset import connect_dataset_entry
-from deeplake.util.path import convert_pathlib_to_string_if_needed, verify_dataset_name
+from deeplake.util.version_control import (
+    load_version_info,
+    rebuild_version_info,
+    get_parent_and_reset_commit_ids,
+    replace_head,
+    integrity_check,
+)
+from deeplake.util.spinner import spinner
+from deeplake.util.path import (
+    convert_pathlib_to_string_if_needed,
+    verify_dataset_name,
+    process_dataset_path,
+)
 from deeplake.hooks import (
     dataset_created,
     dataset_loaded,
@@ -48,10 +60,13 @@ from deeplake.util.exceptions import (
     InvalidPathException,
     PathNotEmptyException,
     SamePathException,
-    AuthorizationException,
     UserNotLoggedInException,
     TokenPermissionError,
     UnsupportedParameterException,
+    DatasetCorruptError,
+    CheckoutError,
+    ReadOnlyModeError,
+    LockedException,
 )
 from hub.compression import (
     IMAGE_COMPRESSIONS,
@@ -79,8 +94,10 @@ _audio_compressions = AUDIO_COMPRESSIONS
 
 class dataset:
     @staticmethod
+    @spinner
     def init(
         path: Union[str, pathlib.Path],
+        runtime: Optional[Dict] = None,
         read_only: Optional[bool] = None,
         overwrite: bool = False,
         public: bool = False,
@@ -91,6 +108,7 @@ class dataset:
         org_id: Optional[str] = None,
         verbose: bool = True,
         access_method: str = "stream",
+        reset: bool = False,
     ):
         """Returns a :class:`~deeplake.core.dataset.Dataset` object referencing either a new or existing dataset.
 
@@ -100,21 +118,36 @@ class dataset:
             >>> ds = deeplake.dataset("s3://mybucket/my_dataset")
             >>> ds = deeplake.dataset("./datasets/my_dataset", overwrite=True)
 
+            Loading to a specfic version:
+
+            >>> ds = deeplake.dataset("hub://username/dataset@new_branch")
+            >>> ds = deeplake.dataset("hub://username/dataset@3e49cded62b6b335c74ff07e97f8451a37aca7b2)
+
+            >>> my_commit_id = "3e49cded62b6b335c74ff07e97f8451a37aca7b2"
+            >>> ds = deeplake.dataset(f"hub://username/dataset@{my_commit_id}")
+
         Args:
             path (str, pathlib.Path): - The full path to the dataset. Can be:
                 - a Deep Lake cloud path of the form ``hub://username/datasetname``. To write to Deep Lake cloud datasets, ensure that you are logged in to Deep Lake (use 'activeloop login' from command line)
                 - an s3 path of the form ``s3://bucketname/path/to/dataset``. Credentials are required in either the environment or passed to the creds argument.
                 - a local file system path of the form ``./path/to/dataset`` or ``~/path/to/dataset`` or ``path/to/dataset``.
                 - a memory path of the form ``mem://path/to/dataset`` which doesn't save the dataset but keeps it in memory instead. Should be used only for testing as it does not persist.
+                - Loading to a specific version:
+
+                    - You can also specify a ``commit_id`` or ``branch`` to load the dataset to that version directly by using the ``@`` symbol.
+                    - The path will then be of the form ``hub://username/dataset@{branch}`` or ``hub://username/dataset@{commit_id}``.
+                    - See examples above.
+            runtime (dict): Parameters for Activeloop DB Engine. Only applicable for hub:// paths.
             read_only (bool, optional): Opens dataset in read only mode if this is passed as ``True``. Defaults to ``False``.
                 Datasets stored on Deep Lake cloud that your account does not have write access to will automatically open in read mode.
             overwrite (bool): If set to ``True`` this overwrites the dataset if it already exists. Defaults to ``False``.
             public (bool): Defines if the dataset will have public access. Applicable only if Deep Lake cloud storage is used and a new Dataset is being created. Defaults to ``True``.
             memory_cache_size (int): The size of the memory cache to be used in MB.
             local_cache_size (int): The size of the local filesystem cache to be used in MB.
-            creds (dict, optional): - A dictionary containing credentials used to access the dataset at the path.
+            creds (dict, str, optional): The string ``ENV`` or a dictionary containing credentials used to access the dataset at the path.
                 - If 'aws_access_key_id', 'aws_secret_access_key', 'aws_session_token' are present, these take precedence over credentials present in the environment or in credentials file. Currently only works with s3 paths.
                 - It supports 'aws_access_key_id', 'aws_secret_access_key', 'aws_session_token', 'endpoint_url', 'aws_region', 'profile_name' as keys.
+                - If 'ENV' is passed, credentials are fetched from the environment variables. This is also the case when creds is not passed for cloud datasets. For datasets connected to hub cloud, specifying 'ENV' will override the credentials fetched from Activeloop and use local ones.
             token (str, optional): Activeloop token, used for fetching credentials to the dataset at path if it is a Deep Lake dataset. This is optional, tokens are normally autogenerated.
             org_id (str, Optional): Organization id to be used for enabling enterprise features. Only applicable for local datasets.
             verbose (bool): If ``True``, logs will be printed. Defaults to ``True``.
@@ -140,6 +173,11 @@ class dataset:
                         - The 'local' access method can be modified to specify num_workers and/or scheduler to be used in case dataset needs to be downloaded.
                           If dataset needs to be downloaded, 'local:2:processed' will use 2 workers and use processed scheduler, while 'local:3' will use 3 workers
                           and default scheduler (threaded), and 'local:processed' will use a single worker and use processed scheduler.
+            reset (bool): If the specified dataset cannot be loaded due to a corrupted HEAD state of the branch being loaded,
+                          setting ``reset=True`` will reset HEAD changes and load the previous version.
+
+        ..
+            # noqa: DAR101
 
         Returns:
             Dataset: Dataset created using the arguments provided.
@@ -149,6 +187,12 @@ class dataset:
             UserNotLoggedInException: When user is not logged in
             InvalidTokenException: If the specified token is invalid
             TokenPermissionError: When there are permission or other errors related to token
+            CheckoutError: If version address specified in the path cannot be found
+            DatasetCorruptError: If loading the dataset failed due to corruption and ``reset`` is not ``True``
+            ValueError: If version is specified in the path when creating a dataset
+            ReadOnlyModeError: If reset is attempted in read-only mode
+            LockedException: When attempting to open a dataset for writing when it is locked by another machine
+            Exception: Re-raises caught exception if reset cannot fix the issue
 
         Danger:
             Setting ``overwrite`` to ``True`` will delete all of your data if it exists! Be very careful when setting this parameter.
@@ -161,16 +205,19 @@ class dataset:
         """
         access_method, num_workers, scheduler = parse_access_method(access_method)
         check_access_method(access_method, overwrite)
-        path = convert_pathlib_to_string_if_needed(path)
 
+        path, address = process_dataset_path(path)
         verify_dataset_name(path)
 
         if creds is None:
             creds = {}
 
+        db_engine = (runtime or {}).get("db_engine", {})
+
         try:
             storage, cache_chain = get_storage_and_cache_chain(
                 path=path,
+                db_engine=db_engine,
                 read_only=read_only,
                 creds=creds,
                 token=token,
@@ -181,13 +228,7 @@ class dataset:
             feature_report_path(path, "dataset", {"Overwrite": overwrite}, token=token)
         except Exception as e:
             if isinstance(e, UserNotLoggedInException):
-                message = (
-                    f"Please log in through the CLI in order to create this dataset, "
-                    "or create an API token in the UI and pass it to this method using "
-                    "the ‘token’ parameter. The CLI commands are ‘activeloop login’ and "
-                    "‘activeloop register."
-                )
-                raise UserNotLoggedInException(message)
+                raise UserNotLoggedInException from None
             raise
         ds_exists = dataset_exists(cache_chain)
 
@@ -200,57 +241,92 @@ class dataset:
         else:
             create = True
 
-        try:
-            if access_method == "stream":
-                ret = dataset_factory(
-                    path=path,
-                    storage=cache_chain,
-                    read_only=read_only,
-                    public=public,
-                    token=token,
-                    org_id=org_id,
-                    verbose=verbose,
-                )
-                if create:
-                    dataset_created(ret)
-                else:
-                    dataset_loaded(ret)
-                return ret
-
-            return get_local_dataset(
-                access_method=access_method,
-                path=path,
-                read_only=read_only,
-                memory_cache_size=memory_cache_size,
-                local_cache_size=local_cache_size,
-                creds=creds,
-                token=token,
-                org_id=org_id,
-                verbose=verbose,
-                ds_exists=ds_exists,
-                num_workers=num_workers,
-                scheduler=scheduler,
+        if create and address:
+            raise ValueError(
+                "deeplake.dataset does not accept version address when writing a dataset."
             )
-        except AgreementError as e:
+
+        dataset_kwargs: Dict[str, Union[None, str, bool, int, Dict]] = {
+            "path": path,
+            "read_only": read_only,
+            "token": token,
+            "org_id": org_id,
+            "verbose": verbose,
+        }
+
+        if access_method == "stream":
+            dataset_kwargs.update(
+                {
+                    "address": address,
+                    "storage": cache_chain,
+                    "public": public,
+                }
+            )
+        else:
+            dataset_kwargs.update(
+                {
+                    "access_method": access_method,
+                    "memory_cache_size": memory_cache_size,
+                    "local_cache_size": local_cache_size,
+                    "creds": creds,
+                    "ds_exists": ds_exists,
+                    "num_workers": num_workers,
+                    "scheduler": scheduler,
+                    "reset": reset,
+                }
+            )
+
+        try:
+            return dataset._load(dataset_kwargs, access_method, create)
+        except (AgreementError, CheckoutError, LockedException) as e:
             raise e from None
+        except Exception as e:
+            if create:
+                raise e
+            if access_method == "stream":
+                if not reset:
+                    if isinstance(e, DatasetCorruptError):
+                        raise DatasetCorruptError(
+                            message=e.message,
+                            action="Try using `reset=True` to reset HEAD changes and load the previous commit.",
+                            cause=e.__cause__,
+                        )
+                    raise DatasetCorruptError(
+                        "Exception occurred (see Traceback). The dataset maybe corrupted. "
+                        "Try using `reset=True` to reset HEAD changes and load the previous commit."
+                    ) from e
+                return dataset._reset_and_load(
+                    cache_chain, access_method, dataset_kwargs, address, e
+                )
 
     @staticmethod
     def exists(
         path: Union[str, pathlib.Path],
-        creds: Optional[dict] = None,
+        creds: Optional[Union[Dict, str]] = None,
         token: Optional[str] = None,
     ) -> bool:
         """Checks if a dataset exists at the given ``path``.
 
         Args:
             path (str, pathlib.Path): the path which needs to be checked.
-            creds (dict, optional): A dictionary containing credentials used to access the dataset at the path.
+            creds (dict, str, optional): The string ``ENV`` or a dictionary containing credentials used to access the dataset at the path.
+                - If 'aws_access_key_id', 'aws_secret_access_key', 'aws_session_token' are present, these take precedence over credentials present in the environment or in credentials file. Currently only works with s3 paths.
+                - It supports 'aws_access_key_id', 'aws_secret_access_key', 'aws_session_token', 'endpoint_url', 'aws_region', 'profile_name' as keys.
+                - If 'ENV' is passed, credentials are fetched from the environment variables. This is also the case when creds is not passed for cloud datasets. For datasets connected to hub cloud, specifying 'ENV' will override the credentials fetched from Activeloop and use local ones.
             token (str, optional): Activeloop token, used for fetching credentials to the dataset at path if it is a Deep Lake dataset. This is optional, tokens are normally autogenerated.
 
         Returns:
             A boolean confirming whether the dataset exists or not at the given path.
+
+        Raises:
+            ValueError: If version is specified in the path
         """
-        path = convert_pathlib_to_string_if_needed(path)
+        path, address = process_dataset_path(path)
+
+        if address:
+            raise ValueError(
+                "deeplake.exists does not accept version address in the dataset path."
+            )
 
         if creds is None:
             creds = {}
@@ -271,11 +347,12 @@ class dataset:
     @staticmethod
     def empty(
         path: Union[str, pathlib.Path],
+        runtime: Optional[dict] = None,
         overwrite: bool = False,
         public: bool = False,
         memory_cache_size: int = DEFAULT_MEMORY_CACHE_SIZE,
         local_cache_size: int = DEFAULT_LOCAL_CACHE_SIZE,
-        creds: Optional[dict] = None,
+        creds: Optional[Union[Dict, str]] = None,
         token: Optional[str] = None,
         org_id: Optional[str] = None,
         verbose: bool = True,
@@ -288,13 +365,15 @@ class dataset:
                 - an s3 path of the form ``s3://bucketname/path/to/dataset``. Credentials are required in either the environment or passed to the creds argument.
                 - a local file system path of the form ``./path/to/dataset`` or ``~/path/to/dataset`` or ``path/to/dataset``.
                 - a memory path of the form ``mem://path/to/dataset`` which doesn't save the dataset but keeps it in memory instead. Should be used only for testing as it does not persist.
+            runtime (dict): Parameters for Activeloop DB Engine. Only applicable for hub:// paths.
             overwrite (bool): If set to ``True`` this overwrites the dataset if it already exists. Defaults to ``False``.
             public (bool): Defines if the dataset will have public access. Applicable only if Deep Lake cloud storage is used and a new Dataset is being created. Defaults to ``False``.
             memory_cache_size (int): The size of the memory cache to be used in MB.
             local_cache_size (int): The size of the local filesystem cache to be used in MB.
-            creds (dict, optional): - A dictionary containing credentials used to access the dataset at the path.
+            creds (dict, str, optional): The string ``ENV`` or a dictionary containing credentials used to access the dataset at the path.
                 - If 'aws_access_key_id', 'aws_secret_access_key', 'aws_session_token' are present, these take precedence over credentials present in the environment or in credentials file. Currently only works with s3 paths.
                 - It supports 'aws_access_key_id', 'aws_secret_access_key', 'aws_session_token', 'endpoint_url', 'aws_region', 'profile_name' as keys.
+                - If 'ENV' is passed, credentials are fetched from the environment variables. This is also the case when creds is not passed for cloud datasets. For datasets connected to hub cloud, specifying 'ENV' will override the credentials fetched from Activeloop and use local ones.
             token (str, optional): Activeloop token, used for fetching credentials to the dataset at path if it is a Deep Lake dataset. This is optional, tokens are normally autogenerated.
             org_id (str, Optional): Organization id to be used for enabling enterprise features. Only applicable for local datasets.
             verbose (bool): If True, logs will be printed. Defaults to True.
@@ -307,11 +386,18 @@ class dataset:
             UserNotLoggedInException: When user is not logged in
             InvalidTokenException: If the specified toke is invalid
             TokenPermissionError: When there are permission or other errors related to token
+            ValueError: If version is specified in the path
 
         Danger:
             Setting ``overwrite`` to ``True`` will delete all of your data if it exists! Be very careful when setting this parameter.
         """
-        path = convert_pathlib_to_string_if_needed(path)
+        path, address = process_dataset_path(path)
+        db_engine = (runtime or {}).get("db_engine", False)
+
+        if address:
+            raise ValueError(
+                "deeplake.empty does not accept version address in the dataset path."
+            )
 
         verify_dataset_name(path)
 
@@ -321,6 +407,7 @@ class dataset:
         try:
             storage, cache_chain = get_storage_and_cache_chain(
                 path=path,
+                db_engine=db_engine,
                 read_only=False,
                 creds=creds,
                 token=token,
@@ -331,12 +418,7 @@ class dataset:
             feature_report_path(path, "empty", {"Overwrite": overwrite}, token=token)
         except Exception as e:
             if isinstance(e, UserNotLoggedInException):
-                message = (
-                    f"Please log in through the CLI in order to create this dataset, "
-                    f"or create an API token in the UI and pass it to this method using the "
-                    f"‘token’ parameter. The CLI commands are ‘activeloop login’ and ‘activeloop register’."
-                )
-                raise UserNotLoggedInException(message)
+                raise UserNotLoggedInException from None
             raise
 
         if overwrite and dataset_exists(cache_chain):
@@ -347,32 +429,48 @@ class dataset:
                 f" a new empty dataset, either specify another path or use overwrite=True. "
                 f"If you want to load the dataset that exists at this path, use deeplake.load() instead."
             )
-        read_only = storage.read_only
-        ret = dataset_factory(
-            path=path,
-            storage=cache_chain,
-            read_only=read_only,
-            public=public,
-            token=token,
-            org_id=org_id,
-            verbose=verbose,
-        )
-        dataset_created(ret)
+
+        dataset_kwargs = {
+            "path": path,
+            "storage": cache_chain,
+            "read_only": storage.read_only,
+            "public": public,
+            "token": token,
+            "org_id": org_id,
+            "verbose": verbose,
+        }
+        ret = dataset._load(dataset_kwargs)
         return ret
 
     @staticmethod
+    @spinner
     def load(
         path: Union[str, pathlib.Path],
         read_only: Optional[bool] = None,
         memory_cache_size: int = DEFAULT_MEMORY_CACHE_SIZE,
         local_cache_size: int = DEFAULT_LOCAL_CACHE_SIZE,
-        creds: Optional[dict] = None,
+        creds: Optional[Union[dict, str]] = None,
         token: Optional[str] = None,
         org_id: Optional[str] = None,
         verbose: bool = True,
         access_method: str = "stream",
+        reset: bool = False,
     ) -> Dataset:
         """Loads an existing dataset
+
+        Examples:
+
+            >>> ds = deeplake.load("hub://username/dataset")
+            >>> ds = deeplake.load("s3://mybucket/my_dataset")
+            >>> ds = deeplake.load("./datasets/my_dataset", overwrite=True)
+
+            Loading to a specfic version:
+
+            >>> ds = deeplake.load("hub://username/dataset@new_branch")
+            >>> ds = deeplake.load("hub://username/dataset@3e49cded62b6b335c74ff07e97f8451a37aca7b2)
+
+            >>> my_commit_id = "3e49cded62b6b335c74ff07e97f8451a37aca7b2"
+            >>> ds = deeplake.load(f"hub://username/dataset@{my_commit_id}")
 
         Args:
             path (str, pathlib.Path): - The full path to the dataset. Can be:
@@ -380,13 +478,19 @@ class dataset:
                 - an s3 path of the form ``s3://bucketname/path/to/dataset``. Credentials are required in either the environment or passed to the creds argument.
                 - a local file system path of the form ``./path/to/dataset`` or ``~/path/to/dataset`` or ``path/to/dataset``.
                 - a memory path of the form ``mem://path/to/dataset`` which doesn't save the dataset but keeps it in memory instead. Should be used only for testing as it does not persist.
+                - Loading to a specific version:
+
+                        - You can also specify a ``commit_id`` or ``branch`` to load the dataset to that version directly by using the ``@`` symbol.
+                        - The path will then be of the form ``hub://username/dataset@{branch}`` or ``hub://username/dataset@{commit_id}``.
+                        - See examples above.
             read_only (bool, optional): Opens dataset in read only mode if this is passed as ``True``. Defaults to ``False``.
                 Datasets stored on Deep Lake cloud that your account does not have write access to will automatically open in read mode.
             memory_cache_size (int): The size of the memory cache to be used in MB.
             local_cache_size (int): The size of the local filesystem cache to be used in MB.
-            creds (dict, optional): - A dictionary containing credentials used to access the dataset at the path.
+            creds (dict, str, optional): The string ``ENV`` or a dictionary containing credentials used to access the dataset at the path.
                 - If 'aws_access_key_id', 'aws_secret_access_key', 'aws_session_token' are present, these take precedence over credentials present in the environment or in credentials file. Currently only works with s3 paths.
                 - It supports 'aws_access_key_id', 'aws_secret_access_key', 'aws_session_token', 'endpoint_url', 'aws_region', 'profile_name' as keys.
+                - If 'ENV' is passed, credentials are fetched from the environment variables. This is also the case when creds is not passed for cloud datasets. For datasets connected to hub cloud, specifying 'ENV' will override the credentials fetched from Activeloop and use local ones.
             token (str, optional): Activeloop token, used for fetching credentials to the dataset at path if it is a Deep Lake dataset. This is optional, tokens are normally autogenerated.
             org_id (str, Optional): Organization id to be used for enabling enterprise features. Only applicable for local datasets.
             verbose (bool): If ``True``, logs will be printed. Defaults to ``True``.
@@ -412,6 +516,11 @@ class dataset:
                         - The 'local' access method can be modified to specify num_workers and/or scheduler to be used in case dataset needs to be downloaded.
                           If dataset needs to be downloaded, 'local:2:processed' will use 2 workers and use processed scheduler, while 'local:3' will use 3 workers
                           and default scheduler (threaded), and 'local:processed' will use a single worker and use processed scheduler.
+            reset (bool): If the specified dataset cannot be loaded due to a corrupted HEAD state of the branch being loaded,
+                          setting ``reset=True`` will reset HEAD changes and load the previous version.
+
+        ..
+            # noqa: DAR101
 
         Returns:
             Dataset: Dataset loaded using the arguments provided.
@@ -422,6 +531,11 @@ class dataset:
             UserNotLoggedInException: When user is not logged in
             InvalidTokenException: If the specified toke is invalid
             TokenPermissionError: When there are permission or other errors related to token
+            CheckoutError: If version address specified in the path cannot be found
+            DatasetCorruptError: If loading the dataset failed due to corruption and ``reset`` is not ``True``
+            ReadOnlyModeError: If reset is attempted in read-only mode
+            LockedException: When attempting to open a dataset for writing when it is locked by another machine
+            Exception: Re-raises caught exception if reset cannot fix the issue
 
         Warning:
             Setting ``access_method`` to download will overwrite the local copy of the dataset if it was previously downloaded.
@@ -431,7 +545,8 @@ class dataset:
         """
         access_method, num_workers, scheduler = parse_access_method(access_method)
         check_access_method(access_method, overwrite=False)
-        path = convert_pathlib_to_string_if_needed(path)
+
+        path, address = process_dataset_path(path)
 
         if creds is None:
             creds = {}
@@ -445,57 +560,136 @@ class dataset:
                 memory_cache_size=memory_cache_size,
                 local_cache_size=local_cache_size,
             )
-
             feature_report_path(path, "load", {}, token=token)
         except Exception as e:
             if isinstance(e, UserNotLoggedInException):
-                message = (
-                    "Please log in through the CLI in order to load this dataset, "
-                    "or create an API token in the UI and pass it to this method using "
-                    "the ‘token’ parameter. The CLI commands are ‘activeloop login’ and "
-                    "‘activeloop register’."
-                )
-                raise UserNotLoggedInException(message)
+                raise UserNotLoggedInException from None
             raise
         if not dataset_exists(cache_chain):
             raise DatasetHandlerError(
                 f"A Deep Lake dataset does not exist at the given path ({path}). Check the path provided or in case you want to create a new dataset, use deeplake.empty()."
             )
 
-        try:
-            if access_method == "stream":
-                ret = dataset_factory(
-                    path=path,
-                    storage=cache_chain,
-                    read_only=read_only,
-                    token=token,
-                    org_id=org_id,
-                    verbose=verbose,
-                )
-                dataset_loaded(ret)
-                return ret
-            return get_local_dataset(
-                access_method=access_method,
-                path=path,
-                read_only=read_only,
-                memory_cache_size=memory_cache_size,
-                local_cache_size=local_cache_size,
-                creds=creds,
-                token=token,
-                org_id=org_id,
-                verbose=verbose,
-                ds_exists=True,
-                num_workers=num_workers,
-                scheduler=scheduler,
+        dataset_kwargs: Dict[str, Union[None, str, bool, int, Dict]] = {
+            "path": path,
+            "read_only": read_only,
+            "token": token,
+            "org_id": org_id,
+            "verbose": verbose,
+        }
+
+        if access_method == "stream":
+            dataset_kwargs.update(
+                {
+                    "address": address,
+                    "storage": cache_chain,
+                }
             )
-        except AgreementError as e:
+        else:
+            dataset_kwargs.update(
+                {
+                    "access_method": access_method,
+                    "memory_cache_size": memory_cache_size,
+                    "local_cache_size": local_cache_size,
+                    "creds": creds,
+                    "ds_exists": True,
+                    "num_workers": num_workers,
+                    "scheduler": scheduler,
+                    "reset": reset,
+                }
+            )
+
+        try:
+            return dataset._load(dataset_kwargs, access_method)
+        except (AgreementError, CheckoutError, LockedException) as e:
             raise e from None
+        except Exception as e:
+            if access_method == "stream":
+                if not reset:
+                    if isinstance(e, DatasetCorruptError):
+                        raise DatasetCorruptError(
+                            message=e.message,
+                            action="Try using `reset=True` to reset HEAD changes and load the previous commit.",
+                            cause=e.__cause__,
+                        )
+                    raise DatasetCorruptError(
+                        "Exception occurred (see Traceback). The dataset maybe corrupted. "
+                        "Try using `reset=True` to reset HEAD changes and load the previous commit. "
+                        "This will delete all uncommitted changes on the branch you are trying to load."
+                    ) from e
+                return dataset._reset_and_load(
+                    cache_chain, access_method, dataset_kwargs, address, e
+                )
+            raise e
+
+    @staticmethod
+    def _reset_and_load(storage, access_method, dataset_kwargs, address, err):
+        """Reset and then load the dataset. Only called when loading dataset errored out with ``err``."""
+        if access_method != "stream":
+            dataset_kwargs["reset"] = True
+            ds = dataset._load(dataset_kwargs, access_method)
+            return ds
+
+        try:
+            version_info = load_version_info(storage)
+        except Exception:
+            raise err
+
+        address = address or "main"
+        parent_commit_id, reset_commit_id = get_parent_and_reset_commit_ids(
+            version_info, address
+        )
+        if parent_commit_id is False:
+            # non-head node corrupted
+            raise err
+        if storage.read_only:
+            msg = "Cannot reset when loading dataset in read-only mode."
+            if parent_commit_id:
+                msg += f" However, you can try loading the previous commit using "
+                msg += f"`deeplake.load('{dataset_kwargs.get('path')}@{parent_commit_id}')`."
+            raise ReadOnlyModeError(msg)
+        if parent_commit_id is None:
+            # no commits in the dataset
+            storage.clear()
+            ds = dataset._load(dataset_kwargs, access_method)
+            return ds
+
+        # load previous version, replace head and checkout to new head
+        dataset_kwargs["address"] = parent_commit_id
+        ds = dataset._load(dataset_kwargs, access_method)
+        new_commit_id = replace_head(storage, ds.version_state, reset_commit_id)
+        ds.checkout(new_commit_id)
+
+        current_node = ds.version_state["commit_node_map"][ds.commit_id]
+        verbose = dataset_kwargs.get("verbose")
+        if verbose:
+            logger.info(f"HEAD reset. Current version:\n{current_node}")
+        return ds
+
+    @staticmethod
+    def _load(dataset_kwargs, access_method=None, create=False):
+        if access_method in ("stream", None):
+            ret = dataset_factory(**dataset_kwargs)
+            if create:
+                dataset_created(ret)
+            else:
+                dataset_loaded(ret)
+
+            integrity_check(ret)
+
+            verbose = dataset_kwargs.get("verbose")
+            path = dataset_kwargs.get("path")
+            if verbose:
+                logger.info(f"{path} loaded successfully.")
+        else:
+            ret = get_local_dataset(**dataset_kwargs)
+        return ret
 
     @staticmethod
     def rename(
         old_path: Union[str, pathlib.Path],
         new_path: Union[str, pathlib.Path],
-        creds: Optional[dict] = None,
+        creds: Optional[Union[dict, str]] = None,
         token: Optional[str] = None,
     ) -> Dataset:
         """Renames dataset at ``old_path`` to ``new_path``.
@@ -508,9 +702,10 @@ class dataset:
         Args:
             old_path (str, pathlib.Path): The path to the dataset to be renamed.
             new_path (str, pathlib.Path): Path to the dataset after renaming.
-            creds (dict, optional): - A dictionary containing credentials used to access the dataset at the path.
-                - This takes precedence over credentials present in the environment. Currently only works with s3 paths.
-                - It supports 'aws_access_key_id', 'aws_secret_access_key', 'aws_session_token', 'endpoint_url' and 'aws_region' as keys.
+            creds (dict, str, optional): The string ``ENV`` or a dictionary containing credentials used to access the dataset at the path.
+                - If 'aws_access_key_id', 'aws_secret_access_key', 'aws_session_token' are present, these take precedence over credentials present in the environment or in credentials file. Currently only works with s3 paths.
+                - It supports 'aws_access_key_id', 'aws_secret_access_key', 'aws_session_token', 'endpoint_url', 'aws_region', 'profile_name' as keys.
+                - If 'ENV' is passed, credentials are fetched from the environment variables. This is also the case when creds is not passed for cloud datasets. For datasets connected to hub cloud, specifying 'ENV' will override the credentials fetched from Activeloop and use local ones.
             token (str, optional): Activeloop token, used for fetching credentials to the dataset at path if it is a Deep Lake dataset. This is optional, tokens are normally autogenerated.
 
         Returns:
@@ -533,11 +728,12 @@ class dataset:
         return ds  # type: ignore
 
     @staticmethod
+    @spinner
     def delete(
         path: Union[str, pathlib.Path],
         force: bool = False,
         large_ok: bool = False,
-        creds: Optional[dict] = None,
+        creds: Optional[Union[dict, str]] = None,
         token: Optional[str] = None,
         verbose: bool = False,
     ) -> None:
@@ -548,20 +744,28 @@ class dataset:
             force (bool): Delete data regardless of whether
                 it looks like a deeplake dataset. All data at the path will be removed if set to ``True``.
             large_ok (bool): Delete datasets larger than 1GB. Disabled by default.
-            creds (dict, optional): - A dictionary containing credentials used to access the dataset at the path.
+            creds (dict, str, optional): The string ``ENV`` or a dictionary containing credentials used to access the dataset at the path.
                 - If 'aws_access_key_id', 'aws_secret_access_key', 'aws_session_token' are present, these take precedence over credentials present in the environment or in credentials file. Currently only works with s3 paths.
                 - It supports 'aws_access_key_id', 'aws_secret_access_key', 'aws_session_token', 'endpoint_url', 'aws_region', 'profile_name' as keys.
+                - If 'ENV' is passed, credentials are fetched from the environment variables. This is also the case when creds is not passed for cloud datasets. For datasets connected to hub cloud, specifying 'ENV' will override the credentials fetched from Activeloop and use local ones.
             token (str, optional): Activeloop token, used for fetching credentials to the dataset at path if it is a Deep Lake dataset. This is optional, tokens are normally autogenerated.
             verbose (bool): If True, logs will be printed. Defaults to True.
 
         Raises:
             DatasetHandlerError: If a Dataset does not exist at the given path and ``force = False``.
+            UserNotLoggedInException: When user is not logged in.
             NotImplementedError: When attempting to delete a managed view.
+            ValueError: If version is specified in the path
 
         Warning:
             This is an irreversible operation. Data once deleted cannot be recovered.
         """
-        path = convert_pathlib_to_string_if_needed(path)
+        path, address = process_dataset_path(path)
+
+        if address:
+            raise ValueError(
+                "deeplake.delete does not accept version address in the dataset path."
+            )
 
         if creds is None:
             creds = {}
@@ -577,7 +781,10 @@ class dataset:
                     raise NotImplementedError(
                         "Deleting managed views by path is not supported. Load the source dataset and do `ds.delete_view(id)` instead."
                     )
-            ds = deeplake.load(path, verbose=False, token=token, creds=creds)
+            try:
+                ds = deeplake.load(path, verbose=False, token=token, creds=creds)
+            except UserNotLoggedInException:
+                raise UserNotLoggedInException from None
             ds.delete(large_ok=large_ok)
             if verbose:
                 logger.info(f"{path} dataset deleted successfully.")
@@ -603,12 +810,14 @@ class dataset:
                 raise
 
     @staticmethod
+    @spinner
     def like(
         dest: Union[str, pathlib.Path],
         src: Union[str, Dataset, pathlib.Path],
+        runtime: Optional[Dict] = None,
         tensors: Optional[List[str]] = None,
         overwrite: bool = False,
-        creds: Optional[dict] = None,
+        creds: Optional[Union[dict, str]] = None,
         token: Optional[str] = None,
         org_id: Optional[str] = None,
         public: bool = False,
@@ -619,11 +828,13 @@ class dataset:
         Args:
             dest: Empty Dataset or Path where the new dataset will be created.
             src (Union[str, Dataset]): Path or dataset object that will be used as the template for the new dataset.
+            runtime (dict): Parameters for Activeloop DB Engine. Only applicable for hub:// paths.
             tensors (List[str], optional): Names of tensors (and groups) to be replicated. If not specified all tensors in source dataset are considered.
             overwrite (bool): If True and a dataset exists at `destination`, it will be overwritten. Defaults to False.
-            creds (dict, optional): - A dictionary containing credentials used to access the dataset at the path.
+            creds (dict, str, optional): The string ``ENV`` or a dictionary containing credentials used to access the dataset at the path.
                 - If 'aws_access_key_id', 'aws_secret_access_key', 'aws_session_token' are present, these take precedence over credentials present in the environment or in credentials file. Currently only works with s3 paths.
                 - It supports 'aws_access_key_id', 'aws_secret_access_key', 'aws_session_token', 'endpoint_url', 'aws_region', 'profile_name' as keys.
+                - If 'ENV' is passed, credentials are fetched from the environment variables. This is also the case when creds is not passed for cloud datasets. For datasets connected to hub cloud, specifying 'ENV' will override the credentials fetched from Activeloop and use local ones.
             token (str, optional): Activeloop token, used for fetching credentials to the dataset at path if it is a Deep Lake dataset. This is optional, tokens are normally autogenerated.
             org_id (str, Optional): Organization id to be used for enabling enterprise features. Only applicable for local datasets.
             public (bool): Defines if the dataset will have public access. Applicable only if Deep Lake cloud storage is used and a new Dataset is being created. Defaults to False.
@@ -642,16 +853,17 @@ class dataset:
             token=token,
         )
         return dataset._like(
-            dest, src, tensors, overwrite, creds, token, org_id, public
+            dest, src, runtime, tensors, overwrite, creds, token, org_id, public
         )
 
     @staticmethod
     def _like(  # (No reporting)
         dest,
         src: Union[str, Dataset],
+        runtime: Optional[Dict] = None,
         tensors: Optional[List[str]] = None,
         overwrite: bool = False,
-        creds: Optional[dict] = None,
+        creds: Optional[Union[dict, str]] = None,
         token: Optional[str] = None,
         org_id: Optional[str] = None,
         public: bool = False,
@@ -662,13 +874,15 @@ class dataset:
         Args:
             dest: Empty Dataset or Path where the new dataset will be created.
             src (Union[str, Dataset]): Path or dataset object that will be used as the template for the new dataset.
+            runtime (dict): Parameters for Activeloop DB Engine. Only applicable for hub:// paths.
             tensors (List[str], optional): Names of tensors (and groups) to be replicated. If not specified all tensors in source dataset are considered.
             dest (str, pathlib.Path, Dataset): Empty Dataset or Path where the new dataset will be created.
             src (Union[str, pathlib.Path, Dataset]): Path or dataset object that will be used as the template for the new dataset.
             overwrite (bool): If True and a dataset exists at `destination`, it will be overwritten. Defaults to False.
-            creds (dict, optional): - A dictionary containing credentials used to access the dataset at the path.
+            creds (dict, str, optional): The string ``ENV`` or a dictionary containing credentials used to access the dataset at the path.
                 - If 'aws_access_key_id', 'aws_secret_access_key', 'aws_session_token' are present, these take precedence over credentials present in the environment or in credentials file. Currently only works with s3 paths.
                 - It supports 'aws_access_key_id', 'aws_secret_access_key', 'aws_session_token', 'endpoint_url', 'aws_region', 'profile_name' as keys.
+                - If 'ENV' is passed, credentials are fetched from the environment variables. This is also the case when creds is not passed for cloud datasets. For datasets connected to hub cloud, specifying 'ENV' will override the credentials fetched from Activeloop and use local ones.
             token (str, optional): Activeloop token, used for fetching credentials to the dataset at path if it is a Deep Lake dataset. This is optional, tokens are normally autogenerated.
             org_id (str, Optional): Organization id to be used for enabling enterprise features. Only applicable for local datasets.
             public (bool): Defines if the dataset will have public access. Applicable only if Deep Lake cloud storage is used and a new Dataset is being created. Defaults to ``False``.
@@ -685,6 +899,7 @@ class dataset:
             dest_path = dest
             destination_ds = dataset.empty(
                 dest,
+                runtime=runtime,
                 creds=creds,
                 overwrite=overwrite,
                 token=token,
@@ -722,6 +937,7 @@ class dataset:
     def copy(
         src: Union[str, pathlib.Path, Dataset],
         dest: Union[str, pathlib.Path],
+        runtime: Optional[dict] = None,
         tensors: Optional[List[str]] = None,
         overwrite: bool = False,
         src_creds=None,
@@ -737,11 +953,13 @@ class dataset:
         Args:
             src (Union[str, Dataset, pathlib.Path]): The Dataset or the path to the dataset to be copied.
             dest (str, pathlib.Path): Destination path to copy to.
+            runtime (dict): Parameters for Activeloop DB Engine. Only applicable for hub:// paths.
             tensors (List[str], optional): Names of tensors (and groups) to be copied. If not specified all tensors are copied.
             overwrite (bool): If True and a dataset exists at ``dest``, it will be overwritten. Defaults to ``False``.
-            src_creds (dict, optional): - A dictionary containing credentials used to access the dataset at the path.
+            src_creds (dict, str, optional): The string ``ENV`` or a dictionary containing credentials used to access the dataset at the path.
                 - If 'aws_access_key_id', 'aws_secret_access_key', 'aws_session_token' are present, these take precedence over credentials present in the environment or in credentials file. Currently only works with s3 paths.
                 - It supports 'aws_access_key_id', 'aws_secret_access_key', 'aws_session_token', 'endpoint_url', 'aws_region', 'profile_name' as keys.
+                - If 'ENV' is passed, credentials are fetched from the environment variables. This is also the case when creds is not passed for cloud datasets. For datasets connected to hub cloud, specifying 'ENV' will override the credentials fetched from Activeloop and use local ones.
             dest_creds (dict, optional): creds required to create / overwrite datasets at ``dest``.
             token (str, optional): Activeloop token, used for fetching credentials to the dataset at path if it is a Deep Lake dataset. This is optional, tokens are normally autogenerated.
             num_workers (int): The number of workers to use for copying. Defaults to 0. When set to 0, it will always use serial processing, irrespective of the scheduler.
@@ -778,6 +996,7 @@ class dataset:
 
         return src_ds.copy(
             dest,
+            runtime=runtime,
             tensors=tensors,
             overwrite=overwrite,
             creds=dest_creds,
@@ -791,6 +1010,7 @@ class dataset:
     def deepcopy(
         src: Union[str, pathlib.Path],
         dest: Union[str, pathlib.Path],
+        runtime: Optional[Dict] = None,
         tensors: Optional[List[str]] = None,
         overwrite: bool = False,
         src_creds=None,
@@ -808,11 +1028,13 @@ class dataset:
         Args:
             src (str, pathlib.Path): Path to the dataset to be copied.
             dest (str, pathlib.Path): Destination path to copy to.
+            runtime (dict): Parameters for Activeloop DB Engine. Only applicable for hub:// paths.
             tensors (List[str], optional): Names of tensors (and groups) to be copied. If not specified all tensors are copied.
             overwrite (bool): If True and a dataset exists at `destination`, it will be overwritten. Defaults to False.
-            src_creds (dict, optional): - A dictionary containing credentials used to access the dataset at the path.
+            src_creds (dict, str, optional): The string ``ENV`` or a dictionary containing credentials used to access the dataset at the path.
                 - If 'aws_access_key_id', 'aws_secret_access_key', 'aws_session_token' are present, these take precedence over credentials present in the environment or in credentials file. Currently only works with s3 paths.
                 - It supports 'aws_access_key_id', 'aws_secret_access_key', 'aws_session_token', 'endpoint_url', 'aws_region', 'profile_name' as keys.
+                - If 'ENV' is passed, credentials are fetched from the environment variables. This is also the case when creds is not passed for cloud datasets. For datasets connected to hub cloud, specifying 'ENV' will override the credentials fetched from Activeloop and use local ones.
             dest_creds (dict, optional): creds required to create / overwrite datasets at ``dest``.
             token (str, optional): Activeloop token, used for fetching credentials to the dataset at path if it is a Deep Lake dataset. This is optional, tokens are normally autogenerated.
             num_workers (int): The number of workers to use for copying. Defaults to 0. When set to 0, it will always use serial processing, irrespective of the scheduler.
@@ -830,6 +1052,7 @@ class dataset:
             DatasetHandlerError: If a dataset already exists at destination path and overwrite is False.
             TypeError: If source is not a path to a dataset.
             UnsupportedParameterException: If parameter that is no longer supported is beeing called.
+            DatasetCorruptError: If loading source dataset fails with DatasetCorruptedError
         """
 
         if "src_token" in kwargs:
@@ -852,24 +1075,36 @@ class dataset:
 
         verify_dataset_name(dest)
 
-        report_params = {
-            "Overwrite": overwrite,
-            "Num_Workers": num_workers,
-            "Scheduler": scheduler,
-            "Progressbar": progressbar,
-            "Public": public,
-        }
-        if dest.startswith("hub://"):
-            report_params["Dest"] = dest
-        feature_report_path(src, "deepcopy", report_params, token=token)
-
-        src_ds = deeplake.load(
-            src, read_only=True, creds=src_creds, token=token, verbose=False
+        deeplake_reporter.feature_report(
+            feature_name="deepcopy",
+            parameters={
+                "tensors": tensors,
+                "overwrite": overwrite,
+                "num_workers": num_workers,
+                "scheduler": scheduler,
+                "progressbar": progressbar,
+                "public": public,
+                "verbose": verbose,
+            },
         )
+
+        try:
+            src_ds = deeplake.load(
+                src, read_only=True, creds=src_creds, token=token, verbose=False
+            )
+        except DatasetCorruptError as e:
+            raise DatasetCorruptError(
+                "The source dataset is corrupted.",
+                "You can try to fix this by loading the dataset with `reset=True` "
+                "which will attempt to reset uncommitted HEAD changes and load the previous version.",
+                e.__cause__,
+            )
         src_storage = get_base_storage(src_ds.storage)
 
+        db_engine = (runtime or {}).get("db_engine", False)
         dest_storage, cache_chain = get_storage_and_cache_chain(
             dest,
+            db_engine=db_engine,
             creds=dest_creds,
             token=token,
             read_only=False,
@@ -968,7 +1203,7 @@ class dataset:
         compute_provider = get_compute_provider(scheduler, num_workers)
         try:
             if progressbar:
-                compute_provider.map_with_progressbar(
+                compute_provider.map_with_progress_bar(
                     copy_func_with_progress_bar,
                     keys,
                     len_keys,
@@ -994,6 +1229,7 @@ class dataset:
         return ret
 
     @staticmethod
+    @spinner
     def connect(
         src_path: str,
         creds_key: str,
@@ -1049,8 +1285,8 @@ class dataset:
         ignore_keys: Optional[List[str]] = None,
         image_params: Optional[Dict] = None,
         image_creds_key: Optional[str] = None,
-        src_creds: Optional[Dict] = None,
-        dest_creds: Optional[Dict] = None,
+        src_creds: Optional[Union[str, Dict]] = None,
+        dest_creds: Optional[Union[str, Dict]] = None,
         inspect_limit: int = 1000000,
         progressbar: bool = True,
         shuffle: bool = False,
@@ -1059,7 +1295,7 @@ class dataset:
         connect_kwargs: Optional[Dict] = None,
         **dataset_kwargs,
     ) -> Dataset:
-        """Ingest images and annotations in COCO format to a Deep Lake Dataset.
+        """Ingest images and annotations in COCO format to a Deep Lake Dataset. The source data can be stored locally or in the cloud.
 
         Examples:
             >>> ds = deeplake.ingest_coco(
@@ -1072,7 +1308,7 @@ class dataset:
             >>>     token="my_activeloop_token",
             >>>     num_workers=4,
             >>> )
-            >>> # or ingest data from cloud
+            >>> # or ingest data from the cloud
             >>> ds = deeplake.ingest_coco(
             >>>     "s3://bucket/images/directory",
             >>>     "s3://bucket/annotation/file1.json",
@@ -1080,7 +1316,7 @@ class dataset:
             >>>     ignore_one_group=True,
             >>>     ignore_keys=["area", "image_id", "id"],
             >>>     image_settings={"name": "images", "htype": "link[image]", "sample_compression": "jpeg"},
-            >>>     image_creds_key="my_managed_creds"
+            >>>     image_creds_key="my_s3_managed_credentials"
             >>>     src_creds=aws_creds, # Can also be inferred from environment
             >>>     token="my_activeloop_token",
             >>>     num_workers=4,
@@ -1100,9 +1336,9 @@ class dataset:
             ignore_one_group (bool): Skip creation of group in case of a single annotation file. Set to ``False`` by default.
             ignore_keys (List[str]): A list of COCO keys to ignore.
             image_params (Optional[Dict]): A dictionary containing parameters for the images tensor.
-            image_creds_key (Optional[str]): The name of the managed credentials to use for accessing the images directory via linked tensor.
-            src_creds (Optional[Dict]): Credentials to access the source path. If not provided, will be inferred from the environment.
-            dest_creds (Optional[Dict]): A dictionary containing credentials used to access the destination path of the dataset.
+            image_creds_key (Optional[str]): The name of the managed credentials to use for accessing the images in the linked tensor (is applicable).
+            src_creds (Optional[Union[str, Dict]]): Credentials to access the source data. If not provided, will be inferred from the environment.
+            dest_creds (Optional[Union[str, Dict]]): The string ``ENV`` or a dictionary containing credentials used to access the destination path of the dataset.
             inspect_limit (int): The maximum number of samples to inspect in the annotations json, in order to generate the set of COCO annotation keys. Set to ``1000000`` by default.
             progressbar (bool): Enables or disables ingestion progress bar. Set to ``True`` by default.
             shuffle (bool): Shuffles the input data prior to ingestion. Set to ``False`` by default.
@@ -1169,8 +1405,8 @@ class dataset:
         image_params: Optional[Dict] = None,
         label_params: Optional[Dict] = None,
         coordinates_params: Optional[Dict] = None,
-        src_creds: Optional[Dict] = None,
-        dest_creds: Optional[Dict] = None,
+        src_creds: Optional[Union[str, Dict]] = None,
+        dest_creds: Optional[Union[str, Dict]] = None,
         image_creds_key: Optional[str] = None,
         inspect_limit: int = 1000,
         progressbar: bool = True,
@@ -1180,7 +1416,7 @@ class dataset:
         connect_kwargs: Optional[Dict] = None,
         **dataset_kwargs,
     ) -> Dataset:
-        """Ingest images and annotations (bounding boxes or polygons) in YOLO format to a Deep Lake Dataset.
+        """Ingest images and annotations (bounding boxes or polygons) in YOLO format to a Deep Lake Dataset. The source data can be stored locally or in the cloud.
 
         Examples:
             >>> ds = deeplake.ingest_yolo(
@@ -1190,12 +1426,12 @@ class dataset:
             >>>     token="my_activeloop_token",
             >>>     num_workers=4,
             >>> )
-            >>> # or ingest data from cloud
+            >>> # or ingest data from the cloud
             >>> ds = deeplake.ingest_yolo(
             >>>     "s3://bucket/data_directory",
             >>>     dest="hub://org_id/dataset",
             >>>     image_params={"name": "image_links", "htype": "link[image]"},
-            >>>     image_creds_key='my_s3_managed_crerendials",
+            >>>     image_creds_key="my_s3_managed_credentials",
             >>>     src_creds=aws_creds, # Can also be inferred from environment
             >>>     token="my_activeloop_token",
             >>>     num_workers=4,
@@ -1215,8 +1451,8 @@ class dataset:
             image_params (Optional[Dict]): A dictionary containing parameters for the images tensor.
             label_params (Optional[Dict]): A dictionary containing parameters for the labels tensor.
             coordinates_params (Optional[Dict]): A dictionary containing parameters for the ccoordinates tensor. This tensor either contains bounding boxes or polygons.
-            src_creds (Optional[Dict]): Credentials to access the source path. If not provided, will be inferred from the environment.
-            dest_creds (Optional[Dict]): A dictionary containing credentials used to access the destination path of the dataset.
+            src_creds (Optional[Union[str, Dict]]): Credentials to access the source data. If not provided, will be inferred from the environment.
+            dest_creds (Optional[Union[str, Dict]]): The string ``ENV`` or a dictionary containing credentials used to access the destination path of the dataset.
             image_creds_key (Optional[str]): creds_key for linked tensors, applicable if the htype for the images tensor is specified as 'link[image]' in the 'image_params' input.
             inspect_limit (int): The maximum number of annotations to inspect, in order to infer whether they are bounding boxes of polygons. This in put is ignored if the htype is specfied in the 'coordinates_params'.
             progressbar (bool): Enables or disables ingestion progress bar. Set to ``True`` by default.
@@ -1295,7 +1531,7 @@ class dataset:
         sample_compression: str = "auto",
         image_params: Optional[Dict] = None,
         label_params: Optional[Dict] = None,
-        dest_creds: Optional[Dict] = None,
+        dest_creds: Optional[Union[str, Dict]] = None,
         progressbar: bool = True,
         summary: bool = True,
         num_workers: int = 0,
@@ -1304,7 +1540,7 @@ class dataset:
         connect_kwargs: Optional[Dict] = None,
         **dataset_kwargs,
     ) -> Dataset:
-        """Ingests a dataset of images from a source and stores it as a structured dataset to destination.
+        """Ingest a dataset of images from a local folder to a Deep Lake Dataset. Images should be stored in subfolders by class name.
 
         Args:
             src (str, pathlib.Path): Local path to where the unstructured dataset of images is stored or path to csv file.
@@ -1316,7 +1552,7 @@ class dataset:
             sample_compression (str): For image classification datasets, this compression will be used for the `images` tensor. If ``sample_compression`` is "auto", compression will be automatically determined by the most common extension in the directory.
             image_params (Optional[Dict]): A dictionary containing parameters for the images tensor.
             label_params (Optional[Dict]): A dictionary containing parameters for the labels tensor.
-            dest_creds (Optional[Dict]): A dictionary containing credentials used to access the destination path of the dataset.
+            dest_creds (Optional[Union[str, Dict]]): The string ``ENV`` or a dictionary containing credentials used to access the destination path of the dataset.
             progressbar (bool): Enables or disables ingestion progress bar. Defaults to ``True``.
             summary (bool): If ``True``, a summary of skipped files will be printed after completion. Defaults to ``True``.
             num_workers (int): The number of workers to use for ingestion. Set to ``0`` by default.
@@ -1393,14 +1629,19 @@ class dataset:
             if os.path.isdir(dest) and os.path.samefile(src, dest):
                 raise SamePathException(src)
 
-            if src.endswith(".csv"):
+            if src.lower().endswith((".csv", ".txt")):
                 import pandas as pd  # type:ignore
 
                 if not os.path.isfile(src):
                     raise InvalidPathException(src)
                 source = pd.read_csv(src, quotechar='"', skipinitialspace=True)
                 ds = dataset.ingest_dataframe(
-                    source, dest, dest_creds, progressbar, token=token, **dataset_kwargs
+                    source,
+                    dest,
+                    dest_creds=dest_creds,
+                    progressbar=progressbar,
+                    token=token,
+                    **dataset_kwargs,
                 )
                 return ds
 
@@ -1536,13 +1777,36 @@ class dataset:
     def ingest_dataframe(
         src,
         dest: Union[str, pathlib.Path],
-        dest_creds: Optional[Dict] = None,
+        column_params: Optional[Dict] = None,
+        src_creds: Optional[Union[str, Dict]] = None,
+        dest_creds: Optional[Union[str, Dict]] = None,
+        creds_key: Optional[Dict] = None,
         progressbar: bool = True,
         token: Optional[str] = None,
         connect_kwargs: Optional[Dict] = None,
         **dataset_kwargs,
     ):
-        """Convert pandas dataframe to a Deep Lake Dataset.
+        """Convert pandas dataframe to a Deep Lake Dataset. The contents of the dataframe can be parsed literally, or can be treated as links to local or cloud files.
+
+        Examples:
+            >>> ds = deeplake.dataframe(
+            >>>     df,
+            >>>     dest="hub://org_id/dataset",
+            >>> )
+            >>> # or ingest data as images from the cloud
+            >>> ds = deeplake.dataframe(
+            >>>     df,
+            >>>     dest="hub://org_id/dataset",
+            >>>     column_params={"df_column_with_cloud_paths": {"name": "images", "htype": "image"}}
+            >>>     src_creds=aws_creds
+            >>> )
+            >>> # or ingest data as linked images in the cloud
+            >>> ds = deeplake.dataframe(
+            >>>     df,
+            >>>     dest="hub://org_id/dataset",
+            >>>     column_params={"df_column_with_cloud_paths": {"name": "image_links", "htype": "link[image]"}}
+            >>>     creds_key="my_s3_managed_credentials"
+            >>> )
 
         Args:
             src (pd.DataFrame): The pandas dataframe to be converted.
@@ -1552,7 +1816,10 @@ class dataset:
                 - an s3 path of the form ``s3://bucketname/path/to/dataset``. Credentials are required in either the environment or passed to the creds argument.
                 - a local file system path of the form ``./path/to/dataset`` or ``~/path/to/dataset`` or ``path/to/dataset``.
                 - a memory path of the form ``mem://path/to/dataset`` which doesn't save the dataset but keeps it in memory instead. Should be used only for testing as it does not persist.
-            dest_creds (Optional[Dict]): A dictionary containing credentials used to access the destination path of the dataset.
+            column_params (Optional[Dict]): A dictionary containing parameters for the tensors corresponding to the dataframe columns.
+            src_creds (Optional[Union[str, Dict]]): Credentials to access the source data. If not provided, will be inferred from the environment.
+            dest_creds (Optional[Union[str, Dict]]): The string ``ENV`` or a dictionary containing credentials used to access the destination path of the dataset.
+            creds_key (Optional[str]): creds_key for linked tensors, applicable if the htype any tensor is specified as 'link[...]' in the 'column_params' input.
             progressbar (bool): Enables or disables ingestion progress bar. Set to ``True`` by default.
             token (Optional[str]): The token to use for accessing the dataset.
             connect_kwargs (Optional[Dict]): A dictionary containing arguments to be passed to the dataset connect method. See :meth:`Dataset.connect`.
@@ -1577,7 +1844,7 @@ class dataset:
         if not isinstance(src, pd.DataFrame):
             raise Exception("Source provided is not a valid pandas dataframe object")
 
-        structured = DataFrame(src)
+        structured = DataFrame(src, column_params, src_creds, creds_key)
 
         dest = convert_pathlib_to_string_if_needed(dest)
         ds = deeplake.empty(

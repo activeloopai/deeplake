@@ -10,15 +10,30 @@ from deeplake.core.storage import StorageProvider, MemoryProvider, LRUCache
 from deeplake.core.chunk_engine import ChunkEngine
 from deeplake.core.transform.transform_dataset import TransformDataset
 from deeplake.core.index import Index
+from deeplake.core.tensor import Tensor
 
-from deeplake.constants import MB, TRANSFORM_PROGRESSBAR_UPDATE_INTERVAL
-from deeplake.util.remove_cache import get_base_storage
+from deeplake.constants import (
+    MB,
+    TRANSFORM_PROGRESSBAR_UPDATE_INTERVAL,
+    TRANSFORM_RECHUNK_AVG_SIZE_BOUND,
+    TRANSFORM_CHUNK_CACHE_SIZE,
+)
+from deeplake.util.dataset import try_flushing
+from deeplake.util.remove_cache import (
+    get_base_storage,
+    get_dataset_with_zero_size_cache,
+)
 from deeplake.util.keys import get_tensor_meta_key
+from deeplake.util.version_control import auto_checkout, load_meta
 from deeplake.util.exceptions import (
+    AllSamplesSkippedError,
     InvalidInputDataError,
     InvalidOutputDatasetError,
     InvalidTransformDataset,
     TensorMismatchError,
+    TensorDoesNotExistError,
+    TransformError,
+    SampleAppendError,
 )
 
 import posixpath
@@ -33,6 +48,7 @@ except ImportError:
 def transform_sample(
     sample: Any,
     pipeline,
+    tensors,
 ) -> TransformDataset:
     """Calls all the functions one after the other on a single sample.
     Can return 0 or more samples.
@@ -40,61 +56,42 @@ def transform_sample(
     Args:
         sample: The sample on which the pipeline of functions is to be applied.
         pipeline (Pipeline): The Sequence of functions to apply on the sample.
-
-    Raises:
-        InvalidTransformDataset: If number of tensors were inconsistent between all transform datasets.
+        tensors: List of tensors in output.
 
     Returns:
         TransformDataset: A transform dataset containing all the samples that were generated.
     """
-
-    result = sample
+    out = sample
     for index in range(len(pipeline)):
         transform_fn = pipeline.functions[index]
         fn, args, kwargs = transform_fn.func, transform_fn.args, transform_fn.kwargs
 
-        if isinstance(result, TransformDataset):
-            all_samples_out = []
-            for item in result:
-                samples_out = TransformDataset()
-                fn(item, samples_out, *args, **kwargs)
-                validate_transform_dataset(samples_out)
-                all_samples_out.append(samples_out)
-            result = combine_transform_datasets(all_samples_out)
-            try:
+        if isinstance(out, TransformDataset):
+            result = TransformDataset(tensors)
+            for item in out:
+                fn(item, result, *args, **kwargs)
                 validate_transform_dataset(result)
-            except InvalidTransformDataset:
-                raise InvalidTransformDataset(
-                    "One or more of the TransformDatasets returned had different number of tensors. Always ensure that all outputs have exactly the same tensors and equal number of samples in each tensor."
-                )
+            out = result
         else:
-            samples_out = TransformDataset()
-            fn(result, samples_out, *args, **kwargs)
-            validate_transform_dataset(samples_out)
-            result = samples_out
-    return result
-
-
-def combine_transform_datasets(datasets: List[TransformDataset]):
-    """Combines multiple TransformDataset into a single transform dataset."""
-    final_ds = TransformDataset()
-    for ds in datasets:
-        for tensor in ds.tensors:
-            input_tensor = ds[tensor]
-            output_tensor = final_ds[tensor]
-            if input_tensor._numpy_only:
-                for batch in input_tensor.numpy():
-                    output_tensor.extend(batch)
-            else:
-                output_tensor.extend(input_tensor.numpy_compressed())
-    return final_ds
+            result = TransformDataset(tensors)
+            fn(out, result, *args, **kwargs)
+            validate_transform_dataset(result)
+            out = result
+    return out
 
 
 def validate_transform_dataset(dataset: TransformDataset):
     """Checks if the length of all the tensors is equal. Raises exception if not equal."""
-    lengths = [len(dataset[tensor]) for tensor in dataset.tensors]
+    data = dataset.data
+    lengths = [
+        len(data[tensor])
+        for tensor in data
+        if (not data[tensor].is_group and len(data[tensor]) > 0)
+    ]
     if any(length != lengths[0] for length in lengths):
-        raise InvalidTransformDataset
+        raise InvalidTransformDataset(
+            "The number of samples added to each tensor in transform should be the same."
+        )
 
 
 def is_empty_transform_dataset(dataset: TransformDataset):
@@ -109,53 +106,169 @@ def store_data_slice(transform_input: Tuple) -> Dict:
     return store_data_slice_with_pbar(None, transform_input)
 
 
-def store_data_slice_with_pbar(pg_callback, transform_input: Tuple) -> Dict:
-    data_slice, output_storage, inp = transform_input
-    (
-        group_index,
-        tensors,
-        visible_tensors,
-        label_temp_tensors,
-        actual_tensors,
-        pipeline,
-        version_state,
-        link_creds,
-        skip_ok,
-        extend_only,
-    ) = inp
-    all_chunk_engines = create_worker_chunk_engines(
-        tensors, label_temp_tensors, output_storage, version_state, link_creds
+def _normalize_pg(pg_callback, num_tensors):
+    def inner(num_samples):
+        return pg_callback(num_samples / num_tensors)
+
+    return inner
+
+
+def _extend_data_slice(
+    data_slice, offset, transform_dataset, transform_fn, pg_callback
+):
+    extend_fn, args, kwargs = (
+        transform_fn.func,
+        transform_fn.args,
+        transform_fn.kwargs,
     )
+    extend_fn(data_slice, transform_dataset, *args, **kwargs)
+    data = transform_dataset.data
+    updated_tensors = set(k for k in data if not data[k].is_group and len(data[k]) > 0)
+    if pg_callback is not None:
+        pg_callback = _normalize_pg(pg_callback, len(updated_tensors))
+    transform_dataset.set_pg_callback(pg_callback)
+    transform_dataset.flush()
 
-    if isinstance(data_slice, deeplake.Dataset):
-        data_slice = add_cache_to_dataset_slice(data_slice, tensors)
 
-    if extend_only:
-        extend_data_slice(
-            data_slice,
-            pipeline,
-            all_chunk_engines,
-            group_index,
-            pg_callback,
+def _check_pipeline(out, tensors, skip_ok):
+    data = out.data
+    result_keys = set(k for k in data if not data[k].is_group and len(data[k]) > 0)
+
+    if skip_ok:
+        if not result_keys.issubset(tensors):
+            raise TensorMismatchError(list(tensors), list(result_keys), skip_ok)
+    elif set(result_keys) != set(tensors):
+        raise TensorMismatchError(list(tensors), list(result_keys), skip_ok)
+
+
+def write_sample_to_transform_dataset(out, transform_dataset):
+    if not is_empty_transform_dataset(out):
+        for tensor in out.tensors:
+            out_tensor = out[tensor]
+            transform_tensor = transform_dataset[tensor]
+            if transform_tensor.numpy_only and out_tensor.numpy_only:
+                for item in out_tensor.items:
+                    transform_tensor.extend(item)
+            else:
+                out_tensor.non_numpy_only()
+                transform_tensor.extend(out_tensor.items)
+            out_tensor.items.clear()
+
+
+def _handle_transform_error(
+    data_slice,
+    offset,
+    transform_dataset,
+    pipeline,
+    tensors,
+    end_input_idx,
+    ignore_errors,
+):
+    start_input_idx = transform_dataset.start_input_idx
+    skipped_samples = 0
+    for i in range(start_input_idx, end_input_idx + 1):
+        sample = (
+            data_slice[i : i + 1]
+            if pd and isinstance(data_slice, pd.DataFrame)
+            else data_slice[i]
         )
-    else:
-        transform_data_slice_and_append(
-            data_slice,
-            pipeline,
-            visible_tensors,
-            label_temp_tensors,
-            actual_tensors,
-            all_chunk_engines,
-            group_index,
-            pg_callback,
-            skip_ok,
-        )
+        try:
+            out = transform_sample(sample, pipeline, tensors)
 
-    # retrieve relevant objects from memory
+            write_sample_to_transform_dataset(out, transform_dataset)
+
+            transform_dataset.flush()
+        except Exception as e:
+            if isinstance(e, SampleAppendError) and ignore_errors:
+                skipped_samples += 1
+                continue
+            raise TransformError(offset + i, sample) from e
+    return skipped_samples
+
+
+def _transform_and_append_data_slice(
+    data_slice,
+    offset,
+    transform_dataset,
+    pipeline,
+    tensors,
+    skip_ok,
+    pg_callback,
+    ignore_errors,
+):
+    """Appends a data slice. Returns ``True`` if any samples were appended and ``False`` otherwise."""
+    n = len(data_slice)
+    skipped_samples = 0
+    skipped_samples_in_current_batch = 0
+
+    pipeline_checked = False
+
+    for i, sample in enumerate(
+        (data_slice[i : i + 1] for i in range(n))
+        if pd and isinstance(data_slice, pd.DataFrame)
+        else data_slice
+    ):
+        try:
+            transform_dataset.set_start_input_idx(i)
+
+            try:
+                out = transform_sample(sample, pipeline, tensors)
+
+                if not pipeline_checked:
+                    _check_pipeline(out, tensors, skip_ok)
+                    pipeline_checked = True
+
+                write_sample_to_transform_dataset(out, transform_dataset)
+
+            except SampleAppendError as e:
+                if ignore_errors:
+                    skipped_samples += 1
+                    skipped_samples_in_current_batch += 1
+                else:
+                    raise TransformError(offset + i, sample) from e
+
+            finally:
+                if i == n - 1:
+                    transform_dataset.flush()
+                else:
+                    transform_dataset.check_flush()
+
+                # dataset flushed, reset skipped sample count
+                if transform_dataset.start_input_idx is None:
+                    skipped_samples_in_current_batch = 0
+
+                if pg_callback is not None:
+                    pg_callback(1)
+
+        # failure at chunk_engine
+        # retry one sample at a time
+        except SampleAppendError:
+            # reset skipped sample count to avoid double counting
+            skipped_samples -= skipped_samples_in_current_batch
+            skipped_samples_in_current_batch = 0
+
+            skipped_samples += _handle_transform_error(
+                data_slice,
+                offset,
+                transform_dataset,
+                pipeline,
+                tensors,
+                i,
+                ignore_errors,
+            )
+            continue
+
+    if skipped_samples == n:
+        return False
+    return True
+
+
+def _retrieve_memory_objects(all_chunk_engines):
     all_tensor_metas = {}
     all_chunk_id_encoders = {}
     all_tile_encoders = {}
     all_sequence_encoders = {}
+    all_pad_encoders = {}
     all_chunk_maps = {}
     all_commit_diffs = {}
     all_creds_encoders = {}
@@ -167,6 +280,7 @@ def store_data_slice_with_pbar(pg_callback, transform_input: Tuple) -> Dict:
         all_chunk_id_encoders[tensor] = chunk_engine.chunk_id_encoder
         all_tile_encoders[tensor] = chunk_engine.tile_encoder
         all_sequence_encoders[tensor] = chunk_engine.sequence_encoder
+        all_pad_encoders[tensor] = chunk_engine.pad_encoder
         all_chunk_maps[tensor] = chunk_engine.commit_chunk_map
         all_commit_diffs[tensor] = chunk_engine.commit_diff
         all_creds_encoders[tensor] = chunk_engine.creds_encoder
@@ -177,6 +291,7 @@ def store_data_slice_with_pbar(pg_callback, transform_input: Tuple) -> Dict:
         "tensor_metas": all_tensor_metas,
         "chunk_id_encoders": all_chunk_id_encoders,
         "sequence_encoders": all_sequence_encoders,
+        "pad_encoders": all_pad_encoders,
         "tile_encoders": all_tile_encoders,
         "commit_chunk_maps": all_chunk_maps,
         "commit_diffs": all_commit_diffs,
@@ -185,127 +300,70 @@ def store_data_slice_with_pbar(pg_callback, transform_input: Tuple) -> Dict:
     }
 
 
-def _transform_sample_and_update_chunk_engines(
-    sample,
-    pipeline,
-    tensors: List[str],
-    label_temp_tensors: Dict[str, str],
-    actual_tensors: Optional[List[str]],
-    all_chunk_engines: Dict[str, ChunkEngine],
-    group_index: str,
-    skip_ok: bool = False,
-):
-    result = transform_sample(sample, pipeline)
-    if is_empty_transform_dataset(result):
-        return
-    result_resolved = {
-        posixpath.join(group_index, k): result[k] for k in result.tensors
-    }
-    result = result_resolved  # type: ignore
-    result_keys = set(result.keys())
+def store_data_slice_with_pbar(pg_callback, transform_input: Tuple) -> Dict:
+    data_slice, offset, output_storage, inp = transform_input
+    (
+        group_index,
+        tensors,
+        visible_tensors,
+        label_temp_tensors,
+        pipeline,
+        version_state,
+        link_creds,
+        skip_ok,
+        extend_only,
+        cache_size,
+        ignore_errors,
+    ) = inp
+    all_chunk_engines = create_worker_chunk_engines(
+        tensors, label_temp_tensors, output_storage, version_state, link_creds
+    )
 
-    # compare with actual tensors if there are temporary tensors
-    actual_tensors = actual_tensors or tensors
-    if skip_ok:
-        if not result_keys.issubset(actual_tensors):
-            raise TensorMismatchError(list(actual_tensors), list(result_keys), skip_ok)
-    elif set(result_keys) != set(actual_tensors):
-        raise TensorMismatchError(list(actual_tensors), list(result_keys), skip_ok)
+    if isinstance(data_slice, deeplake.Dataset):
+        data_slice = add_cache_to_dataset_slice(data_slice, tensors)
 
-    for tensor, value in result.items():
-        chunk_engine = all_chunk_engines[label_temp_tensors.get(tensor) or tensor]
-        callback = chunk_engine._transform_callback
-        if value._numpy_only:
-            for batch in value.numpy_compressed():
-                chunk_engine.extend(batch, link_callback=callback)
-        else:
-            chunk_engine.extend(value.numpy_compressed(), link_callback=callback)
-        value.items.clear()
+    rel_tensors = [posixpath.relpath(tensor, group_index) for tensor in visible_tensors]
 
+    transform_dataset = TransformDataset(
+        rel_tensors,
+        all_chunk_engines,
+        group_index,
+        label_temp_tensors,
+        cache_size=cache_size,
+    )
 
-def normalize_pg(pg_callback, num_tensors):
-    def inner(num_samples):
-        return pg_callback(num_samples / num_tensors)
-
-    return inner
-
-
-def extend_data_slice(
-    data_slice,
-    pipeline,
-    all_chunk_engines,
-    group_index: str,
-    pg_callback,
-):
-    transform_fn = pipeline.functions[0]
-    extend_fn, args, kwargs = transform_fn.func, transform_fn.args, transform_fn.kwargs
-    result = TransformDataset()
-    extend_fn(data_slice, result, *args, **kwargs)
-    result_resolved = {
-        posixpath.join(group_index, k): result[k] for k in result.tensors
-    }
-    result = result_resolved  # type: ignore
-
-    if pg_callback is not None:
-        pg_callback = normalize_pg(pg_callback, len(result))
-
-    for tensor, value in result.items():
-        chunk_engine = all_chunk_engines[tensor]
-        callback = chunk_engine._transform_callback
-        if value._numpy_only:
-            for batch in value.numpy_compressed():
-                chunk_engine.extend(
-                    batch, link_callback=callback, pg_callback=pg_callback
-                )
-        else:
-            chunk_engine.extend(
-                value.numpy_compressed(),
-                link_callback=callback,
-                pg_callback=pg_callback,
+    ret = True
+    err = None
+    try:
+        if extend_only:
+            _extend_data_slice(
+                data_slice,
+                offset,
+                transform_dataset,
+                pipeline.functions[0],
+                pg_callback,
             )
-        value.items.clear()
-
-
-def transform_data_slice_and_append(
-    data_slice,
-    pipeline,
-    tensors: List[str],
-    label_temp_tensors: Dict[str, str],
-    actual_tensors: Optional[List[str]],
-    all_chunk_engines: Dict[str, ChunkEngine],
-    group_index: str,
-    pg_callback=None,
-    skip_ok=False,
-) -> None:
-    """Transforms the data_slice with the pipeline and adds the resultant samples to chunk_engines."""
-    n = len(data_slice)
-    last_reported_time = time.time()
-    last_reported_num_samples = 0
-    for i, sample in enumerate(
-        (data_slice[i : i + 1] for i in range(n))
-        if pd and isinstance(data_slice, pd.DataFrame)
-        else data_slice
-    ):
-        _transform_sample_and_update_chunk_engines(
-            sample,
-            pipeline,
-            tensors,
-            label_temp_tensors,
-            actual_tensors,
-            all_chunk_engines,
-            group_index,
-            skip_ok,
-        )
-        if pg_callback is not None:
-            curr_time = time.time()
-            if (
-                curr_time - last_reported_time > TRANSFORM_PROGRESSBAR_UPDATE_INTERVAL
-                or i == n - 1
-            ):
-                num_samples = i + 1
-                pg_callback(num_samples - last_reported_num_samples)
-                last_reported_num_samples = num_samples
-                last_reported_time = curr_time
+        else:
+            ret = _transform_and_append_data_slice(
+                data_slice,
+                offset,
+                transform_dataset,
+                pipeline,
+                rel_tensors,
+                skip_ok,
+                pg_callback,
+                ignore_errors,
+            )
+    except Exception as e:
+        print(e)
+        transform_dataset.flush()
+        err = e
+    finally:
+        # retrieve relevant objects from memory
+        meta = _retrieve_memory_objects(all_chunk_engines)
+        meta["all_samples_skipped"] = not ret
+        meta["error"] = err
+        return meta
 
 
 def create_worker_chunk_engines(
@@ -320,15 +378,20 @@ def create_worker_chunk_engines(
     """
     all_chunk_engines: Dict[str, ChunkEngine] = {}
     num_tries = 1000
+    storage_cache = LRUCache(
+        MemoryProvider(), output_storage, TRANSFORM_CHUNK_CACHE_SIZE
+    )
+    storage_cache.autoflush = False
+    # TODO: replace this with simply a MemoryProvider once we get rid of cachable
+    memory_cache = LRUCache(
+        MemoryProvider(),
+        MemoryProvider(),
+        64 * MB,
+    )
+    memory_cache.autoflush = False
     for tensor in tensors:
         for i in range(num_tries):
             try:
-                # TODO: replace this with simply a MemoryProvider once we get rid of cachable
-                memory_cache = LRUCache(MemoryProvider(), MemoryProvider(), 64 * MB)
-                memory_cache.autoflush = False
-                storage_cache = LRUCache(MemoryProvider(), output_storage, 64 * MB)
-                storage_cache.autoflush = False
-
                 # this chunk engine is used to retrieve actual tensor meta and chunk_size
                 storage_chunk_engine = ChunkEngine(tensor, storage_cache, version_state)
                 existing_meta = storage_chunk_engine.tensor_meta
@@ -466,8 +529,24 @@ def get_pbar_description(compute_functions: List):
 
 def create_slices(data_in, num_workers):
     size = math.ceil(len(data_in) / num_workers)
-    ret = [data_in[i * size : (i + 1) * size] for i in range(num_workers)]
-    return ret
+
+    if isinstance(data_in, Tensor):
+        ret = [
+            Tensor(data_in.key, data_in.dataset)[i * size : (i + 1) * size]
+            for i in range(num_workers)
+        ]
+    else:
+        ret = [data_in[i * size : (i + 1) * size] for i in range(num_workers)]
+
+    if isinstance(data_in, deeplake.Dataset):
+        for ds in ret:
+            ds.version_state["full_tensors"] = {}
+            _tensors = ds.version_state["full_tensors"]
+            for tensor_key in data_in.version_state["tensor_names"].values():
+                _tensors[tensor_key] = Tensor(tensor_key, ds)
+
+    offsets = list(range(0, len(data_in), size))
+    return ret, offsets
 
 
 def get_old_chunk_paths(target_ds, generated_tensors, overwrite):
@@ -500,7 +579,7 @@ def get_lengths_generated(all_tensor_metas, tensors):
 
 
 def check_lengths(all_tensors_generated_length, skip_ok):
-    if not skip_ok:
+    if skip_ok:
         return
 
     first_length = None
@@ -524,6 +603,8 @@ def sanitize_workers_scheduler(num_workers, scheduler):
 
 
 def process_transform_result(result: List[Dict]):
+    if all(res.get("all_samples_skipped") for res in result):
+        raise AllSamplesSkippedError
     if not result:
         return result
     final = defaultdict(list)
@@ -532,3 +613,104 @@ def process_transform_result(result: List[Dict]):
         for key in keys:
             final[key].append(item[key])
     return final
+
+
+def rechunk_if_necessary(ds):
+    with ds:
+        for tensor in ds.tensors:
+            try:
+                tensor = ds[tensor]
+            # temp tensors
+            except TensorDoesNotExistError:
+                continue
+            if not tensor.meta.sample_compression and not tensor.meta.chunk_compression:
+                engine = tensor.chunk_engine
+                num_chunks = engine.num_chunks
+                if num_chunks > 1:
+                    max_shape = tensor.meta.max_shape
+                    if len(max_shape) > 0:
+                        avg_chunk_size = engine.get_avg_chunk_size()
+                        if (
+                            avg_chunk_size is not None
+                            and avg_chunk_size
+                            < TRANSFORM_RECHUNK_AVG_SIZE_BOUND * engine.min_chunk_size
+                        ):
+                            enc = tensor.chunk_engine.chunk_id_encoder
+                            row = 0
+                            while row < len(enc._encoded) - 1:
+                                encoded = enc._encoded
+                                chunk_id = encoded[row, 0]
+                                chunk = engine.get_chunk_from_chunk_id(chunk_id)
+                                engine._check_rechunk(chunk, row)
+                                # np.delete will replace enc._encoded with new array
+                                # so this check works
+                                rechunked = len(encoded) != len(enc._encoded)
+                                if not rechunked:
+                                    row += 1
+
+
+def close_states(compute_provider, pbar, pqueue):
+    compute_provider.close()
+    if pbar and hasattr(pbar, "close"):
+        pbar.close()
+    if pqueue and hasattr(pqueue, "close"):
+        pqueue.close()
+
+
+def reload_and_rechunk(
+    overwrite,
+    original_data_in,
+    target_ds,
+    initial_autoflush,
+    pad_data_in,
+    initial_padding_state,
+    kwargs,
+    completed=True,
+):
+    if overwrite:
+        original_data_in.storage.clear_cache_without_flush()
+        load_meta(original_data_in)
+        if pad_data_in and not initial_padding_state:
+            original_data_in._disable_padding()
+        if completed and not kwargs.get("disable_rechunk"):
+            rechunk_if_necessary(original_data_in)
+    else:
+        load_meta(target_ds)
+        if completed:
+            target_ds.storage.autoflush = initial_autoflush
+            if not kwargs.get("disable_rechunk"):
+                rechunk_if_necessary(target_ds)
+
+
+def check_checkpoint_interval(data_in, checkpoint_interval, num_workers, overwrite):
+    if num_workers > 0 and checkpoint_interval % num_workers != 0:
+        raise ValueError(
+            "checkpoint_interval should be a multiple of num_workers if num_workers > 0"
+        )
+    if checkpoint_interval > len(data_in):
+        raise ValueError(
+            "checkpoint_interval should be less than or equal to the length of data_in"
+        )
+    if checkpoint_interval < len(data_in) / 10:
+        warnings.warn(
+            "checkpoint_interval is less than 10% of the length of data_in, this can lead to too many commits, consider increasing checkpoint_interval."
+        )
+    if overwrite:
+        raise ValueError(
+            "checkpoint_interval > 0 and ds_out is None. Cannot checkpoint during inplace transform."
+        )
+
+
+def prepare_data_in(data_in, pad_data_in, overwrite):
+    initial_padding_state = None
+    original_data_in = data_in
+    if isinstance(data_in, deeplake.Dataset):
+        try_flushing(data_in)
+        if overwrite:
+            auto_checkout(data_in)
+        original_data_in = data_in
+        data_in = get_dataset_with_zero_size_cache(data_in)
+        if pad_data_in:
+            initial_padding_state = data_in._pad_tensors
+            data_in._enable_padding()
+    return data_in, original_data_in, initial_padding_state

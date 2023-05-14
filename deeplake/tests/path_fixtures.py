@@ -58,6 +58,22 @@ def _repo_name_from_git_url(url):
     return repo_name
 
 
+def _git_clone_with_branch(branch_name, url):
+    _repo_name = _repo_name_from_git_url(url)
+    cached_dir = _GIT_CLONE_CACHE_DIR + "/" + _repo_name
+    if not os.path.isdir(cached_dir):
+        if not os.path.isdir(_GIT_CLONE_CACHE_DIR):
+            os.mkdir(_GIT_CLONE_CACHE_DIR)
+        cwd = os.getcwd()
+        os.chdir(_GIT_CLONE_CACHE_DIR)
+        try:
+            os.system(f"git clone -b {branch_name} {url}")
+        finally:
+            os.chdir(cwd)
+    assert os.path.isdir(cached_dir)
+    return cached_dir
+
+
 def _git_clone(url):
     _repo_name = _repo_name_from_git_url(url)
     cached_dir = _GIT_CLONE_CACHE_DIR + "/" + _repo_name
@@ -112,6 +128,16 @@ def _download_hub_test_yolo_data():
     }
 
 
+def _download_hub_test_dataframe_data():
+    path = _git_clone(_HUB_TEST_RESOURCES_URL)
+    return {
+        "basic_dataframe_w_sanitize_path": path + "/dataframe/text_w_sanitization.txt",
+        "dataframe_w_images_path": path + "/dataframe/csv_w_local_files.csv",
+        "dataframe_w_bad_images_path": path + "/dataframe/csv_w_local_bad_file.csv",
+        "images_basepath": path + "/dataframe/images",
+    }
+
+
 def _download_pil_test_images(ext=[".jpg", ".png"]):
     paths = {e: [] for e in ext}
     corrupt_file_keys = [
@@ -127,7 +153,7 @@ def _download_pil_test_images(ext=[".jpg", ".png"]):
         path + x
         for x in [
             "/Tests/images",
-            "/Tests/images/apng",
+            # "/Tests/images/apng",
             "/Tests/images/imagedraw",
         ]
     ]
@@ -375,6 +401,14 @@ def flower_path():
 
 
 @pytest.fixture
+def hopper_gray_path():
+    """Path to a grayscale hopper image in the dummy data folder. Expected shape: (512, 512)"""
+
+    path = get_dummy_data_path("images")
+    return os.path.join(path, "hopper_gray.jpg")
+
+
+@pytest.fixture
 def color_image_paths():
     base = get_dummy_data_path("images")
     paths = {
@@ -394,7 +428,7 @@ def grayscale_image_paths():
 
 @pytest.fixture(scope="session")
 def mmdet_path():
-    return _git_clone(_MMDET_URL)
+    return _git_clone_with_branch("dev-2.x", _MMDET_URL)
 
 
 @pytest.fixture(scope="session")
@@ -530,3 +564,8 @@ def coco_ingestion_data():
 @pytest.fixture(scope="session")
 def yolo_ingestion_data():
     return _download_hub_test_yolo_data()
+
+
+@pytest.fixture(scope="session")
+def dataframe_ingestion_data():
+    return _download_hub_test_dataframe_data()

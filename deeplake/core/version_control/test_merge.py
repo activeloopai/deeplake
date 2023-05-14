@@ -2,7 +2,8 @@ import numpy as np
 import pytest
 import deeplake
 
-from deeplake.util.testing import assert_array_equal
+from deeplake.util.testing import assert_array_equal, compare_version_info
+from deeplake.util.version_control import rebuild_version_info
 from deeplake.util.exceptions import (
     MergeConflictError,
     MergeMismatchError,
@@ -602,3 +603,39 @@ def test_get_required_chunks(memory_ds):
     assert get_chunks(abc, 1, 6) == ((1, 3), (1, 2), None)
     assert get_chunks(abc, 1, 5) == ((1, 2), (1, 2), (4, 5))
     assert get_chunks(abc, 0, 6) == ((0, 3), None, None)
+
+
+def test_merge_with_padding(memory_ds):
+    with memory_ds as ds:
+        ds.create_tensor("x")
+        cid = ds.commit()
+        ds.checkout("branch1", create=True)
+        ds.x[100] = 2
+        for i in range(0, 100):
+            assert ds.x.chunk_engine.pad_encoder.is_padded(i), i
+        ds.x[200] = 3
+        ds.x[300] = 4
+        ds.checkout(cid)
+        ds.checkout("branch2", create=True)
+        ds.x[150] = 10
+        ds.x[250] = 20
+        ds.x[350] = 30
+        ds.checkout("branch1")
+        ds.merge("branch2")
+        assert len(ds.x) == 304
+
+
+def test_merge_with_pop(memory_ds):
+    with memory_ds as ds:
+        ds.create_tensor("x")
+        ds.x.extend([1, 2, 3, 4, 5])
+        cid = ds.commit()
+        ds.checkout("branch1", create=True)
+        ds.pop(2)
+        ds.checkout(cid)
+        ds.checkout("branch2", create=True)
+        ds.pop(3)
+        ds.x.append(6)
+        ds.checkout("branch1")
+        ds.merge("branch2")
+        np.testing.assert_array_equal(ds.x.numpy().flatten(), [1, 2, 4, 5, 6])

@@ -28,7 +28,9 @@ def merge_link_creds(
     new_keys = current_link_creds.creds_keys[num_common_keys:]
     current_link_creds.creds_keys = old_link_creds.creds_keys
     current_link_creds.creds_mapping = old_link_creds.creds_mapping
-    current_link_creds.managed_creds_keys = old_link_creds.managed_creds_keys
+    current_link_creds.managed_creds_keys = old_link_creds.managed_creds_keys.union(
+        current_link_creds.managed_creds_keys
+    )
     current_link_creds.used_creds_keys = old_link_creds.used_creds_keys.union(
         current_link_creds.used_creds_keys
     )
@@ -59,7 +61,7 @@ def save_link_creds(
     """Saves the linked creds info to storage."""
     storage = get_base_storage(storage)
     lock = Lock(storage, get_dataset_linked_creds_lock_key())
-    lock.acquire(timeout=10, force=True)
+    lock.acquire(timeout=10)
     key = get_dataset_linked_creds_key()
     try:
         data_bytes = storage[key]

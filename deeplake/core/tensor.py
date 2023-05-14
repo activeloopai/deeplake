@@ -406,7 +406,6 @@ class Tensor:
     def clear(self):
         """Deletes all samples from the tensor"""
         self.chunk_engine.clear()
-        sample_id_key = get_sample_id_tensor_key(self.key)
         try:
             for t in self._all_tensor_links():
                 t.chunk_engine.clear()
@@ -475,10 +474,14 @@ class Tensor:
         )
         shape: Tuple[Optional[int], ...]
         shape = self.chunk_engine.shape(
-            self.index, sample_shape_provider=sample_shape_provider
+            self.index,
+            sample_shape_provider=sample_shape_provider,
+            pad_tensor=self.pad_tensor,
         )
-        if not shape and self.meta.max_shape:
-            shape = (0,) * len(self.meta.max_shape)
+
+        if len(self.index.values) == 1 and not self.index.values[0].subscriptable():
+            if np.sum(shape) == 0 and self.meta.max_shape:  # type: ignore
+                shape = (0,) * len(self.meta.max_shape)
         if self.meta.max_shape == [0, 0, 0]:
             shape = ()
         return shape
@@ -569,7 +572,7 @@ class Tensor:
         Note:
             If you are expecting a tuple, use :attr:`shape` instead.
         """
-        return self.chunk_engine.shape_interval
+        return self.chunk_engine.shape_interval(self.index)
 
     @property
     def is_dynamic(self) -> bool:
@@ -581,9 +584,7 @@ class Tensor:
         """Returns the length of the primary axis of the tensor.
         Ignores any applied indexing and returns the total length.
         """
-        if self.is_sequence:
-            return self.chunk_engine._sequence_length
-        return self.chunk_engine.num_samples
+        return self.chunk_engine.tensor_length
 
     def __len__(self):
         """Returns the length of the primary axis of the tensor.
@@ -967,7 +968,10 @@ class Tensor:
         if self.index.values[0].subscriptable() or len(self.index.values) > 1:
             raise ValueError("tobytes() can be used only on exactly 1 sample.")
         idx = self.index.values[0].value
-        ret = self.chunk_engine.read_bytes_for_sample(idx)  # type: ignore
+        if self.pad_tensor and idx >= self.num_samples:  # type: ignore
+            ret = self.chunk_engine.get_empty_sample().tobytes()
+        else:
+            ret = self.chunk_engine.read_bytes_for_sample(idx)  # type: ignore
         dataset_read(self.dataset)
         return ret
 
@@ -1039,9 +1043,43 @@ class Tensor:
                     else:
                         val = cast_to_type(val, tensor.dtype)
                         tensor[global_sample_index] = val
-        # if self.meta.is_link and not has_shape_tensor:
-        #     func = get_link_transform("update_shape")
-        #     func(new_sample, link_creds=self.link_creds, tensor_meta=self.meta)
+
+    @invalid_view_op
+    def pop(self, index: Optional[int] = None):
+        """Removes an element at the given index."""
+        sample_id_tensor = self._sample_id_tensor
+        if index is None:
+            index = self.num_samples - 1
+        sample_id = int(sample_id_tensor[index].numpy()) if sample_id_tensor else None
+        self.chunk_engine.pop(
+            index,
+            link_callback=self._pop_links if self.meta.links else None,
+            sample_id=sample_id,
+        )
+        self.invalidate_libdeeplake_dataset()
+
+    def _pop_links(self, global_sample_index: int):
+        # meta.links contain tensor keys not names
+        rev_tensor_names = {v: k for k, v in self.dataset.meta.tensor_names.items()}
+
+        if self.meta.is_sequence:
+            flat_links: List[str] = []
+            links: List[str] = []
+            for link, props in self.meta.links.items():
+                (flat_links if props["flatten_sequence"] else links).append(link)
+
+            if flat_links:
+                seq_enc = self.chunk_engine.sequence_encoder
+                for link in flat_links:
+                    link_tensor = self.dataset[rev_tensor_names.get(link)]
+                    for idx in reversed(range(*seq_enc[global_sample_index])):
+                        link_tensor.pop(idx)
+        else:
+            links = list(self.meta.links.keys())
+        [
+            self.dataset[rev_tensor_names.get(link)].pop(global_sample_index)
+            for link in links
+        ]
 
     def _all_tensor_links(self):
         ds = self.dataset
@@ -1147,7 +1185,7 @@ class Tensor:
 
     def _get_video_stream_url(self):
         if self.is_link:
-            return self.chunk_engine.get_video_url(self.index.values[0].value)
+            return self.chunk_engine.get_video_url(self.index.values[0].value)[0]
 
         from deeplake.visualizer.video_streaming import get_video_stream_url
 
@@ -1187,15 +1225,6 @@ class Tensor:
         else:
             webbrowser.open(self._get_video_stream_url())
 
-    @invalid_view_op
-    def pop(self, index: Optional[int] = None):
-        """Removes an element at the given index."""
-        if index is None:
-            index = self.num_samples - 1
-        self.chunk_engine.pop(index)
-        [self.dataset[link].pop(index) for link in self.meta.links]
-        self.invalidate_libdeeplake_dataset()
-
     @property
     def timestamps(self) -> np.ndarray:
         """Returns timestamps (in seconds) for video sample as numpy array.
@@ -1227,7 +1256,7 @@ class Tensor:
             sub_index = index.values[1].value if len(index.values) > 1 else None
         global_sample_index = next(index.values[0].indices(self.num_samples))
         if self.is_link:
-            sample = self.chunk_engine.get_video_url(global_sample_index)  # type: ignore
+            sample = self.chunk_engine.get_video_url(global_sample_index)[0]  # type: ignore
         else:
             sample = self.chunk_engine.get_video_sample(
                 global_sample_index, index, decompress=False
@@ -1291,6 +1320,15 @@ class Tensor:
             raise Exception(f"Only supported for linked tensors.")
         assert isinstance(self.chunk_engine, LinkedChunkEngine)
         return self.chunk_engine.path(self.index, fetch_chunks=fetch_chunks)
+
+    def creds_key(self):
+        """Return path data. Only applicable for linked tensors"""
+        if not self.is_link:
+            raise Exception(f"Only supported for linked tensors.")
+        if self.index.values[0].subscriptable() or len(self.index.values) > 1:
+            raise ValueError("_linked_sample can be used only on exatcly 1 sample.")
+        assert isinstance(self.chunk_engine, LinkedChunkEngine)
+        return self.chunk_engine.creds_key(self.index.values[0].value)
 
     def invalidate_libdeeplake_dataset(self):
         """Invalidates the libdeeplake dataset object."""

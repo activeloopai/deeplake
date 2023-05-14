@@ -1,9 +1,11 @@
 import pathlib
-from typing import Union, Set
+from typing import Dict, Set
 from deeplake.core.dataset import Dataset
 import posixpath
 import deeplake
+from typing import Optional
 from tqdm import tqdm  # type: ignore
+from deeplake.util.bugout_reporter import feature_report_path, deeplake_reporter
 
 
 def _is_seq_convertible(seq):
@@ -68,6 +70,9 @@ def ingest_huggingface(
     src,
     dest,
     use_progressbar=True,
+    token: Optional[str] = None,
+    connect_kwargs: Optional[Dict] = None,
+    **dataset_kwargs,
 ) -> Dataset:
     """Converts Hugging Face datasets to Deep Lake format.
 
@@ -76,9 +81,15 @@ def ingest_huggingface(
             DatasetDict will be stored under respective tensor groups.
         dest (Dataset, str, pathlib.Path): Destination dataset or path to it.
         use_progressbar (bool): Defines if progress bar should be used to show conversion progress.
+        token (Optional[str]): The token to use for accessing the dataset and/or connecting it to Deep Lake.
+        connect_kwargs (Optional[Dict]): If specified, the dataset will be connected to Deep Lake, and connect_kwargs will be passed to :meth:`Dataset.connect <deeplake.core.dataset.Dataset.connect>`.
+        **dataset_kwargs: Any arguments passed here will be forwarded to the dataset creator function. See :func:`deeplake.empty`.
 
     Returns:
         Dataset: The destination Deep Lake dataset.
+
+    Raises:
+        ValueError: If ``dest`` is not a path or a Deep Lake :class:`Dataset <deeplake.core.dataset.Dataset>`.
 
     Note:
         - if DatasetDict looks like:
@@ -100,12 +111,31 @@ def ingest_huggingface(
         Features of the type ``Sequence(feature=Value(dtype='string'))`` are not supported. Columns of such type are skipped.
 
     """
+
+    feature_report_path(
+        dest,
+        "ingest_huggingface",
+        parameters={},
+        token=token,
+    )
+
     from datasets import DatasetDict
 
     if isinstance(dest, (str, pathlib.Path)):
-        ds = deeplake.dataset(dest)
+        ds = deeplake.empty(dest, token=token, **dataset_kwargs)
+    elif isinstance(dest, Dataset):
+        if dataset_kwargs.get("overwrite"):
+            ds = deeplake.empty(dest.path, token=token, **dataset_kwargs)
+        else:
+            ds = dest  # type: ignore
     else:
-        ds = dest  # type: ignore
+        raise ValueError(
+            f"Expected `dest` to be a path or deeplake Dataset object, got {type(dest)}."
+        )
+
+    if connect_kwargs is not None:
+        connect_kwargs["token"] = token or connect_kwargs.get("token")
+        ds.connect(**connect_kwargs)
 
     if isinstance(src, DatasetDict):
         for split, src_ds in src.items():

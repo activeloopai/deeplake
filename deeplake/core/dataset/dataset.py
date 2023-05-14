@@ -9,7 +9,7 @@ from functools import partial
 
 import pathlib
 import numpy as np
-from time import time
+from time import time, sleep
 from tqdm import tqdm  # type: ignore
 
 import deeplake
@@ -17,7 +17,14 @@ from deeplake.core.index.index import IndexEntry
 from deeplake.core.link_creds import LinkCreds
 from deeplake.util.connect_dataset import connect_dataset_entry
 from deeplake.util.downsample import validate_downsampling
+from deeplake.util.version_control import (
+    save_version_info,
+    integrity_check,
+    save_commit_info,
+    rebuild_version_info,
+)
 from deeplake.util.invalid_view_op import invalid_view_op
+from deeplake.util.spinner import spinner
 from deeplake.util.iteration_warning import (
     suppress_iteration_warning,
     check_if_iteration,
@@ -25,6 +32,7 @@ from deeplake.util.iteration_warning import (
 from deeplake.api.info import load_info
 from deeplake.client.log import logger
 from deeplake.client.utils import get_user_name
+from deeplake.client.client import DeepLakeBackendClient
 from deeplake.constants import (
     FIRST_COMMIT_ID,
     DEFAULT_MEMORY_CACHE_SIZE,
@@ -32,6 +40,7 @@ from deeplake.constants import (
     MB,
     SAMPLE_INFO_TENSOR_MAX_CHUNK_SIZE,
     DEFAULT_READONLY,
+    ENV_HUB_DEV_USERNAME,
 )
 from deeplake.core.fast_forwarding import ffw_dataset_meta
 from deeplake.core.index import Index
@@ -42,6 +51,7 @@ from deeplake.core.storage import (
     S3Provider,
     GCSProvider,
     MemoryProvider,
+    LocalProvider,
 )
 from deeplake.core.tensor import Tensor, create_tensor, delete_tensor
 from deeplake.core.version_control.commit_node import CommitNode  # type: ignore
@@ -82,12 +92,13 @@ from deeplake.util.exceptions import (
     RenameError,
     EmptyCommitError,
     DatasetViewSavingError,
-    DatasetHandlerError,
     SampleAppendingError,
     DatasetTooLargeToDelete,
     TensorTooLargeToDelete,
     GroupInfoNotSupportedError,
     TokenPermissionError,
+    CheckoutError,
+    DatasetCorruptError,
 )
 from deeplake.util.keys import (
     dataset_exists,
@@ -101,14 +112,6 @@ from deeplake.util.keys import (
     get_sample_shape_tensor_key,
     get_downsampled_tensor_key,
     filter_name,
-    get_tensor_meta_key,
-    get_tensor_commit_diff_key,
-    get_tensor_tile_encoder_key,
-    get_tensor_info_key,
-    get_tensor_commit_chunk_map_key,
-    get_chunk_id_encoder_key,
-    get_dataset_diff_key,
-    get_sequence_encoder_key,
     get_dataset_linked_creds_key,
 )
 from deeplake.util.path import get_path_from_storage
@@ -122,10 +125,9 @@ from deeplake.util.version_control import (
     load_meta,
     warn_node_checkout,
     load_version_info,
-    copy_metas,
-    create_commit_chunk_maps,
     save_version_info,
-    generate_hash,
+    replace_head,
+    reset_and_checkout,
 )
 from deeplake.util.pretty_print import summary_dataset
 from deeplake.core.dataset.view_entry import ViewEntry
@@ -136,7 +138,7 @@ import warnings
 import jwt
 
 
-_LOCKABLE_STORAGES = {S3Provider, GCSProvider}
+_LOCKABLE_STORAGES = {S3Provider, GCSProvider, LocalProvider}
 
 
 class Dataset:
@@ -152,6 +154,7 @@ class Dataset:
         verbose: bool = True,
         version_state: Optional[Dict[str, Any]] = None,
         path: Optional[Union[str, pathlib.Path]] = None,
+        address: Optional[str] = None,
         is_iteration: bool = False,
         link_creds=None,
         pad_tensors: bool = False,
@@ -175,6 +178,7 @@ class Dataset:
             verbose (bool): If ``True``, logs will be printed. Defaults to True.
             version_state (Dict[str, Any], Optional): The version state of the dataset, includes commit_id, commit_node, branch, branch_commit_map and commit_node_map.
             path (str, pathlib.Path): The path to the dataset.
+            address (Optional[str]): The version address of the dataset.
             is_iteration (bool): If this Dataset is being used as an iterator.
             link_creds (LinkCreds, Optional): The LinkCreds object used to access tensors that have external data linked to them.
             pad_tensors (bool): If ``True``, shorter tensors will be padded to the length of the longest tensor.
@@ -229,11 +233,12 @@ class Dataset:
         d["_pad_tensors"] = pad_tensors
         d["_locking_enabled"] = lock
         d["_temp_tensors"] = []
+        d["_vc_info_updated"] = True
         dct = self.__dict__
         dct.update(d)
 
         try:
-            self._set_derived_attributes()
+            self._set_derived_attributes(address=address)
         except LockedException:
             raise LockedException(
                 "This dataset cannot be open for writing as it is locked by another machine. Try loading the dataset with `read_only=True`."
@@ -255,7 +260,7 @@ class Dataset:
 
         if not self.read_only:
             for temp_tensor in self._temp_tensors:
-                self.delete_tensor(temp_tensor, large_ok=True)
+                self._delete_tensor(temp_tensor, large_ok=True)
             self._temp_tensors = []
 
     def _lock_lost_handler(self):
@@ -273,9 +278,19 @@ class Dataset:
         return self
 
     def __exit__(self, exc_type, exc_val, exc_tb):
-        self.storage.autoflush = self._initial_autoflush.pop()
+        autoflush = self._initial_autoflush.pop()
+        if not self._read_only and autoflush:
+            if self._vc_info_updated:
+                self._flush_vc_info()
+            spinner(self.storage.flush)()
+        self.storage.autoflush = autoflush
+
+    def maybe_flush(self):
         if not self._read_only:
-            self.storage.maybe_flush()
+            if self.storage.autoflush:
+                if self._vc_info_updated:
+                    self._flush_vc_info()
+                self.storage.flush()
 
     @property
     def num_samples(self) -> int:
@@ -382,16 +397,14 @@ class Dataset:
         state["_client"] = state["org_id"] = state["ds_name"] = None
         state["_temp_tensors"] = []
         state["libdeeplake_dataset"] = None
+        state["_vc_info_updated"] = False
+        state["_locked_out"] = False
         self.__dict__.update(state)
         self.__dict__["base_storage"] = get_base_storage(self.storage)
         # clear cache while restoring
         self.storage.clear_cache_without_flush()
         self._set_derived_attributes(verbose=False)
         self._indexing_history = []
-
-        for temp_tensor in self._temp_tensors:
-            self.delete_tensor(temp_tensor, large_ok=True)
-        self._temp_tensors = []
 
     def _reload_version_state(self):
         version_state = self.version_state
@@ -476,6 +489,7 @@ class Dataset:
                     verbose=False,
                     version_state=self.version_state,
                     path=self.path,
+                    is_iteration=is_iteration,
                     link_creds=self.link_creds,
                     pad_tensors=self._pad_tensors,
                     enabled_tensors=self.enabled_tensors,
@@ -507,6 +521,10 @@ class Dataset:
                     )
                     for x in item
                 ]
+                for x in enabled_tensors:
+                    enabled_tensors.extend(
+                        self[posixpath.relpath(x, self.group_index)].meta.links.keys()
+                    )
                 ret = self.__class__(
                     storage=self.storage,
                     index=self.index,
@@ -558,7 +576,6 @@ class Dataset:
         return ret
 
     @invalid_view_op
-    @deeplake_reporter.record_call
     def create_tensor(
         self,
         name: str,
@@ -629,6 +646,53 @@ class Dataset:
             TensorMetaInvalidHtype: If invalid htype is specified.
             ValueError: If an illegal argument is specified.
         """
+
+        deeplake_reporter.feature_report(
+            feature_name="create_tensor",
+            parameters={
+                "name": name,
+                "htype": htype,
+                "dtype": dtype,
+                "sample_compression": sample_compression,
+                "chunk_compression": chunk_compression,
+            },
+        )
+
+        return self._create_tensor(
+            name,
+            htype,
+            dtype,
+            sample_compression,
+            chunk_compression,
+            hidden,
+            create_sample_info_tensor,
+            create_shape_tensor,
+            create_id_tensor,
+            verify,
+            exist_ok,
+            verbose,
+            downsampling,
+            **kwargs,
+        )
+
+    @invalid_view_op
+    def _create_tensor(
+        self,
+        name: str,
+        htype: str = UNSPECIFIED,
+        dtype: Union[str, np.dtype] = UNSPECIFIED,
+        sample_compression: str = UNSPECIFIED,
+        chunk_compression: str = UNSPECIFIED,
+        hidden: bool = False,
+        create_sample_info_tensor: bool = True,
+        create_shape_tensor: bool = True,
+        create_id_tensor: bool = True,
+        verify: bool = True,
+        exist_ok: bool = False,
+        verbose: bool = True,
+        downsampling: Optional[Tuple[int, int]] = None,
+        **kwargs,
+    ):
         # if not the head node, checkout to an auto branch that is newly created
         auto_checkout(self)
 
@@ -683,7 +747,7 @@ class Dataset:
         kwargs["verify"] = create_shape_tensor or create_sample_info_tensor or verify
 
         if not self._is_root():
-            return self.root.create_tensor(
+            return self.root._create_tensor(
                 name=key,
                 htype=htype,
                 dtype=dtype,
@@ -785,7 +849,7 @@ class Dataset:
 
     def _create_sample_shape_tensor(self, tensor: str, htype: str):
         shape_tensor = get_sample_shape_tensor_key(tensor)
-        self.create_tensor(
+        self._create_tensor(
             shape_tensor,
             dtype="int64",
             hidden=True,
@@ -810,7 +874,7 @@ class Dataset:
 
     def _create_sample_id_tensor(self, tensor: str):
         id_tensor = get_sample_id_tensor_key(tensor)
-        self.create_tensor(
+        self._create_tensor(
             id_tensor,
             hidden=True,
             create_id_tensor=False,
@@ -826,7 +890,7 @@ class Dataset:
 
     def _create_sample_info_tensor(self, tensor: str):
         sample_info_tensor = get_sample_info_tensor_key(tensor)
-        self.create_tensor(
+        self._create_tensor(
             sample_info_tensor,
             htype="json",
             max_chunk_size=SAMPLE_INFO_TENSOR_MAX_CHUNK_SIZE,
@@ -861,7 +925,7 @@ class Dataset:
             downsampling = (downsampling_factor, number_of_layers - 1)
         meta_kwargs = meta_kwargs.copy()
         meta_kwargs.pop("is_link", None)
-        new_tensor = self.create_tensor(
+        new_tensor = self._create_tensor(
             downsampled_tensor,
             htype=htype,
             dtype=dtype,
@@ -889,7 +953,6 @@ class Dataset:
         self.storage.maybe_flush()
 
     @invalid_view_op
-    @deeplake_reporter.record_call
     def delete_tensor(self, name: str, large_ok: bool = False):
         """Delete a tensor from the dataset.
 
@@ -908,6 +971,16 @@ class Dataset:
             TensorDoesNotExistError: If tensor of name ``name`` does not exist in the dataset.
             TensorTooLargeToDelete: If the tensor is larger than 1 GB and ``large_ok`` is ``False``.
         """
+
+        deeplake_reporter.feature_report(
+            feature_name="delete_tensor",
+            parameters={"name": name, "large_ok": large_ok},
+        )
+
+        return self._delete_tensor(name, large_ok)
+
+    @invalid_view_op
+    def _delete_tensor(self, name: str, large_ok: bool = False):
         auto_checkout(self)
 
         name = filter_name(name, self.group_index)
@@ -920,7 +993,7 @@ class Dataset:
             raise TensorDoesNotExistError(name)
 
         if not self._is_root():
-            return self.root.delete_tensor(name, large_ok)
+            return self.root._delete_tensor(name, large_ok)
 
         if not large_ok:
             chunk_engine = self.version_state["full_tensors"][key].chunk_engine
@@ -953,12 +1026,11 @@ class Dataset:
             if t_key and tensor_exists(
                 t_key, self.storage, self.version_state["commit_id"]
             ):
-                self.delete_tensor(t_name, large_ok=True)
+                self._delete_tensor(t_name, large_ok=True)
 
         self.storage.flush()
 
     @invalid_view_op
-    @deeplake_reporter.record_call
     def delete_group(self, name: str, large_ok: bool = False):
         """Delete a tensor group from the dataset.
 
@@ -975,6 +1047,16 @@ class Dataset:
         Raises:
             TensorGroupDoesNotExistError: If tensor group of name ``name`` does not exist in the dataset.
         """
+
+        deeplake_reporter.feature_report(
+            feature_name="delete_group",
+            parameters={"name": name, "large_ok": large_ok},
+        )
+
+        return self._delete_group(name, large_ok)
+
+    @invalid_view_op
+    def _delete_group(self, name: str, large_ok: bool = False):
         auto_checkout(self)
 
         full_path = filter_name(name, self.group_index)
@@ -983,7 +1065,7 @@ class Dataset:
             raise TensorGroupDoesNotExistError(name)
 
         if not self._is_root():
-            return self.root.delete_group(full_path, large_ok)
+            return self.root._delete_group(full_path, large_ok)
 
         if not large_ok:
             size_approx = self[name].size_approx()
@@ -1014,7 +1096,6 @@ class Dataset:
         self.storage.maybe_flush()
 
     @invalid_view_op
-    @deeplake_reporter.record_call
     def create_tensor_like(
         self, name: str, source: "Tensor", unlink: bool = False
     ) -> "Tensor":
@@ -1032,6 +1113,11 @@ class Dataset:
             Tensor: New Tensor object.
         """
 
+        deeplake_reporter.feature_report(
+            feature_name="create_tensor_like",
+            parameters={"name": name, "unlink": unlink},
+        )
+
         info = source.info.__getstate__().copy()
         meta = source.meta.__getstate__().copy()
         if unlink:
@@ -1043,7 +1129,7 @@ class Dataset:
         del meta["name"]
         del meta["links"]
 
-        destination_tensor = self.create_tensor(
+        destination_tensor = self._create_tensor(
             name,
             verbose=False,
             create_id_tensor=bool(source._sample_id_tensor),
@@ -1082,7 +1168,6 @@ class Dataset:
 
         return tensor
 
-    @deeplake_reporter.record_call
     def rename_tensor(self, name: str, new_name: str) -> "Tensor":
         """Renames tensor with name ``name`` to ``new_name``
 
@@ -1100,6 +1185,11 @@ class Dataset:
             InvalidTensorNameError: If ``new_name`` is in dataset attributes.
             RenameError: If ``new_name`` points to a group different from ``name``.
         """
+        deeplake_reporter.feature_report(
+            feature_name="rename_tensor",
+            parameters={"name": name, "new_name": new_name},
+        )
+
         auto_checkout(self)
 
         if name not in self._tensors():
@@ -1126,7 +1216,6 @@ class Dataset:
         self.storage.maybe_flush()
         return tensor
 
-    @deeplake_reporter.record_call
     def rename_group(self, name: str, new_name: str) -> None:
         """Renames group with name ``name`` to ``new_name``
 
@@ -1141,6 +1230,11 @@ class Dataset:
             InvalidTensorGroupNameError: If ``name`` is in dataset attributes.
             RenameError: If ``new_name`` points to a group different from ``name``.
         """
+
+        deeplake_reporter.feature_report(
+            feature_name="rename_group",
+            parameters={"name": name, "new_name": new_name},
+        )
         auto_checkout(self)
 
         name = filter_name(name, self.group_index)
@@ -1201,21 +1295,47 @@ class Dataset:
                 i, is_iteration=not isinstance(self.index.values[0], list)
             )
 
-    def _load_version_info(self):
+    def _load_version_info(self, address=None):
         """Loads data from version_control_file otherwise assume it doesn't exist and load all empty"""
         if self.version_state:
             return
 
-        branch = "main"
-        version_state = {"branch": branch}
+        if address is None:
+            address = "main"
+
+        version_state = {}
         try:
-            version_info = load_version_info(self.storage)
+            try:
+                version_info = load_version_info(self.storage)
+            except Exception as e:
+                version_info = rebuild_version_info(self.storage)
+                if version_info is None:
+                    raise e
             version_state["branch_commit_map"] = version_info["branch_commit_map"]
             version_state["commit_node_map"] = version_info["commit_node_map"]
-            commit_id = version_state["branch_commit_map"][branch]
+
+            if address in version_state["branch_commit_map"]:
+                branch = address
+                commit_id = version_state["branch_commit_map"][branch]
+            elif address in version_state["commit_node_map"]:
+                commit_id = address
+            else:
+                raise CheckoutError(
+                    f"Address {address} not found. Ensure the commit id / branch name is correct."
+                )
+
             version_state["commit_id"] = commit_id
             version_state["commit_node"] = version_state["commit_node_map"][commit_id]
-        except Exception:
+            version_state["branch"] = version_state["commit_node"].branch
+        except Exception as e:
+            if isinstance(e, CheckoutError):
+                raise e from None
+            if address != "main":
+                raise CheckoutError(
+                    f"Address {address} not found. Ensure the commit id / branch name is correct."
+                )
+            branch = "main"
+            version_state["branch"] = branch
             version_state["branch_commit_map"] = {}
             version_state["commit_node_map"] = {}
             # used to identify that this is the first commit so its data will not be in similar directory structure to the rest
@@ -1246,7 +1366,7 @@ class Dataset:
         self.link_creds = link_creds
 
     def _lock(self, err=False, verbose=True):
-        if not self._locking_enabled:
+        if not self.is_head_node or not self._locking_enabled:
             return True
         storage = self.base_storage
         if storage.read_only and not self._locked_out:
@@ -1257,6 +1377,10 @@ class Dataset:
         if isinstance(storage, tuple(_LOCKABLE_STORAGES)) and (
             not self.read_only or self._locked_out
         ):
+            if not deeplake.constants.LOCK_LOCAL_DATASETS and isinstance(
+                storage, LocalProvider
+            ):
+                return True
             try:
                 # temporarily disable read only on base storage, to try to acquire lock, if exception, it will be again made readonly
                 storage.disable_readonly()
@@ -1301,6 +1425,7 @@ class Dataset:
         except Exception:  # python shutting down
             pass
 
+    @spinner
     @invalid_view_op
     def commit(self, message: Optional[str] = None, allow_empty=False) -> str:
         """Stores a snapshot of the current state of the dataset.
@@ -1320,14 +1445,20 @@ class Dataset:
             - Commiting from a non-head node in any branch, will lead to an automatic checkout to a new branch.
             - This same behaviour will happen if new samples are added or existing samples are updated from a non-head node.
         """
+
+        # do not store commit message
+        deeplake_reporter.feature_report(
+            feature_name="commit", parameters={"allow_empty": allow_empty}
+        )
+
         if not allow_empty and not self.has_head_changes:
             raise EmptyCommitError(
                 "There are no changes, commit is not done. Try again with allow_empty=True."
             )
 
-        return self._commit(message)
+        return self._commit(message, None, False)
 
-    @deeplake_reporter.record_call
+    @spinner
     @invalid_view_op
     @suppress_iteration_warning
     def merge(
@@ -1360,6 +1491,17 @@ class Dataset:
             Exception: if dataset is a filtered view.
             ValueError: if the conflict resolution strategy is not one of the None, "ours", or "theirs".
         """
+
+        deeplake_reporter.feature_report(
+            feature_name="merge",
+            parameters={
+                "target_id": target_id,
+                "conflict_resolution": conflict_resolution,
+                "delete_removed_tensors": delete_removed_tensors,
+                "force": force,
+            },
+        )
+
         if self._is_filtered_view:
             raise Exception(
                 "Cannot perform version control operations on a filtered dataset view."
@@ -1374,12 +1516,16 @@ class Dataset:
 
         self._initial_autoflush.append(self.storage.autoflush)
         self.storage.autoflush = False
-
         merge(self, target_id, conflict_resolution, delete_removed_tensors, force)
-
         self.storage.autoflush = self._initial_autoflush.pop()
+        self.storage.maybe_flush()
 
-    def _commit(self, message: Optional[str] = None, hash: Optional[str] = None) -> str:
+    def _commit(
+        self,
+        message: Optional[str] = None,
+        hash: Optional[str] = None,
+        flush_version_control_info: bool = True,
+    ) -> str:
         if self._is_filtered_view:
             raise Exception(
                 "Cannot perform version control operations on a filtered dataset view."
@@ -1391,30 +1537,37 @@ class Dataset:
         self.storage.autoflush = False
         try:
             self._unlock()
-            commit(self, message, hash)
+            commit(self, message, hash, flush_version_control_info)
+            if not flush_version_control_info:
+                self.__dict__["_vc_info_updated"] = True
             self._lock()
         finally:
             self.storage.autoflush = self._initial_autoflush.pop()
         self._info = None
         self._ds_diff = None
         [f() for f in list(self._commit_hooks.values())]
-        # do not store commit message
-        deeplake_reporter.feature_report(feature_name="commit", parameters={})
-
+        self.maybe_flush()
         return self.commit_id  # type: ignore
 
     @invalid_view_op
-    def checkout(self, address: str, create: bool = False) -> Optional[str]:
+    def checkout(
+        self, address: str, create: bool = False, reset: bool = False
+    ) -> Optional[str]:
         """Checks out to a specific commit_id or branch. If ``create = True``, creates a new branch with name ``address``.
 
         Args:
             address (str): The commit_id or branch to checkout to.
             create (bool): If ``True``, creates a new branch with name as address.
+            reset (bool): If checkout fails due to a corrupted HEAD state of the branch, setting ``reset=True`` will
+                          reset HEAD changes and attempt the checkout again.
 
         Returns:
             Optional[str]: The commit_id of the dataset after checkout.
 
         Raises:
+            CheckoutError: If ``address`` could not be found.
+            ReadOnlyModeError: If branch creation or reset is attempted in read-only mode.
+            DatasetCorruptError: If checkout failed due to dataset corruption and ``reset`` is not ``True``.
             Exception: If the dataset is a filtered view.
 
         Examples:
@@ -1438,59 +1591,81 @@ class Dataset:
         Note:
             Checkout from a head node in any branch that contains uncommitted data will lead to an automatic commit before the checkout.
         """
-        return self._checkout(address, create)
+
+        # do not store address
+        deeplake_reporter.feature_report(
+            feature_name="checkout",
+            parameters={"create": create, "reset": reset},
+        )
+
+        try:
+            ret = self._checkout(address, create, None, False)
+            integrity_check(self)
+            return ret
+        except (ReadOnlyModeError, CheckoutError) as e:
+            raise e from None
+        except Exception as e:
+            if create:
+                raise e
+            if not reset:
+                if isinstance(e, DatasetCorruptError):
+                    raise DatasetCorruptError(
+                        message=e.message,
+                        action="Try using `reset=True` to reset HEAD changes and load the previous commit.",
+                        cause=e.__cause__,
+                    )
+                raise DatasetCorruptError(
+                    "Exception occured (see Traceback). The branch you are checking out to maybe corrupted."
+                    "Try using `reset=True` to reset HEAD changes and load the previous commit."
+                    "This will delete all uncommitted changes on the branch you are trying to load."
+                ) from e
+            if self.read_only:
+                raise ReadOnlyModeError("Cannot reset HEAD in read-only mode.")
+            return reset_and_checkout(self, address, e)
 
     def _checkout(
         self,
         address: str,
         create: bool = False,
         hash: Optional[str] = None,
-        verbose=True,
+        verbose: bool = True,
+        flush_version_control_info: bool = False,
     ) -> Optional[str]:
         if self._is_filtered_view:
             raise Exception(
                 "Cannot perform version control operations on a filtered dataset view."
             )
-        if self._locked_out:
-            self.storage.disable_readonly()
-            self._read_only = False
-            self.base_storage.disable_readonly()
+        read_only = self._read_only
+        if read_only and create:
+            raise ReadOnlyModeError()
         try_flushing(self)
         self._initial_autoflush.append(self.storage.autoflush)
         self.storage.autoflush = False
-        err = False
         try:
             self._unlock()
-            checkout(self, address, create, hash)
-        except Exception as e:
-            err = True
-            if self._locked_out:
-                self.storage.enable_readonly()
-                self._read_only = True
-                self.base_storage.enable_readonly()
-            raise e
+            checkout(self, address, create, hash, flush_version_control_info)
+            if not flush_version_control_info and create:
+                self.__dict__["_vc_info_updated"] = True
         finally:
-            if not (err and self._locked_out):
-                self._lock(verbose=verbose)
+            self._set_read_only(read_only, err=True)
             self.storage.autoflush = self._initial_autoflush.pop()
         self._info = None
         self._ds_diff = None
 
         [f() for f in list(self._checkout_hooks.values())]
 
-        # do not store address
-        deeplake_reporter.feature_report(
-            feature_name="checkout", parameters={"Create": str(create)}
-        )
         commit_node = self.version_state["commit_node"]
         if self.verbose:
             warn_node_checkout(commit_node, create)
-
+        if create:
+            self.maybe_flush()
         return self.commit_id
 
-    @deeplake_reporter.record_call
     def log(self):
         """Displays the details of all the past commits."""
+
+        deeplake_reporter.feature_report(feature_name="log", parameters={})
+
         commit_node = self.version_state["commit_node"]
         print("---------------\nDeep Lake Version Log\n---------------\n")
         print(f"Current Branch: {self.version_state['branch']}")
@@ -1502,7 +1677,6 @@ class Dataset:
                 print(f"{commit_node}\n")
             commit_node = commit_node.parent
 
-    @deeplake_reporter.record_call
     def diff(
         self, id_1: Optional[str] = None, id_2: Optional[str] = None, as_dict=False
     ) -> Optional[Dict]:
@@ -1538,6 +1712,11 @@ class Dataset:
 
             ``None`` is returned if ``as_dict`` is ``False``.
         """
+
+        deeplake_reporter.feature_report(
+            feature_name="diff", parameters={"as_dict": str(as_dict)}
+        )
+
         version_state, storage = self.version_state, self.storage
         res = get_changes_and_messages(version_state, storage, id_1, id_2)
         if as_dict:
@@ -1560,8 +1739,6 @@ class Dataset:
     def _populate_meta(self, verbose=True):
         """Populates the meta information for the dataset."""
         if dataset_exists(self.storage):
-            if verbose and self.verbose:
-                logger.info(f"{self.path} loaded successfully.")
             load_meta(self)
 
         elif not self.storage.empty():
@@ -1580,7 +1757,8 @@ class Dataset:
             self.flush()
 
     def _register_dataset(self):
-        """overridden in DeepLakeCloudDataset"""
+        if not self.__dict__["org_id"]:
+            self.org_id = os.environ.get(ENV_HUB_DEV_USERNAME)
 
     def _send_query_progress(self, *args, **kwargs):
         """overridden in DeepLakeCloudDataset"""
@@ -1624,13 +1802,27 @@ class Dataset:
             self.version_state, self.storage
         )
 
+    def _acquire_lock(self, timeout: Optional[int] = None):
+        if timeout is not None:
+            start_time = time()
+        while True:
+            try:
+                self._set_read_only(False, True)
+                return
+            except LockedException:
+                if timeout is not None and time() - start_time > timeout:
+                    raise LockedException()
+                sleep(1)
+
     def _set_read_only(self, value: bool, err: bool):
         storage = self.storage
         self.__dict__["_read_only"] = value
+
         if value:
             storage.enable_readonly()
             if isinstance(storage, LRUCache) and storage.next_storage is not None:
                 storage.next_storage.enable_readonly()
+            self._unlock()
         else:
             try:
                 locked = self._lock(err=err)
@@ -1645,14 +1837,14 @@ class Dataset:
                     self.__dict__["_read_only"] = True
             except LockedException as e:
                 self.__dict__["_read_only"] = True
-                raise e
+                if err:
+                    raise e
 
     @read_only.setter
     @invalid_view_op
     def read_only(self, value: bool):
         self._set_read_only(value, True)
 
-    @deeplake_reporter.record_call
     def pytorch(
         self,
         transform: Optional[Callable] = None,
@@ -1717,6 +1909,24 @@ class Dataset:
         """
         from deeplake.integrations import dataset_to_pytorch as to_pytorch
 
+        deeplake_reporter.feature_report(
+            feature_name="pytorch",
+            parameters={
+                "tensors": tensors,
+                "num_workers": num_workers,
+                "batch_size": batch_size,
+                "drop_last": drop_last,
+                "pin_memory": pin_memory,
+                "shuffle": shuffle,
+                "buffer_size": buffer_size,
+                "use_local_cache": use_local_cache,
+                "progressbar": progressbar,
+                "return_index": return_index,
+                "pad_tensors": pad_tensors,
+                "decode_method": decode_method,
+            },
+        )
+
         if transform and transform_kwargs:
             transform = partial(transform, **transform_kwargs)
 
@@ -1744,7 +1954,6 @@ class Dataset:
         dataset_read(self)
         return dataloader
 
-    @deeplake_reporter.record_call
     def dataloader(self):
         """Returns a :class:`~deeplake.enterprise.DeepLakeDataLoader` object. To use this, install deeplake with ``pip install deeplake[enterprise]``.
 
@@ -1802,18 +2011,13 @@ class Dataset:
             ...     # custom logic on data
             ...     pass
 
-        **Restrictions**
-
-        The new high performance C++ dataloader is part of our Growth and Enterprise Plan .
-
-        - Users of our Community plan can create dataloaders on Activeloop datasets ("hub://activeloop/..." datasets).
-        - To run queries on your own datasets, `upgrade your organization's plan <https://www.activeloop.ai/pricing/>`_.
         """
         from deeplake.enterprise import dataloader
 
+        deeplake_reporter.feature_report(feature_name="dataloader", parameters={})
+
         return dataloader(self)
 
-    @deeplake_reporter.record_call
     def filter(
         self,
         function: Union[Callable, str],
@@ -1851,6 +2055,16 @@ class Dataset:
         """
         from deeplake.core.query import filter_dataset, query_dataset
 
+        deeplake_reporter.feature_report(
+            feature_name="filter",
+            parameters={
+                "num_workers": num_workers,
+                "scheduler": scheduler,
+                "progressbar": progressbar,
+                "save_result": save_result,
+            },
+        )
+
         fn = query_dataset if isinstance(function, str) else filter_dataset
         ret = fn(
             self,
@@ -1865,7 +2079,7 @@ class Dataset:
         dataset_read(self)
         return ret
 
-    def query(self, query_string: str):
+    def query(self, query_string: str, runtime: Optional[Dict] = None):
         """Returns a sliced :class:`~deeplake.core.dataset.Dataset` with given query results. To use this, install deeplake with ``pip install deeplake[enterprise]``.
 
         It allows to run SQL like queries on dataset and extract results. See supported keywords and the Tensor Query Language documentation
@@ -1874,7 +2088,7 @@ class Dataset:
 
         Args:
             query_string (str): An SQL string adjusted with new functionalities to run on the given :class:`~deeplake.core.dataset.Dataset` object
-
+            runtime (dict): Parameters for Activeloop DB Engine. Only applicable for hub:// paths.
 
         Returns:
             Dataset: A :class:`~deeplake.core.dataset.Dataset` object.
@@ -1892,14 +2106,21 @@ class Dataset:
             >>> ds_train = deeplake.load('hub://activeloop/coco-train')
             >>> query_ds_train = ds_train.query("(select * where contains(categories, 'car') limit 1000) union (select * where contains(categories, 'motorcycle') limit 1000)")
 
-        **Restrictions**
-
-        Querying datasets is part of our Growth and Enterprise Plan .
-
-        - Users of our Community plan can only perform queries on Activeloop datasets ("hub://activeloop/..." datasets).
-        - To run queries on your own datasets, `upgrade your organization's plan <https://www.activeloop.ai/pricing/>`_.
         """
+        if runtime is not None and runtime.get("db_engine", False):
+            client = DeepLakeBackendClient(token=self._token)
+            org_id, ds_name = self.path[6:].split("/")
+            indicies = client.remote_query(org_id, ds_name, query_string)
+            return self[indicies]
+
         from deeplake.enterprise import query
+
+        deeplake_reporter.feature_report(
+            feature_name="query",
+            parameters={
+                "query_string": query_string,
+            },
+        )
 
         return query(self, query_string)
 
@@ -1944,14 +2165,16 @@ class Dataset:
             ...
             >>> sampled_ds = ds.sample_by(weights, replace=False)
 
-        **Restrictions**
-
-        Querying datasets is part of our Growth and Enterprise Plan .
-
-        - Users of our Community plan can only use ``sample_by`` on Activeloop datasets ("hub://activeloop/..." datasets).
-        - To use sampling functionality on your own datasets, `upgrade your organization's plan <https://www.activeloop.ai/pricing/>`_.
         """
         from deeplake.enterprise import sample_by
+
+        deeplake_reporter.feature_report(
+            feature_name="sample_by",
+            parameters={
+                "replace": replace,
+                "size": size,
+            },
+        )
 
         return sample_by(self, weights, replace, size)
 
@@ -1962,11 +2185,13 @@ class Dataset:
             for tensor_key, tensor_value in self.version_state["full_tensors"].items()
         }
 
-    def _set_derived_attributes(self, verbose: bool = True):
+    def _set_derived_attributes(
+        self, verbose: bool = True, address: Optional[str] = None
+    ):
         """Sets derived attributes during init and unpickling."""
         if self.is_first_load:
             self.storage.autoflush = True
-            self._load_version_info()
+            self._load_version_info(address)
             self._load_link_creds()
             self._set_read_only(
                 self._read_only, err=self._read_only_error
@@ -2016,7 +2241,6 @@ class Dataset:
             self.__dict__["_ds_diff"] = load_dataset_diff(self)
         return self._ds_diff
 
-    @deeplake_reporter.record_call
     def tensorflow(
         self,
         tensors: Optional[Sequence[str]] = None,
@@ -2035,18 +2259,37 @@ class Dataset:
         Returns:
             tf.data.Dataset object that can be used for tensorflow training.
         """
+        deeplake_reporter.feature_report(
+            feature_name="tensorflow",
+            parameters={
+                "tensors": tensors,
+                "tobytes": tobytes,
+                "fetch_chunks": fetch_chunks,
+            },
+        )
+
         dataset_read(self)
         return dataset_to_tensorflow(
             self, tensors=tensors, tobytes=tobytes, fetch_chunks=fetch_chunks
         )
 
+    @spinner
     def flush(self):
         """Necessary operation after writes if caches are being used.
         Writes all the dirty data from the cache layers (if any) to the underlying storage.
         Here dirty data corresponds to data that has been changed/assigned and but hasn't yet been sent to the
         underlying storage.
         """
+        self._flush_vc_info()
         self.storage.flush()
+
+    def _flush_vc_info(self):
+        if self._vc_info_updated:
+            save_version_info(self.version_state, self.storage)
+            for node in self.version_state["commit_node_map"].values():
+                if node._info_updated:
+                    save_commit_info(node, self.storage)
+            self.__dict__["_vc_info_updated"] = False
 
     def clear_cache(self):
         """
@@ -2070,7 +2313,6 @@ class Dataset:
         return size
 
     @invalid_view_op
-    @deeplake_reporter.record_call
     def rename(self, path: Union[str, pathlib.Path]):
         """Renames the dataset to `path`.
 
@@ -2085,6 +2327,9 @@ class Dataset:
         Raises:
             RenameError: If ``path`` points to a different directory.
         """
+
+        deeplake_reporter.feature_report(feature_name="rename", parameters={})
+
         path = convert_pathlib_to_string_if_needed(path)
         path = path.rstrip("/")
         if posixpath.split(path)[0] != posixpath.split(self.path)[0]:
@@ -2093,7 +2338,6 @@ class Dataset:
         self.path = path
 
     @invalid_view_op
-    @deeplake_reporter.record_call
     def delete(self, large_ok=False):
         """Deletes the entire dataset from the cache layers (if any) and the underlying storage.
         This is an **IRREVERSIBLE** operation. Data once deleted can not be recovered.
@@ -2104,6 +2348,10 @@ class Dataset:
         Raises:
             DatasetTooLargeToDelete: If the dataset is larger than 1 GB and ``large_ok`` is ``False``.
         """
+
+        deeplake_reporter.feature_report(
+            feature_name="delete", parameters={"large_ok": large_ok}
+        )
 
         if hasattr(self, "_view_entry"):
             self._view_entry.delete()
@@ -2121,6 +2369,9 @@ class Dataset:
 
     def summary(self):
         """Prints a summary of the dataset."""
+
+        deeplake_reporter.feature_report(feature_name="summary", parameters={})
+
         pretty_print = summary_dataset(self)
 
         print(self)
@@ -2391,7 +2642,6 @@ class Dataset:
             name, _ = posixpath.split(name)
         return self[fullname]
 
-    @deeplake_reporter.record_call
     def create_group(self, name: str, exist_ok=False) -> "Dataset":
         """Creates a tensor group. Intermediate groups in the path are also created.
 
@@ -2415,16 +2665,22 @@ class Dataset:
             >>> ds["images"].create_tensor("png")
             >>> ds["images/jpg"].create_group("dogs")
         """
-        if not self._is_root():
-            return self.root.create_group(
-                posixpath.join(self.group_index, name), exist_ok=exist_ok
-            )
-        name = filter_name(name)
-        if name in self._groups:
+
+        deeplake_reporter.feature_report(
+            feature_name="create_group",
+            parameters={
+                "name": name,
+                "exist_ok": exist_ok,
+            },
+        )
+
+        full_name = filter_name(name, self.group_index)
+        if full_name in self._groups:
             if not exist_ok:
                 raise TensorGroupAlreadyExistsError(name)
             return self[name]
-        return self._create_group(name)
+
+        return self.root._create_group(full_name)
 
     def rechunk(
         self,
@@ -2464,6 +2720,7 @@ class Dataset:
             skip_ok=True,
             extend_only=True,
             disable_label_sync=True,
+            disable_rechunk=True,
         )
 
     # the below methods are used by cloudpickle dumps
@@ -2517,8 +2774,9 @@ class Dataset:
                     f"Incoming samples are not of equal lengths. Incoming sample sizes: {sizes}"
                 )
         [f() for f in list(self._update_hooks.values())]
-        for i in range(n):
-            self.append({k: v[i] for k, v in samples.items()}, skip_ok=skip_ok)
+        with self:
+            for i in range(n):
+                self.append({k: v[i] for k, v in samples.items()}, skip_ok=skip_ok)
 
     @invalid_view_op
     def append(
@@ -2549,28 +2807,29 @@ class Dataset:
             >>> ds.append({"data": [1, 2, 3, 4], "labels":[0, 1, 2, 3]})
 
         """
+        tensors = self.tensors
         if isinstance(sample, Dataset):
             sample = sample.tensors
         if not isinstance(sample, dict):
             raise SampleAppendingError()
 
-        skipped_tensors = [k for k in self.tensors if k not in sample]
+        skipped_tensors = [k for k in tensors if k not in sample]
         if skipped_tensors and not skip_ok and not append_empty:
             raise KeyError(
                 f"Required tensors not provided: {skipped_tensors}. Pass either `skip_ok=True` to skip tensors or `append_empty=True` to append empty samples to unspecified tensors."
             )
         for k in sample:
-            if k not in self._tensors():
+            if k not in tensors:
                 raise TensorDoesNotExistError(k)
-        tensors_to_check_length = self.tensors if append_empty else sample
-        if len(set(map(len, (self[k] for k in tensors_to_check_length)))) != 1:
+        tensors_to_check_length = tensors if append_empty else sample
+        if len(set(map(len, (tensors[k] for k in tensors_to_check_length)))) != 1:
             raise ValueError(
                 "When appending using Dataset.append, all tensors being updated are expected to have the same length."
             )
         [f() for f in list(self._update_hooks.values())]
         tensors_appended = []
         with self:
-            for k in self.tensors:
+            for k in tensors:
                 if k in sample:
                     v = sample[k]
                 else:
@@ -2579,7 +2838,7 @@ class Dataset:
                     else:
                         v = None
                 try:
-                    tensor = self[k]
+                    tensor = tensors[k]
                     enc = tensor.chunk_engine.chunk_id_encoder
                     num_chunks = enc.num_chunks
                     tensor.append(v)
@@ -2600,7 +2859,7 @@ class Dataset:
                             self[k].pop()
                         except Exception as e2:
                             raise Exception(
-                                "Error while attepting to rollback appends"
+                                "Error while attempting to rollback appends"
                             ) from e2
                     raise e
 
@@ -2611,6 +2870,7 @@ class Dataset:
             *[e.value for e in self.index.values],
             self.pending_commit_id,
             getattr(self, "_query", None),
+            getattr(self, "_tql_query", None),
         )
 
     def _get_view_info(
@@ -2639,6 +2899,10 @@ class Dataset:
         if query:
             info["query"] = query
             info["source-dataset-index"] = getattr(self, "_source_ds_idx", None)
+        tql_query = getattr(self, "_tql_query", None)
+        if tql_query:
+            info["tql_query"] = tql_query
+            info["source-dataset-index"] = getattr(self, "_source_ds_idx", None)
         return info
 
     def _lock_queries_json(self):
@@ -2650,7 +2914,7 @@ class Dataset:
                     # Ignore storage level lock since we have file level lock
                     storage.read_only = False
                 lock = Lock(storage, get_queries_lock_key())
-                lock.acquire(timeout=10, force=True)
+                lock.acquire(timeout=10)
                 self2.lock = lock
 
             def __exit__(self2, *_, **__):
@@ -2829,11 +3093,27 @@ class Dataset:
         Raises:
             ReadOnlyModeError: When attempting to save a view inplace and the user doesn't have write access.
             DatasetViewSavingError: If HEAD node has uncommitted changes.
+            TypeError: If ``id`` is not of type ``str``.
 
         Note:
             Specifying ``path`` makes the view external. External views cannot be accessed using the parent dataset's :func:`Dataset.get_view`,
             :func:`Dataset.load_view`, :func:`Dataset.delete_view` methods. They have to be loaded using :func:`deeplake.load`.
         """
+
+        deeplake_reporter.feature_report(
+            feature_name="save_view",
+            parameters={
+                "id": id,
+                "optimize": optimize,
+                "tensors": tensors,
+                "num_workers": num_workers,
+                "scheduler": scheduler,
+                "verbose": verbose,
+            },
+        )
+
+        if id is not None and not isinstance(id, str):
+            raise TypeError(f"id {id} is of type {type(id)}, expected `str`.")
         return self._save_view(
             path,
             id,
@@ -2886,7 +3166,6 @@ class Dataset:
         """
 
         path = convert_pathlib_to_string_if_needed(path)
-
         ds_args["verbose"] = False
         vds = None
         if path is None and hasattr(self, "_vds"):
@@ -2897,13 +3176,16 @@ class Dataset:
                 warnings.warn(
                     f"This view is already saved with id '{vds_id}'. A copy of this view will be created with the provided id '{id}'"
                 )
+        base = self._view_base or self
+        if not base._read_only:
+            base.flush()
         if vds is None:
             if path is None:
                 if isinstance(self, MemoryProvider):
                     raise NotImplementedError(
                         "Saving views inplace is not supported for in-memory datasets."
                     )
-                if self.read_only and not (self._view_base or self)._locked_out:
+                if self.read_only and not base._locked_out:
                     if isinstance(self, deeplake.core.dataset.DeepLakeCloudDataset):
                         try:
                             with self._temp_write_access():
@@ -2976,6 +3258,7 @@ class Dataset:
         )
 
         ds.index = Index()
+        ds.version_state = ds.version_state.copy()
         ds._checkout(commit_id, verbose=False)
         first_index_subscriptable = self.info.get("first-index-subscriptable", True)
         if first_index_subscriptable:
@@ -3016,21 +3299,17 @@ class Dataset:
 
         Args:
             commit_id (str, optional): - Commit from which views should be returned.
-                - If not specified, views from current commit is returned.
-                - If not specified, views from the currently checked out commit will be returned.
+                - If not specified, views from all commits are returned.
 
         Returns:
             List[ViewEntry]: List of :class:`ViewEntry` instances.
         """
-        commit_id = commit_id or self.commit_id
         queries = self._read_queries_json()
-        f = lambda x: x["source-dataset-version"] == commit_id
-        ret = map(
-            partial(ViewEntry, dataset=self),
-            filter(f, queries),
-        )
-
-        return list(ret)
+        if commit_id is not None:
+            queries = filter(
+                lambda x: x["source-dataset-version"] == commit_id, queries
+            )
+        return list(map(partial(ViewEntry, dataset=self), queries))
 
     def get_view(self, id: str) -> ViewEntry:
         """Returns the dataset view corresponding to ``id``.
@@ -3088,18 +3367,26 @@ class Dataset:
         Raises:
             KeyError: if view with given id does not exist.
         """
+        deeplake_reporter.feature_report(
+            feature_name="load_view",
+            parameters={
+                "id": id,
+                "optimize": optimize,
+                "tensors": tensors,
+                "num_workers": num_workers,
+                "scheduler": scheduler,
+            },
+        )
+
+        view = self.get_view(id)
         if optimize:
-            return (
-                self.get_view(id)
-                .optimize(
-                    tensors=tensors,
-                    num_workers=num_workers,
-                    scheduler=scheduler,
-                    progressbar=progressbar,
-                )
-                .load()
-            )
-        return self.get_view(id).load()
+            return view.optimize(
+                tensors=tensors,
+                num_workers=num_workers,
+                scheduler=scheduler,
+                progressbar=progressbar,
+            ).load()
+        return view.load()
 
     def delete_view(self, id: str):
         """Deletes the view with given view id.
@@ -3110,6 +3397,11 @@ class Dataset:
         Raises:
             KeyError: if view with given id does not exist.
         """
+
+        deeplake_reporter.feature_report(
+            feature_name="delete_view",
+            parameters={"id": id},
+        )
 
         try:
             with self._lock_queries_json():
@@ -3157,7 +3449,7 @@ class Dataset:
         Note:
             Virtual datasets are returned as such, they are not converted to views.
         """
-        sub_storage = self.base_storage.subdir(path)
+        sub_storage = self.base_storage.subdir(path, read_only=read_only)
 
         if empty:
             sub_storage.clear()
@@ -3247,6 +3539,7 @@ class Dataset:
     def _copy(
         self,
         dest: Union[str, pathlib.Path],
+        runtime: Optional[Dict] = None,
         tensors: Optional[List[str]] = None,
         overwrite: bool = False,
         creds=None,
@@ -3258,49 +3551,15 @@ class Dataset:
         unlink: bool = False,
         create_vds_index_tensor: bool = False,
     ):
-        """Copies this dataset or dataset view to `dest`. Version control history is not included.
-
-        Args:
-            dest (str, pathlib.Path): Destination dataset or path to copy to. If a Dataset instance is provided, it is expected to be empty.
-            tensors (List[str], optional): Names of tensors (and groups) to be copied. If not specified all tensors are copied.
-            overwrite (bool): If ``True`` and a dataset exists at `destination`, it will be overwritten. Defaults to False.
-            creds (dict, Optional): creds required to create / overwrite datasets at `dest`.
-            token (str, Optional): token used to for fetching credentials to `dest`.
-            num_workers (int): The number of workers to use for copying. Defaults to 0. When set to 0, it will always use serial processing, irrespective of the scheduler.
-            scheduler (str): The scheduler to be used for copying. Supported values include: 'serial', 'threaded', 'processed' and 'ray'.
-                Defaults to 'threaded'.
-            progressbar (bool): Displays a progress bar If ``True`` (default).
-            public (bool): Defines if the dataset will have public access. Applicable only if Deep Lake cloud storage is used and a new Dataset is being created. Defaults to False.
-            unlink (bool): Whether to copy the data from source for linked tensors. Does not apply for linked video tensors.
-            create_vds_index_tensor (bool): If ``True``, a hidden tensor called "VDS_INDEX" is created which contains the sample indices in the source view.
-
-        Returns:
-            Dataset: New dataset object.
-
-        Raises:
-            DatasetHandlerError: If a dataset already exists at destination path and overwrite is False.
-        """
         if isinstance(dest, str):
             path = dest
         else:
             path = dest.path
 
-        report_params = {
-            "Tensors": tensors,
-            "Overwrite": overwrite,
-            "Num_Workers": num_workers,
-            "Scheduler": scheduler,
-            "Progressbar": progressbar,
-            "Public": public,
-        }
-
-        if path.startswith("hub://"):
-            report_params["Dest"] = path
-        feature_report_path(self.path, "copy", report_params, token=token)
-
         dest_ds = deeplake.api.dataset.dataset._like(
             dest,
             self,
+            runtime=runtime,
             tensors=tensors,
             creds=creds,
             token=token,
@@ -3320,31 +3579,29 @@ class Dataset:
 
         def _copy_tensor(sample_in, sample_out):
             for tensor_name in dest_ds.tensors:
-                src = self[tensor_name]
+                src = sample_in[tensor_name]
                 if (
                     unlink
                     and src.is_link
                     and (src.base_htype != "video" or deeplake.constants._UNLINK_VIDEOS)
                 ):
-                    if len(self.index) > 1:
-                        sample_out[tensor_name].extend(sample_in[tensor_name])
+                    if len(sample_in.index) > 1:
+                        sample_out[tensor_name].extend(src)
                     else:
-                        if self.index.subscriptable_at(0):
-                            sample_idxs = list(
-                                sample_in.index.values[0].indices(len(self))
+                        if sample_in.index.subscriptable_at(0):
+                            sample_idxs = sample_in.index.values[0].indices(
+                                src.num_samples
                             )
                         else:
-                            sample_idxs = [self.index.values[0].value]
+                            sample_idxs = [sample_in.index.values[0].value]
                         sample_out[tensor_name].extend(
                             [
-                                sample_in[
-                                    tensor_name
-                                ].chunk_engine.get_deeplake_read_sample(sample_idx)
-                                for sample_idx in sample_idxs
+                                src.chunk_engine.get_deeplake_read_sample(i)
+                                for i in sample_idxs
                             ]
                         )
                 else:
-                    sample_out[tensor_name].extend(sample_in[tensor_name])
+                    sample_out[tensor_name].extend(src)
 
         if not self.index.subscriptable_at(0):
             old_first_index = self.index.values[0]
@@ -3396,6 +3653,7 @@ class Dataset:
     def copy(
         self,
         dest: Union[str, pathlib.Path],
+        runtime: Optional[dict] = None,
         tensors: Optional[List[str]] = None,
         overwrite: bool = False,
         creds=None,
@@ -3410,6 +3668,7 @@ class Dataset:
         Args:
             dest (str, pathlib.Path): Destination dataset or path to copy to. If a Dataset instance is provided, it is expected to be empty.
             tensors (List[str], optional): Names of tensors (and groups) to be copied. If not specified all tensors are copied.
+            runtime (dict): Parameters for Activeloop DB Engine. Only applicable for hub:// paths.
             overwrite (bool): If ``True`` and a dataset exists at `destination`, it will be overwritten. Defaults to False.
             creds (dict, Optional): creds required to create / overwrite datasets at `dest`.
             token (str, Optional): token used to for fetching credentials to `dest`.
@@ -3425,8 +3684,22 @@ class Dataset:
         Raises:
             DatasetHandlerError: If a dataset already exists at destination path and overwrite is False.
         """
+
+        deeplake_reporter.feature_report(
+            feature_name="copy",
+            parameters={
+                "tensors": tensors,
+                "overwrite": overwrite,
+                "num_workers": num_workers,
+                "scheduler": scheduler,
+                "progressbar": progressbar,
+                "public": public,
+            },
+        )
+
         return self._copy(
             dest,
+            runtime,
             tensors,
             overwrite,
             creds,
@@ -3438,17 +3711,24 @@ class Dataset:
         )
 
     @invalid_view_op
-    def reset(self):
+    @spinner
+    def reset(self, force: bool = False):
         """Resets the uncommitted changes present in the branch.
 
         Note:
             The uncommitted data is deleted from underlying storage, this is not a reversible operation.
         """
+
+        deeplake_reporter.feature_report(
+            feature_name="reset",
+            parameters={"force": force},
+        )
+
         storage, version_state = self.storage, self.version_state
         if version_state["commit_node"].children:
             print("You are not at the head node of the branch, cannot reset.")
             return
-        if not self.has_head_changes:
+        if not self.has_head_changes and not force:
             print("There are no uncommitted changes on this branch.")
             return
 
@@ -3457,36 +3737,21 @@ class Dataset:
             self._populate_meta()
             load_meta(self)
         else:
-            reset_commit_id = self.pending_commit_id
-            deletion_folder = "/".join(("versions", reset_commit_id))
-            new_commit_id = generate_hash()
-            new_branch = self.branch
-
             parent_commit_id = self.commit_id
+            reset_commit_id = self.pending_commit_id
 
             # checkout to get list of tensors in previous commit, needed for copying metas and create_commit_chunk_set
             self.checkout(parent_commit_id)
 
-            # populate new commit folder
-            copy_metas(parent_commit_id, new_commit_id, storage, version_state)
-            create_commit_chunk_maps(new_commit_id, storage, version_state)
+            new_commit_id = replace_head(storage, version_state, reset_commit_id)
 
-            # update and save version state
-            parent_node: CommitNode = version_state["commit_node"]
-            new_node = CommitNode(new_branch, new_commit_id)
-            new_node.parent = parent_node
-            version_state["branch_commit_map"][new_branch] = new_commit_id
-            version_state["commit_node_map"][new_commit_id] = new_node
-            del version_state["commit_node_map"][reset_commit_id]
-            for i, child in enumerate(parent_node.children):
-                if child.commit_id == reset_commit_id:
-                    parent_node.children[i] = new_node
-                    break
-            save_version_info(version_state, storage)
-
-            # clear the old folder
-            storage.clear(prefix=deletion_folder)
             self.checkout(new_commit_id)
+
+    def fix_vc(self):
+        """Rebuilds version control info. To be used when the version control info is corrupted."""
+        version_info = rebuild_version_info(self.storage)
+        self.version_state["commit_node_map"] = version_info["commit_node_map"]
+        self.version_state["branch_commit_map"] = version_info["branch_commit_map"]
 
     def connect(
         self,
@@ -3592,20 +3857,22 @@ class Dataset:
             creds = {}
         self.link_creds.populate_creds(creds_key, creds)
 
-    def update_creds_key(self, old_creds_key: str, new_creds_key: str):
-        """Replaces the old creds key with the new creds key. This is used to replace the creds key used for external data."""
-        replaced_index = self.link_creds.replace_creds(old_creds_key, new_creds_key)
-        save_link_creds(self.link_creds, self.storage, replaced_index=replaced_index)
-
-    def change_creds_management(self, creds_key: str, managed: bool):
-        """Changes the management status of the creds key.
+    def update_creds_key(
+        self,
+        creds_key: str,
+        new_creds_key: Optional[str] = None,
+        managed: Optional[bool] = None,
+    ):
+        """Updates the name and/or management status of a creds key.
 
         Args:
-            creds_key (str): The key whose management status is to be changed.
+            creds_key (str): The key whose name and/or management status is to be changed.
+            new_creds_key (str, optional): The new key to replace the old key. If not provided, the old key will be used.
             managed (bool): The target management status. If ``True``, the creds corresponding to the key will be fetched from activeloop platform.
 
         Raises:
             ValueError: If the dataset is not connected to activeloop platform.
+            ValueError: If both ``new_creds_key`` and ``managed`` are ``None``.
             KeyError: If the creds key is not present in the dataset.
 
         Examples:
@@ -3617,19 +3884,32 @@ class Dataset:
             >>> # Populate the name added with creds dictionary
             >>> # These creds are only present temporarily and will have to be repopulated on every reload
             >>> ds.populate_creds("my_s3_key", {})
-            >>> # Change the management status of the key to True. Before doing this, ensure that the creds have been created on activeloop platform
+            >>> # Rename the key and change the management status of the key to True. Before doing this, ensure that the creds have been created on activeloop platform
             >>> # Now, this key will no longer use the credentials populated in the previous step but will instead fetch them from activeloop platform
             >>> # These creds don't have to be populated again on every reload and will be fetched every time the dataset is loaded
-            >>> ds.change_creds_management("my_s3_key", True)
+            >>> ds.update_creds_key("my_s3_key", "my_managed_key", True)
 
         """
-        raise ValueError(
-            "Managed creds are not supported for datasets that are not connected to activeloop platform."
-        )
+        if new_creds_key is None and managed is None:
+            raise ValueError(
+                "Atleast one of new_creds_key or managed must be provided."
+            )
+        if managed:
+            raise ValueError(
+                "Managed creds are not supported for datasets that are not connected to activeloop platform."
+            )
+        replaced_index = self.link_creds.replace_creds(creds_key, new_creds_key)
+        save_link_creds(self.link_creds, self.storage, replaced_index=replaced_index)
 
     def get_creds_keys(self) -> List[str]:
         """Returns the list of creds keys added to the dataset. These are used to fetch external data in linked tensors"""
-        return self.link_creds.creds_keys
+        return list(self.link_creds.creds_keys)
+
+    def get_managed_creds_keys(self) -> List[str]:
+        """Returns the list of creds keys added to the dataset that are managed by Activeloop platform. These are used to fetch external data in linked tensors."""
+        raise ValueError(
+            "Managed creds are not supported for datasets that are not connected to activeloop platform."
+        )
 
     def visualize(
         self, width: Union[int, str, None] = None, height: Union[int, str, None] = None
@@ -3646,7 +3926,10 @@ class Dataset:
         """
         from deeplake.visualizer import visualize
 
-        deeplake_reporter.feature_report(feature_name="visualize", parameters={})
+        deeplake_reporter.feature_report(
+            feature_name="visualize", parameters={"width": width, "height": height}
+        )
+
         if is_colab():
             provider = self.storage.next_storage
             if isinstance(provider, S3Provider):
@@ -3798,6 +4081,10 @@ class Dataset:
         )
 
     @property
+    def is_optimized(self) -> bool:
+        return not getattr(getattr(self, "_view_entry", None), "virtual", True)
+
+    @property
     def min_view(self):
         """Returns a view of the dataset in which all tensors are sliced to have the same length as
         the shortest tensor.
@@ -3922,3 +4209,6 @@ class Dataset:
     def _temp_write_access(self):
         # Defined in DeepLakeCloudDataset
         return memoryview(b"")  # No-op context manager
+
+    def _get_storage_repository(self) -> Optional[str]:
+        return getattr(self.base_storage, "repository", None)

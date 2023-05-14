@@ -402,6 +402,22 @@ def serialize_sequence_or_creds_encoder(version: str, enc: np.ndarray) -> bytes:
     return len(version).to_bytes(1, "little") + version.encode("ascii") + enc.tobytes()
 
 
+def serialize_pad_encoder(version: str, enc: np.ndarray) -> bytes:
+    return len(version).to_bytes(1, "little") + version.encode("ascii") + enc.tobytes()
+
+
+def deserialize_pad_encoder(byts: Union[bytes, memoryview]) -> Tuple[str, np.ndarray]:
+    byts = memoryview(byts)
+    len_version = byts[0]
+    version = str(byts[1 : 1 + len_version], "ascii")
+    enc = (
+        np.frombuffer(byts[1 + len_version :], dtype=deeplake.constants.ENCODING_DTYPE)
+        .reshape(-1)
+        .copy()
+    )
+    return version, enc
+
+
 def deserialize_sequence_or_creds_encoder(
     byts: Union[bytes, memoryview], enc_type: str
 ) -> Tuple[str, np.ndarray]:
@@ -423,12 +439,6 @@ def check_sample_shape(shape, num_dims):
 
 
 def text_to_bytes(sample, dtype, htype):
-    if isinstance(sample, deeplake.core.tensor.Tensor):
-        try:
-            if sample.htype == htype or sample.htype == "json" and htype == "list":
-                return sample.tobytes(), sample.shape
-        except (ValueError, NotImplementedError):  # sliced sample or tiled sample
-            sample = sample.data()
     if htype in ("json", "list"):
         if isinstance(sample, np.ndarray):
             if htype == "list":
@@ -477,15 +487,15 @@ def serialize_text(
 ):
     """Converts the sample into bytes"""
     if isinstance(incoming_sample, deeplake.core.tensor.Tensor):
-        return serialize_tensor(
-            incoming_sample=incoming_sample,
-            sample_compression=sample_compression,
-            chunk_compression=None,
-            dtype=dtype,
-            htype=htype,
-            min_chunk_size=0,
-            break_into_tiles=False,
-        )
+        try:
+            if (
+                incoming_sample.htype == htype
+                or incoming_sample.htype == "json"
+                and htype == "list"
+            ):
+                return incoming_sample.tobytes(), incoming_sample.shape
+        except (ValueError, NotImplementedError):  # sliced sample or tiled sample
+            incoming_sample = incoming_sample.data()["value"]
     incoming_sample, shape = text_to_bytes(incoming_sample, dtype, htype)
     if sample_compression:
         incoming_sample = compress_bytes(incoming_sample, sample_compression)  # type: ignore

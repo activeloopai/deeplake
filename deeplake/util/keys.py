@@ -1,6 +1,7 @@
 import posixpath
 from deeplake.constants import (
     CHUNKS_FOLDER,
+    COMMIT_INFO_FILENAME,
     DATASET_DIFF_FILENAME,
     DATASET_INFO_FILENAME,
     DATASET_LOCK_FILENAME,
@@ -10,6 +11,7 @@ from deeplake.constants import (
     ENCODED_CHUNK_NAMES_FOLDER,
     ENCODED_SEQUENCE_NAMES_FOLDER,
     ENCODED_TILE_NAMES_FOLDER,
+    ENCODED_PAD_NAMES_FOLDER,
     FIRST_COMMIT_ID,
     DATASET_META_FILENAME,
     TENSOR_INFO_FILENAME,
@@ -56,6 +58,12 @@ def get_dataset_diff_key(commit_id: str) -> str:
     if commit_id == FIRST_COMMIT_ID:
         return DATASET_DIFF_FILENAME
     return "/".join(("versions", commit_id, DATASET_DIFF_FILENAME))
+
+
+def get_commit_info_key(commit_id: str) -> str:
+    if commit_id == FIRST_COMMIT_ID:
+        return COMMIT_INFO_FILENAME
+    return "/".join(("versions", commit_id, COMMIT_INFO_FILENAME))
 
 
 def get_dataset_linked_creds_key() -> str:
@@ -237,3 +245,17 @@ def get_downsampled_tensor_key(key: str, factor: int):
     else:
         final_key = f"_{key}_downsampled_{factor}"
     return posixpath.join(group, final_key)
+
+
+def get_pad_encoder_key(key: str, commit_id: str) -> str:
+    if commit_id == FIRST_COMMIT_ID:
+        return "/".join((key, ENCODED_PAD_NAMES_FOLDER, UNSHARDED_ENCODER_FILENAME))
+    return "/".join(
+        (
+            "versions",
+            commit_id,
+            key,
+            ENCODED_PAD_NAMES_FOLDER,
+            UNSHARDED_ENCODER_FILENAME,
+        )
+    )

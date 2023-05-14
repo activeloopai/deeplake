@@ -109,18 +109,16 @@ class CocoImages:
             A tuple with, respectively, list of supported images, the most frequent extension
         """
         supported_image_extensions = tuple(
-            HTYPE_SUPPORTED_COMPRESSIONS["image"] + ["jpg"]
+            "." + fmt for fmt in HTYPE_SUPPORTED_COMPRESSIONS["image"] + ["jpg"]
         )
         supported_images = []
         invalid_files = []
         extensions: DefaultDict[str, int] = defaultdict(int)
 
         for file in self.provider:
-            if file.endswith(supported_image_extensions):
+            if file.lower().endswith(supported_image_extensions):
                 supported_images.append(file)
-                ext = pathlib.Path(file).suffix[
-                    1:
-                ]  # Get extension without the . symbol
+                ext = file.rsplit(".", 1)[1]
                 extensions[ext] += 1
             else:
                 invalid_files.append(file)
@@ -128,6 +126,8 @@ class CocoImages:
         if len(invalid_files) > 0:
             logger.warning(
                 f"Encountered {len(invalid_files)} unsupported files in images directory."
+                + "\nUp to first 10 invalid files are:\n"
+                + "\n".join(invalid_files[0:10])
             )
 
         if len(supported_images) == 0:

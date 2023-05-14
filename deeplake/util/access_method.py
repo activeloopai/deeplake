@@ -61,6 +61,7 @@ def get_local_dataset(
     ds_exists,
     num_workers,
     scheduler,
+    reset,
 ):
     local_path = get_local_storage_path(path, os.environ["DEEPLAKE_DOWNLOAD_PATH"])
     download = access_method == "download" or (
@@ -91,6 +92,7 @@ def get_local_dataset(
         local_cache_size=local_cache_size,
         token=token,
         org_id=org_id,
+        reset=reset,
     )
     if download:
         ds.storage.next_storage[TIMESTAMP_FILENAME] = time.ctime().encode("utf-8")

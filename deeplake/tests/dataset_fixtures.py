@@ -36,6 +36,16 @@ enabled_persistent_dataset_generators = pytest.mark.parametrize(
     indirect=True,
 )
 
+enabled_persistent_non_gdrive_dataset_generators = pytest.mark.parametrize(
+    "ds_generator",
+    [
+        "local_ds_generator",
+        "s3_ds_generator",
+        "gcs_ds_generator",
+    ],
+    indirect=True,
+)
+
 enabled_cloud_dataset_generators = pytest.mark.parametrize(
     "ds_generator",
     [

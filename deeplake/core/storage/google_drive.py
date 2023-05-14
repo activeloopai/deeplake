@@ -367,3 +367,10 @@ class GDriveProvider(StorageProvider):
                     pass
         if not prefix:
             self._delete_file(self.root_id)
+
+    def get_object_size(self, key: str) -> int:
+        id = self._get_id(key)
+        if not id:
+            raise KeyError(key)
+        size = int(self.drive.files().get(fileId=id, fields="size").execute()["size"])
+        return size

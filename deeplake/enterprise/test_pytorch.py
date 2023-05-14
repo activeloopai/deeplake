@@ -6,7 +6,11 @@ from deeplake.util.exceptions import EmptyTensorError, TensorDoesNotExistError
 
 from deeplake.util.remove_cache import get_base_storage
 from deeplake.core.index.index import IndexEntry
-from deeplake.tests.common import requires_torch, requires_libdeeplake
+from deeplake.tests.common import (
+    requires_torch,
+    requires_libdeeplake,
+    convert_data_according_to_torch_version,
+)
 from deeplake.core.dataset import Dataset
 from deeplake.constants import KB
 
@@ -17,12 +21,23 @@ try:
 except ImportError:
     pass
 
+from unittest.mock import patch
+
+
 # ensure tests have multiple chunks without a ton of data
 PYTORCH_TESTS_MAX_CHUNK_SIZE = 5 * KB
 
 
 def double(sample):
     return sample * 2
+
+
+def identity(batch):
+    return batch
+
+
+def identity_collate(batch):
+    return batch
 
 
 def to_tuple(sample, t1, t2):
@@ -126,15 +141,14 @@ def test_pytorch_transform(hub_cloud_ds):
         hub_cloud_ds.dataloader()
         .batch(1)
         .transform(to_tuple, t1="image", t2="image2")
-        .pytorch(num_workers=2)
+        .pytorch(num_workers=2, collate_fn=identity_collate)
     )
 
     for _ in range(2):
         for i, batch in enumerate(dl):
-            actual_image = batch[0].numpy()
-            expected_image = i * np.ones((1, i + 1, i + 1))
-            actual_image2 = batch[1].numpy()
-            expected_image2 = i * np.ones((1, 12, 12))
+            actual_image, actual_image2 = batch[0]
+            expected_image = i * np.ones((i + 1, i + 1))
+            expected_image2 = i * np.ones((12, 12))
             np.testing.assert_array_equal(actual_image, expected_image)
             np.testing.assert_array_equal(actual_image2, expected_image2)
 
@@ -250,15 +264,25 @@ def test_custom_tensor_order(hub_cloud_ds):
 @requires_torch
 @requires_libdeeplake
 def test_readonly_with_two_workers(hub_cloud_ds):
-    hub_cloud_ds.create_tensor("images", max_chunk_size=PYTORCH_TESTS_MAX_CHUNK_SIZE)
-    hub_cloud_ds.create_tensor("labels", max_chunk_size=PYTORCH_TESTS_MAX_CHUNK_SIZE)
-    hub_cloud_ds.images.extend(np.ones((10, 12, 12)))
-    hub_cloud_ds.labels.extend(np.ones(10))
+    with hub_cloud_ds:
+        hub_cloud_ds.create_tensor(
+            "images", max_chunk_size=PYTORCH_TESTS_MAX_CHUNK_SIZE
+        )
+        hub_cloud_ds.create_tensor(
+            "labels", max_chunk_size=PYTORCH_TESTS_MAX_CHUNK_SIZE
+        )
+        hub_cloud_ds.images.extend(np.ones((10, 12, 12)))
+        hub_cloud_ds.labels.extend(np.ones(10))
 
     base_storage = get_base_storage(hub_cloud_ds.storage)
     base_storage.flush()
     base_storage.enable_readonly()
-    ds = Dataset(storage=hub_cloud_ds.storage, read_only=True, verbose=False)
+    ds = Dataset(
+        storage=hub_cloud_ds.storage,
+        token=hub_cloud_ds.token,
+        read_only=True,
+        verbose=False,
+    )
 
     ptds = ds.dataloader().pytorch(num_workers=2)
     # no need to check input, only care that readonly works
@@ -292,7 +316,7 @@ def test_groups(hub_cloud_ds, compressed_image_paths):
             hub_cloud_ds.images.jpegs.cats.append(img1)
             hub_cloud_ds.images.pngs.flowers.append(img2)
 
-    another_ds = deeplake.dataset(hub_cloud_ds.path)
+    another_ds = deeplake.dataset(hub_cloud_ds.path, token=hub_cloud_ds.token)
     dl = another_ds.dataloader().pytorch(return_index=False)
     for i, (cat, flower) in enumerate(dl):
         assert cat[0].shape == another_ds.images.jpegs.cats[i].numpy().shape
@@ -300,8 +324,8 @@ def test_groups(hub_cloud_ds, compressed_image_paths):
 
     dl = another_ds.images.dataloader().pytorch(return_index=False)
     for sample in dl:
-        cat = sample["jpegs/cats"]
-        flower = sample["pngs/flowers"]
+        cat = sample["images/jpegs/cats"]
+        flower = sample["images/pngs/flowers"]
         np.testing.assert_array_equal(cat[0], img1.array)
         np.testing.assert_array_equal(flower[0], img2.array)
 
@@ -438,7 +462,7 @@ def test_pytorch_decode(hub_cloud_ds, compressed_image_paths, compression):
     ptds = hub_cloud_ds.dataloader().pytorch(decode_method={"image": "tobytes"})
 
     for i, batch in enumerate(ptds):
-        image = batch["image"][0]
+        image = convert_data_according_to_torch_version(batch["image"])
         assert isinstance(image, bytes)
         if i < 5 and not compression:
             np.testing.assert_array_equal(
@@ -484,15 +508,6 @@ def test_rename(hub_cloud_ds):
 
 @requires_torch
 @requires_libdeeplake
-def test_expiration_date_casting_to_string():
-    ds = deeplake.dataset("hub://activeloop/cifar100-train")[0:10:2]
-    loader = ds.dataloader().pytorch(return_index=False)
-    for _ in loader:
-        pass
-
-
-@requires_torch
-@requires_libdeeplake
 @pytest.mark.parametrize("num_workers", [0, 2])
 def test_indexes(hub_cloud_ds, num_workers):
     shuffle = False
@@ -529,18 +544,17 @@ def test_indexes_transform(hub_cloud_ds, num_workers):
         hub_cloud_ds.dataloader()
         .batch(4)
         .transform(index_transform)
-        .pytorch(num_workers=num_workers, return_index=True)
+        .pytorch(
+            num_workers=num_workers, return_index=True, collate_fn=identity_collate
+        )
     )
     if shuffle:
         ptds = ptds.shuffle()
 
     for batch in ptds:
-        assert len(batch) == 2
-        assert len(batch[0]) == 4
-        assert len(batch[1]) == 4
-
-        for i in range(4):
-            np.testing.assert_array_equal(batch[0][i], batch[1][i][0, 0])
+        assert len(batch) == 4
+        assert len(batch[0]) == 2
+        assert len(batch[1]) == 2
 
 
 @requires_torch
@@ -647,3 +661,168 @@ def test_pytorch_error_handling(hub_cloud_ds):
     ptds = ds.dataloader().pytorch(tensors=["x"])
     for _ in ptds:
         pass
+
+
+@requires_libdeeplake
+@requires_torch
+def test_pil_decode_method(hub_cloud_ds):
+    with hub_cloud_ds as ds:
+        ds.create_tensor("x", htype="image", sample_compression="jpeg")
+        ds.x.extend(np.random.randint(0, 255, (10, 10, 10, 3), np.uint8))
+
+    ptds = ds.dataloader().pytorch(return_index=False)
+    for batch in ptds:
+        assert len(batch.keys()) == 1
+        assert "x" in batch.keys()
+        assert batch["x"].shape == (1, 10, 10, 3)
+
+    ptds = ds.dataloader().pytorch(decode_method={"x": "pil"})
+    with pytest.raises(TypeError):
+        for _ in ptds:
+            pass
+
+    def custom_transform(batch):
+        batch["x"] = np.array(batch["x"])
+        return batch
+
+    ptds = (
+        ds.dataloader()
+        .pytorch(decode_method={"x": "pil"}, return_index=False)
+        .transform(custom_transform)
+    )
+    for batch in ptds:
+        assert len(batch.keys()) == 1
+        assert "x" in batch.keys()
+        assert batch["x"].shape == (1, 10, 10, 3)
+
+
+@patch("deeplake.constants.RETURN_DUMMY_DATA_FOR_DATALOADER", True)
+@requires_torch
+@requires_libdeeplake
+def test_pytorch_dummy_data(local_ds):
+    x_data = [
+        np.random.randint(0, 255, (100, 100, 3), dtype="uint8"),
+        np.random.randint(0, 255, (120, 120, 3), dtype="uint8"),
+    ]
+    y_data = [np.random.rand(100, 100, 3), np.random.rand(120, 120, 3)]
+    z_data = ["hello", "world"]
+    with local_ds as ds:
+        ds.create_tensor("x")
+        ds.create_tensor("y")
+        ds.create_tensor("z")
+        ds.x.extend(x_data)
+        ds.y.extend(y_data)
+        ds.z.extend(z_data)
+
+    ptds = ds.dataloader()
+    for i, batch in enumerate(ptds):
+        x = x_data[i]
+        dummy_x = batch[0]["x"]
+        assert dummy_x.shape == x.shape
+        assert dummy_x.dtype == x.dtype
+
+        y = y_data[i]
+        dummy_y = batch[0]["y"]
+        assert dummy_y.shape == y.shape
+        assert dummy_y.dtype == y.dtype
+
+        dummy_z = batch[0]["z"]
+        assert dummy_z[0] == "a"
+
+
+@requires_libdeeplake
+@requires_torch
+def test_json_data_loader(hub_cloud_ds):
+    ds = hub_cloud_ds
+    with ds:
+        ds.create_tensor(
+            "json",
+            htype="json",
+            sample_compression=None,
+        )
+        d = {"x": 1, "y": 2, "z": 3}
+        for _ in range(10):
+            ds.json.append(d)
+
+    dl = ds.dataloader().batch(2)
+
+    for batch in dl:
+        sample1 = batch[0]["json"]
+        sample2 = batch[1]["json"]
+
+        assert sample1 == d
+        assert sample2 == d
+
+
+@requires_libdeeplake
+@requires_torch
+def test_list_data_loader(hub_cloud_ds):
+    ds = hub_cloud_ds
+    with ds:
+        ds.create_tensor(
+            "list",
+            htype="list",
+            sample_compression=None,
+        )
+        l = [1, 2, 3]
+        for _ in range(10):
+            ds.list.append(l)
+
+    dl = ds.dataloader().batch(2)
+
+    for batch in dl:
+        sample1 = batch[0]["list"]
+        sample2 = batch[1]["list"]
+        assert sample1.tolist() == l
+        assert sample2.tolist() == l
+
+
+@requires_libdeeplake
+@requires_torch
+def test_pytorch_data_decode(hub_cloud_ds, cat_path):
+    with hub_cloud_ds as ds:
+        ds.create_tensor("generic")
+        for i in range(10):
+            ds.generic.append(i)
+        ds.create_tensor("text", htype="text")
+        for i in range(10):
+            ds.text.append(f"hello {i}")
+        ds.create_tensor("json", htype="json")
+        for i in range(10):
+            ds.json.append({"x": i})
+        ds.create_tensor("list", htype="list")
+        for i in range(10):
+            ds.list.append([i, i + 1])
+        ds.create_tensor("class_label", htype="class_label")
+        animals = [
+            "cat",
+            "dog",
+            "bird",
+            "fish",
+            "horse",
+            "cow",
+            "pig",
+            "sheep",
+            "goat",
+            "chicken",
+        ]
+        ds.class_label.extend(animals)
+        ds.create_tensor("image", htype="image", sample_compression="jpeg")
+        for i in range(10):
+            ds.image.append(deeplake.read(cat_path))
+
+    decode_method = {tensor: "data" for tensor in list(ds.tensors.keys())}
+    ptds = (
+        ds.dataloader()
+        .transform(identity)
+        .pytorch(decode_method=decode_method, collate_fn=identity_collate)
+    )
+    for i, batch in enumerate(ptds):
+        sample = batch[0]
+        assert sample["text"]["value"] == f"hello {i}"
+        assert sample["json"]["value"] == {"x": i}
+        assert sample["list"]["value"].tolist() == [i, i + 1]
+        assert sample["class_label"]["value"] == [i]
+        assert sample["class_label"]["text"] == [animals[i]]
+        assert sample["image"]["value"].shape == (900, 900, 3)
+        assert sample["generic"]["value"] == i

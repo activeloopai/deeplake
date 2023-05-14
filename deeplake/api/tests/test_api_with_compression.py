@@ -2,11 +2,10 @@ import os
 import sys
 from deeplake.constants import KB, MB
 from deeplake.util.exceptions import (
-    SampleCompressionError,
+    SampleAppendError,
     TensorMetaMissingRequiredValue,
     TensorMetaMutuallyExclusiveKeysError,
     UnsupportedCompressionError,
-    SampleHtypeMismatchError,
 )
 import pytest
 from deeplake.core.tensor import Tensor
@@ -117,7 +116,7 @@ def test_byte_sample_compression(memory_ds):
         np.testing.assert_array_equal(ds.xyz[i].numpy(), i * np.ones((100, 100, 100)))
 
 
-@pytest.mark.xfail(raises=SampleCompressionError, strict=True)
+@pytest.mark.xfail(raises=SampleAppendError, strict=True)
 @pytest.mark.parametrize(
     "bad_shape",
     [
@@ -328,7 +327,7 @@ def test_forced_htypes(
         rgb_png.append(deeplake.read(flower_path))
         rgb_png.append(np.ones((10, 10, 4), dtype=np.uint8))
 
-        with pytest.raises(SampleHtypeMismatchError):
+        with pytest.raises(SampleAppendError):
             rgb_png.append(1)
 
         with pytest.raises(TensorMetaMissingRequiredValue):
@@ -338,13 +337,13 @@ def test_forced_htypes(
             ds.create_tensor("abc", htype="image.gray")
 
     for sample in gray:
-        assert len(sample.shape) == 2
+        assert len(sample.shape) == 3
 
     for sample in rgb:
         assert len(sample.shape) == 3
 
     for sample in gray_png:
-        assert len(sample.shape) == 2
+        assert len(sample.shape) == 3
 
     for sample in rgb_png:
         assert len(sample.shape) == 3

@@ -3,7 +3,6 @@ import pytest
 import numpy as np
 from click.testing import CliRunner
 from deeplake.core.storage.memory import MemoryProvider
-from deeplake.core.transform.transform_tensor import TransformTensor
 from deeplake.core.version_control.test_version_control import (
     compare_dataset_diff,
     compare_tensor_diff,
@@ -12,11 +11,17 @@ from deeplake.core.version_control.test_version_control import (
 )
 from deeplake.util.remove_cache import remove_memory_cache
 from deeplake.util.check_installation import ray_installed
-from deeplake.util.exceptions import InvalidOutputDatasetError, TransformError
+from deeplake.util.exceptions import (
+    AllSamplesSkippedError,
+    EmptyTensorError,
+    InvalidOutputDatasetError,
+    TransformError,
+)
 from deeplake.tests.common import parametrize_num_workers
 from deeplake.util.transform import get_pbar_description
 import deeplake
 import gc
+import re
 from deeplake.tests.common import get_dummy_data_path
 
 
@@ -34,8 +39,8 @@ commit_or_not = pytest.mark.parametrize("do_commit", [True, False])
 @deeplake.compute
 def fn1(sample_in, samples_out, mul=1, copy=1):
     for _ in range(copy):
-        samples_out.image.append(np.ones((337, 200)) * sample_in * mul)
-        samples_out.label.append(np.ones((1,)) * sample_in * mul)
+        samples_out.image.append(np.ones((337, 200), dtype=np.uint8) * sample_in * mul)
+        samples_out.label.append(np.ones((1,), dtype=np.uint32) * sample_in * mul)
 
 
 @deeplake.compute
@@ -306,14 +311,14 @@ def test_single_transform_deeplake_dataset_htypes(local_ds, num_workers, schedul
     assert len(ds_out) == 99
     for index in range(1, 100):
         np.testing.assert_array_equal(
-            ds_out[index - 1].image.numpy(), 2 * index * np.ones((index, index))
+            ds_out[index - 1].image.numpy(), 2 * index * np.ones((index, index, 1))
         )
         np.testing.assert_array_equal(
             ds_out[index - 1].label.numpy(), 2 * index * np.ones((1,))
         )
 
-    assert ds_out.image.shape_interval.lower == (99, 1, 1)
-    assert ds_out.image.shape_interval.upper == (99, 99, 99)
+    assert ds_out.image.shape_interval.lower == (99, 1, 1, 1)
+    assert ds_out.image.shape_interval.upper == (99, 99, 99, 1)
     data_in.delete()
 
 
@@ -335,7 +340,8 @@ def test_chain_transform_list_small(local_ds, scheduler):
     for i in range(100):
         for index in range(6 * i, 6 * i + 6):
             np.testing.assert_array_equal(
-                ds_out[index].image.numpy(), 15 * i * np.ones((337, 200))
+                ds_out[index].image.numpy(),
+                np.asarray(15 * i * np.ones((337, 200)), dtype=np.uint8),
             )
             np.testing.assert_array_equal(
                 ds_out[index].label.numpy(), 15 * i * np.ones((1,))
@@ -396,7 +402,8 @@ def test_add_to_non_empty_dataset(local_ds, scheduler, do_commit):
     for i in range(100):
         for index in range(10 + 6 * i, 10 + 6 * i + 6):
             np.testing.assert_array_equal(
-                ds_out[index].image.numpy(), 15 * i * np.ones((337, 200))
+                ds_out[index].image.numpy(),
+                np.asarray(15 * i * np.ones((337, 200)), dtype=np.uint8),
             )
             np.testing.assert_array_equal(
                 ds_out[index].label.numpy(), 15 * i * np.ones((1,))
@@ -488,14 +495,14 @@ def test_deeplake_like(local_ds, scheduler="threaded"):
         assert len(ds_out) == 99
         for index in range(1, 100):
             np.testing.assert_array_equal(
-                ds_out[index - 1].image.numpy(), 2 * index * np.ones((index, index))
+                ds_out[index - 1].image.numpy(), 2 * index * np.ones((index, index, 1))
             )
             np.testing.assert_array_equal(
                 ds_out[index - 1].label.numpy(), 2 * index * np.ones((1,))
             )
 
-        assert ds_out.image.shape_interval.lower == (99, 1, 1)
-        assert ds_out.image.shape_interval.upper == (99, 99, 99)
+        assert ds_out.image.shape_interval.lower == (99, 1, 1, 1)
+        assert ds_out.image.shape_interval.upper == (99, 99, 99, 1)
 
 
 def test_transform_empty(local_ds):
@@ -578,14 +585,14 @@ def test_transform_persistance(local_ds_generator, num_workers=2, scheduler="thr
         assert len(ds_out) == 99
         for index in range(1, 100):
             np.testing.assert_array_equal(
-                ds_out[index - 1].image.numpy(), 2 * index * np.ones((index, index))
+                ds_out[index - 1].image.numpy(), 2 * index * np.ones((index, index, 1))
             )
             np.testing.assert_array_equal(
                 ds_out[index - 1].label.numpy(), 2 * index * np.ones((1,))
             )
 
-        assert ds_out.image.shape_interval.lower == (99, 1, 1)
-        assert ds_out.image.shape_interval.upper == (99, 99, 99)
+        assert ds_out.image.shape_interval.lower == (99, 1, 1, 1)
+        assert ds_out.image.shape_interval.upper == (99, 99, 99, 1)
 
     test_ds_out()
     ds_out = local_ds_generator()
@@ -912,7 +919,8 @@ def test_transform_skip_ok(local_ds_generator):
     for i in range(100):
         for index in range(6 * i, 6 * i + 6):
             np.testing.assert_array_equal(
-                ds.image[index].numpy(), 15 * i * np.ones((337, 200))
+                ds.image[index].numpy(),
+                np.asarray(15 * i * np.ones((337, 200)), dtype=np.uint8),
             )
             np.testing.assert_array_equal(
                 ds.label[index].numpy(), 15 * i * np.ones((1,))
@@ -925,7 +933,8 @@ def test_transform_skip_ok(local_ds_generator):
     for i in range(100):
         for index in range(6 * i, 6 * i + 6):
             np.testing.assert_array_equal(
-                ds.image[index].numpy(), 15 * i * np.ones((337, 200))
+                ds.image[index].numpy(),
+                np.asarray(15 * i * np.ones((337, 200)), dtype=np.uint8),
             )
             np.testing.assert_array_equal(
                 ds.label[index].numpy(), 15 * i * np.ones((1,))
@@ -1242,3 +1251,354 @@ def test_downsample_transform(local_ds):
             assert len(ds[tensor]) == 10
             for i in range(10):
                 assert ds[tensor][i].shape == shape
+
+
+def test_rechunk_post_transform(local_ds):
+    with local_ds as ds:
+        ds.create_tensor("image", htype="image", sample_compression="jpg")
+        ds.create_tensor("label", htype="class_label")
+
+    fn1().eval(list(range(100)), ds, num_workers=4)
+
+    label_num_chunks = ds.label.chunk_engine.num_chunks
+
+    assert label_num_chunks == 1
+
+    image_num_chunks = ds.image.chunk_engine.num_chunks
+
+    assert image_num_chunks == 4
+
+
+def test_none_rechunk_post_transform(local_ds):
+    @deeplake.compute
+    def upload(stuff, ds):
+        ds.abc.append(None)
+
+    with local_ds as ds:
+        ds.create_tensor("abc")
+
+    upload().eval(list(range(100)), ds, num_workers=2)
+
+    num_chunks = ds.abc.chunk_engine.num_chunks
+
+    assert num_chunks == 2
+
+
+@pytest.mark.parametrize("scheduler", ["serial", "threaded", "processed"])
+def test_transform_checkpointing(local_ds, scheduler):
+    @deeplake.compute
+    def upload(i, ds):
+        if i == 45:
+            raise Exception("test")
+        ds.abc.append(i)
+
+    @deeplake.compute
+    def double(data_in, ds):
+        ds.abc.append(data_in.abc * 2)
+
+    data_in = list(range(100))
+
+    with local_ds as ds:
+        ds.create_tensor("abc")
+
+    # not divisible by num_workers
+    with pytest.raises(ValueError):
+        upload().eval(
+            data_in, ds, num_workers=2, scheduler=scheduler, checkpoint_interval=51
+        )
+
+    # greater than len(data_in)
+    with pytest.raises(ValueError):
+        upload().eval(
+            data_in, ds, num_workers=2, scheduler=scheduler, checkpoint_interval=102
+        )
+
+    # less than 10% of data_in, shows warning
+    with pytest.warns(UserWarning, match="10%"):
+        with pytest.raises(TransformError):
+            upload().eval(
+                data_in, ds, num_workers=2, scheduler=scheduler, checkpoint_interval=8
+            )
+
+    assert len(ds.abc) == 40
+    assert ds.abc.numpy(aslist=True) == list(range(40))
+    with pytest.raises(ValueError):
+        double().eval(ds, num_workers=2, scheduler=scheduler, checkpoint_interval=10)
+
+    # fix input data
+    data_in[45] = 0
+
+    upload().eval(
+        data_in[40:], ds, num_workers=2, scheduler=scheduler, checkpoint_interval=10
+    )
+    assert ds.abc.numpy(aslist=True) == data_in
+
+
+def create_test_ds(path):
+    ds = deeplake.empty(path, overwrite=True)
+    ds.create_tensor("images", htype="image", sample_compression="jpg")
+    ds.create_tensor("boxes", htype="bbox")
+    ds.create_tensor("labels", htype="class_label")
+    return ds
+
+
+class BadSample:
+    # will pass shape check in transform tensor
+    shape = (250, 250, 3)
+
+
+@all_schedulers
+@pytest.mark.parametrize("method", ["ds", "multiple"])
+@pytest.mark.parametrize("error_at", ["transform", "chunk_engine"])
+def test_ds_append_errors(
+    local_path, compressed_image_paths, scheduler, method, error_at
+):
+    @deeplake.compute
+    def upload(item, ds):
+        images = (
+            deeplake.read(item["images"])
+            if isinstance(item["images"], str)
+            else item["images"]
+        )
+        if method == "ds":
+            ds.append(
+                {
+                    "labels": np.zeros(10, dtype=np.uint32),
+                    "boxes": np.ones((len(item["boxes"]), 4), dtype=np.float32),
+                    "images": images,
+                }
+            )
+        elif method == "multiple":
+            # test rolling back multiple samples
+            ds.labels.append(np.zeros(10, dtype=np.uint32))
+            ds.boxes.append(np.ones((len(item["boxes"]), 4), dtype=np.float32))
+            ds.labels.append(np.zeros(10, dtype=np.uint32))
+            ds.boxes.append(np.ones((len(item["boxes"]), 4), dtype=np.float32))
+            ds.images.append(images)
+            ds.images.append(images)
+
+    ds = create_test_ds(local_path)
+
+    images = compressed_image_paths["jpeg"][:2]
+
+    samples = []
+    for i in range(20):
+        samples.append({"images": images[i % 2], "boxes": range(i + 1)})
+
+    if error_at == "transform":
+        # errors out in transform dataset / tensor
+        bad_sample = {"images": "bad_path", "boxes": [1, 2, 3]}
+        err_msg = re.escape(
+            f"Transform failed at index 17 of the input data on the item: {bad_sample}. See traceback for more details."
+        )
+    else:
+        # errors out in chunk engine
+        bad_sample = {"images": BadSample(), "boxes": [1, 2, 3]}
+        err_msg = re.escape(
+            f"Transform failed at index 17 of the input data. See traceback for more details."
+        )
+
+    samples.insert(17, bad_sample)
+
+    with pytest.raises(TransformError, match=err_msg) as e:
+        upload().eval(
+            samples,
+            ds,
+            num_workers=TRANSFORM_TEST_NUM_WORKERS,
+            scheduler=scheduler,
+        )
+
+    ds = create_test_ds(local_path)
+
+    upload().eval(
+        samples,
+        ds,
+        num_workers=TRANSFORM_TEST_NUM_WORKERS,
+        scheduler=scheduler,
+        ignore_errors=True,
+    )
+
+    if method == "ds":
+        assert ds["images"][::2].numpy().shape == (10, *deeplake.read(images[0]).shape)
+        assert ds["images"][1::2].numpy().shape == (10, *deeplake.read(images[1]).shape)
+
+        assert len(ds["boxes"]) == 20
+        assert ds["boxes"].meta.min_shape == [1, 4]
+        assert ds["boxes"].meta.max_shape == [20, 4]
+
+        assert ds["labels"].numpy().shape == (20, 10)
+    elif method == "multiple":
+        data = ds["images"]
+
+        images_0 = np.concatenate([data[i : i + 2].numpy() for i in range(0, 40, 4)])
+        image_0_shape = deeplake.read(images[0]).shape
+        assert images_0.shape == (20, *image_0_shape)
+
+        images_1 = np.concatenate([data[i : i + 2].numpy() for i in range(2, 40, 4)])
+        image_1_shape = deeplake.read(images[1]).shape
+        assert images_1.shape == (20, *image_1_shape)
+
+        assert len(ds["boxes"]) == 40
+        assert ds["boxes"].meta.min_shape == [1, 4]
+        assert ds["boxes"].meta.max_shape == [20, 4]
+
+        assert ds["labels"].numpy().shape == (40, 10)
+
+
+def test_all_samples_skipped(local_ds):
+    @deeplake.compute
+    def upload(stuff, ds):
+        if isinstance(stuff["images"], str):
+            sample = deeplake.read(stuff["images"])
+        else:
+            sample = stuff["images"]
+        ds.images.append(sample)
+
+    with local_ds as ds:
+        ds.create_tensor("images", htype="image", sample_compression="png")
+
+    samples = (
+        [{"images": "bad_path"}] * 10
+        + [{"images": BadSample()}] * 20
+        + [{"images": "bad_path"}] * 10
+    )
+
+    with pytest.raises(AllSamplesSkippedError) as e:
+        upload().eval(
+            samples, ds, num_workers=TRANSFORM_TEST_NUM_WORKERS, ignore_errors=True
+        )
+
+
+def test_transform_numpy_only(local_ds):
+    @deeplake.compute
+    def upload(i, ds):
+        ds.abc.extend(i * np.ones((10, 5, 5)))
+
+    with local_ds as ds:
+        ds.create_tensor("abc")
+
+        upload().eval(list(range(100)), ds, num_workers=2)
+
+    assert len(local_ds) == 1000
+
+    for i in range(100):
+        np.testing.assert_array_equal(
+            ds.abc[i * 10 : (i + 1) * 10].numpy(), i * np.ones((10, 5, 5))
+        )
+
+
+@deeplake.compute
+def add_samples(i, ds, flower_path):
+    ds.abc.extend(i * np.ones((5, 5, 5)))
+    ds.images.extend([deeplake.read(flower_path) for _ in range(5)])
+
+
+@deeplake.compute
+def mul_by_2(sample_in, samples_out):
+    samples_out.abc.append(2 * sample_in.abc.numpy())
+    samples_out.images.append(sample_in.images.numpy() - 1)
+
+
+def test_pipeline(local_ds, flower_path):
+    pipeline = deeplake.compose([add_samples(flower_path), mul_by_2()])
+
+    flower_arr = np.array(deeplake.read(flower_path))
+
+    with local_ds as ds:
+        ds.create_tensor("abc")
+        ds.create_tensor("images", htype="image", sample_compression="png")
+
+        pipeline.eval(list(range(10)), ds, num_workers=2)
+
+    assert len(local_ds) == 50
+
+    for i in range(10):
+        np.testing.assert_array_equal(
+            ds.abc[i * 5 : (i + 1) * 5].numpy(), i * 2 * np.ones((5, 5, 5))
+        )
+        np.testing.assert_array_equal(
+            ds.images[i * 5 : (i + 1) * 5].numpy(),
+            np.tile(flower_arr - 1, (5, 1, 1, 1)),
+        )
+
+
+def test_pad_data_in_bug(local_ds):
+    @deeplake.compute
+    def upload(stuff, ds):
+        append_dict = {}
+        for tensor in ds.tensors:
+            append_dict[tensor] = stuff[tensor]
+
+        ds.append(append_dict)
+
+    with local_ds as ds:
+        ds.create_tensor("abc", htype="class_label")
+        ds.create_tensor("xyz")
+
+        ds.abc.extend([1, 2, 3, 4, 5, 6, 7, 8, 9, 10])
+        ds.xyz.extend([1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11])
+
+    ds2 = deeplake.empty(local_ds.path + "_2", overwrite=True)
+    ds2.create_tensor("abc", htype="class_label")
+    ds2.create_tensor("xyz")
+
+    upload().eval(ds, ds2, num_workers=TRANSFORM_TEST_NUM_WORKERS, pad_data_in=True)
+
+    assert len(ds2) == 11
+    np.testing.assert_array_equal(ds2.abc[:10].numpy(), ds.abc.numpy())
+    np.testing.assert_array_equal(ds2.abc[10].numpy(), np.zeros((0,)))
+    np.testing.assert_array_equal(ds2.xyz.numpy(), ds.xyz.numpy())
+
+    ds2.delete()
+
+
+def test_no_corruption(local_ds):
+    @deeplake.compute
+    def upload(stuff, ds):
+        ds.append(stuff)
+
+    with local_ds as ds:
+        ds.create_tensor("images", htype="image", sample_compression="png")
+        ds.create_tensor("labels", htype="class_label")
+
+    samples = (
+        [
+            {
+                "images": np.random.randint(0, 256, (10, 10, 3), dtype=np.uint8),
+                "labels": 1,
+            }
+            for _ in range(20)
+        ]
+        + ["bad_sample"]
+    ) * 2
+
+    with pytest.raises(TransformError):
+        upload().eval(samples, ds, num_workers=TRANSFORM_TEST_NUM_WORKERS)
+
+    assert ds.images.numpy().shape == (40, 10, 10, 3)
+    assert ds.labels.numpy().shape == (40, 1)
+
+
+def test_ds_append_empty(local_ds):
+    @deeplake.compute
+    def upload(stuff, ds):
+        ds.append(stuff, append_empty=True)
+
+    with local_ds as ds:
+        ds.create_tensor("images", htype="image", sample_compression="png")
+        ds.create_tensor("label1", htype="class_label")
+        ds.create_tensor("label2", htype="class_label")
+
+    samples = [
+        {"images": np.random.randint(0, 255, (10, 10, 3), dtype=np.uint8), "label1": 1}
+        for _ in range(20)
+    ]
+
+    upload().eval(samples, ds, num_workers=TRANSFORM_TEST_NUM_WORKERS)
+
+    with pytest.raises(EmptyTensorError):
+        ds.label2.numpy()
+
+    ds.label2.append(1)
+
+    np.testing.assert_array_equal(ds.label2[:20].numpy(), np.array([]).reshape((20, 0)))

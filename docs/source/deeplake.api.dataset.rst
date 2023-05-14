@@ -55,7 +55,7 @@ deeplake.api.dataset
 
         See :func:`deeplake.ingest_kaggle`.
     
-    .. staticmethod:: ingest_dataframe(src, dest: Union[str, pathlib.Path], dest_creds: Optional[Dict] = None, progressbar: bool = True, token: Optional[str] = None, connect_kwargs: Optional[Dict] = None, **dataset_kwargs)
+    .. staticmethod:: ingest_dataframe(src, dest: Union[str, pathlib.Path], column_params: Optional[Dict] = None, src_creds: Optional[Dict] = None, dest_creds: Optional[Dict] = None, creds_key: Optional[Dict] = None, progressbar: bool = True, token: Optional[str] = None, connect_kwargs: Optional[Dict] = None, **dataset_kwargs)
 
         See :func:`deeplake.ingest_dataframe`.
     

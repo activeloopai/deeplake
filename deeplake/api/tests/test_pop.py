@@ -9,6 +9,7 @@ from deeplake.core.version_control.test_version_control import (
     get_default_tensor_diff,
     get_default_dataset_diff,
 )
+from deeplake.util.version_control import integrity_check
 
 
 @deeplake.compute
@@ -305,3 +306,18 @@ def test_pop_tiled(local_ds_generator):
     assert not ds.x.chunk_engine._is_tiled_sample(0)
     assert ds.x.chunk_engine._is_tiled_sample(1)
     assert not ds.x.chunk_engine._is_tiled_sample(2)
+
+
+def test_sequence_pop_bug(local_ds_generator):
+    with local_ds_generator() as ds:
+        ds.create_tensor("abc", htype="sequence")
+        ds.abc.extend([[0, 1], [1, 2, 3], [1, 2]])
+        ds.pop(0)
+
+        assert len(ds._abc_shape.numpy()) == 5
+        integrity_check(ds)
+
+    ds = local_ds_generator()
+    assert len(ds._abc_shape.numpy()) == 5
+
+    integrity_check(ds)
