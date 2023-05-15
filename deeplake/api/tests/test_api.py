@@ -2473,3 +2473,16 @@ def test_tensor_dtype_bug(local_path):
 
     assert ds2.abc[0].numpy().shape == (4, 5, 7)
     assert ds2.abc.dtype == np.dtype("<U1")
+
+
+def test_iterate_with_groups(memory_ds):
+    with memory_ds as ds:
+        ds.create_tensor("x/y/z")
+
+    ds["x/y/z"].extend(list(range(100)))
+
+    for i, sample in enumerate(ds):
+        assert sample["x/y"].z.is_iteration == True
+
+    for i, sample in enumerate(ds):
+        assert sample["x/y/z"].is_iteration == True

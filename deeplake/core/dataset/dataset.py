@@ -489,6 +489,7 @@ class Dataset:
                     verbose=False,
                     version_state=self.version_state,
                     path=self.path,
+                    is_iteration=is_iteration,
                     link_creds=self.link_creds,
                     pad_tensors=self._pad_tensors,
                     enabled_tensors=self.enabled_tensors,
