@@ -62,8 +62,8 @@ def load_dataset(dataset_path, token, creds, logger, read_only, **kwargs):
 
 def create_dataset(dataset_path, token, exec_option, **kwargs):
     runtime = None
-    if exec_option == "db_engite":
-        runtime = {"db_engite": True}
+    if exec_option == "db_engine":
+        runtime = {"db_engine": True}
 
     dataset = deeplake.empty(dataset_path, token=token, runtime=runtime, **kwargs)
 

@@ -101,11 +101,20 @@ def test_ingest_data():
         ingestion_batch_size=1024,
         num_workers=2,
     )
-
     assert len(dataset) == 20004
 
     extended_data = extended_data * 10
     embedding_function = partial(corrupted_embedding_function, threshold=0.95)
+    with pytest.raises(Exception):
+        ingest_data.run_data_ingestion(
+            dataset=dataset,
+            elements=extended_data,
+            embedding_function=embedding_function,
+            ingestion_batch_size=1024,
+            num_workers=2,
+        )
+
+    extended_data = extended_data * 10
     with pytest.raises(Exception):
         ingest_data.run_data_ingestion(
             dataset=dataset,

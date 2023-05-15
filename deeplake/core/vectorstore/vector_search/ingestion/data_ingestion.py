@@ -36,9 +36,6 @@ class DataIngestion:
 
         elements = self.elements
         if self.total_samples_processed:
-            if self.total_samples_processed * batch_size >= len(self.elements):
-                return []
-
             elements = self.elements[self.total_samples_processed * batch_size :]
 
         batched = [

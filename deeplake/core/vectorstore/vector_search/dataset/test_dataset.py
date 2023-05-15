@@ -30,9 +30,26 @@ def test_create_or_load_dataset(caplog, hub_cloud_dev_token):
         "text",
     }
 
+    dataset = dataset_utils.create_or_load_dataset(
+        dataset_path="hub://activeloop-test/vectorstore_db_engine",
+        token=None,
+        creds={},
+        logger=logger,
+        read_only=False,
+        exec_option="db_engine",
+        overwrite=True,
+    )
+    assert len(dataset) == 0
+    assert set(dataset.tensors.keys()) == {
+        "embedding",
+        "ids",
+        "metadata",
+        "text",
+    }
+
     # dataset loading
     dataset = dataset_utils.create_or_load_dataset(
-        dataset_path="hub://activeloop-test/deeplake_vectorstore-test1",
+        dataset_path="hub://activeloop-test/vectorstore-test1",
         creds={},
         logger=logger,
         exec_option="python",
