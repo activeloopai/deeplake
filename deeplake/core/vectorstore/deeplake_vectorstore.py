@@ -87,6 +87,9 @@ class DeepLakeVectorStore:
         elements, ids = dataset_utils.create_elements(
             ids=ids, texts=texts, metadatas=metadatas, embeddings=embeddings
         )
+
+        assert ids is not None
+
         ingest_data.run_data_ingestion(
             elements=elements,
             dataset=self.dataset,
