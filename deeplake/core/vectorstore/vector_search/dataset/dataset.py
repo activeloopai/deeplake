@@ -178,7 +178,7 @@ def create_elements(
     metadatas: Optional[List[dict]] = None,
     embeddings: Optional[np.ndarray] = None,
 ):
-    processed_tensors = preprocess_tensors(ids, texts, metadatas, embeddings)
+    processed_tensors, ids = preprocess_tensors(ids, texts, metadatas, embeddings)
     utils.check_length_of_each_tensor(processed_tensors)
 
     elements = [
@@ -190,4 +190,4 @@ def create_elements(
         }
         for i in range(0, len(processed_tensors["texts"]))
     ]
-    return elements
+    return elements, ids

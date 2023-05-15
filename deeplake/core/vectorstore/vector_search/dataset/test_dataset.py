@@ -32,7 +32,7 @@ def test_create_or_load_dataset(caplog, hub_cloud_dev_token):
 
     dataset = dataset_utils.create_or_load_dataset(
         dataset_path="hub://activeloop-test/vectorstore_db_engine",
-        token=None,
+        token=hub_cloud_dev_token,
         creds={},
         logger=logger,
         read_only=False,
@@ -156,7 +156,7 @@ def test_get_embedding():
 
 def test_preprocess_tensors():
     texts = ["a", "b", "c", "d"]
-    processed_tensors = dataset_utils.preprocess_tensors(
+    processed_tensors, ids = dataset_utils.preprocess_tensors(
         ids=None, texts=texts, metadatas=None, embeddings=None
     )
 
@@ -169,7 +169,7 @@ def test_preprocess_tensors():
     ids = np.array([1, 2, 3, 4])
     metadatas = [{"a": 1}, {"b": 2}, {"c": 3}, {"d": 4}]
     embeddings = [np.array([0.1, 0.2, 0.3, 0.4])] * len(texts)
-    processed_tensors = dataset_utils.preprocess_tensors(
+    processed_tensors, _ = dataset_utils.preprocess_tensors(
         ids=ids, texts=texts, metadatas=metadatas, embeddings=embeddings
     )
     assert np.array_equal(processed_tensors["ids"], ids)
@@ -215,7 +215,7 @@ def test_create_elements():
         dataset_utils.create_elements(
             ids=ids, texts=texts[:2], embeddings=embeddings, metadatas=metadatas
         )
-    elements = dataset_utils.create_elements(
+    elements, ids = dataset_utils.create_elements(
         ids=ids, texts=texts, embeddings=embeddings, metadatas=metadatas
     )
 
