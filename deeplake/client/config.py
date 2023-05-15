@@ -10,7 +10,7 @@ HUB_REST_ENDPOINT_DEV = "https://app-dev.activeloop.dev"
 HUB_REST_ENDPOINT_LOCAL = "http://localhost:7777"
 USE_LOCAL_HOST = False
 USE_DEV_ENVIRONMENT = False
-USE_STAGING_ENVIRONMENT = True
+USE_STAGING_ENVIRONMENT = False
 
 GET_TOKEN_SUFFIX = "/api/user/token"
 REGISTER_USER_SUFFIX = "/api/user/register"
