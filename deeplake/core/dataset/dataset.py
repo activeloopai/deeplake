@@ -2105,7 +2105,7 @@ class Dataset:
             query_string (str): An SQL string adjusted with new functionalities to run on the given :class:`~deeplake.core.dataset.Dataset` object
             runtime (Optional[Dict]): whether to run query on a remote engine
             return_indices_and_scores (bool): by default False. Whether to return indices and scores.
-            
+
         Raises:
             ValueError: if return_indices_and_scores is True and runtime is not {"db_engine": true}
 
