@@ -70,7 +70,7 @@ class DeepLakeVectorStore:
         metadatas: Optional[List[dict]] = None,
         ids: Optional[List[str]] = None,
         embeddings: Optional[np.ndarray] = None,
-        total_samples_processed: Optional[Any] = None,
+        total_samples_processed: int = 0,
     ) -> List[str]:
         """Adding elements to deeplake vector store
 
@@ -79,7 +79,7 @@ class DeepLakeVectorStore:
             metadatas (List[dict], optional): List of metadatas. Defaults to None.
             ids (List[str], optional): List of document IDs. Defaults to None.
             embeddings (np.ndarray, optional): embedding of texts. Defaults to None.
-            total_samples_processed (int, optional): Total number of samples processed before transforms stopped.
+            total_samples_processed (int): Total number of samples processed before transforms stopped.
 
         Returns:
             List[str]: List of document IDs
