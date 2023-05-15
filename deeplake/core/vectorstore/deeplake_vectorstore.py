@@ -5,6 +5,7 @@ from deeplake.core.vectorstore.vector_search import filter as filter_utils
 from deeplake.constants import DEFAULT_DEEPLAKE_PATH
 from deeplake.core.vectorstore.vector_search import vector_search
 from deeplake.core.vectorstore.vector_search.ingestion import ingest_data
+from deeplake.core.dataset.dataset import Dataset as DeepLakeDataset
 
 try:
     from indra import api  # type: ignore
@@ -70,7 +71,7 @@ class DeepLakeVectorStore:
         ids: Optional[List[str]] = None,
         embeddings: Optional[np.ndarray] = None,
         total_samples_processed: Optional[Any] = None,
-    ) -> Optional[List[str]]:
+    ) -> List[str]:
         """Adding elements to deeplake vector store
 
         Args:
@@ -78,8 +79,10 @@ class DeepLakeVectorStore:
             metadatas (List[dict], optional): List of metadatas. Defaults to None.
             ids (List[str], optional): List of document IDs. Defaults to None.
             embeddings (np.ndarray, optional): embedding of texts. Defaults to None.
+            total_samples_processed (int, optional): Total number of samples processed before transforms stopped.
+
         Returns:
-            ids (List[str], optional): List of document IDs
+            ids (List[str]): List of document IDs
         """
         elements = dataset_utils.create_elements(
             ids=ids, texts=texts, metadatas=metadatas, embeddings=embeddings
@@ -111,8 +114,8 @@ class DeepLakeVectorStore:
         Args:
             query (str, optional): String representation of the query to run. Defaults to None.
             embedding (Optional[np.ndarray, optional): Embedding representation of the query to run. Defaults to None.
-            k (int, optional): Number of elements to return after running query. Defaults to 4.
-            distance_metric (str, optional): Type of distance metric to use for sorting the data. Avaliable options are: "L1", "L2", "COS", "MAX". Defaults to "L2".
+            k (int): Number of elements to return after running query. Defaults to 4.
+            distance_metric (str): Type of distance metric to use for sorting the data. Avaliable options are: "L1", "L2", "COS", "MAX". Defaults to "L2".
             filter (Any, optional): Metadata dictionary for exact search. Defaults to None.
             exec_option (str, optional): Type of query execution. It could be either "python", "compute_engine" or "db_engine". Defaults to "python".
                 - `python` - runs on the client and can be used for any data stored anywhere. WARNING: using this option with big datasets is discouraged, because it can lead to some memory issues.
@@ -144,7 +147,7 @@ class DeepLakeVectorStore:
 
     def _search(
         self,
-        view,
+        view: DeepLakeDataset,
         exec_option: str,
         embedding: Optional[Union[List[float], np.ndarray]] = None,
         query: Optional[str] = None,
@@ -154,12 +157,12 @@ class DeepLakeVectorStore:
         """Internal DeepLakeVectorStore search method
 
         Args:
+            view (DeepLakeDataset): DeepLakeDataset object to run query inside.
             query (Optional[str], optional): String representation of the query to run. Defaults to None.
             embedding (Optional[Union[List[float], np.ndarray]], optional): Embedding representation of the query to run. Defaults to None.
             k (int): Number of elements to return after running query. Defaults to 4.
             distance_metric (str): Type of distance metric to use for sorting the data. Avaliable options are: "L1", "L2", "COS", "MAX". Defaults to "L2".
-            filter (Optional[Any], optional): Metadata dictionary for exact search. Defaults to None.
-            exec_option (str, optional): Type of query execution. It could be either "python", "compute_engine" or "db_engine". Defaults to "python".
+            exec_option (str): Type of query execution. It could be either "python", "compute_engine" or "db_engine".
                 - `python` - runs on the client and can be used for any data stored anywhere. WARNING: using this option with big datasets is discouraged, because it can lead to some memory issues.
                 - `compute_engine` - runs on the client and can be used for any data stored in or connected to Deep Lake.
                 - `db_engine` - runs on the Deep Lake Managed Database and can be used for any data stored in the Deep Lake Managed.

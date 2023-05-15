@@ -1,5 +1,5 @@
 import numpy as np
-from typing import Union, List, Any, Optional
+from typing import Union, List, Any, Optional, Tuple
 
 from deeplake.core.vectorstore.vector_search.indra import query
 from deeplake.core.vectorstore.vector_search import utils
@@ -13,7 +13,7 @@ def vector_search(
     k: int,
     embedding_tensor: str,
     **kwargs
-):
+) -> Tuple[List, List]:
     """Vector Searching algorithm that uses indra.
 
     Args:
@@ -23,6 +23,9 @@ def vector_search(
         k (int): number of samples to return after the search.
         embedding_tensor (str): name of the tensor in the dataset with `htype = "embedding"`.
         **kwargs (Any): Any additional parameters.
+
+    Returns:
+        Tuple[List, List]: tuple representing the indices of the returned embeddings and their respective scores.
     """
     from indra import api  # type: ignore
 

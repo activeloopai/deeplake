@@ -24,6 +24,8 @@ def run_data_ingestion(
         embedding_function (Optional[Callable]): function used to convert query into an embedding.
         ingestion_batch_size (int): The batch size to use during ingestion.
         num_workers (int): The number of workers to use for ingesting data in parallel.
+        retry_attempt (int): The number of retry attempts already passed.
+        total_samples_processed (int): The number of samples processed before transforms stopped.
     """
 
     data_ingestion = DataIngestion(
