@@ -14,7 +14,7 @@ class DataIngestion:
         self,
         elements: List[Dict[str, Any]],
         dataset: DeepLakeDataset,
-        embedding_function: Callable,
+        embedding_function: Optional[Callable],
         ingestion_batch_size: int,
         num_workers: int,
         retry_attempt: int,

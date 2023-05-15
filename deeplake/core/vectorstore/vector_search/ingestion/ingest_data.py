@@ -21,7 +21,7 @@ def run_data_ingestion(
         elements (List[Dict[str, Any]]): List of dictionaries. Each dictionary contains mapping of
             names of 4 tensors (i.e. "embedding", "metadata", "ids", "text") to their corresponding values.
         dataset (DeepLakeDataset): deeplake dataset object.
-        embedding_function (Callable): function used to convert query into an embedding.
+        embedding_function (Optional[Callable]): function used to convert query into an embedding.
         ingestion_batch_size (int): The batch size to use during ingestion.
         num_workers (int): The number of workers to use for ingesting data in parallel.
     """

@@ -7,14 +7,14 @@ from deeplake.core.vectorstore.vector_search import vector_search
 from deeplake.core.vectorstore.vector_search.ingestion import ingest_data
 
 try:
-    from indra import api
+    from indra import api  # type: ignore
 
     _INDRA_INSTALLED = True
 except Exception:  # pragma: no cover
     _INDRA_INSTALLED = False  # pragma: no cover
 
 import logging
-from typing import Optional, Any, Iterable, List, Dict, Union
+from typing import Optional, Any, Iterable, List, Dict, Union, Callable
 
 import numpy as np
 
@@ -29,7 +29,7 @@ class DeepLakeVectorStore:
         self,
         dataset_path: str = DEFAULT_DEEPLAKE_PATH,
         token: Optional[str] = None,
-        embedding_function: Optional[callable] = None,
+        embedding_function: Optional[Callable] = None,
         read_only: Optional[bool] = False,
         ingestion_batch_size: int = 1024,
         num_workers: int = 0,
