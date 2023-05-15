@@ -506,7 +506,7 @@ class Tensor:
         if self.base_htype in ("json", "list"):
             return np.dtype(str)
         if self.meta.dtype:
-            return np.dtype(self.meta.dtype)
+            return np.dtype(self.meta.typestr or self.meta.dtype)
         return None
 
     @property
