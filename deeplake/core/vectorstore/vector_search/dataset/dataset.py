@@ -169,7 +169,7 @@ def preprocess_tensors(ids, texts, metadatas, embeddings):
         "embeddings": embeddings,
     }
 
-    return processed_tensors
+    return processed_tensors, ids
 
 
 def create_elements(

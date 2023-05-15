@@ -5,7 +5,7 @@ from deeplake.core.vectorstore.vector_search import filter as filter_utils
 from deeplake.constants import DEFAULT_DEEPLAKE_PATH
 from deeplake.core.vectorstore.vector_search import vector_search
 from deeplake.core.vectorstore.vector_search.ingestion import ingest_data
-from deeplake.core.dataset.dataset import Dataset as DeepLakeDataset
+from deeplake.core.dataset import Dataset as DeepLakeDataset
 
 try:
     from indra import api  # type: ignore
@@ -82,9 +82,9 @@ class DeepLakeVectorStore:
             total_samples_processed (int, optional): Total number of samples processed before transforms stopped.
 
         Returns:
-            ids (List[str]): List of document IDs
+            List[str]: List of document IDs
         """
-        elements = dataset_utils.create_elements(
+        elements, ids = dataset_utils.create_elements(
             ids=ids, texts=texts, metadatas=metadatas, embeddings=embeddings
         )
         ingest_data.run_data_ingestion(
