@@ -16,7 +16,7 @@ import numpy as np
 import uuid
 from typing import Iterable, List, Union, Optional
 
-from deeplake.constants import DEFAULT_DEEPLAKE_PATH
+from deeplake.constants import DEFAULT_VECTORSTORE_DEEPLAKE_PATH
 from deeplake.util.warnings import always_warn
 
 
@@ -44,9 +44,9 @@ def dataset_exists(dataset_path, token, creds, **kwargs):
 
 
 def load_dataset(dataset_path, token, creds, logger, read_only, **kwargs):
-    if dataset_path == DEFAULT_DEEPLAKE_PATH:
+    if dataset_path == DEFAULT_VECTORSTORE_DEEPLAKE_PATH:
         logger.warning(
-            f"The default deeplake path location is used: {DEFAULT_DEEPLAKE_PATH}"
+            f"The default deeplake path location is used: {DEFAULT_VECTORSTORE_DEEPLAKE_PATH}"
             " and it is not free. All addtionally added data will be added on"
             " top of already existing deeplake dataset."
         )
@@ -188,6 +188,6 @@ def create_elements(
             "metadata": processed_tensors["metadatas"][i],
             "embedding": processed_tensors["embeddings"][i],
         }
-        for i in range(0, len(processed_tensors["texts"]))
+        for i in range(len(processed_tensors["texts"]))
     ]
     return elements, ids

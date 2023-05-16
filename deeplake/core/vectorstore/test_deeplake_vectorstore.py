@@ -85,8 +85,8 @@ def test_delete():
     vector_store.delete(ids=["1", "2", "3"])
     assert len(vector_store) == 997
 
-    vector_store.delete(filter={"abcdefg": 0})
-    assert len(vector_store) == 985
+    vector_store.delete(filter={"abcdefg": 113})
+    assert len(vector_store) == 996
 
     vector_store.delete(delete_all=True)
     assert len(vector_store) == 0

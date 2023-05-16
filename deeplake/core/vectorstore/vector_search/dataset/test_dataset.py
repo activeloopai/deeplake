@@ -5,7 +5,7 @@ import numpy as np
 
 import deeplake
 from deeplake.core.vectorstore.vector_search import dataset as dataset_utils
-from deeplake.constants import DEFAULT_DEEPLAKE_PATH
+from deeplake.constants import DEFAULT_VECTORSTORE_DEEPLAKE_PATH
 
 
 logger = logging.getLogger(__name__)
@@ -31,7 +31,7 @@ def test_create_or_load_dataset(caplog, hub_cloud_dev_token):
     }
 
     dataset = dataset_utils.create_or_load_dataset(
-        dataset_path="hub://activeloop-test/vectorstore_db_engine",
+        dataset_path="hub://activeloop-test/vectorstore_dbengine",
         token=hub_cloud_dev_token,
         creds={},
         logger=logger,
@@ -59,13 +59,13 @@ def test_create_or_load_dataset(caplog, hub_cloud_dev_token):
     )
     assert len(dataset) == 10
 
-    ds = deeplake.empty(DEFAULT_DEEPLAKE_PATH, overwrite=True)
+    ds = deeplake.empty(DEFAULT_VECTORSTORE_DEEPLAKE_PATH, overwrite=True)
 
     test_logger = logging.getLogger("test_logger")
     with caplog.at_level(logging.WARNING, logger="test_logger"):
         # dataset loading
         dataset = dataset_utils.create_or_load_dataset(
-            dataset_path=DEFAULT_DEEPLAKE_PATH,
+            dataset_path=DEFAULT_VECTORSTORE_DEEPLAKE_PATH,
             token=None,
             creds={},
             logger=test_logger,
@@ -73,7 +73,7 @@ def test_create_or_load_dataset(caplog, hub_cloud_dev_token):
             exec_option="python",
         )
         assert (
-            f"The default deeplake path location is used: {DEFAULT_DEEPLAKE_PATH}"
+            f"The default deeplake path location is used: {DEFAULT_VECTORSTORE_DEEPLAKE_PATH}"
             " and it is not free. All addtionally added data will be added on"
             " top of already existing deeplake dataset." in caplog.text
         )

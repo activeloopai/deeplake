@@ -52,9 +52,8 @@ def generate_random_string(length):
     return random_string
 
 
-def generate_random_json(length):
+def generate_random_json(integer):
     string = "abcdefg"
-    integer = np.random.randint(0, length)
     return {string: integer}
 
 
@@ -62,5 +61,5 @@ def create_data(number_of_data, embedding_dim=100):
     embeddings = np.random.randint(0, 255, (number_of_data, embedding_dim))
     texts = [generate_random_string(1000) for i in range(number_of_data)]
     ids = [f"{i}" for i in range(number_of_data)]
-    metadata = [generate_random_json(100) for i in range(number_of_data)]
+    metadata = [generate_random_json(i) for i in range(number_of_data)]
     return texts, embeddings, ids, metadata
