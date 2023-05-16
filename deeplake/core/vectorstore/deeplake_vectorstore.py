@@ -48,9 +48,9 @@ class DeepLakeVectorStore:
             ingestion_batch_size (int): The batch size to use during ingestion. Defaults to 1024.
             num_workers (int): The number of workers to use for ingesting data in parallel. Defaults to 0.
             exec_option (str): Type of query execution. It could be either "python", "compute_engine" or "db_engine". Defaults to "python".
-                - `python` - runs on the client and can be used for any data stored anywhere. WARNING: using this option with big datasets is discouraged, because it can lead to some memory issues.
-                - `compute_engine` - runs on the client and can be used for any data stored in or connected to Deep Lake.
-                - `db_engine` - runs on the Deep Lake Managed Database and can be used for any data stored in the Deep Lake Managed.
+                - `python` - Pure-python implementation that runs on the client and can be used for data stored anywhere. WARNING: using this option with big datasets is discouraged because it can lead to memory issues.
+                - `compute_engine` - C++ implementation of the Deep Lake Compute Engine that runs on the client and can be used for any data stored in or connected to Deep Lake. It cannot be used with in-memory or local data.
+                - `db_engine` - Fully-hosted Managed Database that is responsible for storage and query execution. Only available for data stored in the Deep Lake Managed Database. This is achieved by specifying runtime = {"db_engine": True} during dataset creation.
             verbose (bool): Whether to print summary of the dataset created. Defaults to False.
             **kwargs (Any): Additional keyword arguments.
         """
@@ -166,10 +166,9 @@ class DeepLakeVectorStore:
             k (int): Number of elements to return after running query. Defaults to 4.
             distance_metric (str): Type of distance metric to use for sorting the data. Avaliable options are: "L1", "L2", "COS", "MAX". Defaults to "L2".
             exec_option (str): Type of query execution. It could be either "python", "compute_engine" or "db_engine".
-                - `python` - runs on the client and can be used for any data stored anywhere. WARNING: using this option with big datasets is discouraged, because it can lead to some memory issues.
-                - `compute_engine` - runs on the client and can be used for any data stored in or connected to Deep Lake.
-                - `db_engine` - runs on the Deep Lake Managed Database and can be used for any data stored in the Deep Lake Managed.
-
+                - `python` - Pure-python implementation that runs on the client and can be used for data stored anywhere. WARNING: using this option with big datasets is discouraged because it can lead to memory issues.
+                - `compute_engine` - C++ implementation of the Deep Lake Compute Engine that runs on the client and can be used for any data stored in or connected to Deep Lake. It cannot be used with in-memory or local data.
+                - `db_engine` - Fully-hosted Managed Database that is responsible for storage and query execution. Only available for data stored in the Deep Lake Managed Database. This is achieved by specifying runtime = {"db_engine": True} during dataset creation.
         Returns:
             tuple (view, indices, scores): View is the dataset view generated from the queried samples, indices are the indices of the ordered samples, scores are respectively the scores of the ordered samples
         """

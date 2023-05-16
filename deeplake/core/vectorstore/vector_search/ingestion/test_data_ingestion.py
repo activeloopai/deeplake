@@ -8,6 +8,8 @@ from functools import partial
 import deeplake
 from deeplake.constants import MB
 from deeplake.core.vectorstore.vector_search.ingestion import ingest_data
+from deeplake.util.exceptions import FailedIngestionError
+
 
 random.seed(1)
 
@@ -105,7 +107,7 @@ def test_ingest_data():
 
     extended_data = extended_data * 10
     embedding_function = partial(corrupted_embedding_function, threshold=0.95)
-    with pytest.raises(Exception):
+    with pytest.raises(FailedIngestionError):
         ingest_data.run_data_ingestion(
             dataset=dataset,
             elements=extended_data,
@@ -115,7 +117,7 @@ def test_ingest_data():
         )
 
     extended_data = extended_data * 10
-    with pytest.raises(Exception):
+    with pytest.raises(FailedIngestionError):
         ingest_data.run_data_ingestion(
             dataset=dataset,
             elements=extended_data,

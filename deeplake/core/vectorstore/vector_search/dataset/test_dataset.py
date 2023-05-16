@@ -6,12 +6,14 @@ import numpy as np
 import deeplake
 from deeplake.core.vectorstore.vector_search import dataset as dataset_utils
 from deeplake.constants import DEFAULT_VECTORSTORE_DEEPLAKE_PATH
+from deeplake.tests.common import requires_libdeeplake
 
 
 logger = logging.getLogger(__name__)
 
 
-def test_create_or_load_dataset(caplog, hub_cloud_dev_token):
+@requires_libdeeplake
+def test_create(caplog, hub_cloud_dev_token):
     # dataset creation
     dataset = dataset_utils.create_or_load_dataset(
         dataset_path="./test-dataset",
@@ -47,6 +49,8 @@ def test_create_or_load_dataset(caplog, hub_cloud_dev_token):
         "text",
     }
 
+
+def test_load(caplog, hub_cloud_dev_token):
     # dataset loading
     dataset = dataset_utils.create_or_load_dataset(
         dataset_path="hub://testingacc2/vectorstore_test",
@@ -57,7 +61,7 @@ def test_create_or_load_dataset(caplog, hub_cloud_dev_token):
         read_only=True,
         token=hub_cloud_dev_token,
     )
-    assert len(dataset) == 10
+    assert dataset.max_len == 10
 
     ds = deeplake.empty(DEFAULT_VECTORSTORE_DEEPLAKE_PATH, overwrite=True)
 
@@ -77,6 +81,14 @@ def test_create_or_load_dataset(caplog, hub_cloud_dev_token):
             " and it is not free. All addtionally added data will be added on"
             " top of already existing deeplake dataset." in caplog.text
         )
+        tensors = ["text", "embedding", "ids", "metadata"]
+        for tensor in tensors:
+            assert (
+                f"`{tensor}` tensor does not exist in the dataset. If you created dataset manually "
+                "and stored text data in another tensor, consider copying the contents of that "
+                f"tensor into `{tensor}` tensor and deleting if afterwards. To view dataset content "
+                "run ds.summary()" in caplog.text
+            )
 
 
 def test_delete_and_commit():

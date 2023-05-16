@@ -5,8 +5,12 @@ import numpy as np
 import deeplake
 from deeplake.core.dataset import Dataset as DeepLakeDataset
 from deeplake.core.vectorstore.vector_search import utils
-from deeplake.util.exceptions import TransformError
-from deeplake.constants import MAX_RETRY_ATTEMPTS, MAX_CHECKPOINTING_INTERVAL
+from deeplake.util.exceptions import TransformError, FailedIngestionError
+from deeplake.constants import (
+    MAX_RETRY_ATTEMPTS,
+    MAX_CHECKPOINTING_INTERVAL,
+    MAX_DATSET_LENGTH_FOR_CACHING,
+)
 
 
 class DataIngestion:
@@ -61,6 +65,24 @@ class DataIngestion:
         return checkpoint_interval
 
     def run(self):
+        if (
+            len(self.elements) < MAX_DATSET_LENGTH_FOR_CACHING
+            and self.embedding_function
+        ):
+            full_text = [element["text"] for element in self.elements]
+            embeddings = self.embedding_function(full_text)
+
+            self.elements = [
+                {
+                    "text": element["text"],
+                    "id": element["id"],
+                    "metadata": element["metadata"],
+                    "embedding": embeddings[i],
+                }
+                for i, element in enumerate(self.elements)
+            ]
+            self.embedding_function = None
+
         batched_data = self.collect_batched_data()
         num_workers = self.get_num_workers(batched_data)
         checkpoint_interval = self.get_checkpoint_interval_and_batched_data(
@@ -92,7 +114,7 @@ class DataIngestion:
             self.total_samples_processed += last_checkpoint.total_samples_processed
 
             if self.retry_attempt > MAX_RETRY_ATTEMPTS:
-                raise Exception(
+                raise FailedIngestionError(
                     f"Maximum retry attempts exceeded. You can resume ingestion, from the latest saved checkpoint.\n"
                     "To do that you should run:\n"
                     "```\n"

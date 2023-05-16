@@ -16,6 +16,10 @@ texts, embeddings, ids, metadatas = utils.create_data(
 )
 
 
+def embedding_fn(text, embedding_dim=100):
+    return np.zeros((len(text), embedding_dim))
+
+
 @requires_libdeeplake
 @pytest.mark.parametrize("distance_metric", ["L1", "L2", "COS", "MAX", "DOT"])
 def test_search(distance_metric, hub_cloud_dev_token):
@@ -137,3 +141,17 @@ def test_ingestion(capsys):
         "metadata",
         "text",
     ]
+
+    # initialize vector store object:
+    vector_store = DeepLakeVectorStore(
+        dataset_path="./deeplake_vector_store",
+        overwrite=True,
+        verbose=True,
+        embedding_function=embedding_fn,
+    )
+
+    vector_store.add(texts=texts, ids=ids, metadatas=metadatas)
+
+    np.testing.assert_array_equal(
+        vector_store.dataset.embedding.numpy(), np.zeros((1000, 100), dtype=np.float32)
+    )

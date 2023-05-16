@@ -51,13 +51,82 @@ def load_dataset(dataset_path, token, creds, logger, read_only, **kwargs):
             " top of already existing deeplake dataset."
         )
 
-    dataset = deeplake.load(dataset_path, token=token, read_only=read_only, **kwargs)
+    dataset = deeplake.load(
+        dataset_path, token=token, read_only=read_only, creds=creds, **kwargs
+    )
+    create_tensors_if_needed(dataset, logger)
 
     logger.warning(
         f"Deep Lake Dataset in {dataset_path} already exists, "
         f"loading from the storage"
     )
     return dataset
+
+
+def create_tensors_if_needed(dataset, logger):
+    tensors = dataset.tensors
+
+    if "text" not in tensors:
+        warn_and_create_missing_tensor(
+            logger=logger,
+            dataset=dataset,
+            tensor_name="text",
+            htype="text",
+            create_id_tensor=False,
+            create_sample_info_tensor=False,
+            create_shape_tensor=False,
+            chunk_compression="lz4",
+        )
+
+    if "metadata" not in tensors:
+        warn_and_create_missing_tensor(
+            logger=logger,
+            dataset=dataset,
+            tensor_name="metadata",
+            htype="json",
+            create_id_tensor=False,
+            create_sample_info_tensor=False,
+            create_shape_tensor=False,
+            chunk_compression="lz4",
+        )
+
+    if "embedding" not in tensors:
+        warn_and_create_missing_tensor(
+            logger=logger,
+            dataset=dataset,
+            tensor_name="embedding",
+            htype="embedding",
+            dtype=np.float32,
+            create_id_tensor=False,
+            create_sample_info_tensor=False,
+            max_chunk_size=64 * MB,
+            create_shape_tensor=True,
+        )
+
+    if "ids" not in tensors:
+        warn_and_create_missing_tensor(
+            logger=logger,
+            dataset=dataset,
+            tensor_name="ids",
+            htype="text",
+            create_id_tensor=False,
+            create_sample_info_tensor=False,
+            create_shape_tensor=False,
+            chunk_compression="lz4",
+        )
+
+
+def warn_and_create_missing_tensor(dataset, tensor_name, logger, **kwargs):
+    logger.warning(
+        f"`{tensor_name}` tensor does not exist in the dataset. If you created dataset manually "
+        "and stored text data in another tensor, consider copying the contents of that "
+        f"tensor into `{tensor_name}` tensor and deleting if afterwards. To view dataset content "
+        "run ds.summary()"
+    )
+    dataset.create_tensor(
+        tensor_name,
+        **kwargs,
+    )
 
 
 def create_dataset(dataset_path, token, exec_option, **kwargs):

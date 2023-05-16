@@ -1057,3 +1057,7 @@ class AllSamplesSkippedError(Exception):
             "All samples were skipped during the transform. "
             "Ensure your transform pipeline is correct before you set `ignore_errors=True`."
         )
+
+
+class FailedIngestionError(Exception):
+    pass
