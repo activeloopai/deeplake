@@ -169,6 +169,7 @@ class DeepLakeVectorStore:
                 - `python` - Pure-python implementation that runs on the client and can be used for data stored anywhere. WARNING: using this option with big datasets is discouraged because it can lead to memory issues.
                 - `compute_engine` - C++ implementation of the Deep Lake Compute Engine that runs on the client and can be used for any data stored in or connected to Deep Lake. It cannot be used with in-memory or local data.
                 - `db_engine` - Fully-hosted Managed Database that is responsible for storage and query execution. Only available for data stored in the Deep Lake Managed Database. This is achieved by specifying runtime = {"db_engine": True} during dataset creation.
+
         Returns:
             tuple (view, indices, scores): View is the dataset view generated from the queried samples, indices are the indices of the ordered samples, scores are respectively the scores of the ordered samples
         """
