@@ -31,7 +31,7 @@ def test_create_or_load_dataset(caplog, hub_cloud_dev_token):
     }
 
     dataset = dataset_utils.create_or_load_dataset(
-        dataset_path="hub://activeloop-test/vectorstore_dbengine",
+        dataset_path="hub://testingacc2/vectorstore_dbengine",
         token=hub_cloud_dev_token,
         creds={},
         logger=logger,
@@ -49,7 +49,7 @@ def test_create_or_load_dataset(caplog, hub_cloud_dev_token):
 
     # dataset loading
     dataset = dataset_utils.create_or_load_dataset(
-        dataset_path="hub://activeloop-test/vectorstore-test1",
+        dataset_path="hub://testingacc2/vectorstore_test",
         creds={},
         logger=logger,
         exec_option="python",
