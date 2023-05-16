@@ -46,7 +46,7 @@ def test_search(distance_metric, hub_cloud_dev_token):
 
     # initialize vector store object:
     vector_store = DeepLakeVectorStore(
-        dataset_path="hub://activeloop-test/vectorstore-test1",
+        dataset_path="hub://testingacc2/vectorstore_test",
         read_only=True,
         token=hub_cloud_dev_token,
     )
