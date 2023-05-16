@@ -38,7 +38,7 @@ def test_create(caplog, hub_cloud_dev_token):
         creds={},
         logger=logger,
         read_only=False,
-        exec_option="db_engine",
+        exec_option="tensor_db",
         overwrite=True,
     )
     assert len(dataset) == 0
@@ -132,7 +132,7 @@ def test_fetch_embeddings():
     embedings = dataset_utils.fetch_embeddings("compute_engine", dataset, logger)
     assert embedings is None
 
-    embedings = dataset_utils.fetch_embeddings("db_engine", dataset, logger)
+    embedings = dataset_utils.fetch_embeddings("tensor_db", dataset, logger)
     assert embedings is None
 
 

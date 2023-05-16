@@ -131,8 +131,8 @@ def warn_and_create_missing_tensor(dataset, tensor_name, logger, **kwargs):
 
 def create_dataset(dataset_path, token, exec_option, **kwargs):
     runtime = None
-    if exec_option == "db_engine":
-        runtime = {"db_engine": True}
+    if exec_option == "tensor_db":
+        runtime = {"tensor_db": True}
 
     dataset = deeplake.empty(dataset_path, token=token, runtime=runtime, **kwargs)
 
@@ -192,10 +192,10 @@ def fetch_embeddings(exec_option, view, logger):
         logger.warning(
             "Python implementation fetches all of the dataset's embedding into memory. "
             "With big datasets this could be quite slow and potentially result in performance issues. "
-            "Use `exec_option = 'db_engine'` for better performance."
+            "Use `exec_option = 'tensor_db'` for better performance."
         )
         embeddings = view.embedding.numpy()
-    elif exec_option in ("compute_engine", "db_engine"):
+    elif exec_option in ("compute_engine", "tensor_db"):
         embeddings = None
     return embeddings
 

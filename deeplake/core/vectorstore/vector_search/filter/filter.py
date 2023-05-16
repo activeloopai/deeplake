@@ -30,9 +30,9 @@ def attribute_based_filtering(view, filter, exec_option):
 
 
 def filtering_exception(filter, exec_option):
-    if exec_option in ("compute_engine", "db_engine") and filter is not None:
+    if exec_option in ("compute_engine", "tensor_db") and filter is not None:
         case_specific_exception = ""
-        if "db_engine":
+        if "tensor_db":
             case_specific_exception += "To run filtering set `remote_db=False`."
         else:
             case_specific_exception += (

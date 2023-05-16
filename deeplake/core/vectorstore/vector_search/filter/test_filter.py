@@ -18,7 +18,7 @@ def test_attribute_based_filtering():
 
     with pytest.raises(NotImplementedError):
         view = filter_utils.attribute_based_filtering(
-            view, filter=filter_dict, exec_option="db_engine"
+            view, filter=filter_dict, exec_option="tensor_db"
         )
 
     view = filter_utils.attribute_based_filtering(

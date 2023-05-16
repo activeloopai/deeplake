@@ -54,18 +54,18 @@ def test_search(distance_metric, hub_cloud_dev_token):
         read_only=True,
         token=hub_cloud_dev_token,
     )
-    db_engine_view, db_engine_indices, db_engine_scores = vector_store.search(
-        embedding=query_embedding, exec_option="db_engine"
+    tensor_db_view, tensor_db_indices, tensor_db_scores = vector_store.search(
+        embedding=query_embedding, exec_option="tensor_db"
     )
-    np.testing.assert_almost_equal(python_scores, db_engine_scores)
+    np.testing.assert_almost_equal(python_scores, tensor_db_scores)
 
     view, indices, scores = vector_store.search(query=texts[0])
     assert len(view) == 1
     assert indices == [0]
 
     with pytest.raises(ValueError):
-        db_engine_view, db_engine_indices, db_engine_scores = vector_store.search(
-            embedding=query_embedding, exec_option="remote_db_engine"
+        tensor_db_view, tensor_db_indices, tensor_db_scores = vector_store.search(
+            embedding=query_embedding, exec_option="remote_tensor_db"
         )
 
 
