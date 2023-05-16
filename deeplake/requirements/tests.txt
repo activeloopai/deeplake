@@ -18,3 +18,4 @@ rich
 wandb
 
 pandas; python_version >= '3.11' and sys_platform == 'win32'
+datasets; python_version >= '3.11' and sys_platform == 'win32'
