@@ -60,7 +60,7 @@ class LRUCache(StorageProvider):
 
         self.use_async = (
             next_storage.async_supported()
-            if next_storage
+            if next_storage is not None
             else False and sys.version_info >= (3, 7) and sys.platform != "win32"
         )
 
