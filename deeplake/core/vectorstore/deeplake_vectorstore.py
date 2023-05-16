@@ -50,7 +50,7 @@ class DeepLakeVectorStore:
             exec_option (str): Type of query execution. It could be either "python", "compute_engine" or "tensor_db". Defaults to "python".
                 - ``python`` - Pure-python implementation that runs on the client and can be used for data stored anywhere. WARNING: using this option with big datasets is discouraged because it can lead to memory issues.
                 - ``compute_engine`` - C++ implementation of the Deep Lake Compute Engine that runs on the client and can be used for any data stored in or connected to Deep Lake. It cannot be used with in-memory or local data.
-                - ``tensor_db `` - Fully-hosted Managed Database that is responsible for storage and query execution. Only available for data stored in the Deep Lake Managed Database. This is achieved by specifying runtime = {"tensor_db": True} during dataset creation.
+                - ``tensor_db`` - Fully-hosted Managed Database that is responsible for storage and query execution. Only available for data stored in the Deep Lake Managed Database. This is achieved by specifying runtime = {"tensor_db": True} during dataset creation.
             verbose (bool): Whether to print summary of the dataset created. Defaults to False.
             **kwargs (Any): Additional keyword arguments.
         """
@@ -123,7 +123,7 @@ class DeepLakeVectorStore:
             exec_option (str, optional): Type of query execution. It could be either "python", "compute_engine" or "tensor_db". Defaults to "python".
                 - ``python`` - runs on the client and can be used for any data stored anywhere. WARNING: using this option with big datasets is discouraged, because it can lead to some memory issues.
                 - ``compute_engine`` - runs on the client and can be used for any data stored in or connected to Deep Lake.
-                - ``tensor_db `` - runs on the Deep Lake Managed Database and can be used for any data stored in the Deep Lake Managed.
+                - ``tensor_db`` - runs on the Deep Lake Managed Database and can be used for any data stored in the Deep Lake Managed.
 
         Raises:
             ValueError: When invalid execution option is specified
@@ -168,7 +168,7 @@ class DeepLakeVectorStore:
             exec_option (str): Type of query execution. It could be either "python", "compute_engine" or "tensor_db".
                 - ``python`` - Pure-python implementation that runs on the client and can be used for data stored anywhere. WARNING: using this option with big datasets is discouraged because it can lead to memory issues.
                 - ``compute_engine`` - C++ implementation of the Deep Lake Compute Engine that runs on the client and can be used for any data stored in or connected to Deep Lake. It cannot be used with in-memory or local data.
-                - ``tensor_db `` - Fully-hosted Managed Database that is responsible for storage and query execution. Only available for data stored in the Deep Lake Managed Database. This is achieved by specifying runtime = {"tensor_db": True} during dataset creation.
+                - ``tensor_db`` - Fully-hosted Managed Database that is responsible for storage and query execution. Only available for data stored in the Deep Lake Managed Database. This is achieved by specifying runtime = {"tensor_db": True} during dataset creation.
 
         Returns:
             tuple (view, indices, scores): View is the dataset view generated from the queried samples, indices are the indices of the ordered samples, scores are respectively the scores of the ordered samples
