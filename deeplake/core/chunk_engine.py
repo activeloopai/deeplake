@@ -2508,7 +2508,15 @@ class ChunkEngine:
             and index_0.value >= self.tensor_length  # type: ignore
         ):
             return self.get_empty_sample().shape
-        shape = self.shape_interval(index).astuple()[1:]
+        
+        shape = self.shape_interval(index).astuple()
+        if index_0.is_trivial():
+            return shape
+        
+        if None not in shape and not self.tensor_meta.is_link:
+            return shape
+        
+        shape = shape[1:]
         sample_indices = list(
             index_0.indices(self._sequence_length or self.num_samples)
         )
@@ -2525,47 +2533,44 @@ class ChunkEngine:
                 f"Too many indices for tensor. Tensor is rank {sample_ndim + 1} but {len(sample_index) + 1} indices were provided."
             )
 
-        if None in shape or self.tensor_meta.is_link:
-            for i, idx in enumerate(sample_indices):
-                if self.tensor_meta.htype in ("text", "json"):
-                    shape = (1,)
-                else:
-                    if sample_shape_provider:
-                        try:
-                            shape = sample_shape_provider(idx)  # type: ignore
-                            if isinstance(shape, tuple) and shape == ():
-                                shape = (1,)
-                            if self.is_sequence:
-                                if sample_index and not sample_index[0].subscriptable():
-                                    shape = (1, *tuple(shape[sample_index[0].value].tolist()))  # type: ignore
-                                else:
-                                    is_same = np.all(shape == shape[0, :], axis=0)  # type: ignore
-                                    shape = (len(shape),) + (
-                                        tuple(
-                                            int(shape[0, i])  # type: ignore
-                                            if is_same[i]  # type: ignore
-                                            else -1
-                                            for i in range(shape.shape[1])  # type: ignore
-                                        )
-                                        or (1,)
+        for i, idx in enumerate(sample_indices):
+            if self.tensor_meta.htype in ("text", "json"):
+                shape = (1,)
+            else:
+                if sample_shape_provider:
+                    try:
+                        shape = sample_shape_provider(idx)  # type: ignore
+                        if isinstance(shape, tuple) and shape == ():
+                            shape = (1,)
+                        if self.is_sequence:
+                            if sample_index and not sample_index[0].subscriptable():
+                                shape = (1, *tuple(shape[sample_index[0].value].tolist()))  # type: ignore
+                            else:
+                                is_same = np.all(shape == shape[0, :], axis=0)  # type: ignore
+                                shape = (len(shape),) + (
+                                    tuple(
+                                        int(shape[0, i])  # type: ignore
+                                        if is_same[i]  # type: ignore
+                                        else -1
+                                        for i in range(shape.shape[1])  # type: ignore
                                     )
+                                    or (1,)
+                                )
 
-                        except (
-                            IndexError
-                        ):  # Happens during transforms, sample shape tensor is not populated yet
-                            shape = self.read_shape_for_sample(idx)  # type: ignore
-                    else:
-                        self.check_link_ready()
+                    except (
+                        IndexError
+                    ):  # Happens during transforms, sample shape tensor is not populated yet
                         shape = self.read_shape_for_sample(idx)  # type: ignore
-                        # if link verification was not done
-                        if len(shape) > sample_ndim:
-                            sample_ndim = len(shape)
-                            sample_shapes = np.zeros(
-                                (num_samples, sample_ndim), dtype=np.int32
-                            )
-                    sample_shapes[i] = shape
-        else:
-            sample_shapes[:] = shape
+                else:
+                    self.check_link_ready()
+                    shape = self.read_shape_for_sample(idx)  # type: ignore
+                    # if link verification was not done
+                    if len(shape) > sample_ndim:
+                        sample_ndim = len(shape)
+                        sample_shapes = np.zeros(
+                            (num_samples, sample_ndim), dtype=np.int32
+                        )
+                sample_shapes[i] = shape
 
         squeeze_dims = set()
         for i in range(num_samples):
