@@ -23,20 +23,20 @@ def check_length_of_each_tensor(tensors):
 
     for tensor_name in tensors:
         if len(tensors[f"{tensor_name}"]) != tensor_length:
-            tensor_lengthes = create_tensor_to_length_str(tensors)
+            tensor_lengths = create_tensor_to_length_str(tensors)
 
             raise Exception(
-                f"All of the tensors should have equal length. Currently tensors have different length: {tensor_lengthes}"
+                f"All of the tensors should have equal length. Currently tensors have different length: {tensor_lengths}"
             )
 
 
 def create_tensor_to_length_str(tensors):
-    tensor_lengthes = "\n"
+    tensor_lengths = "\n"
     for tensor_name in tensors:
-        tensor_lengthes += (
+        tensor_lengths += (
             f"length of {tensor_name} = {len(tensors[f'{tensor_name}'])}\n"
         )
-    return tensor_lengthes
+    return tensor_lengths
 
 
 random.seed(0)

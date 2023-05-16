@@ -501,7 +501,7 @@ class DeepLakeBackendClient:
             query_string (str): The query string.
 
         Returns:
-            Tuple[Any, Any]: The indicies and scores matching the query.
+            Tuple[Any, Any]: The indices and scores matching the query.
         """
         response = self.request(
             "POST",
@@ -510,11 +510,11 @@ class DeepLakeBackendClient:
             endpoint=self.endpoint(),
         ).json()
 
-        indicies = response["indices"]
-        if len(indicies) == 0:
+        indices = response["indices"]
+        if len(indices) == 0:
             return [], []
 
         scores = response.get("score")
 
-        indicies = [int(i) for i in indicies.split(",")]
-        return indicies, scores
+        indices = [int(i) for i in indices.split(",")]
+        return indices, scores
