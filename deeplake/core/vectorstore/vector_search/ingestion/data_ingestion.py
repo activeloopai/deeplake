@@ -7,7 +7,7 @@ from deeplake.core.dataset import Dataset as DeepLakeDataset
 from deeplake.core.vectorstore.vector_search import utils
 from deeplake.util.exceptions import TransformError, FailedIngestionError
 from deeplake.constants import (
-    MAX_RETRY_ATTEMPTS,
+    MAX_VECTORSTORE_INGESTION_RETRY_ATTEMPTS,
     MAX_CHECKPOINTING_INTERVAL,
     MAX_DATSET_LENGTH_FOR_CACHING,
 )
@@ -113,7 +113,7 @@ class DataIngestion:
             last_checkpoint = self.dataset.version_state["commit_node"].parent
             self.total_samples_processed += last_checkpoint.total_samples_processed
 
-            if self.retry_attempt > MAX_RETRY_ATTEMPTS:
+            if self.retry_attempt > MAX_VECTORSTORE_INGESTION_RETRY_ATTEMPTS:
                 raise FailedIngestionError(
                     f"Maximum retry attempts exceeded. You can resume ingestion, from the latest saved checkpoint.\n"
                     "To do that you should run:\n"
