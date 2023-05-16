@@ -60,10 +60,6 @@ def load_dataset(dataset_path, token, creds, logger, read_only, **kwargs):
     return dataset
 
 
-def create_tensor_if_needed(dataset):
-    tensors = dataset.tensors
-
-
 def create_dataset(dataset_path, token, exec_option, **kwargs):
     runtime = None
     if exec_option == "db_engine":
