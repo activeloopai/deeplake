@@ -39,6 +39,8 @@ from deeplake.util.exceptions import (
 import posixpath
 import time
 
+import numpy as np
+
 try:
     import pandas as pd  # type: ignore
 except ImportError:
@@ -400,7 +402,9 @@ def create_worker_chunk_engines(
                 tiling_threshold = storage_chunk_engine.tiling_threshold
                 new_tensor_meta = TensorMeta(
                     htype=existing_meta.htype,
-                    dtype=existing_meta.dtype,
+                    dtype=np.dtype(existing_meta.typestr)
+                    if existing_meta.typestr
+                    else existing_meta.dtype,
                     sample_compression=existing_meta.sample_compression,
                     chunk_compression=existing_meta.chunk_compression,
                     max_chunk_size=chunk_size,

@@ -91,6 +91,8 @@ def ffw_tensor_meta(tensor_meta, version):
         tensor_meta.is_link = False
     if not hasattr(tensor_meta, "is_sequence"):
         tensor_meta.is_sequence = False
+    if not hasattr(tensor_meta, "typestr"):
+        tensor_meta.typestr = None
     required_meta_keys = tensor_meta._required_meta_keys
     tensor_meta._required_meta_keys = tuple(
         set(
@@ -101,6 +103,7 @@ def ffw_tensor_meta(tensor_meta, version):
                 "links",
                 "is_link",
                 "is_sequence",
+                "typestr",
             )
         )
     )
