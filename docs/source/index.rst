@@ -56,6 +56,7 @@ Deep Lake is an open-source database for AI.
    deeplake.util
    deeplake.client.log
    deeplake.core.transform
+   deeplake.core.vectorstore
 
 
 Indices and tables
