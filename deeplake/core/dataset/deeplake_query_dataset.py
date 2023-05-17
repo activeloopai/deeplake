@@ -167,13 +167,16 @@ class DeepLakeQueryDataset(Dataset):
     def __getattr__(self, key):
         try:
             return self.__getitem__(key)
-        except TensorDoesNotExistError as ke:
+        except:
             try:
                 return getattr(self.deeplake_ds, key)
-            except AttributeError:
-                raise AttributeError(
-                    f"'{self.__class__}' object has no attribute '{key}'"
-                ) from ke
+            except:
+                try:
+                    return getattr(self.indra_ds, key)
+                except:
+                    raise AttributeError(
+                        f"'{self.__class__}' object has no attribute '{key}'"
+                    )
 
     def __len__(self):
         return len(self.indra_ds)

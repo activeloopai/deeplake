@@ -134,6 +134,7 @@ COMMON_CONFIGS = {
     "sample_compression": None,
     "chunk_compression": None,
     "dtype": None,
+    "typestr": None,
     "max_chunk_size": None,
     "tiling_threshold": None,
     "is_sequence": False,
