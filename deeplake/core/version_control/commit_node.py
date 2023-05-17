@@ -6,7 +6,7 @@ from typing import List, Optional
 class CommitNode:
     """Contains all the Version Control information about a particular commit."""
 
-    def __init__(self, branch: str, commit_id: str):
+    def __init__(self, branch: str, commit_id: str, total_samples_processed: int = 0):
         self.commit_id = commit_id
         self.branch = branch
         self.children: List["CommitNode"] = []
@@ -17,7 +17,7 @@ class CommitNode:
         self.merge_parent: Optional["CommitNode"] = None
         self._info_updated: bool = False
         self.is_checkpoint: bool = False
-        self.total_samples_processed: int = 0
+        self.total_samples_processed: int = total_samples_processed
 
     def add_child(self, node: "CommitNode"):
         """Adds a child to the node, used for branching."""

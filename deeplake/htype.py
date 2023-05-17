@@ -66,6 +66,7 @@ HTYPE_CONFIGURATIONS: Dict[str, Dict] = {
     htype.BBOX: {"dtype": "float32", "coords": {}, "_info": ["coords"]},
     htype.BBOX_3D: {"dtype": "float32", "coords": {}, "_info": ["coords"]},
     htype.AUDIO: {"dtype": "float64"},
+    htype.EMBEDDING: {"dtype": "float32"},
     htype.VIDEO: {"dtype": "uint8"},
     htype.BINARY_MASK: {
         "dtype": "bool"
@@ -133,6 +134,7 @@ COMMON_CONFIGS = {
     "sample_compression": None,
     "chunk_compression": None,
     "dtype": None,
+    "typestr": None,
     "max_chunk_size": None,
     "tiling_threshold": None,
     "is_sequence": False,
