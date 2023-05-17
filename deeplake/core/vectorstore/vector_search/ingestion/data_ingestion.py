@@ -9,7 +9,7 @@ from deeplake.util.exceptions import TransformError, FailedIngestionError
 from deeplake.constants import (
     MAX_VECTORSTORE_INGESTION_RETRY_ATTEMPTS,
     MAX_CHECKPOINTING_INTERVAL,
-    MAX_DATSET_LENGTH_FOR_CACHING,
+    MAX_DATASET_LENGTH_FOR_CACHING,
 )
 
 
@@ -66,7 +66,7 @@ class DataIngestion:
 
     def run(self):
         if (
-            len(self.elements) < MAX_DATSET_LENGTH_FOR_CACHING
+            len(self.elements) < MAX_DATASET_LENGTH_FOR_CACHING
             and self.embedding_function
         ):
             full_text = [element["text"] for element in self.elements]
