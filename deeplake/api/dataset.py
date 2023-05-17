@@ -436,6 +436,7 @@ class dataset:
         verbose: bool = True,
         access_method: str = "stream",
         reset: bool = False,
+        check_integrity: bool = True,
     ) -> Dataset:
         """Loads an existing dataset
 
@@ -499,6 +500,7 @@ class dataset:
                           and default scheduler (threaded), and 'local:processed' will use a single worker and use processed scheduler.
             reset (bool): If the specified dataset cannot be loaded due to a corrupted HEAD state of the branch being loaded,
                           setting ``reset=True`` will reset HEAD changes and load the previous version.
+            check_integrity (bool): If the param is True it will do integrity check during dataset loading otherwise the check is not performed
 
         ..
             # noqa: DAR101
@@ -581,7 +583,9 @@ class dataset:
             )
 
         try:
-            return dataset._load(dataset_kwargs, access_method)
+            return dataset._load(
+                dataset_kwargs, access_method, check_integrity=check_integrity
+            )
         except (AgreementError, CheckoutError, LockedException) as e:
             raise e from None
         except Exception as e:
@@ -648,7 +652,7 @@ class dataset:
         return ds
 
     @staticmethod
-    def _load(dataset_kwargs, access_method=None, create=False):
+    def _load(dataset_kwargs, access_method=None, create=False, check_integrity=True):
         if access_method in ("stream", None):
             ret = dataset_factory(**dataset_kwargs)
             if create:
@@ -656,7 +660,8 @@ class dataset:
             else:
                 dataset_loaded(ret)
 
-            integrity_check(ret)
+            if check_integrity:
+                integrity_check(ret)
 
             verbose = dataset_kwargs.get("verbose")
             path = dataset_kwargs.get("path")
