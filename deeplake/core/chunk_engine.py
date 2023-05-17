@@ -2508,7 +2508,12 @@ class ChunkEngine:
             and index_0.value >= self.tensor_length  # type: ignore
         ):
             return self.get_empty_sample().shape
-        shape = self.shape_interval(index).astuple()[1:]
+
+        shape = self.shape_interval(index).astuple()
+        if index_0.is_trivial():
+            return shape
+
+        shape = shape[1:]
         sample_indices = list(
             index_0.indices(self._sequence_length or self.num_samples)
         )
