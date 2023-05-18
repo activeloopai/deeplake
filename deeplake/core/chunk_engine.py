@@ -2539,7 +2539,7 @@ class ChunkEngine:
                         try:
                             shape = sample_shape_provider(idx)  # type: ignore
                             if isinstance(shape, tuple) and shape == ():
-                                shape = (1,)
+                                shape = (0,)
                             if self.is_sequence:
                                 if sample_index and not sample_index[0].subscriptable():
                                     shape = (1, *tuple(shape[sample_index[0].value].tolist()))  # type: ignore

@@ -69,7 +69,7 @@ class DeepLakeVectorStore:
         texts: Iterable[str],
         metadatas: Optional[List[dict]] = None,
         ids: Optional[List[str]] = None,
-        embeddings: Optional[np.ndarray] = None,
+        embeddings: Optional[Union[List[float], np.ndarray]] = None,
         total_samples_processed: int = 0,
     ) -> List[str]:
         """Adding elements to deeplake vector store
@@ -78,7 +78,7 @@ class DeepLakeVectorStore:
             texts (Iterable[str]): texts to add to deeplake vector store
             metadatas (List[dict], optional): List of metadatas. Defaults to None.
             ids (List[str], optional): List of document IDs. Defaults to None.
-            embeddings (np.ndarray, optional): embedding of texts. Defaults to None.
+            embeddings (Union[List[float], np.ndarray], optional): embedding of texts. Defaults to None.
             total_samples_processed (int): Total number of samples processed before transforms stopped.
 
         Returns:
@@ -106,7 +106,7 @@ class DeepLakeVectorStore:
     def search(
         self,
         query: Optional[str] = None,
-        embedding: Optional[np.ndarray] = None,
+        embedding: Optional[Union[List[float], np.ndarray]] = None,
         k: int = 4,
         distance_metric: str = "L2",
         filter: Optional[Any] = None,
@@ -116,7 +116,7 @@ class DeepLakeVectorStore:
 
         Args:
             query (str, optional): String representation of the query to run. Defaults to None.
-            embedding (Optional[np.ndarray, optional): Embedding representation of the query to run. Defaults to None.
+            embedding (Union[np.ndarray, List[float]], optional): Embedding representation of the query to run. Defaults to None.
             k (int): Number of elements to return after running query. Defaults to 4.
             distance_metric (str): Type of distance metric to use for sorting the data. Avaliable options are: "L1", "L2", "COS", "MAX". Defaults to "L2".
             filter (Any, optional): Metadata dictionary for exact search. Defaults to None.
@@ -162,7 +162,7 @@ class DeepLakeVectorStore:
         Args:
             view (DeepLakeDataset): DeepLakeDataset object to run query inside.
             query (Optional[str], optional): String representation of the query to run. Defaults to None.
-            embedding (Optional[Union[List[float], np.ndarray]], optional): Embedding representation of the query to run. Defaults to None.
+            embedding (Union[List[float], np.ndarray], optional): Embedding representation of the query to run. Defaults to None.
             k (int): Number of elements to return after running query. Defaults to 4.
             distance_metric (str): Type of distance metric to use for sorting the data. Avaliable options are: "L1", "L2", "COS", "MAX". Defaults to "L2".
             exec_option (str): Type of query execution. It could be either "python", "compute_engine" or "tensor_db".
@@ -192,6 +192,7 @@ class DeepLakeVectorStore:
                 exec_option=exec_option,
                 deeplake_dataset=self.dataset,
             )
+            view = view[indices]
         return (view, indices, scores)
 
     def delete(
