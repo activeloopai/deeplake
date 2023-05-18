@@ -212,7 +212,7 @@ def get_embedding(embedding, query, embedding_function=None):
             always_warn("both embedding and embedding_function are specified. ")
         embedding = embedding_function(query)  # type: ignore
 
-    if embedding.dtype != "float32":
+    if isinstance(embedding, list) or embedding.dtype != "float32":
         embedding = np.array(embedding, dtype=np.float32)
 
     return embedding
@@ -245,7 +245,7 @@ def create_elements(
     texts: Iterable[str],
     ids: Optional[List[str]] = None,
     metadatas: Optional[List[dict]] = None,
-    embeddings: Optional[np.ndarray] = None,
+    embeddings: Optional[Union[List[float], np.ndarray]] = None,
 ):
     processed_tensors, ids = preprocess_tensors(ids, texts, metadatas, embeddings)
     utils.check_length_of_each_tensor(processed_tensors)
