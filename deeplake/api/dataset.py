@@ -90,6 +90,7 @@ class dataset:
         verbose: bool = True,
         access_method: str = "stream",
         reset: bool = False,
+        check_integrity: bool = True,
     ):
         """Returns a :class:`~deeplake.core.dataset.Dataset` object referencing either a new or existing dataset.
 
@@ -156,6 +157,7 @@ class dataset:
                           and default scheduler (threaded), and 'local:processed' will use a single worker and use processed scheduler.
             reset (bool): If the specified dataset cannot be loaded due to a corrupted HEAD state of the branch being loaded,
                           setting ``reset=True`` will reset HEAD changes and load the previous version.
+            check_integrity (bool): If the param is True it will do integrity check during dataset loading otherwise the check is not performed
 
         ..
             # noqa: DAR101
@@ -258,7 +260,9 @@ class dataset:
             )
 
         try:
-            return dataset._load(dataset_kwargs, access_method, create)
+            return dataset._load(
+                dataset_kwargs, access_method, create, check_integrity=check_integrity
+            )
         except (AgreementError, CheckoutError, LockedException) as e:
             raise e from None
         except Exception as e:
