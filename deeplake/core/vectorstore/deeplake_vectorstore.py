@@ -78,7 +78,7 @@ class DeepLakeVectorStore:
             texts (Iterable[str]): texts to add to deeplake vector store
             metadatas (List[dict], optional): List of metadatas. Defaults to None.
             ids (List[str], optional): List of document IDs. Defaults to None.
-            embeddings (np.ndarray, optional): embedding of texts. Defaults to None.
+            embeddings (Union[List[float], np.ndarray], optional): embedding of texts. Defaults to None.
             total_samples_processed (int): Total number of samples processed before transforms stopped.
 
         Returns:
