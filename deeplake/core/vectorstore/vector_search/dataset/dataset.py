@@ -212,7 +212,7 @@ def get_embedding(embedding, query, embedding_function=None):
             always_warn("both embedding and embedding_function are specified. ")
         embedding = embedding_function(query)  # type: ignore
 
-    if embedding.dtype != "float32":
+    if isinstance(embedding, list) or embedding.dtype != "float32":
         embedding = np.array(embedding, dtype=np.float32)
 
     return embedding
