@@ -67,6 +67,7 @@ class DeepLakeVectorStore:
     def add(
         self,
         texts: Iterable[str],
+        embedding_function: Callable,
         metadatas: Optional[List[dict]] = None,
         ids: Optional[List[str]] = None,
         embeddings: Optional[Union[List[float], np.ndarray]] = None,
@@ -93,7 +94,7 @@ class DeepLakeVectorStore:
         ingest_data.run_data_ingestion(
             elements=elements,
             dataset=self.dataset,
-            embedding_function=self.embedding_function,
+            embedding_function=embedding_function,
             ingestion_batch_size=self.ingestion_batch_size,
             num_workers=self.num_workers,
             total_samples_processed=total_samples_processed,
@@ -105,6 +106,7 @@ class DeepLakeVectorStore:
 
     def search(
         self,
+        embedding_function: Callable,
         query: Optional[str] = None,
         embedding: Optional[Union[List[float], np.ndarray]] = None,
         k: int = 4,
@@ -140,6 +142,7 @@ class DeepLakeVectorStore:
         utils.check_indra_installation(exec_option, indra_installed=_INDRA_INSTALLED)
 
         return self._search(
+            embedding_function=embedding_function or self.embedding_function,
             view=view,
             exec_option=exec_option,
             embedding=embedding,
@@ -150,6 +153,7 @@ class DeepLakeVectorStore:
 
     def _search(
         self,
+        embedding_function: Callable,
         view: DeepLakeDataset,
         exec_option: str,
         embedding: Optional[Union[List[float], np.ndarray]] = None,
@@ -177,7 +181,9 @@ class DeepLakeVectorStore:
             view, scores, indices = filter_utils.exact_text_search(view, query)
         else:
             query_emb = dataset_utils.get_embedding(
-                embedding, query, embedding_function=self.embedding_function
+                embedding,
+                query,
+                embedding_function=embedding_function or self.embedding_function,
             )
             exec_option = exec_option or self._exec_option
             embeddings = dataset_utils.fetch_embeddings(
