@@ -57,11 +57,12 @@ def convert_tensor_to_str(query_embedding: np.ndarray):
     """
     if len(query_embedding.shape) > 1:
         query_embedding = query_embedding.transpose(1, 0)
+        query_embedding = query_embedding[:, 0]
 
     query_embedding_str = ""
 
     for item in query_embedding:
-        query_embedding_str += f"{item[0]}, "
+        query_embedding_str += f"{item}, "
 
     return f"ARRAY[{query_embedding_str[:-2]}]"
 
