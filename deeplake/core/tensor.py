@@ -486,6 +486,20 @@ class Tensor:
             shape = ()
         return shape
 
+    def shapes(self):
+        """Get the shapes of all the samples in the tensor.
+
+        Returns:
+            np.ndarray: List of shapes of all the samples in the tensor.
+        """
+        sample_shape_tensor = self._sample_shape_tensor
+        sample_shape_provider = (
+            self._sample_shape_provider(sample_shape_tensor)
+            if sample_shape_tensor
+            else None
+        )
+        return self.chunk_engine.shapes(self.index, sample_shape_provider=sample_shape_provider, pad_tensor=self.pad_tensor)
+
     @property
     def size(self) -> Optional[int]:
         s = 1
