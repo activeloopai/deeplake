@@ -4,7 +4,6 @@ from typing import Union, List, Any, Optional, Tuple
 from deeplake.enterprise.convert_to_libdeeplake import dataset_to_libdeeplake
 
 from deeplake.core.vectorstore.vector_search.indra import query
-from deeplake.core.vectorstore.vector_search import utils
 from deeplake.core.dataset import Dataset as DeepLakeDataset
 
 
@@ -29,8 +28,6 @@ def vector_search(
     Returns:
         Tuple[List, List]: tuple representing the indices of the returned embeddings and their respective scores.
     """
-    from indra import api  # type: ignore
-
     tql_query = query.parse_query(distance_metric, k, query_embedding, embedding_tensor)
     indra_ds = dataset_to_libdeeplake(deeplake_dataset)
 
