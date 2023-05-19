@@ -67,7 +67,7 @@ class DeepLakeVectorStore:
     def add(
         self,
         texts: Iterable[str],
-        embedding_function: Callable,
+        embedding_function: Optional[Callable] = None,
         metadatas: Optional[List[dict]] = None,
         ids: Optional[List[str]] = None,
         embeddings: Optional[Union[List[float], np.ndarray]] = None,
@@ -77,7 +77,7 @@ class DeepLakeVectorStore:
 
         Args:
             texts (Iterable[str]): texts to add to deeplake vector store
-            embedding_function (callable): embedding function used to convert dosument texts into embeddings.
+            embedding_function (callable, optional): embedding function used to convert document texts into embeddings.
             metadatas (List[dict], optional): List of metadatas. Defaults to None.
             ids (List[str], optional): List of document IDs. Defaults to None.
             embeddings (Union[List[float], np.ndarray], optional): embedding of texts. Defaults to None.
@@ -95,7 +95,7 @@ class DeepLakeVectorStore:
         ingest_data.run_data_ingestion(
             elements=elements,
             dataset=self.dataset,
-            embedding_function=embedding_function,
+            embedding_function=embedding_function or self.embedding_function,
             ingestion_batch_size=self.ingestion_batch_size,
             num_workers=self.num_workers,
             total_samples_processed=total_samples_processed,
@@ -107,7 +107,7 @@ class DeepLakeVectorStore:
 
     def search(
         self,
-        embedding_function: Callable,
+        embedding_function: Optional[Callable] = None,
         query: Optional[str] = None,
         embedding: Optional[Union[List[float], np.ndarray]] = None,
         k: int = 4,
@@ -119,6 +119,7 @@ class DeepLakeVectorStore:
 
         Args:
             query (str, optional): String representation of the query to run. Defaults to None.
+            embedding_function (callable, optional): function for converting query into embedding.
             embedding (Union[np.ndarray, List[float]], optional): Embedding representation of the query to run. Defaults to None.
             k (int): Number of elements to return after running query. Defaults to 4.
             distance_metric (str): Type of distance metric to use for sorting the data. Avaliable options are: "L1", "L2", "COS", "MAX". Defaults to "L2".
@@ -154,9 +155,9 @@ class DeepLakeVectorStore:
 
     def _search(
         self,
-        embedding_function: Callable,
         view: DeepLakeDataset,
         exec_option: str,
+        embedding_function: Optional[Callable] = None,
         embedding: Optional[Union[List[float], np.ndarray]] = None,
         query: Optional[str] = None,
         k: int = 4,
@@ -168,6 +169,7 @@ class DeepLakeVectorStore:
             view (DeepLakeDataset): DeepLakeDataset object to run query inside.
             query (Optional[str], optional): String representation of the query to run. Defaults to None.
             embedding (Union[List[float], np.ndarray], optional): Embedding representation of the query to run. Defaults to None.
+            embedding_function (callable, optional): function for converting query into embedding.
             k (int): Number of elements to return after running query. Defaults to 4.
             distance_metric (str): Type of distance metric to use for sorting the data. Avaliable options are: "L1", "L2", "COS", "MAX". Defaults to "L2".
             exec_option (str): Type of query execution. It could be either "python", "compute_engine" or "tensor_db".
@@ -178,13 +180,13 @@ class DeepLakeVectorStore:
         Returns:
             tuple (view, indices, scores): View is the dataset view generated from the queried samples, indices are the indices of the ordered samples, scores are respectively the scores of the ordered samples
         """
-        if self.embedding_function is None and embedding is None:
+        if embedding_function is None and embedding is None:
             view, scores, indices = filter_utils.exact_text_search(view, query)
         else:
             query_emb = dataset_utils.get_embedding(
                 embedding,
                 query,
-                embedding_function=embedding_function or self.embedding_function,
+                embedding_function=embedding_function,
             )
             exec_option = exec_option or self._exec_option
             embeddings = dataset_utils.fetch_embeddings(
