@@ -2,11 +2,13 @@ from deeplake.core.lock import Lock
 from deeplake.constants import VERSION_CONTROL_INFO_LOCK_FILENAME
 import uuid
 
-class ConcurrentDatasetWriter:
 
+class ConcurrentDatasetWriter:
     def __init__(self, ds):
         if ds.commit_id is None:
-            raise ValueError("Dataset must be committed from master process before writing to it concurrently.")
+            raise ValueError(
+                "Dataset must be committed from master process before writing to it concurrently."
+            )
         ds.checkout(ds.commit_id)
         self.ds = ds
         self.original_branch = ds.branch
@@ -25,7 +27,10 @@ class ConcurrentDatasetWriter:
         return self.ds[key]
 
     def __getattribute__(self, attr: str):
-        return getattr(self.ds, attr)
+        try:
+            return super().__getattribute__(attr)
+        except AttributeError:
+            return getattr(self.ds, attr)
 
     def _merge(self):
         ds = self.ds
