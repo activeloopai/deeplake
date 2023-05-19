@@ -55,7 +55,8 @@ def convert_tensor_to_str(query_embedding: np.ndarray):
     Args:
         query_embedding (Union[List[float], np.ndarray]) - embedding representation of the query string.
     """
-    query_embedding = query_embedding.transpose(1, 0)
+    if len(query_embedding.shape) > 1:
+        query_embedding = query_embedding.transpose(1, 0)
 
     query_embedding_str = ""
 
