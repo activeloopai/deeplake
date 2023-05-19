@@ -77,6 +77,7 @@ class DeepLakeVectorStore:
 
         Args:
             texts (Iterable[str]): texts to add to deeplake vector store
+            embedding_function (callable): embedding function used to convert dosument texts into embeddings.
             metadatas (List[dict], optional): List of metadatas. Defaults to None.
             ids (List[str], optional): List of document IDs. Defaults to None.
             embeddings (Union[List[float], np.ndarray], optional): embedding of texts. Defaults to None.
