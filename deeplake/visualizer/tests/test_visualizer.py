@@ -3,8 +3,10 @@ import requests
 from deeplake.visualizer.visualizer import visualizer
 from deeplake.tests.dataset_fixtures import *
 import deeplake as dp
+from deeplake.tests.common import exclude_python11
 
 
+@exclude_python11
 @pytest.mark.parametrize(
     "ds_generator",
     [
