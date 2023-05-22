@@ -2508,6 +2508,8 @@ class ChunkEngine:
         )
         num_samples = len(sample_indices)
 
+        sample_ndim = self.ndim() - 1
+
         for i, idx in enumerate(sample_indices):
             if self.tensor_meta.htype in ("text", "json"):
                 shape = (1,)
@@ -2540,7 +2542,6 @@ class ChunkEngine:
                 else:
                     self.check_link_ready()
                     shape = self.read_shape_for_sample(idx)  # type: ignore
-                    sample_ndim = self.ndim() - 1
                     # if link verification was not done
                     if len(shape) > sample_ndim:
                         sample_ndim = len(shape)
@@ -2552,6 +2553,7 @@ class ChunkEngine:
                     sample_shapes[start:end] = shape
                 else:
                     sample_shapes[i] = shape
+        return sample_shapes
 
     def shapes(
         self,
@@ -2590,7 +2592,7 @@ class ChunkEngine:
             shape = self.get_empty_sample().shape
 
         if num_samples > 0 and None in shape or self.tensor_meta.is_link:
-            self._populate_sample_shapes(
+            sample_shapes = self._populate_sample_shapes(
                 sample_shapes,
                 index,
                 sample_shape_provider,
@@ -2647,7 +2649,10 @@ class ChunkEngine:
         sample_shapes = np.zeros((num_samples, sample_ndim), dtype=np.int32)
 
         if None in shape or self.tensor_meta.is_link:
-            self._populate_sample_shapes(sample_shapes, index, sample_shape_provider)
+            sample_shapes = self._populate_sample_shapes(
+                sample_shapes, index, sample_shape_provider
+            )
+            sample_ndim = sample_shapes.shape[1]
         else:
             sample_shapes[:] = shape
 

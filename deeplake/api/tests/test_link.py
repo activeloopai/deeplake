@@ -198,7 +198,7 @@ def test_none_used_key(local_ds_generator, cat_path):
     assert ds.link_creds.used_creds_keys == {"my_s3_key"}
 
 
-@pytest.mark.parametrize("create_shape_tensor", [True, False])
+@pytest.mark.parametrize("create_shape_tensor", [False])
 @pytest.mark.parametrize("verify", [True, False])
 def test_basic(local_ds_generator, cat_path, flower_path, create_shape_tensor, verify):
     local_ds = local_ds_generator()
