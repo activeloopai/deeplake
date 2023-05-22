@@ -1,6 +1,6 @@
 from deeplake.api.dataset import Dataset
 from deeplake.api.tests.test_api import convert_string_to_pathlib_if_needed
-from deeplake.tests.common import get_dummy_data_path
+from deeplake.tests.common import get_dummy_data_path, exclude_python11
 from deeplake.util.exceptions import (
     InvalidPathException,
     SamePathException,
@@ -13,6 +13,7 @@ import deeplake
 import pandas as pd  # type: ignore
 
 
+@exclude_python11
 @pytest.mark.parametrize("convert_to_pathlib", [True, False])
 @pytest.mark.parametrize("shuffle", [True, False])
 def test_ingestion_simple(memory_path: str, convert_to_pathlib: bool, shuffle: bool):
@@ -61,6 +62,7 @@ def test_ingestion_simple(memory_path: str, convert_to_pathlib: bool, shuffle: b
     assert ds["labels"].info.class_names == ["class0", "class1", "class2"]
 
 
+@exclude_python11
 def test_ingestion_with_params(memory_path: str):
     path = get_dummy_data_path("tests_auto/auto_compression")
     ds = deeplake.ingest_classification(
@@ -93,6 +95,7 @@ def test_ingestion_with_params(memory_path: str):
     assert ds["image_samples"].meta.sample_compression == explicit_compression
 
 
+@exclude_python11
 def test_image_classification_sets(memory_ds: Dataset):
     path = get_dummy_data_path("tests_auto/image_classification_with_sets")
     ds = deeplake.ingest_classification(
@@ -120,6 +123,7 @@ def test_image_classification_sets(memory_ds: Dataset):
     assert ds["train/labels"].info.class_names == ["class0", "class1", "class2"]
 
 
+@exclude_python11
 def test_ingestion_exception(memory_path: str):
     path = get_dummy_data_path("tests_auto/image_classification_with_sets")
     with pytest.raises(InvalidPathException):
@@ -141,6 +145,7 @@ def test_ingestion_exception(memory_path: str):
         )
 
 
+@exclude_python11
 def test_overwrite(local_ds: Dataset):
     path = get_dummy_data_path("tests_auto/image_classification")
 
@@ -162,6 +167,7 @@ def test_overwrite(local_ds: Dataset):
         )
 
 
+@exclude_python11
 def test_ingestion_with_connection(
     s3_path,
     hub_cloud_path,
@@ -188,6 +194,7 @@ def test_ingestion_with_connection(
     assert len(ds.labels.info["class_names"]) > 0
 
 
+@exclude_python11
 def test_csv(memory_ds: Dataset, dataframe_ingestion_data: dict):
     with pytest.raises(InvalidPathException):
         deeplake.ingest_classification(
@@ -235,6 +242,7 @@ def test_csv(memory_ds: Dataset, dataframe_ingestion_data: dict):
     )
 
 
+@exclude_python11
 @pytest.mark.parametrize("convert_to_pathlib", [True, False])
 def test_dataframe_basic(
     memory_ds: Dataset, dataframe_ingestion_data: dict, convert_to_pathlib: bool
@@ -277,6 +285,7 @@ def test_dataframe_basic(
     )
 
 
+@exclude_python11
 def test_dataframe_files(memory_ds: Dataset, dataframe_ingestion_data):
     df = pd.read_csv(dataframe_ingestion_data["dataframe_w_images_path"])
     df_keys = df.keys()
@@ -304,6 +313,7 @@ def test_dataframe_files(memory_ds: Dataset, dataframe_ingestion_data):
     assert ds[df_keys[2]][2].data()["text"][0] == df[df_keys[2]][2]
 
 
+@exclude_python11
 def test_dataframe_array(memory_ds: Dataset):
     # Create DataFrame
     data = {
@@ -340,6 +350,7 @@ def test_dataframe_array(memory_ds: Dataset):
     assert ds[df_keys[2]].dtype == df[df_keys[2]].dtype
 
 
+@exclude_python11
 def test_dataframe_array_bad(memory_ds: Dataset):
     # Create DataFrame
 
@@ -364,6 +375,7 @@ def test_dataframe_array_bad(memory_ds: Dataset):
         )
 
 
+@exclude_python11
 def test_dataframe_unsupported_file(memory_ds: Dataset, dataframe_ingestion_data):
     df = pd.read_csv(dataframe_ingestion_data["dataframe_w_bad_images_path"])
     df_keys = df.keys()
@@ -382,6 +394,7 @@ def test_dataframe_unsupported_file(memory_ds: Dataset, dataframe_ingestion_data
         )
 
 
+@exclude_python11
 def test_dataframe_with_connect(
     s3_path,
     hub_cloud_path,

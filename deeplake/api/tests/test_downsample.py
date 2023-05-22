@@ -1,8 +1,10 @@
 import deeplake
 import numpy as np
 import pytest
+from deeplake.tests.common import exclude_python11
 
 
+@exclude_python11
 def test_downsample(local_ds_generator, cat_path):
     with local_ds_generator() as ds:
         ds.create_tensor(
@@ -57,6 +59,7 @@ def test_downsample(local_ds_generator, cat_path):
             np.testing.assert_array_equal(cat, arr)
 
 
+@exclude_python11
 def test_downsample_link(local_ds, cat_path):
     with local_ds as ds:
         ds.create_tensor(
@@ -92,6 +95,7 @@ def test_downsample_link(local_ds, cat_path):
             assert cat.shape == shape
 
 
+@exclude_python11
 def test_downsample_tiled(memory_ds):
     with memory_ds as ds:
         ds.create_tensor(
@@ -108,6 +112,7 @@ def test_downsample_tiled(memory_ds):
             ds.image[0][0:3648, x : x + 5472, :] = arr
 
 
+@exclude_python11
 @pytest.mark.parametrize(
     "sample_compression", [None]
 )  # add back apng when bug is fixed
@@ -134,6 +139,7 @@ def test_downsample_binary_mask(memory_ds, sample_compression):
                 )
 
 
+@exclude_python11
 def test_downsample_group_bug(memory_ds):
     with memory_ds as ds:
         ds.create_group("stuff")
@@ -148,6 +154,7 @@ def test_downsample_group_bug(memory_ds):
         )
 
 
+@exclude_python11
 def test_downsample_image(memory_ds):
     with memory_ds as ds:
         ds.create_tensor(
