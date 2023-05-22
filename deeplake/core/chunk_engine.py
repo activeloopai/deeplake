@@ -2494,10 +2494,18 @@ class ChunkEngine:
 
     def check_link_ready(self):
         return
-    
-    def _populate_sample_shapes(self, sample_shapes: np.ndarray, index: Index, sample_shape_provider: Optional[Callable] = None):
+
+    def _populate_sample_shapes(
+        self,
+        sample_shapes: np.ndarray,
+        index: Index,
+        sample_shape_provider: Optional[Callable] = None,
+        flatten: bool = False,
+    ):
         index_0, sample_index = index.values[0], index.values[1:]
-        sample_indices = list(index_0.indices(self._sequence_length or self.num_samples))
+        sample_indices = list(
+            index_0.indices(self._sequence_length or self.num_samples)
+        )
         num_samples = len(sample_indices)
 
         for i, idx in enumerate(sample_indices):
@@ -2507,9 +2515,15 @@ class ChunkEngine:
                 if sample_shape_provider:
                     try:
                         shape = sample_shape_provider(idx)  # type: ignore
-                        if isinstance(shape, tuple) and shape == ():
-                            shape = (0,)
-                        if self.is_sequence:
+                    except (
+                        IndexError
+                    ):  # Happens during transforms, sample shape tensor is not populated yet
+                        shape = self.read_shape_for_sample(idx)  # type: ignore
+
+                    if isinstance(shape, tuple) and shape == ():
+                        shape = (0,)
+                    if self.is_sequence:
+                        if not flatten:
                             if sample_index and not sample_index[0].subscriptable():
                                 shape = (1, *tuple(shape[sample_index[0].value].tolist()))  # type: ignore
                             else:
@@ -2523,33 +2537,47 @@ class ChunkEngine:
                                     )
                                     or (1,)
                                 )
-
-                    except (
-                        IndexError
-                    ):  # Happens during transforms, sample shape tensor is not populated yet
-                        shape = self.read_shape_for_sample(idx)  # type: ignore
                 else:
                     self.check_link_ready()
                     shape = self.read_shape_for_sample(idx)  # type: ignore
+                    sample_ndim = self.ndim() - 1
                     # if link verification was not done
                     if len(shape) > sample_ndim:
                         sample_ndim = len(shape)
                         sample_shapes = np.zeros(
                             (num_samples, sample_ndim), dtype=np.int32
                         )
-                sample_shapes[i] = shape
-    
-    def shapes(self, index: Index, sample_shape_provider: Optional[Callable] = None, pad_tensor: bool = False):
+                if flatten:
+                    start, end = self.sequence_encoder[i]
+                    sample_shapes[start:end] = shape
+                else:
+                    sample_shapes[i] = shape
+
+    def shapes(
+        self,
+        index: Index,
+        sample_shape_provider: Optional[Callable] = None,
+        pad_tensor: bool = False,
+    ):
         tensor_ndim = self.ndim()
 
-        if len(index) > tensor_ndim:
-            raise IndexError(
-                f"Too many indices for tensor. Tensor is rank {tensor_ndim} but {len(index)} indices were provided."
-            )
-        
+        if len(index) > 1:
+            raise IndexError(f"`.shapes` only accepts indexing on the primary axis.")
+
         index_0 = index.values[0]
-        num_samples = index_0.length(self._sequence_length or self.num_samples)
-        sample_ndim = tensor_ndim - 1
+        if self.is_sequence:
+            sample_indices = list(index_0.indices(self._sequence_length))
+            num_samples = sum(
+                map(
+                    lambda x: x[1] - x[0],
+                    [self.sequence_encoder[i] for i in sample_indices],
+                )
+            )
+            sample_ndim = tensor_ndim - 2
+        else:
+            num_samples = index_0.length(self.num_samples)
+            sample_ndim = tensor_ndim - 1
+
         sample_shapes = np.zeros((num_samples, sample_ndim), dtype=np.int32)
 
         shape = self.shape_interval(index).astuple()[1:]
@@ -2562,12 +2590,28 @@ class ChunkEngine:
             shape = self.get_empty_sample().shape
 
         if num_samples > 0 and None in shape or self.tensor_meta.is_link:
-            self._populate_sample_shapes(sample_shapes, index, sample_shape_provider)
+            self._populate_sample_shapes(
+                sample_shapes,
+                index,
+                sample_shape_provider,
+                flatten=True if self.is_sequence else False,
+            )
+            if self.is_sequence:
+                num_samples = len(sample_indices)
+                try:
+                    sample_shapes = sample_shapes[np.newaxis, :].reshape(
+                        num_samples, -1, sample_ndim
+                    )
+                except ValueError:
+                    sample_shapes_list = []
+                    for i in sample_indices:
+                        start, end = self.sequence_encoder[i]
+                        sample_shapes_list.append(sample_shapes[start:end])
+                    return sample_shapes_list
         else:
             sample_shapes[:] = shape
 
         return sample_shapes
-
 
     def shape(
         self,
@@ -2581,7 +2625,7 @@ class ChunkEngine:
             raise IndexError(
                 f"Too many indices for tensor. Tensor is rank {tensor_ndim} but {len(index)} indices were provided."
             )
-        
+
         index_0, sample_index = index.values[0], index.values[1:]
         if (
             not index_0.subscriptable()
@@ -2597,7 +2641,7 @@ class ChunkEngine:
         num_samples = index_0.length(self._sequence_length or self.num_samples)
         if num_samples == 0:
             return shape
-        
+
         shape = shape[1:]
         sample_ndim = tensor_ndim - 1
         sample_shapes = np.zeros((num_samples, sample_ndim), dtype=np.int32)

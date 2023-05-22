@@ -2487,27 +2487,72 @@ def test_iterate_with_groups(memory_ds):
     for i, sample in enumerate(ds):
         assert sample["x/y/z"].is_iteration == True
 
+
 def test_shapes(memory_ds):
     with memory_ds as ds:
         ds.create_tensor("abc")
-        np.testing.assert_array_equal(ds.abc.shapes(),  np.zeros((0, 0)))
+        np.testing.assert_array_equal(ds.abc.shapes(), np.zeros((0, 0)))
 
         ds.abc.append(np.ones((3, 4)))
         ds.abc.append(np.ones((5, 6)))
         np.testing.assert_array_equal(ds.abc.shapes(), np.array([[3, 4], [5, 6]]))
 
         ds.abc.append(None)
-        np.testing.assert_array_equal(ds.abc.shapes(), np.array([[3, 4], [5, 6], [0, 0]]))
+        np.testing.assert_array_equal(
+            ds.abc.shapes(), np.array([[3, 4], [5, 6], [0, 0]])
+        )
 
         ds.abc.append([])
-        np.testing.assert_array_equal(ds.abc.shapes(), np.array([[3, 4], [5, 6], [0, 0], [0, 0]]))
+        np.testing.assert_array_equal(
+            ds.abc.shapes(), np.array([[3, 4], [5, 6], [0, 0], [0, 0]])
+        )
 
         with pytest.raises(SampleAppendError):
             ds.abc.append(np.ones((3, 4, 5)))
-        
+
         ds.abc.append(np.ones((4, 6)))
-        np.testing.assert_array_equal(ds.abc.shapes(), np.array([[3, 4], [5, 6], [0, 0], [0, 0], [4, 6]]))
+        np.testing.assert_array_equal(
+            ds.abc.shapes(), np.array([[3, 4], [5, 6], [0, 0], [0, 0], [4, 6]])
+        )
 
         np.testing.assert_array_equal(ds.abc[0].shapes(), np.array([[3, 4]]))
-        np.testing.assert_array_equal(ds.abc[1:4].shapes(), np.array([[5, 6], [0, 0], [0, 0]]))
+        np.testing.assert_array_equal(
+            ds.abc[1:4].shapes(), np.array([[5, 6], [0, 0], [0, 0]])
+        )
         np.testing.assert_array_equal(ds.abc[1::2].shapes(), np.array([[5, 6], [0, 0]]))
+
+
+def test_shapes_sequence(memory_ds):
+    with memory_ds as ds:
+        ds.create_tensor("abc", htype="sequence")
+        np.testing.assert_array_equal(ds.abc.shapes(), np.zeros((0, 0)))
+
+        ds.abc.append([np.ones((3, 4)), np.ones((4, 5))])
+        np.testing.assert_array_equal(ds.abc.shapes(), np.array([[[3, 4], [4, 5]]]))
+
+        ds.abc.append([np.ones((2, 3)), np.ones((3, 4))])
+        np.testing.assert_array_equal(
+            ds.abc.shapes(), np.array([[[3, 4], [4, 5]], [[2, 3], [3, 4]]])
+        )
+
+        ds.abc.append([None, None])
+        np.testing.assert_array_equal(
+            ds.abc.shapes(),
+            np.array([[[3, 4], [4, 5]], [[2, 3], [3, 4]], [[0, 0], [0, 0]]]),
+        )
+
+        ds.abc.append([np.ones((2, 3)), np.ones((3, 4)), None])
+        shapes = [
+            np.array([[3, 4], [4, 5]]),
+            np.array([[2, 3], [3, 4]]),
+            np.array([[0, 0], [0, 0]]),
+            np.array([[2, 3], [3, 4], [0, 0]]),
+        ]
+        for i, shape in enumerate(ds.abc.shapes()):
+            np.testing.assert_array_equal(shape, shapes[i])
+
+        np.testing.assert_array_equal(ds.abc[0].shapes(), np.array([[[3, 4], [4, 5]]]))
+        np.testing.assert_array_equal(
+            ds.abc[:3].shapes(),
+            np.array([[[3, 4], [4, 5]], [[2, 3], [3, 4]], [[0, 0], [0, 0]]]),
+        )
