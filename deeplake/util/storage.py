@@ -1,4 +1,3 @@
-from deeplake.core.storage.gcs import GCSProvider
 from deeplake.util.agreement import handle_dataset_agreements
 from deeplake.util.cache_chain import generate_chain
 from deeplake.constants import LOCAL_CACHE_PREFIX, MB
@@ -10,6 +9,8 @@ import os
 from deeplake.core.storage import (
     LocalProvider,
     S3Provider,
+    GCSProvider,
+    AzureProvider,
     MemoryProvider,
     GDriveProvider,
 )
@@ -80,6 +81,8 @@ def storage_provider_from_path(
             or path.startswith("gs://")
         ):
             storage = GCSProvider(path, creds)
+        elif path.startswith("az://"):
+            storage = AzureProvider(path, creds)
         elif path.startswith("gdrive://"):
             storage = GDriveProvider(path, creds)
         elif path.startswith("mem://"):

@@ -143,7 +143,7 @@ FAST_EXTEND_BAIL = -1
 QUERIES_FILENAME = "queries.json"
 QUERIES_LOCK_FILENAME = "queries.lock"
 
-ALL_CLOUD_PREFIXES = ("s3://", "gcs://", "gcp://", "gs://", "gdrive://")
+ALL_CLOUD_PREFIXES = ("s3://", "gcs://", "gcp://", "gs://", "az://", "gdrive://")
 
 _ENABLE_HUB_SUB_DATASETS = False
 _ENABLE_RANDOM_ASSIGNMENT = True

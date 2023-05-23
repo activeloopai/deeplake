@@ -22,7 +22,6 @@ from deeplake.compression import (
 )
 from deeplake.util.exceptions import SampleReadError, UnableToReadFromUrlError
 from deeplake.util.exif import getexif
-from deeplake.core.storage.provider import StorageProvider
 from deeplake.util.path import get_path_type, is_remote_path
 import numpy as np
 from typing import Optional, Tuple, Union, Dict
@@ -31,9 +30,12 @@ from PIL import Image  # type: ignore
 from PIL.ExifTags import TAGS  # type: ignore
 from io import BytesIO
 
+from deeplake.core.storage.provider import StorageProvider
 from deeplake.core.storage.s3 import S3Provider
-from deeplake.core.storage import storage_factory
+from deeplake.core.storage.gcs import GCSProvider
+from deeplake.core.storage.azure import AzureProvider
 from deeplake.core.storage.google_drive import GDriveProvider
+from deeplake.core.storage import storage_factory
 
 try:
     from deeplake.core.storage.gcs import GCSProvider
@@ -440,6 +442,8 @@ class Sample:
                     self._buffer = self._read_from_gcs()
                 elif path_type == "s3":
                     self._buffer = self._read_from_s3()
+                elif path_type == "azure":
+                    self._buffer = self._read_from_azure()
                 elif path_type == "gdrive":
                     self._buffer = self._read_from_gdrive()
                 elif path_type == "http":
@@ -483,6 +487,16 @@ class Sample:
         root, key = self._get_root_and_key(path)
         gcs = storage_factory(GCSProvider, root, token=self._creds)
         return gcs[key]
+
+    def _read_from_azure(self) -> bytes:
+        assert self.path is not None
+        if self.storage is not None:
+            assert isinstance(self.storage, AzureProvider)
+            return self.storage.get_object_from_full_url(self.path)
+        path = self.path.replace("az://", "")  # type: ignore
+        root, key = self._get_root_and_key(path)
+        azure = storage_factory(AzureProvider, root, token=self._creds)
+        return azure[key]
 
     def _read_from_gdrive(self) -> bytes:
         assert self.path is not None
