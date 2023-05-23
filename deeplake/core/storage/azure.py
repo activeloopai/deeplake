@@ -124,7 +124,9 @@ class AzureProvider(StorageProvider):
             for blob in self.container_client.list_blobs(
                 name_starts_with=prefix, include=["metadata"]
             )
-            if not (blob.get("metadata") or {}).get("hdi_isfolder", False) # https://github.com/Azure/azure-sdk-for-python/issues/24814
+            if not (blob.get("metadata") or {}).get(
+                "hdi_isfolder", False
+            )  # https://github.com/Azure/azure-sdk-for-python/issues/24814
         }
 
     def __iter__(self):

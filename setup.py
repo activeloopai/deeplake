@@ -33,6 +33,7 @@ extras = {
     "video": ["av"],
     "av": ["av"],
     "gcp": ["google-cloud-storage", "google-auth", "google-auth-oauthlib"],
+    "azure": ["azure-cli", "azure-identity", "azure-storage-blob"],
     "dicom": ["pydicom", "nibabel"],
     "medical": ["pydicom", "nibabel"],
     "visualizer": ["IPython", "flask"],
