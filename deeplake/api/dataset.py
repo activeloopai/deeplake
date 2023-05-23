@@ -931,8 +931,8 @@ class dataset:
         tensors: Optional[List[str]] = None,
         overwrite: bool = False,
         src_creds=None,
-        token=None,
         dest_creds=None,
+        token=None,
         num_workers: int = 0,
         scheduler="threaded",
         progressbar=True,
@@ -941,7 +941,7 @@ class dataset:
         """Copies dataset at ``src`` to ``dest``. Version control history is not included.
 
         Args:
-            src (Union[str, Dataset, pathlib.Path]): The Dataset or the path to the dataset to be copied.
+            src (str, Dataset, pathlib.Path): The Dataset or the path to the dataset to be copied.
             dest (str, pathlib.Path): Destination path to copy to.
             runtime (dict): Parameters for Activeloop DB Engine. Only applicable for hub:// paths.
             tensors (List[str], optional): Names of tensors (and groups) to be copied. If not specified all tensors are copied.
@@ -964,6 +964,7 @@ class dataset:
         Raises:
             DatasetHandlerError: If a dataset already exists at destination path and overwrite is False.
             UnsupportedParameterException: If a parameter that is no longer supported is specified.
+            DatasetCorruptError: If loading source dataset fails with DatasetCorruptedError.
         """
         if "src_token" in kwargs:
             raise UnsupportedParameterException(
