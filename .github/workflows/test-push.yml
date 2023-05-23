@@ -21,7 +21,6 @@ jobs:
   full-test:
     name: Full Test
     uses: activeloopai/shared-github-actions/.github/workflows/full_test.yml@azure-tests
-    environment: production
     if: github.repository == 'activeloopai/deeplake'
     with:
       repo: ${{ github.repository }}
