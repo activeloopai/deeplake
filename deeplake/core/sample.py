@@ -495,7 +495,7 @@ class Sample:
             return self.storage.get_object_from_full_url(self.path)
         path = self.path.replace("az://", "")  # type: ignore
         root, key = self._get_root_and_key(path)
-        azure = storage_factory(AzureProvider, root, token=self._creds)
+        azure = storage_factory(AzureProvider, root, creds=self._creds)
         return azure[key]
 
     def _read_from_gdrive(self) -> bytes:

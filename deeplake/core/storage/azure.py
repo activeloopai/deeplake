@@ -1,6 +1,6 @@
 import posixpath
 import time
-from typing import Dict, Optional, Set, Tuple
+from typing import Dict, Optional, Tuple
 from datetime import datetime, timedelta
 from deeplake.core.storage.provider import StorageProvider
 from deeplake.client.client import DeepLakeBackendClient
@@ -211,7 +211,7 @@ class AzureProvider(StorageProvider):
             raise KeyError(path)
         return blob_client.get_blob_properties().size
 
-    def get_clients_from_full_path(self, url: str) -> BlobClient:
+    def get_clients_from_full_path(self, url: str):
         account_name, container_name, blob_path = self._get_attrs(url)
         account_url = f"https://{account_name}.blob.core.windows.net"
         blob_service_client = BlobServiceClient(
