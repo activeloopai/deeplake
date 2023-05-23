@@ -489,10 +489,15 @@ class ChunkEngine:
 
     @property
     def num_samples(self) -> int:
-        """Returns the length of the primary axis of the tensor.
+        """Total length of tensor (includes samples in sequences)
         Ignores any applied indexing and returns the total length.
         """
         return self.tensor_meta.length
+
+    @property
+    def tensor_length(self) -> int:
+        """Length of primary axis of tensor (does not include samples in sequences)"""
+        return self._sequence_length or self.tensor_meta.length
 
     @property
     def last_chunk_key(self) -> str:
@@ -664,9 +669,10 @@ class ChunkEngine:
         return False
 
     def check_each_sample(self, samples, verify=True):
+        # overridden in LinkedChunkEngine
         return
 
-    def _sanitize_samples(self, samples, verify=True):
+    def _sanitize_samples(self, samples, verify=True, pg_callback=None):
         check_samples_type(samples)
         if isinstance(samples, list):
             samples = [
@@ -994,7 +1000,9 @@ class ChunkEngine:
             return
         if len(samples) == 0:
             return
-        samples, verified_samples = self._sanitize_samples(samples)
+        samples, verified_samples = self._sanitize_samples(
+            samples, pg_callback=pg_callback
+        )
         self._samples_to_chunks(
             samples,
             start_chunk=self.last_appended_chunk(),
@@ -1025,15 +1033,22 @@ class ChunkEngine:
             if self.is_sequence:
                 samples = tqdm(samples) if progressbar else samples
                 verified_samples = []
-                for sample in samples:
-                    if sample is None:
-                        sample = []
-                    verified_sample = self._extend(
-                        sample, progressbar=False, update_commit_diff=False
-                    )
-                    self.sequence_encoder.register_samples(len(sample), 1)
-                    self.commit_diff.add_data(1)
-                    verified_samples.append(verified_sample or sample)
+                num_samples_added = 0
+                try:
+                    for sample in samples:
+                        if sample is None:
+                            sample = []
+                        verified_sample = self._extend(
+                            sample, progressbar=False, update_commit_diff=False
+                        )
+                        self.sequence_encoder.register_samples(len(sample), 1)
+                        self.commit_diff.add_data(1)
+                        num_samples_added += 1
+                        verified_samples.append(verified_sample or sample)
+                except Exception:
+                    for _ in range(num_samples_added):
+                        self.pop()
+                    raise
                 if link_callback:
                     samples = [
                         None if is_empty_list(s) else s for s in verified_samples
@@ -1606,7 +1621,7 @@ class ChunkEngine:
 
     def read_bytes_for_sample(self, global_sample_index: int) -> bytes:
         if self.chunk_compression:
-            raise Exception(
+            raise ValueError(
                 "Cannot retreive original bytes for samples in chunk-wise compressed tensors."
             )
         enc = self.chunk_id_encoder
@@ -1717,7 +1732,7 @@ class ChunkEngine:
                 start = self.num_samples + start
 
             if stop < 0:
-                stop = self.num_samples + start
+                stop = self.num_samples + stop
 
             numpy_array_length = (stop - start) // step
             return numpy_array_length > threshold
@@ -1867,7 +1882,7 @@ class ChunkEngine:
     def get_single_sample(
         self, global_sample_index, index, fetch_chunks=False, pad_tensor=False
     ):
-        if pad_tensor and global_sample_index >= self.tensor_meta.length:
+        if pad_tensor and global_sample_index >= self.tensor_length:
             sample = self.get_empty_sample()
             try:
                 return sample[tuple(entry.value for entry in index.values[1:])]
@@ -1967,7 +1982,7 @@ class ChunkEngine:
         samples = []
         enc = self.chunk_id_encoder
         for global_sample_index in index.values[0].indices(length):
-            if pad_tensor and global_sample_index >= self.tensor_meta.length:
+            if pad_tensor and global_sample_index >= self.tensor_length:
                 sample = self.get_empty_sample()
                 try:
                     sample = sample[tuple(entry.value for entry in index.values[1:])]
@@ -2051,6 +2066,9 @@ class ChunkEngine:
         """Return list of all chunks for current `version_state['commit_id']` and tensor"""
         commit_id = self.commit_id
         if commit_id == FIRST_COMMIT_ID:
+            arr = self.chunk_id_encoder._encoded
+            if not arr.size:
+                return []
             return [
                 ChunkIdEncoder.name_from_id(chunk_id)
                 for chunk_id in self.chunk_id_encoder._encoded[:, CHUNK_ID_COLUMN]
@@ -2094,6 +2112,7 @@ class ChunkEngine:
         self,
         global_sample_index: Optional[int] = None,
         link_callback: Optional[Callable] = None,
+        sample_id: Optional[int] = None,
     ):
         if global_sample_index is None:
             if self.is_sequence:
@@ -2116,7 +2135,7 @@ class ChunkEngine:
         if link_callback:
             link_callback(global_sample_index)
 
-        self.commit_diff.pop(global_sample_index)
+        self.commit_diff.pop(global_sample_index, sample_id)
         if self.is_sequence:
             # pop in reverse order else indices get shifted
             for idx in reversed(range(*self.sequence_encoder[global_sample_index])):
@@ -2210,7 +2229,9 @@ class ChunkEngine:
 
     @property
     def _sequence_length(self):
-        return self.sequence_encoder.num_samples
+        if self.is_sequence:
+            return self.sequence_encoder.num_samples
+        return
 
     @property
     def sequence_encoder(self) -> SequenceEncoder:
@@ -2282,17 +2303,22 @@ class ChunkEngine:
         if isinstance(arr, np.ndarray) and arr.size == 0:
             return self.get_empty_sample()
         if index.subscriptable_at(0) and index.subscriptable_at(1):
+            item_lengths = []
+            for i in index.values[0].indices(self._sequence_length):
+                item_length = index.length_at(
+                    1, -int(np.subtract(*self.sequence_encoder[i]))
+                )
+                item_lengths.append(item_length)
+
             if aslist:
-                _item_length = self._sequence_item_length
                 ret = []
-                for i in index.values[0].indices(self._sequence_length):
-                    item_length = _item_length or index.length_at(
-                        1, -int(np.subtract(*self.sequence_encoder[i]))
-                    )
+                for item_length in item_lengths:
                     ret.append(arr[:item_length])
                     arr = arr[item_length:]
                 return ret
             else:
+                if len(set(item_lengths)) > 1:
+                    raise DynamicTensorNumpyError(self.name, index, "shape")
                 try:
                     return arr.reshape(  # type: ignore
                         index.length_at(0, self._sequence_length), -1, *arr.shape[1:]  # type: ignore
@@ -2470,29 +2496,60 @@ class ChunkEngine:
         return
 
     def shape(
-        self, index: Index, sample_shape_provider: Optional[Callable] = None
+        self,
+        index: Index,
+        sample_shape_provider: Optional[Callable] = None,
+        pad_tensor: bool = False,
     ) -> Tuple[Optional[int], ...]:
-        shape = self.shape_interval.astuple()
-        idxs = index.values
-        skip_dims = 0
+        index_0, sample_index = index.values[0], index.values[1:]
+        if (
+            not index_0.subscriptable()
+            and pad_tensor
+            and index_0.value >= self.tensor_length  # type: ignore
+        ):
+            return self.get_empty_sample().shape
+
+        shape = self.shape_interval(index).astuple()
+        if index_0.is_trivial():
+            return shape
+
+        shape = shape[1:]
+        sample_indices = list(
+            index_0.indices(self._sequence_length or self.num_samples)
+        )
+        num_samples = len(sample_indices)
+
+        if num_samples == 0:
+            return (0, *shape)
+
+        sample_ndim = self.ndim() - 1
+        sample_shapes = np.zeros((num_samples, sample_ndim), dtype=np.int32)
+
+        if len(sample_index) > sample_ndim:
+            raise IndexError(
+                f"Too many indices for tensor. Tensor is rank {sample_ndim + 1} but {len(sample_index) + 1} indices were provided."
+            )
+
         if None in shape or self.tensor_meta.is_link:
-            if not idxs[0].subscriptable():
+            for i, idx in enumerate(sample_indices):
                 if self.tensor_meta.htype in ("text", "json"):
                     shape = (1,)
                 else:
                     if sample_shape_provider:
                         try:
-                            shape = sample_shape_provider(idxs[0].value)  # type: ignore
+                            shape = sample_shape_provider(idx)  # type: ignore
+                            if isinstance(shape, tuple) and shape == ():
+                                shape = (0,)
                             if self.is_sequence:
-                                if len(idxs) > 1 and not idxs[1].subscriptable():
-                                    shape = tuple(shape[idxs[1].value].tolist())  # type: ignore
-                                    skip_dims += 1
+                                if sample_index and not sample_index[0].subscriptable():
+                                    shape = (1, *tuple(shape[sample_index[0].value].tolist()))  # type: ignore
                                 else:
+                                    is_same = np.all(shape == shape[0, :], axis=0)  # type: ignore
                                     shape = (len(shape),) + (
                                         tuple(
                                             int(shape[0, i])  # type: ignore
-                                            if np.all(shape[:, i] == shape[0, i])  # type: ignore
-                                            else None
+                                            if is_same[i]  # type: ignore
+                                            else -1
                                             for i in range(shape.shape[1])  # type: ignore
                                         )
                                         or (1,)
@@ -2501,21 +2558,42 @@ class ChunkEngine:
                         except (
                             IndexError
                         ):  # Happens during transforms, sample shape tensor is not populated yet
-                            shape = self.read_shape_for_sample(idxs[0].value)  # type: ignore
+                            shape = self.read_shape_for_sample(idx)  # type: ignore
                     else:
                         self.check_link_ready()
-                        shape = self.read_shape_for_sample(idxs[0].value)  # type: ignore
-                skip_dims += 1
-        elif not idxs[0].subscriptable():
-            shape = shape[1:]
-            skip_dims += 1
-        shape = list(shape)  # type: ignore
+                        shape = self.read_shape_for_sample(idx)  # type: ignore
+                        # if link verification was not done
+                        if len(shape) > sample_ndim:
+                            sample_ndim = len(shape)
+                            sample_shapes = np.zeros(
+                                (num_samples, sample_ndim), dtype=np.int32
+                            )
+                    sample_shapes[i] = shape
+        else:
+            sample_shapes[:] = shape
+
         squeeze_dims = set()
-        for i, idx in enumerate(idxs[skip_dims:]):
-            if idx.subscriptable():
-                shape[i] = idx.length(shape[i])  # type: ignore
-            else:
-                squeeze_dims.add(i)
+        for i in range(num_samples):
+            for j in range(len(sample_index)):
+                if sample_index[j].subscriptable():
+                    if sample_shapes[i, j] != -1:
+                        sample_shapes[i, j] = sample_index[j].length(
+                            sample_shapes[i, j]
+                        )
+                else:
+                    squeeze_dims.add(j)
+
+        is_same = np.all(sample_shapes == sample_shapes[0, :], axis=0)
+        shape = [  # type: ignore
+            int(sample_shapes[0, i])
+            if sample_shapes[0, i] != -1 and is_same[i]
+            else None
+            for i in range(sample_ndim)
+        ]
+
+        if index_0.subscriptable():
+            shape = [num_samples, *shape]  # type: ignore
+
         return tuple(shape[i] for i in range(len(shape)) if i not in squeeze_dims)
 
     def ndim(self, index: Optional[Index] = None) -> int:
@@ -2528,9 +2606,11 @@ class ChunkEngine:
                     ndim -= 1
         return ndim
 
-    @property
-    def shape_interval(self) -> ShapeInterval:
+    def shape_interval(self, index: Index) -> ShapeInterval:
         """Returns a `ShapeInterval` object that describes this tensor's shape more accurately. Length is included.
+
+        Args:
+            index (Index): Index to use for shape calculation.
 
         Note:
             If you are expecting a `tuple`, use `tensor.shape` instead.
@@ -2548,12 +2628,12 @@ class ChunkEngine:
         """
         meta = self.tensor_meta
         if self.is_sequence:
-            seq_length = self._sequence_length
+            seq_length = index.length(self._sequence_length)
             min_item_length, max_item_length = self._sequence_item_length_range
             min_length = [seq_length, min_item_length]
             max_length = [seq_length, max_item_length]
         else:
-            min_length = max_length = [meta.length]
+            min_length = max_length = [index.length(meta.length)]
         min_shape = min_length + list(meta.min_shape)
         max_shape = max_length + list(meta.max_shape)
 
@@ -2647,6 +2727,10 @@ class ChunkEngine:
         dtype = self.tensor_meta.dtype
         if dtype in ("Any", "List", None):
             return None
-        nbytes = np.prod([num_samples] + max_shape) * np.dtype(dtype).itemsize
+        shape = [num_samples] + max_shape
+        nbytes = 1
+        for dim in shape:  # not using np.prod to avoid overflow
+            nbytes *= dim
+        nbytes = nbytes * np.dtype(dtype).itemsize
         avg_chunk_size = nbytes / num_chunks
         return avg_chunk_size

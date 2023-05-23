@@ -86,6 +86,7 @@ class DeepLakeCloudDataset(Dataset):
             self.ds_name,
             self.version_state["meta"].__getstate__(),
             public=self.public,
+            repository=self._get_storage_repository(),
         )
         self._send_dataset_creation_event()
 

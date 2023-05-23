@@ -29,6 +29,10 @@ class ViewEntry:
         return self.info.get("query")
 
     @property
+    def tql_query(self) -> Optional[str]:
+        return self.info.get("tql_query")
+
+    @property
     def message(self) -> str:
         """Returns the message with which the view was saved."""
         return self.info.get("message", "")
@@ -38,7 +42,7 @@ class ViewEntry:
         return self.info["source-dataset-version"]
 
     def __str__(self):
-        return f"View(id='{self.id}', message='{self.message}', virtual={self.virtual}, commit_id={self.commit_id})"
+        return f"View(id='{self.id}', message='{self.message}', virtual={self.virtual}, commit_id={self.commit_id}, query='{self.query}, tql_query='{self.tql_query}')"
 
     __repr__ = __str__
 
@@ -57,6 +61,7 @@ class ViewEntry:
         """
         if self.commit_id != self._ds.commit_id:
             print(f"Loading view from commit id {self.commit_id}.")
+
         ds = self._ds._sub_ds(
             ".queries/" + (self.info.get("path") or self.info["id"]),
             lock=False,
@@ -64,9 +69,15 @@ class ViewEntry:
             token=self._src_ds.token,
             read_only=True,
         )
+
         sub_ds_path = ds.path
         if self.virtual:
             ds = ds._get_view(inherit_creds=not self._external)
+
+        if not self.tql_query is None:
+            query_str = self.tql_query
+            ds = ds.query(query_str)
+
         ds._view_entry = self
         if verbose:
             log_visualizer_link(sub_ds_path, source_ds_url=self.info["source-dataset"])
@@ -104,7 +115,13 @@ class ViewEntry:
 
         Returns:
             :class:`ViewEntry`
+
+        Raises:
+            Exception: When query view cannot be optimized.
+
         """
+        if not self.tql_query is None:
+            raise Exception("Optimizing nonlinear query views is not supported")
         self.info = self._ds._optimize_saved_view(
             self.info["id"],
             tensors=tensors,

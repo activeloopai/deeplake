@@ -34,6 +34,7 @@ class htype:
     INTRINSICS = "intrinsics"
     POLYGON = "polygon"
     MESH = "mesh"
+    EMBEDDING = "embedding"
 
 
 # used for requiring the user to specify a value for htype properties. notates that the htype property has no default.
@@ -65,6 +66,7 @@ HTYPE_CONFIGURATIONS: Dict[str, Dict] = {
     htype.BBOX: {"dtype": "float32", "coords": {}, "_info": ["coords"]},
     htype.BBOX_3D: {"dtype": "float32", "coords": {}, "_info": ["coords"]},
     htype.AUDIO: {"dtype": "float64"},
+    htype.EMBEDDING: {"dtype": "float32"},
     htype.VIDEO: {"dtype": "uint8"},
     htype.BINARY_MASK: {
         "dtype": "bool"
@@ -75,7 +77,15 @@ HTYPE_CONFIGURATIONS: Dict[str, Dict] = {
         "class_names": [],
         "_info": ["class_names"],
     },
-    htype.KEYPOINTS_COCO: {"dtype": "int32"},
+    htype.KEYPOINTS_COCO: {
+        "dtype": "int32",
+        "keypoints": [],
+        "connections": [],
+        "_info": [
+            "keypoints",
+            "connections",
+        ],  # keypoints and connections should be stored in info, not meta
+    },
     htype.POINT: {"dtype": "int32"},
     htype.JSON: {
         "dtype": "Any",
@@ -88,6 +98,7 @@ HTYPE_CONFIGURATIONS: Dict[str, Dict] = {
     htype.INTRINSICS: {"dtype": "float32"},
     htype.POLYGON: {"dtype": "float32"},
     htype.MESH: {"sample_compression": "ply"},
+    htype.EMBEDDING: {},
 }
 
 HTYPE_VERIFICATIONS: Dict[str, Dict] = {
@@ -114,6 +125,7 @@ HTYPE_SUPPORTED_COMPRESSIONS = {
     htype.NIFTI: ["nii", "nii.gz"],
     htype.POLYGON: BYTE_COMPRESSIONS[:],
     htype.MESH: MESH_COMPRESSIONS[:],
+    htype.EMBEDDING: BYTE_COMPRESSIONS[:],
 }
 
 
@@ -122,6 +134,7 @@ COMMON_CONFIGS = {
     "sample_compression": None,
     "chunk_compression": None,
     "dtype": None,
+    "typestr": None,
     "max_chunk_size": None,
     "tiling_threshold": None,
     "is_sequence": False,

@@ -208,3 +208,6 @@ class StorageProvider(ABC, MutableMapping):
 
     def get_object_size(self, key: str) -> int:
         raise NotImplementedError()
+
+    def async_supported(self) -> bool:
+        return False

@@ -7,15 +7,6 @@ from typing import Any, Dict, Optional, Union
 
 from deeplake.core.storage.provider import StorageProvider
 
-ASYNC_INSTALLED = True
-
-try:
-    import aioboto3  # type: ignore
-    import asyncio  # type: ignore
-    import nest_asyncio  # type: ignore
-except ImportError:
-    ASYNC_INSTALLED = False
-
 
 def _get_nbytes(obj: Union[bytes, memoryview, DeepLakeMemoryObject]):
     if isinstance(obj, DeepLakeMemoryObject):
@@ -66,9 +57,13 @@ class LRUCache(StorageProvider):
 
         self.cache_used = 0
         self.deeplake_objects: Dict[str, DeepLakeMemoryObject] = {}
-        self.use_async = (
-            sys.version_info >= (3, 7) and sys.platform != "win32" and ASYNC_INSTALLED
-        )
+        # TODO: BRING THIS BACK AFTER ASYNC IS FIXED
+        # self.use_async = (
+        #     next_storage.async_supported()
+        #     if next_storage
+        #     else False and sys.version_info >= (3, 7) and sys.platform != "win32"
+        # )
+        self.use_async = False
 
     def register_deeplake_object(self, path: str, obj: DeepLakeMemoryObject):
         """Registers a new object in the cache."""

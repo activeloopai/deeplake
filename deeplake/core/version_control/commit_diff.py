@@ -11,6 +11,7 @@ class CommitDiff(DeepLakeMemoryObject):
         self.data_added: List[int] = [first_index, first_index]
         self.data_updated: Set[int] = set()
         self.data_deleted: Set[int] = set()
+        self.data_deleted_ids: Set[int] = set()
         self.info_updated = False
         self.cleared = False
 
@@ -30,6 +31,7 @@ class CommitDiff(DeepLakeMemoryObject):
         7. The next byte is a boolean value indicating whether the tensor was cleared in the commit or not.
         8. The next 8 bytes are the number of elements in the data_deleted set, let's call this n.
         9. The next 8 * n bytes are the elements of the data_deleted set.
+        9. The next 8 * n bytes are the elements of the data_deleted_ids set.
         """
         return b"".join(
             [
@@ -43,6 +45,7 @@ class CommitDiff(DeepLakeMemoryObject):
                 self.cleared.to_bytes(1, "big"),
                 len(self.data_deleted).to_bytes(8, "big"),
                 *(idx.to_bytes(8, "big") for idx in self.data_deleted),
+                *(idx.to_bytes(8, "big") for idx in self.data_deleted_ids),
             ]
         )
 
@@ -67,6 +70,8 @@ class CommitDiff(DeepLakeMemoryObject):
         commit_diff.cleared = bool(int.from_bytes(data[pos : pos + 1], "big"))
         commit_diff.is_dirty = False
         pos += 1
+        commit_diff.data_deleted = set()
+        commit_diff.data_deleted_ids = set()
         if len(data) > pos:
             num_deletes = int.from_bytes(data[pos : pos + 8], "big")
             pos += 8
@@ -74,8 +79,12 @@ class CommitDiff(DeepLakeMemoryObject):
                 int.from_bytes(data[pos + i * 8 : pos + i * 8 + 8], "big")
                 for i in range(num_deletes)
             }
-        else:
-            commit_diff.data_deleted = set()
+            pos += num_deletes * 8
+            if len(data) > pos:
+                commit_diff.data_deleted_ids = {
+                    int.from_bytes(data[pos + i * 8 : pos + i * 8 + 8], "big")
+                    for i in range(num_deletes)
+                }
         return commit_diff
 
     @property
@@ -119,7 +128,7 @@ class CommitDiff(DeepLakeMemoryObject):
         self.data_transformed = True
         self.is_dirty = True
 
-    def pop(self, index) -> None:
+    def pop(self, index, id) -> None:
         index = self.translate_index(index)
         if index not in range(*self.data_added):
             self.data_deleted.add(index)
@@ -132,6 +141,8 @@ class CommitDiff(DeepLakeMemoryObject):
         self.data_updated = {
             idx - 1 if idx > index else idx for idx in self.data_updated
         }
+        if id is not None:
+            self.data_deleted_ids.add(id)
         self.is_dirty = True
 
     def translate_index(self, index):

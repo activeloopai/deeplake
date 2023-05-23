@@ -23,7 +23,13 @@ from deeplake.core.storage import (
     LocalProvider,
 )
 from deeplake.core.tiling.deserialize import combine_chunks
-from deeplake.integrations.pytorch.common import check_tensors, validate_decode_method
+from deeplake.integrations.pytorch.common import (
+    check_tensors,
+    find_additional_tensors_and_info,
+    get_htype_ndim_tensor_info_dicts,
+    convert_sample_to_data,
+    validate_decode_method,
+)
 from deeplake.util.exceptions import DatasetUnsupportedPytorch, ReadSampleFromChunkError
 from deeplake.util.keys import get_chunk_key, get_tensor_meta_key
 from deeplake.util.remove_cache import get_base_storage
@@ -267,6 +273,7 @@ class SampleStreaming(Streaming):
         pad_tensors: bool = False,
         decode_method: Optional[Dict[str, str]] = None,
         tobytes: Union[bool, Sequence[str]] = False,
+        verbose: bool = True,
     ) -> None:
         super().__init__()
 
@@ -285,13 +292,34 @@ class SampleStreaming(Streaming):
         self.tensors = tensors
         self.pad_tensors = pad_tensors
         self.decode_method = decode_method
-
-        jpeg_png_compressed_tensors = check_tensors(self.dataset, tensors)
-        raw_tensors, compressed_tensors = validate_decode_method(
-            self.decode_method, tensors, jpeg_png_compressed_tensors
+        jpeg_png_compressed_tensors, json_tensors, list_tensors = check_tensors(
+            self.dataset, tensors, verbose
         )
+        (
+            raw_tensors,
+            pil_compressed_tensors,
+            json_tensors,
+            list_tensors,
+            data_tensors,
+        ) = validate_decode_method(
+            self.decode_method,
+            tensors,
+            jpeg_png_compressed_tensors,
+            json_tensors,
+            list_tensors,
+        )
+        sample_info_tensors, tensor_info_tensors = find_additional_tensors_and_info(
+            dataset, data_tensors
+        )
+        self.tensors += sample_info_tensors
+        (
+            self.htype_dict,
+            self.ndim_dict,
+            self.tensor_info_dict,
+        ) = get_htype_ndim_tensor_info_dicts(dataset, data_tensors, tensor_info_tensors)
         self.raw_tensors = set(raw_tensors)
-        self.compressed_tensors = set(compressed_tensors)
+        self.pil_compressed_tensors = set(pil_compressed_tensors)
+        self.data_tensors = set(data_tensors)
 
         self.chunk_engines: ChunkEngineMap = self._map_chunk_engines(self.tensors)
 
@@ -310,6 +338,11 @@ class SampleStreaming(Streaming):
             yield from self.stream(block)
 
     def stream(self, block: IOBlock):
+        htype_dict, ndim_dict, tensor_info_dict = (
+            self.htype_dict,
+            self.ndim_dict,
+            self.tensor_info_dict,
+        )
         for idx in block.indices():
             sample = dict()
             valid_sample_flag = True
@@ -317,7 +350,7 @@ class SampleStreaming(Streaming):
             for keyid, (key, engine) in enumerate(self.chunk_engines.items()):
                 rel_key = key[self._group_index_length :]
                 decompress = key not in self.raw_tensors
-                to_pil = key in self.compressed_tensors
+                to_pil = key in self.pil_compressed_tensors
                 chunk_class = engine.chunk_class
                 try:
                     chunks: List[BaseChunk] = []
@@ -373,6 +406,10 @@ class SampleStreaming(Streaming):
 
             if valid_sample_flag:
                 sample["index"] = np.array([idx])
+                if self.data_tensors:
+                    convert_sample_to_data(
+                        sample, htype_dict, ndim_dict, tensor_info_dict
+                    )
                 yield sample
 
     def _get_block_for_single_sample(self, idx):

@@ -22,6 +22,7 @@ def create_dataloader(
     return_index,
     pad_tensors,
     decode_method,
+    persistent_workers,
 ):
     import torch
     import torch.utils.data
@@ -46,6 +47,7 @@ def create_dataloader(
         collate_fn=collate_fn,
         pin_memory=pin_memory,
         drop_last=drop_last,
+        persistent_workers=persistent_workers,
     )
 
 
@@ -65,6 +67,7 @@ def dataset_to_pytorch(
     return_index: bool = True,
     pad_tensors: bool = True,
     decode_method: Optional[Dict[str, str]] = None,
+    persistent_workers: bool = False,
     **kwargs,
 ):
     import torch
@@ -112,6 +115,7 @@ def dataset_to_pytorch(
             return_index,
             pad_tensors,
             decode_method,
+            persistent_workers,
         )
     else:
         return torch.utils.data.DataLoader(
@@ -133,4 +137,5 @@ def dataset_to_pytorch(
             pin_memory=pin_memory,
             num_workers=num_workers,
             drop_last=drop_last,
+            persistent_workers=persistent_workers,
         )

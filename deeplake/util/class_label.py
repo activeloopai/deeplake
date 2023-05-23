@@ -2,6 +2,7 @@ from collections import OrderedDict, defaultdict
 from typing import List
 
 from deeplake.util.hash import hash_str_to_int32
+from deeplake.util.exceptions import EmptyTensorError
 from deeplake.client.log import logger
 import numpy as np
 import deeplake
@@ -70,6 +71,7 @@ def convert_to_text(inp, class_names: List[str], return_original=False):
 def sync_labels(
     ds, label_temp_tensors, hash_label_maps, num_workers, scheduler, verbose=True
 ):
+    ds = ds.root
     hl_maps = defaultdict(OrderedDict)
     for map in hash_label_maps:
         for tensor in map:
@@ -83,8 +85,11 @@ def sync_labels(
         label_tensor: str,
         hash_idx_map,
     ):
-        hashes = hash_tensor_sample.numpy().tolist()
-        idxs = convert_hash_to_idx(hashes, hash_idx_map)
+        try:
+            hashes = hash_tensor_sample.numpy().tolist()
+            idxs = convert_hash_to_idx(hashes, hash_idx_map)
+        except EmptyTensorError:
+            idxs = None
         samples_out[label_tensor].append(idxs)
 
     for tensor, temp_tensor in label_temp_tensors.items():

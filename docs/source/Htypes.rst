@@ -257,7 +257,7 @@ A bbox tensor can be created using
 
 You can also choose to set the class names after tensor creation.
 
->>> ds.labels.info.update(coords = {"type": "pixel", "mode": "LTRB"})
+>>> ds.boxes.info.update(coords = {"type": "pixel", "mode": "LTRB"})
 
 .. note::
     If the bounding box format is not specified, the visualizer will assume a YOLO format (``fractional`` + ``CCWH``) 
@@ -804,6 +804,41 @@ Appending a ply file contatining a mesh data to tensor
 
 >>> ds.mesh.shape
 >>> (1, 100, 3)
+
+
+.. _embedding-htype:
+
+Embedding Htype
+~~~~~~~~~~~
+
+- :bluebold:`Sample dimensions:` ``(# elements in the embedding,)``
+
+:blue:`Creating an embedding tensor`
+--------------------------------
+
+An embedding tensor can be created using
+
+>>> ds.create_tensor("embedding", htype="embedding")
+
+- Supported compressions:
+
+>>> ["lz4", None]
+
+:blue:`Appending embedding samples`
+-------------------------------
+
+- Embedding samples can be of type ``np.ndarray``.
+
+:bluebold:`Examples`
+
+Appending Deep Lake embedding sample
+
+>>> ds.embedding.append(np.random.uniform(low=-1, high=1, size=(1024)))
+
+Extending with Deep Lake embeddding samples
+
+>>> ds.embedding.extend([np.random.uniform(low=-1, high=1, size=(1024)) for i in range(10)])
+
 
 .. _sequence-htype:
 

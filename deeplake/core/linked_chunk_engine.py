@@ -263,12 +263,13 @@ class LinkedChunkEngine(ChunkEngine):
                 verified_samples.append(sample)
             else:
                 try:
+                    _verify = verify and self.verify
                     verified_samples.append(
                         read_linked_sample(
                             sample.path,
                             sample.creds_key,
                             self.link_creds,
-                            verify=verify and self.verify,
+                            verify=_verify,
                         )
                     )
                 except Exception as e:

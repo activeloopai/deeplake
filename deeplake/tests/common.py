@@ -139,3 +139,10 @@ class LinkTransformTestContext:
 
     def __exit__(self, *args, **kwargs):
         _unregister_link_transform(self.name)
+
+
+def convert_data_according_to_torch_version(batch):
+    if isinstance(batch, List):
+        return batch[0]
+    else:
+        return batch

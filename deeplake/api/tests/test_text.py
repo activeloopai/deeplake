@@ -77,3 +77,20 @@ def test_text_rechunk(memory_ds, args):
         assert len(ds.x.chunk_engine.chunk_id_encoder.array) > 2
         ds.rechunk()
     assert ds.x.numpy().reshape(-1).tolist() == ["abcd"] * 100
+
+
+def test_text_tensor_append(memory_ds):
+    with memory_ds as ds:
+        ds.create_tensor("x", htype="text", chunk_compression="lz4")
+        ds.create_tensor("y", htype="json")
+        ds.x.extend(["x", "y", "z"])
+        ds.y.extend([{"a": "b"}, {"b": "c"}, {"c": "d"}])
+        ds2 = deeplake.empty("mem://")
+        with ds2:
+            ds2.create_tensor("x", htype="text")
+            ds2.create_tensor("y", htype="json", chunk_compression="lz4")
+            ds2.x.extend(ds.x)
+            ds2.y.extend(ds.y)
+        for i in range(3):
+            assert ds.x[i].data() == ds2.x[i].data()
+            assert ds.y[i].data() == ds2.y[i].data()

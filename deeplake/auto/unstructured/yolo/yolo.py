@@ -1,7 +1,7 @@
 import deeplake
 
 from pathlib import Path
-from typing import Dict, Optional
+from typing import Dict, Optional, Union
 
 from deeplake.core.dataset import Dataset
 from deeplake.util.exceptions import IngestionError
@@ -34,7 +34,7 @@ class YoloDataset(UnstructuredDataset):
         allow_no_annotation: Optional[bool] = False,
         verify_class_names: Optional[bool] = True,
         inspect_limit: Optional[int] = 1000,
-        creds: Optional[Dict] = None,
+        creds: Optional[Union[str, Dict]] = None,
         image_creds_key: Optional[str] = None,
     ):
         """Container for access to Yolo Data, parsing of key information, and conversions to a Deep Lake dataset"""

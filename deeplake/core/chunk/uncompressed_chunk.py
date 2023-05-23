@@ -225,6 +225,13 @@ class UncompressedChunk(BaseChunk):
                 sb, eb = bps[local_index]
                 buffer = buffer[sb:eb]
 
+        if self.tensor_meta.htype == "polygon":
+            return Polygons.frombuffer(
+                bytes(buffer),
+                dtype=self.tensor_meta.dtype,
+                ndim=shape[-1],
+            )
+
         if not decompress:
             if copy:
                 buffer = bytes(buffer)
@@ -232,12 +239,6 @@ class UncompressedChunk(BaseChunk):
         if self.is_text_like:
             buffer = bytes(buffer)
             return bytes_to_text(buffer, self.htype)
-        if self.tensor_meta.htype == "polygon":
-            return Polygons.frombuffer(
-                bytes(buffer),
-                dtype=self.tensor_meta.dtype,
-                ndim=shape[-1],
-            )
         ret = np.frombuffer(buffer, dtype=self.dtype).reshape(shape)
         if copy and not ret.flags["WRITEABLE"]:
             ret = ret.copy()
