@@ -73,7 +73,7 @@ class LinkCreds(DeepLakeMemoryObject):
             return self.default_gcs_provider
 
     def get_storage_provider(self, key: Optional[str], provider_type: str):
-        assert provider_type in {"s3", "gcs"}
+        assert provider_type in {"s3", "gcs", "azure"}
         if key is None:
             return self.get_default_provider(provider_type)
 
@@ -87,7 +87,7 @@ class LinkCreds(DeepLakeMemoryObject):
                     return provider
 
             provider = storage_factory(S3Provider, "s3://bucket/path", **creds)
-        else:
+        elif provider_type == "gcs":
             from deeplake.core.storage.gcs import GCSProvider
 
             if key in self.storage_providers:
@@ -96,6 +96,15 @@ class LinkCreds(DeepLakeMemoryObject):
                     return provider
 
             provider = storage_factory(GCSProvider, "gcs://bucket/path", **creds)
+        elif provider_type == "azure":
+            from deeplake.core.storage.azure import AzureProvider
+
+            if key in self.storage_providers:
+                provider = self.storage_providers[key]
+                if isinstance(provider, AzureProvider):
+                    return provider
+
+            provider = storage_factory(AzureProvider, "az://account/container", **creds)
         self.storage_providers[key] = provider
         return provider
 

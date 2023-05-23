@@ -37,19 +37,19 @@ class AzureProvider(StorageProvider):
         split_path = path.replace("az://", "").strip("/").split("/", 2)
         if len(split_path) == 1:
             raise ValueError(
-                "Container name must be provided. Path must be in the format az://<storage_name>/<container_name>/<root_folder>"
+                "Container name must be provided. Path must be in the format az://<account_name>/<container_name>/<root_folder>"
             )
         elif len(split_path) == 2:
-            storage_name, container_name, root_folder = *split_path, ""
+            account_name, container_name, root_folder = *split_path, ""
         else:
-            storage_name, container_name, root_folder = split_path
-        return storage_name, container_name, root_folder
+            account_name, container_name, root_folder = split_path
+        return account_name, container_name, root_folder
 
     def _set_clients(self):
-        self.storage_name, self.container_name, self.root_folder = self._get_attrs(
+        self.account_name, self.container_name, self.root_folder = self._get_attrs(
             self.root
         )
-        self.account_url = f"https://{self.storage_name}.blob.core.windows.net"
+        self.account_url = f"https://{self.account_name}.blob.core.windows.net"
         self.default_credential = DefaultAzureCredential()
         self.blob_service_client = BlobServiceClient(
             self.account_url, credential=self.default_credential
@@ -61,7 +61,7 @@ class AzureProvider(StorageProvider):
     def __setitem__(self, path, content):
         self.check_readonly()
         if isinstance(content, memoryview):
-            content= content.tobytes()
+            content = content.tobytes()
         elif isinstance(content, bytearray):
             content = bytes(content)
         blob_client = self.container_client.get_blob_client(
@@ -178,11 +178,11 @@ class AzureProvider(StorageProvider):
 
     def rename(self, root: str):
         self.check_readonly()
-        storage_name, container_name, root_folder = (
+        account_name, container_name, root_folder = (
             root.replace("az://", "").strip("/").split("/", 2)
         )
         assert (
-            storage_name == self.storage_name
+            account_name == self.account_name
         ), "Cannot rename across storage accounts"
         assert container_name == self.container_name, "Cannot rename across containers"
         for blob_name in self._all_keys():
@@ -208,27 +208,27 @@ class AzureProvider(StorageProvider):
             raise KeyError(path)
         return blob_client.get_blob_properties().size
 
-    def get_blob_client_from_full_path(self, url: str) -> BlobClient:
-        storage_name, container_name, blob_path = self._get_attrs(url)
-        account_url = f"https://{storage_name}.blob.core.windows.net"
+    def get_clients_from_full_path(self, url: str) -> BlobClient:
+        account_name, container_name, blob_path = self._get_attrs(url)
+        account_url = f"https://{account_name}.blob.core.windows.net"
         blob_service_client = BlobServiceClient(
             account_url, credential=self.default_credential
         )
-        container_client = blob_service_client.get_container_client(container_name)
-        blob_client = container_client.get_blob_client(blob_path)
+        blob_client = blob_service_client.get_blob_client(container_name, blob_path)
         if not blob_client.exists():
             raise KeyError(url)
-        return blob_client
+        return blob_client, blob_service_client
 
     def get_presigned_url(self, path: str, full: bool = False) -> str:
         if full:
-            blob_client = self.get_blob_client_from_full_path(path)
+            blob_client, blob_service_client = self.get_clients_from_full_path(path)
             account_name = blob_client.account_name
             container_name = blob_client.container_name
             blob_path = blob_client.blob_name
             account_url = f"https://{account_name}.blob.core.windows.net"
         else:
-            account_name = self.storage_name
+            blob_service_client = self.blob_service_client
+            account_name = self.account_name
             container_name = self.container_name
             blob_path = f"{self.root_folder}/{path}"
             account_url = self.account_url
@@ -249,7 +249,7 @@ class AzureProvider(StorageProvider):
                 org_id, ds_name = self.tag.split("/")  # type: ignore
                 url = client.get_presigned_url(org_id, ds_name, path)
             else:
-                user_delegation_key = self.blob_service_client.get_user_delegation_key(
+                user_delegation_key = blob_service_client.get_user_delegation_key(
                     datetime.utcnow(), datetime.utcnow() + timedelta(hours=1)
                 )
                 sas_token = generate_blob_sas(
@@ -266,5 +266,5 @@ class AzureProvider(StorageProvider):
         return url
 
     def get_object_from_full_url(self, url: str) -> bytes:
-        blob_client = self.get_blob_client_from_full_path(url)
+        blob_client, _ = self.get_clients_from_full_path(url)
         return blob_client.download_blob().readall()

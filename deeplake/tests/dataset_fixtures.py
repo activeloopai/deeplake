@@ -5,24 +5,24 @@ from deeplake.constants import HUB_CLOUD_DEV_USERNAME
 
 enabled_datasets = pytest.mark.parametrize(
     "ds",
-    ["memory_ds", "local_ds", "s3_ds", "gcs_ds", "gdrive_ds"],
+    ["memory_ds", "local_ds", "s3_ds", "gcs_ds", "azure_ds", "gdrive_ds"],
     indirect=True,
 )
 
 enabled_non_gdrive_datasets = pytest.mark.parametrize(
     "ds",
-    ["memory_ds", "local_ds", "s3_ds", "gcs_ds"],
+    ["memory_ds", "local_ds", "s3_ds", "gcs_ds", "azure_ds"],
     indirect=True,
 )
 
 enabled_non_gcs_datasets = pytest.mark.parametrize(
     "ds",
-    ["memory_ds", "local_ds", "s3_ds", "gdrive_ds"],
+    ["memory_ds", "local_ds", "s3_ds", "azure_ds", "gdrive_ds"],
     indirect=True,
 )
 
 enabled_non_gcs_gdrive_datasets = pytest.mark.parametrize(
-    "ds", ["memory_ds", "local_ds", "s3_ds"], indirect=True
+    "ds", ["memory_ds", "local_ds", "s3_ds", "azure_ds"], indirect=True
 )
 
 enabled_persistent_dataset_generators = pytest.mark.parametrize(
@@ -31,6 +31,7 @@ enabled_persistent_dataset_generators = pytest.mark.parametrize(
         "local_ds_generator",
         "s3_ds_generator",
         "gcs_ds_generator",
+        "azure_ds_generator",
         "gdrive_ds_generator",
     ],
     indirect=True,
@@ -42,6 +43,7 @@ enabled_persistent_non_gdrive_dataset_generators = pytest.mark.parametrize(
         "local_ds_generator",
         "s3_ds_generator",
         "gcs_ds_generator",
+        "azure_ds_generator",
     ],
     indirect=True,
 )
@@ -51,6 +53,7 @@ enabled_cloud_dataset_generators = pytest.mark.parametrize(
     [
         "s3_ds_generator",
         "gcs_ds_generator",
+        "azure_ds_generator",
     ],
     indirect=True,
 )
@@ -112,6 +115,16 @@ def gcs_ds_generator(gcs_path, gcs_creds):
 
     return generate_gcs_ds
 
+@pytest.fixture
+def azure_ds(azure_ds_generator):
+    return azure_ds_generator()
+
+@pytest.fixture
+def azure_ds_generator(azure_path, azure_creds):
+    def generate_azure_ds(**kwargs):
+        return deeplake.dataset(azure_path, creds=azure_creds, **kwargs)
+
+    return generate_azure_ds
 
 @pytest.fixture
 def hub_cloud_ds(hub_cloud_ds_generator):

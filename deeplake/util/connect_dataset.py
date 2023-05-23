@@ -16,7 +16,7 @@ def log_dataset_connection_success(ds_path: str):
 
 
 def is_path_connectable(path: str) -> bool:
-    return get_path_type(path) in ("s3", "gcs")
+    return get_path_type(path) in ("s3", "gcs", "azure")
 
 
 def connect_dataset_entry(
