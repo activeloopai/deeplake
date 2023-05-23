@@ -112,19 +112,20 @@ class AzureProvider(StorageProvider):
 
     def clear(self, prefix=""):
         self.check_readonly()
-        self.container_client.delete_blobs(*self._all_keys(prefix))
+        blobs = [
+            posixpath.join(self.root_folder, key) for key in self._all_keys(prefix)
+        ]
+        self.container_client.delete_blobs(*blobs)
 
-    def _all_keys(self, prefix=None):
-        if prefix is None:
-            prefix = self.root_folder
-        else:
-            prefix = posixpath.join(self.root_folder, prefix)
-        return (
-            blob_name
-            for blob_name in self.container_client.list_blob_names(
-                name_starts_with=prefix
+    def _all_keys(self, prefix: str = ""):
+        prefix = posixpath.join(self.root_folder, prefix)
+        return {
+            posixpath.relpath(blob.name, self.root_folder)
+            for blob in self.container_client.list_blobs(
+                name_starts_with=prefix, include=["metadata"]
             )
-        )
+            if not (blob.get("metadata") or {}).get("hdi_isfolder", False) # https://github.com/Azure/azure-sdk-for-python/issues/24814
+        }
 
     def __iter__(self):
         yield from self._all_keys()

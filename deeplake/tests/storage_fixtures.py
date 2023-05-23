@@ -11,7 +11,7 @@ from deeplake.constants import (
     PYTEST_AZURE_PROVIDER_BASE_ROOT,
     S3_OPT,
     GCS_OPT,
-    AZURE_OPT
+    AZURE_OPT,
 )
 from deeplake.tests.common import is_opt_true
 import pytest
@@ -19,7 +19,14 @@ import pytest
 
 enabled_storages = pytest.mark.parametrize(
     "storage",
-    ["memory_storage", "local_storage", "s3_storage", "gcs_storage", "azure_storage", "gdrive_storage"],
+    [
+        "memory_storage",
+        "local_storage",
+        "s3_storage",
+        "gcs_storage",
+        "azure_storage",
+        "gdrive_storage",
+    ],
     indirect=True,
 )
 
@@ -68,6 +75,7 @@ def gdrive_storage(gdrive_path, gdrive_creds):
 def gcs_storage(gcs_path):
     return GCSProvider(gcs_path)
 
+
 @pytest.fixture
 def azure_storage(azure_path):
     return AzureProvider(azure_path)
@@ -90,11 +98,12 @@ def gcs_root_storage(request, gcs_creds):
 
     return GCSProvider(PYTEST_GCS_PROVIDER_BASE_ROOT, token=gcs_creds)
 
+
 @pytest.fixture
 def azure_root_storage(request, azure_creds):
     if not is_opt_true(request, AZURE_OPT):
         pytest.skip()
-    
+
     return AzureProvider(PYTEST_AZURE_PROVIDER_BASE_ROOT, creds=azure_creds)
 
 

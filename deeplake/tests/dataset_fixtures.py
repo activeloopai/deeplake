@@ -115,9 +115,11 @@ def gcs_ds_generator(gcs_path, gcs_creds):
 
     return generate_gcs_ds
 
+
 @pytest.fixture
 def azure_ds(azure_ds_generator):
     return azure_ds_generator()
+
 
 @pytest.fixture
 def azure_ds_generator(azure_path, azure_creds):
@@ -125,6 +127,7 @@ def azure_ds_generator(azure_path, azure_creds):
         return deeplake.dataset(azure_path, creds=azure_creds, **kwargs)
 
     return generate_azure_ds
+
 
 @pytest.fixture
 def hub_cloud_ds(hub_cloud_ds_generator):
