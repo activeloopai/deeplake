@@ -79,14 +79,18 @@ class DataFrame(StructuredDataset):
             "htype" not in tensor_params
         ):  # Auto-set some typing parameters if htype is not specified
             if dtype == np.dtype("object"):
-                types = [type(v) for v in self.source[key][0:inspect_limit].values]
+                types = [
+                    type(v)
+                    for v in self.source[key][0:inspect_limit].values
+                    if v is not None
+                ]  # Can be length 0 if all data is None
 
-                if len(set(types)) != 1:
+                if len(set(types)) > 1:
                     raise IngestionError(
                         f"Dataframe has different data types inside '{key}' column. Please make sure all data is given column is compatible with a single Deep Lake htype, or try specifying the htype manually."
                     )
 
-                if types[0] == str:
+                if len(types) > 0 and types[0] == str:
                     tensor_params.update(
                         htype="text"
                     )  # Use "text" htype for text data when the htype is not specified tensor_params
