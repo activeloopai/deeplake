@@ -81,7 +81,7 @@ def storage_provider_from_path(
             or path.startswith("gs://")
         ):
             storage = GCSProvider(path, creds)
-        elif path.startswith("az://"):
+        elif path.startswith(("az://", "azure://")):
             storage = AzureProvider(path, creds)
         elif path.startswith("gdrive://"):
             storage = GDriveProvider(path, creds)

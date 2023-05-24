@@ -493,7 +493,7 @@ class Sample:
         if self.storage is not None:
             assert isinstance(self.storage, AzureProvider)
             return self.storage.get_object_from_full_url(self.path)
-        path = self.path.replace("az://", "")  # type: ignore
+        path = self.path.replace("az://", "").replace("azure://", "")  # type: ignore
         root, key = self._get_root_and_key(path)
         azure = storage_factory(AzureProvider, root, creds=self._creds)
         return azure[key]

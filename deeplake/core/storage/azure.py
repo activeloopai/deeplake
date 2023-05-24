@@ -49,7 +49,7 @@ class AzureProvider(StorageProvider):
         self._set_clients()
 
     def _get_attrs(self, path: str) -> Tuple[str]:
-        split_path = path.replace("az://", "").strip("/").split("/", 2)
+        split_path = path.replace("az://", "").replace("azure://", "").strip("/").split("/", 2)
         if len(split_path) == 1:
             raise ValueError(
                 "Container name must be provided. Path must be in the format az://<account_name>/<container_name>/<root_folder>"
@@ -236,7 +236,7 @@ class AzureProvider(StorageProvider):
         self.check_readonly()
         self._check_update_creds()
         account_name, container_name, root_folder = (
-            root.replace("az://", "").strip("/").split("/", 2)
+            root.replace("az://", "").replace("azure://", "").strip("/").split("/", 2)
         )
         assert (
             account_name == self.account_name
