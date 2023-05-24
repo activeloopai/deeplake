@@ -39,5 +39,6 @@ jobs:
       oauth_client_secret: ${{ secrets.GDRIVE_CLIENT_SECRET }}
       oauth_refresh_token: ${{ secrets.GDRIVE_REFRESH_TOKEN }}
       azure_client_id: ${{ secrets.AZURE_CLIENT_ID }}
-      azure_tenant_id: ${{ secrets.AZURE_TENANT_ID }}
+      azure_client_secret: ${{ secrets.AZURE_CLIENT_SECRET }}
       azure_subscription_id: ${{ secrets.AZURE_SUBSCRIPTION_ID }}
+      azure_tenant_id: ${{ secrets.AZURE_TENANT_ID }}
