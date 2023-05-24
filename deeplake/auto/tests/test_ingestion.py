@@ -379,8 +379,9 @@ def test_dataframe_all_empty_images(memory_ds: Dataset):
     with pytest.raises(IngestionError):
         ds = deeplake.ingest_dataframe(
             df,
-            memory_ds.path,
+            "mem://dummy",
             progressbar=False,
+            column_params={"BB": {"htype": "image"}},
         )
 
 
