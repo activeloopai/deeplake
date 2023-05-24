@@ -24,7 +24,7 @@ from deeplake.core.tensor_link import (
 )
 
 
-SESSION_ID = str(uuid4())[:4]  # 4 ascii chars should be sufficient
+SESSION_ID = "tmp" + str(uuid4())[:4]  # 4 ascii chars should be sufficient
 
 _THIS_FILE = pathlib.Path(__file__).parent.absolute()
 TENSOR_KEY = "tensor"
