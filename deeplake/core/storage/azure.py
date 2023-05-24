@@ -1,7 +1,7 @@
 import posixpath
 import time
 from typing import Dict, Optional, Tuple
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, timezone
 from deeplake.core.storage.provider import StorageProvider
 from deeplake.client.client import DeepLakeBackendClient
 
@@ -10,9 +10,11 @@ try:
     from azure.storage.blob import (
         BlobServiceClient,
         BlobSasPermissions,
-        BlobClient,
+        ContainerSasPermissions,
         generate_blob_sas,
+        generate_container_sas,
     )
+    from azure.core.credentials import AzureNamedKeyCredential, AzureSasCredential
 
     _AZURE_PACKAGES_INSTALLED = True
 except ImportError:
@@ -20,18 +22,31 @@ except ImportError:
 
 
 class AzureProvider(StorageProvider):
-    def __init__(self, root: str, creds: Optional[Dict] = None):
+    def __init__(
+        self, root: str, creds: Optional[Dict] = None, token: Optional[str] = None
+    ):
         if not _AZURE_PACKAGES_INSTALLED:
             raise ImportError(
                 "Azure packages not installed. Run `pip install deeplake[azure]`."
             )
         self.root = root
-        self._set_clients()
+        self.creds = creds
+        self.token = token
+        self._set_attrs()
+
         self._presigned_urls: Dict[str, Tuple[str, float]] = {}
         self.expiration: Optional[str] = None
         self.db_engine: bool = False
         self.repository: Optional[str] = None
-        self.creds = creds
+
+    def _set_attrs(self):
+        self.account_name, self.container_name, self.root_folder = self._get_attrs(
+            self.root
+        )
+        self.account_url = f"https://{self.account_name}.blob.core.windows.net"
+        self.credential, self.account_key, self.sas_token = None, None, None
+        self._set_credential(self.creds)
+        self._set_clients()
 
     def _get_attrs(self, path: str) -> Tuple[str]:
         split_path = path.replace("az://", "").strip("/").split("/", 2)
@@ -45,14 +60,27 @@ class AzureProvider(StorageProvider):
             account_name, container_name, root_folder = split_path
         return account_name, container_name, root_folder
 
+    def _set_credential(self, creds: Dict):
+        account_name = creds.get("account_name")
+        if account_name and account_name != self.account_name:
+            raise ValueError(
+                f"Account name in creds ({account_name}) does not match account name in path ({self.account_name})"
+            )
+
+        self.account_key = creds.get("account_key")
+        if self.account_key:
+            self.credential = AzureNamedKeyCredential(account_name, self.account_key)
+
+        self.sas_token = creds.get("sas_token")
+        if self.sas_token and self.credential is None:
+            self.credential = AzureSasCredential(self.sas_token)
+
+        if self.credential is None:
+            self.credential = DefaultAzureCredential()
+
     def _set_clients(self):
-        self.account_name, self.container_name, self.root_folder = self._get_attrs(
-            self.root
-        )
-        self.account_url = f"https://{self.account_name}.blob.core.windows.net"
-        self.default_credential = DefaultAzureCredential()
         self.blob_service_client = BlobServiceClient(
-            self.account_url, credential=self.default_credential
+            self.account_url, credential=self.credential
         )
         self.container_client = self.blob_service_client.get_container_client(
             self.container_name
@@ -60,6 +88,7 @@ class AzureProvider(StorageProvider):
 
     def __setitem__(self, path, content):
         self.check_readonly()
+        self._check_update_creds()
         if isinstance(content, memoryview):
             content = content.tobytes()
         elif isinstance(content, bytearray):
@@ -87,6 +116,7 @@ class AzureProvider(StorageProvider):
         start_byte: Optional[int] = None,
         end_byte: Optional[int] = None,
     ):
+        self._check_update_creds()
         if start_byte is not None and end_byte is not None:
             if start_byte == end_byte:
                 return b""
@@ -112,12 +142,31 @@ class AzureProvider(StorageProvider):
 
     def clear(self, prefix=""):
         self.check_readonly()
+        self._check_update_creds()
         blobs = [
             posixpath.join(self.root_folder, key) for key in self._all_keys(prefix)
         ]
         self.container_client.delete_blobs(*blobs)
 
+    def get_sas_token(self):
+        self._check_update_creds()
+        if self.sas_token:
+            return self.sas_token
+        user_delegation_key = self.blob_service_client.get_user_delegation_key(
+            datetime.now(timezone.utc), datetime.now(timezone.utc) + timedelta(weeks=1)
+        )
+        sas_token = generate_container_sas(
+            self.account_name,
+            self.container_name,
+            user_delegation_key=user_delegation_key,
+            permission=ContainerSasPermissions(
+                read=True, write=True, delete=True, list=True
+            ),
+        )
+        return sas_token
+
     def _all_keys(self, prefix: str = ""):
+        self._check_update_creds()
         prefix = posixpath.join(self.root_folder, prefix)
         return {
             posixpath.relpath(blob.name, self.root_folder)
@@ -133,11 +182,15 @@ class AzureProvider(StorageProvider):
         yield from self._all_keys()
 
     def __len__(self):
+        self._check_update_creds()
         return len(self._all_keys())
 
     def __getstate__(self):
         return {
             "root": self.root,
+            "creds": self.creds,
+            "token": self.token,
+            "sas_token": self.sas_token,
             "read_only": self.read_only,
             "db_engine": self.db_engine,
             "repository": self.repository,
@@ -146,7 +199,7 @@ class AzureProvider(StorageProvider):
 
     def __setstate__(self, state):
         self.__dict__.update(state)
-        self._set_clients()
+        self._set_attrs()
 
     def _set_hub_creds_info(
         self,
@@ -181,6 +234,7 @@ class AzureProvider(StorageProvider):
 
     def rename(self, root: str):
         self.check_readonly()
+        self._check_update_creds()
         account_name, container_name, root_folder = (
             root.replace("az://", "").strip("/").split("/", 2)
         )
@@ -204,6 +258,7 @@ class AzureProvider(StorageProvider):
         self.root_folder = root_folder
 
     def get_object_size(self, path: str) -> int:
+        self._check_update_creds()
         blob_client = self.container_client.get_blob_client(
             f"{self.root_folder}/{path}"
         )
@@ -212,17 +267,17 @@ class AzureProvider(StorageProvider):
         return blob_client.get_blob_properties().size
 
     def get_clients_from_full_path(self, url: str):
+        self._check_update_creds()
         account_name, container_name, blob_path = self._get_attrs(url)
         account_url = f"https://{account_name}.blob.core.windows.net"
-        blob_service_client = BlobServiceClient(
-            account_url, credential=self.default_credential
-        )
+        blob_service_client = BlobServiceClient(account_url, credential=self.credential)
         blob_client = blob_service_client.get_blob_client(container_name, blob_path)
         if not blob_client.exists():
             raise KeyError(url)
         return blob_client, blob_service_client
 
     def get_presigned_url(self, path: str, full: bool = False) -> str:
+        self._check_update_creds()
         if full:
             blob_client, blob_service_client = self.get_clients_from_full_path(path)
             account_name = blob_client.account_name
@@ -253,7 +308,8 @@ class AzureProvider(StorageProvider):
                 url = client.get_presigned_url(org_id, ds_name, path)
             else:
                 user_delegation_key = blob_service_client.get_user_delegation_key(
-                    datetime.utcnow(), datetime.utcnow() + timedelta(hours=1)
+                    datetime.now(timezone.utc),
+                    datetime.now(timezone.utc) + timedelta(hours=1),
                 )
                 sas_token = generate_blob_sas(
                     account_name,
@@ -261,7 +317,7 @@ class AzureProvider(StorageProvider):
                     blob_path,
                     user_delegation_key=user_delegation_key,
                     permission=BlobSasPermissions(read=True),
-                    expiry=datetime.utcnow() + timedelta(hours=1),
+                    expiry=datetime.now(timezone.utc) + timedelta(hours=1),
                 )
                 url = f"{account_url}/{container_name}/{blob_path}?{sas_token}"
             self._presigned_urls[path] = (url, time.time())
@@ -271,3 +327,28 @@ class AzureProvider(StorageProvider):
     def get_object_from_full_url(self, url: str) -> bytes:
         blob_client, _ = self.get_clients_from_full_path(url)
         return blob_client.download_blob().readall()
+
+    def _check_update_creds(self, force=False):
+        """If the client has an expiration time, check if creds are expired and fetch new ones.
+        This would only happen for datasets stored on Deep Lake storage for which temporary 12 hour credentials are generated.
+        """
+        if self.expiration and (
+            force or float(self.expiration) < datetime.now(timezone.utc).timestamp()
+        ):
+            client = DeepLakeBackendClient(self.token)
+            org_id, ds_name = self.tag.split("/")
+
+            mode = "r" if self.read_only else "a"
+
+            url, creds, mode, expiration, repo = client.get_dataset_credentials(
+                org_id,
+                ds_name,
+                mode,
+                {"enabled": self.db_engine},
+                True,
+            )
+            self.expiration = expiration
+            self.repository = repo
+            self.sas_token = creds.get("sas_token")
+            if self.sas_token:
+                self.credential = AzureSasCredential(self.sas_token)

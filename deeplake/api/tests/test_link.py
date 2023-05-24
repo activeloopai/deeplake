@@ -123,8 +123,12 @@ def test_link_creds(request):
         assert isinstance(link_creds.get_storage_provider("abc", "s3"), S3Provider)
         assert isinstance(link_creds.get_storage_provider(None, "s3"), S3Provider)
     if is_opt_true(request, AZURE_OPT):
-        assert isinstance(link_creds.get_storage_provider("abc", "azure"), AzureProvider)
-        assert isinstance(link_creds.get_storage_provider("abc", "azure"), AzureProvider)
+        assert isinstance(
+            link_creds.get_storage_provider("abc", "azure"), AzureProvider
+        )
+        assert isinstance(
+            link_creds.get_storage_provider("abc", "azure"), AzureProvider
+        )
         assert isinstance(link_creds.get_storage_provider(None, "azure"), AzureProvider)
 
     pickled = pickle.dumps(link_creds)
