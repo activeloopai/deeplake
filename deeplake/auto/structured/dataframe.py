@@ -53,6 +53,12 @@ class DataFrame(StructuredDataset):
 
     def _get_most_frequent_image_extension(self, fn_iterator):
         # TODO: Make this generic and work for any htype that requires compression
+
+        if len(fn_iterator) == 0:
+            raise IngestionError(
+                f"Cannot determine the most frequent image compression because no valid image files were provided."
+            )
+
         supported_image_extensions = tuple(
             "." + fmt for fmt in HTYPE_SUPPORTED_COMPRESSIONS["image"] + ["jpg"]
         )
@@ -108,7 +114,7 @@ class DataFrame(StructuredDataset):
         ):
             tensor_params.update(
                 sample_compression=self._get_most_frequent_image_extension(
-                    self.source[key].values
+                    self.source[key][self.source[key].notnull()].values
                 )
             )
 

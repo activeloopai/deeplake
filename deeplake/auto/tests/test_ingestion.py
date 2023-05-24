@@ -315,7 +315,7 @@ def test_dataframe_array(memory_ds: Dataset):
             np.array([0, 565, 234]),
         ],
         "CC": [45, 67, 88, 77],
-        "DD": [None, None, None, None]
+        "DD": [None, None, None, None],
     }
 
     df = pd.DataFrame(data)
@@ -356,6 +356,30 @@ def test_dataframe_array_bad(memory_ds: Dataset):
     }
 
     df = pd.DataFrame(data)
+
+    with pytest.raises(IngestionError):
+        ds = deeplake.ingest_dataframe(
+            df,
+            memory_ds.path,
+            progressbar=False,
+        )
+
+
+def test_dataframe_all_empty_images(memory_ds: Dataset):
+    # Create DataFrame
+
+    data = {
+        "AA": ["Alice", "Bob", "Charlie", "Steve"],
+        "BB": [
+            None,
+            None,
+            None,
+            None,
+        ],
+        "CC": [45, 67, 88, 77],
+    }
+
+    df = pd.DataFrame(datacolumn_params={"BB": {"htype": "image"}})
 
     with pytest.raises(IngestionError):
         ds = deeplake.ingest_dataframe(
