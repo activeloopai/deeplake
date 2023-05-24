@@ -307,14 +307,15 @@ def test_dataframe_files(memory_ds: Dataset, dataframe_ingestion_data):
 def test_dataframe_array(memory_ds: Dataset):
     # Create DataFrame
     data = {
-        "AA": ["Alice", "Bob", "Charlie", "Steve"],
+        "AA": ["Alice", "Bob", "Charlie", None],
         "BB": [
-            np.array([80, 75, 85]),
+            None,
             np.array([80, 22, 1]),
-            np.array([0, 565, 234]),
+            None,
             np.array([0, 565, 234]),
         ],
         "CC": [45, 67, 88, 77],
+        "DD": [None, None, None, None]
     }
 
     df = pd.DataFrame(data)
@@ -344,10 +345,10 @@ def test_dataframe_array_bad(memory_ds: Dataset):
     # Create DataFrame
 
     data = {
-        "AA": ["Alice", "Bob", "Charlie", "Steve"],
+        "AA": ["Alice", "Bob", "Charlie", None],
         "BB": [
             np.array([80, 75, 85]),
-            np.array([80, 22, 1]),
+            None,
             np.array([0, 565, 234]),
             "bad_data",
         ],
