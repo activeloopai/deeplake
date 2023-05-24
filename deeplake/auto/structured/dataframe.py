@@ -81,6 +81,7 @@ class DataFrame(StructuredDataset):
         tensor_params: Dict = self.column_params[key]
 
         dtype = self.source[key].dtype
+
         if (
             "htype" not in tensor_params
         ):  # Auto-set some typing parameters if htype is not specified
@@ -104,7 +105,7 @@ class DataFrame(StructuredDataset):
                 tensor_params.update(
                     dtype=dtype,
                     create_shape_tensor=tensor_params.get("create_shape_tensor", False),
-                )  # htype will be auto-inferred for numeric data unless the htype is specified in tensor_params
+                )
 
         # TODO: Make this more robust so it works for all htypes where sample_compression is required and should be inferred from the data itself
         if (
@@ -136,8 +137,8 @@ class DataFrame(StructuredDataset):
                 for value in self.source[key].values
             ]
         else:
-            extend_values = self.source[key].values
-
+            extend_values = self.source[key].values.tolist()
+        #
         return extend_values
 
     def fill_dataset(self, ds: Dataset, progressbar: bool = True) -> Dataset:
@@ -170,4 +171,5 @@ class DataFrame(StructuredDataset):
                     self._get_extend_values(tensor_params, key),
                     progressbar=progressbar,
                 )
+
         return ds
