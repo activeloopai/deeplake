@@ -327,7 +327,7 @@ def test_dataframe_array(memory_ds: Dataset):
     )
     tensors_names = list(ds.tensors.keys())
 
-    assert tensors_names == [df_keys[0], df_keys[1], df_keys[2]]
+    assert tensors_names == [df_keys[0], df_keys[1], df_keys[2], df_keys[3]]
     assert ds[df_keys[0]].htype == "text"
 
     np.testing.assert_array_equal(
