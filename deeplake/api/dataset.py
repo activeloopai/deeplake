@@ -1240,6 +1240,7 @@ class dataset:
             src_path (str): Cloud path to the source dataset. Can be:
                 an s3 path like ``s3://bucket/path/to/dataset``.
                 a gcs path like ``gcs://bucket/path/to/dataset``.
+                an azure path like ``az://account_name/container/path/to/dataset``.
             creds_key (str): The managed credentials to be used for accessing the source path.
             dest_path (str, optional): The full path to where the connected Deep Lake dataset will reside. Can be:
                 a Deep Lake path like ``hub://organization/dataset``
@@ -1251,7 +1252,7 @@ class dataset:
             Dataset: The connected Deep Lake dataset.
 
         Raises:
-            InvalidSourcePathError: If the ``src_path`` is not a valid s3 or gcs path.
+            InvalidSourcePathError: If the ``src_path`` is not a valid s3, gcs or azure path.
             InvalidDestinationPathError: If ``dest_path``, or ``org_id`` and ``ds_name`` do not form a valid Deep Lake path.
         """
         path = connect_dataset_entry(
