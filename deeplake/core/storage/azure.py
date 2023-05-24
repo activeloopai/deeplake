@@ -23,7 +23,7 @@ except ImportError:
 
 class AzureProvider(StorageProvider):
     def __init__(
-        self, root: str, creds: Optional[Dict] = None, token: Optional[str] = None
+        self, root: str, creds: Dict = {}, token: Optional[str] = None
     ):
         if not _AZURE_PACKAGES_INSTALLED:
             raise ImportError(
