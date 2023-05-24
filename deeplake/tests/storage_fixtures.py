@@ -100,11 +100,11 @@ def gcs_root_storage(request, gcs_creds):
 
 
 @pytest.fixture
-def azure_root_storage(request, azure_creds):
+def azure_root_storage(request):
     if not is_opt_true(request, AZURE_OPT):
         pytest.skip()
 
-    return AzureProvider(PYTEST_AZURE_PROVIDER_BASE_ROOT, creds=azure_creds)
+    return AzureProvider(PYTEST_AZURE_PROVIDER_BASE_ROOT)
 
 
 @pytest.fixture

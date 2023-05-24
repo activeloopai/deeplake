@@ -122,9 +122,9 @@ def azure_ds(azure_ds_generator):
 
 
 @pytest.fixture
-def azure_ds_generator(azure_path, azure_creds):
+def azure_ds_generator(azure_path):
     def generate_azure_ds(**kwargs):
-        return deeplake.dataset(azure_path, creds=azure_creds, **kwargs)
+        return deeplake.dataset(azure_path, **kwargs)
 
     return generate_azure_ds
 
