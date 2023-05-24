@@ -30,7 +30,7 @@ class AzureProvider(StorageProvider):
                 "Azure packages not installed. Run `pip install deeplake[azure]`."
             )
         self.root = root
-        self.creds = creds
+        self.creds = creds or {}
         self.token = token
         self._set_attrs()
 
