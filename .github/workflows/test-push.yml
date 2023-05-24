@@ -1,4 +1,9 @@
 name: Test
+
+permissions:
+  id-token: write
+  contents: read
+
 on:
   push:
     branches:
@@ -15,7 +20,7 @@ jobs:
           all_but_latest: true
   full-test:
     name: Full Test
-    uses: activeloopai/shared-github-actions/.github/workflows/full_test.yml@main
+    uses: activeloopai/shared-github-actions/.github/workflows/full_test.yml@azure-tests
     if: github.repository == 'activeloopai/deeplake'
     with:
       repo: ${{ github.repository }}
@@ -33,4 +38,6 @@ jobs:
       oauth_client_id: ${{ secrets.GDRIVE_CLIENT_ID }}
       oauth_client_secret: ${{ secrets.GDRIVE_CLIENT_SECRET }}
       oauth_refresh_token: ${{ secrets.GDRIVE_REFRESH_TOKEN }}
-
+      azure_client_id: ${{ secrets.AZURE_CLIENT_ID }}
+      azure_tenant_id: ${{ secrets.AZURE_TENANT_ID }}
+      azure_subscription_id: ${{ secrets.AZURE_SUBSCRIPTION_ID }}
