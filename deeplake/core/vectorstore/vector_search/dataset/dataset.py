@@ -19,7 +19,7 @@ from deeplake.util.warnings import always_warn
 
 
 def create_or_load_dataset(
-    dataset_path, token, creds, logger, read_only, exec_option, embedding_function, **kwargs
+    tensors_dict, dataset_path, token, creds, logger, read_only, exec_option, embedding_function, **kwargs
 ):
     utils.check_indra_installation(
         exec_option=exec_option, indra_installed=_INDRA_INSTALLED
@@ -29,9 +29,9 @@ def create_or_load_dataset(
         del kwargs["overwrite"]
 
     if dataset_exists(dataset_path, token, creds, **kwargs):
-        return load_dataset(dataset_path, token, creds, logger, read_only, embedding_function, **kwargs)
+        return load_dataset(tensors_dict, dataset_path, token, creds, logger, read_only, embedding_function, **kwargs)
 
-    return create_dataset(dataset_path, token, exec_option, embedding_function, **kwargs)
+    return create_dataset(logger, tensors_dict, dataset_path, token, exec_option, embedding_function, **kwargs)
 
 
 def dataset_exists(dataset_path, token, creds, **kwargs):
@@ -41,7 +41,7 @@ def dataset_exists(dataset_path, token, creds, **kwargs):
     )
 
 
-def load_dataset(dataset_path, token, creds, logger, read_only, embedding_function, **kwargs):
+def load_dataset(tensors_dict, dataset_path, token, creds, logger, read_only, embedding_function, **kwargs):
     if dataset_path == DEFAULT_VECTORSTORE_DEEPLAKE_PATH:
         logger.warning(
             f"The default deeplake path location is used: {DEFAULT_VECTORSTORE_DEEPLAKE_PATH}"
@@ -52,7 +52,7 @@ def load_dataset(dataset_path, token, creds, logger, read_only, embedding_functi
     dataset = deeplake.load(
         dataset_path, token=token, read_only=read_only, creds=creds, **kwargs
     )
-    create_tensors_if_needed(dataset, logger, embedding_function)
+    create_tensors_if_needed(tensors_dict, dataset, logger, embedding_function)
 
     logger.warning(
         f"Deep Lake Dataset in {dataset_path} already exists, "
@@ -61,75 +61,29 @@ def load_dataset(dataset_path, token, creds, logger, read_only, embedding_functi
     return dataset
 
 
-def create_tensors_if_needed(dataset, logger, embedding_function):
+def create_tensors_if_needed(tensors_dict, dataset, logger, embedding_function):
     tensors = dataset.tensors
 
-    if "text" not in tensors:
-        warn_and_create_missing_tensor(
-            logger=logger,
-            dataset=dataset,
-            tensor_name="text",
-            htype="text",
-            create_id_tensor=False,
-            create_sample_info_tensor=False,
-            create_shape_tensor=False,
-            chunk_compression="lz4",
-        )
-
-    if "metadata" not in tensors:
-        warn_and_create_missing_tensor(
-            logger=logger,
-            dataset=dataset,
-            tensor_name="metadata",
-            htype="json",
-            create_id_tensor=False,
-            create_sample_info_tensor=False,
-            create_shape_tensor=False,
-            chunk_compression="lz4",
-        )
-
-    if "embedding" not in tensors:
-        warn_and_create_missing_tensor(
-            logger=logger,
-            dataset=dataset,
-            tensor_name="embedding",
-            htype="embedding",
-            dtype=np.float32,
-            create_id_tensor=False,
-            create_sample_info_tensor=False,
-            max_chunk_size=64 * MB,
-            create_shape_tensor=True,
-        )
-        
-        update_embedding_info(dataset, embedding_function)
-
-    if "ids" not in tensors:
-        warn_and_create_missing_tensor(
-            logger=logger,
-            dataset=dataset,
-            tensor_name="ids",
-            htype="text",
-            create_id_tensor=False,
-            create_sample_info_tensor=False,
-            create_shape_tensor=False,
-            chunk_compression="lz4",
-        )
+    for tensor_args in tensors_dict:
+        if tensor_args["name"] not in tensors:
+            warn_and_create_missing_tensor(dataset, logger, **tensor_args)
+    update_embedding_info(logger, dataset, embedding_function)
+    print()
 
 
-def warn_and_create_missing_tensor(dataset, tensor_name, logger, **kwargs):
+def warn_and_create_missing_tensor(dataset, logger, **kwargs):
     logger.warning(
-        f"`{tensor_name}` tensor does not exist in the dataset. If you created dataset manually "
+        f"Creating `{kwargs['name']}` tensor since it does not exist in the dataset. If you created dataset manually "
         "and stored text data in another tensor, consider copying the contents of that "
-        f"tensor into `{tensor_name}` tensor and deleting if afterwards. To view dataset content "
+        f"tensor into `{kwargs['name']}` tensor and deleting if afterwards. To view dataset content "
         "run ds.summary()"
     )
     dataset.create_tensor(
-        tensor_name,
         **kwargs,
     )
+    
 
-
-def create_dataset(dataset_path, token, exec_option, embedding_function, **kwargs):
+def create_dataset(logger, tensors_dict, dataset_path, token, exec_option, embedding_function, **kwargs):
     runtime = None
     if exec_option == "tensor_db":
         runtime = {"tensor_db": True}
@@ -137,41 +91,10 @@ def create_dataset(dataset_path, token, exec_option, embedding_function, **kwarg
     dataset = deeplake.empty(dataset_path, token=token, runtime=runtime, **kwargs)
 
     with dataset:
-        dataset.create_tensor(
-            "text",
-            htype="text",
-            create_id_tensor=False,
-            create_sample_info_tensor=False,
-            create_shape_tensor=False,
-            chunk_compression="lz4",
-        )
-        dataset.create_tensor(
-            "metadata",
-            htype="json",
-            create_id_tensor=False,
-            create_sample_info_tensor=False,
-            create_shape_tensor=False,
-            chunk_compression="lz4",
-        )
-        dataset.create_tensor(
-            "embedding",
-            htype="embedding",
-            dtype=np.float32,
-            create_id_tensor=False,
-            create_sample_info_tensor=False,
-            max_chunk_size=64 * MB,
-            create_shape_tensor=True,
-        )
-        update_embedding_info(dataset, embedding_function)
-        
-        dataset.create_tensor(
-            "ids",
-            htype="text",
-            create_id_tensor=False,
-            create_sample_info_tensor=False,
-            create_shape_tensor=False,
-            chunk_compression="lz4",
-        )
+        for tensor_args in tensors_dict:
+            dataset.create_tensor(**tensor_args)
+
+        update_embedding_info(logger, dataset, embedding_function)
     return dataset
 
 
@@ -235,9 +158,9 @@ def preprocess_tensors(ids, texts, metadatas, embeddings):
 
     processed_tensors = {
         "ids": ids,
-        "texts": texts,
-        "metadatas": metadatas,
-        "embeddings": embeddings,
+        "text": texts,
+        "metadata": metadatas,
+        "embedding": embeddings,
     }
 
     return processed_tensors, ids
@@ -250,17 +173,17 @@ def create_elements(
 
     elements = [
         {
-            "text": processed_tensors["texts"][i],
+            "text": processed_tensors["text"][i],
             "id": processed_tensors["ids"][i],
-            "metadata": processed_tensors["metadatas"][i],
-            "embedding": processed_tensors["embeddings"][i],
+            "metadata": processed_tensors["metadata"][i],
+            "embedding": processed_tensors["embedding"][i],
         }
-        for i in range(len(processed_tensors["texts"]))
+        for i in range(len(processed_tensors["text"]))
     ]
     return elements
 
 
-def fetch_tensor_based_on_htype(dataset, htype):
+def fetch_tensor_based_on_htype(logger, dataset, htype):
     tensors = dataset.tensors
     
     if "embedding" in tensors:
@@ -272,47 +195,44 @@ def fetch_tensor_based_on_htype(dataset, htype):
     for tensor in tensors:
         if dataset[tensor].htype == "embedding":
             num_of_tensors_with_htype += 1
-            tensor_names += []
-    tensor_names = tensor_names
-    tensor_names_str = " ".join(tensor_name+" ," for tensor_name in tensor_names)
+            tensor_names.append(tensor)
+
+    tensor_names_str = "".join(f"`{tensor_name}`, " for tensor_name in tensor_names)
     tensor_names_str = tensor_names_str[:-2]
     
     if num_of_tensors_with_htype > 1:
-        always_warn(
+        logger.warning(
             f"{num_of_tensors_with_htype} tensors with `embedding` htype were found. "
             f"They are: {tensor_names_str}. Embedding function info will be appended to "
-            f"{tensor_names[0]}."
+            f"`{tensor_names[0]}`. If you want to update other embedding tensor's information "
+            "consider doing that manually. Example: `dataset.tensor['info'] = info_dictionary`"
         )
 
     return dataset[tensor_names[0]]
 
 
 def set_embedding_info(tensor, embedding_function):
-    if embedding_function:
-        tensor.info["embeding"] = {
+    embedding_info = tensor.info.get("embedding")
+    if embedding_function and not embedding_info:
+        tensor.info["embedding"] = {
             "model": embedding_function.__dict__.get("model"),
             "deployment": embedding_function.__dict__.get("deployment"),
             "embedding_ctx_length": embedding_function.__dict__.get(
                 "embedding_ctx_length"
-            ),
-            "openai_api_key": embedding_function.__dict__.get(
-                "openai_api_key"
-            ),
-            "openai_organization": embedding_function.__dict__.get(
-                "openai_organization"
             ),
             "chunk_size": embedding_function.__dict__.get("chunk_size"),
             "max_retries": embedding_function.__dict__.get("max_retries"),
         }
 
 
-def update_embedding_info(dataset, embedding_function):
-    tensor = fetch_tensor_based_on_htype(dataset, embedding_function)
+def update_embedding_info(logger, dataset, embedding_function):
+    tensor = fetch_tensor_based_on_htype(logger, dataset, embedding_function)
     set_embedding_info(tensor, embedding_function)
 
 
 def extend_or_ingest_dataset(processed_tensors, dataset, embedding_function, ingestion_batch_size, num_workers, total_samples_processed):
-    if len(processed_tensors) < VECTORSTORE_INGESTION_THRESHOLD:
+    first_key = next(iter(processed_tensors))
+    if len(processed_tensors[first_key]) < VECTORSTORE_INGESTION_THRESHOLD:
         dataset.extend(processed_tensors, skip_ok=True)
     else:
         elements = dataset_utils.create_elements(processed_tensors)

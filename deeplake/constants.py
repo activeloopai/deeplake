@@ -195,3 +195,39 @@ MAX_VECTORSTORE_INGESTION_RETRY_ATTEMPTS = 5
 MAX_CHECKPOINTING_INTERVAL = 100000
 MAX_DATASET_LENGTH_FOR_CACHING = 100000
 VECTORSTORE_INGESTION_THRESHOLD = 10
+DEFAULT_VECTORSTORE_TENSORS = [
+    {
+        "name": "text",
+        "htype": "text",
+        "create_id_tensor": False,
+        "create_sample_info_tensor": False,
+        "create_shape_tensor": False,
+        "chunk_compression": "lz4",
+    },
+    {
+        "name": "metadata",
+        "htype": "json",
+        "create_id_tensor": False,
+        "create_sample_info_tensor": False,
+        "create_shape_tensor": False,
+        "chunk_compression": "lz4",
+    },
+    {
+        "name": "embedding",
+        "htype": "embedding",
+        "dtype": np.float32,
+        "create_id_tensor": False,
+        "create_sample_info_tensor": False,
+        "create_shape_tensor": True,
+        "max_chunk_size": 64 * MB,
+    },
+    {
+        "name": "ids",
+        "htype": "text",
+        "create_id_tensor": False,
+        "create_sample_info_tensor": False,
+        "create_shape_tensor": False,
+        "chunk_compression": "lz4",
+    },
+]
+                               

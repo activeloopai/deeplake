@@ -21,7 +21,7 @@ def check_indra_installation(exec_option, indra_installed):
 
 
 def check_length_of_each_tensor(tensors):
-    tensor_length = len(tensors["texts"])
+    tensor_length = len(tensors["text"])
 
     for tensor_name in tensors:
         if len(tensors[f"{tensor_name}"]) != tensor_length:
