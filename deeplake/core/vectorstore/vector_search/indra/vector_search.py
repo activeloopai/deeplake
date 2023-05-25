@@ -13,6 +13,7 @@ def vector_search(
     distance_metric: str,
     deeplake_dataset: DeepLakeDataset,
     k: int,
+    tql_filter: str,
     embedding_tensor: str,
     runtime: dict,
     **kwargs
@@ -32,18 +33,21 @@ def vector_search(
     """
     from indra import api  # type: ignore
 
-    tql_query = query.parse_query(distance_metric, k, query_embedding, embedding_tensor)
+    tql_query = query.parse_query(
+        distance_metric, k, tql_filter, query_embedding, embedding_tensor
+    )
 
     return_indices_and_scores = True if runtime else False
-    response = deeplake_dataset.query(
+
+    print(tql_query)
+
+    view = deeplake_dataset.query(
         tql_query, runtime=runtime, return_indices_and_scores=return_indices_and_scores
     )
-    
-    # in case if response already contains indices and scores
-    if len(response) == 2:
-        return response
-    
-    indices = response.indexes
-    scores = response.score.numpy()
-    
-    return indices, scores
+
+    return_data = {}
+    for tensor in view.tensors:
+        print(tensor)
+        return_data[tensor] = utils.parse_tensor_return(view[tensor])
+
+    return return_data

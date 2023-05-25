@@ -5,7 +5,9 @@ from typing import Optional, Union, List
 from deeplake.core.vectorstore.vector_search.indra import tql_distance_metrics
 
 
-def create_query_string(distance_metric: str, limit: int, order: str = "ASC"):
+def create_query_string(
+    distance_metric: str, tql_filter: str, limit: int, order: str = "ASC"
+):
     """Function for creating a query string from a distance metric, limit and order.
 
     Args:
@@ -16,11 +18,15 @@ def create_query_string(distance_metric: str, limit: int, order: str = "ASC"):
     Returns:
         str: TQL representation of the query string.
     """
-    return f"select *, {distance_metric} as score ORDER BY {distance_metric} {order} LIMIT {limit}"
+
+    tql_insertion = tql_filter if tql_filter == "" else "where " + tql_filter
+
+    return f"select * from (select *, {distance_metric} as score {tql_insertion}) order by score {order} limit {limit}"
 
 
 def create_query(
     distance_metric: str,
+    tql_filter: str,
     embeddings: str,
     query_embedding: str,
     limit: int,
@@ -36,11 +42,12 @@ def create_query(
     Returns:
         str: TQL representation of the query string.
     """
+
     order = tql_distance_metrics.get_order_type_for_distance_metric(distance_metric)
     tql_distrance_metric = tql_distance_metrics.get_tql_distance_metric(
         distance_metric, embeddings, query_embedding
     )
-    query = create_query_string(tql_distrance_metric, limit, order)
+    query = create_query_string(tql_distrance_metric, tql_filter, limit, order)
     return query
 
 
@@ -70,6 +77,7 @@ def convert_tensor_to_str(query_embedding: np.ndarray):
 def parse_query(
     distance_metric: str,
     limit: int,
+    tql_filter: str,
     query_embedding: np.ndarray,
     embedding_tensor: str,
 ) -> str:
@@ -86,6 +94,6 @@ def parse_query(
     """
     query_embedding_str = convert_tensor_to_str(query_embedding)
     tql_query = create_query(
-        distance_metric, embedding_tensor, query_embedding_str, limit
+        distance_metric, tql_filter, embedding_tensor, query_embedding_str, limit
     )
     return tql_query

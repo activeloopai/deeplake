@@ -1,4 +1,4 @@
-from deeplake.core.vectorstore.vector_search.indra.vector_search     import (
+from deeplake.core.vectorstore.vector_search.indra.vector_search import (
     vector_search,
 )
 from deeplake.core.vectorstore.vector_search.python.vector_search import (

@@ -2,6 +2,7 @@ import uuid
 from typing import List, Dict, Any
 
 import numpy as np
+
 try:
     from indra import api  # type: ignore
 
@@ -14,12 +15,22 @@ from deeplake.constants import MB
 from deeplake.core.vectorstore.vector_search import utils
 from deeplake.core.vectorstore.vector_search import dataset as dataset_utils
 from deeplake.core.vectorstore.vector_search.ingestion import ingest_data
-from deeplake.constants import DEFAULT_VECTORSTORE_DEEPLAKE_PATH, VECTORSTORE_INGESTION_THRESHOLD
+from deeplake.constants import (
+    DEFAULT_VECTORSTORE_DEEPLAKE_PATH,
+    VECTORSTORE_INGESTION_THRESHOLD,
+)
 from deeplake.util.warnings import always_warn
 
 
 def create_or_load_dataset(
-    dataset_path, token, creds, logger, read_only, exec_option, embedding_function, **kwargs
+    dataset_path,
+    token,
+    creds,
+    logger,
+    read_only,
+    exec_option,
+    embedding_function,
+    **kwargs,
 ):
     utils.check_indra_installation(
         exec_option=exec_option, indra_installed=_INDRA_INSTALLED
@@ -29,9 +40,13 @@ def create_or_load_dataset(
         del kwargs["overwrite"]
 
     if dataset_exists(dataset_path, token, creds, **kwargs):
-        return load_dataset(dataset_path, token, creds, logger, read_only, embedding_function, **kwargs)
+        return load_dataset(
+            dataset_path, token, creds, logger, read_only, embedding_function, **kwargs
+        )
 
-    return create_dataset(dataset_path, token, exec_option, embedding_function, **kwargs)
+    return create_dataset(
+        dataset_path, token, exec_option, embedding_function, **kwargs
+    )
 
 
 def dataset_exists(dataset_path, token, creds, **kwargs):
@@ -41,7 +56,9 @@ def dataset_exists(dataset_path, token, creds, **kwargs):
     )
 
 
-def load_dataset(dataset_path, token, creds, logger, read_only, embedding_function, **kwargs):
+def load_dataset(
+    dataset_path, token, creds, logger, read_only, embedding_function, **kwargs
+):
     if dataset_path == DEFAULT_VECTORSTORE_DEEPLAKE_PATH:
         logger.warning(
             f"The default deeplake path location is used: {DEFAULT_VECTORSTORE_DEEPLAKE_PATH}"
@@ -100,7 +117,7 @@ def create_tensors_if_needed(dataset, logger, embedding_function):
             max_chunk_size=64 * MB,
             create_shape_tensor=True,
         )
-        
+
         update_embedding_info(dataset, embedding_function)
 
     if "ids" not in tensors:
@@ -163,7 +180,7 @@ def create_dataset(dataset_path, token, exec_option, embedding_function, **kwarg
             create_shape_tensor=True,
         )
         update_embedding_info(dataset, embedding_function)
-        
+
         dataset.create_tensor(
             "ids",
             htype="text",
@@ -189,17 +206,13 @@ def delete_all_samples_if_specified(dataset, delete_all):
     return dataset, False
 
 
-def fetch_embeddings(exec_option, view, logger):
-    if exec_option == "python":
-        logger.warning(
-            "Python implementation fetches all of the dataset's embedding into memory. "
-            "With big datasets this could be quite slow and potentially result in performance issues. "
-            "Use `exec_option = 'tensor_db'` for better performance."
-        )
-        embeddings = view.embedding.numpy()
-    elif exec_option in ("compute_engine", "tensor_db"):
-        embeddings = None
-    return embeddings
+def fetch_embeddings(exec_option, view, logger, embedding_tensor: str = "embedding"):
+    logger.warning(
+        "Python implementation fetches all of the dataset's embedding into memory. "
+        "With big datasets this could be quite slow and potentially result in performance issues. "
+        "Use `exec_option = 'tensor_db'` for better performance."
+    )
+    return view[embedding_tensor].numpy()
 
 
 def get_embedding(embedding, query, embedding_function=None):
@@ -262,21 +275,21 @@ def create_elements(
 
 def fetch_tensor_based_on_htype(dataset, htype):
     tensors = dataset.tensors
-    
+
     if "embedding" in tensors:
         return dataset.embedding
-    
+
     num_of_tensors_with_htype = 0
-    
+
     tensor_names = []
     for tensor in tensors:
         if dataset[tensor].htype == "embedding":
             num_of_tensors_with_htype += 1
             tensor_names += []
     tensor_names = tensor_names
-    tensor_names_str = " ".join(tensor_name+" ," for tensor_name in tensor_names)
+    tensor_names_str = " ".join(tensor_name + " ," for tensor_name in tensor_names)
     tensor_names_str = tensor_names_str[:-2]
-    
+
     if num_of_tensors_with_htype > 1:
         always_warn(
             f"{num_of_tensors_with_htype} tensors with `embedding` htype were found. "
@@ -295,9 +308,7 @@ def set_embedding_info(tensor, embedding_function):
             "embedding_ctx_length": embedding_function.__dict__.get(
                 "embedding_ctx_length"
             ),
-            "openai_api_key": embedding_function.__dict__.get(
-                "openai_api_key"
-            ),
+            "openai_api_key": embedding_function.__dict__.get("openai_api_key"),
             "openai_organization": embedding_function.__dict__.get(
                 "openai_organization"
             ),
@@ -311,7 +322,14 @@ def update_embedding_info(dataset, embedding_function):
     set_embedding_info(tensor, embedding_function)
 
 
-def extend_or_ingest_dataset(processed_tensors, dataset, embedding_function, ingestion_batch_size, num_workers, total_samples_processed):
+def extend_or_ingest_dataset(
+    processed_tensors,
+    dataset,
+    embedding_function,
+    ingestion_batch_size,
+    num_workers,
+    total_samples_processed,
+):
     if len(processed_tensors) < VECTORSTORE_INGESTION_THRESHOLD:
         dataset.extend(processed_tensors, skip_ok=True)
     else:

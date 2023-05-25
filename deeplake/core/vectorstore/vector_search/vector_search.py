@@ -26,6 +26,7 @@ def search(
     embedding: Union[List[float], np.ndarray],
     k: int,
     distance_metric: str,
+    tql_filter: str,
     exec_option: str,
     deeplake_dataset: DeepLakeDataset,
     embedding_tensor: str = "embedding",
@@ -44,13 +45,14 @@ def search(
         embedding_tensor (str): name of the tensor in the dataset with `htype="embedding"`. Defaults to "embedding".
     """
     runtime = EXEC_OPTION_TO_RUNTIME[exec_option]
-    
+
     return EXEC_OPTION_TO_SEARCH_TYPE[exec_option](
         query_embedding=query_embedding,
         embedding=embedding,
         distance_metric=distance_metric,
         deeplake_dataset=deeplake_dataset,
         k=k,
+        tql_filter=tql_filter,
         embedding_tensor=embedding_tensor,
         runtime=runtime,
     )

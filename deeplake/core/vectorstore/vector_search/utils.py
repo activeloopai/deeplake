@@ -11,6 +11,19 @@ import uuid
 from functools import partial
 from typing import Optional, Any, Iterable, List, Dict, Callable, Union
 
+EXEC_OPTION_TO_RUNTIME: Dict[str, dict] = {
+    "compute_engine": None,
+    "python": None,
+    "tensor_db": {"db_engine": True},
+}
+
+
+def parse_tensor_return(tensor):
+    htype = tensor.htype
+    if htype == "json" or htype == "text":
+        return tensor.data()["value"]
+    else:
+        return tensor.numpy()
 
 
 def check_indra_installation(exec_option, indra_installed):
@@ -18,6 +31,10 @@ def check_indra_installation(exec_option, indra_installed):
         raise raise_indra_installation_error(
             indra_import_error=False
         )  # pragma: no cover
+
+
+def get_runtime_from_exec_option(exec_option):
+    return EXEC_OPTION_TO_RUNTIME[exec_option]
 
 
 def check_length_of_each_tensor(tensors):

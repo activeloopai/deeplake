@@ -54,11 +54,11 @@ def test_search(distance_metric, hub_cloud_dev_token):
         read_only=True,
         token=hub_cloud_dev_token,
     )
-    
+
     tensor_db_view, tensor_db_indices, tensor_db_scores = vector_store.search(
         embedding=query_embedding, exec_option="compute_engine"
     )
-    
+
     tensor_db_view, tensor_db_indices, tensor_db_scores = vector_store.search(
         embedding=query_embedding, exec_option="tensor_db"
     )
