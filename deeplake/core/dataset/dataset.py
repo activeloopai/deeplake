@@ -3826,9 +3826,9 @@ class Dataset:
         self._load_link_creds()
         self._first_load_init(verbose=False)
 
-        next_storage = self.storage.next_storage
-        if next_storage is not None and isinstance(next_storage, S3Provider):
-            next_storage.creds_used = "PLATFORM"
+        base_storage = get_base_storage(self.storage)
+        if base_storage is not None and isinstance(base_storage, S3Provider):
+            base_storage.creds_used = "PLATFORM"
 
     def add_creds_key(self, creds_key: str, managed: bool = False):
         """Adds a new creds key to the dataset. These keys are used for tensors that are linked to external data.
