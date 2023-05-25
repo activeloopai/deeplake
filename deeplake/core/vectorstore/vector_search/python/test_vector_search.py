@@ -14,4 +14,8 @@ def test_vector_search():
 
     data = vector_search.vector_search(ds, query_embedding, embeddings, k=10)
 
-    assert len(data["score"]) == 100
+    assert len(data["score"]) == 10
+
+    data = vector_search.vector_search(ds, query_embedding, embeddings[0:0], k=10)
+
+    assert len(data["score"]) == 0

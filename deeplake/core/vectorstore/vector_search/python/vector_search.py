@@ -1,4 +1,4 @@
-from typing import Optional, Tuple, List
+from typing import Optional, Dict
 from deeplake.core.dataset import Dataset as DeepLakeDataset
 from deeplake.core.vectorstore.vector_search import utils
 
@@ -20,7 +20,7 @@ def vector_search(
     embeddings: np.ndarray,
     distance_metric: str = "l2",
     k: Optional[int] = 4,
-) -> Tuple[List, List]:
+) -> Dict:
     """Naive search for nearest neighbors
     args:
         deeplake_dataset: DeepLakeDataset,
@@ -30,31 +30,34 @@ def vector_search(
         distance_metric: distance function 'L2' for Euclidean, 'L1' for Nuclear, 'Max'
             l-infinity distnace, 'cos' for cosine similarity, 'dot' for dot product
     returns:
-        nearest_indices: List, indices of nearest neighbors
+        Dict: Dictionary where keys are tensor names and values are the results of the search
     """
+
     return_data = {}
 
-    # Spike the calculation
     if embeddings.shape[0] == 0:
-        pass
+        deeplake_dataset = deeplake_dataset[0:0]
+        for tensor in deeplake_dataset.tensors:
+            return_data[tensor] = utils.parse_tensor_return(deeplake_dataset[tensor])
 
-    # Calculate the distance between the query_vector and all data_vectors
-    distances = distance_metric_map[distance_metric](query_embedding, embeddings)
-    nearest_indices = np.argsort(distances)
+        return_data["score"] = np.array([], dtype=np.float32)
 
-    nearest_indices = (
-        nearest_indices[::-1][:k] if distance_metric in ["cos"] else nearest_indices[:k]
-    )
+    else:
+        # Calculate the distance between the query_vector and all data_vectors
+        distances = distance_metric_map[distance_metric](query_embedding, embeddings)
+        nearest_indices = np.argsort(distances)
 
-    print("RETURNING PARSED DATA")
-    print("deeplake_dataset")
-    return_data = {}
-
-    for tensor in deeplake_dataset.tensors:
-        return_data[tensor] = utils.parse_tensor_return(
-            deeplake_dataset[tensor][nearest_indices.tolist()]
+        nearest_indices = (
+            nearest_indices[::-1][:k]
+            if distance_metric in ["cos"]
+            else nearest_indices[:k]
         )
 
-    return_data["score"] = distances[nearest_indices]
+        for tensor in deeplake_dataset.tensors:
+            return_data[tensor] = utils.parse_tensor_return(
+                deeplake_dataset[tensor][nearest_indices.tolist()]
+            )
+
+        return_data["score"] = distances[nearest_indices]
 
     return return_data
