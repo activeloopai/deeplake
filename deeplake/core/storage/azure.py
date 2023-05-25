@@ -22,9 +22,7 @@ except ImportError:
 
 
 class AzureProvider(StorageProvider):
-    def __init__(
-        self, root: str, creds: Dict = {}, token: Optional[str] = None
-    ):
+    def __init__(self, root: str, creds: Dict = {}, token: Optional[str] = None):
         if not _AZURE_PACKAGES_INSTALLED:
             raise ImportError(
                 "Azure packages not installed. Run `pip install deeplake[azure]`."
@@ -48,7 +46,7 @@ class AzureProvider(StorageProvider):
         self._set_credential(self.creds)
         self._set_clients()
 
-    def _get_attrs(self, path: str) -> Tuple[str]:
+    def _get_attrs(self, path: str) -> Tuple[str, str, str]:
         split_path = (
             path.replace("az://", "").replace("azure://", "").strip("/").split("/", 2)
         )
@@ -62,7 +60,7 @@ class AzureProvider(StorageProvider):
             account_name, container_name, root_folder = split_path
         return account_name, container_name, root_folder
 
-    def _set_credential(self, creds: Dict):
+    def _set_credential(self, creds: Dict[str, str]):
         account_name = creds.get("account_name")
         if account_name and account_name != self.account_name:
             raise ValueError(
@@ -71,7 +69,7 @@ class AzureProvider(StorageProvider):
 
         self.account_key = creds.get("account_key")
         if self.account_key:
-            self.credential = AzureNamedKeyCredential(account_name, self.account_key)
+            self.credential = AzureNamedKeyCredential(account_name, self.account_key)  # type: ignore
 
         self.sas_token = creds.get("sas_token")
         if self.sas_token and self.credential is None:
