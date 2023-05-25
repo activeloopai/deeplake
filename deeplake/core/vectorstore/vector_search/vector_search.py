@@ -1,6 +1,6 @@
 import numpy as np
 
-from typing import Any, Callable, Dict, List, Union
+from typing import Any, Callable, Dict, List, Union, Optional
 
 import deeplake
 from deeplake.core.dataset import Dataset as DeepLakeDataset
@@ -8,9 +8,16 @@ from deeplake.core import vectorstore
 
 
 EXEC_OPTION_TO_SEARCH_TYPE: Dict[str, Callable] = {
-    "compute_engine": vectorstore.indra_vector_search,
+    "compute_engine": vectorstore.vector_search,
     "python": vectorstore.python_vector_search,
-    "tensor_db": vectorstore.remote_engine_vector_search,
+    "tensor_db": vectorstore.vector_search,
+}
+
+
+EXEC_OPTION_TO_RUNTIME: Dict[str, dict] = {
+    "compute_engine": None,
+    "python": None,
+    "tensor_db": {"db_engine": True},
 }
 
 
@@ -36,6 +43,8 @@ def search(
         deeplake_dataset (DeepLakeDataset): deeplake dataset object.
         embedding_tensor (str): name of the tensor in the dataset with `htype="embedding"`. Defaults to "embedding".
     """
+    runtime = EXEC_OPTION_TO_RUNTIME[exec_option]
+    
     return EXEC_OPTION_TO_SEARCH_TYPE[exec_option](
         query_embedding=query_embedding,
         embedding=embedding,
@@ -43,4 +52,5 @@ def search(
         deeplake_dataset=deeplake_dataset,
         k=k,
         embedding_tensor=embedding_tensor,
+        runtime=runtime,
     )

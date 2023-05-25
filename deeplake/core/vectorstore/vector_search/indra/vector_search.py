@@ -14,6 +14,7 @@ def vector_search(
     deeplake_dataset: DeepLakeDataset,
     k: int,
     embedding_tensor: str,
+    runtime: dict,
     **kwargs
 ) -> Tuple[List, List]:
     """Vector Searching algorithm that uses indra.
@@ -32,10 +33,17 @@ def vector_search(
     from indra import api  # type: ignore
 
     tql_query = query.parse_query(distance_metric, k, query_embedding, embedding_tensor)
-    indra_ds = dataset_to_libdeeplake(deeplake_dataset)
 
-    view = indra_ds.query(tql_query)
-    indices = view.indexes
-
-    scores = view.score.numpy()
+    return_indices_and_scores = True if runtime else False
+    response = deeplake_dataset.query(
+        tql_query, runtime=runtime, return_indices_and_scores=return_indices_and_scores
+    )
+    
+    # in case if response already contains indices and scores
+    if len(response) == 2:
+        return response
+    
+    indices = response.indexes
+    scores = response.score.numpy()
+    
     return indices, scores

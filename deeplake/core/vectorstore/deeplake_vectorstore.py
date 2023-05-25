@@ -1,11 +1,10 @@
 import deeplake
-from deeplake.core.vectorstore.vector_search import utils
+from deeplake.constants import DEFAULT_VECTORSTORE_DEEPLAKE_PATH, VECTORSTORE_INGESTION_THRESHOLD
+from deeplake.core.dataset import Dataset as DeepLakeDataset
+from deeplake.core.vectorstore.vector_search import utils, vector_search
 from deeplake.core.vectorstore.vector_search import dataset as dataset_utils
 from deeplake.core.vectorstore.vector_search import filter as filter_utils
-from deeplake.constants import DEFAULT_VECTORSTORE_DEEPLAKE_PATH
-from deeplake.core.vectorstore.vector_search import vector_search
-from deeplake.core.vectorstore.vector_search.ingestion import ingest_data
-from deeplake.core.dataset import Dataset as DeepLakeDataset
+
 
 try:
     from indra import api  # type: ignore
@@ -58,7 +57,7 @@ class DeepLakeVectorStore:
         self.num_workers = num_workers
         creds = {"creds": kwargs["creds"]} if "creds" in kwargs else {}
         self.dataset = dataset_utils.create_or_load_dataset(
-            dataset_path, token, creds, logger, read_only, exec_option, **kwargs
+            dataset_path, token, creds, logger, read_only, exec_option, embedding_function, **kwargs
         )
         self.embedding_function = embedding_function
         self._exec_option = exec_option
@@ -86,25 +85,23 @@ class DeepLakeVectorStore:
         Returns:
             List[str]: List of document IDs
         """
-        elements, ids = dataset_utils.create_elements(
-            ids=ids, texts=texts, metadatas=metadatas, embeddings=embeddings
-        )
-
+        processed_tensors, ids = dataset_utils.preprocess_tensors(ids, texts, metadatas, embeddings)
         assert ids is not None
-
-        ingest_data.run_data_ingestion(
-            elements=elements,
+                
+        dataset_utils.extend_or_ingest_dataset(
+            processed_tensors=processed_tensors,
             dataset=self.dataset,
             embedding_function=embedding_function or self.embedding_function,
             ingestion_batch_size=self.ingestion_batch_size,
             num_workers=self.num_workers,
             total_samples_processed=total_samples_processed,
         )
+        
         self.dataset.commit(allow_empty=True)
         if self.verbose:
             self.dataset.summary()
         return ids
-
+    
     def search(
         self,
         embedding_function: Optional[Callable] = None,
