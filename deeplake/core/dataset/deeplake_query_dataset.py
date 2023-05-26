@@ -99,21 +99,8 @@ class DeepLakeQueryDataset(Dataset):
         is_iteration: bool = False,
     ):
         if isinstance(item, str):
-            fullpath = posixpath.join(self.group_index, item)
-            enabled_tensors = self.enabled_tensors
-            if enabled_tensors is None or fullpath in enabled_tensors:
-                tensor = self._get_tensor_from_root(fullpath)
-                if tensor is not None:
-                    return tensor
-            if self.deeplake_ds._has_group_in_root(fullpath):
-                ret = DeepLakeQueryDataset(
-                    deeplake_ds=self.deeplake_ds,
-                    indra_ds=self.indra_ds,
-                    group_index=posixpath.join(self.group_index, item),
-                )
-            elif "/" in item:
-                splt = posixpath.split(item)
-                ret = self[splt[0]][splt[1]]
+            if item in self.tensors.keys():
+                return self.tensors[item]
             else:
                 raise TensorDoesNotExistError(item)
         elif isinstance(item, (int, slice, list, tuple, Index, type(Ellipsis))):
@@ -167,16 +154,13 @@ class DeepLakeQueryDataset(Dataset):
     def __getattr__(self, key):
         try:
             return self.__getitem__(key)
-        except:
+        except TensorDoesNotExistError as ke:
             try:
                 return getattr(self.deeplake_ds, key)
-            except:
-                try:
-                    return getattr(self.indra_ds, key)
-                except:
-                    raise AttributeError(
-                        f"'{self.__class__}' object has no attribute '{key}'"
-                    )
+            except AttributeError:
+                raise AttributeError(
+                    f"'{self.__class__}' object has no attribute '{key}'"
+                ) from ke
 
     def __len__(self):
         return len(self.indra_ds)
@@ -263,10 +247,17 @@ class DeepLakeQueryDataset(Dataset):
         self, include_hidden: bool = True, include_disabled=True
     ) -> Dict[str, Tensor]:
         """All tensors belonging to this group, including those within sub groups. Always returns the sliced tensors."""
-        version_state = self.version_state
-        group_index = self.group_index
-        all_tensors = self._all_tensors_filtered(include_hidden, include_disabled)
-        return {t: self[posixpath.join(group_index, t)] for t in all_tensors}
+        original_tensors = self.deeplake_ds._tensors(include_hidden, include_disabled)
+        indra_tensors = self.indra_ds.tensors
+        indra_keys = set(t.name for t in indra_tensors)
+        original_tensors = {
+            k: v for k, v in original_tensors.items() if k in indra_keys or v.hidden
+        }
+        original_keys = set(original_tensors.keys())
+        for t in indra_tensors:
+            if not t.name in original_keys:
+                original_tensors[t.name] = DeepLakeQueryTensor(None, t)
+        return original_tensors
 
     def __str__(self):
         path_str = ""

@@ -292,6 +292,8 @@ def test_virtual_tensors(hub_cloud_ds_generator):
             )
 
     deeplake_indra_ds = deeplake_ds.query("SELECT shape(label)[0] as num_labels")
+    assert list(deeplake_indra_ds.tensors.keys()) == ["num_labels"]
+    deeplake_indra_ds.summary()
     assert len(deeplake_indra_ds) == 100
     assert deeplake_indra_ds.num_labels[0].numpy() == [0]
     assert deeplake_indra_ds.num_labels[1].numpy() == [1]
@@ -299,10 +301,19 @@ def test_virtual_tensors(hub_cloud_ds_generator):
     assert deeplake_indra_ds.num_labels[3].numpy() == [3]
     assert deeplake_indra_ds.num_labels[4].numpy() == [4]
     assert np.sum(deeplake_indra_ds.num_labels.numpy()) == 200
+    deeplake_indra_ds = deeplake_ds.query("SELECT *, shape(label)[0] as num_labels")
+    assert list(deeplake_indra_ds.tensors.keys()) == [
+        "label",
+        "embeddings",
+        "num_labels",
+    ]
+    deeplake_indra_ds.summary()
 
     deeplake_indra_ds = deeplake_ds.query(
         "SELECT l2_norm(embeddings - ARRAY[0, 0, 0]) as score order by l2_norm(embeddings - ARRAY[0, 0, 0]) asc"
     )
+    assert list(deeplake_indra_ds.tensors.keys()) == ["score"]
+    deeplake_indra_ds.summary()
     assert len(deeplake_indra_ds) == 100
     for i in range(100, 1):
         assert deeplake_indra_ds.score[100 - i].numpy() == [
