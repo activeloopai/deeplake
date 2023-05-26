@@ -57,7 +57,11 @@ class DeepLakeQueryDataset(Dataset):
         tensors = self.indra_ds.tensors
         for tensor in tensors:
             if tensor.name == fullpath:
-                deeplake_tensor = self.deeplake_ds.__getattr__(fullpath)
+                deeplake_tensor = None
+                try:
+                    deeplake_tensor = self.deeplake_ds.__getattr__(fullpath)
+                except:
+                    pass
                 indra_tensor = tensor
                 return DeepLakeQueryTensor(deeplake_tensor, indra_tensor)
 
@@ -99,8 +103,21 @@ class DeepLakeQueryDataset(Dataset):
         is_iteration: bool = False,
     ):
         if isinstance(item, str):
-            if item in self.tensors.keys():
-                return self.tensors[item]
+            fullpath = posixpath.join(self.group_index, item)
+            enabled_tensors = self.enabled_tensors
+            if enabled_tensors is None or fullpath in enabled_tensors:
+                tensor = self._get_tensor_from_root(fullpath)
+                if tensor is not None:
+                    return tensor
+            if self.deeplake_ds._has_group_in_root(fullpath):
+                ret = DeepLakeQueryDataset(
+                    deeplake_ds=self.deeplake_ds,
+                    indra_ds=self.indra_ds,
+                    group_index=posixpath.join(self.group_index, item),
+                )
+            elif "/" in item:
+                splt = posixpath.split(item)
+                ret = self[splt[0]][splt[1]]
             else:
                 raise TensorDoesNotExistError(item)
         elif isinstance(item, (int, slice, list, tuple, Index, type(Ellipsis))):
