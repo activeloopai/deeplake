@@ -285,16 +285,19 @@ def test_virtual_tensors(hub_cloud_ds_generator):
     with deeplake_ds:
         deeplake_ds.create_tensor("label", htype="generic", dtype=np.int32)
         deeplake_ds.create_tensor("embeddings", htype="generic", dtype=np.float32)
+        deeplake_ds.create_tensor("text", htype="text")
+        deeplake_ds.create_tensor("json", htype="json")
         for i in range(100):
             count = i % 5
             deeplake_ds.label.append([int(i % 100)] * count)
             deeplake_ds.embeddings.append(
                 [1.0 / float(i + 1), 0.0, -1.0 / float(i + 1)]
             )
+            deeplake_ds.text.append(f"Hello {i}")
+            deeplake_ds.json.append('{"key": "val"}')
 
     deeplake_indra_ds = deeplake_ds.query("SELECT shape(label)[0] as num_labels")
     assert list(deeplake_indra_ds.tensors.keys()) == ["num_labels"]
-    deeplake_indra_ds.summary()
     assert len(deeplake_indra_ds) == 100
     assert deeplake_indra_ds.num_labels[0].numpy() == [0]
     assert deeplake_indra_ds.num_labels[1].numpy() == [1]
@@ -306,15 +309,18 @@ def test_virtual_tensors(hub_cloud_ds_generator):
     assert list(deeplake_indra_ds.tensors.keys()) == [
         "label",
         "embeddings",
+        "text",
+        "json",
         "num_labels",
     ]
-    deeplake_indra_ds.summary()
+    assert deeplake_indra_ds.text[0].data() == {"value": "Hello 0"}
+    deeplake_indra_ds.json[0].data() == {"value": '{"key": "val"}'}
+    deeplake_ds.json[0].data() == {"value": '{"key": "val"}'}
 
     deeplake_indra_ds = deeplake_ds.query(
         "SELECT l2_norm(embeddings - ARRAY[0, 0, 0]) as score order by l2_norm(embeddings - ARRAY[0, 0, 0]) asc"
     )
     assert list(deeplake_indra_ds.tensors.keys()) == ["score"]
-    deeplake_indra_ds.summary()
     assert len(deeplake_indra_ds) == 100
     for i in range(100, 1):
         assert deeplake_indra_ds.score[100 - i].numpy() == [

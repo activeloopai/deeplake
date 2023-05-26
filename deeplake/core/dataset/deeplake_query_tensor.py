@@ -8,6 +8,7 @@ from deeplake.core.index import replace_ellipsis_with_slices
 from deeplake.core.meta.tensor_meta import TensorMeta
 from deeplake.util.exceptions import InvalidKeyTypeError, DynamicTensorNumpyError
 from deeplake.util.pretty_print import summary_tensor
+import json
 
 
 class DeepLakeQueryTensor(tensor.Tensor):
@@ -72,8 +73,13 @@ class DeepLakeQueryTensor(tensor.Tensor):
             except ValueError:
                 raise DynamicTensorNumpyError(self.name, self.index, "shape")
 
-    def data(self, aslist: bool = False, fetch_chunks: bool = False) -> Any:
-        return self.indra_tensor.bytes()
+    def text(self, fetch_chunks: bool = False):
+        """Return text data. Only applicable for tensors with 'text' base htype."""
+        return self.indra_tensor.bytes().decode()
+
+    def dict(self, fetch_chunks: bool = False):
+        """Return json data. Only applicable for tensors with 'json' base htype."""
+        return json.loads(self.indra_tensor.bytes().decode())
 
     @property
     def dtype(self):
