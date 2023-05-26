@@ -52,7 +52,7 @@ def _version_info_to_json(info):
     commits = {}
     for commit, node in commit_node_map.items():
         commits[commit] = {
-            "branch": node.branch,
+            "branch": node.branch if node.branch in branch_commit_map else "main",
             "parent": node.parent.commit_id if node.parent else None,
             "children": [c.commit_id for c in node.children],
             "commit_message": node.commit_message,
@@ -843,3 +843,48 @@ def warn_node_checkout(commit_node: CommitNode, create: bool):
 
 def convert_to_bytes(inp):
     return inp.tobytes() if isinstance(inp, DeepLakeMemoryObject) else inp
+
+
+def delete_branch(version_state: Dict[str, Any], storage: LRUCache, branch: str) -> None:
+    # TODO fix concurrent deletion
+    if branch == "main":
+        raise ValueError("Cannot delete main branch.")
+    if version_state["branch"] == branch:
+        raise ValueError("Cannot delete currently checked out branch.")
+    bc_map = version_state["branch_commit_map"]
+
+    try:
+        del bc_map[branch]
+    except KeyError as e:
+        raise KeyError(f"Branch not found: {branch}") from e
+
+    storage = get_base_storage(storage)
+    lock = Lock(storage, get_version_control_info_lock_key(), duration=10)
+    lock.acquire()  # Blocking
+    key = get_version_control_info_key()
+    new_version_info = {
+        "commit_node_map": version_state["commit_node_map"],
+        "branch_commit_map": bc_map,
+    }
+    try:
+        old_version_info = _version_info_from_json(
+            json.loads(storage[key].decode("utf-8"))
+        )
+    except KeyError:
+        try:
+            old_version_info = pickle.loads(
+                storage[get_version_control_info_key_old()]
+            )  # backward compatiblity
+        except KeyError:
+            old_version_info = None
+    if old_version_info is not None:
+        bc_map2 = old_version_info["branch_commit_map"]
+        for k in list(bc_map):
+            if k not in bc_map2:
+                bc_map.pop(k)
+        bc_map2.pop(branch)
+        version_info = _merge_version_info(old_version_info, new_version_info)
+    else:
+        version_info = new_version_info
+    storage[key] = json.dumps(_version_info_to_json(version_info)).encode("utf-8")
+    lock.release()

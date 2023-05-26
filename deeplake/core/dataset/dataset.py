@@ -15,21 +15,16 @@ from tqdm import tqdm  # type: ignore
 import deeplake
 from deeplake.core.index.index import IndexEntry
 from deeplake.core.link_creds import LinkCreds
-from deeplake.core.concurrent import ConcurrentDatasetWriter
 from deeplake.util.connect_dataset import connect_dataset_entry
 from deeplake.util.downsample import validate_downsampling
-from deeplake.util.version_control import (
-    save_version_info,
-    integrity_check,
-    save_commit_info,
-    rebuild_version_info,
-)
+
 from deeplake.util.invalid_view_op import invalid_view_op
 from deeplake.util.spinner import spinner
 from deeplake.util.iteration_warning import (
     suppress_iteration_warning,
     check_if_iteration,
 )
+from deeplake.util.concurrent import ensure_concurrent_mode, ensure_not_concurrent_mode
 from deeplake.api.info import load_info
 from deeplake.client.log import logger
 from deeplake.client.utils import get_user_name
@@ -42,6 +37,7 @@ from deeplake.constants import (
     SAMPLE_INFO_TENSOR_MAX_CHUNK_SIZE,
     DEFAULT_READONLY,
     ENV_HUB_DEV_USERNAME,
+    VERSION_CONTROL_INFO_LOCK_FILENAME,
 )
 from deeplake.core.fast_forwarding import ffw_dataset_meta
 from deeplake.core.index import Index
@@ -129,7 +125,12 @@ from deeplake.util.version_control import (
     save_version_info,
     replace_head,
     reset_and_checkout,
+    integrity_check,
+    save_commit_info,
+    rebuild_version_info,
+    delete_branch,
 )
+
 from deeplake.util.pretty_print import summary_dataset
 from deeplake.core.dataset.view_entry import ViewEntry
 from deeplake.core.dataset.invalid_view import InvalidView
@@ -235,6 +236,10 @@ class Dataset:
         d["_locking_enabled"] = lock
         d["_temp_tensors"] = []
         d["_vc_info_updated"] = True
+        d["_concurrent_mode"] = False
+        d["_concurrent_original_branch"] = None
+        d["_concurrent_branch"] = None
+
         dct = self.__dict__
         dct.update(d)
 
@@ -281,8 +286,7 @@ class Dataset:
     def __exit__(self, exc_type, exc_val, exc_tb):
         autoflush = self._initial_autoflush.pop()
         if not self._read_only and autoflush:
-            if self._vc_info_updated:
-                self._flush_vc_info()
+            self._flush_vc_info()
             spinner(self.storage.flush)()
         self.storage.autoflush = autoflush
 
@@ -400,6 +404,9 @@ class Dataset:
         state["libdeeplake_dataset"] = None
         state["_vc_info_updated"] = False
         state["_locked_out"] = False
+        state["_concurrent_mode"] = False
+        state["_concurrent_original_branch"] = None
+        state["_concurrent_branch"] = None
         self.__dict__.update(state)
         self.__dict__["base_storage"] = get_base_storage(self.storage)
         # clear cache while restoring
@@ -953,6 +960,7 @@ class Dataset:
         self.meta._hide_tensor(tensor)
         self.storage.maybe_flush()
 
+    @ensure_not_concurrent_mode
     @invalid_view_op
     def delete_tensor(self, name: str, large_ok: bool = False):
         """Delete a tensor from the dataset.
@@ -1459,6 +1467,7 @@ class Dataset:
 
         return self._commit(message, None, False)
 
+    @ensure_not_concurrent_mode
     @spinner
     @invalid_view_op
     @suppress_iteration_warning
@@ -1550,6 +1559,7 @@ class Dataset:
         self.maybe_flush()
         return self.commit_id  # type: ignore
 
+    @ensure_not_concurrent_mode
     @invalid_view_op
     def checkout(
         self, address: str, create: bool = False, reset: bool = False
@@ -2468,7 +2478,8 @@ class Dataset:
         Returns:
             List of branches.
         """
-        return list(self.version_state["branch_commit_map"])
+        # TODO: remove this filter after fixing concurrent branch deletetion
+        return list(filter(lambda b: not b.startswith("_concurrent_"), self.version_state["branch_commit_map"]))
 
     @property
     def commits(self) -> List[Dict]:
@@ -4214,5 +4225,87 @@ class Dataset:
     def _get_storage_repository(self) -> Optional[str]:
         return getattr(self.base_storage, "repository", None)
 
+    @ensure_not_concurrent_mode
+    def delete_branch(self, branch: str):
+        """Deletes a branch. Underlying commit and data are not deleted.
+
+        Args:
+            branch (str): Branch to be deleted.
+
+        Returns:
+            None
+
+        Raises:
+            ValueError: if `branch` is "main" or the currently checked out branch.
+            KeyError: If the specified branch is not found.
+
+        """
+        delete_branch(self.version_state, self.storage, branch)
+
     def concurrent(self):
-        return ConcurrentDatasetWriter(self)
+        """Initialize concurrent writes
+        """
+        if self.commit_id is None:
+            raise ValueError(
+                "Dataset must be committed from master process before writing to it concurrently."
+            )
+        self.checkout(self.commit_id)
+        self._concurrent_original_branch = self.branch
+        if self._concurrent_branch is None:
+            self._concurrent_branch = f"_concurrent_{uuid.uuid4().hex[:8]}"
+        self.read_only = False
+        self._locking_enabled = False
+        if self._concurrent_branch not in self.version_state["branch_commit_map"]:
+            self.checkout(self._concurrent_branch, create=True)
+        self._concurrent_mode = True
+
+        class _ConcurrentWriteContext:
+            __slots__ = ["ds"]
+            def __init__(self, ds):
+                self.ds = ds
+
+            def __enter__(self):
+                self.ds.__enter__()
+
+            def __exit__(self, exc_type, exc_val, exc_tb):
+                ds = self.ds
+                ds._concurrent_push()
+                # TODO: Concurrent branch deletion
+                # ds.delete_branch(ds._concurrent_branch, _ignore_concurrent_mode_check=True)
+                ds.__exit__(exc_type, exc_val, exc_tb)
+                ds._concurrent_mode = False
+
+        return _ConcurrentWriteContext(self)
+
+    @ensure_concurrent_mode
+    def push(self):
+        self._concurrent_push()
+        self.checkout(self._concurrent_branch)
+
+    @ensure_concurrent_mode
+    def pull(self):
+        return self._concurrent_pull()
+
+    @ensure_concurrent_mode
+    def join(self):
+        self._concurrent_push()
+        # TODO: Concurrent branch deletion
+        self.delete_branch(self._concurrent_branch,_ignore_concurrent_mode_check=True)
+        self._concurrent_mode = False
+
+    def _concurrent_push(self):
+        lock = Lock(self.base_storage, VERSION_CONTROL_INFO_LOCK_FILENAME)
+        lock.acquire()
+        try:
+            self.checkout(self._concurrent_original_branch, _ignore_concurrent_mode_check=True)
+            self.merge(self._concurrent_branch, _ignore_concurrent_mode_check=True)
+        finally:
+            lock.release()
+
+    def _concurrent_pull(self):
+        lock = Lock(ds.base_storage, VERSION_CONTROL_INFO_LOCK_FILENAME)
+        lock.acquire()
+        try:
+            self.merge(self._concurrent_original_branch, _ignore_concurrent_mode_check=True)
+        finally:
+            lock.release()

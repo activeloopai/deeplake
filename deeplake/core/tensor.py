@@ -672,6 +672,10 @@ class Tensor:
             >>> tensor.shape
             (1, 3, 3)
         """
+        if self.dataset._concurrent_mode:
+            raise NotImplementedError(
+                "Updates are not supported in concurrent mode."
+            )
         self._write_initialization()
         [f() for f in list(self.dataset._update_hooks.values())]
         update_link_callback = self._update_links if self.meta.links else None
