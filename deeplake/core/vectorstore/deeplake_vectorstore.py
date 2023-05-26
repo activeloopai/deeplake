@@ -4,7 +4,7 @@ from deeplake.constants import (
     VECTORSTORE_INGESTION_THRESHOLD,
 )
 from deeplake.core.dataset import Dataset as DeepLakeDataset
-from deeplake.core.vectorstore.vector_search import utils, vector_search
+from deeplake.core.vectorstore.vector_search import utils
 from deeplake.core.vectorstore.vector_search import dataset as dataset_utils
 from deeplake.core.vectorstore.vector_search import filter as filter_utils
 from deeplake.core import vectorstore
