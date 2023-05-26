@@ -270,12 +270,11 @@ def test_random_split(hub_cloud_ds_generator):
 
     train, val = deeplake_indra_ds[0:50].random_split([0.8, 0.2])
     assert len(train) == 40
-    # TODO: Fix and add test for shuffle.
-    l = train.dataloader().pytorch()
+    l = train.dataloader().pytorch().shuffle()
     for b in l:
         pass
     assert len(val) == 10
-    l = val.dataloader().pytorch()
+    l = val.dataloader().pytorch().shuffle()
     for b in l:
         pass
 
