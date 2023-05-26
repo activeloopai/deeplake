@@ -1137,6 +1137,7 @@ class Dataset:
         del meta["version"]
         del meta["name"]
         del meta["links"]
+        meta["dtype"] = np.dtype(meta["typestr"]) if meta["typestr"] else meta["dtype"]
 
         destination_tensor = self._create_tensor(
             name,
@@ -1535,6 +1536,9 @@ class Dataset:
         message: Optional[str] = None,
         hash: Optional[str] = None,
         flush_version_control_info: bool = True,
+        *,
+        is_checkpoint: bool = False,
+        total_samples_processed: int = 0,
     ) -> str:
         if self._is_filtered_view:
             raise Exception(
@@ -1547,7 +1551,14 @@ class Dataset:
         self.storage.autoflush = False
         try:
             self._unlock()
-            commit(self, message, hash, flush_version_control_info)
+            commit(
+                self,
+                message,
+                hash,
+                flush_version_control_info,
+                is_checkpoint=is_checkpoint,
+                total_samples_processed=total_samples_processed,
+            )
             if not flush_version_control_info:
                 self.__dict__["_vc_info_updated"] = True
             self._lock()
@@ -2090,7 +2101,12 @@ class Dataset:
         dataset_read(self)
         return ret
 
-    def query(self, query_string: str, runtime: Optional[Dict] = None):
+    def query(
+        self,
+        query_string: str,
+        runtime: Optional[Dict] = None,
+        return_indices_and_scores: bool = False,
+    ):
         """Returns a sliced :class:`~deeplake.core.dataset.Dataset` with given query results. To use this, install deeplake with ``pip install deeplake[enterprise]``.
 
         It allows to run SQL like queries on dataset and extract results. See supported keywords and the Tensor Query Language documentation
@@ -2099,7 +2115,11 @@ class Dataset:
 
         Args:
             query_string (str): An SQL string adjusted with new functionalities to run on the given :class:`~deeplake.core.dataset.Dataset` object
-            runtime (dict): Parameters for Activeloop DB Engine. Only applicable for hub:// paths.
+            runtime (Optional[Dict]): whether to run query on a remote engine
+            return_indices_and_scores (bool): by default False. Whether to return indices and scores.
+
+        Raises:
+            ValueError: if return_indices_and_scores is True and runtime is not {"db_engine": true}
 
         Returns:
             Dataset: A :class:`~deeplake.core.dataset.Dataset` object.
@@ -2121,8 +2141,15 @@ class Dataset:
         if runtime is not None and runtime.get("db_engine", False):
             client = DeepLakeBackendClient(token=self._token)
             org_id, ds_name = self.path[6:].split("/")
-            indicies = client.remote_query(org_id, ds_name, query_string)
-            return self[indicies]
+            indices, scores = client.remote_query(org_id, ds_name, query_string)
+            if return_indices_and_scores:
+                return indices, scores
+            return self[indices]
+
+        if return_indices_and_scores:
+            raise ValueError(
+                "return_indices_and_scores is not supported. Please add `runtime = {'db_engine': True}` if you want to return indices and scores"
+            )
 
         from deeplake.enterprise import query
 

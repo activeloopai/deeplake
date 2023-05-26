@@ -2459,6 +2459,22 @@ def test_sequence_numpy_bug(memory_ds):
         assert ds.abc.numpy(aslist=True) == [[1, 2], [1, 2, 3], [1, 2, 3, 4]]
 
 
+def test_tensor_dtype_bug(local_path):
+    from nibabel.testing import data_path
+
+    with deeplake.empty(local_path, overwrite=True) as ds:
+        ds.create_tensor("abc", htype="link[nifti]", sample_compression="nii.gz")
+        ds.abc.append(deeplake.link(f"{data_path}/standard.nii.gz"))
+
+    assert ds.abc[0].numpy().shape == (4, 5, 7)
+    assert ds.abc.dtype == np.dtype("<U1")
+
+    ds2 = ds.copy(f"{local_path}_2", overwrite=True)
+
+    assert ds2.abc[0].numpy().shape == (4, 5, 7)
+    assert ds2.abc.dtype == np.dtype("<U1")
+
+
 def test_iterate_with_groups(memory_ds):
     with memory_ds as ds:
         ds.create_tensor("x/y/z")

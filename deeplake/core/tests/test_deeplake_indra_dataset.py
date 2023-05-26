@@ -276,3 +276,35 @@ def test_random_split(hub_cloud_ds_generator):
     l = val.dataloader().pytorch().shuffle()
     for b in l:
         pass
+
+
+@requires_libdeeplake
+def test_virtual_tensors(hub_cloud_ds_generator):
+    deeplake_ds = hub_cloud_ds_generator()
+    with deeplake_ds:
+        deeplake_ds.create_tensor("label", htype="generic", dtype=np.int32)
+        deeplake_ds.create_tensor("embeddings", htype="generic", dtype=np.float32)
+        for i in range(100):
+            count = i % 5
+            deeplake_ds.label.append([int(i % 100)] * count)
+            deeplake_ds.embeddings.append(
+                [1.0 / float(i + 1), 0.0, -1.0 / float(i + 1)]
+            )
+
+    deeplake_indra_ds = deeplake_ds.query("SELECT shape(label)[0] as num_labels")
+    assert len(deeplake_indra_ds) == 100
+    assert deeplake_indra_ds.num_labels[0].numpy() == [0]
+    assert deeplake_indra_ds.num_labels[1].numpy() == [1]
+    assert deeplake_indra_ds.num_labels[2].numpy() == [2]
+    assert deeplake_indra_ds.num_labels[3].numpy() == [3]
+    assert deeplake_indra_ds.num_labels[4].numpy() == [4]
+    assert np.sum(deeplake_indra_ds.num_labels.numpy()) == 200
+
+    deeplake_indra_ds = deeplake_ds.query(
+        "SELECT l2_norm(embeddings - ARRAY[0, 0, 0]) as score order by l2_norm(embeddings - ARRAY[0, 0, 0]) asc"
+    )
+    assert len(deeplake_indra_ds) == 100
+    for i in range(100, 1):
+        assert deeplake_indra_ds.score[100 - i].numpy() == [
+            np.sqrt(2.0 / (i + 1) / (i + 1))
+        ]
