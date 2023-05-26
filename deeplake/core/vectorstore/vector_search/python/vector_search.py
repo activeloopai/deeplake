@@ -1,4 +1,4 @@
-from typing import Optional, Dict
+from typing import Dict
 from deeplake.core.dataset import Dataset as DeepLakeDataset
 from deeplake.core.vectorstore.vector_search import utils
 
@@ -19,7 +19,7 @@ def vector_search(
     query_embedding: np.ndarray,
     embeddings: np.ndarray,
     distance_metric: str = "l2",
-    k: Optional[int] = 4,
+    k: int = 4,
 ) -> Dict:
     """Naive search for nearest neighbors
     args:

@@ -127,7 +127,7 @@ class DeepLakeVectorStore:
         exec_option: Optional[str] = "python",
         embedding_tensor: str = "embedding",
     ):
-        """DeepLakeVectorStore search method
+        """DeepLakeVectorStore search method that combines embedding search, metadata search, and custom TQL search.
 
         Args:
             prompt (Optional[str], optional): String representation of the prompt to embed using embedding_function. Defaults to None. The prompt and embedding cannot both be specified or both be None.
@@ -135,7 +135,8 @@ class DeepLakeVectorStore:
             embedding (Union[np.ndarray, List[float]], optional): Embedding representation for performing the search. Defaults to None. The prompt and embedding cannot both be specified or both be None.
             k (int): Number of elements to return after running query. Defaults to 4.
             distance_metric (str): Type of distance metric to use for sorting the data. Avaliable options are: "L1", "L2", "COS", "MAX". Defaults to "L2".
-            filter (Union[Dict, Callable], optional): Additional filter
+            query: Optional[str] = None,
+            filter (Union[Dict, Callable], optional): Additional filter evaluated prior to the embedding search.
                 - ``Dict`` - Key-value search on any tensor of htype json. Dict = {"tensor_name_1": {"key": value}, "tensor_name_2": {"key": value}}
                 - ``Function`` - Any function that is compatible with `deeplake.filter`.
             exec_option (str, optional): Type of query execution. It could be either "python", "compute_engine" or "tensor_db". Defaults to "python".
@@ -147,9 +148,10 @@ class DeepLakeVectorStore:
 
         Raises:
             ValueError: When invalid execution option is specified
+            NotImplementedError: When unsupported combinations of parameters are specified
 
         Returns:
-            tuple (view, indices, scores): View is the dataset view generated from the queried samples, indices are the indices of the ordered samples, scores are respectively the scores of the ordered samples
+            Dict: Dictionary where keys are tensor names and values are the results of the search
         """
         exec_option = exec_option or self._exec_option
         if exec_option not in ("python", "compute_engine", "tensor_db"):
@@ -183,8 +185,6 @@ class DeepLakeVectorStore:
                 embedding_tensor=embedding_tensor,
             )
 
-            print("Running python vector search")
-            print(view)
             return vectorstore.python_vector_search(
                 deeplake_dataset=view,
                 query_embedding=query_emb,
@@ -215,9 +215,9 @@ class DeepLakeVectorStore:
                 distance_metric=distance_metric.lower(),
                 deeplake_dataset=view,
                 k=k,
+                tql_string=query,
                 tql_filter=tql_filter,
                 embedding_tensor=embedding_tensor,
-                query=query,
                 runtime=runtime,
             )
 
