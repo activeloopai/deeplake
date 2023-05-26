@@ -297,6 +297,7 @@ def test_virtual_tensors(hub_cloud_ds_generator):
             deeplake_ds.json.append('{"key": "val"}')
 
     deeplake_indra_ds = deeplake_ds.query("SELECT shape(label)[0] as num_labels")
+    assert np.all(deeplake_indra_ds.num_labels.data()["value"] == deeplake_indra_ds.num_labels.numpy())
     assert list(deeplake_indra_ds.tensors.keys()) == ["num_labels"]
     assert len(deeplake_indra_ds) == 100
     assert deeplake_indra_ds.num_labels[0].numpy() == [0]
