@@ -23,7 +23,6 @@ def embedding_fn(text, embedding_dim=100):
 @requires_libdeeplake
 @pytest.mark.parametrize("distance_metric", ["L1", "L2", "COS", "MAX", "DOT"])
 def test_search(distance_metric, hub_cloud_dev_token):
-    k = 4
     query_embedding = np.random.randint(0, 255, (1, embedding_dim))
     # initialize vector store object:
     vector_store = DeepLakeVectorStore(
@@ -34,6 +33,15 @@ def test_search(distance_metric, hub_cloud_dev_token):
 
     # add data to the dataset:
     vector_store.add(embeddings=embeddings, texts=texts)
+
+    # use python implementation to search the data
+    data = vector_store.search(
+        embedding=query_embedding,
+        exec_option="python",
+        distance_metric=distance_metric,
+        k=3,
+    )
+    assert len(data["text"]) == 3
 
     # use python implementation to search the data
     data_p = vector_store.search(

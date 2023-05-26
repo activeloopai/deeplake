@@ -49,10 +49,9 @@ def vector_search(
             distance_metric, k, query_embedding, embedding_tensor, tql_filter
         )
 
-    return_indices_and_scores = True if runtime else False
-
     view = deeplake_dataset.query(
-        tql_query, runtime=runtime, return_indices_and_scores=return_indices_and_scores
+        tql_query,
+        runtime=runtime,
     )
 
     return_data = {}

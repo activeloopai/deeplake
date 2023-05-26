@@ -221,10 +221,13 @@ class DeepLakeVectorStore:
         """Helper function for raising errors if invalid parameters are specified to search"""
         if (
             kwargs["prompt"] is None
+            and kwargs["embedding"] is None
             and kwargs["query"] is None
             and kwargs["filter"] is None
         ):
-            raise ValueError(f"Ether a prompt, query, or filter must be specified.")
+            raise ValueError(
+                f"Ether a embedding, prompt, query, or filter must be specified."
+            )
 
         if kwargs["embedding_function"] is None and kwargs["embedding"] is None:
             raise ValueError(
