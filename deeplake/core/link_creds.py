@@ -109,16 +109,34 @@ class LinkCreds(DeepLakeMemoryObject):
         if managed:
             self.managed_creds_keys.add(creds_key)
             self.populate_creds(creds_key, creds)
+    
+    def _replace_with_existing_creds(self, old_creds_key: str, new_creds_key: str):
+        replaced_indices = []
+        for i in range(len(self.creds_keys)):
+            if self.creds_keys[i] == old_creds_key:
+                self.creds_keys[i] = new_creds_key
+                replaced_indices.append(i)
+        
+        self.creds_dict.pop(old_creds_key, None)
+        self.creds_mapping.pop(old_creds_key, None)
+
+        self.managed_creds_keys.discard(old_creds_key)
+        self.used_creds_keys.discard(old_creds_key)
+        
+        self.storage_providers.pop(old_creds_key, None)
+
+        return replaced_indices
 
     def replace_creds(self, old_creds_key: str, new_creds_key: str):
         if old_creds_key not in self.creds_keys:
             raise KeyError(f"Creds key {old_creds_key} does not exist")
         if new_creds_key in self.creds_keys:
-            raise ValueError(f"Creds key {new_creds_key} already exists")
+            return self._replace_with_existing_creds(old_creds_key, new_creds_key)
+        replaced_indices = []
         for i in range(len(self.creds_keys)):
             if self.creds_keys[i] == old_creds_key:
                 self.creds_keys[i] = new_creds_key
-                replaced_index = i
+                replaced_indices.append(i)
 
         if old_creds_key in self.creds_dict:
             self.creds_dict[new_creds_key] = self.creds_dict[old_creds_key]
@@ -140,7 +158,7 @@ class LinkCreds(DeepLakeMemoryObject):
                 old_creds_key
             ]
             del self.storage_providers[old_creds_key]
-        return replaced_index
+        return replaced_indices
 
     def populate_creds(self, creds_key: str, creds):
         if creds_key not in self.creds_keys:
@@ -245,6 +263,7 @@ class LinkCreds(DeepLakeMemoryObject):
 
     def fetch_managed_creds(self, creds_key: str, verbose: bool = True):
         creds = self.client.get_managed_creds(self.org_id, creds_key)
+        print(creds)
         if verbose:
             logger.info(f"Loaded credentials '{creds_key}' from Activeloop platform.")
         return creds

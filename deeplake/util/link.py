@@ -6,22 +6,22 @@ from deeplake.util.keys import (
     get_dataset_linked_creds_lock_key,
 )
 from deeplake.util.remove_cache import get_base_storage
-from typing import Optional, Tuple
+from typing import Optional, Tuple, List
 
 
 def merge_link_creds(
     old_link_creds: LinkCreds,
     current_link_creds: LinkCreds,
-    replaced_index: Optional[int] = None,
+    replaced_indices: Optional[List[int]] = None,
     managed_info: Optional[Tuple] = None,
 ):
     num_common_keys = 0
-    if replaced_index is not None:
-        new_key = current_link_creds.creds_keys[replaced_index]
+    if replaced_indices is not None:
+        new_key = current_link_creds.creds_keys[replaced_indices[0]]
     for i, (key1, key2) in enumerate(
         zip(old_link_creds.creds_keys, current_link_creds.creds_keys)
     ):
-        if key1 == key2 or i == replaced_index:
+        if key1 == key2 or i in replaced_indices:
             num_common_keys += 1
         else:
             break
@@ -38,8 +38,8 @@ def merge_link_creds(
         if key not in current_link_creds.creds_mapping:
             managed = key in current_link_creds.managed_creds_keys
             current_link_creds.add_creds_key(key, managed)
-    if replaced_index is not None:
-        replaced_key = current_link_creds.creds_keys[replaced_index]
+    if replaced_indices is not None:
+        replaced_key = current_link_creds.creds_keys[replaced_indices[0]]
         current_link_creds.replace_creds(replaced_key, new_key)
     if managed_info is not None:
         is_managed = managed_info[0]
@@ -55,7 +55,7 @@ def merge_link_creds(
 def save_link_creds(
     current_link_creds: LinkCreds,
     storage: LRUCache,
-    replaced_index: Optional[int] = None,
+    replaced_indices: Optional[int] = None,
     managed_info: Optional[Tuple] = None,
 ):
     """Saves the linked creds info to storage."""
@@ -71,7 +71,7 @@ def save_link_creds(
     if data_bytes is not None:
         old_link_creds = LinkCreds.frombuffer(data_bytes)
         new_link_creds = merge_link_creds(
-            old_link_creds, current_link_creds, replaced_index, managed_info
+            old_link_creds, current_link_creds, replaced_indices, managed_info
         )
     else:
         new_link_creds = current_link_creds
