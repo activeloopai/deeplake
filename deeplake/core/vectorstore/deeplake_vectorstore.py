@@ -153,29 +153,34 @@ class DeepLakeVectorStore:
         Returns:
             Dict: Dictionary where keys are tensor names and values are the results of the search
         """
+
         exec_option = exec_option or self._exec_option
         if exec_option not in ("python", "compute_engine", "tensor_db"):
             raise ValueError(
                 "Invalid `exec_option` it should be either `python`, `compute_engine` or `tensor_db`."
             )
 
-        if embedding_function is None and embedding is None:
-            view, scores, indices = filter_utils.exact_text_search(self.dataset, prompt)
-        else:
-            query_emb = dataset_utils.get_embedding(
-                embedding,
-                prompt,
-                embedding_function=embedding_function,
-            )
+        self._parse_search_args(
+            prompt=prompt,
+            embedding_function=embedding_function,
+            embedding=embedding,
+            k=k,
+            distance_metric=distance_metric,
+            query=query,
+            exec_option=exec_option,
+            filter=filter,
+            embedding_tensor=embedding_tensor,
+        )
+
+        query_emb = dataset_utils.get_embedding(
+            embedding,
+            prompt,
+            embedding_function=embedding_function,
+        )
 
         runtime = utils.get_runtime_from_exec_option(exec_option)
 
         if exec_option == "python":
-            if query is not None:
-                raise NotImplementedError(
-                    f"User-specified TQL queries are not support for exec_option={exec_option} "
-                )
-
             view = filter_utils.attribute_based_filtering_python(self.dataset, filter)
 
             embeddings = dataset_utils.fetch_embeddings(
@@ -193,15 +198,6 @@ class DeepLakeVectorStore:
                 k=k,
             )
         else:
-            if type(filter) == Callable:
-                raise NotImplementedError(
-                    f"UDF filter function are not supported with exec_option={exec_option}"
-                )
-            if query and filter:
-                raise NotImplementedError(
-                    f"query and filter parameters cannot be specified simultaneously."
-                )
-
             utils.check_indra_installation(
                 exec_option, indra_installed=_INDRA_INSTALLED
             )
@@ -220,6 +216,37 @@ class DeepLakeVectorStore:
                 embedding_tensor=embedding_tensor,
                 runtime=runtime,
             )
+
+    def _parse_search_args(self, **kwargs):
+        if (
+            kwargs["prompt"] is None
+            and kwargs["query"] is None
+            and kwargs["filter"] is None
+        ):
+            raise NotImplementedError(
+                f"Ether a prompt, query, or filter must be specified."
+            )
+
+        if kwargs["embedding_function"] is None and kwargs["embedding"] is None:
+            raise NotImplementedError(
+                f"Ether an embedding or embedding_function must be specified."
+            )
+
+        exec_option = kwargs["exec_option"]
+        if exec_option == "python":
+            if kwargs["query"] is not None:
+                raise NotImplementedError(
+                    f"User-specified TQL queries are not support for exec_option={exec_option}."
+                )
+        else:
+            if type(kwargs["filter"]) == Callable:
+                raise NotImplementedError(
+                    f"UDF filter function are not supported with exec_option={exec_option}"
+                )
+            if kwargs["query"] and kwargs["filter"]:
+                raise NotImplementedError(
+                    f"query and filter parameters cannot be specified simultaneously."
+                )
 
     def delete(
         self,
