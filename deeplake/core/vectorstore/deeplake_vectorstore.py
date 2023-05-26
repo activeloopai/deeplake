@@ -140,9 +140,9 @@ class DeepLakeVectorStore:
                 - ``Dict`` - Key-value search on any tensor of htype json. Dict = {"tensor_name_1": {"key": value}, "tensor_name_2": {"key": value}}
                 - ``Function`` - Any function that is compatible with `deeplake.filter`.
             exec_option (str, optional): Type of query execution. It could be either "python", "compute_engine" or "tensor_db". Defaults to "python".
-                - ``python`` - runs on the client and can be used for any data stored anywhere. WARNING: using this option with big datasets is discouraged, because it can lead to some memory issues.
-                - ``compute_engine`` - runs on the client and can be used for any data stored in or connected to Deep Lake.
-                - ``tensor_db`` - runs on the Deep Lake Managed Tensor Database and can be used for any data stored in the Managed Tensor Database.
+                - ``python`` - Pure-python implementation that runs on the client and can be used for data stored anywhere. WARNING: using this option with big datasets is discouraged because it can lead to memory issues.
+                - ``compute_engine`` - Performant C++ implementation of the Deep Lake Compute Engine that runs on the client and can be used for any data stored in or connected to Deep Lake. It cannot be used with in-memory or local datasets.
+                - ``tensor_db`` - Performant and fully-hosted Managed Tensor Database that is responsible for storage and query execution. Only available for data stored in the Deep Lake Managed Database. Store datasets in this database by specifying runtime = {"db_engine": True} during dataset creation.
             embedding_tensor (str): Name of tensor with embeddings. Defaults to "embedding".
 
 

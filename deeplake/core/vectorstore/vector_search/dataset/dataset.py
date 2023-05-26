@@ -207,11 +207,6 @@ def delete_all_samples_if_specified(dataset, delete_all):
 
 
 def fetch_embeddings(exec_option, view, logger, embedding_tensor: str = "embedding"):
-    logger.warning(
-        "Python implementation fetches all of the dataset's embedding into memory. "
-        "With big datasets this could be quite slow and potentially result in performance issues. "
-        "Use `exec_option = 'tensor_db'` for better performance."
-    )
     return view[embedding_tensor].numpy()
 
 
