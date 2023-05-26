@@ -109,20 +109,20 @@ class LinkCreds(DeepLakeMemoryObject):
         if managed:
             self.managed_creds_keys.add(creds_key)
             self.populate_creds(creds_key, creds)
-    
+
     def _replace_with_existing_creds(self, old_creds_key: str, new_creds_key: str):
         replaced_indices = []
         for i in range(len(self.creds_keys)):
             if self.creds_keys[i] == old_creds_key:
                 self.creds_keys[i] = new_creds_key
                 replaced_indices.append(i)
-        
+
         self.creds_dict.pop(old_creds_key, None)
         self.creds_mapping.pop(old_creds_key, None)
 
         self.managed_creds_keys.discard(old_creds_key)
         self.used_creds_keys.discard(old_creds_key)
-        
+
         self.storage_providers.pop(old_creds_key, None)
 
         return replaced_indices

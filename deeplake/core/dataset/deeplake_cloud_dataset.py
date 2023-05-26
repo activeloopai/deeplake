@@ -328,7 +328,11 @@ class DeepLakeCloudDataset(Dataset):
         if new_creds_key is not None and new_creds_key != creds_key:
             if new_creds_key in self.link_creds.creds_keys:
                 new_creds_managed = new_creds_key in self.link_creds.managed_creds_keys
-                old_creds_managed = managed if managed is not None else (creds_key in self.link_creds.managed_creds_keys)
+                old_creds_managed = (
+                    managed
+                    if managed is not None
+                    else (creds_key in self.link_creds.managed_creds_keys)
+                )
                 if new_creds_managed != old_creds_managed:
                     raise ValueError(
                         f"{new_creds_key} is already present in the dataset with a different management status."
