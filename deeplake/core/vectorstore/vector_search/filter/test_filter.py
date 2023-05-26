@@ -96,7 +96,7 @@ def test_get_converted_ids():
     view.ids.extend(["ac", "bs", "cd"])
 
     ids = ["cd"]
-    filter = {"se": 3}
+    filter = {"metadata": {"se": 3}}
 
     with pytest.raises(ValueError):
         ids = filter_utils.get_converted_ids(view, filter, ids)
