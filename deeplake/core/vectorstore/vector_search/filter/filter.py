@@ -31,8 +31,6 @@ def attribute_based_filtering_python(
             filter = partial(dp_filter_python, filter=filter)
 
         view = view.filter(filter)
-        # if len(view) == 0:
-        #     raise ValueError(f"No data was found for {filter} metadata.")
 
     return view
 
@@ -40,7 +38,6 @@ def attribute_based_filtering_python(
 def attribute_based_filtering_tql(view, filter: Optional[Dict] = None):
     tql_filter = ""
 
-    print(len(view))
     if filter is not None:
         if isinstance(filter, dict):
             for tensor in filter.keys():
@@ -48,22 +45,7 @@ def attribute_based_filtering_tql(view, filter: Optional[Dict] = None):
                     val_str = f"'{value}'" if type(value) == str else f"{value}"
                     tql_filter += f"{tensor}['{key}'] == {val_str} and "
             tql_filter = tql_filter[:-5]
-    print(len(view))
     return view, tql_filter
-
-
-# def filtering_exception(filter, exec_option):
-#     if exec_option in ("compute_engine", "tensor_db") and filter is not None:
-#         case_specific_exception = ""
-#         if "tensor_db":
-#             case_specific_exception += "To run filtering set `remote_db=False`."
-#         else:
-#             case_specific_exception += (
-#                 """To run filtering set `exec_option="python"`."""
-#             )
-#         raise NotImplementedError(
-#             f"Filtering data is only supported for python implementations. {case_specific_exception}"
-#         )
 
 
 def exact_text_search(view, query):
