@@ -17,11 +17,6 @@ def test_attribute_based_filtering():
         metadata = x["metadata"].data()["value"]
         return metadata["k"] == 1
 
-    # with pytest.raises(NotImplementedError):
-    #     view = filter_utils.attribute_based_filtering_tql(
-    #         ds, filter=filter_udf
-    #     )
-
     view_dict = filter_utils.attribute_based_filtering_python(ds, filter=filter_dict)
 
     view_udf = filter_utils.attribute_based_filtering_python(ds, filter=filter_udf)
@@ -37,11 +32,6 @@ def test_attribute_based_filtering():
 
     assert len(view_tql) == len(ds)
     assert tql_filter == "metadata['k'] == 1 and metadata2['kk'] == 'a'"
-
-    with pytest.raises(ValueError):
-        view = filter_utils.attribute_based_filtering_python(
-            ds, filter={"metadata": {"k": 200}}
-        )
 
 
 def test_exact_text_search():

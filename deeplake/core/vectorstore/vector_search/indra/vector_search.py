@@ -34,7 +34,7 @@ def vector_search(
     from indra import api  # type: ignore
 
     tql_query = query.parse_query(
-        distance_metric, k, tql_filter, query_embedding, embedding_tensor
+        distance_metric, k, query_embedding, embedding_tensor, tql_filter
     )
 
     return_indices_and_scores = True if runtime else False

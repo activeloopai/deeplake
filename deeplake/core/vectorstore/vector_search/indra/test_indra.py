@@ -57,5 +57,7 @@ def test_tql_metric_to_tql_str(metric, limit=10):
     query_embedding = np.array([[1, 2, 3, 4, 5, 6, 7, 8]], dtype=np.float32)
     embedding_tensor = "embedding"
 
-    parsed_query = query.parse_query(metric, limit, query_embedding, embedding_tensor)
+    parsed_query = query.parse_query(
+        metric, limit, query_embedding, embedding_tensor, ""
+    )
     assert parsed_query == METRIC_FUNC_TO_QUERY_STRING[metric]

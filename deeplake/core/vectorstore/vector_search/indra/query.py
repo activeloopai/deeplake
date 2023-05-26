@@ -26,9 +26,9 @@ def create_query_string(
 
 def create_query(
     distance_metric: str,
-    tql_filter: str,
     embeddings: str,
     query_embedding: str,
+    tql_filter: str,
     limit: int,
 ):
     """Function for creating a query string from a distance metric, embeddings, query_embedding, and limit.
@@ -77,9 +77,9 @@ def convert_tensor_to_str(query_embedding: np.ndarray):
 def parse_query(
     distance_metric: str,
     limit: int,
-    tql_filter: str,
     query_embedding: np.ndarray,
     embedding_tensor: str,
+    tql_filter: str,
 ) -> str:
     """Function for converting query_embedding into tql query.
 
@@ -94,6 +94,6 @@ def parse_query(
     """
     query_embedding_str = convert_tensor_to_str(query_embedding)
     tql_query = create_query(
-        distance_metric, tql_filter, embedding_tensor, query_embedding_str, limit
+        distance_metric, embedding_tensor, query_embedding_str, tql_filter, limit
     )
     return tql_query
