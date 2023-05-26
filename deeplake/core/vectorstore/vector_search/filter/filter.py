@@ -12,7 +12,8 @@ from typing import Optional, Any, Iterable, List, Dict, Callable, Union
 
 def dp_filter_python(x: dict, filter: Dict) -> bool:
     """Filter helper function for Deep Lake"""
-    result = [1] * len(x)
+
+    result = True
 
     for tensor in filter.keys():
         metadata = x[tensor].data()["value"]
