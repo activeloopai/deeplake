@@ -1,7 +1,7 @@
 import deeplake
 from deeplake.constants import (
     DEFAULT_VECTORSTORE_DEEPLAKE_PATH,
-    VECTORSTORE_INGESTION_THRESHOLD,
+    DEFAULT_VECTORSTORE_TENSORS,
 )
 from deeplake.core.dataset import Dataset as DeepLakeDataset
 from deeplake.core.vectorstore.vector_search import utils
