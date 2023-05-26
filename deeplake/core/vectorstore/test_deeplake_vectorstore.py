@@ -23,12 +23,14 @@ def embedding_fn(text, embedding_dim=100):
 @requires_libdeeplake
 @pytest.mark.parametrize("distance_metric", ["L1", "L2", "COS", "MAX", "DOT"])
 def test_search(distance_metric, hub_cloud_dev_token):
-    query_embedding = np.random.randint(0, 255, (1, embedding_dim))
+    query_embedding = np.random.uniform(low=-10, high=10, size=(embedding_dim)).astype(
+        np.float32
+    )
+
     # initialize vector store object:
     vector_store = DeepLakeVectorStore(
-        dataset_path="./deeplake_vector_store",
+        dataset_path="/Users/istranic/ActiveloopCode/Datasets/Debug/vs_tests",
         overwrite=True,
-        token=hub_cloud_dev_token,
     )
 
     # add data to the dataset:
@@ -48,14 +50,7 @@ def test_search(distance_metric, hub_cloud_dev_token):
         embedding=query_embedding, exec_option="python", distance_metric=distance_metric
     )
 
-    # use indra implementation to search the data
-    data_ce = vector_store.search(
-        embedding=query_embedding,
-        exec_option="compute_engine",
-        distance_metric=distance_metric,
-    )
-    np.testing.assert_almost_equal(data_p["score"], data_ce["score"])
-    np.testing.assert_almost_equal(data_p["text"], data_ce["text"])
+    # Add assertion about keys
 
     # initialize vector store object:
     vector_store = DeepLakeVectorStore(
@@ -64,11 +59,16 @@ def test_search(distance_metric, hub_cloud_dev_token):
         token=hub_cloud_dev_token,
     )
 
+    vector_store.add(embeddings=embeddings, texts=texts)
+
+    # use indra implementation to search the data
     data_ce = vector_store.search(
         embedding=query_embedding,
         exec_option="compute_engine",
         distance_metric=distance_metric,
     )
+    np.testing.assert_almost_equal(data_p["score"], data_ce["score"])
+    np.testing.assert_almost_equal(data_p["text"], data_ce["text"])
 
     data_db = vector_store.search(
         embedding=query_embedding,

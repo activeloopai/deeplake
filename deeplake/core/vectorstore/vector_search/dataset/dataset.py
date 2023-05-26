@@ -140,6 +140,7 @@ def warn_and_create_missing_tensor(dataset, tensor_name, logger, **kwargs):
         f"tensor into `{tensor_name}` tensor and deleting if afterwards. To view dataset content "
         "run ds.summary()"
     )
+
     dataset.create_tensor(
         tensor_name,
         **kwargs,
@@ -243,9 +244,9 @@ def preprocess_tensors(ids, texts, metadatas, embeddings):
 
     processed_tensors = {
         "ids": ids,
-        "texts": texts,
-        "metadatas": metadatas,
-        "embeddings": embeddings,
+        "text": texts,
+        "metadata": metadatas,
+        "embedding": embeddings,
     }
 
     return processed_tensors, ids
