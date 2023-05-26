@@ -36,17 +36,18 @@ def test_search(distance_metric, hub_cloud_dev_token):
     vector_store.add(embeddings=embeddings, texts=texts)
 
     # use python implementation to search the data
-    python_view, python_indices, python_scores = vector_store.search(
-        embedding=query_embedding, exec_option="python"
+    data_p = vector_store.search(
+        embedding=query_embedding, exec_option="python", distance_metric=distance_metric
     )
 
     # use indra implementation to search the data
-    indra_view, indra_indices, indra_scores = vector_store.search(
-        embedding=query_embedding, exec_option="compute_engine"
+    data_ce = vector_store.search(
+        embedding=query_embedding,
+        exec_option="compute_engine",
+        distance_metric=distance_metric,
     )
-
-    np.testing.assert_almost_equal(python_indices, indra_indices)
-    np.testing.assert_almost_equal(python_scores, indra_scores)
+    np.testing.assert_almost_equal(data_p["score"], data_ce["score"])
+    np.testing.assert_almost_equal(data_p["text"], data_ce["text"])
 
     # initialize vector store object:
     vector_store = DeepLakeVectorStore(
@@ -55,23 +56,34 @@ def test_search(distance_metric, hub_cloud_dev_token):
         token=hub_cloud_dev_token,
     )
 
-    tensor_db_view, tensor_db_indices, tensor_db_scores = vector_store.search(
-        embedding=query_embedding, exec_option="compute_engine"
+    data_ce = vector_store.search(
+        embedding=query_embedding,
+        exec_option="compute_engine",
+        distance_metric=distance_metric,
     )
 
-    tensor_db_view, tensor_db_indices, tensor_db_scores = vector_store.search(
-        embedding=query_embedding, exec_option="tensor_db"
+    data_db = vector_store.search(
+        embedding=query_embedding,
+        exec_option="tensor_db",
+        distance_metric=distance_metric,
     )
-    np.testing.assert_almost_equal(python_scores, tensor_db_scores)
 
-    view, indices, scores = vector_store.search(query=texts[0])
-    assert len(view) == 1
-    assert indices == [0]
+    np.testing.assert_almost_equal(data_ce["score"], data_db["score"])
+    np.testing.assert_almost_equal(data_ce["text"], data_db["text"])
+
+    data_q = vector_store.search(
+        query=f"select * where text == {texts[0]}", exec_option="compute_engine"
+    )
+    assert len(data_q["text"]) == 1
+    assert data_q["text"] == texts[0]
 
     with pytest.raises(ValueError):
-        tensor_db_view, tensor_db_indices, tensor_db_scores = vector_store.search(
-            embedding=query_embedding, exec_option="remote_tensor_db"
-        )
+        vector_store.search(embedding=query_embedding, exec_option="remote_tensor_db")
+    with pytest.raises(ValueError):
+        vector_store.search()
+
+    with pytest.raises(ValueError):
+        vector_store.search(query="dummy", exec_option="python")
 
 
 def test_delete():

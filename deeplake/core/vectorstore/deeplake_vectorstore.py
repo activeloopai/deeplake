@@ -218,33 +218,36 @@ class DeepLakeVectorStore:
             )
 
     def _parse_search_args(self, **kwargs):
+        """Helper function for raising errors if invalid parameters are specified to search"""
         if (
             kwargs["prompt"] is None
             and kwargs["query"] is None
             and kwargs["filter"] is None
         ):
-            raise NotImplementedError(
-                f"Ether a prompt, query, or filter must be specified."
-            )
+            raise ValueError(f"Ether a prompt, query, or filter must be specified.")
 
         if kwargs["embedding_function"] is None and kwargs["embedding"] is None:
-            raise NotImplementedError(
+            raise ValueError(
                 f"Ether an embedding or embedding_function must be specified."
             )
 
         exec_option = kwargs["exec_option"]
         if exec_option == "python":
             if kwargs["query"] is not None:
-                raise NotImplementedError(
+                raise ValueError(
                     f"User-specified TQL queries are not support for exec_option={exec_option}."
+                )
+            if kwargs["query"] is not None:
+                raise ValueError(
+                    f"query parameter for directly running TQL is invalid for exec_option={exec_option}."
                 )
         else:
             if type(kwargs["filter"]) == Callable:
-                raise NotImplementedError(
+                raise ValueError(
                     f"UDF filter function are not supported with exec_option={exec_option}"
                 )
             if kwargs["query"] and kwargs["filter"]:
-                raise NotImplementedError(
+                raise ValueError(
                     f"query and filter parameters cannot be specified simultaneously."
                 )
 
