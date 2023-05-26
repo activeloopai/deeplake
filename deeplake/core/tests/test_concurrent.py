@@ -8,8 +8,10 @@ from concurrent.futures import ProcessPoolExecutor
 
 ds_path = "concurrent_test_ds/"
 
+
 def rand_images():
     return np.random.randint(0, 255, size=(10, 256, 256, 3), dtype=np.uint8)
+
 
 def rand_labels():
     return np.random.randint(0, 10, size=(10,), dtype=np.uint8)
@@ -17,6 +19,7 @@ def rand_labels():
 
 def worker(worker_id: int):
     import time
+
     # time.sleep(worker_id / 10)
     ds = deeplake.load(ds_path)
     print(f"Hello from worker {worker_id}!")
@@ -25,6 +28,7 @@ def worker(worker_id: int):
             ds.images.extend(rand_images())
             ds.labels.extend(rand_labels())
         return len(ds)
+
 
 def test_concurrent():
     ds = deeplake.empty(ds_path, overwrite=True)

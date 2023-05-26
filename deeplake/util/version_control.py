@@ -845,7 +845,9 @@ def convert_to_bytes(inp):
     return inp.tobytes() if isinstance(inp, DeepLakeMemoryObject) else inp
 
 
-def delete_branch(version_state: Dict[str, Any], storage: LRUCache, branch: str) -> None:
+def delete_branch(
+    version_state: Dict[str, Any], storage: LRUCache, branch: str
+) -> None:
     # TODO fix concurrent deletion
     if branch == "main":
         raise ValueError("Cannot delete main branch.")

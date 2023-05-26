@@ -2479,7 +2479,12 @@ class Dataset:
             List of branches.
         """
         # TODO: remove this filter after fixing concurrent branch deletetion
-        return list(filter(lambda b: not b.startswith("_concurrent_"), self.version_state["branch_commit_map"]))
+        return list(
+            filter(
+                lambda b: not b.startswith("_concurrent_"),
+                self.version_state["branch_commit_map"],
+            )
+        )
 
     @property
     def commits(self) -> List[Dict]:
@@ -4243,8 +4248,7 @@ class Dataset:
         delete_branch(self.version_state, self.storage, branch)
 
     def concurrent(self):
-        """Initialize concurrent writes
-        """
+        """Initialize concurrent writes"""
         if self.commit_id is None:
             raise ValueError(
                 "Dataset must be committed from master process before writing to it concurrently."
@@ -4261,6 +4265,7 @@ class Dataset:
 
         class _ConcurrentWriteContext:
             __slots__ = ["ds"]
+
             def __init__(self, ds):
                 self.ds = ds
 
@@ -4290,14 +4295,16 @@ class Dataset:
     def join(self):
         self._concurrent_push()
         # TODO: Concurrent branch deletion
-        self.delete_branch(self._concurrent_branch,_ignore_concurrent_mode_check=True)
+        self.delete_branch(self._concurrent_branch, _ignore_concurrent_mode_check=True)
         self._concurrent_mode = False
 
     def _concurrent_push(self):
         lock = Lock(self.base_storage, VERSION_CONTROL_INFO_LOCK_FILENAME)
         lock.acquire()
         try:
-            self.checkout(self._concurrent_original_branch, _ignore_concurrent_mode_check=True)
+            self.checkout(
+                self._concurrent_original_branch, _ignore_concurrent_mode_check=True
+            )
             self.merge(self._concurrent_branch, _ignore_concurrent_mode_check=True)
         finally:
             lock.release()
@@ -4306,6 +4313,8 @@ class Dataset:
         lock = Lock(ds.base_storage, VERSION_CONTROL_INFO_LOCK_FILENAME)
         lock.acquire()
         try:
-            self.merge(self._concurrent_original_branch, _ignore_concurrent_mode_check=True)
+            self.merge(
+                self._concurrent_original_branch, _ignore_concurrent_mode_check=True
+            )
         finally:
             lock.release()
