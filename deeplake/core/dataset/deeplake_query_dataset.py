@@ -272,7 +272,11 @@ class DeepLakeQueryDataset(Dataset):
         }
         original_keys = set(original_tensors.keys())
         for t in indra_tensors:
-            if not t.name in original_keys:
+            if t.name in original_keys:
+                original_tensors[t.name] = DeepLakeQueryTensor(
+                    original_tensors[t.name], t
+                )
+            else:
                 original_tensors[t.name] = DeepLakeQueryTensor(None, t)
         return original_tensors
 

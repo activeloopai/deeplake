@@ -144,6 +144,7 @@ def test_query(hub_cloud_ds_generator):
 
     view = deeplake_indra_ds.query("SELECT * GROUP BY label")
     assert len(view) == 10
+    assert view.label.shape == view.tensors["label"].shape
     for i in range(len(view)):
         arr = view.label[i].numpy()
         assert len(arr) == 10
@@ -314,8 +315,8 @@ def test_virtual_tensors(hub_cloud_ds_generator):
         "num_labels",
     ]
     assert deeplake_indra_ds.text[0].data() == {"value": "Hello 0"}
-    deeplake_indra_ds.json[0].data() == {"value": '{"key": "val"}'}
-    deeplake_ds.json[0].data() == {"value": '{"key": "val"}'}
+    assert deeplake_indra_ds.json[0].data() == {"value": '{"key": "val"}'}
+    assert deeplake_ds.json[0].data() == {"value": '{"key": "val"}'}
 
     deeplake_indra_ds = deeplake_ds.query(
         "SELECT l2_norm(embeddings - ARRAY[0, 0, 0]) as score order by l2_norm(embeddings - ARRAY[0, 0, 0]) asc"
