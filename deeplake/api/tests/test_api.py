@@ -248,6 +248,43 @@ def test_summary(memory_ds):
     )
 
 
+def test_log(memory_ds, capsys):
+    with memory_ds as ds:
+        ds.create_tensor("abc")
+        ds.abc.extend([1, 2, 3, 4])
+
+        header = "---------------\nDeep Lake Version Log\n---------------\n\n"
+        current_branch = "Current Branch: main\n"
+        uncommitted_changes = "** There are uncommitted changes on this branch.\n"
+
+        log = header + current_branch + uncommitted_changes
+        ds.log()
+        captured = capsys.readouterr().out
+        assert captured.strip() == log.strip()
+
+        ds.commit("init")
+        ds.checkout("alt", create=True)
+        commit1 = "\n" + str(ds.version_state["commit_node"].parent) + "\n"
+        current_branch = "Current Branch: alt\n"
+        log = header + current_branch + commit1
+        ds.log()
+        captured = capsys.readouterr().out
+        assert captured.strip() == log.strip()
+
+        ds.abc.extend([5, 6, 7, 8])
+        log = header + current_branch + uncommitted_changes + commit1
+        ds.log()
+        captured = capsys.readouterr().out
+        assert captured.strip() == log.strip()
+
+        ds.commit("update")
+        commit2 = "\n" + str(ds.version_state["commit_node"].parent) + "\n"
+        log = header + current_branch + commit2 + commit1
+        ds.log()
+        captured = capsys.readouterr().out
+        assert captured.strip() == log.strip()
+
+
 def test_stringify_with_path(local_ds, capsys):
     ds = local_ds
     assert local_ds.path
@@ -2457,6 +2494,22 @@ def test_sequence_numpy_bug(memory_ds):
             ds.abc.numpy()
 
         assert ds.abc.numpy(aslist=True) == [[1, 2], [1, 2, 3], [1, 2, 3, 4]]
+
+
+def test_tensor_dtype_bug(local_path):
+    from nibabel.testing import data_path
+
+    with deeplake.empty(local_path, overwrite=True) as ds:
+        ds.create_tensor("abc", htype="link[nifti]", sample_compression="nii.gz")
+        ds.abc.append(deeplake.link(f"{data_path}/standard.nii.gz"))
+
+    assert ds.abc[0].numpy().shape == (4, 5, 7)
+    assert ds.abc.dtype == np.dtype("<U1")
+
+    ds2 = ds.copy(f"{local_path}_2", overwrite=True)
+
+    assert ds2.abc[0].numpy().shape == (4, 5, 7)
+    assert ds2.abc.dtype == np.dtype("<U1")
 
 
 def test_iterate_with_groups(memory_ds):

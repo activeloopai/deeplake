@@ -33,6 +33,7 @@ class TensorMeta(Meta):
     name: Optional[str] = None
     htype: str
     dtype: str
+    typestr: str
     min_shape: List[int]
     max_shape: List[int]
     length: int
@@ -98,6 +99,7 @@ class TensorMeta(Meta):
             )
 
         self.dtype = dtype.name
+        self.typestr = dtype.str
         self.is_dirty = True
 
     def set_dtype_str(self, dtype_name: str):
