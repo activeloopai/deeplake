@@ -691,7 +691,9 @@ class ChunkEngine:
         if tensor_meta.htype is None and not all_empty:
             tensor_meta.set_htype(get_htype(samples))
         if tensor_meta.dtype is None and not all_empty:
-            tensor_meta.set_dtype(get_dtype(samples[0]))
+            tensor_meta.set_dtype(
+                get_dtype(next(filter(lambda x: x is not None, samples)))
+            )  # first non empty sample
         if self._convert_to_list(samples):
             samples = list(samples)
         if self._is_temp_label_tensor:
