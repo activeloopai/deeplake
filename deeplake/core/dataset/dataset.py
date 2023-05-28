@@ -29,6 +29,7 @@ from deeplake.util.iteration_warning import (
     suppress_iteration_warning,
     check_if_iteration,
 )
+from deeplake.util.tensor_db import parse_runtime_parameters
 from deeplake.api.info import load_info
 from deeplake.client.log import logger
 from deeplake.client.utils import get_user_name
@@ -2094,7 +2095,7 @@ class Dataset:
         self,
         query_string: str,
         runtime: Optional[Dict] = None,
-        return_indices_and_scores: bool = False,
+        return_data: bool = False,
     ):
         """Returns a sliced :class:`~deeplake.core.dataset.Dataset` with given query results. To use this, install deeplake with ``pip install deeplake[enterprise]``.
 
@@ -2104,11 +2105,11 @@ class Dataset:
 
         Args:
             query_string (str): An SQL string adjusted with new functionalities to run on the given :class:`~deeplake.core.dataset.Dataset` object
-            runtime (Optional[Dict]): whether to run query on a remote engine
-            return_indices_and_scores (bool): by default False. Whether to return indices and scores.
+            runtime (Optional[Dict]): Runtime parameters for query execution. Supported keys: {"tensor_db": True or False}.
+            return_data (bool): by default False. Whether to return raw data along the view.
 
         Raises:
-            ValueError: if return_indices_and_scores is True and runtime is not {"db_engine": true}
+            ValueError: if return_data is True and runtime is not {"tensor_db": true}
 
         Returns:
             Dataset: A :class:`~deeplake.core.dataset.Dataset` object.
@@ -2127,17 +2128,23 @@ class Dataset:
             >>> query_ds_train = ds_train.query("(select * where contains(categories, 'car') limit 1000) union (select * where contains(categories, 'motorcycle') limit 1000)")
 
         """
-        if runtime is not None and runtime.get("db_engine", False):
+        runtime = parse_runtime_parameters(self.path, runtime)
+        if runtime["tensor_db"]:
             client = DeepLakeBackendClient(token=self._token)
             org_id, ds_name = self.path[6:].split("/")
-            indices, scores = client.remote_query(org_id, ds_name, query_string)
-            if return_indices_and_scores:
-                return indices, scores
-            return self[indices]
+            response = client.remote_query(org_id, ds_name, query_string)
+            indices = response["indices"]
+            view = self[indices]
 
-        if return_indices_and_scores:
+            if return_data:
+                data = response["data"]
+                return view, data
+
+            return view
+
+        if return_data:
             raise ValueError(
-                "return_indices_and_scores is not supported. Please add `runtime = {'db_engine': True}` if you want to return indices and scores"
+                "return_data is not supported. Please add `runtime = {'tensor_db': True}` if you want to return indices and scores"
             )
 
         from deeplake.enterprise import query

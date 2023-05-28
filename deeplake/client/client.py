@@ -492,7 +492,7 @@ class DeepLakeBackendClient:
 
     def remote_query(
         self, org_id: str, ds_name: str, query_string: str
-    ) -> Tuple[Any, Any]:
+    ) -> dict[str, Any]:
         """Queries a remote dataset.
 
         Args:
@@ -501,7 +501,7 @@ class DeepLakeBackendClient:
             query_string (str): The query string.
 
         Returns:
-            Tuple[Any, Any]: The indices and scores matching the query.
+            Dict[str, Any]: The json response containing matching indicies and data from virtual tensors.
         """
         response = self.request(
             "POST",
@@ -510,11 +510,4 @@ class DeepLakeBackendClient:
             endpoint=self.endpoint(),
         ).json()
 
-        indices = response["indices"]
-        if len(indices) == 0:
-            return [], []
-
-        scores = response.get("score")
-
-        indices = [int(i) for i in indices.split(",")]
-        return indices, scores
+        return response

@@ -27,6 +27,7 @@ from deeplake.util.path import (
     verify_dataset_name,
     process_dataset_path,
 )
+from deeplake.util.tensor_db import parse_runtime_parameters
 from deeplake.hooks import (
     dataset_created,
     dataset_loaded,
@@ -195,7 +196,7 @@ class dataset:
         if creds is None:
             creds = {}
 
-        db_engine = (runtime or {}).get("db_engine", {})
+        db_engine = parse_runtime_parameters(path, runtime, verbose)["tensor_db"]
 
         try:
             storage, cache_chain = get_storage_and_cache_chain(
@@ -377,7 +378,7 @@ class dataset:
             Setting ``overwrite`` to ``True`` will delete all of your data if it exists! Be very careful when setting this parameter.
         """
         path, address = process_dataset_path(path)
-        db_engine = (runtime or {}).get("db_engine", False)
+        db_engine = parse_runtime_parameters(path, runtime, verbose)["tensor_db"]
 
         if address:
             raise ValueError(
@@ -1091,7 +1092,7 @@ class dataset:
             )
         src_storage = get_base_storage(src_ds.storage)
 
-        db_engine = (runtime or {}).get("db_engine", False)
+        db_engine = parse_runtime_parameters(dest, runtime, verbose)["tensor_db"]
         dest_storage, cache_chain = get_storage_and_cache_chain(
             dest,
             db_engine=db_engine,
