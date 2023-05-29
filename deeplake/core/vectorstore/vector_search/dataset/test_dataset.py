@@ -5,17 +5,26 @@ import numpy as np
 
 import deeplake
 from deeplake.core.vectorstore.vector_search import dataset as dataset_utils
-from deeplake.constants import DEFAULT_VECTORSTORE_DEEPLAKE_PATH
+from deeplake.constants import DEFAULT_VECTORSTORE_DEEPLAKE_PATH, DEFAULT_VECTORSTORE_TENSORS
 from deeplake.tests.common import requires_libdeeplake
 
 
 logger = logging.getLogger(__name__)
 
 
+class Embedding:
+    model = "random_model"
+    deployment = "deployment"
+        
+    def embed_documents(text, embedding_dim=100):
+        return np.zeros((len(text), embedding_dim))
+
+
 @requires_libdeeplake
 def test_create(caplog, hub_cloud_dev_token):
     # dataset creation
     dataset = dataset_utils.create_or_load_dataset(
+        tensors_dict=DEFAULT_VECTORSTORE_TENSORS,
         dataset_path="./test-dataset",
         token=None,
         creds={},
@@ -23,6 +32,7 @@ def test_create(caplog, hub_cloud_dev_token):
         read_only=False,
         exec_option="compute_engine",
         overwrite=True,
+        embedding_function=Embedding,
     )
     assert len(dataset) == 0
     assert set(dataset.tensors.keys()) == {
@@ -31,8 +41,16 @@ def test_create(caplog, hub_cloud_dev_token):
         "metadata",
         "text",
     }
+    assert dataset.embedding.info["embedding"] == {
+        "model": "random_model",
+        "deployment": "deployment",
+        'embedding_ctx_length': None,
+        'chunk_size': None,
+        'max_retries': None,
+    }
 
     dataset = dataset_utils.create_or_load_dataset(
+        tensors_dict=DEFAULT_VECTORSTORE_TENSORS,
         dataset_path="hub://testingacc2/vectorstore_dbengine",
         token=hub_cloud_dev_token,
         creds={},
@@ -40,6 +58,7 @@ def test_create(caplog, hub_cloud_dev_token):
         read_only=False,
         exec_option="tensor_db",
         overwrite=True,
+        embedding_function=Embedding,
     )
     assert len(dataset) == 0
     assert set(dataset.tensors.keys()) == {
@@ -48,11 +67,19 @@ def test_create(caplog, hub_cloud_dev_token):
         "metadata",
         "text",
     }
+    assert dataset.embedding.info["embedding"] == {
+        "model": "random_model",
+        "deployment": "deployment",
+        'embedding_ctx_length': None,
+        'chunk_size': None,
+        'max_retries': None,
+    }
 
 
 def test_load(caplog, hub_cloud_dev_token):
     # dataset loading
     dataset = dataset_utils.create_or_load_dataset(
+        tensors_dict=DEFAULT_VECTORSTORE_TENSORS,
         dataset_path="hub://testingacc2/vectorstore_test",
         creds={},
         logger=logger,
@@ -60,6 +87,7 @@ def test_load(caplog, hub_cloud_dev_token):
         overwrite=False,
         read_only=True,
         token=hub_cloud_dev_token,
+        embedding_function=None,
     )
     assert dataset.max_len == 10
 
@@ -69,12 +97,14 @@ def test_load(caplog, hub_cloud_dev_token):
     with caplog.at_level(logging.WARNING, logger="test_logger"):
         # dataset loading
         dataset = dataset_utils.create_or_load_dataset(
+            tensors_dict=DEFAULT_VECTORSTORE_TENSORS,
             dataset_path=DEFAULT_VECTORSTORE_DEEPLAKE_PATH,
             token=None,
             creds={},
             logger=test_logger,
             read_only=False,
             exec_option="python",
+            embedding_function=None,
         )
         assert (
             f"The default deeplake path location is used: {DEFAULT_VECTORSTORE_DEEPLAKE_PATH}"
@@ -84,7 +114,7 @@ def test_load(caplog, hub_cloud_dev_token):
         tensors = ["text", "embedding", "ids", "metadata"]
         for tensor in tensors:
             assert (
-                f"`{tensor}` tensor does not exist in the dataset. If you created dataset manually "
+                f"Creating `{tensor}` tensor since it does not exist in the dataset. If you created dataset manually "
                 "and stored text data in another tensor, consider copying the contents of that "
                 f"tensor into `{tensor}` tensor and deleting if afterwards. To view dataset content "
                 "run ds.summary()" in caplog.text
@@ -136,6 +166,49 @@ def test_fetch_embeddings():
     assert embedings is None
 
 
+def test_create_tensor_if_needed(caplog):
+    tensors_dict = DEFAULT_VECTORSTORE_TENSORS
+    tensors_dict[2]["name"] = "new_embeding"
+    
+    deeplake_dataset = deeplake.empty("mem://xyz")
+    deeplake_dataset.create_tensor("image_embeddings", htype="embedding")
+    deeplake_dataset.create_tensor("video_embeddings", htype="embedding")
+    
+    test_logger = logging.getLogger("test_logger")
+    with caplog.at_level(logging.WARNING, logger="test_logger"):
+        dataset_utils.create_tensors_if_needed(tensors_dict, deeplake_dataset, test_logger, Embedding)
+        
+        tensors = set(deeplake_dataset.tensors)
+        assert tensors == {"image_embeddings", "video_embeddings", "text", "metadata", "new_embeding", "ids"}
+        assert deeplake_dataset.image_embeddings.info["embedding"] == {
+            "model": "random_model",
+            "deployment": "deployment",
+            'embedding_ctx_length': None,
+            'chunk_size': None,
+            'max_retries': None,
+        }
+        
+        captured_records = caplog.records
+        
+        for tensor in tensors_dict:
+            warning = (
+                f"Creating `{tensor['name']}` tensor since it does not exist in the dataset. If you created dataset manually "
+                "and stored text data in another tensor, consider copying the contents of that "
+                f"tensor into `{tensor['name']}` tensor and deleting if afterwards. To view dataset content "
+                "run ds.summary()"
+            )
+            
+            assert warning in caplog.text
+        
+        warning = (
+            f"3 tensors with `embedding` htype were found. "
+            f"They are: `image_embeddings`, `video_embeddings`, `new_embeding`. Embedding function info will be appended to "
+            f"`image_embeddings`. If you want to update other embedding tensor's information "
+            "consider doing that manually. Example: `dataset.tensor['info'] = info_dictionary`"
+        )
+        assert warning in caplog.text
+        
+
 def test_get_embedding():
     def embedding_function(arr):
         return np.array([0.5, 0.6, 4, 3, 5], dtype=np.float64)
@@ -173,9 +246,9 @@ def test_preprocess_tensors():
     )
 
     assert len(processed_tensors["ids"]) == 4
-    assert processed_tensors["texts"] == texts
-    assert processed_tensors["metadatas"] == [{}, {}, {}, {}]
-    assert processed_tensors["embeddings"] == [None, None, None, None]
+    assert processed_tensors["text"] == texts
+    assert processed_tensors["metadata"] == [{}, {}, {}, {}]
+    assert processed_tensors["embedding"] == [None, None, None, None]
 
     texts = ("a", "b", "c", "d")
     ids = np.array([1, 2, 3, 4])
@@ -185,9 +258,9 @@ def test_preprocess_tensors():
         ids=ids, texts=texts, metadatas=metadatas, embeddings=embeddings
     )
     assert np.array_equal(processed_tensors["ids"], ids)
-    assert processed_tensors["texts"] == list(texts)
-    assert processed_tensors["metadatas"] == metadatas
-    assert processed_tensors["embeddings"] == embeddings
+    assert processed_tensors["text"] == list(texts)
+    assert processed_tensors["metadata"] == metadatas
+    assert processed_tensors["embedding"] == embeddings
 
 
 def test_create_elements():
@@ -227,8 +300,10 @@ def test_create_elements():
         dataset_utils.create_elements(
             ids=ids, texts=texts[:2], embeddings=embeddings, metadatas=metadatas
         )
-    elements, ids = dataset_utils.create_elements(
-        ids=ids, texts=texts, embeddings=embeddings, metadatas=metadatas
+        
+    processed_tensors, ids = dataset_utils.preprocess_tensors(ids=ids, texts=texts, embeddings=embeddings, metadatas=metadatas)
+    elements = dataset_utils.create_elements(
+        processed_tensors
     )
 
     for i in range(len(elements)):

@@ -39,7 +39,7 @@ def get_runtime_from_exec_option(exec_option):
 
 
 def check_length_of_each_tensor(tensors):
-    tensor_length = len(tensors["texts"])
+    tensor_length = len(tensors["text"])
 
     for tensor_name in tensors:
         if len(tensors[f"{tensor_name}"]) != tensor_length:

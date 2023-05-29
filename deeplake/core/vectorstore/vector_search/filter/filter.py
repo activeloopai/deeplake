@@ -36,7 +36,7 @@ def attribute_based_filtering_python(
     return view
 
 
-def attribute_based_filtering_tql(view, filter: Optional[Dict] = None):
+def attribute_based_filtering_tql(view, logger, filter: Optional[Dict] = None, debug_mode=False):
     tql_filter = ""
 
     if filter is not None:
@@ -46,6 +46,9 @@ def attribute_based_filtering_tql(view, filter: Optional[Dict] = None):
                     val_str = f"'{value}'" if type(value) == str else f"{value}"
                     tql_filter += f"{tensor}['{key}'] == {val_str} and "
             tql_filter = tql_filter[:-5]
+            
+    if debug_mode:
+        logger.warning(f"Converted tql string is: '{tql_filter}'")
     return view, tql_filter
 
 
