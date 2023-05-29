@@ -1,15 +1,7 @@
-import deeplake
-from deeplake.constants import (
-    DEFAULT_VECTORSTORE_DEEPLAKE_PATH,
-    DEFAULT_VECTORSTORE_TENSORS,
-)
-from deeplake.core.dataset import Dataset as DeepLakeDataset
-from deeplake.core.vectorstore.vector_search import utils
-from deeplake.core.vectorstore.vector_search import dataset as dataset_utils
-from deeplake.core.vectorstore.vector_search import filter as filter_utils
-from deeplake.core import vectorstore
+import logging
+from typing import Optional, Any, Iterable, List, Dict, Union, Callable
 
-
+import numpy as np
 try:
     from indra import api  # type: ignore
 
@@ -17,10 +9,14 @@ try:
 except Exception:  # pragma: no cover
     _INDRA_INSTALLED = False  # pragma: no cover
 
-import logging
-from typing import Optional, Any, Iterable, List, Dict, Union, Callable
-
-import numpy as np
+import deeplake
+from deeplake.constants import (
+    DEFAULT_VECTORSTORE_DEEPLAKE_PATH,
+    DEFAULT_VECTORSTORE_TENSORS,
+)
+from deeplake.core.vectorstore.vector_search import vector_search
+from deeplake.core.vectorstore.vector_search import dataset as dataset_utils
+from deeplake.core.vectorstore.vector_search import filter as filter_utils
 
 
 logger = logging.getLogger(__name__)
@@ -63,6 +59,7 @@ class DeepLakeVectorStore:
         self.num_workers = num_workers
         creds = {"creds": kwargs["creds"]} if "creds" in kwargs else {}
         self.dataset = dataset_utils.create_or_load_dataset(
+            tensors_dict,
             dataset_path,
             token,
             creds,
@@ -160,68 +157,27 @@ class DeepLakeVectorStore:
             raise ValueError(
                 "Invalid `exec_option` it should be either `python`, `compute_engine` or `tensor_db`."
             )
-
+        
         if embedding_function is None and embedding is None:
-            view, scores, indices = filter_utils.exact_text_search(self.dataset, prompt)
-        else:
-            query_emb = dataset_utils.get_embedding(
-                embedding,
-                prompt,
-                embedding_function=embedding_function,
-            )
+            return filter_utils.exact_text_search(self.dataset, prompt)
 
-        runtime = utils.get_runtime_from_exec_option(exec_option)
-
-        if exec_option == "python":
-            if query is not None:
-                raise NotImplementedError(
-                    f"User-specified TQL queries are not support for exec_option={exec_option} "
-                )
-
-            view = filter_utils.attribute_based_filtering_python(self.dataset, filter)
-
-            embeddings = dataset_utils.fetch_embeddings(
-                exec_option=exec_option,
-                view=view,
-                logger=logger,
-                embedding_tensor=embedding_tensor,
-            )
-
-            return vectorstore.python_vector_search(
-                deeplake_dataset=view,
-                query_embedding=query_emb,
-                embeddings=embeddings,
-                distance_metric=distance_metric.lower(),
-                k=k,
-            )
-        else:
-            if type(filter) == Callable:
-                raise NotImplementedError(
-                    f"UDF filter function are not supported with exec_option={exec_option}"
-                )
-            if query and filter:
-                raise NotImplementedError(
-                    f"query and filter parameters cannot be specified simultaneously."
-                )
-
-            utils.check_indra_installation(
-                exec_option, indra_installed=_INDRA_INSTALLED
-            )
-
-            view, tql_filter = filter_utils.attribute_based_filtering_tql(
-                self.dataset, filter
-            )
-
-            return vectorstore.vector_search(
-                query_embedding=query_emb,
-                distance_metric=distance_metric.lower(),
-                deeplake_dataset=view,
-                k=k,
-                tql_string=query,
-                tql_filter=tql_filter,
-                embedding_tensor=embedding_tensor,
-                runtime=runtime,
-            )
+        query_emb = dataset_utils.get_embedding(
+            embedding,
+            prompt,
+            embedding_function=embedding_function,
+        )
+        
+        return vector_search.search(
+            query=query,
+            logger=logger,
+            filter=filter,
+            query_embedding=query_emb,
+            k=k,
+            distance_metric=distance_metric,
+            exec_option=exec_option,
+            deeplake_dataset=self.dataset,
+            embedding_tensor=embedding_tensor,
+        )        
 
     def delete(
         self,

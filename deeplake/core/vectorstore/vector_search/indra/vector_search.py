@@ -31,7 +31,7 @@ def vector_search(query, query_emb, exec_option, dataset, logger, filter, embedd
         dataset, logger, filter
     )
 
-    return vectorstore.vector_search(
+    return vectorstore.indra_search_algorithm(
         query_embedding=query_emb,
         distance_metric=distance_metric.lower(),
         deeplake_dataset=view,

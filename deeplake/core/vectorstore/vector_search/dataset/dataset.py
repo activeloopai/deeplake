@@ -23,6 +23,7 @@ from deeplake.util.warnings import always_warn
 
 
 def create_or_load_dataset(
+    tensors_dict,
     dataset_path,
     token,
     creds,
@@ -45,7 +46,7 @@ def create_or_load_dataset(
         )
 
     return create_dataset(
-        dataset_path, token, exec_option, embedding_function, **kwargs
+        logger, tensors_dict, dataset_path, token, exec_option, embedding_function, **kwargs
     )
 
 
@@ -57,7 +58,7 @@ def dataset_exists(dataset_path, token, creds, **kwargs):
 
 
 def load_dataset(
-    dataset_path, token, creds, logger, read_only, embedding_function, **kwargs
+    tensors_dict, dataset_path, token, creds, logger, read_only, embedding_function, **kwargs
 ):
     if dataset_path == DEFAULT_VECTORSTORE_DEEPLAKE_PATH:
         logger.warning(
@@ -163,6 +164,9 @@ def preprocess_tensors(ids, texts, metadatas, embeddings):
 
     if embeddings is None:
         embeddings = [None] * len(texts)
+    elif embeddings is not None and not isinstance(embeddings, list) and len(embeddings) <= VECTORSTORE_INGESTION_THRESHOLD:
+        embeddings = embeddings.astype(np.float32)
+        embeddings = list(embeddings)
 
     processed_tensors = {
         "ids": ids,
@@ -246,7 +250,8 @@ def extend_or_ingest_dataset(
     num_workers,
     total_samples_processed,
 ):
-    if len(processed_tensors) < VECTORSTORE_INGESTION_THRESHOLD:
+    first_key = next(iter(processed_tensors.items()))
+    if len(processed_tensors) <= VECTORSTORE_INGESTION_THRESHOLD:
         dataset.extend(processed_tensors, skip_ok=True)
     else:
         elements = dataset_utils.create_elements(processed_tensors)

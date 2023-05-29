@@ -1,61 +1,51 @@
+from typing import Dict, Callable, List, Union
+
+import numpy as np
+
 from deeplake.core import vectorstore
+from deeplake.core.dataset import Dataset as DeepLakeDataset
 from deeplake.core.vectorstore.vector_search import dataset as dataset_utils
 from deeplake.core.vectorstore.vector_search import filter as filter_utils
 
 
-def python_vector_search(query, query_emb, exec_option, dataset, logger, embedding_tensor, distance_metric, k):
-    if query is not None:
-        raise NotImplementedError(
-            f"User-specified TQL queries are not support for exec_option={exec_option} "
-        )
+EXEC_OPTION_TO_SEARCH_TYPE: Dict[str, Callable] = {
+    "compute_engine": vectorstore.indra_vector_search,
+    "python": vectorstore.python_vector_search,
+    "tensor_db": vectorstore.indra_vector_search,
+}
 
-    view = filter_utils.attribute_based_filtering_python(dataset, filter)
 
-    embeddings = dataset_utils.fetch_embeddings(
+def search(
+    query,
+    logger,
+    filter,
+    query_embedding: Union[List[float], np.ndarray],
+    k: int,
+    distance_metric: str,
+    exec_option: str,
+    deeplake_dataset: DeepLakeDataset,
+    embedding_tensor: str = "embedding",
+):
+    """Searching function
+    Args:
+        query_embedding (Union[List[float], np.ndarray]) - embedding representation of the query
+        k (int) - number of samples to return after searching
+        distance_metric (str, optional): Type of distance metric to use for sorting the data. Avaliable options are: "L1", "L2", "COS", "MAX".
+        exec_option (str, optional): Type of query execution. It could be either "python", "compute_engine" or "tensor_db". Defaults to "python".
+            ``python`` - runs on the client and can be used for any data stored anywhere. WARNING: using this option with big datasets is discouraged, because it can lead to some memory issues.
+            ``compute_engine`` - runs on the client and can be used for any data stored in or connected to Deep Lake.
+            ``tensor_db`` - runs on the Deep Lake Managed Database and can be used for any data stored in the Deep Lake Managed.
+        deeplake_dataset (DeepLakeDataset): deeplake dataset object.
+        embedding_tensor (str): name of the tensor in the dataset with `htype="embedding"`. Defaults to "embedding".
+    """
+    return EXEC_OPTION_TO_SEARCH_TYPE[exec_option](
+        query=query,
+        query_emb=query_embedding,
         exec_option=exec_option,
-        view=view,
+        dataset=deeplake_dataset,
         logger=logger,
+        filter=filter,
         embedding_tensor=embedding_tensor,
-    )
-
-    return vectorstore.python_vector_search(
-        deeplake_dataset=view,
-        query_embedding=query_emb,
-        embeddings=embeddings,
-        distance_metric=distance_metric.lower(),
+        distance_metric=distance_metric,
         k=k,
     )
-
-
-def tql_based_vector_search():
-    if type(filter) == Callable:
-        raise NotImplementedError(
-            f"UDF filter function are not supported with exec_option={exec_option}"
-        )
-    if query and filter:
-        raise NotImplementedError(
-            f"query and filter parameters cannot be specified simultaneously."
-        )
-
-    utils.check_indra_installation(
-        exec_option, indra_installed=_INDRA_INSTALLED
-    )
-
-    view, tql_filter = filter_utils.attribute_based_filtering_tql(
-        self.dataset, filter
-    )
-
-    return vectorstore.vector_search(
-        query_embedding=query_emb,
-        distance_metric=distance_metric.lower(),
-        deeplake_dataset=view,
-        k=k,
-        tql_string=query,
-        tql_filter=tql_filter,
-        embedding_tensor=embedding_tensor,
-        runtime=runtime,
-    )
-if exec_option == "python":
-    
-else:
-    

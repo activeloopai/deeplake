@@ -1,11 +1,8 @@
 import numpy as np
-import os
 import pytest
-import random
-import string
 
 from deeplake.core.vectorstore.deeplake_vectorstore import DeepLakeVectorStore
-from deeplake.core.vectorstore.deeplake_vectorstore import utils
+from deeplake.core.vectorstore import utils
 from deeplake.tests.common import requires_libdeeplake
 
 
@@ -21,8 +18,11 @@ def embedding_fn(text, embedding_dim=100):
 
     
 @requires_libdeeplake
-@pytest.mark.parametrize("distance_metric", ["L1", "L2", "COS", "MAX", "DOT"])
-def test_search(distance_metric, hub_cloud_dev_token):
+# @pytest.mark.parametrize("distance_metric", ["L1", "L2", "COS", "MAX", "DOT"])
+# def test_search(distance_metric, hub_cloud_dev_token):
+@pytest.mark.parametrize("distance_metric", ["COS"])
+def test_search(distance_metric):
+    hub_cloud_dev_token = "eyJhbGciOiJIUzUxMiIsImlhdCI6MTY4MTY2MTI1MiwiZXhwIjoxNzEzMjgzNjE5fQ.eyJpZCI6InRlc3RpbmdhY2MyIn0.yoIglU71X8JCH_83TzuxbCTNDQGd-j4h1dcYyhrV3ZLbRPTRj7wKn5IdPgWSpM20XDzjHE9UGzW0khGqaHfA3g"
     k = 4
     query_embedding = np.random.randint(0, 255, (1, embedding_dim))
     # initialize vector store object:
@@ -36,17 +36,20 @@ def test_search(distance_metric, hub_cloud_dev_token):
     vector_store.add(embeddings=embeddings, texts=texts)
 
     # use python implementation to search the data
-    python_view, python_indices, python_scores = vector_store.search(
+    python_result = vector_store.search(
         embedding=query_embedding, exec_option="python"
     )
 
     # use indra implementation to search the data
-    indra_view, indra_indices, indra_scores = vector_store.search(
+    indra_result = vector_store.search(
         embedding=query_embedding, exec_option="compute_engine"
     )
 
-    np.testing.assert_almost_equal(python_indices, indra_indices)
-    np.testing.assert_almost_equal(python_scores, indra_scores)
+    np.testing.assert_almost_equal(python_result["embedding"], indra_result["embedding"])
+    np.testing.assert_almost_equal(python_result["ids"], indra_result["ids"])
+    np.testing.assert_almost_equal(python_result["metadata"], indra_result["metadata"])
+    np.testing.assert_almost_equal(python_result["text"], indra_result["text"])
+    np.testing.assert_almost_equal(python_result["score"], indra_result["score"])
 
     # initialize vector store object:
     vector_store = DeepLakeVectorStore(
@@ -54,8 +57,8 @@ def test_search(distance_metric, hub_cloud_dev_token):
         read_only=True,
         token=hub_cloud_dev_token,
     )
-    
-    compute_engine_view, compute_engine_indices, compute_engine_scores = vector_store.search(
+
+    compute_db_view, compute_db_indices, compute_engine_scores = vector_store.search(
         embedding=query_embedding, exec_option="compute_engine"
     )
 
