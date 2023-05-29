@@ -132,7 +132,10 @@ class Spinner(threading.Thread):
 def spinner(func):
     @wraps(func)
     def inner(*args, **kwargs):
-        if kwargs.get("verbose") in (None, True):
+        sp = True
+        if "spinner" in kwargs:
+            sp = kwargs.pop("spinner")
+        if sp and kwargs.get("verbose") in (None, True):
             spinner = Spinner()
 
             with run_spinner(spinner):
