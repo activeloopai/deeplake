@@ -1438,12 +1438,13 @@ class Dataset:
 
     @spinner
     @invalid_view_op
-    def commit(self, message: Optional[str] = None, allow_empty=False) -> str:
+    def commit(self, message: Optional[str] = None, allow_empty: bool=False, hash: Optional[str]=None) -> str:
         """Stores a snapshot of the current state of the dataset.
 
         Args:
             message (str, Optional): Used to describe the commit.
             allow_empty (bool): If ``True``, commit even if there are no changes.
+            hash (str, Optional): Custom hash for the commit. By default a new hash is generated.
 
         Returns:
             str: the commit id of the saved commit that can be used to access the snapshot.
@@ -1467,7 +1468,7 @@ class Dataset:
                 "There are no changes, commit is not done. Try again with allow_empty=True."
             )
 
-        return self._commit(message, None, False)
+        return self._commit(message, hash, False)
 
     @ensure_not_concurrent_mode
     @spinner
