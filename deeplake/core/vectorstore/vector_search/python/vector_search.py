@@ -13,11 +13,11 @@ def vector_search(
     embedding_tensor,
     distance_metric,
     k,
-    tensor_list,
+    return_tensors,
 ):
     if query is not None:
         raise NotImplementedError(
-            f"User-specified TQL queries are not support for exec_option={exec_option} "
+            f"User-specified TQL queries are not supported for exec_option={exec_option} "
         )
 
     view = filter_utils.attribute_based_filtering_python(dataset, filter)
@@ -35,5 +35,5 @@ def vector_search(
         embeddings=embeddings,
         distance_metric=distance_metric.lower(),
         k=k,
-        tensor_list=tensor_list,
+        return_tensors=return_tensors,
     )

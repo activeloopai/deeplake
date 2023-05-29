@@ -17,7 +17,7 @@ def search(
     tql_filter: str,
     embedding_tensor: str,
     runtime: dict,
-    tensor_list: list[str],
+    return_tensors: list[str],
 ) -> Dict:
     """Vector Searching algorithm that uses indra.
 
@@ -30,7 +30,7 @@ def search(
         tql_filter (str): Additional filter using TQL syntax
         embedding_tensor (str): name of the tensor in the dataset with `htype = "embedding"`.
         runtime (dict): Runtime parameters for the query.
-        tensor_list (list[str]): List of tensors to return data for.
+        return_tensors (list[str]): List of tensors to return data for.
 
     Returns:
         Dict: Dictionary where keys are tensor names and values are the results of the search
@@ -52,7 +52,7 @@ def search(
             query_embedding,
             embedding_tensor,
             tql_filter,
-            tensor_list,
+            return_tensors,
         )
 
     if runtime:

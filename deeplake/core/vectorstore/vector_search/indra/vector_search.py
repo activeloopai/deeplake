@@ -22,7 +22,7 @@ def vector_search(
     embedding_tensor,
     distance_metric,
     k,
-    tensor_list,
+    return_tensors,
 ):
     runtime = utils.get_runtime_from_exec_option(exec_option)
     if type(filter) == Callable:
@@ -49,5 +49,5 @@ def vector_search(
         tql_filter=tql_filter,
         embedding_tensor=embedding_tensor,
         runtime=runtime,
-        tensor_list=tensor_list,
+        return_tensors=return_tensors,
     )
