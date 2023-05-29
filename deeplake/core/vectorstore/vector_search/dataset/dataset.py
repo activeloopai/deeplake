@@ -42,7 +42,7 @@ def create_or_load_dataset(
 
     if dataset_exists(dataset_path, token, creds, **kwargs):
         return load_dataset(
-            dataset_path, token, creds, logger, read_only, embedding_function, **kwargs
+            tensors_dict, dataset_path, token, creds, logger, read_only, embedding_function, **kwargs
         )
 
     return create_dataset(
