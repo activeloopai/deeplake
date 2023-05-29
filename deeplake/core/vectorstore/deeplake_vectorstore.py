@@ -126,6 +126,7 @@ class DeepLakeVectorStore:
         filter: Optional[Union[Dict, Callable]] = None,
         exec_option: Optional[str] = "python",
         embedding_tensor: str = "embedding",
+        tensor_list: list[str] = None,
     ):
         """DeepLakeVectorStore search method that combines embedding search, metadata search, and custom TQL search.
 
@@ -170,6 +171,7 @@ class DeepLakeVectorStore:
             exec_option=exec_option,
             filter=filter,
             embedding_tensor=embedding_tensor,
+            tensor_list=tensor_list,
         )
 
         query_emb = dataset_utils.get_embedding(
@@ -179,6 +181,11 @@ class DeepLakeVectorStore:
         )
 
         runtime = utils.get_runtime_from_exec_option(exec_option)
+
+        if not tensor_list:
+            tensor_list = [
+                tensor for tensor in self.dataset.tensors if tensor != embedding_tensor
+            ]
 
         if exec_option == "python":
             view = filter_utils.attribute_based_filtering_python(self.dataset, filter)
@@ -196,6 +203,7 @@ class DeepLakeVectorStore:
                 embeddings=embeddings,
                 distance_metric=distance_metric.lower(),
                 k=k,
+                tensor_list=tensor_list,
             )
         else:
             utils.check_indra_installation(
@@ -215,6 +223,7 @@ class DeepLakeVectorStore:
                 tql_filter=tql_filter,
                 embedding_tensor=embedding_tensor,
                 runtime=runtime,
+                tensor_list=tensor_list,
             )
 
     def _parse_search_args(self, **kwargs):
@@ -252,6 +261,10 @@ class DeepLakeVectorStore:
             if kwargs["query"] and kwargs["filter"]:
                 raise ValueError(
                     f"query and filter parameters cannot be specified simultaneously."
+                )
+            if kwargs["tensor_list"] and kwargs["query"]:
+                raise ValueError(
+                    f"tensor_list and query parameters cannot be specified simultaneously, becuase the data that is returned is directly specified in the query."
                 )
 
     def delete(

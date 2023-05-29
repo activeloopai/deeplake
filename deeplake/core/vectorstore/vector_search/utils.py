@@ -19,11 +19,12 @@ EXEC_OPTION_TO_RUNTIME: Dict[str, dict] = {
 
 
 def parse_tensor_return(tensor):
-    htype = tensor.htype
-    if htype == "json" or htype == "text":
-        return tensor.data()["value"]
-    else:
-        return tensor.numpy()
+    data = tensor.data()["value"]
+
+    # if isinstance(data, np.ndarray):
+    #     data = data.tolist
+
+    return data.tolist() if isinstance(data, np.ndarray) else data
 
 
 def check_indra_installation(exec_option, indra_installed):

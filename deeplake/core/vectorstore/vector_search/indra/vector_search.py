@@ -17,6 +17,7 @@ def vector_search(
     tql_filter: str,
     embedding_tensor: str,
     runtime: dict,
+    tensor_list: list[str],
 ) -> Dict:
     """Vector Searching algorithm that uses indra.
 
@@ -29,6 +30,7 @@ def vector_search(
         tql_filter (str): Additional filter using TQL syntax
         embedding_tensor (str): name of the tensor in the dataset with `htype = "embedding"`.
         runtime (dict): Runtime parameters for the query.
+        tensor_list (list[str]): List of tensors to return data for.
         **kwargs (Any): Any additional parameters.
 
     Returns:
@@ -46,16 +48,26 @@ def vector_search(
         tql_query = tql_string
     else:
         tql_query = query.parse_query(
-            distance_metric, k, query_embedding, embedding_tensor, tql_filter
+            distance_metric,
+            k,
+            query_embedding,
+            embedding_tensor,
+            tql_filter,
+            tensor_list,
         )
 
-    view = deeplake_dataset.query(
-        tql_query,
-        runtime=runtime,
-    )
+    if runtime:
+        view, data = deeplake_dataset.query(tql_query, runtime=runtime)
+        return_data = data
+    else:
+        return_data = {}
 
-    return_data = {}
-    for tensor in view.tensors:
-        return_data[tensor] = utils.parse_tensor_return(view[tensor])
+        view = deeplake_dataset.query(
+            tql_query,
+            runtime=runtime,
+        )
+
+        for tensor in view.tensors:
+            return_data[tensor] = utils.parse_tensor_return(view[tensor])
 
     return return_data
