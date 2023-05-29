@@ -16,7 +16,7 @@ texts, embeddings, ids, metadatas = utils.create_data(
 def embedding_fn(text, embedding_dim=100):
     return np.zeros((len(text), embedding_dim))
 
-    
+
 @requires_libdeeplake
 # @pytest.mark.parametrize("distance_metric", ["L1", "L2", "COS", "MAX", "DOT"])
 # def test_search(distance_metric, hub_cloud_dev_token):
@@ -53,9 +53,11 @@ def test_search(distance_metric):
 
     # Add assertion about keys
     data_i = vector_store.search(
-        embedding=query_embedding, exec_option="compute_engine", distance_metric=distance_metric
+        embedding=query_embedding,
+        exec_option="compute_engine",
+        distance_metric=distance_metric,
     )
-    
+
     # initialize vector store object:
     vector_store = DeepLakeVectorStore(
         dataset_path="hub://testingacc2/vectorstore_test",

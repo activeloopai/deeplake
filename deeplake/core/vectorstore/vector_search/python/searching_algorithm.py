@@ -18,6 +18,7 @@ def search(
     deeplake_dataset: DeepLakeDataset,
     query_embedding: np.ndarray,
     embeddings: np.ndarray,
+    tensor_list; str[List],
     distance_metric: str = "l2",
     k: int = 4,
 ) -> Dict:

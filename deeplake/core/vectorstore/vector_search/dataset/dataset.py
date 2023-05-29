@@ -42,11 +42,24 @@ def create_or_load_dataset(
 
     if dataset_exists(dataset_path, token, creds, **kwargs):
         return load_dataset(
-            tensors_dict, dataset_path, token, creds, logger, read_only, embedding_function, **kwargs
+            tensors_dict,
+            dataset_path,
+            token,
+            creds,
+            logger,
+            read_only,
+            embedding_function,
+            **kwargs,
         )
 
     return create_dataset(
-        logger, tensors_dict, dataset_path, token, exec_option, embedding_function, **kwargs
+        logger,
+        tensors_dict,
+        dataset_path,
+        token,
+        exec_option,
+        embedding_function,
+        **kwargs,
     )
 
 
@@ -58,7 +71,14 @@ def dataset_exists(dataset_path, token, creds, **kwargs):
 
 
 def load_dataset(
-    tensors_dict, dataset_path, token, creds, logger, read_only, embedding_function, **kwargs
+    tensors_dict,
+    dataset_path,
+    token,
+    creds,
+    logger,
+    read_only,
+    embedding_function,
+    **kwargs,
 ):
     if dataset_path == DEFAULT_VECTORSTORE_DEEPLAKE_PATH:
         logger.warning(
@@ -100,9 +120,11 @@ def warn_and_create_missing_tensor(dataset, logger, **kwargs):
     dataset.create_tensor(
         **kwargs,
     )
-    
 
-def create_dataset(logger, tensors_dict, dataset_path, token, exec_option, embedding_function, **kwargs):
+
+def create_dataset(
+    logger, tensors_dict, dataset_path, token, exec_option, embedding_function, **kwargs
+):
     runtime = None
     if exec_option == "tensor_db":
         runtime = {"tensor_db": True}
@@ -165,7 +187,11 @@ def preprocess_tensors(ids, texts, metadatas, embeddings):
 
     if embeddings is None:
         embeddings = [None] * len(texts)
-    elif embeddings is not None and not isinstance(embeddings, list) and len(embeddings) <= VECTORSTORE_INGESTION_THRESHOLD:
+    elif (
+        embeddings is not None
+        and not isinstance(embeddings, list)
+        and len(embeddings) <= VECTORSTORE_INGESTION_THRESHOLD
+    ):
         embeddings = embeddings.astype(np.float32)
         embeddings = list(embeddings)
 

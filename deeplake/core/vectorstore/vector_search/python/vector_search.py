@@ -3,7 +3,18 @@ from deeplake.core.vectorstore.vector_search import dataset as dataset_utils
 from deeplake.core.vectorstore.vector_search import filter as filter_utils
 
 
-def vector_search(query, query_emb, exec_option, dataset, logger, filter, embedding_tensor, distance_metric, k):
+def vector_search(
+    query,
+    query_emb,
+    exec_option,
+    dataset,
+    logger,
+    filter,
+    embedding_tensor,
+    distance_metric,
+    k,
+    tensor_list,
+):
     if query is not None:
         raise NotImplementedError(
             f"User-specified TQL queries are not support for exec_option={exec_option} "
@@ -24,4 +35,5 @@ def vector_search(query, query_emb, exec_option, dataset, logger, filter, embedd
         embeddings=embeddings,
         distance_metric=distance_metric.lower(),
         k=k,
+        tensor_list=tensor_list,
     )

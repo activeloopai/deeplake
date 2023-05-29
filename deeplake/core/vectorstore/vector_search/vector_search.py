@@ -37,6 +37,7 @@ def search(
             ``compute_engine`` - runs on the client and can be used for any data stored in or connected to Deep Lake.
             ``tensor_db`` - runs on the Deep Lake Managed Database and can be used for any data stored in the Deep Lake Managed.
         deeplake_dataset (DeepLakeDataset): deeplake dataset object.
+        tensor_list (list[str]): List of tensors to return. Defaults to None. If None, all tensors are returned.
         embedding_tensor (str): name of the tensor in the dataset with `htype="embedding"`. Defaults to "embedding".
     """
     return EXEC_OPTION_TO_SEARCH_TYPE[exec_option](

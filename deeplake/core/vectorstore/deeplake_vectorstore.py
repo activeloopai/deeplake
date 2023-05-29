@@ -2,6 +2,7 @@ import logging
 from typing import Optional, Any, Iterable, List, Dict, Union, Callable
 
 import numpy as np
+
 try:
     from indra import api  # type: ignore
 
@@ -160,7 +161,7 @@ class DeepLakeVectorStore:
             raise ValueError(
                 "Invalid `exec_option` it should be either `python`, `compute_engine` or `tensor_db`."
             )
-        
+
         if embedding_function is None and embedding is None:
             return filter_utils.exact_text_search(self.dataset, prompt)
 
@@ -174,7 +175,7 @@ class DeepLakeVectorStore:
             tensor_list = [
                 tensor for tensor in self.dataset.tensors if tensor != embedding_tensor
             ]
-        
+
         return vector_search.search(
             query=query,
             logger=logger,
@@ -185,8 +186,8 @@ class DeepLakeVectorStore:
             exec_option=exec_option,
             deeplake_dataset=self.dataset,
             embedding_tensor=embedding_tensor,
-            tensor_list = tensor_list
-        )        
+            tensor_list=tensor_list,
+        )
 
     def _parse_search_args(self, **kwargs):
         """Helper function for raising errors if invalid parameters are specified to search"""

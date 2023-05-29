@@ -230,5 +230,3 @@ DEFAULT_VECTORSTORE_TENSORS = [
         "chunk_compression": "lz4",
     },
 ]
-                               
-                               
