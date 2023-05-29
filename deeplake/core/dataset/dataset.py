@@ -1438,7 +1438,12 @@ class Dataset:
 
     @spinner
     @invalid_view_op
-    def commit(self, message: Optional[str] = None, allow_empty: bool=False, hash: Optional[str]=None) -> str:
+    def commit(
+        self,
+        message: Optional[str] = None,
+        allow_empty: bool = False,
+        hash: Optional[str] = None,
+    ) -> str:
         """Stores a snapshot of the current state of the dataset.
 
         Args:
