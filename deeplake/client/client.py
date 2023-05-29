@@ -1,6 +1,6 @@
 import deeplake
 import requests
-from typing import Any, Optional, List, Tuple
+from typing import Any, Optional, Dict
 from deeplake.util.exceptions import (
     AgreementNotAcceptedError,
     AuthorizationException,
@@ -492,7 +492,7 @@ class DeepLakeBackendClient:
 
     def remote_query(
         self, org_id: str, ds_name: str, query_string: str
-    ) -> dict[str, Any]:
+    ) -> Dict[str, Any]:
         """Queries a remote dataset.
 
         Args:

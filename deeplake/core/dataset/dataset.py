@@ -2144,7 +2144,7 @@ class Dataset:
 
         if return_data:
             raise ValueError(
-                "return_data is not supported. Please add `runtime = {'tensor_db': True}` if you want to return indices and scores"
+                "`return_data` is only applicable when running queries using the Managed Tensor Database. Please specify `runtime = {'tensor_db': True}`"
             )
 
         from deeplake.enterprise import query
