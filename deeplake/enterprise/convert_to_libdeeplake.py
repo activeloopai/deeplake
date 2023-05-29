@@ -169,8 +169,6 @@ def dataset_to_libdeeplake(hub2_dataset):
                 provider.expiration if provider.expiration else str(provider.expiration)
             )
 
-            print("path: ", path)
-            print("origin_path: ", az_provider.root)
             libdeeplake_dataset = api.dataset(
                 path,
                 origin_path=az_provider.root,
