@@ -171,8 +171,8 @@ class DeepLakeVectorStore:
             embedding_function=embedding_function,
         )
 
-        if not tensor_list:
-            tensor_list = [
+        if not return_tensors:
+            return_tensors = [
                 tensor for tensor in self.dataset.tensors if tensor != embedding_tensor
             ]
 
@@ -225,9 +225,9 @@ class DeepLakeVectorStore:
                 raise ValueError(
                     f"query and filter parameters cannot be specified simultaneously."
                 )
-            if kwargs["tensor_list"] and kwargs["query"]:
+            if kwargs["return_tensors"] and kwargs["query"]:
                 raise ValueError(
-                    f"tensor_list and query parameters cannot be specified simultaneously, becuase the data that is returned is directly specified in the query."
+                    f"return_tensors and query parameters cannot be specified simultaneously, becuase the data that is returned is directly specified in the query."
                 )
 
     def delete(

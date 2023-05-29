@@ -88,7 +88,12 @@ def load_dataset(
         )
 
     dataset = deeplake.load(
-        dataset_path, token=token, read_only=read_only, creds=creds, **kwargs
+        dataset_path,
+        token=token,
+        read_only=read_only,
+        creds=creds,
+        verbose=False,
+        **kwargs,
     )
     create_tensors_if_needed(tensors_dict, dataset, logger, embedding_function)
 
@@ -129,7 +134,9 @@ def create_dataset(
     if exec_option == "tensor_db":
         runtime = {"tensor_db": True}
 
-    dataset = deeplake.empty(dataset_path, token=token, runtime=runtime, **kwargs)
+    dataset = deeplake.empty(
+        dataset_path, token=token, runtime=runtime, verbose=False, **kwargs
+    )
 
     with dataset:
         for tensor_args in tensors_dict:

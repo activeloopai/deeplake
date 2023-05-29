@@ -24,7 +24,7 @@ def search(
     distance_metric: str,
     exec_option: str,
     deeplake_dataset: DeepLakeDataset,
-    tensor_list: List[str],
+    return_tensors: List[str],
     embedding_tensor: str = "embedding",
 ):
     """Searching function
