@@ -31,6 +31,7 @@ from deeplake.client.utils import get_user_name
 from deeplake.client.client import DeepLakeBackendClient
 from deeplake.constants import (
     FIRST_COMMIT_ID,
+    AUTO_CONCURRENT_COMMIT_ID,
     DEFAULT_MEMORY_CACHE_SIZE,
     DEFAULT_LOCAL_CACHE_SIZE,
     MB,
@@ -4277,9 +4278,7 @@ class Dataset:
     def concurrent(self):
         """Initialize concurrent writes"""
         if self.commit_id is None:
-            raise ValueError(
-                "Dataset must be committed from master process before writing to it concurrently."
-            )
+            self._commit(hash=AUTO_CONCURRENT_COMMIT_ID)
         self.checkout(self.commit_id)
         self._concurrent_original_branch = self.branch
         if self._concurrent_branch is None:

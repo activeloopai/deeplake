@@ -35,7 +35,6 @@ def test_concurrent():
     with ds:
         ds.create_tensor("images", htype="image", sample_compression="jpeg")
         ds.create_tensor("labels", htype="class_label")
-        ds.commit()
     executor = ProcessPoolExecutor()
     nsamples = list(executor.map(worker, range(5)))
     assert nsamples == [100] * 5
