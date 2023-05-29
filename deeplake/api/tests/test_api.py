@@ -248,6 +248,43 @@ def test_summary(memory_ds):
     )
 
 
+def test_log(memory_ds, capsys):
+    with memory_ds as ds:
+        ds.create_tensor("abc")
+        ds.abc.extend([1, 2, 3, 4])
+
+        header = "---------------\nDeep Lake Version Log\n---------------\n\n"
+        current_branch = "Current Branch: main\n"
+        uncommitted_changes = "** There are uncommitted changes on this branch.\n"
+
+        log = header + current_branch + uncommitted_changes
+        ds.log()
+        captured = capsys.readouterr().out
+        assert captured.strip() == log.strip()
+
+        ds.commit("init")
+        ds.checkout("alt", create=True)
+        commit1 = "\n" + str(ds.version_state["commit_node"].parent) + "\n"
+        current_branch = "Current Branch: alt\n"
+        log = header + current_branch + commit1
+        ds.log()
+        captured = capsys.readouterr().out
+        assert captured.strip() == log.strip()
+
+        ds.abc.extend([5, 6, 7, 8])
+        log = header + current_branch + uncommitted_changes + commit1
+        ds.log()
+        captured = capsys.readouterr().out
+        assert captured.strip() == log.strip()
+
+        ds.commit("update")
+        commit2 = "\n" + str(ds.version_state["commit_node"].parent) + "\n"
+        log = header + current_branch + commit2 + commit1
+        ds.log()
+        captured = capsys.readouterr().out
+        assert captured.strip() == log.strip()
+
+
 def test_stringify_with_path(local_ds, capsys):
     ds = local_ds
     assert local_ds.path
