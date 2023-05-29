@@ -11,10 +11,14 @@ def parse_runtime_parameters(
     Will become more helpful as clutter in the paramter increases
 
     Args:
+        path (Union[str, pathlib.Path]): path to the dataset.
         runtime (Optional[Dict]): A dictionary containing runtime parameters.
 
     Returns:
         A dictionary containing parsed runtime parameters.
+
+    Raises:
+        ValueError: If invalid runtime parameters are provided.
     """
     if isinstance(path, pathlib.Path):
         path = str(path)
