@@ -59,8 +59,7 @@ class DeepLakeCloudDataset(Dataset):
 
     def _set_org_and_name(self):
         if self.is_actually_cloud:
-            if self.org_id is not None:
-                self.__dict__["ds_name"] = self.path.split("/")[-1]
+            if self.org_id is not None and self.ds_name is not None::
                 return
             _, org_id, ds_name, subdir = process_hub_path(self.path)
             if subdir:
