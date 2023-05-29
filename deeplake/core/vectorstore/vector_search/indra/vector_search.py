@@ -2,7 +2,7 @@ from typing import Callable
 
 try:
     from indra import api
-    
+
     _INDRA_INSTALLED = True
 except ImportError:
     _INDRA_INSTALLED = False
@@ -12,7 +12,17 @@ from deeplake.core.vectorstore.vector_search import filter as filter_utils
 from deeplake.core import vectorstore
 
 
-def vector_search(query, query_emb, exec_option, dataset, logger, filter, embedding_tensor, distance_metric, k):
+def vector_search(
+    query,
+    query_emb,
+    exec_option,
+    dataset,
+    logger,
+    filter,
+    embedding_tensor,
+    distance_metric,
+    k,
+):
     runtime = utils.get_runtime_from_exec_option(exec_option)
     if type(filter) == Callable:
         raise NotImplementedError(
@@ -23,9 +33,7 @@ def vector_search(query, query_emb, exec_option, dataset, logger, filter, embedd
             f"query and filter parameters cannot be specified simultaneously."
         )
 
-    utils.check_indra_installation(
-        exec_option, indra_installed=_INDRA_INSTALLED
-    )
+    utils.check_indra_installation(exec_option, indra_installed=_INDRA_INSTALLED)
 
     view, tql_filter = filter_utils.attribute_based_filtering_tql(
         dataset, logger, filter
