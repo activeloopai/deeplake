@@ -12,7 +12,7 @@ from deeplake.core.vectorstore.vector_search import filter as filter_utils
 from deeplake.core import vectorstore
 
 
-def vector_search(query, query_emb, exec_option, dataset, logger, filter, embedding_tensor, distance_metric, k):
+def vector_search(query, query_emb, exec_option, dataset, logger, filter, embedding_tensor, distance_metric, k, tensor_list):
     runtime = utils.get_runtime_from_exec_option(exec_option)
     if type(filter) == Callable:
         raise NotImplementedError(
@@ -40,4 +40,5 @@ def vector_search(query, query_emb, exec_option, dataset, logger, filter, embedd
         tql_filter=tql_filter,
         embedding_tensor=embedding_tensor,
         runtime=runtime,
+        tensor_list = tensor_list
     )
