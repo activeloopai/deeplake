@@ -77,7 +77,9 @@ def generate_random_json(integer):
 
 
 def create_data(number_of_data, embedding_dim=100):
-    embeddings = np.random.randint(0, 255, (number_of_data, embedding_dim))
+    embeddings = np.random.uniform(
+        low=-10, high=10, size=(number_of_data, embedding_dim)
+    ).astype(np.float32)
     texts = [generate_random_string(1000) for i in range(number_of_data)]
     ids = [f"{i}" for i in range(number_of_data)]
     metadata = [generate_random_json(i) for i in range(number_of_data)]

@@ -134,9 +134,9 @@ class DeepLakeVectorStore:
             embedding (Union[np.ndarray, List[float]], optional): Embedding representation for performing the search. Defaults to None. The prompt and embedding cannot both be specified or both be None.
             k (int): Number of elements to return after running query. Defaults to 4.
             distance_metric (str): Type of distance metric to use for sorting the data. Avaliable options are: "L1", "L2", "COS", "MAX". Defaults to "L2".
-            query: Optional[str] = None,
+            query (Optional[str]):  TQL Query string for direct evaluation, without application of additional filters or vector search.
             filter (Union[Dict, Callable], optional): Additional filter evaluated prior to the embedding search.
-                - ``Dict`` - Key-value search on any tensor of htype json. Dict = {"tensor_name_1": {"key": value}, "tensor_name_2": {"key": value}}
+                - ``Dict`` - Key-value search on tensors of htype json, evaluated on an AND basis (a sample must satisfy all key-value filters to be True) Dict = {"tensor_name_1": {"key": value}, "tensor_name_2": {"key": value}}
                 - ``Function`` - Any function that is compatible with `deeplake.filter`.
             exec_option (str, optional): Type of query execution. It could be either "python", "compute_engine" or "tensor_db". Defaults to "python".
                 - ``python`` - Pure-python implementation that runs on the client and can be used for data stored anywhere. WARNING: using this option with big datasets is discouraged because it can lead to memory issues.
@@ -152,6 +152,7 @@ class DeepLakeVectorStore:
         Returns:
             Dict: Dictionary where keys are tensor names and values are the results of the search
         """
+
         exec_option = exec_option or self._exec_option
         if exec_option not in ("python", "compute_engine", "tensor_db"):
             raise ValueError(
@@ -178,6 +179,43 @@ class DeepLakeVectorStore:
             deeplake_dataset=self.dataset,
             embedding_tensor=embedding_tensor,
         )        
+
+    def _parse_search_args(self, **kwargs):
+        """Helper function for raising errors if invalid parameters are specified to search"""
+        if (
+            kwargs["prompt"] is None
+            and kwargs["embedding"] is None
+            and kwargs["query"] is None
+            and kwargs["filter"] is None
+        ):
+            raise ValueError(
+                f"Ether a embedding, prompt, query, or filter must be specified."
+            )
+
+        if kwargs["embedding_function"] is None and kwargs["embedding"] is None:
+            raise ValueError(
+                f"Ether an embedding or embedding_function must be specified."
+            )
+
+        exec_option = kwargs["exec_option"]
+        if exec_option == "python":
+            if kwargs["query"] is not None:
+                raise ValueError(
+                    f"User-specified TQL queries are not support for exec_option={exec_option}."
+                )
+            if kwargs["query"] is not None:
+                raise ValueError(
+                    f"query parameter for directly running TQL is invalid for exec_option={exec_option}."
+                )
+        else:
+            if type(kwargs["filter"]) == Callable:
+                raise ValueError(
+                    f"UDF filter function are not supported with exec_option={exec_option}"
+                )
+            if kwargs["query"] and kwargs["filter"]:
+                raise ValueError(
+                    f"query and filter parameters cannot be specified simultaneously."
+                )
 
     def delete(
         self,

@@ -12,7 +12,8 @@ from typing import Optional, Any, Iterable, List, Dict, Callable, Union
 
 def dp_filter_python(x: dict, filter: Dict) -> bool:
     """Filter helper function for Deep Lake"""
-    result = [1] * len(x)
+
+    result = True
 
     for tensor in filter.keys():
         metadata = x[tensor].data()["value"]
@@ -31,8 +32,6 @@ def attribute_based_filtering_python(
             filter = partial(dp_filter_python, filter=filter)
 
         view = view.filter(filter)
-        # if len(view) == 0:
-        #     raise ValueError(f"No data was found for {filter} metadata.")
 
     return view
 
@@ -51,20 +50,6 @@ def attribute_based_filtering_tql(view, logger, filter: Optional[Dict] = None, d
     if debug_mode:
         logger.warning(f"Converted tql string is: '{tql_filter}'")
     return view, tql_filter
-
-
-# def filtering_exception(filter, exec_option):
-#     if exec_option in ("compute_engine", "tensor_db") and filter is not None:
-#         case_specific_exception = ""
-#         if "tensor_db":
-#             case_specific_exception += "To run filtering set `remote_db=False`."
-#         else:
-#             case_specific_exception += (
-#                 """To run filtering set `exec_option="python"`."""
-#             )
-#         raise NotImplementedError(
-#             f"Filtering data is only supported for python implementations. {case_specific_exception}"
-#         )
 
 
 def exact_text_search(view, query):

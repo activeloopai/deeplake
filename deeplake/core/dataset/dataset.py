@@ -2127,6 +2127,14 @@ class Dataset:
             >>> query_ds_train = ds_train.query("(select * where contains(categories, 'car') limit 1000) union (select * where contains(categories, 'motorcycle') limit 1000)")
 
         """
+
+        deeplake_reporter.feature_report(
+            feature_name="query",
+            parameters={
+                "query_string": query_string,
+            },
+        )
+
         if runtime is not None and runtime.get("db_engine", False):
             client = DeepLakeBackendClient(token=self._token)
             org_id, ds_name = self.path[6:].split("/")
@@ -2141,13 +2149,6 @@ class Dataset:
             )
 
         from deeplake.enterprise import query
-
-        deeplake_reporter.feature_report(
-            feature_name="query",
-            parameters={
-                "query_string": query_string,
-            },
-        )
 
         return query(self, query_string)
 
