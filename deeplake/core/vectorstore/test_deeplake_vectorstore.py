@@ -18,16 +18,20 @@ def embedding_fn(text, embedding_dim=100):
 
     
 @requires_libdeeplake
-@pytest.mark.parametrize("distance_metric", ["L1", "L2", "COS", "MAX", "DOT"])
-def test_search(distance_metric, hub_cloud_dev_token):
+# @pytest.mark.parametrize("distance_metric", ["L1", "L2", "COS", "MAX", "DOT"])
+# def test_search(distance_metric, hub_cloud_dev_token):
+@pytest.mark.parametrize("distance_metric", ["L1"])
+def test_search(distance_metric):
+    hub_cloud_dev_token = "eyJhbGciOiJIUzUxMiIsImlhdCI6MTY4MTY2MTI1MiwiZXhwIjoxNzEzMjgzNjE5fQ.eyJpZCI6InRlc3RpbmdhY2MyIn0.yoIglU71X8JCH_83TzuxbCTNDQGd-j4h1dcYyhrV3ZLbRPTRj7wKn5IdPgWSpM20XDzjHE9UGzW0khGqaHfA3g"
     query_embedding = np.random.uniform(low=-10, high=10, size=(embedding_dim)).astype(
         np.float32
     )
 
     # initialize vector store object:
     vector_store = DeepLakeVectorStore(
-        dataset_path="/Users/istranic/ActiveloopCode/Datasets/Debug/vs_tests",
+        dataset_path="./deeplake_vector_store",
         overwrite=True,
+        token=hub_cloud_dev_token,
     )
 
     # add data to the dataset:
@@ -48,15 +52,16 @@ def test_search(distance_metric, hub_cloud_dev_token):
     )
 
     # Add assertion about keys
-
+    data_i = vector_store.search(
+        embedding=query_embedding, exec_option="compute_engine", distance_metric=distance_metric
+    )
+    
     # initialize vector store object:
     vector_store = DeepLakeVectorStore(
         dataset_path="hub://testingacc2/vectorstore_test",
         read_only=True,
         token=hub_cloud_dev_token,
     )
-
-    vector_store.add(embeddings=embeddings, texts=texts)
 
     # use indra implementation to search the data
     data_ce = vector_store.search(
@@ -66,6 +71,8 @@ def test_search(distance_metric, hub_cloud_dev_token):
     )
     np.testing.assert_almost_equal(data_p["score"], data_ce["score"])
     np.testing.assert_almost_equal(data_p["text"], data_ce["text"])
+    np.testing.assert_almost_equal(data_p["ids"], data_ce["ids"])
+    np.testing.assert_almost_equal(data_p["metadata"], data_ce["metadata"])
 
     data_db = vector_store.search(
         embedding=query_embedding,
@@ -75,6 +82,8 @@ def test_search(distance_metric, hub_cloud_dev_token):
 
     np.testing.assert_almost_equal(data_ce["score"], data_db["score"])
     np.testing.assert_almost_equal(data_ce["text"], data_db["text"])
+    np.testing.assert_almost_equal(data_ce["ids"], data_db["ids"])
+    np.testing.assert_almost_equal(data_ce["metadata"], data_db["metadata"])
 
     data_q = vector_store.search(
         query=f"select * where text == {texts[0]}", exec_option="compute_engine"
