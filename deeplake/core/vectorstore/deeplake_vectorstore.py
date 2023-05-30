@@ -79,7 +79,7 @@ class DeepLakeVectorStore:
         self,
         embedding_function: Optional[Callable] = None,
         total_samples_processed: int = 0,
-        **kwargs,
+        **tensors,
     ) -> List[str]:
         """Adding elements to deeplake vector store
 
@@ -95,7 +95,7 @@ class DeepLakeVectorStore:
             List[str]: List of document IDs
         """
         processed_tensors, ids = dataset_utils.preprocess_tensors(
-            self.tensors_dict, **kwargs
+            self.tensors_dict, **tensors
         )
         assert ids is not None
 

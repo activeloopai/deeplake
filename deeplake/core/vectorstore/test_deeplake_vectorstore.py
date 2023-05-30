@@ -21,8 +21,7 @@ def embedding_fn(text, embedding_dim=100):
     return np.zeros((len(text), embedding_dim)).astype(np.float32)
 
 
-def test_tensor_dict():
-    hub_cloud_dev_token = "eyJhbGciOiJIUzUxMiIsImlhdCI6MTY4NTQ0Nzg0MCwiZXhwIjoxNzEzNTI3ODE5fQ.eyJpZCI6InRlc3RpbmdhY2MyIn0.IejXn0uiWOMCaonAAowDHwZlGQoztGaPj3wi-o8MiHaMRwvL1UeOdi6K7sfw4HIceDLYo_H7lrdRUCTC4KRP3g"
+def test_tensor_dict(hub_cloud_dev_token):
     # initialize vector store object:
     vector_store = DeepLakeVectorStore(
         dataset_path="./deeplake_vector_store",

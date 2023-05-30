@@ -106,7 +106,6 @@ def create_tensors_if_needed(tensors_dict, dataset, logger, embedding_function):
         if tensor_args["name"] not in tensors:
             warn_and_create_missing_tensor(dataset, logger, **tensor_args)
     update_embedding_info(logger, dataset, embedding_function)
-    print()
 
 
 def warn_and_create_missing_tensor(dataset, logger, **kwargs):
