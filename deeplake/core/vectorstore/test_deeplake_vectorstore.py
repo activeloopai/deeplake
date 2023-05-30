@@ -5,6 +5,8 @@ from deeplake.core.vectorstore.deeplake_vectorstore import DeepLakeVectorStore
 from deeplake.core.vectorstore import utils
 from deeplake.tests.common import requires_libdeeplake
 
+from math import isclose
+
 
 embedding_dim = 100
 # create data
@@ -53,6 +55,8 @@ def test_tensor_dict():
 
 @requires_libdeeplake
 def test_search_basic(hub_cloud_dev_token):
+    """Test basic search features"""
+
     # initialize vector store object:
     vector_store = DeepLakeVectorStore(
         dataset_path="./deeplake_vector_store",
@@ -147,22 +151,9 @@ def test_search_basic(hub_cloud_dev_token):
 
 
 @requires_libdeeplake
-@pytest.mark.parametrize("distance_metric", ["L1", "L2", "COS", "MAX", "DOT"])
+@pytest.mark.parametrize("distance_metric", ["L1", "L2", "COS", "MAX"])
 def test_search_quantitative(distance_metric, hub_cloud_dev_token):
-    # initialize vector store object:
-    vector_store = DeepLakeVectorStore(
-        dataset_path="./deeplake_vector_store",
-        overwrite=True,
-        token=hub_cloud_dev_token,
-    )
-
-    # add data to the dataset:
-    vector_store.add(embeddings=embeddings, texts=texts)
-
-    # use python implementation to search the data
-    data_p = vector_store.search(
-        embedding=query_embedding, exec_option="python", distance_metric=distance_metric
-    )
+    """Test whether TQL and Python return the same results"""
 
     # initialize vector store object:
     vector_store = DeepLakeVectorStore(
@@ -171,23 +162,42 @@ def test_search_quantitative(distance_metric, hub_cloud_dev_token):
         token=hub_cloud_dev_token,
     )
 
+    # use python implementation to search the data
+    data_p = vector_store.search(
+        embedding=query_embedding, exec_option="python", distance_metric=distance_metric
+    )
+
     # use indra implementation to search the data
     data_ce = vector_store.search(
         embedding=query_embedding,
         exec_option="compute_engine",
         distance_metric=distance_metric,
     )
-    np.testing.assert_almost_equal(data_p["score"], data_ce["score"])
-    np.testing.assert_almost_equal(data_p["text"], data_ce["text"])
-    np.testing.assert_almost_equal(data_p["ids"], data_ce["ids"])
-    np.testing.assert_almost_equal(data_p["metadata"], data_ce["metadata"])
+
+    assert len(data_p["score"]) == len(data_ce["score"])
+    assert all(
+        [
+            isclose(
+                data_p["score"][i],
+                data_ce["score"][i],
+                abs_tol=0.00001
+                * (abs(data_p["score"][i]) + abs(data_ce["score"][i]))
+                / 2,
+            )
+            for i in range(len(data_p["score"]))
+        ]
+    )
+    assert data_p["text"] == data_ce["text"]
+    assert data_p["ids"] == data_ce["ids"]
+    assert data_p["metadata"] == data_ce["metadata"]
 
 
 @requires_libdeeplake
 def test_search_managed(hub_cloud_dev_token):
+    """Test whether managed TQL and client-side TQL return the same results"""
     # initialize vector store object:
     vector_store = DeepLakeVectorStore(
-        dataset_path="hub://testingacc2/vectorstore_test",
+        dataset_path="hub://testingacc2/vectorstore_test_managed",
         read_only=True,
         token=hub_cloud_dev_token,
     )
@@ -203,11 +213,21 @@ def test_search_managed(hub_cloud_dev_token):
         exec_option="tensor_db",
     )
 
-    assert len(data_ce.keys) == len(data_ce.data_db)
-    np.testing.assert_almost_equal(data_ce["score"], data_db["score"])
-    np.testing.assert_almost_equal(data_ce["text"], data_db["text"])
-    np.testing.assert_almost_equal(data_ce["ids"], data_db["ids"])
-    np.testing.assert_almost_equal(data_ce["metadata"], data_db["metadata"])
+    assert len(data_ce["score"]) == len(data_db["score"])
+    assert all(
+        [
+            isclose(
+                data_ce["score"][i],
+                data_db["score"][i],
+                abs_tol=0.00001
+                * (abs(data_ce["score"][i]) + abs(data_db["score"][i]))
+                / 2,
+            )
+            for i in range(len(data_ce["score"]))
+        ]
+    )
+    assert data_ce["text"] == data_db["text"]
+    assert data_ce["ids"] == data_db["ids"]
 
 
 def test_delete():

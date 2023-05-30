@@ -115,7 +115,7 @@ class DeepLakeVectorStore:
 
     def search(
         self,
-        prompt: Optional[str] = None,
+        data_for_embedding=None,
         embedding_function: Optional[Callable] = None,
         embedding: Optional[Union[List[float], np.ndarray]] = None,
         k: int = 4,
@@ -129,15 +129,15 @@ class DeepLakeVectorStore:
         """DeepLakeVectorStore search method that combines embedding search, metadata search, and custom TQL search.
 
         Examples:
-            >>> # Search using an embedding function and prompt
-            >>> data = vector_store.search(
-            >>>        prompt = "What does this chatbot do?",
-            >>>        embedding_function = <your_embedding_function>,
-            >>>        exec_option = <preferred_exec_option>,
-            >>> )
             >>> # Search using an embedding
             >>> data = vector_store.search(
             >>>        embedding = <your_embedding>,
+            >>>        exec_option = <preferred_exec_option>,
+            >>> )
+            >>> # Search using an embedding function and data for embedding
+            >>> data = vector_store.search(
+            >>>        data_for_embedding = "What does this chatbot do?",
+            >>>        embedding_function = <your_embedding_function>,
             >>>        exec_option = <preferred_exec_option>,
             >>> )
             >>> # Add a filter to your search
@@ -148,14 +148,14 @@ class DeepLakeVectorStore:
             >>> )
             >>> # Search using TQL
             >>> data = vector_store.search(
-            >>>        querly = "select * where ..... <add TQL syntax>",
+            >>>        query = "select * where ..... <add TQL syntax>",
             >>>        exec_option = <preferred_exec_option>, # Only valid for exec_option = "compute_engine" or "tensor_db"
             >>> )
 
         Args:
-            prompt (Optional[str], optional): String representation of the prompt to embed using embedding_function. Defaults to None. The prompt and embedding cannot both be specified or both be None.
-            embedding_function (callable, optional): function for converting prompt into embedding. Only valid if prompt is specified
-            embedding (Union[np.ndarray, List[float]], optional): Embedding representation for performing the search. Defaults to None. The prompt and embedding cannot both be specified or both be None.
+            embedding (Union[np.ndarray, List[float]], optional): Embedding representation for performing the search. Defaults to None. The data_for_embedding and embedding cannot both be specified or both be None.
+            data_for_embedding (Optional[...], optional): Data against which the search will be performe by embedding it using the embedding_function. Defaults to None. The data_for_embedding and embedding cannot both be specified or both be None.
+            embedding_function (callable, optional): function for converting data_for_embedding into embedding. Only valid if data_for_embedding is specified
             k (int): Number of elements to return after running query. Defaults to 4.
             distance_metric (str): Type of distance metric to use for sorting the data. Avaliable options are: "L1", "L2", "COS", "MAX". Defaults to "COS".
             query (Optional[str]):  TQL Query string for direct evaluation, without application of additional filters or vector search. This overrides all other filter-related parameters.
@@ -184,7 +184,7 @@ class DeepLakeVectorStore:
             )
 
         self._parse_search_args(
-            prompt=prompt,
+            data_for_embedding=data_for_embedding,
             embedding_function=embedding_function,
             embedding=embedding,
             k=k,
@@ -199,7 +199,7 @@ class DeepLakeVectorStore:
         # if embedding_function is not None or embedding is not None:
         query_emb = dataset_utils.get_embedding(
             embedding,
-            prompt,
+            data_for_embedding,
             embedding_function=embedding_function,
         )
 
@@ -224,13 +224,13 @@ class DeepLakeVectorStore:
     def _parse_search_args(self, **kwargs):
         """Helper function for raising errors if invalid parameters are specified to search"""
         if (
-            kwargs["prompt"] is None
+            kwargs["data_for_embedding"] is None
             and kwargs["embedding"] is None
             and kwargs["query"] is None
             and kwargs["filter"] is None
         ):
             raise ValueError(
-                f"Ether a embedding, prompt, query, or filter must be specified."
+                f"Either a embedding, data_for_embedding, query, or filter must be specified."
             )
 
         if (
@@ -239,7 +239,7 @@ class DeepLakeVectorStore:
             and kwargs["query"] is None
         ):
             raise ValueError(
-                f"Ether an embedding, embedding_function, or query must be specified."
+                f"Either an embedding, embedding_function, or query must be specified."
             )
 
         exec_option = kwargs["exec_option"]

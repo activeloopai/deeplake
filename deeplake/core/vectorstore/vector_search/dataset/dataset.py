@@ -180,11 +180,11 @@ def fetch_embeddings(exec_option, view, logger, embedding_tensor: str = "embeddi
     return view[embedding_tensor].numpy()
 
 
-def get_embedding(embedding, query, embedding_function=None):
+def get_embedding(embedding, data_for_embedding, embedding_function=None):
     if embedding_function is not None:
         if embedding is not None:
             always_warn("both embedding and embedding_function are specified. ")
-        embedding = embedding_function(query)  # type: ignore
+        embedding = embedding_function(data_for_embedding)  # type: ignore
 
     if embedding is not None and (
         isinstance(embedding, list) or embedding.dtype != "float32"
