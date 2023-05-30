@@ -74,7 +74,7 @@ def generate_random_string(length):
 
 def generate_json(value):
     key = "abc"
-    return {string: value}
+    return {key: value}
 
 
 def create_data(number_of_data, embedding_dim=100):

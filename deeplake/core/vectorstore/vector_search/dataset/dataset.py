@@ -88,7 +88,12 @@ def load_dataset(
         )
 
     dataset = deeplake.load(
-        dataset_path, token=token, read_only=read_only, creds=creds, **kwargs
+        dataset_path,
+        token=token,
+        read_only=read_only,
+        creds=creds,
+        verbose=False,
+        **kwargs,
     )
     create_tensors_if_needed(tensors_dict, dataset, logger, embedding_function)
 
@@ -106,7 +111,6 @@ def create_tensors_if_needed(tensors_dict, dataset, logger, embedding_function):
         if tensor_args["name"] not in tensors:
             warn_and_create_missing_tensor(dataset, logger, **tensor_args)
     update_embedding_info(logger, dataset, embedding_function)
-    print()
 
 
 def warn_and_create_missing_tensor(dataset, logger, **kwargs):
@@ -177,18 +181,14 @@ def fetch_embeddings(exec_option, view, logger, embedding_tensor: str = "embeddi
 
 
 def get_embedding(embedding, query, embedding_function=None):
-    if embedding is None:
-        if embedding_function is None:
-            raise Exception(
-                "Either embedding array or embedding_function should be specified!"
-            )
-
     if embedding_function is not None:
         if embedding is not None:
             always_warn("both embedding and embedding_function are specified. ")
         embedding = embedding_function(query)  # type: ignore
 
-    if isinstance(embedding, list) or embedding.dtype != "float32":
+    if embedding is not None and (
+        isinstance(embedding, list) or embedding.dtype != "float32"
+    ):
         embedding = np.array(embedding, dtype=np.float32)
 
     return embedding

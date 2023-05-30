@@ -196,12 +196,12 @@ class DeepLakeVectorStore:
             return_tensors=return_tensors,
         )
 
-        if embedding_function is not None or embedding is not None:
-            query_emb = dataset_utils.get_embedding(
-                embedding,
-                prompt,
-                embedding_function=embedding_function,
-            )
+        # if embedding_function is not None or embedding is not None:
+        query_emb = dataset_utils.get_embedding(
+            embedding,
+            prompt,
+            embedding_function=embedding_function,
+        )
 
         if not return_tensors:
             return_tensors = [
@@ -233,9 +233,13 @@ class DeepLakeVectorStore:
                 f"Ether a embedding, prompt, query, or filter must be specified."
             )
 
-        if kwargs["embedding_function"] is None and kwargs["embedding"] is None:
+        if (
+            kwargs["embedding_function"] is None
+            and kwargs["embedding"] is None
+            and kwargs["query"] is None
+        ):
             raise ValueError(
-                f"Ether an embedding or embedding_function must be specified."
+                f"Ether an embedding, embedding_function, or query must be specified."
             )
 
         exec_option = kwargs["exec_option"]

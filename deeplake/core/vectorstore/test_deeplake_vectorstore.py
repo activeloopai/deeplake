@@ -18,7 +18,7 @@ query_embedding = np.random.uniform(low=-10, high=10, size=(embedding_dim)).asty
 
 
 def embedding_fn(text, embedding_dim=100):
-    return np.zeros((len(text), embedding_dim)).astype(np.float32)
+    return np.zeros((embedding_dim,)).astype(np.float32)
 
 
 def test_tensor_dict():
@@ -27,37 +27,28 @@ def test_tensor_dict():
         dataset_path="./deeplake_vector_store",
         overwrite=True,
         tensors_dict=[
-            {"name": "image_annotations", "htype": "text"},
-            {"name": "image_embeddings", "htype": "embedding"},
+            {"name": "texts_custom", "htype": "text"},
+            {"name": "emb_custom", "htype": "embedding"},
         ],
     )
 
     with pytest.raises(ValueError):
         vector_store.add(
-            image_annotations=texts,
-            image_embeddings=embeddings,
+            bad_tensor_1=texts,
+            bad_tensor_2=embeddings,
             text=texts,
         )
 
     vector_store.add(
-        image_annotations=texts,
-        image_embeddings=embeddings,
+        texts_custom=texts,
+        emb_custom=embeddings,
     )
 
-    query_embedding = np.random.uniform(low=-10, high=10, size=(embedding_dim)).astype(
-        np.float32
+    data = vector_store.search(
+        embedding=query_embedding, exec_option="python", embedding_tensor="emb_custom"
     )
-    # use indra implementation to search the data
-    data_p = vector_store.search(embedding=query_embedding, exec_option="python")
-    data_p
-
-
-@requires_libdeeplake
-@pytest.mark.parametrize("distance_metric", ["L1", "L2", "COS", "MAX", "DOT"])
-def test_search(distance_metric, hub_cloud_dev_token):
-    query_embedding = np.random.uniform(low=-10, high=10, size=(embedding_dim)).astype(
-        np.float32
-    )
+    assert len(data.keys()) == 3
+    assert "texts_custom" in data.keys() and "ids" in data.keys()
 
 
 @requires_libdeeplake
@@ -70,7 +61,7 @@ def test_search_basic(hub_cloud_dev_token):
     )
 
     # add data to the dataset:
-    vector_store.add(embeddings=embeddings, texts=texts, metadatas=metadatas)
+    vector_store.add(embedding=embeddings, text=texts, metadata=metadatas)
 
     # check that default works
     data_default = vector_store.search(
@@ -94,13 +85,13 @@ def test_search_basic(hub_cloud_dev_token):
     assert len(data_p.keys()) == 3  # One for each return_tensors + score
 
     # initialize vector store object in the cloud for indra testing:
-    vector_store = DeepLakeVectorStore(
+    vector_store_cloud = DeepLakeVectorStore(
         dataset_path="hub://testingacc2/vectorstore_test",
         read_only=True,
         token=hub_cloud_dev_token,
     )
     # use indra implementation to search the data
-    data_ce = vector_store.search(
+    data_ce = vector_store_cloud.search(
         embedding=query_embedding,
         exec_option="compute_engine",
         k=2,
@@ -113,24 +104,27 @@ def test_search_basic(hub_cloud_dev_token):
     assert len(data_ce.keys()) == 3  # One for each return_tensors + score
 
     # run a full custom query
+    test_text = vector_store.dataset.text[0].data()["value"]
     data_q = vector_store.search(
-        query=f"select * where text == {texts[0]}", exec_option="compute_engine"
+        query=f"select * where text == '{test_text}'", exec_option="compute_engine"
     )
 
     assert len(data_q["text"]) == 1
-    assert data_q["text"] == texts[0]
-    assert (
-        sum([tensor in data_q.keys() for tensor in vector_store.dataset.tensors])
-        == len(data_q.dataset.tensors) + 1
-    )  # One for each tensor + score
+    assert data_q["text"][0] == test_text
+    assert sum(
+        [tensor in data_q.keys() for tensor in vector_store.dataset.tensors]
+    ) == len(
+        vector_store.dataset.tensors
+    )  # One for each tensor - embedding + score
 
+    # Run a filter query
     data_e = vector_store.search(
         prompt="dummy",
         embedding_function=embedding_fn,
         exec_option="python",
         k=2,
         return_tensors=["ids", "text"],
-        filter={"metadata['abc']: 'value'"},
+        filter={"metadata": {"abc": "value"}},
     )
     assert len(data_e["text"]) == 2
     assert (
