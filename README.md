@@ -310,8 +310,7 @@ Deep Lake and DVC offer dataset version control similar to git for data, but the
   
 - **Data Storage Format:** Deep Lake operates on a columnar storage format, whereas MDS utilizes a row-wise storage approach. This fundamentally impacts how data is read, written, and organized in each system.
 - **Compression:** Deep Lake offers a more flexible compression scheme, allowing control over both chunk-level and sample-level compression for each column or tensor. This feature eliminates the need for additional compressions like zstd, which would otherwise demand more CPU cycles for decompressing on top of formats like jpeg.
-- **Shuffling:** MDS seems to take much longer in advanced shuffling strategies.
-- **Random Access:** Deep Lake performs byte range requests when accessing sub-chunk data, eliminating the need to download the whole chunk from S3 storage. While MDS does provide random access when data is cached, to the best of our knowledge it lacks this precise level of byte range request capability at the S3 call level.
+- **Shuffling:** MDS currently offers more advanced shuffling strategies.
 - **Version Control & Visualization Support:** A notable feature of Deep Lake is its native version control and in-browser data visualization, a feature not present for MosaicML data format. This can provide significant advantages in managing, understanding, and tracking different versions of the data.
 
 </details>
