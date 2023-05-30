@@ -73,15 +73,13 @@ class DeepLakeVectorStore:
         self.embedding_function = embedding_function
         self._exec_option = exec_option
         self.verbose = verbose
+        self.tensors_dict = tensors_dict
 
     def add(
         self,
-        texts: Iterable[str],
         embedding_function: Optional[Callable] = None,
-        metadatas: Optional[List[dict]] = None,
-        ids: Optional[List[str]] = None,
-        embeddings: Optional[Union[List[float], np.ndarray]] = None,
         total_samples_processed: int = 0,
+        **kwargs,
     ) -> List[str]:
         """Adding elements to deeplake vector store
 
@@ -97,7 +95,7 @@ class DeepLakeVectorStore:
             List[str]: List of document IDs
         """
         processed_tensors, ids = dataset_utils.preprocess_tensors(
-            ids, texts, metadatas, embeddings
+            self.tensors_dict, **kwargs
         )
         assert ids is not None
 
