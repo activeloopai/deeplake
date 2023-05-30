@@ -88,12 +88,7 @@ def load_dataset(
         )
 
     dataset = deeplake.load(
-        dataset_path,
-        token=token,
-        read_only=read_only,
-        creds=creds,
-        verbose=False,
-        **kwargs,
+        dataset_path, token=token, read_only=read_only, creds=creds, **kwargs
     )
     create_tensors_if_needed(tensors_dict, dataset, logger, embedding_function)
 
@@ -133,17 +128,32 @@ def create_dataset(
     runtime = None
     if exec_option == "tensor_db":
         runtime = {"tensor_db": True}
+    
+    dataset = deeplake.empty(dataset_path, token=token, runtime=runtime, verbose=False, **kwargs)
+    create_tensors(tensors_dict, dataset, logger, embedding_function)
+    
+    return dataset
 
-    dataset = deeplake.empty(
-        dataset_path, token=token, runtime=runtime, verbose=False, **kwargs
-    )
 
+def create_tensors(tensors_dict, dataset, logger, embedding_function):
+    tensor_names = [tensor["name"] for tensor in tensors_dict]
+    if "ids" not in tensor_names:
+        tensors_dict.append(
+            {
+                "name": "ids",
+                "htype": "text",
+                "create_id_tensor": False,
+                "create_sample_info_tensor": False,
+                "create_shape_tensor": False,
+                "chunk_compression": "lz4",
+            },
+        )
+    
     with dataset:
         for tensor_args in tensors_dict:
             dataset.create_tensor(**tensor_args)
 
         update_embedding_info(logger, dataset, embedding_function)
-    return dataset
 
 
 def delete_and_commit(dataset, ids):
@@ -164,11 +174,17 @@ def fetch_embeddings(exec_option, view, logger, embedding_tensor: str = "embeddi
     return view[embedding_tensor].numpy()
 
 
-def get_embedding(embedding, propmt, embedding_function=None):
+def get_embedding(embedding, query, embedding_function=None):
+    if embedding is None:
+        if embedding_function is None:
+            raise Exception(
+                "Either embedding array or embedding_function should be specified!"
+            )
+
     if embedding_function is not None:
         if embedding is not None:
             always_warn("both embedding and embedding_function are specified. ")
-        embedding = embedding_function(propmt)  # type: ignore
+        embedding = embedding_function(query)  # type: ignore
 
     if isinstance(embedding, list) or embedding.dtype != "float32":
         embedding = np.array(embedding, dtype=np.float32)
@@ -178,17 +194,19 @@ def get_embedding(embedding, propmt, embedding_function=None):
 
 def preprocess_tensors(tensors_dict, **kwargs):
     tensors_dict_names = [tensors_dict[idx]["name"] for idx in range(len(tensors_dict))]
-
+    
     for kwarg in kwargs.keys():
         if kwarg not in tensors_dict_names:
             raise ValueError(f"`{kwarg}` is not specified in tensors_dict")
-
+    
     first_item = tensors_dict[0]["name"]
+    
     if "ids" not in kwargs or kwargs["ids"] is None:
         ids = [str(uuid.uuid1()) for _ in kwargs[first_item]]
-
+        kwargs["ids"] =  ids
+    
     processed_tensors = {"ids": ids}
-
+    
     for tensor in tensors_dict:
         tensor_array = kwargs[tensor["name"]]
         if not isinstance(tensor_array, list):
