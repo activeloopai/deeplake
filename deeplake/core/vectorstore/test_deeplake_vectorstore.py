@@ -18,7 +18,7 @@ query_embedding = np.random.uniform(low=-10, high=10, size=(embedding_dim)).asty
 
 
 def embedding_fn(text, embedding_dim=100):
-    return np.zeros((len(text), embedding_dim))
+    return np.zeros((len(text), embedding_dim)).astype(np.float32)
 
 
 @requires_libdeeplake
@@ -31,7 +31,7 @@ def test_search_basic(hub_cloud_dev_token):
     )
 
     # add data to the dataset:
-    vector_store.add(embeddings=embeddings, texts=texts)
+    vector_store.add(embeddings=embeddings, texts=texts, metadatas=metadatas)
 
     # check that default works
     data_default = vector_store.search(
@@ -45,6 +45,7 @@ def test_search_basic(hub_cloud_dev_token):
         exec_option="python",
         k=2,
         return_tensors=["ids", "text"],
+        filter={"metadata": {"abc": "value"}},
     )
 
     assert len(data_p["text"]) == 2
@@ -83,6 +84,20 @@ def test_search_basic(hub_cloud_dev_token):
         sum([tensor in data_q.keys() for tensor in vector_store.dataset.tensors])
         == len(data_q.dataset.tensors) + 1
     )  # One for each tensor + score
+
+    data_e = vector_store.search(
+        prompt="dummy",
+        embedding_function=embedding_fn,
+        exec_option="python",
+        k=2,
+        return_tensors=["ids", "text"],
+        filter={"metadata['abc']: 'value'"},
+    )
+    assert len(data_e["text"]) == 2
+    assert (
+        sum([tensor in data_e.keys() for tensor in vector_store.dataset.tensors]) == 2
+    )  # One for each return_tensors
+    assert len(data_e.keys()) == 3  # One for each return_tensors + score
 
     with pytest.raises(ValueError):
         vector_store.search(embedding=query_embedding, exec_option="remote_tensor_db")

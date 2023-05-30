@@ -121,7 +121,7 @@ class DeepLakeVectorStore:
         embedding_function: Optional[Callable] = None,
         embedding: Optional[Union[List[float], np.ndarray]] = None,
         k: int = 4,
-        distance_metric: str = "L2",
+        distance_metric: str = "COS",
         query: Optional[str] = None,
         filter: Optional[Union[Dict, Callable]] = None,
         exec_option: Optional[str] = "python",
@@ -132,11 +132,11 @@ class DeepLakeVectorStore:
 
         Args:
             prompt (Optional[str], optional): String representation of the prompt to embed using embedding_function. Defaults to None. The prompt and embedding cannot both be specified or both be None.
-            embedding_function (callable, optional): function for converting prompt into embedding. Only valid if promps is specified
+            embedding_function (callable, optional): function for converting prompt into embedding. Only valid if prompt is specified
             embedding (Union[np.ndarray, List[float]], optional): Embedding representation for performing the search. Defaults to None. The prompt and embedding cannot both be specified or both be None.
             k (int): Number of elements to return after running query. Defaults to 4.
-            distance_metric (str): Type of distance metric to use for sorting the data. Avaliable options are: "L1", "L2", "COS", "MAX". Defaults to "L2".
-            query (Optional[str]):  TQL Query string for direct evaluation, without application of additional filters or vector search.
+            distance_metric (str): Type of distance metric to use for sorting the data. Avaliable options are: "L1", "L2", "COS", "MAX". Defaults to "COS".
+            query (Optional[str]):  TQL Query string for direct evaluation, without application of additional filters or vector search. This overrides all other filter-related parameters.
             filter (Union[Dict, Callable], optional): Additional filter evaluated prior to the embedding search.
                 - ``Dict`` - Key-value search on tensors of htype json, evaluated on an AND basis (a sample must satisfy all key-value filters to be True) Dict = {"tensor_name_1": {"key": value}, "tensor_name_2": {"key": value}}
                 - ``Function`` - Any function that is compatible with `deeplake.filter`.
@@ -145,7 +145,7 @@ class DeepLakeVectorStore:
                 - ``compute_engine`` - Performant C++ implementation of the Deep Lake Compute Engine that runs on the client and can be used for any data stored in or connected to Deep Lake. It cannot be used with in-memory or local datasets.
                 - ``tensor_db`` - Performant and fully-hosted Managed Tensor Database that is responsible for storage and query execution. Only available for data stored in the Deep Lake Managed Database. Store datasets in this database by specifying runtime = {"db_engine": True} during dataset creation.
             embedding_tensor (str): Name of tensor with embeddings. Defaults to "embedding".
-            return_tensors (Optional[List[str]]): List of tensors to return. Defaults to None. If None, all tensors are returned.
+            return_tensors (Optional[List[str]]): List of tensors to return data for. Defaults to None. If None, all tensors are returned.
 
 
         Raises:
@@ -162,14 +162,25 @@ class DeepLakeVectorStore:
                 "Invalid `exec_option` it should be either `python`, `compute_engine` or `tensor_db`."
             )
 
-        if not query:
+        self._parse_search_args(
+            prompt=prompt,
+            embedding_function=embedding_function,
+            embedding=embedding,
+            k=k,
+            distance_metric=distance_metric,
+            query=query,
+            filter=filter,
+            exec_option=exec_option,
+            embedding_tensor=embedding_tensor,
+            return_tensors=return_tensors,
+        )
+
+        if embedding_function is not None or embedding is not None:
             query_emb = dataset_utils.get_embedding(
                 embedding,
                 prompt,
                 embedding_function=embedding_function,
             )
-        else:
-            query_emb = None
 
         if not return_tensors:
             return_tensors = [
@@ -216,6 +227,10 @@ class DeepLakeVectorStore:
                 raise ValueError(
                     f"query parameter for directly running TQL is invalid for exec_option={exec_option}."
                 )
+            if kwargs["embedding"] is None and kwargs["embedding_function"] is None:
+                raise ValueError(
+                    f"Either emebdding or embedding_function must be specified for exec_option={exec_option}."
+                )
         else:
             if type(kwargs["filter"]) == Callable:
                 raise ValueError(
@@ -224,6 +239,14 @@ class DeepLakeVectorStore:
             if kwargs["query"] and kwargs["filter"]:
                 raise ValueError(
                     f"query and filter parameters cannot be specified simultaneously."
+                )
+            if (
+                kwargs["embedding"] is None
+                and kwargs["embedding_function"] is None
+                and kwargs["query"] is None
+            ):
+                raise ValueError(
+                    f"Either emebdding, embedding_function, or query must be specified for exec_option={exec_option}."
                 )
             if kwargs["return_tensors"] and kwargs["query"]:
                 raise ValueError(

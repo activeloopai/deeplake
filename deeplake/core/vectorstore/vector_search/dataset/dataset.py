@@ -165,12 +165,6 @@ def fetch_embeddings(exec_option, view, logger, embedding_tensor: str = "embeddi
 
 
 def get_embedding(embedding, propmt, embedding_function=None):
-    if embedding is None:
-        if embedding_function is None:
-            raise ValueError(
-                "Either embedding or embedding_function should be specified!"
-            )
-
     if embedding_function is not None:
         if embedding is not None:
             always_warn("both embedding and embedding_function are specified. ")

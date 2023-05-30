@@ -10,7 +10,7 @@ def create_query_string(
     tql_filter: str,
     limit: int,
     order: str,
-    tensor_list: list[str],
+    tensor_list: List[str],
 ):
     """Function for creating a query string from a distance metric, limit and order.
 
@@ -18,7 +18,7 @@ def create_query_string(
         distance_metric (str): distance metric to compute similarity of the query embedding with dataset's embeddings.
         limit (int): number of samples to return after the search.
         order (str): Type of data ordering after computing similarity score. Defaults to "ASC".
-        tensor_list (list[str]): List of tensors to return data for.
+        tensor_list (List[str]): List of tensors to return data for.
 
 
     Returns:
@@ -38,7 +38,7 @@ def create_query(
     query_embedding: str,
     tql_filter: str,
     limit: int,
-    tensor_list: list[str],
+    tensor_list: List[str],
 ):
     """Function for creating a query string from a distance metric, embeddings, query_embedding, and limit.
 
@@ -94,7 +94,7 @@ def parse_query(
     query_embedding: np.ndarray,
     embedding_tensor: str,
     tql_filter: str,
-    tensor_list: list[str],
+    tensor_list: List[str],
 ) -> str:
     """Function for converting query_embedding into tql query.
 
