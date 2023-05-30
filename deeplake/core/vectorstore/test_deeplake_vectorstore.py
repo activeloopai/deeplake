@@ -21,6 +21,45 @@ def embedding_fn(text, embedding_dim=100):
     return np.zeros((len(text), embedding_dim)).astype(np.float32)
 
 
+def test_tensor_dict():
+    # initialize vector store object:
+    vector_store = DeepLakeVectorStore(
+        dataset_path="./deeplake_vector_store",
+        overwrite=True,
+        tensors_dict=[
+            {"name": "image_annotations", "htype": "text"},
+            {"name": "image_embeddings", "htype": "embedding"},
+        ],
+    )
+
+    with pytest.raises(ValueError):
+        vector_store.add(
+            image_annotations=texts,
+            image_embeddings=embeddings,
+            text=texts,
+        )
+
+    vector_store.add(
+        image_annotations=texts,
+        image_embeddings=embeddings,
+    )
+
+    query_embedding = np.random.uniform(low=-10, high=10, size=(embedding_dim)).astype(
+        np.float32
+    )
+    # use indra implementation to search the data
+    data_p = vector_store.search(embedding=query_embedding, exec_option="python")
+    data_p
+
+
+@requires_libdeeplake
+@pytest.mark.parametrize("distance_metric", ["L1", "L2", "COS", "MAX", "DOT"])
+def test_search(distance_metric, hub_cloud_dev_token):
+    query_embedding = np.random.uniform(low=-10, high=10, size=(embedding_dim)).astype(
+        np.float32
+    )
+
+
 @requires_libdeeplake
 def test_search_basic(hub_cloud_dev_token):
     # initialize vector store object:

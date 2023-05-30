@@ -176,32 +176,24 @@ def get_embedding(embedding, propmt, embedding_function=None):
     return embedding
 
 
-def preprocess_tensors(ids, texts, metadatas, embeddings):
-    if ids is None:
-        ids = [str(uuid.uuid1()) for _ in texts]
+def preprocess_tensors(tensors_dict, **kwargs):
+    tensors_dict_names = [tensors_dict[idx]["name"] for idx in range(len(tensors_dict))]
 
-    if not isinstance(texts, list):
-        texts = list(texts)
+    for kwarg in kwargs.keys():
+        if kwarg not in tensors_dict_names:
+            raise ValueError(f"`{kwarg}` is not specified in tensors_dict")
 
-    if metadatas is None:
-        metadatas = [{}] * len(texts)
+    first_item = tensors_dict[0]["name"]
+    if "ids" not in kwargs or kwargs["ids"] is None:
+        ids = [str(uuid.uuid1()) for _ in kwargs[first_item]]
 
-    if embeddings is None:
-        embeddings = [None] * len(texts)
-    elif (
-        embeddings is not None
-        and not isinstance(embeddings, list)
-        and len(embeddings) <= VECTORSTORE_INGESTION_THRESHOLD
-    ):
-        embeddings = embeddings.astype(np.float32)
-        embeddings = list(embeddings)
+    processed_tensors = {"ids": ids}
 
-    processed_tensors = {
-        "ids": ids,
-        "text": texts,
-        "metadata": metadatas,
-        "embedding": embeddings,
-    }
+    for tensor in tensors_dict:
+        tensor_array = kwargs[tensor["name"]]
+        if not isinstance(tensor_array, list):
+            tensor_array = list(tensor_array)
+        processed_tensors[tensor["name"]] = tensor_array
 
     return processed_tensors, ids
 
