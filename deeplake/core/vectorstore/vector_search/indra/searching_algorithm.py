@@ -34,11 +34,13 @@ def search(
 
     Returns:
         Dict: Dictionary where keys are tensor names and values are the results of the search
+    Raises:
+        ValueError: If both tql_string and tql_filter are specified.
     """
     from indra import api  # type: ignore
 
     if tql_string and tql_filter:
-        raise NotImplementedError(
+        raise ValueError(
             f"tql_string and tql_filter parameters cannot be specified simultaneously."
         )
 

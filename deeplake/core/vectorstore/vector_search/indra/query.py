@@ -1,6 +1,6 @@
 import numpy as np
 
-from typing import Optional, Union, List
+from typing import List
 
 from deeplake.core.vectorstore.vector_search.indra import tql_distance_metrics
 
@@ -16,6 +16,7 @@ def create_query_string(
 
     Args:
         distance_metric (str): distance metric to compute similarity of the query embedding with dataset's embeddings.
+        tql_filter (str): Additional filter using TQL syntax.
         limit (int): number of samples to return after the search.
         order (str): Type of data ordering after computing similarity score. Defaults to "ASC".
         tensor_list (List[str]): List of tensors to return data for.
