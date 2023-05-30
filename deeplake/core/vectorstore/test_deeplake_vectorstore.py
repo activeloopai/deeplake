@@ -124,7 +124,7 @@ def test_search_basic(hub_cloud_dev_token):
 
     # Run a filter query
     data_e = vector_store.search(
-        prompt="dummy",
+        data_for_embedding="dummy",
         embedding_function=embedding_fn,
         exec_option="python",
         k=2,
