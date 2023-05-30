@@ -128,6 +128,30 @@ class DeepLakeVectorStore:
     ):
         """DeepLakeVectorStore search method that combines embedding search, metadata search, and custom TQL search.
 
+        Examples:
+            >>> # Search using an embedding function and prompt
+            >>> data = vector_store.search(
+            >>>        prompt = "What does this chatbot do?",
+            >>>        embedding_function = <your_embedding_function>,
+            >>>        exec_option = <preferred_exec_option>,
+            >>> )
+            >>> # Search using an embedding
+            >>> data = vector_store.search(
+            >>>        embedding = <your_embedding>,
+            >>>        exec_option = <preferred_exec_option>,
+            >>> )
+            >>> # Add a filter to your search
+            >>> data = vector_store.search(
+            >>>        embedding = <your_embedding>,
+            >>>        exec_option = <preferred_exec_option>,
+            >>>        filter = {"json_tensor_name": {"key: value"}, "json_tensor_name_2": {"key_2: value_2"},...}, # Only valid for exec_option = "python"
+            >>> )
+            >>> # Search using TQL
+            >>> data = vector_store.search(
+            >>>        querly = "select * where ..... <add TQL syntax>",
+            >>>        exec_option = <preferred_exec_option>, # Only valid for exec_option = "compute_engine" or "tensor_db"
+            >>> )
+
         Args:
             prompt (Optional[str], optional): String representation of the prompt to embed using embedding_function. Defaults to None. The prompt and embedding cannot both be specified or both be None.
             embedding_function (callable, optional): function for converting prompt into embedding. Only valid if prompt is specified
@@ -148,7 +172,6 @@ class DeepLakeVectorStore:
 
         Raises:
             ValueError: When invalid execution option is specified
-            NotImplementedError: When unsupported combinations of parameters are specified
 
         Returns:
             Dict: Dictionary where keys are tensor names and values are the results of the search

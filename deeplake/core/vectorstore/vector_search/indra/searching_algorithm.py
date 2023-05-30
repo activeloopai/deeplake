@@ -56,7 +56,9 @@ def search(
         )
 
     if runtime:
-        view, data = deeplake_dataset.query(tql_query, runtime=runtime)
+        view, data = deeplake_dataset.query(
+            tql_query, runtime=runtime, return_data=True
+        )
         return_data = data
     else:
         return_data = {}

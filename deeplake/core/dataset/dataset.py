@@ -2136,7 +2136,6 @@ class Dataset:
             },
         )
 
-        if runtime is not None and runtime.get("db_engine", False):
         runtime = parse_runtime_parameters(self.path, runtime)
         if runtime["tensor_db"]:
             client = DeepLakeBackendClient(token=self._token)

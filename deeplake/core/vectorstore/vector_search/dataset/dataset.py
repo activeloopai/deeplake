@@ -128,10 +128,12 @@ def create_dataset(
     runtime = None
     if exec_option == "tensor_db":
         runtime = {"tensor_db": True}
-    
-    dataset = deeplake.empty(dataset_path, token=token, runtime=runtime, verbose=False, **kwargs)
+
+    dataset = deeplake.empty(
+        dataset_path, token=token, runtime=runtime, verbose=False, **kwargs
+    )
     create_tensors(tensors_dict, dataset, logger, embedding_function)
-    
+
     return dataset
 
 
@@ -148,7 +150,7 @@ def create_tensors(tensors_dict, dataset, logger, embedding_function):
                 "chunk_compression": "lz4",
             },
         )
-    
+
     with dataset:
         for tensor_args in tensors_dict:
             dataset.create_tensor(**tensor_args)
@@ -194,19 +196,19 @@ def get_embedding(embedding, query, embedding_function=None):
 
 def preprocess_tensors(tensors_dict, **kwargs):
     tensors_dict_names = [tensors_dict[idx]["name"] for idx in range(len(tensors_dict))]
-    
+
     for kwarg in kwargs.keys():
         if kwarg not in tensors_dict_names:
             raise ValueError(f"`{kwarg}` is not specified in tensors_dict")
-    
+
     first_item = tensors_dict[0]["name"]
-    
+
     if "ids" not in kwargs or kwargs["ids"] is None:
         ids = [str(uuid.uuid1()) for _ in kwargs[first_item]]
-        kwargs["ids"] =  ids
-    
+        kwargs["ids"] = ids
+
     processed_tensors = {"ids": ids}
-    
+
     for tensor in tensors_dict:
         tensor_array = kwargs[tensor["name"]]
         if not isinstance(tensor_array, list):
