@@ -23,7 +23,7 @@ def embedding_fn(text, embedding_dim=100):
     return np.zeros((embedding_dim,)).astype(np.float32)
 
 
-def test_tensor_dict():
+def test_tensor_dict(hub_cloud_dev_token):
     # initialize vector store object:
     vector_store = DeepLakeVectorStore(
         dataset_path="./deeplake_vector_store",
@@ -32,6 +32,7 @@ def test_tensor_dict():
             {"name": "texts_custom", "htype": "text"},
             {"name": "emb_custom", "htype": "embedding"},
         ],
+        token=hub_cloud_dev_token,
     )
 
     with pytest.raises(ValueError):

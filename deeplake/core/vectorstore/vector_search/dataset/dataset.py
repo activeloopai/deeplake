@@ -177,7 +177,14 @@ def delete_all_samples_if_specified(dataset, delete_all):
 
 
 def fetch_embeddings(exec_option, view, logger, embedding_tensor: str = "embedding"):
-    return view[embedding_tensor].numpy()
+    try:
+        return view[embedding_tensor].numpy()
+    except Exception:
+        raise ValueError(
+            "Could not find embedding tensor. If you're using non-default tensor_dict, "
+            "please specify `embedding_tensor` that you want to use. "
+            "Ex: vector_store.search(embedding=query_embedding, embedding_tensor='ypur_embedding_tensor')"
+        )
 
 
 def get_embedding(embedding, data_for_embedding, embedding_function=None):
