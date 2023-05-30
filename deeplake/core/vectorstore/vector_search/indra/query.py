@@ -44,11 +44,11 @@ def create_query(
 
     Args:
         distance_metric (str): distance metric to compute similarity of the query embedding with dataset's embeddings.
-        embeddings (str): name of the tensor in the dataset with `htype = "embedding"`.
+        embedding_tensor (str): name of the tensor in the dataset with `htype = "embedding"`.
         query_embedding (str): embedding representation of the query string converted to str.
         tql_filter (str): Additional filter using TQL syntax.
         limit (int): number of samples to return after the search.
-        tensor_list (list[str]): List of tensors to return data for.
+        tensor_list (List[str]): List of tensors to return data for.
 
 
     Returns:
@@ -103,6 +103,7 @@ def parse_query(
         embedding_tensor (str): name of the tensor in the dataset with `htype = "embedding"`.
         query_embedding (np.ndarray]): embedding representation of the query string.
         limit (int): number of samples to return after the search.
+        tql_filter (str): Additional filter using TQL syntax.
         tensor_list (list[str]): List of tensors to return data for.
 
 

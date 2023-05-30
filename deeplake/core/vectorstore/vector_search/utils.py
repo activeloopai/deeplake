@@ -11,7 +11,7 @@ import uuid
 from functools import partial
 from typing import Optional, Any, Iterable, List, Dict, Callable, Union
 
-EXEC_OPTION_TO_RUNTIME: Dict[str, dict] = {
+EXEC_OPTION_TO_RUNTIME: Dict[str, Optional[Dict]] = {
     "compute_engine": None,
     "python": None,
     "tensor_db": {"db_engine": True},

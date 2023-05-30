@@ -1,5 +1,5 @@
 import numpy as np
-from typing import Dict
+from typing import Dict, List
 
 from deeplake.enterprise.convert_to_libdeeplake import dataset_to_libdeeplake
 
@@ -17,7 +17,7 @@ def search(
     tql_filter: str,
     embedding_tensor: str,
     runtime: dict,
-    return_tensors: list[str],
+    return_tensors: List[str],
 ) -> Dict:
     """Vector Searching algorithm that uses indra.
 
@@ -30,11 +30,10 @@ def search(
         tql_filter (str): Additional filter using TQL syntax
         embedding_tensor (str): name of the tensor in the dataset with `htype = "embedding"`.
         runtime (dict): Runtime parameters for the query.
-        return_tensors (list[str]): List of tensors to return data for.
+        return_tensors (List[str]): List of tensors to return data for.
 
     Returns:
         Dict: Dictionary where keys are tensor names and values are the results of the search
-        NotImplementedError: If both tql_string and tql_filter are specified.
     """
     from indra import api  # type: ignore
 
