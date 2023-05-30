@@ -61,11 +61,11 @@ class AzureProvider(StorageProvider):
         return account_name, container_name, root_folder
 
     def _set_credential(self, creds: Dict[str, str]):
-        account_name = creds.get("account_name")
-        if account_name and account_name != self.account_name:
-            raise ValueError(
-                f"Account name in creds ({account_name}) does not match account name in path ({self.account_name})"
-            )
+        self.account_name = creds.get("account_name")
+        # if account_name and account_name != self.account_name:
+        #     raise ValueError(
+        #         f"Account name in creds ({account_name}) does not match account name in path ({self.account_name})"
+        #     )
 
         self.account_key = creds.get("account_key")
         if self.account_key:
