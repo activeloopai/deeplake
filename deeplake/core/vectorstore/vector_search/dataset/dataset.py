@@ -164,17 +164,17 @@ def fetch_embeddings(exec_option, view, logger, embedding_tensor: str = "embeddi
     return view[embedding_tensor].numpy()
 
 
-def get_embedding(embedding, query, embedding_function=None):
+def get_embedding(embedding, propmt, embedding_function=None):
     if embedding is None:
         if embedding_function is None:
-            raise Exception(
-                "Either embedding array or embedding_function should be specified!"
+            raise ValueError(
+                "Either embedding or embedding_function should be specified!"
             )
 
     if embedding_function is not None:
         if embedding is not None:
             always_warn("both embedding and embedding_function are specified. ")
-        embedding = embedding_function(query)  # type: ignore
+        embedding = embedding_function(propmt)  # type: ignore
 
     if isinstance(embedding, list) or embedding.dtype != "float32":
         embedding = np.array(embedding, dtype=np.float32)

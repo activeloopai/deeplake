@@ -12,21 +12,95 @@ texts, embeddings, ids, metadatas = utils.create_data(
     number_of_data=10, embedding_dim=embedding_dim
 )
 
+query_embedding = np.random.uniform(low=-10, high=10, size=(embedding_dim)).astype(
+    np.float32
+)
+
 
 def embedding_fn(text, embedding_dim=100):
     return np.zeros((len(text), embedding_dim))
 
 
 @requires_libdeeplake
-# @pytest.mark.parametrize("distance_metric", ["L1", "L2", "COS", "MAX", "DOT"])
-# def test_search(distance_metric, hub_cloud_dev_token):
-@pytest.mark.parametrize("distance_metric", ["L1"])
-def test_search(distance_metric):
-    hub_cloud_dev_token = "eyJhbGciOiJIUzUxMiIsImlhdCI6MTY4MTY2MTI1MiwiZXhwIjoxNzEzMjgzNjE5fQ.eyJpZCI6InRlc3RpbmdhY2MyIn0.yoIglU71X8JCH_83TzuxbCTNDQGd-j4h1dcYyhrV3ZLbRPTRj7wKn5IdPgWSpM20XDzjHE9UGzW0khGqaHfA3g"
-    query_embedding = np.random.uniform(low=-10, high=10, size=(embedding_dim)).astype(
-        np.float32
+def test_search_basic(hub_cloud_dev_token):
+    # initialize vector store object:
+    vector_store = DeepLakeVectorStore(
+        dataset_path="./deeplake_vector_store",
+        overwrite=True,
+        token=hub_cloud_dev_token,
     )
 
+    # add data to the dataset:
+    vector_store.add(embeddings=embeddings, texts=texts)
+
+    # check that default works
+    data_default = vector_store.search(
+        embedding=query_embedding,
+    )
+    assert (len(data_default.keys())) > 0
+
+    # use python implementation to search the data
+    data_p = vector_store.search(
+        embedding=query_embedding,
+        exec_option="python",
+        k=2,
+        return_tensors=["ids", "text"],
+    )
+
+    assert len(data_p["text"]) == 2
+    assert (
+        sum([tensor in data_p.keys() for tensor in vector_store.dataset.tensors]) == 2
+    )  # One for each return_tensors
+    assert len(data_p.keys()) == 3  # One for each return_tensors + score
+
+    # initialize vector store object in the cloud for indra testing:
+    vector_store = DeepLakeVectorStore(
+        dataset_path="hub://testingacc2/vectorstore_test",
+        read_only=True,
+        token=hub_cloud_dev_token,
+    )
+    # use indra implementation to search the data
+    data_ce = vector_store.search(
+        embedding=query_embedding,
+        exec_option="compute_engine",
+        k=2,
+        return_tensors=["ids", "text"],
+    )
+    assert len(data_ce["text"]) == 2
+    assert (
+        sum([tensor in data_ce.keys() for tensor in vector_store.dataset.tensors]) == 2
+    )  # One for each return_tensors
+    assert len(data_ce.keys()) == 3  # One for each return_tensors + score
+
+    # run a full custom query
+    data_q = vector_store.search(
+        query=f"select * where text == {texts[0]}", exec_option="compute_engine"
+    )
+
+    assert len(data_q["text"]) == 1
+    assert data_q["text"] == texts[0]
+    assert (
+        sum([tensor in data_q.keys() for tensor in vector_store.dataset.tensors])
+        == len(data_q.dataset.tensors) + 1
+    )  # One for each tensor + score
+
+    with pytest.raises(ValueError):
+        vector_store.search(embedding=query_embedding, exec_option="remote_tensor_db")
+    with pytest.raises(ValueError):
+        vector_store.search()
+    with pytest.raises(ValueError):
+        vector_store.search(query="dummy", exec_option="python")
+    with pytest.raises(ValueError):
+        vector_store.search(
+            query="dummy", return_tensors=["dummy"], exec_option="compute_engine"
+        )
+    with pytest.raises(ValueError):
+        vector_store.search(query="dummy", return_tensors=["ids"], exec_option="python")
+
+
+@requires_libdeeplake
+@pytest.mark.parametrize("distance_metric", ["L1", "L2", "COS", "MAX", "DOT"])
+def test_search_quantitative(distance_metric, hub_cloud_dev_token):
     # initialize vector store object:
     vector_store = DeepLakeVectorStore(
         dataset_path="./deeplake_vector_store",
@@ -38,24 +112,8 @@ def test_search(distance_metric):
     vector_store.add(embeddings=embeddings, texts=texts)
 
     # use python implementation to search the data
-    data = vector_store.search(
-        embedding=query_embedding,
-        exec_option="python",
-        distance_metric=distance_metric,
-        k=3,
-    )
-    assert len(data["text"]) == 3
-
-    # use python implementation to search the data
     data_p = vector_store.search(
         embedding=query_embedding, exec_option="python", distance_metric=distance_metric
-    )
-
-    # Add assertion about keys
-    data_i = vector_store.search(
-        embedding=query_embedding,
-        exec_option="compute_engine",
-        distance_metric=distance_metric,
     )
 
     # initialize vector store object:
@@ -76,30 +134,32 @@ def test_search(distance_metric):
     np.testing.assert_almost_equal(data_p["ids"], data_ce["ids"])
     np.testing.assert_almost_equal(data_p["metadata"], data_ce["metadata"])
 
+
+@requires_libdeeplake
+def test_search_managed(hub_cloud_dev_token):
+    # initialize vector store object:
+    vector_store = DeepLakeVectorStore(
+        dataset_path="hub://testingacc2/vectorstore_test",
+        read_only=True,
+        token=hub_cloud_dev_token,
+    )
+
+    # use indra implementation to search the data
+    data_ce = vector_store.search(
+        embedding=query_embedding,
+        exec_option="compute_engine",
+    )
+
     data_db = vector_store.search(
         embedding=query_embedding,
         exec_option="tensor_db",
-        distance_metric=distance_metric,
     )
 
+    assert len(data_ce.keys) == len(data_ce.data_db)
     np.testing.assert_almost_equal(data_ce["score"], data_db["score"])
     np.testing.assert_almost_equal(data_ce["text"], data_db["text"])
     np.testing.assert_almost_equal(data_ce["ids"], data_db["ids"])
     np.testing.assert_almost_equal(data_ce["metadata"], data_db["metadata"])
-
-    data_q = vector_store.search(
-        query=f"select * where text == {texts[0]}", exec_option="compute_engine"
-    )
-    assert len(data_q["text"]) == 1
-    assert data_q["text"] == texts[0]
-
-    with pytest.raises(ValueError):
-        vector_store.search(embedding=query_embedding, exec_option="remote_tensor_db")
-    with pytest.raises(ValueError):
-        vector_store.search()
-
-    with pytest.raises(ValueError):
-        vector_store.search(query="dummy", exec_option="python")
 
 
 def test_delete():

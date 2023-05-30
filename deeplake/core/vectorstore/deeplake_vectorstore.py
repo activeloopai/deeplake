@@ -126,7 +126,7 @@ class DeepLakeVectorStore:
         filter: Optional[Union[Dict, Callable]] = None,
         exec_option: Optional[str] = "python",
         embedding_tensor: str = "embedding",
-        return_tensors: list[str] = None,
+        return_tensors: List[str] = None,
     ):
         """DeepLakeVectorStore search method that combines embedding search, metadata search, and custom TQL search.
 
@@ -162,14 +162,14 @@ class DeepLakeVectorStore:
                 "Invalid `exec_option` it should be either `python`, `compute_engine` or `tensor_db`."
             )
 
-        if embedding_function is None and embedding is None:
-            return filter_utils.exact_text_search(self.dataset, prompt)
-
-        query_emb = dataset_utils.get_embedding(
-            embedding,
-            prompt,
-            embedding_function=embedding_function,
-        )
+        if not query:
+            query_emb = dataset_utils.get_embedding(
+                embedding,
+                prompt,
+                embedding_function=embedding_function,
+            )
+        else:
+            query_emb = None
 
         if not return_tensors:
             return_tensors = [
