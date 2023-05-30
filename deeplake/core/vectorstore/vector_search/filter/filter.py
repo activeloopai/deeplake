@@ -1,6 +1,4 @@
-import deeplake
 from deeplake.constants import MB
-from deeplake.enterprise.util import raise_indra_installation_error
 from deeplake.util.warnings import always_warn
 
 import numpy as np
@@ -27,13 +25,10 @@ def dp_filter_python(x: dict, filter: Dict) -> bool:
 def attribute_based_filtering_python(
     view, filter: Optional[Union[Dict, Callable]] = None
 ):
-    print(filter)
-
     if filter is not None:
         if isinstance(filter, dict):
             filter = partial(dp_filter_python, filter=filter)
 
-        print(dp_filter_python)
         view = view.filter(filter)
 
     return view
