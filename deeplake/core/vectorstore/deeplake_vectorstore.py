@@ -126,7 +126,7 @@ class DeepLakeVectorStore:
         filter: Optional[Union[Dict, Callable]] = None,
         exec_option: Optional[str] = "python",
         embedding_tensor: str = "embedding",
-        return_tensors: List[str] = None,
+        return_tensors: Optional[List[str]] = None,
     ):
         """DeepLakeVectorStore search method that combines embedding search, metadata search, and custom TQL search.
 
@@ -145,7 +145,7 @@ class DeepLakeVectorStore:
                 - ``compute_engine`` - Performant C++ implementation of the Deep Lake Compute Engine that runs on the client and can be used for any data stored in or connected to Deep Lake. It cannot be used with in-memory or local datasets.
                 - ``tensor_db`` - Performant and fully-hosted Managed Tensor Database that is responsible for storage and query execution. Only available for data stored in the Deep Lake Managed Database. Store datasets in this database by specifying runtime = {"db_engine": True} during dataset creation.
             embedding_tensor (str): Name of tensor with embeddings. Defaults to "embedding".
-            return_tensors (list[str]): List of tensors to return. Defaults to None. If None, all tensors are returned.
+            return_tensors (Optional[List[str]]): List of tensors to return. Defaults to None. If None, all tensors are returned.
 
 
         Raises:
