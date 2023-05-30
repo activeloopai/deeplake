@@ -22,6 +22,7 @@ def embedding_fn(text, embedding_dim=100):
 
 
 def test_tensor_dict():
+    hub_cloud_dev_token = "eyJhbGciOiJIUzUxMiIsImlhdCI6MTY4NTQ0Nzg0MCwiZXhwIjoxNzEzNTI3ODE5fQ.eyJpZCI6InRlc3RpbmdhY2MyIn0.IejXn0uiWOMCaonAAowDHwZlGQoztGaPj3wi-o8MiHaMRwvL1UeOdi6K7sfw4HIceDLYo_H7lrdRUCTC4KRP3g"
     # initialize vector store object:
     vector_store = DeepLakeVectorStore(
         dataset_path="./deeplake_vector_store",
@@ -30,6 +31,7 @@ def test_tensor_dict():
             {"name": "image_annotations", "htype": "text"},
             {"name": "image_embeddings", "htype": "embedding"},
         ],
+        token=hub_cloud_dev_token,
     )
 
     with pytest.raises(ValueError):
@@ -48,8 +50,13 @@ def test_tensor_dict():
         np.float32
     )
     # use indra implementation to search the data
-    data_p = vector_store.search(embedding=query_embedding, exec_option="python")
-    data_p
+    with pytest.raises(ValueError):
+        data_p = vector_store.search(embedding=query_embedding, exec_option="python")
+    data_p = vector_store.search(embedding=query_embedding, exec_option="python", embedding_tensor="image_embeddings")
+    data_ce = vector_store.search(embedding=query_embedding, exec_option="compute_engine", embedding_tensor="image_embeddings")
+    assert data_p["ids"] == data_ce["ids"]
+    assert data_p["image_annotations"] == data_ce["image_annotations"]
+    np.testing.assert_array_almost_equal(data_p["score"], data_ce["score"])
 
 
 @requires_libdeeplake
