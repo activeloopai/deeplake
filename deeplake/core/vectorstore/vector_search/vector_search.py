@@ -26,6 +26,7 @@ def search(
     deeplake_dataset: DeepLakeDataset,
     return_tensors: List[str],
     embedding_tensor: str = "embedding",
+    return_view: bool = False,
 ):
     """Searching function
     Args:
@@ -39,6 +40,7 @@ def search(
         deeplake_dataset (DeepLakeDataset): deeplake dataset object.
         return_tensors (List[str]): List of tensors to return data for.
         embedding_tensor (str): name of the tensor in the dataset with `htype="embedding"`. Defaults to "embedding".
+        return_view (Bool): Return a Deep Lake dataset view that satisfied the search parameters, instead of a dictinary with data. Defaults to False.
     """
     return EXEC_OPTION_TO_SEARCH_TYPE[exec_option](
         query=query,
@@ -51,4 +53,5 @@ def search(
         distance_metric=distance_metric,
         k=k,
         return_tensors=return_tensors,
+        return_view=return_view,
     )

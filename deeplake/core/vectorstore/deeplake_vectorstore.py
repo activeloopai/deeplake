@@ -125,6 +125,7 @@ class DeepLakeVectorStore:
         exec_option: Optional[str] = "python",
         embedding_tensor: str = "embedding",
         return_tensors: Optional[List[str]] = None,
+        return_view: bool = False,
     ):
         """DeepLakeVectorStore search method that combines embedding search, metadata search, and custom TQL search.
 
@@ -168,6 +169,8 @@ class DeepLakeVectorStore:
                 - ``tensor_db`` - Performant and fully-hosted Managed Tensor Database that is responsible for storage and query execution. Only available for data stored in the Deep Lake Managed Database. Store datasets in this database by specifying runtime = {"db_engine": True} during dataset creation.
             embedding_tensor (str): Name of tensor with embeddings. Defaults to "embedding".
             return_tensors (Optional[List[str]]): List of tensors to return data for. Defaults to None. If None, all tensors are returned.
+            return_view (Bool): Return a Deep Lake dataset view that satisfied the search parameters, instead of a dictinary with data. Defaults to False.
+
 
 
         Raises:
@@ -219,6 +222,7 @@ class DeepLakeVectorStore:
             deeplake_dataset=self.dataset,
             embedding_tensor=embedding_tensor,
             return_tensors=return_tensors,
+            return_view=return_view,
         )
 
     def _parse_search_args(self, **kwargs):

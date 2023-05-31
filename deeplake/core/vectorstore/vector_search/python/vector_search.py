@@ -14,6 +14,7 @@ def vector_search(
     distance_metric,
     k,
     return_tensors,
+    return_view,
 ):
     if query is not None:
         raise NotImplementedError(
@@ -36,4 +37,5 @@ def vector_search(
         distance_metric=distance_metric.lower(),
         k=k,
         return_tensors=return_tensors,
+        return_view=return_view,
     )

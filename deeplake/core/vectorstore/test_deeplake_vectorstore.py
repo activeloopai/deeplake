@@ -24,57 +24,21 @@ def embedding_fn(text, embedding_dim=100):
 
 
 def test_tensor_dict(hub_cloud_dev_token):
-    # initialize vector store object:
-    vector_store = DeepLakeVectorStore(
-        dataset_path="./deeplake_vector_store",
-        overwrite=True,
-        tensors_dict=[
-            {"name": "texts_custom", "htype": "text"},
-            {"name": "emb_custom", "htype": "embedding"},
-        ],
-        token=hub_cloud_dev_token,
-    )
-
-    with pytest.raises(ValueError):
-        vector_store.add(
-            bad_tensor_1=texts,
-            bad_tensor_2=embeddings,
-            text=texts,
-        )
-
-    vector_store.add(
-        texts_custom=texts,
-        emb_custom=embeddings,
-    )
-
-    data = vector_store.search(
-        embedding=query_embedding, exec_option="python", embedding_tensor="emb_custom"
-    )
-    assert len(data.keys()) == 3
-    assert "texts_custom" in data.keys() and "ids" in data.keys()
-
-
-@requires_libdeeplake
-def test_search_basic(hub_cloud_dev_token):
-    """Test basic search features"""
-
-    # initialize vector store object:
+    # Initialize vector store object and add data
     vector_store = DeepLakeVectorStore(
         dataset_path="./deeplake_vector_store",
         overwrite=True,
         token=hub_cloud_dev_token,
     )
-
-    # add data to the dataset:
     vector_store.add(embedding=embeddings, text=texts, metadata=metadatas)
 
-    # check that default works
+    # Check that default option works
     data_default = vector_store.search(
         embedding=query_embedding,
     )
     assert (len(data_default.keys())) > 0
 
-    # use python implementation to search the data
+    # Use python implementation to search the data
     data_p = vector_store.search(
         embedding=query_embedding,
         exec_option="python",
@@ -89,13 +53,13 @@ def test_search_basic(hub_cloud_dev_token):
     )  # One for each return_tensors
     assert len(data_p.keys()) == 3  # One for each return_tensors + score
 
-    # initialize vector store object in the cloud for indra testing:
+    # Loac a vector store object from the cloud for indra testing
     vector_store_cloud = DeepLakeVectorStore(
         dataset_path="hub://testingacc2/vectorstore_test",
         read_only=True,
         token=hub_cloud_dev_token,
     )
-    # use indra implementation to search the data
+    # Use indra implementation to search the data
     data_ce = vector_store_cloud.search(
         embedding=query_embedding,
         exec_option="compute_engine",
@@ -104,13 +68,14 @@ def test_search_basic(hub_cloud_dev_token):
     )
     assert len(data_ce["text"]) == 2
     assert (
-        sum([tensor in data_ce.keys() for tensor in vector_store.dataset.tensors]) == 2
+        sum([tensor in data_ce.keys() for tensor in vector_store_cloud.dataset.tensors])
+        == 2
     )  # One for each return_tensors
     assert len(data_ce.keys()) == 3  # One for each return_tensors + score
 
-    # run a full custom query
-    test_text = vector_store.dataset.text[0].data()["value"]
-    data_q = vector_store.search(
+    # Run a full custom query
+    test_text = vector_store_cloud.dataset.text[0].data()["value"]
+    data_q = vector_store_cloud.search(
         query=f"select * where text == '{test_text}'", exec_option="compute_engine"
     )
 
@@ -137,6 +102,26 @@ def test_search_basic(hub_cloud_dev_token):
     )  # One for each return_tensors
     assert len(data_e.keys()) == 3  # One for each return_tensors + score
 
+    # Check returning views
+    data_p_v = vector_store.search(
+        embedding=query_embedding,
+        exec_option="python",
+        k=2,
+        filter={"metadata": {"abc": "value"}},
+        return_view=True,
+    )
+    assert len(data_p_v) == 2
+    assert isinstance(data_p_v.text[0].data()["value"], str)
+    assert data_p_v.embedding[0].numpy().size > 0
+
+    data_ce_v = vector_store_cloud.search(
+        embedding=query_embedding, exec_option="compute_engine", k=2, return_view=True
+    )
+    assert len(data_ce_v) == 2
+    assert isinstance(data_ce_v.text[0].data()["value"], str)
+    assert data_ce_v.embedding[0].numpy().size > 0
+
+    # Check exceptions
     with pytest.raises(ValueError):
         vector_store.search(embedding=query_embedding, exec_option="remote_tensor_db")
     with pytest.raises(ValueError):

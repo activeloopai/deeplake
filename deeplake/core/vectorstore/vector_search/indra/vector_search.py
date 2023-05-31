@@ -23,6 +23,7 @@ def vector_search(
     distance_metric,
     k,
     return_tensors,
+    return_view,
 ):
     runtime = utils.get_runtime_from_exec_option(exec_option)
     if type(filter) == Callable:
@@ -50,4 +51,5 @@ def vector_search(
         embedding_tensor=embedding_tensor,
         runtime=runtime,
         return_tensors=return_tensors,
+        return_view=return_view,
     )
