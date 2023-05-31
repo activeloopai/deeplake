@@ -26,7 +26,8 @@ def vector_search(
     return_view,
 ):
     runtime = utils.get_runtime_from_exec_option(exec_option)
-    if type(filter) == Callable:
+
+    if callable(filter):
         raise NotImplementedError(
             f"UDF filter function are not supported with exec_option={exec_option}"
         )

@@ -1,6 +1,7 @@
 from deeplake.core import vectorstore
 from deeplake.core.vectorstore.vector_search import dataset as dataset_utils
 from deeplake.core.vectorstore.vector_search import filter as filter_utils
+from deeplake.core.vectorstore.vector_search import utils
 
 
 def vector_search(
@@ -30,12 +31,22 @@ def vector_search(
         embedding_tensor=embedding_tensor,
     )
 
-    return vectorstore.python_search_algorithm(
-        deeplake_dataset=view,
-        query_embedding=query_emb,
-        embeddings=embeddings,
-        distance_metric=distance_metric.lower(),
-        k=k,
-        return_tensors=return_tensors,
-        return_view=return_view,
-    )
+    return_data = {}
+
+    if query_emb is not None and embeddings is not None:
+        view, scores = vectorstore.python_search_algorithm(
+            deeplake_dataset=view,
+            query_embedding=query_emb,
+            embeddings=embeddings,
+            distance_metric=distance_metric.lower(),
+            k=k,
+        )
+
+        return_data["score"] = scores
+
+    if return_view:
+        return view
+    else:
+        for tensor in return_tensors:
+            return_data[tensor] = utils.parse_tensor_return(view[tensor])
+        return return_data

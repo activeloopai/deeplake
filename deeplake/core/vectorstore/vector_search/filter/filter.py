@@ -47,7 +47,7 @@ def attribute_based_filtering_tql(
                     tql_filter += f"{tensor}['{key}'] == {val_str} and "
             tql_filter = tql_filter[:-5]
 
-    if debug_mode:
+    if debug_mode and logger is not None:
         logger.warning(f"Converted tql string is: '{tql_filter}'")
     return view, tql_filter
 

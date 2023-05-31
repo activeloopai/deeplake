@@ -87,7 +87,7 @@ def test_tensor_dict(hub_cloud_dev_token):
         vector_store.dataset.tensors
     )  # One for each tensor - embedding + score
 
-    # Run a filter query
+    # Run a filter query usign a function
     data_e = vector_store.search(
         data_for_embedding="dummy",
         embedding_function=embedding_fn,
@@ -95,6 +95,25 @@ def test_tensor_dict(hub_cloud_dev_token):
         k=2,
         return_tensors=["ids", "text"],
         filter={"metadata": {"abc": "value"}},
+    )
+    assert len(data_e["text"]) == 2
+    assert (
+        sum([tensor in data_e.keys() for tensor in vector_store.dataset.tensors]) == 2
+    )  # One for each return_tensors
+    assert len(data_e.keys()) == 3  # One for each return_tensors + score
+
+    # Run a filter query usign a function
+
+    def filter_fn(x):
+        return x["metadata"]["abc"] == "value"
+
+    data_e = vector_store.search(
+        data_for_embedding="dummy",
+        embedding_function=embedding_fn,
+        exec_option="python",
+        k=2,
+        return_tensors=["ids", "text"],
+        filter=filter_fn,
     )
     assert len(data_e["text"]) == 2
     assert (
@@ -130,10 +149,16 @@ def test_tensor_dict(hub_cloud_dev_token):
         vector_store.search(query="dummy", exec_option="python")
     with pytest.raises(ValueError):
         vector_store.search(
-            query="dummy", return_tensors=["dummy"], exec_option="compute_engine"
+            query="dummy",
+            return_tensors=["non_existant_tensor"],
+            exec_option="compute_engine",
         )
     with pytest.raises(ValueError):
         vector_store.search(query="dummy", return_tensors=["ids"], exec_option="python")
+    with pytest.raises(ValueError):
+        vector_store.search(
+            query="dummy", filter=filter_fn, exec_option="compute_engine"
+        )
 
 
 @requires_libdeeplake

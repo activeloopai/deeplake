@@ -21,9 +21,6 @@ EXEC_OPTION_TO_RUNTIME: Dict[str, Optional[Dict]] = {
 def parse_tensor_return(tensor):
     data = tensor.data()["value"]
 
-    # if isinstance(data, np.ndarray):
-    #     data = data.tolist
-
     return data.tolist() if isinstance(data, np.ndarray) else data
 
 

@@ -241,9 +241,10 @@ class DeepLakeVectorStore:
             kwargs["embedding_function"] is None
             and kwargs["embedding"] is None
             and kwargs["query"] is None
+            and kwargs["filter"] is None
         ):
             raise ValueError(
-                f"Either an embedding, embedding_function, or query must be specified."
+                f"Either an embedding, embedding_function, filter, or query must be specified."
             )
 
         exec_option = kwargs["exec_option"]
@@ -256,9 +257,13 @@ class DeepLakeVectorStore:
                 raise ValueError(
                     f"query parameter for directly running TQL is invalid for exec_option={exec_option}."
                 )
-            if kwargs["embedding"] is None and kwargs["embedding_function"] is None:
+            if (
+                kwargs["embedding"] is None
+                and kwargs["embedding_function"]
+                and kwargs["filter"] is None
+            ):
                 raise ValueError(
-                    f"Either emebdding or embedding_function must be specified for exec_option={exec_option}."
+                    f"Either emebedding, embedding_function, or filter must be specified for exec_option={exec_option}."
                 )
         else:
             if type(kwargs["filter"]) == Callable:
@@ -273,9 +278,10 @@ class DeepLakeVectorStore:
                 kwargs["embedding"] is None
                 and kwargs["embedding_function"] is None
                 and kwargs["query"] is None
+                and kwargs["filter"] is None
             ):
                 raise ValueError(
-                    f"Either emebdding, embedding_function, or query must be specified for exec_option={exec_option}."
+                    f"Either emebedding, embedding_function, filter, or query must be specified for exec_option={exec_option}."
                 )
             if kwargs["return_tensors"] and kwargs["query"]:
                 raise ValueError(
@@ -285,7 +291,9 @@ class DeepLakeVectorStore:
     def delete(
         self,
         ids: Optional[List[str]] = None,
-        filter: Optional[Dict[str, str]] = None,
+        filter: Optional[Union[Dict, Callable]] = None,
+        query: Optional[str] = None,
+        exec_option: Optional[str] = "python",
         delete_all: Optional[bool] = None,
     ) -> bool:
         """Delete the entities in the dataset
@@ -297,13 +305,25 @@ class DeepLakeVectorStore:
             delete_all (Optional[bool]): Whether to drop the dataset.
                 Defaults to None.
         """
+
+        if ids is None and filter is None and query is None and delete_all is None:
+            raise ValueError(
+                "Either ids, filter, query, or delete_all must be specified."
+            )
+
         self.dataset, dataset_deleted = dataset_utils.delete_all_samples_if_specified(
             self.dataset, delete_all
         )
         if dataset_deleted:
             return True
 
-        ids = filter_utils.get_converted_ids(self.dataset, filter, ids)
+        delete_view = self.search(
+            filter=filter, query=query, exec_option=exec_option, return_view=True
+        )
+        print("delete_view: {}".format(delete_view))
+
+        ids = list(delete_view.sample_indices)
+        print(ids)
         dataset_utils.delete_and_commit(self.dataset, ids)
         return True
 
