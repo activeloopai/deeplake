@@ -35,7 +35,7 @@ def attribute_based_filtering_python(
 
 
 def attribute_based_filtering_tql(
-    view, logger, filter: Optional[Dict] = None, debug_mode=False
+    view, filter: Optional[Dict] = None, debug_mode=False, logger=None
 ):
     tql_filter = ""
 
