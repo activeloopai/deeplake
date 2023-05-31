@@ -17,14 +17,16 @@ class DeepLakeQueryTensor(tensor.Tensor):
         deeplake_tensor,
         indra_tensor,
         is_iteration: bool = False,
-        key: Optional[str] = None,
     ):
         self.deeplake_tensor = deeplake_tensor
         self.indra_tensor = indra_tensor
         self.is_iteration = is_iteration
 
-        if key:
-            self.key = key
+        self.key = (
+            deeplake_tensor.key
+            if hasattr(deeplake_tensor, "key")
+            else indra_tensor.name
+        )
 
         self.first_dim = None
 
@@ -50,15 +52,12 @@ class DeepLakeQueryTensor(tensor.Tensor):
         if isinstance(item, tuple) or item is Ellipsis:
             item = replace_ellipsis_with_slices(item, self.ndim)
 
-        key = getattr(self, "key", None)
-
         indra_tensor = self.indra_tensor[item]
 
         return DeepLakeQueryTensor(
             self.deeplake_tensor,
             indra_tensor,
             is_iteration=is_iteration,
-            key=key,
         )
 
     def numpy(
