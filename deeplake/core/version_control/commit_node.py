@@ -53,9 +53,11 @@ class CommitNode:
     def __repr__(self) -> str:
         return (
             f"Commit : {self.commit_id} ({self.branch}) \nAuthor : {self.commit_user_name}\nTime   : {str(self.commit_time)[:-7]}\nMessage: {self.commit_message}"
-            + f"\nTotal samples processed in transform: {self.total_samples_processed}"
-            if self.is_checkpoint
-            else ""
+            + (
+                f"\nTotal samples processed in transform: {self.total_samples_processed}"
+                if self.is_checkpoint
+                else ""
+            )
         )
 
     @property
