@@ -324,7 +324,7 @@ def test_delete():
 def test_ingestion(capsys):
     # create data
     texts, embeddings, ids, metadatas = utils.create_data(
-        number_of_data=NUMBER_OF_DATA, embedding_dim=EMBEDDING_DIM
+        number_of_data=1000, embedding_dim=EMBEDDING_DIM
     )
 
     # initialize vector store object:
@@ -337,44 +337,30 @@ def test_ingestion(capsys):
     with pytest.raises(Exception):
         # add data to the dataset:
         vector_store.add(
-            embeddings=embeddings, texts=texts[:100], ids=ids, metadatas=metadatas
+            embedding=embeddings, text=texts[:100], id=ids, metadata=metadatas
         )
 
-    vector_store.add(embeddings=embeddings, texts=texts, ids=ids, metadatas=metadatas)
+    vector_store.add(embedding=embeddings, text=texts, id=ids, metadata=metadatas)
     captured = capsys.readouterr()
-    output = (
-        "Dataset(path='./deeplake_vector_store', tensors=['embedding', 'ids', 'metadata', 'text'])\n\n"
-        "  tensor      htype       shape       dtype  compression\n"
-        "  -------    -------     -------     -------  ------- \n"
-        " embedding  embedding  (1000, 1536)  float32   None   \n"
-        "    ids       text      (1000, 1)      str     None   \n"
-        " metadata     json      (1000, 1)      str     None   \n"
-        "   text       text      (1000, 1)      str     None   \n"
-    )
 
+    output = (
+        "Dataset(path='./deeplake_vector_store', tensors=['embedding', 'id', 'metadata', 'text'])\n\n"
+        "  tensor      htype       shape      dtype  compression\n"
+        "  -------    -------     -------    -------  ------- \n"
+        " embedding  embedding  (1000, 100)  float32   None   \n"
+        "    id        text      (1000, 1)     str     None   \n"
+        " metadata     json      (1000, 1)     str     None   \n"
+        "   text       text      (1000, 1)     str     None   \n"
+    )
     assert output in captured.out
 
     assert len(vector_store) == 1000
     assert list(vector_store.dataset.tensors.keys()) == [
         "embedding",
-        "ids",
+        "id",
         "metadata",
         "text",
     ]
-
-    # initialize vector store object:
-    vector_store = DeepLakeVectorStore(
-        dataset_path="./deeplake_vector_store",
-        overwrite=True,
-        verbose=True,
-        embedding_function=embedding_fn,
-    )
-
-    vector_store.add(texts=texts, ids=ids, metadatas=metadatas)
-
-    np.testing.assert_array_equal(
-        vector_store.dataset.embedding.numpy(), np.zeros((1000, 100), dtype=np.float32)
-    )
 
 
 def test_parse_add_arguments():

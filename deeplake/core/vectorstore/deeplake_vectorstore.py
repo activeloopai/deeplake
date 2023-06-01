@@ -200,13 +200,7 @@ class DeepLakeVectorStore:
             Dict: Dictionary where keys are tensor names and values are the results of the search
         """
 
-<<<<<<< HEAD
         utils.parse_search_args(
-=======
-        exec_option = exec_option or self._exec_option
-
-        self._parse_search_args(
->>>>>>> vs_query_finalization
             data_for_embedding=data_for_embedding,
             embedding_function=embedding_function,
             embedding=embedding,

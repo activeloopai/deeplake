@@ -49,9 +49,11 @@ class DataIngestion:
         batched = [
             elements[i : i + batch_size] for i in range(0, len(elements), batch_size)
         ]
-        self.logger.warning(
-            f"{len(self.elements)} samples were combined into {len(batched)} batches based on batch size {batch_size}"
-        )
+
+        if self.logger:
+            self.logger.warning(
+                f"{len(self.elements)} samples were combined into {len(batched)} batches based on batch size {batch_size}"
+            )
         return batched
 
     def get_num_workers(self, batched):

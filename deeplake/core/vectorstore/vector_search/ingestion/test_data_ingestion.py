@@ -87,14 +87,37 @@ def test_ingest_data():
     ingest_data.run_data_ingestion(
         dataset=dataset,
         elements=data,
-        embedding_function=None,
         ingestion_batch_size=1024,
         num_workers=2,
+        logger=None,
     )
 
     assert len(dataset) == 4
     extended_data = data * 5000
     embedding_function = partial(corrupted_embedding_function, threshold=0.9)
+
+    data = [
+        {
+            "text": "a",
+            "id": np.int64(1),
+            "metadata": {"a": 1},
+        },
+        {
+            "text": "b",
+            "id": np.int64(2),
+            "metadata": {"b": 2},
+        },
+        {
+            "text": "c",
+            "id": np.int64(3),
+            "metadata": {"c": 3},
+        },
+        {
+            "text": "d",
+            "id": np.int64(4),
+            "metadata": {"d": 4},
+        },
+    ]
 
     ingest_data.run_data_ingestion(
         dataset=dataset,
@@ -102,6 +125,8 @@ def test_ingest_data():
         embedding_function=embedding_function,
         ingestion_batch_size=1024,
         num_workers=2,
+        embedding_data=["a", "b", "c", "d"],
+        embedding_tensor="embedding",
     )
     assert len(dataset) == 20004
 

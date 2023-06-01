@@ -131,28 +131,6 @@ def check_tensors(dataset):
         raise ValueError("`id` tensor was not found in the dataset.")
 
 
-def create_tensors_if_needed(tensors_dict, dataset, logger, embedding_function):
-    tensors = dataset.tensors
-
-    for tensor_args in tensors_dict:
-        if tensor_args["name"] not in tensors:
-            warn_and_create_missing_tensor(dataset, logger, **tensor_args)
-    update_embedding_info(logger, dataset, embedding_function)
-
-
-def warn_and_create_missing_tensor(dataset, logger, **kwargs):
-    logger.warning(
-        f"Creating `{kwargs['name']}` tensor since it does not exist in the dataset. If you created dataset manually "
-        "and stored text data in another tensor, consider copying the contents of that "
-        f"tensor into `{kwargs['name']}` tensor and deleting if afterwards. To view dataset content "
-        "run ds.summary()"
-    )
-
-    dataset.create_tensor(
-        **kwargs,
-    )
-
-
 def create_dataset(
     logger, tensors_dict, dataset_path, token, exec_option, embedding_function, **kwargs
 ):
@@ -242,7 +220,7 @@ def get_embedding(embedding, data_for_embedding, embedding_function=None):
     return embedding
 
 
-def preprocess_tensors(embedding_data, embedding_tensor, **tensors):
+def preprocess_tensors(embedding_data=None, embedding_tensor=None, **tensors):
     first_item = next(iter(tensors))
 
     if "id" not in tensors or tensors["id"] is None:
