@@ -57,7 +57,7 @@ def get_htype(val: Union[np.ndarray, Sequence, Sample]) -> str:
     if types == set((str,)):
         return "text"
     if object in [  # type: ignore
-        np.array(x).dtype if not isinstance(x, np.ndarray) else x.dtype for x in val  # type: ignore
+        np.array(x).dtype if not isinstance(x, np.ndarray) else x.dtype for x in val if x is not None  # type: ignore
     ]:
         return "json"
     return "generic"
