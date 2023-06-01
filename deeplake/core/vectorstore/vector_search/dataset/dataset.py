@@ -169,9 +169,15 @@ def delete_and_commit(dataset, ids):
         dataset.commit(f"deleted {len(ids)} samples", allow_empty=True)
 
 
-def delete_all_samples_if_specified(dataset, delete_all):
+def delete_all_samples_if_specified(dataset, delete_all, vector_store):
     if delete_all:
-        dataset = deeplake.empty(dataset.path, overwrite=True)
+        dataset = deeplake.like(
+            vector_store.dataset.path,
+            vector_store.dataset,
+            overwrite=True,
+            verbose=False,
+        )
+
         return dataset, True
     return dataset, False
 
@@ -183,14 +189,22 @@ def fetch_embeddings(exec_option, view, logger, embedding_tensor: str = "embeddi
         raise ValueError(
             "Could not find embedding tensor. If you're using non-default tensor_dict, "
             "please specify `embedding_tensor` that you want to use. "
-            "Ex: vector_store.search(embedding=query_embedding, embedding_tensor='ypur_embedding_tensor')"
+            "Ex: vector_store.search(embedding=query_embedding, embedding_tensor='your_embedding_tensor')"
         )
 
 
 def get_embedding(embedding, data_for_embedding, embedding_function=None):
     if embedding_function is not None:
         if embedding is not None:
-            always_warn("both embedding and embedding_function are specified. ")
+            always_warn(
+                "both embedding and embedding_function are specified. The embedding will be ignored."
+            )
+
+        if data_for_embedding is None:
+            raise ValueError(
+                "data_for_embedding is not specified. Please specify data_for_embedding wheverer embedding_function is specified."
+            )
+
         embedding = embedding_function(data_for_embedding)  # type: ignore
 
     if embedding is not None and (

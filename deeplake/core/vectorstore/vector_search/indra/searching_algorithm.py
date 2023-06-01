@@ -1,7 +1,5 @@
 import numpy as np
-from typing import Dict, List
-
-from deeplake.enterprise.convert_to_libdeeplake import dataset_to_libdeeplake
+from typing import Union, Dict, List
 
 from deeplake.core.vectorstore.vector_search.indra import query
 from deeplake.core.vectorstore.vector_search import utils
@@ -18,8 +16,9 @@ def search(
     embedding_tensor: str,
     runtime: dict,
     return_tensors: List[str],
-) -> Dict:
-    """Vector Searching algorithm that uses indra.
+    return_view: bool = False,
+) -> Union[Dict, DeepLakeDataset]:
+    """Generalized searching algorithm that uses indra. It combines vector search and other TQL queries.
 
     Args:
         query_embedding (Optional[Union[List[float], np.ndarray): embedding representation of the query.
@@ -31,11 +30,13 @@ def search(
         embedding_tensor (str): name of the tensor in the dataset with `htype = "embedding"`.
         runtime (dict): Runtime parameters for the query.
         return_tensors (List[str]): List of tensors to return data for.
+        return_view (bool): Return a Deep Lake dataset view that satisfied the search parameters, instead of a dictinary with data. Defaults to False.
 
-    Returns:
-        Dict: Dictionary where keys are tensor names and values are the results of the search
     Raises:
         ValueError: If both tql_string and tql_filter are specified.
+
+    Returns:
+        Union[Dict, DeepLakeDataset]: Dictionary where keys are tensor names and values are the results of the search, or a Deep Lake dataset view.
     """
     from indra import api  # type: ignore
 
@@ -72,4 +73,6 @@ def search(
         for tensor in view.tensors:
             return_data[tensor] = utils.parse_tensor_return(view[tensor])
 
+    if return_view:
+        return view
     return return_data

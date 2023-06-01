@@ -1,6 +1,5 @@
-from typing import Dict, List
+from typing import List, Tuple
 from deeplake.core.dataset import Dataset as DeepLakeDataset
-from deeplake.core.vectorstore.vector_search import utils
 
 import numpy as np
 
@@ -18,11 +17,10 @@ def search(
     deeplake_dataset: DeepLakeDataset,
     query_embedding: np.ndarray,
     embeddings: np.ndarray,
-    return_tensors: List[str],
     distance_metric: str = "l2",
     k: int = 4,
-) -> Dict:
-    """Naive search for nearest neighbors
+) -> Tuple[DeepLakeDataset, List]:
+    """Naive vector search in python.
     args:
         deeplake_dataset: DeepLakeDataset,
         query_embedding: np.ndarray
@@ -32,17 +30,11 @@ def search(
         distance_metric: distance function 'L2' for Euclidean, 'L1' for Nuclear, 'Max'
             l-infinity distnace, 'cos' for cosine similarity, 'dot' for dot product
     returns:
-        Dict: Dictionary where keys are tensor names and values are the results of the search
+        Tuple(DeepLakeDataset, List): A tuple containing the dataset view and scores for the embedding search.
     """
 
-    return_data = {}
-
     if embeddings.shape[0] == 0:
-        deeplake_dataset = deeplake_dataset[0:0]
-        for tensor in deeplake_dataset.tensors:
-            return_data[tensor] = utils.parse_tensor_return(deeplake_dataset[tensor])
-
-        return_data["score"] = []
+        return deeplake_dataset[0:0], []
 
     else:
         # Calculate the distance between the query_vector and all data_vectors
@@ -55,11 +47,7 @@ def search(
             else nearest_indices[:k]
         )
 
-        for tensor in return_tensors:
-            return_data[tensor] = utils.parse_tensor_return(
-                deeplake_dataset[tensor][nearest_indices.tolist()]
-            )
-
-        return_data["score"] = distances[nearest_indices].tolist()
-
-    return return_data
+        return (
+            deeplake_dataset[nearest_indices.tolist()],
+            distances[nearest_indices].tolist(),
+        )

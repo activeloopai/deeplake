@@ -129,6 +129,7 @@ class DeepLakeVectorStore:
         exec_option: Optional[str] = "python",
         embedding_tensor: str = "embedding",
         return_tensors: Optional[List[str]] = None,
+        return_view: bool = False,
     ):
         """DeepLakeVectorStore search method that combines embedding search, metadata search, and custom TQL search.
 
@@ -162,16 +163,18 @@ class DeepLakeVectorStore:
             embedding_function (callable, optional): function for converting data_for_embedding into embedding. Only valid if data_for_embedding is specified
             k (int): Number of elements to return after running query. Defaults to 4.
             distance_metric (str): Type of distance metric to use for sorting the data. Avaliable options are: "L1", "L2", "COS", "MAX". Defaults to "COS".
-            query (Optional[str]):  TQL Query string for direct evaluation, without application of additional filters or vector search. This overrides all other filter-related parameters.
+            query (Optional[str]):  TQL Query string for direct evaluation, without application of additional filters or vector search.
             filter (Union[Dict, Callable], optional): Additional filter evaluated prior to the embedding search.
                 - ``Dict`` - Key-value search on tensors of htype json, evaluated on an AND basis (a sample must satisfy all key-value filters to be True) Dict = {"tensor_name_1": {"key": value}, "tensor_name_2": {"key": value}}
                 - ``Function`` - Any function that is compatible with `deeplake.filter`.
-            exec_option (str, optional): Type of query execution. It could be either "python", "compute_engine" or "tensor_db". Defaults to "python".
+            exec_option (str, optional): Method for search execution. It could be either "python", "compute_engine" or "tensor_db". Defaults to "python".
                 - ``python`` - Pure-python implementation that runs on the client and can be used for data stored anywhere. WARNING: using this option with big datasets is discouraged because it can lead to memory issues.
                 - ``compute_engine`` - Performant C++ implementation of the Deep Lake Compute Engine that runs on the client and can be used for any data stored in or connected to Deep Lake. It cannot be used with in-memory or local datasets.
                 - ``tensor_db`` - Performant and fully-hosted Managed Tensor Database that is responsible for storage and query execution. Only available for data stored in the Deep Lake Managed Database. Store datasets in this database by specifying runtime = {"db_engine": True} during dataset creation.
             embedding_tensor (str): Name of tensor with embeddings. Defaults to "embedding".
             return_tensors (Optional[List[str]]): List of tensors to return data for. Defaults to None. If None, all tensors are returned.
+            return_view (Bool): Return a Deep Lake dataset view that satisfied the search parameters, instead of a dictinary with data. Defaults to False.
+
 
 
         Raises:
@@ -181,6 +184,7 @@ class DeepLakeVectorStore:
             Dict: Dictionary where keys are tensor names and values are the results of the search
         """
 
+<<<<<<< HEAD
         exec_option = exec_option or self._exec_option
         if exec_option not in ("python", "compute_engine", "tensor_db"):
             raise ValueError(
@@ -188,6 +192,9 @@ class DeepLakeVectorStore:
             )
 
         utils.parse_search_args(
+=======
+        self._parse_search_args(
+>>>>>>> vs_query_finalization
             data_for_embedding=data_for_embedding,
             embedding_function=embedding_function,
             embedding=embedding,
@@ -195,7 +202,7 @@ class DeepLakeVectorStore:
             distance_metric=distance_metric,
             query=query,
             filter=filter,
-            exec_option=exec_option,
+            exec_option=exec_option or self._exec_option,
             embedding_tensor=embedding_tensor,
             return_tensors=return_tensors,
         )
@@ -223,35 +230,132 @@ class DeepLakeVectorStore:
             deeplake_dataset=self.dataset,
             embedding_tensor=embedding_tensor,
             return_tensors=return_tensors,
+            return_view=return_view,
         )
 
+<<<<<<< HEAD
+=======
+    def _parse_search_args(self, **kwargs):
+        """Helper function for raising errors if invalid parameters are specified to search"""
+
+        if kwargs["exec_option"] not in ("python", "compute_engine", "tensor_db"):
+            raise ValueError(
+                "Invalid `exec_option` it should be either `python`, `compute_engine` or `tensor_db`."
+            )
+
+        if (
+            kwargs["embedding_function"] is None
+            and kwargs["embedding"] is None
+            and kwargs["query"] is None
+            and kwargs["filter"] is None
+        ):
+            raise ValueError(
+                f"Either an `embedding`, `embedding_function`, `filter`, or `query` must be specified."
+            )
+        if (
+            kwargs["data_for_embedding"] is None
+            and kwargs["embedding_function"] is not None
+        ):
+            raise ValueError(
+                f"When an `embedding_function` is specified, `data_for_embedding` must also be specified."
+            )
+
+        exec_option = kwargs["exec_option"]
+        if exec_option == "python":
+            if kwargs["query"] is not None:
+                raise ValueError(
+                    f"User-specified TQL queries are not support for exec_option={exec_option}."
+                )
+            if kwargs["query"] is not None:
+                raise ValueError(
+                    f"`query` parameter for directly running TQL is invalid for exec_option={exec_option}."
+                )
+            if (
+                kwargs["embedding"] is None
+                and kwargs["embedding_function"]
+                and kwargs["filter"] is None
+            ):
+                raise ValueError(
+                    f"Either `embedding`, `embedding_function`, or `filter` must be specified for exec_option={exec_option}."
+                )
+        else:
+            if type(kwargs["filter"]) == Callable:
+                raise ValueError(
+                    f"UDF filter functions are not supported with exec_option={exec_option}"
+                )
+            if kwargs["query"] and kwargs["filter"]:
+                raise ValueError(
+                    f"`query` and `filter` parameters cannot be specified simultaneously."
+                )
+            if (
+                kwargs["embedding"] is None
+                and kwargs["embedding_function"] is None
+                and kwargs["query"] is None
+                and kwargs["filter"] is None
+            ):
+                raise ValueError(
+                    f"Either emebedding, embedding_function, filter, or query must be specified for exec_option={exec_option}."
+                )
+            if kwargs["return_tensors"] and kwargs["query"]:
+                raise ValueError(
+                    f"return_tensors and query parameters cannot be specified simultaneously, becuase the data that is returned is directly specified in the query."
+                )
+
+>>>>>>> vs_query_finalization
     def delete(
         self,
         ids: Optional[List[str]] = None,
-        filter: Optional[Dict[str, str]] = None,
+        filter: Optional[Union[Dict, Callable]] = None,
+        query: Optional[str] = None,
+        exec_option: Optional[str] = "python",
         delete_all: Optional[bool] = None,
     ) -> bool:
-        """Delete the entities in the dataset
+        """Delete the entities in the vector store
         Args:
             ids (Optional[List[str]]): The document_ids to delete.
                 Defaults to None.
-            filter (Optional[Dict[str, str]]): The filter to delete by.
-                Defaults to None.
-            delete_all (Optional[bool]): Whether to drop the dataset.
-                Defaults to None.
+            filter (Union[Dict, Callable], optional): Filter to select the samples to delete. Defaults to None.
+            query (Optional[str]):  TQL Query string for direct evaluation for finding samples for deletion, without application of additional filters.
+            exec_option (str, optional): Method for search execution for finding samples for deletion. It could be either "python", "compute_engine". Defaults to "python".
+                - ``python`` - Pure-python implementation that runs on the client and can be used for data stored anywhere. WARNING: using this option with big datasets is discouraged because it can lead to memory issues.
+                - ``compute_engine`` - Performant C++ implementation of the Deep Lake Compute Engine that runs on the client and can be used for any data stored in or connected to Deep Lake. It cannot be used with in-memory or local datasets.
+            delete_all (Optional[bool]): Whether to delete all the samples and version history of the dataset. Defaults to None.
         """
-        self.dataset, dataset_deleted = dataset_utils.delete_all_samples_if_specified(
-            self.dataset, delete_all
-        )
-        if dataset_deleted:
-            return True
 
-        ids = filter_utils.get_converted_ids(self.dataset, filter, ids)
+        if ids is None and filter is None and query is None and delete_all is None:
+            raise ValueError(
+                "Either ids, filter, query, or delete_all must be specified."
+            )
+        if exec_option not in ("python", "compute_engine", "tensor_db"):
+            raise ValueError(
+                "Invalid `exec_option` it should be either `python`, `compute_engine`."
+            )
+
+        if ids is None:
+            (
+                self.dataset,
+                dataset_deleted,
+            ) = dataset_utils.delete_all_samples_if_specified(
+                self.dataset, delete_all, self
+            )
+            if dataset_deleted:
+                return True
+
+            delete_view = self.search(
+                filter=filter,
+                query=query,
+                exec_option=exec_option,
+                return_view=True,
+                k=int(1e9),
+            )
+
+            ids = list(delete_view.sample_indices)
+
         dataset_utils.delete_and_commit(self.dataset, ids)
         return True
 
     @staticmethod
-    def force_delete_by_path(path: str) -> None:
+    def delete_by_path(path: str) -> None:
         """Force delete dataset by path"""
         deeplake.delete(path, large_ok=True, force=True)
 

@@ -2,6 +2,7 @@ import deeplake
 from typing import Optional, Tuple, List
 import numpy as np
 from deeplake.core.vectorstore.vector_search.python import vector_search
+from deeplake.core.dataset import Dataset as DeepLakeDataset
 
 
 def test_vector_search():
@@ -10,12 +11,42 @@ def test_vector_search():
     ds.embedding.extend(np.zeros((10, 10), dtype=np.float32))
 
     query_embedding = np.zeros((10), dtype=np.float32)
-    embeddings = ds.embedding.numpy()
 
-    data = vector_search.vector_search(ds, query_embedding, embeddings, k=10)
+    data = vector_search.vector_search(
+        None,
+        query_embedding,
+        "python",
+        ds,
+        None,
+        None,
+        "embedding",
+        "l2",
+        10,
+        [],
+        False,
+    )
 
     assert len(data["score"]) == 10
 
-    data = vector_search.vector_search(ds, query_embedding, embeddings[0:0], k=10)
+    data = vector_search.vector_search(
+        None,
+        query_embedding,
+        "python",
+        ds[0:0],
+        None,
+        None,
+        "embedding",
+        "l2",
+        10,
+        [],
+        False,
+    )
 
     assert len(data["score"]) == 0
+
+    data = vector_search.vector_search(
+        None, query_embedding, "python", ds, None, None, "embedding", "l2", 10, [], True
+    )
+
+    assert len(data) == 10
+    assert isinstance(data, DeepLakeDataset)

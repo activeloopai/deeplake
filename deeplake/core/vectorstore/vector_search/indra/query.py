@@ -26,11 +26,14 @@ def create_query_string(
         str: TQL representation of the query string.
     """
 
-    tql_insertion = tql_filter if tql_filter == "" else "where " + tql_filter
-
+    tql_filter_str = tql_filter if tql_filter == "" else " where " + tql_filter
     tensor_list_str = ", ".join(tensor_list)
+    order_str = "" if order is None else f" order by score {order}"
+    distance_metric_str = (
+        "" if distance_metric is None else f", {distance_metric} as score"
+    )
 
-    return f"select * from (select {tensor_list_str}, {distance_metric} as score {tql_insertion}) order by score {order} limit {limit}"
+    return f"select * from (select {tensor_list_str}{distance_metric_str}{tql_filter_str}){order_str} limit {limit}"
 
 
 def create_query(
@@ -111,14 +114,17 @@ def parse_query(
     Returns:
         str: converted tql query string.
     """
+    if query_embedding is None:
+        return create_query_string(None, tql_filter, limit, None, tensor_list)
 
-    query_embedding_str = convert_tensor_to_str(query_embedding)
-    tql_query = create_query(
-        distance_metric,
-        embedding_tensor,
-        query_embedding_str,
-        tql_filter,
-        limit,
-        tensor_list,
-    )
-    return tql_query
+    else:
+        query_embedding_str = convert_tensor_to_str(query_embedding)
+
+        return create_query(
+            distance_metric,
+            embedding_tensor,
+            query_embedding_str,
+            tql_filter,
+            limit,
+            tensor_list,
+        )
