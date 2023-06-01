@@ -85,3 +85,75 @@ def create_data(number_of_data, embedding_dim=100):
     ids = [f"{i}" for i in range(number_of_data)]
     metadata = [generate_json("value") for i in range(number_of_data)]
     return texts, embeddings, ids, metadata
+
+
+def parse_search_args(**kwargs):
+    """Helper function for raising errors if invalid parameters are specified to search"""
+    if (
+        kwargs["data_for_embedding"] is None
+        and kwargs["embedding"] is None
+        and kwargs["query"] is None
+        and kwargs["filter"] is None
+    ):
+        raise ValueError(
+            f"Either a embedding, data_for_embedding, query, or filter must be specified."
+        )
+
+    if (
+        kwargs["embedding_function"] is None
+        and kwargs["embedding"] is None
+        and kwargs["query"] is None
+    ):
+        raise ValueError(
+            f"Either an embedding, embedding_function, or query must be specified."
+        )
+
+    exec_option = kwargs["exec_option"]
+    if exec_option == "python":
+        if kwargs["query"] is not None:
+            raise ValueError(
+                f"User-specified TQL queries are not support for exec_option={exec_option}."
+            )
+        if kwargs["query"] is not None:
+            raise ValueError(
+                f"query parameter for directly running TQL is invalid for exec_option={exec_option}."
+            )
+        if kwargs["embedding"] is None and kwargs["embedding_function"] is None:
+            raise ValueError(
+                f"Either emebdding or embedding_function must be specified for exec_option={exec_option}."
+            )
+    else:
+        if type(kwargs["filter"]) == Callable:
+            raise ValueError(
+                f"UDF filter function are not supported with exec_option={exec_option}"
+            )
+        if kwargs["query"] and kwargs["filter"]:
+            raise ValueError(
+                f"query and filter parameters cannot be specified simultaneously."
+            )
+        if (
+            kwargs["embedding"] is None
+            and kwargs["embedding_function"] is None
+            and kwargs["query"] is None
+        ):
+            raise ValueError(
+                f"Either emebdding, embedding_function, or query must be specified for exec_option={exec_option}."
+            )
+        if kwargs["return_tensors"] and kwargs["query"]:
+            raise ValueError(
+                f"return_tensors and query parameters cannot be specified simultaneously, becuase the data that is returned is directly specified in the query."
+            )
+
+
+def check_parameters_compataribility(
+    embedding_function, embedding_data, embedding_tensor_name, **kwargs
+):
+    if embedding_function and not embedding_data:
+        raise ValueError(
+            f"embedding_data not specified. if embedding_function is specified you also need to specify embedding_data."
+        )
+
+    if embedding_function and not embedding_tensor_name:
+        raise ValueError(
+            f"embedding_tensor_name not specified. if embedding_function is specified you also need to specify embedding_tensor_name."
+        )

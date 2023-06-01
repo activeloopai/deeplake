@@ -15,6 +15,7 @@ from deeplake.constants import (
     DEFAULT_VECTORSTORE_DEEPLAKE_PATH,
     DEFAULT_VECTORSTORE_TENSORS,
 )
+from deeplake.core.vectorstore import utils
 from deeplake.core.vectorstore.vector_search import vector_search
 from deeplake.core.vectorstore.vector_search import dataset as dataset_utils
 from deeplake.core.vectorstore.vector_search import filter as filter_utils
@@ -79,6 +80,8 @@ class DeepLakeVectorStore:
         self,
         embedding_function: Optional[Callable] = None,
         total_samples_processed: int = 0,
+        embedding_data: Optional[List] = None,
+        embedding_tensor_name: Optional[str] = None,
         **tensors,
     ) -> List[str]:
         """Adding elements to deeplake vector store
@@ -94,6 +97,7 @@ class DeepLakeVectorStore:
         Returns:
             List[str]: List of document IDs
         """
+        
         processed_tensors, ids = dataset_utils.preprocess_tensors(
             self.tensors_dict, **tensors
         )
@@ -183,7 +187,7 @@ class DeepLakeVectorStore:
                 "Invalid `exec_option` it should be either `python`, `compute_engine` or `tensor_db`."
             )
 
-        self._parse_search_args(
+        utils.parse_search_args(
             data_for_embedding=data_for_embedding,
             embedding_function=embedding_function,
             embedding=embedding,
@@ -220,63 +224,6 @@ class DeepLakeVectorStore:
             embedding_tensor=embedding_tensor,
             return_tensors=return_tensors,
         )
-
-    def _parse_search_args(self, **kwargs):
-        """Helper function for raising errors if invalid parameters are specified to search"""
-        if (
-            kwargs["data_for_embedding"] is None
-            and kwargs["embedding"] is None
-            and kwargs["query"] is None
-            and kwargs["filter"] is None
-        ):
-            raise ValueError(
-                f"Either a embedding, data_for_embedding, query, or filter must be specified."
-            )
-
-        if (
-            kwargs["embedding_function"] is None
-            and kwargs["embedding"] is None
-            and kwargs["query"] is None
-        ):
-            raise ValueError(
-                f"Either an embedding, embedding_function, or query must be specified."
-            )
-
-        exec_option = kwargs["exec_option"]
-        if exec_option == "python":
-            if kwargs["query"] is not None:
-                raise ValueError(
-                    f"User-specified TQL queries are not support for exec_option={exec_option}."
-                )
-            if kwargs["query"] is not None:
-                raise ValueError(
-                    f"query parameter for directly running TQL is invalid for exec_option={exec_option}."
-                )
-            if kwargs["embedding"] is None and kwargs["embedding_function"] is None:
-                raise ValueError(
-                    f"Either emebdding or embedding_function must be specified for exec_option={exec_option}."
-                )
-        else:
-            if type(kwargs["filter"]) == Callable:
-                raise ValueError(
-                    f"UDF filter function are not supported with exec_option={exec_option}"
-                )
-            if kwargs["query"] and kwargs["filter"]:
-                raise ValueError(
-                    f"query and filter parameters cannot be specified simultaneously."
-                )
-            if (
-                kwargs["embedding"] is None
-                and kwargs["embedding_function"] is None
-                and kwargs["query"] is None
-            ):
-                raise ValueError(
-                    f"Either emebdding, embedding_function, or query must be specified for exec_option={exec_option}."
-                )
-            if kwargs["return_tensors"] and kwargs["query"]:
-                raise ValueError(
-                    f"return_tensors and query parameters cannot be specified simultaneously, becuase the data that is returned is directly specified in the query."
-                )
 
     def delete(
         self,
