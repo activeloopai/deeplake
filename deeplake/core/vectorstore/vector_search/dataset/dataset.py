@@ -196,11 +196,11 @@ def delete_and_commit(dataset, ids):
         dataset.commit(f"deleted {len(ids)} samples", allow_empty=True)
 
 
-def delete_all_samples_if_specified(dataset, delete_all, vector_store):
+def delete_all_samples_if_specified(dataset, delete_all):
     if delete_all:
         dataset = deeplake.like(
-            vector_store.dataset.path,
-            vector_store.dataset,
+            dataset.path,
+            dataset,
             overwrite=True,
             verbose=False,
         )
@@ -209,7 +209,7 @@ def delete_all_samples_if_specified(dataset, delete_all, vector_store):
     return dataset, False
 
 
-def fetch_embeddings(exec_option, view, logger, embedding_tensor: str = "embedding"):
+def fetch_embeddings(view, embedding_tensor: str = "embedding"):
     try:
         return view[embedding_tensor].numpy()
     except Exception:

@@ -1,7 +1,7 @@
 from typing import Callable
 
 try:
-    import indra.api
+    from indra import api  # type: ignore
 
     _INDRA_INSTALLED = True
 except ImportError:
