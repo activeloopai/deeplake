@@ -20,6 +20,7 @@ def embedding_fn(text, embedding_dim=100):
     return np.zeros((len(text), embedding_dim))
 
 
+@pytest.mark.skip(reason="need to update backend")
 @requires_libdeeplake
 @pytest.mark.parametrize("distance_metric", ["L1", "L2", "COS", "MAX", "DOT"])
 def test_search(distance_metric, hub_cloud_dev_token):
