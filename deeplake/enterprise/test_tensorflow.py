@@ -463,23 +463,19 @@ def test_tensorflow_ddp():
 @requires_tensorflow
 @requires_libdeeplake
 @pytest.mark.parametrize("compression", [None, "jpeg"])
-def test_tensorflow_decode(hub_cloud_ds, compressed_image_paths, compression):
-    with hub_cloud_ds:
-        hub_cloud_ds.create_tensor("image", sample_compression=compression)
-        hub_cloud_ds.image.extend(
+def test_tensorflow_decode(local_ds, compressed_image_paths, compression):
+    with local_ds:
+        local_ds.create_tensor("image", sample_compression=compression)
+        local_ds.image.extend(
             np.array([i * np.ones((10, 10, 3), dtype=np.uint8) for i in range(5)])
         )
-        hub_cloud_ds.image.extend(
-            [deeplake.read(compressed_image_paths["jpeg"][0])] * 5
-        )
-    if isinstance(
-        get_base_storage(hub_cloud_ds.storage), (MemoryProvider, GCSProvider)
-    ):
+        local_ds.image.extend([deeplake.read(compressed_image_paths["jpeg"][0])] * 5)
+    if isinstance(get_base_storage(local_ds.storage), (MemoryProvider, GCSProvider)):
         with pytest.raises(ValueError):
-            dl = hub_cloud_ds.dataloader()
+            dl = local_ds.dataloader()
         return
 
-    ptds = hub_cloud_ds.dataloader().tensorflow(
+    ptds = local_ds.dataloader().tensorflow(
         collate_fn=identity_collate, decode_method={"image": "tobytes"}
     )
 
@@ -496,7 +492,7 @@ def test_tensorflow_decode(hub_cloud_ds, compressed_image_paths, compression):
                 assert f.read() == image
 
     if compression:
-        ptds = hub_cloud_ds.dataloader().numpy(decode_method={"image": "pil"})
+        ptds = local_ds.dataloader().numpy(decode_method={"image": "pil"})
         for i, batch in enumerate(ptds):
             image = batch[0]["image"]
             assert isinstance(image, Image.Image)
@@ -650,8 +646,8 @@ def test_indexes_tensors(hub_cloud_ds, num_workers):
 
 @requires_libdeeplake
 @requires_tensorflow
-def test_uneven_iteration(hub_cloud_ds):
-    with hub_cloud_ds as ds:
+def test_uneven_iteration(local_ds):
+    with local_ds as ds:
         ds.create_tensor("x")
         ds.create_tensor("y")
         ds.x.extend(list(range(5)))
@@ -665,8 +661,8 @@ def test_uneven_iteration(hub_cloud_ds):
 
 @requires_libdeeplake
 @requires_tensorflow
-def test_tensorflow_error_handling(hub_cloud_ds):
-    with hub_cloud_ds as ds:
+def test_tensorflow_error_handling(local_ds):
+    with local_ds as ds:
         ds.create_tensor("x")
         ds.create_tensor("y")
         ds.x.extend(list(range(5)))

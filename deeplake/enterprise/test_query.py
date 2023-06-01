@@ -17,34 +17,32 @@ def test_query(hub_cloud_ds):
 
 
 @requires_libdeeplake
-def test_sample(hub_cloud_ds):
-    with hub_cloud_ds as ds:
+def test_sample(local_ds):
+    with local_ds as ds:
         ds.create_tensor("label")
         for i in range(100):
             ds.label.append(floor(i / 20))
 
-    dsv = hub_cloud_ds.sample_by(
+    dsv = local_ds.sample_by(
         "max_weight(label == 2: 10, label == 1: 1)", replace=False, size=10
     )
     assert len(dsv) == 10
     for i in range(10):
         assert dsv.label[i].numpy() == 2 or dsv.label[i].numpy() == 1
 
-    dsv = hub_cloud_ds.sample_by(
-        "max_weight(label == 2: 10, label == 1: 1)", replace=True
-    )
+    dsv = local_ds.sample_by("max_weight(label == 2: 10, label == 1: 1)", replace=True)
     assert len(dsv) == 100
     for i in range(100):
         assert dsv.label[i].numpy() == 2 or dsv.label[i].numpy() == 1
 
-    dsv = hub_cloud_ds.sample_by("label")
+    dsv = local_ds.sample_by("label")
     assert len(dsv) == 100
 
     weights = list()
     for i in range(100):
         weights.append(1 if floor(i / 20) == 0 else 0)
 
-    dsv = hub_cloud_ds.sample_by(weights)
+    dsv = local_ds.sample_by(weights)
     assert len(dsv) == 100
     for i in range(100):
         assert dsv.label[i].numpy() == 0
@@ -53,7 +51,7 @@ def test_sample(hub_cloud_ds):
     for i in range(100):
         weights[i] = 1 if floor(i / 10) == 0 else 0
 
-    dsv = hub_cloud_ds.sample_by(weights)
+    dsv = local_ds.sample_by(weights)
     assert len(dsv) == 100
     for i in range(100):
         assert dsv.label[i].numpy() == 0
