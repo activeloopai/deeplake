@@ -123,6 +123,7 @@ class DeepLakeVectorStore:
             ingestion_batch_size=self.ingestion_batch_size,
             num_workers=self.num_workers,
             total_samples_processed=total_samples_processed,
+            logger=logger,
         )
 
         self.dataset.commit(allow_empty=True)

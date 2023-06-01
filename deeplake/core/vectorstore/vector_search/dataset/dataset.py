@@ -299,8 +299,10 @@ def extend_or_ingest_dataset(
     ingestion_batch_size,
     num_workers,
     total_samples_processed,
+    logger,
 ):
-    if len(processed_tensors) <= VECTORSTORE_INGESTION_THRESHOLD:
+    first_item = next(iter(processed_tensors))
+    if len(processed_tensors[first_item]) <= VECTORSTORE_INGESTION_THRESHOLD:
         if embedding_function:
             embedded_data = embedding_function(processed_tensors[embed_data_from])
             embedded_data = np.array(embedded_data, dtype=np.float32)
@@ -319,4 +321,5 @@ def extend_or_ingest_dataset(
             ingestion_batch_size=ingestion_batch_size,
             num_workers=num_workers,
             total_samples_processed=total_samples_processed,
+            logger=logger,
         )

@@ -140,6 +140,7 @@ class Pipeline:
         cache_size: int = DEFAULT_TRANSFORM_SAMPLE_CACHE_SIZE,
         checkpoint_interval: int = 0,
         ignore_errors: bool = False,
+        verbose: bool = False,
         **kwargs,
     ):
         """Evaluates the pipeline on ``data_in`` to produce an output dataset ``ds_out``.
@@ -234,7 +235,11 @@ class Pipeline:
         total_samples = len(data_in)
         if checkpointing_enabled:
             check_checkpoint_interval(
-                data_in, checkpoint_interval, num_workers, overwrite
+                data_in,
+                checkpoint_interval,
+                num_workers,
+                overwrite,
+                verbose,
             )
             datas_in = [
                 data_in[i : i + checkpoint_interval]

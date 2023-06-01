@@ -24,6 +24,7 @@ class DataIngestion:
         num_workers: int,
         retry_attempt: int,
         total_samples_processed: int,
+        logger,
     ):
         self.elements = elements
         self.dataset = dataset
@@ -34,6 +35,7 @@ class DataIngestion:
         self.total_samples_processed = total_samples_processed
         self.embed_data_to = embed_data_to
         self.embed_data_from = embed_data_from
+        self.logger = logger
 
     def collect_batched_data(self, ingestion_batch_size=None):
         ingestion_batch_size = ingestion_batch_size or self.ingestion_batch_size
@@ -48,7 +50,9 @@ class DataIngestion:
         batched = [
             elements[i : i + batch_size] for i in range(0, len(elements), batch_size)
         ]
-
+        self.logger.warning(
+            f"{len(self.elements)} samples were combined into {len(batched)} batches based on batch size {batch_size}"
+        )
         return batched
 
     def get_num_workers(self, batched):
@@ -97,6 +101,7 @@ class DataIngestion:
                 self.dataset,
                 num_workers=num_workers,
                 checkpoint_interval=checkpoint_interval,
+                verbose=False,
             )
         except Exception as e:
             self.retry_attempt += 1

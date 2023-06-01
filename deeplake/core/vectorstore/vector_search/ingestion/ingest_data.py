@@ -18,6 +18,7 @@ def run_data_ingestion(
     embed_data_from: Optional[Union[np.ndarray, List]] = None,
     retry_attempt: int = 0,
     total_samples_processed=0,
+    logger=None,
 ):
     """Running data ingestion into deeplake dataset.
 
@@ -42,6 +43,7 @@ def run_data_ingestion(
         num_workers=num_workers,
         retry_attempt=retry_attempt,
         total_samples_processed=total_samples_processed,
+        logger=logger,
     )
 
     data_ingestion.run()
