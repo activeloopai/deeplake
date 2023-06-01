@@ -80,8 +80,8 @@ class DeepLakeVectorStore:
         self,
         embedding_function: Optional[Callable] = None,
         total_samples_processed: int = 0,
-        embedding_data: Optional[List] = None,
-        embedding_tensor_name: Optional[str] = None,
+        embed_data_from: Optional[List] = None,
+        embed_data_to: Optional[str] = None,
         **tensors,
     ) -> List[str]:
         """Adding elements to deeplake vector store
@@ -97,16 +97,29 @@ class DeepLakeVectorStore:
         Returns:
             List[str]: List of document IDs
         """
-        
-        processed_tensors, ids = dataset_utils.preprocess_tensors(
-            self.tensors_dict, **tensors
+        (
+            embedding_function,
+            embed_data_to,
+            embed_data_from,
+            tensors,
+        ) = utils.parse_add_arguments(
+            dataset=self.dataset,
+            initial_embedding_function=self.embedding_function,
+            embedding_function=embedding_function,
+            embed_data_from=embed_data_from,
+            embed_data_to=embed_data_to,
+            **tensors,
         )
-        assert ids is not None
+        processed_tensors, id = dataset_utils.preprocess_tensors(**tensors)
+        assert id is not None
+        utils.check_length_of_each_tensor(processed_tensors)
 
         dataset_utils.extend_or_ingest_dataset(
             processed_tensors=processed_tensors,
             dataset=self.dataset,
-            embedding_function=embedding_function or self.embedding_function,
+            embedding_function=embedding_function,
+            embed_data_to=embed_data_to,
+            embed_data_from=embed_data_from,
             ingestion_batch_size=self.ingestion_batch_size,
             num_workers=self.num_workers,
             total_samples_processed=total_samples_processed,
@@ -115,7 +128,7 @@ class DeepLakeVectorStore:
         self.dataset.commit(allow_empty=True)
         if self.verbose:
             self.dataset.summary()
-        return ids
+        return id
 
     def search(
         self,
@@ -184,17 +197,7 @@ class DeepLakeVectorStore:
             Dict: Dictionary where keys are tensor names and values are the results of the search
         """
 
-<<<<<<< HEAD
-        exec_option = exec_option or self._exec_option
-        if exec_option not in ("python", "compute_engine", "tensor_db"):
-            raise ValueError(
-                "Invalid `exec_option` it should be either `python`, `compute_engine` or `tensor_db`."
-            )
-
         utils.parse_search_args(
-=======
-        self._parse_search_args(
->>>>>>> vs_query_finalization
             data_for_embedding=data_for_embedding,
             embedding_function=embedding_function,
             embedding=embedding,
@@ -233,75 +236,6 @@ class DeepLakeVectorStore:
             return_view=return_view,
         )
 
-<<<<<<< HEAD
-=======
-    def _parse_search_args(self, **kwargs):
-        """Helper function for raising errors if invalid parameters are specified to search"""
-
-        if kwargs["exec_option"] not in ("python", "compute_engine", "tensor_db"):
-            raise ValueError(
-                "Invalid `exec_option` it should be either `python`, `compute_engine` or `tensor_db`."
-            )
-
-        if (
-            kwargs["embedding_function"] is None
-            and kwargs["embedding"] is None
-            and kwargs["query"] is None
-            and kwargs["filter"] is None
-        ):
-            raise ValueError(
-                f"Either an `embedding`, `embedding_function`, `filter`, or `query` must be specified."
-            )
-        if (
-            kwargs["data_for_embedding"] is None
-            and kwargs["embedding_function"] is not None
-        ):
-            raise ValueError(
-                f"When an `embedding_function` is specified, `data_for_embedding` must also be specified."
-            )
-
-        exec_option = kwargs["exec_option"]
-        if exec_option == "python":
-            if kwargs["query"] is not None:
-                raise ValueError(
-                    f"User-specified TQL queries are not support for exec_option={exec_option}."
-                )
-            if kwargs["query"] is not None:
-                raise ValueError(
-                    f"`query` parameter for directly running TQL is invalid for exec_option={exec_option}."
-                )
-            if (
-                kwargs["embedding"] is None
-                and kwargs["embedding_function"]
-                and kwargs["filter"] is None
-            ):
-                raise ValueError(
-                    f"Either `embedding`, `embedding_function`, or `filter` must be specified for exec_option={exec_option}."
-                )
-        else:
-            if type(kwargs["filter"]) == Callable:
-                raise ValueError(
-                    f"UDF filter functions are not supported with exec_option={exec_option}"
-                )
-            if kwargs["query"] and kwargs["filter"]:
-                raise ValueError(
-                    f"`query` and `filter` parameters cannot be specified simultaneously."
-                )
-            if (
-                kwargs["embedding"] is None
-                and kwargs["embedding_function"] is None
-                and kwargs["query"] is None
-                and kwargs["filter"] is None
-            ):
-                raise ValueError(
-                    f"Either emebedding, embedding_function, filter, or query must be specified for exec_option={exec_option}."
-                )
-            if kwargs["return_tensors"] and kwargs["query"]:
-                raise ValueError(
-                    f"return_tensors and query parameters cannot be specified simultaneously, becuase the data that is returned is directly specified in the query."
-                )
-
->>>>>>> vs_query_finalization
     def delete(
         self,
         ids: Optional[List[str]] = None,
@@ -358,6 +292,12 @@ class DeepLakeVectorStore:
     def delete_by_path(path: str) -> None:
         """Force delete dataset by path"""
         deeplake.delete(path, large_ok=True, force=True)
+
+    def tensors(self):
+        return self.dataset.tensors
+
+    def summary(self):
+        return self.dataset.summary()
 
     def __len__(self):
         return len(self.dataset)

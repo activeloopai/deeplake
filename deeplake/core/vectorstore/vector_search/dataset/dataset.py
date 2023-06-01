@@ -143,10 +143,10 @@ def create_dataset(
 
 def create_tensors(tensors_dict, dataset, logger, embedding_function):
     tensor_names = [tensor["name"] for tensor in tensors_dict]
-    if "ids" not in tensor_names:
+    if "id" not in tensor_names:
         tensors_dict.append(
             {
-                "name": "ids",
+                "name": "id",
                 "htype": "text",
                 "create_id_tensor": False,
                 "create_sample_info_tensor": False,
@@ -215,43 +215,30 @@ def get_embedding(embedding, data_for_embedding, embedding_function=None):
     return embedding
 
 
-def preprocess_tensors(tensors_dict, **kwargs):
-    tensors_dict_names = [tensors_dict[idx]["name"] for idx in range(len(tensors_dict))]
+def preprocess_tensors(**tensors):
+    first_item = next(iter(tensors))
 
-    for kwarg in kwargs.keys():
-        if kwarg not in tensors_dict_names:
-            raise ValueError(f"`{kwarg}` is not specified in tensors_dict")
+    if "id" not in tensors or tensors["id"] is None:
+        id = [str(uuid.uuid1()) for _ in tensors[first_item]]
+        tensors["id"] = id
 
-    first_item = tensors_dict[0]["name"]
+    processed_tensors = {"id": tensors["id"]}
 
-    if "ids" not in kwargs or kwargs["ids"] is None:
-        ids = [str(uuid.uuid1()) for _ in kwargs[first_item]]
-        kwargs["ids"] = ids
-
-    processed_tensors = {"ids": ids}
-
-    for tensor in tensors_dict:
-        tensor_array = kwargs[tensor["name"]]
+    for tensor, tensor_array in tensors.items():
         if not isinstance(tensor_array, list):
             tensor_array = list(tensor_array)
-        processed_tensors[tensor["name"]] = tensor_array
+        processed_tensors[tensor] = tensor_array
 
-    return processed_tensors, ids
+    return processed_tensors, tensors["id"]
 
 
 def create_elements(
     processed_tensors: Dict[str, List[Any]],
 ):
-    utils.check_length_of_each_tensor(processed_tensors)
-
+    tensor_names = list(processed_tensors.keys())
     elements = [
-        {
-            "text": processed_tensors["text"][i],
-            "id": processed_tensors["ids"][i],
-            "metadata": processed_tensors["metadata"][i],
-            "embedding": processed_tensors["embedding"][i],
-        }
-        for i in range(len(processed_tensors["text"]))
+        {tensor_name: processed_tensors[tensor_name][i] for tensor_name in tensor_names}
+        for i in range(len(processed_tensors[tensor_names[0]]))
     ]
     return elements
 
@@ -307,13 +294,19 @@ def extend_or_ingest_dataset(
     processed_tensors,
     dataset,
     embedding_function,
+    embed_data_to,
+    embed_data_from,
     ingestion_batch_size,
     num_workers,
     total_samples_processed,
 ):
-    first_key = next(iter(processed_tensors.items()))
     if len(processed_tensors) <= VECTORSTORE_INGESTION_THRESHOLD:
-        dataset.extend(processed_tensors, skip_ok=True)
+        if embedding_function:
+            embedded_data = embedding_function(processed_tensors[embed_data_from])
+            embedded_data = np.array(embedded_data, dtype=np.float32)
+            processed_tensors[embed_data_to] = embedded_data
+
+        dataset.extend(processed_tensors)
     else:
         elements = dataset_utils.create_elements(processed_tensors)
 
@@ -321,6 +314,8 @@ def extend_or_ingest_dataset(
             elements=elements,
             dataset=dataset,
             embedding_function=embedding_function,
+            embed_data_to=embed_data_to,
+            embed_data_from=embed_data_from,
             ingestion_batch_size=ingestion_batch_size,
             num_workers=num_workers,
             total_samples_processed=total_samples_processed,

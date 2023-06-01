@@ -36,7 +36,8 @@ def get_runtime_from_exec_option(exec_option):
 
 
 def check_length_of_each_tensor(tensors):
-    tensor_length = len(tensors["text"])
+    first_item = next(iter(tensors))
+    tensor_length = len(tensors[first_item])
 
     for tensor_name in tensors:
         if len(tensors[f"{tensor_name}"]) != tensor_length:
@@ -86,23 +87,27 @@ def create_data(number_of_data, embedding_dim=100):
 
 def parse_search_args(**kwargs):
     """Helper function for raising errors if invalid parameters are specified to search"""
-    if (
-        kwargs["data_for_embedding"] is None
-        and kwargs["embedding"] is None
-        and kwargs["query"] is None
-        and kwargs["filter"] is None
-    ):
+
+    if kwargs["exec_option"] not in ("python", "compute_engine", "tensor_db"):
         raise ValueError(
-            f"Either a embedding, data_for_embedding, query, or filter must be specified."
+            "Invalid `exec_option` it should be either `python`, `compute_engine` or `tensor_db`."
         )
 
     if (
         kwargs["embedding_function"] is None
         and kwargs["embedding"] is None
         and kwargs["query"] is None
+        and kwargs["filter"] is None
     ):
         raise ValueError(
-            f"Either an embedding, embedding_function, or query must be specified."
+            f"Either an `embedding`, `embedding_function`, `filter`, or `query` must be specified."
+        )
+    if (
+        kwargs["data_for_embedding"] is None
+        and kwargs["embedding_function"] is not None
+    ):
+        raise ValueError(
+            f"When an `embedding_function` is specified, `data_for_embedding` must also be specified."
         )
 
     exec_option = kwargs["exec_option"]
@@ -113,28 +118,33 @@ def parse_search_args(**kwargs):
             )
         if kwargs["query"] is not None:
             raise ValueError(
-                f"query parameter for directly running TQL is invalid for exec_option={exec_option}."
+                f"`query` parameter for directly running TQL is invalid for exec_option={exec_option}."
             )
-        if kwargs["embedding"] is None and kwargs["embedding_function"] is None:
+        if (
+            kwargs["embedding"] is None
+            and kwargs["embedding_function"]
+            and kwargs["filter"] is None
+        ):
             raise ValueError(
-                f"Either emebdding or embedding_function must be specified for exec_option={exec_option}."
+                f"Either `embedding`, `embedding_function`, or `filter` must be specified for exec_option={exec_option}."
             )
     else:
         if type(kwargs["filter"]) == Callable:
             raise ValueError(
-                f"UDF filter function are not supported with exec_option={exec_option}"
+                f"UDF filter functions are not supported with exec_option={exec_option}"
             )
         if kwargs["query"] and kwargs["filter"]:
             raise ValueError(
-                f"query and filter parameters cannot be specified simultaneously."
+                f"`query` and `filter` parameters cannot be specified simultaneously."
             )
         if (
             kwargs["embedding"] is None
             and kwargs["embedding_function"] is None
             and kwargs["query"] is None
+            and kwargs["filter"] is None
         ):
             raise ValueError(
-                f"Either emebdding, embedding_function, or query must be specified for exec_option={exec_option}."
+                f"Either emebedding, embedding_function, filter, or query must be specified for exec_option={exec_option}."
             )
         if kwargs["return_tensors"] and kwargs["query"]:
             raise ValueError(
@@ -142,15 +152,99 @@ def parse_search_args(**kwargs):
             )
 
 
-def check_parameters_compataribility(
-    embedding_function, embedding_data, embedding_tensor_name, **kwargs
+def parse_add_arguments(
+    dataset,
+    embedding_function=None,
+    initial_embedding_function=None,
+    embed_data_from=None,
+    embed_data_to=None,
+    **tensors,
 ):
-    if embedding_function and not embedding_data:
-        raise ValueError(
-            f"embedding_data not specified. if embedding_function is specified you also need to specify embedding_data."
+    dataset_tensors = dataset.tensors
+    check_tensor_name_consistency(tensors, dataset_tensors, embed_data_to)
+
+    if embedding_function:
+        if not embed_data_from:
+            raise ValueError(
+                f"embed_data_from is not specified. When using embedding_function it is also necessary to specify the data that you want to embed"
+            )
+
+        if not embed_data_to:
+            raise ValueError(
+                f"embed_data_from is not specified. When using embedding_function it is also necessary to specify the tensor name, "
+                "where you want to upload embedded data."
+            )
+
+        if embed_data_to in tensors:
+            raise ValueError(
+                f"{embed_data_to} was specified as a parameter together with a embedding_function. "
+                f"Either embedding_function shouldn't be specified or {embed_data_to} shouldn't be specified."
+            )
+
+        return (embedding_function, embed_data_to, embed_data_from, tensors)
+
+    if initial_embedding_function:
+        if embed_data_from and not embed_data_to:
+            raise ValueError(
+                "Embedding data must be specified if embedding tensor and embedding functions are specified."
+            )
+
+        if not embed_data_from and embed_data_to:
+            raise ValueError(
+                "Embedding tensor must be specified if embedding data and embedding functions are specified."
+            )
+
+        if not embed_data_from and not embed_data_to:
+            return (None, None, None, tensors)
+        return (
+            initial_embedding_function,
+            embed_data_to,
+            embed_data_from,
+            tensors,
         )
 
-    if embedding_function and not embedding_tensor_name:
+    if embed_data_to:
         raise ValueError(
-            f"embedding_tensor_name not specified. if embedding_function is specified you also need to specify embedding_tensor_name."
+            f"embed_data_to is specified while embedding_function is None. "
+            "Either specify embedding_function during initialization or during add call."
+        )
+
+    if embed_data_from:
+        raise ValueError(
+            f"embed_data_from is specified while embedding_function is None. "
+            "Either specify embedding_function during initialization or during add call."
+        )
+
+    return (None, None, None, tensors)
+
+
+def check_tensor_name_consistency(tensors, dataset_tensors, embed_data_to):
+    id_str = "ids" if "ids" in dataset_tensors else "id"
+    expected_tensor_length = len(dataset_tensors)
+    allowed_missing_tensors = [id_str, embed_data_to]
+
+    for allowed_missing_tensor in allowed_missing_tensors:
+        if allowed_missing_tensor not in tensors and allowed_missing_tensor is not None:
+            expected_tensor_length -= 1
+
+    try:
+        assert len(tensors) == expected_tensor_length
+    except Exception:
+        if len(tensors) < expected_tensor_length:
+            missing_tensors = ""
+            for tensor in dataset_tensors:
+                if tensor not in tensors and tensor not in allowed_missing_tensors:
+                    missing_tensors += f"`{tensor}`, "
+            missing_tensors = missing_tensors[:-2]
+
+            raise ValueError(f"{missing_tensors} tensor(s) is/are missing.")
+
+        additional_tensors = ""
+        for tensor in tensors:
+            if tensor not in dataset_tensors:
+                additional_tensors += f"`{tensor}, `"
+
+        additional_tensors = additional_tensors[:-2]
+        raise ValueError(
+            f"Following tensor(s) that was/were specified doesn't exist: {additional_tensors}. "
         )

@@ -1,6 +1,7 @@
 import numpy as np
 import pytest
 
+import deeplake
 from deeplake.core.vectorstore.deeplake_vectorstore import DeepLakeVectorStore
 from deeplake.core.vectorstore import utils
 from deeplake.tests.common import requires_libdeeplake
@@ -21,7 +22,21 @@ query_embedding = np.random.uniform(low=-10, high=10, size=(EMBEDDING_DIM)).asty
 
 
 def embedding_fn(text, embedding_dim=EMBEDDING_DIM):
-    return np.zeros((embedding_dim,)).astype(np.float32)
+    return np.zeros(
+        (
+            len(text),
+            embedding_dim,
+        )
+    ).astype(np.float32)
+
+
+def embedding_fn2(text, embedding_dim=EMBEDDING_DIM):
+    return np.ones(
+        (
+            len(text),
+            embedding_dim,
+        )
+    ).astype(np.float32)
 
 
 def test_tensor_dict(hub_cloud_dev_token):
@@ -359,3 +374,190 @@ def test_ingestion(capsys):
     np.testing.assert_array_equal(
         vector_store.dataset.embedding.numpy(), np.zeros((1000, 100), dtype=np.float32)
     )
+
+
+def test_parse_add_arguments():
+    deeplake_vector_store = DeepLakeVectorStore(
+        dataset_path="local_ds",
+        overwrite=True,
+        embedding_function=embedding_fn,
+    )
+
+    with pytest.raises(ValueError):
+        # Throw error because embedding_function requires embed_data_from
+        utils.parse_add_arguments(
+            dataset=deeplake_vector_store.dataset,
+            initial_embedding_function=embedding_fn,
+            embedding_function=embedding_fn,
+            embed_data_to="embedding",
+            text=texts,
+            id=ids,
+            metadata=metadatas,
+        )
+
+    with pytest.raises(ValueError):
+        # Throw error because embedding function is not specified anywhere
+        utils.parse_add_arguments(
+            dataset=deeplake_vector_store.dataset,
+            embed_data_from="text",
+            embed_data_to="embedding",
+            text=texts,
+            id=ids,
+            metadata=metadatas,
+        )
+
+    with pytest.raises(ValueError):
+        # Throw error because data is not specified for all tensors
+        utils.parse_add_arguments(
+            dataset=deeplake_vector_store.dataset,
+            text=texts,
+            id=ids,
+            metadata=metadatas,
+        )
+
+    with pytest.raises(ValueError):
+        # initial embedding function specified and embed_data_to is specified
+        (
+            embedding_function,
+            embed_data_to,
+            embed_data_from,
+            tensors,
+        ) = utils.parse_add_arguments(
+            dataset=deeplake_vector_store.dataset,
+            initial_embedding_function=embedding_fn,
+            embed_data_to="embedding",
+            text=texts,
+            id=ids,
+            metadata=metadatas,
+        )
+    converted_embeddings_1 = np.zeros((len(texts), EMBEDDING_DIM)).astype(np.float32)
+    converted_embeddings_2 = np.ones((len(texts), EMBEDDING_DIM)).astype(np.float32)
+
+    # initial embedding function is specified and embed_data_to, embed_data_from are not specified
+    (
+        embedding_function,
+        embed_data_to,
+        embed_data_from,
+        tensors,
+    ) = utils.parse_add_arguments(
+        dataset=deeplake_vector_store.dataset,
+        initial_embedding_function=embedding_fn,
+        text=texts,
+        id=ids,
+        embedding=embeddings,
+        metadata=metadatas,
+    )
+    assert embedding_function is None
+    assert embed_data_to == None
+    assert embed_data_from is None
+    assert tensors == {
+        "id": ids,
+        "text": texts,
+        "metadata": metadatas,
+        "embedding": embeddings,
+    }
+
+    with pytest.raises(ValueError):
+        # initial embedding function specified and embed_data_to is not specified
+        utils.parse_add_arguments(
+            dataset=deeplake_vector_store.dataset,
+            initial_embedding_function=embedding_fn,
+            embed_data_from="text",
+            text=texts,
+            id=ids,
+            embedding=embeddings,
+            metadata=metadatas,
+        )
+
+    with pytest.raises(ValueError):
+        # Throw error because embedding_function and embedding are specified
+        utils.parse_add_arguments(
+            dataset=deeplake_vector_store.dataset,
+            initial_embedding_function=embedding_fn,
+            embedding_function=embedding_fn,
+            embed_data_from="text",
+            embed_data_to="embedding",
+            text=texts,
+            id=ids,
+            metadata=metadatas,
+            embedding=embeddings,
+        )
+
+    with pytest.raises(ValueError):
+        # initial_embedding_function is specified and embed_data_to, embed_data_from and embedding is specified.
+        utils.parse_add_arguments(
+            dataset=deeplake_vector_store.dataset,
+            initial_embedding_function=embedding_fn,
+            embed_data_to=embed_data_to,
+            embed_data_from="text",
+            text=texts,
+            id=ids,
+            metadata=metadatas,
+            embedding=embeddings,
+        )
+
+    with pytest.raises(ValueError):
+        # initial_embedding_function is not specified and embed_data_to, embed_data_from and embedding is specified.
+        utils.parse_add_arguments(
+            dataset=deeplake_vector_store.dataset,
+            embed_data_to="embedding",
+            embed_data_from="text",
+            text=texts,
+            id=ids,
+            metadata=metadatas,
+            embedding=embeddings,
+        )
+
+    with pytest.raises(ValueError):
+        utils.parse_add_arguments(
+            dataset=deeplake_vector_store.dataset,
+            embedding_function=embedding_fn,
+            initial_embedding_function=embedding_fn,
+            embed_data_from="text",
+            embed_data_to="embedding",
+            text=texts,
+            id=ids,
+            embedding=embeddings,
+            metadata=metadatas,
+        )
+
+    (
+        embedding_function,
+        embed_data_to,
+        embed_data_from,
+        tensors,
+    ) = utils.parse_add_arguments(
+        dataset=deeplake_vector_store.dataset,
+        embedding_function=embedding_fn2,
+        embed_data_from="text",
+        embed_data_to="embedding",
+        text=texts,
+        id=ids,
+        metadata=metadatas,
+    )
+    assert embedding_function is embedding_fn2
+    assert embed_data_to == "embedding"
+    assert np.testing.assert_equal(embed_data_from, converted_embeddings_2)
+    assert tensors == {
+        "id": ids,
+        "text": texts,
+        "metadata": metadatas,
+    }
+
+    (
+        embedding_function,
+        embed_data_to,
+        embed_data_from,
+        tensors,
+    ) = utils.parse_add_arguments(
+        dataset=deeplake_vector_store.dataset,
+        embedding_function=embedding_fn2,
+        embed_data_from="text",
+        embed_data_to="embedding",
+        text=texts,
+        metadata=metadatas,
+    )
+    assert embedding_function is embedding_fn2
+    assert embed_data_to == "embedding"
+    assert embed_data_from == "texts"
+    assert len(tensors) == 2

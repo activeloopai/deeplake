@@ -1,4 +1,4 @@
-from typing import Dict, List, Any, Callable, Optional
+from typing import Dict, List, Any, Callable, Optional, Union
 
 import numpy as np
 
@@ -9,7 +9,6 @@ from deeplake.util.exceptions import TransformError, FailedIngestionError
 from deeplake.constants import (
     MAX_VECTORSTORE_INGESTION_RETRY_ATTEMPTS,
     MAX_CHECKPOINTING_INTERVAL,
-    MAX_DATASET_LENGTH_FOR_CACHING,
 )
 
 
@@ -19,6 +18,8 @@ class DataIngestion:
         elements: List[Dict[str, Any]],
         dataset: DeepLakeDataset,
         embedding_function: Optional[Callable],
+        embed_data_to: Optional[str],
+        embed_data_from: Optional[Union[np.ndarray, List]],
         ingestion_batch_size: int,
         num_workers: int,
         retry_attempt: int,
@@ -31,6 +32,8 @@ class DataIngestion:
         self.num_workers = num_workers
         self.retry_attempt = retry_attempt
         self.total_samples_processed = total_samples_processed
+        self.embed_data_to = embed_data_to
+        self.embed_data_from = embed_data_from
 
     def collect_batched_data(self, ingestion_batch_size=None):
         ingestion_batch_size = ingestion_batch_size or self.ingestion_batch_size
@@ -45,6 +48,7 @@ class DataIngestion:
         batched = [
             elements[i : i + batch_size] for i in range(0, len(elements), batch_size)
         ]
+
         return batched
 
     def get_num_workers(self, batched):
@@ -65,24 +69,6 @@ class DataIngestion:
         return checkpoint_interval
 
     def run(self):
-        if (
-            len(self.elements) < MAX_DATASET_LENGTH_FOR_CACHING
-            and self.embedding_function
-        ):
-            full_text = [element["text"] for element in self.elements]
-            embeddings = self.embedding_function(full_text)
-
-            self.elements = [
-                {
-                    "text": element["text"],
-                    "id": element["id"],
-                    "metadata": element["metadata"],
-                    "embedding": embeddings[i],
-                }
-                for i, element in enumerate(self.elements)
-            ]
-            self.embedding_function = None
-
         batched_data = self.collect_batched_data()
         num_workers = self.get_num_workers(batched_data)
         checkpoint_interval = self.get_checkpoint_interval_and_batched_data(
@@ -102,7 +88,11 @@ class DataIngestion:
         checkpoint_interval,
     ):
         try:
-            ingest(embedding_function=self.embedding_function).eval(
+            ingest(
+                embedding_function=self.embedding_function,
+                embed_data_to=self.embed_data_to,
+                embed_data_from=self.embed_data_from,
+            ).eval(
                 batched,
                 self.dataset,
                 num_workers=num_workers,
@@ -141,8 +131,14 @@ class DataIngestion:
 
 
 @deeplake.compute
-def ingest(sample_in: list, sample_out: list, embedding_function) -> None:
-    text_list = [s["text"] for s in sample_in]
+def ingest(
+    sample_in: list,
+    sample_out: list,
+    embedding_function,
+    embed_data_to,
+    embed_data_from,
+) -> None:
+    text_list = [s[embed_data_from] for s in sample_in]
 
     embeds: List[Optional[np.ndarray]] = [None] * len(text_list)
     if embedding_function is not None:
@@ -155,12 +151,9 @@ def ingest(sample_in: list, sample_out: list, embedding_function) -> None:
         embeds = [np.array(e, dtype=np.float32) for e in embeddings]
 
     for s, emb in zip(sample_in, embeds):
-        embedding = emb if embedding_function else s["embedding"]
-        sample_out.append(
-            {
-                "text": s["text"],
-                "metadata": s["metadata"],
-                "ids": s["id"],
-                "embedding": np.array(embedding, dtype=np.float32),
-            }
-        )
+        sample_in_i = {tensor_name: s[tensor_name] for tensor_name in s}
+
+        if embedding_function:
+            sample_in_i[embed_data_to] = np.array(emb, dtype=np.float32)
+
+        sample_out.append(sample_in_i)
