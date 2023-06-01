@@ -1,9 +1,9 @@
-from deeplake.constants import SPINNER_START_DELAY, SPINNER_ENABLED
 from deeplake.client.log import configure_logger
 from logging import StreamHandler
 from itertools import cycle
 from functools import wraps
 
+import deeplake
 import contextlib
 import threading
 import logging
@@ -32,7 +32,7 @@ class DummyFile:
 def run_spinner(spinner):
     global ACTIVE_SPINNER
     try:
-        if not isinstance(sys.stderr, DummyFile) and SPINNER_ENABLED:
+        if not isinstance(sys.stderr, DummyFile) and deeplake.constants.SPINNER_ENABLED:
             spinner.start()
             spinner_started = True
             save_stdout = sys.stdout
@@ -71,7 +71,7 @@ class Spinner(threading.Thread):
         self.file = sys.stderr
 
     def run(self):
-        time.sleep(SPINNER_START_DELAY)
+        time.sleep(deeplake.constants.SPINNER_START_DELAY)
         frames = cycle("/-\\|")
         if not self._hide_event.is_set():
             self._hide_cursor()
@@ -132,7 +132,7 @@ class Spinner(threading.Thread):
 def spinner(func):
     @wraps(func)
     def inner(*args, **kwargs):
-        if kwargs.get("verbose") in (None, True):
+        if kwargs.pop("spinner", True) and kwargs.get("verbose") in (None, True):
             spinner = Spinner()
 
             with run_spinner(spinner):
