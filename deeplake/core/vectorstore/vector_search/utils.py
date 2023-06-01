@@ -160,8 +160,7 @@ def parse_add_arguments(
     embedding_tensor=None,
     **tensors,
 ):
-    dataset_tensors = dataset.tensors
-    check_tensor_name_consistency(tensors, dataset_tensors, embedding_tensor)
+    # check_tensor_name_consistency(tensors, dataset.tensors, embedding_tensor)
 
     if embedding_function:
         if not embedding_data:
@@ -169,53 +168,33 @@ def parse_add_arguments(
                 f"embedding_data is not specified. When using embedding_function it is also necessary to specify the data that you want to embed"
             )
 
-        if not embedding_tensor:
+        embedding_tensor = find_embedding_tensor(embedding_tensor, tensors, dataset)
 
-            raise ValueError(
-                f"embedding_data is not specified. When using embedding_function it is also necessary to specify the tensor name, "
-                "where you want to upload embedded data."
-            )
-
-        if embedding_tensor in tensors:
-            raise ValueError(
-                f"{embedding_tensor} was specified as a parameter together with a embedding_function. "
-                f"Either embedding_function shouldn't be specified or {embedding_tensor} shouldn't be specified."
-            )
-
+        check_tensor_name_consistency(tensors, dataset.tensors, embedding_tensor)
         return (embedding_function, embedding_data, embedding_tensor, tensors)
 
     if initial_embedding_function:
-        if embedding_data and not embedding_tensor:
-            raise ValueError(
-                "Embedding data must be specified if embedding tensor and embedding functions are specified."
-            )
-
-        if not embedding_data and embedding_tensor:
-            raise ValueError(
-                "Embedding tensor must be specified if embedding data and embedding functions are specified."
-            )
-
-        if not embedding_data and not embedding_tensor:
+        if not embedding_data:
             return (None, None, None, tensors)
-        return (
-            initial_embedding_function,
-            embedding_tensor,
-            embedding_data,
-            tensors,
-        )
+
+        embedding_tensor = find_embedding_tensor(embedding_tensor, tensors, dataset)
+
+        check_tensor_name_consistency(tensors, dataset.tensors, embedding_tensor)
+        return (initial_embedding_function, embedding_data, embedding_tensor, tensors)
 
     if embedding_tensor:
         raise ValueError(
-            f"embedding_tensor is specified while embedding_function is None. "
-            "Either specify embedding_function during initialization or during add call."
+            f"`embedding_tensor` is specified while `embedding_function` is not specified. "
+            "Either specify `embedding_function` during Vector Store initialization or during `add` call."
         )
 
     if embedding_data:
         raise ValueError(
-            f"embedding_data is specified while embedding_function is None. "
-            "Either specify embedding_function during initialization or during add call."
+            f"`embedding_data` is specified while `embedding_function` is not specified. "
+            "Either specify `embedding_function` during Vector Store initialization or during `add` call."
         )
 
+    check_tensor_name_consistency(tensors, dataset.tensors, embedding_tensor)
     return (None, None, None, tensors)
 
 
@@ -248,4 +227,43 @@ def check_tensor_name_consistency(tensors, dataset_tensors, embedding_tensor):
         additional_tensors = additional_tensors[:-2]
         raise ValueError(
             f"Following tensor(s) that was/were specified doesn't exist: {additional_tensors}. "
+        )
+
+
+def find_embedding_tensor(embedding_tensor, tensor_args, dataset):
+    if not embedding_tensor:
+        embedding_tensors = find_embedding_tensors(dataset)
+        parse_find_embedding_tensors_errors(embedding_tensors)
+
+        return embedding_tensors[0]
+
+    if embedding_tensor in tensor_args:
+        raise ValueError(
+            f"{embedding_tensor} was specified as a tensor parameter for adding data, in addition to being specified as the `embedding_tensor' for storing embedding from the embedding_function."
+            f"Either `embedding_function` or `embedding_data` shouldn't be specified or `{embedding_tensor}` shouldn't be specified as a tensor for appending data."
+        )
+    return embedding_tensor
+
+
+def find_embedding_tensors(dataset):
+    matching_tensors = []
+    for tensor in dataset.tensors:
+        if (
+            dataset[tensor].htype == "embedding"
+            or tensor == "embedding"
+            or tensor == "embeddings"
+        ):
+            matching_tensors.append(tensor)
+
+    return matching_tensors
+
+
+def parse_find_embedding_tensors_errors(embedding_tensors):
+    if len(embedding_tensors) > 2:
+        raise ValueError(
+            f"embedding_function is specified but multiple embedding tensors were found in the Vector Store, so it it not clear to which tensor the embeddings should be appended. Please specify the `embedding_tensor` parameter for storing the embeddings."
+        )
+    elif len(embedding_tensors) == 0:
+        raise ValueError(
+            f"embedding_function is specified but no embedding tensors were found in the Vector Store, so the embeddings cannot be added. Please specify the `embedding_tensor` parameter for storing the embeddings."
         )
