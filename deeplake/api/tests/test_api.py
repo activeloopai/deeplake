@@ -2593,3 +2593,12 @@ def test_shapes_sequence(memory_ds):
             ds.abc[:3].shapes(),
             np.array([[[3, 4], [4, 5]], [[2, 3], [3, 4]], [[0, 0], [0, 0]]]),
         )
+
+
+def test_shape_squeeze(memory_ds):
+    with memory_ds as ds:
+        ds.create_tensor("abc")
+        ds.abc.extend(np.ones((5, 10, 10, 10)))
+        ds.abc.extend(np.ones((5, 10, 12, 20)))
+
+    assert ds.abc[5:, :, 9].shape == (5, 10, 20)
