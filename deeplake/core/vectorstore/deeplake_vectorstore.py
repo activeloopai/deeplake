@@ -319,7 +319,8 @@ class DeepLakeVectorStore:
                 self.dataset,
                 dataset_deleted,
             ) = dataset_utils.delete_all_samples_if_specified(
-                self.dataset, delete_all, self
+                self.dataset,
+                delete_all,
             )
             if dataset_deleted:
                 return True

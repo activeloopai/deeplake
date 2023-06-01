@@ -159,14 +159,8 @@ def test_fetch_embeddings():
     dataset.create_tensor("embedding")
     dataset.embedding.extend([1, 2, 3, 4, 5, 6, 7, 8, 9])
 
-    embedings = dataset_utils.fetch_embeddings("python", dataset, logger)
+    embedings = dataset_utils.fetch_embeddings(dataset, "embedding")
     assert len(embedings) == 9
-
-    embedings = dataset_utils.fetch_embeddings("compute_engine", dataset, logger)
-    assert embedings is None
-
-    embedings = dataset_utils.fetch_embeddings("tensor_db", dataset, logger)
-    assert embedings is None
 
 
 def test_create_tensor_if_needed(caplog):
