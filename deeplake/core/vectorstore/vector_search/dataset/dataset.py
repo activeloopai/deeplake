@@ -325,7 +325,6 @@ def extend_or_ingest_dataset(
             dataset=dataset,
             embedding_function=embedding_function,
             embedding_tensor=embedding_tensor,
-            embedding_data=embedding_data,
             ingestion_batch_size=ingestion_batch_size,
             num_workers=num_workers,
             total_samples_processed=total_samples_processed,

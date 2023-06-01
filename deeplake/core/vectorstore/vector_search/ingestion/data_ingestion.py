@@ -19,7 +19,6 @@ class DataIngestion:
         dataset: DeepLakeDataset,
         embedding_function: Optional[Callable],
         embedding_tensor: Optional[str],
-        embedding_data: Optional[Union[np.ndarray, List]],
         ingestion_batch_size: int,
         num_workers: int,
         retry_attempt: int,
@@ -131,6 +130,8 @@ class DataIngestion:
                 num_workers=num_workers,
                 retry_attempt=self.retry_attempt,
                 total_samples_processed=self.total_samples_processed,
+                logger=self.logger,
+                embedding_tensor=self.embedding_tensor,
             )
             data_ingestion.run()
 
