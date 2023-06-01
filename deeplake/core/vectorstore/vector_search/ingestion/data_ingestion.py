@@ -18,8 +18,8 @@ class DataIngestion:
         elements: List[Dict[str, Any]],
         dataset: DeepLakeDataset,
         embedding_function: Optional[Callable],
-        embed_data_to: Optional[str],
-        embed_data_from: Optional[Union[np.ndarray, List]],
+        embedding_tensor: Optional[str],
+        embedding_data: Optional[Union[np.ndarray, List]],
         ingestion_batch_size: int,
         num_workers: int,
         retry_attempt: int,
@@ -33,8 +33,7 @@ class DataIngestion:
         self.num_workers = num_workers
         self.retry_attempt = retry_attempt
         self.total_samples_processed = total_samples_processed
-        self.embed_data_to = embed_data_to
-        self.embed_data_from = embed_data_from
+        self.embedding_tensor = embedding_tensor
         self.logger = logger
 
     def collect_batched_data(self, ingestion_batch_size=None):
@@ -94,8 +93,7 @@ class DataIngestion:
         try:
             ingest(
                 embedding_function=self.embedding_function,
-                embed_data_to=self.embed_data_to,
-                embed_data_from=self.embed_data_from,
+                embedding_tensor=self.embedding_tensor,
             ).eval(
                 batched,
                 self.dataset,
@@ -140,15 +138,13 @@ def ingest(
     sample_in: list,
     sample_out: list,
     embedding_function,
-    embed_data_to,
-    embed_data_from,
+    embedding_tensor,
 ) -> None:
-    text_list = [s[embed_data_from] for s in sample_in]
-
-    embeds: List[Optional[np.ndarray]] = [None] * len(text_list)
-    if embedding_function is not None:
+    embeds: List[Optional[np.ndarray]] = [None] * len(sample_in)
+    if embedding_function:
         try:
-            embeddings = embedding_function(text_list)
+            embedding_data = [s[embedding_tensor] for s in sample_in]
+            embeddings = embedding_function(embedding_data)
         except Exception as e:
             raise Exception(
                 "Could not use embedding function. Please try again with a different embedding function."
@@ -159,6 +155,6 @@ def ingest(
         sample_in_i = {tensor_name: s[tensor_name] for tensor_name in s}
 
         if embedding_function:
-            sample_in_i[embed_data_to] = np.array(emb, dtype=np.float32)
+            sample_in_i[embedding_tensor] = np.array(emb, dtype=np.float32)
 
         sample_out.append(sample_in_i)

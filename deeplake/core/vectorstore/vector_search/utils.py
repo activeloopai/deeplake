@@ -156,72 +156,73 @@ def parse_add_arguments(
     dataset,
     embedding_function=None,
     initial_embedding_function=None,
-    embed_data_from=None,
-    embed_data_to=None,
+    embedding_data=None,
+    embedding_tensor=None,
     **tensors,
 ):
     dataset_tensors = dataset.tensors
-    check_tensor_name_consistency(tensors, dataset_tensors, embed_data_to)
+    check_tensor_name_consistency(tensors, dataset_tensors, embedding_tensor)
 
     if embedding_function:
-        if not embed_data_from:
+        if not embedding_data:
             raise ValueError(
-                f"embed_data_from is not specified. When using embedding_function it is also necessary to specify the data that you want to embed"
+                f"embedding_data is not specified. When using embedding_function it is also necessary to specify the data that you want to embed"
             )
 
-        if not embed_data_to:
+        if not embedding_tensor:
+
             raise ValueError(
-                f"embed_data_from is not specified. When using embedding_function it is also necessary to specify the tensor name, "
+                f"embedding_data is not specified. When using embedding_function it is also necessary to specify the tensor name, "
                 "where you want to upload embedded data."
             )
 
-        if embed_data_to in tensors:
+        if embedding_tensor in tensors:
             raise ValueError(
-                f"{embed_data_to} was specified as a parameter together with a embedding_function. "
-                f"Either embedding_function shouldn't be specified or {embed_data_to} shouldn't be specified."
+                f"{embedding_tensor} was specified as a parameter together with a embedding_function. "
+                f"Either embedding_function shouldn't be specified or {embedding_tensor} shouldn't be specified."
             )
 
-        return (embedding_function, embed_data_to, embed_data_from, tensors)
+        return (embedding_function, embedding_data, embedding_tensor, tensors)
 
     if initial_embedding_function:
-        if embed_data_from and not embed_data_to:
+        if embedding_data and not embedding_tensor:
             raise ValueError(
                 "Embedding data must be specified if embedding tensor and embedding functions are specified."
             )
 
-        if not embed_data_from and embed_data_to:
+        if not embedding_data and embedding_tensor:
             raise ValueError(
                 "Embedding tensor must be specified if embedding data and embedding functions are specified."
             )
 
-        if not embed_data_from and not embed_data_to:
+        if not embedding_data and not embedding_tensor:
             return (None, None, None, tensors)
         return (
             initial_embedding_function,
-            embed_data_to,
-            embed_data_from,
+            embedding_tensor,
+            embedding_data,
             tensors,
         )
 
-    if embed_data_to:
+    if embedding_tensor:
         raise ValueError(
-            f"embed_data_to is specified while embedding_function is None. "
+            f"embedding_tensor is specified while embedding_function is None. "
             "Either specify embedding_function during initialization or during add call."
         )
 
-    if embed_data_from:
+    if embedding_data:
         raise ValueError(
-            f"embed_data_from is specified while embedding_function is None. "
+            f"embedding_data is specified while embedding_function is None. "
             "Either specify embedding_function during initialization or during add call."
         )
 
     return (None, None, None, tensors)
 
 
-def check_tensor_name_consistency(tensors, dataset_tensors, embed_data_to):
+def check_tensor_name_consistency(tensors, dataset_tensors, embedding_tensor):
     id_str = "ids" if "ids" in dataset_tensors else "id"
     expected_tensor_length = len(dataset_tensors)
-    allowed_missing_tensors = [id_str, embed_data_to]
+    allowed_missing_tensors = [id_str, embedding_tensor]
 
     for allowed_missing_tensor in allowed_missing_tensors:
         if allowed_missing_tensor not in tensors and allowed_missing_tensor is not None:
@@ -242,7 +243,7 @@ def check_tensor_name_consistency(tensors, dataset_tensors, embed_data_to):
         additional_tensors = ""
         for tensor in tensors:
             if tensor not in dataset_tensors:
-                additional_tensors += f"`{tensor}, `"
+                additional_tensors += f"`{tensor}`, "
 
         additional_tensors = additional_tensors[:-2]
         raise ValueError(

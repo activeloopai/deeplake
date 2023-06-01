@@ -18,6 +18,7 @@ from deeplake.core.vectorstore.vector_search.ingestion import ingest_data
 from deeplake.constants import (
     DEFAULT_VECTORSTORE_DEEPLAKE_PATH,
     VECTORSTORE_INGESTION_THRESHOLD,
+    DEFAULT_VECTORSTORE_TENSORS,
 )
 from deeplake.util.warnings import always_warn
 
@@ -41,14 +42,17 @@ def create_or_load_dataset(
         del kwargs["overwrite"]
 
     if dataset_exists(dataset_path, token, creds, **kwargs):
+        if tensors_dict is not None and tensors_dict != DEFAULT_VECTORSTORE_TENSORS:
+            raise ValueError(
+                "dataset is not empty. You shouldn't specify tensors_dict if you're loading from existing dataset."
+            )
+
         return load_dataset(
-            tensors_dict,
             dataset_path,
             token,
             creds,
             logger,
             read_only,
-            embedding_function,
             **kwargs,
         )
 
@@ -71,13 +75,11 @@ def dataset_exists(dataset_path, token, creds, **kwargs):
 
 
 def load_dataset(
-    tensors_dict,
     dataset_path,
     token,
     creds,
     logger,
     read_only,
-    embedding_function,
     **kwargs,
 ):
     if dataset_path == DEFAULT_VECTORSTORE_DEEPLAKE_PATH:
@@ -95,13 +97,38 @@ def load_dataset(
         verbose=False,
         **kwargs,
     )
-    create_tensors_if_needed(tensors_dict, dataset, logger, embedding_function)
+
+    check_tensors(dataset)
 
     logger.warning(
         f"Deep Lake Dataset in {dataset_path} already exists, "
         f"loading from the storage"
     )
     return dataset
+
+
+def check_tensors(dataset):
+    tensors = dataset.tensors
+
+    embedding_htype_exist = False
+    ids_exist = False
+
+    for tensor in tensors:
+        if tensor in ("id", "ids"):
+            ids_exist = True
+
+        if tensor in ("embedding", "embeddings"):
+            embedding_htype_exist = True
+
+        htype = dataset[tensor].htype
+        if htype == "embedding":
+            embedding_htype_exist = True
+
+    if not embedding_htype_exist:
+        raise ValueError("At least one mbedding tensor should exist.")
+
+    if not ids_exist:
+        raise ValueError("`id` tensor was not found in the dataset.")
 
 
 def create_tensors_if_needed(tensors_dict, dataset, logger, embedding_function):
@@ -215,7 +242,7 @@ def get_embedding(embedding, data_for_embedding, embedding_function=None):
     return embedding
 
 
-def preprocess_tensors(**tensors):
+def preprocess_tensors(embedding_data, embedding_tensor, **tensors):
     first_item = next(iter(tensors))
 
     if "id" not in tensors or tensors["id"] is None:
@@ -228,6 +255,9 @@ def preprocess_tensors(**tensors):
         if not isinstance(tensor_array, list):
             tensor_array = list(tensor_array)
         processed_tensors[tensor] = tensor_array
+
+    if embedding_data:
+        processed_tensors[embedding_tensor] = embedding_data
 
     return processed_tensors, tensors["id"]
 
@@ -294,8 +324,8 @@ def extend_or_ingest_dataset(
     processed_tensors,
     dataset,
     embedding_function,
-    embed_data_to,
-    embed_data_from,
+    embedding_tensor,
+    embedding_data,
     ingestion_batch_size,
     num_workers,
     total_samples_processed,
@@ -304,9 +334,9 @@ def extend_or_ingest_dataset(
     first_item = next(iter(processed_tensors))
     if len(processed_tensors[first_item]) <= VECTORSTORE_INGESTION_THRESHOLD:
         if embedding_function:
-            embedded_data = embedding_function(processed_tensors[embed_data_from])
+            embedded_data = embedding_function(embedding_data)
             embedded_data = np.array(embedded_data, dtype=np.float32)
-            processed_tensors[embed_data_to] = embedded_data
+            processed_tensors[embedding_tensor] = embedded_data
 
         dataset.extend(processed_tensors)
     else:
@@ -316,8 +346,8 @@ def extend_or_ingest_dataset(
             elements=elements,
             dataset=dataset,
             embedding_function=embedding_function,
-            embed_data_to=embed_data_to,
-            embed_data_from=embed_data_from,
+            embedding_tensor=embedding_tensor,
+            embedding_data=embedding_data,
             ingestion_batch_size=ingestion_batch_size,
             num_workers=num_workers,
             total_samples_processed=total_samples_processed,

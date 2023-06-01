@@ -80,8 +80,8 @@ class DeepLakeVectorStore:
         self,
         embedding_function: Optional[Callable] = None,
         total_samples_processed: int = 0,
-        embed_data_from: Optional[List] = None,
-        embed_data_to: Optional[str] = None,
+        embedding_data: Optional[List] = None,
+        embedding_tensor: Optional[str] = None,
         **tensors,
     ) -> List[str]:
         """Adding elements to deeplake vector store
@@ -99,18 +99,20 @@ class DeepLakeVectorStore:
         """
         (
             embedding_function,
-            embed_data_to,
-            embed_data_from,
+            embedding_data,
+            embedding_tensor,
             tensors,
         ) = utils.parse_add_arguments(
             dataset=self.dataset,
             initial_embedding_function=self.embedding_function,
             embedding_function=embedding_function,
-            embed_data_from=embed_data_from,
-            embed_data_to=embed_data_to,
+            embedding_data=embedding_data,
+            embedding_tensor=embedding_tensor,
             **tensors,
         )
-        processed_tensors, id = dataset_utils.preprocess_tensors(**tensors)
+        processed_tensors, id = dataset_utils.preprocess_tensors(
+            embedding_data, embedding_tensor, **tensors
+        )
         assert id is not None
         utils.check_length_of_each_tensor(processed_tensors)
 
@@ -118,8 +120,8 @@ class DeepLakeVectorStore:
             processed_tensors=processed_tensors,
             dataset=self.dataset,
             embedding_function=embedding_function,
-            embed_data_to=embed_data_to,
-            embed_data_from=embed_data_from,
+            embedding_data=embedding_data,
+            embedding_tensor=embedding_tensor,
             ingestion_batch_size=self.ingestion_batch_size,
             num_workers=self.num_workers,
             total_samples_processed=total_samples_processed,
