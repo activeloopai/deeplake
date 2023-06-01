@@ -2497,12 +2497,186 @@ class ChunkEngine:
     def check_link_ready(self):
         return
 
+    def _get_sample_shape_from_provider(
+        self, sample_shape_provider, idx, sample_index, flatten
+    ):
+        try:
+            shape = sample_shape_provider(idx)  # type: ignore
+        except (
+            IndexError
+        ):  # Happens during transforms, sample shape tensor is not populated yet
+            shape = self.read_shape_for_sample(idx)  # type: ignore
+
+        if isinstance(shape, tuple) and shape == ():
+            shape = (0,)
+        if self.is_sequence and not flatten:
+            shape = self._merge_seq_shape(shape, sample_index)
+        return shape
+
+    def _merge_seq_shape(self, shape, sample_index):
+        """Merges shapes of sequence items into one shape"""
+        if sample_index and not sample_index[0].subscriptable():
+            shape = (1, *tuple(shape[sample_index[0].value].tolist()))  # type: ignore
+        else:
+            is_same = np.all(shape == shape[0, :], axis=0)  # type: ignore
+            shape = (len(shape),) + (
+                tuple(
+                    int(shape[0, i])  # type: ignore
+                    if is_same[i]  # type: ignore
+                    else -1
+                    for i in range(shape.shape[1])  # type: ignore
+                )
+                or (1,)
+            )
+        return shape
+
+    def _populate_sample_shapes(
+        self,
+        sample_shapes: np.ndarray,
+        index: Index,
+        sample_shape_provider: Optional[Callable] = None,
+        flatten: bool = False,
+    ):
+        index_0, sample_index = index.values[0], index.values[1:]
+        sample_indices = list(
+            index_0.indices(self._sequence_length or self.num_samples)
+        )
+        num_samples = len(sample_indices)
+
+        sample_ndim = self.ndim() - 1
+
+        for i, idx in enumerate(sample_indices):
+            if self.tensor_meta.htype in ("text", "json"):
+                shape = (1,)
+            elif sample_shape_provider:
+                shape = self._get_sample_shape_from_provider(
+                    sample_shape_provider, idx, sample_index, flatten
+                )
+            else:
+                self.check_link_ready()
+                shape = self.read_shape_for_sample(idx)  # type: ignore
+                # if link verification was not done
+                if len(shape) > sample_ndim:
+                    sample_ndim = len(shape)
+                    sample_shapes = np.zeros((num_samples, sample_ndim), dtype=np.int32)
+
+            if flatten:
+                start, end = self.sequence_encoder[i]
+                sample_shapes[start:end] = shape
+            else:
+                sample_shapes[i] = shape
+        return sample_shapes
+
+    def _get_total_samples_and_sample_ndim(self, index_0):
+        """Returns total number of samples (including sequence items) and sample ndim using first index"""
+        tensor_ndim = self.ndim()
+        if self.is_sequence:
+            sample_indices = list(index_0.indices(self._sequence_length))
+            num_samples = sum(
+                map(
+                    lambda x: x[1] - x[0],
+                    [self.sequence_encoder[i] for i in sample_indices],
+                )
+            )
+            sample_ndim = tensor_ndim - 2
+        else:
+            num_samples = index_0.length(self.num_samples)
+            sample_ndim = tensor_ndim - 1
+        return num_samples, sample_ndim
+
+    def _group_flat_shapes(self, sample_shapes, index_0, sample_ndim):
+        """Groups shapes of flattened sequence items"""
+        sample_indices = list(index_0.indices(self._sequence_length))
+        num_samples = len(sample_indices)
+        try:
+            sample_shapes = sample_shapes[np.newaxis, :].reshape(
+                num_samples, -1, sample_ndim
+            )
+            return sample_shapes
+        except ValueError:
+            sample_shapes_list = []
+            for i in sample_indices:
+                start, end = self.sequence_encoder[i]
+                sample_shapes_list.append(sample_shapes[start:end])
+            return sample_shapes_list
+
+    def shapes(
+        self,
+        index: Index,
+        sample_shape_provider: Optional[Callable] = None,
+        pad_tensor: bool = False,
+    ):
+        if len(index) > 1:
+            raise IndexError(f"`.shapes` only accepts indexing on the primary axis.")
+
+        index_0 = index.values[0]
+        num_samples, sample_ndim = self._get_total_samples_and_sample_ndim(index_0)
+
+        sample_shapes = np.zeros((num_samples, sample_ndim), dtype=np.int32)
+
+        shape = self.shape_interval(index).astuple()[1:]
+
+        if (
+            not index_0.subscriptable()
+            and pad_tensor
+            and index_0.value >= self.tensor_length  # type: ignore
+        ):
+            shape = self.get_empty_sample().shape
+
+        if num_samples > 0 and None in shape or self.tensor_meta.is_link:
+            sample_shapes = self._populate_sample_shapes(
+                sample_shapes,
+                index,
+                sample_shape_provider,
+                flatten=True if self.is_sequence else False,
+            )
+            if self.is_sequence:
+                sample_shapes = self._group_flat_shapes(
+                    sample_shapes, index_0, sample_ndim
+                )
+        else:
+            sample_shapes[:] = shape
+
+        return sample_shapes
+
+    def _apply_deeper_indexing(self, sample_shapes, num_samples, sample_index):
+        """Applies rest of the indexing to the sample shapes. Inplace operation."""
+        squeeze_dims = set()
+        for i in range(num_samples):
+            for j in range(len(sample_index)):
+                if sample_index[j].subscriptable():
+                    if sample_shapes[i, j] != -1:
+                        sample_shapes[i, j] = sample_index[j].length(
+                            sample_shapes[i, j]
+                        )
+                else:
+                    squeeze_dims.add(j)
+        return squeeze_dims
+
+    def _sample_shapes_to_shape(self, sample_shapes, squeeze_dims, sample_ndim):
+        is_same = np.all(sample_shapes == sample_shapes[0, :], axis=0)
+        shape = [  # type: ignore
+            int(sample_shapes[0, i])
+            if sample_shapes[0, i] != -1 and is_same[i]
+            else None
+            for i in range(sample_ndim)
+        ]
+
+        return tuple(shape[i] for i in range(len(shape)) if i not in squeeze_dims)
+
     def shape(
         self,
         index: Index,
         sample_shape_provider: Optional[Callable] = None,
         pad_tensor: bool = False,
     ) -> Tuple[Optional[int], ...]:
+        tensor_ndim = self.ndim()
+
+        if len(index) > tensor_ndim:
+            raise IndexError(
+                f"Too many indices for tensor. Tensor is rank {tensor_ndim} but {len(index)} indices were provided."
+            )
+
         index_0, sample_index = index.values[0], index.values[1:]
         if (
             not index_0.subscriptable()
@@ -2515,88 +2689,31 @@ class ChunkEngine:
         if index_0.is_trivial():
             return shape
 
-        shape = shape[1:]
-        sample_indices = list(
-            index_0.indices(self._sequence_length or self.num_samples)
-        )
-        num_samples = len(sample_indices)
-
+        num_samples = index_0.length(self._sequence_length or self.num_samples)
         if num_samples == 0:
-            return (0, *shape)
+            return shape
 
-        sample_ndim = self.ndim() - 1
+        shape = shape[1:]
+        sample_ndim = tensor_ndim - 1
         sample_shapes = np.zeros((num_samples, sample_ndim), dtype=np.int32)
 
-        if len(sample_index) > sample_ndim:
-            raise IndexError(
-                f"Too many indices for tensor. Tensor is rank {sample_ndim + 1} but {len(sample_index) + 1} indices were provided."
-            )
-
         if None in shape or self.tensor_meta.is_link:
-            for i, idx in enumerate(sample_indices):
-                if self.tensor_meta.htype in ("text", "json"):
-                    shape = (1,)
-                else:
-                    if sample_shape_provider:
-                        try:
-                            shape = sample_shape_provider(idx)  # type: ignore
-                            if isinstance(shape, tuple) and shape == ():
-                                shape = (0,)
-                            if self.is_sequence:
-                                if sample_index and not sample_index[0].subscriptable():
-                                    shape = (1, *tuple(shape[sample_index[0].value].tolist()))  # type: ignore
-                                else:
-                                    is_same = np.all(shape == shape[0, :], axis=0)  # type: ignore
-                                    shape = (len(shape),) + (
-                                        tuple(
-                                            int(shape[0, i])  # type: ignore
-                                            if is_same[i]  # type: ignore
-                                            else -1
-                                            for i in range(shape.shape[1])  # type: ignore
-                                        )
-                                        or (1,)
-                                    )
-
-                        except (
-                            IndexError
-                        ):  # Happens during transforms, sample shape tensor is not populated yet
-                            shape = self.read_shape_for_sample(idx)  # type: ignore
-                    else:
-                        self.check_link_ready()
-                        shape = self.read_shape_for_sample(idx)  # type: ignore
-                        # if link verification was not done
-                        if len(shape) > sample_ndim:
-                            sample_ndim = len(shape)
-                            sample_shapes = np.zeros(
-                                (num_samples, sample_ndim), dtype=np.int32
-                            )
-                    sample_shapes[i] = shape
+            sample_shapes = self._populate_sample_shapes(
+                sample_shapes, index, sample_shape_provider, flatten=False
+            )
+            sample_ndim = sample_shapes.shape[1]
         else:
             sample_shapes[:] = shape
 
-        squeeze_dims = set()
-        for i in range(num_samples):
-            for j in range(len(sample_index)):
-                if sample_index[j].subscriptable():
-                    if sample_shapes[i, j] != -1:
-                        sample_shapes[i, j] = sample_index[j].length(
-                            sample_shapes[i, j]
-                        )
-                else:
-                    squeeze_dims.add(j)
-
-        is_same = np.all(sample_shapes == sample_shapes[0, :], axis=0)
-        shape = [  # type: ignore
-            int(sample_shapes[0, i])
-            if sample_shapes[0, i] != -1 and is_same[i]
-            else None
-            for i in range(sample_ndim)
-        ]
+        squeeze_dims = self._apply_deeper_indexing(
+            sample_shapes, num_samples, sample_index
+        )
+        shape = self._sample_shapes_to_shape(sample_shapes, squeeze_dims, sample_ndim)
 
         if index_0.subscriptable():
-            shape = [num_samples, *shape]  # type: ignore
+            shape = (num_samples, *shape)  # type: ignore
 
-        return tuple(shape[i] for i in range(len(shape)) if i not in squeeze_dims)
+        return shape
 
     def ndim(self, index: Optional[Index] = None) -> int:
         ndim = len(self.tensor_meta.min_shape) + 1
