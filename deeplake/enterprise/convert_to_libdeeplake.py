@@ -1,6 +1,7 @@
 from deeplake.core.storage.gcs import GCSProvider
 from deeplake.enterprise.util import raise_indra_installation_error  # type: ignore
 from deeplake.core.storage import S3Provider
+from deeplake.core.storage.azure import AzureProvider
 from deeplake.util.remove_cache import get_base_storage
 
 from deeplake.util.dataset import try_flushing  # type: ignore
@@ -99,6 +100,27 @@ def dataset_to_libdeeplake(hub2_dataset):
                     scheme=scheme,
                     retry_limit_seconds=retry_limit_seconds,
                 )
+
+            elif isinstance(provider, AzureProvider):
+                account_name = provider.account_name
+                account_key = provider.account_key
+                sas_token = provider.get_sas_token()
+                expiration = (
+                    provider.expiration
+                    if provider.expiration
+                    else str(provider.expiration)
+                )
+
+                libdeeplake_dataset = api.dataset(
+                    path,
+                    origin_path=provider.root,
+                    token=token,
+                    account_name=account_name,
+                    account_key=account_key,
+                    sas_token=sas_token,
+                    expiration=expiration,
+                )
+
         elif path.startswith("s3://"):
             s3_provider = hub2_dataset.storage.next_storage
             aws_access_key_id = s3_provider.aws_access_key_id
@@ -140,12 +162,12 @@ def dataset_to_libdeeplake(hub2_dataset):
             )
         elif path.startswith(("az://", "azure://")):
             az_provider = get_base_storage(hub2_dataset.storage)
-            root = az_provider.root
-            token = az_provider.token
             account_name = az_provider.account_name
             account_key = az_provider.account_key
             sas_token = az_provider.get_sas_token()
-            expiration = str(az_provider.expiration)
+            expiration = (
+                provider.expiration if provider.expiration else str(provider.expiration)
+            )
 
             libdeeplake_dataset = api.dataset(
                 path,
