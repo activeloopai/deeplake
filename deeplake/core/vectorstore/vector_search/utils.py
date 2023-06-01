@@ -80,5 +80,5 @@ def create_data(number_of_data, embedding_dim=100):
     ).astype(np.float32)
     texts = [generate_random_string(1000) for i in range(number_of_data)]
     ids = [f"{i}" for i in range(number_of_data)]
-    metadata = [generate_json("value") for i in range(number_of_data)]
+    metadata = [generate_json(i) for i in range(number_of_data)]
     return texts, embeddings, ids, metadata

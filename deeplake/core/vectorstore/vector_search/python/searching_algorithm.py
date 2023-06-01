@@ -19,7 +19,7 @@ def search(
     embeddings: np.ndarray,
     distance_metric: str = "l2",
     k: int = 4,
-) -> Tuple(DeepLakeDataset, List):
+) -> Tuple[DeepLakeDataset, List]:
     """Naive vector search in python.
     args:
         deeplake_dataset: DeepLakeDataset,

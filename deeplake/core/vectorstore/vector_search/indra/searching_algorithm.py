@@ -57,7 +57,6 @@ def search(
             return_tensors,
         )
 
-    print("tql_query: {}".format(tql_query))
     if runtime:
         view, data = deeplake_dataset.query(
             tql_query, runtime=runtime, return_data=True

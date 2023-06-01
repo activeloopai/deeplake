@@ -6,20 +6,21 @@ from deeplake.core.vectorstore import utils
 from deeplake.tests.common import requires_libdeeplake
 
 from math import isclose
+import os
 
-
-embedding_dim = 100
+EMBEDDING_DIM = 100
+NUMBER_OF_DATA = 10
 # create data
 texts, embeddings, ids, metadatas = utils.create_data(
-    number_of_data=10, embedding_dim=embedding_dim
+    number_of_data=NUMBER_OF_DATA, embedding_dim=EMBEDDING_DIM
 )
 
-query_embedding = np.random.uniform(low=-10, high=10, size=(embedding_dim)).astype(
+query_embedding = np.random.uniform(low=-10, high=10, size=(EMBEDDING_DIM)).astype(
     np.float32
 )
 
 
-def embedding_fn(text, embedding_dim=100):
+def embedding_fn(text, embedding_dim=EMBEDDING_DIM):
     return np.zeros((embedding_dim,)).astype(np.float32)
 
 
@@ -77,10 +78,10 @@ def test_search_basic(hub_cloud_dev_token):
         exec_option="python",
         k=2,
         return_tensors=["ids", "text"],
-        filter={"metadata": {"abc": "value"}},
+        filter={"metadata": {"abc": 1}},
     )
 
-    assert len(data_p["text"]) == 2
+    assert len(data_p["text"]) == 1
     assert (
         sum([tensor in data_p.keys() for tensor in vector_store.dataset.tensors]) == 2
     )  # One for each return_tensors
@@ -120,27 +121,26 @@ def test_search_basic(hub_cloud_dev_token):
         vector_store.dataset.tensors
     )  # One for each tensor - embedding + score
 
-    # Run a filter query usign a function
-    data_e = vector_store.search(
+    # Run a filter query using a json
+    data_e_j = vector_store.search(
         data_for_embedding="dummy",
         embedding_function=embedding_fn,
         exec_option="python",
         k=2,
         return_tensors=["ids", "text"],
-        filter={"metadata": {"abc": "value"}},
+        filter={"metadata": {"abc": 1}},
     )
-    assert len(data_e["text"]) == 2
+    assert len(data_e_j["text"]) == 1
     assert (
-        sum([tensor in data_e.keys() for tensor in vector_store.dataset.tensors]) == 2
+        sum([tensor in data_e_j.keys() for tensor in vector_store.dataset.tensors]) == 2
     )  # One for each return_tensors
-    assert len(data_e.keys()) == 3  # One for each return_tensors + score
+    assert len(data_e_j.keys()) == 3  # One for each return_tensors + score
 
-    # Run a filter query usign a function
-
+    # Run the same filter as above using a function
     def filter_fn(x):
-        return x["metadata"].data()["value"]["abc"] == "value"
+        return x["metadata"].data()["value"]["abc"] == 1
 
-    data_e = vector_store.search(
+    data_e_f = vector_store.search(
         data_for_embedding="dummy",
         embedding_function=embedding_fn,
         exec_option="python",
@@ -148,21 +148,21 @@ def test_search_basic(hub_cloud_dev_token):
         return_tensors=["ids", "text"],
         filter=filter_fn,
     )
-    assert len(data_e["text"]) == 2
+    assert len(data_e_f["text"]) == 1
     assert (
-        sum([tensor in data_e.keys() for tensor in vector_store.dataset.tensors]) == 2
+        sum([tensor in data_e_f.keys() for tensor in vector_store.dataset.tensors]) == 2
     )  # One for each return_tensors
-    assert len(data_e.keys()) == 3  # One for each return_tensors + score
+    assert len(data_e_f.keys()) == 3  # One for each return_tensors + score
 
     # Check returning views
     data_p_v = vector_store.search(
         embedding=query_embedding,
         exec_option="python",
         k=2,
-        filter={"metadata": {"abc": "value"}},
+        filter={"metadata": {"abc": 1}},
         return_view=True,
     )
-    assert len(data_p_v) == 2
+    assert len(data_p_v) == 1
     assert isinstance(data_p_v.text[0].data()["value"], str)
     assert data_p_v.embedding[0].numpy().size > 0
 
@@ -191,6 +191,10 @@ def test_search_basic(hub_cloud_dev_token):
     with pytest.raises(ValueError):
         vector_store.search(
             query="dummy", filter=filter_fn, exec_option="compute_engine"
+        )
+    with pytest.raises(ValueError):
+        vector_store.search(
+            embedding_function=embedding_fn,
         )
 
 
@@ -275,12 +279,6 @@ def test_search_managed(hub_cloud_dev_token):
 
 
 def test_delete():
-    embedding_dim = 1536
-    # create data
-    texts, embeddings, ids, metadatas = utils.create_data(
-        number_of_data=1000, embedding_dim=embedding_dim
-    )
-
     # initialize vector store object:
     vector_store = DeepLakeVectorStore(
         dataset_path="./deeplake_vector_store",
@@ -288,28 +286,29 @@ def test_delete():
     )
 
     # add data to the dataset:
-    vector_store.add(embeddings=embeddings, texts=texts, ids=ids, metadatas=metadatas)
+    vector_store.add(embedding=embeddings, text=texts, metadata=metadatas)
 
     # delete the data in the dataset by id:
-    vector_store.delete(ids=["1", "2", "3"])
-    assert len(vector_store) == 997
+    vector_store.delete(ids=[1, 8, 9])
+    assert len(vector_store) == NUMBER_OF_DATA - 3
 
-    vector_store.delete(filter={"abcdefg": 113})
-    assert len(vector_store) == 996
+    vector_store.delete(filter={"metadata": {"abc": 1}})
+    assert len(vector_store) == NUMBER_OF_DATA - 4
 
+    tensors_before_delete = vector_store.dataset.tensors
     vector_store.delete(delete_all=True)
     assert len(vector_store) == 0
+    assert vector_store.dataset.tensors == tensors_before_delete
 
-    vector_store.force_delete_by_path("./deeplake_vector_store")
+    vector_store.delete_by_path("./deeplake_vector_store")
     dirs = os.listdir("./")
     assert "./deeplake_vector_store" not in dirs
 
 
 def test_ingestion(capsys):
-    embedding_dim = 1536
     # create data
     texts, embeddings, ids, metadatas = utils.create_data(
-        number_of_data=1000, embedding_dim=embedding_dim
+        number_of_data=NUMBER_OF_DATA, embedding_dim=EMBEDDING_DIM
     )
 
     # initialize vector store object:

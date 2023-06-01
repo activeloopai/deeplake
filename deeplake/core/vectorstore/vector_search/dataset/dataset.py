@@ -169,9 +169,15 @@ def delete_and_commit(dataset, ids):
         dataset.commit(f"deleted {len(ids)} samples", allow_empty=True)
 
 
-def delete_all_samples_if_specified(dataset, delete_all):
+def delete_all_samples_if_specified(dataset, delete_all, vector_store):
     if delete_all:
-        dataset = deeplake.empty(dataset.path, overwrite=True)
+        dataset = deeplake.like(
+            vector_store.dataset.path,
+            vector_store.dataset,
+            overwrite=True,
+            verbose=False,
+        )
+
         return dataset, True
     return dataset, False
 
