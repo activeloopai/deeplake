@@ -289,16 +289,16 @@ def test_delete():
     vector_store.add(embedding=embeddings, text=texts, metadata=metadatas)
 
     # delete the data in the dataset by id:
-    vector_store.delete(ids=[1, 8, 9])
-    assert len(vector_store) == NUMBER_OF_DATA - 3
+    vector_store.delete(ids=[4, 8, 9])
+    assert len(vector_store.dataset) == NUMBER_OF_DATA - 3
 
     vector_store.delete(filter={"metadata": {"abc": 1}})
-    assert len(vector_store) == NUMBER_OF_DATA - 4
+    assert len(vector_store.dataset) == NUMBER_OF_DATA - 4
 
     tensors_before_delete = vector_store.dataset.tensors
     vector_store.delete(delete_all=True)
-    assert len(vector_store) == 0
-    assert vector_store.dataset.tensors == tensors_before_delete
+    assert len(vector_store.dataset) == 0
+    assert vector_store.dataset.tensors.keys() == tensors_before_delete.keys()
 
     vector_store.delete_by_path("./deeplake_vector_store")
     dirs = os.listdir("./")
