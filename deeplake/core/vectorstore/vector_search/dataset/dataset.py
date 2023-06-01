@@ -183,7 +183,7 @@ def fetch_embeddings(exec_option, view, logger, embedding_tensor: str = "embeddi
         raise ValueError(
             "Could not find embedding tensor. If you're using non-default tensor_dict, "
             "please specify `embedding_tensor` that you want to use. "
-            "Ex: vector_store.search(embedding=query_embedding, embedding_tensor='ypur_embedding_tensor')"
+            "Ex: vector_store.search(embedding=query_embedding, embedding_tensor='your_embedding_tensor')"
         )
 
 

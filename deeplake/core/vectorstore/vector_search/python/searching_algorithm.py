@@ -1,4 +1,4 @@
-from typing import Dict, List, Union
+from typing import List, Tuple
 from deeplake.core.dataset import Dataset as DeepLakeDataset
 
 import numpy as np
@@ -19,8 +19,8 @@ def search(
     embeddings: np.ndarray,
     distance_metric: str = "l2",
     k: int = 4,
-) -> Union[Dict, DeepLakeDataset]:
-    """Naive search for nearest neighbors
+) -> Tuple(DeepLakeDataset, List):
+    """Naive vector search in python.
     args:
         deeplake_dataset: DeepLakeDataset,
         query_embedding: np.ndarray
@@ -30,7 +30,7 @@ def search(
         distance_metric: distance function 'L2' for Euclidean, 'L1' for Nuclear, 'Max'
             l-infinity distnace, 'cos' for cosine similarity, 'dot' for dot product
     returns:
-        Union[Dict, DeepLakeDataset]: Dictionary where keys are tensor names and values are the results of the search
+        Tuple(DeepLakeDataset, List): A tuple containing the dataset view and scores for the embedding search.
     """
 
     if embeddings.shape[0] == 0:

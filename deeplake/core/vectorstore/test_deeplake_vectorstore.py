@@ -24,6 +24,39 @@ def embedding_fn(text, embedding_dim=100):
 
 
 def test_tensor_dict(hub_cloud_dev_token):
+    # initialize vector store object:
+    vector_store = DeepLakeVectorStore(
+        dataset_path="./deeplake_vector_store",
+        overwrite=True,
+        tensors_dict=[
+            {"name": "texts_custom", "htype": "text"},
+            {"name": "emb_custom", "htype": "embedding"},
+        ],
+        token=hub_cloud_dev_token,
+    )
+
+    with pytest.raises(ValueError):
+        vector_store.add(
+            bad_tensor_1=texts,
+            bad_tensor_2=embeddings,
+            text=texts,
+        )
+
+    vector_store.add(
+        texts_custom=texts,
+        emb_custom=embeddings,
+    )
+
+    data = vector_store.search(
+        embedding=query_embedding, exec_option="python", embedding_tensor="emb_custom"
+    )
+    assert len(data.keys()) == 3
+    assert "texts_custom" in data.keys() and "ids" in data.keys()
+
+
+@requires_libdeeplake
+def test_search_basic(hub_cloud_dev_token):
+    """Test basic search features"""
     # Initialize vector store object and add data
     vector_store = DeepLakeVectorStore(
         dataset_path="./deeplake_vector_store",
@@ -105,7 +138,7 @@ def test_tensor_dict(hub_cloud_dev_token):
     # Run a filter query usign a function
 
     def filter_fn(x):
-        return x["metadata"]["abc"] == "value"
+        return x["metadata"].data()["value"]["abc"] == "value"
 
     data_e = vector_store.search(
         data_for_embedding="dummy",
