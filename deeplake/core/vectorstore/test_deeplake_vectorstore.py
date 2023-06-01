@@ -70,6 +70,7 @@ def test_tensor_dict(hub_cloud_dev_token):
     assert "texts_custom" in data.keys() and "ids" in data.keys()
 
 
+@pytest.mark.skip(reason="need to update backend")
 @requires_libdeeplake
 def test_search_basic(hub_cloud_dev_token):
     """Test basic search features"""
