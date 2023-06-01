@@ -154,8 +154,8 @@ class DeepLakeVectorStore:
             >>> )
 
         Args:
-            embedding (Union[np.ndarray, List[float]], optional): Embedding representation for performing the search. Defaults to None. The data_for_embedding and embedding cannot both be specified or both be None.
-            data_for_embedding (Optional[...], optional): Data against which the search will be performe by embedding it using the embedding_function. Defaults to None. The data_for_embedding and embedding cannot both be specified or both be None.
+            embedding (Union[np.ndarray, List[float]], optional): Embedding representation for performing the search. Defaults to None. The `data_for_embedding` and `embedding` cannot both be specified.
+            data_for_embedding: Data against which the search will be performed by embedding it using the `embedding_function`. Defaults to None. The `data_for_embedding` and `embedding` cannot both be specified.
             embedding_function (callable, optional): function for converting data_for_embedding into embedding. Only valid if data_for_embedding is specified
             k (int): Number of elements to return after running query. Defaults to 4.
             distance_metric (str): Type of distance metric to use for sorting the data. Avaliable options are: "L1", "L2", "COS", "MAX". Defaults to "COS".
@@ -163,22 +163,24 @@ class DeepLakeVectorStore:
             filter (Union[Dict, Callable], optional): Additional filter evaluated prior to the embedding search.
                 - ``Dict`` - Key-value search on tensors of htype json, evaluated on an AND basis (a sample must satisfy all key-value filters to be True) Dict = {"tensor_name_1": {"key": value}, "tensor_name_2": {"key": value}}
                 - ``Function`` - Any function that is compatible with `deeplake.filter`.
-            exec_option (str, optional): Method for search execution. It could be either "python", "compute_engine" or "tensor_db". Defaults to "python".
+            exec_option (Optional[str]): Method for search execution. It could be either "python", "compute_engine" or "tensor_db". Defaults to "python".
                 - ``python`` - Pure-python implementation that runs on the client and can be used for data stored anywhere. WARNING: using this option with big datasets is discouraged because it can lead to memory issues.
                 - ``compute_engine`` - Performant C++ implementation of the Deep Lake Compute Engine that runs on the client and can be used for any data stored in or connected to Deep Lake. It cannot be used with in-memory or local datasets.
                 - ``tensor_db`` - Performant and fully-hosted Managed Tensor Database that is responsible for storage and query execution. Only available for data stored in the Deep Lake Managed Database. Store datasets in this database by specifying runtime = {"db_engine": True} during dataset creation.
             embedding_tensor (str): Name of tensor with embeddings. Defaults to "embedding".
             return_tensors (Optional[List[str]]): List of tensors to return data for. Defaults to None. If None, all tensors are returned.
-            return_view (Bool): Return a Deep Lake dataset view that satisfied the search parameters, instead of a dictinary with data. Defaults to False.
+            return_view (bool): Return a Deep Lake dataset view that satisfied the search parameters, instead of a dictinary with data. Defaults to False.
 
 
 
         Raises:
-            ValueError: When invalid execution option is specified
+            ValueError: When invalid parameters are specified.
 
         Returns:
             Dict: Dictionary where keys are tensor names and values are the results of the search
         """
+
+        exec_option = exec_option or self._exec_option
 
         self._parse_search_args(
             data_for_embedding=data_for_embedding,
@@ -188,7 +190,7 @@ class DeepLakeVectorStore:
             distance_metric=distance_metric,
             query=query,
             filter=filter,
-            exec_option=exec_option or self._exec_option,
+            exec_option=exec_option,
             embedding_tensor=embedding_tensor,
             return_tensors=return_tensors,
         )
