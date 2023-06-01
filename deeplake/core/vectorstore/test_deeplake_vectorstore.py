@@ -376,7 +376,7 @@ def test_parse_add_arguments():
             dataset=deeplake_vector_store.dataset,
             initial_embedding_function=embedding_fn,
             embedding_function=embedding_fn,
-            embed_data_to="embedding",
+            embeding_tensor="embedding",
             text=texts,
             id=ids,
             metadata=metadatas,
@@ -387,7 +387,7 @@ def test_parse_add_arguments():
         utils.parse_add_arguments(
             dataset=deeplake_vector_store.dataset,
             embed_data_from="text",
-            embed_data_to="embedding",
+            embeding_tensor="embedding",
             text=texts,
             id=ids,
             metadata=metadatas,
@@ -403,16 +403,16 @@ def test_parse_add_arguments():
         )
 
     with pytest.raises(ValueError):
-        # initial embedding function specified and embed_data_to is specified
+        # initial embedding function specified and embeding_tensor is specified
         (
             embedding_function,
-            embed_data_to,
+            embeding_tensor,
             embed_data_from,
             tensors,
         ) = utils.parse_add_arguments(
             dataset=deeplake_vector_store.dataset,
             initial_embedding_function=embedding_fn,
-            embed_data_to="embedding",
+            embeding_tensor="embedding",
             text=texts,
             id=ids,
             metadata=metadatas,
@@ -420,10 +420,10 @@ def test_parse_add_arguments():
     converted_embeddings_1 = np.zeros((len(texts), EMBEDDING_DIM)).astype(np.float32)
     converted_embeddings_2 = np.ones((len(texts), EMBEDDING_DIM)).astype(np.float32)
 
-    # initial embedding function is specified and embed_data_to, embed_data_from are not specified
+    # initial embedding function is specified and embeding_tensor, embed_data_from are not specified
     (
         embedding_function,
-        embed_data_to,
+        embeding_tensor,
         embed_data_from,
         tensors,
     ) = utils.parse_add_arguments(
@@ -435,7 +435,7 @@ def test_parse_add_arguments():
         metadata=metadatas,
     )
     assert embedding_function is None
-    assert embed_data_to == None
+    assert embeding_tensor == None
     assert embed_data_from is None
     assert tensors == {
         "id": ids,
@@ -445,7 +445,7 @@ def test_parse_add_arguments():
     }
 
     with pytest.raises(ValueError):
-        # initial embedding function specified and embed_data_to is not specified
+        # initial embedding function specified and embeding_tensor is not specified
         utils.parse_add_arguments(
             dataset=deeplake_vector_store.dataset,
             initial_embedding_function=embedding_fn,
@@ -463,7 +463,7 @@ def test_parse_add_arguments():
             initial_embedding_function=embedding_fn,
             embedding_function=embedding_fn,
             embed_data_from="text",
-            embed_data_to="embedding",
+            embeding_tensor="embedding",
             text=texts,
             id=ids,
             metadata=metadatas,
@@ -471,11 +471,11 @@ def test_parse_add_arguments():
         )
 
     with pytest.raises(ValueError):
-        # initial_embedding_function is specified and embed_data_to, embed_data_from and embedding is specified.
+        # initial_embedding_function is specified and embeding_tensor, embed_data_from and embedding is specified.
         utils.parse_add_arguments(
             dataset=deeplake_vector_store.dataset,
             initial_embedding_function=embedding_fn,
-            embed_data_to=embed_data_to,
+            embeding_tensor=embeding_tensor,
             embed_data_from="text",
             text=texts,
             id=ids,
@@ -484,10 +484,10 @@ def test_parse_add_arguments():
         )
 
     with pytest.raises(ValueError):
-        # initial_embedding_function is not specified and embed_data_to, embed_data_from and embedding is specified.
+        # initial_embedding_function is not specified and embeding_tensor, embed_data_from and embedding is specified.
         utils.parse_add_arguments(
             dataset=deeplake_vector_store.dataset,
-            embed_data_to="embedding",
+            embeding_tensor="embedding",
             embed_data_from="text",
             text=texts,
             id=ids,
@@ -500,8 +500,8 @@ def test_parse_add_arguments():
             dataset=deeplake_vector_store.dataset,
             embedding_function=embedding_fn,
             initial_embedding_function=embedding_fn,
-            embed_data_from="text",
-            embed_data_to="embedding",
+            embedding_data="text",
+            embeding_tensor="embedding",
             text=texts,
             id=ids,
             embedding=embeddings,
@@ -510,21 +510,20 @@ def test_parse_add_arguments():
 
     (
         embedding_function,
-        embed_data_to,
-        embed_data_from,
+        embedding_data,
+        embedding_tensors,
         tensors,
     ) = utils.parse_add_arguments(
         dataset=deeplake_vector_store.dataset,
         embedding_function=embedding_fn2,
-        embed_data_from="text",
-        embed_data_to="embedding",
+        embedding_data=texts,
+        embedding_tensor="embedding",
         text=texts,
         id=ids,
         metadata=metadatas,
     )
     assert embedding_function is embedding_fn2
-    assert embed_data_to == "embedding"
-    assert np.testing.assert_equal(embed_data_from, converted_embeddings_2)
+    assert embedding_tensors == "embedding"
     assert tensors == {
         "id": ids,
         "text": texts,
@@ -533,18 +532,17 @@ def test_parse_add_arguments():
 
     (
         embedding_function,
-        embed_data_to,
-        embed_data_from,
+        embedding_data,
+        embedding_tensors,
         tensors,
     ) = utils.parse_add_arguments(
         dataset=deeplake_vector_store.dataset,
         embedding_function=embedding_fn2,
-        embed_data_from="text",
-        embed_data_to="embedding",
+        embedding_data="text",
+        embedding_tensor="embedding",
         text=texts,
         metadata=metadatas,
     )
     assert embedding_function is embedding_fn2
-    assert embed_data_to == "embedding"
-    assert embed_data_from == "texts"
+    assert embedding_tensors == "embedding"
     assert len(tensors) == 2
