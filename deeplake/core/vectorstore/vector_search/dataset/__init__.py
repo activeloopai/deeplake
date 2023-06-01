@@ -7,5 +7,4 @@ from deeplake.core.vectorstore.vector_search.dataset.dataset import (
     preprocess_tensors,
     create_elements,
     extend_or_ingest_dataset,
-    create_tensors_if_needed,
 )

@@ -19,7 +19,6 @@ class DataIngestion:
         dataset: DeepLakeDataset,
         embedding_function: Optional[Callable],
         embedding_tensor: Optional[str],
-        embedding_data: Optional[Union[np.ndarray, List]],
         ingestion_batch_size: int,
         num_workers: int,
         retry_attempt: int,
@@ -49,9 +48,11 @@ class DataIngestion:
         batched = [
             elements[i : i + batch_size] for i in range(0, len(elements), batch_size)
         ]
-        self.logger.warning(
-            f"{len(self.elements)} samples were combined into {len(batched)} batches based on batch size {batch_size}"
-        )
+
+        if self.logger:
+            self.logger.warning(
+                f"{len(self.elements)} samples were combined into {len(batched)} batches based on batch size {batch_size}"
+            )
         return batched
 
     def get_num_workers(self, batched):
@@ -129,6 +130,8 @@ class DataIngestion:
                 num_workers=num_workers,
                 retry_attempt=self.retry_attempt,
                 total_samples_processed=self.total_samples_processed,
+                logger=self.logger,
+                embedding_tensor=self.embedding_tensor,
             )
             data_ingestion.run()
 

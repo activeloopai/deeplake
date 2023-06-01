@@ -207,6 +207,10 @@ def check_tensor_name_consistency(tensors, dataset_tensors, embedding_tensor):
         if allowed_missing_tensor not in tensors and allowed_missing_tensor is not None:
             expected_tensor_length -= 1
 
+    for tensor in tensors:
+        if tensor not in dataset_tensors:
+            raise ValueError(f"Tensor {tensor} does not exist in dataset")
+
     try:
         assert len(tensors) == expected_tensor_length
     except Exception:

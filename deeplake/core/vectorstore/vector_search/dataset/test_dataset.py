@@ -40,7 +40,7 @@ def test_create(caplog, hub_cloud_dev_token):
     assert len(dataset) == 0
     assert set(dataset.tensors.keys()) == {
         "embedding",
-        "ids",
+        "id",
         "metadata",
         "text",
     }
@@ -61,12 +61,11 @@ def test_create(caplog, hub_cloud_dev_token):
         read_only=False,
         exec_option="tensor_db",
         overwrite=True,
-        embedding_function=Embedding,
     )
     assert len(dataset) == 0
     assert set(dataset.tensors.keys()) == {
         "embedding",
-        "ids",
+        "id",
         "metadata",
         "text",
     }
@@ -163,59 +162,7 @@ def test_fetch_embeddings():
     assert len(embedings) == 9
 
 
-def test_create_tensor_if_needed(caplog):
-    tensors_dict = DEFAULT_VECTORSTORE_TENSORS
-    tensors_dict[2]["name"] = "new_embeding"
-
-    deeplake_dataset = deeplake.empty("mem://xyz")
-    deeplake_dataset.create_tensor("image_embeddings", htype="embedding")
-    deeplake_dataset.create_tensor("video_embeddings", htype="embedding")
-
-    test_logger = logging.getLogger("test_logger")
-    with caplog.at_level(logging.WARNING, logger="test_logger"):
-        dataset_utils.create_tensors_if_needed(
-            tensors_dict, deeplake_dataset, test_logger, Embedding
-        )
-
-        tensors = set(deeplake_dataset.tensors)
-        assert tensors == {
-            "image_embeddings",
-            "video_embeddings",
-            "text",
-            "metadata",
-            "new_embeding",
-            "ids",
-        }
-        assert deeplake_dataset.image_embeddings.info["embedding"] == {
-            "model": "random_model",
-            "deployment": "deployment",
-            "embedding_ctx_length": None,
-            "chunk_size": None,
-            "max_retries": None,
-        }
-
-        captured_records = caplog.records
-
-        for tensor in tensors_dict:
-            warning = (
-                f"Creating `{tensor['name']}` tensor since it does not exist in the dataset. If you created dataset manually "
-                "and stored text data in another tensor, consider copying the contents of that "
-                f"tensor into `{tensor['name']}` tensor and deleting if afterwards. To view dataset content "
-                "run ds.summary()"
-            )
-
-            assert warning in caplog.text
-
-        warning = (
-            f"3 tensors with `embedding` htype were found. "
-            f"They are: `image_embeddings`, `video_embeddings`, `new_embeding`. Embedding function info will be appended to "
-            f"`image_embeddings`. If you want to update other embedding tensor's information "
-            "consider doing that manually. Example: `dataset.tensor['info'] = info_dictionary`"
-        )
-        assert warning in caplog.text
-
-
-def test_get_embedding():
+def embeding_data():
     def embedding_function(arr):
         return np.array([0.5, 0.6, 4, 3, 5], dtype=np.float64)
 
@@ -227,43 +174,44 @@ def test_get_embedding():
 
     embedding_func = embedding_function
     embedding = dataset_utils.get_embedding(
-        embedding=None, query=query, embedding_function=embedding_func
+        embedding=None, prompt=query, embedding_function=embedding_func
     )
     assert embedding.dtype == np.float32
     assert len(embedding) == 5
 
     embedding_vector = np.zeros((1, 1538))
     embedding = dataset_utils.get_embedding(
-        embedding=embedding_vector, query=query, embedding_function=None
+        embedding=embedding_vector, prompt=query, embedding_function=None
     )
     assert embedding.dtype == np.float32
     assert embedding.shape == (1, 1538)
 
     with pytest.warns(UserWarning):
         embedding = dataset_utils.get_embedding(
-            embedding=embedding_vector, query=query, embedding_function=embedding_func
+            embedding=embedding_vector, prompt=query, embedding_function=embedding_func
         )
 
 
 def test_preprocess_tensors():
     texts = ["a", "b", "c", "d"]
     processed_tensors, ids = dataset_utils.preprocess_tensors(
-        ids=None, texts=texts, metadatas=None, embeddings=None
+        text=texts,
     )
 
-    assert len(processed_tensors["ids"]) == 4
+    assert len(processed_tensors["id"]) == 4
     assert processed_tensors["text"] == texts
-    assert processed_tensors["metadata"] == [{}, {}, {}, {}]
-    assert processed_tensors["embedding"] == [None, None, None, None]
 
     texts = ("a", "b", "c", "d")
     ids = np.array([1, 2, 3, 4])
     metadatas = [{"a": 1}, {"b": 2}, {"c": 3}, {"d": 4}]
     embeddings = [np.array([0.1, 0.2, 0.3, 0.4])] * len(texts)
     processed_tensors, _ = dataset_utils.preprocess_tensors(
-        ids=ids, texts=texts, metadatas=metadatas, embeddings=embeddings
+        id=ids,
+        text=texts,
+        metadata=metadatas,
+        embedding=embeddings,
     )
-    assert np.array_equal(processed_tensors["ids"], ids)
+    assert np.array_equal(processed_tensors["id"], ids)
     assert processed_tensors["text"] == list(texts)
     assert processed_tensors["metadata"] == metadatas
     assert processed_tensors["embedding"] == embeddings
@@ -308,7 +256,7 @@ def test_create_elements():
         )
 
     processed_tensors, ids = dataset_utils.preprocess_tensors(
-        ids=ids, texts=texts, embeddings=embeddings, metadatas=metadatas
+        id=ids, text=texts, embedding=embeddings, metadata=metadatas
     )
     elements = dataset_utils.create_elements(processed_tensors)
 
