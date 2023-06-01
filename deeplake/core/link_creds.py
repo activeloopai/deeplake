@@ -114,7 +114,7 @@ class LinkCreds(DeepLakeMemoryObject):
                     return provider
 
             provider = storage_factory(
-                AzureProvider, "az://account/container", creds={**creds}
+                AzureProvider, "az://account/container", creds=creds
             )
         self.storage_providers[key] = provider
         return provider
