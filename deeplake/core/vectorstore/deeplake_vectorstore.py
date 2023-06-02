@@ -1,4 +1,5 @@
 import logging
+import pathlib
 from typing import Optional, Any, Iterable, List, Dict, Union, Callable
 
 import numpy as np
@@ -29,7 +30,7 @@ class DeepLakeVectorStore:
 
     def __init__(
         self,
-        path: str,
+        path: Union[str, pathlib.Path],
         tensor_params: List[Dict[str, object]] = DEFAULT_VECTORSTORE_TENSORS,
         embedding_function: Optional[Callable] = None,
         read_only: Optional[bool] = False,
@@ -70,13 +71,12 @@ class DeepLakeVectorStore:
                 - an s3 path of the form ``s3://bucketname/path/to/dataset``. Credentials are required in either the environment or passed to the creds argument.
                 - a local file system path of the form ``./path/to/dataset`` or ``~/path/to/dataset`` or ``path/to/dataset``.
                 - a memory path of the form ``mem://path/to/dataset`` which doesn't save the dataset but keeps it in memory instead. Should be used only for testing as it does not persist.
-            runtime (dict): Parameters for creating a dataset in the Deep Lake Tensor Database. Path must be `hub://org_id/dataset_name` and runtime  must be `{"tensor_db": True}`.
             tensor_params (List[Dict[str, dict]], optional): List of dictionaries that contains information about tensors that user wants to create. See `create_tensor` in Deep Lake API docs for more information. Defaults to `DEFAULT_VECTORSTORE_TENSORS`.
             embedding_function (Optional[callable], optional): Function that converts the embeddable data into embeddings. Defaults to None.
             read_only (bool, optional):  Opens dataset in read-only mode if True. Defaults to False.
             ingestion_batch_size (int): Batch size used during ingestion. Defaults to 1024.
             num_workers (int): The number of workers to use for ingesting data in parallel. Defaults to 0.
-            exec_option (Optional[str]): Default method for search execution. It could be either "python", "compute_engine" or "tensor_db". Defaults to "python".
+            exec_option (str): Default method for search execution. It could be either "python", "compute_engine" or "tensor_db". Defaults to "python".
                 - ``python`` - Pure-python implementation that runs on the client and can be used for data stored anywhere. WARNING: using this option with big datasets is discouraged because it can lead to memory issues.
                 - ``compute_engine`` - Performant C++ implementation of the Deep Lake Compute Engine that runs on the client and can be used for any data stored in or connected to Deep Lake. It cannot be used with in-memory or local datasets.
                 - ``tensor_db`` - Performant and fully-hosted Managed Tensor Database that is responsible for storage and query execution. Only available for data stored in the Deep Lake Managed Database. Store datasets in this database by specifying runtime = {"db_engine": True} during dataset creation.
@@ -156,12 +156,14 @@ class DeepLakeVectorStore:
 
         Args:
             embedding_function (Optional[Callable]): embedding function used to convert `embedding_data` into embeddings.
-            embedding_data Optional[List]): embedding of texts. Defaults to None.
-            embedding_tensor: Optional[str]: Tensor where results from the emedding function will be stored. If None, the embedding tensors is automatically inferred (when possible). Defaults to None.
-            total_samples_processed (int): Total number of samples processed before ingestion stopped. When specified
+            total_samples_processed (int): Total number of samples processed before ingestion stopped. When specified.
+            embedding_data (Optional[List]): Data to be converted into embeddings using the provided `embedding_function`. Defaults to None.
+            embedding_tensor (Optional[str]): Tensor where results from the embedding function will be stored. If None, the embedding tensors is automatically inferred (when possible). Defaults to None.
+            return_ids (bool): Whether to return added ids as an ouput of the method. Defaults to False.
             **tensors: Keyword arguments where the key is the tensor name, and the value is a list of samples that should be uploaded to that tensor.
+
         Returns:
-            List[str]: List of document IDs
+            Optional[List[str]]: List of document IDs if `return_ids` is set to True. Otherwise, None.
         """
         (
             embedding_function,
@@ -326,15 +328,16 @@ class DeepLakeVectorStore:
             >>> data = vector_store.delete(ids)
             >>>
             >>> # Delete data using filter
-            >>> data = vector_store.delete(,
-            >>>        filter = {"json_tensor_name": {"key: value"}, "json_tensor_name_2": {"key_2: value_2"},...}, # Only valid for exec_option = "python"
+            >>> data = vector_store.delete(
+            >>>        filter = {"json_tensor_name": {"key: value"}, "json_tensor_name_2": {"key_2: value_2"}},
             >>> )
             >>>
-            >>> # Delte data using TQL
+            >>> # Delete data using TQL
             >>> data = vector_store.delete(
             >>>        query = "select * where ..... <add TQL syntax>",
-            >>>        exec_option = <preferred_exec_option>, # Only valid for exec_option = "compute_engine" or "tensor_db"
+            >>>        exec_option = <preferred_exec_option>,
             >>> )
+
         Args:
             ids (Optional[List[str]]): The document_ids to delete.
                 Defaults to None.
@@ -346,6 +349,12 @@ class DeepLakeVectorStore:
                 - ``python`` - Pure-python implementation that runs on the client and can be used for data stored anywhere. WARNING: using this option with big datasets is discouraged because it can lead to memory issues.
                 - ``compute_engine`` - Performant C++ implementation of the Deep Lake Compute Engine that runs on the client and can be used for any data stored in or connected to Deep Lake. It cannot be used with in-memory or local datasets.
             delete_all (Optional[bool]): Whether to delete all the samples and version history of the dataset. Defaults to None.
+
+        Returns:
+            bool: Returns True if deletion was successful, otherwise it raises a ValueError.
+
+        Raises:
+            ValueError: If neither `ids`, `filter`, `query`, nor `delete_all` are specified, or if an invalid `exec_option` is provided.
         """
 
         if ids is None and filter is None and query is None and delete_all is None:

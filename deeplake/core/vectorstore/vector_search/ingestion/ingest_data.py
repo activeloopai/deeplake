@@ -1,3 +1,4 @@
+import logging
 from typing import Dict, List, Any, Callable, Optional, Union
 
 import numpy as np
@@ -16,8 +17,8 @@ def run_data_ingestion(
     embedding_function: Optional[Callable] = None,
     embedding_tensor: Optional[str] = None,
     retry_attempt: int = 0,
-    total_samples_processed=0,
-    logger=None,
+    total_samples_processed: int = 0,
+    logger: Optional[logging.Logger] = None,
 ):
     """Running data ingestion into deeplake dataset.
 
@@ -26,10 +27,12 @@ def run_data_ingestion(
             names of 4 tensors (i.e. "embedding", "metadata", "ids", "text") to their corresponding values.
         dataset (DeepLakeDataset): deeplake dataset object.
         embedding_function (Optional[Callable]): function used to convert query into an embedding.
+        embedding_tensor (Optional[str]) : tensor name where embedded data will be stored. Default to None.
         ingestion_batch_size (int): The batch size to use during ingestion.
         num_workers (int): The number of workers to use for ingesting data in parallel.
         retry_attempt (int): The number of retry attempts already passed.
-        total_samples_processed (int): The number of samples processed before transforms stopped.
+        total_samples_processed (int): The number of samples processed before transforms stopped. Defaults to 0.
+        logger (Optional[logging.Logger]): logger where all warnings are logged. Defaults to None.
     """
 
     data_ingestion = DataIngestion(
