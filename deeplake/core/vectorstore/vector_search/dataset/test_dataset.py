@@ -5,6 +5,7 @@ import numpy as np
 
 import deeplake
 from deeplake.core.vectorstore.vector_search import dataset as dataset_utils
+from deeplake.core.vectorstore import DeepLakeVectorStore
 from deeplake.constants import (
     DEFAULT_VECTORSTORE_DEEPLAKE_PATH,
     DEFAULT_VECTORSTORE_TENSORS,
@@ -27,7 +28,7 @@ class Embedding:
 def test_create(caplog, hub_cloud_dev_token):
     # dataset creation
     dataset = dataset_utils.create_or_load_dataset(
-        tensors_dict=DEFAULT_VECTORSTORE_TENSORS,
+        tensor_params=DEFAULT_VECTORSTORE_TENSORS,
         dataset_path="./test-dataset",
         token=None,
         creds={},
@@ -53,7 +54,7 @@ def test_create(caplog, hub_cloud_dev_token):
     }
 
     dataset = dataset_utils.create_or_load_dataset(
-        tensors_dict=DEFAULT_VECTORSTORE_TENSORS,
+        tensor_params=DEFAULT_VECTORSTORE_TENSORS,
         dataset_path="hub://testingacc2/vectorstore_dbengine",
         token=hub_cloud_dev_token,
         creds={},
@@ -61,6 +62,7 @@ def test_create(caplog, hub_cloud_dev_token):
         read_only=False,
         exec_option="tensor_db",
         overwrite=True,
+        embedding_function=Embedding,
     )
     assert len(dataset) == 0
     assert set(dataset.tensors.keys()) == {
@@ -81,7 +83,7 @@ def test_create(caplog, hub_cloud_dev_token):
 def test_load(caplog, hub_cloud_dev_token):
     # dataset loading
     dataset = dataset_utils.create_or_load_dataset(
-        tensors_dict=DEFAULT_VECTORSTORE_TENSORS,
+        tensor_params=DEFAULT_VECTORSTORE_TENSORS,
         dataset_path="hub://testingacc2/vectorstore_test",
         creds={},
         logger=logger,
@@ -93,13 +95,15 @@ def test_load(caplog, hub_cloud_dev_token):
     )
     assert dataset.max_len == 10
 
-    ds = deeplake.empty(DEFAULT_VECTORSTORE_DEEPLAKE_PATH, overwrite=True)
+    deeplake_vectorstore = DeepLakeVectorStore(
+        path=DEFAULT_VECTORSTORE_DEEPLAKE_PATH, overwrite=True
+    )
 
     test_logger = logging.getLogger("test_logger")
     with caplog.at_level(logging.WARNING, logger="test_logger"):
         # dataset loading
         dataset = dataset_utils.create_or_load_dataset(
-            tensors_dict=DEFAULT_VECTORSTORE_TENSORS,
+            tensor_params=DEFAULT_VECTORSTORE_TENSORS,
             dataset_path=DEFAULT_VECTORSTORE_DEEPLAKE_PATH,
             token=None,
             creds={},
@@ -107,20 +111,13 @@ def test_load(caplog, hub_cloud_dev_token):
             read_only=False,
             exec_option="python",
             embedding_function=None,
+            overwrite=False,
         )
         assert (
             f"The default deeplake path location is used: {DEFAULT_VECTORSTORE_DEEPLAKE_PATH}"
             " and it is not free. All addtionally added data will be added on"
             " top of already existing deeplake dataset." in caplog.text
         )
-        tensors = ["text", "embedding", "ids", "metadata"]
-        for tensor in tensors:
-            assert (
-                f"Creating `{tensor}` tensor since it does not exist in the dataset. If you created dataset manually "
-                "and stored text data in another tensor, consider copying the contents of that "
-                f"tensor into `{tensor}` tensor and deleting if afterwards. To view dataset content "
-                "run ds.summary()" in caplog.text
-            )
 
 
 def test_delete_and_commit():
