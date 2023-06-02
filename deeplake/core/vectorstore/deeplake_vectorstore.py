@@ -1,7 +1,5 @@
 import logging
 from typing import Optional, Any, Iterable, List, Dict, Union, Callable
-from deeplake.core.dataset import Dataset as DeepLakeDataset
-
 
 import numpy as np
 
@@ -116,9 +114,45 @@ class DeepLakeVectorStore:
         total_samples_processed: int = 0,
         embedding_data: Optional[List] = None,
         embedding_tensor: Optional[str] = None,
+        return_ids: bool = False,
         **tensors,
-    ) -> List[str]:
+    ) -> Optional[List[str]]:
         """Adding elements to deeplake vector store
+
+        Examples:
+            >>> # initialize vector store:
+            >>> deeplake_vector_store = DeepLakeVectorStore(path=<your_dataset_path>)
+            >>>
+            >>> # if you want to add elements to deeplake_vector_store, you just need to specify the tensors:
+            >>> deeplake_vector_store.add(
+            >>>     id=id,
+            >>>     metadata=metadata,
+            >>>     embedding=embedding,
+            >>>     text=text,
+            >>> )
+            >>> # Note if you don't specify id, it will be automatically created
+            >>>
+            >>> # suppose you want create a dataset with custom tensors and you want to convert data from one tensor into embedding and it to another tensor.
+            >>> # to do so, you will need to use the following api:
+            >>> deeplake_vector_store = DeepLakeVectorStore(
+            >>>     path=<your_dataset_path>,
+            >>>     tensors_dict=[
+            >>>         {
+            >>>             "name": "image_annotations",
+            >>>             "htype": "text",
+            >>>         },
+            >>>         {
+            >>>             "name": "image_embeddings",
+            >>>             "htype": "embedding",
+            >>>         },
+            >>>     ]
+            >>> )
+            >>>
+            >>> deeplake_vector_store.add(
+            >>>     image_annotations=<some_annotations>,
+            >>>     embedding_data=image_annotations # or some other arbitrary data.
+            >>>     embedding_tensor="image_embeddings",
+            >>> )
 
         Args:
             embedding_function (Optional[Callable]): embedding function used to convert `embedding_data` into embeddings.
@@ -165,7 +199,10 @@ class DeepLakeVectorStore:
         self.dataset.commit(allow_empty=True)
         if self.verbose:
             self.dataset.summary()
-        return id
+
+        if return_ids:
+            return id
+        return None
 
     def search(
         self,
@@ -180,7 +217,7 @@ class DeepLakeVectorStore:
         embedding_tensor: str = "embedding",
         return_tensors: Optional[List[str]] = None,
         return_view: bool = False,
-    ) -> Union[Dict, DeepLakeDataset]:
+    ) -> Union[Dict, deeplake.core.dataset.Dataset]:
         """DeepLakeVectorStore search method that combines embedding search, metadata search, and custom TQL search.
 
         Examples:
@@ -224,8 +261,6 @@ class DeepLakeVectorStore:
             embedding_tensor (str): Name of tensor with embeddings. Defaults to "embedding".
             return_tensors (Optional[List[str]]): List of tensors to return data for. Defaults to None. If None, all tensors are returned.
             return_view (bool): Return a Deep Lake dataset view that satisfied the search parameters, instead of a dictinary with data. Defaults to False.
-
-
 
         Raises:
             ValueError: When invalid parameters are specified.
@@ -285,6 +320,21 @@ class DeepLakeVectorStore:
         delete_all: Optional[bool] = None,
     ) -> bool:
         """Delete the entities in the vector store
+
+        Examples:
+            >>> # Delete using ids:
+            >>> data = vector_store.delete(ids)
+            >>>
+            >>> # Delete data using filter
+            >>> data = vector_store.delete(,
+            >>>        filter = {"json_tensor_name": {"key: value"}, "json_tensor_name_2": {"key_2: value_2"},...}, # Only valid for exec_option = "python"
+            >>> )
+            >>>
+            >>> # Delte data using TQL
+            >>> data = vector_store.delete(
+            >>>        query = "select * where ..... <add TQL syntax>",
+            >>>        exec_option = <preferred_exec_option>, # Only valid for exec_option = "compute_engine" or "tensor_db"
+            >>> )
         Args:
             ids (Optional[List[str]]): The document_ids to delete.
                 Defaults to None.
@@ -326,7 +376,7 @@ class DeepLakeVectorStore:
                 k=int(1e9),
             )
 
-            ids = list(delete_view.sample_indices)
+            ids = list(delete_view.sample_indices)  # type: ignore
 
         dataset_utils.delete_and_commit(self.dataset, ids)
         return True
@@ -337,10 +387,13 @@ class DeepLakeVectorStore:
         deeplake.delete(path, large_ok=True, force=True)
 
     def tensors(self):
+        """returns list of tensors in the dataset"""
         return self.dataset.tensors
 
     def summary(self):
+        """prints summary of the dataset"""
         return self.dataset.summary()
 
     def __len__(self):
+        """length of the dataset"""
         return len(self.dataset)
