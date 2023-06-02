@@ -1,4 +1,5 @@
-from typing import Callable
+from typing import Dict, Union
+from deeplake.core.dataset import Dataset as DeepLakeDataset
 
 try:
     from indra import api  # type: ignore
@@ -24,7 +25,7 @@ def vector_search(
     k,
     return_tensors,
     return_view,
-):
+) -> Union[Dict, DeepLakeDataset]:
     runtime = utils.get_runtime_from_exec_option(exec_option)
 
     if callable(filter):

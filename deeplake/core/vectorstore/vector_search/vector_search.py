@@ -1,4 +1,6 @@
 from typing import Dict, Callable, List, Union
+from deeplake.core.dataset import Dataset as DeepLakeDataset
+
 
 import numpy as np
 
@@ -27,7 +29,7 @@ def search(
     return_tensors: List[str],
     embedding_tensor: str = "embedding",
     return_view: bool = False,
-):
+) -> Union[Dict, DeepLakeDataset]:
     """Searching function
     Args:
         query_embedding (Union[List[float], np.ndarray]) - embedding representation of the query

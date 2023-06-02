@@ -346,12 +346,12 @@ class dataset:
         """Creates an empty dataset
 
         Args:
-            path (str, pathlib.Path): - The full path to the dataset. Can be:
-                - a Deep Lake cloud path of the form ``hub://username/datasetname``. To write to Deep Lake cloud datasets, ensure that you are logged in to Deep Lake (use 'activeloop login' from command line)
+            path (str, pathlib.Path): - The full path for storing to the Deep Lake dataset. It can be:
+                - a Deep Lake cloud path of the form ``hub://org_id/dataset_name``. Requires registration with Deep Lake.
                 - an s3 path of the form ``s3://bucketname/path/to/dataset``. Credentials are required in either the environment or passed to the creds argument.
                 - a local file system path of the form ``./path/to/dataset`` or ``~/path/to/dataset`` or ``path/to/dataset``.
                 - a memory path of the form ``mem://path/to/dataset`` which doesn't save the dataset but keeps it in memory instead. Should be used only for testing as it does not persist.
-            runtime (dict): Parameters for Activeloop DB Engine. Only applicable for hub:// paths.
+            runtime (dict): Parameters for creating a dataset in the Deep Lake Tensor Database. Path must be `hub://org_id/dataset_name` and runtime  must be `{"tensor_db": True}`.
             overwrite (bool): If set to ``True`` this overwrites the dataset if it already exists. Defaults to ``False``.
             public (bool): Defines if the dataset will have public access. Applicable only if Deep Lake cloud storage is used and a new Dataset is being created. Defaults to ``False``.
             memory_cache_size (int): The size of the memory cache to be used in MB.

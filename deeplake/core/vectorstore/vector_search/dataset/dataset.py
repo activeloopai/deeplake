@@ -24,7 +24,7 @@ from deeplake.util.warnings import always_warn
 
 
 def create_or_load_dataset(
-    tensors_dict,
+    tensor_params,
     dataset_path,
     token,
     creds,
@@ -32,19 +32,17 @@ def create_or_load_dataset(
     read_only,
     exec_option,
     embedding_function,
+    overwrite,
     **kwargs,
 ):
     utils.check_indra_installation(
         exec_option=exec_option, indra_installed=_INDRA_INSTALLED
     )
 
-    if "overwrite" in kwargs and kwargs["overwrite"] == False:
-        del kwargs["overwrite"]
-
-    if dataset_exists(dataset_path, token, creds, **kwargs):
-        if tensors_dict is not None and tensors_dict != DEFAULT_VECTORSTORE_TENSORS:
+    if not overwrite and dataset_exists(dataset_path, token, creds, **kwargs):
+        if tensor_params is not None and tensor_params != DEFAULT_VECTORSTORE_TENSORS:
             raise ValueError(
-                "dataset is not empty. You shouldn't specify tensors_dict if you're loading from existing dataset."
+                "Vector Store is not empty. You shouldn't specify tensor_params if you're loading from existing dataset."
             )
 
         return load_dataset(
@@ -58,11 +56,12 @@ def create_or_load_dataset(
 
     return create_dataset(
         logger,
-        tensors_dict,
+        tensor_params,
         dataset_path,
         token,
         exec_option,
         embedding_function,
+        overwrite,
         **kwargs,
     )
 
@@ -132,24 +131,36 @@ def check_tensors(dataset):
 
 
 def create_dataset(
-    logger, tensors_dict, dataset_path, token, exec_option, embedding_function, **kwargs
+    logger,
+    tensor_params,
+    dataset_path,
+    token,
+    exec_option,
+    embedding_function,
+    overwrite,
+    **kwargs,
 ):
     runtime = None
     if exec_option == "tensor_db":
         runtime = {"tensor_db": True}
 
     dataset = deeplake.empty(
-        dataset_path, token=token, runtime=runtime, verbose=False, **kwargs
+        dataset_path,
+        token=token,
+        runtime=runtime,
+        verbose=False,
+        overwrite=overwrite,
+        **kwargs,
     )
-    create_tensors(tensors_dict, dataset, logger, embedding_function)
+    create_tensors(tensor_params, dataset, logger, embedding_function)
 
     return dataset
 
 
-def create_tensors(tensors_dict, dataset, logger, embedding_function):
-    tensor_names = [tensor["name"] for tensor in tensors_dict]
+def create_tensors(tensor_params, dataset, logger, embedding_function):
+    tensor_names = [tensor["name"] for tensor in tensor_params]
     if "id" not in tensor_names:
-        tensors_dict.append(
+        tensor_params.append(
             {
                 "name": "id",
                 "htype": "text",
@@ -161,7 +172,7 @@ def create_tensors(tensors_dict, dataset, logger, embedding_function):
         )
 
     with dataset:
-        for tensor_args in tensors_dict:
+        for tensor_args in tensor_params:
             dataset.create_tensor(**tensor_args)
 
         update_embedding_info(logger, dataset, embedding_function)
@@ -192,7 +203,7 @@ def fetch_embeddings(view, embedding_tensor: str = "embedding"):
         return view[embedding_tensor].numpy()
     except Exception:
         raise ValueError(
-            "Could not find embedding tensor. If you're using non-default tensor_dict, "
+            "Could not find embedding tensor. If you're using non-default tensor_params, "
             "please specify `embedding_tensor` that you want to use. "
             "Ex: vector_store.search(embedding=query_embedding, embedding_tensor='your_embedding_tensor')"
         )
