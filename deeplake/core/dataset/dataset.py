@@ -591,6 +591,7 @@ class Dataset:
         exist_ok: bool = False,
         verbose: bool = True,
         downsampling: Optional[Tuple[int, int]] = None,
+        tiling_threshold: Optional[int] = None,
         **kwargs,
     ):
         """Creates a new tensor in the dataset.
@@ -631,6 +632,7 @@ class Dataset:
             verbose (bool): Shows warnings if ``True``.
             downsampling (tuple[int, int]): If not ``None``, the tensor will be downsampled by the provided factors. For example, ``(2, 5)`` will downsample the tensor by a factor of 2 in both dimensions and create 5 layers of downsampled tensors.
                 Only support for image and mask htypes.
+            tiling_threshold (Optional, int): In MB. Tiles large images if their size exceeds this threshold. Set to -1 to disable tiling.
             **kwargs:
                 - ``htype`` defaults can be overridden by passing any of the compatible parameters.
                 - To see all htypes and their correspondent arguments, check out :ref:`Htypes`.
@@ -672,6 +674,7 @@ class Dataset:
             exist_ok,
             verbose,
             downsampling,
+            tiling_threshold=tiling_threshold,
             **kwargs,
         )
 
