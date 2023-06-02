@@ -43,7 +43,7 @@ class DataIngestion:
 
         elements = self.elements
         if self.total_samples_processed:
-            elements = self.elements[self.total_samples_processed * batch_size :]
+            elements = self.elements[self.total_samples_processed :]
 
         batched = [
             elements[i : i + batch_size] for i in range(0, len(elements), batch_size)
@@ -105,7 +105,9 @@ class DataIngestion:
         except Exception as e:
             self.retry_attempt += 1
             last_checkpoint = self.dataset.version_state["commit_node"].parent
-            self.total_samples_processed += last_checkpoint.total_samples_processed
+            self.total_samples_processed += (
+                last_checkpoint.total_samples_processed * self.ingestion_batch_size
+            )
 
             if self.retry_attempt > MAX_VECTORSTORE_INGESTION_RETRY_ATTEMPTS:
                 raise FailedIngestionError(
