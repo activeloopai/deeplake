@@ -662,6 +662,7 @@ class S3Provider(StorageProvider):
     def set_items(self, items: dict):
         try:
             self._set_items(items)
+            print(f"Successfully set {len(items)} items.")
         except botocore.exceptions.ClientError as err:
             with S3ResetReloadCredentialsManager(self, S3SetError):
                 self._set_items(items)
@@ -671,6 +672,7 @@ class S3Provider(StorageProvider):
                 always_warn(f"Encountered connection error, retry {i} out of {tries}")
                 try:
                     self._set_items(items)
+                    print(f"Successfully set {len(items)} items.")
                     always_warn(
                         f"Connection re-established after {i} {['retries', 'retry'][i==1]}."
                     )
