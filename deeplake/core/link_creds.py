@@ -10,6 +10,7 @@ from deeplake.util.exceptions import (
     MissingCredsError,
     MissingManagedCredsError,
 )
+from deeplake.util.token import expires_in_to_expires_at, is_expired_token
 from deeplake.client.log import logger
 from datetime import datetime, timezone
 
@@ -51,7 +52,10 @@ class LinkCreds(DeepLakeMemoryObject):
         if (
             self.client is not None
             and key in self.managed_creds_keys
-            and _is_expired_creds(self.creds_dict[key])
+            and (
+                is_expired_token(self.creds_dict[key])
+                or _is_expired_creds(self.creds_dict[key])
+            )
         ):
             self.refresh_managed_creds(key)  # type: ignore
         return self.creds_dict[key]
@@ -152,6 +156,7 @@ class LinkCreds(DeepLakeMemoryObject):
     def populate_creds(self, creds_key: str, creds):
         if creds_key not in self.creds_keys:
             raise MissingCredsError(f"Creds key {creds_key} does not exist")
+        expires_in_to_expires_at(creds)
         self.creds_dict[creds_key] = creds
         self.storage_providers.pop(creds_key, None)
 
