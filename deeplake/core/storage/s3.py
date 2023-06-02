@@ -85,6 +85,7 @@ class S3Provider(StorageProvider):
         aws_session_token: Optional[str] = None,
         endpoint_url: Optional[str] = None,
         aws_region: Optional[str] = None,
+        expiration: Optional[float] = None,
         profile_name: Optional[str] = None,
         token: Optional[str] = None,
     ):
