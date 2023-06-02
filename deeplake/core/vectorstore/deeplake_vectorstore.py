@@ -214,7 +214,7 @@ class DeepLakeVectorStore:
         )
 
         processed_tensors, id = dataset_utils.preprocess_tensors(
-            embedding_data, embedding_tensor, **tensors
+            self.dataset, embedding_data, embedding_tensor, **tensors
         )
 
         assert id is not None

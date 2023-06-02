@@ -78,7 +78,8 @@ def create_data(number_of_data, embedding_dim=100):
     texts = [generate_random_string(1000) for i in range(number_of_data)]
     ids = [f"{i}" for i in range(number_of_data)]
     metadata = [generate_json(i) for i in range(number_of_data)]
-    return texts, embeddings, ids, metadata
+    images = ["deeplake/tests/dummy_data/images/car.jpg" for i in range(number_of_data)]
+    return texts, embeddings, ids, metadata, images
 
 
 def parse_search_args(**kwargs):

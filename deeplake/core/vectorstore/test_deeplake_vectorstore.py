@@ -12,7 +12,7 @@ import os
 EMBEDDING_DIM = 100
 NUMBER_OF_DATA = 10
 # create data
-texts, embeddings, ids, metadatas = utils.create_data(
+texts, embeddings, ids, metadatas, images = utils.create_data(
     number_of_data=NUMBER_OF_DATA, embedding_dim=EMBEDDING_DIM
 )
 
@@ -365,6 +365,34 @@ def test_ingestion(capsys):
         "metadata",
         "text",
     ]
+
+
+def test_ingestion_images(capsys):
+    tensor_params = [
+        {"name": "image", "htype": "image", "sample_compression": "jpg"},
+        {"name": "embedding", "htype": "embedding"},
+    ]
+
+    append_images = images
+    append_images[0] = np.randint(0, 255, (100, 100, 3)).astype(
+        np.uint8
+    )  # Mix paths and images
+
+    # initialize vector store object:
+    vector_store = DeepLakeVectorStore(
+        path="./deeplake_vector_store",
+        tensor_params=tensor_params,
+        overwrite=True,
+        verbose=True,
+    )
+
+    vector_store.add(image=images, embedding=embeddings)
+
+    assert all(
+        [tensor in vector_store.dataset.tensors for tensor in tensor_params.keys()]
+    )
+    assert len(vector_store.dataset.image[0].numpy().shape) == 3
+    assert len(vector_store.dataset.image[1].numpy().shape) == 3
 
 
 def test_parse_add_arguments():
