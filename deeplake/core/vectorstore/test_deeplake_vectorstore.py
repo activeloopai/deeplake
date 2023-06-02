@@ -550,3 +550,89 @@ def test_parse_add_arguments():
     assert embedding_function is embedding_fn2
     assert embedding_tensors == "embedding"
     assert len(tensors) == 2
+
+    # there are 2 tensors with the htype of "embedding":
+    deeplake_vector_store = DeepLakeVectorStore(
+        path="local_ds",
+        overwrite=True,
+        embedding_function=embedding_fn,
+        tensors_dict=[
+            {
+                "name": "embedding_1",
+                "htype": "embedding",
+            },
+            {
+                "name": "embedding_2",
+                "htype": "embedding",
+            },
+            {
+                "name": "texts",
+                "htype": "text",
+            },
+        ],
+    )
+
+    with pytest.raises(ValueError):
+        utils.parse_add_arguments(
+            dataset=deeplake_vector_store.dataset,
+            embedding_function=embedding_fn2,
+            embedding_data="text",
+            text=texts,
+            metadata=metadatas,
+        )
+
+    # there is no tensor with embedding htype:
+    deeplake_vector_store = DeepLakeVectorStore(
+        path="local_ds",
+        overwrite=True,
+        embedding_function=embedding_fn,
+        tensors_dict=[
+            {
+                "name": "texts",
+                "htype": "text",
+            },
+        ],
+    )
+
+    with pytest.raises(ValueError):
+        utils.parse_add_arguments(
+            dataset=deeplake_vector_store.dataset,
+            embedding_function=embedding_fn2,
+            embedding_data="text",
+            text=texts,
+            metadata=metadatas,
+        )
+
+    # there is exactly one tensor with embedding htype:
+    deeplake_vector_store = DeepLakeVectorStore(
+        path="local_ds",
+        overwrite=True,
+        embedding_function=embedding_fn,
+        tensors_dict=[
+            {
+                "name": "embedding_1",
+                "htype": "embedding",
+            },
+            {
+                "name": "texts",
+                "htype": "text",
+            },
+        ],
+    )
+
+    (
+        embedding_function,
+        embedding_data,
+        embedding_tensors,
+        tensors,
+    ) = utils.parse_add_arguments(
+        dataset=deeplake_vector_store.dataset,
+        embedding_function=embedding_fn2,
+        embedding_data=texts,
+        text=texts,
+        metadata=metadatas,
+    )
+
+    assert embedding_function is embedding_fn2
+    assert embedding_tensors == "embedding_1"
+    assert len(tensors) == 2
