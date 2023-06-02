@@ -384,7 +384,7 @@ class dataset:
 
         if org_id is not None and get_path_type(path) != "local":
             raise ValueError("org_id parameter can only be used with local datasets")
-        
+
         db_engine = (runtime or {}).get("db_engine", False)
 
         if address:
@@ -545,7 +545,7 @@ class dataset:
 
         if creds is None:
             creds = {}
-        
+
         if org_id is not None and get_path_type(path) != "local":
             raise ValueError("org_id parameter can only be used with local datasets")
 
@@ -850,7 +850,7 @@ class dataset:
 
         if org_id is not None and get_path_type(path) != "local":
             raise ValueError("org_id parameter can only be used with local datasets")
-        
+
         feature_report_path(
             path,
             "like",

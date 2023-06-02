@@ -2145,7 +2145,8 @@ class Dataset:
         deeplake_reporter.feature_report(
             feature_name="query",
             parameters={
-                "query_string": query_string,
+                "query_string": query_string[0:100],
+                "runtime": runtime,
             },
         )
 
@@ -2401,7 +2402,8 @@ class Dataset:
 
         pretty_print = summary_dataset(self)
 
-        print(self)
+        print("Deep Lake data accessible via path: {}".format(self.path))
+        print("\nTensor structure is:")
         print(pretty_print)
 
     def __str__(self):
