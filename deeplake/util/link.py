@@ -21,7 +21,7 @@ def merge_link_creds(
     for i, (key1, key2) in enumerate(
         zip(old_link_creds.creds_keys, current_link_creds.creds_keys)
     ):
-        if key1 == key2 or i in replaced_indices:
+        if key1 == key2 or (replaced_indices is not None and i in replaced_indices):
             num_common_keys += 1
         else:
             break

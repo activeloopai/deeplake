@@ -565,8 +565,6 @@ def test_link_ready(local_ds_generator, cat_path):
     assert ds.img[0].numpy().shape == (900, 900, 3)
     with pytest.raises(KeyError):
         ds.update_creds_key("xyz", "ghi")
-    with pytest.raises(ValueError):
-        ds.update_creds_key("abc", "def")
     ds.update_creds_key("abc", "new")
     assert ds.img[0].numpy().shape == (900, 900, 3)
     ds = local_ds_generator()

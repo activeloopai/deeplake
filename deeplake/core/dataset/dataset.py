@@ -3925,8 +3925,10 @@ class Dataset:
             raise ValueError(
                 "Managed creds are not supported for datasets that are not connected to activeloop platform."
             )
-        replaced_index = self.link_creds.replace_creds(creds_key, new_creds_key)
-        save_link_creds(self.link_creds, self.storage, replaced_index=replaced_index)
+        replaced_indices = self.link_creds.replace_creds(creds_key, new_creds_key)
+        save_link_creds(
+            self.link_creds, self.storage, replaced_indices=replaced_indices
+        )
 
     def get_creds_keys(self) -> Set[str]:
         """Returns the set of creds keys added to the dataset. These are used to fetch external data in linked tensors"""

@@ -319,7 +319,7 @@ class DeepLakeCloudDataset(Dataset):
                 "Atleast one of new_creds_key or managed must be provided."
             )
         key_index = self.link_creds.creds_mapping[creds_key] - 1
-        managed_info, replaced_index = None, None
+        managed_info, replaced_indices = None, None
         original_creds_key = creds_key
         original_key_is_managed = (
             original_creds_key in self.link_creds.managed_creds_keys
@@ -350,7 +350,7 @@ class DeepLakeCloudDataset(Dataset):
             if original_key_is_managed and managed is not False:
                 self.link_creds.populate_single_managed_creds(creds_key)
         except Exception:
-            if replaced_index is not None:
+            if replaced_indices is not None:
                 # revert the change
                 self.link_creds.replace_creds(new_creds_key, original_creds_key)
             raise

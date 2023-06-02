@@ -263,7 +263,6 @@ class LinkCreds(DeepLakeMemoryObject):
 
     def fetch_managed_creds(self, creds_key: str, verbose: bool = True):
         creds = self.client.get_managed_creds(self.org_id, creds_key)
-        print(creds)
         if verbose:
             logger.info(f"Loaded credentials '{creds_key}' from Activeloop platform.")
         return creds
