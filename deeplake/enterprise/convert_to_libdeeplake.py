@@ -31,7 +31,9 @@ INDRA_INSTALLED = bool(importlib.util.find_spec("indra"))
 
 
 def _get_indra_ds_from_azure_provider(
-    path: str = None, token: str = None, provider: AzureProvider = None
+    path: str,
+    token: str,
+    provider: AzureProvider,
 ):
     if provider is None:
         return None
@@ -54,7 +56,9 @@ def _get_indra_ds_from_azure_provider(
 
 
 def _get_indra_ds_from_gcp_provider(
-    path: str = None, token: str = None, provider: GCSProvider = None
+    path: str,
+    token: str,
+    provider: GCSProvider,
 ):
     if provider is None:
         return None
@@ -84,7 +88,9 @@ def _get_indra_ds_from_gcp_provider(
 
 
 def _get_indra_ds_from_s3_provider(
-    path: str = None, token: str = None, provider: S3Provider = None
+    path: str,
+    token: str,
+    provider: S3Provider,
 ):
     if provider is None:
         return None
