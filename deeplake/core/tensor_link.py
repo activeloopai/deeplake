@@ -109,7 +109,9 @@ def update_shape(new_sample, link_creds=None, tensor_meta=None):
         new_sample = read_linked_sample(
             new_sample.path, new_sample.creds_key, link_creds, verify=False
         )
-    if np.isscalar(new_sample):
+    if np.isscalar(new_sample) or (
+        isinstance(new_sample, np.ndarray) and new_sample.shape == ()
+    ):
         ret = np.array([1], dtype=np.int64)
     else:
         ret = np.array(
