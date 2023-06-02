@@ -390,7 +390,7 @@ def test_parse_add_arguments():
         # Throw error because embedding function is not specified anywhere
         utils.parse_add_arguments(
             dataset=deeplake_vector_store.dataset,
-            embed_data_from="text",
+            embedding_data=texts,
             embeding_tensor="embedding",
             text=texts,
             id=ids,
@@ -420,7 +420,7 @@ def test_parse_add_arguments():
             text=texts,
             id=ids,
             metadata=metadatas,
-        )
+        )  # 1
     converted_embeddings_1 = np.zeros((len(texts), EMBEDDING_DIM)).astype(np.float32)
     converted_embeddings_2 = np.ones((len(texts), EMBEDDING_DIM)).astype(np.float32)
 
@@ -453,12 +453,12 @@ def test_parse_add_arguments():
         utils.parse_add_arguments(
             dataset=deeplake_vector_store.dataset,
             initial_embedding_function=embedding_fn,
-            embed_data_from="text",
+            embedding_data=texts,
             text=texts,
             id=ids,
             embedding=embeddings,
             metadata=metadatas,
-        )
+        )  # 2
 
     with pytest.raises(ValueError):
         # Throw error because embedding_function and embedding are specified
@@ -466,8 +466,8 @@ def test_parse_add_arguments():
             dataset=deeplake_vector_store.dataset,
             initial_embedding_function=embedding_fn,
             embedding_function=embedding_fn,
-            embed_data_from="text",
-            embeding_tensor="embedding",
+            embedding_data=texts,
+            embedding_tensor="embedding",
             text=texts,
             id=ids,
             metadata=metadatas,
@@ -479,8 +479,8 @@ def test_parse_add_arguments():
         utils.parse_add_arguments(
             dataset=deeplake_vector_store.dataset,
             initial_embedding_function=embedding_fn,
-            embeding_tensor=embeding_tensor,
-            embed_data_from="text",
+            embedding_tensor="embedding",
+            embedding_data=texts,
             text=texts,
             id=ids,
             metadata=metadatas,
@@ -492,7 +492,7 @@ def test_parse_add_arguments():
         utils.parse_add_arguments(
             dataset=deeplake_vector_store.dataset,
             embeding_tensor="embedding",
-            embed_data_from="text",
+            embedding_data=texts,
             text=texts,
             id=ids,
             metadata=metadatas,
@@ -504,8 +504,8 @@ def test_parse_add_arguments():
             dataset=deeplake_vector_store.dataset,
             embedding_function=embedding_fn,
             initial_embedding_function=embedding_fn,
-            embedding_data="text",
-            embeding_tensor="embedding",
+            embedding_data=texts,
+            embedding_tensor="embedding",
             text=texts,
             id=ids,
             embedding=embeddings,
