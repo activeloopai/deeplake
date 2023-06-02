@@ -2,6 +2,8 @@ from deeplake.core import vectorstore
 from deeplake.core.vectorstore.vector_search import dataset as dataset_utils
 from deeplake.core.vectorstore.vector_search import filter as filter_utils
 from deeplake.core.vectorstore.vector_search import utils
+from deeplake.core.dataset import Dataset as DeepLakeDataset
+from typing import Union, Dict
 
 
 def vector_search(
@@ -16,7 +18,7 @@ def vector_search(
     k,
     return_tensors,
     return_view,
-):
+) -> Union[Dict, DeepLakeDataset]:
     if query is not None:
         raise NotImplementedError(
             f"User-specified TQL queries are not supported for exec_option={exec_option} "

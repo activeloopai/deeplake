@@ -32,19 +32,17 @@ def create_or_load_dataset(
     read_only,
     exec_option,
     embedding_function,
+    overwrite,
     **kwargs,
 ):
     utils.check_indra_installation(
         exec_option=exec_option, indra_installed=_INDRA_INSTALLED
     )
 
-    if "overwrite" in kwargs and kwargs["overwrite"] == False:
-        del kwargs["overwrite"]
-
-    if dataset_exists(dataset_path, token, creds, **kwargs):
+    if not overwrite and dataset_exists(dataset_path, token, creds, **kwargs):
         if tensor_params is not None and tensor_params != DEFAULT_VECTORSTORE_TENSORS:
             raise ValueError(
-                "dataset is not empty. You shouldn't specify tensor_params if you're loading from existing dataset."
+                "Vector Store is not empty. You shouldn't specify tensor_params if you're loading from existing dataset."
             )
 
         return load_dataset(
@@ -63,6 +61,7 @@ def create_or_load_dataset(
         token,
         exec_option,
         embedding_function,
+        overwrite,
         **kwargs,
     )
 
@@ -138,6 +137,7 @@ def create_dataset(
     token,
     exec_option,
     embedding_function,
+    overwrite,
     **kwargs,
 ):
     runtime = None
@@ -145,7 +145,12 @@ def create_dataset(
         runtime = {"tensor_db": True}
 
     dataset = deeplake.empty(
-        dataset_path, token=token, runtime=runtime, verbose=False, **kwargs
+        dataset_path,
+        token=token,
+        runtime=runtime,
+        verbose=False,
+        overwrite=overwrite,
+        **kwargs,
     )
     create_tensors(tensor_params, dataset, logger, embedding_function)
 

@@ -51,7 +51,7 @@ class DataIngestion:
 
         if self.logger:
             self.logger.warning(
-                f"{len(self.elements)} samples were combined into {len(batched)} batches based on batch size {batch_size}"
+                f"Batch upload: {len(self.elements)} samples are being uploaded in {len(batched)} batches of batch size {batch_size}"
             )
         return batched
 
@@ -109,7 +109,7 @@ class DataIngestion:
 
             if self.retry_attempt > MAX_VECTORSTORE_INGESTION_RETRY_ATTEMPTS:
                 raise FailedIngestionError(
-                    f"Maximum retry attempts exceeded. You can resume ingestion, from the latest saved checkpoint.\n"
+                    f"Maximum retry attempts exceeded. You can resume ingestion from the latest saved checkpoint.\n"
                     "To do that you should run:\n"
                     "```\n"
                     "deeplake_vector_store.add(\n"
