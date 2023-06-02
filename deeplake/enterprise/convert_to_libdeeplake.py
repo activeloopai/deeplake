@@ -30,6 +30,101 @@ def import_indra_api():
 INDRA_INSTALLED = bool(importlib.util.find_spec("indra"))
 
 
+def _get_indra_ds_from_azure_provider(
+    path: str = None, token: str = None, provider: AzureProvider = None
+):
+    if provider is None:
+        return None
+
+    api = import_indra_api()
+    account_name = provider.account_name
+    account_key = provider.account_key
+    sas_token = provider.get_sas_token()
+    expiration = str(provider.expiration) if provider.expiration else None
+
+    return api.dataset(
+        path,
+        origin_path=provider.root,
+        token=token,
+        account_name=account_name,
+        account_key=account_key,
+        sas_token=sas_token,
+        expiration=expiration,
+    )
+
+
+def _get_indra_ds_from_gcp_provider(
+    path: str = None, token: str = None, provider: GCSProvider = None
+):
+    if provider is None:
+        return None
+
+    api = import_indra_api()
+    creds = provider.get_creds()
+    anon = creds.get("anon", "")
+    expiration = creds.get("expiration", "")
+    access_token = creds.get("access_token", "")
+    json_credentials = creds.get("json_credentials", "")
+    endpoint_override = creds.get("endpoint_override", "")
+    scheme = creds.get("scheme", "")
+    retry_limit_seconds = creds.get("retry_limit_seconds", "")
+
+    return api.dataset(
+        path,
+        origin_path=provider.root,
+        token=token,
+        anon=anon,
+        expiration=expiration,
+        access_token=access_token,
+        json_credentials=json_credentials,
+        endpoint_override=endpoint_override,
+        scheme=scheme,
+        retry_limit_seconds=retry_limit_seconds,
+    )
+
+
+def _get_indra_ds_from_s3_provider(
+    path: str = None, token: str = None, provider: S3Provider = None
+):
+    if provider is None:
+        return None
+
+    api = import_indra_api()
+
+    creds_used = provider.creds_used
+    if creds_used == "PLATFORM":
+        provider._check_update_creds()
+        return api.dataset(
+            path,
+            origin_path=provider.root,
+            token=token,
+            aws_access_key_id=provider.aws_access_key_id,
+            aws_secret_access_key=provider.aws_secret_access_key,
+            aws_session_token=provider.aws_session_token,
+            region_name=provider.aws_region,
+            endpoint_url=provider.endpoint_url,
+            expiration=str(provider.expiration),
+        )
+    elif creds_used == "ENV":
+        return api.dataset(
+            path,
+            origin_path=provider.root,
+            token=token,
+            profile_name=provider.profile_name,
+        )
+    elif creds_used == "DICT":
+        return api.dataset(
+            path,
+            origin_path=provider.root,
+            token=token,
+            aws_access_key_id=provider.aws_access_key_id,
+            aws_secret_access_key=provider.aws_secret_access_key,
+            aws_session_token=provider.aws_session_token,
+            region_name=provider.aws_region,
+            endpoint_url=provider.endpoint_url,
+        )
+
+
 def dataset_to_libdeeplake(hub2_dataset):
     """Convert a hub 2.x dataset object to a libdeeplake dataset object."""
     try_flushing(hub2_dataset)
@@ -45,80 +140,18 @@ def dataset_to_libdeeplake(hub2_dataset):
             token = hub2_dataset._token
             provider = hub2_dataset.storage.next_storage
             if isinstance(provider, S3Provider):
-                creds_used = provider.creds_used
-                if creds_used == "PLATFORM":
-                    provider._check_update_creds()
-                    libdeeplake_dataset = api.dataset(
-                        path,
-                        origin_path=provider.root,
-                        token=token,
-                        aws_access_key_id=provider.aws_access_key_id,
-                        aws_secret_access_key=provider.aws_secret_access_key,
-                        aws_session_token=provider.aws_session_token,
-                        region_name=provider.aws_region,
-                        endpoint_url=provider.endpoint_url,
-                        expiration=str(provider.expiration),
-                    )
-                elif creds_used == "ENV":
-                    libdeeplake_dataset = api.dataset(
-                        path,
-                        origin_path=provider.root,
-                        token=token,
-                        profile_name=provider.profile_name,
-                    )
-                elif creds_used == "DICT":
-                    libdeeplake_dataset = api.dataset(
-                        path,
-                        origin_path=provider.root,
-                        token=token,
-                        aws_access_key_id=provider.aws_access_key_id,
-                        aws_secret_access_key=provider.aws_secret_access_key,
-                        aws_session_token=provider.aws_session_token,
-                        region_name=provider.aws_region,
-                        endpoint_url=provider.endpoint_url,
-                    )
+                libdeeplake_dataset = _get_indra_ds_from_s3_provider(
+                    path=path, token=token, provider=provider
+                )
 
             elif isinstance(provider, GCSProvider):
-                creds = provider.get_creds()
-                anon = creds.get("anon", "")
-                expiration = creds.get("expiration", "")
-                access_token = creds.get("access_token", "")
-                json_credentials = creds.get("json_credentials", "")
-                endpoint_override = creds.get("endpoint_override", "")
-                scheme = creds.get("scheme", "")
-                retry_limit_seconds = creds.get("retry_limit_seconds", "")
-
-                libdeeplake_dataset = api.dataset(
-                    path,
-                    origin_path=provider.root,
-                    token=token,
-                    anon=anon,
-                    expiration=expiration,
-                    access_token=access_token,
-                    json_credentials=json_credentials,
-                    endpoint_override=endpoint_override,
-                    scheme=scheme,
-                    retry_limit_seconds=retry_limit_seconds,
+                libdeeplake_dataset = _get_indra_ds_from_gcp_provider(
+                    path=path, token=token, provider=provider
                 )
 
             elif isinstance(provider, AzureProvider):
-                account_name = provider.account_name
-                account_key = provider.account_key
-                sas_token = provider.get_sas_token()
-                expiration = (
-                    provider.expiration
-                    if provider.expiration
-                    else str(provider.expiration)
-                )
-
-                libdeeplake_dataset = api.dataset(
-                    path,
-                    origin_path=provider.root,
-                    token=token,
-                    account_name=account_name,
-                    account_key=account_key,
-                    sas_token=sas_token,
-                    expiration=expiration,
+                libdeeplake_dataset = _get_indra_ds_from_azure_provider(
+                    path=path, token=token, provider=provider
                 )
 
         elif path.startswith("s3://"):
@@ -140,44 +173,18 @@ def dataset_to_libdeeplake(hub2_dataset):
             )
 
         elif path.startswith(("gcs://", "gs://", "gcp://")):
-            provider = hub2_dataset.storage.next_storage
-            creds = provider.get_creds()
-            anon = creds.get("anon", "")
-            expiration = creds.get("expiration", "")
-            access_token = creds.get("access_token", "")
-            json_credentials = creds.get("json_credentials", "")
-            endpoint_override = creds.get("endpoint_override", "")
-            scheme = creds.get("scheme", "")
-            retry_limit_seconds = creds.get("retry_limit_seconds", "")
+            provider = get_base_storage(hub2_dataset.storage)
 
-            libdeeplake_dataset = api.dataset(
-                path,
-                anon=anon,
-                expiration=expiration,
-                access_token=access_token,
-                json_credentials=json_credentials,
-                endpoint_override=endpoint_override,
-                scheme=scheme,
-                retry_limit_seconds=retry_limit_seconds,
+            libdeeplake_dataset = _get_indra_ds_from_gcp_provider(
+                path=path, token=None, provider=provider
             )
+
         elif path.startswith(("az://", "azure://")):
             az_provider = get_base_storage(hub2_dataset.storage)
-            account_name = az_provider.account_name
-            account_key = az_provider.account_key
-            sas_token = az_provider.get_sas_token()
-            expiration = (
-                provider.expiration if provider.expiration else str(provider.expiration)
+            libdeeplake_dataset = _get_indra_ds_from_azure_provider(
+                path=path, token=None, provider=az_provider
             )
 
-            libdeeplake_dataset = api.dataset(
-                path,
-                origin_path=az_provider.root,
-                token=token,
-                account_name=account_name,
-                account_key=account_key,
-                sas_token=sas_token,
-                expiration=expiration,
-            )
         else:
             token = hub2_dataset._token
             org_id = hub2_dataset.org_id
