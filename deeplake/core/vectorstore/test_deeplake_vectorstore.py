@@ -39,12 +39,12 @@ def embedding_fn2(text, embedding_dim=EMBEDDING_DIM):
     ).astype(np.float32)
 
 
-def test_tensor_dict(hub_cloud_dev_token):
+def test_custom_tensors(hub_cloud_dev_token):
     # initialize vector store object:
     vector_store = DeepLakeVectorStore(
-        dataset_path="./deeplake_vector_store",
+        path="./deeplake_vector_store",
         overwrite=True,
-        tensors_dict=[
+        tensor_params=[
             {"name": "texts_custom", "htype": "text"},
             {"name": "emb_custom", "htype": "embedding"},
         ],
@@ -76,7 +76,7 @@ def test_search_basic(hub_cloud_dev_token):
     """Test basic search features"""
     # Initialize vector store object and add data
     vector_store = DeepLakeVectorStore(
-        dataset_path="./deeplake_vector_store",
+        path="./deeplake_vector_store",
         overwrite=True,
         token=hub_cloud_dev_token,
     )
@@ -105,7 +105,7 @@ def test_search_basic(hub_cloud_dev_token):
 
     # Loac a vector store object from the cloud for indra testing
     vector_store_cloud = DeepLakeVectorStore(
-        dataset_path="hub://testingacc2/vectorstore_test",
+        path="hub://testingacc2/vectorstore_test",
         read_only=True,
         token=hub_cloud_dev_token,
     )
@@ -221,7 +221,7 @@ def test_search_quantitative(distance_metric, hub_cloud_dev_token):
 
     # initialize vector store object:
     vector_store = DeepLakeVectorStore(
-        dataset_path="hub://testingacc2/vectorstore_test",
+        path="hub://testingacc2/vectorstore_test",
         read_only=True,
         token=hub_cloud_dev_token,
     )
@@ -261,7 +261,7 @@ def test_search_managed(hub_cloud_dev_token):
     """Test whether managed TQL and client-side TQL return the same results"""
     # initialize vector store object:
     vector_store = DeepLakeVectorStore(
-        dataset_path="hub://testingacc2/vectorstore_test_managed",
+        path="hub://testingacc2/vectorstore_test_managed",
         read_only=True,
         token=hub_cloud_dev_token,
     )
@@ -297,7 +297,7 @@ def test_search_managed(hub_cloud_dev_token):
 def test_delete():
     # initialize vector store object:
     vector_store = DeepLakeVectorStore(
-        dataset_path="./deeplake_vector_store",
+        path="./deeplake_vector_store",
         overwrite=True,
     )
 
@@ -323,13 +323,14 @@ def test_delete():
 
 def test_ingestion(capsys):
     # create data
+    number_of_data = 1000
     texts, embeddings, ids, metadatas = utils.create_data(
-        number_of_data=1000, embedding_dim=EMBEDDING_DIM
+        number_of_data=number_of_data, embedding_dim=EMBEDDING_DIM
     )
 
     # initialize vector store object:
     vector_store = DeepLakeVectorStore(
-        dataset_path="./deeplake_vector_store",
+        path="./deeplake_vector_store",
         overwrite=True,
         verbose=True,
     )
@@ -337,7 +338,10 @@ def test_ingestion(capsys):
     with pytest.raises(Exception):
         # add data to the dataset:
         vector_store.add(
-            embedding=embeddings, text=texts[:100], id=ids, metadata=metadatas
+            embedding=embeddings,
+            text=texts[: number_of_data - 2],
+            id=ids,
+            metadata=metadatas,
         )
 
     vector_store.add(embedding=embeddings, text=texts, id=ids, metadata=metadatas)
@@ -354,7 +358,7 @@ def test_ingestion(capsys):
     )
     assert output in captured.out
 
-    assert len(vector_store) == 1000
+    assert len(vector_store) == number_of_data
     assert list(vector_store.dataset.tensors.keys()) == [
         "embedding",
         "id",
@@ -365,7 +369,7 @@ def test_ingestion(capsys):
 
 def test_parse_add_arguments():
     deeplake_vector_store = DeepLakeVectorStore(
-        dataset_path="local_ds",
+        path="local_ds",
         overwrite=True,
         embedding_function=embedding_fn,
     )
