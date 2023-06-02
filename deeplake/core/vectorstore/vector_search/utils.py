@@ -1,15 +1,11 @@
-import deeplake
 from deeplake.constants import MB
 from deeplake.enterprise.util import raise_indra_installation_error
-from deeplake.util.warnings import always_warn
 
 import numpy as np
 
 import random
 import string
-import uuid
-from functools import partial
-from typing import Optional, Any, Iterable, List, Dict, Callable, Union
+from typing import Optional, List, Dict, Callable
 
 EXEC_OPTION_TO_RUNTIME: Dict[str, Optional[Dict]] = {
     "compute_engine": None,
@@ -160,6 +156,7 @@ def parse_add_arguments(
     embedding_tensor=None,
     **tensors,
 ):
+    """Parse the input argument to the Vector Store add function to infer whether they are a valid combination."""
     # check_tensor_name_consistency(tensors, dataset.tensors, embedding_tensor)
 
     if embedding_function:
@@ -175,11 +172,13 @@ def parse_add_arguments(
 
     if initial_embedding_function:
         if not embedding_data:
+            check_tensor_name_consistency(tensors, dataset.tensors, None)
             return (None, None, None, tensors)
 
         embedding_tensor = find_embedding_tensor(embedding_tensor, tensors, dataset)
 
         check_tensor_name_consistency(tensors, dataset.tensors, embedding_tensor)
+
         return (initial_embedding_function, embedding_data, embedding_tensor, tensors)
 
     if embedding_tensor:
@@ -199,6 +198,7 @@ def parse_add_arguments(
 
 
 def check_tensor_name_consistency(tensors, dataset_tensors, embedding_tensor):
+    """Check if the tensors specified in the add function are consistent with the tensors in the dataset and the automatically generated tensors (like id)"""
     id_str = "ids" if "ids" in dataset_tensors else "id"
     expected_tensor_length = len(dataset_tensors)
     allowed_missing_tensors = [id_str, embedding_tensor]
@@ -234,12 +234,22 @@ def check_tensor_name_consistency(tensors, dataset_tensors, embedding_tensor):
         )
 
 
-def find_embedding_tensor(embedding_tensor, tensor_args, dataset):
+def find_embedding_tensor(embedding_tensor, tensor_args, dataset) -> str:
+    """Find the single embedding tensor to which embedding data should be uploaded. If there are none or multiple tensors, or if overlaps with the existing tensor arguments, raise an error."""
+
     if not embedding_tensor:
         embedding_tensors = find_embedding_tensors(dataset)
-        parse_find_embedding_tensors_errors(embedding_tensors)
 
-        return embedding_tensors[0]
+        if len(embedding_tensors) > 2:
+            raise ValueError(
+                f"embedding_function is specified but multiple embedding tensors were found in the Vector Store, so it it not clear to which tensor the embeddings should be appended. Please specify the `embedding_tensor` parameter for storing the embeddings."
+            )
+        elif len(embedding_tensors) == 0:
+            raise ValueError(
+                f"embedding_function is specified but no embedding tensors were found in the Vector Store, so the embeddings cannot be added. Please specify the `embedding_tensor` parameter for storing the embeddings."
+            )
+
+        embedding_tensor = embedding_tensors[0]
 
     if embedding_tensor in tensor_args:
         raise ValueError(
@@ -249,7 +259,8 @@ def find_embedding_tensor(embedding_tensor, tensor_args, dataset):
     return embedding_tensor
 
 
-def find_embedding_tensors(dataset):
+def find_embedding_tensors(dataset) -> List[str]:
+    """Find all the embedding tensors in a dataset."""
     matching_tensors = []
     for tensor in dataset.tensors:
         if (
@@ -260,14 +271,3 @@ def find_embedding_tensors(dataset):
             matching_tensors.append(tensor)
 
     return matching_tensors
-
-
-def parse_find_embedding_tensors_errors(embedding_tensors):
-    if len(embedding_tensors) > 2:
-        raise ValueError(
-            f"embedding_function is specified but multiple embedding tensors were found in the Vector Store, so it it not clear to which tensor the embeddings should be appended. Please specify the `embedding_tensor` parameter for storing the embeddings."
-        )
-    elif len(embedding_tensors) == 0:
-        raise ValueError(
-            f"embedding_function is specified but no embedding tensors were found in the Vector Store, so the embeddings cannot be added. Please specify the `embedding_tensor` parameter for storing the embeddings."
-        )

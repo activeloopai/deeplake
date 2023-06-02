@@ -262,34 +262,6 @@ def create_elements(
     return elements
 
 
-def fetch_tensor_based_on_htype(logger, dataset, htype):
-    tensors = dataset.tensors
-
-    if "embedding" in tensors:
-        return dataset.embedding
-
-    num_of_tensors_with_htype = 0
-
-    tensor_names = []
-    for tensor in tensors:
-        if dataset[tensor].htype == "embedding":
-            num_of_tensors_with_htype += 1
-            tensor_names.append(tensor)
-
-    tensor_names_str = "".join(f"`{tensor_name}`, " for tensor_name in tensor_names)
-    tensor_names_str = tensor_names_str[:-2]
-
-    if num_of_tensors_with_htype > 1:
-        logger.warning(
-            f"{num_of_tensors_with_htype} tensors with `embedding` htype were found. "
-            f"They are: {tensor_names_str}. Embedding function info will be appended to "
-            f"`{tensor_names[0]}`. If you want to update other embedding tensor's information "
-            "consider doing that manually. Example: `dataset.tensor['info'] = info_dictionary`"
-        )
-
-    return dataset[tensor_names[0]]
-
-
 def set_embedding_info(tensor, embedding_function):
     embedding_info = tensor.info.get("embedding")
     if embedding_function and not embedding_info:
@@ -305,8 +277,24 @@ def set_embedding_info(tensor, embedding_function):
 
 
 def update_embedding_info(logger, dataset, embedding_function):
-    tensor = fetch_tensor_based_on_htype(logger, dataset, embedding_function)
-    set_embedding_info(tensor, embedding_function)
+    embeddings_tensors = utils.find_embedding_tensors(dataset)
+    num_embedding_tensors = len(embeddings_tensors)
+
+    if num_embedding_tensors == 0:
+        logger.warning(
+            f"No embedding tensors were found, so the embedding function metadata will not be added to any tensor. "
+            "Consider doing that manually using `vector_store.dataset.tensor_name.info. = <embedding_function_info_dictionary>`"
+        )
+        return
+    if num_embedding_tensors > 1:
+        logger.warning(
+            f"{num_embedding_tensors} embedding tensors were found. "
+            f"It is not clear to which tensor the embedding function information should be added, so the embedding function metadata will not be added to any tensor. "
+            "Consider doing that manually using `vector_store.dataset.tensor_name.info = <embedding_function_info_dictionary>`"
+        )
+        return
+
+    set_embedding_info(dataset[embeddings_tensors[0]], embedding_function)
 
 
 def extend_or_ingest_dataset(

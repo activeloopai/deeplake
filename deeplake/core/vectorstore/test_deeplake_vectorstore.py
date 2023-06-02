@@ -369,7 +369,7 @@ def test_ingestion(capsys):
 
 def test_parse_add_arguments():
     deeplake_vector_store = DeepLakeVectorStore(
-        path="local_ds",
+        path="mem://dummy",
         overwrite=True,
         embedding_function=embedding_fn,
     )
@@ -420,9 +420,7 @@ def test_parse_add_arguments():
             text=texts,
             id=ids,
             metadata=metadatas,
-        )  # 1
-    converted_embeddings_1 = np.zeros((len(texts), EMBEDDING_DIM)).astype(np.float32)
-    converted_embeddings_2 = np.ones((len(texts), EMBEDDING_DIM)).astype(np.float32)
+        )
 
     # initial embedding function is specified and embeding_tensor, embed_data_from are not specified
     (
@@ -551,12 +549,12 @@ def test_parse_add_arguments():
     assert embedding_tensors == "embedding"
     assert len(tensors) == 2
 
-    # there are 2 tensors with the htype of "embedding":
+    # Creating a vector store with two embedding tensors
     deeplake_vector_store = DeepLakeVectorStore(
-        path="local_ds",
+        path="mem://dummy",
         overwrite=True,
         embedding_function=embedding_fn,
-        tensors_dict=[
+        tensor_params=[
             {
                 "name": "embedding_1",
                 "htype": "embedding",
@@ -572,6 +570,7 @@ def test_parse_add_arguments():
         ],
     )
 
+    # There are two embedding but an embedding_tensor is not specified, so it's not clear where to add the embedding data
     with pytest.raises(ValueError):
         utils.parse_add_arguments(
             dataset=deeplake_vector_store.dataset,
@@ -581,40 +580,40 @@ def test_parse_add_arguments():
             metadata=metadatas,
         )
 
-    # there is no tensor with embedding htype:
+    # Creating a vector store without embedding htype or tensor name
     deeplake_vector_store = DeepLakeVectorStore(
-        path="local_ds",
+        path="mem://dummy",
         overwrite=True,
         embedding_function=embedding_fn,
-        tensors_dict=[
+        tensor_params=[
             {
-                "name": "texts",
+                "name": "text",
                 "htype": "text",
             },
         ],
     )
 
+    # There is no embedding tensor, so it's not clear where to add the embedding data
     with pytest.raises(ValueError):
         utils.parse_add_arguments(
             dataset=deeplake_vector_store.dataset,
             embedding_function=embedding_fn2,
-            embedding_data="text",
+            embedding_data=texts,
             text=texts,
-            metadata=metadatas,
         )
 
-    # there is exactly one tensor with embedding htype:
+    # Creating a vector store with embedding tensor with a custom name
     deeplake_vector_store = DeepLakeVectorStore(
-        path="local_ds",
+        path="mem://dummy",
         overwrite=True,
-        embedding_function=embedding_fn,
-        tensors_dict=[
+        embedding_function=embedding_fn2,
+        tensor_params=[
             {
                 "name": "embedding_1",
                 "htype": "embedding",
             },
             {
-                "name": "texts",
+                "name": "text_1",
                 "htype": "text",
             },
         ],
@@ -629,10 +628,9 @@ def test_parse_add_arguments():
         dataset=deeplake_vector_store.dataset,
         embedding_function=embedding_fn2,
         embedding_data=texts,
-        text=texts,
-        metadata=metadatas,
+        text_1=texts,
     )
 
     assert embedding_function is embedding_fn2
     assert embedding_tensors == "embedding_1"
-    assert len(tensors) == 2
+    assert len(tensors) == 1
