@@ -67,7 +67,7 @@ def test_custom_tensors(hub_cloud_dev_token):
         embedding=query_embedding, exec_option="python", embedding_tensor="emb_custom"
     )
     assert len(data.keys()) == 3
-    assert "texts_custom" in data.keys() and "ids" in data.keys()
+    assert "texts_custom" in data.keys() and "id" in data.keys()
 
 
 @pytest.mark.skip(reason="need to update backend")
