@@ -41,7 +41,6 @@ class AzureProvider(StorageProvider):
         self.account_name, self.container_name, self.root_folder = self._get_attrs(
             self.root
         )
-        self.account_url = f"https://{self.account_name}.blob.core.windows.net"
         self.credential, self.account_key, self.sas_token = None, None, None
         self._set_credential(self.creds)
         self._set_clients()
@@ -61,15 +60,14 @@ class AzureProvider(StorageProvider):
         return account_name, container_name, root_folder
 
     def _set_credential(self, creds: Dict[str, str]):
-        self.account_name = creds.get("account_name")
-        # if account_name and account_name != self.account_name:
-        #     raise ValueError(
-        #         f"Account name in creds ({account_name}) does not match account name in path ({self.account_name})"
-        #     )
+        self.account_name = (
+            creds.get("account_name") or self.account_name
+        )  # account name in creds can override account name in path
+        self.account_url = f"https://{self.account_name}.blob.core.windows.net"
 
         self.account_key = creds.get("account_key")
         if self.account_key:
-            self.credential = AzureNamedKeyCredential(account_name, self.account_key)  # type: ignore
+            self.credential = AzureNamedKeyCredential(self.account_name, self.account_key)  # type: ignore
 
         self.sas_token = creds.get("sas_token")
         if self.sas_token and self.credential is None:
