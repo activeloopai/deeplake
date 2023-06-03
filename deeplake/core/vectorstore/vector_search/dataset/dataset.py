@@ -231,7 +231,9 @@ def get_embedding(embedding, data_for_embedding, embedding_function=None):
     return embedding
 
 
-def preprocess_tensors(dataset, embedding_data=None, embedding_tensor=None, **tensors):
+def preprocess_tensors(
+    embedding_data=None, embedding_tensor=None, dataset=None, **tensors
+):
     first_item = next(iter(tensors))
 
     if "id" not in tensors or tensors["id"] is None:
@@ -243,7 +245,7 @@ def preprocess_tensors(dataset, embedding_data=None, embedding_tensor=None, **te
     for tensor_name, tensor_data in tensors.items():
         if not isinstance(tensor_data, list):
             tensor_data = list(tensor_data)
-        if dataset.tensors[tensor_name].htype == "image":
+        if dataset and dataset[tensor_name].htype == "image":
             tensor_data = [
                 deeplake.read(data) if isinstance(data, str) else data
                 for data in tensor_data

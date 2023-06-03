@@ -48,7 +48,6 @@ def test_custom_tensors(hub_cloud_dev_token):
             {"name": "texts_custom", "htype": "text"},
             {"name": "emb_custom", "htype": "embedding"},
         ],
-        token=hub_cloud_dev_token,
     )
 
     with pytest.raises(ValueError):
@@ -67,7 +66,7 @@ def test_custom_tensors(hub_cloud_dev_token):
         embedding=query_embedding, exec_option="python", embedding_tensor="emb_custom"
     )
     assert len(data.keys()) == 3
-    assert "texts_custom" in data.keys() and "ids" in data.keys()
+    assert "texts_custom" in data.keys() and "id" in data.keys()
 
 
 @pytest.mark.skip(reason="need to update backend")
@@ -324,7 +323,7 @@ def test_delete():
 def test_ingestion(capsys):
     # create data
     number_of_data = 1000
-    texts, embeddings, ids, metadatas = utils.create_data(
+    texts, embeddings, ids, metadatas, _ = utils.create_data(
         number_of_data=number_of_data, embedding_dim=EMBEDDING_DIM
     )
 
@@ -367,14 +366,14 @@ def test_ingestion(capsys):
     ]
 
 
-def test_ingestion_images(capsys):
+def test_ingestion_images():
     tensor_params = [
         {"name": "image", "htype": "image", "sample_compression": "jpg"},
         {"name": "embedding", "htype": "embedding"},
     ]
 
     append_images = images
-    append_images[0] = np.randint(0, 255, (100, 100, 3)).astype(
+    append_images[0] = np.random.randint(0, 255, (100, 100, 3)).astype(
         np.uint8
     )  # Mix paths and images
 

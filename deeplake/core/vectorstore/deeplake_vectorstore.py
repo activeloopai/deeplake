@@ -13,7 +13,6 @@ except Exception:  # pragma: no cover
 
 import deeplake
 from deeplake.constants import (
-    DEFAULT_VECTORSTORE_DEEPLAKE_PATH,
     DEFAULT_VECTORSTORE_TENSORS,
 )
 from deeplake.core.vectorstore import utils
@@ -22,7 +21,6 @@ from deeplake.core.vectorstore.vector_search import dataset as dataset_utils
 from deeplake.core.vectorstore.vector_search import filter as filter_utils
 
 from deeplake.util.bugout_reporter import feature_report_path, deeplake_reporter
-
 
 logger = logging.getLogger(__name__)
 
@@ -214,7 +212,7 @@ class DeepLakeVectorStore:
         )
 
         processed_tensors, id = dataset_utils.preprocess_tensors(
-            self.dataset, embedding_data, embedding_tensor, **tensors
+            embedding_data, embedding_tensor, self.dataset, **tensors
         )
 
         assert id is not None
