@@ -12,6 +12,8 @@ from deeplake.core.sample import Sample
 from deeplake.core.linked_sample import LinkedSample
 import pathlib
 
+import pandas as pd
+
 
 from deeplake.client.log import logger
 
@@ -124,21 +126,24 @@ class DataFrame(StructuredDataset):
     def _get_extend_values(self, tensor_params: dict, key: str):  # type: ignore
         """Method creates a list of values to be extended to the tensor, based on the tensor parameters and the data in the dataframe column"""
 
+        column_data = self.source[key]
+        column_data = column_data.where(pd.notnull(column_data), None).values.tolist()
+
         extend_values: List[Optional[Union[Sample, LinkedSample, np.ndarray]]]
 
         if "htype" in tensor_params and "link[" in tensor_params["htype"]:
             extend_values = [
                 link(value, creds_key=self.creds_key) if value is not None else None
-                for value in self.source[key].values
+                for value in column_data
             ]
         elif "htype" in tensor_params and "image" in tensor_params["htype"]:
             extend_values = [
                 read(value, creds=self.creds) if value is not None else None
-                for value in self.source[key].values
+                for value in column_data
             ]
         else:
-            extend_values = self.source[key].values.tolist()
-        #
+            extend_values = column_data
+
         return extend_values
 
     def fill_dataset(self, ds: Dataset, progressbar: bool = True) -> Dataset:
