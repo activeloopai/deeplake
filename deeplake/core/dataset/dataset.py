@@ -2132,7 +2132,8 @@ class Dataset:
         deeplake_reporter.feature_report(
             feature_name="query",
             parameters={
-                "query_string": query_string,
+                "query_string": query_string[0:100],
+                "runtime": runtime,
             },
         )
 
