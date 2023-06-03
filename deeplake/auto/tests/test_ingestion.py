@@ -308,13 +308,20 @@ def test_dataframe_array(memory_ds: Dataset):
     data = {
         "AA": ["Alice", "Bob", "Charlie", None],
         "BB": [
-            None,
-            np.array([80, 22, 1, 100]),
-            None,
-            np.array([0, 565, 234]),
+            np.array([3, 22, 1, 3]),
+            np.array([1, 22, 10, 1]),
+            np.array([2, 22, 1, 2]),
+            np.array([0, 56, 34, 2]),
         ],
         "CC": [45, 67, 88, 77],
         "DD": [None, None, None, None],
+        "EE": [
+            None,
+            np.array([1, 22, 10, 1]),
+            None,
+            np.array([0, 56, 34]),
+        ],
+        "FF": [None, "Bob", "Charlie", "Dave"],
     }
 
     df = pd.DataFrame(data)
@@ -322,12 +329,12 @@ def test_dataframe_array(memory_ds: Dataset):
 
     ds = deeplake.ingest_dataframe(
         df,
-        memory_ds.path,
+        "mem://dummy",
         progressbar=False,
     )
     tensors_names = list(ds.tensors.keys())
 
-    assert tensors_names == [df_keys[0], df_keys[1], df_keys[2], df_keys[3]]
+    assert tensors_names == df_keys.tolist()
     assert ds[df_keys[0]].htype == "text"
 
     np.testing.assert_array_equal(
@@ -338,6 +345,11 @@ def test_dataframe_array(memory_ds: Dataset):
         ds[df_keys[2]].numpy().reshape(-1), df[df_keys[2]].values
     )
     assert ds[df_keys[2]].dtype == df[df_keys[2]].dtype
+
+    data_key_4 = ds[df_keys[4]].numpy(aslist=True)
+    ds_data = [None if arr.shape[0] == 0 else arr for arr in data_key_4]
+    df_data = [arr for arr in df[df_keys[4]].values]
+    [np.testing.assert_array_equal(ds_data[i], df_data[i]) for i in range(len(ds_data))]
 
 
 def test_dataframe_array_bad(memory_ds: Dataset):
@@ -374,7 +386,7 @@ def test_dataframe_all_empty_images(memory_ds: Dataset):
         "CC": [45, 67, 88, 77],
     }
 
-    df = pd.DataFrame(data, column_params={"BB": {"htype": "image"}})
+    df = pd.DataFrame(data)
 
     with pytest.raises(IngestionError):
         ds = deeplake.ingest_dataframe(
