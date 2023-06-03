@@ -387,9 +387,8 @@ def test_ingestion_images():
 
     vector_store.add(image=images, embedding=embeddings)
 
-    assert all(
-        [tensor in vector_store.dataset.tensors for tensor in tensor_params.keys()]
-    )
+    assert "image" in vector_store.dataset.tensors
+    assert "embedding" in vector_store.dataset.tensors
     assert len(vector_store.dataset.image[0].numpy().shape) == 3
     assert len(vector_store.dataset.image[1].numpy().shape) == 3
 
