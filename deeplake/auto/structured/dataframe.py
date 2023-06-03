@@ -12,7 +12,7 @@ from deeplake.core.sample import Sample
 from deeplake.core.linked_sample import LinkedSample
 import pathlib
 
-import pandas as pd
+import pandas as pd  # type: ignore
 
 
 from deeplake.client.log import logger

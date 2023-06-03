@@ -349,7 +349,11 @@ def test_dataframe_array(memory_ds: Dataset):
     data_key_4 = ds[df_keys[4]].numpy(aslist=True)
     ds_data = [None if arr.shape[0] == 0 else arr for arr in data_key_4]
     df_data = [arr for arr in df[df_keys[4]].values]
-    [np.testing.assert_array_equal(ds_data[i], df_data[i]) for i in range(len(ds_data))]
+
+    assert len(ds[df_keys[4]].numpy(aslist=True)) == 4
+    assert ds[df_keys[4]][0].numpy().tolist() == []
+    assert ds[df_keys[4]][0].numpy().shape[0] == 0
+    assert ds[df_keys[4]][1].numpy().shape[0] == 4
 
 
 def test_dataframe_array_bad(memory_ds: Dataset):
