@@ -138,7 +138,7 @@ def test_search_basic(hub_cloud_dev_token):
 
     # Run a filter query using a json
     data_e_j = vector_store.search(
-        data_for_embedding="dummy",
+        embedding_data="dummy",
         embedding_function=embedding_fn,
         exec_option="python",
         k=2,
@@ -156,7 +156,7 @@ def test_search_basic(hub_cloud_dev_token):
         return x["metadata"].data()["value"]["abc"] == 1
 
     data_e_f = vector_store.search(
-        data_for_embedding="dummy",
+        embedding_data="dummy",
         embedding_function=embedding_fn,
         exec_option="python",
         k=2,

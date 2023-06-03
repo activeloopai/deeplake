@@ -49,11 +49,13 @@ class DeepLakeVectorStore:
             >>> data = DeepLakeVectorStore(
             >>>        path = <path_for_storing_Data>,
             >>> )
+            >>>
             >>> # Create a vector store in the Deep Lake Managed Tensor Database
             >>> data = DeepLakeVectorStore(
             >>>        path = "hub://org_id/dataset_name",
             >>>        runtime = {"tensor_db": True},
             >>> )
+            >>>
             >>> # Create a vector store with custom tensors
             >>> data = DeepLakeVectorStore(
             >>>        path = <path_for_storing_data>,
@@ -136,45 +138,46 @@ class DeepLakeVectorStore:
         return_ids: bool = False,
         **tensors,
     ) -> Optional[List[str]]:
-        """Adding elements to deeplake vector store
+        """Adding elements to deeplake vector store.
+
+        Tensor names are specified as parameters, and data for each tensor is specified as parameter values. All data must of equal length.
 
         Examples:
-            >>> # initialize vector store:
-            >>> deeplake_vector_store = DeepLakeVectorStore(path=<your_dataset_path>)
-            >>>
-            >>> # if you want to add elements to deeplake_vector_store, you just need to specify the tensors:
+            >>> # Directly upload embeddings
             >>> deeplake_vector_store.add(
-            >>>     id=id,
-            >>>     metadata=metadata,
-            >>>     embedding=embedding,
-            >>>     text=text,
-            >>> )
-            >>> # Note if you don't specify id, it will be automatically created
-            >>>
-            >>> # suppose you want create a dataset with custom tensors and you want to convert data from one tensor into embedding and it to another tensor.
-            >>> # to do so, you will need to use the following api:
-            >>> deeplake_vector_store = DeepLakeVectorStore(
-            >>>     path=<your_dataset_path>,
-            >>>     tensors_dict=[
-            >>>         {
-            >>>             "name": "image_annotations",
-            >>>             "htype": "text",
-            >>>         },
-            >>>         {
-            >>>             "name": "image_embeddings",
-            >>>             "htype": "embedding",
-            >>>         },
-            >>>     ]
+            >>>     text = <list_of_texts>,
+            >>>     embedding = [list_of_embeddings]
+            >>>     metadata = <list_of_metadata_jsons>,
             >>> )
             >>>
+            >>> # Upload embedding via embedding function
             >>> deeplake_vector_store.add(
-            >>>     image_annotations=<some_annotations>,
-            >>>     embedding_data=image_annotations # or some other arbitrary data.
-            >>>     embedding_tensor="image_embeddings",
+            >>>     text = <list_of_texts>,
+            >>>     metadata = <list_of_metadata_jsons>,
+            >>>     embedding_function = <embedding_function>,
+            >>>     embedding_data = <list_of_data_for_embedding>,
+            >>> )
+            >>>
+            >>> # Upload embedding via embedding function to a user-defined embedding tensor
+            >>> deeplake_vector_store.add(
+            >>>     text = <list_of_texts>,
+            >>>     metadata = <list_of_metadata_jsons>,
+            >>>     embedding_function = <embedding_function>,
+            >>>     embedding_data = <list_of_data_for_embedding>,
+            >>>     embedding_tensor = <user_defined_embedding_tensor_name>,
+            >>> )
+            >>> # Add data to fully custom tensors
+            >>> deeplake_vector_store.add(
+            >>>     tensor_A = <list_of_data_for_tensor_A>,
+            >>>     tensor_B = <list_of_data_for_tensor_B>
+            >>>     tensor_C = <list_of_data_for_tensor_C>,
+            >>>     embedding_function = <embedding_function>,
+            >>>     embedding_data = <list_of_data_for_embedding>,
+            >>>     embedding_tensor = <user_defined_embedding_tensor_name>,
             >>> )
 
         Args:
-            embedding_function (Optional[Callable]): embedding function used to convert `embedding_data` into embeddings.
+            embedding_function (Optional[Callable]): embedding function used to convert `embedding_data` into embeddings. Overrides the `embedding_function` specified when initializing the Vector Store.
             embedding_data (Optional[List]): Data to be converted into embeddings using the provided `embedding_function`. Defaults to None.
             embedding_tensor (Optional[str]): Tensor where results from the embedding function will be stored. If None, the embedding tensors is automatically inferred (when possible). Defaults to None.
             total_samples_processed (int): Total number of samples processed before ingestion stopped. When specified.
@@ -182,7 +185,7 @@ class DeepLakeVectorStore:
             **tensors: Keyword arguments where the key is the tensor name, and the value is a list of samples that should be uploaded to that tensor.
 
         Returns:
-            Optional[List[str]]: List of document IDs if `return_ids` is set to True. Otherwise, None.
+            Optional[List[str]]: List of ids if `return_ids` is set to True. Otherwise, None.
         """
 
         deeplake_reporter.feature_report(
@@ -240,7 +243,7 @@ class DeepLakeVectorStore:
 
     def search(
         self,
-        data_for_embedding=None,
+        embedding_data=None,
         embedding_function: Optional[Callable] = None,
         embedding: Optional[Union[List[float], np.ndarray]] = None,
         k: int = 4,
@@ -262,16 +265,18 @@ class DeepLakeVectorStore:
             >>> )
             >>> # Search using an embedding function and data for embedding
             >>> data = vector_store.search(
-            >>>        data_for_embedding = "What does this chatbot do?",
+            >>>        embedding_data = "What does this chatbot do?",
             >>>        embedding_function = <your_embedding_function>,
             >>>        exec_option = <preferred_exec_option>,
             >>> )
+            >>>
             >>> # Add a filter to your search
             >>> data = vector_store.search(
             >>>        embedding = <your_embedding>,
             >>>        exec_option = <preferred_exec_option>,
             >>>        filter = {"json_tensor_name": {"key: value"}, "json_tensor_name_2": {"key_2: value_2"},...}, # Only valid for exec_option = "python"
             >>> )
+            >>>
             >>> # Search using TQL
             >>> data = vector_store.search(
             >>>        query = "select * where ..... <add TQL syntax>",
@@ -279,9 +284,9 @@ class DeepLakeVectorStore:
             >>> )
 
         Args:
-            embedding (Union[np.ndarray, List[float]], optional): Embedding representation for performing the search. Defaults to None. The `data_for_embedding` and `embedding` cannot both be specified.
-            data_for_embedding: Data against which the search will be performed by embedding it using the `embedding_function`. Defaults to None. The `data_for_embedding` and `embedding` cannot both be specified.
-            embedding_function (callable, optional): function for converting data_for_embedding into embedding. Only valid if data_for_embedding is specified
+            embedding (Union[np.ndarray, List[float]], optional): Embedding representation for performing the search. Defaults to None. The `embedding_data` and `embedding` cannot both be specified.
+            embedding_data: Data against which the search will be performed by embedding it using the `embedding_function`. Defaults to None. The `embedding_data` and `embedding` cannot both be specified.
+            embedding_function (callable, optional): function for converting `embedding_data` into embedding. Only valid if `embedding_data` is specified
             k (int): Number of elements to return after running query. Defaults to 4.
             distance_metric (str): Type of distance metric to use for sorting the data. Avaliable options are: "L1", "L2", "COS", "MAX". Defaults to "COS".
             query (Optional[str]):  TQL Query string for direct evaluation, without application of additional filters or vector search.
@@ -306,7 +311,7 @@ class DeepLakeVectorStore:
         deeplake_reporter.feature_report(
             feature_name="vs.search",
             parameters={
-                "data_for_embedding": True if data_for_embedding is not None else False,
+                "embedding_data": True if embedding_data is not None else False,
                 "embedding_function": True if embedding_function is not None else False,
                 "k": k,
                 "distance_metric": distance_metric,
@@ -324,7 +329,7 @@ class DeepLakeVectorStore:
         embedding_function = embedding_function or self.embedding_function
 
         utils.parse_search_args(
-            data_for_embedding=data_for_embedding,
+            embedding_data=embedding_data,
             embedding_function=embedding_function,
             embedding=embedding,
             k=k,
@@ -339,7 +344,7 @@ class DeepLakeVectorStore:
         # if embedding_function is not None or embedding is not None:
         query_emb = dataset_utils.get_embedding(
             embedding,
-            data_for_embedding,
+            embedding_data,
             embedding_function=embedding_function,
         )
 
