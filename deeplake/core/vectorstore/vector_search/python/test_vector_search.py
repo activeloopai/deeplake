@@ -1,6 +1,8 @@
-import deeplake
-from typing import Optional, Tuple, List
+import pytest
+
 import numpy as np
+
+import deeplake
 from deeplake.core.vectorstore.vector_search.python import vector_search
 from deeplake.core.dataset import Dataset as DeepLakeDataset
 
@@ -50,3 +52,18 @@ def test_vector_search():
 
     assert len(data) == 10
     assert isinstance(data, DeepLakeDataset)
+
+    with pytest.raises(NotImplementedError):
+        data = vector_search.vector_search(
+            query="tql query",
+            query_emb=query_embedding,
+            exec_option="python",
+            dataset=ds,
+            logger=None,
+            filter=None,
+            embedding_tensor="embedding",
+            distance_metric="l2",
+            k=10,
+            return_tensors=[],
+            return_view=True,
+        )

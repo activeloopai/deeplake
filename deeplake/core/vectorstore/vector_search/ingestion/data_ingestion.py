@@ -50,9 +50,13 @@ class DataIngestion:
         ]
 
         if self.logger:
-            self.logger.warning(
-                f"Batch upload: {len(self.elements)} samples are being uploaded in {len(batched)} batches of batch size {batch_size}"
-            )
+            batch_upload_str = f"Batch upload: {len(elements)} samples are being uploaded in {len(batched)} batches of batch size {batch_size}"
+            if self.total_samples_processed:
+                batch_upload_str = (
+                    f"Batch reupload: {len(self.elements)-len(elements)} samples already uploaded, while"
+                    f"{len(elements)} samples are being uploaded in {len(batched)} batches of batch size {batch_size}"
+                )
+            self.logger.warning(batch_upload_str)
         return batched
 
     def get_num_workers(self, batched):
