@@ -369,6 +369,7 @@ class DeepLakeVectorStore:
 
     def delete(
         self,
+        row_ids: Optional[List[str]] = None,
         ids: Optional[List[str]] = None,
         filter: Optional[Union[Dict, Callable]] = None,
         query: Optional[str] = None,
@@ -393,8 +394,8 @@ class DeepLakeVectorStore:
             >>> )
 
         Args:
-            ids (Optional[List[str]]): The document_ids to delete.
-                Defaults to None.
+            ids (Optional[List[str]]): List of unique ids. Defaults to None.
+            row_ids (Optional[List[str]]): List of absolute row indices from the dataset. Defaults to None.
             filter (Union[Dict, Callable], optional): Filter for finding samples for deletion.
                 - ``Dict`` - Key-value search on tensors of htype json, evaluated on an AND basis (a sample must satisfy all key-value filters to be True) Dict = {"tensor_name_1": {"key": value}, "tensor_name_2": {"key": value}}
                 - ``Function`` - Any function that is compatible with `deeplake.filter`.
@@ -422,37 +423,30 @@ class DeepLakeVectorStore:
             },
         )
 
-        if ids is None and filter is None and query is None and delete_all is None:
-            raise ValueError(
-                "Either ids, filter, query, or delete_all must be specified."
-            )
-        if exec_option not in ("python", "compute_engine", "tensor_db"):
-            raise ValueError(
-                "Invalid `exec_option` it should be either `python`, `compute_engine`."
-            )
+        dataset_utils.check_delete_arguments(
+            ids, filter, query, delete_all, row_ids, exec_option
+        )
 
-        if ids is None:
-            (
-                self.dataset,
-                dataset_deleted,
-            ) = dataset_utils.delete_all_samples_if_specified(
-                self.dataset,
-                delete_all,
-            )
-            if dataset_deleted:
-                return True
+        (
+            self.dataset,
+            dataset_deleted,
+        ) = dataset_utils.delete_all_samples_if_specified(
+            self.dataset,
+            delete_all,
+        )
+        if dataset_deleted:
+            return True
 
-            delete_view = self.search(
-                filter=filter,
+        if row_ids is None:
+            row_ids = dataset_utils.convert_id_to_row_id(
+                ids=ids,
+                dataset=self.dataset,
+                search_fn=self.search,
                 query=query,
                 exec_option=exec_option,
-                return_view=True,
-                k=int(1e9),
+                filter=filter,
             )
-
-            ids = list(delete_view.sample_indices)  # type: ignore
-
-        dataset_utils.delete_and_commit(self.dataset, ids)
+        dataset_utils.delete_and_commit(self.dataset, row_ids)
         return True
 
     @staticmethod

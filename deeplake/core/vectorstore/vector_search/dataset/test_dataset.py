@@ -119,6 +119,19 @@ def test_load(caplog, hub_cloud_dev_token):
             " top of already existing deeplake dataset." in caplog.text
         )
 
+    with pytest.raises(ValueError):
+        dataset = dataset_utils.create_or_load_dataset(
+            tensor_params={"name": "image", "htype": "image"},
+            dataset_path=DEFAULT_VECTORSTORE_DEEPLAKE_PATH,
+            token=None,
+            creds={},
+            logger=test_logger,
+            read_only=False,
+            exec_option="python",
+            embedding_function=None,
+            overwrite=False,
+        )
+
 
 def test_delete_and_commit():
     dataset = deeplake.empty("./test-dataset", overwrite=True)

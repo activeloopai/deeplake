@@ -7,4 +7,6 @@ from deeplake.core.vectorstore.vector_search.dataset.dataset import (
     preprocess_tensors,
     create_elements,
     extend_or_ingest_dataset,
+    convert_id_to_row_id,
+    check_delete_arguments,
 )

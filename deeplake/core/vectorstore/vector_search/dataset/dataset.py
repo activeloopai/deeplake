@@ -159,7 +159,7 @@ def create_dataset(
 
 def create_tensors(tensor_params, dataset, logger, embedding_function):
     tensor_names = [tensor["name"] for tensor in tensor_params]
-    if "id" not in tensor_names:
+    if "id" not in tensor_names and "ids" not in tensor_names:
         tensor_params.append(
             {
                 "name": "id",
@@ -235,12 +235,12 @@ def preprocess_tensors(
     embedding_data=None, embedding_tensor=None, dataset=None, **tensors
 ):
     first_item = next(iter(tensors))
-
-    if "id" not in tensors or tensors["id"] is None:
+    ids_tensor = "ids" if "ids" in tensors else "id"
+    if ids_tensor not in tensors or ids_tensor is None:
         id = [str(uuid.uuid1()) for _ in tensors[first_item]]
-        tensors["id"] = id
+        tensors[ids_tensor] = id
 
-    processed_tensors = {"id": tensors["id"]}
+    processed_tensors = {ids_tensor: tensors[ids_tensor]}
 
     for tensor_name, tensor_data in tensors.items():
         if not isinstance(tensor_data, list):
@@ -255,7 +255,7 @@ def preprocess_tensors(
     if embedding_data:
         processed_tensors[embedding_tensor] = embedding_data
 
-    return processed_tensors, tensors["id"]
+    return processed_tensors, tensors[ids_tensor]
 
 
 def create_elements(
@@ -335,4 +335,44 @@ def extend_or_ingest_dataset(
             num_workers=num_workers,
             total_samples_processed=total_samples_processed,
             logger=logger,
+        )
+
+
+def convert_id_to_row_id(ids, dataset, search_fn, query, exec_option, filter):
+    if ids is None:
+        delete_view = search_fn(
+            filter=filter,
+            query=query,
+            exec_option=exec_option,
+            return_view=True,
+            k=int(1e9),
+        )
+
+    else:
+        # backwards compatibility
+        tensors = dataset.tensors
+        id_tensor = "id"
+        if "ids" in tensors:
+            id_tensor = "ids"
+
+        delete_view = dataset.filter(lambda x: x[id_tensor].data()["value"] in ids)
+
+    row_ids = list(delete_view.sample_indices)
+    return row_ids
+
+
+def check_delete_arguments(ids, filter, query, delete_all, row_ids, exec_option):
+    if (
+        ids is None
+        and filter is None
+        and query is None
+        and delete_all is None
+        and row_ids is None
+    ):
+        raise ValueError(
+            "Either ids, row_ids, filter, query, or delete_all must be specified."
+        )
+    if exec_option not in ("python", "compute_engine", "tensor_db"):
+        raise ValueError(
+            "Invalid `exec_option` it should be either `python`, `compute_engine`."
         )

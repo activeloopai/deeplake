@@ -5,6 +5,9 @@ import deeplake
 from deeplake.core.vectorstore.deeplake_vectorstore import DeepLakeVectorStore
 from deeplake.core.vectorstore import utils
 from deeplake.tests.common import requires_libdeeplake
+from deeplake.constants import (
+    DEFAULT_VECTORSTORE_TENSORS,
+)
 
 from math import isclose
 import os
@@ -301,14 +304,20 @@ def test_delete():
     )
 
     # add data to the dataset:
-    vector_store.add(embedding=embeddings, text=texts, metadata=metadatas)
+    vector_store.add(id=ids, embedding=embeddings, text=texts, metadata=metadatas)
 
     # delete the data in the dataset by id:
-    vector_store.delete(ids=[4, 8, 9])
+    vector_store.delete(row_ids=[4, 8, 9])
     assert len(vector_store.dataset) == NUMBER_OF_DATA - 3
 
     vector_store.delete(filter={"metadata": {"abc": 1}})
     assert len(vector_store.dataset) == NUMBER_OF_DATA - 4
+
+    vector_store.delete(ids=["7"])
+    assert len(vector_store.dataset) == NUMBER_OF_DATA - 5
+
+    with pytest.raises(ValueError):
+        vector_store.delete()
 
     tensors_before_delete = vector_store.dataset.tensors
     vector_store.delete(delete_all=True)
@@ -318,6 +327,28 @@ def test_delete():
     vector_store.delete_by_path("./deeplake_vector_store")
     dirs = os.listdir("./")
     assert "./deeplake_vector_store" not in dirs
+
+    # backwards compatibility test:
+    vector_store = DeepLakeVectorStore(
+        path="./deeplake_vector_store",
+        overwrite=True,
+        tensor_params=[
+            {
+                "name": "ids",
+                "htype": "text",
+            },
+            {
+                "name": "docs",
+                "htype": "text",
+            },
+        ],
+    )
+    # add data to the dataset:
+    vector_store.add(ids=ids, docs=texts)
+
+    # delete the data in the dataset by id:
+    vector_store.delete(row_ids=[0])
+    assert len(vector_store.dataset) == NUMBER_OF_DATA - 1
 
 
 def test_ingestion(capsys):
@@ -385,12 +416,13 @@ def test_ingestion_images():
         verbose=True,
     )
 
-    vector_store.add(image=images, embedding=embeddings)
+    ids = vector_store.add(image=images, embedding=embeddings, return_ids=True)
 
     assert "image" in vector_store.dataset.tensors
     assert "embedding" in vector_store.dataset.tensors
     assert len(vector_store.dataset.image[0].numpy().shape) == 3
     assert len(vector_store.dataset.image[1].numpy().shape) == 3
+    assert len(ids) == 10
 
 
 def test_parse_add_arguments():
