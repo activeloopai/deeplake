@@ -382,10 +382,11 @@ class dataset:
             Setting ``overwrite`` to ``True`` will delete all of your data if it exists! Be very careful when setting this parameter.
         """
         path, address = process_dataset_path(path)
-        db_engine = parse_runtime_parameters(path, runtime)["tensor_db"]
 
         if org_id is not None and get_path_type(path) != "local":
             raise ValueError("org_id parameter can only be used with local datasets")
+
+        db_engine = parse_runtime_parameters(path, runtime)["tensor_db"]
 
         if address:
             raise ValueError(
