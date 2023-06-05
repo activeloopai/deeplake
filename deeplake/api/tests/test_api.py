@@ -2603,15 +2603,16 @@ def test_shape_squeeze(memory_ds):
 
     assert ds.abc[5:, :, 9].shape == (5, 10, 20)
 
+
 def test_non_local_org_id():
     with pytest.raises(ValueError):
         ds = deeplake.dataset("hub://test/test_dataset", org_id="test")
-    
+
     with pytest.raises(ValueError):
         ds = deeplake.empty("hub://test/test_dataset", org_id="test")
-    
+
     with pytest.raises(ValueError):
         ds = deeplake.load("hub://test/test_dataset", org_id="test")
-    
+
     with pytest.raises(ValueError):
         ds = deeplake.like("hub://test/test_dataset", "test/test_ds", org_id="test")
