@@ -67,9 +67,9 @@ def local_ds(local_ds_generator):
 
 
 @pytest.fixture
-def local_ds_generator(local_path):
+def local_ds_generator(local_path, hub_cloud_dev_token):
     def generate_local_ds(**kwargs):
-        return deeplake.dataset(local_path, **kwargs)
+        return deeplake.dataset(local_path, token=hub_cloud_dev_token, **kwargs)
 
     return generate_local_ds
 
