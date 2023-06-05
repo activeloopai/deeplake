@@ -147,20 +147,20 @@ def test_ingest_data():
                 "text": "a",
                 "id": np.int64(1),
                 "metadata": {"a": 1},
-                "embedding": np.zeros(100),
+                "embedding": np.zeros(100, dtype=np.float32),
             },
         ]
-        data = 20000 * data
-        extended_data[15364] = {
-            "text": np.zeros(32),
+        data = 25000 * data
+        data[15364] = {
+            "text": "a",
             "id": np.int64(4),
             "metadata": {"d": 4},
             "embedding": "abc",
         }
         ingest_data.run_data_ingestion(
             dataset=dataset,
-            elements=extended_data,
-            ingestion_batch_size=1024,
+            elements=data,
+            ingestion_batch_size=1000,
             num_workers=2,
         )
 

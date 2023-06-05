@@ -68,8 +68,7 @@ def test_custom_tensors(hub_cloud_dev_token):
 
 
 @requires_libdeeplake
-def test_search_basic():
-    hub_cloud_dev_token = "eyJhbGciOiJIUzUxMiIsImlhdCI6MTY4NTk1NzM2NSwiZXhwIjoxNzE3MjM0MTQwfQ.eyJpZCI6InRlc3RpbmdhY2MyIn0.Md49bQSHTiyud8v5jZW_0trN_w7PLC91__HU2WknzuAkaltLZ2ng72CUOKRgePNW0KXYpYfFaultXfM0mLn4Zg"
+def test_search_basic(hub_cloud_dev_token):
     """Test basic search features"""
     # Initialize vector store object and add data
     vector_store = DeepLakeVectorStore(
@@ -845,7 +844,7 @@ def test_parse_add_arguments():
                 "htype": "embedding",
             },
             {
-                "name": "text_1",
+                "name": "text",
                 "htype": "text",
             },
         ],
@@ -860,9 +859,114 @@ def test_parse_add_arguments():
         dataset=deeplake_vector_store.dataset,
         embedding_function=embedding_fn2,
         embedding_data=texts,
-        text_1=texts,
+        text=texts,
     )
 
     assert embedding_function is embedding_fn2
     assert embedding_tensors == "embedding_1"
     assert len(tensors) == 1
+
+    deeplake_vector_store = DeepLakeVectorStore(
+        path="mem://dummy",
+        overwrite=True,
+        embedding_function=embedding_fn,
+    )
+
+    (
+        embedding_function,
+        embedding_data,
+        embedding_tensor,
+        tensors,
+    ) = utils.parse_add_arguments(
+        dataset=deeplake_vector_store.dataset,
+        initial_embedding_function=embedding_fn,
+        text=texts,
+        id=ids,
+        metadata=metadatas,
+        embedding_data=texts,
+        embedding_tensor="embedding",
+    )
+    assert embedding_function is embedding_fn
+    assert embedding_tensor == "embedding"
+    assert embedding_data == texts
+    assert tensors == {
+        "id": ids,
+        "text": texts,
+        "metadata": metadatas,
+    }
+
+    with pytest.raises(ValueError):
+        (
+            embedding_function,
+            embedding_data,
+            embedding_tensor,
+            tensors,
+        ) = utils.parse_add_arguments(
+            dataset=deeplake_vector_store.dataset,
+            text=texts,
+            id=ids,
+            metadata=metadatas,
+            embedding_tensor="embedding",
+        )
+
+    with pytest.raises(ValueError):
+        (
+            embedding_function,
+            embedding_data,
+            embedding_tensor,
+            tensors,
+        ) = utils.parse_add_arguments(
+            dataset=deeplake_vector_store.dataset,
+            text=texts,
+            id=ids,
+            metadata=metadatas,
+            embedding_data=texts,
+        )
+
+    with pytest.raises(ValueError):
+        (
+            embedding_function,
+            embedding_data,
+            embedding_tensor,
+            tensors,
+        ) = utils.parse_add_arguments(
+            dataset=deeplake_vector_store.dataset,
+            text=texts,
+            id=ids,
+            metadata=metadatas,
+            embedding=embeddings,
+            new_tensor=texts,
+        )
+
+    with pytest.raises(ValueError):
+        dataset = deeplake.empty("local_ds", overwrite=True)
+        dataset.create_tensor("embedding_1", htype="embedding")
+        dataset.create_tensor("embedding_2", htype="embedding")
+        dataset.create_tensor("id", htype="text")
+        dataset.create_tensor("text", htype="text")
+        dataset.create_tensor("metadata", htype="json")
+
+        dataset.extend(
+            {
+                "embedding_1": embeddings,
+                "embedding_2": embeddings,
+                "id": ids,
+                "text": texts,
+                "metadata": metadatas,
+            }
+        )
+
+        (
+            embedding_function,
+            embedding_data,
+            embedding_tensor,
+            tensors,
+        ) = utils.parse_add_arguments(
+            dataset=dataset,
+            text=texts,
+            id=ids,
+            metadata=metadatas,
+            embedding_data=texts,
+            embedding_function=embedding_fn3,
+            embedding_2=embeddings,
+        )

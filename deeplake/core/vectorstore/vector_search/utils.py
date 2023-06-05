@@ -110,32 +110,14 @@ def parse_search_args(**kwargs):
             raise ValueError(
                 f"User-specified TQL queries are not support for exec_option={exec_option}."
             )
-        # if (
-        #     kwargs["embedding"] is None
-        #     and kwargs["embedding_function"] is None
-        #     and kwargs["filter"] is None
-        # ):
-        #     raise ValueError(
-        #         f"Either `embedding`, `embedding_function`, or `filter` must be specified for exec_option={exec_option}."
-        #     )
+
     else:
-        # if isinstance(type(kwargs["filter"]), Callable):
-        #     raise ValueError(
-        #         f"UDF filter functions are not supported with exec_option={exec_option}"
-        #     )
+
         if kwargs["query"] and kwargs["filter"]:
             raise ValueError(
                 f"`query` and `filter` parameters cannot be specified simultaneously."
             )
-        # if (
-        #     kwargs["embedding"] is None
-        #     and kwargs["embedding_function"] is None
-        #     and kwargs["query"] is None
-        #     and kwargs["filter"] is None
-        # ):
-        #     raise ValueError(
-        #         f"Either emebedding, embedding_function, filter, or query must be specified for exec_option={exec_option}."
-        #     )
+
         if kwargs["return_tensors"] and kwargs["query"]:
             raise ValueError(
                 f"return_tensors and query parameters cannot be specified simultaneously, becuase the data that is returned is directly specified in the query."
@@ -151,7 +133,6 @@ def parse_add_arguments(
     **tensors,
 ):
     """Parse the input argument to the Vector Store add function to infer whether they are a valid combination."""
-    # check_tensor_name_consistency(tensors, dataset.tensors, embedding_tensor)
 
     if embedding_function:
         if not embedding_data:
@@ -234,7 +215,7 @@ def find_embedding_tensor(embedding_tensor, tensor_args, dataset) -> str:
     if not embedding_tensor:
         embedding_tensors = find_embedding_tensors(dataset)
 
-        if len(embedding_tensors) > 2:
+        if len(embedding_tensors) >= 2:
             raise ValueError(
                 f"embedding_function is specified but multiple embedding tensors were found in the Vector Store, so it it not clear to which tensor the embeddings should be appended. Please specify the `embedding_tensor` parameter for storing the embeddings."
             )

@@ -28,7 +28,7 @@ def vector_search(
 ) -> Union[Dict, DeepLakeDataset]:
     runtime = utils.get_runtime_from_exec_option(exec_option)
 
-    if isinstance(filter, Callable):
+    if callable(filter):
         raise ValueError(
             f"UDF filter functions are not supported with the current `exec_option`={exec_option}. "
         )
