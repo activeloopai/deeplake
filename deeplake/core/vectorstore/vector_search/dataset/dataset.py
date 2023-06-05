@@ -17,7 +17,7 @@ from deeplake.core.vectorstore.vector_search import dataset as dataset_utils
 from deeplake.core.vectorstore.vector_search.ingestion import ingest_data
 from deeplake.constants import (
     DEFAULT_VECTORSTORE_DEEPLAKE_PATH,
-    VECTORSTORE_INGESTION_THRESHOLD,
+    VECTORSTORE_EXTEND_MAX_SIZE,
     DEFAULT_VECTORSTORE_TENSORS,
 )
 from deeplake.util.warnings import always_warn
@@ -316,7 +316,7 @@ def extend_or_ingest_dataset(
     logger,
 ):
     first_item = next(iter(processed_tensors))
-    if len(processed_tensors[first_item]) <= VECTORSTORE_INGESTION_THRESHOLD:
+    if len(processed_tensors[first_item]) <= VECTORSTORE_EXTEND_MAX_SIZE:
         if embedding_function:
             embedded_data = embedding_function(embedding_data)
             embedded_data = np.array(embedded_data, dtype=np.float32)

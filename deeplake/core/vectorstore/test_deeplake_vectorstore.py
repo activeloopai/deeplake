@@ -105,7 +105,7 @@ def test_search_basic(hub_cloud_dev_token):
     )  # One for each return_tensors
     assert len(data_p.keys()) == 3  # One for each return_tensors + score
 
-    # Loac a vector store object from the cloud for indra testing
+    # Load a vector store object from the cloud for indra testing
     vector_store_cloud = DeepLakeVectorStore(
         path="hub://testingacc2/vectorstore_test",
         read_only=True,
