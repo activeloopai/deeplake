@@ -1,10 +1,12 @@
 import numpy as np
 import requests
-from deeplake.visualizer.visualizer import visualizer
 from deeplake.tests.dataset_fixtures import *
+from deeplake.tests.common import requires_non_python11
+
 import deeplake as dp
 
 
+@requires_non_python11
 @pytest.mark.parametrize(
     "ds_generator",
     [
@@ -16,6 +18,8 @@ import deeplake as dp
     indirect=True,
 )
 def test_local_server(ds_generator):
+    from deeplake.visualizer.visualizer import visualizer
+
     ds = ds_generator()
     ds.create_tensor("images", htype="image", sample_compression="jpg")
     ds.images.append(np.random.randint(0, 255, size=(400, 400, 3), dtype="uint8"))

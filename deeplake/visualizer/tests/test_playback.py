@@ -1,16 +1,21 @@
 import deeplake
 from urllib.request import urlopen
 from deeplake.util.keys import get_chunk_key
-from deeplake.visualizer.video_streaming import _VideoStream
+
 import pytest
 import os
 import sys
 
+from deeplake.tests.common import requires_non_python11
 
+
+@requires_non_python11
 @pytest.mark.skipif(
     os.name == "nt" and sys.version_info < (3, 7), reason="requires python 3.7 or above"
 )
 def test_video_playback(local_ds_generator, video_paths):
+    from deeplake.visualizer.video_streaming import _VideoStream
+
     mp4_path = video_paths["mp4"][0]
     ds = local_ds_generator()
     ds.create_tensor("videos", htype="video", sample_compression="mp4")
@@ -27,6 +32,7 @@ def test_video_playback(local_ds_generator, video_paths):
     assert byte_stream == expected
 
 
+@requires_non_python11
 @pytest.mark.skipif(
     os.name == "nt" and sys.version_info < (3, 7), reason="requires python 3.7 or above"
 )
