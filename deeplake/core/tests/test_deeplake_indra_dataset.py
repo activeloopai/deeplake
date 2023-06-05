@@ -78,7 +78,7 @@ def test_save_view(local_ds_generator):
     )
 
 
-# @requires_libdeeplake
+@requires_libdeeplake
 def test_empty_token_exception(local_ds):
     from deeplake.enterprise.convert_to_libdeeplake import dataset_to_libdeeplake
 
