@@ -18,8 +18,7 @@ jobs:
     secrets:
       token: ${{ secrets.GITHUB_TOKEN }}
       aws_role_arn: ${{ secrets.AWS_ROLE_ARN }}
-      gcp_workload_identity_provider: ${{ secrets.GCP_WORKLOAD_IDENTITY_PROVIDER }}
-      gcp_sa: ${{ secrets.GCP_SERVICE_ACCOUNT }}
+      gcp_sa_credentials_json: ${{ secrets.GCP_SA_CREDENTIALS_JSON }}
       hub_username: ${{ secrets.ACTIVELOOP_HUB_USERNAME }}
       hub_password: ${{ secrets.ACTIVELOOP_HUB_PASSWORD }}
       kaggle_username: ${{ secrets.KAGGLE_USERNAME }}
