@@ -185,7 +185,7 @@ class DeepLakeVectorStore:
             **tensors: Keyword arguments where the key is the tensor name, and the value is a list of samples that should be uploaded to that tensor.
 
         Returns:
-            Optional[List[str]]: List of ids if `return_ids` is set to True. Otherwise, None.
+            Optional[List[str]]: List of ids if ``return_ids`` is set to True. Otherwise, None.
         """
 
         deeplake_reporter.feature_report(
