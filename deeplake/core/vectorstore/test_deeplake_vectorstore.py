@@ -25,21 +25,16 @@ query_embedding = np.random.uniform(low=-10, high=10, size=(EMBEDDING_DIM)).asty
 
 
 def embedding_fn(text, embedding_dim=EMBEDDING_DIM):
-    return np.zeros(
-        (
-            len(text),
-            embedding_dim,
-        )
-    ).astype(np.float32)
+    pass
 
 
 def embedding_fn2(text, embedding_dim=EMBEDDING_DIM):
-    return np.ones(
-        (
-            len(text),
-            embedding_dim,
-        )
-    ).astype(np.float32)
+    pass
+
+
+def embedding_fn3(text, embedding_dim=EMBEDDING_DIM):
+    """Returns embedding in List[np.ndarray] format"""
+    return [np.zeros(embedding_dim) for i in range(len(text))]
 
 
 def test_custom_tensors(hub_cloud_dev_token):
@@ -230,6 +225,20 @@ def test_search_basic(hub_cloud_dev_token):
             filter={"metadata": {"abc": 1}},
             return_view=True,
         )
+
+    vector_store = DeepLakeVectorStore(path="mem://xyz")
+    vector_store.add(embedding=embeddings, text=texts, metadata=metadatas)
+
+    data = vector_store.search(
+        exec_option="python",
+        embedding_function=embedding_fn3,
+        embedding_data=["dummy"],
+        return_view=True,
+        k=2,
+    )
+    assert len(data) == 2
+    assert isinstance(data.text[0].data()["value"], str)
+    assert data.embedding[0].numpy().size > 0
 
 
 @requires_libdeeplake
@@ -426,6 +435,60 @@ def test_ingestion(capsys):
         "metadata",
         "text",
     ]
+    assert list(vector_store.tensors()) == [
+        "embedding",
+        "id",
+        "metadata",
+        "text",
+    ]
+
+    vector_store.add(
+        embedding_function=embedding_fn3,
+        embedding_data=texts,
+        text=texts,
+        id=ids,
+        metadata=metadatas,
+    )
+    captured = capsys.readouterr()
+
+    output = (
+        "Dataset(path='./deeplake_vector_store', tensors=['embedding', 'id', 'metadata', 'text'])\n\n"
+        "  tensor      htype       shape      dtype  compression\n"
+        "  -------    -------     -------    -------  ------- \n"
+        " embedding  embedding  (2000, 100)  float32   None   \n"
+        "    id        text      (2000, 1)     str     None   \n"
+        " metadata     json      (2000, 1)     str     None   \n"
+        "   text       text      (2000, 1)     str     None   \n"
+    )
+    assert output in captured.out
+    assert len(vector_store) == 2 * number_of_data
+    assert list(vector_store.tensors()) == [
+        "embedding",
+        "id",
+        "metadata",
+        "text",
+    ]
+
+    vector_store.add(
+        embedding_function=embedding_fn3,
+        embedding_data=25 * texts,
+        text=25 * texts,
+        id=25 * ids,
+        metadata=25 * metadatas,
+    )
+    captured = capsys.readouterr()
+
+    output = (
+        "Dataset(path='./deeplake_vector_store', tensors=['embedding', 'id', 'metadata', 'text'])\n\n"
+        "  tensor      htype       shape       dtype  compression\n"
+        "  -------    -------     -------     -------  ------- \n"
+        " embedding  embedding  (27000, 100)  float32   None   \n"
+        "    id        text      (27000, 1)     str     None   \n"
+        " metadata     json      (27000, 1)     str     None   \n"
+        "   text       text      (27000, 1)     str     None   \n"
+    )
+    assert output in captured.out
+    assert len(vector_store) == 2 * number_of_data
     assert list(vector_store.tensors()) == [
         "embedding",
         "id",

@@ -88,7 +88,7 @@ class DeepLakeVectorStore:
             **kwargs (Any): Additional keyword arguments.
 
         Danger:
-            Setting `overwrite` to `True` will delete all of your data if the Vector Store exists! Be very careful when setting this parameter.
+            Setting ``overwrite`` to ``True`` will delete all of your data if the Vector Store exists! Be very careful when setting this parameter.
         """
         feature_report_path(
             path,

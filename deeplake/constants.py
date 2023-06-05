@@ -201,7 +201,6 @@ DEFAULT_VECTORSTORE_TENSORS = [
         "create_id_tensor": False,
         "create_sample_info_tensor": False,
         "create_shape_tensor": False,
-        "chunk_compression": "lz4",
     },
     {
         "name": "metadata",
@@ -209,7 +208,6 @@ DEFAULT_VECTORSTORE_TENSORS = [
         "create_id_tensor": False,
         "create_sample_info_tensor": False,
         "create_shape_tensor": False,
-        "chunk_compression": "lz4",
     },
     {
         "name": "embedding",
@@ -226,6 +224,5 @@ DEFAULT_VECTORSTORE_TENSORS = [
         "create_id_tensor": False,
         "create_sample_info_tensor": False,
         "create_shape_tensor": False,
-        "chunk_compression": "lz4",
     },
 ]

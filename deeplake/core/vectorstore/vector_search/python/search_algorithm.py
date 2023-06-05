@@ -37,6 +37,9 @@ def search(
         return deeplake_dataset[0:0], []
 
     else:
+        if len(query_embedding.shape) > 1:
+            query_embedding = query_embedding[0]
+
         # Calculate the distance between the query_vector and all data_vectors
         distances = distance_metric_map[distance_metric](query_embedding, embeddings)
         nearest_indices = np.argsort(distances)

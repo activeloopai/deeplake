@@ -110,13 +110,9 @@ def parse_search_args(**kwargs):
             raise ValueError(
                 f"User-specified TQL queries are not support for exec_option={exec_option}."
             )
-        if kwargs["query"] is not None:
-            raise ValueError(
-                f"`query` parameter for directly running TQL is invalid for exec_option={exec_option}."
-            )
         if (
             kwargs["embedding"] is None
-            and kwargs["embedding_function"]
+            and kwargs["embedding_function"] is None
             and kwargs["filter"] is None
         ):
             raise ValueError(
