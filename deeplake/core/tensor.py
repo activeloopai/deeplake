@@ -480,11 +480,29 @@ class Tensor:
         )
 
         if len(self.index.values) == 1 and not self.index.values[0].subscriptable():
-            if np.sum(shape) == 0 and self.meta.max_shape:  # type: ignore
+            if None not in shape and np.sum(shape) == 0 and self.meta.max_shape:  # type: ignore
                 shape = (0,) * len(self.meta.max_shape)
         if self.meta.max_shape == [0, 0, 0]:
             shape = ()
         return shape
+
+    def shapes(self):
+        """Get the shapes of all the samples in the tensor.
+
+        Returns:
+            np.ndarray: List of shapes of all the samples in the tensor.
+        """
+        sample_shape_tensor = self._sample_shape_tensor
+        sample_shape_provider = (
+            self._sample_shape_provider(sample_shape_tensor)
+            if sample_shape_tensor
+            else None
+        )
+        return self.chunk_engine.shapes(
+            self.index,
+            sample_shape_provider=sample_shape_provider,
+            pad_tensor=self.pad_tensor,
+        )
 
     @property
     def size(self) -> Optional[int]:

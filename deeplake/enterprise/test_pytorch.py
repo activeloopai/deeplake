@@ -66,7 +66,7 @@ def index_transform(sample):
 @requires_libdeeplake
 @pytest.mark.parametrize(
     "ds",
-    ["hub_cloud_ds", "hub_cloud_gcs_ds"],
+    ["hub_cloud_ds", "local_ds"],
     indirect=True,
 )
 def test_pytorch_small(ds):

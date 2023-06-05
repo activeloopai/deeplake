@@ -26,6 +26,7 @@ from deeplake.util.path import (
     convert_pathlib_to_string_if_needed,
     verify_dataset_name,
     process_dataset_path,
+    get_path_type,
 )
 from deeplake.hooks import (
     dataset_created,
@@ -172,7 +173,7 @@ class dataset:
             TokenPermissionError: When there are permission or other errors related to token
             CheckoutError: If version address specified in the path cannot be found
             DatasetCorruptError: If loading the dataset failed due to corruption and ``reset`` is not ``True``
-            ValueError: If version is specified in the path when creating a dataset
+            ValueError: If version is specified in the path when creating a dataset or If the org id is provided but dataset is ot local, or If the org id is provided but dataset is ot local
             ReadOnlyModeError: If reset is attempted in read-only mode
             LockedException: When attempting to open a dataset for writing when it is locked by another machine
             Exception: Re-raises caught exception if reset cannot fix the issue
@@ -191,6 +192,9 @@ class dataset:
 
         path, address = process_dataset_path(path)
         verify_dataset_name(path)
+
+        if org_id is not None and get_path_type(path) != "local":
+            raise ValueError("org_id parameter can only be used with local datasets")
 
         if creds is None:
             creds = {}
@@ -377,6 +381,10 @@ class dataset:
             Setting ``overwrite`` to ``True`` will delete all of your data if it exists! Be very careful when setting this parameter.
         """
         path, address = process_dataset_path(path)
+
+        if org_id is not None and get_path_type(path) != "local":
+            raise ValueError("org_id parameter can only be used with local datasets")
+
         db_engine = (runtime or {}).get("db_engine", False)
 
         if address:
@@ -523,6 +531,7 @@ class dataset:
             ReadOnlyModeError: If reset is attempted in read-only mode
             LockedException: When attempting to open a dataset for writing when it is locked by another machine
             Exception: Re-raises caught exception if reset cannot fix the issue
+            ValueError: If the org id is provided but the dataset is not local
 
         Warning:
             Setting ``access_method`` to download will overwrite the local copy of the dataset if it was previously downloaded.
@@ -537,6 +546,9 @@ class dataset:
 
         if creds is None:
             creds = {}
+
+        if org_id is not None and get_path_type(path) != "local":
+            raise ValueError("org_id parameter can only be used with local datasets")
 
         try:
             storage, cache_chain = get_storage_and_cache_chain(
@@ -831,11 +843,18 @@ class dataset:
 
         Returns:
             Dataset: New dataset object.
+
+        Raises:
+            ValueError: If the org id is provided but the dataset is not local
         """
         if isinstance(dest, Dataset):
             path = dest.path
         else:
             path = dest
+
+        if org_id is not None and get_path_type(path) != "local":
+            raise ValueError("org_id parameter can only be used with local datasets")
+
         feature_report_path(
             path,
             "like",

@@ -3,6 +3,7 @@ from deeplake.enterprise.util import raise_indra_installation_error  # type: ign
 from deeplake.core.storage import S3Provider
 from deeplake.core.storage.azure import AzureProvider
 from deeplake.util.remove_cache import get_base_storage
+from deeplake.util.exceptions import EmptyTokenException
 
 from deeplake.util.dataset import try_flushing  # type: ignore
 import importlib
@@ -196,6 +197,8 @@ def dataset_to_libdeeplake(hub2_dataset):
             org_id = hub2_dataset.org_id
             if token is None:
                 libdeeplake_dataset = api.dataset(path)
+            elif token == "":
+                raise EmptyTokenException
             else:
                 org_id = (
                     org_id
