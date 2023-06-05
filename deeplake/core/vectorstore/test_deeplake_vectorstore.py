@@ -647,7 +647,7 @@ def test_parse_add_arguments():
         ) = utils.parse_add_arguments(
             dataset=deeplake_vector_store.dataset,
             initial_embedding_function=embedding_fn,
-            embeding_tensor="embedding",
+            embedding_tensor="embedding",
             text=texts,
             id=ids,
             metadata=metadatas,

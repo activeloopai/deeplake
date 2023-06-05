@@ -189,24 +189,13 @@ def check_tensor_name_consistency(tensors, dataset_tensors, embedding_tensor):
     try:
         assert len(tensors) == expected_tensor_length
     except Exception:
-        if len(tensors) < expected_tensor_length:
-            missing_tensors = ""
-            for tensor in dataset_tensors:
-                if tensor not in tensors and tensor not in allowed_missing_tensors:
-                    missing_tensors += f"`{tensor}`, "
-            missing_tensors = missing_tensors[:-2]
+        missing_tensors = ""
+        for tensor in dataset_tensors:
+            if tensor not in tensors and tensor not in allowed_missing_tensors:
+                missing_tensors += f"`{tensor}`, "
+        missing_tensors = missing_tensors[:-2]
 
-            raise ValueError(f"{missing_tensors} tensor(s) is/are missing.")
-
-        additional_tensors = ""
-        for tensor in tensors:
-            if tensor not in dataset_tensors:
-                additional_tensors += f"`{tensor}`, "
-
-        additional_tensors = additional_tensors[:-2]
-        raise ValueError(
-            f"Following tensor(s) that was/were specified doesn't exist: {additional_tensors}. "
-        )
+        raise ValueError(f"{missing_tensors} tensor(s) is/are missing.")
 
 
 def find_embedding_tensor(embedding_tensor, tensor_args, dataset) -> str:
