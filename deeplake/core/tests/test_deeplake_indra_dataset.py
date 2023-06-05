@@ -1,7 +1,12 @@
 import deeplake
 import numpy as np
 from deeplake.tests.common import requires_libdeeplake
-from deeplake.util.exceptions import DynamicTensorNumpyError
+from deeplake.util.exceptions import (
+    DynamicTensorNumpyError,
+    EmptyTokenException,
+)
+
+
 from deeplake.core.dataset.deeplake_query_dataset import DeepLakeQueryDataset
 import random
 import pytest
@@ -71,6 +76,19 @@ def test_save_view(local_ds_generator):
         deeplake_indra_ds.base_storage["queries.json"]
         == deeplake_ds.base_storage["queries.json"]
     )
+
+
+# @requires_libdeeplake
+def test_empty_token_exception(local_ds):
+    from deeplake.enterprise.convert_to_libdeeplake import dataset_to_libdeeplake
+
+    with local_ds:
+        local_ds.create_tensor("label", htype="generic", dtype=np.int32)
+
+    loaded = deeplake.load(local_ds.path, token="")
+
+    with pytest.raises(EmptyTokenException):
+        dss = dataset_to_libdeeplake(loaded)
 
 
 @requires_libdeeplake

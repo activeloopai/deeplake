@@ -128,6 +128,11 @@ requires_libdeeplake = pytest.mark.skipif(
     reason="These tests require libdeeplake to be installed",
 )
 
+requires_non_python11 = pytest.mark.skipif(
+    sys.version_info[0] == 3 and sys.version_info[1] > 10,
+    reason="These tests require to run on all python vestions lover than 3.11",
+)
+
 
 class LinkTransformTestContext:
     def __init__(self, func: Callable, name: str):
