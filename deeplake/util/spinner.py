@@ -104,7 +104,6 @@ class Spinner(threading.Thread):
 
     def stop(self):
         self._stop_event.set()
-        self.join()
         self._clear_line()
         self._show_cursor()
 
