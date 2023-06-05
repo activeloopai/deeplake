@@ -306,6 +306,8 @@ class Pipeline:
                 index, sample = None, None
                 if isinstance(e, TransformError):
                     index, sample = e.index, e.sample
+                    if checkpointing_enabled and isinstance(index, int):
+                        index = samples_processed + index
                     e = e.__cause__  # type: ignore
                 if isinstance(e, AllSamplesSkippedError):
                     raise e
