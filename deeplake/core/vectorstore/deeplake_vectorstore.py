@@ -284,7 +284,7 @@ class DeepLakeVectorStore:
             ... )
 
         Args:
-            embedding (Union[np.ndarray, List[float]], optional): Embedding representation for performing the search. Defaults to None. The `embedding_data` and `embedding` cannot both be specified.
+            embedding (Union[np.ndarray, List[float]], optional): Embedding representation for performing the search. Defaults to None. The ``embedding_data`` and ``embedding`` cannot both be specified.
             embedding_data: Data against which the search will be performed by embedding it using the `embedding_function`. Defaults to None. The `embedding_data` and `embedding` cannot both be specified.
             embedding_function (callable, optional): function for converting `embedding_data` into embedding. Only valid if `embedding_data` is specified
             k (int): Number of elements to return after running query. Defaults to 4.
