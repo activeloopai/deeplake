@@ -78,15 +78,14 @@ def test_save_view(local_ds_generator):
     )
 
 
-@requires_libdeeplake
-def test_empty_token_exception(local_ds_generator):
+# @requires_libdeeplake
+def test_empty_token_exception(local_ds):
     from deeplake.enterprise.convert_to_libdeeplake import dataset_to_libdeeplake
 
-    deeplake_ds = local_ds_generator()
-    with deeplake_ds:
-        deeplake_ds.create_tensor("label", htype="generic", dtype=np.int32)
+    with local_ds:
+        local_ds.create_tensor("label", htype="generic", dtype=np.int32)
 
-    loaded = deeplake.load(deeplake_ds.path, token="")
+    loaded = deeplake.load(local_ds.path, token="")
 
     with pytest.raises(EmptyTokenException):
         dss = dataset_to_libdeeplake(loaded)
