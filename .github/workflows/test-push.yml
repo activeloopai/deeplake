@@ -4,6 +4,10 @@ on:
     branches:
       - '**'
 
+permissions:
+  id-token: write
+  contents: read
+
 jobs:
   cancel-previous:
     name: Cancel Previous
@@ -15,17 +19,16 @@ jobs:
           all_but_latest: true
   full-test:
     name: Full Test
-    uses: activeloopai/shared-github-actions/.github/workflows/full_test.yml@tmp-self-hosted
+    uses: activeloopai/shared-github-actions/.github/workflows/full_test.yml@auth-rbac
     if: github.repository == 'activeloopai/deeplake'
     with:
       repo: ${{ github.repository }}
       ref: ${{ github.sha }}
     secrets:
       token: ${{ secrets.GITHUB_TOKEN }}
-      aws_key_id: ${{ secrets.AWS_ACCESS_KEY_ID }}
-      aws_secret_access_key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
-      gcp_project_id: ${{ secrets.GCP_PROJECT_ID }}
-      gcp_sa_key: ${{ secrets.GCP_SA_KEY }}
+      aws_role_arn: ${{ secrets.AWS_ROLE_ARN }}
+      gcp_workload_identity_provider: ${{ secrets.GCP_WORKLOAD_IDENTITY_PROVIDER }}
+      gcp_sa: ${{ secrets.GCP_SERVICE_ACCOUNT }}
       hub_username: ${{ secrets.ACTIVELOOP_HUB_USERNAME }}
       hub_password: ${{ secrets.ACTIVELOOP_HUB_PASSWORD }}
       kaggle_username: ${{ secrets.KAGGLE_USERNAME }}
@@ -33,4 +36,3 @@ jobs:
       oauth_client_id: ${{ secrets.GDRIVE_CLIENT_ID }}
       oauth_client_secret: ${{ secrets.GDRIVE_CLIENT_SECRET }}
       oauth_refresh_token: ${{ secrets.GDRIVE_REFRESH_TOKEN }}
-
