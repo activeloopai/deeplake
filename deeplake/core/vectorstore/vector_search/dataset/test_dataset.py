@@ -132,6 +132,36 @@ def test_load(caplog, hub_cloud_dev_token):
             overwrite=False,
         )
 
+    with pytest.raises(ValueError):
+        # embedding tensor doesn't exist
+        dataset = deeplake.empty("local_ds", overwrite=True)
+        dataset.create_tensor("id", htype="text")
+
+        DeepLakeVectorStore(path="local_ds")
+
+    with pytest.raises(ValueError):
+        # id/ids tensor doesn't exist
+        dataset = deeplake.empty("local_ds", overwrite=True)
+        dataset.create_tensor("embedding", htype="embedding")
+
+        DeepLakeVectorStore(path="local_ds")
+
+    with pytest.raises(ValueError):
+        # incorrect embedding name
+        dataset = deeplake.empty("local_ds", overwrite=True)
+        dataset.create_tensor("id", htype="embedding")
+        dataset.create_tensor("ids", htype="text")
+
+        DeepLakeVectorStore(path="local_ds")
+
+    with pytest.raises(ValueError):
+        # incorrect htype for tensor called `embedding`
+        dataset = deeplake.empty("local_ds", overwrite=True)
+        dataset.create_tensor("embedding", htype="text")
+        dataset.create_tensor("ids", htype="text")
+
+        DeepLakeVectorStore(path="local_ds")
+
 
 def test_delete_and_commit():
     dataset = deeplake.empty("./test-dataset", overwrite=True)

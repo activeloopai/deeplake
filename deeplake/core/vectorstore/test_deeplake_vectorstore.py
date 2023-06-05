@@ -72,7 +72,6 @@ def test_custom_tensors(hub_cloud_dev_token):
     assert "texts_custom" in data.keys() and "id" in data.keys()
 
 
-@pytest.mark.skip(reason="need to update backend")
 @requires_libdeeplake
 def test_search_basic(hub_cloud_dev_token):
     """Test basic search features"""
@@ -95,7 +94,7 @@ def test_search_basic(hub_cloud_dev_token):
         embedding=query_embedding,
         exec_option="python",
         k=2,
-        return_tensors=["ids", "text"],
+        return_tensors=["id", "text"],
         filter={"metadata": {"abc": 1}},
     )
 
@@ -134,43 +133,49 @@ def test_search_basic(hub_cloud_dev_token):
     assert len(data_q["text"]) == 1
     assert data_q["text"][0] == test_text
     assert sum(
-        [tensor in data_q.keys() for tensor in vector_store.dataset.tensors]
+        [tensor in data_q.keys() for tensor in vector_store_cloud.dataset.tensors]
     ) == len(
-        vector_store.dataset.tensors
+        vector_store_cloud.dataset.tensors
     )  # One for each tensor - embedding + score
+
+    with pytest.raises(ValueError):
+        # Check returning views
+        data_p_v = vector_store.search(
+            embedding=query_embedding,
+            exec_option="python",
+            k=2,
+            filter={"metadata": {"abcefg": 28}},
+            return_view=True,
+        )
 
     # Run a filter query using a json
     data_e_j = vector_store.search(
-        embedding_data="dummy",
-        embedding_function=embedding_fn,
         exec_option="python",
         k=2,
-        return_tensors=["ids", "text"],
+        return_tensors=["id", "text"],
         filter={"metadata": {"abc": 1}},
     )
     assert len(data_e_j["text"]) == 1
     assert (
         sum([tensor in data_e_j.keys() for tensor in vector_store.dataset.tensors]) == 2
     )  # One for each return_tensors
-    assert len(data_e_j.keys()) == 3  # One for each return_tensors + score
+    assert len(data_e_j.keys()) == 2
 
     # Run the same filter as above using a function
     def filter_fn(x):
         return x["metadata"].data()["value"]["abc"] == 1
 
     data_e_f = vector_store.search(
-        embedding_data="dummy",
-        embedding_function=embedding_fn,
         exec_option="python",
         k=2,
-        return_tensors=["ids", "text"],
+        return_tensors=["id", "text"],
         filter=filter_fn,
     )
     assert len(data_e_f["text"]) == 1
     assert (
         sum([tensor in data_e_f.keys() for tensor in vector_store.dataset.tensors]) == 2
     )  # One for each return_tensors
-    assert len(data_e_f.keys()) == 3  # One for each return_tensors + score
+    assert len(data_e_f.keys()) == 2
 
     # Check returning views
     data_p_v = vector_store.search(
@@ -213,6 +218,17 @@ def test_search_basic(hub_cloud_dev_token):
     with pytest.raises(ValueError):
         vector_store.search(
             embedding_function=embedding_fn,
+        )
+
+    with pytest.raises(ValueError):
+        vector_store = DeepLakeVectorStore(path="mem://xyz")
+
+        vector_store.search(
+            embedding=query_embedding,
+            exec_option="python",
+            k=2,
+            filter={"metadata": {"abc": 1}},
+            return_view=True,
         )
 
 
@@ -296,15 +312,30 @@ def test_search_managed(hub_cloud_dev_token):
     assert data_ce["ids"] == data_db["ids"]
 
 
-def test_delete():
+def test_delete(capsys):
     # initialize vector store object:
     vector_store = DeepLakeVectorStore(
         path="./deeplake_vector_store",
         overwrite=True,
+        verbose=False,
     )
 
     # add data to the dataset:
     vector_store.add(id=ids, embedding=embeddings, text=texts, metadata=metadatas)
+
+    output = (
+        "Dataset(path='./deeplake_vector_store', tensors=['embedding', 'id', 'metadata', 'text'])\n\n"
+        "  tensor      htype      shape     dtype  compression\n"
+        "  -------    -------    -------   -------  ------- \n"
+        " embedding  embedding  (10, 100)  float32   None   \n"
+        "    id        text      (10, 1)     str     None   \n"
+        " metadata     json      (10, 1)     str     None   \n"
+        "   text       text      (10, 1)     str     None   \n"
+    )
+
+    vector_store.summary()
+    captured = capsys.readouterr()
+    assert output in captured.out
 
     # delete the data in the dataset by id:
     vector_store.delete(row_ids=[4, 8, 9])
@@ -389,7 +420,13 @@ def test_ingestion(capsys):
     assert output in captured.out
 
     assert len(vector_store) == number_of_data
-    assert list(vector_store.dataset.tensors.keys()) == [
+    assert list(vector_store.dataset.tensors) == [
+        "embedding",
+        "id",
+        "metadata",
+        "text",
+    ]
+    assert list(vector_store.tensors()) == [
         "embedding",
         "id",
         "metadata",

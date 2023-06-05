@@ -114,7 +114,7 @@ class DataIngestion:
             )
 
             index = int(self.total_samples_processed / self.ingestion_batch_size)
-            if isinstance(e, TransformError):
+            if isinstance(e, TransformError) and e.index is not None:
                 index += e.index
 
             if self.retry_attempt > MAX_VECTORSTORE_INGESTION_RETRY_ATTEMPTS:

@@ -25,6 +25,8 @@ def dp_filter_python(x: dict, filter: Dict) -> bool:
 def attribute_based_filtering_python(
     view, filter: Optional[Union[Dict, Callable]] = None
 ):
+    if len(view) == 0:
+        raise ValueError("specified dataset is empty")
     if filter is not None:
         if isinstance(filter, dict):
             filter = partial(dp_filter_python, filter=filter)

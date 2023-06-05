@@ -113,18 +113,30 @@ def check_tensors(dataset):
     ids_exist = False
 
     for tensor in tensors:
+        htype = dataset[tensor].htype
+
         if tensor in ("id", "ids"):
             ids_exist = True
 
         if tensor in ("embedding", "embeddings"):
             embedding_htype_exist = True
 
-        htype = dataset[tensor].htype
+            if htype not in (None, "embedding"):
+                raise ValueError(
+                    f"`{htype}` is not supported htype for embedding tensor. "
+                    "Supported htype for embedding tensor is: `embedding`"
+                )
+
         if htype == "embedding":
+            if tensor in ("id", "ids"):
+                raise ValueError(
+                    f"`{tensor}` is not valid name for embedding tensor, as the name is preserved for another tensor"
+                )
+
             embedding_htype_exist = True
 
     if not embedding_htype_exist:
-        raise ValueError("At least one mbedding tensor should exist.")
+        raise ValueError("At least one embedding tensor should exist.")
 
     if not ids_exist:
         raise ValueError("`id` tensor was not found in the dataset.")

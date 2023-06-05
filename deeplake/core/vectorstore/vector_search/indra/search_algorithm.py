@@ -18,7 +18,7 @@ def search(
     return_tensors: List[str],
     return_view: bool = False,
 ) -> Union[Dict, DeepLakeDataset]:
-    """Generalized searching algorithm that uses indra. It combines vector search and other TQL queries.
+    """Generalized search algorithm that uses indra. It combines vector search and other TQL queries.
 
     Args:
         query_embedding (Optional[Union[List[float], np.ndarray): embedding representation of the query.

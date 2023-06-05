@@ -30,6 +30,11 @@ def vector_search(
 
     # Only fetch embeddings and run the search algorithm if an embedding query is specified
     if query_emb is not None:
+        if len(view) == 0:
+            raise ValueError(
+                "After attribute based filtering, ramaing dataset is empty."
+            )
+
         embeddings = dataset_utils.fetch_embeddings(
             view=view,
             embedding_tensor=embedding_tensor,
