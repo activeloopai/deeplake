@@ -261,7 +261,7 @@ def preprocess_tensors(
 def create_elements(
     processed_tensors: Dict[str, List[Any]],
 ):
-    tensor_names = list(processed_tensors.keys())
+    tensor_names = list(processed_tensors)
     elements = [
         {tensor_name: processed_tensors[tensor_name][i] for tensor_name in tensor_names}
         for i in range(len(processed_tensors[tensor_names[0]]))

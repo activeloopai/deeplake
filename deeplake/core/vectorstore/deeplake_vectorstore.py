@@ -73,7 +73,7 @@ class DeepLakeVectorStore:
                 - an s3 path of the form ``s3://bucketname/path/to/dataset``. Credentials are required in either the environment or passed to the creds argument.
                 - a local file system path of the form ``./path/to/dataset`` or ``~/path/to/dataset`` or ``path/to/dataset``.
                 - a memory path of the form ``mem://path/to/dataset`` which doesn't save the dataset but keeps it in memory instead. Should be used only for testing as it does not persist.
-            tensor_params (List[Dict[str, dict]], optional): List of dictionaries that contains information about tensors that user wants to create. See `create_tensor` in Deep Lake API docs for more information. Defaults to `DEFAULT_VECTORSTORE_TENSORS`.
+            tensor_params (List[Dict[str, dict]], optional): List of dictionaries that contains information about tensors that user wants to create. See ``create_tensor`` in Deep Lake API docs for more information. Defaults to ``DEFAULT_VECTORSTORE_TENSORS``.
             embedding_function (Optional[callable], optional): Function that converts the embeddable data into embeddings. Defaults to None.
             read_only (bool, optional):  Opens dataset in read-only mode if True. Defaults to False.
             ingestion_batch_size (int): Batch size used during ingestion. Defaults to 1024.
@@ -177,7 +177,7 @@ class DeepLakeVectorStore:
             >>> )
 
         Args:
-            embedding_function (Optional[Callable]): embedding function used to convert `embedding_data` into embeddings. Overrides the `embedding_function` specified when initializing the Vector Store.
+            embedding_function (Optional[Callable]): embedding function used to convert ``embedding_data`` into embeddings. Overrides the ``embedding_function`` specified when initializing the Vector Store.
             embedding_data (Optional[List]): Data to be converted into embeddings using the provided `embedding_function`. Defaults to None.
             embedding_tensor (Optional[str]): Tensor where results from the embedding function will be stored. If None, the embedding tensors is automatically inferred (when possible). Defaults to None.
             total_samples_processed (int): Total number of samples processed before ingestion stopped. When specified.
@@ -376,7 +376,7 @@ class DeepLakeVectorStore:
         exec_option: Optional[str] = "python",
         delete_all: Optional[bool] = None,
     ) -> bool:
-        """Delete the data in the Vector Store. Does not delete the tensor definitions. To delete the vector store completely, first run `DeepLakeVectorStore.delete_by_path()`.
+        """Delete the data in the Vector Store. Does not delete the tensor definitions. To delete the vector store completely, first run ``DeepLakeVectorStore.delete_by_path()``.
 
         Examples:
             >>> # Delete using ids:

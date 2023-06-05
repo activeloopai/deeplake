@@ -27,7 +27,7 @@ def run_data_ingestion(
             names of 4 tensors (i.e. "embedding", "metadata", "ids", "text") to their corresponding values.
         dataset (DeepLakeDataset): deeplake dataset object.
         embedding_function (Optional[Callable]): function used to convert query into an embedding.
-        embedding_tensor (Optional[str]) : tensor name where embedded data will be stored. Default to None.
+        embedding_tensor (Optional[str]) : tensor name where embedded data will be stored. Defaults to None.
         ingestion_batch_size (int): The batch size to use during ingestion.
         num_workers (int): The number of workers to use for ingesting data in parallel.
         retry_attempt (int): The number of retry attempts already passed.

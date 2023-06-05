@@ -2106,10 +2106,10 @@ class Dataset:
         Args:
             query_string (str): An SQL string adjusted with new functionalities to run on the given :class:`~deeplake.core.dataset.Dataset` object
             runtime (Optional[Dict]): Runtime parameters for query execution. Supported keys: {"tensor_db": True or False}.
-            return_data (bool): by default False. Whether to return raw data along the view.
+            return_data (bool): Defaults to ``False``. Whether to return raw data along the view.
 
         Raises:
-            ValueError: if return_data is True and runtime is not {"tensor_db": true}
+            ValueError: if ``return_data`` is True and runtime is not {"tensor_db": true}
 
         Returns:
             Dataset: A :class:`~deeplake.core.dataset.Dataset` object.
