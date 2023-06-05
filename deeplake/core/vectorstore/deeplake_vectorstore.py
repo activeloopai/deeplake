@@ -42,7 +42,7 @@ class DeepLakeVectorStore:
         verbose=True,
         **kwargs: Any,
     ) -> None:
-        """Creates an empty DeepLakeVectorStore or loads an existing one if it exists at the specified `path`.
+        """Creates an empty DeepLakeVectorStore or loads an existing one if it exists at the specified ``path``.
 
         Examples:
             >>> # Create a vector store with default tensors
@@ -88,7 +88,7 @@ class DeepLakeVectorStore:
             **kwargs (Any): Additional keyword arguments.
 
         Danger:
-            Setting `overwrite` to `True` will delete all of your data if the Vector Store exists! Be very careful when setting this parameter.
+            Setting ``overwrite`` to ``True`` will delete all of your data if the Vector Store exists! Be very careful when setting this parameter.
         """
         feature_report_path(
             path,
@@ -473,13 +473,13 @@ class DeepLakeVectorStore:
         deeplake.delete(path, large_ok=True, token=token, force=True)
 
     def tensors(self):
-        """returns list of tensors in the dataset"""
+        """Returns the list of tensors present in the dataset"""
         return self.dataset.tensors
 
     def summary(self):
-        """prints summary of the dataset"""
+        """Prints a summary of the dataset"""
         return self.dataset.summary()
 
     def __len__(self):
-        """length of the dataset"""
+        """Length of the dataset"""
         return len(self.dataset)
