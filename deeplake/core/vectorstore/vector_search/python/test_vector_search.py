@@ -15,36 +15,35 @@ def test_vector_search():
     query_embedding = np.zeros((10), dtype=np.float32)
 
     data = vector_search.vector_search(
-        None,
-        query_embedding,
-        "python",
-        ds,
-        None,
-        None,
-        "embedding",
-        "l2",
-        10,
-        [],
-        False,
+        query=None,
+        query_emb=query_embedding,
+        exec_option="python",
+        dataset=ds,
+        logger=None,
+        filter=None,
+        embedding_tensor="embedding",
+        distance_metric="l2",
+        k=10,
+        return_tensors=[],
+        return_view=False,
     )
 
     assert len(data["score"]) == 10
 
-    data = vector_search.vector_search(
-        None,
-        query_embedding,
-        "python",
-        ds[0:0],
-        None,
-        None,
-        "embedding",
-        "l2",
-        10,
-        [],
-        False,
-    )
-
-    assert len(data["score"]) == 0
+    with pytest.raises(ValueError):
+        data = vector_search.vector_search(
+            query=None,
+            query_emb=query_embedding,
+            exec_option="python",
+            dataset=ds[0:0],
+            logger=None,
+            filter=None,
+            embedding_tensor="embedding",
+            distance_metric="l2",
+            k=10,
+            return_tensors=[],
+            return_view=False,
+        )
 
     data = vector_search.vector_search(
         None, query_embedding, "python", ds, None, None, "embedding", "l2", 10, [], True
