@@ -55,7 +55,7 @@ def merge_link_creds(
 def save_link_creds(
     current_link_creds: LinkCreds,
     storage: LRUCache,
-    replaced_indices: Optional[int] = None,
+    replaced_indices: Optional[List[int]] = None,
     managed_info: Optional[Tuple] = None,
 ):
     """Saves the linked creds info to storage."""
