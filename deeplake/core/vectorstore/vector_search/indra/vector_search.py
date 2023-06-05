@@ -1,12 +1,12 @@
-from typing import Dict, Union
+from typing import Dict, Union, Callable
 from deeplake.core.dataset import Dataset as DeepLakeDataset
 
 try:
     from indra import api  # type: ignore
 
-    _INDRA_INSTALLED = True
-except ImportError:
-    _INDRA_INSTALLED = False
+    _INDRA_INSTALLED = True  # pragma: no cover
+except ImportError:  # pragma: no cover
+    _INDRA_INSTALLED = False  # pragma: no cover
 
 from deeplake.core.vectorstore.vector_search import utils
 from deeplake.core.vectorstore.vector_search import filter as filter_utils
@@ -28,19 +28,17 @@ def vector_search(
 ) -> Union[Dict, DeepLakeDataset]:
     runtime = utils.get_runtime_from_exec_option(exec_option)
 
-    if callable(filter):
-        raise NotImplementedError(
-            f"UDF filter function are not supported with exec_option={exec_option}"
-        )
-    if query and filter:
-        raise NotImplementedError(
-            f"query and filter parameters cannot be specified simultaneously."
+    if isinstance(filter, Callable):
+        raise ValueError(
+            f"UDF filter functions are not supported with the current `exec_option`={exec_option}. "
         )
 
     utils.check_indra_installation(exec_option, indra_installed=_INDRA_INSTALLED)
 
     view, tql_filter = filter_utils.attribute_based_filtering_tql(
-        dataset, logger, filter
+        view=dataset,
+        filter=filter,
+        logger=logger,
     )
 
     return vectorstore.indra_search_algorithm(

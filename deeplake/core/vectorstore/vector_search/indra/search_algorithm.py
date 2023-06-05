@@ -40,11 +40,6 @@ def search(
     """
     from indra import api  # type: ignore
 
-    if tql_string and tql_filter:
-        raise ValueError(
-            f"tql_string and tql_filter parameters cannot be specified simultaneously."
-        )
-
     if tql_string:
         tql_query = tql_string
     else:

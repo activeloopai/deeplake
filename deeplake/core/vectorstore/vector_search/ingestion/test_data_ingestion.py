@@ -141,6 +141,29 @@ def test_ingest_data():
             embedding_tensor="embedding",
         )
 
+    with pytest.raises(FailedIngestionError):
+        data = [
+            {
+                "text": "a",
+                "id": np.int64(1),
+                "metadata": {"a": 1},
+                "embedding": np.zeros(100),
+            },
+        ]
+        data = 20000 * data
+        extended_data[15364] = {
+            "text": np.zeros(32),
+            "id": np.int64(4),
+            "metadata": {"d": 4},
+            "embedding": "abc",
+        }
+        ingest_data.run_data_ingestion(
+            dataset=dataset,
+            elements=extended_data,
+            ingestion_batch_size=1024,
+            num_workers=2,
+        )
+
     extended_data = extended_data * 10
     with pytest.raises(FailedIngestionError):
         ingest_data.run_data_ingestion(

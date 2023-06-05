@@ -25,11 +25,11 @@ query_embedding = np.random.uniform(low=-10, high=10, size=(EMBEDDING_DIM)).asty
 
 
 def embedding_fn(text, embedding_dim=EMBEDDING_DIM):
-    pass
+    pass  # pragma: no cover
 
 
 def embedding_fn2(text, embedding_dim=EMBEDDING_DIM):
-    pass
+    pass  # pragma: no cover
 
 
 def embedding_fn3(text, embedding_dim=EMBEDDING_DIM):
@@ -68,7 +68,8 @@ def test_custom_tensors(hub_cloud_dev_token):
 
 
 @requires_libdeeplake
-def test_search_basic(hub_cloud_dev_token):
+def test_search_basic():
+    hub_cloud_dev_token = "eyJhbGciOiJIUzUxMiIsImlhdCI6MTY4NTk1NzM2NSwiZXhwIjoxNzE3MjM0MTQwfQ.eyJpZCI6InRlc3RpbmdhY2MyIn0.Md49bQSHTiyud8v5jZW_0trN_w7PLC91__HU2WknzuAkaltLZ2ng72CUOKRgePNW0KXYpYfFaultXfM0mLn4Zg"
     """Test basic search features"""
     # Initialize vector store object and add data
     vector_store = DeepLakeVectorStore(
@@ -132,16 +133,6 @@ def test_search_basic(hub_cloud_dev_token):
     ) == len(
         vector_store_cloud.dataset.tensors
     )  # One for each tensor - embedding + score
-
-    with pytest.raises(ValueError):
-        # Check returning views
-        data_p_v = vector_store.search(
-            embedding=query_embedding,
-            exec_option="python",
-            k=2,
-            filter={"metadata": {"abcefg": 28}},
-            return_view=True,
-        )
 
     # Run a filter query using a json
     data_e_j = vector_store.search(
@@ -240,6 +231,41 @@ def test_search_basic(hub_cloud_dev_token):
     assert isinstance(data.text[0].data()["value"], str)
     assert data.embedding[0].numpy().size > 0
 
+    data = vector_store.search(
+        exec_option="python",
+        filter={"metadata": {"abcdefh": 1}},
+        embedding=None,
+        return_view=True,
+        k=2,
+    )
+    assert len(data) == 0
+
+    data = vector_store.search(
+        exec_option="python",
+        filter={"metadata": {"abcdefh": 1}},
+        embedding=query_embedding,
+        k=2,
+    )
+    assert len(data) == 4
+    assert len(data["id"]) == 0
+    assert len(data["metadata"]) == 0
+    assert len(data["text"]) == 0
+    assert len(data["score"]) == 0
+
+    with pytest.raises(ValueError):
+        data = vector_store.search(
+            exec_option="compute_engine",
+            filter=filter_fn,
+            k=2,
+        )
+
+    with pytest.raises(ValueError):
+        data = vector_store.search(
+            exec_option="compute_engine",
+            query="select * where metadata == {'abcdefg': 28}",
+            return_tensors=["metadata", "id"],
+        )
+
 
 @requires_libdeeplake
 @pytest.mark.parametrize("distance_metric", ["L1", "L2", "COS", "MAX"])
@@ -281,6 +307,25 @@ def test_search_quantitative(distance_metric, hub_cloud_dev_token):
     assert data_p["text"] == data_ce["text"]
     assert data_p["ids"] == data_ce["ids"]
     assert data_p["metadata"] == data_ce["metadata"]
+
+    # use indra implementation to search the data
+    data_ce = vector_store.search(
+        embedding=None,
+        exec_option="compute_engine",
+        distance_metric=distance_metric,
+        filter={"metadata": {"abcdefg": 28}},
+    )
+
+    assert data_ce["ids"] == "0"
+
+    with pytest.raises(ValueError):
+        # use indra implementation to search the data
+        data_ce = vector_store.search(
+            query="select * where metadata == {'abcdefg': 28}",
+            exec_option="compute_engine",
+            distance_metric=distance_metric,
+            filter={"metadata": {"abcdefg": 28}},
+        )
 
 
 @requires_libdeeplake
@@ -390,6 +435,25 @@ def test_delete(capsys):
     vector_store.delete(row_ids=[0])
     assert len(vector_store.dataset) == NUMBER_OF_DATA - 1
 
+    ds = deeplake.empty("local_ds", overwrite=True)
+    ds.create_tensor("ids", htype="text")
+    ds.create_tensor("embedding", htype="embedding")
+    ds.extend(
+        {
+            "ids": ids,
+            "embedding": embeddings,
+        }
+    )
+
+    vector_store = DeepLakeVectorStore(
+        path="local_ds",
+    )
+    vector_store.delete(ids=ids[:3])
+    assert len(vector_store) == NUMBER_OF_DATA - 3
+
+    with pytest.raises(ValueError):
+        vector_store.delete(ids=ids[5:7], exec_option="remote_tensor_db")
+
 
 def test_ingestion(capsys):
     # create data
@@ -412,6 +476,16 @@ def test_ingestion(capsys):
             text=texts[: number_of_data - 2],
             id=ids,
             metadata=metadatas,
+        )
+
+    with pytest.raises(Exception):
+        # add data to the dataset:
+        vector_store.add(
+            embedding=embeddings,
+            text=texts[: number_of_data - 2],
+            id=ids,
+            metadata=metadatas,
+            something=texts[: number_of_data - 2],
         )
 
     vector_store.add(embedding=embeddings, text=texts, id=ids, metadata=metadatas)
@@ -488,7 +562,7 @@ def test_ingestion(capsys):
         "   text       text      (27000, 1)     str     None   \n"
     )
     assert output in captured.out
-    assert len(vector_store) == 2 * number_of_data
+    assert len(vector_store) == 27000
     assert list(vector_store.tensors()) == [
         "embedding",
         "id",

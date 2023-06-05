@@ -20,8 +20,8 @@ class Embedding:
     model = "random_model"
     deployment = "deployment"
 
-    def embed_documents(text, embedding_dim=100):
-        return np.zeros((len(text), embedding_dim))
+    def embed_query(text, embedding_dim=100):
+        return [0 for i in range(embedding_dim)]  # pragma: no cover
 
 
 @requires_libdeeplake
@@ -202,34 +202,47 @@ def test_fetch_embeddings():
     assert len(embedings) == 9
 
 
-def embeding_data():
-    def embedding_function(arr):
-        return np.array([0.5, 0.6, 4, 3, 5], dtype=np.float64)
-
+def test_embeding_data():
     query = "tql query"
     with pytest.raises(Exception):
         embedding = dataset_utils.get_embedding(
             embedding=None, query=query, embedding_function=None
         )
 
-    embedding_func = embedding_function
     embedding = dataset_utils.get_embedding(
-        embedding=None, prompt=query, embedding_function=embedding_func
+        embedding=None,
+        embedding_function=Embedding.embed_query,
+        embedding_data=[query],
     )
     assert embedding.dtype == np.float32
-    assert len(embedding) == 5
+    assert len(embedding) == 100
 
     embedding_vector = np.zeros((1, 1538))
     embedding = dataset_utils.get_embedding(
-        embedding=embedding_vector, prompt=query, embedding_function=None
+        embedding=embedding_vector,
+        embedding_function=None,
+        embedding_data=[query],
     )
     assert embedding.dtype == np.float32
     assert embedding.shape == (1, 1538)
 
-    with pytest.warns(UserWarning):
-        embedding = dataset_utils.get_embedding(
-            embedding=embedding_vector, prompt=query, embedding_function=embedding_func
-        )
+    embedding_vector = np.zeros((1, 1538))
+    embedding = dataset_utils.get_embedding(
+        embedding=embedding_vector,
+        embedding_function=None,
+        embedding_data=[query],
+    )
+    assert embedding.dtype == np.float32
+    assert embedding.shape == (1, 1538)
+
+    embedding_vector = np.zeros((1, 1538))
+    embedding = dataset_utils.get_embedding(
+        embedding=embedding_vector,
+        embedding_function=Embedding.embed_query,
+        embedding_data=[query],
+    )
+    assert embedding.dtype == np.float32
+    assert embedding.shape == (1, 1538)
 
 
 def test_preprocess_tensors():
