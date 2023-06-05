@@ -346,7 +346,7 @@ class dataset:
         """Creates an empty dataset
 
         Args:
-            path (str, pathlib.Path): - The full path for storing to the Deep Lake dataset. It can be:
+            path (str, pathlib.Path): - The full path to the dataset. It can be:
                 - a Deep Lake cloud path of the form ``hub://org_id/dataset_name``. Requires registration with Deep Lake.
                 - an s3 path of the form ``s3://bucketname/path/to/dataset``. Credentials are required in either the environment or passed to the creds argument.
                 - a local file system path of the form ``./path/to/dataset`` or ``~/path/to/dataset`` or ``path/to/dataset``.
