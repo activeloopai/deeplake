@@ -531,7 +531,7 @@ class dataset:
             ReadOnlyModeError: If reset is attempted in read-only mode
             LockedException: When attempting to open a dataset for writing when it is locked by another machine
             Exception: Re-raises caught exception if reset cannot fix the issue
-            ValueError: If the org id is provided but dataset is ot local
+            ValueError: If the org id is provided but the dataset is not local
 
         Warning:
             Setting ``access_method`` to download will overwrite the local copy of the dataset if it was previously downloaded.
@@ -845,7 +845,7 @@ class dataset:
             Dataset: New dataset object.
 
         Raises:
-             ValueError: If the org id is provided but dataset is ot local
+            ValueError: If the org id is provided but the dataset is not local
         """
         if isinstance(dest, Dataset):
             path = dest.path
