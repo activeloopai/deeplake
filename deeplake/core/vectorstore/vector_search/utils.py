@@ -112,7 +112,6 @@ def parse_search_args(**kwargs):
             )
 
     else:
-
         if kwargs["query"] and kwargs["filter"]:
             raise ValueError(
                 f"`query` and `filter` parameters cannot be specified simultaneously."
