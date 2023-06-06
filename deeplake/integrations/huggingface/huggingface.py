@@ -110,7 +110,7 @@ def ingest_huggingface(
 
         Features of the type ``Sequence(feature=Value(dtype='string'))`` are not supported. Columns of such type are skipped.
 
-    """ 
+    """
 
     feature_report_path(
         dest,
