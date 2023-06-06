@@ -193,4 +193,36 @@ TRANSFORM_CHUNK_CACHE_SIZE = 64 * MB
 DEFAULT_VECTORSTORE_DEEPLAKE_PATH = "./deeplake_vector_store"
 MAX_VECTORSTORE_INGESTION_RETRY_ATTEMPTS = 5
 MAX_CHECKPOINTING_INTERVAL = 100000
-MAX_DATASET_LENGTH_FOR_CACHING = 100000
+VECTORSTORE_EXTEND_MAX_SIZE = 20000
+DEFAULT_VECTORSTORE_TENSORS = [
+    {
+        "name": "text",
+        "htype": "text",
+        "create_id_tensor": False,
+        "create_sample_info_tensor": False,
+        "create_shape_tensor": False,
+    },
+    {
+        "name": "metadata",
+        "htype": "json",
+        "create_id_tensor": False,
+        "create_sample_info_tensor": False,
+        "create_shape_tensor": False,
+    },
+    {
+        "name": "embedding",
+        "htype": "embedding",
+        "dtype": np.float32,
+        "create_id_tensor": False,
+        "create_sample_info_tensor": False,
+        "create_shape_tensor": True,
+        "max_chunk_size": 64 * MB,
+    },
+    {
+        "name": "id",
+        "htype": "text",
+        "create_id_tensor": False,
+        "create_sample_info_tensor": False,
+        "create_shape_tensor": False,
+    },
+]

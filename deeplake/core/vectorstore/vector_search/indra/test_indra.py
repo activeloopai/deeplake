@@ -17,7 +17,7 @@ METRIC_FUNC_TO_METRIC_STRING = {
 
 
 def create_tql_string(metric_function, order="ASC"):
-    return f"select *, {METRIC_FUNC_TO_METRIC_STRING[metric_function]} as score ORDER BY {METRIC_FUNC_TO_METRIC_STRING[metric_function]} {order} LIMIT 10"
+    return f"select * from (select *, {METRIC_FUNC_TO_METRIC_STRING[metric_function]} as score) order by score {order} limit 10"
 
 
 METRIC_FUNC_TO_QUERY_STRING = {
@@ -57,5 +57,7 @@ def test_tql_metric_to_tql_str(metric, limit=10):
     query_embedding = np.array([[1, 2, 3, 4, 5, 6, 7, 8]], dtype=np.float32)
     embedding_tensor = "embedding"
 
-    parsed_query = query.parse_query(metric, limit, query_embedding, embedding_tensor)
+    parsed_query = query.parse_query(
+        metric, 10, query_embedding, embedding_tensor, "", ["*"]
+    )
     assert parsed_query == METRIC_FUNC_TO_QUERY_STRING[metric]
