@@ -66,7 +66,7 @@ def test_video_slicing(local_ds: Dataset, video_paths):
     ("vstream_path", "hub_token"),
     [
         ("gcs_vstream_path", "hub_cloud_dev_token"),
-        ("azure_vstream_path", "hub_cloud_token"),
+        ("azure_vstream_path", "hub_cloud_dev_token"),
         ("s3_vstream_path", "hub_cloud_dev_token"),
         ("hub_cloud_vstream_path", "hub_cloud_dev_token"),
     ],
