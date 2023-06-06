@@ -62,6 +62,7 @@ from deeplake.util.exceptions import (
     CheckoutError,
     ReadOnlyModeError,
     LockedException,
+    BadRequestException,
 )
 from deeplake.util.storage import (
     get_storage_and_cache_chain,
@@ -1254,14 +1255,26 @@ class dataset:
             InvalidSourcePathError: If the ``src_path`` is not a valid s3 or gcs path.
             InvalidDestinationPathError: If ``dest_path``, or ``org_id`` and ``ds_name`` do not form a valid Deep Lake path.
         """
-        path = connect_dataset_entry(
-            src_path=src_path,
-            creds_key=creds_key,
-            dest_path=dest_path,
-            org_id=org_id,
-            ds_name=ds_name,
-            token=token,
-        )
+        try:
+            path = connect_dataset_entry(
+                src_path=src_path,
+                creds_key=creds_key,
+                dest_path=dest_path,
+                org_id=org_id,
+                ds_name=ds_name,
+                token=token,
+            )
+        except BadRequestException:
+            check_param = "organization id" if org_id else "dataset path"
+            raise TokenPermissionError(
+                "You do not have permission to create a dataset in the specified "
+                + check_param
+                + "."
+                + " Please check the "
+                + check_param
+                + " and make sure"
+                + "that you have sufficient permissions to the organization."
+            )
         return deeplake.dataset(path, token=token, verbose=False)
 
     @staticmethod
