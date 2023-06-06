@@ -113,7 +113,7 @@ def ingest_huggingface(
     """
 
     feature_report_path(
-        dest,
+        dest if isinstance(dest, str) else dest.path,
         "ingest_huggingface",
         parameters={},
         token=token,
