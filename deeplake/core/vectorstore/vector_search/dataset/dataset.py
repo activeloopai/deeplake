@@ -109,7 +109,7 @@ def load_dataset(
 def check_tensors(dataset):
     tensors = dataset.tensors
 
-    embedding_htype_exist = False
+    embedding_tensor_exist = False
     ids_exist = False
 
     for tensor in tensors:
@@ -119,13 +119,14 @@ def check_tensors(dataset):
             ids_exist = True
 
         if tensor in ("embedding", "embeddings"):
-            embedding_htype_exist = True
+            embedding_tensor_exist = True
 
-            if htype not in (None, "embedding"):
-                raise ValueError(
-                    f"`{htype}` is not supported htype for embedding tensor. "
-                    "Supported htype for embedding tensor is: `embedding`"
-                )
+            # TODO: Add back once old datasets without embedding htype are not in circulation
+            # if htype not in (None, "embedding"):
+            #     raise ValueError(
+            #         f"`{htype}` is not supported htype for embedding tensor. "
+            #         "Supported htype for embedding tensor is: `embedding`"
+            #     )
 
         if htype == "embedding":
             if tensor in ("id", "ids"):
@@ -133,9 +134,9 @@ def check_tensors(dataset):
                     f"`{tensor}` is not valid name for embedding tensor, as the name is preserved for another tensor"
                 )
 
-            embedding_htype_exist = True
+            embedding_tensor_exist = True
 
-    if not embedding_htype_exist:
+    if not embedding_tensor_exist:
         raise ValueError("At least one embedding tensor should exist.")
 
     if not ids_exist:
