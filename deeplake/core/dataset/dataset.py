@@ -3806,6 +3806,7 @@ class Dataset:
         Raises:
             InvalidSourcePathError: If the dataset's path is not a valid s3 or gcs path.
             InvalidDestinationPathError: If ``dest_path``, or ``org_id`` and ``ds_name`` do not form a valid Deep Lake path.
+            TokenPermissionError: If the user does not have permission to create a dataset in the specified organization.
         """
         try:
             path = connect_dataset_entry(
