@@ -94,7 +94,7 @@ def test_ingest_data():
 
     assert len(dataset) == 4
     extended_data = data * 5001
-    embedding_function = partial(corrupted_embedding_function, threshold=0.9)
+    embedding_function = partial(corrupted_embedding_function, threshold=0.95)
 
     data = [
         {
