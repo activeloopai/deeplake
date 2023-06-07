@@ -686,7 +686,9 @@ def reload_and_rechunk(
                 rechunk_if_necessary(target_ds)
 
 
-def check_checkpoint_interval(data_in, checkpoint_interval, num_workers, overwrite):
+def check_checkpoint_interval(
+    data_in, checkpoint_interval, num_workers, overwrite, verbose
+):
     if num_workers > 0 and checkpoint_interval % num_workers != 0:
         raise ValueError(
             "checkpoint_interval should be a multiple of num_workers if num_workers > 0"
@@ -695,7 +697,7 @@ def check_checkpoint_interval(data_in, checkpoint_interval, num_workers, overwri
         raise ValueError(
             "checkpoint_interval should be less than or equal to the length of data_in"
         )
-    if checkpoint_interval < len(data_in) / 10:
+    if checkpoint_interval < len(data_in) / 10 and verbose:
         warnings.warn(
             "checkpoint_interval is less than 10% of the length of data_in, this can lead to too many commits, consider increasing checkpoint_interval."
         )

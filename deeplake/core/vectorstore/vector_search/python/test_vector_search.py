@@ -1,13 +1,68 @@
-from typing import Optional, Tuple, List
+import pytest
 
 import numpy as np
 
+import deeplake
 from deeplake.core.vectorstore.vector_search.python import vector_search
+from deeplake.core.dataset import Dataset as DeepLakeDataset
 
 
 def test_vector_search():
-    query_embedding = np.zeros((1, 100), dtype=np.float32)
-    embedding = np.array([])
-    indices, scores = vector_search.vector_search(query_embedding, embedding)
-    assert indices == []
-    assert scores == []
+    ds = deeplake.empty("mem://test_vector_search")
+    ds.create_tensor("embedding", htype="embedding", dtype=np.float32)
+    ds.embedding.extend(np.zeros((10, 10), dtype=np.float32))
+
+    query_embedding = np.zeros((10), dtype=np.float32)
+
+    data = vector_search.vector_search(
+        query=None,
+        query_emb=query_embedding,
+        exec_option="python",
+        dataset=ds,
+        logger=None,
+        filter=None,
+        embedding_tensor="embedding",
+        distance_metric="l2",
+        k=10,
+        return_tensors=[],
+        return_view=False,
+    )
+
+    assert len(data["score"]) == 10
+
+    with pytest.raises(ValueError):
+        data = vector_search.vector_search(
+            query=None,
+            query_emb=query_embedding,
+            exec_option="python",
+            dataset=ds[0:0],
+            logger=None,
+            filter=None,
+            embedding_tensor="embedding",
+            distance_metric="l2",
+            k=10,
+            return_tensors=[],
+            return_view=False,
+        )
+
+    data = vector_search.vector_search(
+        None, query_embedding, "python", ds, None, None, "embedding", "l2", 10, [], True
+    )
+
+    assert len(data) == 10
+    assert isinstance(data, DeepLakeDataset)
+
+    with pytest.raises(NotImplementedError):
+        data = vector_search.vector_search(
+            query="tql query",
+            query_emb=query_embedding,
+            exec_option="python",
+            dataset=ds,
+            logger=None,
+            filter=None,
+            embedding_tensor="embedding",
+            distance_metric="l2",
+            k=10,
+            return_tensors=[],
+            return_view=True,
+        )

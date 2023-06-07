@@ -26,7 +26,9 @@ from deeplake.util.path import (
     convert_pathlib_to_string_if_needed,
     verify_dataset_name,
     process_dataset_path,
+    get_path_type,
 )
+from deeplake.util.tensor_db import parse_runtime_parameters
 from deeplake.hooks import (
     dataset_created,
     dataset_loaded,
@@ -172,7 +174,7 @@ class dataset:
             TokenPermissionError: When there are permission or other errors related to token
             CheckoutError: If version address specified in the path cannot be found
             DatasetCorruptError: If loading the dataset failed due to corruption and ``reset`` is not ``True``
-            ValueError: If version is specified in the path when creating a dataset
+            ValueError: If version is specified in the path when creating a dataset or If the org id is provided but dataset is ot local, or If the org id is provided but dataset is ot local
             ReadOnlyModeError: If reset is attempted in read-only mode
             LockedException: When attempting to open a dataset for writing when it is locked by another machine
             Exception: Re-raises caught exception if reset cannot fix the issue
@@ -192,10 +194,13 @@ class dataset:
         path, address = process_dataset_path(path)
         verify_dataset_name(path)
 
+        if org_id is not None and get_path_type(path) != "local":
+            raise ValueError("org_id parameter can only be used with local datasets")
+
         if creds is None:
             creds = {}
 
-        db_engine = (runtime or {}).get("db_engine", {})
+        db_engine = parse_runtime_parameters(path, runtime)["tensor_db"]
 
         try:
             storage, cache_chain = get_storage_and_cache_chain(
@@ -345,12 +350,12 @@ class dataset:
         """Creates an empty dataset
 
         Args:
-            path (str, pathlib.Path): - The full path to the dataset. Can be:
-                - a Deep Lake cloud path of the form ``hub://username/datasetname``. To write to Deep Lake cloud datasets, ensure that you are logged in to Deep Lake (use 'activeloop login' from command line)
+            path (str, pathlib.Path): - The full path to the dataset. It can be:
+                - a Deep Lake cloud path of the form ``hub://org_id/dataset_name``. Requires registration with Deep Lake.
                 - an s3 path of the form ``s3://bucketname/path/to/dataset``. Credentials are required in either the environment or passed to the creds argument.
                 - a local file system path of the form ``./path/to/dataset`` or ``~/path/to/dataset`` or ``path/to/dataset``.
                 - a memory path of the form ``mem://path/to/dataset`` which doesn't save the dataset but keeps it in memory instead. Should be used only for testing as it does not persist.
-            runtime (dict): Parameters for Activeloop DB Engine. Only applicable for hub:// paths.
+            runtime (dict): Parameters for creating a dataset in the Deep Lake Tensor Database. Only applicable for paths of the form ``hub://org_id/dataset_name`` and runtime  must be ``{"tensor_db": True}``.
             overwrite (bool): If set to ``True`` this overwrites the dataset if it already exists. Defaults to ``False``.
             public (bool): Defines if the dataset will have public access. Applicable only if Deep Lake cloud storage is used and a new Dataset is being created. Defaults to ``False``.
             memory_cache_size (int): The size of the memory cache to be used in MB.
@@ -377,7 +382,11 @@ class dataset:
             Setting ``overwrite`` to ``True`` will delete all of your data if it exists! Be very careful when setting this parameter.
         """
         path, address = process_dataset_path(path)
-        db_engine = (runtime or {}).get("db_engine", False)
+
+        if org_id is not None and get_path_type(path) != "local":
+            raise ValueError("org_id parameter can only be used with local datasets")
+
+        db_engine = parse_runtime_parameters(path, runtime)["tensor_db"]
 
         if address:
             raise ValueError(
@@ -523,6 +532,7 @@ class dataset:
             ReadOnlyModeError: If reset is attempted in read-only mode
             LockedException: When attempting to open a dataset for writing when it is locked by another machine
             Exception: Re-raises caught exception if reset cannot fix the issue
+            ValueError: If the org id is provided but the dataset is not local
 
         Warning:
             Setting ``access_method`` to download will overwrite the local copy of the dataset if it was previously downloaded.
@@ -537,6 +547,9 @@ class dataset:
 
         if creds is None:
             creds = {}
+
+        if org_id is not None and get_path_type(path) != "local":
+            raise ValueError("org_id parameter can only be used with local datasets")
 
         try:
             storage, cache_chain = get_storage_and_cache_chain(
@@ -811,6 +824,7 @@ class dataset:
         token: Optional[str] = None,
         org_id: Optional[str] = None,
         public: bool = False,
+        verbose: bool = True,
     ) -> Dataset:
         """Creates a new dataset by copying the ``source`` dataset's structure to a new location. No samples are copied,
         only the meta/info for the dataset and it's tensors.
@@ -828,14 +842,23 @@ class dataset:
             token (str, optional): Activeloop token, used for fetching credentials to the dataset at path if it is a Deep Lake dataset. This is optional, tokens are normally autogenerated.
             org_id (str, Optional): Organization id to be used for enabling enterprise features. Only applicable for local datasets.
             public (bool): Defines if the dataset will have public access. Applicable only if Deep Lake cloud storage is used and a new Dataset is being created. Defaults to False.
+            verbose (bool): If True, logs will be printed. Defaults to ``True``.
+
 
         Returns:
             Dataset: New dataset object.
+
+        Raises:
+            ValueError: If the org id is provided but the dataset is not local
         """
         if isinstance(dest, Dataset):
             path = dest.path
         else:
             path = dest
+
+        if org_id is not None and get_path_type(path) != "local":
+            raise ValueError("org_id parameter can only be used with local datasets")
+
         feature_report_path(
             path,
             "like",
@@ -843,7 +866,16 @@ class dataset:
             token=token,
         )
         return dataset._like(
-            dest, src, runtime, tensors, overwrite, creds, token, org_id, public
+            dest,
+            src,
+            runtime,
+            tensors,
+            overwrite,
+            creds,
+            token,
+            org_id,
+            public,
+            verbose,
         )
 
     @staticmethod
@@ -857,6 +889,7 @@ class dataset:
         token: Optional[str] = None,
         org_id: Optional[str] = None,
         public: bool = False,
+        verbose: bool = True,
         unlink: Union[List[str], bool] = False,
     ) -> Dataset:
         """Copies the `source` dataset's structure to a new location. No samples are copied, only the meta/info for the dataset and it's tensors.
@@ -876,11 +909,24 @@ class dataset:
             token (str, optional): Activeloop token, used for fetching credentials to the dataset at path if it is a Deep Lake dataset. This is optional, tokens are normally autogenerated.
             org_id (str, Optional): Organization id to be used for enabling enterprise features. Only applicable for local datasets.
             public (bool): Defines if the dataset will have public access. Applicable only if Deep Lake cloud storage is used and a new Dataset is being created. Defaults to ``False``.
+            verbose (bool): If True, logs will be printed. Defaults to ``True``.
             unlink (Union[List[str], bool]): List of tensors to be unlinked. If ``True`` passed all tensors will be unlinked. Defaults to ``False``, no tensors are unlinked.
 
         Returns:
             Dataset: New dataset object.
         """
+
+        src = convert_pathlib_to_string_if_needed(src)
+        if isinstance(src, str):
+            source_ds = dataset.load(src, verbose=verbose)
+        else:
+            source_ds = src
+
+        if tensors:
+            tensors = source_ds._resolve_tensor_list(tensors)  # type: ignore
+        else:
+            tensors = source_ds.tensors  # type: ignore
+
         dest = convert_pathlib_to_string_if_needed(dest)
         if isinstance(dest, Dataset):
             destination_ds = dest
@@ -895,20 +941,12 @@ class dataset:
                 token=token,
                 org_id=org_id,
                 public=public,
+                verbose=verbose,
             )
+
         feature_report_path(
             dest_path, "like", {"Overwrite": overwrite, "Public": public}, token=token
         )
-        src = convert_pathlib_to_string_if_needed(src)
-        if isinstance(src, str):
-            source_ds = dataset.load(src)
-        else:
-            source_ds = src
-
-        if tensors:
-            tensors = source_ds._resolve_tensor_list(tensors)  # type: ignore
-        else:
-            tensors = source_ds.tensors  # type: ignore
 
         if unlink is True:
             unlink = tensors  # type: ignore
@@ -1091,7 +1129,7 @@ class dataset:
             )
         src_storage = get_base_storage(src_ds.storage)
 
-        db_engine = (runtime or {}).get("db_engine", False)
+        db_engine = parse_runtime_parameters(dest, runtime)["tensor_db"]
         dest_storage, cache_chain = get_storage_and_cache_chain(
             dest,
             db_engine=db_engine,
@@ -1240,6 +1278,7 @@ class dataset:
             src_path (str): Cloud path to the source dataset. Can be:
                 an s3 path like ``s3://bucket/path/to/dataset``.
                 a gcs path like ``gcs://bucket/path/to/dataset``.
+                an azure path like ``az://account_name/container/path/to/dataset``.
             creds_key (str): The managed credentials to be used for accessing the source path.
             dest_path (str, optional): The full path to where the connected Deep Lake dataset will reside. Can be:
                 a Deep Lake path like ``hub://organization/dataset``
@@ -1251,7 +1290,7 @@ class dataset:
             Dataset: The connected Deep Lake dataset.
 
         Raises:
-            InvalidSourcePathError: If the ``src_path`` is not a valid s3 or gcs path.
+            InvalidSourcePathError: If the ``src_path`` is not a valid s3, gcs or azure path.
             InvalidDestinationPathError: If ``dest_path``, or ``org_id`` and ``ds_name`` do not form a valid Deep Lake path.
         """
         path = connect_dataset_entry(
