@@ -154,13 +154,14 @@ def test_load(caplog, hub_cloud_dev_token):
 
         DeepLakeVectorStore(path="local_ds")
 
-    with pytest.raises(ValueError):
-        # incorrect htype for tensor called `embedding`
-        dataset = deeplake.empty("local_ds", overwrite=True)
-        dataset.create_tensor("embedding", htype="text")
-        dataset.create_tensor("ids", htype="text")
+    # TODO: Add back once old datasets without embedding htype are not in circulation
+    # with pytest.raises(ValueError):
+    #     # incorrect htype for tensor called `embedding`
+    #     dataset = deeplake.empty("local_ds", overwrite=True)
+    #     dataset.create_tensor("embedding", htype="text")
+    #     dataset.create_tensor("ids", htype="text")
 
-        DeepLakeVectorStore(path="local_ds")
+    #     DeepLakeVectorStore(path="local_ds")
 
 
 def test_delete_and_commit():
