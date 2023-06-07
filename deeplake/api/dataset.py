@@ -843,7 +843,7 @@ class dataset:
 
         Returns:
             Dataset: New dataset object.
-        
+
         Raises:
             ValueError: If ``org_id`` is specified for a non-local dataset.
         """
