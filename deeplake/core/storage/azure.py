@@ -236,7 +236,6 @@ class AzureProvider(StorageProvider):
         return sd
 
     def rename(self, root: str):
-        print("NEW NAME:", root)
         self.check_readonly()
         self._check_update_creds()
         account_name, container_name, root_folder = self._get_attrs(root)
@@ -252,7 +251,6 @@ class AzureProvider(StorageProvider):
             source_blob = self.container_client.get_blob_client(
                 f"{self.root_folder}/{blob_name}"
             )
-            print(f"{root_folder}/{blob_name}")
             destination_blob = self.container_client.get_blob_client(
                 f"{root_folder}/{blob_name}"
             )

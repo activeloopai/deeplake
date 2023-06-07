@@ -190,7 +190,6 @@ def test_gdrive_from_token(request, gdrive_path, gdrive_creds):
 def test_azure_from_sas_token(azure_path):
     storage = AzureProvider(azure_path)
     sas_token = storage.get_sas_token()
-    print(sas_token)
 
     storage = AzureProvider(azure_path, creds={"sas_token": sas_token})
     storage["test"] = b"Hello World!"
