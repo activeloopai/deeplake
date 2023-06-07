@@ -8,6 +8,7 @@ from deeplake.tests.storage_fixtures import (
 from deeplake.tests.cache_fixtures import enabled_cache_chains
 from deeplake.core.storage.gcs import GCloudCredentials
 from deeplake.core.storage.google_drive import GDriveProvider
+from deeplake.core.storage.azure import AzureProvider
 from deeplake.util.exceptions import GCSDefaultCredsNotFoundError
 from google.oauth2.credentials import Credentials  # type: ignore
 import os
@@ -184,6 +185,18 @@ def test_gdrive_from_token(request, gdrive_path, gdrive_creds):
     assert storage.client_id
 
     os.remove("gdrive_token.json")
+
+
+def test_azure_from_sas_token(azure_path):
+    storage = AzureProvider(azure_path)
+    sas_token = storage.get_sas_token()
+    print(sas_token)
+
+    storage = AzureProvider(azure_path, creds={"sas_token": sas_token})
+    storage["test"] = b"Hello World!"
+
+    assert storage.sas_token == sas_token
+    assert storage["test"] == b"Hello World!"
 
 
 @pytest.mark.parametrize(

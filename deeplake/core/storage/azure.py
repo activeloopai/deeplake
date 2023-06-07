@@ -2,8 +2,10 @@ import posixpath
 import time
 from typing import Dict, Optional, Tuple
 from datetime import datetime, timedelta, timezone
+
 from deeplake.core.storage.provider import StorageProvider
 from deeplake.client.client import DeepLakeBackendClient
+from deeplake.util.exceptions import PathNotEmptyException
 
 try:
     from azure.identity import DefaultAzureCredential
@@ -13,6 +15,7 @@ try:
         ContainerSasPermissions,
         generate_blob_sas,
         generate_container_sas,
+        generate_account_sas,
     )
     from azure.core.credentials import AzureNamedKeyCredential, AzureSasCredential
 
@@ -150,16 +153,18 @@ class AzureProvider(StorageProvider):
         self._check_update_creds()
         if self.sas_token:
             return self.sas_token
+        expiry = datetime.now(timezone.utc) + timedelta(weeks=1)
         user_delegation_key = self.blob_service_client.get_user_delegation_key(
-            datetime.now(timezone.utc), datetime.now(timezone.utc) + timedelta(weeks=1)
+            datetime.now(timezone.utc), expiry
         )
         sas_token = generate_container_sas(
             self.account_name,
             self.container_name,
             user_delegation_key=user_delegation_key,
             permission=ContainerSasPermissions(
-                read=True, write=True, delete=True, list=True
+                read=True, write=True, delete=True, list=True, create=True, add=True
             ),
+            expiry=expiry,
         )
         return sas_token
 
@@ -231,17 +236,23 @@ class AzureProvider(StorageProvider):
         return sd
 
     def rename(self, root: str):
+        print("NEW NAME:", root)
         self.check_readonly()
         self._check_update_creds()
-        account_name, container_name, root_folder = (
-            root.replace("az://", "").replace("azure://", "").strip("/").split("/", 2)
-        )
+        account_name, container_name, root_folder = self._get_attrs(root)
         assert (
             account_name == self.account_name
         ), "Cannot rename across storage accounts"
         assert container_name == self.container_name, "Cannot rename across containers"
+        for blob_name in self.container_client.list_blob_names(
+            name_starts_with=root_folder
+        ):
+            raise PathNotEmptyException(use_hub=False)
         for blob_name in self._all_keys():
-            source_blob = self.container_client.get_blob_client(blob_name)
+            source_blob = self.container_client.get_blob_client(
+                f"{self.root_folder}/{blob_name}"
+            )
+            print(f"{root_folder}/{blob_name}")
             destination_blob = self.container_client.get_blob_client(
                 f"{root_folder}/{blob_name}"
             )
