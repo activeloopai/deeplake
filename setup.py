@@ -33,6 +33,7 @@ extras = {
     "video": ["av"],
     "av": ["av"],
     "gcp": ["google-cloud-storage", "google-auth", "google-auth-oauthlib"],
+    "azure": ["azure-cli", "azure-identity", "azure-storage-blob"],
     "dicom": ["pydicom", "nibabel"],
     "medical": ["pydicom", "nibabel"],
     "visualizer": ["IPython", "flask"],
@@ -69,7 +70,7 @@ extras_require = {k: [req_map[r] for r in v] for k, v in extras.items()}
 extras_require["all"] = [req_map[r] for r in all_extras]
 
 if libdeeplake_availabe():
-    libdeeplake = "libdeeplake==0.0.54"
+    libdeeplake = "libdeeplake==0.0.55"
     extras_require["enterprise"] = [libdeeplake, "pyjwt"]
     extras_require["all"].append(libdeeplake)
 

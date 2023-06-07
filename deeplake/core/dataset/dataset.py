@@ -53,6 +53,7 @@ from deeplake.core.storage import (
     GCSProvider,
     MemoryProvider,
     LocalProvider,
+    AzureProvider,
 )
 from deeplake.core.tensor import Tensor, create_tensor, delete_tensor
 from deeplake.core.version_control.commit_node import CommitNode  # type: ignore
@@ -139,7 +140,7 @@ import warnings
 import jwt
 
 
-_LOCKABLE_STORAGES = {S3Provider, GCSProvider, LocalProvider}
+_LOCKABLE_STORAGES = {S3Provider, GCSProvider, AzureProvider, LocalProvider}
 
 
 class Dataset:
@@ -3815,7 +3816,7 @@ class Dataset:
             token (str, optional): Activeloop token used to fetch the managed credentials.
 
         Raises:
-            InvalidSourcePathError: If the dataset's path is not a valid s3 or gcs path.
+            InvalidSourcePathError: If the dataset's path is not a valid s3, gcs or azure path.
             InvalidDestinationPathError: If ``dest_path``, or ``org_id`` and ``ds_name`` do not form a valid Deep Lake path.
         """
         path = connect_dataset_entry(

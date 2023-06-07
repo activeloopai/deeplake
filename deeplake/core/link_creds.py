@@ -32,6 +32,7 @@ class LinkCreds(DeepLakeMemoryObject):
         self.storage_providers = {}
         self.default_s3_provider = None
         self.default_gcs_provider = None
+        self.default_azure_provider = None
         self.client = None
         self.org_id = None
 
@@ -74,7 +75,7 @@ class LinkCreds(DeepLakeMemoryObject):
                     S3Provider, "s3://bucket/path"
                 )
             return self.default_s3_provider
-        else:
+        elif provider_type == "gcs":
             if self.default_gcs_provider is None:
                 from deeplake.core.storage.gcs import GCSProvider
 
@@ -82,9 +83,17 @@ class LinkCreds(DeepLakeMemoryObject):
                     GCSProvider, "gcs://bucket/path"
                 )
             return self.default_gcs_provider
+        elif provider_type == "azure":
+            if self.default_azure_provider is None:
+                from deeplake.core.storage.azure import AzureProvider
+
+                self.default_azure_provider = storage_factory(
+                    AzureProvider, "az://account/container"
+                )
+            return self.default_azure_provider
 
     def get_storage_provider(self, key: Optional[str], provider_type: str):
-        assert provider_type in {"s3", "gcs"}
+        assert provider_type in {"s3", "gcs", "azure"}
         if key is None:
             return self.get_default_provider(provider_type)
 
@@ -98,7 +107,7 @@ class LinkCreds(DeepLakeMemoryObject):
                     return provider
 
             provider = storage_factory(S3Provider, "s3://bucket/path", **creds)
-        else:
+        elif provider_type == "gcs":
             from deeplake.core.storage.gcs import GCSProvider
 
             if key in self.storage_providers:
@@ -107,6 +116,17 @@ class LinkCreds(DeepLakeMemoryObject):
                     return provider
 
             provider = storage_factory(GCSProvider, "gcs://bucket/path", **creds)
+        elif provider_type == "azure":
+            from deeplake.core.storage.azure import AzureProvider
+
+            if key in self.storage_providers:
+                provider = self.storage_providers[key]
+                if isinstance(provider, AzureProvider):
+                    return provider
+
+            provider = storage_factory(
+                AzureProvider, "az://account/container", creds=creds
+            )
         self.storage_providers[key] = provider
         return provider
 
