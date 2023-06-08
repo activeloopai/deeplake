@@ -1,6 +1,4 @@
-import deeplake
 from deeplake.constants import MB
-from deeplake.enterprise.util import raise_indra_installation_error
 from deeplake.util.warnings import always_warn
 
 import numpy as np
@@ -10,37 +8,50 @@ from functools import partial
 from typing import Optional, Any, Iterable, List, Dict, Callable, Union
 
 
-def dp_filter(x: dict, filter: Dict[str, str]) -> bool:
+def dp_filter_python(x: dict, filter: Dict) -> bool:
     """Filter helper function for Deep Lake"""
-    metadata = x["metadata"].data()["value"]
-    return all(k in metadata and v == metadata[k] for k, v in filter.items())
+
+    result = True
+
+    for tensor in filter.keys():
+        metadata = x[tensor].data()["value"]
+        result = result and all(
+            k in metadata and v == metadata[k] for k, v in filter[tensor].items()
+        )
+
+    return result
 
 
-def attribute_based_filtering(view, filter, exec_option):
-    filtering_exception(filter=filter, exec_option=exec_option)
-    # attribute based filtering
+def attribute_based_filtering_python(
+    view, filter: Optional[Union[Dict, Callable]] = None
+):
+    if len(view) == 0:
+        raise ValueError("specified dataset is empty")
     if filter is not None:
         if isinstance(filter, dict):
-            filter = partial(dp_filter, filter=filter)
+            filter = partial(dp_filter_python, filter=filter)
 
         view = view.filter(filter)
-        if len(view) == 0:
-            raise ValueError(f"No data was found for {filter} metadata.")
+
     return view
 
 
-def filtering_exception(filter, exec_option):
-    if exec_option in ("compute_engine", "tensor_db") and filter is not None:
-        case_specific_exception = ""
-        if "tensor_db":
-            case_specific_exception += "To run filtering set `remote_db=False`."
-        else:
-            case_specific_exception += (
-                """To run filtering set `exec_option="python"`."""
-            )
-        raise NotImplementedError(
-            f"Filtering data is only supported for python implementations. {case_specific_exception}"
-        )
+def attribute_based_filtering_tql(
+    view, filter: Optional[Dict] = None, debug_mode=False, logger=None
+):
+    tql_filter = ""
+
+    if filter is not None:
+        if isinstance(filter, dict):
+            for tensor in filter.keys():
+                for key, value in filter[tensor].items():
+                    val_str = f"'{value}'" if type(value) == str else f"{value}"
+                    tql_filter += f"{tensor}['{key}'] == {val_str} and "
+            tql_filter = tql_filter[:-5]
+
+    if debug_mode and logger is not None:
+        logger.warning(f"Converted tql string is: '{tql_filter}'")  # pragma: no cover
+    return view, tql_filter
 
 
 def exact_text_search(view, query):
@@ -80,7 +91,7 @@ def get_ids_that_does_not_exist(ids, filtered_ids):
 
 def get_filtered_ids(dataset, filter):
     filtered_ids = None
-    view = dataset.filter(partial(dp_filter, filter=filter))
+    view = dataset.filter(partial(dp_filter_python, filter=filter))
     filtered_ids = list(view.sample_indices)
     if len(filtered_ids) == 0:
         raise ValueError(f"{filter} does not exist in the dataset.")

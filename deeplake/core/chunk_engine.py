@@ -30,7 +30,7 @@ from deeplake.core.version_control.commit_chunk_map import CommitChunkMap  # typ
 from typing import Any, Dict, List, Optional, Sequence, Union, Callable
 from deeplake.core.meta.encode.tile import TileEncoder
 from deeplake.core.storage.provider import StorageProvider
-from deeplake.core.storage import S3Provider, GCSProvider
+from deeplake.core.storage import S3Provider, GCSProvider, AzureProvider
 from deeplake.core.tiling.deserialize import (
     combine_chunks,
     translate_slices,
@@ -598,7 +598,7 @@ class ChunkEngine:
 
         base_storage = self.base_storage
         stream = False
-        if isinstance(base_storage, (S3Provider, GCSProvider)):
+        if isinstance(base_storage, (S3Provider, GCSProvider, AzureProvider)):
             chunk_size = base_storage.get_object_size(chunk_key)
             stream = chunk_size > self.min_chunk_size
             if stream:
@@ -1802,7 +1802,7 @@ class ChunkEngine:
         if (
             not fetch_chunks
             and self.chunk_class != ChunkCompressedChunk
-            and isinstance(self.base_storage, (S3Provider, GCSProvider))
+            and isinstance(self.base_storage, (S3Provider, GCSProvider, AzureProvider))
         ):
             prev = int(enc.array[row - 1][LAST_SEEN_INDEX_COLUMN]) if row > 0 else -1
             num_samples_in_chunk = int(enc.array[row][LAST_SEEN_INDEX_COLUMN]) - prev

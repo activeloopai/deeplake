@@ -1,17 +1,17 @@
-def cosine_similarity(embeddings, query_embedding):
-    return f"COSINE_SIMILARITY({embeddings}, {query_embedding})"
+def cosine_similarity(embedding_tensor, query_embedding):
+    return f"COSINE_SIMILARITY({embedding_tensor}, {query_embedding})"
 
 
-def l1_norm(embeddings, query_embedding):
-    return f"L1_NORM({embeddings}-{query_embedding})"
+def l1_norm(embedding_tensor, query_embedding):
+    return f"L1_NORM({embedding_tensor}-{query_embedding})"
 
 
-def l2_norm(embeddings, query_embedding):
-    return f"L2_NORM({embeddings}-{query_embedding})"
+def l2_norm(embedding_tensor, query_embedding):
+    return f"L2_NORM({embedding_tensor}-{query_embedding})"
 
 
-def linf_norm(embeddings, query_embedding):
-    return f"LINF_NORM({embeddings}-{query_embedding})"
+def linf_norm(embedding_tensor, query_embedding):
+    return f"LINF_NORM({embedding_tensor}-{query_embedding})"
 
 
 TQL_METRIC_TO_TQL_QUERY = {
@@ -22,6 +22,6 @@ TQL_METRIC_TO_TQL_QUERY = {
 }
 
 
-def get_tql_distance_metric(distance_metric, embeddings, query_embedding):
+def get_tql_distance_metric(distance_metric, embedding_tensor, query_embedding):
     metric_fn = TQL_METRIC_TO_TQL_QUERY[distance_metric]
-    return metric_fn(embeddings, query_embedding)
+    return metric_fn(embedding_tensor, query_embedding)

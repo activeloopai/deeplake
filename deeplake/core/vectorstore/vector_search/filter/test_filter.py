@@ -5,32 +5,33 @@ import pytest
 
 
 def test_attribute_based_filtering():
-    view = deeplake.empty("mem://deeplake_test")
-    view.create_tensor("metadata", htype="json")
-    view.metadata.extend([{"abcd": 1}, {"abcd123": 2}, {"abcd32": 3}, {"abcrd": 4}])
-    exec_otion = "compute_engine"
-    filter_dict = {"abcd": 1}
+    ds = deeplake.empty("mem://deeplake_test")
+    ds.create_tensor("metadata", htype="json")
+    ds.create_tensor("metadata2", htype="json")
+    ds.metadata.extend([{"k": 1}, {"k": 2}, {"k": 3}, {"k": 4}])
+    ds.metadata2.extend([{"kk": "a"}, {"kk": "b"}, {"kk": "c"}, {"kk": "d"}])
 
-    with pytest.raises(NotImplementedError):
-        view = filter_utils.attribute_based_filtering(
-            view, filter=filter_dict, exec_option="compute_engine"
-        )
+    filter_dict = {"metadata": {"k": 1}, "metadata2": {"kk": "a"}}
 
-    with pytest.raises(NotImplementedError):
-        view = filter_utils.attribute_based_filtering(
-            view, filter=filter_dict, exec_option="tensor_db"
-        )
+    def filter_udf(x):
+        metadata = x["metadata"].data()["value"]
+        return metadata["k"] == 1
 
-    view = filter_utils.attribute_based_filtering(
-        view, filter=filter_dict, exec_option="python"
+    view_dict = filter_utils.attribute_based_filtering_python(ds, filter=filter_dict)
+
+    view_udf = filter_utils.attribute_based_filtering_python(ds, filter=filter_udf)
+
+    view_tql, tql_filter = filter_utils.attribute_based_filtering_tql(
+        ds, filter=filter_dict
     )
 
-    assert view.metadata.data()["value"][0] == filter_dict
+    assert view_dict.metadata.data()["value"][0] == filter_dict["metadata"]
+    assert view_dict.metadata2.data()["value"][0] == filter_dict["metadata2"]
 
-    with pytest.raises(ValueError):
-        view = filter_utils.attribute_based_filtering(
-            view, filter={"aaaccc": 2}, exec_option="python"
-        )
+    assert view_udf.metadata.data()["value"][0] == filter_dict["metadata"]
+
+    assert len(view_tql) == len(ds)
+    assert tql_filter == "metadata['k'] == 1 and metadata2['kk'] == 'a'"
 
 
 def test_exact_text_search():
@@ -80,11 +81,11 @@ def test_get_filtered_ids():
     view.create_tensor("metadata", htype="json")
     view.metadata.extend([{"abc": 1}, {"cd": 2}, {"se": 3}])
 
-    ids = filter_utils.get_filtered_ids(view, filter={"se": 3})
+    ids = filter_utils.get_filtered_ids(view, filter={"metadata": {"se": 3}})
     assert ids == [2]
 
     with pytest.raises(ValueError):
-        ids = filter_utils.get_filtered_ids(view, filter={"se0": 3})
+        ids = filter_utils.get_filtered_ids(view, filter={"metadata": {"se0": 3}})
 
 
 def test_get_converted_ids():
@@ -95,7 +96,7 @@ def test_get_converted_ids():
     view.ids.extend(["ac", "bs", "cd"])
 
     ids = ["cd"]
-    filter = {"se": 3}
+    filter = {"metadata": {"se": 3}}
 
     with pytest.raises(ValueError):
         ids = filter_utils.get_converted_ids(view, filter, ids)
