@@ -7,3 +7,4 @@ Install command, Description, Dependencies installed
 "``pip install ""deeplake[point_cloud]""``", Support for LiDAR point cloud data, laspy
 "``pip install ""deeplake[enterprise]""``", Installs Deep Lake's enterprise features, libdeeplake,
 "``pip install ""deeplake[all]""``", Installs all of the above,           
+"``pip install ""deeplake[azure]""``", Azure Blob Storage support, "azure-storage-blob, azure-cli, azure-identity"
