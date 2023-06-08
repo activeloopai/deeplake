@@ -1,5 +1,6 @@
 from deeplake.constants import MB
 from deeplake.enterprise.util import raise_indra_installation_error
+from deeplake.util.warnings import always_warn
 
 import numpy as np
 
@@ -98,6 +99,12 @@ def parse_search_args(**kwargs):
     ):
         raise ValueError(
             f"Either an `embedding`, `embedding_function`, `filter`, or `query` must be specified."
+        )
+        
+    if kwargs["embedding"] is not None and kwargs["embedding_function"]:
+        always_warn(
+            "Both embedding data and embedding function were specified."
+            " Already computed `embedding` will be used."
         )
     if kwargs["embedding_data"] is None and kwargs["embedding_function"] is not None:
         raise ValueError(
