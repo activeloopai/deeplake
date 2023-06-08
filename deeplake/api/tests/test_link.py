@@ -5,11 +5,12 @@ import pickle
 import deeplake
 import pytest
 from deeplake.client.client import DeepLakeBackendClient
-from deeplake.constants import GCS_OPT, S3_OPT
+from deeplake.constants import GCS_OPT, S3_OPT, AZURE_OPT
 from deeplake.core.link_creds import LinkCreds
 from deeplake.core.meta.encode.creds import CredsEncoder
 from deeplake.core.storage.gcs import GCSProvider
 from deeplake.core.storage.s3 import S3Provider
+from deeplake.core.storage.azure import AzureProvider
 from deeplake.tests.common import is_opt_true
 from deeplake.util.exceptions import (
     ManagedCredentialsNotFoundError,
@@ -121,6 +122,14 @@ def test_link_creds(request):
         assert isinstance(link_creds.get_storage_provider("abc", "s3"), S3Provider)
         assert isinstance(link_creds.get_storage_provider("abc", "s3"), S3Provider)
         assert isinstance(link_creds.get_storage_provider(None, "s3"), S3Provider)
+    if is_opt_true(request, AZURE_OPT):
+        assert isinstance(
+            link_creds.get_storage_provider("abc", "azure"), AzureProvider
+        )
+        assert isinstance(
+            link_creds.get_storage_provider("abc", "azure"), AzureProvider
+        )
+        assert isinstance(link_creds.get_storage_provider(None, "azure"), AzureProvider)
 
     pickled = pickle.dumps(link_creds)
     unpickled_link_creds = pickle.loads(pickled)

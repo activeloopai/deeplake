@@ -43,6 +43,9 @@ def pytest_addoption(parser):
         GCS_OPT, action="store_true", help="GCS tests will run if enabled."
     )
     parser.addoption(
+        AZURE_OPT, action="store_true", help="Azure tests will run if enabled."
+    )
+    parser.addoption(
         GDRIVE_OPT, action="store_true", help="Google Drive tests will run if enabled."
     )
     parser.addoption(
