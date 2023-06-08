@@ -2,7 +2,7 @@ import json
 import os
 from pathlib import Path
 from platform import machine
-from typing import Any, Dict, Optional
+from typing import Any, Dict, Optional, Union
 import uuid
 
 from deeplake.client.config import REPORTING_CONFIG_FILE_PATH
@@ -11,6 +11,12 @@ from deeplake.client.utils import get_user_name
 from deeplake.util.bugout_token import BUGOUT_TOKEN
 from humbug.consent import HumbugConsent
 from humbug.report import HumbugReporter
+
+import pathlib
+
+from deeplake.util.path import (
+    convert_pathlib_to_string_if_needed,
+)
 
 
 def save_reporting_config(
@@ -140,15 +146,16 @@ if machine_id is not None:
 
 
 def feature_report_path(
-    path: str,
+    path: Union[str, pathlib.Path],
     feature_name: str,
     parameters: dict,
     starts_with: str = "hub://",
     token: Optional[str] = None,
 ):
     """Helper function for generating humbug feature reports depending on the path"""
-    if not isinstance(path, str):
-        path = str(path)
+
+    path = convert_pathlib_to_string_if_needed(path)
+
     if path.startswith(starts_with):
         parameters["Path"] = path
 

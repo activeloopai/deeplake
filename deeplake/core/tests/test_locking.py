@@ -10,6 +10,7 @@ from deeplake.tests.dataset_fixtures import (
     enabled_persistent_non_gdrive_dataset_generators,
 )
 from concurrent.futures import ThreadPoolExecutor
+from deeplake.tests.common import requires_non_python11
 import deeplake
 
 _counter = 0
@@ -36,6 +37,7 @@ class VM(object):
         deeplake.core.lock._LOCKS.update(self._locks)
 
 
+@requires_non_python11
 @enabled_persistent_non_gdrive_dataset_generators
 def test_dataset_locking(ds_generator):
     deeplake.constants.LOCK_LOCAL_DATASETS = True
@@ -65,6 +67,7 @@ def test_dataset_locking(ds_generator):
         deeplake.constants.LOCK_LOCAL_DATASETS = False
 
 
+@requires_non_python11
 @enabled_persistent_non_gdrive_dataset_generators
 def test_vc_locking(ds_generator):
     deeplake.constants.LOCK_LOCAL_DATASETS = True
@@ -84,6 +87,7 @@ def test_vc_locking(ds_generator):
         deeplake.constants.LOCK_LOCAL_DATASETS = False
 
 
+@requires_non_python11
 def test_lock_thread_leaking(s3_ds_generator):
     locks = deeplake.core.lock._LOCKS
     refs = deeplake.core.lock._REFS
@@ -123,6 +127,7 @@ def test_lock_thread_leaking(s3_ds_generator):
     assert nlocks() == 0  # 0 because dataset and all views deleted
 
 
+@requires_non_python11
 def test_concurrent_locking(memory_ds):
     storage = memory_ds.base_storage
 
