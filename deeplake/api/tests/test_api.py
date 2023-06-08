@@ -2280,11 +2280,17 @@ def test_bad_link(local_ds_generator, verify):
             "images", htype="link[image]", sample_compression="jpg", verify=verify
         )
         ds.images.append(deeplake.link("https://picsum.photos/200/200"))
+
+    if verify:
         with pytest.raises(SampleAppendError):
             ds.images.append(deeplake.link("https://picsum.photos/lalala"))
 
-    with local_ds_generator() as ds:
-        assert len(ds) == 1
+        with local_ds_generator() as ds:
+            assert len(ds) == 1
+    else:
+        ds.images.append(deeplake.link("https://picsum.photos/lalala"))
+        with local_ds_generator() as ds:
+            assert len(ds) == 2
 
 
 def test_rich(memory_ds):
