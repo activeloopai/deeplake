@@ -4,7 +4,7 @@ import uuid
 import json
 import posixpath
 from logging import warning
-from typing import Any, Callable, Dict, List, Optional, Sequence, Tuple, Union
+from typing import Any, Callable, Dict, List, Optional, Sequence, Tuple, Union, Set
 from functools import partial
 
 import pathlib
@@ -3950,12 +3950,14 @@ class Dataset:
             raise ValueError(
                 "Managed creds are not supported for datasets that are not connected to activeloop platform."
             )
-        replaced_index = self.link_creds.replace_creds(creds_key, new_creds_key)
-        save_link_creds(self.link_creds, self.storage, replaced_index=replaced_index)
+        replaced_indices = self.link_creds.replace_creds(creds_key, new_creds_key)
+        save_link_creds(
+            self.link_creds, self.storage, replaced_indices=replaced_indices
+        )
 
-    def get_creds_keys(self) -> List[str]:
-        """Returns the list of creds keys added to the dataset. These are used to fetch external data in linked tensors"""
-        return list(self.link_creds.creds_keys)
+    def get_creds_keys(self) -> Set[str]:
+        """Returns the set of creds keys added to the dataset. These are used to fetch external data in linked tensors"""
+        return set(self.link_creds.creds_keys)
 
     def get_managed_creds_keys(self) -> List[str]:
         """Returns the list of creds keys added to the dataset that are managed by Activeloop platform. These are used to fetch external data in linked tensors."""

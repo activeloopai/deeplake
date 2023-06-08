@@ -386,7 +386,6 @@ class dataset:
 
         if org_id is not None and get_path_type(path) != "local":
             raise ValueError("org_id parameter can only be used with local datasets")
-
         db_engine = parse_runtime_parameters(path, runtime)["tensor_db"]
 
         if address:
@@ -532,6 +531,7 @@ class dataset:
             DatasetCorruptError: If loading the dataset failed due to corruption and ``reset`` is not ``True``
             ReadOnlyModeError: If reset is attempted in read-only mode
             LockedException: When attempting to open a dataset for writing when it is locked by another machine
+            ValueError: If ``org_id`` is specified for a non-local dataset
             Exception: Re-raises caught exception if reset cannot fix the issue
             ValueError: If the org id is provided but the dataset is not local
 
@@ -850,7 +850,7 @@ class dataset:
             Dataset: New dataset object.
 
         Raises:
-            ValueError: If the org id is provided but the dataset is not local
+            ValueError: If ``org_id`` is specified for a non-local dataset.
         """
         if isinstance(dest, Dataset):
             path = dest.path
