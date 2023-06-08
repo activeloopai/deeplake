@@ -104,6 +104,11 @@ def parse_search_args(**kwargs):
             f"When an `embedding_function` is specified, `embedding_data` must also be specified."
         )
 
+    if kwargs["embedding_data"] is not None and kwargs["embedding_function"] is None and kwargs["initial_embedding_function"] is None:
+        raise ValueError(
+            f"When an `embedding_function` is specified, `embedding_data` must also be specified."
+        )
+    
     exec_option = kwargs["exec_option"]
     if exec_option == "python":
         if kwargs["query"] is not None:
