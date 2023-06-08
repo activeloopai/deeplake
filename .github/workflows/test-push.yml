@@ -9,10 +9,6 @@ on:
     branches:
       - '**'
 
-permissions:
-  id-token: write
-  contents: read
-
 jobs:
   cancel-previous:
     name: Cancel Previous
@@ -33,6 +29,7 @@ jobs:
       token: ${{ secrets.GITHUB_TOKEN }}
       aws_role_arn: ${{ secrets.AWS_ROLE_ARN }}
       gcp_sa_credentials_json: ${{ secrets.GCP_SA_CREDENTIALS_JSON }}
+      azure_creds_json: ${{ secrets.AZURE_CREDS_JSON }}
       hub_username: ${{ secrets.ACTIVELOOP_HUB_USERNAME }}
       hub_password: ${{ secrets.ACTIVELOOP_HUB_PASSWORD }}
       kaggle_username: ${{ secrets.KAGGLE_USERNAME }}
@@ -40,7 +37,3 @@ jobs:
       oauth_client_id: ${{ secrets.GDRIVE_CLIENT_ID }}
       oauth_client_secret: ${{ secrets.GDRIVE_CLIENT_SECRET }}
       oauth_refresh_token: ${{ secrets.GDRIVE_REFRESH_TOKEN }}
-      azure_client_id: ${{ secrets.AZURE_CLIENT_ID }}
-      azure_client_secret: ${{ secrets.AZURE_CLIENT_SECRET }}
-      azure_subscription_id: ${{ secrets.AZURE_SUBSCRIPTION_ID }}
-      azure_tenant_id: ${{ secrets.AZURE_TENANT_ID }}

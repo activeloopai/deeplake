@@ -665,10 +665,10 @@ def test_creds(hub_cloud_ds_generator, cat_path):
         tensor.append(deeplake.link(cat_path, creds_key))
 
     assert tensor[0].creds_key() == creds_key
-    ds.add_creds_key("my_s3_creds", True)
-    assert ds.get_managed_creds_keys() == ["my_s3_creds"]
-    assert set(ds.get_creds_keys()) == {"my_s3_creds", "ENV"}
-    ds.update_creds_key("my_s3_creds", managed=True)
+    ds.add_creds_key("aws_creds", True)
+    assert ds.get_managed_creds_keys() == ["aws_creds"]
+    assert set(ds.get_creds_keys()) == {"aws_creds", "ENV"}
+    ds.update_creds_key("aws_creds", managed=True)
     ds = hub_cloud_ds_generator()
-    assert ds.get_managed_creds_keys() == ["my_s3_creds"]
-    assert set(ds.get_creds_keys()) == {"my_s3_creds", "ENV"}
+    assert ds.get_managed_creds_keys() == ["aws_creds"]
+    assert set(ds.get_creds_keys()) == {"aws_creds", "ENV"}
