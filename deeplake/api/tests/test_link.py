@@ -672,6 +672,20 @@ def test_creds(hub_cloud_ds_generator, cat_path):
     assert ds.get_creds_keys() == {"my_s3_creds", "ENV"}
 
 
+def test_bad_link_no_verify(memory_ds):
+    with memory_ds as ds:
+        ds.add_creds_key("S3_CREDS")
+        ds.populate_creds("S3_CREDS", {})
+        ds.create_tensor(
+            "abc", htype="link[image]", sample_compression="jpg", verify=False
+        )
+        ds.abc.append(
+            deeplake.link("s3://some-bucket/does-not-exist.jpg", creds_key="S3_CREDS")
+        )
+
+        assert ds.abc[0]._linked_sample().path == "s3://some-bucket/does-not-exist.jpg"
+
+
 def test_update_creds_to_existing(hub_cloud_ds_generator, cat_path):
     creds_key = "ENV"
     ds = hub_cloud_ds_generator()
