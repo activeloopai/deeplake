@@ -103,7 +103,7 @@ def parse_search_args(**kwargs):
 
     if kwargs["embedding"] is not None and kwargs["embedding_function"]:
         always_warn(
-            "Both embedding data and embedding function were specified."
+            "Both `embedding` and `embedding_function` were specified."
             " Already computed `embedding` will be used."
         )
     if kwargs["embedding_data"] is None and kwargs["embedding_function"] is not None:
@@ -117,7 +117,7 @@ def parse_search_args(**kwargs):
         and kwargs["initial_embedding_function"] is None
     ):
         raise ValueError(
-            f"When an `embedding_function` is specified, `embedding_data` must also be specified."
+            f"When an `embedding_data` is specified, `embedding_function` must also be specified."
         )
 
     exec_option = kwargs["exec_option"]
