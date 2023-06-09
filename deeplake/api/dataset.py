@@ -565,7 +565,7 @@ class dataset:
             if isinstance(e, UserNotLoggedInException):
                 raise UserNotLoggedInException from None
             raise
-        if not dataset_exists(cache_chain):
+        if not dataset_exists(cache_chain) and address is not None:
             raise DatasetHandlerError(
                 f"A Deep Lake dataset does not exist at the given path ({path}). Check the path provided or in case you want to create a new dataset, use deeplake.empty()."
             )

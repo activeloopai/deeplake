@@ -1749,9 +1749,9 @@ class Dataset:
         print(all_changes)
         return None
 
-    def _populate_meta(self, verbose=True):
+    def _populate_meta(self, address: Optional[str] = None, verbose=True):
         """Populates the meta information for the dataset."""
-        if dataset_exists(self.storage):
+        if dataset_exists(self.storage, address):
             load_meta(self)
 
         elif not self.storage.empty():
@@ -2233,7 +2233,7 @@ class Dataset:
             self._set_read_only(
                 self._read_only, err=self._read_only_error
             )  # TODO: weird fix for dataset unpickling
-            self._populate_meta(verbose)  # TODO: use the same scheme as `load_info`
+            self._populate_meta(address, verbose)  # TODO: use the same scheme as `load_info`
             if self.index.is_trivial():
                 self.index = Index.from_json(self.meta.default_index)
         elif not self._read_only:
