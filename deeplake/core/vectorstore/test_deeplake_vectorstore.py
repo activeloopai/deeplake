@@ -25,7 +25,7 @@ query_embedding = np.random.uniform(low=-10, high=10, size=(EMBEDDING_DIM)).asty
 
 
 def embedding_fn(text, embedding_dim=EMBEDDING_DIM):
-    pass  # pragma: no cover
+    return np.zeros(len(text), EMBEDDING_DIM)  # pragma: no cover
 
 
 def embedding_fn2(text, embedding_dim=EMBEDDING_DIM):
@@ -37,7 +37,7 @@ def embedding_fn3(text, embedding_dim=EMBEDDING_DIM):
     return [np.zeros(embedding_dim) for i in range(len(text))]
 
 
-def test_custom_tensors(hub_cloud_dev_token):
+def test_custom_tensors():
     # initialize vector store object:
     vector_store = DeepLakeVectorStore(
         path="./deeplake_vector_store",
@@ -264,6 +264,13 @@ def test_search_basic(hub_cloud_dev_token):
             query="select * where metadata == {'abcdefg': 28}",
             return_tensors=["metadata", "id"],
         )
+
+    vector_store = DeepLakeVectorStore(
+        path="mem://xyz", embedding_function=embedding_fn
+    )
+    vector_store.add(embedding=embeddings, text=texts, metadata=metadatas)
+    result = vector_store.search(embedding=np.zeros(1, EMBEDDING_DIM))
+    assert len(result) == 4
 
 
 @requires_libdeeplake
