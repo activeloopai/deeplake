@@ -125,7 +125,6 @@ def storage_provider_from_hub_path(
         )
 
     if mode == "r":
-        read_only = True
         if read_only is None and not DEFAULT_READONLY:
             # warns user about automatic mode change
             print(
