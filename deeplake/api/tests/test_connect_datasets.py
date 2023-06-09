@@ -1,7 +1,7 @@
 import pytest
 
 import deeplake
-from deeplake.util.exceptions import InvalidSourcePathError
+from deeplake.util.exceptions import InvalidSourcePathError, TokenPermissionError
 
 
 def test_connect_dataset_api(
@@ -60,3 +60,18 @@ def test_connect_dataset_cases(local_ds, memory_ds, hub_cloud_ds):
     # Connecting a cloud dataset is not permitted as its already avaliable via a Deep Lake path
     with pytest.raises(InvalidSourcePathError):
         hub_cloud_ds.connect(creds_key="some_creds", dest_path="hub://someorg/somename")
+
+def test_connect_user_not_in_org(
+    azure_ds_generator   
+):
+    with azure_ds_generator() as ds:
+        ds.create_tensor("x")
+        ds.x.append(10)
+    
+    with pytest.raises(TokenPermissionError) as e:
+        ds.connect(creds_key="some_creds", dest_path="hub://bad-org/some-name")
+        assert "dataset path" in str(e)
+    
+    with pytest.raises(TokenPermissionError) as e:
+        ds.connect(creds_key="some_creds", org_id="bad-org", ds_name="some-name")
+        assert "organization id" in str(e)
