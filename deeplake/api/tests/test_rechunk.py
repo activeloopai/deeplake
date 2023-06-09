@@ -303,3 +303,37 @@ def test_rechunk_vc_bug(local_ds):
     np.testing.assert_array_equal(
         ds.labels.numpy(), np.ones((300, 200), dtype=np.int64)
     )
+
+
+def test_rechunk_text_like_lz4(local_ds):
+    @deeplake.compute
+    def upload(stuff, ds):
+        ds.append(stuff)
+
+    with local_ds as ds:
+        ds.create_tensor("text", htype="text", chunk_compression="lz4")
+        ds.create_tensor("json", htype="json", chunk_compression="lz4")
+        ds.create_tensor("list", htype="list", chunk_compression="lz4")
+
+        samples = [{"text": "hello", "json": {"a": 1, "b": 3}, "list": [1, 2, 3]}] * 10
+        samples[8] = {
+            "text": "hello world",
+            "json": {"a": 2, "b": 4},
+            "list": [4, 5, 6],
+        }
+
+        upload().eval(samples, ds, num_workers=2, disable_rechunk=True)
+
+    assert ds.text.chunk_engine.num_chunks == 2
+    assert ds.json.chunk_engine.num_chunks == 2
+    assert ds.list.chunk_engine.num_chunks == 2
+
+    ds.pop()
+
+    assert ds.text.chunk_engine.num_chunks == 1
+    assert ds.json.chunk_engine.num_chunks == 1
+    assert ds.list.chunk_engine.num_chunks == 1
+
+    assert ds.text[-1].data()["value"] == "hello world"
+    assert ds.json[-1].data()["value"] == [{"a": 2, "b": 4}]
+    assert ds.list[-1].data()["value"] == [4, 5, 6]
