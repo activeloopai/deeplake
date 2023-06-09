@@ -265,11 +265,13 @@ def test_search_basic(hub_cloud_dev_token):
             return_tensors=["metadata", "id"],
         )
 
-    
-    vector_store = DeepLakeVectorStore(path="mem://xyz", embedding_function=embedding_fn)
+    vector_store = DeepLakeVectorStore(
+        path="mem://xyz", embedding_function=embedding_fn
+    )
     vector_store.add(embedding=embeddings, text=texts, metadata=metadatas)
     result = vector_store.search(embedding=np.zeros(1, EMBEDDING_DIM))
     assert len(result) == 4
+
 
 @requires_libdeeplake
 @pytest.mark.parametrize("distance_metric", ["L1", "L2", "COS", "MAX"])
