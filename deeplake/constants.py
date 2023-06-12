@@ -242,3 +242,5 @@ DEFAULT_VECTORSTORE_TENSORS = [
         "create_shape_tensor": False,
     },
 ]
+
+VIEW_SUMMARY_SAFE_LIMIT = 10000

@@ -2490,7 +2490,7 @@ class ChunkEngine:
         if nrows == 0:
             return 0, 0
         min_ = max_ = enc[0][1] - enc[0][0]
-        for i in range(1, nrows):
+        for i in range(1, self._sequence_length):
             length = enc[i][1] - enc[i][0]
             if length < min_:
                 min_ = length
@@ -2549,6 +2549,7 @@ class ChunkEngine:
 
         sample_ndim = self.ndim() - 1
 
+        offset = 0
         for i, idx in enumerate(sample_indices):
             if self.tensor_meta.htype in ("text", "json"):
                 shape = (1,)
@@ -2565,8 +2566,10 @@ class ChunkEngine:
                     sample_shapes = np.zeros((num_samples, sample_ndim), dtype=np.int32)
 
             if flatten:
-                start, end = self.sequence_encoder[i]
-                sample_shapes[start:end] = shape
+                start, end = self.sequence_encoder[idx]
+                length = end - start
+                sample_shapes[offset : offset + length] = shape
+                offset += length
             else:
                 sample_shapes[i] = shape
         return sample_shapes
@@ -2592,16 +2595,22 @@ class ChunkEngine:
         """Groups shapes of flattened sequence items"""
         sample_indices = list(index_0.indices(self._sequence_length))
         num_samples = len(sample_indices)
+        seq_item_length = self.sequence_encoder[sample_indices[0]]
+        seq_item_length = seq_item_length[1] - seq_item_length[0]
+        # try reshape to (num_samples, seq_item_length, sample_ndim)
         try:
             sample_shapes = sample_shapes[np.newaxis, :].reshape(
-                num_samples, -1, sample_ndim
+                num_samples, seq_item_length, sample_ndim
             )
             return sample_shapes
         except ValueError:
             sample_shapes_list = []
-            for i in sample_indices:
-                start, end = self.sequence_encoder[i]
-                sample_shapes_list.append(sample_shapes[start:end])
+            offset = 0
+            for i, idx in enumerate(sample_indices):
+                start, end = self.sequence_encoder[idx]
+                length = end - start
+                sample_shapes_list.append(sample_shapes[offset : offset + length])
+                offset += length
             return sample_shapes_list
 
     def shapes(
@@ -2618,7 +2627,14 @@ class ChunkEngine:
 
         sample_shapes = np.zeros((num_samples, sample_ndim), dtype=np.int32)
 
-        shape = self.shape_interval(index).astuple()[1:]
+        if (
+            index.is_trivial()
+            or self.tensor_meta.min_shape == self.tensor_meta.max_shape
+            or num_samples == 0
+        ):
+            shape = self.shape_interval(index).astuple()[1:]
+        else:
+            shape = None
 
         if (
             not index_0.subscriptable()
@@ -2627,7 +2643,7 @@ class ChunkEngine:
         ):
             shape = self.get_empty_sample().shape
 
-        if num_samples > 0 and None in shape or self.tensor_meta.is_link:
+        if shape is None or None in shape or self.tensor_meta.is_link:
             sample_shapes = self._populate_sample_shapes(
                 sample_shapes,
                 index,
@@ -2689,19 +2705,19 @@ class ChunkEngine:
         ):
             return self.get_empty_sample().shape
 
-        shape = self.shape_interval(index).astuple()
-        if index_0.is_trivial():
-            return shape
-
         num_samples = index_0.length(self._sequence_length or self.num_samples)
-        if num_samples == 0:
+        if index_0.is_trivial() or num_samples == 0:
+            shape = self.shape_interval(index).astuple()
             return shape
+        elif self.tensor_meta.min_shape == self.tensor_meta.max_shape:
+            shape = self.shape_interval(index).astuple()[1:]
+        else:
+            shape = None
 
-        shape = shape[1:]
         sample_ndim = tensor_ndim - 1
         sample_shapes = np.zeros((num_samples, sample_ndim), dtype=np.int32)
 
-        if None in shape or self.tensor_meta.is_link:
+        if shape is None or None in shape or self.tensor_meta.is_link:
             sample_shapes = self._populate_sample_shapes(
                 sample_shapes, index, sample_shape_provider, flatten=False
             )
@@ -2729,7 +2745,9 @@ class ChunkEngine:
                     ndim -= 1
         return ndim
 
-    def shape_interval(self, index: Index) -> ShapeInterval:
+    def shape_interval(
+        self, index: Index, sample_shape_provider: Optional[Callable] = None
+    ) -> ShapeInterval:
         """Returns a `ShapeInterval` object that describes this tensor's shape more accurately. Length is included.
 
         Args:
@@ -2751,14 +2769,41 @@ class ChunkEngine:
         """
         meta = self.tensor_meta
         if self.is_sequence:
-            seq_length = index.length(self._sequence_length)
-            min_item_length, max_item_length = self._sequence_item_length_range
-            min_length = [seq_length, min_item_length]
-            max_length = [seq_length, max_item_length]
+            tensor_length = index.length(self._sequence_length)
         else:
-            min_length = max_length = [index.length(meta.length)]
-        min_shape = min_length + list(meta.min_shape)
-        max_shape = max_length + list(meta.max_shape)
+            tensor_length = index.length(meta.length)
+
+        if index.is_trivial() or meta.min_shape == meta.max_shape or tensor_length == 0:
+            if self.is_sequence:
+                min_item_length, max_item_length = self._sequence_item_length_range
+                min_length = [tensor_length, min_item_length]
+                max_length = [tensor_length, max_item_length]
+            else:
+                min_length = max_length = [tensor_length]
+            min_shape = min_length + list(meta.min_shape)
+            max_shape = max_length + list(meta.max_shape)
+        else:
+            shapes = self.shapes(index, sample_shape_provider)
+            if self.is_sequence:
+                if isinstance(shapes, np.ndarray):
+                    min_shape = [*shapes.shape[:-1], *np.amin(shapes, axis=(0, 1))]
+                    max_shape = [*shapes.shape[:-1], *np.amax(shapes, axis=(0, 1))]
+                else:
+                    item_lengths = list(map(len, shapes))
+                    min_item_length, max_item_length = min(item_lengths), max(
+                        item_lengths
+                    )
+                    min_item_shape = np.amin(
+                        list(map(lambda x: np.amin(x, axis=0), shapes)), axis=0
+                    )
+                    max_item_shape = np.amax(
+                        list(map(lambda x: np.amax(x, axis=0), shapes)), axis=0
+                    )
+                    min_shape = [len(shapes), min_item_length, *min_item_shape]
+                    max_shape = [len(shapes), max_item_length, *max_item_shape]
+            else:
+                min_shape = [len(shapes), *np.amin(shapes, axis=0)]
+                max_shape = [len(shapes), *np.amax(shapes, axis=0)]
 
         return ShapeInterval(min_shape, max_shape)
 

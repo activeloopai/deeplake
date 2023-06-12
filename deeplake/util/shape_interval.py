@@ -82,3 +82,9 @@ class ShapeInterval:
 
     def __repr__(self):
         return str(self)
+
+    def __eq__(self, other):
+        if not isinstance(other, ShapeInterval):
+            return False
+
+        return self.lower == other.lower and self.upper == other.upper

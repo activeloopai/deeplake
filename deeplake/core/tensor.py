@@ -590,7 +590,13 @@ class Tensor:
         Note:
             If you are expecting a tuple, use :attr:`shape` instead.
         """
-        return self.chunk_engine.shape_interval(self.index)
+        sample_shape_tensor = self._sample_shape_tensor
+        sample_shape_provider = (
+            self._sample_shape_provider(sample_shape_tensor)
+            if sample_shape_tensor
+            else None
+        )
+        return self.chunk_engine.shape_interval(self.index, sample_shape_provider)
 
     @property
     def is_dynamic(self) -> bool:
