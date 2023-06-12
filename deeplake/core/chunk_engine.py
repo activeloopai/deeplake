@@ -2733,7 +2733,7 @@ class ChunkEngine:
         if index_0.subscriptable():
             shape = (num_samples, *shape)  # type: ignore
 
-        return shape
+        return shape  # type: ignore
 
     def ndim(self, index: Optional[Index] = None) -> int:
         ndim = len(self.tensor_meta.min_shape) + 1
