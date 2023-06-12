@@ -78,6 +78,8 @@ class ShapeInterval:
             else:
                 intervals.append(f"{l}:{u}")
 
+        if len(intervals) == 1:
+            return f"({intervals[0]},)"
         return f"({', '.join(intervals)})"
 
     def __repr__(self):
