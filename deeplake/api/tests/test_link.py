@@ -671,6 +671,7 @@ def test_creds(hub_cloud_ds_generator, cat_path):
     assert ds.get_managed_creds_keys() == ["aws_creds"]
     assert set(ds.get_creds_keys()) == {"aws_creds", "ENV"}
 
+
 def test_bad_link_no_verify(memory_ds):
     with memory_ds as ds:
         ds.add_creds_key("S3_CREDS")
