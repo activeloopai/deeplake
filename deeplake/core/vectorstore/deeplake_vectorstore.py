@@ -341,13 +341,13 @@ class DeepLakeVectorStore:
             return_tensors=return_tensors,
         )
 
-        # if embedding_function is not None or embedding is not None:
-        query_emb = dataset_utils.get_embedding(
-            query,
-            embedding,
-            embedding_data,
-            embedding_function=embedding_function or self.embedding_function,
-        )
+        if query is None:
+            # if embedding_function is not None or embedding is not None:
+            query_emb = dataset_utils.get_embedding(
+                embedding,
+                embedding_data,
+                embedding_function=embedding_function or self.embedding_function,
+            )
 
         if not return_tensors:
             return_tensors = [
