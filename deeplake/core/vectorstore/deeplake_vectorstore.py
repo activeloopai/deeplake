@@ -341,7 +341,7 @@ class DeepLakeVectorStore:
             return_tensors=return_tensors,
         )
 
-        query_emb = None
+        query_emb: Optional[Union[List[float], np.ndarray[Any, Any]]] = None
         if query is None:
             query_emb = dataset_utils.get_embedding(
                 embedding,

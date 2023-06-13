@@ -331,12 +331,12 @@ def test_search_quantitative(distance_metric, hub_cloud_dev_token):
             distance_metric=distance_metric,
             filter={"metadata": {"abcdefg": 28}},
         )
-        
+
     data_ce = vector_store.search(
         query="select * where ids == '0'",
         exec_option="compute_engine",
     )
-    assert data_ce["ids"] == ['0']
+    assert data_ce["ids"] == ["0"]
 
 
 @requires_libdeeplake
