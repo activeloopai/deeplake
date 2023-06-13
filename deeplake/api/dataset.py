@@ -12,6 +12,7 @@ from deeplake.auto.unstructured.yolo.yolo import YoloDataset
 from deeplake.client.client import DeepLakeBackendClient
 from deeplake.client.log import logger
 from deeplake.core.dataset import Dataset, dataset_factory
+from deeplake.core.tensor import Tensor
 from deeplake.core.meta.dataset_meta import DatasetMeta
 from deeplake.util.connect_dataset import connect_dataset_entry
 from deeplake.util.version_control import (
@@ -1090,7 +1091,7 @@ class dataset:
 
         Raises:
             DatasetHandlerError: If a dataset already exists at destination path and overwrite is False.
-            TypeError: If source is not a path to a dataset.
+            TypeError: If source is not a dataset.
             UnsupportedParameterException: If parameter that is no longer supported is beeing called.
             DatasetCorruptError: If loading source dataset fails with DatasetCorruptedError
         """
@@ -1134,6 +1135,21 @@ class dataset:
                     e.__cause__,
                 )
         else:
+            if isinstance(src, Tensor):
+                raise TypeError(
+                    "Deepcopy is not supported for individual tensors. Please specify a dataset."
+                )
+
+            if not src.index.is_trivial():
+                raise TypeError(
+                    "Deepcopy is not supported for unmaterialized dataset views, i.e. slices of datasets. Please specify a dataset or a materialized dataset view."
+                )
+
+            if not src._is_root():
+                raise TypeError(
+                    "Deepcopy is not supported for individual groups. Please specify a dataset."
+                )
+
             src_ds = src
 
         verify_dataset_name(dest)

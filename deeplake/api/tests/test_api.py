@@ -1000,6 +1000,7 @@ def test_deepcopy(path, hub_token):
         src_ds.create_tensor("b", htype="class_label")
         src_ds.create_tensor("c")
         src_ds.create_tensor("d", dtype=bool)
+        src_ds.create_group("g")
 
         src_ds.d.info.update(key=1)
 
@@ -1021,6 +1022,31 @@ def test_deepcopy(path, hub_token):
         token=hub_token,
         num_workers=1,
     )
+
+    with pytest.raises(TypeError):
+        deeplake.deepcopy(
+            src_ds.a,
+            dest_path,
+            overwrite=True,
+            token=hub_token,
+            num_workers=0,
+        )
+    with pytest.raises(TypeError):
+        deeplake.deepcopy(
+            src_ds.g,
+            dest_path,
+            overwrite=True,
+            token=hub_token,
+            num_workers=0,
+        )
+    with pytest.raises(TypeError):
+        deeplake.deepcopy(
+            src_ds[0],
+            dest_path,
+            overwrite=True,
+            token=hub_token,
+            num_workers=0,
+        )
 
 
 @pytest.mark.parametrize(
