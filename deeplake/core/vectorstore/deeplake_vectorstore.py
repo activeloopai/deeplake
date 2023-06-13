@@ -326,11 +326,11 @@ class DeepLakeVectorStore:
         )
 
         exec_option = exec_option or self.exec_option
-        embedding_function = embedding_function or self.embedding_function
 
         utils.parse_search_args(
             embedding_data=embedding_data,
             embedding_function=embedding_function,
+            initial_embedding_function=self.embedding_function,
             embedding=embedding,
             k=k,
             distance_metric=distance_metric,
@@ -345,7 +345,7 @@ class DeepLakeVectorStore:
         query_emb = dataset_utils.get_embedding(
             embedding,
             embedding_data,
-            embedding_function=embedding_function,
+            embedding_function=embedding_function or self.embedding_function,
         )
 
         if not return_tensors:

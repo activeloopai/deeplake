@@ -17,7 +17,7 @@ from deeplake.api.info import Info
 from deeplake.core.link_creds import LinkCreds
 from deeplake.core.linked_sample import LinkedSample
 from deeplake.core.meta.encode.base_encoder import LAST_SEEN_INDEX_COLUMN
-from deeplake.core.serialize import HEADER_SIZE_BYTES
+from deeplake.core.serialize import HEADER_SIZE_BYTES, text_to_bytes
 from deeplake.core.tensor_link import (
     cast_to_type,
     extend_downsample,
@@ -1350,7 +1350,11 @@ class ChunkEngine:
         if isinstance(sample_data, Polygons):
             return sample_data
         if decompress:
-            sample = Sample(array=sample_data, shape=sample_shape)
+            if self.is_text_like:
+                byts, shape = text_to_bytes(sample_data, dtype, self.tensor_meta.htype)
+                sample = Sample(buffer=byts, shape=shape)
+            else:
+                sample = Sample(array=sample_data, shape=sample_shape)
         else:
             sample = Sample(
                 buffer=sample_data,
@@ -1359,7 +1363,7 @@ class ChunkEngine:
                 dtype=dtype,
             )
 
-        if self.tensor_meta.htype in ("json", "text", "list"):
+        if self.is_text_like:
             sample.htype = self.tensor_meta.htype
         if self.tensor_meta.is_link:
             sample.htype = "text"
