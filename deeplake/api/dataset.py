@@ -1135,11 +1135,6 @@ class dataset:
                     e.__cause__,
                 )
         else:
-            if isinstance(src, Tensor):
-                raise TypeError(
-                    "Deepcopy is not supported for individual tensors. Please specify a dataset."
-                )
-
             if not src.index.is_trivial():
                 raise TypeError(
                     "Deepcopy is not supported for unmaterialized dataset views, i.e. slices of datasets. Please specify a dataset or a materialized dataset view."
