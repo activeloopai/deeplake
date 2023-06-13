@@ -2575,6 +2575,8 @@ class ChunkEngine:
                 try:
                     sample_shapes[i] = shape
                 except ValueError:
+                    # Backwards compatibility for old datasets with
+                    # grayscale images stored as (H, W) instead of (H, W, 1)
                     if len(shape) == 2 and sample_shapes.shape[1] == 3:
                         sample_shapes[i] = shape + (1,)
                         bad_shapes.append(i)
@@ -2626,6 +2628,7 @@ class ChunkEngine:
         index: Index,
         sample_shape_provider: Optional[Callable] = None,
         pad_tensor: bool = False,
+        convert_bad_to_list: bool = True,
     ):
         if len(index) > 1:
             raise IndexError(f"`.shapes` only accepts indexing on the primary axis.")
@@ -2658,7 +2661,8 @@ class ChunkEngine:
                 sample_shape_provider,
                 flatten=True if self.is_sequence else False,
             )
-            if bad_shapes:
+            # convert to list if grayscale images were stored as (H, W) instead of (H, W, 1)
+            if bad_shapes and convert_bad_to_list:
                 sample_shapes = sample_shapes.tolist()
                 for i in bad_shapes:
                     sample_shapes[i] = sample_shapes[i][:-1]
@@ -2730,7 +2734,7 @@ class ChunkEngine:
         sample_shapes = np.zeros((num_samples, sample_ndim), dtype=np.int32)
 
         if shape is None or None in shape or self.tensor_meta.is_link:
-            sample_shapes = self._populate_sample_shapes(
+            sample_shapes, bad_shapes = self._populate_sample_shapes(
                 sample_shapes, index, sample_shape_provider, flatten=False
             )
             sample_ndim = sample_shapes.shape[1]
@@ -2796,7 +2800,7 @@ class ChunkEngine:
             min_shape = min_length + list(meta.min_shape)
             max_shape = max_length + list(meta.max_shape)
         else:
-            shapes = self.shapes(index, sample_shape_provider)
+            shapes = self.shapes(index, sample_shape_provider, convert_bad_to_list=False)
             if self.is_sequence:
                 if isinstance(shapes, np.ndarray):
                     min_shape = [*shapes.shape[:-1], *np.amin(shapes, axis=(0, 1))]
