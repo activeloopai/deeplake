@@ -2549,6 +2549,7 @@ class ChunkEngine:
 
         sample_ndim = self.ndim() - 1
 
+        bad_shapes = []
         offset = 0
         for i, idx in enumerate(sample_indices):
             if self.tensor_meta.htype in ("text", "json"):
@@ -2571,8 +2572,13 @@ class ChunkEngine:
                 sample_shapes[offset : offset + length] = shape
                 offset += length
             else:
-                sample_shapes[i] = shape
-        return sample_shapes
+                try:
+                    sample_shapes[i] = shape
+                except ValueError:
+                    if len(shape) == 2 and sample_shapes.shape[1] == 3:
+                        sample_shapes[i] = shape + (1,)
+                        bad_shapes.append(i)
+        return sample_shapes, bad_shapes
 
     def _get_total_samples_and_sample_ndim(self, index_0):
         """Returns total number of samples (including sequence items) and sample ndim using first index"""
@@ -2599,6 +2605,8 @@ class ChunkEngine:
         seq_item_length = seq_item_length[1] - seq_item_length[0]
         # try reshape to (num_samples, seq_item_length, sample_ndim)
         try:
+            if isinstance(sample_shapes, list):
+                raise ValueError
             sample_shapes = sample_shapes[np.newaxis, :].reshape(
                 num_samples, seq_item_length, sample_ndim
             )
@@ -2644,12 +2652,16 @@ class ChunkEngine:
             shape = self.get_empty_sample().shape
 
         if shape is None or None in shape or self.tensor_meta.is_link:
-            sample_shapes = self._populate_sample_shapes(
+            sample_shapes, bad_shapes = self._populate_sample_shapes(
                 sample_shapes,
                 index,
                 sample_shape_provider,
                 flatten=True if self.is_sequence else False,
             )
+            if bad_shapes:
+                sample_shapes = sample_shapes.tolist()
+                for i in bad_shapes:
+                    sample_shapes[i] = sample_shapes[i][:-1]
             if self.is_sequence:
                 sample_shapes = self._group_flat_shapes(
                     sample_shapes, index_0, sample_ndim
@@ -2752,6 +2764,7 @@ class ChunkEngine:
 
         Args:
             index (Index): Index to use for shape calculation.
+            sample_shape_provider (Optional, Callable): Function that returns a sample shape for a given index.
 
         Note:
             If you are expecting a `tuple`, use `tensor.shape` instead.
