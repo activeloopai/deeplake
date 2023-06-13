@@ -269,7 +269,7 @@ def test_search_basic(hub_cloud_dev_token):
         path="mem://xyz", embedding_function=embedding_fn
     )
     vector_store.add(embedding=embeddings, text=texts, metadata=metadatas)
-    result = vector_store.search(embedding=np.zeros(1, EMBEDDING_DIM))
+    result = vector_store.search(embedding=np.zeros((1, EMBEDDING_DIM)))
     assert len(result) == 4
 
 
