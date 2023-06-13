@@ -341,6 +341,7 @@ class DeepLakeVectorStore:
             return_tensors=return_tensors,
         )
 
+        query_emb = None
         if query is None:
             # if embedding_function is not None or embedding is not None:
             query_emb = dataset_utils.get_embedding(
