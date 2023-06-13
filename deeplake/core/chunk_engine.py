@@ -2800,7 +2800,9 @@ class ChunkEngine:
             min_shape = min_length + list(meta.min_shape)
             max_shape = max_length + list(meta.max_shape)
         else:
-            shapes = self.shapes(index, sample_shape_provider, convert_bad_to_list=False)
+            shapes = self.shapes(
+                index, sample_shape_provider, convert_bad_to_list=False
+            )
             if self.is_sequence:
                 if isinstance(shapes, np.ndarray):
                     min_shape = [*shapes.shape[:-1], *np.amin(shapes, axis=(0, 1))]

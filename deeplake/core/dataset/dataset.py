@@ -2408,7 +2408,7 @@ class Dataset:
         Args:
             force (bool): Some dataset views might take a long time to summarize. If `force=True`, the summary will be printed regardless.
                 An error will be raised otherwise
-        
+
         Raises:
             ValueError: If the dataset view might take a long time to summarize and `force=False`
         """

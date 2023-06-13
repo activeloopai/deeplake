@@ -1149,13 +1149,17 @@ class Tensor:
                     *self.chunk_engine.sequence_encoder[global_sample_index]
                 )
                 idx = Index([IndexEntry(seq_pos)])
-                shapes = sample_shape_tensor[idx].numpy()
+                shapes = sample_shape_tensor[idx].numpy(fetch_chunks=True)
                 return shapes
 
         else:
 
             def get_sample_shape(global_sample_index: int):
-                return tuple(sample_shape_tensor[global_sample_index].numpy().tolist())
+                return tuple(
+                    sample_shape_tensor[global_sample_index]
+                    .numpy(fetch_chunks=True)
+                    .tolist()
+                )
 
         return get_sample_shape
 
