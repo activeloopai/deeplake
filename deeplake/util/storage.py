@@ -104,7 +104,7 @@ def storage_provider_from_path(
 
 def storage_provider_from_hub_path(
     path: str,
-    read_only: bool = False,
+    read_only: bool = None,
     db_engine: bool = False,
     token: Optional[str] = None,
     creds: Optional[Union[dict, str]] = None,
@@ -112,7 +112,7 @@ def storage_provider_from_hub_path(
     path, org_id, ds_name, subdir = process_hub_path(path)
     client = DeepLakeBackendClient(token=token)
 
-    mode = "r" if read_only else None
+    mode = None if (read_only is None) else ("r" if read_only else "w")
     # this will give the proper url (s3, gcs, etc) and corresponding creds, depending on where the dataset is stored.
     try:
         url, final_creds, mode, expiration, repo = client.get_dataset_credentials(
@@ -124,12 +124,9 @@ def storage_provider_from_hub_path(
             org_id, ds_name, mode=mode, db_engine={"enabled": db_engine}
         )
 
-    if mode == "r":
-        if read_only is None and not DEFAULT_READONLY:
-            # warns user about automatic mode change
-            print(
-                "Opening dataset in read-only mode as you don't have write permissions."
-            )
+    if mode == "r" and read_only is None and not DEFAULT_READONLY:
+        # warns user about automatic mode change
+        print("Opening dataset in read-only mode as you don't have write permissions.")
 
     if read_only is None:
         read_only = DEFAULT_READONLY
