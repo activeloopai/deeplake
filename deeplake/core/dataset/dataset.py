@@ -2421,7 +2421,7 @@ class Dataset:
             and not force
         ):
             raise ValueError(
-                "This dataset view might take a long time to summarize. Use `force=True` to override."
+                "Dataset views with more than 10000 samples might take a long time to summarize. Use `force=True` to override."
             )
 
         pretty_print = summary_dataset(self)
