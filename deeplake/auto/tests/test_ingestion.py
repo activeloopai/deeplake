@@ -313,7 +313,7 @@ def test_dataframe_array(memory_ds: Dataset):
             np.array([2, 22, 1, 2]),
             np.array([0, 56, 34, 2]),
         ],
-        "CC": [45, 67, 88, 77],
+        "CC": [45, 67, 88, float("nan")],
         "DD": [None, None, None, None],
         "EE": [
             None,
