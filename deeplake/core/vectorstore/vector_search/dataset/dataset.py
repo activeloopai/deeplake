@@ -1,8 +1,7 @@
-import deeplake
-from deeplake.constants import MB
-from deeplake.enterprise.util import raise_indra_installation_error
-from deeplake.core.vectorstore.vector_search import utils
-from deeplake.core import tensor as tensor_utils
+import uuid
+from typing import List, Dict, Any
+
+import numpy as np
 
 try:
     from indra import api  # type: ignore
@@ -11,29 +10,60 @@ try:
 except ImportError:  # pragma: no cover
     _INDRA_INSTALLED = False  # pragma: no cover
 
-import numpy as np
-
-import uuid
-from typing import Iterable, List, Union, Optional
-
-from deeplake.constants import DEFAULT_VECTORSTORE_DEEPLAKE_PATH
+import deeplake
+from deeplake.constants import MB
+from deeplake.core.vectorstore.vector_search import utils
+from deeplake.core.vectorstore.vector_search import dataset as dataset_utils
+from deeplake.core.vectorstore.vector_search.ingestion import ingest_data
+from deeplake.constants import (
+    DEFAULT_VECTORSTORE_DEEPLAKE_PATH,
+    VECTORSTORE_EXTEND_MAX_SIZE,
+    DEFAULT_VECTORSTORE_TENSORS,
+)
 from deeplake.util.warnings import always_warn
 
 
 def create_or_load_dataset(
-    dataset_path, token, creds, logger, read_only, exec_option, **kwargs
+    tensor_params,
+    dataset_path,
+    token,
+    creds,
+    logger,
+    read_only,
+    exec_option,
+    embedding_function,
+    overwrite,
+    **kwargs,
 ):
     utils.check_indra_installation(
         exec_option=exec_option, indra_installed=_INDRA_INSTALLED
     )
 
-    if "overwrite" in kwargs and kwargs["overwrite"] == False:
-        del kwargs["overwrite"]
+    if not overwrite and dataset_exists(dataset_path, token, creds, **kwargs):
+        if tensor_params is not None and tensor_params != DEFAULT_VECTORSTORE_TENSORS:
+            raise ValueError(
+                "Vector Store is not empty. You shouldn't specify tensor_params if you're loading from existing dataset."
+            )
 
-    if dataset_exists(dataset_path, token, creds, **kwargs):
-        return load_dataset(dataset_path, token, creds, logger, read_only, **kwargs)
+        return load_dataset(
+            dataset_path,
+            token,
+            creds,
+            logger,
+            read_only,
+            **kwargs,
+        )
 
-    return create_dataset(dataset_path, token, exec_option, **kwargs)
+    return create_dataset(
+        logger,
+        tensor_params,
+        dataset_path,
+        token,
+        exec_option,
+        embedding_function,
+        overwrite,
+        **kwargs,
+    )
 
 
 def dataset_exists(dataset_path, token, creds, **kwargs):
@@ -43,7 +73,14 @@ def dataset_exists(dataset_path, token, creds, **kwargs):
     )
 
 
-def load_dataset(dataset_path, token, creds, logger, read_only, **kwargs):
+def load_dataset(
+    dataset_path,
+    token,
+    creds,
+    logger,
+    read_only,
+    **kwargs,
+):
     if dataset_path == DEFAULT_VECTORSTORE_DEEPLAKE_PATH:
         logger.warning(
             f"The default deeplake path location is used: {DEFAULT_VECTORSTORE_DEEPLAKE_PATH}"
@@ -52,9 +89,15 @@ def load_dataset(dataset_path, token, creds, logger, read_only, **kwargs):
         )
 
     dataset = deeplake.load(
-        dataset_path, token=token, read_only=read_only, creds=creds, **kwargs
+        dataset_path,
+        token=token,
+        read_only=read_only,
+        creds=creds,
+        verbose=False,
+        **kwargs,
     )
-    create_tensors_if_needed(dataset, logger)
+
+    check_tensors(dataset)
 
     logger.warning(
         f"Deep Lake Dataset in {dataset_path} already exists, "
@@ -63,114 +106,89 @@ def load_dataset(dataset_path, token, creds, logger, read_only, **kwargs):
     return dataset
 
 
-def create_tensors_if_needed(dataset, logger):
+def check_tensors(dataset):
     tensors = dataset.tensors
 
-    if "text" not in tensors:
-        warn_and_create_missing_tensor(
-            logger=logger,
-            dataset=dataset,
-            tensor_name="text",
-            htype="text",
-            create_id_tensor=False,
-            create_sample_info_tensor=False,
-            create_shape_tensor=False,
-            chunk_compression="lz4",
-        )
+    embedding_tensor_exist = False
+    ids_exist = False
 
-    if "metadata" not in tensors:
-        warn_and_create_missing_tensor(
-            logger=logger,
-            dataset=dataset,
-            tensor_name="metadata",
-            htype="json",
-            create_id_tensor=False,
-            create_sample_info_tensor=False,
-            create_shape_tensor=False,
-            chunk_compression="lz4",
-        )
+    for tensor in tensors:
+        htype = dataset[tensor].htype
 
-    if "embedding" not in tensors:
-        warn_and_create_missing_tensor(
-            logger=logger,
-            dataset=dataset,
-            tensor_name="embedding",
-            htype="embedding",
-            dtype=np.float32,
-            create_id_tensor=False,
-            create_sample_info_tensor=False,
-            max_chunk_size=64 * MB,
-            create_shape_tensor=True,
-        )
+        if tensor in ("id", "ids"):
+            ids_exist = True
 
-    if "ids" not in tensors:
-        warn_and_create_missing_tensor(
-            logger=logger,
-            dataset=dataset,
-            tensor_name="ids",
-            htype="text",
-            create_id_tensor=False,
-            create_sample_info_tensor=False,
-            create_shape_tensor=False,
-            chunk_compression="lz4",
-        )
+        if tensor in ("embedding", "embeddings"):
+            embedding_tensor_exist = True
+
+            # TODO: Add back once old datasets without embedding htype are not in circulation
+            # if htype not in (None, "embedding"):
+            #     raise ValueError(
+            #         f"`{htype}` is not supported htype for embedding tensor. "
+            #         "Supported htype for embedding tensor is: `embedding`"
+            #     )
+
+        if htype == "embedding":
+            if tensor in ("id", "ids"):
+                raise ValueError(
+                    f"`{tensor}` is not valid name for embedding tensor, as the name is preserved for another tensor"
+                )
+
+            embedding_tensor_exist = True
+
+    if not embedding_tensor_exist:
+        raise ValueError("At least one embedding tensor should exist.")
+
+    if not ids_exist:
+        raise ValueError("`id` tensor was not found in the dataset.")
 
 
-def warn_and_create_missing_tensor(dataset, tensor_name, logger, **kwargs):
-    logger.warning(
-        f"`{tensor_name}` tensor does not exist in the dataset. If you created dataset manually "
-        "and stored text data in another tensor, consider copying the contents of that "
-        f"tensor into `{tensor_name}` tensor and deleting if afterwards. To view dataset content "
-        "run ds.summary()"
-    )
-    dataset.create_tensor(
-        tensor_name,
-        **kwargs,
-    )
-
-
-def create_dataset(dataset_path, token, exec_option, **kwargs):
+def create_dataset(
+    logger,
+    tensor_params,
+    dataset_path,
+    token,
+    exec_option,
+    embedding_function,
+    overwrite,
+    **kwargs,
+):
     runtime = None
     if exec_option == "tensor_db":
         runtime = {"tensor_db": True}
 
-    dataset = deeplake.empty(dataset_path, token=token, runtime=runtime, **kwargs)
+    dataset = deeplake.empty(
+        dataset_path,
+        token=token,
+        runtime=runtime,
+        verbose=False,
+        overwrite=overwrite,
+        **kwargs,
+    )
+    create_tensors(tensor_params, dataset, logger, embedding_function)
+
+    return dataset
+
+
+def create_tensors(tensor_params, dataset, logger, embedding_function):
+    tensor_names = [tensor["name"] for tensor in tensor_params]
+    if "id" not in tensor_names and "ids" not in tensor_names:
+        tensor_params.append(
+            {
+                "name": "id",
+                "htype": "text",
+                "create_id_tensor": False,
+                "create_sample_info_tensor": False,
+                "create_shape_tensor": False,
+                "chunk_compression": "lz4",
+            },
+        )
 
     with dataset:
-        dataset.create_tensor(
-            "text",
-            htype="text",
-            create_id_tensor=False,
-            create_sample_info_tensor=False,
-            create_shape_tensor=False,
-            chunk_compression="lz4",
-        )
-        dataset.create_tensor(
-            "metadata",
-            htype="json",
-            create_id_tensor=False,
-            create_sample_info_tensor=False,
-            create_shape_tensor=False,
-            chunk_compression="lz4",
-        )
-        dataset.create_tensor(
-            "embedding",
-            htype="embedding",
-            dtype=np.float32,
-            create_id_tensor=False,
-            create_sample_info_tensor=False,
-            max_chunk_size=64 * MB,
-            create_shape_tensor=True,
-        )
-        dataset.create_tensor(
-            "ids",
-            htype="text",
-            create_id_tensor=False,
-            create_sample_info_tensor=False,
-            create_shape_tensor=False,
-            chunk_compression="lz4",
-        )
-    return dataset
+        for tensor_args in tensor_params:
+            dataset.create_tensor(**tensor_args)
+
+        update_embedding_info(logger, dataset, embedding_function)
 
 
 def delete_and_commit(dataset, ids):
@@ -182,81 +200,179 @@ def delete_and_commit(dataset, ids):
 
 def delete_all_samples_if_specified(dataset, delete_all):
     if delete_all:
-        dataset = deeplake.empty(dataset.path, overwrite=True)
+        dataset = deeplake.like(
+            dataset.path,
+            dataset,
+            overwrite=True,
+            verbose=False,
+        )
+
         return dataset, True
     return dataset, False
 
 
-def fetch_embeddings(exec_option, view, logger):
-    if exec_option == "python":
-        logger.warning(
-            "Python implementation fetches all of the dataset's embedding into memory. "
-            "With big datasets this could be quite slow and potentially result in performance issues. "
-            "Use `exec_option = 'tensor_db'` for better performance."
-        )
-        embeddings = view.embedding.numpy()
-    elif exec_option in ("compute_engine", "tensor_db"):
-        embeddings = None
-    return embeddings
+def fetch_embeddings(view, embedding_tensor: str = "embedding"):
+    return view[embedding_tensor].numpy()
 
 
-def get_embedding(embedding, query, embedding_function=None):
-    if embedding is None:
-        if embedding_function is None:
-            raise Exception(
-                "Either embedding array or embedding_function should be specified!"
-            )
+def get_embedding(embedding, embedding_data, embedding_function=None):
+    if (
+        embedding is None
+        and embedding_function is not None
+        and embedding_data is not None
+    ):
+        embedding = embedding_function(embedding_data)  # type: ignore
 
-    if embedding_function is not None:
-        if embedding is not None:
-            always_warn("both embedding and embedding_function are specified. ")
-        embedding = embedding_function(query)  # type: ignore
-
-    if isinstance(embedding, list) or embedding.dtype != "float32":
+    if embedding is not None and (
+        isinstance(embedding, list) or embedding.dtype != "float32"
+    ):
         embedding = np.array(embedding, dtype=np.float32)
 
     return embedding
 
 
-def preprocess_tensors(ids, texts, metadatas, embeddings):
-    if ids is None:
-        ids = [str(uuid.uuid1()) for _ in texts]
+def preprocess_tensors(
+    embedding_data=None, embedding_tensor=None, dataset=None, **tensors
+):
+    first_item = next(iter(tensors))
+    ids_tensor = "ids" if "ids" in tensors else "id"
+    if ids_tensor not in tensors or ids_tensor is None:
+        id = [str(uuid.uuid1()) for _ in tensors[first_item]]
+        tensors[ids_tensor] = id
 
-    if not isinstance(texts, list):
-        texts = list(texts)
+    processed_tensors = {ids_tensor: tensors[ids_tensor]}
 
-    if metadatas is None:
-        metadatas = [{}] * len(texts)
+    for tensor_name, tensor_data in tensors.items():
+        if not isinstance(tensor_data, list):
+            tensor_data = list(tensor_data)
+        if dataset and dataset[tensor_name].htype == "image":
+            tensor_data = [
+                deeplake.read(data) if isinstance(data, str) else data
+                for data in tensor_data
+            ]
+        processed_tensors[tensor_name] = tensor_data
 
-    if embeddings is None:
-        embeddings = [None] * len(texts)
+    if embedding_data:
+        processed_tensors[embedding_tensor] = embedding_data
 
-    processed_tensors = {
-        "ids": ids,
-        "texts": texts,
-        "metadatas": metadatas,
-        "embeddings": embeddings,
-    }
-
-    return processed_tensors, ids
+    return processed_tensors, tensors[ids_tensor]
 
 
 def create_elements(
-    texts: Iterable[str],
-    ids: Optional[List[str]] = None,
-    metadatas: Optional[List[dict]] = None,
-    embeddings: Optional[Union[List[float], np.ndarray]] = None,
+    processed_tensors: Dict[str, List[Any]],
 ):
-    processed_tensors, ids = preprocess_tensors(ids, texts, metadatas, embeddings)
-    utils.check_length_of_each_tensor(processed_tensors)
-
+    tensor_names = list(processed_tensors)
     elements = [
-        {
-            "text": processed_tensors["texts"][i],
-            "id": processed_tensors["ids"][i],
-            "metadata": processed_tensors["metadatas"][i],
-            "embedding": processed_tensors["embeddings"][i],
-        }
-        for i in range(len(processed_tensors["texts"]))
+        {tensor_name: processed_tensors[tensor_name][i] for tensor_name in tensor_names}
+        for i in range(len(processed_tensors[tensor_names[0]]))
     ]
-    return elements, ids
+    return elements
+
+
+def set_embedding_info(tensor, embedding_function):
+    embedding_info = tensor.info.get("embedding")
+    if embedding_function and not embedding_info:
+        tensor.info["embedding"] = {
+            "model": embedding_function.__dict__.get("model"),
+            "deployment": embedding_function.__dict__.get("deployment"),
+            "embedding_ctx_length": embedding_function.__dict__.get(
+                "embedding_ctx_length"
+            ),
+            "chunk_size": embedding_function.__dict__.get("chunk_size"),
+            "max_retries": embedding_function.__dict__.get("max_retries"),
+        }
+
+
+def update_embedding_info(logger, dataset, embedding_function):
+    embeddings_tensors = utils.find_embedding_tensors(dataset)
+    num_embedding_tensors = len(embeddings_tensors)
+
+    if num_embedding_tensors == 0:
+        logger.warning(
+            f"No embedding tensors were found, so the embedding function metadata will not be added to any tensor. "
+            "Consider doing that manually using `vector_store.dataset.tensor_name.info. = <embedding_function_info_dictionary>`"
+        )
+        return
+    if num_embedding_tensors > 1:
+        logger.warning(
+            f"{num_embedding_tensors} embedding tensors were found. "
+            f"It is not clear to which tensor the embedding function information should be added, so the embedding function metadata will not be added to any tensor. "
+            "Consider doing that manually using `vector_store.dataset.tensor_name.info = <embedding_function_info_dictionary>`"
+        )
+        return
+
+    set_embedding_info(dataset[embeddings_tensors[0]], embedding_function)
+
+
+def extend_or_ingest_dataset(
+    processed_tensors,
+    dataset,
+    embedding_function,
+    embedding_tensor,
+    embedding_data,
+    ingestion_batch_size,
+    num_workers,
+    total_samples_processed,
+    logger,
+):
+    first_item = next(iter(processed_tensors))
+    if len(processed_tensors[first_item]) <= VECTORSTORE_EXTEND_MAX_SIZE:
+        if embedding_function:
+            embedded_data = embedding_function(embedding_data)
+            embedded_data = np.array(embedded_data, dtype=np.float32)
+            processed_tensors[embedding_tensor] = embedded_data
+
+        dataset.extend(processed_tensors)
+    else:
+        elements = dataset_utils.create_elements(processed_tensors)
+
+        ingest_data.run_data_ingestion(
+            elements=elements,
+            dataset=dataset,
+            embedding_function=embedding_function,
+            embedding_tensor=embedding_tensor,
+            ingestion_batch_size=ingestion_batch_size,
+            num_workers=num_workers,
+            total_samples_processed=total_samples_processed,
+            logger=logger,
+        )
+
+
+def convert_id_to_row_id(ids, dataset, search_fn, query, exec_option, filter):
+    if ids is None:
+        delete_view = search_fn(
+            filter=filter,
+            query=query,
+            exec_option=exec_option,
+            return_view=True,
+            k=int(1e9),
+        )
+
+    else:
+        # backwards compatibility
+        tensors = dataset.tensors
+        id_tensor = "id"
+        if "ids" in tensors:
+            id_tensor = "ids"
+
+        delete_view = dataset.filter(lambda x: x[id_tensor].data()["value"] in ids)
+
+    row_ids = list(delete_view.sample_indices)
+    return row_ids
+
+
+def check_delete_arguments(ids, filter, query, delete_all, row_ids, exec_option):
+    if (
+        ids is None
+        and filter is None
+        and query is None
+        and delete_all is None
+        and row_ids is None
+    ):
+        raise ValueError(
+            "Either ids, row_ids, filter, query, or delete_all must be specified."
+        )
+    if exec_option not in ("python", "compute_engine", "tensor_db"):
+        raise ValueError(
+            "Invalid `exec_option` it should be either `python`, `compute_engine`."
+        )

@@ -24,6 +24,7 @@ from deeplake.util.exceptions import (
 from deeplake.util.keys import get_creds_encoder_key
 from deeplake.util.link import get_path_creds_key, save_link_creds
 from deeplake.util.video import normalize_index
+from deeplake.util.path import get_path_type
 import numpy as np
 from typing import Optional, Dict, Any, Tuple, Union
 from PIL import Image  # type: ignore
@@ -122,8 +123,8 @@ class LinkedChunkEngine(ChunkEngine):
         sample_path = self.get_path(global_sample_index)
         sample_creds_key = self.creds_key(global_sample_index)
         storage = None
-        if sample_path.startswith(("gcs://", "gcp://", "s3://")):
-            provider_type = "s3" if sample_path.startswith("s3://") else "gcs"
+        if sample_path.startswith(("gcs://", "gcp://", "s3://", "az://", "azure://")):
+            provider_type = get_path_type(sample_path)
             storage = self.link_creds.get_storage_provider(
                 sample_creds_key, provider_type
             )

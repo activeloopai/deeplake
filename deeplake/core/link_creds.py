@@ -12,6 +12,14 @@ from deeplake.util.exceptions import (
 )
 from deeplake.util.token import expires_in_to_expires_at, is_expired_token
 from deeplake.client.log import logger
+from datetime import datetime, timezone
+
+
+def _is_expired_creds(creds: dict) -> bool:
+    if "expiration" not in creds:
+        return False
+
+    return creds["expiration"] < datetime.now(timezone.utc).timestamp()
 
 
 class LinkCreds(DeepLakeMemoryObject):
@@ -24,6 +32,7 @@ class LinkCreds(DeepLakeMemoryObject):
         self.storage_providers = {}
         self.default_s3_provider = None
         self.default_gcs_provider = None
+        self.default_azure_provider = None
         self.client = None
         self.org_id = None
 
@@ -44,7 +53,10 @@ class LinkCreds(DeepLakeMemoryObject):
         if (
             self.client is not None
             and key in self.managed_creds_keys
-            and is_expired_token(self.creds_dict[key])
+            and (
+                is_expired_token(self.creds_dict[key])
+                or _is_expired_creds(self.creds_dict[key])
+            )
         ):
             self.refresh_managed_creds(key)  # type: ignore
         return self.creds_dict[key]
@@ -63,7 +75,7 @@ class LinkCreds(DeepLakeMemoryObject):
                     S3Provider, "s3://bucket/path"
                 )
             return self.default_s3_provider
-        else:
+        elif provider_type == "gcs":
             if self.default_gcs_provider is None:
                 from deeplake.core.storage.gcs import GCSProvider
 
@@ -71,9 +83,17 @@ class LinkCreds(DeepLakeMemoryObject):
                     GCSProvider, "gcs://bucket/path"
                 )
             return self.default_gcs_provider
+        elif provider_type == "azure":
+            if self.default_azure_provider is None:
+                from deeplake.core.storage.azure import AzureProvider
+
+                self.default_azure_provider = storage_factory(
+                    AzureProvider, "az://account/container"
+                )
+            return self.default_azure_provider
 
     def get_storage_provider(self, key: Optional[str], provider_type: str):
-        assert provider_type in {"s3", "gcs"}
+        assert provider_type in {"s3", "gcs", "azure"}
         if key is None:
             return self.get_default_provider(provider_type)
 
@@ -87,7 +107,7 @@ class LinkCreds(DeepLakeMemoryObject):
                     return provider
 
             provider = storage_factory(S3Provider, "s3://bucket/path", **creds)
-        else:
+        elif provider_type == "gcs":
             from deeplake.core.storage.gcs import GCSProvider
 
             if key in self.storage_providers:
@@ -96,6 +116,17 @@ class LinkCreds(DeepLakeMemoryObject):
                     return provider
 
             provider = storage_factory(GCSProvider, "gcs://bucket/path", **creds)
+        elif provider_type == "azure":
+            from deeplake.core.storage.azure import AzureProvider
+
+            if key in self.storage_providers:
+                provider = self.storage_providers[key]
+                if isinstance(provider, AzureProvider):
+                    return provider
+
+            provider = storage_factory(
+                AzureProvider, "az://account/container", creds=creds
+            )
         self.storage_providers[key] = provider
         return provider
 
@@ -110,15 +141,33 @@ class LinkCreds(DeepLakeMemoryObject):
             self.managed_creds_keys.add(creds_key)
             self.populate_creds(creds_key, creds)
 
+    def _replace_with_existing_creds(self, old_creds_key: str, new_creds_key: str):
+        replaced_indices = []
+        for i in range(len(self.creds_keys)):
+            if self.creds_keys[i] == old_creds_key:
+                self.creds_keys[i] = new_creds_key
+                replaced_indices.append(i)
+
+        self.creds_dict.pop(old_creds_key, None)
+        self.creds_mapping.pop(old_creds_key, None)
+
+        self.managed_creds_keys.discard(old_creds_key)
+        self.used_creds_keys.discard(old_creds_key)
+
+        self.storage_providers.pop(old_creds_key, None)
+
+        return replaced_indices
+
     def replace_creds(self, old_creds_key: str, new_creds_key: str):
         if old_creds_key not in self.creds_keys:
             raise KeyError(f"Creds key {old_creds_key} does not exist")
         if new_creds_key in self.creds_keys:
-            raise ValueError(f"Creds key {new_creds_key} already exists")
+            return self._replace_with_existing_creds(old_creds_key, new_creds_key)
+        replaced_indices = []
         for i in range(len(self.creds_keys)):
             if self.creds_keys[i] == old_creds_key:
                 self.creds_keys[i] = new_creds_key
-                replaced_index = i
+                replaced_indices.append(i)
 
         if old_creds_key in self.creds_dict:
             self.creds_dict[new_creds_key] = self.creds_dict[old_creds_key]
@@ -140,7 +189,7 @@ class LinkCreds(DeepLakeMemoryObject):
                 old_creds_key
             ]
             del self.storage_providers[old_creds_key]
-        return replaced_index
+        return replaced_indices
 
     def populate_creds(self, creds_key: str, creds):
         if creds_key not in self.creds_keys:

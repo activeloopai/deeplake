@@ -6,3 +6,4 @@ from deeplake.core.storage.memory import MemoryProvider
 from deeplake.core.storage.local import LocalProvider
 from deeplake.core.storage.lru_cache import LRUCache
 from deeplake.core.storage.gcs import GCSProvider
+from deeplake.core.storage.azure import AzureProvider

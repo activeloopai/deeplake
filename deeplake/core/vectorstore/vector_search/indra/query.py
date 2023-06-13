@@ -1,46 +1,71 @@
 import numpy as np
 
-from typing import Optional, Union, List
+from typing import List
 
 from deeplake.core.vectorstore.vector_search.indra import tql_distance_metrics
 
 
-def create_query_string(distance_metric: str, limit: int, order: str = "ASC"):
+def create_query_string(
+    distance_metric: str,
+    tql_filter: str,
+    limit: int,
+    order: str,
+    tensor_list: List[str],
+):
     """Function for creating a query string from a distance metric, limit and order.
 
     Args:
         distance_metric (str): distance metric to compute similarity of the query embedding with dataset's embeddings.
+        tql_filter (str): Additional filter using TQL syntax.
         limit (int): number of samples to return after the search.
         order (str): Type of data ordering after computing similarity score. Defaults to "ASC".
+        tensor_list (List[str]): List of tensors to return data for.
+
 
     Returns:
         str: TQL representation of the query string.
     """
-    return f"select *, {distance_metric} as score ORDER BY {distance_metric} {order} LIMIT {limit}"
+
+    tql_filter_str = tql_filter if tql_filter == "" else " where " + tql_filter
+    tensor_list_str = ", ".join(tensor_list)
+    order_str = "" if order is None else f" order by score {order}"
+    distance_metric_str = (
+        "" if distance_metric is None else f", {distance_metric} as score"
+    )
+
+    return f"select * from (select {tensor_list_str}{distance_metric_str}{tql_filter_str}){order_str} limit {limit}"
 
 
 def create_query(
     distance_metric: str,
-    embeddings: str,
+    embedding_tensor: str,
     query_embedding: str,
+    tql_filter: str,
     limit: int,
+    tensor_list: List[str],
 ):
     """Function for creating a query string from a distance metric, embeddings, query_embedding, and limit.
 
     Args:
         distance_metric (str): distance metric to compute similarity of the query embedding with dataset's embeddings.
-        embeddings (str): name of the tensor in the dataset with `htype = "embedding"`.
+        embedding_tensor (str): name of the tensor in the dataset with ``htype = "embedding"``.
         query_embedding (str): embedding representation of the query string converted to str.
+        tql_filter (str): Additional filter using TQL syntax.
         limit (int): number of samples to return after the search.
+        tensor_list (List[str]): List of tensors to return data for.
+
 
     Returns:
         str: TQL representation of the query string.
     """
+
     order = tql_distance_metrics.get_order_type_for_distance_metric(distance_metric)
     tql_distrance_metric = tql_distance_metrics.get_tql_distance_metric(
-        distance_metric, embeddings, query_embedding
+        distance_metric, embedding_tensor, query_embedding
     )
-    query = create_query_string(tql_distrance_metric, limit, order)
+    query = create_query_string(
+        tql_distrance_metric, tql_filter, limit, order, tensor_list
+    )
     return query
 
 
@@ -72,6 +97,8 @@ def parse_query(
     limit: int,
     query_embedding: np.ndarray,
     embedding_tensor: str,
+    tql_filter: str,
+    tensor_list: List[str],
 ) -> str:
     """Function for converting query_embedding into tql query.
 
@@ -80,12 +107,24 @@ def parse_query(
         embedding_tensor (str): name of the tensor in the dataset with `htype = "embedding"`.
         query_embedding (np.ndarray]): embedding representation of the query string.
         limit (int): number of samples to return after the search.
+        tql_filter (str): Additional filter using TQL syntax.
+        tensor_list (list[str]): List of tensors to return data for.
+
 
     Returns:
         str: converted tql query string.
     """
-    query_embedding_str = convert_tensor_to_str(query_embedding)
-    tql_query = create_query(
-        distance_metric, embedding_tensor, query_embedding_str, limit
-    )
-    return tql_query
+    if query_embedding is None:
+        return create_query_string(None, tql_filter, limit, None, tensor_list)
+
+    else:
+        query_embedding_str = convert_tensor_to_str(query_embedding)
+
+        return create_query(
+            distance_metric,
+            embedding_tensor,
+            query_embedding_str,
+            tql_filter,
+            limit,
+            tensor_list,
+        )

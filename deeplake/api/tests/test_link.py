@@ -5,11 +5,12 @@ import pickle
 import deeplake
 import pytest
 from deeplake.client.client import DeepLakeBackendClient
-from deeplake.constants import GCS_OPT, S3_OPT
+from deeplake.constants import GCS_OPT, S3_OPT, AZURE_OPT
 from deeplake.core.link_creds import LinkCreds
 from deeplake.core.meta.encode.creds import CredsEncoder
 from deeplake.core.storage.gcs import GCSProvider
 from deeplake.core.storage.s3 import S3Provider
+from deeplake.core.storage.azure import AzureProvider
 from deeplake.tests.common import is_opt_true
 from deeplake.util.exceptions import (
     ManagedCredentialsNotFoundError,
@@ -121,6 +122,14 @@ def test_link_creds(request):
         assert isinstance(link_creds.get_storage_provider("abc", "s3"), S3Provider)
         assert isinstance(link_creds.get_storage_provider("abc", "s3"), S3Provider)
         assert isinstance(link_creds.get_storage_provider(None, "s3"), S3Provider)
+    if is_opt_true(request, AZURE_OPT):
+        assert isinstance(
+            link_creds.get_storage_provider("abc", "azure"), AzureProvider
+        )
+        assert isinstance(
+            link_creds.get_storage_provider("abc", "azure"), AzureProvider
+        )
+        assert isinstance(link_creds.get_storage_provider(None, "azure"), AzureProvider)
 
     pickled = pickle.dumps(link_creds)
     unpickled_link_creds = pickle.loads(pickled)
@@ -365,7 +374,7 @@ def test_complex_creds(local_ds_generator):
         ds.add_creds_key("my_first_key")
         ds.add_creds_key("my_second_key")
 
-        assert ds.get_creds_keys() == ["my_first_key", "my_second_key"]
+        assert ds.get_creds_keys() == {"my_first_key", "my_second_key"}
 
         ds.populate_creds("my_first_key", {})
         ds.populate_creds("my_second_key", {})
@@ -565,8 +574,6 @@ def test_link_ready(local_ds_generator, cat_path):
     assert ds.img[0].numpy().shape == (900, 900, 3)
     with pytest.raises(KeyError):
         ds.update_creds_key("xyz", "ghi")
-    with pytest.raises(ValueError):
-        ds.update_creds_key("abc", "def")
     ds.update_creds_key("abc", "new")
     assert ds.img[0].numpy().shape == (900, 900, 3)
     ds = local_ds_generator()
@@ -656,10 +663,74 @@ def test_creds(hub_cloud_ds_generator, cat_path):
         tensor.append(deeplake.link(cat_path, creds_key))
 
     assert tensor[0].creds_key() == creds_key
-    ds.add_creds_key("my_s3_creds", True)
-    assert ds.get_managed_creds_keys() == ["my_s3_creds"]
-    assert set(ds.get_creds_keys()) == {"my_s3_creds", "ENV"}
-    ds.update_creds_key("my_s3_creds", managed=True)
+    ds.add_creds_key("aws_creds", True)
+    assert ds.get_managed_creds_keys() == ["aws_creds"]
+    assert set(ds.get_creds_keys()) == {"aws_creds", "ENV"}
+    ds.update_creds_key("aws_creds", managed=True)
     ds = hub_cloud_ds_generator()
-    assert ds.get_managed_creds_keys() == ["my_s3_creds"]
-    assert set(ds.get_creds_keys()) == {"my_s3_creds", "ENV"}
+    assert ds.get_managed_creds_keys() == ["aws_creds"]
+    assert set(ds.get_creds_keys()) == {"aws_creds", "ENV"}
+
+
+def test_bad_link_no_verify(memory_ds):
+    with memory_ds as ds:
+        ds.add_creds_key("S3_CREDS")
+        ds.populate_creds("S3_CREDS", {})
+        ds.create_tensor(
+            "abc", htype="link[image]", sample_compression="jpg", verify=False
+        )
+        ds.abc.append(
+            deeplake.link("s3://some-bucket/does-not-exist.jpg", creds_key="S3_CREDS")
+        )
+
+        assert ds.abc[0]._linked_sample().path == "s3://some-bucket/does-not-exist.jpg"
+
+
+def test_update_creds_to_existing(hub_cloud_ds_generator, cat_path):
+    creds_key = "ENV"
+    ds = hub_cloud_ds_generator()
+    ds.add_creds_key(creds_key)
+    ds.populate_creds(creds_key, from_environment=True)
+
+    with ds:
+        tensor = ds.create_tensor("abc", "link[image]", sample_compression="jpeg")
+        tensor.append(deeplake.link(cat_path, creds_key))
+
+    ds.add_creds_key("aws_creds", managed=True)
+
+    with pytest.raises(ValueError):
+        ds.update_creds_key("ENV", "aws_creds")
+
+    with pytest.raises(ValueError):
+        ds.update_creds_key("aws_creds", "ENV")
+
+    with pytest.raises(ValueError):
+        ds.update_creds_key("ENV", "aws_creds", managed=False)
+
+    with pytest.raises(ValueError):
+        ds.update_creds_key("aws_creds", "ENV", managed=True)
+
+    with ds:
+        tensor.append(deeplake.link(cat_path, "aws_creds"))
+
+    ds.update_creds_key("ENV", "aws_creds", managed=True)
+    assert ds.get_managed_creds_keys() == {"aws_creds"}
+    assert ds.get_creds_keys() == {"aws_creds"}
+    assert ds.link_creds.creds_keys == ["aws_creds", "aws_creds"]
+
+    encoded_creds = ds.abc.chunk_engine.creds_encoder.get_encoded_creds_key(0)
+    creds_key = ds.link_creds.get_creds_key(encoded_creds)
+    assert creds_key == "aws_creds"
+
+    ds.update_creds_key("aws_creds", "ENV", managed=False)
+    assert ds.get_managed_creds_keys() == set()
+    assert ds.get_creds_keys() == {"ENV"}
+    assert ds.link_creds.creds_keys == ["ENV", "ENV"]
+
+    encoded_creds = ds.abc.chunk_engine.creds_encoder.get_encoded_creds_key(0)
+    creds_key = ds.link_creds.get_creds_key(encoded_creds)
+    assert creds_key == "ENV"
+
+    encoded_creds = ds.abc.chunk_engine.creds_encoder.get_encoded_creds_key(1)
+    creds_key = ds.link_creds.get_creds_key(encoded_creds)
+    assert creds_key == "ENV"

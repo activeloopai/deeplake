@@ -17,7 +17,7 @@ from deeplake.api.info import Info
 from deeplake.core.link_creds import LinkCreds
 from deeplake.core.linked_sample import LinkedSample
 from deeplake.core.meta.encode.base_encoder import LAST_SEEN_INDEX_COLUMN
-from deeplake.core.serialize import HEADER_SIZE_BYTES
+from deeplake.core.serialize import HEADER_SIZE_BYTES, text_to_bytes
 from deeplake.core.tensor_link import (
     cast_to_type,
     extend_downsample,
@@ -30,7 +30,7 @@ from deeplake.core.version_control.commit_chunk_map import CommitChunkMap  # typ
 from typing import Any, Dict, List, Optional, Sequence, Union, Callable
 from deeplake.core.meta.encode.tile import TileEncoder
 from deeplake.core.storage.provider import StorageProvider
-from deeplake.core.storage import S3Provider, GCSProvider
+from deeplake.core.storage import S3Provider, GCSProvider, AzureProvider
 from deeplake.core.tiling.deserialize import (
     combine_chunks,
     translate_slices,
@@ -598,7 +598,7 @@ class ChunkEngine:
 
         base_storage = self.base_storage
         stream = False
-        if isinstance(base_storage, (S3Provider, GCSProvider)):
+        if isinstance(base_storage, (S3Provider, GCSProvider, AzureProvider)):
             chunk_size = base_storage.get_object_size(chunk_key)
             stream = chunk_size > self.min_chunk_size
             if stream:
@@ -1350,7 +1350,11 @@ class ChunkEngine:
         if isinstance(sample_data, Polygons):
             return sample_data
         if decompress:
-            sample = Sample(array=sample_data, shape=sample_shape)
+            if self.is_text_like:
+                byts, shape = text_to_bytes(sample_data, dtype, self.tensor_meta.htype)
+                sample = Sample(buffer=byts, shape=shape)
+            else:
+                sample = Sample(array=sample_data, shape=sample_shape)
         else:
             sample = Sample(
                 buffer=sample_data,
@@ -1359,7 +1363,7 @@ class ChunkEngine:
                 dtype=dtype,
             )
 
-        if self.tensor_meta.htype in ("json", "text", "list"):
+        if self.is_text_like:
             sample.htype = self.tensor_meta.htype
         if self.tensor_meta.is_link:
             sample.htype = "text"
@@ -1802,7 +1806,7 @@ class ChunkEngine:
         if (
             not fetch_chunks
             and self.chunk_class != ChunkCompressedChunk
-            and isinstance(self.base_storage, (S3Provider, GCSProvider))
+            and isinstance(self.base_storage, (S3Provider, GCSProvider, AzureProvider))
         ):
             prev = int(enc.array[row - 1][LAST_SEEN_INDEX_COLUMN]) if row > 0 else -1
             num_samples_in_chunk = int(enc.array[row][LAST_SEEN_INDEX_COLUMN]) - prev
