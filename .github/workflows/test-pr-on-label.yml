@@ -1,8 +1,13 @@
-# yaml-language-server: $schema=https://json.schemastore.org/github-workflow.json
 name: Full Test
+
+permissions:
+  id-token: write
+  contents: read
+
 on:
   pull_request_target:
     types: [labeled]
+
 jobs:
   test-pr-full:
     uses: activeloopai/shared-github-actions/.github/workflows/full_test.yml@main
@@ -12,10 +17,9 @@ jobs:
       ref: ${{ github.event.pull_request.head.sha }}
     secrets:
       token: ${{ secrets.GITHUB_TOKEN }}
-      aws_key_id: ${{ secrets.AWS_ACCESS_KEY_ID }}
-      aws_secret_access_key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
-      gcp_project_id: ${{ secrets.GCP_PROJECT_ID }}
-      gcp_sa_key: ${{ secrets.GCP_SA_KEY }}
+      aws_role_arn: ${{ secrets.AWS_ROLE_ARN }}
+      gcp_sa_credentials_json: ${{ secrets.GCP_SA_CREDENTIALS_JSON }}
+      azure_creds_json: ${{ secrets.AZURE_CREDS_JSON }}
       hub_username: ${{ secrets.ACTIVELOOP_HUB_USERNAME }}
       hub_password: ${{ secrets.ACTIVELOOP_HUB_PASSWORD }}
       kaggle_username: ${{ secrets.KAGGLE_USERNAME }}
