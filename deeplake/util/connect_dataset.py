@@ -16,7 +16,7 @@ def log_dataset_connection_success(ds_path: str):
 
 
 def is_path_connectable(path: str) -> bool:
-    return get_path_type(path) in ("s3", "gcs")
+    return get_path_type(path) in ("s3", "gcs", "azure")
 
 
 def connect_dataset_entry(
@@ -80,7 +80,7 @@ class DatasetEntry:
         """Validates the attributes to make that dataset at ``src_path`` can be connected.
 
         Raises:
-            InvalidSourcePathError: If the ``src_path`` is not a valid s3 or gcs path.
+            InvalidSourcePathError: If the ``src_path`` is not a valid s3, gcs or azure path.
         """
         if is_hub_cloud_path(self.src_path):
             raise InvalidSourcePathError(
@@ -89,7 +89,7 @@ class DatasetEntry:
 
         if not is_path_connectable(self.src_path):
             raise InvalidSourcePathError(
-                f"Source path may only be an s3 or gcs path. Got {self.src_path}."
+                f"Source path may only be an s3, gcs or azure path. Got {self.src_path}."
             )
 
     def connect_dataset_entry(self) -> str:

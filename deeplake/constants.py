@@ -82,9 +82,16 @@ ENCODING_DTYPE = np.uint32
 ENV_HUB_DEV_USERNAME = "ACTIVELOOP_HUB_USERNAME"
 ENV_HUB_DEV_PASSWORD = "ACTIVELOOP_HUB_PASSWORD"
 ENV_HUB_DEV_MANAGED_CREDS_KEY = "ACTIVELOOP_HUB_MANAGED_CREDS_KEY"
+
 ENV_KAGGLE_USERNAME = "KAGGLE_USERNAME"
 ENV_KAGGLE_KEY = "KAGGLE_KEY"
+
 ENV_GOOGLE_APPLICATION_CREDENTIALS = "GOOGLE_APPLICATION_CREDENTIALS"
+
+ENV_AZURE_CLIENT_ID = "AZURE_CLIENT_ID"
+ENV_AZURE_TENANT_ID = "AZURE_TENANT_ID"
+ENV_AZURE_SUBSCRIPTION_ID = "AZURE_SUBSCRIPTION_ID"
+
 ENV_GDRIVE_CLIENT_ID = "GDRIVE_CLIENT_ID"
 ENV_GDRIVE_CLIENT_SECRET = "GDRIVE_CLIENT_SECRET"
 ENV_GDRIVE_REFRESH_TOKEN = "GDRIVE_REFRESH_TOKEN"
@@ -94,9 +101,10 @@ HUB_CLOUD_DEV_PASSWORD = os.getenv(ENV_HUB_DEV_PASSWORD)
 
 # dataset base roots for pytests
 PYTEST_MEMORY_PROVIDER_BASE_ROOT = "mem://hub_pytest"
-PYTEST_LOCAL_PROVIDER_BASE_ROOT = "/tmp/hub_pytest/"  # TODO: may fail for windows
-PYTEST_S3_PROVIDER_BASE_ROOT = "s3://hub-2.0-tests/"
-PYTEST_GCS_PROVIDER_BASE_ROOT = "gcs://snark-test/"
+PYTEST_LOCAL_PROVIDER_BASE_ROOT = "./hub_pytest/"
+PYTEST_S3_PROVIDER_BASE_ROOT = "s3://deeplake-tests/"
+PYTEST_GCS_PROVIDER_BASE_ROOT = "gcs://deeplake-tests/"
+PYTEST_AZURE_PROVIDER_BASE_ROOT = "az://activeloopgen2/deeplake-tests/"
 PYTEST_GDRIVE_PROVIDER_BASE_ROOT = "gdrive://hubtest"
 PYTEST_HUB_CLOUD_PROVIDER_BASE_ROOT = (
     None if HUB_CLOUD_DEV_USERNAME is None else f"hub://{HUB_CLOUD_DEV_USERNAME}/"
@@ -107,6 +115,7 @@ MEMORY_OPT = "--memory-skip"
 LOCAL_OPT = "--local"
 S3_OPT = "--s3"
 GCS_OPT = "--gcs"
+AZURE_OPT = "--azure"
 GDRIVE_OPT = "--gdrive"
 HUB_CLOUD_OPT = "--hub-cloud"
 S3_PATH_OPT = "--s3-path"
@@ -143,7 +152,14 @@ FAST_EXTEND_BAIL = -1
 QUERIES_FILENAME = "queries.json"
 QUERIES_LOCK_FILENAME = "queries.lock"
 
-ALL_CLOUD_PREFIXES = ("s3://", "gcs://", "gcp://", "gs://", "gdrive://")
+ALL_CLOUD_PREFIXES = (
+    "s3://",
+    "gcs://",
+    "gcp://",
+    "gs://",
+    "az://",
+    "azure://" "gdrive://",
+)
 
 _ENABLE_HUB_SUB_DATASETS = False
 _ENABLE_RANDOM_ASSIGNMENT = True
@@ -193,4 +209,36 @@ TRANSFORM_CHUNK_CACHE_SIZE = 64 * MB
 DEFAULT_VECTORSTORE_DEEPLAKE_PATH = "./deeplake_vector_store"
 MAX_VECTORSTORE_INGESTION_RETRY_ATTEMPTS = 5
 MAX_CHECKPOINTING_INTERVAL = 100000
-MAX_DATASET_LENGTH_FOR_CACHING = 100000
+VECTORSTORE_EXTEND_MAX_SIZE = 20000
+DEFAULT_VECTORSTORE_TENSORS = [
+    {
+        "name": "text",
+        "htype": "text",
+        "create_id_tensor": False,
+        "create_sample_info_tensor": False,
+        "create_shape_tensor": False,
+    },
+    {
+        "name": "metadata",
+        "htype": "json",
+        "create_id_tensor": False,
+        "create_sample_info_tensor": False,
+        "create_shape_tensor": False,
+    },
+    {
+        "name": "embedding",
+        "htype": "embedding",
+        "dtype": np.float32,
+        "create_id_tensor": False,
+        "create_sample_info_tensor": False,
+        "create_shape_tensor": True,
+        "max_chunk_size": 64 * MB,
+    },
+    {
+        "name": "id",
+        "htype": "text",
+        "create_id_tensor": False,
+        "create_sample_info_tensor": False,
+        "create_shape_tensor": False,
+    },
+]

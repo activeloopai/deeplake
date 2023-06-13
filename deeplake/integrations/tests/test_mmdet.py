@@ -41,6 +41,16 @@ def load_pickle_file(pickle_file):
         return pickle.load(f)
 
 
+def process_cfg(cfg, model_name, dataset_path):
+    if dataset_path == _BALLOON_PATH:
+        if model_name in _INSTANCE_SEGMENTATION:
+            cfg.model.roi_head.bbox_head.num_classes = 1
+            cfg.model.roi_head.mask_head.num_classes = 1
+        elif model_name in _OBJECT_DETECTION:
+            cfg.model.bbox_head.num_classes = 1
+    return cfg
+
+
 @pytest.mark.skipif(
     sys.platform != "linux" or sys.version_info < (3, 7),
     reason="MMDet is installed on CI only for linux and python version >= 3.7.",
@@ -432,31 +442,35 @@ def test_mmdet(
         ds_train_with_none = dp.empty("ds_train", overwrite=True)
         ds_val_with_none = dp.empty("ds_val", overwrite=True)
 
-        ds_train_with_none.create_tensor_like("images", ds_train.images)
-        ds_train_with_none.create_tensor_like("bounding_boxes", ds_train.bounding_boxes)
-        ds_train_with_none.create_tensor_like(
-            "segmentation_polygons", ds_train.segmentation_polygons
-        )
-        ds_train_with_none.create_tensor_like("labels", ds_train.labels)
+        with ds_train_with_none:
+            ds_train_with_none.create_tensor_like("images", ds_train.images)
+            ds_train_with_none.create_tensor_like(
+                "bounding_boxes", ds_train.bounding_boxes
+            )
+            ds_train_with_none.create_tensor_like(
+                "segmentation_polygons", ds_train.segmentation_polygons
+            )
+            ds_train_with_none.create_tensor_like("labels", ds_train.labels)
 
-        ds_val_with_none.create_tensor_like("images", ds_val.images)
-        ds_val_with_none.create_tensor_like("bounding_boxes", ds_val.bounding_boxes)
-        ds_val_with_none.create_tensor_like(
-            "segmentation_polygons", ds_val.segmentation_polygons
-        )
-        ds_val_with_none.create_tensor_like("labels", ds_val.labels)
+            ds_train_with_none.append(ds_train[0])
+            ds_train_with_none.images.append(ds_train.images[1])
+            ds_train_with_none.bounding_boxes.append(None)
+            ds_train_with_none.segmentation_polygons.append(None)
+            ds_train_with_none.labels.append(None)
 
-        ds_train_with_none.append(ds_train[0])
-        ds_train_with_none.images.append(ds_train.images[1])
-        ds_train_with_none.bounding_boxes.append(None)
-        ds_train_with_none.segmentation_polygons.append(None)
-        ds_train_with_none.labels.append(None)
+        with ds_val_with_none:
+            ds_val_with_none.create_tensor_like("images", ds_val.images)
+            ds_val_with_none.create_tensor_like("bounding_boxes", ds_val.bounding_boxes)
+            ds_val_with_none.create_tensor_like(
+                "segmentation_polygons", ds_val.segmentation_polygons
+            )
+            ds_val_with_none.create_tensor_like("labels", ds_val.labels)
 
-        ds_val_with_none.append(ds_val[0])
-        ds_val_with_none.images.append(ds_val.images[1])
-        ds_val_with_none.bounding_boxes.append(None)
-        ds_val_with_none.segmentation_polygons.append(None)
-        ds_val_with_none.labels.append(None)
+            ds_val_with_none.append(ds_val[0])
+            ds_val_with_none.images.append(ds_val.images[1])
+            ds_val_with_none.bounding_boxes.append(None)
+            ds_val_with_none.segmentation_polygons.append(None)
+            ds_val_with_none.labels.append(None)
 
         ds_train = ds_train_with_none
         ds_val = ds_val_with_none
@@ -471,13 +485,3 @@ def test_mmdet(
         ds_val=ds_val,
         ds_val_tensors=deeplake_tensors,
     )
-
-
-def process_cfg(cfg, model_name, dataset_path):
-    if dataset_path == _BALLOON_PATH:
-        if model_name in _INSTANCE_SEGMENTATION:
-            cfg.model.roi_head.bbox_head.num_classes = 1
-            cfg.model.roi_head.mask_head.num_classes = 1
-        elif model_name in _OBJECT_DETECTION:
-            cfg.model.bbox_head.num_classes = 1
-    return cfg

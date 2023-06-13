@@ -80,6 +80,8 @@ def get_path_type(path: Optional[str]) -> str:
         return "gcs"
     elif path.startswith("s3://"):
         return "s3"
+    elif path.startswith(("az://", "azure://")):
+        return "azure"
     elif path.startswith("gdrive://"):
         return "gdrive"
     else:

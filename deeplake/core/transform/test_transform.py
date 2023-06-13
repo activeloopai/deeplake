@@ -1376,7 +1376,7 @@ class BadSample:
 
 
 @all_schedulers
-@pytest.mark.parametrize("method", ["ds", "multiple"])
+@pytest.mark.parametrize("method", ["ds", "multiple", "checkpointed"])
 @pytest.mark.parametrize("error_at", ["transform", "chunk_engine"])
 def test_ds_append_errors(
     local_path, compressed_image_paths, scheduler, method, error_at
@@ -1388,7 +1388,7 @@ def test_ds_append_errors(
             if isinstance(item["images"], str)
             else item["images"]
         )
-        if method == "ds":
+        if method == "ds" or method == "checkpointed":
             ds.append(
                 {
                     "labels": np.zeros(10, dtype=np.uint32),
@@ -1417,14 +1417,18 @@ def test_ds_append_errors(
         # errors out in transform dataset / tensor
         bad_sample = {"images": "bad_path", "boxes": [1, 2, 3]}
         err_msg = re.escape(
-            f"Transform failed at index 17 of the input data on the item: {bad_sample}. See traceback for more details."
+            f"Transform failed at index 17 of the input data on the item: {bad_sample}."
         )
     else:
         # errors out in chunk engine
         bad_sample = {"images": BadSample(), "boxes": [1, 2, 3]}
-        err_msg = re.escape(
-            f"Transform failed at index 17 of the input data. See traceback for more details."
+        err_msg = re.escape(f"Transform failed at index 17 of the input data.")
+
+    if method == "checkpointed":
+        err_msg += re.escape(
+            " Last checkpoint: 10 samples processed. You can slice the input to resume from this point."
         )
+    err_msg += re.escape(" See traceback for more details.")
 
     samples.insert(17, bad_sample)
 
@@ -1434,6 +1438,7 @@ def test_ds_append_errors(
             ds,
             num_workers=TRANSFORM_TEST_NUM_WORKERS,
             scheduler=scheduler,
+            checkpoint_interval=10 if method == "checkpointed" else 0,
         )
 
     ds = create_test_ds(local_path)
@@ -1444,9 +1449,10 @@ def test_ds_append_errors(
         num_workers=TRANSFORM_TEST_NUM_WORKERS,
         scheduler=scheduler,
         ignore_errors=True,
+        checkpoint_interval=10 if method == "checkpointed" else 0,
     )
 
-    if method == "ds":
+    if method == "ds" or method == "checkpointed":
         assert ds["images"][::2].numpy().shape == (10, *deeplake.read(images[0]).shape)
         assert ds["images"][1::2].numpy().shape == (10, *deeplake.read(images[1]).shape)
 

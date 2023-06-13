@@ -4,7 +4,7 @@ import uuid
 import json
 import posixpath
 from logging import warning
-from typing import Any, Callable, Dict, List, Optional, Sequence, Tuple, Union
+from typing import Any, Callable, Dict, List, Optional, Sequence, Tuple, Union, Set
 from functools import partial
 
 import pathlib
@@ -29,6 +29,7 @@ from deeplake.util.iteration_warning import (
     suppress_iteration_warning,
     check_if_iteration,
 )
+from deeplake.util.tensor_db import parse_runtime_parameters
 from deeplake.api.info import load_info
 from deeplake.client.log import logger
 from deeplake.client.utils import get_user_name
@@ -52,6 +53,7 @@ from deeplake.core.storage import (
     GCSProvider,
     MemoryProvider,
     LocalProvider,
+    AzureProvider,
 )
 from deeplake.core.tensor import Tensor, create_tensor, delete_tensor
 from deeplake.core.version_control.commit_node import CommitNode  # type: ignore
@@ -99,6 +101,7 @@ from deeplake.util.exceptions import (
     TokenPermissionError,
     CheckoutError,
     DatasetCorruptError,
+    BadRequestException,
 )
 from deeplake.util.keys import (
     dataset_exists,
@@ -138,7 +141,7 @@ import warnings
 import jwt
 
 
-_LOCKABLE_STORAGES = {S3Provider, GCSProvider, LocalProvider}
+_LOCKABLE_STORAGES = {S3Provider, GCSProvider, AzureProvider, LocalProvider}
 
 
 class Dataset:
@@ -591,6 +594,7 @@ class Dataset:
         exist_ok: bool = False,
         verbose: bool = True,
         downsampling: Optional[Tuple[int, int]] = None,
+        tiling_threshold: Optional[int] = None,
         **kwargs,
     ):
         """Creates a new tensor in the dataset.
@@ -626,11 +630,12 @@ class Dataset:
             create_shape_tensor (bool): If ``True``, an associated tensor containing shapes of each sample will be created.
             create_id_tensor (bool): If ``True``, an associated tensor containing unique ids for each sample will be created. This is useful for merge operations.
             verify (bool): Valid only for link htypes. If ``True``, all links will be verified before they are added to the tensor.
-                ``verify`` is always ``True`` even if specified as ``False`` if ``create_shape_tensor`` or ``create_sample_info_tensor`` is ``True``.
+                If ``False``, links will be added without verification but note that ``create_shape_tensor`` and ``create_sample_info_tensor`` will be set to ``False``.
             exist_ok (bool): If ``True``, the group is created if it does not exist. if ``False``, an error is raised if the group already exists.
             verbose (bool): Shows warnings if ``True``.
             downsampling (tuple[int, int]): If not ``None``, the tensor will be downsampled by the provided factors. For example, ``(2, 5)`` will downsample the tensor by a factor of 2 in both dimensions and create 5 layers of downsampled tensors.
                 Only support for image and mask htypes.
+            tiling_threshold (Optional, int): In MB. Tiles large images if their size exceeds this threshold. Set to -1 to disable tiling.
             **kwargs:
                 - ``htype`` defaults can be overridden by passing any of the compatible parameters.
                 - To see all htypes and their correspondent arguments, check out :ref:`Htypes`.
@@ -672,6 +677,7 @@ class Dataset:
             exist_ok,
             verbose,
             downsampling,
+            tiling_threshold=tiling_threshold,
             **kwargs,
         )
 
@@ -735,16 +741,10 @@ class Dataset:
         downsampling_factor, number_of_layers = validate_downsampling(downsampling)
         kwargs["is_sequence"] = kwargs.get("is_sequence") or is_sequence
         kwargs["is_link"] = kwargs.get("is_link") or is_link
-        if (
-            kwargs["is_link"]
-            and not verify
-            and (create_shape_tensor or create_sample_info_tensor)
-            and verbose
-        ):
-            warnings.warn(
-                "Setting `verify` to True. `verify`, `create_shape_tensor` and `create_sample_info_tensor` should all be False if you do not want to verify your link samples."
-            )
-        kwargs["verify"] = create_shape_tensor or create_sample_info_tensor or verify
+        kwargs["verify"] = verify
+        if kwargs["is_link"] and not kwargs["verify"]:
+            create_shape_tensor = False
+            create_sample_info_tensor = False
 
         if not self._is_root():
             return self.root._create_tensor(
@@ -2094,7 +2094,7 @@ class Dataset:
         self,
         query_string: str,
         runtime: Optional[Dict] = None,
-        return_indices_and_scores: bool = False,
+        return_data: bool = False,
     ):
         """Returns a sliced :class:`~deeplake.core.dataset.Dataset` with given query results. To use this, install deeplake with ``pip install deeplake[enterprise]``.
 
@@ -2104,11 +2104,11 @@ class Dataset:
 
         Args:
             query_string (str): An SQL string adjusted with new functionalities to run on the given :class:`~deeplake.core.dataset.Dataset` object
-            runtime (Optional[Dict]): whether to run query on a remote engine
-            return_indices_and_scores (bool): by default False. Whether to return indices and scores.
+            runtime (Optional[Dict]): Runtime parameters for query execution. Supported keys: {"tensor_db": True or False}.
+            return_data (bool): Defaults to ``False``. Whether to return raw data along with the view.
 
         Raises:
-            ValueError: if return_indices_and_scores is True and runtime is not {"db_engine": true}
+            ValueError: if ``return_data`` is True and runtime is not {"tensor_db": true}
 
         Returns:
             Dataset: A :class:`~deeplake.core.dataset.Dataset` object.
@@ -2127,27 +2127,35 @@ class Dataset:
             >>> query_ds_train = ds_train.query("(select * where contains(categories, 'car') limit 1000) union (select * where contains(categories, 'motorcycle') limit 1000)")
 
         """
-        if runtime is not None and runtime.get("db_engine", False):
-            client = DeepLakeBackendClient(token=self._token)
-            org_id, ds_name = self.path[6:].split("/")
-            indices, scores = client.remote_query(org_id, ds_name, query_string)
-            if return_indices_and_scores:
-                return indices, scores
-            return self[indices]
-
-        if return_indices_and_scores:
-            raise ValueError(
-                "return_indices_and_scores is not supported. Please add `runtime = {'db_engine': True}` if you want to return indices and scores"
-            )
-
-        from deeplake.enterprise import query
 
         deeplake_reporter.feature_report(
             feature_name="query",
             parameters={
-                "query_string": query_string,
+                "query_string": query_string[0:100],
+                "runtime": runtime,
             },
         )
+
+        runtime = parse_runtime_parameters(self.path, runtime)
+        if runtime["tensor_db"]:
+            client = DeepLakeBackendClient(token=self._token)
+            org_id, ds_name = self.path[6:].split("/")
+            response = client.remote_query(org_id, ds_name, query_string)
+            indices = response["indices"]
+            view = self[indices]
+
+            if return_data:
+                data = response["data"]
+                return view, data
+
+            return view
+
+        if return_data:
+            raise ValueError(
+                "`return_data` is only applicable when running queries using the Managed Tensor Database. Please specify `runtime = {'tensor_db': True}`"
+            )
+
+        from deeplake.enterprise import query
 
         return query(self, query_string)
 
@@ -3806,17 +3814,30 @@ class Dataset:
             token (str, optional): Activeloop token used to fetch the managed credentials.
 
         Raises:
-            InvalidSourcePathError: If the dataset's path is not a valid s3 or gcs path.
+            InvalidSourcePathError: If the dataset's path is not a valid s3, gcs or azure path.
             InvalidDestinationPathError: If ``dest_path``, or ``org_id`` and ``ds_name`` do not form a valid Deep Lake path.
+            TokenPermissionError: If the user does not have permission to create a dataset in the specified organization.
         """
-        path = connect_dataset_entry(
-            src_path=self.path,
-            dest_path=dest_path,
-            org_id=org_id,
-            ds_name=ds_name,
-            creds_key=creds_key,
-            token=token,
-        )
+        try:
+            path = connect_dataset_entry(
+                src_path=self.path,
+                dest_path=dest_path,
+                org_id=org_id,
+                ds_name=ds_name,
+                creds_key=creds_key,
+                token=token,
+            )
+        except BadRequestException:
+            check_param = "organization id" if org_id else "dataset path"
+            raise TokenPermissionError(
+                "You do not have permission to create a dataset in the specified "
+                + check_param
+                + "."
+                + " Please check the "
+                + check_param
+                + " and make sure"
+                + "that you have sufficient permissions to the organization."
+            )
         self.__class__ = (
             deeplake.core.dataset.deeplake_cloud_dataset.DeepLakeCloudDataset
         )
@@ -3825,6 +3846,10 @@ class Dataset:
         self.public = False
         self._load_link_creds()
         self._first_load_init(verbose=False)
+
+        base_storage = get_base_storage(self.storage)
+        if base_storage is not None and isinstance(base_storage, S3Provider):
+            base_storage.creds_used = "PLATFORM"
 
     def add_creds_key(self, creds_key: str, managed: bool = False):
         """Adds a new creds key to the dataset. These keys are used for tensors that are linked to external data.
@@ -3925,12 +3950,14 @@ class Dataset:
             raise ValueError(
                 "Managed creds are not supported for datasets that are not connected to activeloop platform."
             )
-        replaced_index = self.link_creds.replace_creds(creds_key, new_creds_key)
-        save_link_creds(self.link_creds, self.storage, replaced_index=replaced_index)
+        replaced_indices = self.link_creds.replace_creds(creds_key, new_creds_key)
+        save_link_creds(
+            self.link_creds, self.storage, replaced_indices=replaced_indices
+        )
 
-    def get_creds_keys(self) -> List[str]:
-        """Returns the list of creds keys added to the dataset. These are used to fetch external data in linked tensors"""
-        return list(self.link_creds.creds_keys)
+    def get_creds_keys(self) -> Set[str]:
+        """Returns the set of creds keys added to the dataset. These are used to fetch external data in linked tensors"""
+        return set(self.link_creds.creds_keys)
 
     def get_managed_creds_keys(self) -> List[str]:
         """Returns the list of creds keys added to the dataset that are managed by Activeloop platform. These are used to fetch external data in linked tensors."""

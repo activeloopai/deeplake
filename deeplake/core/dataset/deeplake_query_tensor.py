@@ -5,8 +5,10 @@ from deeplake.core.index import Index
 from deeplake.core.tensor import Any
 import numpy as np
 from deeplake.core.index import replace_ellipsis_with_slices
+from deeplake.core.meta.tensor_meta import TensorMeta
 from deeplake.util.exceptions import InvalidKeyTypeError, DynamicTensorNumpyError
 from deeplake.util.pretty_print import summary_tensor
+import json
 
 
 class DeepLakeQueryTensor(tensor.Tensor):
@@ -15,19 +17,29 @@ class DeepLakeQueryTensor(tensor.Tensor):
         deeplake_tensor,
         indra_tensor,
         is_iteration: bool = False,
-        key: Optional[str] = None,
     ):
         self.deeplake_tensor = deeplake_tensor
         self.indra_tensor = indra_tensor
         self.is_iteration = is_iteration
 
-        if key:
-            self.key = key
+        self.key = (
+            deeplake_tensor.key
+            if hasattr(deeplake_tensor, "key")
+            else indra_tensor.name
+        )
 
         self.first_dim = None
 
     def __getattr__(self, key):
-        return getattr(self.deeplake_tensor, key)
+        try:
+            return getattr(self.deeplake_tensor, key)
+        except AttributeError:
+            try:
+                return getattr(self.indra_tensor, key)
+            except AttributeError:
+                raise AttributeError(
+                    f"'{self.__class__}' object has no attribute '{key}'"
+                )
 
     def __getitem__(
         self,
@@ -40,15 +52,12 @@ class DeepLakeQueryTensor(tensor.Tensor):
         if isinstance(item, tuple) or item is Ellipsis:
             item = replace_ellipsis_with_slices(item, self.ndim)
 
-        key = getattr(self, "key", None)
-
         indra_tensor = self.indra_tensor[item]
 
         return DeepLakeQueryTensor(
             self.deeplake_tensor,
             indra_tensor,
             is_iteration=is_iteration,
-            key=key,
         )
 
     def numpy(
@@ -63,8 +72,22 @@ class DeepLakeQueryTensor(tensor.Tensor):
             except ValueError:
                 raise DynamicTensorNumpyError(self.name, self.index, "shape")
 
-    def data(self, aslist: bool = False, fetch_chunks: bool = False) -> Any:
-        return self.indra_tensor.bytes()
+    def text(self, fetch_chunks: bool = False):
+        """Return text data. Only applicable for tensors with 'text' base htype."""
+        if len(self.indra_tensor) == 1:
+            return self.indra_tensor.bytes().decode()
+        return list(
+            self.indra_tensor[i].bytes().decode() for i in range(len(self.indra_tensor))
+        )
+
+    def dict(self, fetch_chunks: bool = False):
+        """Return json data. Only applicable for tensors with 'json' base htype."""
+        if len(self.indra_tensor) == 1:
+            return json.loads(self.indra_tensor.bytes().decode())
+        return list(
+            json.loads(self.indra_tensor[i].bytes().decode())
+            for i in range(len(self.indra_tensor))
+        )
 
     @property
     def dtype(self):
@@ -121,6 +144,15 @@ class DeepLakeQueryTensor(tensor.Tensor):
     @property
     def meta(self):
         """Metadata of the tensor."""
+        if self.deeplake_tensor is None:
+            return TensorMeta(
+                htype=self.indra_tensor.htype,
+                dtype=self.indra_tensor.dtype,
+                sample_compression=self.indra_tensor.sample_compression,
+                chunk_compression=None,
+                is_sequence=self.indra_tensor.is_sequence,
+                is_link=False,
+            )
         return self.deeplake_tensor.chunk_engine.tensor_meta
 
     @property
@@ -135,7 +167,7 @@ class DeepLakeQueryTensor(tensor.Tensor):
             >>> ds.video_seq.base_htype
             video
         """
-        return self.deeplake_tensor.meta.htype
+        return self.meta.htype
 
     def __len__(self):
         return len(self.indra_tensor)
