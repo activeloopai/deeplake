@@ -39,6 +39,9 @@ def embedding_fn3(text, embedding_dim=EMBEDDING_DIM):
     """Returns embedding in List[np.ndarray] format"""
     return [np.zeros(embedding_dim) for i in range(len(text))]
 
+def embedding_fn4(text, embedding_dim=EMBEDDING_DIM):
+    return np.zeros((1, EMBEDDING_DIM))  # pragma: no cover
+
 
 def test_custom_tensors():
     # initialize vector store object:
@@ -224,7 +227,7 @@ def test_search_basic(hub_cloud_dev_token):
 
     data = vector_store.search(
         exec_option="python",
-        embedding_function=embedding_fn3,
+        embedding_function=embedding_fn4,
         embedding_data=["dummy"],
         return_view=True,
         k=2,
@@ -1087,3 +1090,42 @@ def test_multiple_embeddings(local_path, capsys):
     assert len(vector_store.dataset.embedding_2) == 50020
     assert len(vector_store.dataset.id) == 50020
     assert len(vector_store.dataset.text) == 50020
+
+
+def test_extend_none(local_path):
+    vector_store = DeepLakeVectorStore(
+        path=local_path,
+        overwrite=True,
+        tensor_params=[
+            {"name": "text", "htype": "text"},
+            {"name": "embedding", "htype": "embedding"},
+            {
+                "name": "id",
+                "htype": "text",
+            },
+            {"name": "metadata", "htype": "json"},
+        ],
+    )
+
+    vector_store.add(text=texts, embedding=None, id=ids, metadata=None)
+    assert len(vector_store.dataset) == 10
+    assert len(vector_store.dataset.text) == 10
+    assert len(vector_store.dataset.embedding) == 10
+    assert len(vector_store.dataset.id) == 10
+    assert len(vector_store.dataset.metadata) == 10
+
+def test_query_dim(local_path):
+    vector_store = DeepLakeVectorStore(
+        path=local_path,
+        overwrite=True,
+        tensor_params=[
+            {"name": "text", "htype": "text"},
+            {"name": "embedding", "htype": "embedding"},
+        ],
+    )
+
+    vector_store.add(text=texts, embedding=embeddings)
+    with pytest.raises(AssertionError):
+        vector_store.search(texts[0], embedding_fn3, k=1)
+    
+    vector_store.search(texts[0], embedding_fn4, k=1)
