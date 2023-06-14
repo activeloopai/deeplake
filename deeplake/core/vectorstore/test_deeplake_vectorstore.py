@@ -39,6 +39,7 @@ def embedding_fn3(text, embedding_dim=EMBEDDING_DIM):
     """Returns embedding in List[np.ndarray] format"""
     return [np.zeros(embedding_dim) for i in range(len(text))]
 
+
 def embedding_fn4(text, embedding_dim=EMBEDDING_DIM):
     return np.zeros((1, EMBEDDING_DIM))  # pragma: no cover
 
@@ -1114,6 +1115,7 @@ def test_extend_none(local_path):
     assert len(vector_store.dataset.id) == 10
     assert len(vector_store.dataset.metadata) == 10
 
+
 def test_query_dim(local_path):
     vector_store = DeepLakeVectorStore(
         path=local_path,
@@ -1127,5 +1129,5 @@ def test_query_dim(local_path):
     vector_store.add(text=texts, embedding=embeddings)
     with pytest.raises(AssertionError):
         vector_store.search(texts[0], embedding_fn3, k=1)
-    
+
     vector_store.search(texts[0], embedding_fn4, k=1)
