@@ -269,7 +269,7 @@ def test_search_basic(hub_cloud_dev_token):
         path="mem://xyz", embedding_function=embedding_fn
     )
     vector_store.add(embedding=embeddings, text=texts, metadata=metadatas)
-    result = vector_store.search(embedding=np.zeros(1, EMBEDDING_DIM))
+    result = vector_store.search(embedding=np.zeros((1, EMBEDDING_DIM)))
     assert len(result) == 4
 
 
@@ -277,7 +277,6 @@ def test_search_basic(hub_cloud_dev_token):
 @pytest.mark.parametrize("distance_metric", ["L1", "L2", "COS", "MAX"])
 def test_search_quantitative(distance_metric, hub_cloud_dev_token):
     """Test whether TQL and Python return the same results"""
-
     # initialize vector store object:
     vector_store = DeepLakeVectorStore(
         path="hub://testingacc2/vectorstore_test",
@@ -332,6 +331,12 @@ def test_search_quantitative(distance_metric, hub_cloud_dev_token):
             distance_metric=distance_metric,
             filter={"metadata": {"abcdefg": 28}},
         )
+
+    data_ce = vector_store.search(
+        query="select * where ids == '0'",
+        exec_option="compute_engine",
+    )
+    assert data_ce["ids"] == ["0"]
 
 
 @requires_libdeeplake

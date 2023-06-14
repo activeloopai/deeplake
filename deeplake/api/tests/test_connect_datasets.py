@@ -62,15 +62,24 @@ def test_connect_dataset_cases(local_ds, memory_ds, hub_cloud_ds):
         hub_cloud_ds.connect(creds_key="some_creds", dest_path="hub://someorg/somename")
 
 
-def test_connect_user_not_in_org(s3_ds_generator):
+def test_connect_user_not_in_org(s3_ds_generator, hub_cloud_dev_token):
     with s3_ds_generator() as ds:
         ds.create_tensor("x")
         ds.x.append(10)
 
     with pytest.raises(TokenPermissionError) as e:
-        ds.connect(creds_key="some_creds", dest_path="hub://bad-org/some-name")
+        ds.connect(
+            creds_key="some_creds",
+            dest_path="hub://bad-org/some-name",
+            token=hub_cloud_dev_token,
+        )
         assert "dataset path" in str(e)
 
     with pytest.raises(TokenPermissionError) as e:
-        ds.connect(creds_key="some_creds", org_id="bad-org", ds_name="some-name")
+        ds.connect(
+            creds_key="some_creds",
+            org_id="bad-org",
+            ds_name="some-name",
+            token=hub_cloud_dev_token,
+        )
         assert "organization id" in str(e)
