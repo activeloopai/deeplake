@@ -664,11 +664,11 @@ def test_creds(hub_cloud_ds_generator, cat_path):
 
     assert tensor[0].creds_key() == creds_key
     ds.add_creds_key("aws_creds", True)
-    assert ds.get_managed_creds_keys() == ["aws_creds"]
+    assert ds.get_managed_creds_keys() == {"aws_creds"}
     assert set(ds.get_creds_keys()) == {"aws_creds", "ENV"}
     ds.update_creds_key("aws_creds", managed=True)
     ds = hub_cloud_ds_generator()
-    assert ds.get_managed_creds_keys() == ["aws_creds"]
+    assert ds.get_managed_creds_keys() == {"aws_creds"}
     assert set(ds.get_creds_keys()) == {"aws_creds", "ENV"}
 
 
