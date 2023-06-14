@@ -767,8 +767,8 @@ def test_parse_add_arguments():
         id=ids,
         metadata=metadatas,
     )
-    assert embedding_function is embedding_fn2
-    assert embedding_tensors == "embedding"
+    assert embedding_function[0] is embedding_fn2
+    assert embedding_tensors == ["embedding"]
     assert tensors == {
         "id": ids,
         "text": texts,
@@ -788,8 +788,8 @@ def test_parse_add_arguments():
         text=texts,
         metadata=metadatas,
     )
-    assert embedding_function is embedding_fn2
-    assert embedding_tensors == "embedding"
+    assert embedding_function[0] is embedding_fn2
+    assert embedding_tensors == ["embedding"]
     assert len(tensors) == 2
 
     # Creating a vector store with two embedding tensors
@@ -874,8 +874,8 @@ def test_parse_add_arguments():
         text=texts,
     )
 
-    assert embedding_function is embedding_fn2
-    assert embedding_tensors == "embedding_1"
+    assert embedding_function[0] is embedding_fn2
+    assert embedding_tensors == ["embedding_1"]
     assert len(tensors) == 1
 
     deeplake_vector_store = DeepLakeVectorStore(
@@ -898,9 +898,9 @@ def test_parse_add_arguments():
         embedding_data=texts,
         embedding_tensor="embedding",
     )
-    assert embedding_function is embedding_fn
-    assert embedding_tensor == "embedding"
-    assert embedding_data == texts
+    assert embedding_function[0] is embedding_fn
+    assert embedding_tensor == ["embedding"]
+    assert embedding_data == [texts]
     assert tensors == {
         "id": ids,
         "text": texts,

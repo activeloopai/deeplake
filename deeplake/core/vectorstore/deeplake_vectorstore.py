@@ -25,7 +25,7 @@ from deeplake.util.bugout_reporter import feature_report_path, deeplake_reporter
 logger = logging.getLogger(__name__)
 
 
-class DeepLakeVectorStore:
+class VectorStore:
     """Base class for DeepLakeVectorStore"""
 
     def __init__(
@@ -131,9 +131,9 @@ class DeepLakeVectorStore:
 
     def add(
         self,
-        embedding_function: Optional[Callable] = None,
-        embedding_data: Optional[List] = None,
-        embedding_tensor: Optional[str] = None,
+        embedding_function: Optional[Union[Callable, List[Callable]]] = None,
+        embedding_data: Optional[Union[List, List[List]]] = None,
+        embedding_tensor: Optional[Union[str, List[str]]] = None,
         total_samples_processed: int = 0,
         return_ids: bool = False,
         **tensors,
@@ -198,6 +198,15 @@ class DeepLakeVectorStore:
                 "embedding_function": True if embedding_function is not None else False,
                 "embedding_data": True if embedding_data is not None else False,
             },
+        )
+
+        (
+            embedding_function,
+            embedding_data,
+            embedding_tensor,
+            tensors,
+        ) = utils.parse_tensors_kwargs(
+            tensors, embedding_function, embedding_data, embedding_tensor
         )
 
         (
@@ -348,6 +357,10 @@ class DeepLakeVectorStore:
                 embedding_data,
                 embedding_function=embedding_function or self.embedding_function,
             )
+            if query_emb is not None:
+                assert (
+                    query_emb.ndim == 1 or query_emb.shape[0] == 1
+                ), "Query embedding must be 1-dimensional"
 
         if not return_tensors:
             return_tensors = [
@@ -484,3 +497,6 @@ class DeepLakeVectorStore:
     def __len__(self):
         """Length of the dataset"""
         return len(self.dataset)
+
+
+DeepLakeVectorStore = VectorStore

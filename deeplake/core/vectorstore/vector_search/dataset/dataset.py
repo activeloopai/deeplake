@@ -234,16 +234,19 @@ def get_embedding(embedding, embedding_data, embedding_function=None):
 def preprocess_tensors(
     embedding_data=None, embedding_tensor=None, dataset=None, **tensors
 ):
-    first_item = next(iter(tensors))
-    ids_tensor = "ids" if "ids" in tensors else "id"
-    if ids_tensor not in tensors or ids_tensor is None:
-        id = [str(uuid.uuid1()) for _ in tensors[first_item]]
+    _tensors = {k: v for k, v in tensors.items() if v is not None}
+    first_item = next(iter(_tensors))
+    ids_tensor = "ids" if "ids" in _tensors else "id"
+    if ids_tensor not in _tensors or ids_tensor is None:
+        id = [str(uuid.uuid1()) for _ in _tensors[first_item]]
         tensors[ids_tensor] = id
 
     processed_tensors = {ids_tensor: tensors[ids_tensor]}
 
     for tensor_name, tensor_data in tensors.items():
-        if not isinstance(tensor_data, list):
+        if tensor_data is None:
+            tensor_data = [None] * len(tensors[ids_tensor])
+        elif not isinstance(tensor_data, list):
             tensor_data = list(tensor_data)
         if dataset and dataset[tensor_name].htype == "image":
             tensor_data = [
@@ -253,7 +256,8 @@ def preprocess_tensors(
         processed_tensors[tensor_name] = tensor_data
 
     if embedding_data:
-        processed_tensors[embedding_tensor] = embedding_data
+        for k, v in zip(embedding_tensor, embedding_data):
+            processed_tensors[k] = v
 
     return processed_tensors, tensors[ids_tensor]
 
@@ -318,9 +322,12 @@ def extend_or_ingest_dataset(
     first_item = next(iter(processed_tensors))
     if len(processed_tensors[first_item]) <= VECTORSTORE_EXTEND_MAX_SIZE:
         if embedding_function:
-            embedded_data = embedding_function(embedding_data)
-            embedded_data = np.array(embedded_data, dtype=np.float32)
-            processed_tensors[embedding_tensor] = embedded_data
+            for func, data, tensor in zip(
+                embedding_function, embedding_data, embedding_tensor
+            ):
+                embedded_data = func(data)
+                embedded_data = np.array(embedded_data, dtype=np.float32)
+                processed_tensors[tensor] = embedded_data
 
         dataset.extend(processed_tensors)
     else:
