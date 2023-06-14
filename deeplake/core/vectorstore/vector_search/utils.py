@@ -16,9 +16,7 @@ EXEC_OPTION_TO_RUNTIME: Dict[str, Optional[Dict]] = {
 
 
 def parse_tensor_return(tensor):
-    data = tensor.data()["value"]
-
-    return data.tolist() if isinstance(data, np.ndarray) else data
+    return tensor.data(aslist=True)["value"]
 
 
 def check_indra_installation(exec_option, indra_installed):
