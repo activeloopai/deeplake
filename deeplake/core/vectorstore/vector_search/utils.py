@@ -140,36 +140,37 @@ def parse_search_args(**kwargs):
 
 
 def parse_tensors_kwargs(tensors, embedding_function, embedding_data, embedding_tensor):
+    tensors = tensors.copy()
     func_comma_data_style = (
-        lambda v: isinstance(v, tuple) and len(v) == 2 and callable(v[0])
+        lambda item: isinstance(item[1], tuple) and len(item[1]) == 2 and callable(item[1][0])
     )
 
     funcs = []
     data = []
     tensors_ = []
 
-    for k in tensors:
-        v = tensors[k]
-        if func_comma_data_style(v):
-            if embedding_function:
-                raise ValueError(
-                    "Cannot specify embedding functions in both `tensors` and `embedding_function`."
-                )
+    filtered = dict(filter(func_comma_data_style, tensors.items()))
+    if len(filtered) > 0:
+        if embedding_function:
+            raise ValueError(
+                "Cannot specify embedding functions in both `tensors` and `embedding_function`."
+            )
 
-            if embedding_data:
-                raise ValueError(
-                    "Cannot specify embedding data in both `tensors` and `embedding_data`."
-                )
+        if embedding_data:
+            raise ValueError(
+                "Cannot specify embedding data in both `tensors` and `embedding_data`."
+            )
 
-            if embedding_tensor:
-                raise ValueError(
-                    "Cannot specify embedding tensors in both `tensors` and `embedding_tensor`."
-                )
+        if embedding_tensor:
+            raise ValueError(
+                "Cannot specify embedding tensors in both `tensors` and `embedding_tensor`."
+            )
 
-            funcs.append(v[0])
-            data.append(v[1])
-            tensors_.append(k)
-            tensors[k] = v[1]
+    for k, v in filtered.items():
+        funcs.append(v[0])
+        data.append(v[1])
+        tensors_.append(k)
+        del tensors[k]
 
     if embedding_function:
         return embedding_function, embedding_data, embedding_tensor, tensors
