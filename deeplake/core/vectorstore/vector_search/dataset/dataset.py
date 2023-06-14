@@ -2,6 +2,7 @@ import uuid
 from typing import List, Dict, Any
 
 import numpy as np
+from math import ceil
 
 try:
     from indra import api  # type: ignore
@@ -19,8 +20,8 @@ from deeplake.constants import (
     DEFAULT_VECTORSTORE_DEEPLAKE_PATH,
     VECTORSTORE_EXTEND_MAX_SIZE,
     DEFAULT_VECTORSTORE_TENSORS,
+    VECTORSTORE_EXTEND_MAX_SIZE_BY_HTYPE,
 )
-from deeplake.util.warnings import always_warn
 
 
 def create_or_load_dataset(
@@ -316,7 +317,16 @@ def extend_or_ingest_dataset(
     logger,
 ):
     first_item = next(iter(processed_tensors))
-    if len(processed_tensors[first_item]) <= VECTORSTORE_EXTEND_MAX_SIZE:
+
+    htypes = [
+        dataset[item].meta.htype for item in dataset.tensors
+    ]  # Inspect raw htype (not parsed htype like tensor.htype) in order to avoid parsing links and sequences separately.
+    threshold_by_htype = [
+        VECTORSTORE_EXTEND_MAX_SIZE_BY_HTYPE.get(h, int(1e10)) for h in htypes
+    ]
+    extend_threshold = min(threshold_by_htype + [VECTORSTORE_EXTEND_MAX_SIZE])
+
+    if len(processed_tensors[first_item]) <= extend_threshold:
         if embedding_function:
             embedded_data = embedding_function(embedding_data)
             embedded_data = np.array(embedded_data, dtype=np.float32)
@@ -325,6 +335,15 @@ def extend_or_ingest_dataset(
         dataset.extend(processed_tensors)
     else:
         elements = dataset_utils.create_elements(processed_tensors)
+
+        num_workers_auto = ceil(len(elements) / ingestion_batch_size)
+        if num_workers_auto < num_workers:
+            logger.warning(
+                f"Number of workers is {num_workers}, but {len(elements)} rows of data are being added and the ingestion_batch_size is {ingestion_batch_size}. "
+                f"Setting the number of workers to {num_workers_auto} instead, in order reduce overhead from excessive workers that will not accelerate ingestion."
+                f"If you want to parallelizing using more workers, please reduce ``ingestion_batch_size``."
+            )
+            num_workers = min(num_workers_auto, num_workers)
 
         ingest_data.run_data_ingestion(
             elements=elements,
