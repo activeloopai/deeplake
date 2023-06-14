@@ -142,7 +142,9 @@ def parse_search_args(**kwargs):
 def parse_tensors_kwargs(tensors, embedding_function, embedding_data, embedding_tensor):
     tensors = tensors.copy()
     func_comma_data_style = (
-        lambda item: isinstance(item[1], tuple) and len(item[1]) == 2 and callable(item[1][0])
+        lambda item: isinstance(item[1], tuple)
+        and len(item[1]) == 2
+        and callable(item[1][0])
     )
 
     funcs = []

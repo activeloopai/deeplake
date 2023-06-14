@@ -2,7 +2,10 @@ import numpy as np
 import pytest
 
 import deeplake
-from deeplake.core.vectorstore.deeplake_vectorstore import DeepLakeVectorStore, VectorStore
+from deeplake.core.vectorstore.deeplake_vectorstore import (
+    DeepLakeVectorStore,
+    VectorStore,
+)
 from deeplake.core.vectorstore import utils
 from deeplake.tests.common import requires_libdeeplake
 from deeplake.constants import (
@@ -983,9 +986,16 @@ def test_parse_add_arguments():
             embedding_2=embeddings,
         )
 
+
 def test_parse_tensors_kwargs():
-    tensors = {"embedding_1": (embedding_fn, texts), "embedding_2": (embedding_fn2, texts), "custom_text": texts}
-    func, data, emb_tensor, new_tensors = utils.parse_tensors_kwargs(tensors, None, None, None)
+    tensors = {
+        "embedding_1": (embedding_fn, texts),
+        "embedding_2": (embedding_fn2, texts),
+        "custom_text": texts,
+    }
+    func, data, emb_tensor, new_tensors = utils.parse_tensors_kwargs(
+        tensors, None, None, None
+    )
 
     assert func == [embedding_fn, embedding_fn2]
     assert data == [texts, texts]
@@ -994,12 +1004,13 @@ def test_parse_tensors_kwargs():
 
     with pytest.raises(ValueError):
         utils.parse_tensors_kwargs(tensors, embedding_fn, None, None)
-    
+
     with pytest.raises(ValueError):
         utils.parse_tensors_kwargs(tensors, None, texts, None)
-    
+
     with pytest.raises(ValueError):
         utils.parse_tensors_kwargs(tensors, None, None, "embedding_1")
+
 
 def test_multiple_embeddings(local_path, capsys):
     vector_store = DeepLakeVectorStore(
@@ -1018,27 +1029,58 @@ def test_multiple_embeddings(local_path, capsys):
                 "name": "embedding_2",
                 "htype": "embedding",
             },
-        ]
+        ],
     )
-    
+
     with pytest.raises(AssertionError):
-        vector_store.add(text=texts, embedding_function=[embedding_fn, embedding_fn], embedding_data=[texts], embedding_tensor=["embedding_1", "embedding_2"])
-    
+        vector_store.add(
+            text=texts,
+            embedding_function=[embedding_fn, embedding_fn],
+            embedding_data=[texts],
+            embedding_tensor=["embedding_1", "embedding_2"],
+        )
+
     with pytest.raises(AssertionError):
-        vector_store.add(text=texts, embedding_function=[embedding_fn, embedding_fn], embedding_data=[texts, texts], embedding_tensor=["embedding_1"])
-    
+        vector_store.add(
+            text=texts,
+            embedding_function=[embedding_fn, embedding_fn],
+            embedding_data=[texts, texts],
+            embedding_tensor=["embedding_1"],
+        )
+
     with pytest.raises(AssertionError):
-        vector_store.add(text=texts, embedding_function=[embedding_fn], embedding_data=[texts, texts], embedding_tensor=["embedding_1", "embedding_2"])
-    
-    vector_store.add(text=texts, embedding_function=[embedding_fn, embedding_fn], embedding_data=[texts, texts], embedding_tensor=["embedding_1", "embedding_2"])
-    vector_store.add(text=texts, embedding_1=(embedding_fn, texts), embedding_2=(embedding_fn, texts))
+        vector_store.add(
+            text=texts,
+            embedding_function=[embedding_fn],
+            embedding_data=[texts, texts],
+            embedding_tensor=["embedding_1", "embedding_2"],
+        )
+
+    vector_store.add(
+        text=texts,
+        embedding_function=[embedding_fn, embedding_fn],
+        embedding_data=[texts, texts],
+        embedding_tensor=["embedding_1", "embedding_2"],
+    )
+    vector_store.add(
+        text=texts, embedding_1=(embedding_fn, texts), embedding_2=(embedding_fn, texts)
+    )
 
     number_of_data = 1000
     _texts, embeddings, ids, metadatas, _ = utils.create_data(
         number_of_data=number_of_data, embedding_dim=EMBEDDING_DIM
     )
-    vector_store.add(text=25 * _texts, embedding_function=[embedding_fn3, embedding_fn3], embedding_data=[25 * _texts, 25 * _texts], embedding_tensor=["embedding_1", "embedding_2"])
-    vector_store.add(text=25 * _texts, embedding_1=(embedding_fn3, 25 * _texts), embedding_2=(embedding_fn3, 25 * _texts))
+    vector_store.add(
+        text=25 * _texts,
+        embedding_function=[embedding_fn3, embedding_fn3],
+        embedding_data=[25 * _texts, 25 * _texts],
+        embedding_tensor=["embedding_1", "embedding_2"],
+    )
+    vector_store.add(
+        text=25 * _texts,
+        embedding_1=(embedding_fn3, 25 * _texts),
+        embedding_2=(embedding_fn3, 25 * _texts),
+    )
 
     assert len(vector_store.dataset) == 50020
     assert len(vector_store.dataset.embedding_1) == 50020
