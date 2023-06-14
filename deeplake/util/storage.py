@@ -104,7 +104,7 @@ def storage_provider_from_path(
 
 def storage_provider_from_hub_path(
     path: str,
-    read_only: bool = None,
+    read_only: Optional[bool] = None,
     db_engine: bool = False,
     token: Optional[str] = None,
     creds: Optional[Union[dict, str]] = None,
