@@ -136,8 +136,8 @@ class DeepLakeVectorStore:
         embedding_tensor: Optional[str] = None,
         total_samples_processed: int = 0,
         return_ids: bool = False,
-        num_workers: int = None,
-        ingestion_batch_size: int = None,
+        num_workers: Optional[int] = None,
+        ingestion_batch_size: Optional[int] = None,
         **tensors,
     ) -> Optional[List[str]]:
         """Adding elements to deeplake vector store.
