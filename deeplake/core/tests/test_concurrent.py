@@ -20,7 +20,6 @@ def rand_labels():
 def worker(worker_id: int):
     # time.sleep(worker_id / 10)
     ds = deeplake.load(ds_path)
-    ds.checkout("abcd")
     print(f"Hello from worker {worker_id}!")
     with ds.concurrent():
         for i in tqdm.tqdm(range(10)):
@@ -34,7 +33,6 @@ def test_concurrent():
     with ds:
         ds.create_tensor("images", htype="image", sample_compression="jpeg")
         ds.create_tensor("labels", htype="class_label")
-        ds.commit(hash="abcd")
     executor = ProcessPoolExecutor()
     nsamples = list(executor.map(worker, range(5)))
     assert nsamples == [100] * 5
