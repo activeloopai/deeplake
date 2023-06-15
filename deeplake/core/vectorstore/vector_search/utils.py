@@ -188,14 +188,14 @@ def parse_add_arguments(
     **tensors,
 ):
     """Parse the input argument to the Vector Store add function to infer whether they are a valid combination."""
-    if embedding_function and not isinstance(embedding_function, list):
-        embedding_function = [embedding_function]
     if initial_embedding_function and not isinstance(initial_embedding_function, list):
         initial_embedding_function = [initial_embedding_function]
     if embedding_data and not isinstance(embedding_data[0], list):
         embedding_data = [embedding_data]
     if embedding_tensor and not isinstance(embedding_tensor, list):
         embedding_tensor = [embedding_tensor]
+    if embedding_function and not isinstance(embedding_function, list):
+        embedding_function = [embedding_function] * len(embedding_data)
     if embedding_function:
         embedding_tensor = get_embedding_tensors(embedding_tensor, tensors, dataset)
 

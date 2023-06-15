@@ -1069,6 +1069,12 @@ def test_multiple_embeddings(local_path, capsys):
     vector_store.add(
         text=texts, embedding_1=(embedding_fn, texts), embedding_2=(embedding_fn, texts)
     )
+    vector_store.add(
+        text=texts,
+        embedding_function=embedding_fn,
+        embedding_data=[texts, texts],
+        embedding_tensor=["embedding_1", "embedding_2"],
+    )
 
     number_of_data = 1000
     _texts, embeddings, ids, metadatas, _ = utils.create_data(
@@ -1086,11 +1092,11 @@ def test_multiple_embeddings(local_path, capsys):
         embedding_2=(embedding_fn3, 25 * _texts),
     )
 
-    assert len(vector_store.dataset) == 50020
-    assert len(vector_store.dataset.embedding_1) == 50020
-    assert len(vector_store.dataset.embedding_2) == 50020
-    assert len(vector_store.dataset.id) == 50020
-    assert len(vector_store.dataset.text) == 50020
+    assert len(vector_store.dataset) == 50030
+    assert len(vector_store.dataset.embedding_1) == 50030
+    assert len(vector_store.dataset.embedding_2) == 50030
+    assert len(vector_store.dataset.id) == 50030
+    assert len(vector_store.dataset.text) == 50030
 
 
 def test_extend_none(local_path):
