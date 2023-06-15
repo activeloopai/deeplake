@@ -1135,9 +1135,9 @@ class dataset:
                     e.__cause__,
                 )
         else:
-            if isinstance(src, Tensor):
+            if not isinstance(src, Dataset):
                 raise TypeError(
-                    "Deepcopy is not supported for tensors. Please specify a dataset or a materialized dataset view."
+                    f"The specified ``src`` is not an allowed type. Please specify a dataset or a materialized dataset view."
                 )
 
             if not src.index.is_trivial():
