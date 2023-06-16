@@ -25,7 +25,7 @@ from deeplake.util.bugout_reporter import feature_report_path, deeplake_reporter
 logger = logging.getLogger(__name__)
 
 
-class DeepLakeVectorStore:
+class VectorStore:
     """Base class for DeepLakeVectorStore"""
 
     def __init__(
@@ -76,8 +76,8 @@ class DeepLakeVectorStore:
             tensor_params (List[Dict[str, dict]], optional): List of dictionaries that contains information about tensors that user wants to create. See ``create_tensor`` in Deep Lake API docs for more information. Defaults to ``DEFAULT_VECTORSTORE_TENSORS``.
             embedding_function (Optional[callable], optional): Function that converts the embeddable data into embeddings. Defaults to None.
             read_only (bool, optional):  Opens dataset in read-only mode if True. Defaults to False.
-            ingestion_batch_size (int): Batch size used during ingestion. Defaults to 1024.
-            num_workers (int): The number of workers to use for ingesting data in parallel. Defaults to 0.
+            num_workers (int): Number of workers to use for parallel ingestion.
+            ingestion_batch_size (int): Batch size to use for parallel ingestion.
             exec_option (str): Default method for search execution. It could be either "python", "compute_engine" or "tensor_db". Defaults to "python".
                 - ``python`` - Pure-python implementation that runs on the client and can be used for data stored anywhere. WARNING: using this option with big datasets is discouraged because it can lead to memory issues.
                 - ``compute_engine`` - Performant C++ implementation of the Deep Lake Compute Engine that runs on the client and can be used for any data stored in or connected to Deep Lake. It cannot be used with in-memory or local datasets.
@@ -131,11 +131,13 @@ class DeepLakeVectorStore:
 
     def add(
         self,
-        embedding_function: Optional[Callable] = None,
-        embedding_data: Optional[List] = None,
-        embedding_tensor: Optional[str] = None,
+        embedding_function: Optional[Union[Callable, List[Callable]]] = None,
+        embedding_data: Optional[Union[List, List[List]]] = None,
+        embedding_tensor: Optional[Union[str, List[str]]] = None,
         total_samples_processed: int = 0,
         return_ids: bool = False,
+        num_workers: Optional[int] = None,
+        ingestion_batch_size: Optional[int] = None,
         **tensors,
     ) -> Optional[List[str]]:
         """Adding elements to deeplake vector store.
@@ -182,6 +184,8 @@ class DeepLakeVectorStore:
             embedding_tensor (Optional[str]): Tensor where results from the embedding function will be stored. If None, the embedding tensors is automatically inferred (when possible). Defaults to None.
             total_samples_processed (int): Total number of samples processed before ingestion stopped. When specified.
             return_ids (bool): Whether to return added ids as an ouput of the method. Defaults to False.
+            num_workers (int): Number of workers to use for parallel ingestion. Overrides the ``num_workers`` specified when initializing the Vector Store.
+            ingestion_batch_size (int): Batch size to use for parallel ingestion. Defaults to 1000. Overrides the ``ingestion_batch_size`` specified when initializing the Vector Store.
             **tensors: Keyword arguments where the key is the tensor name, and the value is a list of samples that should be uploaded to that tensor.
 
         Returns:
@@ -198,6 +202,15 @@ class DeepLakeVectorStore:
                 "embedding_function": True if embedding_function is not None else False,
                 "embedding_data": True if embedding_data is not None else False,
             },
+        )
+
+        (
+            embedding_function,
+            embedding_data,
+            embedding_tensor,
+            tensors,
+        ) = utils.parse_tensors_kwargs(
+            tensors, embedding_function, embedding_data, embedding_tensor
         )
 
         (
@@ -227,8 +240,8 @@ class DeepLakeVectorStore:
             embedding_function=embedding_function,
             embedding_data=embedding_data,
             embedding_tensor=embedding_tensor,
-            ingestion_batch_size=self.ingestion_batch_size,
-            num_workers=self.num_workers,
+            ingestion_batch_size=ingestion_batch_size or self.ingestion_batch_size,
+            num_workers=num_workers or self.num_workers,
             total_samples_processed=total_samples_processed,
             logger=logger,
         )
@@ -348,6 +361,10 @@ class DeepLakeVectorStore:
                 embedding_data,
                 embedding_function=embedding_function or self.embedding_function,
             )
+            if isinstance(query_emb, np.ndarray):
+                assert (
+                    query_emb.ndim == 1 or query_emb.shape[0] == 1
+                ), "Query embedding must be 1-dimensional. Please consider using another embedding function for converting query string to embedding."
 
         if not return_tensors:
             return_tensors = [
@@ -484,3 +501,6 @@ class DeepLakeVectorStore:
     def __len__(self):
         """Length of the dataset"""
         return len(self.dataset)
+
+
+DeepLakeVectorStore = VectorStore
