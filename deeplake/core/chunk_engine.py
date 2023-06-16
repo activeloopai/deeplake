@@ -2490,6 +2490,7 @@ class ChunkEngine:
         if nrows == 0:
             return 0, 0
         min_ = max_ = enc[0][1] - enc[0][0]
+        # sequence length is number of samples in tensor
         for i in range(1, self._sequence_length):
             length = enc[i][1] - enc[i][0]
             if length < min_:
@@ -2567,6 +2568,7 @@ class ChunkEngine:
                     sample_shapes = np.zeros((num_samples, sample_ndim), dtype=np.int32)
 
             if flatten:
+                # fill sample shapes with sequence item shapes, no nesting
                 start, end = self.sequence_encoder[idx]
                 length = end - start
                 sample_shapes[offset : offset + length] = shape
@@ -2800,14 +2802,17 @@ class ChunkEngine:
             min_shape = min_length + list(meta.min_shape)
             max_shape = max_length + list(meta.max_shape)
         else:
+            # need to fetch all shapes for the index
             shapes = self.shapes(
                 index, sample_shape_provider, convert_bad_to_list=False
             )
             if self.is_sequence:
                 if isinstance(shapes, np.ndarray):
+                    # uniform sequence of shape (num_samples, num_items, ...)
                     min_shape = [*shapes.shape[:-1], *np.amin(shapes, axis=(0, 1))]
                     max_shape = [*shapes.shape[:-1], *np.amax(shapes, axis=(0, 1))]
                 else:
+                    # non-uniform sequence
                     item_lengths = list(map(len, shapes))
                     min_item_length, max_item_length = min(item_lengths), max(
                         item_lengths
