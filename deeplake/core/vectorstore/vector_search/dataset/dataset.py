@@ -235,6 +235,8 @@ def get_embedding(embedding, embedding_data, embedding_function=None):
 def preprocess_tensors(
     embedding_data=None, embedding_tensor=None, dataset=None, **tensors
 ):
+    # generate id list equal to the length of the tensors
+    # dont use None tensors to get length of tensor
     _tensors = {k: v for k, v in tensors.items() if v is not None}
     first_item = next(iter(_tensors))
     ids_tensor = "ids" if "ids" in _tensors else "id"

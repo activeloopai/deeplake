@@ -228,7 +228,7 @@ def test_search_basic(local_path, hub_cloud_dev_token):
 
     data = vector_store.search(
         exec_option="python",
-        embedding_function=embedding_fn4,
+        embedding_function=embedding_fn3,
         embedding_data=["dummy"],
         return_view=True,
         k=2,
@@ -1076,6 +1076,14 @@ def test_multiple_embeddings(local_path, capsys):
         embedding_tensor=["embedding_1", "embedding_2"],
     )
 
+    # test with initial embedding function
+    vector_store.embedding_function = embedding_fn
+    vector_store.add(
+        text=texts,
+        embedding_data=[texts, texts],
+        embedding_tensor=["embedding_1", "embedding_2"],
+    )
+
     number_of_data = 1000
     _texts, embeddings, ids, metadatas, _ = utils.create_data(
         number_of_data=number_of_data, embedding_dim=EMBEDDING_DIM
@@ -1092,11 +1100,11 @@ def test_multiple_embeddings(local_path, capsys):
         embedding_2=(embedding_fn3, 25 * _texts),
     )
 
-    assert len(vector_store.dataset) == 50030
-    assert len(vector_store.dataset.embedding_1) == 50030
-    assert len(vector_store.dataset.embedding_2) == 50030
-    assert len(vector_store.dataset.id) == 50030
-    assert len(vector_store.dataset.text) == 50030
+    assert len(vector_store.dataset) == 50040
+    assert len(vector_store.dataset.embedding_1) == 50040
+    assert len(vector_store.dataset.embedding_2) == 50040
+    assert len(vector_store.dataset.id) == 50040
+    assert len(vector_store.dataset.text) == 50040
 
 
 def test_extend_none(local_path):
@@ -1134,6 +1142,6 @@ def test_query_dim(local_path):
 
     vector_store.add(text=texts, embedding=embeddings)
     with pytest.raises(AssertionError):
-        vector_store.search(texts[0], embedding_fn3, k=1)
+        vector_store.search([texts[0], texts[0]], embedding_fn3, k=1)
 
-    vector_store.search(texts[0], embedding_fn4, k=1)
+    vector_store.search([texts[0]], embedding_fn4, k=1)

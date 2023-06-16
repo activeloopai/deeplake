@@ -139,6 +139,8 @@ def parse_search_args(**kwargs):
 
 def parse_tensors_kwargs(tensors, embedding_function, embedding_data, embedding_tensor):
     tensors = tensors.copy()
+
+    # embedding_tensor = (embedding_function, embedding_data) syntax
     func_comma_data_style = (
         lambda item: isinstance(item[1], tuple)
         and len(item[1]) == 2
@@ -150,6 +152,8 @@ def parse_tensors_kwargs(tensors, embedding_function, embedding_data, embedding_
     tensors_ = []
 
     filtered = dict(filter(func_comma_data_style, tensors.items()))
+
+    # cannot use both syntaxes (kwargs style and args style) at the same time
     if len(filtered) > 0:
         if embedding_function:
             raise ValueError(
@@ -165,15 +169,17 @@ def parse_tensors_kwargs(tensors, embedding_function, embedding_data, embedding_
             raise ValueError(
                 "Cannot specify embedding tensors in both `tensors` and `embedding_tensor`."
             )
+    else:
+        return embedding_function, embedding_data, embedding_tensor, tensors
 
+    # separate embedding functions, data and tensors
     for k, v in filtered.items():
         funcs.append(v[0])
         data.append(v[1])
         tensors_.append(k)
+        # remove embedding tensors (tuple format) from tensors
         del tensors[k]
 
-    if embedding_function:
-        return embedding_function, embedding_data, embedding_tensor, tensors
     return funcs, data, tensors_, tensors
 
 
@@ -186,9 +192,7 @@ def parse_add_arguments(
     **tensors,
 ):
     """Parse the input argument to the Vector Store add function to infer whether they are a valid combination."""
-    if initial_embedding_function and not isinstance(initial_embedding_function, list):
-        initial_embedding_function = [initial_embedding_function]
-    if embedding_data and not isinstance(embedding_data[0], list):
+    if embedding_data and not isinstance(next(iter(embedding_data)), list):
         embedding_data = [embedding_data]
     if embedding_tensor and not isinstance(embedding_tensor, list):
         embedding_tensor = [embedding_tensor]
@@ -199,6 +203,7 @@ def parse_add_arguments(
                 f"embedding_data is not specified. When using embedding_function it is also necessary to specify the data that you want to embed"
             )
 
+        # if single embedding function is specified, use it for all embedding data
         if not isinstance(embedding_function, list):
             embedding_function = [embedding_function] * len(embedding_data)
 
@@ -218,6 +223,11 @@ def parse_add_arguments(
         if not embedding_data:
             check_tensor_name_consistency(tensors, dataset.tensors, None)
             return (None, None, None, tensors)
+
+        if not isinstance(initial_embedding_function, list):
+            initial_embedding_function = [initial_embedding_function] * len(
+                embedding_data
+            )
 
         embedding_tensor = get_embedding_tensors(embedding_tensor, tensors, dataset)
         check_tensor_name_consistency(tensors, dataset.tensors, embedding_tensor)
@@ -284,6 +294,7 @@ def get_embedding_tensors(embedding_tensor, tensor_args, dataset) -> List[str]:
                 " parameter for storing the embeddings."
             )
 
+    # if same tensor is specified in both embedding_tensor and tensors, raise error
     for tensor in embedding_tensor:
         if tensor_args.get(tensor):
             raise ValueError(

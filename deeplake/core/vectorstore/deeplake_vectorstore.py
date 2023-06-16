@@ -364,7 +364,7 @@ class VectorStore:
             if isinstance(query_emb, np.ndarray):
                 assert (
                     query_emb.ndim == 1 or query_emb.shape[0] == 1
-                ), "Query embedding must be 1-dimensional"
+                ), "Query embedding must be 1-dimensional. Please consider using another embedding function for converting query string to embedding."
 
         if not return_tensors:
             return_tensors = [
