@@ -243,21 +243,22 @@ def _transform_and_append_data_slice(
 
         # failure at chunk_engine
         # retry one sample at a time
-        except Exception:
-            # reset skipped sample count to avoid double counting
-            skipped_samples -= skipped_samples_in_current_batch
-            skipped_samples_in_current_batch = 0
+        except Exception as e:
+            if not isinstance(e, TransformError):
+                # reset skipped sample count to avoid double counting
+                skipped_samples -= skipped_samples_in_current_batch
+                skipped_samples_in_current_batch = 0
 
-            skipped_samples += _handle_transform_error(
-                data_slice,
-                offset,
-                transform_dataset,
-                pipeline,
-                tensors,
-                i,
-                ignore_errors,
-            )
-            continue
+                skipped_samples += _handle_transform_error(
+                    data_slice,
+                    offset,
+                    transform_dataset,
+                    pipeline,
+                    tensors,
+                    i,
+                    ignore_errors,
+                )
+                continue
 
     if skipped_samples == n:
         return False
