@@ -192,16 +192,17 @@ def parse_add_arguments(
         embedding_data = [embedding_data]
     if embedding_tensor and not isinstance(embedding_tensor, list):
         embedding_tensor = [embedding_tensor]
-    if embedding_function and not isinstance(embedding_function, list):
-        embedding_function = [embedding_function] * len(embedding_data)
-    if embedding_function:
-        embedding_tensor = get_embedding_tensors(embedding_tensor, tensors, dataset)
 
     if embedding_function:
         if not embedding_data:
             raise ValueError(
                 f"embedding_data is not specified. When using embedding_function it is also necessary to specify the data that you want to embed"
             )
+
+        if not isinstance(embedding_function, list):
+            embedding_function = [embedding_function] * len(embedding_data)
+
+        embedding_tensor = get_embedding_tensors(embedding_tensor, tensors, dataset)
 
         assert len(embedding_function) == len(
             embedding_data
