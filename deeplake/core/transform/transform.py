@@ -140,6 +140,7 @@ class Pipeline:
         cache_size: int = DEFAULT_TRANSFORM_SAMPLE_CACHE_SIZE,
         checkpoint_interval: int = 0,
         ignore_errors: bool = False,
+        verbose: bool = True,
         **kwargs,
     ):
         """Evaluates the pipeline on ``data_in`` to produce an output dataset ``ds_out``.
@@ -165,6 +166,7 @@ class Pipeline:
             checkpoint_interval (int): If > 0, the transform will be checkpointed with a commit every ``checkpoint_interval`` input samples to avoid restarting full transform due to intermitten failures. If the transform is interrupted, the intermediate data is deleted and the dataset is reset to the last commit.
                 If <= 0, no checkpointing is done. Checkpoint interval should be a multiple of num_workers if num_workers > 0. Defaults to 0.
             ignore_errors (bool): If ``True``, input samples that causes transform to fail will be skipped and the errors will be ignored **if possible**.
+            verbose (bool): If ``True``, prints additional information about the transform.
             **kwargs: Additional arguments.
 
         Raises:
@@ -234,7 +236,11 @@ class Pipeline:
         total_samples = len(data_in)
         if checkpointing_enabled:
             check_checkpoint_interval(
-                data_in, checkpoint_interval, num_workers, overwrite
+                data_in,
+                checkpoint_interval,
+                num_workers,
+                overwrite,
+                verbose,
             )
             datas_in = [
                 data_in[i : i + checkpoint_interval]
@@ -300,6 +306,8 @@ class Pipeline:
                 index, sample = None, None
                 if isinstance(e, TransformError):
                     index, sample = e.index, e.sample
+                    if checkpointing_enabled and isinstance(index, int):
+                        index = samples_processed + index
                     e = e.__cause__  # type: ignore
                 if isinstance(e, AllSamplesSkippedError):
                     raise e

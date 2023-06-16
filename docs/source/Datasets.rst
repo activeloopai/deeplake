@@ -86,7 +86,6 @@ Dataset Credentials
     Dataset.add_creds_key
     Dataset.populate_creds
     Dataset.update_creds_key
-    Dataset.change_creds_management
     Dataset.get_creds_keys
 
 Dataset Properties

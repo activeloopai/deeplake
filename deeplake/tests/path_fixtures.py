@@ -3,6 +3,7 @@ from deeplake.core.storage.google_drive import GDriveProvider
 from deeplake.util.storage import storage_provider_from_hub_path
 from deeplake.core.storage.s3 import S3Provider
 from deeplake.core.storage.local import LocalProvider
+from deeplake.core.storage.azure import AzureProvider
 import os
 import deeplake
 from deeplake.constants import (
@@ -11,12 +12,14 @@ from deeplake.constants import (
     LOCAL_OPT,
     MEMORY_OPT,
     PYTEST_GCS_PROVIDER_BASE_ROOT,
+    PYTEST_AZURE_PROVIDER_BASE_ROOT,
     PYTEST_S3_PROVIDER_BASE_ROOT,
     PYTEST_HUB_CLOUD_PROVIDER_BASE_ROOT,
     PYTEST_LOCAL_PROVIDER_BASE_ROOT,
     PYTEST_MEMORY_PROVIDER_BASE_ROOT,
     S3_OPT,
     GCS_OPT,
+    AZURE_OPT,
     GDRIVE_OPT,
     S3_PATH_OPT,
     GDRIVE_PATH_OPT,
@@ -41,6 +44,7 @@ LOCAL = "local"
 S3 = "s3"
 GDRIVE = "gdrive"
 GCS = "gcs"
+AZURE = "azure"
 HUB_CLOUD = "hub_cloud"
 
 _GIT_CLONE_CACHE_DIR = ".test_resources"
@@ -206,6 +210,12 @@ def _get_path_composition_configs(request):
             "is_id_prefix": True,
             "use_underscores": False,
         },
+        AZURE: {
+            "base_root": PYTEST_AZURE_PROVIDER_BASE_ROOT,
+            "use_id": True,
+            "is_id_prefix": True,
+            "use_underscores": False,
+        },
         HUB_CLOUD: {
             "base_root": PYTEST_HUB_CLOUD_PROVIDER_BASE_ROOT,
             "use_id": True,
@@ -297,19 +307,6 @@ def gcs_creds():
     return os.environ.get(ENV_GOOGLE_APPLICATION_CREDENTIALS, None)
 
 
-@pytest.fixture(scope="session")
-def gdrive_creds():
-    client_id = os.environ.get(ENV_GDRIVE_CLIENT_ID)
-    client_secret = os.environ.get(ENV_GDRIVE_CLIENT_SECRET)
-    refresh_token = os.environ.get(ENV_GDRIVE_REFRESH_TOKEN)
-    creds = {
-        "client_id": client_id,
-        "client_secret": client_secret,
-        "refresh_token": refresh_token,
-    }
-    return creds
-
-
 @pytest.fixture
 def gcs_path(request, gcs_creds):
     if not is_opt_true(request, GCS_OPT):
@@ -334,6 +331,43 @@ def gcs_vstream_path(request):
 
     path = f"{PYTEST_GCS_PROVIDER_BASE_ROOT}vstream_test"
     yield path
+
+
+@pytest.fixture
+def azure_path(request):
+    if not is_opt_true(request, AZURE_OPT):
+        pytest.skip()
+
+    path = _get_storage_path(request, AZURE)
+    AzureProvider(path).clear()
+
+    yield path
+
+    # clear storage unless flagged otherwise
+    if not is_opt_true(request, KEEP_STORAGE_OPT):
+        AzureProvider(path).clear()
+
+
+@pytest.fixture
+def azure_vstream_path(request):
+    if not is_opt_true(request, AZURE_OPT):
+        pytest.skip()
+
+    path = f"{PYTEST_AZURE_PROVIDER_BASE_ROOT}vstream_test"
+    yield path
+
+
+@pytest.fixture(scope="session")
+def gdrive_creds():
+    client_id = os.environ.get(ENV_GDRIVE_CLIENT_ID)
+    client_secret = os.environ.get(ENV_GDRIVE_CLIENT_SECRET)
+    refresh_token = os.environ.get(ENV_GDRIVE_REFRESH_TOKEN)
+    creds = {
+        "client_id": client_id,
+        "client_secret": client_secret,
+        "refresh_token": refresh_token,
+    }
+    return creds
 
 
 @pytest.fixture

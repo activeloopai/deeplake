@@ -21,6 +21,7 @@ Deep Lake is an open-source database for AI.
    :caption: Key Concepts
 
    Datasets
+   Vector Store <Vector-Store>
    Tensors
    Htypes
    Compressions <Compressions>
