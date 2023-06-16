@@ -548,11 +548,11 @@ class SampleStreaming(Streaming):
         }
 
     def _create_chunk_engine(self, tensor_name, version_state):
-        tensor_meta = self.dataset[tensor_name].meta
-        cache_size = max(self.cache_size, tensor_meta.max_chunk_size or 0)
-        cache = self._use_cache(self.storage, cache_size)
-
         tensor_key = version_state["tensor_names"][tensor_name]
+        tensor_meta = version_state["full_tensors"][tensor_key].meta
+        cache_size = max(self.cache_size, tensor_meta.max_chunk_size or 0)
+
+        cache = self._use_cache(self.storage, cache_size)
         meta_key = get_tensor_meta_key(tensor_key, version_state["commit_id"])
         meta = cache.get_deeplake_object(meta_key, TensorMeta)
         if meta.is_link:
