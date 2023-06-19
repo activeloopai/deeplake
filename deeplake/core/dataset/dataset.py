@@ -1908,8 +1908,10 @@ class Dataset:
                     :'tobytes': Returns raw bytes of the samples.
                     :'pil': Returns samples as PIL images. Especially useful when transformation use torchvision transforms, that
                             require PIL images as input. Only supported for tensors with ``sample_compression='jpeg'`` or ``'png'``.
-
             cache_size (int): The size of the cache per tensor in MBs. Defaults to max(maximum chunk size of tensor, 32 MB).
+        
+        ..
+            # noqa: DAR101
 
         Returns:
             A torch.utils.data.DataLoader object.
