@@ -88,6 +88,9 @@ class VectorStore:
             verbose (bool): Whether to print summary of the dataset created. Defaults to True.
             **kwargs (Any): Additional keyword arguments.
 
+        ..
+            # noqa: DAR101
+
         Danger:
             Setting ``overwrite`` to ``True`` will delete all of your data if the Vector Store exists! Be very careful when setting this parameter.
         """
@@ -342,6 +345,9 @@ class VectorStore:
             return_tensors (Optional[List[str]]): List of tensors to return data for. Defaults to None. If None, all tensors are returned.
             return_view (bool): Return a Deep Lake dataset view that satisfied the search parameters, instead of a dictinary with data. Defaults to False.
 
+        ..
+            # noqa: DAR101
+
         Raises:
             ValueError: When invalid parameters are specified.
 
@@ -452,6 +458,9 @@ class VectorStore:
                 - ``python`` - Pure-python implementation that runs on the client and can be used for data stored anywhere. WARNING: using this option with big datasets is discouraged because it can lead to memory issues.
                 - ``compute_engine`` - Performant C++ implementation of the Deep Lake Compute Engine that runs on the client and can be used for any data stored in or connected to Deep Lake. It cannot be used with in-memory or local datasets.
             delete_all (Optional[bool]): Whether to delete all the samples and version history of the dataset. Defaults to None.
+
+        ..
+            # noqa: DAR101
 
         Returns:
             bool: Returns True if deletion was successful, otherwise it raises a ValueError.
