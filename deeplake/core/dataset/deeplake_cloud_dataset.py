@@ -1,5 +1,5 @@
 import posixpath
-from typing import Any, Dict, List, Optional, Union
+from typing import Any, Dict, Set, Optional, Union
 from deeplake.client.utils import get_user_name
 from deeplake.constants import HUB_CLOUD_DEV_USERNAME
 from deeplake.core.dataset import Dataset
@@ -59,7 +59,7 @@ class DeepLakeCloudDataset(Dataset):
 
     def _set_org_and_name(self):
         if self.is_actually_cloud:
-            if self.org_id is not None:
+            if self.org_id is not None and self.ds_name is not None:
                 return
             _, org_id, ds_name, subdir = process_hub_path(self.path)
             if subdir:
@@ -319,14 +319,25 @@ class DeepLakeCloudDataset(Dataset):
                 "Atleast one of new_creds_key or managed must be provided."
             )
         key_index = self.link_creds.creds_mapping[creds_key] - 1
-        managed_info, replaced_index = None, None
+        managed_info, replaced_indices = None, None
         original_creds_key = creds_key
         original_key_is_managed = (
             original_creds_key in self.link_creds.managed_creds_keys
         )
 
         if new_creds_key is not None and new_creds_key != creds_key:
-            replaced_index = self.link_creds.replace_creds(creds_key, new_creds_key)
+            if new_creds_key in self.link_creds.creds_keys:
+                new_creds_managed = new_creds_key in self.link_creds.managed_creds_keys
+                old_creds_managed = (
+                    managed
+                    if managed is not None
+                    else (creds_key in self.link_creds.managed_creds_keys)
+                )
+                if new_creds_managed != old_creds_managed:
+                    raise ValueError(
+                        f"{new_creds_key} is already present in the dataset with a different management status."
+                    )
+            replaced_indices = self.link_creds.replace_creds(creds_key, new_creds_key)
             creds_key = new_creds_key
 
         try:
@@ -339,14 +350,14 @@ class DeepLakeCloudDataset(Dataset):
             if original_key_is_managed and managed is not False:
                 self.link_creds.populate_single_managed_creds(creds_key)
         except Exception:
-            if replaced_index is not None:
+            if replaced_indices is not None:
                 # revert the change
                 self.link_creds.replace_creds(new_creds_key, original_creds_key)
             raise
         save_link_creds(
             self.link_creds,
             self.storage,
-            replaced_index=replaced_index,
+            replaced_indices=replaced_indices,
             managed_info=managed_info,
         )
         self.link_creds.warn_missing_managed_creds()
@@ -385,6 +396,6 @@ class DeepLakeCloudDataset(Dataset):
             f"The dataset being connected is already accessible via Deep Lake path {self.path}"
         )
 
-    def get_managed_creds_keys(self) -> List[str]:
-        """Returns the list of creds keys added to the dataset that are managed by Activeloop platform. These are used to fetch external data in linked tensors."""
-        return list(self.link_creds.managed_creds_keys)
+    def get_managed_creds_keys(self) -> Set[str]:
+        """Returns the set of creds keys added to the dataset that are managed by Activeloop platform. These are used to fetch external data in linked tensors."""
+        return set(self.link_creds.managed_creds_keys)

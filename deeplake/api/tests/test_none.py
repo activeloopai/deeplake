@@ -163,3 +163,64 @@ def test_none_list(local_ds, empty_sample):
         assert ds.xyz[2].numpy().shape == (2,)
         assert ds.xyz[2].shape == (2,)
         assert ds.xyz[2].numpy().tolist() == ["hello", "world"]
+
+
+def test_none_bugs(local_ds):
+    with local_ds as ds:
+        ds.create_tensor("abc")
+        ds.abc.extend(
+            [
+                None,
+                np.array([80, 22, 1]),
+                None,
+                np.array([0, 565, 234]),
+            ]
+        )
+
+        ds.create_tensor("xyz", dtype="int64")
+        ds.xyz.extend(
+            [
+                None,
+                np.array([80, 22, 1]),
+                None,
+                np.array([0, 565, 234]),
+            ]
+        )
+
+    assert ds.abc.htype == "generic"
+    assert ds.xyz.htype == "generic"
+    assert ds.xyz.dtype == np.dtype("int64")
+
+    with local_ds as ds:
+        ds.create_tensor("dummy1")
+        ds.dummy1.extend(
+            np.array(
+                [None, np.array([80, 22, 1]), None, np.array([0, 565, 234])],
+                dtype=object,
+            )
+        )
+
+        ds.create_tensor("dummy2", dtype="int64")
+        ds.dummy2.extend(
+            np.array(
+                [None, np.array([80, 22, 1]), None, np.array([0, 565, 234])],
+                dtype=object,
+            )
+        )
+
+    expected = [
+        np.array([]),
+        np.array([80, 22, 1]),
+        np.array([]),
+        np.array([0, 565, 234]),
+    ]
+    res = ds.dummy1.numpy(aslist=True)
+
+    for i in range(len(expected)):
+        np.testing.assert_array_equal(expected[i], res[i])
+
+    assert ds.dummy2.dtype == np.dtype("int64")
+    res = ds.dummy2.numpy(aslist=True)
+
+    for i in range(len(expected)):
+        np.testing.assert_array_equal(expected[i], res[i])

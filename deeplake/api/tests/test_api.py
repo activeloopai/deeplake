@@ -248,6 +248,43 @@ def test_summary(memory_ds):
     )
 
 
+def test_log(memory_ds, capsys):
+    with memory_ds as ds:
+        ds.create_tensor("abc")
+        ds.abc.extend([1, 2, 3, 4])
+
+        header = "---------------\nDeep Lake Version Log\n---------------\n\n"
+        current_branch = "Current Branch: main\n"
+        uncommitted_changes = "** There are uncommitted changes on this branch.\n"
+
+        log = header + current_branch + uncommitted_changes
+        ds.log()
+        captured = capsys.readouterr().out
+        assert captured.strip() == log.strip()
+
+        ds.commit("init")
+        ds.checkout("alt", create=True)
+        commit1 = "\n" + str(ds.version_state["commit_node"].parent) + "\n"
+        current_branch = "Current Branch: alt\n"
+        log = header + current_branch + commit1
+        ds.log()
+        captured = capsys.readouterr().out
+        assert captured.strip() == log.strip()
+
+        ds.abc.extend([5, 6, 7, 8])
+        log = header + current_branch + uncommitted_changes + commit1
+        ds.log()
+        captured = capsys.readouterr().out
+        assert captured.strip() == log.strip()
+
+        ds.commit("update")
+        commit2 = "\n" + str(ds.version_state["commit_node"].parent) + "\n"
+        log = header + current_branch + commit2 + commit1
+        ds.log()
+        captured = capsys.readouterr().out
+        assert captured.strip() == log.strip()
+
+
 def test_stringify_with_path(local_ds, capsys):
     ds = local_ds
     assert local_ds.path
@@ -827,12 +864,30 @@ def test_dataset_delete():
         deeplake.constants.DELETE_SAFETY_SIZE = old_size
 
 
+def test_invalid_token():
+    with pytest.raises(InvalidTokenException):
+        ds = deeplake.load(
+            "hub://activeloop-test/sohas-weapons-train", token="invalid token"
+        )
+
+    with pytest.raises(InvalidTokenException):
+        ds = deeplake.empty(
+            "hub://activeloop-test/sohas-weapons-train", token="invalid token"
+        )
+
+    with pytest.raises(InvalidTokenException):
+        ds = deeplake.dataset(
+            "hub://activeloop-test/sohas-weapons-train", token="invalid token"
+        )
+
+
 @pytest.mark.parametrize(
     ("ds_generator", "path", "hub_token"),
     [
         ("local_ds_generator", "local_path", "hub_cloud_dev_token"),
         ("s3_ds_generator", "s3_path", "hub_cloud_dev_token"),
         ("gcs_ds_generator", "gcs_path", "hub_cloud_dev_token"),
+        ("azure_ds_generator", "azure_path", "hub_cloud_dev_token"),
         ("hub_cloud_ds_generator", "hub_cloud_path", "hub_cloud_dev_token"),
     ],
     indirect=True,
@@ -864,21 +919,6 @@ def test_dataset_rename(ds_generator, path, hub_token, convert_to_pathlib):
 
     ds = deeplake.load(new_path, token=hub_token)
     assert_array_equal(ds.abc.numpy(), np.array([[1, 2, 3, 4]]))
-
-    with pytest.raises(InvalidTokenException):
-        ds = deeplake.load(
-            "hub://activeloop-test/sohas-weapons-train", token="invalid token"
-        )
-
-    with pytest.raises(InvalidTokenException):
-        ds = deeplake.empty(
-            "hub://activeloop-test/sohas-weapons-train", token="invalid token"
-        )
-
-    with pytest.raises(InvalidTokenException):
-        ds = deeplake.dataset(
-            "hub://activeloop-test/sohas-weapons-train", token="invalid token"
-        )
 
     deeplake.delete(new_path, token=hub_token)
 
@@ -2243,11 +2283,17 @@ def test_bad_link(local_ds_generator, verify):
             "images", htype="link[image]", sample_compression="jpg", verify=verify
         )
         ds.images.append(deeplake.link("https://picsum.photos/200/200"))
+
+    if verify:
         with pytest.raises(SampleAppendError):
             ds.images.append(deeplake.link("https://picsum.photos/lalala"))
 
-    with local_ds_generator() as ds:
-        assert len(ds) == 1
+        with local_ds_generator() as ds:
+            assert len(ds) == 1
+    else:
+        ds.images.append(deeplake.link("https://picsum.photos/lalala"))
+        with local_ds_generator() as ds:
+            assert len(ds) == 2
 
 
 def test_rich(memory_ds):
@@ -2486,3 +2532,101 @@ def test_iterate_with_groups(memory_ds):
 
     for i, sample in enumerate(ds):
         assert sample["x/y/z"].is_iteration == True
+
+
+def test_shapes(memory_ds):
+    with memory_ds as ds:
+        ds.create_tensor("abc")
+        np.testing.assert_array_equal(ds.abc.shapes(), np.zeros((0, 0)))
+
+        ds.abc.append(np.ones((3, 4)))
+        ds.abc.append(np.ones((5, 6)))
+        np.testing.assert_array_equal(ds.abc.shapes(), np.array([[3, 4], [5, 6]]))
+
+        ds.abc.append(None)
+        np.testing.assert_array_equal(
+            ds.abc.shapes(), np.array([[3, 4], [5, 6], [0, 0]])
+        )
+
+        ds.abc.append([])
+        np.testing.assert_array_equal(
+            ds.abc.shapes(), np.array([[3, 4], [5, 6], [0, 0], [0, 0]])
+        )
+
+        with pytest.raises(SampleAppendError):
+            ds.abc.append(np.ones((3, 4, 5)))
+
+        ds.abc.append(np.ones((4, 6)))
+        np.testing.assert_array_equal(
+            ds.abc.shapes(), np.array([[3, 4], [5, 6], [0, 0], [0, 0], [4, 6]])
+        )
+
+        np.testing.assert_array_equal(ds.abc[0].shapes(), np.array([[3, 4]]))
+        np.testing.assert_array_equal(
+            ds.abc[1:4].shapes(), np.array([[5, 6], [0, 0], [0, 0]])
+        )
+        np.testing.assert_array_equal(ds.abc[1::2].shapes(), np.array([[5, 6], [0, 0]]))
+
+
+def test_shapes_sequence(memory_ds):
+    with memory_ds as ds:
+        ds.create_tensor("abc", htype="sequence")
+        np.testing.assert_array_equal(ds.abc.shapes(), np.zeros((0, 0)))
+
+        ds.abc.append([np.ones((3, 4)), np.ones((4, 5))])
+        np.testing.assert_array_equal(ds.abc.shapes(), np.array([[[3, 4], [4, 5]]]))
+
+        ds.abc.append([np.ones((2, 3)), np.ones((3, 4))])
+        np.testing.assert_array_equal(
+            ds.abc.shapes(), np.array([[[3, 4], [4, 5]], [[2, 3], [3, 4]]])
+        )
+
+        ds.abc.append([None, None])
+        np.testing.assert_array_equal(
+            ds.abc.shapes(),
+            np.array([[[3, 4], [4, 5]], [[2, 3], [3, 4]], [[0, 0], [0, 0]]]),
+        )
+
+        ds.abc.append([np.ones((2, 3)), np.ones((3, 4)), None])
+        shapes = [
+            np.array([[3, 4], [4, 5]]),
+            np.array([[2, 3], [3, 4]]),
+            np.array([[0, 0], [0, 0]]),
+            np.array([[2, 3], [3, 4], [0, 0]]),
+        ]
+        for i, shape in enumerate(ds.abc.shapes()):
+            np.testing.assert_array_equal(shape, shapes[i])
+
+        np.testing.assert_array_equal(ds.abc[0].shapes(), np.array([[[3, 4], [4, 5]]]))
+        np.testing.assert_array_equal(
+            ds.abc[:3].shapes(),
+            np.array([[[3, 4], [4, 5]], [[2, 3], [3, 4]], [[0, 0], [0, 0]]]),
+        )
+
+
+def test_shape_squeeze(memory_ds):
+    with memory_ds as ds:
+        ds.create_tensor("abc")
+        ds.abc.extend(np.ones((5, 10, 10, 10)))
+        ds.abc.extend(np.ones((5, 10, 12, 20)))
+
+    assert ds.abc[5:, :, 9].shape == (5, 10, 20)
+
+
+def test_non_local_org_id():
+    with pytest.raises(ValueError):
+        ds = deeplake.dataset("hub://test/test_dataset", org_id="test")
+
+    with pytest.raises(ValueError):
+        ds = deeplake.empty("hub://test/test_dataset", org_id="test")
+
+    with pytest.raises(ValueError):
+        ds = deeplake.load("hub://test/test_dataset", org_id="test")
+
+    with pytest.raises(ValueError):
+        ds = deeplake.like("hub://test/test_dataset", "test/test_ds", org_id="test")
+
+
+def test_azure_bad_path():
+    with pytest.raises(ValueError):
+        ds = deeplake.empty("az://storage_account")

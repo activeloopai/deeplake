@@ -1,4 +1,4 @@
-from typing import Dict, List, Any, Callable, Optional
+from typing import Dict, List, Any, Callable, Optional, Union
 
 import numpy as np
 
@@ -9,7 +9,6 @@ from deeplake.util.exceptions import TransformError, FailedIngestionError
 from deeplake.constants import (
     MAX_VECTORSTORE_INGESTION_RETRY_ATTEMPTS,
     MAX_CHECKPOINTING_INTERVAL,
-    MAX_DATASET_LENGTH_FOR_CACHING,
 )
 
 
@@ -18,11 +17,13 @@ class DataIngestion:
         self,
         elements: List[Dict[str, Any]],
         dataset: DeepLakeDataset,
-        embedding_function: Optional[Callable],
+        embedding_function: Optional[List[Callable]],
+        embedding_tensor: Optional[List[str]],
         ingestion_batch_size: int,
         num_workers: int,
         retry_attempt: int,
         total_samples_processed: int,
+        logger,
     ):
         self.elements = elements
         self.dataset = dataset
@@ -31,6 +32,8 @@ class DataIngestion:
         self.num_workers = num_workers
         self.retry_attempt = retry_attempt
         self.total_samples_processed = total_samples_processed
+        self.embedding_tensor = embedding_tensor
+        self.logger = logger
 
     def collect_batched_data(self, ingestion_batch_size=None):
         ingestion_batch_size = ingestion_batch_size or self.ingestion_batch_size
@@ -40,11 +43,20 @@ class DataIngestion:
 
         elements = self.elements
         if self.total_samples_processed:
-            elements = self.elements[self.total_samples_processed * batch_size :]
+            elements = self.elements[self.total_samples_processed :]
 
         batched = [
             elements[i : i + batch_size] for i in range(0, len(elements), batch_size)
         ]
+
+        if self.logger:
+            batch_upload_str = f"Batch upload: {len(elements)} samples are being uploaded in {len(batched)} batches of batch size {batch_size}"
+            if self.total_samples_processed:
+                batch_upload_str = (
+                    f"Batch reupload: {len(self.elements)-len(elements)} samples already uploaded, while "
+                    f"{len(elements)} samples are being uploaded in {len(batched)} batches of batch size {batch_size}"
+                )
+            self.logger.warning(batch_upload_str)
         return batched
 
     def get_num_workers(self, batched):
@@ -65,24 +77,6 @@ class DataIngestion:
         return checkpoint_interval
 
     def run(self):
-        if (
-            len(self.elements) < MAX_DATASET_LENGTH_FOR_CACHING
-            and self.embedding_function
-        ):
-            full_text = [element["text"] for element in self.elements]
-            embeddings = self.embedding_function(full_text)
-
-            self.elements = [
-                {
-                    "text": element["text"],
-                    "id": element["id"],
-                    "metadata": element["metadata"],
-                    "embedding": embeddings[i],
-                }
-                for i, element in enumerate(self.elements)
-            ]
-            self.embedding_function = None
-
         batched_data = self.collect_batched_data()
         num_workers = self.get_num_workers(batched_data)
         checkpoint_interval = self.get_checkpoint_interval_and_batched_data(
@@ -102,20 +96,31 @@ class DataIngestion:
         checkpoint_interval,
     ):
         try:
-            ingest(embedding_function=self.embedding_function).eval(
+            ingest(
+                embedding_function=self.embedding_function,
+                embedding_tensor=self.embedding_tensor,
+            ).eval(
                 batched,
                 self.dataset,
                 num_workers=num_workers,
                 checkpoint_interval=checkpoint_interval,
+                verbose=False,
             )
         except Exception as e:
             self.retry_attempt += 1
             last_checkpoint = self.dataset.version_state["commit_node"].parent
-            self.total_samples_processed += last_checkpoint.total_samples_processed
+            self.total_samples_processed += (
+                last_checkpoint.total_samples_processed * self.ingestion_batch_size
+            )
+
+            index = int(self.total_samples_processed / self.ingestion_batch_size)
+            if isinstance(e, TransformError) and e.index is not None:
+                index += e.index
 
             if self.retry_attempt > MAX_VECTORSTORE_INGESTION_RETRY_ATTEMPTS:
                 raise FailedIngestionError(
-                    f"Maximum retry attempts exceeded. You can resume ingestion, from the latest saved checkpoint.\n"
+                    f"Ingestion failed at batch index {index}. Maximum retry attempts exceeded. You can resume ingestion "
+                    "from the latest saved checkpoint.\n"
                     "To do that you should run:\n"
                     "```\n"
                     "deeplake_vector_store.add(\n"
@@ -136,18 +141,25 @@ class DataIngestion:
                 num_workers=num_workers,
                 retry_attempt=self.retry_attempt,
                 total_samples_processed=self.total_samples_processed,
+                logger=self.logger,
+                embedding_tensor=self.embedding_tensor,
             )
             data_ingestion.run()
 
 
 @deeplake.compute
-def ingest(sample_in: list, sample_out: list, embedding_function) -> None:
-    text_list = [s["text"] for s in sample_in]
-
-    embeds: List[Optional[np.ndarray]] = [None] * len(text_list)
-    if embedding_function is not None:
+def ingest(
+    sample_in: list,
+    sample_out: list,
+    embedding_function,
+    embedding_tensor,
+) -> None:
+    embeds: List[Optional[np.ndarray]] = [None] * len(sample_in)
+    if embedding_function:
         try:
-            embeddings = embedding_function(text_list)
+            for func, tensor in zip(embedding_function, embedding_tensor):
+                embedding_data = [s[tensor] for s in sample_in]
+                embeddings = func(embedding_data)
         except Exception as e:
             raise Exception(
                 "Could not use embedding function. Please try again with a different embedding function."
@@ -155,12 +167,10 @@ def ingest(sample_in: list, sample_out: list, embedding_function) -> None:
         embeds = [np.array(e, dtype=np.float32) for e in embeddings]
 
     for s, emb in zip(sample_in, embeds):
-        embedding = emb if embedding_function else s["embedding"]
-        sample_out.append(
-            {
-                "text": s["text"],
-                "metadata": s["metadata"],
-                "ids": s["id"],
-                "embedding": np.array(embedding, dtype=np.float32),
-            }
-        )
+        sample_in_i = {tensor_name: s[tensor_name] for tensor_name in s}
+
+        if embedding_function:
+            for tensor in embedding_tensor:
+                sample_in_i[tensor] = np.array(emb, dtype=np.float32)
+
+        sample_out.append(sample_in_i)

@@ -21,35 +21,35 @@ def corrupted_embedding_function(emb, threshold):
     return np.zeros((len(emb), 1536), dtype=np.float32)
 
 
-def test_ingest_data():
+def test_ingest_data(local_path):
     data = [
         {
             "text": "a",
             "id": np.int64(1),
             "metadata": {"a": 1},
-            "embedding": np.array([0.1, 0.2, 0.3, 0.4]),
+            "embedding": np.array([0.1, 0.2, 0.3, 0.4], dtype=np.float32),
         },
         {
             "text": "b",
             "id": np.int64(2),
             "metadata": {"b": 2},
-            "embedding": np.array([0.1, 0.2, 0.3, 0.4]),
+            "embedding": np.array([0.1, 0.2, 0.3, 0.4], dtype=np.float32),
         },
         {
             "text": "c",
             "id": np.int64(3),
             "metadata": {"c": 3},
-            "embedding": np.array([0.1, 0.2, 0.3, 0.4]),
+            "embedding": np.array([0.1, 0.2, 0.3, 0.4], dtype=np.float32),
         },
         {
             "text": "d",
             "id": np.int64(4),
             "metadata": {"d": 4},
-            "embedding": np.array([0.1, 0.2, 0.3, 0.4]),
+            "embedding": np.array([0.1, 0.2, 0.3, 0.4], dtype=np.float32),
         },
     ]
 
-    dataset = deeplake.empty("./xyzabc", overwrite=True)
+    dataset = deeplake.empty(local_path, overwrite=True)
     dataset.create_tensor(
         "text",
         htype="text",
@@ -76,7 +76,7 @@ def test_ingest_data():
         create_shape_tensor=True,
     )
     dataset.create_tensor(
-        "ids",
+        "id",
         htype="text",
         create_id_tensor=False,
         create_sample_info_tensor=False,
@@ -87,23 +87,47 @@ def test_ingest_data():
     ingest_data.run_data_ingestion(
         dataset=dataset,
         elements=data,
-        embedding_function=None,
         ingestion_batch_size=1024,
         num_workers=2,
+        logger=None,
     )
 
     assert len(dataset) == 4
-    extended_data = data * 5000
-    embedding_function = partial(corrupted_embedding_function, threshold=0.9)
+    extended_data = data * 5001
+    embedding_function = partial(corrupted_embedding_function, threshold=0.95)
+
+    data = [
+        {
+            "text": "a",
+            "id": np.int64(1),
+            "metadata": {"a": 1},
+        },
+        {
+            "text": "b",
+            "id": np.int64(2),
+            "metadata": {"b": 2},
+        },
+        {
+            "text": "c",
+            "id": np.int64(3),
+            "metadata": {"c": 3},
+        },
+        {
+            "text": "d",
+            "id": np.int64(4),
+            "metadata": {"d": 4},
+        },
+    ]
 
     ingest_data.run_data_ingestion(
         dataset=dataset,
         elements=extended_data,
-        embedding_function=embedding_function,
+        embedding_function=[embedding_function],
         ingestion_batch_size=1024,
         num_workers=2,
+        embedding_tensor=["embedding"],
     )
-    assert len(dataset) == 20004
+    assert len(dataset) == 20008
 
     extended_data = extended_data * 10
     embedding_function = partial(corrupted_embedding_function, threshold=0.95)
@@ -111,8 +135,32 @@ def test_ingest_data():
         ingest_data.run_data_ingestion(
             dataset=dataset,
             elements=extended_data,
-            embedding_function=embedding_function,
+            embedding_function=[embedding_function],
             ingestion_batch_size=1024,
+            num_workers=2,
+            embedding_tensor=["embedding"],
+        )
+
+    with pytest.raises(FailedIngestionError):
+        data = [
+            {
+                "text": "a",
+                "id": np.int64(1),
+                "metadata": {"a": 1},
+                "embedding": np.zeros(100, dtype=np.float32),
+            },
+        ]
+        data = 25000 * data
+        data[15364] = {
+            "text": "a",
+            "id": np.int64(4),
+            "metadata": {"d": 4},
+            "embedding": "abc",
+        }
+        ingest_data.run_data_ingestion(
+            dataset=dataset,
+            elements=data,
+            ingestion_batch_size=1000,
             num_workers=2,
         )
 
@@ -121,16 +169,18 @@ def test_ingest_data():
         ingest_data.run_data_ingestion(
             dataset=dataset,
             elements=extended_data,
-            embedding_function=embedding_function,
+            embedding_function=[embedding_function],
             ingestion_batch_size=1024,
             num_workers=2,
+            embedding_tensor=["embedding"],
         )
 
     with pytest.raises(ValueError):
         ingest_data.run_data_ingestion(
             dataset=dataset,
             elements=extended_data,
-            embedding_function=corrupted_embedding_function,
+            embedding_function=[corrupted_embedding_function],
             ingestion_batch_size=0,
             num_workers=2,
+            embedding_tensor=["embedding"],
         )

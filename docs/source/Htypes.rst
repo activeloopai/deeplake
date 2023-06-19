@@ -809,12 +809,12 @@ Appending a ply file contatining a mesh data to tensor
 .. _embedding-htype:
 
 Embedding Htype
-~~~~~~~~~~~
+~~~~~~~~~~~~~~~
 
 - :bluebold:`Sample dimensions:` ``(# elements in the embedding,)``
 
 :blue:`Creating an embedding tensor`
---------------------------------
+------------------------------------
 
 An embedding tensor can be created using
 
@@ -825,7 +825,7 @@ An embedding tensor can be created using
 >>> ["lz4", None]
 
 :blue:`Appending embedding samples`
--------------------------------
+-----------------------------------
 
 - Embedding samples can be of type ``np.ndarray``.
 

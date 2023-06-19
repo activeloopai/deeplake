@@ -1,17 +1,22 @@
 import deeplake
 import numpy as np
 from deeplake.tests.common import requires_libdeeplake
-from deeplake.util.exceptions import DynamicTensorNumpyError
+from deeplake.util.exceptions import (
+    DynamicTensorNumpyError,
+    EmptyTokenException,
+)
+
+
 from deeplake.core.dataset.deeplake_query_dataset import DeepLakeQueryDataset
 import random
 import pytest
 
 
 @requires_libdeeplake
-def test_indexing(hub_cloud_ds_generator):
+def test_indexing(local_ds_generator):
     from deeplake.enterprise.convert_to_libdeeplake import dataset_to_libdeeplake
 
-    deeplake_ds = hub_cloud_ds_generator()
+    deeplake_ds = local_ds_generator()
     with deeplake_ds:
         deeplake_ds.create_tensor("label", htype="generic", dtype=np.int32)
         for i in range(1000):
@@ -53,10 +58,10 @@ def test_indexing(hub_cloud_ds_generator):
 
 
 @requires_libdeeplake
-def test_save_view(hub_cloud_ds_generator):
+def test_save_view(local_ds_generator):
     from deeplake.enterprise.convert_to_libdeeplake import dataset_to_libdeeplake
 
-    deeplake_ds = hub_cloud_ds_generator()
+    deeplake_ds = local_ds_generator()
     with deeplake_ds:
         deeplake_ds.create_tensor("label", htype="generic", dtype=np.int32)
         for i in range(1000):
@@ -74,10 +79,23 @@ def test_save_view(hub_cloud_ds_generator):
 
 
 @requires_libdeeplake
-def test_load_view(hub_cloud_ds_generator):
+def test_empty_token_exception(local_ds):
     from deeplake.enterprise.convert_to_libdeeplake import dataset_to_libdeeplake
 
-    deeplake_ds = hub_cloud_ds_generator()
+    with local_ds:
+        local_ds.create_tensor("label", htype="generic", dtype=np.int32)
+
+    loaded = deeplake.load(local_ds.path, token="")
+
+    with pytest.raises(EmptyTokenException):
+        dss = dataset_to_libdeeplake(loaded)
+
+
+@requires_libdeeplake
+def test_load_view(local_ds_generator):
+    from deeplake.enterprise.convert_to_libdeeplake import dataset_to_libdeeplake
+
+    deeplake_ds = local_ds_generator()
     with deeplake_ds:
         deeplake_ds.create_tensor("label", htype="generic", dtype=np.int32)
         deeplake_ds.create_tensor(
@@ -126,10 +144,10 @@ def test_load_view(hub_cloud_ds_generator):
 
 
 @requires_libdeeplake
-def test_query(hub_cloud_ds_generator):
+def test_query(local_ds_generator):
     from deeplake.enterprise.convert_to_libdeeplake import dataset_to_libdeeplake
 
-    deeplake_ds = hub_cloud_ds_generator()
+    deeplake_ds = local_ds_generator()
     with deeplake_ds:
         deeplake_ds.create_tensor("label", htype="generic", dtype=np.int32)
         deeplake_ds.create_tensor(
@@ -144,6 +162,7 @@ def test_query(hub_cloud_ds_generator):
 
     view = deeplake_indra_ds.query("SELECT * GROUP BY label")
     assert len(view) == 10
+    assert view.label.shape == view.tensors["label"].shape
     for i in range(len(view)):
         arr = view.label[i].numpy()
         assert len(arr) == 10
@@ -159,10 +178,10 @@ def test_query(hub_cloud_ds_generator):
 
 
 @requires_libdeeplake
-def test_metadata(hub_cloud_ds_generator):
+def test_metadata(local_ds_generator):
     from deeplake.enterprise.convert_to_libdeeplake import dataset_to_libdeeplake
 
-    deeplake_ds = hub_cloud_ds_generator()
+    deeplake_ds = local_ds_generator()
     with deeplake_ds:
         deeplake_ds.create_tensor("label", htype="generic", dtype=np.int32)
         deeplake_ds.create_tensor(
@@ -190,10 +209,10 @@ def test_metadata(hub_cloud_ds_generator):
 
 
 @requires_libdeeplake
-def test_accessing_data(hub_cloud_ds_generator):
+def test_accessing_data(local_ds_generator):
     from deeplake.enterprise.convert_to_libdeeplake import dataset_to_libdeeplake
 
-    deeplake_ds = hub_cloud_ds_generator()
+    deeplake_ds = local_ds_generator()
     with deeplake_ds:
         deeplake_ds.create_tensor("label", htype="generic", dtype=np.int32)
         for i in range(1000):
@@ -208,8 +227,8 @@ def test_accessing_data(hub_cloud_ds_generator):
 
 
 @requires_libdeeplake
-def test_sequences_accessing_data(hub_cloud_ds_generator):
-    deeplake_ds = hub_cloud_ds_generator()
+def test_sequences_accessing_data(local_ds_generator):
+    deeplake_ds = local_ds_generator()
     with deeplake_ds:
         deeplake_ds.create_tensor("label", htype="generic", dtype=np.int32)
         for i in range(200):
@@ -236,8 +255,8 @@ def test_sequences_accessing_data(hub_cloud_ds_generator):
 
 
 @requires_libdeeplake
-def test_random_split(hub_cloud_ds_generator):
-    deeplake_ds = hub_cloud_ds_generator()
+def test_random_split(local_ds_generator):
+    deeplake_ds = local_ds_generator()
     with deeplake_ds:
         deeplake_ds.create_tensor("label", htype="generic", dtype=np.int32)
         for i in range(1000):
@@ -279,19 +298,28 @@ def test_random_split(hub_cloud_ds_generator):
 
 
 @requires_libdeeplake
-def test_virtual_tensors(hub_cloud_ds_generator):
-    deeplake_ds = hub_cloud_ds_generator()
+def test_virtual_tensors(local_ds_generator):
+    deeplake_ds = local_ds_generator()
     with deeplake_ds:
         deeplake_ds.create_tensor("label", htype="generic", dtype=np.int32)
         deeplake_ds.create_tensor("embeddings", htype="generic", dtype=np.float32)
+        deeplake_ds.create_tensor("text", htype="text")
+        deeplake_ds.create_tensor("json", htype="json")
         for i in range(100):
             count = i % 5
             deeplake_ds.label.append([int(i % 100)] * count)
             deeplake_ds.embeddings.append(
                 [1.0 / float(i + 1), 0.0, -1.0 / float(i + 1)]
             )
+            deeplake_ds.text.append(f"Hello {i}")
+            deeplake_ds.json.append('{"key": "val"}')
 
     deeplake_indra_ds = deeplake_ds.query("SELECT shape(label)[0] as num_labels")
+    assert np.all(
+        deeplake_indra_ds.num_labels.data()["value"]
+        == deeplake_indra_ds.num_labels.numpy()
+    )
+    assert list(deeplake_indra_ds.tensors.keys()) == ["num_labels"]
     assert len(deeplake_indra_ds) == 100
     assert deeplake_indra_ds.num_labels[0].numpy() == [0]
     assert deeplake_indra_ds.num_labels[1].numpy() == [1]
@@ -299,10 +327,22 @@ def test_virtual_tensors(hub_cloud_ds_generator):
     assert deeplake_indra_ds.num_labels[3].numpy() == [3]
     assert deeplake_indra_ds.num_labels[4].numpy() == [4]
     assert np.sum(deeplake_indra_ds.num_labels.numpy()) == 200
+    deeplake_indra_ds = deeplake_ds.query("SELECT *, shape(label)[0] as num_labels")
+    assert list(deeplake_indra_ds.tensors.keys()) == [
+        "label",
+        "embeddings",
+        "text",
+        "json",
+        "num_labels",
+    ]
+    assert deeplake_indra_ds.text[0].data() == {"value": "Hello 0"}
+    assert deeplake_indra_ds.json[0].data() == {"value": '{"key": "val"}'}
+    assert deeplake_ds.json[0].data() == {"value": '{"key": "val"}'}
 
     deeplake_indra_ds = deeplake_ds.query(
         "SELECT l2_norm(embeddings - ARRAY[0, 0, 0]) as score order by l2_norm(embeddings - ARRAY[0, 0, 0]) asc"
     )
+    assert list(deeplake_indra_ds.tensors.keys()) == ["score"]
     assert len(deeplake_indra_ds) == 100
     for i in range(100, 1):
         assert deeplake_indra_ds.score[100 - i].numpy() == [
