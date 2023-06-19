@@ -1145,3 +1145,22 @@ def test_query_dim(local_path):
         vector_store.search([texts[0], texts[0]], embedding_fn3, k=1)
 
     vector_store.search([texts[0]], embedding_fn4, k=1)
+
+
+def test_embeddings_only(local_path):
+    vector_store = VectorStore(
+        path=local_path,
+        overwrite=True,
+        tensor_params=[
+            {"name": "embedding_1", "htype": "embedding"},
+            {"name": "embedding_2", "htype": "embedding"},
+        ],
+    )
+
+    vector_store.add(
+        embedding_1=(embedding_fn, texts), embedding_2=(embedding_fn3, texts)
+    )
+
+    assert len(vector_store.dataset) == 10
+    assert len(vector_store.dataset.embedding_1) == 10
+    assert len(vector_store.dataset.embedding_2) == 10

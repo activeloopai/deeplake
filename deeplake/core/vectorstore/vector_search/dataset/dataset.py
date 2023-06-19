@@ -238,10 +238,16 @@ def preprocess_tensors(
     # generate id list equal to the length of the tensors
     # dont use None tensors to get length of tensor
     _tensors = {k: v for k, v in tensors.items() if v is not None}
-    first_item = next(iter(_tensors))
+    try:
+        num_items = len(next(iter(_tensors.values())))
+    except StopIteration:
+        if embedding_data:
+            num_items = len(embedding_data[0])
+        else:
+            num_items = 0
     ids_tensor = "ids" if "ids" in _tensors else "id"
     if ids_tensor not in _tensors or ids_tensor is None:
-        id = [str(uuid.uuid1()) for _ in _tensors[first_item]]
+        id = [str(uuid.uuid1()) for _ in range(num_items)]
         tensors[ids_tensor] = id
 
     processed_tensors = {ids_tensor: tensors[ids_tensor]}
