@@ -127,6 +127,7 @@ def storage_provider_from_hub_path(
     if mode == "r" and read_only is None and not DEFAULT_READONLY:
         # warns user about automatic mode change
         print("Opening dataset in read-only mode as you don't have write permissions.")
+        read_only = True
 
     if read_only is None:
         read_only = DEFAULT_READONLY

@@ -237,7 +237,7 @@ class dataset:
 
         dataset_kwargs: Dict[str, Union[None, str, bool, int, Dict]] = {
             "path": path,
-            "read_only": read_only,
+            "read_only": storage.read_only,
             "token": token,
             "org_id": org_id,
             "verbose": verbose,
@@ -573,7 +573,7 @@ class dataset:
 
         dataset_kwargs: Dict[str, Union[None, str, bool, int, Dict]] = {
             "path": path,
-            "read_only": read_only,
+            "read_only": storage.read_only,
             "token": token,
             "org_id": org_id,
             "verbose": verbose,
