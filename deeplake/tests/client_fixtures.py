@@ -78,5 +78,5 @@ def hub_cloud_dev_managed_creds_key(request):
     if not is_opt_true(request, HUB_CLOUD_OPT):
         pytest.skip()
 
-    creds_key = os.getenv(ENV_HUB_DEV_MANAGED_CREDS_KEY, "deeplake_tests")
+    creds_key = os.getenv(ENV_HUB_DEV_MANAGED_CREDS_KEY, "aws_creds")
     return creds_key

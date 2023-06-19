@@ -101,6 +101,7 @@ from deeplake.util.exceptions import (
     TokenPermissionError,
     CheckoutError,
     DatasetCorruptError,
+    BadRequestException,
 )
 from deeplake.util.keys import (
     dataset_exists,
@@ -593,6 +594,7 @@ class Dataset:
         exist_ok: bool = False,
         verbose: bool = True,
         downsampling: Optional[Tuple[int, int]] = None,
+        tiling_threshold: Optional[int] = None,
         **kwargs,
     ):
         """Creates a new tensor in the dataset.
@@ -628,11 +630,12 @@ class Dataset:
             create_shape_tensor (bool): If ``True``, an associated tensor containing shapes of each sample will be created.
             create_id_tensor (bool): If ``True``, an associated tensor containing unique ids for each sample will be created. This is useful for merge operations.
             verify (bool): Valid only for link htypes. If ``True``, all links will be verified before they are added to the tensor.
-                ``verify`` is always ``True`` even if specified as ``False`` if ``create_shape_tensor`` or ``create_sample_info_tensor`` is ``True``.
+                If ``False``, links will be added without verification but note that ``create_shape_tensor`` and ``create_sample_info_tensor`` will be set to ``False``.
             exist_ok (bool): If ``True``, the group is created if it does not exist. if ``False``, an error is raised if the group already exists.
             verbose (bool): Shows warnings if ``True``.
             downsampling (tuple[int, int]): If not ``None``, the tensor will be downsampled by the provided factors. For example, ``(2, 5)`` will downsample the tensor by a factor of 2 in both dimensions and create 5 layers of downsampled tensors.
                 Only support for image and mask htypes.
+            tiling_threshold (Optional, int): In MB. Tiles large images if their size exceeds this threshold. Set to -1 to disable tiling.
             **kwargs:
                 - ``htype`` defaults can be overridden by passing any of the compatible parameters.
                 - To see all htypes and their correspondent arguments, check out :ref:`Htypes`.
@@ -674,6 +677,7 @@ class Dataset:
             exist_ok,
             verbose,
             downsampling,
+            tiling_threshold=tiling_threshold,
             **kwargs,
         )
 
@@ -737,16 +741,10 @@ class Dataset:
         downsampling_factor, number_of_layers = validate_downsampling(downsampling)
         kwargs["is_sequence"] = kwargs.get("is_sequence") or is_sequence
         kwargs["is_link"] = kwargs.get("is_link") or is_link
-        if (
-            kwargs["is_link"]
-            and not verify
-            and (create_shape_tensor or create_sample_info_tensor)
-            and verbose
-        ):
-            warnings.warn(
-                "Setting `verify` to True. `verify`, `create_shape_tensor` and `create_sample_info_tensor` should all be False if you do not want to verify your link samples."
-            )
-        kwargs["verify"] = create_shape_tensor or create_sample_info_tensor or verify
+        kwargs["verify"] = verify
+        if kwargs["is_link"] and not kwargs["verify"]:
+            create_shape_tensor = False
+            create_sample_info_tensor = False
 
         if not self._is_root():
             return self.root._create_tensor(
@@ -3818,15 +3816,28 @@ class Dataset:
         Raises:
             InvalidSourcePathError: If the dataset's path is not a valid s3, gcs or azure path.
             InvalidDestinationPathError: If ``dest_path``, or ``org_id`` and ``ds_name`` do not form a valid Deep Lake path.
+            TokenPermissionError: If the user does not have permission to create a dataset in the specified organization.
         """
-        path = connect_dataset_entry(
-            src_path=self.path,
-            dest_path=dest_path,
-            org_id=org_id,
-            ds_name=ds_name,
-            creds_key=creds_key,
-            token=token,
-        )
+        try:
+            path = connect_dataset_entry(
+                src_path=self.path,
+                dest_path=dest_path,
+                org_id=org_id,
+                ds_name=ds_name,
+                creds_key=creds_key,
+                token=token,
+            )
+        except BadRequestException:
+            check_param = "organization id" if org_id else "dataset path"
+            raise TokenPermissionError(
+                "You do not have permission to create a dataset in the specified "
+                + check_param
+                + "."
+                + " Please check the "
+                + check_param
+                + " and make sure"
+                + "that you have sufficient permissions to the organization."
+            )
         self.__class__ = (
             deeplake.core.dataset.deeplake_cloud_dataset.DeepLakeCloudDataset
         )

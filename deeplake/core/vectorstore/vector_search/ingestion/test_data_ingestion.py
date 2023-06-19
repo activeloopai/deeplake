@@ -21,7 +21,7 @@ def corrupted_embedding_function(emb, threshold):
     return np.zeros((len(emb), 1536), dtype=np.float32)
 
 
-def test_ingest_data():
+def test_ingest_data(local_path):
     data = [
         {
             "text": "a",
@@ -49,7 +49,7 @@ def test_ingest_data():
         },
     ]
 
-    dataset = deeplake.empty("./xyzabc", overwrite=True)
+    dataset = deeplake.empty(local_path, overwrite=True)
     dataset.create_tensor(
         "text",
         htype="text",
@@ -122,10 +122,10 @@ def test_ingest_data():
     ingest_data.run_data_ingestion(
         dataset=dataset,
         elements=extended_data,
-        embedding_function=embedding_function,
+        embedding_function=[embedding_function],
         ingestion_batch_size=1024,
         num_workers=2,
-        embedding_tensor="embedding",
+        embedding_tensor=["embedding"],
     )
     assert len(dataset) == 20008
 
@@ -135,10 +135,10 @@ def test_ingest_data():
         ingest_data.run_data_ingestion(
             dataset=dataset,
             elements=extended_data,
-            embedding_function=embedding_function,
+            embedding_function=[embedding_function],
             ingestion_batch_size=1024,
             num_workers=2,
-            embedding_tensor="embedding",
+            embedding_tensor=["embedding"],
         )
 
     with pytest.raises(FailedIngestionError):
@@ -169,18 +169,18 @@ def test_ingest_data():
         ingest_data.run_data_ingestion(
             dataset=dataset,
             elements=extended_data,
-            embedding_function=embedding_function,
+            embedding_function=[embedding_function],
             ingestion_batch_size=1024,
             num_workers=2,
-            embedding_tensor="embedding",
+            embedding_tensor=["embedding"],
         )
 
     with pytest.raises(ValueError):
         ingest_data.run_data_ingestion(
             dataset=dataset,
             elements=extended_data,
-            embedding_function=corrupted_embedding_function,
+            embedding_function=[corrupted_embedding_function],
             ingestion_batch_size=0,
             num_workers=2,
-            embedding_tensor="embedding",
+            embedding_tensor=["embedding"],
         )

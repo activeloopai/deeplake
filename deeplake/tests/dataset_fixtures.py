@@ -149,7 +149,7 @@ def hub_cloud_gcs_ds_generator(gcs_path, gcs_creds, hub_cloud_dev_token):
         ds.connect(
             org_id=HUB_CLOUD_DEV_USERNAME,
             token=hub_cloud_dev_token,
-            creds_key="DEEPLAKE_GCP",
+            creds_key="gcp_creds",
         )
         return ds
 

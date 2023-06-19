@@ -2,7 +2,10 @@ import numpy as np
 import pytest
 
 import deeplake
-from deeplake.core.vectorstore.deeplake_vectorstore import DeepLakeVectorStore
+from deeplake.core.vectorstore.deeplake_vectorstore import (
+    DeepLakeVectorStore,
+    VectorStore,
+)
 from deeplake.core.vectorstore import utils
 from deeplake.tests.common import requires_libdeeplake
 from deeplake.constants import (
@@ -25,7 +28,7 @@ query_embedding = np.random.uniform(low=-10, high=10, size=(EMBEDDING_DIM)).asty
 
 
 def embedding_fn(text, embedding_dim=EMBEDDING_DIM):
-    pass  # pragma: no cover
+    return np.zeros((len(text), EMBEDDING_DIM))  # pragma: no cover
 
 
 def embedding_fn2(text, embedding_dim=EMBEDDING_DIM):
@@ -37,10 +40,14 @@ def embedding_fn3(text, embedding_dim=EMBEDDING_DIM):
     return [np.zeros(embedding_dim) for i in range(len(text))]
 
 
-def test_custom_tensors(hub_cloud_dev_token):
+def embedding_fn4(text, embedding_dim=EMBEDDING_DIM):
+    return np.zeros((1, EMBEDDING_DIM))  # pragma: no cover
+
+
+def test_custom_tensors(local_path):
     # initialize vector store object:
     vector_store = DeepLakeVectorStore(
-        path="./deeplake_vector_store",
+        path=local_path,
         overwrite=True,
         tensor_params=[
             {"name": "texts_custom", "htype": "text"},
@@ -68,11 +75,11 @@ def test_custom_tensors(hub_cloud_dev_token):
 
 
 @requires_libdeeplake
-def test_search_basic(hub_cloud_dev_token):
+def test_search_basic(local_path, hub_cloud_dev_token):
     """Test basic search features"""
     # Initialize vector store object and add data
     vector_store = DeepLakeVectorStore(
-        path="./deeplake_vector_store",
+        path=local_path,
         overwrite=True,
         token=hub_cloud_dev_token,
     )
@@ -265,12 +272,18 @@ def test_search_basic(hub_cloud_dev_token):
             return_tensors=["metadata", "id"],
         )
 
+    vector_store = DeepLakeVectorStore(
+        path="mem://xyz", embedding_function=embedding_fn
+    )
+    vector_store.add(embedding=embeddings, text=texts, metadata=metadatas)
+    result = vector_store.search(embedding=np.zeros((1, EMBEDDING_DIM)))
+    assert len(result) == 4
+
 
 @requires_libdeeplake
 @pytest.mark.parametrize("distance_metric", ["L1", "L2", "COS", "MAX"])
 def test_search_quantitative(distance_metric, hub_cloud_dev_token):
     """Test whether TQL and Python return the same results"""
-
     # initialize vector store object:
     vector_store = DeepLakeVectorStore(
         path="hub://testingacc2/vectorstore_test",
@@ -326,6 +339,12 @@ def test_search_quantitative(distance_metric, hub_cloud_dev_token):
             filter={"metadata": {"abcdefg": 28}},
         )
 
+    data_ce = vector_store.search(
+        query="select * where ids == '0'",
+        exec_option="compute_engine",
+    )
+    assert data_ce["ids"] == ["0"]
+
 
 @requires_libdeeplake
 def test_search_managed(hub_cloud_dev_token):
@@ -365,10 +384,10 @@ def test_search_managed(hub_cloud_dev_token):
     assert data_ce["ids"] == data_db["ids"]
 
 
-def test_delete(capsys):
+def test_delete(local_path, capsys):
     # initialize vector store object:
     vector_store = DeepLakeVectorStore(
-        path="./deeplake_vector_store",
+        path=local_path,
         overwrite=True,
         verbose=False,
     )
@@ -377,7 +396,7 @@ def test_delete(capsys):
     vector_store.add(id=ids, embedding=embeddings, text=texts, metadata=metadatas)
 
     output = (
-        "Dataset(path='./deeplake_vector_store', tensors=['embedding', 'id', 'metadata', 'text'])\n\n"
+        f"Dataset(path='{local_path}', tensors=['embedding', 'id', 'metadata', 'text'])\n\n"
         "  tensor      htype      shape     dtype  compression\n"
         "  -------    -------    -------   -------  ------- \n"
         " embedding  embedding  (10, 100)  float32   None   \n"
@@ -408,13 +427,13 @@ def test_delete(capsys):
     assert len(vector_store.dataset) == 0
     assert vector_store.dataset.tensors.keys() == tensors_before_delete.keys()
 
-    vector_store.delete_by_path("./deeplake_vector_store")
+    vector_store.delete_by_path(local_path)
     dirs = os.listdir("./")
-    assert "./deeplake_vector_store" not in dirs
+    assert local_path not in dirs
 
     # backwards compatibility test:
     vector_store = DeepLakeVectorStore(
-        path="./deeplake_vector_store",
+        path=local_path,
         overwrite=True,
         tensor_params=[
             {
@@ -434,7 +453,7 @@ def test_delete(capsys):
     vector_store.delete(row_ids=[0])
     assert len(vector_store.dataset) == NUMBER_OF_DATA - 1
 
-    ds = deeplake.empty("local_ds", overwrite=True)
+    ds = deeplake.empty(local_path, overwrite=True)
     ds.create_tensor("ids", htype="text")
     ds.create_tensor("embedding", htype="embedding")
     ds.extend(
@@ -445,7 +464,7 @@ def test_delete(capsys):
     )
 
     vector_store = DeepLakeVectorStore(
-        path="local_ds",
+        path=local_path,
     )
     vector_store.delete(ids=ids[:3])
     assert len(vector_store) == NUMBER_OF_DATA - 3
@@ -454,7 +473,7 @@ def test_delete(capsys):
         vector_store.delete(ids=ids[5:7], exec_option="remote_tensor_db")
 
 
-def test_ingestion(capsys):
+def test_ingestion(local_path, capsys):
     # create data
     number_of_data = 1000
     texts, embeddings, ids, metadatas, _ = utils.create_data(
@@ -463,7 +482,7 @@ def test_ingestion(capsys):
 
     # initialize vector store object:
     vector_store = DeepLakeVectorStore(
-        path="./deeplake_vector_store",
+        path=local_path,
         overwrite=True,
         verbose=True,
     )
@@ -491,7 +510,7 @@ def test_ingestion(capsys):
     captured = capsys.readouterr()
 
     output = (
-        "Dataset(path='./deeplake_vector_store', tensors=['embedding', 'id', 'metadata', 'text'])\n\n"
+        f"Dataset(path='{local_path}', tensors=['embedding', 'id', 'metadata', 'text'])\n\n"
         "  tensor      htype       shape      dtype  compression\n"
         "  -------    -------     -------    -------  ------- \n"
         " embedding  embedding  (1000, 100)  float32   None   \n"
@@ -525,7 +544,7 @@ def test_ingestion(capsys):
     captured = capsys.readouterr()
 
     output = (
-        "Dataset(path='./deeplake_vector_store', tensors=['embedding', 'id', 'metadata', 'text'])\n\n"
+        f"Dataset(path='{local_path}', tensors=['embedding', 'id', 'metadata', 'text'])\n\n"
         "  tensor      htype       shape      dtype  compression\n"
         "  -------    -------     -------    -------  ------- \n"
         " embedding  embedding  (2000, 100)  float32   None   \n"
@@ -552,7 +571,7 @@ def test_ingestion(capsys):
     captured = capsys.readouterr()
 
     output = (
-        "Dataset(path='./deeplake_vector_store', tensors=['embedding', 'id', 'metadata', 'text'])\n\n"
+        f"Dataset(path='{local_path}', tensors=['embedding', 'id', 'metadata', 'text'])\n\n"
         "  tensor      htype       shape       dtype  compression\n"
         "  -------    -------     -------     -------  ------- \n"
         " embedding  embedding  (27000, 100)  float32   None   \n"
@@ -570,7 +589,7 @@ def test_ingestion(capsys):
     ]
 
 
-def test_ingestion_images():
+def test_ingestion_images(local_path):
     tensor_params = [
         {"name": "image", "htype": "image", "sample_compression": "jpg"},
         {"name": "embedding", "htype": "embedding"},
@@ -583,7 +602,7 @@ def test_ingestion_images():
 
     # initialize vector store object:
     vector_store = DeepLakeVectorStore(
-        path="./deeplake_vector_store",
+        path=local_path,
         tensor_params=tensor_params,
         overwrite=True,
         verbose=True,
@@ -598,7 +617,7 @@ def test_ingestion_images():
     assert len(ids) == 10
 
 
-def test_parse_add_arguments():
+def test_parse_add_arguments(local_path):
     deeplake_vector_store = DeepLakeVectorStore(
         path="mem://dummy",
         overwrite=True,
@@ -755,8 +774,8 @@ def test_parse_add_arguments():
         id=ids,
         metadata=metadatas,
     )
-    assert embedding_function is embedding_fn2
-    assert embedding_tensors == "embedding"
+    assert embedding_function[0] is embedding_fn2
+    assert embedding_tensors == ["embedding"]
     assert tensors == {
         "id": ids,
         "text": texts,
@@ -776,8 +795,8 @@ def test_parse_add_arguments():
         text=texts,
         metadata=metadatas,
     )
-    assert embedding_function is embedding_fn2
-    assert embedding_tensors == "embedding"
+    assert embedding_function[0] is embedding_fn2
+    assert embedding_tensors == ["embedding"]
     assert len(tensors) == 2
 
     # Creating a vector store with two embedding tensors
@@ -862,8 +881,8 @@ def test_parse_add_arguments():
         text=texts,
     )
 
-    assert embedding_function is embedding_fn2
-    assert embedding_tensors == "embedding_1"
+    assert embedding_function[0] is embedding_fn2
+    assert embedding_tensors == ["embedding_1"]
     assert len(tensors) == 1
 
     deeplake_vector_store = DeepLakeVectorStore(
@@ -886,9 +905,9 @@ def test_parse_add_arguments():
         embedding_data=texts,
         embedding_tensor="embedding",
     )
-    assert embedding_function is embedding_fn
-    assert embedding_tensor == "embedding"
-    assert embedding_data == texts
+    assert embedding_function[0] is embedding_fn
+    assert embedding_tensor == ["embedding"]
+    assert embedding_data == [texts]
     assert tensors == {
         "id": ids,
         "text": texts,
@@ -939,7 +958,7 @@ def test_parse_add_arguments():
         )
 
     with pytest.raises(ValueError):
-        dataset = deeplake.empty("local_ds", overwrite=True)
+        dataset = deeplake.empty(local_path, overwrite=True)
         dataset.create_tensor("embedding_1", htype="embedding")
         dataset.create_tensor("embedding_2", htype="embedding")
         dataset.create_tensor("id", htype="text")
@@ -970,3 +989,159 @@ def test_parse_add_arguments():
             embedding_function=embedding_fn3,
             embedding_2=embeddings,
         )
+
+
+def test_parse_tensors_kwargs():
+    tensors = {
+        "embedding_1": (embedding_fn, texts),
+        "embedding_2": (embedding_fn2, texts),
+        "custom_text": texts,
+    }
+    func, data, emb_tensor, new_tensors = utils.parse_tensors_kwargs(
+        tensors, None, None, None
+    )
+
+    assert func == [embedding_fn, embedding_fn2]
+    assert data == [texts, texts]
+    assert emb_tensor == ["embedding_1", "embedding_2"]
+    assert new_tensors == {"custom_text": texts}
+
+    with pytest.raises(ValueError):
+        utils.parse_tensors_kwargs(tensors, embedding_fn, None, None)
+
+    with pytest.raises(ValueError):
+        utils.parse_tensors_kwargs(tensors, None, texts, None)
+
+    with pytest.raises(ValueError):
+        utils.parse_tensors_kwargs(tensors, None, None, "embedding_1")
+
+
+def test_multiple_embeddings(local_path, capsys):
+    vector_store = DeepLakeVectorStore(
+        path=local_path,
+        overwrite=True,
+        tensor_params=[
+            {
+                "name": "text",
+                "htype": "text",
+            },
+            {
+                "name": "embedding_1",
+                "htype": "embedding",
+            },
+            {
+                "name": "embedding_2",
+                "htype": "embedding",
+            },
+        ],
+    )
+
+    with pytest.raises(AssertionError):
+        vector_store.add(
+            text=texts,
+            embedding_function=[embedding_fn, embedding_fn],
+            embedding_data=[texts],
+            embedding_tensor=["embedding_1", "embedding_2"],
+        )
+
+    with pytest.raises(AssertionError):
+        vector_store.add(
+            text=texts,
+            embedding_function=[embedding_fn, embedding_fn],
+            embedding_data=[texts, texts],
+            embedding_tensor=["embedding_1"],
+        )
+
+    with pytest.raises(AssertionError):
+        vector_store.add(
+            text=texts,
+            embedding_function=[embedding_fn],
+            embedding_data=[texts, texts],
+            embedding_tensor=["embedding_1", "embedding_2"],
+        )
+
+    vector_store.add(
+        text=texts,
+        embedding_function=[embedding_fn, embedding_fn],
+        embedding_data=[texts, texts],
+        embedding_tensor=["embedding_1", "embedding_2"],
+    )
+    vector_store.add(
+        text=texts, embedding_1=(embedding_fn, texts), embedding_2=(embedding_fn, texts)
+    )
+    vector_store.add(
+        text=texts,
+        embedding_function=embedding_fn,
+        embedding_data=[texts, texts],
+        embedding_tensor=["embedding_1", "embedding_2"],
+    )
+
+    # test with initial embedding function
+    vector_store.embedding_function = embedding_fn
+    vector_store.add(
+        text=texts,
+        embedding_data=[texts, texts],
+        embedding_tensor=["embedding_1", "embedding_2"],
+    )
+
+    number_of_data = 1000
+    _texts, embeddings, ids, metadatas, _ = utils.create_data(
+        number_of_data=number_of_data, embedding_dim=EMBEDDING_DIM
+    )
+    vector_store.add(
+        text=25 * _texts,
+        embedding_function=[embedding_fn3, embedding_fn3],
+        embedding_data=[25 * _texts, 25 * _texts],
+        embedding_tensor=["embedding_1", "embedding_2"],
+    )
+    vector_store.add(
+        text=25 * _texts,
+        embedding_1=(embedding_fn3, 25 * _texts),
+        embedding_2=(embedding_fn3, 25 * _texts),
+    )
+
+    assert len(vector_store.dataset) == 50040
+    assert len(vector_store.dataset.embedding_1) == 50040
+    assert len(vector_store.dataset.embedding_2) == 50040
+    assert len(vector_store.dataset.id) == 50040
+    assert len(vector_store.dataset.text) == 50040
+
+
+def test_extend_none(local_path):
+    vector_store = DeepLakeVectorStore(
+        path=local_path,
+        overwrite=True,
+        tensor_params=[
+            {"name": "text", "htype": "text"},
+            {"name": "embedding", "htype": "embedding"},
+            {
+                "name": "id",
+                "htype": "text",
+            },
+            {"name": "metadata", "htype": "json"},
+        ],
+    )
+
+    vector_store.add(text=texts, embedding=None, id=ids, metadata=None)
+    assert len(vector_store.dataset) == 10
+    assert len(vector_store.dataset.text) == 10
+    assert len(vector_store.dataset.embedding) == 10
+    assert len(vector_store.dataset.id) == 10
+    assert len(vector_store.dataset.metadata) == 10
+
+
+def test_query_dim(local_path):
+    vector_store = DeepLakeVectorStore(
+        path=local_path,
+        overwrite=True,
+        tensor_params=[
+            {"name": "text", "htype": "text"},
+            {"name": "embedding", "htype": "embedding"},
+        ],
+    )
+
+    vector_store.add(text=texts, embedding=embeddings)
+    with pytest.raises(AssertionError):
+        vector_store.search([texts[0], texts[0]], embedding_fn3, k=1)
+
+    vector_store.search([texts[0]], embedding_fn4, k=1)

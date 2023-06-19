@@ -64,6 +64,7 @@ from deeplake.util.exceptions import (
     CheckoutError,
     ReadOnlyModeError,
     LockedException,
+    BadRequestException,
 )
 from deeplake.util.storage import (
     get_storage_and_cache_chain,
@@ -1292,15 +1293,28 @@ class dataset:
         Raises:
             InvalidSourcePathError: If the ``src_path`` is not a valid s3, gcs or azure path.
             InvalidDestinationPathError: If ``dest_path``, or ``org_id`` and ``ds_name`` do not form a valid Deep Lake path.
+            TokenPermissionError: If the user does not have permission to create a dataset in the specified organization.
         """
-        path = connect_dataset_entry(
-            src_path=src_path,
-            creds_key=creds_key,
-            dest_path=dest_path,
-            org_id=org_id,
-            ds_name=ds_name,
-            token=token,
-        )
+        try:
+            path = connect_dataset_entry(
+                src_path=src_path,
+                creds_key=creds_key,
+                dest_path=dest_path,
+                org_id=org_id,
+                ds_name=ds_name,
+                token=token,
+            )
+        except BadRequestException:
+            check_param = "organization id" if org_id else "dataset path"
+            raise TokenPermissionError(
+                "You do not have permission to create a dataset in the specified "
+                + check_param
+                + "."
+                + " Please check the "
+                + check_param
+                + " and make sure"
+                + "that you have sufficient permissions to the organization."
+            )
         return deeplake.dataset(path, token=token, verbose=False)
 
     @staticmethod
@@ -1327,27 +1341,28 @@ class dataset:
         """Ingest images and annotations in COCO format to a Deep Lake Dataset. The source data can be stored locally or in the cloud.
 
         Examples:
+            >>> # Ingest local data in COCO format to a Deep Lake dataset stored in Deep Lake storage.
             >>> ds = deeplake.ingest_coco(
-            >>>     "path/to/images/directory",
+            >>>     "<path/to/images/directory>",
             >>>     ["path/to/annotation/file1.json", "path/to/annotation/file2.json"],
             >>>     dest="hub://org_id/dataset",
             >>>     key_to_tensor_mapping={"category_id": "labels", "bbox": "boxes"},
             >>>     file_to_group_mapping={"file1.json": "group1", "file2.json": "group2"},
             >>>     ignore_keys=["area", "image_id", "id"],
-            >>>     token="my_activeloop_token",
             >>>     num_workers=4,
             >>> )
-            >>> # or ingest data from the cloud
+            >>> # Ingest data from your cloud into another Deep Lake dataset in your cloud, and connect that dataset to the Deep Lake backend.
             >>> ds = deeplake.ingest_coco(
             >>>     "s3://bucket/images/directory",
             >>>     "s3://bucket/annotation/file1.json",
-            >>>     dest="hub://org_id/dataset_name",
+            >>>     dest="s3://bucket/dataset_name",
             >>>     ignore_one_group=True,
             >>>     ignore_keys=["area", "image_id", "id"],
             >>>     image_settings={"name": "images", "htype": "link[image]", "sample_compression": "jpeg"},
-            >>>     image_creds_key="my_s3_managed_credentials"
+            >>>     image_creds_key="my_s3_managed_credentials",
             >>>     src_creds=aws_creds, # Can also be inferred from environment
-            >>>     token="my_activeloop_token",
+            >>>     dest_creds=aws_creds, # Can also be inferred from environment
+            >>>     connect_kwargs={"creds_key": "my_s3_managed_credentials", "org_id": "org_id"},
             >>>     num_workers=4,
             >>> )
 
@@ -1448,6 +1463,7 @@ class dataset:
         """Ingest images and annotations (bounding boxes or polygons) in YOLO format to a Deep Lake Dataset. The source data can be stored locally or in the cloud.
 
         Examples:
+            >>> # Ingest local data in YOLO format to a Deep Lake dataset stored in Deep Lake storage.
             >>> ds = deeplake.ingest_yolo(
             >>>     "path/to/data/directory",
             >>>     dest="hub://org_id/dataset",
@@ -1455,14 +1471,15 @@ class dataset:
             >>>     token="my_activeloop_token",
             >>>     num_workers=4,
             >>> )
-            >>> # or ingest data from the cloud
+            >>> # Ingest data from your cloud into another Deep Lake dataset in your cloud, and connect that dataset to the Deep Lake backend.
             >>> ds = deeplake.ingest_yolo(
             >>>     "s3://bucket/data_directory",
-            >>>     dest="hub://org_id/dataset",
+            >>>     dest="s3://bucket/dataset_name",
             >>>     image_params={"name": "image_links", "htype": "link[image]"},
             >>>     image_creds_key="my_s3_managed_credentials",
             >>>     src_creds=aws_creds, # Can also be inferred from environment
-            >>>     token="my_activeloop_token",
+            >>>     dest_creds=aws_creds, # Can also be inferred from environment
+            >>>     connect_kwargs={"creds_key": "my_s3_managed_credentials", "org_id": "org_id"},
             >>>     num_workers=4,
             >>> )
 
@@ -1805,23 +1822,48 @@ class dataset:
         """Convert pandas dataframe to a Deep Lake Dataset. The contents of the dataframe can be parsed literally, or can be treated as links to local or cloud files.
 
         Examples:
-            >>> ds = deeplake.dataframe(
+
+
+                    >>> # Ingest local data in COCO format to a Deep Lake dataset stored in Deep Lake storage.
+            >>> ds = deeplake.ingest_coco(
+            >>>     "<path/to/images/directory>",
+            >>>     ["path/to/annotation/file1.json", "path/to/annotation/file2.json"],
+            >>>     dest="hub://org_id/dataset",
+            >>>     key_to_tensor_mapping={"category_id": "labels", "bbox": "boxes"},
+            >>>     file_to_group_mapping={"file1.json": "group1", "file2.json": "group2"},
+            >>>     ignore_keys=["area", "image_id", "id"],
+            >>>     num_workers=4,
+            >>> )
+            >>> # Ingest data from your cloud into another Deep Lake dataset in your cloud, and connect that dataset to the Deep Lake backend.
+
+
+
+            >>> # Ingest data from a DataFrame into a Deep Lake dataset stored in Deep Lake storage.
+            >>> ds = deeplake.ingest_dataframe(
             >>>     df,
             >>>     dest="hub://org_id/dataset",
             >>> )
-            >>> # or ingest data as images from the cloud
-            >>> ds = deeplake.dataframe(
+            >>> # Ingest data from a DataFrame into a Deep Lake dataset stored in Deep Lake storage. The filenames in `df_column_with_cloud_paths` will be used as the filenames for loading data into the dataset.
+            >>> ds = deeplake.ingest_dataframe(
             >>>     df,
             >>>     dest="hub://org_id/dataset",
-            >>>     column_params={"df_column_with_cloud_paths": {"name": "images", "htype": "image"}}
+            >>>     column_params={"df_column_with_cloud_paths": {"name": "images", "htype": "image"}},
             >>>     src_creds=aws_creds
             >>> )
-            >>> # or ingest data as linked images in the cloud
-            >>> ds = deeplake.dataframe(
+            >>> # Ingest data from a DataFrame into a Deep Lake dataset stored in Deep Lake storage. The filenames in `df_column_with_cloud_paths` will be used as the filenames for linked data in the dataset.
+            >>> ds = deeplake.ingest_dataframe(
             >>>     df,
             >>>     dest="hub://org_id/dataset",
-            >>>     column_params={"df_column_with_cloud_paths": {"name": "image_links", "htype": "link[image]"}}
+            >>>     column_params={"df_column_with_cloud_paths": {"name": "image_links", "htype": "link[image]"}},
             >>>     creds_key="my_s3_managed_credentials"
+            >>> )
+            >>> # Ingest data from a DataFrame into a Deep Lake dataset stored in your cloud, and connect that dataset to the Deep Lake backend. The filenames in `df_column_with_cloud_paths` will be used as the filenames for linked data in the dataset.
+            >>> ds = deeplake.ingest_dataframe(
+            >>>     df,
+            >>>     dest="s3://bucket/dataset_name",
+            >>>     column_params={"df_column_with_cloud_paths": {"name": "image_links", "htype": "link[image]"}},
+            >>>     creds_key="my_s3_managed_credentials"
+            >>>     connect_kwargs={"creds_key": "my_s3_managed_credentials", "org_id": "org_id"},
             >>> )
 
         Args:
