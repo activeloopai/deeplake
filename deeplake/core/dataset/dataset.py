@@ -124,6 +124,7 @@ from deeplake.util.version_control import (
     warn_node_checkout,
     load_version_info,
     save_version_info,
+    sync_version_info,
     replace_head,
     reset_and_checkout,
     integrity_check,
@@ -1822,6 +1823,10 @@ class Dataset:
     def is_head_node(self):
         """Returns True if the current commit is the head node of the branch and False otherwise."""
         commit_node = self.version_state["commit_node"]
+        for child in commit_node.children:
+            if child.branch == self.branch:
+                return False
+        return True
         return not commit_node.children
 
     @property
@@ -4285,8 +4290,10 @@ class Dataset:
         """Initialize concurrent writes"""
         if self.commit_id is None:
             self._commit(hash=AUTO_CONCURRENT_COMMIT_ID)
-        self.checkout(self.commit_id)
+            self.checkout(self.commit_id)
         self._concurrent_original_branch = self.branch
+        # self.checkout(self.commit_id)
+        # assert not self.is_head_node
         if self._concurrent_branch is None:
             self._concurrent_branch = f"_concurrent_{uuid.uuid4().hex[:8]}"
         self.read_only = False
@@ -4331,13 +4338,18 @@ class Dataset:
         self._concurrent_mode = False
 
     def _concurrent_push(self):
+        n0 = len(self._images_id)
+        m0 = len(self.images)
         lock = Lock(self.base_storage, VERSION_CONTROL_INFO_LOCK_FILENAME)
         lock.acquire()
         try:
+            sync_version_info(self.version_state, self.storage)
+            self.commit()
             self.checkout(
                 self._concurrent_original_branch, _ignore_concurrent_mode_check=True
             )
             self.merge(self._concurrent_branch, _ignore_concurrent_mode_check=True)
+            # save_version_info(self.version_state, self.storage)
         finally:
             lock.release()
 

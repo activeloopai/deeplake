@@ -1003,7 +1003,10 @@ class Tensor:
                         vs = cast_to_type(vs, dtype)
                     else:
                         vs = [cast_to_type(v, dtype) for v in vs]
+                n = len(tensor)
                 tensor.extend(vs)
+                n2 = len(tensor)
+                assert n2 == n + len(vs), (n2, n, len(vs))
         # if self.meta.is_link and not has_shape_tensor:
         #     func = get_link_transform("extend_shape")
         #     func(samples, tensor_meta=self.meta)

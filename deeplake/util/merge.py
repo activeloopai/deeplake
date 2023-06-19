@@ -927,8 +927,8 @@ def copy_tensor_slice(
             dest_seq_encoder = dest_eng.sequence_encoder
             dest_seq_encoder.is_dirty = True
             dest_meta_seq_length = 0
-        dest_tensor.meta.links = {}
-        links = dest_tensor.meta.links
+        links = dest_meta.links
+        dest_meta.links = {}
         try:
             for start, end in ranges:
                 if is_seq:
@@ -976,10 +976,10 @@ def copy_tensor_slice(
             dest_meta.length = dest_meta_orig_length + (
                 dest_meta_seq_length if is_seq else dest_meta_length
             )
-            dest_meta.is_dirty = True
-            dest_storage.flush()
         finally:
-            dest_tensor.meta.links = links
+            dest_meta.links = links
+        dest_meta.is_dirty = True
+        dest_storage.flush()
     if _copy_link_tensors:
         if not is_seq:
             flat_ranges = ranges
@@ -990,9 +990,9 @@ def copy_tensor_slice(
         ]
         for l, flat in links:
             dest_link_tensor = getattr(dest_tensor, l, None)
-            if dest_link_tensor:
+            if dest_link_tensor is not None:
                 src_link_tensor = getattr(src_tensor, l, None)
-                if src_link_tensor:
+                if src_link_tensor is not None:
                     copy_tensor_slice(
                         src_ds,
                         dest_ds,
