@@ -4316,19 +4316,24 @@ class Dataset:
     def concurrent(self):
         """Initialize concurrent writes"""
         if self.commit_id is None:
-            self._commit(hash=AUTO_CONCURRENT_COMMIT_ID, spinner=False)
-            self.checkout(
-                self.commit_id,
-            )
+            lock = Lock(self.base_storage, VERSION_CONTROL_INFO_LOCK_FILENAME)
+            lock.acquire()
+            try:
+                sync_version_info(self.version_state, self.base_storage)
+                if self.commit_id is None:
+                    print("====AUTO COMMIT====")
+                    self._commit()
+            finally:
+                lock.release()
+            self.checkout(self.commit_id)
+            print(f"Latching to {self.commit_id}")
         self._concurrent_original_branch = self.branch
         # self.checkout(self.commit_id)
         # assert not self.is_head_node
-        if self._concurrent_branch is None:
-            self._concurrent_branch = f"_concurrent_{uuid.uuid4().hex[:8]}"
+        self._concurrent_branch = f"_concurrent_{uuid.uuid4().hex[:8]}"
         self.read_only = False
         self._locking_enabled = False
-        if self._concurrent_branch not in self.version_state["branch_commit_map"]:
-            self.checkout(self._concurrent_branch, create=True)
+        self.checkout(self._concurrent_branch, create=True)
         self._concurrent_mode = True
 
         class _ConcurrentWriteContext:
@@ -4370,7 +4375,7 @@ class Dataset:
         lock = Lock(self.base_storage, VERSION_CONTROL_INFO_LOCK_FILENAME)
         lock.acquire()
         try:
-            sync_version_info(self.version_state, self.storage)
+            sync_version_info(self.version_state, self.base_storage)
             self.commit()
             self.checkout(
                 self._concurrent_original_branch, _ignore_concurrent_mode_check=True

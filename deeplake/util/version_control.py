@@ -39,6 +39,7 @@ from deeplake.constants import COMMIT_INFO_FILENAME
 from deeplake.util.remove_cache import get_base_storage
 from deeplake.hooks import dataset_committed
 from datetime import datetime
+from collections import defaultdict
 
 import posixpath
 import json
@@ -480,21 +481,51 @@ def _merge_commit_node_maps(map1, map2):
 
 
 def _merge_version_info(info1, info2):
+    commit_node_map_1 = info1["commit_node_map"]
+    commit_node_map_2 = info2["commit_node_map"]
+
     commit_node_map = _merge_commit_node_maps(
-        info1["commit_node_map"], info2["commit_node_map"]
+        commit_node_map_1, commit_node_map_2
     )
     branch_commit_map = info1["branch_commit_map"].copy()
-    for branch, commit_id in info2["branch_commit_map"].items():
-        curr_commit = branch_commit_map.get(branch)
-        if curr_commit:
-            node = commit_node_map[curr_commit]
-            curr_time = node.commit_time
-            new_time = commit_node_map[commit_id].commit_time
-            if new_time is None or (curr_time is not None and curr_time < new_time):
+    branch_commit_map_2 = info2["branch_commit_map"]
+
+    branch_commit_counts_1 = defaultdict(int)
+    branch_commit_counts_2 = defaultdict(int)
+
+    for commit_id, node in commit_node_map_1.items():
+        if node.branch:
+            branch_commit_counts_1[node.branch] += 1
+    
+    for commit_id, node in commit_node_map_2.items():
+        if node.branch:
+            branch_commit_counts_2[node.branch] += 1
+
+    for branch, commit_id in branch_commit_map_2.items():
+        if branch in branch_commit_map:
+            if branch_commit_counts_2[branch] > branch_commit_counts_1[branch]:
                 branch_commit_map[branch] = commit_id
         else:
             branch_commit_map[branch] = commit_id
 
+
+    # for branch, commit_id in info2["branch_commit_map"].items():
+    #     curr_commit = branch_commit_map.get(branch)
+    #     if curr_commit:
+    #         node = commit_node_map[curr_commit]
+    #         curr_time = node.commit_time
+    #         if curr_time is None and node.parent is not None:
+    #             curr_time = node.parent.commit_time
+    #         node2 = commit_node_map[commit_id]
+    #         new_time = node2.commit_time
+    #         if new_time is None and node2.parent is not None:
+    #             new_time = node2.parent.commit_time
+    #         if new_time is None or (curr_time is not None and curr_time < new_time):
+    #             branch_commit_map[branch] = commit_id
+    #     else:
+    #         branch_commit_map[branch] = commit_id
+
+    # branch_commit_map = {}
     # branch_commit_map.update(info1["branch_commit_map"])
     # branch_commit_map.update(info2["branch_commit_map"])
     return {
@@ -554,9 +585,6 @@ def sync_version_info(version_state: Dict[str, Any], storage: LRUCache) -> None:
             is_head_node = False
             break
 
-    storage = get_base_storage(storage)
-    # lock = Lock(storage, get_version_control_info_lock_key(), duration=10)
-    # lock.acquire()  # Blocking
     key = get_version_control_info_key()
     new_version_info = {
         "commit_node_map": version_state["commit_node_map"],
@@ -575,7 +603,6 @@ def sync_version_info(version_state: Dict[str, Any], storage: LRUCache) -> None:
             version_info = _merge_version_info(new_version_info, old_version_info)
         except KeyError:
             version_info = new_version_info
-    # storage[key] = json.dumps(_version_info_to_json(version_info)).encode("utf-8")
     version_state["commit_node_map"] = version_info["commit_node_map"]
     version_state["branch_commit_map"] = version_info["branch_commit_map"]
     if is_head_node:
@@ -583,8 +610,6 @@ def sync_version_info(version_state: Dict[str, Any], storage: LRUCache) -> None:
             version_info["branch_commit_map"][version_state["branch"]]
         ]
         version_state["commit_id"] = version_state["commit_node"].commit_id
-
-    # lock.release()
 
 
 def load_version_info(storage: LRUCache) -> Dict:
