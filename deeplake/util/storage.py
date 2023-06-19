@@ -3,7 +3,7 @@ from deeplake.util.cache_chain import generate_chain
 from deeplake.constants import LOCAL_CACHE_PREFIX, MB
 from deeplake.util.exceptions import AgreementNotAcceptedError
 from deeplake.util.tag import process_hub_path
-from typing import Optional, Union
+from typing import Dict, Optional, Union
 from deeplake.core.storage.provider import StorageProvider
 import os
 from deeplake.core.storage import (
@@ -102,6 +102,26 @@ def storage_provider_from_path(
     return storage
 
 
+def get_dataset_credentials(
+    client: DeepLakeBackendClient,
+    org_id: str,
+    ds_name: str,
+    mode: Optional[str],
+    db_engine: bool,
+):
+    # this will give the proper url (s3, gcs, etc) and corresponding creds, depending on where the dataset is stored.
+    try:
+        url, final_creds, mode, expiration, repo = client.get_dataset_credentials(
+            org_id, ds_name, mode=mode, db_engine={"enabled": db_engine}
+        )
+    except AgreementNotAcceptedError as e:
+        handle_dataset_agreements(client, e.agreements, org_id, ds_name)
+        url, final_creds, mode, expiration, repo = client.get_dataset_credentials(
+            org_id, ds_name, mode=mode, db_engine={"enabled": db_engine}
+        )
+    return url, final_creds, mode, expiration, repo
+
+
 def storage_provider_from_hub_path(
     path: str,
     read_only: Optional[bool] = None,
@@ -113,16 +133,9 @@ def storage_provider_from_hub_path(
     client = DeepLakeBackendClient(token=token)
 
     mode = None if (read_only is None) else ("r" if read_only else "w")
-    # this will give the proper url (s3, gcs, etc) and corresponding creds, depending on where the dataset is stored.
-    try:
-        url, final_creds, mode, expiration, repo = client.get_dataset_credentials(
-            org_id, ds_name, mode=mode, db_engine={"enabled": db_engine}
-        )
-    except AgreementNotAcceptedError as e:
-        handle_dataset_agreements(client, e.agreements, org_id, ds_name)
-        url, final_creds, mode, expiration, repo = client.get_dataset_credentials(
-            org_id, ds_name, mode=mode, db_engine={"enabled": db_engine}
-        )
+    url, final_creds, mode, expiration, repo = get_dataset_credentials(
+        client, org_id, ds_name, mode, db_engine
+    )
 
     if mode == "r" and read_only is None and not DEFAULT_READONLY:
         # warns user about automatic mode change
