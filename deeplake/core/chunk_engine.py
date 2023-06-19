@@ -631,7 +631,10 @@ class ChunkEngine:
 
     def get_chunk_commit(self, chunk_name) -> Tuple[str, str]:
         """Returns the commit id and tensor key that contains the chunk_name."""
-        assert self.version_state["commit_node"].commit_id == self.version_state["commit_id"]
+        assert (
+            self.version_state["commit_node"].commit_id
+            == self.version_state["commit_id"]
+        )
         cur_node: Optional[CommitNode] = self.version_state["commit_node"]
         key = self.key
         while cur_node is not None:

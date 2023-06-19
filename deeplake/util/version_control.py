@@ -484,9 +484,7 @@ def _merge_version_info(info1, info2):
     commit_node_map_1 = info1["commit_node_map"]
     commit_node_map_2 = info2["commit_node_map"]
 
-    commit_node_map = _merge_commit_node_maps(
-        commit_node_map_1, commit_node_map_2
-    )
+    commit_node_map = _merge_commit_node_maps(commit_node_map_1, commit_node_map_2)
     branch_commit_map = info1["branch_commit_map"].copy()
     branch_commit_map_2 = info2["branch_commit_map"]
 
@@ -496,7 +494,7 @@ def _merge_version_info(info1, info2):
     for commit_id, node in commit_node_map_1.items():
         if node.branch:
             branch_commit_counts_1[node.branch] += 1
-    
+
     for commit_id, node in commit_node_map_2.items():
         if node.branch:
             branch_commit_counts_2[node.branch] += 1
@@ -507,7 +505,6 @@ def _merge_version_info(info1, info2):
                 branch_commit_map[branch] = commit_id
         else:
             branch_commit_map[branch] = commit_id
-
 
     # for branch, commit_id in info2["branch_commit_map"].items():
     #     curr_commit = branch_commit_map.get(branch)

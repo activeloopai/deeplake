@@ -27,9 +27,7 @@ def worker(worker_id: int, checkout: bool, mode: bool):
         time.sleep(worker_id * 0.1)
     ds = deeplake.load(ds_path)
     assert ds.images.meta.links
-    print(
-        f"Hello from worker {worker_id}!"
-    )
+    print(f"Hello from worker {worker_id}!")
     if checkout:
         ds.checkout("abcd")
     with ds.concurrent():
