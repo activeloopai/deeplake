@@ -4289,8 +4289,10 @@ class Dataset:
     def concurrent(self):
         """Initialize concurrent writes"""
         if self.commit_id is None:
-            self._commit(hash=AUTO_CONCURRENT_COMMIT_ID)
-            self.checkout(self.commit_id)
+            self._commit(hash=AUTO_CONCURRENT_COMMIT_ID, spinner=False)
+            self.checkout(
+                self.commit_id,
+            )
         self._concurrent_original_branch = self.branch
         # self.checkout(self.commit_id)
         # assert not self.is_head_node
@@ -4338,8 +4340,6 @@ class Dataset:
         self._concurrent_mode = False
 
     def _concurrent_push(self):
-        n0 = len(self._images_id)
-        m0 = len(self.images)
         lock = Lock(self.base_storage, VERSION_CONTROL_INFO_LOCK_FILENAME)
         lock.acquire()
         try:
@@ -4348,7 +4348,11 @@ class Dataset:
             self.checkout(
                 self._concurrent_original_branch, _ignore_concurrent_mode_check=True
             )
-            self.merge(self._concurrent_branch, _ignore_concurrent_mode_check=True)
+            self.merge(
+                self._concurrent_branch,
+                _ignore_concurrent_mode_check=True,
+                spinner=False,
+            )
             # save_version_info(self.version_state, self.storage)
         finally:
             lock.release()
@@ -4358,7 +4362,9 @@ class Dataset:
         lock.acquire()
         try:
             self.merge(
-                self._concurrent_original_branch, _ignore_concurrent_mode_check=True
+                self._concurrent_original_branch,
+                _ignore_concurrent_mode_check=True,
+                spinner=False,
             )
         finally:
             lock.release()
