@@ -14,10 +14,14 @@ def dp_filter_python(x: dict, filter: Dict) -> bool:
     result = True
 
     for tensor in filter.keys():
-        metadata = x[tensor].data()["value"]
-        result = result and all(
-            k in metadata and v == metadata[k] for k, v in filter[tensor].items()
-        )
+        data = x[tensor].data()["value"]
+
+        if x[tensor].meta.htype == "json":
+            result = result and all(
+                k in data and v == data[k] for k, v in filter[tensor].items()
+            )
+        else:
+            result = result and data == filter[tensor]
 
     return result
 
@@ -29,6 +33,12 @@ def attribute_based_filtering_python(
         raise ValueError("specified dataset is empty")
     if filter is not None:
         if isinstance(filter, dict):
+            for tensor in filter.keys():
+                if tensor not in view.tensors:
+                    raise ValueError(
+                        f"Tensor '{tensor}' is not present in the Vector Store."
+                    )  # We keep this check outside of the partial function below in order to not run it on every iteration in the Deep Lake filter
+
             filter = partial(dp_filter_python, filter=filter)
 
         view = view.filter(filter)
@@ -44,9 +54,21 @@ def attribute_based_filtering_tql(
     if filter is not None:
         if isinstance(filter, dict):
             for tensor in filter.keys():
-                for key, value in filter[tensor].items():
-                    val_str = f"'{value}'" if type(value) == str else f"{value}"
-                    tql_filter += f"{tensor}['{key}'] == {val_str} and "
+                if tensor not in view.tensors:
+                    raise ValueError(
+                        f"Tensor '{tensor}' is not present in the Vector Store."
+                    )
+                if view[tensor].meta.htype == "json":
+                    for key, value in filter[tensor].items():
+                        val_str = f"'{value}'" if type(value) == str else f"{value}"
+                        tql_filter += f"{tensor}['{key}'] == {val_str} and "
+                else:
+                    val_str = (
+                        f"'{filter[tensor]}'"
+                        if type(filter[tensor]) == str
+                        else f"{filter[tensor]}"
+                    )
+                    tql_filter += f"{tensor} == {val_str} and "
             tql_filter = tql_filter[:-5]
 
     if debug_mode and logger is not None:
