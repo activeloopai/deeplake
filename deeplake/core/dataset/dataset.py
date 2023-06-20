@@ -209,8 +209,8 @@ class Dataset:
         )
         d["storage"] = storage
         d["_read_only_error"] = read_only is False
-        d["_read_only"] = DEFAULT_READONLY if read_only is None else read_only
         d["base_storage"] = get_base_storage(storage)
+        d["_read_only"] = d["base_storage"].read_only
         d["_locked_out"] = False  # User requested write access but was denied
         d["is_iteration"] = is_iteration
         d["is_first_load"] = version_state is None
