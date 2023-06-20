@@ -4344,6 +4344,7 @@ class Dataset:
 
             def __enter__(self):
                 self.ds.__enter__()
+                return self.ds
 
             def __exit__(self, exc_type, exc_val, exc_tb):
                 ds = self.ds
