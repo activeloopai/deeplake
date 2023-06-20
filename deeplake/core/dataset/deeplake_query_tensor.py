@@ -74,8 +74,6 @@ class DeepLakeQueryTensor(tensor.Tensor):
 
     def text(self, fetch_chunks: bool = False):
         """Return text data. Only applicable for tensors with 'text' base htype."""
-        if len(self.indra_tensor) == 1:
-            return self.indra_tensor.bytes().decode()
         return list(
             self.indra_tensor[i].bytes().decode() for i in range(len(self.indra_tensor))
         )
