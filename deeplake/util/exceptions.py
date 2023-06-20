@@ -1067,7 +1067,7 @@ class FailedIngestionError(Exception):
 class AzureCredentialsError(Exception):
     def __init__(self):
         super().__init__(
-            "Azure credentials were not found. To use Azure with Deep Lake, you can do one of the following:\n\n"
+            "Azure storage authentication failed. To use Azure with Deep Lake, you can do one of the following:\n\n"
             "1. Login to Azure using the Azure CLI command `az login`.\n"
             "2. Set environment variables like `AZURE_STORAGE_ACCOUNT` and `AZURE_STORAGE_KEY` or `AZURE_STORAGE_CONNECTION_STRING`."
             "   A full list of supported environment variables can be found here:\n"

@@ -83,12 +83,14 @@ class AzureProvider(StorageProvider):
             self.credential = DefaultAzureCredential()
 
     def _set_clients(self):
+        self.blob_service_client = BlobServiceClient(
+            self.account_url, credential=self.credential
+        )
         try:
-            self.blob_service_client = BlobServiceClient(
-                self.account_url, credential=self.credential
-            )
+            # validate credentials
+            self.blob_service_client.get_service_properties()
         except Exception as e:
-            if self.credential._successful_credential is None:
+            if isinstance(self.credential, DefaultAzureCredential):
                 raise AzureCredentialsError from e
             else:
                 raise e
