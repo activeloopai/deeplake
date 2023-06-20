@@ -126,6 +126,29 @@ def test_search_basic(local_path, hub_cloud_dev_token):
     )  # One for each return_tensors
     assert len(data_ce.keys()) == 3  # One for each return_tensors + score
 
+    # Use indra implementation to search the data
+    data_ce_f = vector_store_cloud.search(
+        embedding=query_embedding,
+        exec_option="compute_engine",
+        k=2,
+        return_tensors=["ids", "text"],
+        filter={
+            "metadata": vector_store_cloud.dataset.metadata[0].data()["value"],
+            "text": vector_store_cloud.dataset.text[0].data()["value"],
+        },
+    )
+    assert len(data_ce_f["text"]) == 1
+    assert (
+        sum(
+            [
+                tensor in data_ce_f.keys()
+                for tensor in vector_store_cloud.dataset.tensors
+            ]
+        )
+        == 2
+    )  # One for each return_tensors
+    assert len(data_ce_f.keys()) == 3  # One for each return_tensors + score
+
     # Run a full custom query
     test_text = vector_store_cloud.dataset.text[0].data()["value"]
     data_q = vector_store_cloud.search(
@@ -145,7 +168,7 @@ def test_search_basic(local_path, hub_cloud_dev_token):
         exec_option="python",
         k=2,
         return_tensors=["id", "text"],
-        filter={"metadata": {"abc": 1}},
+        filter={"metadata": metadatas[2], "text": texts[2]},
     )
     assert len(data_e_j["text"]) == 1
     assert (
