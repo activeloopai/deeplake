@@ -6,7 +6,7 @@ from datetime import datetime, timedelta, timezone
 
 from deeplake.core.storage.provider import StorageProvider
 from deeplake.client.client import DeepLakeBackendClient
-from deeplake.util.exceptions import PathNotEmptyException, AzureCredentialsError
+from deeplake.util.exceptions import PathNotEmptyException
 
 try:
     from azure.identity import DefaultAzureCredential
@@ -86,14 +86,6 @@ class AzureProvider(StorageProvider):
         self.blob_service_client = BlobServiceClient(
             self.account_url, credential=self.credential
         )
-        try:
-            # validate credentials
-            self.blob_service_client.get_service_properties()
-        except Exception as e:
-            if isinstance(self.credential, DefaultAzureCredential):
-                raise AzureCredentialsError from e
-            else:
-                raise e
         self.container_client = self.blob_service_client.get_container_client(
             self.container_name
         )
