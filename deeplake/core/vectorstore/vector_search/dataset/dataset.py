@@ -339,6 +339,7 @@ def extend_or_ingest_dataset(
             ):
                 embedded_data = func(data)
                 embedded_data = np.array(embedded_data, dtype=np.float32)
+                assert len(embedded_data) != 0, "embedding function returned empty list"
                 processed_tensors[tensor] = embedded_data
 
         dataset.extend(processed_tensors)
