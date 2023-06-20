@@ -1062,3 +1062,15 @@ class AllSamplesSkippedError(Exception):
 
 class FailedIngestionError(Exception):
     pass
+
+
+class AzureCredentialsError(Exception):
+    def __init__(self):
+        super().__init__(
+            "Azure credentials were not found. To use Azure with Deep Lake, you can do one of the following:\n\n"
+            "1. Login to Azure using the Azure CLI command `az login`.\n"
+            "2. Set environment variables like `AZURE_STORAGE_ACCOUNT` and `AZURE_STORAGE_KEY` or `AZURE_STORAGE_CONNECTION_STRING`."
+            "   A full list of supported environment variables can be found here:\n"
+            "       https://learn.microsoft.com/en-us/azure/storage/blobs/authorize-data-operations-cli#set-environment-variables-for-authorization-parameters\n"
+            "3. Create a dictionary with keys `account_key` or `sas_token` with the corresponding values and pass it to the `creds` parameter (if applicable).\n"
+        )

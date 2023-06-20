@@ -186,6 +186,7 @@ def test_dataset_view_save(optimize):
         "local_ds_generator",
         "s3_ds_generator",
         # "gcs_ds_generator",
+        "azure_ds_generator",
         "hub_cloud_ds_generator",
     ],
     indirect=True,

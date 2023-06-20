@@ -5,7 +5,7 @@ from datetime import datetime, timedelta, timezone
 
 from deeplake.core.storage.provider import StorageProvider
 from deeplake.client.client import DeepLakeBackendClient
-from deeplake.util.exceptions import PathNotEmptyException
+from deeplake.util.exceptions import PathNotEmptyException, AzureCredentialsError
 
 try:
     from azure.identity import DefaultAzureCredential
@@ -15,7 +15,6 @@ try:
         ContainerSasPermissions,
         generate_blob_sas,
         generate_container_sas,
-        generate_account_sas,
     )
     from azure.core.credentials import AzureNamedKeyCredential, AzureSasCredential
 
@@ -77,7 +76,10 @@ class AzureProvider(StorageProvider):
             self.credential = AzureSasCredential(self.sas_token)
 
         if self.credential is None:
-            self.credential = DefaultAzureCredential()
+            credential = DefaultAzureCredential()
+            if credential._successful_credential is None:
+                raise AzureCredentialsError
+            self.credential = credential
 
     def _set_clients(self):
         self.blob_service_client = BlobServiceClient(
