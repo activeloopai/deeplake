@@ -1,5 +1,6 @@
 import posixpath
 import time
+import logging
 from typing import Dict, Optional, Tuple
 from datetime import datetime, timedelta, timezone
 
@@ -17,6 +18,9 @@ try:
         generate_container_sas,
     )
     from azure.core.credentials import AzureNamedKeyCredential, AzureSasCredential
+
+    logger = logging.getLogger("azure.identity")
+    logger.setLevel(logging.ERROR)
 
     _AZURE_PACKAGES_INSTALLED = True
 except ImportError:
@@ -76,15 +80,18 @@ class AzureProvider(StorageProvider):
             self.credential = AzureSasCredential(self.sas_token)
 
         if self.credential is None:
-            credential = DefaultAzureCredential()
-            if credential._successful_credential is None:
-                raise AzureCredentialsError
-            self.credential = credential
+            self.credential = DefaultAzureCredential()
 
     def _set_clients(self):
-        self.blob_service_client = BlobServiceClient(
-            self.account_url, credential=self.credential
-        )
+        try:
+            self.blob_service_client = BlobServiceClient(
+                self.account_url, credential=self.credential
+            )
+        except Exception as e:
+            if self.credential._successful_credential is None:
+                raise AzureCredentialsError from e
+            else:
+                raise e
         self.container_client = self.blob_service_client.get_container_client(
             self.container_name
         )
