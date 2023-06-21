@@ -17,8 +17,8 @@ class DataIngestion:
         self,
         elements: List[Dict[str, Any]],
         dataset: DeepLakeDataset,
-        embedding_function: Optional[Callable],
-        embedding_tensor: Optional[str],
+        embedding_function: Optional[List[Callable]],
+        embedding_tensor: Optional[List[str]],
         ingestion_batch_size: int,
         num_workers: int,
         retry_attempt: int,
@@ -157,8 +157,9 @@ def ingest(
     embeds: List[Optional[np.ndarray]] = [None] * len(sample_in)
     if embedding_function:
         try:
-            embedding_data = [s[embedding_tensor] for s in sample_in]
-            embeddings = embedding_function(embedding_data)
+            for func, tensor in zip(embedding_function, embedding_tensor):
+                embedding_data = [s[tensor] for s in sample_in]
+                embeddings = func(embedding_data)
         except Exception as e:
             raise Exception(
                 "Could not use embedding function. Please try again with a different embedding function."
@@ -169,6 +170,7 @@ def ingest(
         sample_in_i = {tensor_name: s[tensor_name] for tensor_name in s}
 
         if embedding_function:
-            sample_in_i[embedding_tensor] = np.array(emb, dtype=np.float32)
+            for tensor in embedding_tensor:
+                sample_in_i[tensor] = np.array(emb, dtype=np.float32)
 
         sample_out.append(sample_in_i)

@@ -2,6 +2,7 @@ import uuid
 from typing import List, Dict, Any
 
 import numpy as np
+from math import ceil
 
 try:
     from indra import api  # type: ignore
@@ -19,8 +20,8 @@ from deeplake.constants import (
     DEFAULT_VECTORSTORE_DEEPLAKE_PATH,
     VECTORSTORE_EXTEND_MAX_SIZE,
     DEFAULT_VECTORSTORE_TENSORS,
+    VECTORSTORE_EXTEND_MAX_SIZE_BY_HTYPE,
 )
-from deeplake.util.warnings import always_warn
 
 
 def create_or_load_dataset(
@@ -234,16 +235,27 @@ def get_embedding(embedding, embedding_data, embedding_function=None):
 def preprocess_tensors(
     embedding_data=None, embedding_tensor=None, dataset=None, **tensors
 ):
-    first_item = next(iter(tensors))
-    ids_tensor = "ids" if "ids" in tensors else "id"
-    if ids_tensor not in tensors or ids_tensor is None:
-        id = [str(uuid.uuid1()) for _ in tensors[first_item]]
+    # generate id list equal to the length of the tensors
+    # dont use None tensors to get length of tensor
+    _tensors = {k: v for k, v in tensors.items() if v is not None}
+    try:
+        num_items = len(next(iter(_tensors.values())))
+    except StopIteration:
+        if embedding_data:
+            num_items = len(embedding_data[0])
+        else:
+            num_items = 0
+    ids_tensor = "ids" if "ids" in _tensors else "id"
+    if ids_tensor not in _tensors or ids_tensor is None:
+        id = [str(uuid.uuid1()) for _ in range(num_items)]
         tensors[ids_tensor] = id
 
     processed_tensors = {ids_tensor: tensors[ids_tensor]}
 
     for tensor_name, tensor_data in tensors.items():
-        if not isinstance(tensor_data, list):
+        if tensor_data is None:
+            tensor_data = [None] * len(tensors[ids_tensor])
+        elif not isinstance(tensor_data, list):
             tensor_data = list(tensor_data)
         if dataset and dataset[tensor_name].htype == "image":
             tensor_data = [
@@ -253,7 +265,8 @@ def preprocess_tensors(
         processed_tensors[tensor_name] = tensor_data
 
     if embedding_data:
-        processed_tensors[embedding_tensor] = embedding_data
+        for k, v in zip(embedding_tensor, embedding_data):
+            processed_tensors[k] = v
 
     return processed_tensors, tensors[ids_tensor]
 
@@ -316,15 +329,36 @@ def extend_or_ingest_dataset(
     logger,
 ):
     first_item = next(iter(processed_tensors))
-    if len(processed_tensors[first_item]) <= VECTORSTORE_EXTEND_MAX_SIZE:
+
+    htypes = [
+        dataset[item].meta.htype for item in dataset.tensors
+    ]  # Inspect raw htype (not parsed htype like tensor.htype) in order to avoid parsing links and sequences separately.
+    threshold_by_htype = [
+        VECTORSTORE_EXTEND_MAX_SIZE_BY_HTYPE.get(h, int(1e10)) for h in htypes
+    ]
+    extend_threshold = min(threshold_by_htype + [VECTORSTORE_EXTEND_MAX_SIZE])
+
+    if len(processed_tensors[first_item]) <= extend_threshold:
         if embedding_function:
-            embedded_data = embedding_function(embedding_data)
-            embedded_data = np.array(embedded_data, dtype=np.float32)
-            processed_tensors[embedding_tensor] = embedded_data
+            for func, data, tensor in zip(
+                embedding_function, embedding_data, embedding_tensor
+            ):
+                embedded_data = func(data)
+                embedded_data = np.array(embedded_data, dtype=np.float32)
+                processed_tensors[tensor] = embedded_data
 
         dataset.extend(processed_tensors)
     else:
         elements = dataset_utils.create_elements(processed_tensors)
+
+        num_workers_auto = ceil(len(elements) / ingestion_batch_size)
+        if num_workers_auto < num_workers:
+            logger.warning(
+                f"Number of workers is {num_workers}, but {len(elements)} rows of data are being added and the ingestion_batch_size is {ingestion_batch_size}. "
+                f"Setting the number of workers to {num_workers_auto} instead, in order reduce overhead from excessive workers that will not accelerate ingestion."
+                f"If you want to parallelizing using more workers, please reduce ``ingestion_batch_size``."
+            )
+            num_workers = min(num_workers_auto, num_workers)
 
         ingest_data.run_data_ingestion(
             elements=elements,

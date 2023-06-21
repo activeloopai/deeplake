@@ -1,5 +1,6 @@
 import posixpath
 import time
+import logging
 from typing import Dict, Optional, Tuple
 from datetime import datetime, timedelta, timezone
 
@@ -15,9 +16,11 @@ try:
         ContainerSasPermissions,
         generate_blob_sas,
         generate_container_sas,
-        generate_account_sas,
     )
     from azure.core.credentials import AzureNamedKeyCredential, AzureSasCredential
+
+    logger = logging.getLogger("azure.identity")
+    logger.setLevel(logging.ERROR)
 
     _AZURE_PACKAGES_INSTALLED = True
 except ImportError:
@@ -227,7 +230,9 @@ class AzureProvider(StorageProvider):
         self.repository = repository
 
     def subdir(self, path: str, read_only: bool = False):
-        sd = self.__class__(root=posixpath.join(self.root, path))
+        sd = self.__class__(
+            root=posixpath.join(self.root, path), creds=self.creds, token=self.token
+        )
         if self.expiration:
             sd._set_hub_creds_info(
                 self.hub_path, self.expiration, self.db_engine, self.repository

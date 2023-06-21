@@ -11,4 +11,5 @@ from deeplake.core.vectorstore.vector_search.python.search_algorithm import (
 from deeplake.core.vectorstore.vector_search.indra.search_algorithm import (
     search as indra_search_algorithm,
 )
+from deeplake.core.vectorstore.deeplake_vectorstore import VectorStore
 from deeplake.core.vectorstore.deeplake_vectorstore import DeepLakeVectorStore

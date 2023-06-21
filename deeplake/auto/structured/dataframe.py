@@ -12,6 +12,8 @@ from deeplake.core.sample import Sample
 from deeplake.core.linked_sample import LinkedSample
 import pathlib
 
+import pandas as pd  # type: ignore
+
 
 from deeplake.client.log import logger
 
@@ -53,6 +55,12 @@ class DataFrame(StructuredDataset):
 
     def _get_most_frequent_image_extension(self, fn_iterator):
         # TODO: Make this generic and work for any htype that requires compression
+
+        if len(fn_iterator) == 0:
+            raise IngestionError(
+                f"Cannot determine the most frequent image compression because no valid image files were provided."
+            )
+
         supported_image_extensions = tuple(
             "." + fmt for fmt in HTYPE_SUPPORTED_COMPRESSIONS["image"] + ["jpg"]
         )
@@ -75,18 +83,23 @@ class DataFrame(StructuredDataset):
         tensor_params: Dict = self.column_params[key]
 
         dtype = self.source[key].dtype
+
         if (
             "htype" not in tensor_params
         ):  # Auto-set some typing parameters if htype is not specified
             if dtype == np.dtype("object"):
-                types = [type(v) for v in self.source[key][0:inspect_limit].values]
+                types = [
+                    type(v)
+                    for v in self.source[key][0:inspect_limit].values
+                    if v is not None
+                ]  # Can be length 0 if all data is None
 
-                if len(set(types)) != 1:
+                if len(set(types)) > 1:
                     raise IngestionError(
                         f"Dataframe has different data types inside '{key}' column. Please make sure all data is given column is compatible with a single Deep Lake htype, or try specifying the htype manually."
                     )
 
-                if types[0] == str:
+                if len(types) > 0 and types[0] == str:
                     tensor_params.update(
                         htype="text"
                     )  # Use "text" htype for text data when the htype is not specified tensor_params
@@ -94,7 +107,7 @@ class DataFrame(StructuredDataset):
                 tensor_params.update(
                     dtype=dtype,
                     create_shape_tensor=tensor_params.get("create_shape_tensor", False),
-                )  # htype will be auto-inferred for numeric data unless the htype is specified in tensor_params
+                )
 
         # TODO: Make this more robust so it works for all htypes where sample_compression is required and should be inferred from the data itself
         if (
@@ -104,7 +117,7 @@ class DataFrame(StructuredDataset):
         ):
             tensor_params.update(
                 sample_compression=self._get_most_frequent_image_extension(
-                    self.source[key].values
+                    self.source[key][self.source[key].notnull()].values
                 )
             )
 
@@ -113,20 +126,23 @@ class DataFrame(StructuredDataset):
     def _get_extend_values(self, tensor_params: dict, key: str):  # type: ignore
         """Method creates a list of values to be extended to the tensor, based on the tensor parameters and the data in the dataframe column"""
 
+        column_data = self.source[key]
+        column_data = column_data.where(pd.notnull(column_data), None).values.tolist()
+
         extend_values: List[Optional[Union[Sample, LinkedSample, np.ndarray]]]
 
         if "htype" in tensor_params and "link[" in tensor_params["htype"]:
             extend_values = [
                 link(value, creds_key=self.creds_key) if value is not None else None
-                for value in self.source[key].values
+                for value in column_data
             ]
         elif "htype" in tensor_params and "image" in tensor_params["htype"]:
             extend_values = [
                 read(value, creds=self.creds) if value is not None else None
-                for value in self.source[key].values
+                for value in column_data
             ]
         else:
-            extend_values = self.source[key].values
+            extend_values = column_data
 
         return extend_values
 
@@ -160,4 +176,5 @@ class DataFrame(StructuredDataset):
                     self._get_extend_values(tensor_params, key),
                     progressbar=progressbar,
                 )
+
         return ds

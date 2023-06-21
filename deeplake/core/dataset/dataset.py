@@ -209,8 +209,8 @@ class Dataset:
         )
         d["storage"] = storage
         d["_read_only_error"] = read_only is False
-        d["_read_only"] = DEFAULT_READONLY if read_only is None else read_only
         d["base_storage"] = get_base_storage(storage)
+        d["_read_only"] = d["base_storage"].read_only
         d["_locked_out"] = False  # User requested write access but was denied
         d["is_iteration"] = is_iteration
         d["is_first_load"] = version_state is None
@@ -2402,10 +2402,27 @@ class Dataset:
         self._unlock()
         self.storage.clear()
 
-    def summary(self):
-        """Prints a summary of the dataset."""
+    def summary(self, force: bool = False):
+        """Prints a summary of the dataset.
+
+        Args:
+            force (bool): Dataset views with more than 10000 samples might take a long time to summarize. If `force=True`,
+                the summary will be printed regardless. An error will be raised otherwise.
+
+        Raises:
+            ValueError: If the dataset view might take a long time to summarize and `force=False`
+        """
 
         deeplake_reporter.feature_report(feature_name="summary", parameters={})
+
+        if (
+            not self.index.is_trivial()
+            and self.max_len >= deeplake.constants.VIEW_SUMMARY_SAFE_LIMIT
+            and not force
+        ):
+            raise ValueError(
+                "Dataset views with more than 10000 samples might take a long time to summarize. Use `force=True` to override."
+            )
 
         pretty_print = summary_dataset(self)
 
