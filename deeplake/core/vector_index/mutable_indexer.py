@@ -7,26 +7,18 @@ from typing import List
 
 
 class MutableIndexer(Indexer):
-    @property
-    def indexer(self) -> Indexer:
-        return self
-
     @abstractmethod
-    def save(self) -> bytes:
+    def add_sample(self, vector: np.ndarray, sample_index: int):
         pass
 
     @abstractmethod
-    def add_sample(self, vector: np.ndarray):
+    def remove_sample(self, sample_index: int):
         pass
 
     @abstractmethod
-    def remove_sample(self, index: int):
+    def add_samples(self, vectors: List[np.ndarray], sample_indices: List[int]):
         pass
 
     @abstractmethod
-    def add_samples(self, vectors: List[np.ndarray]):
-        pass
-
-    @abstractmethod
-    def remove_samples(self, indices: List[int]):
+    def remove_samples(self, sample_indices: List[int]):
         pass

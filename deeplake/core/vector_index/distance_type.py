@@ -2,7 +2,7 @@ from enum import Enum
 
 
 class DistanceType(Enum):
-    L1_NORM = "L1_NORM"
-    L2_NORM = "L2_NORM"
-    LINF_NORM = "LINF_NORM"
-    COSINE_SIMILARITY = "COSINE_SIMILARITY"
+    L1_NORM = "l1_norm"
+    L2_NORM = "l2_norm"
+    LINF_NORM = "linf_norm"
+    COSINE_SIMILARITY = "cosine_similarity"

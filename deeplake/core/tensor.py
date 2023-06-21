@@ -66,6 +66,9 @@ from deeplake.util.object_3d.mesh import (
 import warnings
 import webbrowser
 
+from deeplake.core.vector_index.distance_type import DistanceType
+from deeplake.core.vector_index.indexer import Indexer
+
 
 def create_tensor(
     key: str,
@@ -1365,3 +1368,28 @@ class Tensor:
     def invalidate_libdeeplake_dataset(self):
         """Invalidates the libdeeplake dataset object."""
         self.dataset.libdeeplake_dataset = None
+
+
+    def create_indexer(self, name: str, distance: DistanceType = DistanceType.L2_NORM) -> Indexer:
+        if not self.dataset.libdeeplake_dataset is None:
+            ds = self.dataset.libdeeplake_dataset
+        else:
+            from deeplake.enterprise.convert_to_libdeeplake import dataset_to_libdeeplake
+            ds = dataset_to_libdeeplake(self.dataset)
+        ts = getattr(ds, self.meta.name)
+        from indra import api
+        index = api.vdb.generate_index(ts, index_type="hnsw", distance_type=distance)
+        b = index.serialize()
+        return index
+
+
+    def delete_indexer(self, name: str):
+        pass
+
+
+    def load_indexer(self, name: str) -> Indexer:
+        pass
+
+
+    def get_indexers(self) -> List[str]:
+        pass
