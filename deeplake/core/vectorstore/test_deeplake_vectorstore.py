@@ -44,6 +44,11 @@ def embedding_fn4(text, embedding_dim=EMBEDDING_DIM):
     return np.zeros((1, EMBEDDING_DIM))  # pragma: no cover
 
 
+def embedding_fn5(text, embedding_dim=EMBEDDING_DIM):
+    """Returns embedding in List[np.ndarray] format"""
+    return [np.zeros(i) for i in range(len(text))]
+
+
 def test_custom_tensors(local_path):
     # initialize vector store object:
     vector_store = DeepLakeVectorStore(
@@ -73,6 +78,31 @@ def test_custom_tensors(local_path):
     assert len(data.keys()) == 3
     assert "texts_custom" in data.keys() and "id" in data.keys()
 
+    vector_store = DeepLakeVectorStore(
+        path=local_path,
+        overwrite=True,
+        tensor_params=[
+            {"name": "texts_custom", "htype": "text"},
+            {"name": "emb_custom", "htype": "embedding"},
+        ],
+        embedding_function=embedding_fn5,
+    )
+
+    with pytest.raises(ValueError):
+        vector_store.add(
+            embedding_data=texts,
+            embedding_tensor="embedding",
+            text=texts,
+        )
+
+    texts_extended = texts * 2500
+    with pytest.raises(ValueError):
+        vector_store.add(
+            embedding_data=texts_extended,
+            embedding_tensor="embedding",
+            text=texts_extended,
+        )
+
 
 @requires_libdeeplake
 def test_search_basic(local_path, hub_cloud_dev_token):
@@ -86,7 +116,12 @@ def test_search_basic(local_path, hub_cloud_dev_token):
     vector_store.add(embedding=embeddings, text=texts, metadata=metadatas)
 
     with pytest.raises(ValueError):
-        vector_store.add(embedding_function=embedding_fn2, embedding_data=texts, text=texts, metadata=metadatas)
+        vector_store.add(
+            embedding_function=embedding_fn2,
+            embedding_data=texts,
+            text=texts,
+            metadata=metadatas,
+        )
     # Check that default option works
     data_default = vector_store.search(
         embedding=query_embedding,
@@ -135,7 +170,7 @@ def test_search_basic(local_path, hub_cloud_dev_token):
             k=2,
             return_tensors=["ids", "text"],
         )
-    
+
     # Run a full custom query
     test_text = vector_store_cloud.dataset.text[0].data()["value"]
     data_q = vector_store_cloud.search(

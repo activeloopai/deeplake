@@ -22,6 +22,7 @@ from deeplake.constants import (
     DEFAULT_VECTORSTORE_TENSORS,
     VECTORSTORE_EXTEND_MAX_SIZE_BY_HTYPE,
 )
+from deeplake.util.exceptions import IncorrectEmbeddingShapeError
 
 
 def create_or_load_dataset(
@@ -338,10 +339,14 @@ def extend_or_ingest_dataset(
                 embedding_function, embedding_data, embedding_tensor
             ):
                 embedded_data = func(data)
-                embedded_data = np.array(embedded_data, dtype=np.float32)
+                try:
+                    embedded_data = np.array(embedded_data, dtype=np.float32)
+                except ValueError:
+                    raise IncorrectEmbeddingShapeError()
+
                 if len(embedded_data) == 0:
                     raise ValueError("embedding function returned empty list")
-                
+
                 processed_tensors[tensor] = embedded_data
 
         dataset.extend(processed_tensors)
