@@ -2914,6 +2914,21 @@ class Dataset:
                                 "Error while attempting to rollback appends"
                             ) from e2
                     raise e
+    
+    @invalid_view_op
+    def update(self, sample: Dict[str, Any]):
+        if self.index.values[0].subscriptable() or len(self.index.values) > 1:
+            raise IndexError("Update can only be used on a single sample.")
+        with self:
+            saved = {}
+            try:
+                for k, v in sample.items():
+                    saved[k] = self[k].chunk_engine.get_single_sample(self.index.values[0])
+                    self[k] = v
+            except Exception as e:
+                for k, v in saved.items():
+                    self[k] = v
+                raise e
 
     def _view_hash(self) -> str:
         """Generates a unique hash for a filtered dataset view."""
