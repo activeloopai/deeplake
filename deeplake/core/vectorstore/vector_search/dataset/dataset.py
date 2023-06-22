@@ -237,7 +237,7 @@ def preprocess_tensors(
 ):
     # generate id list equal to the length of the tensors
     # dont use None tensors to get length of tensor
-    not_non_tensors, num_items = get_not_none_tensors(tensors, embedding_data)
+    not_none_tensors, num_items = get_not_none_tensors(tensors, embedding_data)
     ids_tensor = get_id_tensor(dataset)
     tensors = populate_id_tensor_if_needed(
         ids_tensor, tensors, not_non_tensors, num_items
