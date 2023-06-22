@@ -287,7 +287,7 @@ def get_not_none_tensors(tensors, embedding_data):
     return not_none_tensors, num_items
 
 
-def populate_id_tensor_if_needed(ids_tensor, tensors, not_non_tensors, num_items):
+def populate_id_tensor_if_needed(ids_tensor, tensors, not_none_tensors, num_items):
     if "id" not in not_non_tensors and "ids" not in not_non_tensors:
         id = [str(uuid.uuid1()) for _ in range(num_items)]
         tensors[ids_tensor] = id
