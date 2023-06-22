@@ -100,8 +100,7 @@ def test_create(caplog, hub_cloud_dev_token):
         )
 
 
-def test_load(caplog):
-    hub_cloud_dev_token = "eyJhbGciOiJIUzUxMiIsImlhdCI6MTY4NjU1OTQ2MiwiZXhwIjoxNzE4MTgxODM5fQ.eyJpZCI6InRlc3RpbmdhY2MyIn0.hxCTsrQutpyRFq_x4a8qlsPjq1FPCWUBUFDCokhwmGpCSCiooHP6kWd-6_Rwpk1-SZ9Hb0hcXJPc3nJ_4q_SXQ"
+def test_load(caplog, hub_cloud_dev_token):
     # dataset loading
     dataset = dataset_utils.create_or_load_dataset(
         tensor_params=DEFAULT_VECTORSTORE_TENSORS,
