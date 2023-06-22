@@ -240,7 +240,7 @@ def preprocess_tensors(
     not_none_tensors, num_items = get_not_none_tensors(tensors, embedding_data)
     ids_tensor = get_id_tensor(dataset)
     tensors = populate_id_tensor_if_needed(
-        ids_tensor, tensors, not_non_tensors, num_items
+        ids_tensor, tensors, not_none_tensors, num_items
     )
 
     processed_tensors = {ids_tensor: tensors[ids_tensor]}
@@ -288,15 +288,15 @@ def get_not_none_tensors(tensors, embedding_data):
 
 
 def populate_id_tensor_if_needed(ids_tensor, tensors, not_none_tensors, num_items):
-    if "id" not in not_non_tensors and "ids" not in not_non_tensors:
+    if "id" not in not_none_tensors and "ids" not in not_none_tensors:
         id = [str(uuid.uuid1()) for _ in range(num_items)]
         tensors[ids_tensor] = id
     else:
-        for tensor in not_non_tensors:
+        for tensor in not_none_tensors:
             if tensor in ("id", "ids"):
                 break
 
-        tensors[ids_tensor] = not_non_tensors[tensor]
+        tensors[ids_tensor] = not_none_tensors[tensor]
     return tensors
 
 
