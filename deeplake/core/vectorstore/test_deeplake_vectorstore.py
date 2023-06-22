@@ -44,6 +44,40 @@ def embedding_fn4(text, embedding_dim=EMBEDDING_DIM):
     return np.zeros((1, EMBEDDING_DIM))  # pragma: no cover
 
 
+def test_id_backward_compatibility(local_path):
+    num_of_items = 10
+    embedding_dim = 100
+
+    ids = [f"{i}" for i in range(num_of_items)]
+    embedding = [np.zeros(embedding_dim) for i in range(num_of_items)]
+    text = ["aadfv" for i in range(num_of_items)]
+    metadata = [{"key": i} for i in range(num_of_items)]
+
+    ds = deeplake.empty(local_path, overwrite=True)
+    ds.create_tensor("ids", htype="text")
+    ds.create_tensor("embedding", htype="embedding")
+    ds.create_tensor("text", htype="text")
+    ds.create_tensor("metadata", htype="json")
+
+    ds.extend(
+        {
+            "ids": ids,
+            "embedding": embedding,
+            "text": text,
+            "metadata": metadata,
+        }
+    )
+
+    vectorstore = VectorStore(path=local_path)
+    vectorstore.add(
+        text=text,
+        embedding=embedding,
+        metadata=metadata,
+    )
+
+    assert len(vectorstore) == 20
+
+
 def test_custom_tensors(local_path):
     # initialize vector store object:
     vector_store = DeepLakeVectorStore(
