@@ -237,10 +237,10 @@ def preprocess_tensors(
 ):
     # generate id list equal to the length of the tensors
     # dont use None tensors to get length of tensor
-    not_non_tensors, num_items = get_not_none_tensors(tensors, embedding_data)
+    not_none_tensors, num_items = get_not_none_tensors(tensors, embedding_data)
     ids_tensor = get_id_tensor(dataset)
     tensors = populate_id_tensor_if_needed(
-        ids_tensor, tensors, not_non_tensors, num_items
+        ids_tensor, tensors, not_none_tensors, num_items
     )
 
     processed_tensors = {ids_tensor: tensors[ids_tensor]}
@@ -276,27 +276,27 @@ def convert_tensor_data_to_list(tensor_data, tensors, ids_tensor):
 
 
 def get_not_none_tensors(tensors, embedding_data):
-    not_non_tensors = {k: v for k, v in tensors.items() if v is not None}
+    not_none_tensors = {k: v for k, v in tensors.items() if v is not None}
     try:
-        num_items = len(next(iter(not_non_tensors.values())))
+        num_items = len(next(iter(not_none_tensors.values())))
     except StopIteration:
         if embedding_data:
             num_items = len(embedding_data[0])
         else:
             num_items = 0
-    return not_non_tensors, num_items
+    return not_none_tensors, num_items
 
 
-def populate_id_tensor_if_needed(ids_tensor, tensors, not_non_tensors, num_items):
-    if "id" not in not_non_tensors and "ids" not in not_non_tensors:
+def populate_id_tensor_if_needed(ids_tensor, tensors, not_none_tensors, num_items):
+    if "id" not in not_none_tensors and "ids" not in not_none_tensors:
         id = [str(uuid.uuid1()) for _ in range(num_items)]
         tensors[ids_tensor] = id
     else:
-        for tensor in not_non_tensors:
+        for tensor in not_none_tensors:
             if tensor in ("id", "ids"):
                 break
 
-        tensors[ids_tensor] = not_non_tensors[tensor]
+        tensors[ids_tensor] = not_none_tensors[tensor]
     return tensors
 
 
