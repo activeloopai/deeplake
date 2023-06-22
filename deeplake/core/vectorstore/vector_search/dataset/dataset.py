@@ -284,7 +284,7 @@ def get_not_none_tensors(tensors, embedding_data):
             num_items = len(embedding_data[0])
         else:
             num_items = 0
-    return not_non_tensors, num_items
+    return not_none_tensors, num_items
 
 
 def populate_id_tensor_if_needed(ids_tensor, tensors, not_non_tensors, num_items):
