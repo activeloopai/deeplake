@@ -278,7 +278,7 @@ def convert_tensor_data_to_list(tensor_data, tensors, ids_tensor):
 def get_not_none_tensors(tensors, embedding_data):
     not_none_tensors = {k: v for k, v in tensors.items() if v is not None}
     try:
-        num_items = len(next(iter(not_non_tensors.values())))
+        num_items = len(next(iter(not_none_tensors.values())))
     except StopIteration:
         if embedding_data:
             num_items = len(embedding_data[0])
