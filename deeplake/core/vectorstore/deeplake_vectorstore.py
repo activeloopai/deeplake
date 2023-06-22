@@ -40,6 +40,7 @@ class VectorStore:
         token: Optional[str] = None,
         overwrite: bool = False,
         verbose=True,
+        runtime={"tensor_db": False},
         **kwargs: Any,
     ) -> None:
         """Creates an empty VectorStore or loads an existing one if it exists at the specified ``path``.
@@ -109,6 +110,7 @@ class VectorStore:
                 "exec_option": exec_option,
                 "token": token,
                 "verbose": verbose,
+                "runtime": runtime,
             },
             token=token,
         )
@@ -126,6 +128,7 @@ class VectorStore:
             exec_option,
             embedding_function,
             overwrite,
+            runtime,
             **kwargs,
         )
         self.embedding_function = embedding_function

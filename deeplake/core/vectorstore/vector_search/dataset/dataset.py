@@ -34,6 +34,7 @@ def create_or_load_dataset(
     exec_option,
     embedding_function,
     overwrite,
+    runtime,
     **kwargs,
 ):
     utils.check_indra_installation(
@@ -52,6 +53,7 @@ def create_or_load_dataset(
             creds,
             logger,
             read_only,
+            runtime,
             **kwargs,
         )
 
@@ -63,6 +65,7 @@ def create_or_load_dataset(
         exec_option,
         embedding_function,
         overwrite,
+        runtime,
         **kwargs,
     )
 
@@ -80,6 +83,7 @@ def load_dataset(
     creds,
     logger,
     read_only,
+    runtime,
     **kwargs,
 ):
     if dataset_path == DEFAULT_VECTORSTORE_DEEPLAKE_PATH:
@@ -88,7 +92,6 @@ def load_dataset(
             " and it is not free. All addtionally added data will be added on"
             " top of already existing deeplake dataset."
         )
-
     dataset = deeplake.load(
         dataset_path,
         token=token,
@@ -97,7 +100,10 @@ def load_dataset(
         verbose=False,
         **kwargs,
     )
-
+    if runtime == {"tensor_db": True}:
+        logger.warning(
+            "Specifying `runtime` option during dataset laoding is not supported."
+        )
     check_tensors(dataset)
 
     logger.warning(
@@ -152,11 +158,13 @@ def create_dataset(
     exec_option,
     embedding_function,
     overwrite,
+    runtime,
     **kwargs,
 ):
-    runtime = None
-    if exec_option == "tensor_db":
-        runtime = {"tensor_db": True}
+    if exec_option == "tensor_db" and runtime == {"tensor_db": False}:
+        raise ValueError(
+            "When using `exec_option = 'tensor_db'` you must specify `runtime = {'tensor_db': True}`"
+        )
 
     dataset = deeplake.empty(
         dataset_path,
