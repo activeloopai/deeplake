@@ -37,6 +37,7 @@ def test_create(caplog, hub_cloud_dev_token):
         exec_option="compute_engine",
         overwrite=True,
         embedding_function=Embedding,
+        runtime={"tensor_db": False},
     )
     assert len(dataset) == 0
     assert set(dataset.tensors.keys()) == {
@@ -61,6 +62,7 @@ def test_create(caplog, hub_cloud_dev_token):
         logger=logger,
         read_only=False,
         exec_option="tensor_db",
+        runtime={"tensor_db": True},
         overwrite=True,
         embedding_function=Embedding,
     )
@@ -78,9 +80,28 @@ def test_create(caplog, hub_cloud_dev_token):
         "chunk_size": None,
         "max_retries": None,
     }
+    assert (
+        "s3://activeloopai-db-engine"
+        in dataset.storage.__dict__["next_storage"].__dict__["root"]
+    )
+
+    with pytest.raises(ValueError):
+        dataset = dataset_utils.create_or_load_dataset(
+            tensor_params=DEFAULT_VECTORSTORE_TENSORS,
+            dataset_path="hub://testingacc2/vectorstore_dbengine",
+            token=hub_cloud_dev_token,
+            creds={},
+            logger=logger,
+            read_only=False,
+            exec_option="tensor_db",
+            runtime={"tensor_db": False},
+            overwrite=True,
+            embedding_function=Embedding,
+        )
 
 
-def test_load(caplog, hub_cloud_dev_token):
+def test_load(caplog):
+    hub_cloud_dev_token = "eyJhbGciOiJIUzUxMiIsImlhdCI6MTY4NjU1OTQ2MiwiZXhwIjoxNzE4MTgxODM5fQ.eyJpZCI6InRlc3RpbmdhY2MyIn0.hxCTsrQutpyRFq_x4a8qlsPjq1FPCWUBUFDCokhwmGpCSCiooHP6kWd-6_Rwpk1-SZ9Hb0hcXJPc3nJ_4q_SXQ"
     # dataset loading
     dataset = dataset_utils.create_or_load_dataset(
         tensor_params=DEFAULT_VECTORSTORE_TENSORS,
@@ -92,6 +113,7 @@ def test_load(caplog, hub_cloud_dev_token):
         read_only=True,
         token=hub_cloud_dev_token,
         embedding_function=None,
+        runtime={"tensor_db": False},
     )
     assert dataset.max_len == 10
 
@@ -112,6 +134,7 @@ def test_load(caplog, hub_cloud_dev_token):
             exec_option="python",
             embedding_function=None,
             overwrite=False,
+            runtime={"tensor_db": False},
         )
         assert (
             f"The default deeplake path location is used: {DEFAULT_VECTORSTORE_DEEPLAKE_PATH}"
@@ -130,6 +153,7 @@ def test_load(caplog, hub_cloud_dev_token):
             exec_option="python",
             embedding_function=None,
             overwrite=False,
+            runtime={"tensor_db": False},
         )
 
     with pytest.raises(ValueError):

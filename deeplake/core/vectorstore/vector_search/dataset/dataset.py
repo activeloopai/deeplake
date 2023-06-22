@@ -100,16 +100,21 @@ def load_dataset(
         verbose=False,
         **kwargs,
     )
-    if runtime == {"tensor_db": True}:
-        logger.warning(
-            "Specifying `runtime` option during dataset laoding is not supported."
-        )
     check_tensors(dataset)
 
     logger.warning(
         f"Deep Lake Dataset in {dataset_path} already exists, "
         f"loading from the storage"
     )
+
+    if runtime == {"tensor_db": True}:
+        logger.warning(
+            "Specifying `runtime` option during dataset loading is not supported. "
+            "This parameter will be ignored. If you wanted to transfer the dataset "
+            "to managed database consider looking into the documentation: "
+            "(https://docs.activeloop.ai/enterprise-features/managed-database/migrating-datasets-to-the-tensor-database)."
+        )
+
     return dataset
 
 
