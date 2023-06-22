@@ -5,7 +5,11 @@ import numpy as np
 import deeplake
 from deeplake.core.dataset import Dataset as DeepLakeDataset
 from deeplake.core.vectorstore.vector_search import utils
-from deeplake.util.exceptions import TransformError, FailedIngestionError
+from deeplake.util.exceptions import (
+    TransformError,
+    FailedIngestionError,
+    IncorrectEmbeddingShapeError,
+)
 from deeplake.constants import (
     MAX_VECTORSTORE_INGESTION_RETRY_ATTEMPTS,
     MAX_CHECKPOINTING_INTERVAL,
@@ -107,6 +111,9 @@ class DataIngestion:
                 verbose=False,
             )
         except Exception as e:
+            if isinstance(e, IncorrectEmbeddingShapeError):
+                raise e
+
             self.retry_attempt += 1
             last_checkpoint = self.dataset.version_state["commit_node"].parent
             self.total_samples_processed += (
@@ -164,7 +171,14 @@ def ingest(
             raise Exception(
                 "Could not use embedding function. Please try again with a different embedding function."
             )
-        embeds = [np.array(e, dtype=np.float32) for e in embeddings]
+
+        shape = np.array(embeddings[0]).shape
+        embeds = []
+        for e in embeddings:
+            embedding = np.array(e, dtype=np.float32)
+            if shape != embedding.shape:
+                raise IncorrectEmbeddingShapeError()
+            embeds.append(embedding)
 
     for s, emb in zip(sample_in, embeds):
         sample_in_i = {tensor_name: s[tensor_name] for tensor_name in s}
