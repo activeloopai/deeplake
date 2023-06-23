@@ -1833,7 +1833,7 @@ class ChunkEngine:
         return chunk_id, row, worst_case_header_size
 
     def get_basic_sample(
-        self, global_sample_index, index, fetch_chunks=False, is_tile=False
+        self, global_sample_index, index, fetch_chunks=False, is_tile=False, decompress=True
     ):
         enc = self.chunk_id_encoder
         chunk_id, row, worst_case_header_size = self.get_chunk_info(
@@ -1843,20 +1843,22 @@ class ChunkEngine:
         chunk = self.get_chunk_from_chunk_id(
             chunk_id, partial_chunk_bytes=worst_case_header_size
         )
+        decompress = decompress or (isinstance(chunk, ChunkCompressedChunk) or len(index) > 1)
         ret = chunk.read_sample(
             local_sample_index,
             cast=self.tensor_meta.htype != "dicom",
             is_tile=is_tile,
+            decompress=decompress,
         )
         if len(index) > 1:
             ret = ret[tuple(entry.value for entry in index.values[1:])]
         return ret
 
-    def get_non_tiled_sample(self, global_sample_index, index, fetch_chunks=False):
+    def get_non_tiled_sample(self, global_sample_index, index, fetch_chunks=False, decompress=True):
         if self.is_video:
-            return self.get_video_sample(global_sample_index, index)
+            return self.get_video_sample(global_sample_index, index, decompress=decompress)
         return self.get_basic_sample(
-            global_sample_index, index, fetch_chunks=fetch_chunks
+            global_sample_index, index, fetch_chunks=fetch_chunks, decompress=decompress
         )
 
     def get_full_tiled_sample(self, global_sample_index, fetch_chunks=False):
@@ -1886,7 +1888,7 @@ class ChunkEngine:
         return sample
 
     def get_single_sample(
-        self, global_sample_index, index, fetch_chunks=False, pad_tensor=False
+        self, global_sample_index, index, fetch_chunks=False, pad_tensor=False, decompress=True,
     ):
         if pad_tensor and global_sample_index >= self.tensor_length:
             sample = self.get_empty_sample()
@@ -1897,11 +1899,11 @@ class ChunkEngine:
 
         if not self._is_tiled_sample(global_sample_index):
             sample = self.get_non_tiled_sample(
-                global_sample_index, index, fetch_chunks=fetch_chunks
+                global_sample_index, index, fetch_chunks=fetch_chunks, decompress=decompress,
             )
         elif len(index.values) == 1:
             sample = self.get_full_tiled_sample(
-                global_sample_index, fetch_chunks=fetch_chunks
+                global_sample_index, fetch_chunks=fetch_chunks,
             )
         else:
             sample = self.get_partial_tiled_sample(

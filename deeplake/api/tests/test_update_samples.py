@@ -424,3 +424,53 @@ def test_update_partial(memory_ds, htype, args):
     exp[1] *= 3
     arr = ds.x[0].numpy()
     np.testing.assert_array_equal(arr.reshape(-1), exp.reshape(-1))
+
+
+def verify_ds(ds, expected):
+    ...
+
+
+def test_ds_update_image(local_ds, cat_path, dog_path):
+    with local_ds as ds:
+        ds.create_tensor("images_sc", htype="image", sample_compression="png")
+        ds.create_tensor("images_cc", htype="image", chunk_compression="png")
+        ds.create_tensor("images", htype="image", sample_compression=None)
+    
+    cat = deeplake.read(cat_path)
+    dog = deeplake.read(dog_path)
+    samples = ([cat] + [dog] * 2) * 2
+
+    with ds:
+        ds.images_sc.extend(samples)
+        ds.images_cc.extend(samples)
+        ds.images.extend(samples)
+    
+    ds[1].update({"images_sc": cat, "images_cc": cat, "images": cat})
+    
+    with pytest.raises(SampleUpdateError):
+        ds[2].update({"images_sc": cat, "images_cc": cat, "images": deeplake.read("bad_sample")})
+
+    np.testing.assert_array_equal([ds[1].images_sc.numpy(), ds[1].images_cc.numpy(), ds[1].images.numpy()], [cat.array] * 3)
+    np.testing.assert_array_equal([ds[2].images_sc.numpy(), ds[2].images_cc.numpy(), ds[2].images.numpy()], [dog.array] * 3)
+
+    ds[:4].update({"images_sc": [cat] * 4, "images_cc": [cat] * 4, "images": [cat] * 4})
+
+    np.testing.assert_array_equal(ds[:4].images_sc.numpy(), [cat.array] * 4)
+    np.testing.assert_array_equal(ds[:4].images_cc.numpy(), [cat.array] * 4)
+    np.testing.assert_array_equal(ds[:4].images.numpy(), [cat.array] * 4)
+
+    with pytest.raises(SampleUpdateError):
+        ds[:6].update({"images_sc": [cat] * 6, "images_cc": [cat] * 6, "images": [cat] * 5 + [deeplake.read("bad_sample")]})
+    
+    np.testing.assert_array_equal(ds[:4].images_sc.numpy(), [cat.array] * 4)
+    np.testing.assert_array_equal(ds[:4].images_cc.numpy(), [cat.array] * 4)
+    np.testing.assert_array_equal(ds[:4].images.numpy(), [cat.array] * 4)
+    np.testing.assert_array_equal(ds[4:].images_sc.numpy(), [dog.array] * 2)
+    np.testing.assert_array_equal(ds[4:].images_cc.numpy(), [dog.array] * 2)
+    np.testing.assert_array_equal(ds[4:].images.numpy(), [dog.array] * 2)
+
+    ds[:6].update({"images_sc": [cat] * 6, "images_cc": [cat] * 6, "images": [cat] * 6})
+
+    np.testing.assert_array_equal(ds[:6].images_sc.numpy(), [cat.array] * 6)
+    np.testing.assert_array_equal(ds[:6].images_cc.numpy(), [cat.array] * 6)
+    np.testing.assert_array_equal(ds[:6].images.numpy(), [cat.array] * 6)

@@ -15,6 +15,7 @@ from tqdm import tqdm  # type: ignore
 import deeplake
 from deeplake.core.index.index import IndexEntry
 from deeplake.core.link_creds import LinkCreds
+from deeplake.core.sample import Sample
 from deeplake.util.connect_dataset import connect_dataset_entry
 from deeplake.util.downsample import validate_downsampling
 from deeplake.util.version_control import (
@@ -136,6 +137,7 @@ from deeplake.util.pretty_print import summary_dataset
 from deeplake.core.dataset.view_entry import ViewEntry
 from deeplake.core.dataset.invalid_view import InvalidView
 from deeplake.hooks import dataset_read
+from collections import defaultdict
 from itertools import chain
 import warnings
 import jwt
@@ -577,6 +579,11 @@ class Dataset:
         if hasattr(self, "_view_entry"):
             ret._view_entry = self._view_entry
         return ret
+
+    def __setitem__(self, item: str, value: Any):
+        if not isinstance(item, str):
+            raise TypeError("Datasets do not support item assignment")
+        self.no_view_dataset[item][self.index] = value
 
     @invalid_view_op
     def create_tensor(
@@ -2915,19 +2922,39 @@ class Dataset:
                             ) from e2
                     raise e
     
-    @invalid_view_op
     def update(self, sample: Dict[str, Any]):
-        if self.index.values[0].subscriptable() or len(self.index.values) > 1:
-            raise IndexError("Update can only be used on a single sample.")
+        if len(self.index) > 1:
+            raise ValueError("Cannot make partial updates to samples using `ds.update`. Use `ds.tensor.append` instead.")
+        idx = self.index.values[0].value
         with self:
-            saved = {}
+            saved = defaultdict(list)
             try:
                 for k, v in sample.items():
-                    saved[k] = self[k].chunk_engine.get_single_sample(self.index.values[0])
+                    tensor_meta = self[k].meta
+                    dtype = tensor_meta.dtype
+                    sample_compression = tensor_meta.sample_compression
+                    chunk_compression = tensor_meta.chunk_compression
+
+                    compression = sample_compression or chunk_compression
+                    decompress = chunk_compression is not None
+
+                    for idx in self.index.values[0].indices(self[k].num_samples):
+                        engine = self[k].chunk_engine
+                        old_sample = engine.get_single_sample(idx, self.index, decompress=decompress)
+                        shape = engine.read_shape_for_sample(idx)
+
+                        old_sample = engine._get_sample_object(old_sample, shape, compression, dtype, decompress)
+
+                        saved[k].append(old_sample)
                     self[k] = v
             except Exception as e:
                 for k, v in saved.items():
-                    self[k] = v
+                    if len(v) == 1:
+                        v = v[0]
+                    try:
+                        self[k] = v
+                    except Exception as e2:
+                        raise Exception(f"Error while attempting to rollback updates {v.shape} {v.dtype}") from e2
                 raise e
 
     def _view_hash(self) -> str:
