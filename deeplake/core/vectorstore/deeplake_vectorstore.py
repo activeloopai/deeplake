@@ -40,7 +40,7 @@ class VectorStore:
         token: Optional[str] = None,
         overwrite: bool = False,
         verbose=True,
-        runtime={"tensor_db": False},
+        runtime=None,
         **kwargs: Any,
     ) -> None:
         """Creates an empty VectorStore or loads an existing one if it exists at the specified ``path``.
@@ -114,6 +114,9 @@ class VectorStore:
             },
             token=token,
         )
+
+        if runtime is None:
+            runtime = {"tensor_db": False}
 
         self.ingestion_batch_size = ingestion_batch_size
         self.num_workers = num_workers

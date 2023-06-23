@@ -168,7 +168,7 @@ def create_dataset(
 ):
     if exec_option == "tensor_db" and runtime == {"tensor_db": False}:
         raise ValueError(
-            "When using `exec_option = 'tensor_db'` you must specify `runtime = {'tensor_db': True}`"
+            "When using `exec_option = 'tensor_db'` you must specify `runtime = {'tensor_db': True}` when creating a new Vector Store."
         )
 
     dataset = deeplake.empty(

@@ -37,7 +37,7 @@ def test_create(caplog, hub_cloud_dev_token):
         exec_option="compute_engine",
         overwrite=True,
         embedding_function=Embedding,
-        runtime={"tensor_db": False},
+        runtime=None,
     )
     assert len(dataset) == 0
     assert set(dataset.tensors.keys()) == {
@@ -94,7 +94,7 @@ def test_create(caplog, hub_cloud_dev_token):
             logger=logger,
             read_only=False,
             exec_option="tensor_db",
-            runtime={"tensor_db": False},
+            runtime=None,
             overwrite=True,
             embedding_function=Embedding,
         )
@@ -112,7 +112,7 @@ def test_load(caplog, hub_cloud_dev_token):
         read_only=True,
         token=hub_cloud_dev_token,
         embedding_function=None,
-        runtime={"tensor_db": False},
+        runtime=None,
     )
     assert dataset.max_len == 10
 
@@ -133,7 +133,7 @@ def test_load(caplog, hub_cloud_dev_token):
             exec_option="python",
             embedding_function=None,
             overwrite=False,
-            runtime={"tensor_db": False},
+            runtime=None,
         )
         assert (
             f"The default deeplake path location is used: {DEFAULT_VECTORSTORE_DEEPLAKE_PATH}"
@@ -152,7 +152,7 @@ def test_load(caplog, hub_cloud_dev_token):
             exec_option="python",
             embedding_function=None,
             overwrite=False,
-            runtime={"tensor_db": False},
+            runtime=None,
         )
 
     with pytest.raises(ValueError):
@@ -269,20 +269,13 @@ def test_embeding_data():
     assert embedding.shape == (1, 1538)
 
 
-def test_preprocess_tensors(local_path):
-    dataset = deeplake.empty(local_path, overwrite=True)
-
-    dataset.create_tensor("ids", htype="text")
-    dataset.create_tensor("metadata", htype="json")
-    dataset.create_tensor("embedding", htype="embedding")
-    dataset.create_tensor("text", htype="text")
-
+def test_preprocess_tensors():
     texts = ["a", "b", "c", "d"]
     processed_tensors, ids = dataset_utils.preprocess_tensors(
-        text=texts, dataset=dataset
+        text=texts,
     )
 
-    assert len(processed_tensors["ids"]) == 4
+    assert len(processed_tensors["id"]) == 4
     assert processed_tensors["text"] == texts
 
     texts = ("a", "b", "c", "d")
@@ -294,22 +287,14 @@ def test_preprocess_tensors(local_path):
         text=texts,
         metadata=metadatas,
         embedding=embeddings,
-        dataset=dataset,
     )
-    assert np.array_equal(processed_tensors["ids"], ids)
+    assert np.array_equal(processed_tensors["id"], ids)
     assert processed_tensors["text"] == list(texts)
     assert processed_tensors["metadata"] == metadatas
     assert processed_tensors["embedding"] == embeddings
 
 
-def test_create_elements(local_path):
-    dataset = deeplake.empty(local_path, overwrite=True)
-
-    dataset.create_tensor("ids", htype="text")
-    dataset.create_tensor("metadata", htype="json")
-    dataset.create_tensor("embedding", htype="embedding")
-    dataset.create_tensor("text", htype="text")
-
+def test_create_elements():
     ids = np.array([1, 2, 3, 4])
     texts = ["a", "b", "c", "d"]
     metadatas = [{"a": 1}, {"b": 2}, {"c": 3}, {"d": 4}]
@@ -348,7 +333,7 @@ def test_create_elements(local_path):
         )
 
     processed_tensors, ids = dataset_utils.preprocess_tensors(
-        dataset=dataset, id=ids, text=texts, embedding=embeddings, metadata=metadatas
+        id=ids, text=texts, embedding=embeddings, metadata=metadatas
     )
     elements = dataset_utils.create_elements(processed_tensors)
 
