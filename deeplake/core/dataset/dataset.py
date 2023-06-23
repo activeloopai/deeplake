@@ -1873,6 +1873,7 @@ class Dataset:
         pad_tensors: bool = False,
         transform_kwargs: Optional[Dict[str, Any]] = None,
         decode_method: Optional[Dict[str, str]] = None,
+        cache_size: int = 32 * MB,
         *args,
         **kwargs,
     ):
@@ -1907,6 +1908,10 @@ class Dataset:
                     :'tobytes': Returns raw bytes of the samples.
                     :'pil': Returns samples as PIL images. Especially useful when transformation use torchvision transforms, that
                             require PIL images as input. Only supported for tensors with ``sample_compression='jpeg'`` or ``'png'``.
+            cache_size (int): The size of the cache per tensor in MBs. Defaults to max(maximum chunk size of tensor, 32 MB).
+
+        ..
+            # noqa: DAR101
 
         Returns:
             A torch.utils.data.DataLoader object.
@@ -1957,6 +1962,7 @@ class Dataset:
             return_index=return_index,
             pad_tensors=pad_tensors,
             decode_method=decode_method,
+            cache_size=cache_size,
             **kwargs,
         )
 
