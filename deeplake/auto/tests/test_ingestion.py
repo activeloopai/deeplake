@@ -305,16 +305,23 @@ def test_dataframe_files(memory_ds: Dataset, dataframe_ingestion_data):
 
 
 def test_dataframe_array(memory_ds: Dataset):
-    # Create DataFrame
     data = {
-        "AA": ["Alice", "Bob", "Charlie", "Steve"],
+        "AA": ["Alice", "Bob", "Charlie", None],
         "BB": [
-            np.array([80, 75, 85]),
-            np.array([80, 22, 1]),
-            np.array([0, 565, 234]),
-            np.array([0, 565, 234]),
+            np.array([3, 22, 1, 3]),
+            np.array([1, 22, 10, 1]),
+            np.array([2, 22, 1, 2]),
+            np.array([0, 56, 34, 2]),
         ],
-        "CC": [45, 67, 88, 77],
+        "CC": [45, 67, 88, float("nan")],
+        "DD": [None, None, None, None],
+        "EE": [
+            None,
+            np.array([1, 22, 10, 1]),
+            None,
+            np.array([0, 56, 34]),
+        ],
+        "FF": [None, "Bob", "Charlie", "Dave"],
     }
 
     df = pd.DataFrame(data)
@@ -322,12 +329,12 @@ def test_dataframe_array(memory_ds: Dataset):
 
     ds = deeplake.ingest_dataframe(
         df,
-        memory_ds.path,
+        "mem://dummy",
         progressbar=False,
     )
     tensors_names = list(ds.tensors.keys())
 
-    assert tensors_names == [df_keys[0], df_keys[1], df_keys[2]]
+    assert tensors_names == df_keys.tolist()
     assert ds[df_keys[0]].htype == "text"
 
     np.testing.assert_array_equal(
@@ -339,15 +346,22 @@ def test_dataframe_array(memory_ds: Dataset):
     )
     assert ds[df_keys[2]].dtype == df[df_keys[2]].dtype
 
+    data_key_4 = ds[df_keys[4]].numpy(aslist=True)
+    ds_data = [None if arr.shape[0] == 0 else arr for arr in data_key_4]
+    df_data = [arr for arr in df[df_keys[4]].values]
+
+    assert len(ds[df_keys[4]].numpy(aslist=True)) == 4
+    assert ds[df_keys[4]][0].numpy().tolist() == []
+    assert ds[df_keys[4]][0].numpy().shape[0] == 0
+    assert ds[df_keys[4]][1].numpy().shape[0] == 4
+
 
 def test_dataframe_array_bad(memory_ds: Dataset):
-    # Create DataFrame
-
     data = {
-        "AA": ["Alice", "Bob", "Charlie", "Steve"],
+        "AA": ["Alice", "Bob", "Charlie", None],
         "BB": [
-            np.array([80, 75, 85]),
-            np.array([80, 22, 1]),
+            np.array([80, 75, 85, 100]),
+            None,
             np.array([0, 565, 234]),
             "bad_data",
         ],
@@ -361,6 +375,29 @@ def test_dataframe_array_bad(memory_ds: Dataset):
             df,
             memory_ds.path,
             progressbar=False,
+        )
+
+
+def test_dataframe_all_empty_images(memory_ds: Dataset):
+    data = {
+        "AA": ["Alice", "Bob", "Charlie", "Steve"],
+        "BB": [
+            None,
+            None,
+            None,
+            None,
+        ],
+        "CC": [45, 67, 88, 77],
+    }
+
+    df = pd.DataFrame(data)
+
+    with pytest.raises(IngestionError):
+        ds = deeplake.ingest_dataframe(
+            df,
+            "mem://dummy",
+            progressbar=False,
+            column_params={"BB": {"htype": "image"}},
         )
 
 

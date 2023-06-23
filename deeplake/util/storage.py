@@ -3,7 +3,7 @@ from deeplake.util.cache_chain import generate_chain
 from deeplake.constants import LOCAL_CACHE_PREFIX, MB
 from deeplake.util.exceptions import AgreementNotAcceptedError
 from deeplake.util.tag import process_hub_path
-from typing import Optional, Union
+from typing import Dict, Optional, Union
 from deeplake.core.storage.provider import StorageProvider
 import os
 from deeplake.core.storage import (
@@ -102,17 +102,13 @@ def storage_provider_from_path(
     return storage
 
 
-def storage_provider_from_hub_path(
-    path: str,
-    read_only: bool = False,
-    db_engine: bool = False,
-    token: Optional[str] = None,
-    creds: Optional[Union[dict, str]] = None,
+def get_dataset_credentials(
+    client: DeepLakeBackendClient,
+    org_id: str,
+    ds_name: str,
+    mode: Optional[str],
+    db_engine: bool,
 ):
-    path, org_id, ds_name, subdir = process_hub_path(path)
-    client = DeepLakeBackendClient(token=token)
-
-    mode = "r" if read_only else None
     # this will give the proper url (s3, gcs, etc) and corresponding creds, depending on where the dataset is stored.
     try:
         url, final_creds, mode, expiration, repo = client.get_dataset_credentials(
@@ -123,14 +119,28 @@ def storage_provider_from_hub_path(
         url, final_creds, mode, expiration, repo = client.get_dataset_credentials(
             org_id, ds_name, mode=mode, db_engine={"enabled": db_engine}
         )
+    return url, final_creds, mode, expiration, repo
 
-    if mode == "r":
+
+def storage_provider_from_hub_path(
+    path: str,
+    read_only: Optional[bool] = None,
+    db_engine: bool = False,
+    token: Optional[str] = None,
+    creds: Optional[Union[dict, str]] = None,
+):
+    path, org_id, ds_name, subdir = process_hub_path(path)
+    client = DeepLakeBackendClient(token=token)
+
+    mode = None if (read_only is None) else ("r" if read_only else "w")
+    url, final_creds, mode, expiration, repo = get_dataset_credentials(
+        client, org_id, ds_name, mode, db_engine
+    )
+
+    if mode == "r" and read_only is None and not DEFAULT_READONLY:
+        # warns user about automatic mode change
+        print("Opening dataset in read-only mode as you don't have write permissions.")
         read_only = True
-        if read_only is None and not DEFAULT_READONLY:
-            # warns user about automatic mode change
-            print(
-                "Opening dataset in read-only mode as you don't have write permissions."
-            )
 
     if read_only is None:
         read_only = DEFAULT_READONLY
