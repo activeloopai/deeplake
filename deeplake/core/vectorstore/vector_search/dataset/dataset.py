@@ -341,7 +341,7 @@ def extend_or_ingest_dataset(
                 embedded_data = np.array(embedded_data, dtype=np.float32)
                 if len(embedded_data) == 0:
                     raise ValueError("embedding function returned empty list")
-                
+
                 processed_tensors[tensor] = embedded_data
 
         dataset.extend(processed_tensors)

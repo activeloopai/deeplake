@@ -86,7 +86,12 @@ def test_search_basic(local_path, hub_cloud_dev_token):
     vector_store.add(embedding=embeddings, text=texts, metadata=metadatas)
 
     with pytest.raises(ValueError):
-        vector_store.add(embedding_function=embedding_fn2, embedding_data=texts, text=texts, metadata=metadatas)
+        vector_store.add(
+            embedding_function=embedding_fn2,
+            embedding_data=texts,
+            text=texts,
+            metadata=metadatas,
+        )
     # Check that default option works
     data_default = vector_store.search(
         embedding=query_embedding,
@@ -135,7 +140,7 @@ def test_search_basic(local_path, hub_cloud_dev_token):
             k=2,
             return_tensors=["ids", "text"],
         )
-    
+
     # Run a full custom query
     test_text = vector_store_cloud.dataset.text[0].data()["value"]
     data_q = vector_store_cloud.search(
