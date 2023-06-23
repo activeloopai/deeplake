@@ -167,7 +167,7 @@ def ingest(
             for func, tensor in zip(embedding_function, embedding_tensor):
                 embedding_data = [s[tensor] for s in sample_in]
                 embeddings = func(embedding_data)
-        except Exception as e:
+        except Exception as exc:
             raise Exception(
                 "Could not use embedding function. Please try again with a different embedding function."
             )
