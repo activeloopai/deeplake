@@ -26,7 +26,7 @@ logger = logging.getLogger(__name__)
 
 
 class VectorStore:
-    """Base class for DeepLakeVectorStore"""
+    """Base class for VectorStore"""
 
     def __init__(
         self,
@@ -42,23 +42,23 @@ class VectorStore:
         verbose=True,
         **kwargs: Any,
     ) -> None:
-        """Creates an empty DeepLakeVectorStore or loads an existing one if it exists at the specified ``path``.
+        """Creates an empty VectorStore or loads an existing one if it exists at the specified ``path``.
 
         Examples:
             >>> # Create a vector store with default tensors
-            >>> data = DeepLakeVectorStore(
-            ...        path = <path_for_storing_Data>,
+            >>> data = VectorStore(
+            ...        path = "./my_vector_store",
             ... )
-            >>>
+
             >>> # Create a vector store in the Deep Lake Managed Tensor Database
-            >>> data = DeepLakeVectorStore(
+            >>> data = VectorStore(
             ...        path = "hub://org_id/dataset_name",
             ...        runtime = {"tensor_db": True},
             ... )
-            >>>
+
             >>> # Create a vector store with custom tensors
-            >>> data = DeepLakeVectorStore(
-            ...        path = <path_for_storing_data>,
+            >>> data = VectorStore(
+            ...        path = "./my_vector_store",
             ...        tensor_params = [{"name": "text", "htype": "text"},
             ...                         {"name": "embedding_1", "htype": "embedding"},
             ...                         {"name": "embedding_2", "htype": "embedding"},
@@ -78,7 +78,8 @@ class VectorStore:
             read_only (bool, optional):  Opens dataset in read-only mode if True. Defaults to False.
             num_workers (int): Number of workers to use for parallel ingestion.
             ingestion_batch_size (int): Batch size to use for parallel ingestion.
-            exec_option (str): Default method for search execution. It could be either "python", "compute_engine" or "tensor_db". Defaults to "python".
+            exec_option (str): Default method for search execution. It could be either It could be either ``"python"``, ``"compute_engine"`` or ``"tensor_db"``. Defaults to ``"python"``.
+
                 - ``python`` - Pure-python implementation that runs on the client and can be used for data stored anywhere. WARNING: using this option with big datasets is discouraged because it can lead to memory issues.
                 - ``compute_engine`` - Performant C++ implementation of the Deep Lake Compute Engine that runs on the client and can be used for any data stored in or connected to Deep Lake. It cannot be used with in-memory or local datasets.
                 - ``tensor_db`` - Performant and fully-hosted Managed Tensor Database that is responsible for storage and query execution. Only available for data stored in the Deep Lake Managed Database. Store datasets in this database by specifying runtime = {"db_engine": True} during dataset creation.
@@ -86,6 +87,9 @@ class VectorStore:
             overwrite (bool): If set to True this overwrites the Vector Store if it already exists. Defaults to False.
             verbose (bool): Whether to print summary of the dataset created. Defaults to True.
             **kwargs (Any): Additional keyword arguments.
+
+        ..
+            # noqa: DAR101
 
         Danger:
             Setting ``overwrite`` to ``True`` will delete all of your data if the Vector Store exists! Be very careful when setting this parameter.
@@ -145,43 +149,66 @@ class VectorStore:
         Tensor names are specified as parameters, and data for each tensor is specified as parameter values. All data must of equal length.
 
         Examples:
+            >>> # Dummy data
+            >>> texts = ["Hello", "World"]
+            >>> embeddings = [[1, 2, 3], [4, 5, 6]]
+            >>> metadatas = [{"timestamp": "01:20"}, {"timestamp": "01:22"}]
+            >>> emebdding_fn = lambda x: [[1, 2, 3]] * len(x)
+            >>> embedding_fn_2 = lambda x: [[4, 5]] * len(x)
+
             >>> # Directly upload embeddings
             >>> deeplake_vector_store.add(
-            ...     text = <list_of_texts>,
-            ...     embedding = [list_of_embeddings]
-            ...     metadata = <list_of_metadata_jsons>,
+            ...     text = texts,
+            ...     embedding = embeddings,
+            ...     metadata = metadatas,
             ... )
-            >>>
+
             >>> # Upload embedding via embedding function
             >>> deeplake_vector_store.add(
-            ...     text = <list_of_texts>,
-            ...     metadata = <list_of_metadata_jsons>,
-            ...     embedding_function = <embedding_function>,
-            ...     embedding_data = <list_of_data_for_embedding>,
+            ...     text = texts,
+            ...     metadata = metadatas,
+            ...     embedding_function = embedding_fn,
+            ...     embedding_data = texts,
             ... )
-            >>>
+
             >>> # Upload embedding via embedding function to a user-defined embedding tensor
             >>> deeplake_vector_store.add(
-            ...     text = <list_of_texts>,
-            ...     metadata = <list_of_metadata_jsons>,
-            ...     embedding_function = <embedding_function>,
-            ...     embedding_data = <list_of_data_for_embedding>,
-            ...     embedding_tensor = <user_defined_embedding_tensor_name>,
+            ...     text = texts,
+            ...     metadata = metadatas,
+            ...     embedding_function = embedding_fn,
+            ...     embedding_data = texts,
+            ...     embedding_tensor = "embedding_1",
             ... )
+
+            >>> # Multiple embedding functions (user defined embedding tensors must be specified)
+            >>> deeplake_vector_store.add(
+            ...     embedding_tensor = ["embedding_1", "embedding_2"]
+            ...     embedding_function = [embedding_fn, embedding_fn_2],
+            ...     embedding_data = [texts, texts],
+            ... )
+
+            >>> # Alternative syntax for multiple embedding functions
+            >>> deeplake_vector_store.add(
+            ...     text = texts,
+            ...     metadata = metadatas,
+            ...     embedding_tensor_1 = (embedding_fn, texts),
+            ...     embedding_tensor_2 = (embedding_fn_2, texts),
+            ... )
+
             >>> # Add data to fully custom tensors
             >>> deeplake_vector_store.add(
-            ...     tensor_A = <list_of_data_for_tensor_A>,
-            ...     tensor_B = <list_of_data_for_tensor_B>
-            ...     tensor_C = <list_of_data_for_tensor_C>,
-            ...     embedding_function = <embedding_function>,
-            ...     embedding_data = <list_of_data_for_embedding>,
-            ...     embedding_tensor = <user_defined_embedding_tensor_name>,
+            ...     tensor_A = [1, 2],
+            ...     tensor_B = ["a", "b"],
+            ...     tensor_C = ["some", "data"],
+            ...     embedding_function = embedding_fn,
+            ...     embedding_data = texts,
+            ...     embedding_tensor = "embedding_1",
             ... )
 
         Args:
             embedding_function (Optional[Callable]): embedding function used to convert ``embedding_data`` into embeddings. Overrides the ``embedding_function`` specified when initializing the Vector Store.
             embedding_data (Optional[List]): Data to be converted into embeddings using the provided ``embedding_function``. Defaults to None.
-            embedding_tensor (Optional[str]): Tensor where results from the embedding function will be stored. If None, the embedding tensors is automatically inferred (when possible). Defaults to None.
+            embedding_tensor (Optional[str]): Tensor where results from the embedding function will be stored. If None, the embedding tensor is automatically inferred (when possible). Defaults to None.
             total_samples_processed (int): Total number of samples processed before ingestion stopped. When specified.
             return_ids (bool): Whether to return added ids as an ouput of the method. Defaults to False.
             num_workers (int): Number of workers to use for parallel ingestion. Overrides the ``num_workers`` specified when initializing the Vector Store.
@@ -268,32 +295,33 @@ class VectorStore:
         return_tensors: Optional[List[str]] = None,
         return_view: bool = False,
     ) -> Union[Dict, deeplake.core.dataset.Dataset]:
-        """DeepLakeVectorStore search method that combines embedding search, metadata search, and custom TQL search.
+        """VectorStore search method that combines embedding search, metadata search, and custom TQL search.
 
         Examples:
             >>> # Search using an embedding
             >>> data = vector_store.search(
-            ...        embedding = <your_embedding>,
-            ...        exec_option = <preferred_exec_option>,
+            ...        embedding = [1, 2, 3],
+            ...        exec_option = "python",
             ... )
+
             >>> # Search using an embedding function and data for embedding
             >>> data = vector_store.search(
             ...        embedding_data = "What does this chatbot do?",
-            ...        embedding_function = <your_embedding_function>,
-            ...        exec_option = <preferred_exec_option>,
+            ...        embedding_function = query_embedding_fn,
+            ...        exec_option = "compute_engine",
             ... )
-            >>>
+
             >>> # Add a filter to your search
             >>> data = vector_store.search(
-            ...        embedding = <your_embedding>,
-            ...        exec_option = <preferred_exec_option>,
+            ...        embedding = np.ones(3),
+            ...        exec_option = "python",
             ...        filter = {"json_tensor_name": {"key: value"}, "json_tensor_name_2": {"key_2: value_2"},...}, # Only valid for exec_option = "python"
             ... )
-            >>>
+
             >>> # Search using TQL
             >>> data = vector_store.search(
             ...        query = "select * where ..... <add TQL syntax>",
-            ...        exec_option = <preferred_exec_option>, # Only valid for exec_option = "compute_engine" or "tensor_db"
+            ...        exec_option = "tensor_db", # Only valid for exec_option = "compute_engine" or "tensor_db"
             ... )
 
         Args:
@@ -301,18 +329,24 @@ class VectorStore:
             embedding_data: Data against which the search will be performed by embedding it using the `embedding_function`. Defaults to None. The `embedding_data` and `embedding` cannot both be specified.
             embedding_function (callable, optional): function for converting `embedding_data` into embedding. Only valid if `embedding_data` is specified
             k (int): Number of elements to return after running query. Defaults to 4.
-            distance_metric (str): Type of distance metric to use for sorting the data. Avaliable options are: "L1", "L2", "COS", "MAX". Defaults to "COS".
+            distance_metric (str): Type of distance metric to use for sorting the data. Avaliable options are: ``"L1", "L2", "COS", "MAX"``. Defaults to ``"COS"``.
             query (Optional[str]):  TQL Query string for direct evaluation, without application of additional filters or vector search.
             filter (Union[Dict, Callable], optional): Additional filter evaluated prior to the embedding search.
+
                 - ``Dict`` - Key-value search on tensors of htype json, evaluated on an AND basis (a sample must satisfy all key-value filters to be True) Dict = {"tensor_name_1": {"key": value}, "tensor_name_2": {"key": value}}
-                - ``Function`` - Any function that is compatible with `deeplake.filter`.
-            exec_option (Optional[str]): Method for search execution. It could be either "python", "compute_engine" or "tensor_db". Defaults to "python".
+                - ``Function`` - Any function that is compatible with :meth:`Dataset.filter <deeplake.core.dataset.Dataset.filter>`.
+
+            exec_option (Optional[str]): Method for search execution. It could be either ``"python"``, ``"compute_engine"`` or ``"tensor_db"``. Defaults to ``"python"``.
+
                 - ``python`` - Pure-python implementation that runs on the client and can be used for data stored anywhere. WARNING: using this option with big datasets is discouraged because it can lead to memory issues.
                 - ``compute_engine`` - Performant C++ implementation of the Deep Lake Compute Engine that runs on the client and can be used for any data stored in or connected to Deep Lake. It cannot be used with in-memory or local datasets.
                 - ``tensor_db`` - Performant and fully-hosted Managed Tensor Database that is responsible for storage and query execution. Only available for data stored in the Deep Lake Managed Database. Store datasets in this database by specifying runtime = {"db_engine": True} during dataset creation.
             embedding_tensor (str): Name of tensor with embeddings. Defaults to "embedding".
             return_tensors (Optional[List[str]]): List of tensors to return data for. Defaults to None. If None, all tensors are returned.
             return_view (bool): Return a Deep Lake dataset view that satisfied the search parameters, instead of a dictinary with data. Defaults to False.
+
+        ..
+            # noqa: DAR101
 
         Raises:
             ValueError: When invalid parameters are specified.
@@ -394,40 +428,45 @@ class VectorStore:
         exec_option: Optional[str] = "python",
         delete_all: Optional[bool] = None,
     ) -> bool:
-        """Delete the data in the Vector Store. Does not delete the tensor definitions. To delete the vector store completely, first run ``DeepLakeVectorStore.delete_by_path()``.
+        """Delete the data in the Vector Store. Does not delete the tensor definitions. To delete the vector store completely, first run :meth:`VectorStore.delete_by_path()`.
 
         Examples:
             >>> # Delete using ids:
             >>> data = vector_store.delete(ids)
-            >>>
+
             >>> # Delete data using filter
             >>> data = vector_store.delete(
             ...        filter = {"json_tensor_name": {"key: value"}, "json_tensor_name_2": {"key_2: value_2"}},
             ... )
-            >>>
+
             >>> # Delete data using TQL
             >>> data = vector_store.delete(
             ...        query = "select * where ..... <add TQL syntax>",
-            ...        exec_option = <preferred_exec_option>,
+            ...        exec_option = "compute_engine",
             ... )
 
         Args:
             ids (Optional[List[str]]): List of unique ids. Defaults to None.
             row_ids (Optional[List[str]]): List of absolute row indices from the dataset. Defaults to None.
             filter (Union[Dict, Callable], optional): Filter for finding samples for deletion.
+
                 - ``Dict`` - Key-value search on tensors of htype json, evaluated on an AND basis (a sample must satisfy all key-value filters to be True) Dict = {"tensor_name_1": {"key": value}, "tensor_name_2": {"key": value}}
                 - ``Function`` - Any function that is compatible with `deeplake.filter`.
             query (Optional[str]):  TQL Query string for direct evaluation for finding samples for deletion, without application of additional filters.
-            exec_option (str, optional): Method for search execution for finding samples for deletion. It could be either "python", "compute_engine". Defaults to "python".
+            exec_option (str, optional): Method for search execution for finding samples for deletion. It could be either ``"python"`` or ``"compute_engine"``. Defaults to ``"python"``.
+
                 - ``python`` - Pure-python implementation that runs on the client and can be used for data stored anywhere. WARNING: using this option with big datasets is discouraged because it can lead to memory issues.
                 - ``compute_engine`` - Performant C++ implementation of the Deep Lake Compute Engine that runs on the client and can be used for any data stored in or connected to Deep Lake. It cannot be used with in-memory or local datasets.
             delete_all (Optional[bool]): Whether to delete all the samples and version history of the dataset. Defaults to None.
+
+        ..
+            # noqa: DAR101
 
         Returns:
             bool: Returns True if deletion was successful, otherwise it raises a ValueError.
 
         Raises:
-            ValueError: If neither `ids`, `filter`, `query`, nor `delete_all` are specified, or if an invalid `exec_option` is provided.
+            ValueError: If neither ``ids``, ``filter``, ``query``, nor ``delete_all`` are specified, or if an invalid ``exec_option`` is provided.
         """
 
         deeplake_reporter.feature_report(

@@ -1636,3 +1636,29 @@ def test_ds_append_empty(local_ds):
     ds.label2.append(1)
 
     np.testing.assert_array_equal(ds.label2[:20].numpy(), np.array([]).reshape((20, 0)))
+
+
+def test_catch_value_error(local_path):
+    @deeplake.compute
+    def upload(sample_in, ds, class_names):
+        label = class_names.index(sample_in)
+
+        ds.append(
+            {
+                "abc": sample_in,
+                "label": label,
+            }
+        )
+
+    ds = deeplake.empty(local_path, overwrite=True)
+    ds.create_tensor("abc")
+    ds.create_tensor("label", htype="class_label")
+
+    class_names = [-1, 0, 1, 2, 3]
+
+    with pytest.raises(TransformError) as e:
+        upload(class_names=class_names).eval(
+            [0] * 10 + [1] * 10 + [10] * 10, ds, num_workers=TRANSFORM_TEST_NUM_WORKERS
+        )
+        assert e.index == 20
+        assert e.sample == 10
