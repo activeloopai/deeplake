@@ -237,25 +237,17 @@ def preprocess_tensors(
 ):
     # generate id list equal to the length of the tensors
     # dont use None tensors to get length of tensor
-    _tensors = {k: v for k, v in tensors.items() if v is not None}
-    first_item = next(iter(_tensors))
-    ids_tensor = "ids" if "ids" in _tensors else "id"
-    if ids_tensor not in _tensors or ids_tensor is None:
-        id = [str(uuid.uuid1()) for _ in _tensors[first_item]]
-        tensors[ids_tensor] = id
+    not_none_tensors, num_items = get_not_none_tensors(tensors, embedding_data)
+    ids_tensor = get_id_tensor(dataset)
+    tensors = populate_id_tensor_if_needed(
+        ids_tensor, tensors, not_none_tensors, num_items
+    )
 
     processed_tensors = {ids_tensor: tensors[ids_tensor]}
 
     for tensor_name, tensor_data in tensors.items():
-        if tensor_data is None:
-            tensor_data = [None] * len(tensors[ids_tensor])
-        elif not isinstance(tensor_data, list):
-            tensor_data = list(tensor_data)
-        if dataset and dataset[tensor_name].htype == "image":
-            tensor_data = [
-                deeplake.read(data) if isinstance(data, str) else data
-                for data in tensor_data
-            ]
+        tensor_data = convert_tensor_data_to_list(tensor_data, tensors, ids_tensor)
+        tensor_data = read_tensor_data_if_needed(tensor_data, dataset, tensor_name)
         processed_tensors[tensor_name] = tensor_data
 
     if embedding_data:
@@ -263,6 +255,53 @@ def preprocess_tensors(
             processed_tensors[k] = v
 
     return processed_tensors, tensors[ids_tensor]
+
+
+def read_tensor_data_if_needed(tensor_data, dataset, tensor_name):
+    # generalize this method for other htypes that need reading.
+    if dataset and tensor_name != "id" and dataset[tensor_name].htype == "image":
+        tensor_data = [
+            deeplake.read(data) if isinstance(data, str) else data
+            for data in tensor_data
+        ]
+    return tensor_data
+
+
+def convert_tensor_data_to_list(tensor_data, tensors, ids_tensor):
+    if tensor_data is None:
+        tensor_data = [None] * len(tensors[ids_tensor])
+    elif not isinstance(tensor_data, list):
+        tensor_data = list(tensor_data)
+    return tensor_data
+
+
+def get_not_none_tensors(tensors, embedding_data):
+    not_none_tensors = {k: v for k, v in tensors.items() if v is not None}
+    try:
+        num_items = len(next(iter(not_none_tensors.values())))
+    except StopIteration:
+        if embedding_data:
+            num_items = len(embedding_data[0])
+        else:
+            num_items = 0
+    return not_none_tensors, num_items
+
+
+def populate_id_tensor_if_needed(ids_tensor, tensors, not_none_tensors, num_items):
+    if "id" not in not_none_tensors and "ids" not in not_none_tensors:
+        id = [str(uuid.uuid1()) for _ in range(num_items)]
+        tensors[ids_tensor] = id
+    else:
+        for tensor in not_none_tensors:
+            if tensor in ("id", "ids"):
+                break
+
+        tensors[ids_tensor] = not_none_tensors[tensor]
+    return tensors
+
+
+def get_id_tensor(dataset):
+    return "ids" if "ids" in dataset.tensors else "id"
 
 
 def create_elements(

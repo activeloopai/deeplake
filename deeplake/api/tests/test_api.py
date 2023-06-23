@@ -44,6 +44,7 @@ from deeplake.util.exceptions import (
 from deeplake.util.path import convert_string_to_pathlib_if_needed, verify_dataset_name
 from deeplake.util.testing import assert_array_equal
 from deeplake.util.pretty_print import summary_tensor, summary_dataset
+from deeplake.util.shape_interval import ShapeInterval
 from deeplake.constants import GDRIVE_OPT, MB
 from deeplake.client.config import REPORTING_CONFIG_FILE_PATH
 
@@ -246,6 +247,29 @@ def test_summary(memory_ds):
         summary_tensor(ds.images)
         == "\n  htype    shape    dtype  compression\n -------  -------  -------  ------- \n  image    (0,)     int32    jpeg   "
     )
+
+
+def test_view_summary(memory_ds, capsys):
+    with memory_ds as ds:
+        ds.create_tensor("abc")
+        ds.abc.extend(np.ones((2500, 10, 5, 3)))
+        ds.abc.extend(np.ones((5000, 5, 5, 3)))
+        ds.abc.extend(np.ones((5000, 5, 10, 3)))
+
+        with pytest.raises(ValueError):
+            ds[2500:].summary()
+
+        ds[2500:].summary(force=True)
+        captured = capsys.readouterr().out
+        assert (
+            captured
+            == f"{str(ds[2500:])}\n\n tensor    htype          shape          dtype  compression\n -------  -------        -------        -------  ------- \n   abc    generic  (10000, 5, 5:10, 3)   None     None   \n"
+        )
+
+        assert (
+            summary_dataset(ds[:7500])
+            == "\n tensor    htype         shape          dtype  compression\n -------  -------       -------        -------  ------- \n   abc    generic  (7500, 5:10, 5, 3)   None     None   "
+        )
 
 
 def test_log(memory_ds, capsys):
@@ -2602,6 +2626,10 @@ def test_shapes_sequence(memory_ds):
             ds.abc[:3].shapes(),
             np.array([[[3, 4], [4, 5]], [[2, 3], [3, 4]], [[0, 0], [0, 0]]]),
         )
+        np.testing.assert_array_equal(
+            ds.abc[1:3].shapes(),
+            np.array([[[2, 3], [3, 4]], [[0, 0], [0, 0]]]),
+        )
 
 
 def test_shape_squeeze(memory_ds):
@@ -2611,6 +2639,50 @@ def test_shape_squeeze(memory_ds):
         ds.abc.extend(np.ones((5, 10, 12, 20)))
 
     assert ds.abc[5:, :, 9].shape == (5, 10, 20)
+
+
+def test_slice_shape_interval(memory_ds):
+    with memory_ds as ds:
+        ds.create_tensor("abc")
+        ds.abc.extend(np.ones((2, 1, 2, 3)))
+        ds.abc.extend(np.ones((2, 3, 4, 5)))
+        ds.abc.extend(np.ones((2, 5, 6, 2)))
+
+    assert ds.abc.shape_interval == ShapeInterval((6, 1, 2, 2), (6, 5, 6, 5))
+    assert ds[:4].abc.shape_interval == ShapeInterval((4, 1, 2, 3), (4, 3, 4, 5))
+    assert ds[2:].abc.shape_interval == ShapeInterval((4, 3, 4, 2), (4, 5, 6, 5))
+
+    with memory_ds as ds:
+        ds.create_tensor("regular_seq", htype="sequence")
+        ds.regular_seq.extend(np.ones((2, 2, 1, 2, 3)))
+        ds.regular_seq.extend(np.ones((2, 2, 3, 4, 5)))
+        ds.regular_seq.extend(np.ones((2, 2, 5, 6, 2)))
+
+    assert ds.regular_seq.shape_interval == ShapeInterval(
+        (6, 2, 1, 2, 2), (6, 2, 5, 6, 5)
+    )
+    assert ds.regular_seq[:4].shape_interval == ShapeInterval(
+        (4, 2, 1, 2, 3), (4, 2, 3, 4, 5)
+    )
+    assert ds.regular_seq[2:].shape_interval == ShapeInterval(
+        (4, 2, 3, 4, 2), (4, 2, 5, 6, 5)
+    )
+
+    with memory_ds as ds:
+        ds.create_tensor("irregular_seq", htype="sequence")
+        ds.irregular_seq.extend([np.ones((2, 1, 2, 3)), np.ones((3, 3, 4, 5))])
+        ds.irregular_seq.extend([np.ones((3, 5, 6, 2)), np.ones((4, 7, 8, 9))])
+        ds.irregular_seq.extend(np.ones((2, 1, 5, 5, 3)))
+
+    assert ds.irregular_seq.shape_interval == ShapeInterval(
+        (6, 1, 1, 2, 2), (6, 4, 7, 8, 9)
+    )
+    assert ds.irregular_seq[:4].shape_interval == ShapeInterval(
+        (4, 2, 1, 2, 2), (4, 4, 7, 8, 9)
+    )
+    assert ds.irregular_seq[2:].shape_interval == ShapeInterval(
+        (4, 1, 5, 5, 2), (4, 4, 7, 8, 9)
+    )
 
 
 def test_non_local_org_id():
