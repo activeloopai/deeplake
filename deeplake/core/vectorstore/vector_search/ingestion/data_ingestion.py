@@ -111,8 +111,8 @@ class DataIngestion:
                 verbose=False,
             )
         except Exception as e:
-            if isinstance(e, IncorrectEmbeddingShapeError):
-                raise e
+            if isinstance(e.__cause__, IncorrectEmbeddingShapeError):
+                raise IncorrectEmbeddingShapeError()
 
             self.retry_attempt += 1
             last_checkpoint = self.dataset.version_state["commit_node"].parent
