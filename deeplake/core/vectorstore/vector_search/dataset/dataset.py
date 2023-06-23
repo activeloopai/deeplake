@@ -166,7 +166,9 @@ def create_dataset(
     runtime,
     **kwargs,
 ):
-    if exec_option == "tensor_db" and runtime == {"tensor_db": False}:
+    if exec_option == "tensor_db" and (
+        runtime is None or runtime == {"tensor_db": False}
+    ):
         raise ValueError(
             "When using `exec_option = 'tensor_db'` you must specify `runtime = {'tensor_db': True}` when creating a new Vector Store."
         )
