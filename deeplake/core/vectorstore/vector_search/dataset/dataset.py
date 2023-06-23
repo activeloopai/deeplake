@@ -378,15 +378,11 @@ def extend_or_ingest_dataset(
                 embedding_function, embedding_data, embedding_tensor
             ):
                 embedded_data = func(data)
-<<<<<<< HEAD
                 try:
                     embedded_data = np.array(embedded_data, dtype=np.float32)
                 except ValueError:
                     raise IncorrectEmbeddingShapeError()
 
-=======
-                embedded_data = np.array(embedded_data, dtype=np.float32)
->>>>>>> main
                 if len(embedded_data) == 0:
                     raise ValueError("embedding function returned empty list")
 
