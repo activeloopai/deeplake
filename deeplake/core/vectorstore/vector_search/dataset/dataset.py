@@ -107,7 +107,7 @@ def load_dataset(
         f"loading from the storage"
     )
 
-    if runtime == {"tensor_db": True}:
+    if runtime["tensor_db"] == True:
         logger.warning(
             "Specifying runtime option when loading a Vector Store is not supported and this parameter will "
             "be ignored. If you wanted to create a new Vector Store, please specify a path to a Vector Store "
