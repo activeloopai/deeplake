@@ -435,7 +435,7 @@ def test_ds_update_image(local_ds, cat_path, dog_path):
         ds.create_tensor("images_sc", htype="image", sample_compression="png")
         ds.create_tensor("images_cc", htype="image", chunk_compression="png")
         ds.create_tensor("images", htype="image", sample_compression=None)
-    
+
     cat = deeplake.read(cat_path)
     dog = deeplake.read(dog_path)
     samples = ([cat] + [dog] * 2) * 2
@@ -444,14 +444,22 @@ def test_ds_update_image(local_ds, cat_path, dog_path):
         ds.images_sc.extend(samples)
         ds.images_cc.extend(samples)
         ds.images.extend(samples)
-    
-    ds[1].update({"images_sc": cat, "images_cc": cat, "images": cat})
-    
-    with pytest.raises(SampleUpdateError):
-        ds[2].update({"images_sc": cat, "images_cc": cat, "images": deeplake.read("bad_sample")})
 
-    np.testing.assert_array_equal([ds[1].images_sc.numpy(), ds[1].images_cc.numpy(), ds[1].images.numpy()], [cat.array] * 3)
-    np.testing.assert_array_equal([ds[2].images_sc.numpy(), ds[2].images_cc.numpy(), ds[2].images.numpy()], [dog.array] * 3)
+    ds[1].update({"images_sc": cat, "images_cc": cat, "images": cat})
+
+    with pytest.raises(SampleUpdateError):
+        ds[2].update(
+            {"images_sc": cat, "images_cc": cat, "images": deeplake.read("bad_sample")}
+        )
+
+    np.testing.assert_array_equal(
+        [ds[1].images_sc.numpy(), ds[1].images_cc.numpy(), ds[1].images.numpy()],
+        [cat.array] * 3,
+    )
+    np.testing.assert_array_equal(
+        [ds[2].images_sc.numpy(), ds[2].images_cc.numpy(), ds[2].images.numpy()],
+        [dog.array] * 3,
+    )
 
     ds[:4].update({"images_sc": [cat] * 4, "images_cc": [cat] * 4, "images": [cat] * 4})
 
@@ -460,8 +468,14 @@ def test_ds_update_image(local_ds, cat_path, dog_path):
     np.testing.assert_array_equal(ds[:4].images.numpy(), [cat.array] * 4)
 
     with pytest.raises(SampleUpdateError):
-        ds[:6].update({"images_sc": [cat] * 6, "images_cc": [cat] * 6, "images": [cat] * 5 + [deeplake.read("bad_sample")]})
-    
+        ds[:6].update(
+            {
+                "images_sc": [cat] * 6,
+                "images_cc": [cat] * 6,
+                "images": [cat] * 5 + [deeplake.read("bad_sample")],
+            }
+        )
+
     np.testing.assert_array_equal(ds[:4].images_sc.numpy(), [cat.array] * 4)
     np.testing.assert_array_equal(ds[:4].images_cc.numpy(), [cat.array] * 4)
     np.testing.assert_array_equal(ds[:4].images.numpy(), [cat.array] * 4)
@@ -474,3 +488,160 @@ def test_ds_update_image(local_ds, cat_path, dog_path):
     np.testing.assert_array_equal(ds[:6].images_sc.numpy(), [cat.array] * 6)
     np.testing.assert_array_equal(ds[:6].images_cc.numpy(), [cat.array] * 6)
     np.testing.assert_array_equal(ds[:6].images.numpy(), [cat.array] * 6)
+
+
+def test_ds_update_generic(local_ds):
+    with local_ds as ds:
+        ds.create_tensor("abc")
+        ds.create_tensor("xyz")
+
+    ds.abc.extend(list(range(10)))
+    ds.xyz.extend(list(range(10)))
+
+    ds[0].update({"abc": 1, "xyz": 1})
+    ds[2:5].update({"abc": [1] * 3, "xyz": [1] * 3})
+
+    np.testing.assert_array_equal(ds.abc[:5].numpy().flatten(), [1] * 5)
+    np.testing.assert_array_equal(ds.xyz[:5].numpy().flatten(), [1] * 5)
+
+    with pytest.raises(SampleUpdateError):
+        ds[5:].update({"abc": [1] * 5, "xyz": [1] * 4 + ["hello"]})
+
+    np.testing.assert_array_equal(
+        ds.abc.numpy().flatten(), [1] * 5 + list(range(5, 10))
+    )
+    np.testing.assert_array_equal(
+        ds.xyz.numpy().flatten(), [1] * 5 + list(range(5, 10))
+    )
+
+    ds[5:].update({"abc": [1] * 5, "xyz": [1] * 5})
+    np.testing.assert_array_equal(ds.abc.numpy().flatten(), [1] * 10)
+    np.testing.assert_array_equal(ds.xyz.numpy().flatten(), [1] * 10)
+
+
+@pytest.mark.parametrize(("sc", "cc"), [("lz4", None), (None, "lz4"), (None, None)])
+def test_ds_update_text_like(local_ds, sc, cc):
+    with local_ds as ds:
+        ds.create_tensor(
+            "text", htype="text", sample_compression=sc, chunk_compression=cc
+        )
+        ds.create_tensor(
+            "list", htype="list", sample_compression=sc, chunk_compression=cc
+        )
+        ds.create_tensor(
+            "json", htype="json", sample_compression=sc, chunk_compression=cc
+        )
+
+        text_samples = (["hello"] + ["world"] * 2) * 2
+        t = "hello"
+        ds.text.extend(text_samples)
+
+        list_samples = ([[1, 2, 3]] + [[4, 5, 6]] * 2) * 2
+        l = [1, 2, 3]
+        ds.list.extend(list_samples)
+
+        json_samples = ([{"a": 1}] + [{"b": 2, "c": 3}] * 2) * 2
+        j = {"a": 1}
+        ds.json.extend(json_samples)
+
+    ds[1].update({"text": t, "list": l, "json": j})
+    assert ds[1].text.data()["value"] == t
+    assert ds[1].list.data()["value"] == l
+    assert ds[1].json.data()["value"] == j
+
+    ds[:3].update({"text": [t] * 3, "list": [l] * 3, "json": [j] * 3})
+    assert ds[:3].text.data()["value"] == [t] * 3
+    assert ds[:3].list.data()["value"] == [l] * 3
+    assert ds[:3].json.data()["value"] == [j] * 3
+
+    with pytest.raises(SampleUpdateError):
+        ds[3:].update(
+            {
+                "text": [t] * 3,
+                "list": [l] * 3,
+                "json": [j] * 2 + [deeplake.read("bad_sample")],
+            }
+        )
+
+    assert ds[3:].text.data()["value"] == text_samples[3:]
+    assert ds[3:].list.data()["value"] == list_samples[3:]
+    assert ds[3:].json.data()["value"] == json_samples[3:]
+
+    ds[3:].update({"text": [t] * 3, "list": [l] * 3, "json": [j] * 3})
+    assert ds.text.data()["value"] == [t] * 6
+    assert ds.list.data()["value"] == [l] * 6
+    assert ds.json.data()["value"] == [j] * 6
+
+
+def test_ds_update_sequence(local_ds, cat_path, dog_path):
+    with local_ds as ds:
+        ds.create_tensor("seq", htype="sequence")
+        ds.create_tensor("seq_image", htype="sequence[image]", sample_compression="png")
+
+        seq_samples = [[1, 2, 3], [4, 5, 6], [4, 5, 6]] * 2
+        ds.seq.extend(seq_samples)
+
+        dog = deeplake.read(dog_path)
+        cat = deeplake.read(cat_path)
+        seq_image_samples = [[cat, cat], [dog, dog], [dog, dog]] * 2
+        ds.seq_image.extend(seq_image_samples)
+
+    ds[1].update({"seq": [1, 2, 3], "seq_image": [cat, cat]})
+    np.testing.assert_array_equal(ds[1].seq.numpy(), [[1], [2], [3]])
+    assert ds[1].seq_image.shape == (2, 900, 900, 3)
+
+    ds[:3].update({"seq": [[1, 2, 3]] * 3, "seq_image": [[cat, cat]] * 3})
+    np.testing.assert_array_equal(ds[:3].seq.numpy(), [[[1], [2], [3]]] * 3)
+    assert ds[:3].seq_image.shape == (3, 2, 900, 900, 3)
+
+    with pytest.raises(SampleUpdateError):
+        ds[3:].update(
+            {"seq": [[1, 2, 3]] * 3, "seq_image": [[cat, cat], [cat, cat], [dog]]}
+        )
+
+    np.testing.assert_array_equal(
+        ds[3:].seq.numpy(), np.array(seq_samples[3:]).reshape(3, 3, 1)
+    )
+    assert ds[3].seq_image.shape == (2, 900, 900, 3)
+    assert ds[4:].seq_image.shape == (2, 2, 323, 480, 3)
+
+    ds[3:].update({"seq": [[1, 2, 3]] * 3, "seq_image": [[cat, cat]] * 3})
+    np.testing.assert_array_equal(ds.seq.numpy(), [[[1], [2], [3]]] * 6)
+    assert ds.seq_image.shape == (6, 2, 900, 900, 3)
+
+
+def test_ds_update_link(local_ds, cat_path, dog_path):
+    with local_ds as ds:
+        ds.create_tensor("images1", htype="link[image]", sample_compression="png")
+        ds.create_tensor("images2", htype="link[image]", sample_compression="png")
+
+        dog = deeplake.link(dog_path)
+        cat = deeplake.link(cat_path)
+
+        ds.images1.extend([cat] * 6)
+        ds.images2.extend([dog] * 6)
+
+        ds[0].update({"images1": dog, "images2": cat})
+
+        assert ds[0].images1.shape == (323, 480, 3)
+        assert ds[0].images2.shape == (900, 900, 3)
+
+        ds[:3].update({"images1": [dog] * 3, "images2": [cat] * 3})
+        assert ds[:3].images1.shape == (3, 323, 480, 3)
+        assert ds[:3].images2.shape == (3, 900, 900, 3)
+
+        with pytest.raises(SampleUpdateError):
+            ds[3:].update(
+                {
+                    "images1": [dog] * 3,
+                    "images2": [cat] * 2 + [deeplake.link("bad_sample")],
+                }
+            )
+
+        assert ds[3:].images1.shape == (3, 900, 900, 3)
+        assert ds[3:].images2.shape == (3, 323, 480, 3)
+
+        ds[3:].update({"images1": [dog] * 3, "images2": [cat] * 3})
+
+        assert ds.images1.shape == (6, 323, 480, 3)
+        assert ds.images2.shape == (6, 900, 900, 3)

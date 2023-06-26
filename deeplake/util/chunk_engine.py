@@ -62,7 +62,7 @@ def make_sequence(
 
     if not hasattr(samples, "__len__"):
         samples = [samples]
-    
+
     if index_length != len(samples):  # type: ignore
         raise ValueError(
             f"Index length ({index_length}) and length of samples ({len(samples)}) must be equal for updating a tensor."  # type: ignore

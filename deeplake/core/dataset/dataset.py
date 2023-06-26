@@ -16,6 +16,7 @@ import deeplake
 from deeplake.core.index.index import IndexEntry
 from deeplake.core.link_creds import LinkCreds
 from deeplake.core.sample import Sample
+from deeplake.core.linked_sample import LinkedSample
 from deeplake.util.connect_dataset import connect_dataset_entry
 from deeplake.util.downsample import validate_downsampling
 from deeplake.util.version_control import (
@@ -583,7 +584,9 @@ class Dataset:
     def __setitem__(self, item: str, value: Any):
         if not isinstance(item, str):
             raise TypeError("Datasets do not support item assignment")
-        self.no_view_dataset[item][self.index] = value
+        tensor = self[item]
+        tensor.index = Index()
+        tensor[self.index] = value
 
     @invalid_view_op
     def create_tensor(
@@ -2927,10 +2930,30 @@ class Dataset:
                                 "Error while attempting to rollback appends"
                             ) from e2
                     raise e
-    
+
     def update(self, sample: Dict[str, Any]):
         if len(self.index) > 1:
-            raise ValueError("Cannot make partial updates to samples using `ds.update`. Use `ds.tensor.append` instead.")
+            raise ValueError(
+                "Cannot make partial updates to samples using `ds.update`. Use `ds.tensor.update` instead."
+            )
+
+        def get_sample_from_engine(
+            engine, idx, is_link, compression, dtype, decompress
+        ):
+            if is_link:
+                creds_key = engine.creds_key(idx)
+                item = engine.get_path(idx)
+                return LinkedSample(item, creds_key)
+            item = engine.get_single_sample(idx, self.index, decompress=decompress)
+            shape = engine.read_shape_for_sample(idx)
+            return engine._get_sample_object(
+                item, shape, compression, dtype, decompress
+            )
+
+        # remove update hooks from view base so that the view is not invalidated
+        if self._view_base:
+            saved_update_hooks = self._view_base._update_hooks
+            self._view_base._update_hooks = {}
         idx = self.index.values[0].value
         with self:
             saved = defaultdict(list)
@@ -2942,14 +2965,33 @@ class Dataset:
                     chunk_compression = tensor_meta.chunk_compression
 
                     compression = sample_compression or chunk_compression
-                    decompress = chunk_compression is not None
+
+                    engine = self[k].chunk_engine
+
+                    decompress = chunk_compression is not None or engine.is_text_like
 
                     for idx in self.index.values[0].indices(self[k].num_samples):
-                        engine = self[k].chunk_engine
-                        old_sample = engine.get_single_sample(idx, self.index, decompress=decompress)
-                        shape = engine.read_shape_for_sample(idx)
-
-                        old_sample = engine._get_sample_object(old_sample, shape, compression, dtype, decompress)
+                        if tensor_meta.is_sequence:
+                            old_sample = []
+                            for i in range(*engine.sequence_encoder[idx]):
+                                item = get_sample_from_engine(
+                                    engine,
+                                    i,
+                                    tensor_meta.is_link,
+                                    compression,
+                                    dtype,
+                                    decompress,
+                                )
+                                old_sample.append(item)
+                        else:
+                            old_sample = get_sample_from_engine(
+                                engine,
+                                idx,
+                                tensor_meta.is_link,
+                                compression,
+                                dtype,
+                                decompress,
+                            )
 
                         saved[k].append(old_sample)
                     self[k] = v
@@ -2960,8 +3002,14 @@ class Dataset:
                     try:
                         self[k] = v
                     except Exception as e2:
-                        raise Exception(f"Error while attempting to rollback updates {v.shape} {v.dtype}") from e2
+                        raise Exception(
+                            f"Error while attempting to rollback updates"
+                        ) from e2
                 raise e
+            finally:
+                # restore update hooks
+                if self._view_base:
+                    self._view_base._update_hooks = saved_update_hooks
 
     def _view_hash(self) -> str:
         """Generates a unique hash for a filtered dataset view."""
