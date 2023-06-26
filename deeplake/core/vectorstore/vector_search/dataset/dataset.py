@@ -109,9 +109,10 @@ def load_dataset(
 
     if runtime == {"tensor_db": True}:
         logger.warning(
-            "Specifying `runtime` option during dataset loading is not supported. "
-            "This parameter will be ignored. If you wanted to transfer the dataset "
-            "to managed database consider looking into the documentation: "
+            "Specifying runtime option when loading a Vector Store is not supported and this parameter will "
+            "be ignored. If you wanted to create a new Vector Store, please specify a path to a Vector Store "
+            "that does not already exist. To transfer an existing Vector Store to the Managed Tensor Database, "
+            "use the steps in the link below: "
             "(https://docs.activeloop.ai/enterprise-features/managed-database/migrating-datasets-to-the-tensor-database)."
         )
 
@@ -170,7 +171,11 @@ def create_dataset(
         runtime is None or runtime == {"tensor_db": False}
     ):
         raise ValueError(
-            "When using `exec_option = 'tensor_db'` you must specify `runtime = {'tensor_db': True}` when creating a new Vector Store."
+            "To execute queries using exec_option = 'tensor_db', "
+            "the Vector Store must be stored in Deep Lake's Managed "
+            "Tensor Database. To create the Vector Store in the Managed "
+            "Tensor Database, specify runtime = {'tensor_db': True} when "
+            "creating the Vector Store."
         )
 
     dataset = deeplake.empty(
