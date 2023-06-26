@@ -66,7 +66,7 @@ def index_transform(sample):
 @requires_libdeeplake
 @pytest.mark.parametrize(
     "ds",
-    ["hub_cloud_ds", "local_ds"],
+    ["hub_cloud_ds", "local_auth_ds"],
     indirect=True,
 )
 def test_pytorch_small(ds):
@@ -699,14 +699,14 @@ def test_pil_decode_method(hub_cloud_ds):
 @patch("deeplake.constants.RETURN_DUMMY_DATA_FOR_DATALOADER", True)
 @requires_torch
 @requires_libdeeplake
-def test_pytorch_dummy_data(local_ds):
+def test_pytorch_dummy_data(local_auth_ds):
     x_data = [
         np.random.randint(0, 255, (100, 100, 3), dtype="uint8"),
         np.random.randint(0, 255, (120, 120, 3), dtype="uint8"),
     ]
     y_data = [np.random.rand(100, 100, 3), np.random.rand(120, 120, 3)]
     z_data = ["hello", "world"]
-    with local_ds as ds:
+    with local_auth_ds as ds:
         ds.create_tensor("x")
         ds.create_tensor("y")
         ds.create_tensor("z")
