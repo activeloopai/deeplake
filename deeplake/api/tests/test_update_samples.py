@@ -645,3 +645,38 @@ def test_ds_update_link(local_ds, cat_path, dog_path):
 
         assert ds.images1.shape == (6, 323, 480, 3)
         assert ds.images2.shape == (6, 900, 900, 3)
+
+
+def test_ds_update_polygon(local_ds):
+    with local_ds as ds:
+        ds.create_tensor("abc", htype="polygon", chunk_compression="lz4")
+        ds.create_tensor("xyz", htype="polygon", chunk_compression="lz4")
+
+        abc_samples = np.ones((6, 3, 3, 2))
+        xyz_samples = np.ones((6, 2, 2, 2))
+
+        ds.abc.extend(abc_samples)
+        ds.xyz.extend(xyz_samples)
+
+    ds[0].update({"abc": np.ones((2, 2, 2)), "xyz": np.ones((3, 3, 2))})
+    assert ds[0].abc.shape == (2, 2, 2)
+    assert ds[0].xyz.shape == (3, 3, 2)
+
+    ds[:3].update({"abc": [np.ones((2, 2, 2))] * 3, "xyz": [np.ones((3, 3, 2))] * 3})
+    assert ds[:3].abc.shape == (3, 2, 2, 2)
+    assert ds[:3].xyz.shape == (3, 3, 3, 2)
+
+    with pytest.raises(SampleUpdateError):
+        ds[3:].update(
+            {
+                "abc": [np.ones((2, 2, 2))] * 3,
+                "xyz": [np.ones((3, 3, 2))] * 2 + [np.ones((3, 2))],
+            }
+        )
+
+    assert ds[3:].abc.shape == (3, 3, 3, 2)
+    assert ds[3:].xyz.shape == (3, 2, 2, 2)
+
+    ds[3:].update({"abc": [np.ones((2, 2, 2))] * 3, "xyz": [np.ones((3, 3, 2))] * 3})
+    assert ds.abc.shape == (6, 2, 2, 2)
+    assert ds.xyz.shape == (6, 3, 3, 2)

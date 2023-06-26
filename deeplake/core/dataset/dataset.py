@@ -2997,6 +2997,7 @@ class Dataset:
                     self[k] = v
             except Exception as e:
                 for k, v in saved.items():
+                    # squeeze
                     if len(v) == 1:
                         v = v[0]
                     try:

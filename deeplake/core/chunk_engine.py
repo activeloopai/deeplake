@@ -1562,6 +1562,8 @@ class ChunkEngine:
         verified_samples = self.check_each_sample(samples)
         if self.tensor_meta.htype == "class_label":
             samples = self._convert_class_labels(samples)
+        if self.tensor_meta.htype == "polygon":
+            samples = [Polygons(sample, self.tensor_meta.dtype) for sample in samples]
         nbytes_after_updates: List[int] = []
         global_sample_indices = tuple(index.values[0].indices(self.num_samples))
         is_sequence = self.is_sequence
@@ -2463,10 +2465,14 @@ class ChunkEngine:
             verified_samples = []
             for sample in samples:  # type: ignore
                 verified_sample = []
-                for _ in sample:  # type: ignore
-                    verified_sample.append(flat_verified_samples[i])
+                if isinstance(sample, Iterable):
+                    for _ in sample:  # type: ignore
+                        verified_sample.append(flat_verified_samples[i])
+                        i += 1
+                    verified_samples.append(verified_sample)
+                else:
+                    verified_samples.append(flat_verified_samples[i])
                     i += 1
-                verified_samples.append(verified_sample)
 
         list(
             map(
