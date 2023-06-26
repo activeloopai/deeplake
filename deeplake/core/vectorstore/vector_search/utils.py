@@ -89,6 +89,11 @@ def parse_search_args(**kwargs):
             "Invalid `exec_option` it should be either `python`, `compute_engine` or `tensor_db`."
         )
 
+    if kwargs.get("embedding") is not None and kwargs.get("query") is not None:
+        raise ValueError(
+            "Both `embedding` and `query` were specified. Please specify either one or the other."
+        )
+
     if (
         kwargs["embedding_function"] is None
         and kwargs["embedding"] is None

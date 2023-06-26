@@ -32,7 +32,7 @@ def embedding_fn(text, embedding_dim=EMBEDDING_DIM):
 
 
 def embedding_fn2(text, embedding_dim=EMBEDDING_DIM):
-    pass  # pragma: no cover
+    return []  # pragma: no cover
 
 
 def embedding_fn3(text, embedding_dim=EMBEDDING_DIM):
@@ -42,6 +42,40 @@ def embedding_fn3(text, embedding_dim=EMBEDDING_DIM):
 
 def embedding_fn4(text, embedding_dim=EMBEDDING_DIM):
     return np.zeros((1, EMBEDDING_DIM))  # pragma: no cover
+
+
+def test_id_backward_compatibility(local_path):
+    num_of_items = 10
+    embedding_dim = 100
+
+    ids = [f"{i}" for i in range(num_of_items)]
+    embedding = [np.zeros(embedding_dim) for i in range(num_of_items)]
+    text = ["aadfv" for i in range(num_of_items)]
+    metadata = [{"key": i} for i in range(num_of_items)]
+
+    ds = deeplake.empty(local_path, overwrite=True)
+    ds.create_tensor("ids", htype="text")
+    ds.create_tensor("embedding", htype="embedding")
+    ds.create_tensor("text", htype="text")
+    ds.create_tensor("metadata", htype="json")
+
+    ds.extend(
+        {
+            "ids": ids,
+            "embedding": embedding,
+            "text": text,
+            "metadata": metadata,
+        }
+    )
+
+    vectorstore = VectorStore(path=local_path)
+    vectorstore.add(
+        text=text,
+        embedding=embedding,
+        metadata=metadata,
+    )
+
+    assert len(vectorstore) == 20
 
 
 def test_custom_tensors(local_path):
@@ -85,12 +119,18 @@ def test_search_basic(local_path, hub_cloud_dev_token):
     )
     vector_store.add(embedding=embeddings, text=texts, metadata=metadatas)
 
+    with pytest.raises(ValueError):
+        vector_store.add(
+            embedding_function=embedding_fn2,
+            embedding_data=texts,
+            text=texts,
+            metadata=metadatas,
+        )
     # Check that default option works
     data_default = vector_store.search(
         embedding=query_embedding,
     )
     assert (len(data_default.keys())) > 0
-
     # Use python implementation to search the data
     data_p = vector_store.search(
         embedding=query_embedding,
@@ -125,6 +165,15 @@ def test_search_basic(local_path, hub_cloud_dev_token):
         == 2
     )  # One for each return_tensors
     assert len(data_ce.keys()) == 3  # One for each return_tensors + score
+
+    with pytest.raises(ValueError):
+        data_ce = vector_store_cloud.search(
+            query=f"SELECT * WHERE id=='{vector_store_cloud.dataset.ids[0].numpy()[0]}'",
+            embedding=query_embedding,
+            exec_option="compute_engine",
+            k=2,
+            return_tensors=["ids", "text"],
+        )
 
     # Run a full custom query
     test_text = vector_store_cloud.dataset.text[0].data()["value"]
