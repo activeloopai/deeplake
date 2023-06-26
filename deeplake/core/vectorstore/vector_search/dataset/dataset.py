@@ -2,6 +2,7 @@ import uuid
 from typing import List, Dict, Any
 
 import numpy as np
+from math import ceil
 
 try:
     from indra import api  # type: ignore
@@ -19,8 +20,8 @@ from deeplake.constants import (
     DEFAULT_VECTORSTORE_DEEPLAKE_PATH,
     VECTORSTORE_EXTEND_MAX_SIZE,
     DEFAULT_VECTORSTORE_TENSORS,
+    VECTORSTORE_EXTEND_MAX_SIZE_BY_HTYPE,
 )
-from deeplake.util.warnings import always_warn
 
 
 def create_or_load_dataset(
@@ -234,28 +235,73 @@ def get_embedding(embedding, embedding_data, embedding_function=None):
 def preprocess_tensors(
     embedding_data=None, embedding_tensor=None, dataset=None, **tensors
 ):
-    first_item = next(iter(tensors))
-    ids_tensor = "ids" if "ids" in tensors else "id"
-    if ids_tensor not in tensors or ids_tensor is None:
-        id = [str(uuid.uuid1()) for _ in tensors[first_item]]
-        tensors[ids_tensor] = id
+    # generate id list equal to the length of the tensors
+    # dont use None tensors to get length of tensor
+    not_none_tensors, num_items = get_not_none_tensors(tensors, embedding_data)
+    ids_tensor = get_id_tensor(dataset)
+    tensors = populate_id_tensor_if_needed(
+        ids_tensor, tensors, not_none_tensors, num_items
+    )
 
     processed_tensors = {ids_tensor: tensors[ids_tensor]}
 
     for tensor_name, tensor_data in tensors.items():
-        if not isinstance(tensor_data, list):
-            tensor_data = list(tensor_data)
-        if dataset and dataset[tensor_name].htype == "image":
-            tensor_data = [
-                deeplake.read(data) if isinstance(data, str) else data
-                for data in tensor_data
-            ]
+        tensor_data = convert_tensor_data_to_list(tensor_data, tensors, ids_tensor)
+        tensor_data = read_tensor_data_if_needed(tensor_data, dataset, tensor_name)
         processed_tensors[tensor_name] = tensor_data
 
     if embedding_data:
-        processed_tensors[embedding_tensor] = embedding_data
+        for k, v in zip(embedding_tensor, embedding_data):
+            processed_tensors[k] = v
 
     return processed_tensors, tensors[ids_tensor]
+
+
+def read_tensor_data_if_needed(tensor_data, dataset, tensor_name):
+    # generalize this method for other htypes that need reading.
+    if dataset and tensor_name != "id" and dataset[tensor_name].htype == "image":
+        tensor_data = [
+            deeplake.read(data) if isinstance(data, str) else data
+            for data in tensor_data
+        ]
+    return tensor_data
+
+
+def convert_tensor_data_to_list(tensor_data, tensors, ids_tensor):
+    if tensor_data is None:
+        tensor_data = [None] * len(tensors[ids_tensor])
+    elif not isinstance(tensor_data, list):
+        tensor_data = list(tensor_data)
+    return tensor_data
+
+
+def get_not_none_tensors(tensors, embedding_data):
+    not_none_tensors = {k: v for k, v in tensors.items() if v is not None}
+    try:
+        num_items = len(next(iter(not_none_tensors.values())))
+    except StopIteration:
+        if embedding_data:
+            num_items = len(embedding_data[0])
+        else:
+            num_items = 0
+    return not_none_tensors, num_items
+
+
+def populate_id_tensor_if_needed(ids_tensor, tensors, not_none_tensors, num_items):
+    if "id" not in not_none_tensors and "ids" not in not_none_tensors:
+        id = [str(uuid.uuid1()) for _ in range(num_items)]
+        tensors[ids_tensor] = id
+    else:
+        for tensor in not_none_tensors:
+            if tensor in ("id", "ids"):
+                break
+
+        tensors[ids_tensor] = not_none_tensors[tensor]
+    return tensors
+
+
+def get_id_tensor(dataset):
+    return "ids" if "ids" in dataset.tensors else "id"
 
 
 def create_elements(
@@ -316,15 +362,39 @@ def extend_or_ingest_dataset(
     logger,
 ):
     first_item = next(iter(processed_tensors))
-    if len(processed_tensors[first_item]) <= VECTORSTORE_EXTEND_MAX_SIZE:
+
+    htypes = [
+        dataset[item].meta.htype for item in dataset.tensors
+    ]  # Inspect raw htype (not parsed htype like tensor.htype) in order to avoid parsing links and sequences separately.
+    threshold_by_htype = [
+        VECTORSTORE_EXTEND_MAX_SIZE_BY_HTYPE.get(h, int(1e10)) for h in htypes
+    ]
+    extend_threshold = min(threshold_by_htype + [VECTORSTORE_EXTEND_MAX_SIZE])
+
+    if len(processed_tensors[first_item]) <= extend_threshold:
         if embedding_function:
-            embedded_data = embedding_function(embedding_data)
-            embedded_data = np.array(embedded_data, dtype=np.float32)
-            processed_tensors[embedding_tensor] = embedded_data
+            for func, data, tensor in zip(
+                embedding_function, embedding_data, embedding_tensor
+            ):
+                embedded_data = func(data)
+                embedded_data = np.array(embedded_data, dtype=np.float32)
+                if len(embedded_data) == 0:
+                    raise ValueError("embedding function returned empty list")
+
+                processed_tensors[tensor] = embedded_data
 
         dataset.extend(processed_tensors)
     else:
         elements = dataset_utils.create_elements(processed_tensors)
+
+        num_workers_auto = ceil(len(elements) / ingestion_batch_size)
+        if num_workers_auto < num_workers:
+            logger.warning(
+                f"Number of workers is {num_workers}, but {len(elements)} rows of data are being added and the ingestion_batch_size is {ingestion_batch_size}. "
+                f"Setting the number of workers to {num_workers_auto} instead, in order reduce overhead from excessive workers that will not accelerate ingestion."
+                f"If you want to parallelizing using more workers, please reduce ``ingestion_batch_size``."
+            )
+            num_workers = min(num_workers_auto, num_workers)
 
         ingest_data.run_data_ingestion(
             elements=elements,

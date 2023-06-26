@@ -12,6 +12,7 @@ from deeplake.auto.unstructured.yolo.yolo import YoloDataset
 from deeplake.client.client import DeepLakeBackendClient
 from deeplake.client.log import logger
 from deeplake.core.dataset import Dataset, dataset_factory
+from deeplake.core.tensor import Tensor
 from deeplake.core.meta.dataset_meta import DatasetMeta
 from deeplake.util.connect_dataset import connect_dataset_entry
 from deeplake.util.version_control import (
@@ -970,8 +971,8 @@ class dataset:
         tensors: Optional[List[str]] = None,
         overwrite: bool = False,
         src_creds=None,
-        token=None,
         dest_creds=None,
+        token=None,
         num_workers: int = 0,
         scheduler="threaded",
         progressbar=True,
@@ -980,7 +981,7 @@ class dataset:
         """Copies dataset at ``src`` to ``dest``. Version control history is not included.
 
         Args:
-            src (Union[str, Dataset, pathlib.Path]): The Dataset or the path to the dataset to be copied.
+            src (str, Dataset, pathlib.Path): The Dataset or the path to the dataset to be copied.
             dest (str, pathlib.Path): Destination path to copy to.
             runtime (dict): Parameters for Activeloop DB Engine. Only applicable for hub:// paths.
             tensors (List[str], optional): Names of tensors (and groups) to be copied. If not specified all tensors are copied.
@@ -1003,6 +1004,7 @@ class dataset:
         Raises:
             DatasetHandlerError: If a dataset already exists at destination path and overwrite is False.
             UnsupportedParameterException: If a parameter that is no longer supported is specified.
+            DatasetCorruptError: If loading source dataset fails with DatasetCorruptedError.
         """
         if "src_token" in kwargs:
             raise UnsupportedParameterException(
@@ -1016,7 +1018,17 @@ class dataset:
 
         if isinstance(src, (str, pathlib.Path)):
             src = convert_pathlib_to_string_if_needed(src)
-            src_ds = deeplake.load(src, read_only=True, creds=src_creds, token=token)
+            try:
+                src_ds = deeplake.load(
+                    src, read_only=True, creds=src_creds, token=token, verbose=False
+                )
+            except DatasetCorruptError as e:
+                raise DatasetCorruptError(
+                    "The source dataset is corrupted.",
+                    "You can try to fix this by loading the dataset with `reset=True` "
+                    "which will attempt to reset uncommitted HEAD changes and load the previous version.",
+                    e.__cause__,
+                )
         else:
             src_ds = src
             src_ds.path = str(src_ds.path)
@@ -1037,7 +1049,7 @@ class dataset:
 
     @staticmethod
     def deepcopy(
-        src: Union[str, pathlib.Path],
+        src: Union[str, pathlib.Path, Dataset],
         dest: Union[str, pathlib.Path],
         runtime: Optional[Dict] = None,
         tensors: Optional[List[str]] = None,
@@ -1055,7 +1067,7 @@ class dataset:
         """Copies dataset at ``src`` to ``dest`` including version control history.
 
         Args:
-            src (str, pathlib.Path): Path to the dataset to be copied.
+            src (str, pathlib.Path, Dataset): The Dataset or the path to the dataset to be copied.
             dest (str, pathlib.Path): Destination path to copy to.
             runtime (dict): Parameters for Activeloop DB Engine. Only applicable for hub:// paths.
             tensors (List[str], optional): Names of tensors (and groups) to be copied. If not specified all tensors are copied.
@@ -1079,7 +1091,7 @@ class dataset:
 
         Raises:
             DatasetHandlerError: If a dataset already exists at destination path and overwrite is False.
-            TypeError: If source is not a path to a dataset.
+            TypeError: If source is not a dataset.
             UnsupportedParameterException: If parameter that is no longer supported is beeing called.
             DatasetCorruptError: If loading source dataset fails with DatasetCorruptedError
         """
@@ -1094,16 +1106,6 @@ class dataset:
                 "dest_token is now not supported. You should use `token` instead."
             )
 
-        if not isinstance(src, (str, pathlib.Path)):
-            raise TypeError(
-                f"Source for `deepcopy` should be path to a dataset. Got {type(src)}."
-            )
-
-        src = convert_pathlib_to_string_if_needed(src)
-        dest = convert_pathlib_to_string_if_needed(dest)
-
-        verify_dataset_name(dest)
-
         deeplake_reporter.feature_report(
             feature_name="deepcopy",
             parameters={
@@ -1117,17 +1119,41 @@ class dataset:
             },
         )
 
-        try:
-            src_ds = deeplake.load(
-                src, read_only=True, creds=src_creds, token=token, verbose=False
-            )
-        except DatasetCorruptError as e:
-            raise DatasetCorruptError(
-                "The source dataset is corrupted.",
-                "You can try to fix this by loading the dataset with `reset=True` "
-                "which will attempt to reset uncommitted HEAD changes and load the previous version.",
-                e.__cause__,
-            )
+        dest = convert_pathlib_to_string_if_needed(dest)
+
+        if isinstance(src, (str, pathlib.Path)):
+            src = convert_pathlib_to_string_if_needed(src)
+            try:
+                src_ds = deeplake.load(
+                    src, read_only=True, creds=src_creds, token=token, verbose=False
+                )
+            except DatasetCorruptError as e:
+                raise DatasetCorruptError(
+                    "The source dataset is corrupted.",
+                    "You can try to fix this by loading the dataset with `reset=True` "
+                    "which will attempt to reset uncommitted HEAD changes and load the previous version.",
+                    e.__cause__,
+                )
+        else:
+            if not isinstance(src, Dataset):
+                raise TypeError(
+                    f"The specified ``src`` is not an allowed type. Please specify a dataset or a materialized dataset view."
+                )
+
+            if not src.index.is_trivial():
+                raise TypeError(
+                    "Deepcopy is not supported for unmaterialized dataset views, i.e. slices of datasets. Please specify a dataset or a materialized dataset view."
+                )
+
+            if not src._is_root():
+                raise TypeError(
+                    "Deepcopy is not supported for individual groups. Please specify a dataset."
+                )
+
+            src_ds = src
+
+        verify_dataset_name(dest)
+
         src_storage = get_base_storage(src_ds.storage)
 
         db_engine = parse_runtime_parameters(dest, runtime)["tensor_db"]
@@ -1156,7 +1182,7 @@ class dataset:
                 src_storage,
                 memory_cache_size=DEFAULT_MEMORY_CACHE_SIZE,
                 local_cache_size=DEFAULT_LOCAL_CACHE_SIZE,
-                path=src,
+                path=src_ds.path,
             )
             for key in keys:
                 val = metas.get(key) or cache[key]
@@ -1341,27 +1367,28 @@ class dataset:
         """Ingest images and annotations in COCO format to a Deep Lake Dataset. The source data can be stored locally or in the cloud.
 
         Examples:
+            >>> # Ingest local data in COCO format to a Deep Lake dataset stored in Deep Lake storage.
             >>> ds = deeplake.ingest_coco(
-            >>>     "path/to/images/directory",
+            >>>     "<path/to/images/directory>",
             >>>     ["path/to/annotation/file1.json", "path/to/annotation/file2.json"],
             >>>     dest="hub://org_id/dataset",
             >>>     key_to_tensor_mapping={"category_id": "labels", "bbox": "boxes"},
             >>>     file_to_group_mapping={"file1.json": "group1", "file2.json": "group2"},
             >>>     ignore_keys=["area", "image_id", "id"],
-            >>>     token="my_activeloop_token",
             >>>     num_workers=4,
             >>> )
-            >>> # or ingest data from the cloud
+            >>> # Ingest data from your cloud into another Deep Lake dataset in your cloud, and connect that dataset to the Deep Lake backend.
             >>> ds = deeplake.ingest_coco(
             >>>     "s3://bucket/images/directory",
             >>>     "s3://bucket/annotation/file1.json",
-            >>>     dest="hub://org_id/dataset_name",
+            >>>     dest="s3://bucket/dataset_name",
             >>>     ignore_one_group=True,
             >>>     ignore_keys=["area", "image_id", "id"],
             >>>     image_settings={"name": "images", "htype": "link[image]", "sample_compression": "jpeg"},
-            >>>     image_creds_key="my_s3_managed_credentials"
+            >>>     image_creds_key="my_s3_managed_credentials",
             >>>     src_creds=aws_creds, # Can also be inferred from environment
-            >>>     token="my_activeloop_token",
+            >>>     dest_creds=aws_creds, # Can also be inferred from environment
+            >>>     connect_kwargs={"creds_key": "my_s3_managed_credentials", "org_id": "org_id"},
             >>>     num_workers=4,
             >>> )
 
@@ -1462,6 +1489,7 @@ class dataset:
         """Ingest images and annotations (bounding boxes or polygons) in YOLO format to a Deep Lake Dataset. The source data can be stored locally or in the cloud.
 
         Examples:
+            >>> # Ingest local data in YOLO format to a Deep Lake dataset stored in Deep Lake storage.
             >>> ds = deeplake.ingest_yolo(
             >>>     "path/to/data/directory",
             >>>     dest="hub://org_id/dataset",
@@ -1469,14 +1497,15 @@ class dataset:
             >>>     token="my_activeloop_token",
             >>>     num_workers=4,
             >>> )
-            >>> # or ingest data from the cloud
+            >>> # Ingest data from your cloud into another Deep Lake dataset in your cloud, and connect that dataset to the Deep Lake backend.
             >>> ds = deeplake.ingest_yolo(
             >>>     "s3://bucket/data_directory",
-            >>>     dest="hub://org_id/dataset",
+            >>>     dest="s3://bucket/dataset_name",
             >>>     image_params={"name": "image_links", "htype": "link[image]"},
             >>>     image_creds_key="my_s3_managed_credentials",
             >>>     src_creds=aws_creds, # Can also be inferred from environment
-            >>>     token="my_activeloop_token",
+            >>>     dest_creds=aws_creds, # Can also be inferred from environment
+            >>>     connect_kwargs={"creds_key": "my_s3_managed_credentials", "org_id": "org_id"},
             >>>     num_workers=4,
             >>> )
 
@@ -1819,23 +1848,48 @@ class dataset:
         """Convert pandas dataframe to a Deep Lake Dataset. The contents of the dataframe can be parsed literally, or can be treated as links to local or cloud files.
 
         Examples:
-            >>> ds = deeplake.dataframe(
+
+
+                    >>> # Ingest local data in COCO format to a Deep Lake dataset stored in Deep Lake storage.
+            >>> ds = deeplake.ingest_coco(
+            >>>     "<path/to/images/directory>",
+            >>>     ["path/to/annotation/file1.json", "path/to/annotation/file2.json"],
+            >>>     dest="hub://org_id/dataset",
+            >>>     key_to_tensor_mapping={"category_id": "labels", "bbox": "boxes"},
+            >>>     file_to_group_mapping={"file1.json": "group1", "file2.json": "group2"},
+            >>>     ignore_keys=["area", "image_id", "id"],
+            >>>     num_workers=4,
+            >>> )
+            >>> # Ingest data from your cloud into another Deep Lake dataset in your cloud, and connect that dataset to the Deep Lake backend.
+
+
+
+            >>> # Ingest data from a DataFrame into a Deep Lake dataset stored in Deep Lake storage.
+            >>> ds = deeplake.ingest_dataframe(
             >>>     df,
             >>>     dest="hub://org_id/dataset",
             >>> )
-            >>> # or ingest data as images from the cloud
-            >>> ds = deeplake.dataframe(
+            >>> # Ingest data from a DataFrame into a Deep Lake dataset stored in Deep Lake storage. The filenames in `df_column_with_cloud_paths` will be used as the filenames for loading data into the dataset.
+            >>> ds = deeplake.ingest_dataframe(
             >>>     df,
             >>>     dest="hub://org_id/dataset",
-            >>>     column_params={"df_column_with_cloud_paths": {"name": "images", "htype": "image"}}
+            >>>     column_params={"df_column_with_cloud_paths": {"name": "images", "htype": "image"}},
             >>>     src_creds=aws_creds
             >>> )
-            >>> # or ingest data as linked images in the cloud
-            >>> ds = deeplake.dataframe(
+            >>> # Ingest data from a DataFrame into a Deep Lake dataset stored in Deep Lake storage. The filenames in `df_column_with_cloud_paths` will be used as the filenames for linked data in the dataset.
+            >>> ds = deeplake.ingest_dataframe(
             >>>     df,
             >>>     dest="hub://org_id/dataset",
-            >>>     column_params={"df_column_with_cloud_paths": {"name": "image_links", "htype": "link[image]"}}
+            >>>     column_params={"df_column_with_cloud_paths": {"name": "image_links", "htype": "link[image]"}},
             >>>     creds_key="my_s3_managed_credentials"
+            >>> )
+            >>> # Ingest data from a DataFrame into a Deep Lake dataset stored in your cloud, and connect that dataset to the Deep Lake backend. The filenames in `df_column_with_cloud_paths` will be used as the filenames for linked data in the dataset.
+            >>> ds = deeplake.ingest_dataframe(
+            >>>     df,
+            >>>     dest="s3://bucket/dataset_name",
+            >>>     column_params={"df_column_with_cloud_paths": {"name": "image_links", "htype": "link[image]"}},
+            >>>     creds_key="my_s3_managed_credentials"
+            >>>     connect_kwargs={"creds_key": "my_s3_managed_credentials", "org_id": "org_id"},
             >>> )
 
         Args:

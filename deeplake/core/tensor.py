@@ -590,7 +590,13 @@ class Tensor:
         Note:
             If you are expecting a tuple, use :attr:`shape` instead.
         """
-        return self.chunk_engine.shape_interval(self.index)
+        sample_shape_tensor = self._sample_shape_tensor
+        sample_shape_provider = (
+            self._sample_shape_provider(sample_shape_tensor)
+            if sample_shape_tensor
+            else None
+        )
+        return self.chunk_engine.shape_interval(self.index, sample_shape_provider)
 
     @property
     def is_dynamic(self) -> bool:
@@ -1143,13 +1149,17 @@ class Tensor:
                     *self.chunk_engine.sequence_encoder[global_sample_index]
                 )
                 idx = Index([IndexEntry(seq_pos)])
-                shapes = sample_shape_tensor[idx].numpy()
+                shapes = sample_shape_tensor[idx].numpy(fetch_chunks=True)
                 return shapes
 
         else:
 
             def get_sample_shape(global_sample_index: int):
-                return tuple(sample_shape_tensor[global_sample_index].numpy().tolist())
+                return tuple(
+                    sample_shape_tensor[global_sample_index]
+                    .numpy(fetch_chunks=True)
+                    .tolist()
+                )
 
         return get_sample_shape
 
