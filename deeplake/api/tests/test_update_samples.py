@@ -426,10 +426,6 @@ def test_update_partial(memory_ds, htype, args):
     np.testing.assert_array_equal(arr.reshape(-1), exp.reshape(-1))
 
 
-def verify_ds(ds, expected):
-    ...
-
-
 def test_ds_update_image(local_ds, cat_path, dog_path):
     with local_ds as ds:
         ds.create_tensor("images_sc", htype="image", sample_compression="png")

@@ -2932,6 +2932,21 @@ class Dataset:
                     raise e
 
     def update(self, sample: Dict[str, Any]):
+        """Update existing samples in the dataset with new values.
+
+        Examples:
+
+            >>> ds[0].update({"images": deeplake.read("new_image.png"), "labels": 1})
+
+            >>> new_images = [deeplake.read(f"new_image_{i}.png") for i in range(3)]
+            >>> ds[:3].update({"images": new_images, "labels": [1, 2, 3]})
+
+        Args:
+            sample (dict): Dictionary with tensor names as keys and samples as values.
+
+        Raises:
+            ValueError: If partial update of a sample is attempted.
+        """
         if len(self.index) > 1:
             raise ValueError(
                 "Cannot make partial updates to samples using `ds.update`. Use `ds.tensor.update` instead."
