@@ -11,6 +11,7 @@ from deeplake.tests.common import requires_libdeeplake
 from deeplake.constants import (
     DEFAULT_VECTORSTORE_TENSORS,
 )
+from deeplake.util.exceptions import IncorrectEmbeddingShapeError
 
 from math import isclose
 import os
@@ -122,19 +123,19 @@ def test_custom_tensors(local_path):
         embedding_function=embedding_fn5,
     )
 
-    with pytest.raises(ValueError):
+    with pytest.raises(IncorrectEmbeddingShapeError):
         vector_store.add(
             embedding_data=texts,
-            embedding_tensor="embedding",
-            text=texts,
+            embedding_tensor="emb_custom",
+            texts_custom=texts,
         )
 
     texts_extended = texts * 2500
-    with pytest.raises(ValueError):
+    with pytest.raises(IncorrectEmbeddingShapeError):
         vector_store.add(
             embedding_data=texts_extended,
-            embedding_tensor="embedding",
-            text=texts_extended,
+            embedding_tensor="emb_custom",
+            texts_custom=texts_extended,
         )
 
 
