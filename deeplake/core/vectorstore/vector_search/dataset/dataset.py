@@ -35,6 +35,7 @@ def create_or_load_dataset(
     exec_option,
     embedding_function,
     overwrite,
+    runtime,
     **kwargs,
 ):
     utils.check_indra_installation(
@@ -53,6 +54,7 @@ def create_or_load_dataset(
             creds,
             logger,
             read_only,
+            runtime,
             **kwargs,
         )
 
@@ -64,6 +66,7 @@ def create_or_load_dataset(
         exec_option,
         embedding_function,
         overwrite,
+        runtime,
         **kwargs,
     )
 
@@ -81,6 +84,7 @@ def load_dataset(
     creds,
     logger,
     read_only,
+    runtime,
     **kwargs,
 ):
     if dataset_path == DEFAULT_VECTORSTORE_DEEPLAKE_PATH:
@@ -89,7 +93,6 @@ def load_dataset(
             " and it is not free. All addtionally added data will be added on"
             " top of already existing deeplake dataset."
         )
-
     dataset = deeplake.load(
         dataset_path,
         token=token,
@@ -98,13 +101,22 @@ def load_dataset(
         verbose=False,
         **kwargs,
     )
-
     check_tensors(dataset)
 
     logger.warning(
         f"Deep Lake Dataset in {dataset_path} already exists, "
         f"loading from the storage"
     )
+
+    if runtime is not None and runtime["tensor_db"] == True:
+        logger.warning(
+            "Specifying runtime option when loading a Vector Store is not supported and this parameter will "
+            "be ignored. If you wanted to create a new Vector Store, please specify a path to a Vector Store "
+            "that does not already exist. To transfer an existing Vector Store to the Managed Tensor Database, "
+            "use the steps in the link below: "
+            "(https://docs.activeloop.ai/enterprise-features/managed-database/migrating-datasets-to-the-tensor-database)."
+        )
+
     return dataset
 
 
@@ -153,11 +165,19 @@ def create_dataset(
     exec_option,
     embedding_function,
     overwrite,
+    runtime,
     **kwargs,
 ):
-    runtime = None
-    if exec_option == "tensor_db":
-        runtime = {"tensor_db": True}
+    if exec_option == "tensor_db" and (
+        runtime is None or runtime == {"tensor_db": False}
+    ):
+        raise ValueError(
+            "To execute queries using exec_option = 'tensor_db', "
+            "the Vector Store must be stored in Deep Lake's Managed "
+            "Tensor Database. To create the Vector Store in the Managed "
+            "Tensor Database, specify runtime = {'tensor_db': True} when "
+            "creating the Vector Store."
+        )
 
     dataset = deeplake.empty(
         dataset_path,
