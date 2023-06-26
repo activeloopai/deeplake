@@ -24,7 +24,6 @@ class Embedding:
         return [0 for i in range(embedding_dim)]  # pragma: no cover
 
 
-@requires_libdeeplake
 def test_create(caplog, hub_cloud_dev_token):
     # dataset creation
     dataset = dataset_utils.create_or_load_dataset(
@@ -34,10 +33,10 @@ def test_create(caplog, hub_cloud_dev_token):
         creds={},
         logger=logger,
         read_only=False,
-        exec_option="compute_engine",
         overwrite=True,
         embedding_function=Embedding,
         runtime=None,
+        exec_option="python",
     )
     assert len(dataset) == 0
     assert set(dataset.tensors.keys()) == {
