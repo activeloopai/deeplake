@@ -11,6 +11,7 @@ from deeplake.tests.common import requires_libdeeplake
 from deeplake.constants import (
     DEFAULT_VECTORSTORE_TENSORS,
 )
+from deeplake.util.exceptions import IncorrectEmbeddingShapeError
 
 from math import isclose
 import os
@@ -42,6 +43,11 @@ def embedding_fn3(text, embedding_dim=EMBEDDING_DIM):
 
 def embedding_fn4(text, embedding_dim=EMBEDDING_DIM):
     return np.zeros((1, EMBEDDING_DIM))  # pragma: no cover
+
+
+def embedding_fn5(text, embedding_dim=EMBEDDING_DIM):
+    """Returns embedding in List[np.ndarray] format"""
+    return [np.zeros(i) for i in range(len(text))]
 
 
 def test_id_backward_compatibility(local_path):
@@ -106,6 +112,31 @@ def test_custom_tensors(local_path):
     )
     assert len(data.keys()) == 3
     assert "texts_custom" in data.keys() and "id" in data.keys()
+
+    vector_store = DeepLakeVectorStore(
+        path=local_path,
+        overwrite=True,
+        tensor_params=[
+            {"name": "texts_custom", "htype": "text"},
+            {"name": "emb_custom", "htype": "embedding"},
+        ],
+        embedding_function=embedding_fn5,
+    )
+
+    with pytest.raises(IncorrectEmbeddingShapeError):
+        vector_store.add(
+            embedding_data=texts,
+            embedding_tensor="emb_custom",
+            texts_custom=texts,
+        )
+
+    texts_extended = texts * 2500
+    with pytest.raises(IncorrectEmbeddingShapeError):
+        vector_store.add(
+            embedding_data=texts_extended,
+            embedding_tensor="emb_custom",
+            texts_custom=texts_extended,
+        )
 
 
 @requires_libdeeplake
