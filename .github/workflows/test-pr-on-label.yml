@@ -27,6 +27,8 @@ jobs:
       oauth_client_id: ${{ secrets.GDRIVE_CLIENT_ID }}
       oauth_client_secret: ${{ secrets.GDRIVE_CLIENT_SECRET }}
       oauth_refresh_token: ${{ secrets.GDRIVE_REFRESH_TOKEN }}
+      sonar_token: ${{ secrets.SONAR_TOKEN }}
+
   manage-pr:
     name: Automated PR management tasks
     if: ${{ (github.event_name == 'pull_request_target' || github.event_name == 'pull_request') && contains(github.event.pull_request.labels.*.name, 'trigger-test') }}
