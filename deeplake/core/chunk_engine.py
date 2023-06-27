@@ -1362,6 +1362,8 @@ class ChunkEngine:
         if decompress:
             sample = Sample(array=sample_data, shape=sample_shape)
         else:
+            # sample data should not be an array here
+            assert not isinstance(sample_data, np.ndarray)
             sample = Sample(
                 buffer=sample_data,
                 shape=sample_shape,
@@ -1562,7 +1564,7 @@ class ChunkEngine:
         if self.tensor_meta.htype == "class_label":
             samples = self._convert_class_labels(samples)
         if self.tensor_meta.htype == "polygon":
-            samples = [Polygons(sample, self.tensor_meta.dtype) for sample in samples]
+            samples = [Polygons(sample, self.tensor_meta.dtype) for sample in samples]  # type: ignore
         nbytes_after_updates: List[int] = []
         global_sample_indices = tuple(index.values[0].indices(self.num_samples))
         is_sequence = self.is_sequence

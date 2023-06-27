@@ -1,4 +1,4 @@
-from deeplake.constants import KB
+from deeplake.constants import KB, MB
 from deeplake.util.exceptions import SampleUpdateError
 import pytest
 from typing import Callable
@@ -676,3 +676,42 @@ def test_ds_update_polygon(local_ds):
     ds[3:].update({"abc": [np.ones((2, 2, 2))] * 3, "xyz": [np.ones((3, 3, 2))] * 3})
     assert ds.abc.shape == (6, 2, 2, 2)
     assert ds.xyz.shape == (6, 3, 3, 2)
+
+
+def test_ds_update_tiles(local_ds, cat_path, dog_path):
+    with local_ds as ds:
+        ds.create_tensor(
+            "images1", htype="image", sample_compression="jpg", tiling_threshold=1 * KB
+        )
+        ds.create_tensor(
+            "images2", htype="image", sample_compression="jpg", tiling_threshold=1 * KB
+        )
+
+        cat = deeplake.read(cat_path)
+        dog = deeplake.read(dog_path)
+
+        ds.images1.extend([cat] * 6)
+        ds.images2.extend([dog] * 6)
+
+    ds[0].update({"images1": dog, "images2": cat})
+    assert ds[0].images1.shape == (323, 480, 3)
+    assert ds[0].images2.shape == (900, 900, 3)
+
+    ds[:3].update({"images1": [dog] * 3, "images2": [cat] * 3})
+    assert ds[:3].images1.shape == (3, 323, 480, 3)
+    assert ds[:3].images2.shape == (3, 900, 900, 3)
+
+    with pytest.raises(SampleUpdateError):
+        ds[3:].update(
+            {
+                "images1": [dog] * 3,
+                "images2": [cat] * 2 + [deeplake.read("bad_sample")],
+            }
+        )
+
+    assert ds[3:].images1.shape == (3, 900, 900, 3)
+    assert ds[3:].images2.shape == (3, 323, 480, 3)
+
+    ds[3:].update({"images1": [dog] * 3, "images2": [cat] * 3})
+    assert ds.images1.shape == (6, 323, 480, 3)
+    assert ds.images2.shape == (6, 900, 900, 3)
