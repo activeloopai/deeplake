@@ -86,7 +86,6 @@ config = {"s3": Config(max_pool_connections=50, connect_timeout=300, read_timeou
 
 
 deeplake_reporter.tags.append(f"version:{__version__}")
-deeplake_reporter.system_report(publish=True)
 deeplake_reporter.setup_excepthook(publish=True)
 
 event_queue: Queue = Queue()
