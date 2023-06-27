@@ -2950,7 +2950,7 @@ class Dataset:
         """
         if len(self.index) > 1:
             raise ValueError(
-                "Cannot make partial updates to samples using `ds.update`. Use `ds.tensor.update` instead."
+                "Cannot make partial updates to samples using `ds.update`. Use `ds.tensor[index] = value` instead."
             )
 
         def get_sample_from_engine(
