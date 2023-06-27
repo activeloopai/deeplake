@@ -1384,7 +1384,7 @@ class Tensor:
 
             ds = dataset_to_libdeeplake(self.dataset)
         ts = getattr(ds, self.meta.name)
-        from indra import api
+        from indra import api  # type: ignore
 
         self.meta.add_vdb_index(id=id, type="hnsw", distance=distance)
         index = api.vdb.generate_index(ts, index_type="hnsw", distance_type=distance)
@@ -1420,7 +1420,7 @@ class Tensor:
             ds = dataset_to_libdeeplake(self.dataset)
 
         ts = getattr(ds, self.meta.name)
-        from indra import api
+        from indra import api  # type: ignore
 
         index_meta = next(x for x in self.meta.vdb_indexes if x["id"] == id)
         commit_id = self.version_state["commit_id"]
