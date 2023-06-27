@@ -1380,6 +1380,8 @@ class Tensor:
         from indra import api
         index = api.vdb.generate_index(ts, index_type="hnsw", distance_type=distance)
         b = index.serialize()
+        self.chunk_engine.base_storage.set_bytes(f"{self.path}/vdb_indexes/{name}", b)
+        self.meta.add_vdb_index(name=name, type="hnsw", distance=distance)
         return index
 
 

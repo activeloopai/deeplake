@@ -46,6 +46,7 @@ class TensorMeta(Meta):
     is_sequence: bool
     is_link: bool
     verify: bool
+    vdb_indexes: List[Dict[str, str]]
 
     def __init__(
         self,
@@ -84,6 +85,32 @@ class TensorMeta(Meta):
         _validate_links(d)
         self.links.update(d)  # type: ignore
         self.is_dirty = True
+
+    def add_vdb_index(self, name: str, type: str, distance: str, **kwargs):
+        if _contains_vdb_index(self.vdb_indexes, name):
+            raise ValueError(
+                f"Tensor meta already has a vdb index with name '{name}'."
+            )
+ 
+        self.vdb_indexes.append(
+            {
+                "name": name,
+                "type": type,
+                "distance": distance,
+                **kwargs,
+            }
+        )
+        self.is_dirty = True
+
+    def remove_vdb_index(self, name: str):
+        if not _contains_vdb_index(self.vdb_indexes, name):
+            raise ValueError(
+                f"Tensor meta has no vdb index with name '{name}'."
+            )
+        for i in range(len(self.vdb_indexes)):
+            if name in self.vdb_indexes[i].keys():
+                del self.vdb_indexes[i]
+                return
 
     def set_hidden(self, val: bool):
         """Set visibility of tensor."""
@@ -374,3 +401,9 @@ def _is_dtype_supported_by_numpy(dtype: str) -> bool:
         return True
     except:
         return False
+
+def _contains_vdb_index(indexes: List[Dict[str, str]], name: str) -> bool:
+    for index in indexes:
+        if name in index.keys():
+            return True
+    return False
