@@ -22,6 +22,7 @@ from deeplake.constants import (
     DEFAULT_VECTORSTORE_TENSORS,
     VECTORSTORE_EXTEND_MAX_SIZE_BY_HTYPE,
 )
+from deeplake.util.exceptions import IncorrectEmbeddingShapeError
 
 
 def create_or_load_dataset(
@@ -34,6 +35,7 @@ def create_or_load_dataset(
     exec_option,
     embedding_function,
     overwrite,
+    runtime,
     **kwargs,
 ):
     utils.check_indra_installation(
@@ -52,6 +54,7 @@ def create_or_load_dataset(
             creds,
             logger,
             read_only,
+            runtime,
             **kwargs,
         )
 
@@ -63,6 +66,7 @@ def create_or_load_dataset(
         exec_option,
         embedding_function,
         overwrite,
+        runtime,
         **kwargs,
     )
 
@@ -80,6 +84,7 @@ def load_dataset(
     creds,
     logger,
     read_only,
+    runtime,
     **kwargs,
 ):
     if dataset_path == DEFAULT_VECTORSTORE_DEEPLAKE_PATH:
@@ -88,7 +93,6 @@ def load_dataset(
             " and it is not free. All addtionally added data will be added on"
             " top of already existing deeplake dataset."
         )
-
     dataset = deeplake.load(
         dataset_path,
         token=token,
@@ -97,13 +101,22 @@ def load_dataset(
         verbose=False,
         **kwargs,
     )
-
     check_tensors(dataset)
 
     logger.warning(
         f"Deep Lake Dataset in {dataset_path} already exists, "
         f"loading from the storage"
     )
+
+    if runtime is not None and runtime["tensor_db"] == True:
+        logger.warning(
+            "Specifying runtime option when loading a Vector Store is not supported and this parameter will "
+            "be ignored. If you wanted to create a new Vector Store, please specify a path to a Vector Store "
+            "that does not already exist. To transfer an existing Vector Store to the Managed Tensor Database, "
+            "use the steps in the link below: "
+            "(https://docs.activeloop.ai/enterprise-features/managed-database/migrating-datasets-to-the-tensor-database)."
+        )
+
     return dataset
 
 
@@ -152,11 +165,19 @@ def create_dataset(
     exec_option,
     embedding_function,
     overwrite,
+    runtime,
     **kwargs,
 ):
-    runtime = None
-    if exec_option == "tensor_db":
-        runtime = {"tensor_db": True}
+    if exec_option == "tensor_db" and (
+        runtime is None or runtime == {"tensor_db": False}
+    ):
+        raise ValueError(
+            "To execute queries using exec_option = 'tensor_db', "
+            "the Vector Store must be stored in Deep Lake's Managed "
+            "Tensor Database. To create the Vector Store in the Managed "
+            "Tensor Database, specify runtime = {'tensor_db': True} when "
+            "creating the Vector Store."
+        )
 
     dataset = deeplake.empty(
         dataset_path,
@@ -296,7 +317,12 @@ def populate_id_tensor_if_needed(ids_tensor, tensors, not_none_tensors, num_item
             if tensor in ("id", "ids"):
                 break
 
-        tensors[ids_tensor] = not_none_tensors[tensor]
+        tensors[ids_tensor] = list(
+            map(
+                lambda x: str(x) if isinstance(x, uuid.UUID) else x,
+                not_none_tensors[tensor],
+            )
+        )
     return tensors
 
 
@@ -377,7 +403,11 @@ def extend_or_ingest_dataset(
                 embedding_function, embedding_data, embedding_tensor
             ):
                 embedded_data = func(data)
-                embedded_data = np.array(embedded_data, dtype=np.float32)
+                try:
+                    embedded_data = np.array(embedded_data, dtype=np.float32)
+                except ValueError:
+                    raise IncorrectEmbeddingShapeError()
+
                 if len(embedded_data) == 0:
                     raise ValueError("embedding function returned empty list")
 
