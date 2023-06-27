@@ -133,7 +133,7 @@ class LinkedChunkEngine(ChunkEngine):
             url = sample_path
         return url, sample_path
 
-    def get_video_sample(self, global_sample_index, index):
+    def get_video_sample(self, global_sample_index, index, decompress=True):
         url, path = self.get_video_url(global_sample_index)
         try:
             squeeze = isinstance(index, int)

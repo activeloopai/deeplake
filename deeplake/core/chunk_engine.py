@@ -1355,9 +1355,8 @@ class ChunkEngine:
                 sample = LinkedSample(sample_data)
             else:
                 sample = sample_data
-                # squeeze
-                if len(sample) == 1:
-                    sample = sample[0]
+                if self.tensor_meta.htype == "json" and isinstance(sample, np.ndarray):
+                    sample = sample.squeeze()
             return sample
 
         if decompress:
