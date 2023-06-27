@@ -114,10 +114,14 @@ def update_shape(new_sample, link_creds=None, tensor_meta=None):
     ):
         ret = np.array([1], dtype=np.int64)
     else:
-        ret = np.array(
-            getattr(new_sample, "shape", None) or np.array(new_sample).shape,
-            dtype=np.int64,
-        )
+        try:
+            ret = np.array(
+                getattr(new_sample, "shape", None) or np.array(new_sample).shape,
+                dtype=np.int64,
+            )
+        except:
+            print(new_sample)
+            raise
 
     if tensor_meta:
         # if grayscale being appended but tensor has rgb samples, convert shape from (h, w) to (h, w, 1)
