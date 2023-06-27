@@ -1416,14 +1416,20 @@ class Tensor:
             from deeplake.enterprise.convert_to_libdeeplake import (
                 dataset_to_libdeeplake,
             )
+
             ds = dataset_to_libdeeplake(self.dataset)
 
         ts = getattr(ds, self.meta.name)
         from indra import api
+
         index_meta = next(x for x in self.meta.vdb_indexes if x["id"] == id)
         commit_id = self.version_state["commit_id"]
-        b = self.chunk_engine.base_storage[get_tensor_vdb_index_key(self.key, commit_id, id)]
-        return api.vdb.load_index(ts, b, index_type=index_meta["type"], distance_type=index_meta["distance"])
+        b = self.chunk_engine.base_storage[
+            get_tensor_vdb_index_key(self.key, commit_id, id)
+        ]
+        return api.vdb.load_index(
+            ts, b, index_type=index_meta["type"], distance_type=index_meta["distance"]
+        )
 
     def get_vdb_indexes(self) -> List[Dict[str, str]]:
         if self.meta.htype != "embedding":
