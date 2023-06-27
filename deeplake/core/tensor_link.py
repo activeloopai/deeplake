@@ -121,6 +121,8 @@ def update_shape(new_sample, link_creds=None, tensor_meta=None):
             )
         except:
             print(new_sample)
+            print(getattr(new_sample, "shape", None))
+            print(np.array(new_sample).shape)
             raise
 
     if tensor_meta:
