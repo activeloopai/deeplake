@@ -1369,29 +1369,33 @@ class Tensor:
         """Invalidates the libdeeplake dataset object."""
         self.dataset.libdeeplake_dataset = None
 
-
-    def create_indexer(self, name: str, distance: DistanceType = DistanceType.L2_NORM) -> Indexer:
+    def create_indexer(
+        self, id: str, distance: DistanceType = DistanceType.L2_NORM
+    ) -> Indexer:
         if not self.dataset.libdeeplake_dataset is None:
             ds = self.dataset.libdeeplake_dataset
         else:
-            from deeplake.enterprise.convert_to_libdeeplake import dataset_to_libdeeplake
+            from deeplake.enterprise.convert_to_libdeeplake import (
+                dataset_to_libdeeplake,
+            )
+
             ds = dataset_to_libdeeplake(self.dataset)
         ts = getattr(ds, self.meta.name)
         from indra import api
+
         index = api.vdb.generate_index(ts, index_type="hnsw", distance_type=distance)
         b = index.serialize()
-        self.chunk_engine.base_storage.set_bytes(f"{self.path}/vdb_indexes/{name}", b)
-        self.meta.add_vdb_index(name=name, type="hnsw", distance=distance)
+        self.chunk_engine.base_storage.set_bytes(f"{self.path}/vdb_indexes/{id}", b)
+        self.meta.add_vdb_index(id=id, type="hnsw", distance=distance)
         return index
 
-
-    def delete_indexer(self, name: str):
+    def delete_indexer(self, id: str):
+        self.chunk_engine.base_storage.pop(f"{self.path}/vdb_indexes/{id}")
+        self.meta.remove_vdb_index(id=id)
         pass
-
 
     def load_indexer(self, name: str) -> Indexer:
         pass
-
 
     def get_indexers(self) -> List[str]:
         pass

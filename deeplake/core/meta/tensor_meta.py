@@ -86,15 +86,19 @@ class TensorMeta(Meta):
         self.links.update(d)  # type: ignore
         self.is_dirty = True
 
-    def add_vdb_index(self, name: str, type: str, distance: str, **kwargs):
-        if _contains_vdb_index(self.vdb_indexes, name):
-            raise ValueError(
-                f"Tensor meta already has a vdb index with name '{name}'."
-            )
- 
+    def contains_vdb_index(self, id: str) -> bool:
+        for index in self.vdb_indexes:
+            if id == index["id"]:
+                return True
+        return False
+
+    def add_vdb_index(self, id: str, type: str, distance: str, **kwargs):
+        if self.contains_vdb_index(id):
+            raise ValueError(f"Tensor meta already has a vdb index with name '{id}'.")
+
         self.vdb_indexes.append(
             {
-                "name": name,
+                "id": id,
                 "type": type,
                 "distance": distance,
                 **kwargs,
@@ -102,13 +106,11 @@ class TensorMeta(Meta):
         )
         self.is_dirty = True
 
-    def remove_vdb_index(self, name: str):
-        if not _contains_vdb_index(self.vdb_indexes, name):
-            raise ValueError(
-                f"Tensor meta has no vdb index with name '{name}'."
-            )
+    def remove_vdb_index(self, id: str):
+        if not self.contains_vdb_index(id):
+            raise ValueError(f"Tensor meta has no vdb index with name '{id}'.")
         for i in range(len(self.vdb_indexes)):
-            if name in self.vdb_indexes[i].keys():
+            if id == self.vdb_indexes[i]["id"]:
                 del self.vdb_indexes[i]
                 return
 
@@ -401,9 +403,3 @@ def _is_dtype_supported_by_numpy(dtype: str) -> bool:
         return True
     except:
         return False
-
-def _contains_vdb_index(indexes: List[Dict[str, str]], name: str) -> bool:
-    for index in indexes:
-        if name in index.keys():
-            return True
-    return False
