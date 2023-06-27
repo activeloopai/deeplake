@@ -122,6 +122,7 @@ def update_shape(new_sample, link_creds=None, tensor_meta=None):
         except:
             print(new_sample)
             print(new_sample.shape)
+            print(new_sample.shapes())
             print(new_sample.shape_interval)
             print(new_sample.numpy())
             print(np.array(new_sample).shape)
