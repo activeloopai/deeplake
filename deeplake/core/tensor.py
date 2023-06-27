@@ -1388,12 +1388,16 @@ class Tensor:
         index = api.vdb.generate_index(ts, index_type="hnsw", distance_type=distance)
         b = index.serialize()
         commit_id = self.version_state["commit_id"]
-        self.chunk_engine.base_storage.set_bytes(get_tensor_vdb_index_key(self.key, commit_id, id), b)
+        self.chunk_engine.base_storage.set_bytes(
+            get_tensor_vdb_index_key(self.key, commit_id, id), b
+        )
         return index
 
     def delete_indexer(self, id: str):
         commit_id = self.version_state["commit_id"]
-        self.chunk_engine.base_storage.pop(get_tensor_vdb_index_key(self.key, commit_id, id))
+        self.chunk_engine.base_storage.pop(
+            get_tensor_vdb_index_key(self.key, commit_id, id)
+        )
         self.meta.remove_vdb_index(id=id)
         pass
 
