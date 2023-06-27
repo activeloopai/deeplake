@@ -87,7 +87,7 @@ class TensorMeta(Meta):
         self.is_dirty = True
 
     def contains_vdb_index(self, id: str) -> bool:
-        for index in self.vdb_indexes:
+        for index in getattr(self, "vdb_indexes", []):
             if id == index["id"]:
                 return True
         return False
@@ -95,6 +95,9 @@ class TensorMeta(Meta):
     def add_vdb_index(self, id: str, type: str, distance: str, **kwargs):
         if self.contains_vdb_index(id):
             raise ValueError(f"Tensor meta already has a vdb index with name '{id}'.")
+
+        if not hasattr(self, "vdb_indexes"):
+            self.vdb_indexes = []
 
         self.vdb_indexes.append(
             {
@@ -112,6 +115,7 @@ class TensorMeta(Meta):
         for i in range(len(self.vdb_indexes)):
             if id == self.vdb_indexes[i]["id"]:
                 del self.vdb_indexes[i]
+                self.is_dirty = True
                 return
 
     def set_hidden(self, val: bool):
@@ -215,6 +219,9 @@ class TensorMeta(Meta):
         super().__setstate__(state)
         self._required_meta_keys = tuple(state.keys())
         ffw_tensor_meta(self)
+        if self.htype == "embedding" and not hasattr(self, "vdb_indexes"):
+            self.vdb_indexes = []
+            self._required_meta_keys += ("vdb_indexes",)
 
     @property
     def nbytes(self):

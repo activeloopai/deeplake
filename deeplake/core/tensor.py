@@ -28,6 +28,7 @@ from deeplake.util.keys import (
     get_tensor_commit_diff_key,
     get_tensor_meta_key,
     get_tensor_tile_encoder_key,
+    get_tensor_vdb_index_key,
     get_sequence_encoder_key,
     tensor_exists,
     get_tensor_info_key,
@@ -1383,14 +1384,16 @@ class Tensor:
         ts = getattr(ds, self.meta.name)
         from indra import api
 
+        self.meta.add_vdb_index(id=id, type="hnsw", distance=distance)
         index = api.vdb.generate_index(ts, index_type="hnsw", distance_type=distance)
         b = index.serialize()
-        self.chunk_engine.base_storage.set_bytes(f"{self.path}/vdb_indexes/{id}", b)
-        self.meta.add_vdb_index(id=id, type="hnsw", distance=distance)
+        commit_id = self.version_state["commit_id"]
+        self.chunk_engine.base_storage.set_bytes(get_tensor_vdb_index_key(self.key, commit_id, id), b)
         return index
 
     def delete_indexer(self, id: str):
-        self.chunk_engine.base_storage.pop(f"{self.path}/vdb_indexes/{id}")
+        commit_id = self.version_state["commit_id"]
+        self.chunk_engine.base_storage.pop(get_tensor_vdb_index_key(self.key, commit_id, id))
         self.meta.remove_vdb_index(id=id)
         pass
 
