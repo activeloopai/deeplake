@@ -199,6 +199,7 @@ logs/
 .vscode/
 .creds/
 .idea/
+*.iml
 .nvimrc
 .vimrc
 waymo/
@@ -213,5 +214,8 @@ benchmarks/hub_data
 benchmarks/torch_data
 .benchmarks/
 
+deeplake/test-dataset
+
 # API docs
 api_docs/
+
