@@ -742,8 +742,8 @@ def _get_required_chunks_for_range(tensor, start, end):
         else:
             return (start_row, start_row + 1), None, None
     elif num_required_chunks == 2:
-        # if start_chunk_aligned and end_chunk_aligned:
-        #     return (start_row, end_row + 1), None, None
+        if start_chunk_aligned and end_chunk_aligned:
+            return (start_row, end_row + 1), None, None
         if not start_chunk_aligned and not end_chunk_aligned:
             return None, (start, end), None
         if start_chunk_aligned:
