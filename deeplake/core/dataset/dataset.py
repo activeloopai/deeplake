@@ -4380,10 +4380,12 @@ class Dataset:
         self._concurrent_mode = False
 
     def _concurrent_push(self):
-        lock = Lock(self.base_storage, VERSION_CONTROL_INFO_LOCK_FILENAME)
+        lock = Lock(self.base_storage, VERSION_CONTROL_INFO_LOCK_FILENAME, duration=60*60*24)
         lock.acquire()
         try:
+            self.flush()
             sync_version_info(self.version_state, self.base_storage)
+
             self.commit()
             self.checkout(
                 self._concurrent_original_branch, _ignore_concurrent_mode_check=True
