@@ -74,7 +74,7 @@ class DeepLakeQueryTensor(tensor.Tensor):
 
     def text(self, fetch_chunks: bool = False):
         """Return text data. Only applicable for tensors with 'text' base htype."""
-        if len(self.indra_tensor) == 1:
+        if self.ndim == 1:
             return self.indra_tensor.bytes().decode()
         return list(
             self.indra_tensor[i].bytes().decode() for i in range(len(self.indra_tensor))
@@ -82,7 +82,7 @@ class DeepLakeQueryTensor(tensor.Tensor):
 
     def dict(self, fetch_chunks: bool = False):
         """Return json data. Only applicable for tensors with 'json' base htype."""
-        if len(self.indra_tensor) == 1:
+        if self.ndim == 1:
             return json.loads(self.indra_tensor.bytes().decode())
         return list(
             json.loads(self.indra_tensor[i].bytes().decode())
@@ -139,7 +139,9 @@ class DeepLakeQueryTensor(tensor.Tensor):
 
     @property
     def ndim(self):
-        return len(self.max_shape)
+        if self.deeplake_tensor.index.values[0].value != slice(None):
+            return self.deeplake_tensor.ndim
+        return len(self.shape)
 
     @property
     def meta(self):

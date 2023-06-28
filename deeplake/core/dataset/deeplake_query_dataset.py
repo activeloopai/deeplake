@@ -158,7 +158,7 @@ class DeepLakeQueryDataset(Dataset):
                             "Indexing by integer in a for loop, like `for i in range(len(ds)): ... ds[i]` can be quite slow. Use `for i, sample in enumerate(ds)` instead."
                         )
                 ret = DeepLakeQueryDataset(
-                    deeplake_ds=self.deeplake_ds,
+                    deeplake_ds=self.deeplake_ds[item],
                     indra_ds=self.indra_ds[item],
                 )
         else:
@@ -305,7 +305,7 @@ class DeepLakeQueryDataset(Dataset):
         )
 
     def __del__(self):
-        self.indra_ds = None
+        pass
 
     def random_split(self, lengths: Sequence[Union[int, float]]):
         if math.isclose(sum(lengths), 1) and sum(lengths) <= 1:
