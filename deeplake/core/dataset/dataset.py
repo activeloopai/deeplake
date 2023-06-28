@@ -1828,7 +1828,6 @@ class Dataset:
             if child.branch == self.branch:
                 return False
         return True
-        return not commit_node.children
 
     @property
     def has_head_changes(self):
