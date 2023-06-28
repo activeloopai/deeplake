@@ -1371,7 +1371,7 @@ class Tensor:
         self.dataset.libdeeplake_dataset = None
 
     def create_vdb_index(
-        self, id: str, distance: DistanceType = DistanceType.L2_NORM
+        self, id: str, distance: Union[DistanceType, str] = DistanceType.L2_NORM
     ) -> Indexer:
         if self.meta.htype != "embedding":
             raise Exception(f"Only supported for embedding tensors.")
@@ -1386,8 +1386,10 @@ class Tensor:
         ts = getattr(ds, self.meta.name)
         from indra import api  # type: ignore
 
+        if type(distance) == DistanceType:
+            distance = distance.value
         self.meta.add_vdb_index(id=id, type="hnsw", distance=distance)
-        index = api.vdb.generate_index(ts, index_type="hnsw", distance_type=distance.value)
+        index = api.vdb.generate_index(ts, index_type="hnsw", distance_type=distance)
         b = index.serialize()
         commit_id = self.version_state["commit_id"]
         self.chunk_engine.base_storage.set_bytes(
