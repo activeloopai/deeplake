@@ -4317,7 +4317,9 @@ class Dataset:
     def concurrent(self):
         """Initialize concurrent writes"""
         if self.commit_id is None:
-            raise ConcurrentModeError("HEAD node has no commit. Create a commit from master node before using concurrent mode.")
+            raise ConcurrentModeError(
+                "HEAD node has no commit. Create a commit from master node before using concurrent mode."
+            )
             lock = Lock(self.base_storage, VERSION_CONTROL_INFO_LOCK_FILENAME)
             lock.acquire()
             try:
@@ -4328,7 +4330,9 @@ class Dataset:
                 lock.release()
             self.checkout(self.commit_id)
         elif self.has_head_changes:
-            raise ConcurrentModeError("HEAD node has uncommitted changes. Commit them from master node before using concurrent mode.")
+            raise ConcurrentModeError(
+                "HEAD node has uncommitted changes. Commit them from master node before using concurrent mode."
+            )
         self._concurrent_original_branch = self.branch
         self._concurrent_branch = f"_concurrent_{uuid.uuid4().hex[:8]}"
         self.read_only = False
