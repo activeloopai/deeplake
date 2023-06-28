@@ -317,7 +317,12 @@ def populate_id_tensor_if_needed(ids_tensor, tensors, not_none_tensors, num_item
             if tensor in ("id", "ids"):
                 break
 
-        tensors[ids_tensor] = not_none_tensors[tensor]
+        tensors[ids_tensor] = list(
+            map(
+                lambda x: str(x) if isinstance(x, uuid.UUID) else x,
+                not_none_tensors[tensor],
+            )
+        )
     return tensors
 
 

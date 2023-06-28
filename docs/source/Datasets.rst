@@ -57,6 +57,7 @@ Dataset Operations
     Dataset.summary
     Dataset.append
     Dataset.extend
+    Dataset.update
     Dataset.query
     Dataset.copy
     Dataset.delete

@@ -14,6 +14,7 @@ from deeplake.constants import (
 from deeplake.util.exceptions import IncorrectEmbeddingShapeError
 
 from math import isclose
+import uuid
 import os
 
 EMBEDDING_DIM = 100
@@ -1244,3 +1245,13 @@ def test_embeddings_only(local_path):
     assert len(vector_store.dataset) == 10
     assert len(vector_store.dataset.embedding_1) == 10
     assert len(vector_store.dataset.embedding_2) == 10
+
+
+def test_uuid_fix(local_path):
+    vector_store = VectorStore(local_path, overwrite=True)
+
+    ids = [uuid.uuid4() for _ in range(NUMBER_OF_DATA)]
+
+    vector_store.add(text=texts, id=ids, embedding=embeddings, metadata=metadatas)
+
+    assert vector_store.dataset.id.data()["value"] == list(map(str, ids))
