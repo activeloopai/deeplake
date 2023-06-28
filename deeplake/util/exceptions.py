@@ -1062,3 +1062,6 @@ class AllSamplesSkippedError(Exception):
 
 class FailedIngestionError(Exception):
     pass
+
+class ConcurrentModeError(Exception):
+    pass

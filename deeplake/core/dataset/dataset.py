@@ -100,6 +100,7 @@ from deeplake.util.exceptions import (
     CheckoutError,
     DatasetCorruptError,
     BadRequestException,
+    ConcurrentModeError,
 )
 from deeplake.util.keys import (
     dataset_exists,
@@ -4315,22 +4316,20 @@ class Dataset:
 
     def concurrent(self):
         """Initialize concurrent writes"""
-        assert not self.has_head_changes
         if self.commit_id is None:
+            raise ConcurrentModeError("HEAD node has no commit. Create a commit from master node before using concurrent mode.")
             lock = Lock(self.base_storage, VERSION_CONTROL_INFO_LOCK_FILENAME)
             lock.acquire()
             try:
                 sync_version_info(self.version_state, self.base_storage)
                 if self.commit_id is None:
-                    print("====AUTO COMMIT====")
                     self._commit()
             finally:
                 lock.release()
             self.checkout(self.commit_id)
-            print(f"Latching to {self.commit_id}")
+        elif self.has_head_changes:
+            raise ConcurrentModeError("HEAD node has uncommitted changes. Commit them from master node before using concurrent mode.")
         self._concurrent_original_branch = self.branch
-        # self.checkout(self.commit_id)
-        # assert not self.is_head_node
         self._concurrent_branch = f"_concurrent_{uuid.uuid4().hex[:8]}"
         self.read_only = False
         self._locking_enabled = False
