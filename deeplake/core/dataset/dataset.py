@@ -4315,6 +4315,7 @@ class Dataset:
 
     def concurrent(self):
         """Initialize concurrent writes"""
+        assert not self.has_head_changes
         if self.commit_id is None:
             lock = Lock(self.base_storage, VERSION_CONTROL_INFO_LOCK_FILENAME)
             lock.acquire()
@@ -4346,6 +4347,7 @@ class Dataset:
                 self.ds.__enter__()
                 return self.ds
 
+            @spinner
             def __exit__(self, exc_type, exc_val, exc_tb):
                 ds = self.ds
                 ds._concurrent_push()
@@ -4357,6 +4359,7 @@ class Dataset:
         return _ConcurrentWriteContext(self)
 
     @ensure_concurrent_mode
+    @spinner
     def push(self):
         self._concurrent_push()
         self.checkout(self._concurrent_branch)
@@ -4366,6 +4369,7 @@ class Dataset:
         return self._concurrent_pull()
 
     @ensure_concurrent_mode
+    @spinner
     def join(self):
         self._concurrent_push()
         # TODO: Concurrent branch deletion

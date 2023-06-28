@@ -92,6 +92,8 @@ class LocalProvider(StorageProvider):
         if not os.path.exists(directory):
             os.makedirs(directory, exist_ok=True)
         with open(full_path, "wb") as file:
+            # if "abcd" in full_path and "_images_shape" in full_path and "chunks_index" in full_path:
+            #     raise Exception("!!!")
             file.write(value)
         if self.files is not None:
             self.files.add(path)
