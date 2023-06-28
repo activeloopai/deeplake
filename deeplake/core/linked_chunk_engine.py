@@ -133,7 +133,7 @@ class LinkedChunkEngine(ChunkEngine):
             url = sample_path
         return url, sample_path
 
-    def get_video_sample(self, global_sample_index, index):
+    def get_video_sample(self, global_sample_index, index, decompress=True):
         url, path = self.get_video_url(global_sample_index)
         try:
             squeeze = isinstance(index, int)
@@ -207,7 +207,9 @@ class LinkedChunkEngine(ChunkEngine):
         sample = sample[sample_index]
         return sample
 
-    def get_basic_sample(self, global_sample_index, index, fetch_chunks=False):
+    def get_basic_sample(
+        self, global_sample_index, index, fetch_chunks=False, decompress=True
+    ):
         sample = self.get_deeplake_read_sample(global_sample_index, fetch_chunks)
         if sample is None:
             return np.ones((0,))
