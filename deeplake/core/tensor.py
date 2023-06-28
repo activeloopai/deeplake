@@ -1387,7 +1387,7 @@ class Tensor:
         from indra import api  # type: ignore
 
         self.meta.add_vdb_index(id=id, type="hnsw", distance=distance)
-        index = api.vdb.generate_index(ts, index_type="hnsw", distance_type=distance)
+        index = api.vdb.generate_index(ts, index_type="hnsw", distance_type=distance.value)
         b = index.serialize()
         commit_id = self.version_state["commit_id"]
         self.chunk_engine.base_storage.set_bytes(
