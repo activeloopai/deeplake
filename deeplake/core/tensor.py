@@ -1373,6 +1373,7 @@ class Tensor:
     def create_vdb_index(
         self, id: str, distance: Union[DistanceType, str] = DistanceType.L2_NORM
     ) -> Indexer:
+        self.storage.check_readonly()
         if self.meta.htype != "embedding":
             raise Exception(f"Only supported for embedding tensors.")
         if not self.dataset.libdeeplake_dataset is None:
@@ -1392,16 +1393,17 @@ class Tensor:
         index = api.vdb.generate_index(ts, index_type="hnsw", distance_type=distance)
         b = index.serialize()
         commit_id = self.version_state["commit_id"]
-        self.chunk_engine.base_storage.set_bytes(
+        self.storage.set_bytes(
             get_tensor_vdb_index_key(self.key, commit_id, id), b
         )
         return index
 
     def delete_vdb_index(self, id: str):
+        self.storage.check_readonly()
         if self.meta.htype != "embedding":
             raise Exception(f"Only supported for embedding tensors.")
         commit_id = self.version_state["commit_id"]
-        self.chunk_engine.base_storage.pop(
+        self.storage.pop(
             get_tensor_vdb_index_key(self.key, commit_id, id)
         )
         self.meta.remove_vdb_index(id=id)
