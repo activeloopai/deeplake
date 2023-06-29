@@ -1394,6 +1394,7 @@ class Tensor:
         b = index.serialize()
         commit_id = self.version_state["commit_id"]
         self.storage[get_tensor_vdb_index_key(self.key, commit_id, id)] = b
+        self.invalidate_libdeeplake_dataset()
         return index
 
     def delete_vdb_index(self, id: str):
@@ -1403,6 +1404,7 @@ class Tensor:
         commit_id = self.version_state["commit_id"]
         self.storage.pop(get_tensor_vdb_index_key(self.key, commit_id, id))
         self.meta.remove_vdb_index(id=id)
+        self.invalidate_libdeeplake_dataset()
         self.storage.flush()
 
     def load_vdb_index(self, id: str) -> Indexer:
