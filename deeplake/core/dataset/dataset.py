@@ -107,7 +107,6 @@ from deeplake.util.exceptions import (
 )
 from deeplake.util.keys import (
     dataset_exists,
-    dataset_validate,
     get_dataset_info_key,
     get_dataset_meta_key,
     tensor_exists,
@@ -1761,7 +1760,6 @@ class Dataset:
     def _populate_meta(self, verbose=True):
         """Populates the meta information for the dataset."""
         if dataset_exists(self.storage):
-            dataset_validate(self.storage)
             load_meta(self)
 
         elif not self.storage.empty():

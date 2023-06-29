@@ -196,22 +196,8 @@ def dataset_exists(storage) -> bool:
         )
     except S3GetAccessError as err:
         raise AuthorizationException("The dataset storage cannot be accessed") from err
-    except S3GetError:
+    except (KeyError, S3GetError) as err:
         return False
-
-
-def dataset_validate(storage) -> None:
-    """
-    Checks the structure of the dataset and throws a descriptive DatasetCorruptError for any problems.
-    """
-    try:
-        for file in [get_dataset_meta_key(FIRST_COMMIT_ID), get_version_control_info_key()]:
-            if file not in storage:
-                raise DatasetCorruptError(f"Invalid dataset: missing file {file}")
-    except S3GetAccessError as err:
-        raise AuthorizationException("The dataset storage cannot be accessed") from err
-    except S3GetError:
-        raise DatasetCorruptError("Error reading from S3")
 
 
 def tensor_exists(key: str, storage, commit_id: str) -> bool:
