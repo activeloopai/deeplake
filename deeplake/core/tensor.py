@@ -1390,11 +1390,15 @@ class Tensor:
         if type(distance) == DistanceType:
             distance = distance.value
         self.meta.add_vdb_index(id=id, type="hnsw", distance=distance)
-        index = api.vdb.generate_index(ts, index_type="hnsw", distance_type=distance)
-        b = index.serialize()
-        commit_id = self.version_state["commit_id"]
-        self.storage[get_tensor_vdb_index_key(self.key, commit_id, id)] = b
-        self.invalidate_libdeeplake_dataset()
+        try:
+            index = api.vdb.generate_index(ts, index_type="hnsw", distance_type=distance)
+            b = index.serialize()
+            commit_id = self.version_state["commit_id"]
+            self.storage[get_tensor_vdb_index_key(self.key, commit_id, id)] = b
+            self.invalidate_libdeeplake_dataset()
+        except:
+            self.meta.remove_vdb_index(id=id)
+            raise
         return index
 
     def delete_vdb_index(self, id: str):
