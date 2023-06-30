@@ -149,6 +149,9 @@ def test_search_basic(local_path, hub_cloud_dev_token):
         overwrite=True,
         token=hub_cloud_dev_token,
     )
+
+    assert vector_store.exec_option == "python"
+
     vector_store.add(embedding=embeddings, text=texts, metadata=metadatas)
 
     with pytest.raises(ValueError):
@@ -166,7 +169,6 @@ def test_search_basic(local_path, hub_cloud_dev_token):
     # Use python implementation to search the data
     data_p = vector_store.search(
         embedding=query_embedding,
-        exec_option="python",
         k=2,
         return_tensors=["id", "text"],
         filter={"metadata": {"abc": 1}},
@@ -184,10 +186,11 @@ def test_search_basic(local_path, hub_cloud_dev_token):
         read_only=True,
         token=hub_cloud_dev_token,
     )
+    assert vector_store_cloud.exec_option == "compute_engine"
+
     # Use indra implementation to search the data
     data_ce = vector_store_cloud.search(
         embedding=query_embedding,
-        exec_option="compute_engine",
         k=2,
         return_tensors=["ids", "text"],
     )
@@ -202,7 +205,6 @@ def test_search_basic(local_path, hub_cloud_dev_token):
         data_ce = vector_store_cloud.search(
             query=f"SELECT * WHERE id=='{vector_store_cloud.dataset.ids[0].numpy()[0]}'",
             embedding=query_embedding,
-            exec_option="compute_engine",
             k=2,
             return_tensors=["ids", "text"],
         )
@@ -210,7 +212,7 @@ def test_search_basic(local_path, hub_cloud_dev_token):
     # Run a full custom query
     test_text = vector_store_cloud.dataset.text[0].data()["value"]
     data_q = vector_store_cloud.search(
-        query=f"select * where text == '{test_text}'", exec_option="compute_engine"
+        query=f"select * where text == '{test_text}'",
     )
 
     assert len(data_q["text"]) == 1
@@ -223,7 +225,6 @@ def test_search_basic(local_path, hub_cloud_dev_token):
 
     # Run a filter query using a json
     data_e_j = vector_store.search(
-        exec_option="python",
         k=2,
         return_tensors=["id", "text"],
         filter={"metadata": {"abc": 1}},
@@ -239,7 +240,6 @@ def test_search_basic(local_path, hub_cloud_dev_token):
         return x["metadata"].data()["value"]["abc"] == 1
 
     data_e_f = vector_store.search(
-        exec_option="python",
         k=2,
         return_tensors=["id", "text"],
         filter=filter_fn,
@@ -253,7 +253,6 @@ def test_search_basic(local_path, hub_cloud_dev_token):
     # Check returning views
     data_p_v = vector_store.search(
         embedding=query_embedding,
-        exec_option="python",
         k=2,
         filter={"metadata": {"abc": 1}},
         return_view=True,
@@ -262,53 +261,69 @@ def test_search_basic(local_path, hub_cloud_dev_token):
     assert isinstance(data_p_v.text[0].data()["value"], str)
     assert data_p_v.embedding[0].numpy().size > 0
 
+    # Check that specifying exec option during search works
+    _ = vector_store.search(
+        embedding=query_embedding,
+        exec_option="python",
+        k=2,
+        filter={"metadata": {"abc": 1}},
+        return_view=True,
+    )
+
     data_ce_v = vector_store_cloud.search(
-        embedding=query_embedding, exec_option="compute_engine", k=2, return_view=True
+        embedding=query_embedding, k=2, return_view=True
     )
     assert len(data_ce_v) == 2
     assert isinstance(data_ce_v.text[0].data()["value"], str)
     assert data_ce_v.embedding[0].numpy().size > 0
 
     # Check exceptions
+    # Invalid exec option
     with pytest.raises(ValueError):
         vector_store.search(embedding=query_embedding, exec_option="remote_tensor_db")
+    # Search without parameters
     with pytest.raises(ValueError):
         vector_store.search()
+    # Query with python exec_option
     with pytest.raises(ValueError):
         vector_store.search(query="dummy", exec_option="python")
+    # Returning a tensor that does not exist
     with pytest.raises(ValueError):
         vector_store.search(
-            query="dummy",
+            embedding=query_embedding,
             return_tensors=["non_existant_tensor"],
-            exec_option="compute_engine",
         )
+    # Specifying return tensors is not valid when also specifying a query
     with pytest.raises(ValueError):
-        vector_store.search(query="dummy", return_tensors=["ids"], exec_option="python")
+        vector_store_cloud.search(query="dummy", return_tensors=["ids"])
+    # Specifying a filter function is not valid when also specifying a query
     with pytest.raises(ValueError):
-        vector_store.search(
-            query="dummy", filter=filter_fn, exec_option="compute_engine"
+        vector_store_cloud.search(query="dummy", filter=filter_fn)
+    # Specifying a filter function is not valid when exec_option is "compute_engine"
+    with pytest.raises(ValueError):
+        vector_store_cloud.search(
+            embedding=query_embedding, filter=filter_fn, exec_option="compute_engine"
         )
+    # Not specifying a query or data that should be embedded
     with pytest.raises(ValueError):
         vector_store.search(
             embedding_function=embedding_fn,
         )
-
+    # Empty dataset cannot be queried
     with pytest.raises(ValueError):
-        vector_store = DeepLakeVectorStore(path="mem://xyz")
-
-        vector_store.search(
+        vector_store_empty = DeepLakeVectorStore(path="mem://xyz")
+        vector_store_empty.search(
             embedding=query_embedding,
-            exec_option="python",
             k=2,
             filter={"metadata": {"abc": 1}},
             return_view=True,
         )
 
     vector_store = DeepLakeVectorStore(path="mem://xyz")
+    assert vector_store.exec_option == "python"
     vector_store.add(embedding=embeddings, text=texts, metadata=metadatas)
 
     data = vector_store.search(
-        exec_option="python",
         embedding_function=embedding_fn3,
         embedding_data=["dummy"],
         return_view=True,
@@ -319,7 +334,6 @@ def test_search_basic(local_path, hub_cloud_dev_token):
     assert data.embedding[0].numpy().size > 0
 
     data = vector_store.search(
-        exec_option="python",
         filter={"metadata": {"abcdefh": 1}},
         embedding=None,
         return_view=True,
@@ -328,7 +342,6 @@ def test_search_basic(local_path, hub_cloud_dev_token):
     assert len(data) == 0
 
     data = vector_store.search(
-        exec_option="python",
         filter={"metadata": {"abcdefh": 1}},
         embedding=query_embedding,
         k=2,
@@ -339,23 +352,10 @@ def test_search_basic(local_path, hub_cloud_dev_token):
     assert len(data["text"]) == 0
     assert len(data["score"]) == 0
 
-    with pytest.raises(ValueError):
-        data = vector_store.search(
-            exec_option="compute_engine",
-            filter=filter_fn,
-            k=2,
-        )
-
-    with pytest.raises(ValueError):
-        data = vector_store.search(
-            exec_option="compute_engine",
-            query="select * where metadata == {'abcdefg': 28}",
-            return_tensors=["metadata", "id"],
-        )
-
     vector_store = DeepLakeVectorStore(
         path="mem://xyz", embedding_function=embedding_fn
     )
+    assert vector_store.exec_option == "python"
     vector_store.add(embedding=embeddings, text=texts, metadata=metadatas)
     result = vector_store.search(embedding=np.zeros((1, EMBEDDING_DIM)))
     assert len(result) == 4

@@ -36,7 +36,7 @@ class VectorStore:
         read_only: Optional[bool] = False,
         ingestion_batch_size: int = 1000,
         num_workers: int = 0,
-        exec_option: str = "python",
+        exec_option: str = "auto",
         token: Optional[str] = None,
         overwrite: bool = False,
         verbose: bool = True,
@@ -79,8 +79,8 @@ class VectorStore:
             read_only (bool, optional):  Opens dataset in read-only mode if True. Defaults to False.
             num_workers (int): Number of workers to use for parallel ingestion.
             ingestion_batch_size (int): Batch size to use for parallel ingestion.
-            exec_option (str): Default method for search execution. It could be either It could be either ``"python"``, ``"compute_engine"`` or ``"tensor_db"``. Defaults to ``"python"``.
-
+            exec_option (str): Default method for search execution. It could be either It could be either ``"auto"``, ``"python"``, ``"compute_engine"`` or ``"tensor_db"``. Defaults to ``"auto"``.
+                - ``auto``- Selects the best execution method based on the storage location of the Vector Store. It is the default option.
                 - ``python`` - Pure-python implementation that runs on the client and can be used for data stored anywhere. WARNING: using this option with big datasets is discouraged because it can lead to memory issues.
                 - ``compute_engine`` - Performant C++ implementation of the Deep Lake Compute Engine that runs on the client and can be used for any data stored in or connected to Deep Lake. It cannot be used with in-memory or local datasets.
                 - ``tensor_db`` - Performant and fully-hosted Managed Tensor Database that is responsible for storage and query execution. Only available for data stored in the Deep Lake Managed Database. Store datasets in this database by specifying runtime = {"tensor_db": True} during dataset creation.
@@ -134,7 +134,7 @@ class VectorStore:
             **kwargs,
         )
         self.embedding_function = embedding_function
-        self.exec_option = exec_option
+        self.exec_option = utils.parse_exec_option(self.dataset, exec_option)
         self.verbose = verbose
         self.tensor_params = tensor_params
 
@@ -295,7 +295,7 @@ class VectorStore:
         distance_metric: str = "COS",
         query: Optional[str] = None,
         filter: Optional[Union[Dict, Callable]] = None,
-        exec_option: Optional[str] = "python",
+        exec_option: Optional[str] = None,
         embedding_tensor: str = "embedding",
         return_tensors: Optional[List[str]] = None,
         return_view: bool = False,
@@ -430,7 +430,7 @@ class VectorStore:
         ids: Optional[List[str]] = None,
         filter: Optional[Union[Dict, Callable]] = None,
         query: Optional[str] = None,
-        exec_option: Optional[str] = "python",
+        exec_option: Optional[str] = None,
         delete_all: Optional[bool] = None,
     ) -> bool:
         """Delete the data in the Vector Store. Does not delete the tensor definitions. To delete the vector store completely, first run :meth:`VectorStore.delete_by_path()`.

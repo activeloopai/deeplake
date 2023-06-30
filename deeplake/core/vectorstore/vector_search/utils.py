@@ -19,6 +19,19 @@ def parse_tensor_return(tensor):
     return tensor.data(aslist=True)["value"]
 
 
+def parse_exec_option(dataset, exec_option):
+    if exec_option == "auto":
+        if "hub://" in dataset.path:
+            if "vector_db/" in dataset.base_storage.path:
+                return "tensor_db"
+            else:
+                return "compute_engine"
+        else:
+            return "python"
+    else:
+        return exec_option
+
+
 def check_indra_installation(exec_option, indra_installed):
     if exec_option == "compute_engine" and not indra_installed:
         raise raise_indra_installation_error(
