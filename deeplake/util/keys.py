@@ -29,7 +29,6 @@ from deeplake.util.exceptions import (
     S3GetError,
     S3GetAccessError,
     AuthorizationException,
-    DatasetCorruptError,
 )
 
 
