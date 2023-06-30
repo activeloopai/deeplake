@@ -288,7 +288,7 @@ def test_search_basic(local_path, hub_cloud_dev_token):
     with pytest.raises(ValueError):
         vector_store.search(query="dummy", exec_option="python")
     # Returning a tensor that does not exist
-    with pytest.raises(ValueError):
+    with pytest.raises(TensorDoesNotExistError):
         vector_store.search(
             embedding=query_embedding,
             return_tensors=["non_existant_tensor"],
