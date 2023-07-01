@@ -10,8 +10,8 @@ on:
       - '**'
 
 concurrency:
-  cancel-in-progress: ${{ github.ref != 'main' }}
-  group: ${{ github.workflow }}-${{ github.ref_name }}
+  cancel-in-progress: true
+  group: ${{ github.repository }}-${{ github.head_ref || github.ref_name }}
 
 jobs:
   full-test:
