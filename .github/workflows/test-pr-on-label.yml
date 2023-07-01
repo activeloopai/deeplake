@@ -23,7 +23,7 @@ concurrency:
 jobs:
   test-pr-full:
     uses: activeloopai/shared-github-actions/.github/workflows/full_test.yml@main
-    if: contains(github.event.pull_request.labels.*.name, 'trigger-test') }}
+    if: contains(github.event.pull_request.labels.*.name, 'trigger-test')
     with:
       repo: ${{ github.event.pull_request.head.repo.full_name }}
       ref: ${{ github.event.pull_request.head.sha }}
