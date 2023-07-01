@@ -11,7 +11,7 @@ on:
 
 concurrency:
   cancel-in-progress: true
-  group: ${{ github.repository }}-${{ github.ref_name }}
+  group: ${{ github.workflow }}-${{ github.ref_name }}
 
 jobs:
   full-test:
