@@ -10,10 +10,15 @@ on:
       - labeled
     branches:
       - main
+  pull_request:
+    types:
+      - labeled
+    branches:
+      - main
 
 concurrency:
   cancel-in-progress: true
-  group: ${{ github.head_ref }}
+  group: ${{ github.head_ref }}-${{ github.ref_name }}
 
 jobs:
   test-pr-full:
