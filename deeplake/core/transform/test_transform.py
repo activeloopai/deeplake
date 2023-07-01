@@ -1479,6 +1479,26 @@ def test_ds_append_errors(
         assert ds["labels"].numpy().shape == (40, 10)
 
 
+def test_ds_update(local_ds):
+    @deeplake.compute
+    def update_ds(sample_in, ds):
+        i = sample_in.pop("index")
+        ds[i].update(sample_in)
+
+    with local_ds as ds:
+        ds.create_tensor("abc")
+        ds.create_tensor("xyz")
+
+        ds.abc.extend([1, 2, 3, 4, 5])
+        ds.xyz.extend([1, 2, 3, 4, 5])
+
+    samples = [{"abc": 1, "xyz": 2, "index": 0}, {"abc": 3, "xyz": 4, "index": 1}]
+
+    with pytest.raises(TransformError) as e:
+        update_ds().eval(samples, ds, num_workers=TRANSFORM_TEST_NUM_WORKERS)
+        assert isinstance(e.__cause__, NotImplementedError)
+
+
 def test_all_samples_skipped(local_ds):
     @deeplake.compute
     def upload(stuff, ds):
