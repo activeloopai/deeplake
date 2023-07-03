@@ -101,9 +101,9 @@ HUB_CLOUD_DEV_PASSWORD = os.getenv(ENV_HUB_DEV_PASSWORD)
 
 # dataset base roots for pytests
 PYTEST_MEMORY_PROVIDER_BASE_ROOT = "mem://hub_pytest"
-PYTEST_LOCAL_PROVIDER_BASE_ROOT = "./hub_pytest/"  # TODO: may fail for windows
-PYTEST_S3_PROVIDER_BASE_ROOT = "s3://hub-2.0-tests/"
-PYTEST_GCS_PROVIDER_BASE_ROOT = "gcs://snark-test/"
+PYTEST_LOCAL_PROVIDER_BASE_ROOT = "./hub_pytest/"
+PYTEST_S3_PROVIDER_BASE_ROOT = "s3://deeplake-tests/"
+PYTEST_GCS_PROVIDER_BASE_ROOT = "gcs://deeplake-tests/"
 PYTEST_AZURE_PROVIDER_BASE_ROOT = "az://activeloopgen2/deeplake-tests/"
 PYTEST_GDRIVE_PROVIDER_BASE_ROOT = "gdrive://hubtest"
 PYTEST_HUB_CLOUD_PROVIDER_BASE_ROOT = (
@@ -210,6 +210,7 @@ DEFAULT_VECTORSTORE_DEEPLAKE_PATH = "./deeplake_vector_store"
 MAX_VECTORSTORE_INGESTION_RETRY_ATTEMPTS = 5
 MAX_CHECKPOINTING_INTERVAL = 100000
 VECTORSTORE_EXTEND_MAX_SIZE = 20000
+VECTORSTORE_EXTEND_MAX_SIZE_BY_HTYPE = {"image": 2000}
 DEFAULT_VECTORSTORE_TENSORS = [
     {
         "name": "text",
@@ -242,3 +243,5 @@ DEFAULT_VECTORSTORE_TENSORS = [
         "create_shape_tensor": False,
     },
 ]
+
+VIEW_SUMMARY_SAFE_LIMIT = 10000

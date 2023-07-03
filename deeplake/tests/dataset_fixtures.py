@@ -70,11 +70,24 @@ def local_ds(local_ds_generator):
 
 
 @pytest.fixture
-def local_ds_generator(local_path, hub_cloud_dev_token):
+def local_auth_ds(local_auth_ds_generator):
+    return local_auth_ds_generator()
+
+
+@pytest.fixture
+def local_ds_generator(local_path):
     def generate_local_ds(**kwargs):
-        return deeplake.dataset(local_path, token=hub_cloud_dev_token, **kwargs)
+        return deeplake.dataset(local_path, **kwargs)
 
     return generate_local_ds
+
+
+@pytest.fixture
+def local_auth_ds_generator(local_path, hub_cloud_dev_token):
+    def generate_local_auth_ds(**kwargs):
+        return deeplake.dataset(local_path, token=hub_cloud_dev_token, **kwargs)
+
+    return generate_local_auth_ds
 
 
 @pytest.fixture
@@ -149,7 +162,7 @@ def hub_cloud_gcs_ds_generator(gcs_path, gcs_creds, hub_cloud_dev_token):
         ds.connect(
             org_id=HUB_CLOUD_DEV_USERNAME,
             token=hub_cloud_dev_token,
-            creds_key="DEEPLAKE_GCP",
+            creds_key="gcp_creds",
         )
         return ds
 

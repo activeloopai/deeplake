@@ -79,6 +79,9 @@ class TransformDataset:
             elif append_empty:
                 self[k].append(None)
 
+    def update(self, sample):
+        raise NotImplementedError("ds.update is not supported in transforms.")
+
     def item_added(self, item):
         if isinstance(item, Sample):
             sizeof_item = len(item.buffer)

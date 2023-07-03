@@ -868,12 +868,13 @@ class InvalidTokenException(Exception):
 
 
 class TokenPermissionError(Exception):
-    def __init__(self):
-        message = (
-            "A dataset does not exist at the specified path, or you do not have "
-            "sufficient permissions to load or create one. Please check the dataset "
-            "path and make sure that you have sufficient permissions to the path."
-        )
+    def __init__(self, message=None):
+        if message is None:
+            message = (
+                "A dataset does not exist at the specified path, or you do not have "
+                "sufficient permissions to load or create one. Please check the dataset "
+                "path and make sure that you have sufficient permissions to the path."
+            )
         super().__init__(message)
 
 
@@ -1061,3 +1062,12 @@ class AllSamplesSkippedError(Exception):
 
 class FailedIngestionError(Exception):
     pass
+
+
+class IncorrectEmbeddingShapeError(Exception):
+    def __init__(self):
+        super().__init__(
+            "The embedding function returned embeddings of different shapes. "
+            "Please either use different embedding function or exclude invalid "
+            "files that are not supported by the embedding function. "
+        )

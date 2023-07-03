@@ -1,21 +1,33 @@
-# yaml-language-server: $schema=https://json.schemastore.org/github-workflow.json
-name: Full Test
+name: Full Test on PR
+
+permissions:
+  id-token: write
+  contents: read
+
 on:
-  pull_request_target:
-    types: [labeled]
+  pull_request:
+    types:
+      - labeled
+    branches:
+      - main
+
+concurrency:
+  cancel-in-progress: true
+  group: ${{ github.workflow }}-${{ github.ref_name }}
+
 jobs:
   test-pr-full:
     uses: activeloopai/shared-github-actions/.github/workflows/full_test.yml@main
-    if: ${{ (github.event_name == 'pull_request_target' || github.event_name == 'pull_request') && contains(github.event.pull_request.labels.*.name, 'trigger-test') }}
+    if: contains(github.event.pull_request.labels.*.name, 'trigger-test')
     with:
       repo: ${{ github.event.pull_request.head.repo.full_name }}
       ref: ${{ github.event.pull_request.head.sha }}
+      matrix: ${{ vars.FULL_MATRIX }}
     secrets:
       token: ${{ secrets.GITHUB_TOKEN }}
-      aws_key_id: ${{ secrets.AWS_ACCESS_KEY_ID }}
-      aws_secret_access_key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
-      gcp_project_id: ${{ secrets.GCP_PROJECT_ID }}
-      gcp_sa_key: ${{ secrets.GCP_SA_KEY }}
+      aws_role_arn: ${{ secrets.AWS_ROLE_ARN }}
+      gcp_sa_credentials_json: ${{ secrets.GCP_SA_CREDENTIALS_JSON }}
+      azure_creds_json: ${{ secrets.AZURE_CREDS_JSON }}
       hub_username: ${{ secrets.ACTIVELOOP_HUB_USERNAME }}
       hub_password: ${{ secrets.ACTIVELOOP_HUB_PASSWORD }}
       kaggle_username: ${{ secrets.KAGGLE_USERNAME }}
@@ -23,20 +35,4 @@ jobs:
       oauth_client_id: ${{ secrets.GDRIVE_CLIENT_ID }}
       oauth_client_secret: ${{ secrets.GDRIVE_CLIENT_SECRET }}
       oauth_refresh_token: ${{ secrets.GDRIVE_REFRESH_TOKEN }}
-  manage-pr:
-    name: Automated PR management tasks
-    if: ${{ (github.event_name == 'pull_request_target' || github.event_name == 'pull_request') && contains(github.event.pull_request.labels.*.name, 'trigger-test') }}
-    runs-on: ubuntu-latest
-    steps:
-      - name: Remove trigger-test label
-        continue-on-error: true
-        uses: actions-ecosystem/action-remove-labels@v1
-        with:
-          github_token: ${{ secrets.ACTIVELOOP_BOT_PAT }}
-          number: ${{ github.event.number }}
-          labels: trigger-test
-      - name: Cancel previous runs if available
-        uses: styfle/cancel-workflow-action@0.9.1
-        with:
-          all_but_latest: true
-          access_token: ${{ github.token }}
+      sonar_token: ${{ secrets.SONAR_TOKEN }}

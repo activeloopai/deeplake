@@ -1,6 +1,5 @@
-from typing import Dict, Callable, List, Union
-from deeplake.core.dataset import Dataset as DeepLakeDataset
-
+import logging
+from typing import Dict, Callable, List, Union, Optional
 
 import numpy as np
 
@@ -18,23 +17,28 @@ EXEC_OPTION_TO_SEARCH_TYPE: Dict[str, Callable] = {
 
 
 def search(
-    query,
-    logger,
-    filter,
-    query_embedding: Union[List[float], np.ndarray],
-    k: int,
+    k: Optional[int],
     distance_metric: str,
     exec_option: str,
     deeplake_dataset: DeepLakeDataset,
     return_tensors: List[str],
+    query: Optional[str] = None,
+    logger: Optional[logging.Logger] = None,
+    filter: Optional[Union[Dict, Callable]] = None,
+    query_embedding: Optional[Union[List[float], np.ndarray]] = None,
     embedding_tensor: str = "embedding",
     return_view: bool = False,
 ) -> Union[Dict, DeepLakeDataset]:
     """Searching function
     Args:
+        query (Optional[str]) - TQL Query string for direct evaluation, without application of additional filters or vector search.
+        logger (Optional[logging.Logger]) - logger that will print all of the warnings.
         query_embedding (Union[List[float], np.ndarray]) - embedding representation of the query
         k (int) - number of samples to return after searching
         distance_metric (str, optional): Type of distance metric to use for sorting the data. Avaliable options are: "L1", "L2", "COS", "MAX".
+        filter (Union[Dict, Callable], optional): Additional filter evaluated prior to the embedding search.
+                - ``Dict`` - Key-value search on tensors of htype json, evaluated on an AND basis (a sample must satisfy all key-value filters to be True) Dict = {"tensor_name_1": {"key": value}, "tensor_name_2": {"key": value}}
+                - ``Function`` - Any function that is compatible with `deeplake.filter`.
         exec_option (str, optional): Type of query execution. It could be either "python", "compute_engine" or "tensor_db". Defaults to "python".
             ``python`` - runs on the client and can be used for any data stored anywhere. WARNING: using this option with big datasets is discouraged, because it can lead to some memory issues.
             ``compute_engine`` - runs on the client and can be used for any data stored in or connected to Deep Lake.

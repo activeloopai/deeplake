@@ -78,7 +78,15 @@ class ShapeInterval:
             else:
                 intervals.append(f"{l}:{u}")
 
+        if len(intervals) == 1:
+            return f"({intervals[0]},)"
         return f"({', '.join(intervals)})"
 
     def __repr__(self):
         return str(self)
+
+    def __eq__(self, other):
+        if not isinstance(other, ShapeInterval):
+            return False
+
+        return self.lower == other.lower and self.upper == other.upper

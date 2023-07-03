@@ -274,6 +274,7 @@ class SampleStreaming(Streaming):
         decode_method: Optional[Dict[str, str]] = None,
         tobytes: Union[bool, Sequence[str]] = False,
         verbose: bool = True,
+        cache_size: int = 32 * MB,
     ) -> None:
         super().__init__()
 
@@ -281,6 +282,7 @@ class SampleStreaming(Streaming):
         self.local_storage: Optional[LocalProvider] = (
             get_pytorch_local_storage(dataset) if use_local_cache else None
         )
+        self.cache_size = cache_size
 
         # TODO: copy all meta/info to local_storage
         self.storage = get_base_storage(dataset.storage)
@@ -324,7 +326,18 @@ class SampleStreaming(Streaming):
         self.chunk_engines: ChunkEngineMap = self._map_chunk_engines(self.tensors)
 
         self.local_caches: Optional[CachesMap] = (
-            ({tensor: self._use_cache(self.local_storage) for tensor in self.tensors})
+            (
+                {
+                    tensor: self._use_cache(
+                        self.local_storage,
+                        max(
+                            self.cache_size,
+                            self.dataset[tensor].meta.max_chunk_size or 0,
+                        ),
+                    )
+                    for tensor in self.tensors
+                }
+            )
             if self.local_storage is not None
             else None
         )
@@ -521,8 +534,10 @@ class SampleStreaming(Streaming):
 
         return blocks
 
-    def _use_cache(self, storage: Union[StorageProvider, LRUCache]) -> LRUCache:
-        cache = LRUCache(MemoryProvider(), copy(storage), 32 * MB)
+    def _use_cache(
+        self, storage: Union[StorageProvider, LRUCache], cache_size
+    ) -> LRUCache:
+        cache = LRUCache(MemoryProvider(), copy(storage), cache_size)
         cache.read_only = storage.read_only
         return cache
 
@@ -534,8 +549,11 @@ class SampleStreaming(Streaming):
 
     def _create_chunk_engine(self, tensor_name, version_state):
         tensor_key = version_state["tensor_names"][tensor_name]
+        tensor_meta = version_state["full_tensors"][tensor_key].meta
+        cache_size = max(self.cache_size, tensor_meta.max_chunk_size or 0)
+
+        cache = self._use_cache(self.storage, cache_size)
         meta_key = get_tensor_meta_key(tensor_key, version_state["commit_id"])
-        cache = self._use_cache(self.storage)
         meta = cache.get_deeplake_object(meta_key, TensorMeta)
         if meta.is_link:
             return LinkedChunkEngine(

@@ -15,6 +15,8 @@ from tqdm import tqdm  # type: ignore
 import deeplake
 from deeplake.core.index.index import IndexEntry
 from deeplake.core.link_creds import LinkCreds
+from deeplake.core.sample import Sample
+from deeplake.core.linked_sample import LinkedSample
 from deeplake.util.connect_dataset import connect_dataset_entry
 from deeplake.util.downsample import validate_downsampling
 from deeplake.util.version_control import (
@@ -101,6 +103,7 @@ from deeplake.util.exceptions import (
     TokenPermissionError,
     CheckoutError,
     DatasetCorruptError,
+    BadRequestException,
 )
 from deeplake.util.keys import (
     dataset_exists,
@@ -135,6 +138,7 @@ from deeplake.util.pretty_print import summary_dataset
 from deeplake.core.dataset.view_entry import ViewEntry
 from deeplake.core.dataset.invalid_view import InvalidView
 from deeplake.hooks import dataset_read
+from collections import defaultdict
 from itertools import chain
 import warnings
 import jwt
@@ -208,8 +212,8 @@ class Dataset:
         )
         d["storage"] = storage
         d["_read_only_error"] = read_only is False
-        d["_read_only"] = DEFAULT_READONLY if read_only is None else read_only
         d["base_storage"] = get_base_storage(storage)
+        d["_read_only"] = d["base_storage"].read_only
         d["_locked_out"] = False  # User requested write access but was denied
         d["is_iteration"] = is_iteration
         d["is_first_load"] = version_state is None
@@ -577,6 +581,13 @@ class Dataset:
             ret._view_entry = self._view_entry
         return ret
 
+    def __setitem__(self, item: str, value: Any):
+        if not isinstance(item, str):
+            raise TypeError("Datasets do not support item assignment")
+        tensor = self[item]
+        tensor.index = Index()
+        tensor[self.index] = value
+
     @invalid_view_op
     def create_tensor(
         self,
@@ -593,6 +604,7 @@ class Dataset:
         exist_ok: bool = False,
         verbose: bool = True,
         downsampling: Optional[Tuple[int, int]] = None,
+        tiling_threshold: Optional[int] = None,
         **kwargs,
     ):
         """Creates a new tensor in the dataset.
@@ -628,11 +640,12 @@ class Dataset:
             create_shape_tensor (bool): If ``True``, an associated tensor containing shapes of each sample will be created.
             create_id_tensor (bool): If ``True``, an associated tensor containing unique ids for each sample will be created. This is useful for merge operations.
             verify (bool): Valid only for link htypes. If ``True``, all links will be verified before they are added to the tensor.
-                ``verify`` is always ``True`` even if specified as ``False`` if ``create_shape_tensor`` or ``create_sample_info_tensor`` is ``True``.
+                If ``False``, links will be added without verification but note that ``create_shape_tensor`` and ``create_sample_info_tensor`` will be set to ``False``.
             exist_ok (bool): If ``True``, the group is created if it does not exist. if ``False``, an error is raised if the group already exists.
             verbose (bool): Shows warnings if ``True``.
             downsampling (tuple[int, int]): If not ``None``, the tensor will be downsampled by the provided factors. For example, ``(2, 5)`` will downsample the tensor by a factor of 2 in both dimensions and create 5 layers of downsampled tensors.
                 Only support for image and mask htypes.
+            tiling_threshold (Optional, int): In bytes. Tiles large images if their size exceeds this threshold. Set to -1 to disable tiling.
             **kwargs:
                 - ``htype`` defaults can be overridden by passing any of the compatible parameters.
                 - To see all htypes and their correspondent arguments, check out :ref:`Htypes`.
@@ -674,6 +687,7 @@ class Dataset:
             exist_ok,
             verbose,
             downsampling,
+            tiling_threshold=tiling_threshold,
             **kwargs,
         )
 
@@ -737,16 +751,10 @@ class Dataset:
         downsampling_factor, number_of_layers = validate_downsampling(downsampling)
         kwargs["is_sequence"] = kwargs.get("is_sequence") or is_sequence
         kwargs["is_link"] = kwargs.get("is_link") or is_link
-        if (
-            kwargs["is_link"]
-            and not verify
-            and (create_shape_tensor or create_sample_info_tensor)
-            and verbose
-        ):
-            warnings.warn(
-                "Setting `verify` to True. `verify`, `create_shape_tensor` and `create_sample_info_tensor` should all be False if you do not want to verify your link samples."
-            )
-        kwargs["verify"] = create_shape_tensor or create_sample_info_tensor or verify
+        kwargs["verify"] = verify
+        if kwargs["is_link"] and not kwargs["verify"]:
+            create_shape_tensor = False
+            create_sample_info_tensor = False
 
         if not self._is_root():
             return self.root._create_tensor(
@@ -1884,6 +1892,7 @@ class Dataset:
         pad_tensors: bool = False,
         transform_kwargs: Optional[Dict[str, Any]] = None,
         decode_method: Optional[Dict[str, str]] = None,
+        cache_size: int = 32 * MB,
         *args,
         **kwargs,
     ):
@@ -1918,6 +1927,10 @@ class Dataset:
                     :'tobytes': Returns raw bytes of the samples.
                     :'pil': Returns samples as PIL images. Especially useful when transformation use torchvision transforms, that
                             require PIL images as input. Only supported for tensors with ``sample_compression='jpeg'`` or ``'png'``.
+            cache_size (int): The size of the cache per tensor in MBs. Defaults to max(maximum chunk size of tensor, 32 MB).
+
+        ..
+            # noqa: DAR101
 
         Returns:
             A torch.utils.data.DataLoader object.
@@ -1968,6 +1981,7 @@ class Dataset:
             return_index=return_index,
             pad_tensors=pad_tensors,
             decode_method=decode_method,
+            cache_size=cache_size,
             **kwargs,
         )
 
@@ -2415,10 +2429,27 @@ class Dataset:
         self._unlock()
         self.storage.clear()
 
-    def summary(self):
-        """Prints a summary of the dataset."""
+    def summary(self, force: bool = False):
+        """Prints a summary of the dataset.
+
+        Args:
+            force (bool): Dataset views with more than 10000 samples might take a long time to summarize. If `force=True`,
+                the summary will be printed regardless. An error will be raised otherwise.
+
+        Raises:
+            ValueError: If the dataset view might take a long time to summarize and `force=False`
+        """
 
         deeplake_reporter.feature_report(feature_name="summary", parameters={})
+
+        if (
+            not self.index.is_trivial()
+            and self.max_len >= deeplake.constants.VIEW_SUMMARY_SAFE_LIMIT
+            and not force
+        ):
+            raise ValueError(
+                "Dataset views with more than 10000 samples might take a long time to summarize. Use `force=True` to override."
+            )
 
         pretty_print = summary_dataset(self)
 
@@ -2910,6 +2941,105 @@ class Dataset:
                                 "Error while attempting to rollback appends"
                             ) from e2
                     raise e
+
+    def update(self, sample: Dict[str, Any]):
+        """Update existing samples in the dataset with new values.
+
+        Examples:
+
+            >>> ds[0].update({"images": deeplake.read("new_image.png"), "labels": 1})
+
+            >>> new_images = [deeplake.read(f"new_image_{i}.png") for i in range(3)]
+            >>> ds[:3].update({"images": new_images, "labels": [1, 2, 3]})
+
+        Args:
+            sample (dict): Dictionary with tensor names as keys and samples as values.
+
+        Raises:
+            ValueError: If partial update of a sample is attempted.
+            Exception: Error while attempting to rollback updates.
+        """
+        if len(self.index) > 1:
+            raise ValueError(
+                "Cannot make partial updates to samples using `ds.update`. Use `ds.tensor[index] = value` instead."
+            )
+
+        def get_sample_from_engine(
+            engine, idx, is_link, compression, dtype, decompress
+        ):
+            # tiled data will always be decompressed
+            decompress = decompress or engine._is_tiled_sample(idx)
+            if is_link:
+                creds_key = engine.creds_key(idx)
+                item = engine.get_path(idx)
+                return LinkedSample(item, creds_key)
+            item = engine.get_single_sample(idx, self.index, decompress=decompress)
+            shape = engine.read_shape_for_sample(idx)
+            return engine._get_sample_object(
+                item, shape, compression, dtype, decompress
+            )
+
+        # remove update hooks from view base so that the view is not invalidated
+        if self._view_base:
+            saved_update_hooks = self._view_base._update_hooks
+            self._view_base._update_hooks = {}
+        idx = self.index.values[0].value
+        with self:
+            saved = defaultdict(list)
+            try:
+                for k, v in sample.items():
+                    tensor_meta = self[k].meta
+                    dtype = tensor_meta.dtype
+                    sample_compression = tensor_meta.sample_compression
+                    chunk_compression = tensor_meta.chunk_compression
+
+                    compression = sample_compression or chunk_compression
+
+                    engine = self[k].chunk_engine
+
+                    decompress = chunk_compression is not None or engine.is_text_like
+
+                    for idx in self.index.values[0].indices(self[k].num_samples):
+                        if tensor_meta.is_sequence:
+                            old_sample = []
+                            for i in range(*engine.sequence_encoder[idx]):
+                                item = get_sample_from_engine(
+                                    engine,
+                                    i,
+                                    tensor_meta.is_link,
+                                    compression,
+                                    dtype,
+                                    decompress,
+                                )
+                                old_sample.append(item)
+                        else:
+                            old_sample = get_sample_from_engine(
+                                engine,
+                                idx,
+                                tensor_meta.is_link,
+                                compression,
+                                dtype,
+                                decompress,
+                            )
+
+                        saved[k].append(old_sample)
+                    self[k] = v
+            except Exception as e:
+                for k, v in saved.items():
+                    # squeeze
+                    if len(v) == 1:
+                        v = v[0]
+                    try:
+                        self[k] = v
+                    except Exception as e2:
+                        raise Exception(
+                            f"Error while attempting to rollback updates"
+                        ) from e2
+                raise e
+            finally:
+                # restore update hooks
+                if self._view_base:
+                    self._view_base._update_hooks = saved_update_hooks
 
     def _view_hash(self) -> str:
         """Generates a unique hash for a filtered dataset view."""
@@ -3829,15 +3959,28 @@ class Dataset:
         Raises:
             InvalidSourcePathError: If the dataset's path is not a valid s3, gcs or azure path.
             InvalidDestinationPathError: If ``dest_path``, or ``org_id`` and ``ds_name`` do not form a valid Deep Lake path.
+            TokenPermissionError: If the user does not have permission to create a dataset in the specified organization.
         """
-        path = connect_dataset_entry(
-            src_path=self.path,
-            dest_path=dest_path,
-            org_id=org_id,
-            ds_name=ds_name,
-            creds_key=creds_key,
-            token=token,
-        )
+        try:
+            path = connect_dataset_entry(
+                src_path=self.path,
+                dest_path=dest_path,
+                org_id=org_id,
+                ds_name=ds_name,
+                creds_key=creds_key,
+                token=token,
+            )
+        except BadRequestException:
+            check_param = "organization id" if org_id else "dataset path"
+            raise TokenPermissionError(
+                "You do not have permission to create a dataset in the specified "
+                + check_param
+                + "."
+                + " Please check the "
+                + check_param
+                + " and make sure"
+                + "that you have sufficient permissions to the organization."
+            )
         self.__class__ = (
             deeplake.core.dataset.deeplake_cloud_dataset.DeepLakeCloudDataset
         )

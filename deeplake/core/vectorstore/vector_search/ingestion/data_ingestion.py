@@ -5,7 +5,11 @@ import numpy as np
 import deeplake
 from deeplake.core.dataset import Dataset as DeepLakeDataset
 from deeplake.core.vectorstore.vector_search import utils
-from deeplake.util.exceptions import TransformError, FailedIngestionError
+from deeplake.util.exceptions import (
+    TransformError,
+    FailedIngestionError,
+    IncorrectEmbeddingShapeError,
+)
 from deeplake.constants import (
     MAX_VECTORSTORE_INGESTION_RETRY_ATTEMPTS,
     MAX_CHECKPOINTING_INTERVAL,
@@ -17,8 +21,8 @@ class DataIngestion:
         self,
         elements: List[Dict[str, Any]],
         dataset: DeepLakeDataset,
-        embedding_function: Optional[Callable],
-        embedding_tensor: Optional[str],
+        embedding_function: Optional[List[Callable]],
+        embedding_tensor: Optional[List[str]],
         ingestion_batch_size: int,
         num_workers: int,
         retry_attempt: int,
@@ -107,6 +111,9 @@ class DataIngestion:
                 verbose=False,
             )
         except Exception as e:
+            if isinstance(e.__cause__, IncorrectEmbeddingShapeError):
+                raise IncorrectEmbeddingShapeError()
+
             self.retry_attempt += 1
             last_checkpoint = self.dataset.version_state["commit_node"].parent
             self.total_samples_processed += (
@@ -157,18 +164,27 @@ def ingest(
     embeds: List[Optional[np.ndarray]] = [None] * len(sample_in)
     if embedding_function:
         try:
-            embedding_data = [s[embedding_tensor] for s in sample_in]
-            embeddings = embedding_function(embedding_data)
-        except Exception as e:
+            for func, tensor in zip(embedding_function, embedding_tensor):
+                embedding_data = [s[tensor] for s in sample_in]
+                embeddings = func(embedding_data)
+        except Exception as exc:
             raise Exception(
                 "Could not use embedding function. Please try again with a different embedding function."
             )
-        embeds = [np.array(e, dtype=np.float32) for e in embeddings]
+
+        shape = np.array(embeddings[0]).shape
+        embeds = []
+        for e in embeddings:
+            embedding = np.array(e, dtype=np.float32)
+            if shape != embedding.shape:
+                raise IncorrectEmbeddingShapeError()
+            embeds.append(embedding)
 
     for s, emb in zip(sample_in, embeds):
         sample_in_i = {tensor_name: s[tensor_name] for tensor_name in s}
 
         if embedding_function:
-            sample_in_i[embedding_tensor] = np.array(emb, dtype=np.float32)
+            for tensor in embedding_tensor:
+                sample_in_i[tensor] = np.array(emb, dtype=np.float32)
 
         sample_out.append(sample_in_i)
