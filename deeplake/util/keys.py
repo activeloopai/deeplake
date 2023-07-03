@@ -186,7 +186,6 @@ def dataset_exists(storage) -> bool:
     """
     Returns true if a dataset exists at the given location.
     NOTE: This does not verify if it is a VALID dataset, only that it exists and is likely a deeplake directory.
-    To verify the content, use :func:`dataset_valid`
     """
     try:
         return (
