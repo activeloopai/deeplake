@@ -1324,7 +1324,7 @@ class Dataset:
             return
 
         if address is None:
-            address = FIRST_COMMIT_ID
+            address = "main"
 
         version_state = {}
         try:
@@ -1764,7 +1764,7 @@ class Dataset:
     def _populate_meta(self, address: Optional[str] = None, verbose=True):
         """Populates the meta information for the dataset."""
         if address is None:
-            commit_id = FIRST_COMMIT_ID
+            commit_id = self._get_commit_id_for_address("main", self.version_state)
         else:
             commit_id = self._get_commit_id_for_address(address, self.version_state)
 

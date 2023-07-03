@@ -434,7 +434,7 @@ class dataset:
             "org_id": org_id,
             "verbose": verbose,
         }
-        ret = dataset._load(dataset_kwargs)
+        ret = dataset._load(dataset_kwargs, create=True)
         return ret
 
     @staticmethod
@@ -567,7 +567,7 @@ class dataset:
             if isinstance(e, UserNotLoggedInException):
                 raise UserNotLoggedInException from None
             raise
-        if not dataset_exists(cache_chain) and address is None:
+        if not dataset_exists(cache_chain):
             raise DatasetHandlerError(
                 f"A Deep Lake dataset does not exist at the given path ({path}). Check the path provided or in case you want to create a new dataset, use deeplake.empty()."
             )

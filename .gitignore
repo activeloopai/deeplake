@@ -132,6 +132,7 @@ wandb/
 *Python-3.7*
 *mem:/*
 hub_pytest/
+deeplake/test-dataset
 
 # Translations
 *.mo
@@ -199,6 +200,7 @@ logs/
 .vscode/
 .creds/
 .idea/
+*.iml
 .nvimrc
 .vimrc
 waymo/
@@ -213,5 +215,8 @@ benchmarks/hub_data
 benchmarks/torch_data
 .benchmarks/
 
+deeplake/test-dataset
+
 # API docs
 api_docs/
+
