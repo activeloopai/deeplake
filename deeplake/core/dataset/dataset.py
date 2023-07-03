@@ -2816,12 +2816,14 @@ class Dataset:
     def __bool__(self):
         return True
 
-    def extend(self, samples: Dict[str, Any], skip_ok: bool = False):
+    def extend(self, samples: Dict[str, Any], skip_ok: bool = False, append_empty: bool = False, ignore_errors: bool = False):
         """Appends multiple rows of samples to mutliple tensors at once. This method expects all tensors being updated to be of the same length.
 
         Args:
             samples (Dict[str, Any]): Dictionary with tensor names as keys and samples as values.
             skip_ok (bool): Skip tensors not in ``samples`` if set to True.
+            append_empty (bool): Append empty samples to tensors not specified in ``sample`` if set to ``True``. If True, ``skip_ok`` is ignored.
+            ignore_errors (bool): Ignore errors while appending samples if set to ``True``.
 
         Raises:
             KeyError: If any tensor in the dataset is not a key in ``samples`` and ``skip_ok`` is ``False``.
@@ -2844,7 +2846,13 @@ class Dataset:
         [f() for f in list(self._update_hooks.values())]
         with self:
             for i in range(n):
-                self.append({k: v[i] for k, v in samples.items()}, skip_ok=skip_ok)
+                try:
+                    self.append({k: v[i] for k, v in samples.items()}, skip_ok=skip_ok, append_empty=append_empty)
+                except Exception as e:
+                    if ignore_errors:
+                        continue
+                    else:
+                        raise e
 
     @invalid_view_op
     def append(
