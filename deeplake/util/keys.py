@@ -190,8 +190,8 @@ def dataset_exists(storage) -> bool:
     """
     try:
         return (
-                get_dataset_meta_key(FIRST_COMMIT_ID) in storage
-                or get_version_control_info_key() in storage
+            get_dataset_meta_key(FIRST_COMMIT_ID) in storage
+            or get_version_control_info_key() in storage
         )
     except S3GetAccessError as err:
         raise AuthorizationException("The dataset storage cannot be accessed") from err
