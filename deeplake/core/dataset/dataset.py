@@ -2866,25 +2866,42 @@ class Dataset:
         tensors_to_check_length = tensors if append_empty else sample
         if len(set(map(len, (tensors[k] for k in tensors_to_check_length)))) != 1:
             raise ValueError(
-                "When appending using Dataset.append, all tensors being updated are expected to have the same length."
+                "When appending using Dataset.append or Dataset.extend, all tensors being updated are expected to have the same length."
             )
+        if extend:
+            sample_lens = set(map(len, smaple.values()))
+            if sample_lens == {0}:
+                return
+            if len(sample_lens) > 1 and not append_empty:
+                raise ValueError(
+                    "All tensors have to be extended to the same length. Specify `append_empty=True` to pad tensors receiving fewer samples."
+                )
+            max_len = max(sample_lens)
         [f() for f in list(self._update_hooks.values())]
         tensors_appended = []
         with self:
             for k in tensors:
+                extend_extra_nones = 0
                 if k in sample:
                     v = sample[k]
+                    if extend:
+                        extend_extra_nones = max(max_len - len(v), 0)
                 else:
                     if skip_ok:
                         continue
                     else:
-                        v = None
+                        if extend:
+                            v = [None] * max_len
+                        else:
+                            v = None
                 try:
                     tensor = tensors[k]
                     enc = tensor.chunk_engine.chunk_id_encoder
                     num_chunks = enc.num_chunks
                     if extend:
                         tensor.extend(v)
+                        if extend_extra_nones:
+                            tensor.extend([None] * extend_extra_nones)
                     else:
                         tensor.append(v)
                     tensors_appended.append(k)
