@@ -2816,51 +2816,17 @@ class Dataset:
     def __bool__(self):
         return True
 
-    def extend(self, samples: Dict[str, Any], skip_ok: bool = False, append_empty: bool = False, ignore_errors: bool = False):
-        """Appends multiple rows of samples to mutliple tensors at once. This method expects all tensors being updated to be of the same length.
-
-        Args:
-            samples (Dict[str, Any]): Dictionary with tensor names as keys and samples as values.
-            skip_ok (bool): Skip tensors not in ``samples`` if set to True.
-            append_empty (bool): Append empty samples to tensors not specified in ``sample`` if set to ``True``. If True, ``skip_ok`` is ignored.
-            ignore_errors (bool): Ignore errors while appending samples if set to ``True``.
-
-        Raises:
-            KeyError: If any tensor in the dataset is not a key in ``samples`` and ``skip_ok`` is ``False``.
-            TensorDoesNotExistError: If tensor in ``samples`` does not exist.
-            ValueError: If all tensors being updated are not of the same length.
-            NotImplementedError: If an error occurs while writing tiles.
-            Exception: Error while attempting to rollback appends.
-        """
-        if isinstance(samples, Dataset):
-            samples = samples.tensors
-        if not samples:
-            return
-        n = len(samples[next(iter(samples.keys()))])
-        for v in samples.values():
-            if len(v) != n:
-                sizes = {k: len(v) for (k, v) in samples.items()}
-                raise ValueError(
-                    f"Incoming samples are not of equal lengths. Incoming sample sizes: {sizes}"
-                )
-        [f() for f in list(self._update_hooks.values())]
-        with self:
-            for i in range(n):
-                try:
-                    self.append({k: v[i] for k, v in samples.items()}, skip_ok=skip_ok, append_empty=append_empty)
-                except Exception as e:
-                    if ignore_errors:
-                        continue
-                    else:
-                        raise e
-
-    @invalid_view_op
-    def append(
-        self, sample: Dict[str, Any], skip_ok: bool = False, append_empty: bool = False
+    def _append_or_extend(
+        self,
+        sample: Dict[str, Any],
+        extend: bool = False,
+        skip_ok: bool = False,
+        append_empty: bool = False,
     ):
-        """Append samples to mutliple tensors at once. This method expects all tensors being updated to be of the same length.
+        """Append o extend samples to mutliple tensors at once. This method expects all tensors being updated to be of the same length.
 
         Args:
+            extend (bool): Extends if True. Appends if False.
             sample (dict): Dictionary with tensor names as keys and samples as values.
             skip_ok (bool): Skip tensors not in ``sample`` if set to ``True``.
             append_empty (bool): Append empty samples to tensors not specified in ``sample`` if set to ``True``. If True, ``skip_ok`` is ignored.
@@ -2917,9 +2883,16 @@ class Dataset:
                     tensor = tensors[k]
                     enc = tensor.chunk_engine.chunk_id_encoder
                     num_chunks = enc.num_chunks
-                    tensor.append(v)
+                    if extend:
+                        tensor.extend(v)
+                    else:
+                        tensor.append(v)
                     tensors_appended.append(k)
                 except Exception as e:
+                    if extend:
+                        raise NotImplementedError(
+                            "Unable to recover from error while extending multiple tensors with numpy arrays."
+                        )
                     new_num_chunks = enc.num_chunks
                     num_chunks_added = new_num_chunks - num_chunks
                     if num_chunks_added > 1:
@@ -2938,6 +2911,99 @@ class Dataset:
                                 "Error while attempting to rollback appends"
                             ) from e2
                     raise e
+
+    def extend(
+        self,
+        samples: Dict[str, Any],
+        skip_ok: bool = False,
+        append_empty: bool = False,
+        ignore_errors: bool = False,
+    ):
+        """Appends multiple rows of samples to mutliple tensors at once. This method expects all tensors being updated to be of the same length.
+
+        Args:
+            samples (Dict[str, Any]): Dictionary with tensor names as keys and samples as values.
+            skip_ok (bool): Skip tensors not in ``samples`` if set to True.
+            append_empty (bool): Append empty samples to tensors not specified in ``sample`` if set to ``True``. If True, ``skip_ok`` is ignored.
+            ignore_errors (bool): Ignore errors while appending samples if set to ``True``.
+
+        Raises:
+            KeyError: If any tensor in the dataset is not a key in ``samples`` and ``skip_ok`` is ``False``.
+            TensorDoesNotExistError: If tensor in ``samples`` does not exist.
+            ValueError: If all tensors being updated are not of the same length.
+            NotImplementedError: If an error occurs while writing tiles.
+            Exception: Error while attempting to rollback appends.
+        """
+        extend = False
+        if isinstance(samples, Dataset):
+            samples = samples.tensors
+            extend = True
+        elif set(map(type, samples.values())) == {np.ndarray}:
+            extend = True
+        if not samples:
+            return
+        n = len(samples[next(iter(samples.keys()))])
+        for v in samples.values():
+            if len(v) != n:
+                sizes = {k: len(v) for (k, v) in samples.items()}
+                raise ValueError(
+                    f"Incoming samples are not of equal lengths. Incoming sample sizes: {sizes}"
+                )
+        [f() for f in list(self._update_hooks.values())]
+        if extend:
+            if ignore_errors:
+                warnings.warn(
+                    "`ignore_errors` argument will be ignored while extending with numpy arrays or tensors."
+                )
+            return self._append_or_extend(
+                samples, extend=True, skip_ok=skip_ok, append_empty=append_empty
+            )
+        with self:
+            for i in range(n):
+                try:
+                    self.append(
+                        {k: v[i] for k, v in samples.items()},
+                        skip_ok=skip_ok,
+                        append_empty=append_empty,
+                    )
+                except Exception as e:
+                    if ignore_errors:
+                        continue
+                    else:
+                        raise e
+
+    @invalid_view_op
+    def append(
+        self, sample: Dict[str, Any], skip_ok: bool = False, append_empty: bool = False
+    ):
+        """Append samples to mutliple tensors at once. This method expects all tensors being updated to be of the same length.
+
+        Args:
+            sample (dict): Dictionary with tensor names as keys and samples as values.
+            skip_ok (bool): Skip tensors not in ``sample`` if set to ``True``.
+            append_empty (bool): Append empty samples to tensors not specified in ``sample`` if set to ``True``. If True, ``skip_ok`` is ignored.
+
+        Raises:
+            KeyError: If any tensor in the dataset is not a key in ``sample`` and ``skip_ok`` is ``False``.
+            TensorDoesNotExistError: If tensor in ``sample`` does not exist.
+            ValueError: If all tensors being updated are not of the same length.
+            NotImplementedError: If an error occurs while writing tiles.
+            Exception: Error while attempting to rollback appends.
+            SampleAppendingError: Error that occurs when someone tries to append a tensor value directly to the dataset without specifying tensor name.
+
+        Examples:
+
+            >>> ds = deeplake.empty("../test/test_ds")
+            >>> ds.create_tensor('data')
+            Tensor(key='data')
+            >>> ds.create_tensor('labels')
+            Tensor(key='labels')
+            >>> ds.append({"data": [1, 2, 3, 4], "labels":[0, 1, 2, 3]})
+
+        """
+        self._append_or_extend(
+            sample, extend=False, skip_ok=skip_ok, append_empty=append_empty
+        )
 
     def update(self, sample: Dict[str, Any]):
         """Update existing samples in the dataset with new values.
