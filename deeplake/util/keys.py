@@ -182,9 +182,9 @@ def get_sequence_encoder_key(key: str, commit_id: str) -> str:
     )
 
 
-def dataset_exists(storage, address=None) -> bool:
+def dataset_exists(storage, commit_id=None) -> bool:
     try:
-        storage[get_dataset_meta_key(address or FIRST_COMMIT_ID)]
+        storage[get_dataset_meta_key(commit_id or FIRST_COMMIT_ID)]
         return True
     except S3GetAccessError as err:
         raise AuthorizationException("The dataset storage cannot be accessed") from err
