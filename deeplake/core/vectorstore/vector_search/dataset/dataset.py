@@ -66,11 +66,8 @@ def create_or_load_dataset(
         exec_option,
         embedding_function,
         overwrite,
-<<<<<<< HEAD
         creds,
-=======
         runtime,
->>>>>>> main
         **kwargs,
     )
 
