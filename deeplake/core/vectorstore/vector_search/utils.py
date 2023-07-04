@@ -2,6 +2,8 @@ from deeplake.constants import MB
 from deeplake.enterprise.util import raise_indra_installation_error
 from deeplake.util.warnings import always_warn
 
+from deeplake.core.dataset import DeepLakeCloudDataset
+
 import numpy as np
 
 import random
@@ -21,7 +23,7 @@ def parse_tensor_return(tensor):
 
 def parse_exec_option(dataset, exec_option):
     if exec_option == "auto":
-        if "hub://" in dataset.path:
+        if isinstance(dataset, DeepLakeCloudDataset):
             if "vector_db/" in dataset.base_storage.path:
                 return "tensor_db"
             else:

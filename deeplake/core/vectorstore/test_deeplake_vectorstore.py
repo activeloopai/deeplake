@@ -11,7 +11,10 @@ from deeplake.tests.common import requires_libdeeplake
 from deeplake.constants import (
     DEFAULT_VECTORSTORE_TENSORS,
 )
-from deeplake.util.exceptions import IncorrectEmbeddingShapeError
+from deeplake.util.exceptions import (
+    IncorrectEmbeddingShapeError,
+    TensorDoesNotExistError,
+)
 
 from math import isclose
 import uuid
@@ -192,7 +195,7 @@ def test_search_basic(local_path, hub_cloud_dev_token):
     data_ce = vector_store_cloud.search(
         embedding=query_embedding,
         k=2,
-        return_tensors=["ids", "text"],
+        return_tensors=["id", "text"],
     )
     assert len(data_ce["text"]) == 2
     assert (
@@ -203,10 +206,10 @@ def test_search_basic(local_path, hub_cloud_dev_token):
 
     with pytest.raises(ValueError):
         data_ce = vector_store_cloud.search(
-            query=f"SELECT * WHERE id=='{vector_store_cloud.dataset.ids[0].numpy()[0]}'",
+            query=f"SELECT * WHERE id=='{vector_store_cloud.dataset.id[0].numpy()[0]}'",
             embedding=query_embedding,
             k=2,
-            return_tensors=["ids", "text"],
+            return_tensors=["id", "text"],
         )
 
     # Run a full custom query
@@ -295,7 +298,7 @@ def test_search_basic(local_path, hub_cloud_dev_token):
         )
     # Specifying return tensors is not valid when also specifying a query
     with pytest.raises(ValueError):
-        vector_store_cloud.search(query="dummy", return_tensors=["ids"])
+        vector_store_cloud.search(query="dummy", return_tensors=["id"])
     # Specifying a filter function is not valid when also specifying a query
     with pytest.raises(ValueError):
         vector_store_cloud.search(query="dummy", filter=filter_fn)
@@ -398,7 +401,7 @@ def test_search_quantitative(distance_metric, hub_cloud_dev_token):
         ]
     )
     assert data_p["text"] == data_ce["text"]
-    assert data_p["ids"] == data_ce["ids"]
+    assert data_p["id"] == data_ce["id"]
     assert data_p["metadata"] == data_ce["metadata"]
 
     # use indra implementation to search the data
@@ -409,7 +412,7 @@ def test_search_quantitative(distance_metric, hub_cloud_dev_token):
         filter={"metadata": {"abcdefg": 28}},
     )
 
-    assert data_ce["ids"] == "0"
+    assert data_ce["id"] == "0"
 
     with pytest.raises(ValueError):
         # use indra implementation to search the data
@@ -421,10 +424,10 @@ def test_search_quantitative(distance_metric, hub_cloud_dev_token):
         )
 
     data_ce = vector_store.search(
-        query="select * where ids == '0'",
+        query="select * where id == '0'",
         exec_option="compute_engine",
     )
-    assert data_ce["ids"] == ["0"]
+    assert data_ce["id"] == ["0"]
 
 
 @requires_libdeeplake
