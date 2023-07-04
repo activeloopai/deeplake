@@ -63,6 +63,7 @@ def create_or_load_dataset(
         exec_option,
         embedding_function,
         overwrite,
+        creds,
         **kwargs,
     )
 
@@ -152,6 +153,7 @@ def create_dataset(
     exec_option,
     embedding_function,
     overwrite,
+    creds,
     **kwargs,
 ):
     runtime = None
@@ -164,6 +166,7 @@ def create_dataset(
         runtime=runtime,
         verbose=False,
         overwrite=overwrite,
+        creds=creds,
         **kwargs,
     )
     create_tensors(tensor_params, dataset, logger, embedding_function)

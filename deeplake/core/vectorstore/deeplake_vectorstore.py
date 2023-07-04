@@ -115,7 +115,12 @@ class VectorStore:
 
         self.ingestion_batch_size = ingestion_batch_size
         self.num_workers = num_workers
-        creds = {"creds": kwargs["creds"]} if "creds" in kwargs else {}
+
+        creds = {}
+        if "creds" in kwargs:
+            creds = {"creds": kwargs["creds"]}
+            del kwargs["creds"]
+
         self.dataset = dataset_utils.create_or_load_dataset(
             tensor_params,
             path,
