@@ -11,8 +11,10 @@ from deeplake.tests.common import requires_libdeeplake
 from deeplake.constants import (
     DEFAULT_VECTORSTORE_TENSORS,
 )
+from deeplake.util.exceptions import IncorrectEmbeddingShapeError
 
 from math import isclose
+import uuid
 import os
 
 EMBEDDING_DIM = 100
@@ -32,7 +34,7 @@ def embedding_fn(text, embedding_dim=EMBEDDING_DIM):
 
 
 def embedding_fn2(text, embedding_dim=EMBEDDING_DIM):
-    pass  # pragma: no cover
+    return []  # pragma: no cover
 
 
 def embedding_fn3(text, embedding_dim=EMBEDDING_DIM):
@@ -42,6 +44,11 @@ def embedding_fn3(text, embedding_dim=EMBEDDING_DIM):
 
 def embedding_fn4(text, embedding_dim=EMBEDDING_DIM):
     return np.zeros((1, EMBEDDING_DIM))  # pragma: no cover
+
+
+def embedding_fn5(text, embedding_dim=EMBEDDING_DIM):
+    """Returns embedding in List[np.ndarray] format"""
+    return [np.zeros(i) for i in range(len(text))]
 
 
 def test_id_backward_compatibility(local_path):
@@ -106,6 +113,31 @@ def test_custom_tensors(local_path):
     )
     assert len(data.keys()) == 3
     assert "texts_custom" in data.keys() and "id" in data.keys()
+
+    vector_store = DeepLakeVectorStore(
+        path=local_path,
+        overwrite=True,
+        tensor_params=[
+            {"name": "texts_custom", "htype": "text"},
+            {"name": "emb_custom", "htype": "embedding"},
+        ],
+        embedding_function=embedding_fn5,
+    )
+
+    with pytest.raises(IncorrectEmbeddingShapeError):
+        vector_store.add(
+            embedding_data=texts,
+            embedding_tensor="emb_custom",
+            texts_custom=texts,
+        )
+
+    texts_extended = texts * 2500
+    with pytest.raises(IncorrectEmbeddingShapeError):
+        vector_store.add(
+            embedding_data=texts_extended,
+            embedding_tensor="emb_custom",
+            texts_custom=texts_extended,
+        )
 
 
 @pytest.mark.parametrize(
@@ -175,12 +207,18 @@ def test_search_basic(local_path, hub_cloud_dev_token):
     )
     vector_store.add(embedding=embeddings, text=texts, metadata=metadatas)
 
+    with pytest.raises(ValueError):
+        vector_store.add(
+            embedding_function=embedding_fn2,
+            embedding_data=texts,
+            text=texts,
+            metadata=metadatas,
+        )
     # Check that default option works
     data_default = vector_store.search(
         embedding=query_embedding,
     )
     assert (len(data_default.keys())) > 0
-
     # Use python implementation to search the data
     data_p = vector_store.search(
         embedding=query_embedding,
@@ -215,6 +253,15 @@ def test_search_basic(local_path, hub_cloud_dev_token):
         == 2
     )  # One for each return_tensors
     assert len(data_ce.keys()) == 3  # One for each return_tensors + score
+
+    with pytest.raises(ValueError):
+        data_ce = vector_store_cloud.search(
+            query=f"SELECT * WHERE id=='{vector_store_cloud.dataset.ids[0].numpy()[0]}'",
+            embedding=query_embedding,
+            exec_option="compute_engine",
+            k=2,
+            return_tensors=["ids", "text"],
+        )
 
     # Run a full custom query
     test_text = vector_store_cloud.dataset.text[0].data()["value"]
@@ -1254,3 +1301,13 @@ def test_embeddings_only(local_path):
     assert len(vector_store.dataset) == 10
     assert len(vector_store.dataset.embedding_1) == 10
     assert len(vector_store.dataset.embedding_2) == 10
+
+
+def test_uuid_fix(local_path):
+    vector_store = VectorStore(local_path, overwrite=True)
+
+    ids = [uuid.uuid4() for _ in range(NUMBER_OF_DATA)]
+
+    vector_store.add(text=texts, id=ids, embedding=embeddings, metadata=metadatas)
+
+    assert vector_store.dataset.id.data()["value"] == list(map(str, ids))

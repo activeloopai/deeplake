@@ -79,15 +79,13 @@ __all__ = [
 ]
 
 
-__version__ = "3.6.6"
+__version__ = "3.6.8"
 warn_if_update_required(__version__)
 __encoded_version__ = np.array(__version__)
 config = {"s3": Config(max_pool_connections=50, connect_timeout=300, read_timeout=300)}
 
 
 deeplake_reporter.tags.append(f"version:{__version__}")
-deeplake_reporter.system_report(publish=True)
-deeplake_reporter.setup_excepthook(publish=True)
 
 event_queue: Queue = Queue()
 
