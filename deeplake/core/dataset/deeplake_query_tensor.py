@@ -127,6 +127,11 @@ class DeepLakeQueryTensor(tensor.Tensor):
 
     @property
     def shape(self):
+        index_0 = self.deeplake_tensor.index.values[0]
+
+        if index_0.subscriptable():
+            return (len(self.indra_tensor), *self.indra_tensor.shape)  # type: ignore
+
         return self.indra_tensor.shape
 
     @property
@@ -139,8 +144,6 @@ class DeepLakeQueryTensor(tensor.Tensor):
 
     @property
     def ndim(self):
-        if self.deeplake_tensor.index.values[0].value != slice(None):
-            return self.deeplake_tensor.ndim
         return len(self.shape)
 
     @property
