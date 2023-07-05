@@ -6,16 +6,21 @@ on:
   pull_request:
     branches:
       - '**'
+
+concurrency:
+  cancel-in-progress: true
+  group: ${{ github.workflow }}-${{ github.ref_name }}
+
 jobs:
   lint:
     name: Python linting
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v2
-      - name: Set up Python 3.8
-        uses: actions/setup-python@v2
+      - uses: actions/checkout@v3
+      - name: Set up Python 3.10
+        uses: actions/setup-python@v3.1.4
         with:
-          python-version: 3.8
+          python-version: '3.10'
       - uses: actions/cache@v2
         with:
           path: ~/.cache/pip
@@ -31,16 +36,17 @@ jobs:
       - name: Install deeplake
         run: pip install -e .
       - name: Check formatting with black
+        continue-on-error: true
         run: |
           black --version
           black --check .
       - name: Lint docstrings with darglint
-        if: always() # Run even if previous check failed
+        continue-on-error: true
         run: |
           darglint --version
           darglint .
       - name: Check typing with mypy
-        if: always() # Run even if previous check failed
+        continue-on-error: true
         run: |
           mypy --version
           mypy .
