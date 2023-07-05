@@ -2823,7 +2823,7 @@ class Dataset:
         skip_ok: bool = False,
         append_empty: bool = False,
     ):
-        """Append o extend samples to mutliple tensors at once. This method expects all tensors being updated to be of the same length.
+        """Append or extend samples to mutliple tensors at once. This method expects all tensors being updated to be of the same length.
 
         Args:
             extend (bool): Extends if True. Appends if False.
