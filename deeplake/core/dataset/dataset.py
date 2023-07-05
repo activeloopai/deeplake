@@ -2869,7 +2869,7 @@ class Dataset:
                 "When appending using Dataset.append or Dataset.extend, all tensors being updated are expected to have the same length."
             )
         if extend:
-            sample_lens = set(map(len, smaple.values()))
+            sample_lens = set(map(len, sample.values()))
             if sample_lens == {0}:
                 return
             if len(sample_lens) > 1 and not append_empty:
@@ -2942,7 +2942,7 @@ class Dataset:
             samples (Dict[str, Any]): Dictionary with tensor names as keys and samples as values.
             skip_ok (bool): Skip tensors not in ``samples`` if set to True.
             append_empty (bool): Append empty samples to tensors not specified in ``sample`` if set to ``True``. If True, ``skip_ok`` is ignored.
-            ignore_errors (bool): Ignore errors while appending samples if set to ``True``.
+            ignore_errors (bool): Skip samples that cause errors while extending, if set to ``True``.
 
         Raises:
             KeyError: If any tensor in the dataset is not a key in ``samples`` and ``skip_ok`` is ``False``.
