@@ -134,7 +134,9 @@ class VectorStore:
             **kwargs,
         )
         self.embedding_function = embedding_function
-        self.exec_option = utils.parse_exec_option(self.dataset, exec_option)
+        self.exec_option = utils.parse_exec_option(
+            self.dataset, exec_option, _INDRA_INSTALLED
+        )
         self.verbose = verbose
         self.tensor_params = tensor_params
 

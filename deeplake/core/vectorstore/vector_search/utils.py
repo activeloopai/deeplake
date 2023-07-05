@@ -21,13 +21,15 @@ def parse_tensor_return(tensor):
     return tensor.data(aslist=True)["value"]
 
 
-def parse_exec_option(dataset, exec_option):
+def parse_exec_option(dataset, exec_option, indra_installed):
     if exec_option == "auto":
         if isinstance(dataset, DeepLakeCloudDataset):
             if "vector_db/" in dataset.base_storage.path:
                 return "tensor_db"
-            else:
+            elif indra_installed:
                 return "compute_engine"
+            else:
+                return "python"
         else:
             return "python"
     else:

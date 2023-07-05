@@ -64,14 +64,14 @@ def test_id_backward_compatibility(local_path):
     metadata = [{"key": i} for i in range(num_of_items)]
 
     ds = deeplake.empty(local_path, overwrite=True)
-    ds.create_tensor("id", htype="text")
+    ds.create_tensor("ids", htype="text")
     ds.create_tensor("embedding", htype="embedding")
     ds.create_tensor("text", htype="text")
     ds.create_tensor("metadata", htype="json")
 
     ds.extend(
         {
-            "id": ids,
+            "ids": ids,
             "embedding": embedding,
             "text": text,
             "metadata": metadata,
@@ -516,12 +516,12 @@ def test_delete(local_path, capsys):
     assert local_path not in dirs
 
     # backwards compatibility test:
-    vector_store = DeepLakeVectorStore(
+    vector_store_b = DeepLakeVectorStore(
         path=local_path,
         overwrite=True,
         tensor_params=[
             {
-                "name": "id",
+                "name": "ids",
                 "htype": "text",
             },
             {
@@ -531,10 +531,10 @@ def test_delete(local_path, capsys):
         ],
     )
     # add data to the dataset:
-    vector_store.add(id=ids, docs=texts)
+    vector_store_b.add(ids=ids, docs=texts)
 
     # delete the data in the dataset by id:
-    vector_store.delete(row_ids=[0])
+    vector_store_b.delete(row_ids=[0])
     assert len(vector_store.dataset) == NUMBER_OF_DATA - 1
 
     ds = deeplake.empty(local_path, overwrite=True)
