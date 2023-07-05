@@ -349,8 +349,8 @@ class VectorStore:
                 - ``compute_engine`` - Performant C++ implementation of the Deep Lake Compute Engine that runs on the client and can be used for any data stored in or connected to Deep Lake. It cannot be used with in-memory or local datasets.
                 - ``tensor_db`` - Performant and fully-hosted Managed Tensor Database that is responsible for storage and query execution. Only available for data stored in the Deep Lake Managed Database. Store datasets in this database by specifying runtime = {"tensor_db": True} during dataset creation.
             embedding_tensor (str): Name of tensor with embeddings. Defaults to "embedding".
-            return_tensors (Optional[List[str]]): List of tensors to return data for. Defaults to None. If None, all tensors are returned.
-            return_view (bool): Return a Deep Lake dataset view that satisfied the search parameters, instead of a dictinary with data. Defaults to False.
+            return_tensors (Optional[List[str]]): List of tensors to return data for. Defaults to None, which returns data for all tensors except the embedding tensor (in order to minimize payload). To return data for all tensors, specify return_tensors = "*".
+            return_view (bool): Return a Deep Lake dataset view that satisfied the search parameters, instead of a dictionary with data. Defaults to False. If ``True`` return_tensors is set to "*" beucase data is lazy-loaded and there is no cost to including all tensors in the view.
 
         ..
             # noqa: DAR101
@@ -395,6 +395,10 @@ class VectorStore:
             return_tensors=return_tensors,
         )
 
+        return_tensors = utils.parse_return_tensors(
+            self.dataset, return_tensors, embedding_tensor, return_view
+        )
+
         query_emb: Optional[Union[List[float], np.ndarray[Any, Any]]] = None
         if query is None:
             query_emb = dataset_utils.get_embedding(
@@ -406,11 +410,6 @@ class VectorStore:
                 assert (
                     query_emb.ndim == 1 or query_emb.shape[0] == 1
                 ), "Query embedding must be 1-dimensional. Please consider using another embedding function for converting query string to embedding."
-
-        if not return_tensors:
-            return_tensors = [
-                tensor for tensor in self.dataset.tensors if tensor != embedding_tensor
-            ]
 
         return vector_search.search(
             query=query,

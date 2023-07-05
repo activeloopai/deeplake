@@ -22,6 +22,7 @@ def parse_tensor_return(tensor):
 
 
 def parse_exec_option(dataset, exec_option, indra_installed):
+    """Select the best available exec_option for the given dataset and environment"""
     if exec_option == "auto":
         if isinstance(dataset, DeepLakeCloudDataset):
             if "vector_db/" in dataset.base_storage.path:
@@ -34,6 +35,20 @@ def parse_exec_option(dataset, exec_option, indra_installed):
             return "python"
     else:
         return exec_option
+
+
+def parse_return_tensors(dataset, return_tensors, embedding_tensor, return_view):
+    """Select the best selection of data and tensors to be returned"""
+    if return_view:
+        return_tensors = "*"
+
+    if not return_tensors or return_tensors == "*":
+        return_tensors = [
+            tensor
+            for tensor in dataset.tensors
+            if (tensor != embedding_tensor or return_tensors == "*")
+        ]
+    return return_tensors
 
 
 def check_indra_installation(exec_option, indra_installed):
