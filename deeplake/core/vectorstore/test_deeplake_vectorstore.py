@@ -264,14 +264,15 @@ def test_search_basic(local_path, hub_cloud_dev_token):
     assert isinstance(data_p_v.text[0].data()["value"], str)
     assert data_p_v.embedding[0].numpy().size > 0
 
-    # Check that specifying exec option during search works
-    _ = vector_store.search(
-        embedding=query_embedding,
-        exec_option="python",
-        k=2,
-        filter={"metadata": {"abc": 1}},
-        return_view=True,
-    )
+    # Check that specifying exec option during search works, by specifying an invalid option
+    with pytest.raises(ValueError):
+        vector_store.search(
+            embedding=query_embedding,
+            exec_option="tensor_db",
+            k=2,
+            filter={"metadata": {"abc": 1}},
+            return_view=True,
+        )
 
     data_ce_v = vector_store_cloud.search(
         embedding=query_embedding, k=2, return_view=True
