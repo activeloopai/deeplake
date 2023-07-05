@@ -486,9 +486,9 @@ class VectorStore:
             },
         )
 
-        dataset_utils.check_delete_arguments(
-            ids, filter, query, delete_all, row_ids, exec_option
-        )
+        exec_option = exec_option or self.exec_option
+
+        dataset_utils.check_delete_arguments(ids, filter, query, delete_all, row_ids)
 
         (
             self.dataset,
