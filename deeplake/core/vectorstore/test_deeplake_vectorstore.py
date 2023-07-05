@@ -64,14 +64,14 @@ def test_id_backward_compatibility(local_path):
     metadata = [{"key": i} for i in range(num_of_items)]
 
     ds = deeplake.empty(local_path, overwrite=True)
-    ds.create_tensor("ids", htype="text")
+    ds.create_tensor("id", htype="text")
     ds.create_tensor("embedding", htype="embedding")
     ds.create_tensor("text", htype="text")
     ds.create_tensor("metadata", htype="json")
 
     ds.extend(
         {
-            "ids": ids,
+            "id": ids,
             "embedding": embedding,
             "text": text,
             "metadata": metadata,
@@ -465,7 +465,7 @@ def test_search_managed(hub_cloud_dev_token):
         ]
     )
     assert data_ce["text"] == data_db["text"]
-    assert data_ce["ids"] == data_db["ids"]
+    assert data_ce["id"] == data_db["id"]
 
 
 def test_delete(local_path, capsys):
@@ -521,7 +521,7 @@ def test_delete(local_path, capsys):
         overwrite=True,
         tensor_params=[
             {
-                "name": "ids",
+                "name": "id",
                 "htype": "text",
             },
             {
@@ -531,18 +531,18 @@ def test_delete(local_path, capsys):
         ],
     )
     # add data to the dataset:
-    vector_store.add(ids=ids, docs=texts)
+    vector_store.add(id=ids, docs=texts)
 
     # delete the data in the dataset by id:
     vector_store.delete(row_ids=[0])
     assert len(vector_store.dataset) == NUMBER_OF_DATA - 1
 
     ds = deeplake.empty(local_path, overwrite=True)
-    ds.create_tensor("ids", htype="text")
+    ds.create_tensor("id", htype="text")
     ds.create_tensor("embedding", htype="embedding")
     ds.extend(
         {
-            "ids": ids,
+            "id": ids,
             "embedding": embeddings,
         }
     )
