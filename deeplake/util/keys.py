@@ -183,9 +183,15 @@ def get_sequence_encoder_key(key: str, commit_id: str) -> str:
 
 
 def dataset_exists(storage) -> bool:
+    """
+    Returns true if a dataset exists at the given location.
+    NOTE: This does not verify if it is a VALID dataset, only that it exists and is likely a deeplake directory.
+    """
     try:
-        storage[get_dataset_meta_key(FIRST_COMMIT_ID)]
-        return True
+        return (
+            get_dataset_meta_key(FIRST_COMMIT_ID) in storage
+            or get_version_control_info_key() in storage
+        )
     except S3GetAccessError as err:
         raise AuthorizationException("The dataset storage cannot be accessed") from err
     except (KeyError, S3GetError) as err:
