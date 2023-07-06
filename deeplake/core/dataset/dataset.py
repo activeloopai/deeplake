@@ -164,7 +164,8 @@ class Dataset:
         is_iteration: bool = False,
         link_creds=None,
         pad_tensors: bool = False,
-        lock: bool = True,
+        lock_enabled: bool = True,
+        lock_timeout: Optional[int] = None,
         enabled_tensors: Optional[List[str]] = None,
         view_base: Optional["Dataset"] = None,
         libdeeplake_dataset=None,
@@ -189,7 +190,8 @@ class Dataset:
             link_creds (LinkCreds, Optional): The LinkCreds object used to access tensors that have external data linked to them.
             pad_tensors (bool): If ``True``, shorter tensors will be padded to the length of the longest tensor.
             **kwargs: Passing subclass variables through without errors.
-            lock (bool): Whether the dataset should be locked for writing. Only applicable for S3, Deep Lake storage and GCS datasets. No effect if read_only=True.
+            lock_enabled (bool): Whether the dataset should be locked for writing. Only applicable for S3, Deep Lake storage and GCS datasets. No effect if read_only=True.
+            lock_timeout (int): How many seconds to wait for a lock before throwing an exception. If None, wait indefinitely
             enabled_tensors (List[str], Optional): List of tensors that are enabled in this view. By default all tensors are enabled.
             view_base (Optional["Dataset"]): Base dataset of this view.
             libdeeplake_dataset : The libdeeplake dataset object corresponding to this dataset.
@@ -237,7 +239,8 @@ class Dataset:
         d["_checkout_hooks"] = {}
         d["_parent_dataset"] = None
         d["_pad_tensors"] = pad_tensors
-        d["_locking_enabled"] = lock
+        d["_locking_enabled"] = lock_enabled
+        d["_lock_timeout"] = lock_timeout
         d["_temp_tensors"] = []
         d["_vc_info_updated"] = True
         dct = self.__dict__
@@ -1832,7 +1835,7 @@ class Dataset:
             self.version_state, self.storage
         )
 
-    def _acquire_lock(self, timeout: Optional[int] = None):
+    def _acquire_lock(self, timeout: Optional[int] = 0):
         if timeout is not None:
             start_time = time()
         while True:

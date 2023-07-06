@@ -77,7 +77,7 @@ class Lock(object):
             raise LockedException()
         self._write_lock()
 
-    def acquire(self, timeout: Optional[int] = None):
+    def acquire(self, timeout: Optional[int] = 0):
         storage = self.storage
         path = self.path
         if timeout is not None:
@@ -159,7 +159,7 @@ class PersistentLock(Lock):
     Args:
         storage (StorageProvider): The storage provder to be locked.
         lock_lost_callback (Callable, optional): Called if the lock is lost after acquiring.
-
+        timeout(int, optional): Keep trying to acquire the lock for the given number of seconds before throwing a LockedException. Passing None will wait forever
     Raises:
         LockedException: If the storage is already locked by a different machine.
     """
@@ -169,6 +169,7 @@ class PersistentLock(Lock):
         storage: StorageProvider,
         path: Optional[str] = None,
         lock_lost_callback: Optional[Callable] = None,
+        timeout: Optional[int] = 0,
     ):
         self.storage = storage
         self.path = get_dataset_lock_key() if path is None else path
@@ -178,13 +179,14 @@ class PersistentLock(Lock):
         self._previous_update_timestamp = None
         self.lock = Lock(storage, self.path, deeplake.constants.DATASET_LOCK_VALIDITY)
         self.acquired = False
+        self.timeout = timeout
         self.acquire()
         atexit.register(self.release)
 
     def acquire(self):
         if self.acquired:
             return
-        self.lock.acquire(timeout=0)
+        self.lock.acquire(timeout=self.timeout)
         self._thread = threading.Thread(target=self._lock_loop, daemon=True)
         self._thread.start()
         self.acquired = True
@@ -194,7 +196,7 @@ class PersistentLock(Lock):
             while True:
                 time.sleep(deeplake.constants.DATASET_LOCK_UPDATE_INTERVAL)
                 try:
-                    self.lock.refresh_lock(timeout=0)
+                    self.lock.refresh_lock(timeout=self.timeout)
                 except LockedException:
                     if self.lock_lost_callback:
                         self.lock_lost_callback()
@@ -246,12 +248,13 @@ def lock_dataset(
     key = _get_lock_key(get_path_from_storage(storage), version)
     lock = _LOCKS.get(key)
     if lock:
-        lock.acquire()
+        lock.acquire(dataset._lock_timeout)
     else:
         lock = PersistentLock(
             storage,
             path=_get_lock_file_path(version),
             lock_lost_callback=lock_lost_callback,
+            timeout=dataset._lock_timeout,
         )
         _LOCKS[key] = lock
     _REFS[key].add(id(dataset))
