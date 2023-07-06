@@ -22,6 +22,9 @@ from deeplake.core.vectorstore.vector_search import filter as filter_utils
 
 from deeplake.util.bugout_reporter import feature_report_path, deeplake_reporter
 
+from deeplake.util.exceptions import IncorrectEmbeddingShapeError
+
+
 logger = logging.getLogger(__name__)
 
 
@@ -145,8 +148,9 @@ class VectorStore:
         embedding_tensor: Optional[Union[str, List[str]]] = None,
         total_samples_processed: int = 0,
         return_ids: bool = False,
-        num_workers: Optional[int] = None,
-        ingestion_batch_size: Optional[int] = None,
+        ignore_errors: bool = False,
+        # num_workers: Optional[int] = None,
+        # ingestion_batch_size: Optional[int] = None,
         **tensors,
     ) -> Optional[List[str]]:
         """Adding elements to deeplake vector store.
@@ -216,8 +220,7 @@ class VectorStore:
             embedding_tensor (Optional[str]): Tensor where results from the embedding function will be stored. If None, the embedding tensor is automatically inferred (when possible). Defaults to None.
             total_samples_processed (int): Total number of samples processed before ingestion stopped. When specified.
             return_ids (bool): Whether to return added ids as an ouput of the method. Defaults to False.
-            num_workers (int): Number of workers to use for parallel ingestion. Overrides the ``num_workers`` specified when initializing the Vector Store.
-            ingestion_batch_size (int): Batch size to use for parallel ingestion. Defaults to 1000. Overrides the ``ingestion_batch_size`` specified when initializing the Vector Store.
+            ignore_errors (bool): Whether to ignore errors when adding data. Defaults to False.
             **tensors: Keyword arguments where the key is the tensor name, and the value is a list of samples that should be uploaded to that tensor.
 
         Returns:
@@ -266,19 +269,37 @@ class VectorStore:
         assert id is not None
         utils.check_length_of_each_tensor(processed_tensors)
 
-        dataset_utils.extend_or_ingest_dataset(
-            processed_tensors=processed_tensors,
-            dataset=self.dataset,
-            embedding_function=embedding_function,
-            embedding_data=embedding_data,
-            embedding_tensor=embedding_tensor,
-            ingestion_batch_size=ingestion_batch_size or self.ingestion_batch_size,
-            num_workers=num_workers or self.num_workers,
-            total_samples_processed=total_samples_processed,
-            logger=logger,
-        )
+        if embedding_function:
+            for func, data, tensor in zip(
+                embedding_function, embedding_data, embedding_tensor
+            ):
+                embedded_data = func(data)
+                try:
+                    embedded_data = np.array(embedded_data, dtype=np.float32)
+                except ValueError:
+                    raise IncorrectEmbeddingShapeError()
 
-        self.dataset.commit(allow_empty=True)
+                if len(embedded_data) == 0:
+                    raise ValueError("embedding function returned empty list")
+
+                processed_tensors[tensor] = embedded_data
+
+        self.dataset.extend(processed_tensors, ignore_errors=ignore_errors)
+
+        # dataset_utils.extend_or_ingest_dataset(
+        #     processed_tensors=processed_tensors,
+        #     dataset=self.dataset,
+        #     embedding_function=embedding_function,
+        #     embedding_data=embedding_data,
+        #     embedding_tensor=embedding_tensor,
+        #     ingestion_batch_size=ingestion_batch_size or self.ingestion_batch_size,
+        #     num_workers=num_workers or self.num_workers,
+        #     total_samples_processed=total_samples_processed,
+        #     logger=logger,
+        # )
+
+        # self.dataset.commit(allow_empty=True)
+
         if self.verbose:
             self.dataset.summary()
 
