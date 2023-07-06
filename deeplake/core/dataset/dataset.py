@@ -1306,6 +1306,18 @@ class Dataset:
                 i, is_iteration=not isinstance(self.index.values[0], list)
             )
 
+    def _get_commit_id_for_address(self, address, version_state):
+        if address in version_state["branch_commit_map"]:
+            branch = address
+            commit_id = version_state["branch_commit_map"][branch]
+        elif address in version_state["commit_node_map"]:
+            commit_id = address
+        else:
+            raise CheckoutError(
+                f"Address {address} not found. Ensure the commit id / branch name is correct."
+            )
+        return commit_id
+
     def _load_version_info(self, address=None):
         """Loads data from version_control_file otherwise assume it doesn't exist and load all empty"""
         if self.version_state:
@@ -1325,15 +1337,7 @@ class Dataset:
             version_state["branch_commit_map"] = version_info["branch_commit_map"]
             version_state["commit_node_map"] = version_info["commit_node_map"]
 
-            if address in version_state["branch_commit_map"]:
-                branch = address
-                commit_id = version_state["branch_commit_map"][branch]
-            elif address in version_state["commit_node_map"]:
-                commit_id = address
-            else:
-                raise CheckoutError(
-                    f"Address {address} not found. Ensure the commit id / branch name is correct."
-                )
+            commit_id = self._get_commit_id_for_address(address, version_state)
 
             version_state["commit_id"] = commit_id
             version_state["commit_node"] = version_state["commit_node_map"][commit_id]
@@ -1757,9 +1761,14 @@ class Dataset:
         print(all_changes)
         return None
 
-    def _populate_meta(self, verbose=True):
+    def _populate_meta(self, address: Optional[str] = None, verbose=True):
         """Populates the meta information for the dataset."""
-        if dataset_exists(self.storage):
+        if address is None:
+            commit_id = self._get_commit_id_for_address("main", self.version_state)
+        else:
+            commit_id = self._get_commit_id_for_address(address, self.version_state)
+
+        if dataset_exists(self.storage, commit_id):
             load_meta(self)
 
         elif not self.storage.empty():
@@ -2247,7 +2256,9 @@ class Dataset:
             self._set_read_only(
                 self._read_only, err=self._read_only_error
             )  # TODO: weird fix for dataset unpickling
-            self._populate_meta(verbose)  # TODO: use the same scheme as `load_info`
+            self._populate_meta(
+                address, verbose
+            )  # TODO: use the same scheme as `load_info`
             if self.index.is_trivial():
                 self.index = Index.from_json(self.meta.default_index)
         elif not self._read_only:
