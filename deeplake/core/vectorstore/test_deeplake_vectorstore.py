@@ -536,7 +536,7 @@ def test_delete(local_path, capsys):
 
     # delete the data in the dataset by id:
     vector_store_b.delete(row_ids=[0])
-    assert len(vector_store.dataset) == NUMBER_OF_DATA - 1
+    assert len(vector_store_b.dataset) == NUMBER_OF_DATA - 1
 
     ds = deeplake.empty(local_path, overwrite=True)
     ds.create_tensor("id", htype="text")
