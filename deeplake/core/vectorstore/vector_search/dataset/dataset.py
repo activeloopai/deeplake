@@ -1,5 +1,5 @@
 import uuid
-from typing import List, Dict, Any
+from typing import List, Dict, Any, Optional, Callable, Union
 
 import numpy as np
 from math import ceil
@@ -461,18 +461,55 @@ def convert_id_to_row_id(ids, dataset, search_fn, query, exec_option, filter):
     return row_ids
 
 
-def check_delete_arguments(ids, filter, query, delete_all, row_ids, exec_option):
+def check_arguments_compatibility(
+    ids, filter, query, row_ids, exec_option, select_all=None
+):
     if (
         ids is None
         and filter is None
         and query is None
-        and delete_all is None
+        and select_all is None
         and row_ids is None
     ):
         raise ValueError(
-            "Either ids, row_ids, filter, query, or delete_all must be specified."
+            "Either ids, row_ids, filter, query, or select_all must be specified."
         )
     if exec_option not in ("python", "compute_engine", "tensor_db"):
         raise ValueError(
             "Invalid `exec_option` it should be either `python`, `compute_engine`."
         )
+
+
+def search_row_ids(
+    dataset: deeplake.core.dataset.Dataset,
+    search_fn: Callable,
+    row_ids: Optional[List[str]] = None,
+    ids: Optional[List[str]] = None,
+    filter: Optional[Union[Dict, Callable]] = None,
+    query: Optional[str] = None,
+    exec_option: Optional[str] = "python",
+    select_all: Optional[bool] = None,
+):
+    dataset_utils.check_arguments_compatibility(
+        ids=ids,
+        filter=filter,
+        query=query,
+        select_all=select_all,
+        row_ids=row_ids,
+        exec_option=exec_option,
+    )
+
+    if select_all:
+        return None
+
+    if row_ids is None:
+        row_ids = dataset_utils.convert_id_to_row_id(
+            ids=ids,
+            dataset=dataset,
+            search_fn=search_fn,
+            query=query,
+            exec_option=exec_option,
+            filter=filter,
+        )
+
+    return row_ids

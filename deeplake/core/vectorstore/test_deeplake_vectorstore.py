@@ -51,6 +51,11 @@ def embedding_fn5(text, embedding_dim=EMBEDDING_DIM):
     return [np.zeros(i) for i in range(len(text))]
 
 
+def embedding_fn6(text, embedding_dim=EMBEDDING_DIM):
+    """Returns embedding in List[np.ndarray] format"""
+    return [np.ones(embedding_dim) * 100 for i in range(len(text))]
+
+
 def test_id_backward_compatibility(local_path):
     num_of_items = 10
     embedding_dim = 100
@@ -552,6 +557,18 @@ def test_delete(local_path, capsys):
 
     with pytest.raises(ValueError):
         vector_store.delete(ids=ids[5:7], exec_option="remote_tensor_db")
+
+
+def test_update_embedding(local_path):
+    # initialize vector store object:
+    vector_store = DeepLakeVectorStore(
+        path=local_path,
+        overwrite=True,
+        verbose=False,
+    )
+
+    # add data to the dataset:
+    vector_store.add(id=ids, embedding=embeddings, text=texts, metadata=metadatas)
 
 
 def test_ingestion(local_path, capsys):

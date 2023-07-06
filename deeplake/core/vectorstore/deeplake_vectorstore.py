@@ -478,6 +478,7 @@ class VectorStore:
             feature_name="vs.delete",
             parameters={
                 "ids": True if ids is not None else False,
+                "row_ids": True if row_ids is not None else False,
                 "query": query[0:100] if query is not None else False,
                 "filter": True if filter is not None else False,
                 "exec_option": exec_option,
@@ -485,8 +486,15 @@ class VectorStore:
             },
         )
 
-        dataset_utils.check_delete_arguments(
-            ids, filter, query, delete_all, row_ids, exec_option
+        row_ids = dataset_utils.search_row_ids(
+            dataset=self.dataset,
+            search_fn=self.search,
+            ids=ids,
+            filter=filter,
+            query=query,
+            select_all=delete_all,
+            row_ids=row_ids,
+            exec_option=exec_option,
         )
 
         (
@@ -499,17 +507,49 @@ class VectorStore:
         if dataset_deleted:
             return True
 
-        if row_ids is None:
-            row_ids = dataset_utils.convert_id_to_row_id(
-                ids=ids,
-                dataset=self.dataset,
-                search_fn=self.search,
-                query=query,
-                exec_option=exec_option,
-                filter=filter,
-            )
         dataset_utils.delete_and_commit(self.dataset, row_ids)
         return True
+
+    def update_embedding(
+        self,
+        row_ids: Optional[List[str]] = None,
+        ids: Optional[List[str]] = None,
+        filter: Optional[Union[Dict, Callable]] = None,
+        query: Optional[str] = None,
+        exec_option: Optional[str] = "python",
+        embedding_function: Optional[Union[Callable, List[Callable]]] = None,
+        embedding_source_tensor: Union[List, List[List]] = "text",
+        embedding_tensor: Optional[Union[str, List[str]]] = None,
+    ):
+        deeplake_reporter.feature_report(
+            feature_name="vs.delete",
+            parameters={
+                "ids": True if ids is not None else False,
+                "row_ids": True if row_ids is not None else False,
+                "query": query[0:100] if query is not None else False,
+                "filter": True if filter is not None else False,
+                "exec_option": exec_option,
+            },
+        )
+        embedding_function = embedding_function or self.embedding_function
+
+        row_ids = dataset_utils.search_row_ids(
+            dataset=self.dataset,
+            search_fn=self.search,
+            ids=ids,
+            filter=filter,
+            query=query,
+            row_ids=row_ids,
+            exec_option=exec_option,
+        )
+
+        embedding_source_tensor = utils.parse_search_args(
+            embedding_source_tensor, self.dataset
+        )
+
+        embedding_data = self.dataset[row_ids][embedding_source_tensor].numpy()
+        embedding = embedding_function(embedding_data)
+        self.dataset[row_ids].update({embedding_tensor: embedding})
 
     @staticmethod
     def delete_by_path(

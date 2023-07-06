@@ -142,6 +142,14 @@ def parse_search_args(**kwargs):
             )
 
 
+def parse_search_args(embedding_tensor, embedding_source_tensor, dataset):
+    embedding_tensor = get_embedding_tensors(embedding_tensor, dataset.tensors, dataset)
+
+    if embedding_source_tensor is None:
+        raise ValueError("`embedding_source_tensor` was not specified")
+    return embedding_source_tensor
+
+
 def parse_tensors_kwargs(tensors, embedding_function, embedding_data, embedding_tensor):
     tensors = tensors.copy()
 
@@ -203,25 +211,12 @@ def parse_add_arguments(
         embedding_tensor = [embedding_tensor]
 
     if embedding_function:
-        if not embedding_data:
-            raise ValueError(
-                f"embedding_data is not specified. When using embedding_function it is also necessary to specify the data that you want to embed"
-            )
-
-        # if single embedding function is specified, use it for all embedding data
-        if not isinstance(embedding_function, list):
-            embedding_function = [embedding_function] * len(embedding_data)
-
-        embedding_tensor = get_embedding_tensors(embedding_tensor, tensors, dataset)
-
-        assert len(embedding_function) == len(
-            embedding_data
-        ), "embedding_function and embedding_data must be of the same length"
-        assert len(embedding_function) == len(
-            embedding_tensor
-        ), "embedding_function and embedding_tensor must be of the same length"
-
-        check_tensor_name_consistency(tensors, dataset.tensors, embedding_tensor)
+        check_embedding_function_embedding_tensor_consistency(
+            embedding_function,
+            embedding_data,
+            tensors,
+            dataset,
+        )
         return (embedding_function, embedding_data, embedding_tensor, tensors)
 
     if initial_embedding_function:
@@ -229,13 +224,12 @@ def parse_add_arguments(
             check_tensor_name_consistency(tensors, dataset.tensors, None)
             return (None, None, None, tensors)
 
-        if not isinstance(initial_embedding_function, list):
-            initial_embedding_function = [initial_embedding_function] * len(
-                embedding_data
-            )
-
-        embedding_tensor = get_embedding_tensors(embedding_tensor, tensors, dataset)
-        check_tensor_name_consistency(tensors, dataset.tensors, embedding_tensor)
+        check_embedding_function_embedding_tensor_consistency(
+            initial_embedding_function,
+            embedding_data,
+            tensors,
+            dataset,
+        )
         return (initial_embedding_function, embedding_data, embedding_tensor, tensors)
 
     if embedding_tensor:
@@ -252,6 +246,33 @@ def parse_add_arguments(
 
     check_tensor_name_consistency(tensors, dataset.tensors, embedding_tensor)
     return (None, None, None, tensors)
+
+
+def check_embedding_function_embedding_tensor_consistency(
+    embedding_function,
+    embedding_data,
+    tensors,
+    dataset,
+):
+    if not embedding_data:
+        raise ValueError(
+            f"embedding_data is not specified. When using embedding_function it is also necessary to specify the data that you want to embed"
+        )
+
+    # if single embedding function is specified, use it for all embedding data
+    if not isinstance(embedding_function, list):
+        embedding_function = [embedding_function] * len(embedding_data)
+
+    embedding_tensor = get_embedding_tensors(embedding_tensor, tensors, dataset)
+
+    assert len(embedding_function) == len(
+        embedding_data
+    ), "embedding_function and embedding_data must be of the same length"
+    assert len(embedding_function) == len(
+        embedding_tensor
+    ), "embedding_function and embedding_tensor must be of the same length"
+
+    check_tensor_name_consistency(tensors, dataset.tensors, embedding_tensor)
 
 
 def check_tensor_name_consistency(tensors, dataset_tensors, embedding_tensor):
