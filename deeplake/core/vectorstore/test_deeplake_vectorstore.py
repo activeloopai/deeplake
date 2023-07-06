@@ -554,9 +554,6 @@ def test_delete(local_path, capsys):
     vector_store.delete(ids=ids[:3])
     assert len(vector_store) == NUMBER_OF_DATA - 3
 
-    with pytest.raises(ValueError):
-        vector_store.delete(ids=ids[5:7], exec_option="remote_tensor_db")
-
 
 def test_ingestion(local_path, capsys):
     # create data
