@@ -78,7 +78,7 @@ def managed_creds_used_in_dataset(path, creds, token):
 
 
 def connect_dataset_entry_if_needed(
-    path, local_path, download, managed_creds_used, token
+    path, local_path, managed_creds_used, download, token
 ):
     if managed_creds_used:
         print(
@@ -89,7 +89,7 @@ def connect_dataset_entry_if_needed(
             try:
                 connect_dataset_entry(
                     local_path,
-                    "S3_KEY",
+                    None,
                     connect_path,
                     token=token,
                     verbose=False,
@@ -141,14 +141,14 @@ def get_local_dataset(
             overwrite=True,
         )
 
-    local_path = connect_dataset_entry_if_needed(
+    load_path = connect_dataset_entry_if_needed(
         path, local_path, managed_creds_used, download, token
     )
 
     ds = deeplake.load(
-        local_path,
+        load_path,
         read_only=read_only,
-        verbose=verbose,
+        verbose=False,
         memory_cache_size=memory_cache_size,
         local_cache_size=local_cache_size,
         token=token,
@@ -159,5 +159,7 @@ def get_local_dataset(
         ds.storage.next_storage[TIMESTAMP_FILENAME] = time.ctime().encode("utf-8")
     else:
         timestamp = ds.storage.next_storage[TIMESTAMP_FILENAME].decode("utf-8")
-        print(f"** Loaded local copy of dataset. Downloaded on: {timestamp}")
+        print(
+            f"** Loaded local copy of dataset from {local_path}. Downloaded on: {timestamp}"
+        )
     return ds
