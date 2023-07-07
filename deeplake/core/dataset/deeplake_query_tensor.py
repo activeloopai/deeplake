@@ -127,7 +127,13 @@ class DeepLakeQueryTensor(tensor.Tensor):
 
     @property
     def shape(self):
+        result = ()
         index_0 = self.deeplake_tensor.index.values[0]
+        if self.indra_tensor.min_shape == self.indra_tensor.max_shape:
+            if index_0.is_trivial():
+                return self.indra_tensor.shape_interval
+            else:
+                return self.indra_tensor.shape_interval[1:]
 
         if index_0.subscriptable():
             return (len(self.indra_tensor), *self.indra_tensor.shape)  # type: ignore
@@ -144,7 +150,14 @@ class DeepLakeQueryTensor(tensor.Tensor):
 
     @property
     def ndim(self):
-        return len(self.shape)
+        ndim = len(self.indra_tensor.min_shape) + 1
+        if self.indra_tensor.is_sequence:
+            ndim += 1
+        if self.deeplake_tensor.index:
+            for idx in self.deeplake_tensor.index.values:
+                if not idx.subscriptable():
+                    ndim -= 1
+        return ndim
 
     @property
     def meta(self):
