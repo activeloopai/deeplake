@@ -20,7 +20,10 @@ from deeplake.core.vectorstore.vector_search import vector_search
 from deeplake.core.vectorstore.vector_search import dataset as dataset_utils
 from deeplake.core.vectorstore.vector_search import filter as filter_utils
 
-from deeplake.util.bugout_reporter import feature_report_path, deeplake_reporter
+from deeplake.util.bugout_reporter import (
+    feature_report_path,
+    deeplake_reporter,
+)
 
 logger = logging.getLogger(__name__)
 
@@ -454,12 +457,10 @@ class VectorStore:
             ids (Optional[List[str]]): List of unique ids. Defaults to None.
             row_ids (Optional[List[str]]): List of absolute row indices from the dataset. Defaults to None.
             filter (Union[Dict, Callable], optional): Filter for finding samples for deletion.
-
                 - ``Dict`` - Key-value search on tensors of htype json, evaluated on an AND basis (a sample must satisfy all key-value filters to be True) Dict = {"tensor_name_1": {"key": value}, "tensor_name_2": {"key": value}}
                 - ``Function`` - Any function that is compatible with `deeplake.filter`.
             query (Optional[str]):  TQL Query string for direct evaluation for finding samples for deletion, without application of additional filters.
             exec_option (str, optional): Method for search execution for finding samples for deletion. It could be either ``"python"`` or ``"compute_engine"``. Defaults to ``"python"``.
-
                 - ``python`` - Pure-python implementation that runs on the client and can be used for data stored anywhere. WARNING: using this option with big datasets is discouraged because it can lead to memory issues.
                 - ``compute_engine`` - Performant C++ implementation of the Deep Lake Compute Engine that runs on the client and can be used for any data stored in or connected to Deep Lake. It cannot be used with in-memory or local datasets.
             delete_all (Optional[bool]): Whether to delete all the samples and version history of the dataset. Defaults to None.
@@ -518,9 +519,26 @@ class VectorStore:
         query: Optional[str] = None,
         exec_option: Optional[str] = "python",
         embedding_function: Optional[Union[Callable, List[Callable]]] = None,
-        embedding_source_tensor: Union[List, List[List]] = "text",
+        embedding_source_tensor: Union[str, List[str]] = "text",
         embedding_tensor: Optional[Union[str, List[str]]] = None,
     ):
+        """Recompute existing embeddings of the VectorStore, that match either query, filter, ids or row_ids.
+
+        Args:
+            row_ids (Optional[List[str]], optional): Row ids of the elements for replacement.
+                Defaults to None.
+            ids (Optional[List[str]], optional): hash ids of the elements for replacement.
+                Defaults to None.
+            filter (Optional[Union[Dict, Callable]], optional): Filter for finding samples for replacement.
+                - ``Dict`` - Key-value search on tensors of htype json, evaluated on an AND basis (a sample must satisfy all key-value filters to be True) Dict = {"tensor_name_1": {"key": value}, "tensor_name_2": {"key": value}}
+                - ``Function`` - Any function that is compatible with `deeplake.filter`
+            query (Optional[str], optional): TQL Query string for direct evaluation for finding samples for deletion, without application of additional filters.
+                Defaults to None.
+            exec_option (Optional[str], optional): _description_. Defaults to "python".
+            embedding_function (Optional[Union[Callable, List[Callable]]], optional): _description_. Defaults to None.
+            embedding_source_tensor (Union[List, List[List]], optional): _description_. Defaults to "text".
+            embedding_tensor (Optional[Union[str, List[str]]], optional): _description_. Defaults to None.
+        """
         deeplake_reporter.feature_report(
             feature_name="vs.delete",
             parameters={
