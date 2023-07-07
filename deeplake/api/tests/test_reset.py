@@ -324,3 +324,24 @@ def test_dataset_with_no_commits_unaffected(local_path):
     ds = deeplake.load(local_path)
 
     np.testing.assert_array_equal(ds.abc.numpy(), [[1]])
+
+
+def test_load_corrupt_dataset_no_meta(local_path):
+    ds = deeplake.empty(local_path, overwrite=True)
+
+    with ds:
+        ds.create_tensor("abc")
+        ds.abc.append(1)
+        a = ds.commit()
+
+        ds.abc.append(2)
+        b = ds.commit()
+
+        del ds.storage["dataset_meta.json"]
+
+    ds = deeplake.load(local_path)
+    assert ds.commit_id == b
+    np.testing.assert_array_equal(ds.abc.numpy(), [[1], [2]])
+
+    with pytest.raises(CheckoutError):
+        ds.checkout(a)

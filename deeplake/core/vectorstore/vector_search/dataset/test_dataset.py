@@ -55,7 +55,7 @@ def test_create(caplog, hub_cloud_dev_token):
 
     dataset = dataset_utils.create_or_load_dataset(
         tensor_params=DEFAULT_VECTORSTORE_TENSORS,
-        dataset_path="hub://testingacc2/vectorstore_dbengine",
+        dataset_path="hub://testingacc2/vectorstore_test_create_dbengine",
         token=hub_cloud_dev_token,
         creds={},
         logger=logger,
@@ -84,10 +84,11 @@ def test_create(caplog, hub_cloud_dev_token):
         in dataset.storage.__dict__["next_storage"].__dict__["root"]
     )
 
+    # Test whether not specifiying runtime with exec_option tensor_db raises error
     with pytest.raises(ValueError):
         dataset = dataset_utils.create_or_load_dataset(
             tensor_params=DEFAULT_VECTORSTORE_TENSORS,
-            dataset_path="hub://testingacc2/vectorstore_dbengine",
+            dataset_path="hub://testingacc2/vectorstore_test_create_dbengine",
             token=hub_cloud_dev_token,
             creds={},
             logger=logger,

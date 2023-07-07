@@ -434,7 +434,7 @@ class dataset:
             "org_id": org_id,
             "verbose": verbose,
         }
-        ret = dataset._load(dataset_kwargs)
+        ret = dataset._load(dataset_kwargs, create=True)
         return ret
 
     @staticmethod
