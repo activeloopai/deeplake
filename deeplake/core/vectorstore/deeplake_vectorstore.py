@@ -379,6 +379,17 @@ class VectorStore:
             },
         )
 
+        if (
+            exec_option is None
+            and self.exec_option is not "python"
+            and isinstance(filter, Callable)
+        ):
+            logger.warning(
+                'Switching exec_option to "python" (runs on client) because filter is specified as a function. '
+                f'To continue using the original exec_option "{self.exec_option}", please specify the filter as a dictionary or use the "query" parameter to specify a TQL query.'
+            )
+            exec_option = "python"
+
         exec_option = exec_option or self.exec_option
 
         utils.parse_search_args(
@@ -394,17 +405,6 @@ class VectorStore:
             embedding_tensor=embedding_tensor,
             return_tensors=return_tensors,
         )
-
-        if (
-            exec_option is None
-            and self.exec_option is not "python"
-            and isinstance(filter, Callable)
-        ):
-            logger.warning(
-                'Switching exec_option to "python/" (runs on client) because filter is specified as a function.'
-                'To continue using the original exec_option "{self.exec_option}", please specify the filter as a dictionary or use the "query" parameter to specify a TQL query.'
-            )
-            exec_option = "python"
 
         return_tensors = utils.parse_return_tensors(
             self.dataset, return_tensors, embedding_tensor, return_view
