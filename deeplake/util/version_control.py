@@ -506,25 +506,6 @@ def _merge_version_info(info1, info2):
         else:
             branch_commit_map[branch] = commit_id
 
-    # for branch, commit_id in info2["branch_commit_map"].items():
-    #     curr_commit = branch_commit_map.get(branch)
-    #     if curr_commit:
-    #         node = commit_node_map[curr_commit]
-    #         curr_time = node.commit_time
-    #         if curr_time is None and node.parent is not None:
-    #             curr_time = node.parent.commit_time
-    #         node2 = commit_node_map[commit_id]
-    #         new_time = node2.commit_time
-    #         if new_time is None and node2.parent is not None:
-    #             new_time = node2.parent.commit_time
-    #         if new_time is None or (curr_time is not None and curr_time < new_time):
-    #             branch_commit_map[branch] = commit_id
-    #     else:
-    #         branch_commit_map[branch] = commit_id
-
-    # branch_commit_map = {}
-    # branch_commit_map.update(info1["branch_commit_map"])
-    # branch_commit_map.update(info2["branch_commit_map"])
     return {
         "commit_node_map": commit_node_map,
         "branch_commit_map": branch_commit_map,
