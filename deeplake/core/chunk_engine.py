@@ -1297,6 +1297,10 @@ class ChunkEngine:
         link_callback: Optional[Callable] = None,
     ):
         """Update data at `index` with `samples`."""
+
+        cmap = self.commit_chunk_map
+        if cmap is not None:
+            cmap = CommitChunkMap.frombuffer(cmap.tobytes())
         try:
             self.check_link_ready()
             (self._sequence_update if self.is_sequence else self._update)(  # type: ignore
@@ -1306,6 +1310,11 @@ class ChunkEngine:
                 link_callback=link_callback,
             )
         except Exception as e:
+            if cmap is not None:
+                key = get_tensor_commit_chunk_map_key(self.key, self.commit_id)
+                self.meta_cache[key] = cmap
+                self._commit_chunk_map = cmap
+                self.meta_cache.register_deeplake_object(key, cmap)
             raise SampleUpdateError(self.name) from e
 
     def _get_samples_to_move(self, chunk) -> List[Sample]:
@@ -1553,48 +1562,49 @@ class ChunkEngine:
         self.cached_data = None
         initial_autoflush = self.cache.autoflush
         self.cache.autoflush = False
+        try:
+            if operator is not None:
+                return self._update_with_operator(index, samples, operator)
 
-        if operator is not None:
-            return self._update_with_operator(index, samples, operator)
+            enc = self.chunk_id_encoder
+            index_length = index.length(self.num_samples)
+            samples = make_sequence(samples, index_length)
+            verified_samples = self.check_each_sample(samples)
+            if self.tensor_meta.htype == "class_label":
+                samples = self._convert_class_labels(samples)
+            if self.tensor_meta.htype == "polygon":
+                samples = [Polygons(sample, self.tensor_meta.dtype) for sample in samples]  # type: ignore
+            nbytes_after_updates: List[int] = []
+            global_sample_indices = tuple(index.values[0].indices(self.num_samples))
+            is_sequence = self.is_sequence
+            for i, sample in enumerate(samples):  # type: ignore
+                sample = None if is_empty_list(sample) else sample
+                global_sample_index = global_sample_indices[i]  # TODO!
+                if self._is_tiled_sample(global_sample_index):
+                    self._update_tiled_sample(
+                        global_sample_index, index, sample, nbytes_after_updates
+                    )
+                else:
+                    self._update_non_tiled_sample(
+                        global_sample_index, index, sample, nbytes_after_updates
+                    )
+                self.update_creds(global_sample_index, sample)
+                if update_commit_diff:
+                    self.commit_diff.update_data(global_sample_index)
+                chunk_min, chunk_max = self.min_chunk_size, self.max_chunk_size
+                check_suboptimal_chunks(nbytes_after_updates, chunk_min, chunk_max)
 
-        enc = self.chunk_id_encoder
-        index_length = index.length(self.num_samples)
-        samples = make_sequence(samples, index_length)
-        verified_samples = self.check_each_sample(samples)
-        if self.tensor_meta.htype == "class_label":
-            samples = self._convert_class_labels(samples)
-        if self.tensor_meta.htype == "polygon":
-            samples = [Polygons(sample, self.tensor_meta.dtype) for sample in samples]  # type: ignore
-        nbytes_after_updates: List[int] = []
-        global_sample_indices = tuple(index.values[0].indices(self.num_samples))
-        is_sequence = self.is_sequence
-        for i, sample in enumerate(samples):  # type: ignore
-            sample = None if is_empty_list(sample) else sample
-            global_sample_index = global_sample_indices[i]  # TODO!
-            if self._is_tiled_sample(global_sample_index):
-                self._update_tiled_sample(
-                    global_sample_index, index, sample, nbytes_after_updates
-                )
-            else:
-                self._update_non_tiled_sample(
-                    global_sample_index, index, sample, nbytes_after_updates
-                )
-            self.update_creds(global_sample_index, sample)
-            if update_commit_diff:
-                self.commit_diff.update_data(global_sample_index)
-            chunk_min, chunk_max = self.min_chunk_size, self.max_chunk_size
-            check_suboptimal_chunks(nbytes_after_updates, chunk_min, chunk_max)
-
-            if link_callback:
-                new_sample = verified_samples[i] if verified_samples else sample
-                link_callback(
-                    global_sample_index,
-                    sub_index=Index(index.values[1:]),
-                    new_sample=new_sample,
-                    flat=True if is_sequence else None,
-                )
-        self.cache.autoflush = initial_autoflush
-        self.cache.maybe_flush()
+                if link_callback:
+                    new_sample = verified_samples[i] if verified_samples else sample
+                    link_callback(
+                        global_sample_index,
+                        sub_index=Index(index.values[1:]),
+                        new_sample=new_sample,
+                        flat=True if is_sequence else None,
+                    )
+        finally:
+            self.cache.autoflush = initial_autoflush
+            self.cache.maybe_flush()
         return verified_samples
 
     def _update_with_operator(

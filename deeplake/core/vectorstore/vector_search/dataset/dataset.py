@@ -461,7 +461,7 @@ def convert_id_to_row_id(ids, dataset, search_fn, query, exec_option, filter):
     return row_ids
 
 
-def check_delete_arguments(ids, filter, query, delete_all, row_ids, exec_option):
+def check_delete_arguments(ids, filter, query, delete_all, row_ids):
     if (
         ids is None
         and filter is None
@@ -471,8 +471,4 @@ def check_delete_arguments(ids, filter, query, delete_all, row_ids, exec_option)
     ):
         raise ValueError(
             "Either ids, row_ids, filter, query, or delete_all must be specified."
-        )
-    if exec_option not in ("python", "compute_engine", "tensor_db"):
-        raise ValueError(
-            "Invalid `exec_option` it should be either `python`, `compute_engine`."
         )

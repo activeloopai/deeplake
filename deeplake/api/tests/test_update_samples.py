@@ -715,3 +715,40 @@ def test_ds_update_tiles(local_ds, cat_path, dog_path):
     ds[3:].update({"images1": [dog] * 3, "images2": [cat] * 3})
     assert ds.images1.shape == (6, 323, 480, 3)
     assert ds.images2.shape == (6, 900, 900, 3)
+
+
+def test_update_bug(local_path):
+    with deeplake.empty(local_path, overwrite=True) as ds:
+        ds.create_tensor("abc")
+        ds.abc.extend([1, 2, 3, 4, 5])
+
+    with pytest.raises(SampleUpdateError):
+        ds.abc[4] = "abcd"
+
+    ds.abc[4] = 1
+
+    np.testing.assert_array_equal(ds.abc.numpy(), [[1], [2], [3], [4], [1]])
+
+    ds = deeplake.load(local_path)
+
+    np.testing.assert_array_equal(ds.abc.numpy(), [[1], [2], [3], [4], [1]])
+
+
+def test_update_vc_bug(local_path):
+    with deeplake.empty(local_path, overwrite=True) as ds:
+        ds.create_tensor("abc")
+        ds.abc.extend([1, 2, 3, 4, 5])
+
+    ds.commit()
+
+    with pytest.raises(SampleUpdateError):
+        ds.abc[4] = "abcd"
+
+    ds.abc[4] = 1
+
+    np.testing.assert_array_equal(ds.abc.numpy(), [[1], [2], [3], [4], [1]])
+
+    ds = deeplake.load(local_path)
+
+    print(ds.abc.numpy())
+    np.testing.assert_array_equal(ds.abc.numpy(), [[1], [2], [3], [4], [1]])
