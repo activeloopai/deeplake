@@ -95,6 +95,8 @@ class dataset:
         access_method: str = "stream",
         reset: bool = False,
         check_integrity: bool = True,
+        lock_enabled: Optional[bool] = True,
+        lock_timeout: Optional[int] = 0,
     ):
         """Returns a :class:`~deeplake.core.dataset.Dataset` object referencing either a new or existing dataset.
 
@@ -162,6 +164,8 @@ class dataset:
             reset (bool): If the specified dataset cannot be loaded due to a corrupted HEAD state of the branch being loaded,
                           setting ``reset=True`` will reset HEAD changes and load the previous version.
             check_integrity (bool): If the param is True it will do integrity check during dataset loading otherwise the check is not performed
+            lock_timeout (int): Number of seconds to wait before throwing a LockException. If None, wait indefinitely
+            lock_enabled (bool): If true, the dataset manages a write lock. NOTE: Only set to False if you are managing concurrent access externally
 
         ..
             # noqa: DAR101
@@ -242,6 +246,8 @@ class dataset:
             "token": token,
             "org_id": org_id,
             "verbose": verbose,
+            "lock_timeout": lock_timeout,
+            "lock_enabled": lock_enabled,
         }
 
         if access_method == "stream":
