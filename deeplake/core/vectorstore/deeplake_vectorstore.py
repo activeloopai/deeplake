@@ -122,8 +122,7 @@ class VectorStore:
 
         creds = {}
         if "creds" in kwargs:
-            creds = {"creds": kwargs["creds"]}
-            del kwargs["creds"]
+            creds = {"creds": kwargs.pop("creds")}
 
         self.dataset = dataset_utils.create_or_load_dataset(
             tensor_params,
