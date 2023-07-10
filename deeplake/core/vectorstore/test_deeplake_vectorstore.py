@@ -281,10 +281,18 @@ def test_search_basic(local_path, hub_cloud_dev_token):
     assert isinstance(data_ce_v.text[0].data()["value"], str)
     assert data_ce_v.embedding[0].numpy().size > 0
 
+    # Check that filter_fn with cloud dataset (and therefore "compute_engine" exec option) switches to "python" automatically.
+    with pytest.warns(None):
+        _ = vector_store_cloud.search(
+            filter=filter_fn,
+        )
+
     # Check exceptions
     # Invalid exec option
     with pytest.raises(ValueError):
-        vector_store.search(embedding=query_embedding, exec_option="remote_tensor_db")
+        vector_store.search(
+            embedding=query_embedding, exec_option="invalid_exec_option"
+        )
     # Search without parameters
     with pytest.raises(ValueError):
         vector_store.search()
