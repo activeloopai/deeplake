@@ -165,7 +165,7 @@ class Dataset:
         link_creds=None,
         pad_tensors: bool = False,
         lock_enabled: bool = True,
-        lock_timeout: Optional[int] = None,
+        lock_timeout: Optional[int] = 0,
         enabled_tensors: Optional[List[str]] = None,
         view_base: Optional["Dataset"] = None,
         libdeeplake_dataset=None,
