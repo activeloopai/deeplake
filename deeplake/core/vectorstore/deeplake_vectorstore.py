@@ -573,7 +573,18 @@ class VectorStore:
                 "exec_option": exec_option,
             },
         )
-        embedding_function = embedding_function or self.embedding_function
+
+        (
+            embedding_function,
+            embedding_source_tensor,
+            embedding_tensor,
+        ) = utils.parse_update_arguments(
+            dataset=self.dataset,
+            embedding_function=embedding_function,
+            initial_embedding_function=self.embedding_function,
+            embedding_source_tensor=embedding_source_tensor,
+            embedding_tensor=embedding_tensor,
+        )
 
         row_ids = dataset_utils.search_row_ids(
             dataset=self.dataset,
@@ -585,13 +596,14 @@ class VectorStore:
             exec_option=exec_option,
         )
 
-        embedding_source_tensor = utils.parse_search_args(
-            embedding_source_tensor, self.dataset
+        embedding_tensor_data = utils.convert_embedding_source_tensor_to_embeddings(
+            dataset=self.dataset,
+            embedding_source_tensor=embedding_source_tensor,
+            embedding_function=embedding_function,
+            row_ids=row_ids,
         )
 
-        embedding_data = self.dataset[row_ids][embedding_source_tensor].numpy()
-        embedding = embedding_function(embedding_data)
-        self.dataset[row_ids].update({embedding_tensor: embedding})
+        self.dataset[row_ids].update(embedding_tensor_data)
 
     @staticmethod
     def delete_by_path(

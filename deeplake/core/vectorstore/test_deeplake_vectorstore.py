@@ -1,3 +1,8 @@
+import uuid
+import os
+from math import isclose
+from functools import partial
+
 import numpy as np
 import pytest
 
@@ -16,10 +21,8 @@ from deeplake.util.exceptions import (
     IncorrectEmbeddingShapeError,
     TensorDoesNotExistError,
 )
+from deeplake.core.vectorstore.vector_search import dataset as dataset_utils
 
-from math import isclose
-import uuid
-import os
 
 EMBEDDING_DIM = 100
 NUMBER_OF_DATA = 10
@@ -55,9 +58,22 @@ def embedding_fn5(text, embedding_dim=EMBEDDING_DIM):
     return [np.zeros(i) for i in range(len(text))]
 
 
-def embedding_fn6(text, embedding_dim=EMBEDDING_DIM):
-    """Returns embedding in List[np.ndarray] format"""
-    return [np.ones(embedding_dim) * 100 for i in range(len(text))]
+def embedding_function(text, embedding_value):
+    """Embedding function with custom embedding values"""
+    return [np.ones(EMBEDDING_DIM) * embedding_value for i in range(len(text))]
+
+
+def get_embedding_function(embedding_value):
+    """Function for creation embedding function with given embedding value"""
+    return partial(embedding_fn3, embedding_value)
+
+
+def get_multiple_embedding_function(embedding_value, num_of_funcs=2):
+    return [partial(embedding_fn3, embedding_value) for i in range(num_of_funcs)]
+
+
+@pytest.fixture
+def 
 
 
 def test_id_backward_compatibility(local_path):
@@ -564,13 +580,59 @@ def test_delete(local_path, capsys):
     assert len(vector_store) == NUMBER_OF_DATA - 3
 
 
+def assert_updated_vector_store(
+    new_embedding_value,
+    vector_store,
+    ids,
+    row_ids,
+    filters,
+    query,
+    init_embedding_function,
+    embedding_function,
+    embedding_source_tensor,
+    embedding_tensor,
+    exec_option,
+    num_changed_samples=3,
+):
+    new_embeddings = [new_embedding_value] * num_changed_samples
+    row_ids = dataset_utils.search_row_ids(
+        dataset=vector_store.dataset,
+        search_fn=vector_store.search,
+        ids=ids,
+        filter=filter,
+        query=query,
+        row_ids=row_ids,
+        exec_option=exec_option,
+    )
+
+    if isinstance(embedding_function, str) and isinstance(embedding_tensor, str):
+        assert np.testing.assert_array_equal(
+            vector_store.dataset[embedding_tensor][ids].numpy(),
+            new_embeddings,
+        )
+
+    if isinstance(embedding_function, str) and isinstance(embedding_tensor, list):
+        for i in range(len(embedding_tensor)):
+            assert np.testing.assert_array_equal(
+                vector_store.dataset[embedding_tensor[i]][ids].numpy(),
+                new_embeddings,
+            )
+
+    if isinstance(embedding_function, list) and isinstance(embedding_tensor, list):
+        for i in range(len(embedding_tensor)):
+            assert np.testing.assert_array_equal(
+                vector_store.dataset[embedding_tensor[i]][ids].numpy(),
+                new_embeddings,
+            )
+
+
 @pytest.mark.parametrize(
-    "ids, row_ids, filters, query",
+    "dataset_generator, ids, row_ids, filters, query",
     [
-        (hash_ids, None, None, None),
-        (None, row_ids, None, None),
-        (None, None, filters, None),
-        (None, None, None, query),
+        ("hub_cloud_ds_generator", hash_ids, None, None, None),
+        ("hub_cloud_ds_generator", None, row_ids, None, None),
+        ("hub_cloud_ds_generator", None, None, filters, None),
+        ("hub_cloud_ds_generator", None, None, None, query),
     ],
 )
 @pytest.mark.parametrize("init_embedding_function", [init_embedding_function, None])
@@ -578,33 +640,36 @@ def test_update_embedding(
     local_path,
     embedding_tensor,
     embedding_source_tensor,
+    multiple_embedding_source_tensor,
     ids,
     row_ids,
     filters,
     query,
+    embedding_function,
+    init_embedding_function,
 ):
     # Test cases:
     # Do that with queries, filters, row_ids, ids
     # dataset has a single embedding_tensor:
     vector_store = DeepLakeVectorStore(
         path=local_path,
-        overwrite=True,
+        overwrite=False,
         verbose=False,
         embedding_function=init_embedding_function,
     )
 
-    # add data to the dataset:
-    vector_store.add(id=ids, embedding=embeddings, text=texts, metadata=metadatas)
+    # # add data to the dataset:
+    # vector_store.add(id=ids, embedding=embeddings, text=texts, metadata=metadatas)
 
     # case 1: single embedding_source_tensor, single embedding_tensor, single embedding_function
-    vector_store_len = len(vector_store)
+    new_embedding_value = 100
+    embedding_fn = get_embedding_function(new_embedding_value)
     vector_store.update_embedding(
-        vector_store_len=vector_store_len,
         ids=ids,
         row_ids=row_ids,
         filter=filters,
         query=query,
-        embedding_function=embedding_function,
+        embedding_function=embedding_fn,
         embedding_source_tensor=embedding_source_tensor,
         embedding_tensor=embedding_tensor,
     )
@@ -621,13 +686,17 @@ def test_update_embedding(
     )
 
     # case 2: single embedding_source_tensor, single embedding_tensor not specified, single embedding_function
-    vector_store_len = len(vector_store)
+    new_embedding_value = 200
+    embedding_fn = get_embedding_function(new_embedding_value)
+    embedding_function = (
+        partial(embedding_function, embedding_value=new_embedding_value),
+    )
     vector_store.update_embedding(
         ids=ids,
         row_ids=row_ids,
         filter=filters,
         query=query,
-        embedding_function=embedding_function,
+        embedding_function=embedding_fn,
         embedding_source_tensor=embedding_source_tensor,
     )
     assert_updated_vector_store(
@@ -643,6 +712,8 @@ def test_update_embedding(
     )
 
     # case 4: single embedding_source_tensor, single embedding_tensor, single init_embedding_function
+    new_embedding_value = 300
+    embedding_fn = get_embedding_function(new_embedding_value)
     if init_embedding_function is None:
         with pytest.raises(ValueError):
             vector_store.update_embedding(
@@ -653,7 +724,6 @@ def test_update_embedding(
                 embedding_source_tensor=embedding_source_tensor,
             )
     else:
-        vector_store_len = len(vector_store)
         vector_store.update_embedding(
             ids=ids,
             row_ids=row_ids,
@@ -716,7 +786,7 @@ def test_update_embedding(
             "create_shape_tensor": False,
         },
     ]
-
+    multiple_embedding_tensor = ["embedding", "embedding_md"]
     vector_store = DeepLakeVectorStore(
         path=local_path,
         overwrite=True,
@@ -726,7 +796,8 @@ def test_update_embedding(
     )
 
     # case 1: multiple embedding_source_tensor, single embedding_tensor, single embedding_function -> error out?
-    vector_store_len = len(vector_store)
+    new_embedding_value = 400
+    embedding_fn = get_embedding_function(new_embedding_value)
     vector_store.update_embedding(
         ids=ids,
         row_ids=row_ids,
@@ -761,8 +832,21 @@ def test_update_embedding(
             embedding_tensor=embedding_tensor,
         )
 
+    # case 3: 4 embedding_source_tensor, 2 embedding_tensor, 2 embedding_function
+    with pytest.raises(AssertionError):
+        vector_store.update_embedding(
+            ids=ids,
+            row_ids=row_ids,
+            filter=filters,
+            query=query,
+            embedding_function=multiple_embedding_function,
+            embedding_source_tensor=multiple_embedding_source_tensor * 2,
+            embedding_tensor=embedding_tensor,
+        )
+
     # case 3: multiple embedding_source_tensor, multiple embedding_tensor, multiple embedding_function
-    vector_store_len = len(vector_store)
+    new_embedding_values = 100
+    multiple_embedding_function = get_multiple_embedding_function(new_embedding_values)
     vector_store.update_embedding(
         ids=ids,
         row_ids=row_ids,
@@ -786,6 +870,8 @@ def test_update_embedding(
     )
 
     # case 5: multiple embedding_source_tensor, multiple embedding_tensor, single init_embedding_function
+    new_embedding_values = 200
+    multiple_embedding_function = get_multiple_embedding_function(new_embedding_values)
     if init_embedding_function is None:
         with pytest.raises(ValueError):
             vector_store.update_embedding(
@@ -867,7 +953,8 @@ def test_update_embedding(
         )
 
     # case 9: single embedding_source_tensor, single embedding_tensor, single embedding_function, single init_embedding_function
-    vector_store_len = len(vector_store)
+    new_embedding_values = 300
+    multiple_embedding_function = get_multiple_embedding_function(new_embedding_values)
     vector_store.update_embedding(
         ids=ids,
         row_ids=row_ids,
