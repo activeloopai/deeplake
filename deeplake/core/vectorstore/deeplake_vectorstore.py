@@ -381,7 +381,7 @@ class VectorStore:
 
         if (
             exec_option is None
-            and self.exec_option is not "python"
+            and self.exec_option != "python"
             and isinstance(filter, Callable)
         ):
             logger.warning(

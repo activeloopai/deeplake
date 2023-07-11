@@ -248,7 +248,7 @@ def lock_dataset(
     key = _get_lock_key(get_path_from_storage(storage), version)
     lock = _LOCKS.get(key)
     if lock:
-        lock.acquire(dataset._lock_timeout)
+        lock.acquire()
     else:
         lock = PersistentLock(
             storage,
