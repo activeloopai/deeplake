@@ -314,8 +314,6 @@ class DeepLakeBackendClient:
 
         if response.status_code == 200:
             logger.info("Your Deep Lake dataset has been successfully created!")
-            if public is False:
-                logger.info("The dataset is private so make sure you are logged in!")
 
     def get_managed_creds(self, org_id, creds_key):
         """Retrieves the managed credentials for the given org_id and creds_key.
