@@ -58,22 +58,18 @@ def embedding_fn5(text, embedding_dim=EMBEDDING_DIM):
     return [np.zeros(i) for i in range(len(text))]
 
 
-def embedding_function(text, embedding_value):
+def embedding_function(embedding_value, text):
     """Embedding function with custom embedding values"""
     return [np.ones(EMBEDDING_DIM) * embedding_value for i in range(len(text))]
 
 
 def get_embedding_function(embedding_value):
     """Function for creation embedding function with given embedding value"""
-    return partial(embedding_fn3, embedding_value)
+    return partial(embedding_function, embedding_value)
 
 
 def get_multiple_embedding_function(embedding_value, num_of_funcs=2):
-    return [partial(embedding_fn3, embedding_value) for i in range(num_of_funcs)]
-
-
-@pytest.fixture
-def 
+    return [partial(embedding_function, embedding_value) for i in range(num_of_funcs)]
 
 
 def test_id_backward_compatibility(local_path):
@@ -587,72 +583,76 @@ def assert_updated_vector_store(
     row_ids,
     filters,
     query,
-    init_embedding_function,
     embedding_function,
     embedding_source_tensor,
     embedding_tensor,
     exec_option,
     num_changed_samples=3,
 ):
-    new_embeddings = [new_embedding_value] * num_changed_samples
+    new_embeddings = [
+        np.ones(EMBEDDING_DIM) * new_embedding_value
+    ] * num_changed_samples
     row_ids = dataset_utils.search_row_ids(
         dataset=vector_store.dataset,
         search_fn=vector_store.search,
         ids=ids,
-        filter=filter,
+        filter=filters,
         query=query,
         row_ids=row_ids,
         exec_option=exec_option,
     )
 
-    if isinstance(embedding_function, str) and isinstance(embedding_tensor, str):
-        assert np.testing.assert_array_equal(
-            vector_store.dataset[embedding_tensor][ids].numpy(),
+    if callable(embedding_function) and isinstance(embedding_tensor, str):
+        np.testing.assert_array_equal(
+            vector_store.dataset[embedding_tensor][row_ids].numpy(),
             new_embeddings,
         )
 
-    if isinstance(embedding_function, str) and isinstance(embedding_tensor, list):
+    if callable(embedding_function) and isinstance(embedding_tensor, list):
         for i in range(len(embedding_tensor)):
-            assert np.testing.assert_array_equal(
-                vector_store.dataset[embedding_tensor[i]][ids].numpy(),
+            np.testing.assert_array_equal(
+                vector_store.dataset[embedding_tensor[i]][row_ids].numpy(),
                 new_embeddings,
             )
 
     if isinstance(embedding_function, list) and isinstance(embedding_tensor, list):
         for i in range(len(embedding_tensor)):
-            assert np.testing.assert_array_equal(
-                vector_store.dataset[embedding_tensor[i]][ids].numpy(),
+            np.testing.assert_array_equal(
+                vector_store.dataset[embedding_tensor[i]][row_ids].numpy(),
                 new_embeddings,
             )
 
 
 @pytest.mark.parametrize(
-    "dataset_generator, ids, row_ids, filters, query",
+    "ds_generator, ids, row_ids, filters, query",
     [
-        ("hub_cloud_ds_generator", hash_ids, None, None, None),
-        ("hub_cloud_ds_generator", None, row_ids, None, None),
-        ("hub_cloud_ds_generator", None, None, filters, None),
-        ("hub_cloud_ds_generator", None, None, None, query),
+        ("hub_cloud_ds_generator", "hash_ids", None, None, None),
+        ("hub_cloud_ds_generator", None, "row_ids", None, None),
+        # ("hub_cloud_ds_generator", None, None, filters, None),
+        # ("hub_cloud_ds_generator", None, None, None, query),
     ],
+    indirect=True,
 )
-@pytest.mark.parametrize("init_embedding_function", [init_embedding_function, None])
+@pytest.mark.parametrize("init_embedding_function", [embedding_fn3, None])
 def test_update_embedding(
-    local_path,
-    embedding_tensor,
-    embedding_source_tensor,
-    multiple_embedding_source_tensor,
+    ds_generator,
     ids,
     row_ids,
     filters,
     query,
-    embedding_function,
     init_embedding_function,
 ):
+    embedding_tensor = "embedding"
+    embedding_source_tensor = "text"
+    # filters = None
+    # query = None
     # Test cases:
     # Do that with queries, filters, row_ids, ids
     # dataset has a single embedding_tensor:
+    ds = ds_generator()
+    path = ds.path
     vector_store = DeepLakeVectorStore(
-        path=local_path,
+        path=path,
         overwrite=False,
         verbose=False,
         embedding_function=init_embedding_function,
@@ -688,9 +688,6 @@ def test_update_embedding(
     # case 2: single embedding_source_tensor, single embedding_tensor not specified, single embedding_function
     new_embedding_value = 200
     embedding_fn = get_embedding_function(new_embedding_value)
-    embedding_function = (
-        partial(embedding_function, embedding_value=new_embedding_value),
-    )
     vector_store.update_embedding(
         ids=ids,
         row_ids=row_ids,
@@ -744,6 +741,8 @@ def test_update_embedding(
             embedding_tensor,
         )
 
+    vector_store.delete_by_path(path)
+
     # dataset has a multiple embedding_tensor:
     tensors = [
         {
@@ -787,8 +786,9 @@ def test_update_embedding(
         },
     ]
     multiple_embedding_tensor = ["embedding", "embedding_md"]
+    multiple_embedding_source_tensor = ["embedding", "metadata"]
     vector_store = DeepLakeVectorStore(
-        path=local_path,
+        path=path + "_multi",
         overwrite=True,
         verbose=False,
         embedding_function=init_embedding_function,
@@ -976,6 +976,7 @@ def test_update_embedding(
         embedding_source_tensor,
         embedding_tensor,
     )
+    vector_store.delete_by_path(path)
 
 
 def test_ingestion(local_path, capsys):

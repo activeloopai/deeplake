@@ -599,6 +599,7 @@ class VectorStore:
         embedding_tensor_data = utils.convert_embedding_source_tensor_to_embeddings(
             dataset=self.dataset,
             embedding_source_tensor=embedding_source_tensor,
+            embedding_tensor=embedding_tensor,
             embedding_function=embedding_function,
             row_ids=row_ids,
         )

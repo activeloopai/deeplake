@@ -14,7 +14,6 @@ except ImportError:  # pragma: no cover
 import deeplake
 from deeplake.constants import MB
 from deeplake.core.vectorstore.vector_search import utils
-from deeplake.core.vectorstore.vector_search import dataset as dataset_utils
 from deeplake.core.vectorstore.vector_search.ingestion import ingest_data
 from deeplake.constants import (
     DEFAULT_VECTORSTORE_DEEPLAKE_PATH,
@@ -415,7 +414,7 @@ def extend_or_ingest_dataset(
 
         dataset.extend(processed_tensors)
     else:
-        elements = dataset_utils.create_elements(processed_tensors)
+        elements = create_elements(processed_tensors)
 
         num_workers_auto = ceil(len(elements) / ingestion_batch_size)
         if num_workers_auto < num_workers:
@@ -490,7 +489,7 @@ def search_row_ids(
     exec_option: Optional[str] = "python",
     select_all: Optional[bool] = None,
 ):
-    dataset_utils.check_arguments_compatibility(
+    check_arguments_compatibility(
         ids=ids,
         filter=filter,
         query=query,
@@ -503,7 +502,7 @@ def search_row_ids(
         return None
 
     if row_ids is None:
-        row_ids = dataset_utils.convert_id_to_row_id(
+        row_ids = convert_id_to_row_id(
             ids=ids,
             dataset=dataset,
             search_fn=search_fn,

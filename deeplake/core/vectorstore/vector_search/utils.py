@@ -245,7 +245,7 @@ def parse_update_arguments(
         embedding_tensor, embedding_source_tensor, dataset
     )
 
-    if not isinstance(embedding_source_tensor, embedding_tensor):
+    if type(embedding_source_tensor) is not type(embedding_tensor):
         if isinstance(embedding_tensor, str):
             raise ValueError(
                 "Multiple `embedding_source_tensor` were specifed. "
@@ -276,21 +276,29 @@ def parse_update_arguments(
 def convert_embedding_source_tensor_to_embeddings(
     dataset,
     embedding_source_tensor,
+    embedding_tensor,
     embedding_function,
     row_ids,
 ):
     embedding_tensor_data = {}
     if isinstance(embedding_source_tensor, list):
-        for embedding_source_tensor_i in embedding_source_tensor:
+        for embedding_source_tensor_i, embedding_tensor_i in zip(
+            embedding_source_tensor, embedding_tensor
+        ):
             embedding_data = dataset[row_ids][embedding_source_tensor_i].numpy()
-            embedding_tensor_data[embedding_source_tensor_i] = embedding_function(
+            embedding_tensor_data[embedding_tensor_i] = embedding_function(
                 embedding_data
+            )
+            embedding_tensor_data[embedding_tensor_i] = np.array(
+                embedding_tensor_data[embedding_tensor_i], dtype=np.float32
             )
     else:
         embedding_data = dataset[row_ids][embedding_source_tensor].numpy()
-        embedding_tensor_data[embedding_source_tensor] = embedding_function(
-            embedding_data
+        embedding_tensor_data[embedding_tensor] = embedding_function(embedding_data)
+        embedding_tensor_data[embedding_tensor] = np.array(
+            embedding_tensor_data[embedding_tensor], dtype=np.float32
         )
+
     return embedding_tensor_data
 
 
