@@ -1835,18 +1835,6 @@ class Dataset:
             self.version_state, self.storage
         )
 
-    def _acquire_lock(self, timeout: Optional[int] = 0):
-        if timeout is not None:
-            start_time = time()
-        while True:
-            try:
-                self._set_read_only(False, True)
-                return
-            except LockedException:
-                if timeout is not None and time() - start_time > timeout:
-                    raise LockedException()
-                sleep(1)
-
     def _set_read_only(self, value: bool, err: bool):
         storage = self.storage
         self.__dict__["_read_only"] = value
