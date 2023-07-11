@@ -285,6 +285,9 @@ def test_search_basic(local_path, hub_cloud_dev_token):
     vector_store_none_exec = DeepLakeVectorStore(
         path=local_path, overwrite=True, token=hub_cloud_dev_token, exec_option=None
     )
+
+    vector_store_none_exec.add(embedding=embeddings, text=texts, metadata=metadatas)
+
     data_n = vector_store_none_exec.search(
         embedding=query_embedding,
     )
