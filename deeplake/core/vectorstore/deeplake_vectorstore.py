@@ -382,7 +382,7 @@ class VectorStore:
         if (
             exec_option is None
             and self.exec_option is not "python"
-            and isinstance(filter, Callable)
+            and callable(filter)
         ):
             logger.warning(
                 'Switching exec_option to "python" (runs on client) because filter is specified as a function. '
