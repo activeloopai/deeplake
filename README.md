@@ -16,16 +16,7 @@
      <a href="https://github.com/activeloopai/deeplake/issues">
     <img alt="GitHub issues" src="https://img.shields.io/github/issues/activeloopai/deeplake"> </a>
     <a href="https://codecov.io/gh/activeloopai/deeplake/branch/main"><img src="https://codecov.io/gh/activeloopai/deeplake/branch/main/graph/badge.svg" alt="codecov" height="18"></a>
-    </br>
-    <a href="https://sonarcloud.io/summary/new_code?id=activeloopai_deeplake"><img src="https://sonarcloud.io/api/project_badges/measure?project=activeloopai_deeplake&metric=sqale_rating" alt="sonar_maintainability" height="18"></a>
-    <a href="https://sonarcloud.io/summary/new_code?id=activeloopai_deeplake"><img src=https://sonarcloud.io/api/project_badges/measure?project=activeloopai_deeplake&metric=code_smells alt="sonar_code_smells" height="18"></a>
-    <a href="https://sonarcloud.io/summary/new_code?id=activeloopai_deeplake"><img src=https://sonarcloud.io/api/project_badges/measure?project=activeloopai_deeplake&metric=sqale_index alt="sonar_tech_debt" height="18"></a>
     <a href="https://sonarcloud.io/summary/new_code?id=activeloopai_deeplake"><img src=https://sonarcloud.io/api/project_badges/measure?project=activeloopai_deeplake&metric=alert_status alt="sonar_quality_gate" height="18"></a>
-    <a href="https://sonarcloud.io/summary/new_code?id=activeloopai_deeplake"><img src=https://sonarcloud.io/api/project_badges/measure?project=activeloopai_deeplake&metric=reliability_rating alt="sonar_reliability" height="18"></a>
-    <a href="https://sonarcloud.io/summary/new_code?id=activeloopai_deeplake"><img src=https://sonarcloud.io/api/project_badges/measure?project=activeloopai_deeplake&metric=duplicated_lines_density alt="sonar_duplications" height="18"></a>
-    <a href="https://sonarcloud.io/summary/new_code?id=activeloopai_deeplake"><img src=https://sonarcloud.io/api/project_badges/measure?project=activeloopai_deeplake&metric=vulnerabilities alt="sonar_vulnerabilities" height="18"></a>
-    <a href="https://sonarcloud.io/summary/new_code?id=activeloopai_deeplake"><img src=https://sonarcloud.io/api/project_badges/measure?project=activeloopai_deeplake&metric=bugs alt="sonar_bugs" height="18"></a>
-    <a href="https://sonarcloud.io/summary/new_code?id=activeloopai_deeplake"><img src=https://sonarcloud.io/api/project_badges/measure?project=activeloopai_deeplake&metric=security_rating alt="" height="18"></a>
   <h3 align="center">
    <a href="https://docs.activeloop.ai/?utm_source=github&utm_medium=github&utm_campaign=github_readme&utm_id=readme"><b>Docs</b></a> &bull;
    <a href="https://docs.activeloop.ai/getting-started/?utm_source=github&utm_medium=github&utm_campaign=github_readme&utm_id=readme"><b>Get Started</b></a> &bull;
