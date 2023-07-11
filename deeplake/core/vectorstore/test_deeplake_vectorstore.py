@@ -281,6 +281,15 @@ def test_search_basic(local_path, hub_cloud_dev_token):
     assert isinstance(data_ce_v.text[0].data()["value"], str)
     assert data_ce_v.embedding[0].numpy().size > 0
 
+    # Check that None option works
+    vector_store_none_exec = DeepLakeVectorStore(
+        path=local_path, overwrite=True, token=hub_cloud_dev_token, exec_option=None
+    )
+    data_n = vector_store_none_exec.search(
+        embedding=query_embedding,
+    )
+    assert (len(data_n.keys())) > 0
+
     # Check that filter_fn with cloud dataset (and therefore "compute_engine" exec option) switches to "python" automatically.
     with pytest.warns(None):
         _ = vector_store_cloud.search(
