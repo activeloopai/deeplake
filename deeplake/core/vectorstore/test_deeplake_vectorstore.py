@@ -831,7 +831,7 @@ def test_update_embedding(
         path=path + "_multi",
         overwrite=True,
         verbose=False,
-        embedding_function=embedding_fn3,
+        embedding_function=init_embedding_function,
         tensor_params=tensors,
     )
 
