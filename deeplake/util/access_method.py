@@ -87,7 +87,7 @@ def connect_dataset_entry_if_needed(
     path, local_path, managed_creds_used, download, token
 ):
     if managed_creds_used:
-        logger.info(
+        print(
             "Managed credentials are used in the dataset. Connecting local dataset to backend..."
         )
         connect_path = path + DOWNLOAD_MANAGED_PATH_SUFFIX
@@ -111,7 +111,7 @@ def unlink_dataset_if_needed(load_path, unlink, num_workers, scheduler):
             filter(lambda x: ds[x].htype.startswith("link"), ds.tensors)
         )
 
-        logger.info("Downloading data from links...")
+        print("Downloading data from links...")
 
         if linked_tensors:
             local_path = get_base_storage(ds.storage).root
@@ -151,6 +151,8 @@ def get_local_dataset(
     scheduler,
     reset,
     unlink,
+    lock_timeout,
+    lock_enabled,
 ):
     local_path = get_local_storage_path(path, os.environ["DEEPLAKE_DOWNLOAD_PATH"])
     download = access_method == "download" or (
@@ -191,12 +193,14 @@ def get_local_dataset(
         token=token,
         org_id=org_id,
         reset=reset,
+        lock_timeout=lock_timeout,
+        lock_enabled=lock_enabled,
     )
     if download:
         ds.storage.next_storage[TIMESTAMP_FILENAME] = time.ctime().encode("utf-8")
     else:
         timestamp = ds.storage.next_storage[TIMESTAMP_FILENAME].decode("utf-8")
-        logger.info(
+        print(
             f"** Loaded local copy of dataset from {local_path}. Downloaded on: {timestamp}"
         )
     return ds
