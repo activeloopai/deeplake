@@ -4,16 +4,22 @@ import deeplake
 from deeplake.constants import TIMESTAMP_FILENAME, DOWNLOAD_MANAGED_PATH_SUFFIX
 from deeplake.util.exceptions import DatasetHandlerError, UnprocessableEntityException
 from deeplake.util.storage import get_local_storage_path, storage_provider_from_path
+from deeplake.util.remove_cache import get_base_storage
 from deeplake.util.connect_dataset import connect_dataset_entry
 from deeplake.util.path import get_path_type
 from deeplake.util.keys import get_dataset_linked_creds_key
 from deeplake.core.link_creds import LinkCreds
+from deeplake.client.log import logger
 
 
-def check_access_method(access_method: str, overwrite: bool):
+def check_access_method(access_method: str, overwrite: bool, unlink: bool):
     if access_method not in ["stream", "download", "local"]:
         raise ValueError(
             f"Invalid access method: {access_method}. Must be one of 'stream', 'download', 'local'"
+        )
+    if access_method == "stream" and unlink:
+        raise ValueError(
+            "unlink argument is not supported with 'stream' access method."
         )
     if access_method in {"download", "local"}:
         if not os.environ.get("DEEPLAKE_DOWNLOAD_PATH"):
@@ -89,7 +95,7 @@ def connect_dataset_entry_if_needed(
             try:
                 connect_dataset_entry(
                     local_path,
-                    None,
+                    "S3_KEY",
                     connect_path,
                     token=token,
                     verbose=False,
@@ -100,6 +106,38 @@ def connect_dataset_entry_if_needed(
                 pass
         local_path = connect_path
     return local_path
+
+
+def unlink_dataset_if_needed(load_path, unlink, num_workers, scheduler):
+    if unlink:
+        ds = deeplake.load(load_path, verbose=False)
+        linked_tensors = list(
+            filter(lambda x: ds[x].htype.startswith("link"), ds.tensors)
+        )
+
+        logger.info("Downloading data from links...")
+
+        if linked_tensors:
+            local_path = get_base_storage(ds.storage).root
+            links_ds = ds._copy(
+                local_path + "_tmp",
+                tensors=linked_tensors,
+                overwrite=True,
+                num_workers=num_workers,
+                scheduler=scheduler,
+                progressbar=True,
+                unlink=True,
+                verbose=False,
+            )
+
+            for tensor in linked_tensors:
+                ds.delete_tensor(tensor)
+
+            for tensor in links_ds.tensors:
+                ds.create_tensor_like(tensor, links_ds[tensor])
+                ds[tensor].extend(links_ds[tensor], progressbar=True)
+
+            links_ds.delete(large_ok=True)
 
 
 def get_local_dataset(
@@ -116,6 +154,7 @@ def get_local_dataset(
     num_workers,
     scheduler,
     reset,
+    unlink,
 ):
     local_path = get_local_storage_path(path, os.environ["DEEPLAKE_DOWNLOAD_PATH"])
     download = access_method == "download" or (
@@ -144,6 +183,8 @@ def get_local_dataset(
     load_path = connect_dataset_entry_if_needed(
         path, local_path, managed_creds_used, download, token
     )
+
+    unlink_dataset_if_needed(load_path, unlink, num_workers, scheduler)
 
     ds = deeplake.load(
         load_path,

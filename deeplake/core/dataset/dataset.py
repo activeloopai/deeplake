@@ -3819,6 +3819,7 @@ class Dataset:
         public: bool = False,
         unlink: bool = False,
         create_vds_index_tensor: bool = False,
+        verbose: bool = True,
     ):
         if isinstance(dest, str):
             path = dest
@@ -3844,6 +3845,7 @@ class Dataset:
             ]
             if unlink
             else False,
+            verbose=verbose,
         )
 
         def _copy_tensor(sample_in, sample_out):
