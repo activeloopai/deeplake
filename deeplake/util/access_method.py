@@ -19,7 +19,7 @@ def check_access_method(access_method: str, overwrite: bool, unlink: bool):
         )
     if access_method == "stream" and unlink:
         raise ValueError(
-            "unlink argument is not supported with 'stream' access method."
+            "`unlink` argument is not supported with 'stream' access method."
         )
     if access_method in {"download", "local"}:
         if not os.environ.get("DEEPLAKE_DOWNLOAD_PATH"):
