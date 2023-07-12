@@ -41,6 +41,7 @@ from deeplake.constants import (
     DEFAULT_LOCAL_CACHE_SIZE,
     DEFAULT_READONLY,
     DATASET_META_FILENAME,
+    DATASET_LOCK_FILENAME,
 )
 from deeplake.util.access_method import (
     check_access_method,
@@ -1207,6 +1208,9 @@ class dataset:
                 path=src_ds.path,
             )
             for key in keys:
+                # don't copy the lock file
+                if key == DATASET_LOCK_FILENAME:
+                    continue
                 val = metas.get(key) or cache[key]
                 if isinstance(val, DeepLakeMemoryObject):
                     dest_storage[key] = val.tobytes()

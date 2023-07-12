@@ -104,9 +104,9 @@ def connect_dataset_entry_if_needed(
     return local_path
 
 
-def unlink_dataset_if_needed(load_path, unlink, num_workers, scheduler):
+def unlink_dataset_if_needed(load_path, token, unlink, num_workers, scheduler):
     if unlink:
-        ds = deeplake.load(load_path, verbose=False)
+        ds = deeplake.load(load_path, token=token, verbose=False, read_only=False)
         linked_tensors = list(
             filter(lambda x: ds[x].htype.startswith("link"), ds.tensors)
         )
@@ -182,7 +182,7 @@ def get_local_dataset(
         path, local_path, managed_creds_used, download, token
     )
 
-    unlink_dataset_if_needed(load_path, unlink, num_workers, scheduler)
+    unlink_dataset_if_needed(load_path, token, unlink, num_workers, scheduler)
 
     ds = deeplake.load(
         load_path,
