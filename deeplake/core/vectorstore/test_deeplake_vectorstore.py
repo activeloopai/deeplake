@@ -665,8 +665,7 @@ def assert_updated_vector_store(
     ],
     indirect=True,
 )
-# @pytest.mark.parametrize("init_embedding_function", [embedding_fn3, None])
-@pytest.mark.parametrize("init_embedding_function", [embedding_fn3])
+@pytest.mark.parametrize("init_embedding_function", [embedding_fn3, None])
 def test_update_embedding(
     ds_generator,
     vector_store_hash_ids,
