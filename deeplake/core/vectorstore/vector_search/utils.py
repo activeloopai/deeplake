@@ -23,7 +23,8 @@ def parse_tensor_return(tensor):
 
 def parse_exec_option(dataset, exec_option, indra_installed):
     """Select the best available exec_option for the given dataset and environment"""
-    if exec_option == "auto":
+
+    if exec_option is None or exec_option == "auto":
         if isinstance(dataset, DeepLakeCloudDataset):
             if "vector_db/" in dataset.base_storage.path:
                 return "tensor_db"
