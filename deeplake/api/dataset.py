@@ -293,6 +293,7 @@ class dataset:
                 return dataset._reset_and_load(
                     cache_chain, access_method, dataset_kwargs, address, e
                 )
+            raise e
 
     @staticmethod
     def exists(

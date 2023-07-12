@@ -102,15 +102,15 @@ def test_access_method_with_creds(
     ds = hub_cloud_ds_generator(access_method="download:2")
 
     assert ds.images.htype == "link[image]"
-    assert ds.images.shape == (10, 30, 20)
-    np.testing.assert_array_equal(ds.images.numpy(), np.arange(1, 11).reshape(-1, 1))
+    assert ds.images.shape == (10, 30, 20, 3)
+    np.testing.assert_array_equal(ds.abc.numpy(), np.arange(1, 11).reshape(-1, 1))
 
     ds.delete()
 
     ds = hub_cloud_ds_generator(access_method="download:2", unlink=True)
 
     assert ds.images.htype == "image"
-    assert ds.images.shape == (10, 30, 20)
-    np.testing.assert_array_equal(ds.images.numpy(), np.arange(1, 11).reshape(-1, 1))
+    assert ds.images.shape == (10, 30, 20, 3)
+    np.testing.assert_array_equal(ds.abc.numpy(), np.arange(1, 11).reshape(-1, 1))
 
     ds.delete()

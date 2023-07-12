@@ -87,23 +87,19 @@ def connect_dataset_entry_if_needed(
     path, local_path, managed_creds_used, download, token
 ):
     if managed_creds_used:
-        print(
+        logger.info(
             "Managed credentials are used in the dataset. Connecting local dataset to backend..."
         )
         connect_path = path + DOWNLOAD_MANAGED_PATH_SUFFIX
         if download:
-            try:
-                connect_dataset_entry(
-                    local_path,
-                    None,
-                    connect_path,
-                    token=token,
-                    verbose=False,
-                    allow_local=True,
-                )
-            except UnprocessableEntityException:
-                # dataset already connected to backend
-                pass
+            connect_dataset_entry(
+                local_path,
+                None,
+                connect_path,
+                token=token,
+                verbose=False,
+                allow_local=True,
+            )
         local_path = connect_path
     return local_path
 
@@ -200,7 +196,7 @@ def get_local_dataset(
         ds.storage.next_storage[TIMESTAMP_FILENAME] = time.ctime().encode("utf-8")
     else:
         timestamp = ds.storage.next_storage[TIMESTAMP_FILENAME].decode("utf-8")
-        print(
+        logger.info(
             f"** Loaded local copy of dataset from {local_path}. Downloaded on: {timestamp}"
         )
     return ds
