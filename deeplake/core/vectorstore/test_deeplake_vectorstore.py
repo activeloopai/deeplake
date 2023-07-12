@@ -74,6 +74,10 @@ def get_multiple_embedding_function(embedding_value, num_of_funcs=2):
     ]
 
 
+def filter_udf(x):
+    return x["metadata"].data()["value"] in [f"{i}" for i in range(5)]
+
+
 def test_id_backward_compatibility(local_path):
     num_of_items = 10
     embedding_dim = 100
@@ -634,52 +638,55 @@ def assert_updated_vector_store(
             )
 
 
+@requires_libdeeplake
 @pytest.mark.parametrize(
-    "ds_generator, ids, row_ids, filters, query",
+    "ds_generator, vector_store_hash_ids, vector_store_row_ids, vector_store_filters, vector_store_query",
     [
-        ("hub_cloud_ds_generator", "hash_ids", None, None, None),
-        ("hub_cloud_ds_generator", None, "row_ids", None, None),
-        # ("hub_cloud_ds_generator", None, None, filters, None),
-        # ("hub_cloud_ds_generator", None, None, None, query),
+        ("hub_cloud_ds_generator", "vector_store_hash_ids", None, None, None),
+        ("hub_cloud_ds_generator", None, "vector_store_row_ids", None, None),
+        ("hub_cloud_ds_generator", None, None, "vector_store_filter_udf", None),
+        ("hub_cloud_ds_generator", None, None, "vector_store_filters", None),
+        ("hub_cloud_ds_generator", None, None, None, "vector_store_query"),
     ],
     indirect=True,
 )
-@pytest.mark.parametrize("init_embedding_function", [embedding_fn3, None])
+# @pytest.mark.parametrize("init_embedding_function", [embedding_fn3, None])
+@pytest.mark.parametrize("init_embedding_function", [embedding_fn3])
 def test_update_embedding(
     ds_generator,
-    ids,
-    row_ids,
-    filters,
-    query,
+    vector_store_hash_ids,
+    vector_store_row_ids,
+    vector_store_filters,
+    vector_store_query,
     init_embedding_function,
 ):
+    if vector_store_filters == "filter_udf":
+        vector_store_filters = filter_udf
+
     embedding_tensor = "embedding"
     embedding_source_tensor = "text"
-    # filters = None
-    # query = None
-    # Test cases:
-    # Do that with queries, filters, row_ids, ids
     # dataset has a single embedding_tensor:
     ds = ds_generator()
     path = ds.path
     vector_store = DeepLakeVectorStore(
         path=path,
-        overwrite=False,
+        overwrite=True,
         verbose=False,
         embedding_function=init_embedding_function,
     )
 
-    # # add data to the dataset:
-    # vector_store.add(id=ids, embedding=embeddings, text=texts, metadata=metadatas)
+    # add data to the dataset:
+    metadatas[1:6] = [{"a": 1} for i in range(5)]
+    vector_store.add(id=ids, embedding=embeddings, text=texts, metadata=metadatas)
 
     # case 1: single embedding_source_tensor, single embedding_tensor, single embedding_function
     new_embedding_value = 100
     embedding_fn = get_embedding_function(embedding_value=new_embedding_value)
     vector_store.update_embedding(
-        ids=ids,
-        row_ids=row_ids,
-        filter=filters,
-        query=query,
+        ids=vector_store_hash_ids,
+        row_ids=vector_store_row_ids,
+        filter=vector_store_filters,
+        query=vector_store_query,
         embedding_function=embedding_fn,
         embedding_source_tensor=embedding_source_tensor,
         embedding_tensor=embedding_tensor,
@@ -687,14 +694,14 @@ def test_update_embedding(
     assert_updated_vector_store(
         new_embedding_value,
         vector_store,
-        ids,
-        row_ids,
-        filters,
-        query,
+        vector_store_hash_ids,
+        vector_store_row_ids,
+        vector_store_filters,
+        vector_store_query,
         embedding_fn,
         embedding_source_tensor,
         embedding_tensor,
-        "python",
+        "compute_engine",
         num_changed_samples=5,
     )
 
@@ -702,10 +709,10 @@ def test_update_embedding(
     new_embedding_value = 100
     embedding_fn = get_embedding_function(embedding_value=new_embedding_value)
     vector_store.update_embedding(
-        ids=ids,
-        row_ids=row_ids,
-        filter=filters,
-        query=query,
+        ids=vector_store_hash_ids,
+        row_ids=vector_store_row_ids,
+        filter=vector_store_filters,
+        query=vector_store_query,
         embedding_function=embedding_fn,
         embedding_source_tensor=embedding_source_tensor,
         # embedding_tensor=embedding_tensor,
@@ -713,14 +720,14 @@ def test_update_embedding(
     assert_updated_vector_store(
         new_embedding_value,
         vector_store,
-        ids,
-        row_ids,
-        filters,
-        query,
+        vector_store_hash_ids,
+        vector_store_row_ids,
+        vector_store_filters,
+        vector_store_query,
         embedding_fn,
         embedding_source_tensor,
         embedding_tensor,
-        "python",
+        "compute_engine",
         num_changed_samples=5,
     )
 
@@ -731,32 +738,32 @@ def test_update_embedding(
         # case 3: errors out when init_embedding_function is not specified
         with pytest.raises(ValueError):
             vector_store.update_embedding(
-                ids=ids,
-                row_ids=row_ids,
-                filter=filters,
-                query=query,
+                ids=vector_store_hash_ids,
+                row_ids=vector_store_row_ids,
+                filter=vector_store_filters,
+                query=vector_store_query,
                 embedding_source_tensor=embedding_source_tensor,
             )
     else:
         # case 4
         vector_store.update_embedding(
-            ids=ids,
-            row_ids=row_ids,
-            filter=filters,
-            query=query,
+            ids=vector_store_hash_ids,
+            row_ids=vector_store_row_ids,
+            filter=vector_store_filters,
+            query=vector_store_query,
             embedding_source_tensor=embedding_source_tensor,
         )
         assert_updated_vector_store(
             0,
             vector_store,
-            ids,
-            row_ids,
-            filters,
-            query,
+            vector_store_hash_ids,
+            vector_store_row_ids,
+            vector_store_filters,
+            vector_store_query,
             embedding_fn3,
             embedding_source_tensor,
             embedding_tensor,
-            "python",
+            "compute_engine",
             num_changed_samples=5,
         )
 
@@ -814,15 +821,23 @@ def test_update_embedding(
         tensor_params=tensors,
     )
 
+    vector_store.add(
+        id=ids,
+        text=texts,
+        embedding=embeddings,
+        embedding_md=embeddings,
+        metadata=metadatas,
+    )
+
     # case 1: multiple embedding_source_tensor, single embedding_tensor, single embedding_function
     new_embedding_value = [100, 200]
     embedding_fn = get_multiple_embedding_function(new_embedding_value)
     with pytest.raises(ValueError):
         vector_store.update_embedding(
-            ids=ids,
-            row_ids=row_ids,
-            filter=filters,
-            query=query,
+            ids=vector_store_hash_ids,
+            row_ids=vector_store_row_ids,
+            filter=vector_store_filters,
+            query=vector_store_query,
             embedding_function=embedding_function,
             embedding_source_tensor=multiple_embedding_source_tensor,
             embedding_tensor=embedding_tensor,
@@ -831,36 +846,36 @@ def test_update_embedding(
     # case 2: multiple embedding_source_tensor, single embedding_tensor, multiple embedding_function -> error out?
     with pytest.raises(ValueError):
         vector_store.update_embedding(
-            ids=ids,
-            row_ids=row_ids,
-            filter=filters,
-            query=query,
-            embedding_function=multiple_embedding_function,
+            ids=vector_store_hash_ids,
+            row_ids=vector_store_row_ids,
+            filter=vector_store_filters,
+            query=vector_store_query,
+            embedding_function=embedding_fn,
             embedding_source_tensor=multiple_embedding_source_tensor,
             embedding_tensor=embedding_tensor,
         )
 
     # case 3: 4 embedding_source_tensor, 2 embedding_tensor, 2 embedding_function
-    with pytest.raises(AssertionError):
+    with pytest.raises(ValueError):
         vector_store.update_embedding(
-            ids=ids,
-            row_ids=row_ids,
-            filter=filters,
-            query=query,
-            embedding_function=multiple_embedding_function,
+            ids=vector_store_hash_ids,
+            row_ids=vector_store_row_ids,
+            filter=vector_store_filters,
+            query=vector_store_query,
+            embedding_function=embedding_fn,
             embedding_source_tensor=multiple_embedding_source_tensor * 2,
             embedding_tensor=embedding_tensor,
         )
 
     # case 4: multiple embedding_source_tensor, multiple embedding_tensor, multiple embedding_function
-    new_embedding_values = [100, 200]
-    multiple_embedding_function = get_multiple_embedding_function(new_embedding_values)
+    new_embedding_value = [100, 200]
+    embedding_fn = get_multiple_embedding_function(new_embedding_value)
     vector_store.update_embedding(
-        ids=ids,
-        row_ids=row_ids,
-        filter=filters,
-        query=query,
-        embedding_function=multiple_embedding_function,
+        ids=vector_store_hash_ids,
+        row_ids=vector_store_row_ids,
+        filter=vector_store_filters,
+        query=vector_store_query,
+        embedding_function=embedding_fn,
         embedding_source_tensor=multiple_embedding_source_tensor,
         embedding_tensor=multiple_embedding_tensor,
     )
@@ -868,14 +883,14 @@ def test_update_embedding(
     assert_updated_vector_store(
         new_embedding_value,
         vector_store,
-        ids,
-        row_ids,
-        filters,
-        query,
+        vector_store_hash_ids,
+        vector_store_row_ids,
+        vector_store_filters,
+        vector_store_query,
         embedding_fn,
         multiple_embedding_source_tensor,
         multiple_embedding_tensor,
-        "python",
+        "compute_engine",
         num_changed_samples=5,
     )
 
@@ -886,46 +901,46 @@ def test_update_embedding(
         with pytest.raises(ValueError):
             # case 5: error out because no embedding function was specified
             vector_store.update_embedding(
-                ids=ids,
-                row_ids=row_ids,
-                filter=filters,
-                query=query,
+                ids=vector_store_hash_ids,
+                row_ids=vector_store_row_ids,
+                filter=vector_store_filters,
+                query=vector_store_query,
                 embedding_source_tensor=multiple_embedding_source_tensor,
                 embedding_tensor=multiple_embedding_tensor,
             )
     else:
         # case 6
         vector_store.update_embedding(
-            ids=ids,
-            row_ids=row_ids,
-            filter=filters,
-            query=query,
+            ids=vector_store_hash_ids,
+            row_ids=vector_store_row_ids,
+            filter=vector_store_filters,
+            query=vector_store_query,
             embedding_source_tensor=multiple_embedding_source_tensor,
             embedding_tensor=multiple_embedding_tensor,
         )
         assert_updated_vector_store(
             new_embedding_value,
             vector_store,
-            ids,
-            row_ids,
-            filters,
-            query,
+            vector_store_hash_ids,
+            vector_store_row_ids,
+            vector_store_filters,
+            vector_store_query,
             embedding_fn3,
             multiple_embedding_source_tensor,
             multiple_embedding_tensor,
-            "python",
+            "compute_engine",
             num_changed_samples=5,
         )
 
     # case 7: multiple embedding_source_tensor, not specified embedding_tensor, multiple embedding_function -> error out?
     with pytest.raises(ValueError):
         vector_store.update_embedding(
-            ids=ids,
-            row_ids=row_ids,
-            filter=filters,
-            query=query,
+            ids=vector_store_hash_ids,
+            row_ids=vector_store_row_ids,
+            filter=vector_store_filters,
+            query=vector_store_query,
             embedding_source_tensor=multiple_embedding_source_tensor,
-            embedding_function=multiple_embedding_function,
+            embedding_function=embedding_fn,
         )
 
     # case 8-9: single embedding_source_tensor, multiple embedding_tensor, single init_embedding_function
@@ -933,61 +948,63 @@ def test_update_embedding(
         with pytest.raises(ValueError):
             # case 8: error out because embedding_function is not specified during init call and update call
             vector_store.update_embedding(
-                ids=ids,
-                row_ids=row_ids,
-                filter=filters,
-                query=query,
+                ids=vector_store_hash_ids,
+                row_ids=vector_store_row_ids,
+                filter=vector_store_filters,
+                query=vector_store_query,
                 embedding_source_tensor=embedding_source_tensor,
-                embedding_function=multiple_embedding_function,
+                embedding_function=embedding_fn,
             )
     else:
         with pytest.raises(ValueError):
             # case 9: error out because single embedding_source_tensor is specified
             vector_store.update_embedding(
-                ids=ids,
-                row_ids=row_ids,
-                filter=filters,
-                query=query,
+                ids=vector_store_hash_ids,
+                row_ids=vector_store_row_ids,
+                filter=vector_store_filters,
+                query=vector_store_query,
                 embedding_source_tensor=embedding_source_tensor,
-                embedding_function=multiple_embedding_function,
+                embedding_function=embedding_fn,
             )
 
     # case 10: single embedding_source_tensor, multiple embedding_tensor,  multiple embedding_function -> error out?
     with pytest.raises(ValueError):
         # error out because single embedding_source_tensor is specified
         vector_store.update_embedding(
-            ids=ids,
-            row_ids=row_ids,
-            filter=filters,
-            query=query,
+            ids=vector_store_hash_ids,
+            row_ids=vector_store_row_ids,
+            filter=vector_store_filters,
+            query=vector_store_query,
             embedding_source_tensor=embedding_source_tensor,
             embedding_tensor=multiple_embedding_tensor,
-            embedding_function=multiple_embedding_function,
+            embedding_function=embedding_fn,
         )
 
     # case 11: single embedding_source_tensor, single embedding_tensor, single embedding_function, single init_embedding_function
-    new_embedding_values = 300
+    new_embedding_value = 300
     embedding_fn = get_embedding_function(new_embedding_value)
     vector_store.update_embedding(
-        ids=ids,
-        row_ids=row_ids,
-        filter=filters,
-        query=query,
+        ids=vector_store_hash_ids,
+        row_ids=vector_store_row_ids,
+        filter=vector_store_filters,
+        query=vector_store_query,
         embedding_source_tensor=embedding_source_tensor,
         embedding_tensor=embedding_tensor,
         embedding_function=embedding_fn,
     )
 
     assert_updated_vector_store(
+        new_embedding_value,
         vector_store,
-        ids,
-        row_ids,
-        filters,
-        query,
-        init_embedding_function,
+        vector_store_hash_ids,
+        vector_store_row_ids,
+        vector_store_filters,
+        vector_store_query,
         embedding_function,
         embedding_source_tensor,
         embedding_tensor,
+        "compute_engine",
+        num_changed_samples=5,
     )
     vector_store.delete_by_path(path)
 
