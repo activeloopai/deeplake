@@ -69,7 +69,9 @@ def get_embedding_function(embedding_value):
 
 
 def get_multiple_embedding_function(embedding_value, num_of_funcs=2):
-    return [partial(embedding_function, embedding_value) for i in range(num_of_funcs)]
+    return [
+        partial(embedding_function, embedding_value[i]) for i in range(num_of_funcs)
+    ]
 
 
 def test_id_backward_compatibility(local_path):
@@ -589,9 +591,18 @@ def assert_updated_vector_store(
     exec_option,
     num_changed_samples=3,
 ):
-    new_embeddings = [
-        np.ones(EMBEDDING_DIM) * new_embedding_value
-    ] * num_changed_samples
+    if isinstance(embedding_tensor, str):
+        new_embeddings = [
+            np.ones(EMBEDDING_DIM) * new_embedding_value
+        ] * num_changed_samples
+    else:
+        new_embeddings = []
+        for i in range(len(embedding_tensor)):
+            new_embedding = [
+                np.ones(EMBEDDING_DIM) * new_embedding_value[i]
+            ] * num_changed_samples
+            new_embeddings.append(new_embedding)
+
     row_ids = dataset_utils.search_row_ids(
         dataset=vector_store.dataset,
         search_fn=vector_store.search,
@@ -612,14 +623,14 @@ def assert_updated_vector_store(
         for i in range(len(embedding_tensor)):
             np.testing.assert_array_equal(
                 vector_store.dataset[embedding_tensor[i]][row_ids].numpy(),
-                new_embeddings,
+                new_embeddings[i],
             )
 
     if isinstance(embedding_function, list) and isinstance(embedding_tensor, list):
         for i in range(len(embedding_tensor)):
             np.testing.assert_array_equal(
                 vector_store.dataset[embedding_tensor[i]][row_ids].numpy(),
-                new_embeddings,
+                new_embeddings[i],
             )
 
 
@@ -798,27 +809,16 @@ def test_update_embedding(
     # case 1: multiple embedding_source_tensor, single embedding_tensor, single embedding_function -> error out?
     new_embedding_value = 400
     embedding_fn = get_embedding_function(new_embedding_value)
-    vector_store.update_embedding(
-        ids=ids,
-        row_ids=row_ids,
-        filter=filters,
-        query=query,
-        embedding_function=embedding_function,
-        embedding_source_tensor=multiple_embedding_source_tensor,
-        embedding_tensor=embedding_tensor,
-    )
-
-    assert_updated_vector_store(
-        vector_store,
-        ids,
-        row_ids,
-        filters,
-        query,
-        init_embedding_function,
-        embedding_function,
-        embedding_source_tensor,
-        embedding_tensor,
-    )
+    with pytest.raises(ValueError):
+        vector_store.update_embedding(
+            ids=ids,
+            row_ids=row_ids,
+            filter=filters,
+            query=query,
+            embedding_function=embedding_function,
+            embedding_source_tensor=multiple_embedding_source_tensor,
+            embedding_tensor=embedding_tensor,
+        )
 
     # case 2: multiple embedding_source_tensor, single embedding_tensor, multiple embedding_function -> error out?
     with pytest.raises(ValueError):
@@ -845,7 +845,7 @@ def test_update_embedding(
         )
 
     # case 3: multiple embedding_source_tensor, multiple embedding_tensor, multiple embedding_function
-    new_embedding_values = 100
+    new_embedding_values = [100, 200]
     multiple_embedding_function = get_multiple_embedding_function(new_embedding_values)
     vector_store.update_embedding(
         ids=ids,

@@ -175,12 +175,16 @@ def parse_search_args(**kwargs):
 
 
 def get_embedding_tensor(embedding_tensor, embedding_source_tensor, dataset):
-    embedding_tensor = get_embedding_tensors(embedding_tensor, dataset.tensors, dataset)
+    embedding_tensor = get_embedding_tensors(
+        embedding_tensor=embedding_tensor,
+        tensor_args={},
+        dataset=dataset,
+    )
 
     if embedding_source_tensor is None:
         raise ValueError("`embedding_source_tensor` was not specified")
 
-    return embedding_source_tensor
+    return embedding_tensor
 
 
 def parse_tensors_kwargs(tensors, embedding_function, embedding_data, embedding_tensor):
@@ -241,27 +245,30 @@ def parse_update_arguments(
             "`embedding_function` was not specified during initialization and update call"
         )
 
-    embedding_source_tensor = get_embedding_tensor(
+    embedding_tensor = get_embedding_tensor(
         embedding_tensor, embedding_source_tensor, dataset
     )
+    if len(embedding_tensor) == 1:
+        embedding_tensor = embedding_tensor[0]
 
-    if type(embedding_source_tensor) is not type(embedding_tensor):
-        if isinstance(embedding_tensor, str):
-            raise ValueError(
-                "Multiple `embedding_source_tensor` were specifed. "
-                "While single `embedding_tensor` was given. "
-            )
-        else:
-            raise ValueError(
-                "Multiple `embedding_tensor` were specifed. "
-                "While single `embedding_source_tensor` was given. "
-            )
+    if isinstance(embedding_source_tensor, str) is len(embedding_tensor) > 1:
+        raise ValueError(
+            "Multiple `embedding_tensor` were specifed. "
+            "While single `embedding_source_tensor` was given. "
+        )
+    elif (
+        isinstance(embedding_source_tensor, list)
+        and len(embedding_source_tensor) > 1
+        and len(embedding_tensor) == 1
+    ):
+        raise ValueError(
+            "Multiple `embedding_source_tensor` were specifed. "
+            "While single `embedding_tensor` was given. "
+        )
 
     final_embedding_function = embedding_function or initial_embedding_function
 
-    if isinstance(embedding_tensor, list) and isinstance(
-        final_embedding_function, callable
-    ):
+    if isinstance(embedding_tensor, list) and callable(final_embedding_function):
         final_embedding_function = [final_embedding_function] * len(embedding_tensor)
 
     if isinstance(embedding_tensor, list) and isinstance(embedding_source_tensor, list):
@@ -282,13 +289,11 @@ def convert_embedding_source_tensor_to_embeddings(
 ):
     embedding_tensor_data = {}
     if isinstance(embedding_source_tensor, list):
-        for embedding_source_tensor_i, embedding_tensor_i in zip(
-            embedding_source_tensor, embedding_tensor
+        for embedding_source_tensor_i, embedding_tensor_i, embedding_fn_i in zip(
+            embedding_source_tensor, embedding_tensor, embedding_function
         ):
             embedding_data = dataset[row_ids][embedding_source_tensor_i].numpy()
-            embedding_tensor_data[embedding_tensor_i] = embedding_function(
-                embedding_data
-            )
+            embedding_tensor_data[embedding_tensor_i] = embedding_fn_i(embedding_data)
             embedding_tensor_data[embedding_tensor_i] = np.array(
                 embedding_tensor_data[embedding_tensor_i], dtype=np.float32
             )
