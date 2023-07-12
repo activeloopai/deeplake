@@ -248,10 +248,10 @@ def parse_update_arguments(
     embedding_tensor = get_embedding_tensor(
         embedding_tensor, embedding_source_tensor, dataset
     )
-    if len(embedding_tensor) == 1:
+    if isinstance(embedding_tensor, list) and len(embedding_tensor) == 1:
         embedding_tensor = embedding_tensor[0]
 
-    if isinstance(embedding_source_tensor, str) is len(embedding_tensor) > 1:
+    if isinstance(embedding_source_tensor, str) and isinstance(embedding_tensor, list):
         raise ValueError(
             "Multiple `embedding_tensor` were specifed. "
             "While single `embedding_source_tensor` was given. "
@@ -259,7 +259,7 @@ def parse_update_arguments(
     elif (
         isinstance(embedding_source_tensor, list)
         and len(embedding_source_tensor) > 1
-        and len(embedding_tensor) == 1
+        and isinstance(embedding_tensor, str)
     ):
         raise ValueError(
             "Multiple `embedding_source_tensor` were specifed. "
@@ -274,7 +274,7 @@ def parse_update_arguments(
     if isinstance(embedding_tensor, list) and isinstance(embedding_source_tensor, list):
         assert len(embedding_tensor) == len(embedding_source_tensor), (
             "The length of the `embedding_tensor` doesn't coincide with the length of the "
-            "embedding_source_tensor"
+            "`embedding_source_tensor`"
         )
 
     return (final_embedding_function, embedding_source_tensor, embedding_tensor)

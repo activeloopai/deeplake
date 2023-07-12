@@ -883,7 +883,6 @@ def test_update_embedding(
                 embedding_tensor=multiple_embedding_tensor,
             )
     else:
-        vector_store_len = len(vector_store)
         vector_store.update_embedding(
             ids=ids,
             row_ids=row_ids,
@@ -954,7 +953,7 @@ def test_update_embedding(
 
     # case 9: single embedding_source_tensor, single embedding_tensor, single embedding_function, single init_embedding_function
     new_embedding_values = 300
-    multiple_embedding_function = get_multiple_embedding_function(new_embedding_values)
+    embedding_fn = get_embedding_function(new_embedding_value)
     vector_store.update_embedding(
         ids=ids,
         row_ids=row_ids,
@@ -962,7 +961,7 @@ def test_update_embedding(
         query=query,
         embedding_source_tensor=embedding_source_tensor,
         embedding_tensor=embedding_tensor,
-        embedding_function=multiple_embedding_function,
+        embedding_function=embedding_fn,
     )
 
     assert_updated_vector_store(
