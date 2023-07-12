@@ -95,7 +95,7 @@ def connect_dataset_entry_if_needed(
             try:
                 connect_dataset_entry(
                     local_path,
-                    "S3_KEY",
+                    None,
                     connect_path,
                     token=token,
                     verbose=False,
