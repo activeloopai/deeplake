@@ -500,16 +500,16 @@ class VectorStore:
             },
         )
 
-        row_ids = dataset_utils.search_row_ids(
-            dataset=self.dataset,
-            search_fn=self.search,
-            ids=ids,
-            filter=filter,
-            query=query,
-            select_all=delete_all,
-            row_ids=row_ids,
-            exec_option=exec_option,
-        )
+        if not row_ids:
+            row_ids = dataset_utils.search_row_ids(
+                dataset=self.dataset,
+                search_fn=self.search,
+                ids=ids,
+                filter=filter,
+                query=query,
+                select_all=delete_all,
+                exec_option=exec_option,
+            )
 
         (
             self.dataset,
@@ -546,12 +546,14 @@ class VectorStore:
             ... )
 
             >>> # Delete data using filter and several embedding_tensors:
-            >>> data = vector_store.delete(
+            >>> data = vector_store.update(
+            ...        embedding_source_tensor = "text",
             ...        filter = {"json_tensor_name": {"key: value"}, "json_tensor_name_2": {"key_2: value_2"}},
             ... )
 
             >>> # Delete data using TQL
-            >>> data = vector_store.delete(
+            >>> data = vector_store.update(
+            ...        embedding_source_tensor = "text",
             ...        query = "select * where ..... <add TQL syntax>",
             ...        exec_option = "compute_engine",
             ... )
@@ -597,15 +599,18 @@ class VectorStore:
             embedding_tensor=embedding_tensor,
         )
 
-        row_ids = dataset_utils.search_row_ids(
-            dataset=self.dataset,
-            search_fn=self.search,
-            ids=ids,
-            filter=filter,
-            query=query,
-            row_ids=row_ids,
-            exec_option=exec_option,
-        )
+        if not row_ids:
+            row_ids = dataset_utils.search_row_ids(
+                dataset=self.dataset,
+                search_fn=self.search,
+                ids=ids,
+                filter=filter,
+                query=query,
+                # row_ids=row_ids,
+                exec_option=exec_option,
+            )
+
+        self.dataset.embedding[row_ids].numpy()
 
         embedding_tensor_data = utils.convert_embedding_source_tensor_to_embeddings(
             dataset=self.dataset,
@@ -616,6 +621,7 @@ class VectorStore:
         )
 
         self.dataset[row_ids].update(embedding_tensor_data)
+        self.dataset.commit(allow_empty=True)
 
     @staticmethod
     def delete_by_path(

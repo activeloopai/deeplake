@@ -622,15 +622,15 @@ def assert_updated_vector_store(
             ] * num_changed_samples
             new_embeddings.append(new_embedding)
 
-    row_ids = dataset_utils.search_row_ids(
-        dataset=vector_store.dataset,
-        search_fn=vector_store.search,
-        ids=ids,
-        filter=filters,
-        query=query,
-        row_ids=row_ids,
-        exec_option=exec_option,
-    )
+    if not row_ids:
+        row_ids = dataset_utils.search_row_ids(
+            dataset=vector_store.dataset,
+            search_fn=vector_store.search,
+            ids=ids,
+            filter=filters,
+            query=query,
+            exec_option=exec_option,
+        )
 
     if callable(embedding_function) and isinstance(embedding_tensor, str):
         np.testing.assert_array_equal(
@@ -651,6 +651,9 @@ def assert_updated_vector_store(
                 vector_store.dataset[embedding_tensor[i]][row_ids].numpy(),
                 new_embeddings[i],
             )
+
+    # check whether we are doing commits actually
+    assert len(vector_store.dataset.commits) > 0
 
 
 @requires_libdeeplake
