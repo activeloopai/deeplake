@@ -16,6 +16,7 @@ class DeepLakeQueryTensor(tensor.Tensor):
         self,
         deeplake_tensor,
         indra_tensor,
+        index: Optional[Index] = None,
         is_iteration: bool = False,
     ):
         self.deeplake_tensor = deeplake_tensor
@@ -29,6 +30,8 @@ class DeepLakeQueryTensor(tensor.Tensor):
         )
 
         self.first_dim = None
+
+        self._index = index or Index(self.indra_tensor.index)
 
     def __getattr__(self, key):
         try:
@@ -57,6 +60,7 @@ class DeepLakeQueryTensor(tensor.Tensor):
         return DeepLakeQueryTensor(
             self.deeplake_tensor,
             indra_tensor,
+            index=self.index[item],
             is_iteration=is_iteration,
         )
 
@@ -127,21 +131,15 @@ class DeepLakeQueryTensor(tensor.Tensor):
 
     @property
     def shape(self):
-        result = ()
-        index_0 = self.deeplake_tensor.index.values[0]
-        if self.indra_tensor.min_shape == self.indra_tensor.max_shape:
-            if index_0.is_trivial():
-                return self.indra_tensor.shape_interval
-            else:
-                return self.indra_tensor.shape_interval[1:]
-
-        if index_0.subscriptable():
-            return (len(self.indra_tensor), *self.indra_tensor.shape)  # type: ignore
-
-        return self.indra_tensor.shape
+        if not self.indra_tensor.is_sequence and self.index.values[0].subscriptable():
+            return (len(self.indra_tensor), *self.indra_tensor.shape)
+        else:
+            return self.indra_tensor.shape
 
     @property
     def index(self):
+        if self._index is not None:
+            return self._index
         return Index(self.indra_tensor.indexes)
 
     @property
@@ -150,14 +148,7 @@ class DeepLakeQueryTensor(tensor.Tensor):
 
     @property
     def ndim(self):
-        ndim = len(self.indra_tensor.min_shape) + 1
-        if self.indra_tensor.is_sequence:
-            ndim += 1
-        if self.deeplake_tensor.index:
-            for idx in self.deeplake_tensor.index.values:
-                if not idx.subscriptable():
-                    ndim -= 1
-        return ndim
+        return len(self.shape)
 
     @property
     def meta(self):
