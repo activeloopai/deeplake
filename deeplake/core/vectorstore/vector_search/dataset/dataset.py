@@ -74,7 +74,7 @@ def create_or_load_dataset(
 
 def dataset_exists(dataset_path, token, creds, **kwargs):
     return (
-        deeplake.exists(dataset_path, token=token, **creds)
+        deeplake.exists(dataset_path, token=token, creds=creds)
         and "overwrite" not in kwargs
     )
 
