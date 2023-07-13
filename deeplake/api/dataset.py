@@ -419,7 +419,17 @@ class dataset:
                 local_cache_size=local_cache_size,
             )
 
-            feature_report_path(path, "empty", {"Overwrite": overwrite}, token=token)
+            feature_report_path(
+                path,
+                "empty",
+                {
+                    "runtime": runtime,
+                    "overwrite": overwrite,
+                    "lock_enabled": lock_enabled,
+                    "lock_timeout": lock_timeout,
+                },
+                token=token,
+            )
         except Exception as e:
             if isinstance(e, UserNotLoggedInException):
                 raise UserNotLoggedInException from None
@@ -575,7 +585,12 @@ class dataset:
                 memory_cache_size=memory_cache_size,
                 local_cache_size=local_cache_size,
             )
-            feature_report_path(path, "load", {}, token=token)
+            feature_report_path(
+                path,
+                "load",
+                {"lock_enabled": lock_enabled, "lock_timeout": lock_timeout},
+                token=token,
+            )
         except Exception as e:
             if isinstance(e, UserNotLoggedInException):
                 raise UserNotLoggedInException from None
