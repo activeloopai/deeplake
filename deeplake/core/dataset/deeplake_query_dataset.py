@@ -34,11 +34,13 @@ from deeplake.core.dataset.deeplake_query_tensor import DeepLakeQueryTensor
 
 class DeepLakeQueryDataset(Dataset):
     def __init__(
-        self, deeplake_ds,
+        self,
+        deeplake_ds,
         indra_ds,
         group_index=None,
         enabled_tensors=None,
-        index: Optional[Index] = None):
+        index: Optional[Index] = None,
+    ):
         self.deeplake_ds = deeplake_ds
         self.indra_ds = indra_ds
         self.group_index = group_index or deeplake_ds.group_index
@@ -69,7 +71,9 @@ class DeepLakeQueryDataset(Dataset):
                 except:
                     pass
                 indra_tensor = tensor
-                return DeepLakeQueryTensor(deeplake_tensor, indra_tensor, index=self.index)
+                return DeepLakeQueryTensor(
+                    deeplake_tensor, indra_tensor, index=self.index
+                )
 
     def pytorch(
         self,
@@ -119,7 +123,7 @@ class DeepLakeQueryDataset(Dataset):
                 ret = DeepLakeQueryDataset(
                     deeplake_ds=self.deeplake_ds,
                     indra_ds=self.indra_ds,
-                    index = self.index,
+                    index=self.index,
                     group_index=posixpath.join(self.group_index, item),
                 )
             elif "/" in item:
@@ -151,7 +155,7 @@ class DeepLakeQueryDataset(Dataset):
                     deeplake_ds=self.deeplake_ds,
                     indra_ds=self.indra_ds,
                     enabled_tensors=enabled_tensors,
-                    index=self.index
+                    index=self.index,
                 )
             elif isinstance(item, tuple) and len(item) and isinstance(item[0], str):
                 ret = self
@@ -168,7 +172,7 @@ class DeepLakeQueryDataset(Dataset):
                 ret = DeepLakeQueryDataset(
                     deeplake_ds=self.deeplake_ds,
                     indra_ds=self.indra_ds[item],
-                    index=self.index[item]
+                    index=self.index[item],
                 )
         else:
             raise InvalidKeyTypeError(item)
@@ -286,7 +290,9 @@ class DeepLakeQueryDataset(Dataset):
                     original_tensors[t.name], t, index=self.index
                 )
             else:
-                original_tensors[t.name] = DeepLakeQueryTensor(None, t, index=self.index)
+                original_tensors[t.name] = DeepLakeQueryTensor(
+                    None, t, index=self.index
+                )
         return original_tensors
 
     def __str__(self):
