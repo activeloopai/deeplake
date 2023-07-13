@@ -106,7 +106,9 @@ def connect_dataset_entry_if_needed(
 
 def unlink_dataset_if_needed(load_path, token, unlink, num_workers, scheduler):
     if unlink:
-        ds = deeplake.load(load_path, token=token, verbose=False, read_only=False)
+        ds = deeplake.load(load_path, token=token, verbose=False, read_only=None)
+        ds.read_only = False
+
         linked_tensors = list(
             filter(lambda x: ds[x].htype.startswith("link"), ds.tensors)
         )
@@ -196,10 +198,17 @@ def get_local_dataset(
         lock_timeout=lock_timeout,
         lock_enabled=lock_enabled,
     )
+
+    storage = get_base_storage(ds.storage)
     if download:
-        ds.storage.next_storage[TIMESTAMP_FILENAME] = time.ctime().encode("utf-8")
+        save_read_only = ds.read_only
+        ds.read_only = False
+
+        storage[TIMESTAMP_FILENAME] = time.ctime().encode("utf-8")
+
+        ds.read_only = save_read_only
     else:
-        timestamp = ds.storage.next_storage[TIMESTAMP_FILENAME].decode("utf-8")
+        timestamp = storage[TIMESTAMP_FILENAME].decode("utf-8")
         print(
             f"** Loaded local copy of dataset from {local_path}. Downloaded on: {timestamp}"
         )
