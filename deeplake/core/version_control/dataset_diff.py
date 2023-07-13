@@ -36,10 +36,13 @@ class DatasetDiff(DeepLakeMemoryObject):
                         [
                             len(old_name).to_bytes(8, "big"),
                             len(new_name).to_bytes(8, "big"),
-                            (old_name + new_name).encode("utf-8"),
+                            (old_name + new_name),
                         ]
                     )
-                    for old_name, new_name in self.renamed.items()
+                    for old_name, new_name in map(
+                        lambda n: (n[0].encode("utf-8"), n[1].encode("utf-8")),
+                        self.renamed.items(),
+                    )
                 ),
                 len(self.deleted).to_bytes(8, "big"),
                 *(

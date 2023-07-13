@@ -63,6 +63,7 @@ def create_query(
     tql_distrance_metric = tql_distance_metrics.get_tql_distance_metric(
         distance_metric, embedding_tensor, query_embedding
     )
+
     query = create_query_string(
         tql_distrance_metric, tql_filter, limit, order, tensor_list
     )

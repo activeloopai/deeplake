@@ -2,6 +2,8 @@ from deeplake.constants import MB
 from deeplake.enterprise.util import raise_indra_installation_error
 from deeplake.util.warnings import always_warn
 
+from deeplake.core.dataset import DeepLakeCloudDataset
+
 import numpy as np
 
 import random
@@ -17,6 +19,37 @@ EXEC_OPTION_TO_RUNTIME: Dict[str, Optional[Dict]] = {
 
 def parse_tensor_return(tensor):
     return tensor.data(aslist=True)["value"]
+
+
+def parse_exec_option(dataset, exec_option, indra_installed):
+    """Select the best available exec_option for the given dataset and environment"""
+
+    if exec_option is None or exec_option == "auto":
+        if isinstance(dataset, DeepLakeCloudDataset):
+            if "vector_db/" in dataset.base_storage.path:
+                return "tensor_db"
+            elif indra_installed:
+                return "compute_engine"
+            else:
+                return "python"
+        else:
+            return "python"
+    else:
+        return exec_option
+
+
+def parse_return_tensors(dataset, return_tensors, embedding_tensor, return_view):
+    """Select the best selection of data and tensors to be returned"""
+    if return_view:
+        return_tensors = "*"
+
+    if not return_tensors or return_tensors == "*":
+        return_tensors = [
+            tensor
+            for tensor in dataset.tensors
+            if (tensor != embedding_tensor or return_tensors == "*")
+        ]
+    return return_tensors
 
 
 def check_indra_installation(exec_option, indra_installed):
