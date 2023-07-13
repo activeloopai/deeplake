@@ -660,10 +660,10 @@ def assert_updated_vector_store(
 @pytest.mark.parametrize(
     "ds_generator, vector_store_hash_ids, vector_store_row_ids, vector_store_filters, vector_store_query",
     [
-        ("hub_cloud_ds_generator", "vector_store_hash_ids", None, None, None),
-        ("hub_cloud_ds_generator", None, "vector_store_row_ids", None, None),
-        ("hub_cloud_ds_generator", None, None, "vector_store_filter_udf", None),
-        ("hub_cloud_ds_generator", None, None, "vector_store_filters", None),
+        ("local_ds_generator", "vector_store_hash_ids", None, None, None),
+        ("local_ds_generator", None, "vector_store_row_ids", None, None),
+        ("local_ds_generator", None, None, "vector_store_filter_udf", None),
+        ("local_ds_generator", None, None, "vector_store_filters", None),
         ("hub_cloud_ds_generator", None, None, None, "vector_store_query"),
     ],
     indirect=True,
