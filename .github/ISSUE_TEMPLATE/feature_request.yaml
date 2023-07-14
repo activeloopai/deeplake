@@ -21,7 +21,7 @@ body:
       label: Use Cases
       description: |
         Describe specific uses cases and scenarios where this new feature would be beneficial. 
-        - Maybe a screenshot or design?
-        - Maybe write out a version the docs?
+        - A screenshot or design if that helps
+        - Write out a version the docs if that helps
     validations:
       required: false
