@@ -41,6 +41,7 @@ from deeplake.constants import (
     DEFAULT_LOCAL_CACHE_SIZE,
     DEFAULT_READONLY,
     DATASET_META_FILENAME,
+    DATASET_LOCK_FILENAME,
 )
 from deeplake.util.access_method import (
     check_access_method,
@@ -93,6 +94,7 @@ class dataset:
         org_id: Optional[str] = None,
         verbose: bool = True,
         access_method: str = "stream",
+        unlink: bool = False,
         reset: bool = False,
         check_integrity: bool = True,
         lock_enabled: Optional[bool] = True,
@@ -161,6 +163,7 @@ class dataset:
                         - The 'local' access method can be modified to specify num_workers and/or scheduler to be used in case dataset needs to be downloaded.
                           If dataset needs to be downloaded, 'local:2:processed' will use 2 workers and use processed scheduler, while 'local:3' will use 3 workers
                           and default scheduler (threaded), and 'local:processed' will use a single worker and use processed scheduler.
+            unlink (bool): Downloads linked samples if set to ``True``. Only applicable if ``access_method`` is ``download`` or ``local``. Defaults to ``False``.
             reset (bool): If the specified dataset cannot be loaded due to a corrupted HEAD state of the branch being loaded,
                           setting ``reset=True`` will reset HEAD changes and load the previous version.
             check_integrity (bool): If the param is True it will do integrity check during dataset loading otherwise the check is not performed
@@ -195,7 +198,7 @@ class dataset:
             Any changes made to the dataset in download / local mode will only be made to the local copy and will not be reflected in the original dataset.
         """
         access_method, num_workers, scheduler = parse_access_method(access_method)
-        check_access_method(access_method, overwrite)
+        check_access_method(access_method, overwrite, unlink)
 
         path, address = process_dataset_path(path)
         verify_dataset_name(path)
@@ -269,6 +272,7 @@ class dataset:
                     "num_workers": num_workers,
                     "scheduler": scheduler,
                     "reset": reset,
+                    "unlink": unlink,
                 }
             )
 
@@ -296,6 +300,7 @@ class dataset:
                 return dataset._reset_and_load(
                     cache_chain, access_method, dataset_kwargs, address, e
                 )
+            raise e
 
     @staticmethod
     def exists(
@@ -460,6 +465,7 @@ class dataset:
         org_id: Optional[str] = None,
         verbose: bool = True,
         access_method: str = "stream",
+        unlink: bool = False,
         reset: bool = False,
         check_integrity: bool = True,
         lock_timeout: Optional[int] = 0,
@@ -525,6 +531,7 @@ class dataset:
                         - The 'local' access method can be modified to specify num_workers and/or scheduler to be used in case dataset needs to be downloaded.
                           If dataset needs to be downloaded, 'local:2:processed' will use 2 workers and use processed scheduler, while 'local:3' will use 3 workers
                           and default scheduler (threaded), and 'local:processed' will use a single worker and use processed scheduler.
+            unlink (bool): Downloads linked samples if set to ``True``. Only applicable if ``access_method`` is ``download`` or ``local``. Defaults to ``False``.
             reset (bool): If the specified dataset cannot be loaded due to a corrupted HEAD state of the branch being loaded,
                           setting ``reset=True`` will reset HEAD changes and load the previous version.
             check_integrity (bool): If the param is True it will do integrity check during dataset loading otherwise the check is not performed
@@ -556,7 +563,7 @@ class dataset:
             Any changes made to the dataset in download / local mode will only be made to the local copy and will not be reflected in the original dataset.
         """
         access_method, num_workers, scheduler = parse_access_method(access_method)
-        check_access_method(access_method, overwrite=False)
+        check_access_method(access_method, overwrite=False, unlink=unlink)
 
         path, address = process_dataset_path(path)
 
@@ -613,6 +620,7 @@ class dataset:
                     "num_workers": num_workers,
                     "scheduler": scheduler,
                     "reset": reset,
+                    "unlink": unlink,
                 }
             )
 
@@ -1200,6 +1208,9 @@ class dataset:
                 path=src_ds.path,
             )
             for key in keys:
+                # don't copy the lock file
+                if key == DATASET_LOCK_FILENAME:
+                    continue
                 val = metas.get(key) or cache[key]
                 if isinstance(val, DeepLakeMemoryObject):
                     dest_storage[key] = val.tobytes()
