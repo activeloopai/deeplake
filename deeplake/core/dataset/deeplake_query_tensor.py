@@ -131,7 +131,11 @@ class DeepLakeQueryTensor(tensor.Tensor):
 
     @property
     def shape(self):
-        if not self.indra_tensor.is_sequence and self.index.values[0].subscriptable():
+        if (
+            not self.indra_tensor.is_sequence
+            and len(self.indra_tensor) == 1
+            and self.index.values[0].subscriptable()
+        ):
             return (len(self.indra_tensor), *self.indra_tensor.shape)
         else:
             return self.indra_tensor.shape
