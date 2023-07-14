@@ -28,6 +28,7 @@ class Embedding:
         return [0 for i in range(embedding_dim)]  # pragma: no cover
 
 
+@pytest.mark.slow
 def test_create(caplog, hub_cloud_path, hub_cloud_dev_token):
     # dataset creation
     dataset = dataset_utils.create_or_load_dataset(
@@ -104,6 +105,7 @@ def test_create(caplog, hub_cloud_path, hub_cloud_dev_token):
         )
 
 
+@pytest.mark.slow
 def test_load(caplog, hub_cloud_dev_token):
     # dataset loading
     dataset = dataset_utils.create_or_load_dataset(

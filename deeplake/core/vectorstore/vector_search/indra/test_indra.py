@@ -7,6 +7,7 @@ from deeplake.core.vectorstore.vector_search.indra.tql_distance_metrics import (
     get_tql_distance_metric,
 )
 from deeplake.core.vectorstore.deeplake_vectorstore import VectorStore
+from deeplake.tests.common import requires_libdeeplake
 
 array = "ARRAY[1.0, 2.0, 3.0, 4.0, 5.0, 6.0, 7.0, 8.0]"
 METRIC_FUNC_TO_METRIC_STRING = {
@@ -64,6 +65,8 @@ def test_tql_metric_to_tql_str(metric, limit=10):
     assert parsed_query == METRIC_FUNC_TO_QUERY_STRING[metric]
 
 
+@pytest.mark.slow
+@requires_libdeeplake
 def test_search_resulting_shapes():
     vector_store = VectorStore("hub://activeloop/paul_graham_essay", read_only=True)
     search_text = "What I Worked On"

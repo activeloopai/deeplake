@@ -4,6 +4,7 @@ import deeplake
 from deeplake.util.exceptions import InvalidSourcePathError, TokenPermissionError
 
 
+@pytest.mark.slow
 def test_connect_dataset_api(
     hub_cloud_dev_token,
     hub_cloud_path,
@@ -27,6 +28,7 @@ def test_connect_dataset_api(
     assert ds.x[0].numpy() == 10
 
 
+@pytest.mark.slow
 def test_in_place_dataset_connect(
     hub_cloud_dev_token,
     hub_cloud_path,
@@ -49,6 +51,7 @@ def test_in_place_dataset_connect(
     assert s3_ds.x[0].numpy() == 10
 
 
+@pytest.mark.slow
 def test_connect_dataset_cases(local_ds, memory_ds, hub_cloud_ds):
     # Connecting Local or Memory datasets makes no sense.
     with pytest.raises(InvalidSourcePathError):
@@ -62,6 +65,7 @@ def test_connect_dataset_cases(local_ds, memory_ds, hub_cloud_ds):
         hub_cloud_ds.connect(creds_key="some_creds", dest_path="hub://someorg/somename")
 
 
+@pytest.mark.slow
 def test_connect_user_not_in_org(s3_ds_generator, hub_cloud_dev_token):
     with s3_ds_generator() as ds:
         ds.create_tensor("x")

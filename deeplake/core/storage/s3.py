@@ -17,6 +17,7 @@ from deeplake.util.exceptions import (
     S3Error,
     PathNotEmptyException,
 )
+from deeplake.util.path import relpath
 from deeplake.util.warnings import always_warn
 from botocore.exceptions import (
     ReadTimeoutError,
@@ -420,7 +421,7 @@ class S3Provider(StorageProvider):
         for item in items:
             old_key = item["Key"]
             copy_source = {"Bucket": self.bucket, "Key": old_key}
-            new_key = "/".join([new_path, posixpath.relpath(old_key, self.path)])
+            new_key = "/".join([new_path, relpath(old_key, self.path)])
             self.client.copy_object(
                 CopySource=copy_source, Bucket=self.bucket, Key=new_key
             )

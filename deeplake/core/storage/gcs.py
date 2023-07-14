@@ -7,6 +7,8 @@ import tempfile
 import time
 from typing import Dict, Optional, Tuple, Union
 
+from deeplake.util.path import relpath
+
 try:
     from google.cloud import storage  # type: ignore
     from google.api_core import retry  # type: ignore
@@ -318,7 +320,7 @@ class GCSProvider(StorageProvider):
 
     def _all_keys(self):
         self._blob_objects = self.client_bucket.list_blobs(prefix=self.path)
-        return {posixpath.relpath(obj.name, self.path) for obj in self._blob_objects}
+        return {relpath(obj.name, self.path) for obj in self._blob_objects}
 
     def _set_hub_creds_info(
         self,
@@ -369,7 +371,7 @@ class GCSProvider(StorageProvider):
         for blob in dest_objects:
             raise PathNotEmptyException(use_hub=False)
         for blob in blob_objects:
-            new_key = "/".join([new_path, posixpath.relpath(blob.name, self.path)])
+            new_key = "/".join([new_path, relpath(blob.name, self.path)])
             self.client_bucket.rename_blob(blob, new_key)
 
         self.root = root

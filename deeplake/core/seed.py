@@ -11,7 +11,7 @@ class DeeplakeRandom(object):
         return cls.instance
 
     def seed(self, seed: Optional[int] = None):
-        if isinstance(seed, Optional[int]):
+        if isinstance(seed, int):
             self.internal_seed = seed
             if self.indra_api is None:
                 from deeplake.enterprise.convert_to_libdeeplake import (

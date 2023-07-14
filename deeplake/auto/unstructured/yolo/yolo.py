@@ -219,7 +219,7 @@ class YoloDataset(UnstructuredDataset):
         )
 
     def _ingest_data(self, ds: Dataset, progressbar: bool = True, num_workers: int = 0):
-        """Functions appends the the data to the dataset object using deeplake.compute"""
+        """Functions appends the data to the dataset object using deeplake.compute"""
 
         if self.image_creds_key is not None:
             ds.add_creds_key(self.image_creds_key, managed=True)

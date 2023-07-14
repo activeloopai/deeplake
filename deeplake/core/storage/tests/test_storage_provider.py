@@ -132,6 +132,7 @@ def test_storage_provider(storage):
     check_storage_provider(storage)
 
 
+@pytest.mark.slow
 @enabled_cache_chains
 def test_cache(cache_chain):
     check_storage_provider(cache_chain)
@@ -151,7 +152,7 @@ def test_pickling(storage):
 @pytest.fixture
 def test_gcs_tokens(request):
     if not is_opt_true(request, GCS_OPT):
-        pytest.skip()
+        pytest.skip(f"{GCS_OPT} flag not set")
         return
     gcreds = GCloudCredentials()
     assert gcreds.credentials
@@ -173,7 +174,7 @@ def test_gcs_tokens(request):
 
 def test_gdrive_from_token(request, gdrive_path, gdrive_creds):
     if not is_opt_true(request, GDRIVE_OPT):
-        pytest.skip()
+        pytest.skip(f"{GDRIVE_OPT} flag not set")
         return
 
     creds = Credentials.from_authorized_user_info(gdrive_creds)
