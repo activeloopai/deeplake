@@ -3,6 +3,7 @@ from deeplake.util.cache_chain import generate_chain
 from deeplake.constants import LOCAL_CACHE_PREFIX, MB
 from deeplake.util.exceptions import AgreementNotAcceptedError
 from deeplake.util.tag import process_hub_path
+from deeplake.util.path import get_path_type
 from typing import Dict, Optional, Union
 from deeplake.core.storage.provider import StorageProvider
 import os
@@ -137,7 +138,10 @@ def storage_provider_from_hub_path(
         client, org_id, ds_name, mode, db_engine
     )
 
-    if mode == "r" and read_only is None and not DEFAULT_READONLY:
+    is_local = get_path_type(url) == "local"
+
+    # ignore mode returned from backend if underlying storage is local
+    if mode == "r" and read_only is None and not DEFAULT_READONLY and not is_local:
         # warns user about automatic mode change
         print("Opening dataset in read-only mode as you don't have write permissions.")
         read_only = True
