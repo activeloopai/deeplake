@@ -13,8 +13,15 @@ body:
         - If your feature request is related to a problem, link any relevant issues.
         - Include possible solution(s) you have considered. Add any drawbacks you thought of.
         - Ensure private information is redacted
-        
-        If you can, explain how users will be able to use this and possibly write out a version the docs.
-        - Maybe a screenshot or design?
     validations:
       required: true
+
+  - type: textarea
+    attributes:
+      label: Use Cases
+      description: |
+        Describe specific uses cases and scenarios where this new feature would be beneficial. 
+        - Maybe a screenshot or design?
+        - Maybe write out a version the docs?
+    validations:
+      required: false

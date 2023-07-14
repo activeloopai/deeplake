@@ -6,6 +6,14 @@ labels:
 description: Create a report to help us improve
 
 body:
+  - type: dropdown
+    attributes:
+      label: Severity
+      description: What is the impact of this bug?
+      options:
+        - P2 - Not urgent, nice to have
+        - P1 - Urgent, but non-breaking
+        - P0 - Critical breaking issue or missing functionality
   - type: textarea
     attributes:
       label: Current Behavior
@@ -57,6 +65,11 @@ body:
     attributes:
       label: Packages
       placeholder: Tensorflow==2.1.2 - latest`
+
+  - type: textarea
+    attributes:
+      label: Additional Context
+      placeholder: Add any other context that may be relevant. System configuration, network setup, etc.
 
   - type: textarea
     attributes:
