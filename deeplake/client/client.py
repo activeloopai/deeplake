@@ -281,7 +281,7 @@ class DeepLakeBackendClient:
         repository = response.get("repository")
         creds = response["creds"]
         mode = response["mode"]
-        expiration = creds["expiration"]
+        expiration = creds["expiration"] if creds else None
         return full_url, creds, mode, expiration, repository
 
     def send_event(self, event_json: dict):
