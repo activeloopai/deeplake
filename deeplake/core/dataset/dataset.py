@@ -381,6 +381,7 @@ class Dataset:
             "_parent_dataset",
             "_pad_tensors",
             "_locking_enabled",
+            "_lock_timeout",
             "enabled_tensors",
         ]
         state = {k: getattr(self, k) for k in keys}
