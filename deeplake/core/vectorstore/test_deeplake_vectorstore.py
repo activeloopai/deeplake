@@ -143,6 +143,62 @@ def test_custom_tensors(local_path):
         )
 
 
+@pytest.mark.parametrize(
+    ("path", "hub_token"),
+    [
+        ("local_path", "hub_cloud_dev_token"),
+        ("s3_path", "hub_cloud_dev_token"),
+        ("gcs_path", "hub_cloud_dev_token"),
+        ("azure_path", "hub_cloud_dev_token"),
+        ("hub_cloud_path", "hub_cloud_dev_token"),
+    ],
+    indirect=True,
+)
+def test_providers(path, hub_token):
+    vector_store = DeepLakeVectorStore(
+        path=path,
+        overwrite=True,
+        tensor_params=[
+            {"name": "texts_custom", "htype": "text"},
+            {"name": "emb_custom", "htype": "embedding"},
+        ],
+        token=hub_token,
+    )
+
+    vector_store.add(
+        texts_custom=texts,
+        emb_custom=embeddings,
+    )
+    assert len(vector_store) == 10
+
+
+def test_creds(gcs_path, gcs_creds):
+    # testing create dataset with creds
+    vector_store = DeepLakeVectorStore(
+        path=gcs_path,
+        overwrite=True,
+        tensor_params=[
+            {"name": "texts_custom", "htype": "text"},
+            {"name": "emb_custom", "htype": "embedding"},
+        ],
+        creds=gcs_creds,
+    )
+
+    vector_store.add(
+        texts_custom=texts,
+        emb_custom=embeddings,
+    )
+    assert len(vector_store) == 10
+
+    # testing dataset loading with creds
+    vector_store = DeepLakeVectorStore(
+        path=gcs_path,
+        overwrite=False,
+        creds=gcs_creds,
+    )
+    assert len(vector_store) == 10
+
+
 @requires_libdeeplake
 def test_search_basic(local_path, hub_cloud_dev_token):
     """Test basic search features"""
@@ -280,6 +336,13 @@ def test_search_basic(local_path, hub_cloud_dev_token):
     assert len(data_ce_v) == 2
     assert isinstance(data_ce_v.text[0].data()["value"], str)
     assert data_ce_v.embedding[0].numpy().size > 0
+
+    # Check that None option works
+    vector_store_none_exec = DeepLakeVectorStore(
+        path=local_path, overwrite=True, token=hub_cloud_dev_token, exec_option=None
+    )
+
+    assert vector_store_none_exec.exec_option == "python"
 
     # Check that filter_fn with cloud dataset (and therefore "compute_engine" exec option) switches to "python" automatically.
     with pytest.warns(None):

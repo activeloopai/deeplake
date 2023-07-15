@@ -1,0 +1,27 @@
+name: Feature request
+description: Suggest an idea for this project
+title: "[FEATURE] "
+labels:
+  - enhancement
+body:
+
+  - type: textarea
+    attributes:
+      label: Description
+      description: |
+        A clear and concise description of what could be improved. 
+        - If your feature request is related to a problem, link any relevant issues.
+        - Include possible solution(s) you have considered. Add any drawbacks you thought of.
+        - Ensure private information is redacted
+    validations:
+      required: true
+
+  - type: textarea
+    attributes:
+      label: Use Cases
+      description: |
+        Describe specific uses cases and scenarios where this new feature would be beneficial. 
+        - A screenshot or design if that helps
+        - Write out a version the docs if that helps
+    validations:
+      required: false
