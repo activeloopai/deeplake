@@ -47,22 +47,22 @@ body:
   - type: input
     attributes:
       label: Python Version
-      description: 3.8.6 - Clang 12.0.0 (clang-1200.0.32.27)
+      placeholder: "Example: 3.8.6 - Clang 12.0.0 (clang-1200.0.32.27)"
 
   - type: input
     attributes:
       label: OS
-      placeholder: Ubuntu 18.04, OSX 10.13.4, Windows 10
+      placeholder: "Examples: Ubuntu 18.04, OSX 10.13.4, Windows 10"
 
   - type: input
     attributes:
       label: IDE
-      placeholder: Vim, VS-Code, PyCharm
+      placeholder: "Examples: Vim, VS-Code, PyCharm"
 
   - type: input
     attributes:
       label: Packages
-      placeholder: Tensorflow==2.1.2 - latest`
+      placeholders: "Example: Tensorflow==2.1.2 - latest"
 
   - type: textarea
     attributes:
