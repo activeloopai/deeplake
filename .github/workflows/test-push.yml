@@ -38,7 +38,7 @@ jobs:
 
   test:
     name: Test
-    uses: activeloopai/shared-github-actions/.github/workflows/full_test.yml@temp-ssh
+    uses: activeloopai/shared-github-actions/.github/workflows/full_test.yml@main
     if: github.repository == 'activeloopai/deeplake' && ! ( github.ref_name == 'main' || startsWith( github.ref_name, 'release/' ))
     with:
       repo: ${{ github.repository }}
