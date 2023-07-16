@@ -30,12 +30,17 @@
 
 ## About Deep Lake
 
-Deep Lake is a Database for AI powered by a storage format optimized for deep-learning and Large Language Model (LLM) applications. It simplifies the deployment of enterprise-grade LLM-based products by offering storage for all data types (embeddings, audio, text, videos, images, pdfs, annotations, etc.), querying and vector search, data streaming while training models at scale, data versioning and lineage for all workloads, and integrations with popular tools such as LangChain, LlamaIndex, Weights & Biases, and many more. Deep Lake works with data of any size, it is serverless, and it enables you to store all of your data in once place. Deep Lake is used by Intel, Airbus, Matterport, ZERO Systems, Red Cross, Yale, & Oxford. 
+Deep Lake is a Database for AI powered by a storage format optimized for deep-learning applications. Deep Lake can be used for:
 
-Deep Lake includes the following features:
+1. Storing data and vectors while building LLM applications
+2. Managing datasets while training deep learning models
+   
+Deep Lake simplifies the deployment of enterprise-grade LLM-based products by offering storage for all data types (embeddings, audio, text, videos, images, pdfs, annotations, etc.), querying and vector search, data streaming while training models at scale, data versioning and lineage, and integrations with popular tools such as LangChain, LlamaIndex, Weights & Biases, and many more. Deep Lake works with data of any size, it is serverless, and it enables you to store all of your data in your own cloud and in once place. Deep Lake is used by Intel, Airbus, Matterport, ZERO Systems, Red Cross, Yale, & Oxford. 
+
+### Deep Lake includes the following features:
 
 <details>
-  <summary><b>Storage Agnostic API</b></summary>
+  <summary><b>Cloud Agnostic API</b></summary>
 Use one API to upload, download, and stream datasets to/from AWS S3, Azure, GCP, Activeloop cloud, or local storage.
 </details>
 <details>
@@ -78,178 +83,36 @@ Deep Lake's efficient enterprise dataloaders built in C++ speeds up data streami
 </div>
 
 
-## Getting Started with Deep Lake
 
-
-### 🚀 How to install Deep Lake
-Deep Lake's core is efficiently built in C++ and can be quickly installed using pip.
-
+## 🚀 How to install Deep Lake
+Deep Lake can be installed using pip:
 ```sh
 pip3 install deeplake
+```
+Optimized C++ implementations of Deep Lake's query engine and dataloaders can be trialed for free by installing: 
+```sh
+pip3 install "deeplake[enterprise]"
 ```
 
 **By default, Deep Lake does not install dependencies for audio, video, google-cloud, and other features. Details on all installation options are [available here](https://docs.deeplake.ai/en/latest/Installation.html).**
 
-### 🧠 How to Train a PyTorch model on a Deep Lake dataset
+## Code Examples for Deep Lake by Application
 
-#### Load CIFAR 10, one of the readily available datasets in Deep Lake:
-
-```python
-import deeplake
-import torch
-from torchvision import transforms, models
-
-ds = deeplake.load('hub://activeloop/cifar10-train')
-```
-
-#### Inspect tensors in the dataset:
-
-```python
-ds.tensors.keys()    # dict_keys(['images', 'labels'])
-ds.labels[0].numpy() # array([6], dtype=uint32)
-```
-
-#### Train a PyTorch model on the CIFAR 10 dataset without the need to download it
-
-First, define a transform for the images and use Deep Lake's built-in PyTorch one-line dataloader to connect the data to the compute:
-
-```python
-tform = transforms.Compose([
-    transforms.ToTensor(),
-    transforms.Normalize([0.5, 0.5, 0.5], [0.5, 0.5, 0.5]),
-])
-
-deeplake_loader = ds.pytorch(num_workers=0, batch_size=4, transform={
-                        'images': tform, 'labels': None}, shuffle=True)
-```
-
-Next, define the model, loss and optimizer:
-
-```python
-net = models.resnet18(pretrained=False)
-net.fc = torch.nn.Linear(net.fc.in_features, len(ds.labels.info.class_names))
-    
-criterion = torch.nn.CrossEntropyLoss()
-optimizer = torch.optim.SGD(net.parameters(), lr=0.001, momentum=0.9)
-```
-
-Finally, the training loop for 2 epochs:
-
-```python
-for epoch in range(2):
-    running_loss = 0.0
-    for i, data in enumerate(deeplake_loader):
-        images, labels = data['images'], data['labels']
-        
-        # zero the parameter gradients
-        optimizer.zero_grad()
-
-        # forward + backward + optimize
-        outputs = net(images)
-        loss = criterion(outputs, labels.reshape(-1))
-        loss.backward()
-        optimizer.step()
-        
-        # print statistics
-        running_loss += loss.item()
-        if i % 100 == 99:    # print every 100 mini-batches
-            print('[%d, %5d] loss: %.3f' %
-                (epoch + 1, i + 1, running_loss / 100))
-            running_loss = 0.0
-```
+### Vector Store Applications
+Using Deep Lake as a Vector Store for building LLM applications.
+### - [Vector Store Quickstart](https://docs.activeloop.ai/quickstart)
+### - [Vector Store Getting Started Guide](https://docs.activeloop.ai/getting-started/vector-store)
+### - [Using Deep Lake with LangChain](https://docs.activeloop.ai/tutorials/vector-store/deep-lake-vector-store-in-langchain)
+### - [Image Similarity Search with Deep Lake](https://docs.activeloop.ai/tutorials/vector-store/image-similarity-search)
 
 
-### 🏗️ How to create a Deep Lake Dataset
-
-A Deep Lake dataset can be created in various locations (Storage providers). This is how the paths for each of them would look like:
-
-| Storage provider        | Example path                   |
-| ----------------------- | ------------------------------ |
-| Activeloop cloud        | hub://user_name/dataset_name   |
-| AWS S3 / S3 compatible  | s3://bucket_name/dataset_name  |
-| GCP                     | gcp://bucket_name/dataset_name |
-| Google Drive            | gdrive://path_to_dataset
-| Local storage           | path to local directory        |
-| In-memory               | mem://dataset_name             |
-
-
-
-Let's create a dataset in the Activeloop cloud. Activeloop cloud provides free storage up to 300 GB per user (more info [here](#-for-students-and-educators)). Create a new account with Deep Lake from the terminal using `activeloop register` or in the [Deep Lake UI](https://app.activeloop.ai/register/). You will be asked for a user name, email ID, and password.
-
-```sh
-$ activeloop register
-Enter your details. Your password must be at least 6 characters long.
-Username:
-Email:
-Password:
-```
-
-After registration, an ORGANIZATION is automatically created that shares your username. You can use it for creating and managing your datasets, or you can create a new one for your company or team.
-
-Initialize an empty dataset in the Activeloop Cloud:
-
-```python
-import deeplake
-
-ds = deeplake.empty('hub://<ORGANIZATION_NAME>/test-dataset')
-```
-
-
-Next, create a tensor to hold images in the dataset we just initialized:
-
-```python
-images = ds.create_tensor('images', htype='image', sample_compression='jpg')
-```
-
-Assuming you have a list of image file paths, let's upload them to the dataset:
-
-```python
-image_paths = ...
-with ds:
-    for image_path in image_paths:
-        image = deeplake.read(image_path)
-        ds.images.append(image)
-```
-
-Alternatively, you can also upload numpy arrays. Since the `images` tensor was created with `sample_compression='jpg'`, the arrays will be compressed with jpeg compression.
-
-
-```python
-import numpy as np
-
-with ds:
-    for _ in range(1000):  # 1000 random images
-        random_image = np.random.randint(0, 256, (100, 100, 3), dtype=np.uint8)  # 100x100 image with 3 channels
-        ds.images.append(random_image)
-```
-
-
-
-### 🚀 How to load a Deep Lake Dataset
-
-
-You can load the dataset you just created with a single line of code:
-
-```python
-import deeplake
-
-ds = deeplake.load('hub://<ORGANIZATION_NAME>/test-dataset')
-```
-
-You can also access one of the <a href="https://docs.activeloop.ai/datasets/?utm_source=github&utm_medium=github&utm_campaign=github_readme&utm_id=readme">100+ image, video and audio datasets in Deep Lake format</a>, not just the ones you created. Here is how you would load the [Objectron Bikes Dataset](https://github.com/google-research-datasets/Objectron):
-
-```python
-import deeplake
-
-ds = deeplake.load('hub://activeloop/objectron_bike_train')
-```
-
-To get the first image in the Objectron Bikes dataset in numpy format:
-
-
-```python
-image_arr = ds.image[0].numpy()
-```
+### Deep Learning Applications
+Using Deep Lake for managing data while training Deep Learning models.
+### - [Deep Learning Quickstart](https://docs.activeloop.ai/quickstart-dl)
+### - [Deep Learning Getting Started Guide](https://docs.activeloop.ai/getting-started/deep-learning)
+### - [Tutorials for Training Models](https://docs.activeloop.ai/tutorials/deep-learning/training-models)
+### - [Tutorials for Creating Deep Learning Datasets](https://docs.activeloop.ai/tutorials/deep-learning/creating-datasets)
+### - [Deep Learning Playbooks](https://docs.activeloop.ai/playbooks/evaluating-model-performance)
 
 ## ⚙️ Integrations
 Deep Lake offers integrations with other tools in order to streamline your deep learning workflows. Current integrations include:
