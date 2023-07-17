@@ -1,9 +1,11 @@
 <img src="https://static.scarf.sh/a.png?x-pxid=bc3c57b0-9a65-49fe-b8ea-f711c4d35b82" /><p align="center">
      <img src="https://i.postimg.cc/rsjcWc3S/deeplake-logo.png" width="400"/>
 </h1>
-    </br>
-    <h1 align="center">Deep Lake: Database for AI
- </h1>
+
+</br>
+
+<h1 align="center">Deep Lake: Database for AI</h1>
+
 <p align="center">
     <a href="https://github.com/activeloopai/deeplake/actions/workflows/test-pr-on-label.yml"><img src="https://github.com/activeloopai/deeplake/actions/workflows/test-push.yml/badge.svg" alt="PyPI version" height="18"></a>
     <a href="https://pypi.org/project/deeplake/"><img src="https://badge.fury.io/py/deeplake.svg" alt="PyPI version" height="18"></a>
@@ -14,23 +16,23 @@
      <a href="https://github.com/activeloopai/deeplake/issues">
     <img alt="GitHub issues" src="https://img.shields.io/github/issues/activeloopai/deeplake"> </a>
     <a href="https://codecov.io/gh/activeloopai/deeplake/branch/main"><img src="https://codecov.io/gh/activeloopai/deeplake/branch/main/graph/badge.svg" alt="codecov" height="18"></a>
+    <a href="https://sonarcloud.io/summary/new_code?id=activeloopai_deeplake"><img src=https://sonarcloud.io/api/project_badges/measure?project=activeloopai_deeplake&metric=alert_status alt="sonar_quality_gate" height="18"></a>
   <h3 align="center">
    <a href="https://docs.activeloop.ai/?utm_source=github&utm_medium=github&utm_campaign=github_readme&utm_id=readme"><b>Docs</b></a> &bull;
    <a href="https://docs.activeloop.ai/getting-started/?utm_source=github&utm_medium=github&utm_campaign=github_readme&utm_id=readme"><b>Get Started</b></a> &bull;
    <a href="https://docs.deeplake.ai/?utm_source=github&utm_medium=github&utm_campaign=github_readme&utm_id=readme"><b>API Reference</b></a> &bull;  
    <a href="http://learn.activeloop.ai"><b>LangChain & VectorDBs Course</b></a> &bull;
-   <a href="https://www.activeloop.ai/resources/?utm_source=github&utm_medium=github&utm_campaign=github_readme&utm_id=readme"><b>Blog</b></a> &bull; 
+   <a href="https://www.activeloop.ai/resources/?utm_source=github&utm_medium=github&utm_campaign=github_readme&utm_id=readme"><b>Blog</b></a> &bull;
    <a href="https://www.deeplake.ai/?utm_source=github&utm_medium=github&utm_campaign=github_readme&utm_id=readme"><b>Whitepaper</b></a> &bull;  
   <a href="http://slack.activeloop.ai"><b>Slack</b></a> &bull;
   <a href="https://twitter.com/intent/tweet?url=https%3A%2F%2Factiveloop.ai%2F&via=activeloopai&text=Deep%20Lake%20is%20the%20Database%20for%20all%20AI%20data.%20Check%20it%20out%21&hashtags=DeepLake%2Cactiveloop%2Copensource"><b>Twitter</b></a>
  </h3>
- 
 
 *Read this in other languages: [简体中文](README.zh-cn.md)*
 
 ## About Deep Lake
 
-Deep Lake is a Database for AI powered by a unique storage format optimized for deep-learning and Large Language Model (LLM) based applications. It simplifies the deployment of enterprise-grade LLM-based products by offering storage for all data types (embeddings, audio, text, videos, images, pdfs, annotations, etc.), querying and vector search, data streaming while training models at scale, data versioning and lineage for all workloads, and integrations with popular tools such as LangChain, LlamaIndex, Weights & Biases, and many more. Deep Lake works with data of any size, it is serverless, and it enables you to store all of your data in once place. Deep Lake is used by Intel, Airbus, Matterport, ZERO Systems, Red Cross, Yale, & Oxford. 
+Deep Lake is a Database for AI powered by a unique storage format optimized for deep-learning and Large Language Model (LLM) based applications. It simplifies the deployment of enterprise-grade LLM-based products by offering storage for all data types (embeddings, audio, text, videos, images, pdfs, annotations, etc.), querying and vector search, data streaming while training models at scale, data versioning and lineage for all workloads, and integrations with popular tools such as LangChain, LlamaIndex, Weights & Biases, and many more. Deep Lake works with data of any size, it is serverless, and it enables you to store all of your data in once place. Deep Lake is used by Intel, Airbus, Matterport, ZERO Systems, Red Cross, Yale, & Oxford.
 
 Deep Lake includes the following features:
 
@@ -59,7 +61,7 @@ Deep Lake has integrations with <a href="https://github.com/hwchase17/langchain"
 Rapidly apply transformations on your datasets using multi-threading, multi-processing, or our built-in <a href="https://www.ray.io/">Ray</a> integration.</details>
 <details>
   <summary><b>100+ most-popular image, video, and audio datasets available in seconds</b></summary>
-Deep Lake community has uploaded <a href="https://docs.activeloop.ai/datasets/?utm_source=github&utm_medium=github&utm_campaign=github_readme&utm_id=readme">100+ image, video and audio datasets</a> like <a href="https://docs.activeloop.ai/datasets/mnist/?utm_source=github&utm_medium=github&utm_campaign=github_readme&utm_id=readme">MNIST</a>, <a href="https://docs.activeloop.ai/datasets/coco-dataset/?utm_source=github&utm_medium=github&utm_campaign=github_readme&utm_id=readme">COCO</a>,  <a href="https://docs.activeloop.ai/datasets/imagenet-dataset/?utm_source=github&utm_medium=github&utm_campaign=github_readme&utm_id=readme">ImageNet</a>,  <a href="https://docs.activeloop.ai/datasets/cifar-10-dataset/?utm_source=github&utm_medium=github&utm_campaign=github_readme&utm_id=readme">CIFAR</a>,  <a href="https://docs.activeloop.ai/datasets/gtzan-genre-dataset/?utm_source=github&utm_medium=github&utm_campaign=github_readme&utm_id=readme">GTZAN</a> and others.
+Deep Lake community has uploaded <a href="https://app.activeloop.ai/datasets/activeloop?utm_source=github&utm_medium=github&utm_campaign=github_readme&utm_id=readme">100+ image, video and audio datasets</a> like <a href="https://app.activeloop.ai/activeloop/mnist-train?utm_source=github&utm_medium=github&utm_campaign=github_readme&utm_id=readme">MNIST</a>, <a href="https://app.activeloop.ai/activeloop/coco-train?utm_source=github&utm_medium=github&utm_campaign=github_readme&utm_id=readme">COCO</a>,  <a href="https://app.activeloop.ai/activeloop/imagenet-train?utm_source=github&utm_medium=github&utm_campaign=github_readme&utm_id=readme">ImageNet</a>,  <a href="https://app.activeloop.ai/activeloop/cifar100-test?utm_source=github&utm_medium=github&utm_campaign=github_readme&utm_id=readme">CIFAR</a>,  <a href="https://app.activeloop.ai/activeloop/gtzan-genre?utm_source=github&utm_medium=github&utm_campaign=github_readme&utm_id=readme">GTZAN</a> and others.
 </details>
 </details>
 <details>
@@ -67,24 +69,18 @@ Deep Lake community has uploaded <a href="https://docs.activeloop.ai/datasets/?u
 Deep Lake datasets are instantly visualized with bounding boxes, masks, annotations, etc. in <a href="https://app.activeloop.ai/?utm_source=github&utm_medium=github&utm_campaign=github_readme&utm_id=readme">Deep Lake Visualizer</a> (see below).
 </details>
 
-<div align="center">
-<a href="https://www.youtube.com/watch?v=SxsofpSIw3k"><img src="https://www.linkpicture.com/q/ReadMe.gif" type="image"></a>
-</div>
+[![Visualizer](https://www.linkpicture.com/q/ReadMe.gif "Visualizer")](https://www.youtube.com/watch?v=SxsofpSIw3k)
 
-    
 ## 🚀 Performance
 
-Deep Lake's efficient enterprise dataloaders built in C++ speeds up data streaming by >2x compared to Hub 2.x (Ofeidis et al. 2022, Hambardzumyan et al. 2023) 
+Deep Lake's efficient enterprise dataloaders built in C++ speeds up data streaming by >2x compared to Hub 2.x (Ofeidis et al. 2022, Hambardzumyan et al. 2023)
 
-<div align="center">
-<a href="https://arxiv.org/pdf/2209.10785.pdf"><img src="docs/source/_static/img/benchmarks.png" type="image"></a>
-</div>
-
+[![Benchmarks](docs/source/_static/img/benchmarks.png "Benchmarks")](https://arxiv.org/pdf/2209.10785.pdf)
 
 ## Getting Started with Deep Lake
 
-
 ### 🚀 How to install Deep Lake
+
 Deep Lake's core is efficiently built in C++ and can be quickly installed using pip.
 
 ```sh
@@ -95,7 +91,7 @@ pip3 install deeplake
 
 ### 🧠 How to Train a PyTorch model on a Deep Lake dataset
 
-#### Load CIFAR 10, one of the readily available datasets in Deep Lake:
+#### Load CIFAR 10, one of the readily available datasets in Deep Lake
 
 ```python
 import deeplake
@@ -105,7 +101,7 @@ from torchvision import transforms, models
 ds = deeplake.load('hub://activeloop/cifar10-train')
 ```
 
-#### Inspect tensors in the dataset:
+#### Inspect tensors in the dataset
 
 ```python
 ds.tensors.keys()    # dict_keys(['images', 'labels'])
@@ -161,7 +157,6 @@ for epoch in range(2):
             running_loss = 0.0
 ```
 
-
 ### 🏗️ How to create a Deep Lake Dataset
 
 A Deep Lake dataset can be created in various locations (Storage providers). This is how the paths for each of them would look like:
@@ -174,8 +169,6 @@ A Deep Lake dataset can be created in various locations (Storage providers). Thi
 | Google Drive            | gdrive://path_to_dataset
 | Local storage           | path to local directory        |
 | In-memory               | mem://dataset_name             |
-
-
 
 Let's create a dataset in the Activeloop cloud. Activeloop cloud provides free storage up to 300 GB per user (more info [here](#-for-students-and-educators)). Create a new account with Deep Lake from the terminal using `activeloop register` or in the [Deep Lake UI](https://app.activeloop.ai/register/). You will be asked for a user name, email ID, and password.
 
@@ -197,7 +190,6 @@ import deeplake
 ds = deeplake.empty('hub://<ORGANIZATION_NAME>/test-dataset')
 ```
 
-
 Next, create a tensor to hold images in the dataset we just initialized:
 
 ```python
@@ -216,7 +208,6 @@ with ds:
 
 Alternatively, you can also upload numpy arrays. Since the `images` tensor was created with `sample_compression='jpg'`, the arrays will be compressed with jpeg compression.
 
-
 ```python
 import numpy as np
 
@@ -226,10 +217,7 @@ with ds:
         ds.images.append(random_image)
 ```
 
-
-
 ### 🚀 How to load a Deep Lake Dataset
-
 
 You can load the dataset you just created with a single line of code:
 
@@ -239,7 +227,7 @@ import deeplake
 ds = deeplake.load('hub://<ORGANIZATION_NAME>/test-dataset')
 ```
 
-You can also access one of the <a href="https://docs.activeloop.ai/datasets/?utm_source=github&utm_medium=github&utm_campaign=github_readme&utm_id=readme">100+ image, video and audio datasets in Deep Lake format</a>, not just the ones you created. Here is how you would load the [Objectron Bikes Dataset](https://github.com/google-research-datasets/Objectron):
+You can also access one of the [100+ image, video and audio datasets in Deep Lake format](https://app.activeloop.ai/datasets/activeloop), not just the ones you created. Here is how you would load the [Objectron Bikes Dataset](https://github.com/google-research-datasets/Objectron):
 
 ```python
 import deeplake
@@ -249,12 +237,12 @@ ds = deeplake.load('hub://activeloop/objectron_bike_train')
 
 To get the first image in the Objectron Bikes dataset in numpy format:
 
-
 ```python
 image_arr = ds.image[0].numpy()
 ```
 
 ## ⚙️ Integrations
+
 Deep Lake offers integrations with other tools in order to streamline your deep learning workflows. Current integrations include:
 
 * **Model Training**
@@ -264,12 +252,14 @@ Deep Lake offers integrations with other tools in order to streamline your deep 
   * Track experiments and achieve full model reproducibility using Deep Lake and [Weights & Biases](https://wandb.ai/). Our integration automatically pushes dataset-related information (uri, commit hash, view id) to your W&B runs. Further details are available [in our model-reproducibility playbook](https://docs.activeloop.ai/playbooks/training-reproducibility-with-wandb).
   
 * **LLM Apps**
-  * Use [Deep Lake as a vector store for LLM apps](https://www.activeloop.ai/resources/ultimate-guide-to-lang-chain-deep-lake-build-chat-gpt-to-answer-questions-on-your-financial-data/). Our integration combines the [Langchain](https://github.com/hwchase17/langchain) [VectorStores API](https://python.langchain.com/en/latest/reference/modules/vectorstore.html?highlight=pinecone#langchain.vectorstores.DeepLake) with Deep Lake datasets as the underlying data storage. The integration is a serverless vector store that can be deployed locally or in a cloud of your choice. 
+  * Use [Deep Lake as a vector store for LLM apps](https://www.activeloop.ai/resources/ultimate-guide-to-lang-chain-deep-lake-build-chat-gpt-to-answer-questions-on-your-financial-data/). Our integration combines the [Langchain](https://github.com/hwchase17/langchain) [VectorStores API](https://python.langchain.com/en/latest/reference/modules/vectorstore.html?highlight=pinecone#langchain.vectorstores.DeepLake) with Deep Lake datasets as the underlying data storage. The integration is a serverless vector store that can be deployed locally or in a cloud of your choice.
 
 ## 📚 Documentation
-Getting started guides, examples, tutorials, API reference, and other useful information can be found on our [documentation page](http://docs.activeloop.ai/?utm_source=github&utm_medium=repo&utm_campaign=readme). 
+
+Getting started guides, examples, tutorials, API reference, and other useful information can be found on our [documentation page](http://docs.activeloop.ai/?utm_source=github&utm_medium=repo&utm_campaign=readme).
 
 ## 🎓 For Students and Educators
+
 Deep Lake users can access and visualize a variety of popular datasets through a free integration with Activeloop's Platform. Universities can get up to 1TB of data storage and 100,000 monthly queries on the Tensor Database for free per month. Chat in on [our website](https://activeloop.ai): to claim the access!
 
 ## 👩‍💻 Comparisons to Familiar Tools
@@ -277,25 +267,23 @@ Deep Lake users can access and visualize a variety of popular datasets through a
 <details>
   <summary><b>Deep Lake vs Chroma </b></summary>
   
-Both Deep Lake & ChromaDB enable users to store and search vectors (embeddings) and offer integrations with LangChain and LlamaIndex. However, they are architecturally very different. ChromaDB is a Vector Database that can be deployed locally or on a server using Docker and will offer a hosted solution shortly. Deep Lake is a serverless Vector Store deployed on the user’s own cloud, locally, or in-memory. All computations run client-side, which enables users to support lightweight production apps in seconds. Unlike ChromaDB, Deep Lake’s data format can store raw data such as images, videos, and text, in addition to embeddings. ChromaDB is limited to light metadata on top of the embeddings and has no visualization. Deep Lake datasets can be visualized and version controlled. Deep Lake also has a performant dataloader for fine-tuning your Large Language Models. 
+Both Deep Lake & ChromaDB enable users to store and search vectors (embeddings) and offer integrations with LangChain and LlamaIndex. However, they are architecturally very different. ChromaDB is a Vector Database that can be deployed locally or on a server using Docker and will offer a hosted solution shortly. Deep Lake is a serverless Vector Store deployed on the user’s own cloud, locally, or in-memory. All computations run client-side, which enables users to support lightweight production apps in seconds. Unlike ChromaDB, Deep Lake’s data format can store raw data such as images, videos, and text, in addition to embeddings. ChromaDB is limited to light metadata on top of the embeddings and has no visualization. Deep Lake datasets can be visualized and version controlled. Deep Lake also has a performant dataloader for fine-tuning your Large Language Models.
 
 </details>
-
 
 <details>
   <summary><b>Deep Lake vs Pinecone</b></summary>
   
-Both Deep Lake and Pinecone enable users to store and search vectors (embeddings) and offer integrations with LangChain and LlamaIndex. However, they are  architecturally very different. Pinecone is a fully-managed Vector Database that is optimized for highly demanding applications requiring search for billions of vectors. Deep Lake is a serverless. All computations run client-side, which enables users to get started in seconds. Unlike Pinecone, Deep Lake’s data format can store raw data such as images, videos, and text, in addition to embeddings. Deep Lake datasets can be visualized and version controlled. Pinecone is limited to light metadata on top of the embeddings and has no visualization. Deep Lake also has a performant dataloader for fine-tuning your Large Language Models. 
+Both Deep Lake and Pinecone enable users to store and search vectors (embeddings) and offer integrations with LangChain and LlamaIndex. However, they are  architecturally very different. Pinecone is a fully-managed Vector Database that is optimized for highly demanding applications requiring search for billions of vectors. Deep Lake is a serverless. All computations run client-side, which enables users to get started in seconds. Unlike Pinecone, Deep Lake’s data format can store raw data such as images, videos, and text, in addition to embeddings. Deep Lake datasets can be visualized and version controlled. Pinecone is limited to light metadata on top of the embeddings and has no visualization. Deep Lake also has a performant dataloader for fine-tuning your Large Language Models.
 
 </details>
 
 <details>
   <summary><b>Deep Lake vs Weaviate</b></summary>
   
-Both Deep Lake and Weaviate enable users to store and search vectors (embeddings) and offer integrations with LangChain and LlamaIndex. However, they are  architecturally very different. Weaviate is a Vector Database that can be deployed in a managed service or by the user via Kubernetes or Docker. Deep Lake is serverless. All computations run client-side, which enables users to support lightweight production apps in seconds. Unlike Weaviate, Deep Lake’s data format can store raw data such as images, videos, and text, in addition to embeddings. Deep Lake datasets can be visualized and version controlled. Weaviate is limited to light metadata on top of the embeddings and has no visualization. Deep Lake also has a performant dataloader for fine-tuning your Large Language Models. 
+Both Deep Lake and Weaviate enable users to store and search vectors (embeddings) and offer integrations with LangChain and LlamaIndex. However, they are  architecturally very different. Weaviate is a Vector Database that can be deployed in a managed service or by the user via Kubernetes or Docker. Deep Lake is serverless. All computations run client-side, which enables users to support lightweight production apps in seconds. Unlike Weaviate, Deep Lake’s data format can store raw data such as images, videos, and text, in addition to embeddings. Deep Lake datasets can be visualized and version controlled. Weaviate is limited to light metadata on top of the embeddings and has no visualization. Deep Lake also has a performant dataloader for fine-tuning your Large Language Models.
 
 </details>
-
 
 <details>
   <summary><b>Deep Lake vs DVC</b></summary>
@@ -304,17 +292,15 @@ Deep Lake and DVC offer dataset version control similar to git for data, but the
 
 </details>
 
-
 <details>
   <summary><b>Deep Lake vs MosaicML MDS format </b></summary>
   
-- **Data Storage Format:** Deep Lake operates on a columnar storage format, whereas MDS utilizes a row-wise storage approach. This fundamentally impacts how data is read, written, and organized in each system.
-- **Compression:** Deep Lake offers a more flexible compression scheme, allowing control over both chunk-level and sample-level compression for each column or tensor. This feature eliminates the need for additional compressions like zstd, which would otherwise demand more CPU cycles for decompressing on top of formats like jpeg.
-- **Shuffling:** MDS currently offers more advanced shuffling strategies.
-- **Version Control & Visualization Support:** A notable feature of Deep Lake is its native version control and in-browser data visualization, a feature not present for MosaicML data format. This can provide significant advantages in managing, understanding, and tracking different versions of the data.
+* **Data Storage Format:** Deep Lake operates on a columnar storage format, whereas MDS utilizes a row-wise storage approach. This fundamentally impacts how data is read, written, and organized in each system.
+* **Compression:** Deep Lake offers a more flexible compression scheme, allowing control over both chunk-level and sample-level compression for each column or tensor. This feature eliminates the need for additional compressions like zstd, which would otherwise demand more CPU cycles for decompressing on top of formats like jpeg.
+* **Shuffling:** MDS currently offers more advanced shuffling strategies.
+* **Version Control & Visualization Support:** A notable feature of Deep Lake is its native version control and in-browser data visualization, a feature not present for MosaicML data format. This can provide significant advantages in managing, understanding, and tracking different versions of the data.
 
 </details>
-
 
 <details>
   <summary><b>Deep Lake vs TensorFlow Datasets (TFDS)</b></summary>
@@ -323,12 +309,9 @@ Deep Lake and TFDS seamlessly connect popular datasets to ML frameworks. Deep La
 
 </details>
 
-
-
 <details>
   <summary><b>Deep Lake vs HuggingFace</b></summary>
 Deep Lake and HuggingFace offer access to popular datasets, but Deep Lake primarily focuses on computer vision, whereas HuggingFace focuses on natural language processing. HuggingFace Transforms and other computational tools for NLP are not analogous to features offered by Deep Lake.
-
 
 </details>
 
@@ -336,13 +319,11 @@ Deep Lake and HuggingFace offer access to popular datasets, but Deep Lake primar
   <summary><b>Deep Lake vs WebDatasets</b></summary>
 Deep Lake and WebDatasets both offer rapid data streaming across networks. They have nearly identical steaming speeds because the underlying network requests and data structures are very similar. However, Deep Lake offers superior random access and shuffling, its simple API is in python instead of command-line, and Deep Lake enables simple indexing and modification of the dataset without having to recreate it.
 
-
 </details>
 
 <details>
   <summary><b>Deep Lake vs Zarr</b></summary>
 Deep Lake and Zarr both offer storage of data as chunked arrays. However, Deep Lake is primarily designed for returning data as arrays using a simple API, rather than actually storing raw arrays (even though that's also possible). Deep Lake stores data in use-case-optimized formats, such as jpeg or png for images, or mp4 for video, and the user treats the data as if it's an array, because Deep Lake handles all the data processing in between. Deep Lake offers more flexibility for storing arrays with dynamic shape (ragged tensors), and it provides several features that are not naively available in Zarr such as version control, data streaming, and connecting data to ML Frameworks.
-
 
 </details>
 
@@ -352,7 +333,7 @@ Join our [**Slack community**](https://join.slack.com/t/hubdb/shared_invite/zt-i
 
 We'd love your feedback by completing our 3-minute [**survey**](https://forms.gle/rLi4w33dow6CSMcm9).
 
-As always, thanks to our amazing contributors!    
+As always, thanks to our amazing contributors!
 
 <a href="https://github.com/activeloopai/deeplake/graphs/contributors">
   <img src="https://contrib.rocks/image?repo=activeloopai/hub" />
@@ -362,19 +343,15 @@ Made with [contributors-img](https://contrib.rocks).
 
 Please read [CONTRIBUTING.md](CONTRIBUTING.md) to get started with making contributions to Deep Lake.
 
-
 ## README Badge
 
-Using Deep Lake? Add a README badge to let everyone know: 
-
+Using Deep Lake? Add a README badge to let everyone know:
 
 [![deeplake](https://img.shields.io/badge/powered%20by-Deep%20Lake%20-ff5a1f.svg)](https://github.com/activeloopai/deeplake)
 
-```
+```markdown
 [![deeplake](https://img.shields.io/badge/powered%20by-Deep%20Lake%20-ff5a1f.svg)](https://github.com/activeloopai/deeplake)
 ```
-
-
 
 ## Disclaimers
 
@@ -392,15 +369,17 @@ If you're a dataset owner and do not want your dataset to be included in this li
 
 By default, we collect usage data using Bugout (here's the [code](https://github.com/activeloopai/deeplake/blob/853456a314b4fb5623c936c825601097b0685119/deeplake/__init__.py#L24) that does it). It does not collect user data other than anonymized IP address data, and it only logs the Deep Lake library's own actions. This helps our team understand how the tool is used and how to build features that matter to you! After you register with Activeloop, data is no longer anonymous. You can always opt-out of reporting using the CLI command below, or by setting an environmental variable ```BUGGER_OFF``` to ```True```:
 
-```
+```bash
 activeloop reporting --off
 ```
+
 </details>
 
 ## Citation
+
 If you use Deep Lake in your research, please cite Activeloop using:
 
-```
+```markdown
 @article{deeplake,
   title = {Deep Lake: a Lakehouse for Deep Learning},
   author = {Hambardzumyan, Sasun and Tuli, Abhinav and Ghukasyan, Levon and Rahman, Fariz and Topchyan, Hrant and Isayan, David and Harutyunyan, Mikayel and Hakobyan, Tatevik and Stranic, Ivo and Buniatyan, Davit},
@@ -411,4 +390,5 @@ If you use Deep Lake in your research, please cite Activeloop using:
 ```
 
 ## Acknowledgment
+
 This technology was inspired by our research work at Princeton University. We would like to thank William Silversmith @SeungLab for his awesome [cloud-volume](https://github.com/seung-lab/cloud-volume) tool.
