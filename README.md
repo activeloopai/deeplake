@@ -40,8 +40,8 @@ Deep Lake simplifies the deployment of enterprise-grade LLM-based products by of
 ### Deep Lake includes the following features:
 
 <details>
-  <summary><b>Cloud Agnostic API</b></summary>
-Use one API to upload, download, and stream datasets to/from AWS S3, Azure, GCP, Activeloop cloud, or local storage.
+  <summary><b>Multi-Cloud Support (S3, GCP, Azure)</b></summary>
+Use one API to upload, download, and stream datasets to/from S3, Azure, GCP, Activeloop cloud, local storage, or in-memory storage. Compatible with any S3-compatible storage such as MinIO. 
 </details>
 <details>
   <summary><b>Native Compression with Lazy NumPy-like Indexing</b></summary>
@@ -89,7 +89,7 @@ Deep Lake can be installed using pip:
 ```sh
 pip3 install deeplake
 ```
-Optimized C++ implementations of Deep Lake's query engine and dataloaders can be trialed for free by installing: 
+Optimized C++ implementations of Deep Lake's query engine and dataloaders can be installed using: 
 ```sh
 pip3 install "deeplake[enterprise]"
 ```
