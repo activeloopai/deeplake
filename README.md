@@ -93,13 +93,14 @@ Optimized C++ implementations of Deep Lake's query engine and dataloaders can be
 ```sh
 pip3 install "deeplake[enterprise]"
 ```
-
 **By default, Deep Lake does not install dependencies for audio, video, google-cloud, and other features. Details on all installation options are [available here](https://docs.deeplake.ai/en/latest/Installation.html).**
 
-## 🧠 Code Examples for Deep Lake by Application
+### To access all of Deep Lake's features, please register in the [Deep Lake App](https://app.activeloop.ai/register/).
+
+## 🧠 Deep Lake Code Examples by Application
 
 ### Vector Store Applications
-Using Deep Lake as a Vector Store for building LLM applications.
+Using Deep Lake as a Vector Store for building LLM applications:
 ### - [Vector Store Quickstart](https://docs.activeloop.ai/quickstart)
 ### - [Vector Store Getting Started Guide](https://docs.activeloop.ai/getting-started/vector-store)
 ### - [Using Deep Lake with LangChain](https://docs.activeloop.ai/tutorials/vector-store/deep-lake-vector-store-in-langchain)
@@ -107,7 +108,7 @@ Using Deep Lake as a Vector Store for building LLM applications.
 
 
 ### Deep Learning Applications
-Using Deep Lake for managing data while training Deep Learning models.
+Using Deep Lake for managing data while training Deep Learning models:
 ### - [Deep Learning Quickstart](https://docs.activeloop.ai/quickstart-dl)
 ### - [Deep Learning Getting Started Guide](https://docs.activeloop.ai/getting-started/deep-learning)
 ### - [Tutorials for Training Models](https://docs.activeloop.ai/tutorials/deep-learning/training-models)
