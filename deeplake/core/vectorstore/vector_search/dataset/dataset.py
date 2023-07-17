@@ -313,8 +313,8 @@ def get_not_none_tensors(tensors, embedding_data):
 
 def populate_id_tensor_if_needed(ids_tensor, tensors, not_none_tensors, num_items):
     if "id" not in not_none_tensors and "ids" not in not_none_tensors:
-        id = [str(uuid.uuid1()) for _ in range(num_items)]
-        tensors[ids_tensor] = id
+        found_id = [str(uuid.uuid1()) for _ in range(num_items)]
+        tensors[ids_tensor] = found_id
     else:
         for tensor in not_none_tensors:
             if tensor in ("id", "ids"):
@@ -364,14 +364,14 @@ def update_embedding_info(logger, dataset, embedding_function):
 
     if num_embedding_tensors == 0:
         logger.warning(
-            f"No embedding tensors were found, so the embedding function metadata will not be added to any tensor. "
+            "No embedding tensors were found, so the embedding function metadata will not be added to any tensor. "
             "Consider doing that manually using `vector_store.dataset.tensor_name.info. = <embedding_function_info_dictionary>`"
         )
         return
     if num_embedding_tensors > 1:
         logger.warning(
             f"{num_embedding_tensors} embedding tensors were found. "
-            f"It is not clear to which tensor the embedding function information should be added, so the embedding function metadata will not be added to any tensor. "
+            "It is not clear to which tensor the embedding function information should be added, so the embedding function metadata will not be added to any tensor. "
             "Consider doing that manually using `vector_store.dataset.tensor_name.info = <embedding_function_info_dictionary>`"
         )
         return

@@ -3116,7 +3116,7 @@ class Dataset:
                         self[k] = v
                     except Exception as e2:
                         raise Exception(
-                            f"Error while attempting to rollback updates"
+                            "Error while attempting to rollback updates"
                         ) from e2
                 raise e
             finally:

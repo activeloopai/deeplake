@@ -86,7 +86,7 @@ def test_create(caplog, hub_cloud_dev_token):
 
     # Test whether not specifiying runtime with exec_option tensor_db raises error
     with pytest.raises(ValueError):
-        dataset = dataset_utils.create_or_load_dataset(
+        dataset_utils.create_or_load_dataset(
             tensor_params=DEFAULT_VECTORSTORE_TENSORS,
             dataset_path="hub://testingacc2/vectorstore_test_create_dbengine",
             token=hub_cloud_dev_token,
@@ -123,7 +123,7 @@ def test_load(caplog, hub_cloud_dev_token):
     test_logger = logging.getLogger("test_logger")
     with caplog.at_level(logging.WARNING, logger="test_logger"):
         # dataset loading
-        dataset = dataset_utils.create_or_load_dataset(
+        dataset_utils.create_or_load_dataset(
             tensor_params=DEFAULT_VECTORSTORE_TENSORS,
             dataset_path=DEFAULT_VECTORSTORE_DEEPLAKE_PATH,
             token=None,
@@ -142,7 +142,7 @@ def test_load(caplog, hub_cloud_dev_token):
         )
 
     with pytest.raises(ValueError):
-        dataset = dataset_utils.create_or_load_dataset(
+        dataset_utils.create_or_load_dataset(
             tensor_params={"name": "image", "htype": "image"},
             dataset_path=DEFAULT_VECTORSTORE_DEEPLAKE_PATH,
             token=None,
@@ -193,7 +193,7 @@ def test_delete_and_commit():
     dataset.ids.extend([1, 2, 3, 4, 5, 6, 7, 8, 9])
 
     dataset_utils.delete_and_commit(dataset, ids=[1, 2, 3])
-    len(dataset) == 6
+    assert len(dataset) == 6
 
 
 def test_delete_all():
@@ -229,7 +229,7 @@ def test_fetch_embeddings():
 def test_embeding_data():
     query = "tql query"
     with pytest.raises(Exception):
-        embedding = dataset_utils.get_embedding(
+        dataset_utils.get_embedding(
             embedding=None, query=query, embedding_function=None
         )
 

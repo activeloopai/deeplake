@@ -261,7 +261,7 @@ def test_search_basic(local_path, hub_cloud_dev_token):
     assert len(data_ce.keys()) == 3  # One for each return_tensors + score
 
     with pytest.raises(ValueError):
-        data_ce = vector_store_cloud.search(
+        vector_store_cloud.search(
             query=f"SELECT * WHERE id=='{vector_store_cloud.dataset.id[0].numpy()[0]}'",
             embedding=query_embedding,
             k=2,
@@ -489,7 +489,7 @@ def test_search_quantitative(distance_metric, hub_cloud_dev_token):
 
     with pytest.raises(ValueError):
         # use indra implementation to search the data
-        data_ce = vector_store.search(
+        vector_store.search(
             query="select * where metadata == {'abcdefg': 28}",
             exec_option="compute_engine",
             distance_metric=distance_metric,
