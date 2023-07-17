@@ -96,7 +96,7 @@ pip3 install "deeplake[enterprise]"
 
 **By default, Deep Lake does not install dependencies for audio, video, google-cloud, and other features. Details on all installation options are [available here](https://docs.deeplake.ai/en/latest/Installation.html).**
 
-## Code Examples for Deep Lake by Application
+## 🧠 Code Examples for Deep Lake by Application
 
 ### Vector Store Applications
 Using Deep Lake as a Vector Store for building LLM applications.
