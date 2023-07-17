@@ -261,11 +261,11 @@ class VectorStore:
             **tensors,
         )
 
-        processed_tensors, id = dataset_utils.preprocess_tensors(
+        processed_tensors, id_ = dataset_utils.preprocess_tensors(
             embedding_data, embedding_tensor, self.dataset, **tensors
         )
 
-        assert id is not None
+        assert id_ is not None
         utils.check_length_of_each_tensor(processed_tensors)
 
         dataset_utils.extend_or_ingest_dataset(
@@ -285,7 +285,7 @@ class VectorStore:
             self.dataset.summary()
 
         if return_ids:
-            return id
+            return id_
         return None
 
     def search(
@@ -379,11 +379,7 @@ class VectorStore:
             },
         )
 
-        if (
-            exec_option is None
-            and self.exec_option is not "python"
-            and callable(filter)
-        ):
+        if exec_option is None and self.exec_option != "python" and callable(filter):
             logger.warning(
                 'Switching exec_option to "python" (runs on client) because filter is specified as a function. '
                 f'To continue using the original exec_option "{self.exec_option}", please specify the filter as a dictionary or use the "query" parameter to specify a TQL query.'
@@ -520,8 +516,7 @@ class VectorStore:
                 exec_option=exec_option,
                 filter=filter,
             )
-        dataset_utils.delete_and_commit(self.dataset, row_ids)
-        return True
+        return dataset_utils.delete_and_commit(self.dataset, row_ids)
 
     @staticmethod
     def delete_by_path(
