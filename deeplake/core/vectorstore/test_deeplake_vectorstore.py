@@ -427,12 +427,13 @@ def test_search_basic(local_path, hub_cloud_dev_token):
     assert len(data["text"]) == 0
     assert len(data["score"]) == 0
 
+    # Test that the embedding function during initalization works
     vector_store = DeepLakeVectorStore(
-        path="mem://xyz", embedding_function=embedding_fn
+        path="mem://xyz", embedding_function=embedding_fn3
     )
     assert vector_store.exec_option == "python"
     vector_store.add(embedding=embeddings, text=texts, metadata=metadatas)
-    result = vector_store.search(embedding=np.zeros((1, EMBEDDING_DIM)))
+    result = vector_store.search(embedding_data=["dummy"])
     assert len(result) == 4
 
 
