@@ -1,6 +1,7 @@
 from typing import Callable, Dict, Optional, Sequence, Union
 from deeplake.util.dataset import try_flushing
 from deeplake.util.dataset import map_tensor_keys
+from deeplake.constants import MB
 from .common import (
     PytorchTransformFunction,
     convert_fn as default_convert_fn,
@@ -23,6 +24,7 @@ def create_dataloader(
     pad_tensors,
     decode_method,
     persistent_workers,
+    cache_size,
 ):
     import torch
     import torch.utils.data
@@ -42,6 +44,7 @@ def create_dataloader(
             return_index=return_index,
             pad_tensors=pad_tensors,
             decode_method=decode_method,
+            cache_size=cache_size,
         ),
         batch_size=batch_size,
         collate_fn=collate_fn,
@@ -68,6 +71,7 @@ def dataset_to_pytorch(
     pad_tensors: bool = True,
     decode_method: Optional[Dict[str, str]] = None,
     persistent_workers: bool = False,
+    cache_size: int = 32 * MB,
     **kwargs,
 ):
     import torch
@@ -116,6 +120,7 @@ def dataset_to_pytorch(
             pad_tensors,
             decode_method,
             persistent_workers,
+            cache_size,
         )
     else:
         return torch.utils.data.DataLoader(
@@ -131,6 +136,7 @@ def dataset_to_pytorch(
                 pad_tensors=pad_tensors,
                 decode_method=decode_method,
                 batch_size=batch_size,
+                cache_size=cache_size,
             ),
             batch_size=batch_size,
             collate_fn=collate_fn,

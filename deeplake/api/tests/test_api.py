@@ -1010,6 +1010,77 @@ def test_dataset_deepcopy(path, hub_token, num_workers, progressbar):
     ],
     indirect=True,
 )
+def test_deepcopy(path, hub_token):
+    src_path = "_".join((path, "src"))
+    dest_path = "_".join((path, "dest"))
+
+    src_ds = deeplake.empty(src_path, overwrite=True, token=hub_token)
+    dest_ds = deeplake.empty(dest_path, overwrite=True, token=hub_token)
+
+    with src_ds:
+        src_ds.info.update(key=0)
+
+        src_ds.create_tensor("a", htype="image", sample_compression="png")
+        src_ds.create_tensor("b", htype="class_label")
+        src_ds.create_tensor("c")
+        src_ds.create_tensor("d", dtype=bool)
+        src_ds.create_group("g")
+
+        src_ds.d.info.update(key=1)
+
+        src_ds["a"].append(np.ones((28, 28), dtype="uint8"))
+        src_ds["b"].append(0)
+
+    deeplake.deepcopy(
+        src_ds,
+        dest_path,
+        overwrite=True,
+        token=hub_token,
+        num_workers=0,
+    )
+
+    deeplake.deepcopy(
+        src_path,
+        dest_path,
+        overwrite=True,
+        token=hub_token,
+        num_workers=1,
+    )
+
+    with pytest.raises(TypeError):
+        deeplake.deepcopy(
+            src_ds.a,
+            dest_path,
+            overwrite=True,
+            token=hub_token,
+            num_workers=0,
+        )
+    with pytest.raises(TypeError):
+        deeplake.deepcopy(
+            src_ds.g,
+            dest_path,
+            overwrite=True,
+            token=hub_token,
+            num_workers=0,
+        )
+    with pytest.raises(TypeError):
+        deeplake.deepcopy(
+            src_ds[0],
+            dest_path,
+            overwrite=True,
+            token=hub_token,
+            num_workers=0,
+        )
+
+
+@pytest.mark.parametrize(
+    "path,hub_token",
+    [
+        ["local_path", "hub_cloud_dev_token"],
+        ["hub_cloud_path", "hub_cloud_dev_token"],
+    ],
+    indirect=True,
+)
 def test_deepcopy_errors(path, hub_token):
     src_path = "_".join((path, "src"))
     dest_path = "_".join((path, "dest"))

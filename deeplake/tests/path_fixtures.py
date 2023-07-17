@@ -427,6 +427,14 @@ def cat_path():
 
 
 @pytest.fixture
+def dog_path():
+    """Path to a dog image in the dummy data folder. Expected shape: (323, 480, 3)"""
+
+    path = get_dummy_data_path("images")
+    return os.path.join(path, "dog2.jpg")
+
+
+@pytest.fixture
 def flower_path():
     """Path to a flower image in the dummy data folder. Expected shape: (513, 464, 4)"""
 

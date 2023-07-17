@@ -22,6 +22,7 @@ from deeplake.constants import (
     DEFAULT_VECTORSTORE_TENSORS,
     VECTORSTORE_EXTEND_MAX_SIZE_BY_HTYPE,
 )
+from deeplake.util.exceptions import IncorrectEmbeddingShapeError
 
 
 def create_or_load_dataset(
@@ -34,6 +35,7 @@ def create_or_load_dataset(
     exec_option,
     embedding_function,
     overwrite,
+    runtime,
     **kwargs,
 ):
     utils.check_indra_installation(
@@ -52,6 +54,7 @@ def create_or_load_dataset(
             creds,
             logger,
             read_only,
+            runtime,
             **kwargs,
         )
 
@@ -63,13 +66,15 @@ def create_or_load_dataset(
         exec_option,
         embedding_function,
         overwrite,
+        creds,
+        runtime,
         **kwargs,
     )
 
 
 def dataset_exists(dataset_path, token, creds, **kwargs):
     return (
-        deeplake.exists(dataset_path, token=token, **creds)
+        deeplake.exists(dataset_path, token=token, creds=creds)
         and "overwrite" not in kwargs
     )
 
@@ -80,6 +85,7 @@ def load_dataset(
     creds,
     logger,
     read_only,
+    runtime,
     **kwargs,
 ):
     if dataset_path == DEFAULT_VECTORSTORE_DEEPLAKE_PATH:
@@ -88,7 +94,6 @@ def load_dataset(
             " and it is not free. All addtionally added data will be added on"
             " top of already existing deeplake dataset."
         )
-
     dataset = deeplake.load(
         dataset_path,
         token=token,
@@ -97,13 +102,22 @@ def load_dataset(
         verbose=False,
         **kwargs,
     )
-
     check_tensors(dataset)
 
     logger.warning(
         f"Deep Lake Dataset in {dataset_path} already exists, "
         f"loading from the storage"
     )
+
+    if runtime is not None and runtime["tensor_db"] == True:
+        logger.warning(
+            "Specifying runtime option when loading a Vector Store is not supported and this parameter will "
+            "be ignored. If you wanted to create a new Vector Store, please specify a path to a Vector Store "
+            "that does not already exist. To transfer an existing Vector Store to the Managed Tensor Database, "
+            "use the steps in the link below: "
+            "(https://docs.activeloop.ai/enterprise-features/managed-database/migrating-datasets-to-the-tensor-database)."
+        )
+
     return dataset
 
 
@@ -152,11 +166,20 @@ def create_dataset(
     exec_option,
     embedding_function,
     overwrite,
+    creds,
+    runtime,
     **kwargs,
 ):
-    runtime = None
-    if exec_option == "tensor_db":
-        runtime = {"tensor_db": True}
+    if exec_option == "tensor_db" and (
+        runtime is None or runtime == {"tensor_db": False}
+    ):
+        raise ValueError(
+            "To execute queries using exec_option = 'tensor_db', "
+            "the Vector Store must be stored in Deep Lake's Managed "
+            "Tensor Database. To create the Vector Store in the Managed "
+            "Tensor Database, specify runtime = {'tensor_db': True} when "
+            "creating the Vector Store."
+        )
 
     dataset = deeplake.empty(
         dataset_path,
@@ -164,6 +187,7 @@ def create_dataset(
         runtime=runtime,
         verbose=False,
         overwrite=overwrite,
+        creds=creds,
         **kwargs,
     )
     create_tensors(tensor_params, dataset, logger, embedding_function)
@@ -237,31 +261,17 @@ def preprocess_tensors(
 ):
     # generate id list equal to the length of the tensors
     # dont use None tensors to get length of tensor
-    _tensors = {k: v for k, v in tensors.items() if v is not None}
-    try:
-        num_items = len(next(iter(_tensors.values())))
-    except StopIteration:
-        if embedding_data:
-            num_items = len(embedding_data[0])
-        else:
-            num_items = 0
-    ids_tensor = "ids" if "ids" in _tensors else "id"
-    if ids_tensor not in _tensors or ids_tensor is None:
-        id = [str(uuid.uuid1()) for _ in range(num_items)]
-        tensors[ids_tensor] = id
+    not_none_tensors, num_items = get_not_none_tensors(tensors, embedding_data)
+    ids_tensor = get_id_tensor(dataset)
+    tensors = populate_id_tensor_if_needed(
+        ids_tensor, tensors, not_none_tensors, num_items
+    )
 
     processed_tensors = {ids_tensor: tensors[ids_tensor]}
 
     for tensor_name, tensor_data in tensors.items():
-        if tensor_data is None:
-            tensor_data = [None] * len(tensors[ids_tensor])
-        elif not isinstance(tensor_data, list):
-            tensor_data = list(tensor_data)
-        if dataset and dataset[tensor_name].htype == "image":
-            tensor_data = [
-                deeplake.read(data) if isinstance(data, str) else data
-                for data in tensor_data
-            ]
+        tensor_data = convert_tensor_data_to_list(tensor_data, tensors, ids_tensor)
+        tensor_data = read_tensor_data_if_needed(tensor_data, dataset, tensor_name)
         processed_tensors[tensor_name] = tensor_data
 
     if embedding_data:
@@ -269,6 +279,58 @@ def preprocess_tensors(
             processed_tensors[k] = v
 
     return processed_tensors, tensors[ids_tensor]
+
+
+def read_tensor_data_if_needed(tensor_data, dataset, tensor_name):
+    # generalize this method for other htypes that need reading.
+    if dataset and tensor_name != "id" and dataset[tensor_name].htype == "image":
+        tensor_data = [
+            deeplake.read(data) if isinstance(data, str) else data
+            for data in tensor_data
+        ]
+    return tensor_data
+
+
+def convert_tensor_data_to_list(tensor_data, tensors, ids_tensor):
+    if tensor_data is None:
+        tensor_data = [None] * len(tensors[ids_tensor])
+    elif not isinstance(tensor_data, list):
+        tensor_data = list(tensor_data)
+    return tensor_data
+
+
+def get_not_none_tensors(tensors, embedding_data):
+    not_none_tensors = {k: v for k, v in tensors.items() if v is not None}
+    try:
+        num_items = len(next(iter(not_none_tensors.values())))
+    except StopIteration:
+        if embedding_data:
+            num_items = len(embedding_data[0])
+        else:
+            num_items = 0
+    return not_none_tensors, num_items
+
+
+def populate_id_tensor_if_needed(ids_tensor, tensors, not_none_tensors, num_items):
+    if "id" not in not_none_tensors and "ids" not in not_none_tensors:
+        id = [str(uuid.uuid1()) for _ in range(num_items)]
+        tensors[ids_tensor] = id
+    else:
+        for tensor in not_none_tensors:
+            if tensor in ("id", "ids"):
+                break
+
+        tensors[ids_tensor] = list(
+            map(
+                lambda x: str(x) if isinstance(x, uuid.UUID) else x,
+                not_none_tensors[tensor],
+            )
+        )
+    return tensors
+
+
+def get_id_tensor(dataset):
+    return "ids" if "ids" in dataset.tensors else "id"
 
 
 def create_elements(
@@ -344,7 +406,14 @@ def extend_or_ingest_dataset(
                 embedding_function, embedding_data, embedding_tensor
             ):
                 embedded_data = func(data)
-                embedded_data = np.array(embedded_data, dtype=np.float32)
+                try:
+                    embedded_data = np.array(embedded_data, dtype=np.float32)
+                except ValueError:
+                    raise IncorrectEmbeddingShapeError()
+
+                if len(embedded_data) == 0:
+                    raise ValueError("embedding function returned empty list")
+
                 processed_tensors[tensor] = embedded_data
 
         dataset.extend(processed_tensors)
@@ -395,7 +464,7 @@ def convert_id_to_row_id(ids, dataset, search_fn, query, exec_option, filter):
     return row_ids
 
 
-def check_delete_arguments(ids, filter, query, delete_all, row_ids, exec_option):
+def check_delete_arguments(ids, filter, query, delete_all, row_ids):
     if (
         ids is None
         and filter is None
@@ -405,8 +474,4 @@ def check_delete_arguments(ids, filter, query, delete_all, row_ids, exec_option)
     ):
         raise ValueError(
             "Either ids, row_ids, filter, query, or delete_all must be specified."
-        )
-    if exec_option not in ("python", "compute_engine", "tensor_db"):
-        raise ValueError(
-            "Invalid `exec_option` it should be either `python`, `compute_engine`."
         )
