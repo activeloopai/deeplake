@@ -606,11 +606,8 @@ class VectorStore:
                 ids=ids,
                 filter=filter,
                 query=query,
-                # row_ids=row_ids,
                 exec_option=exec_option,
             )
-
-        self.dataset.embedding[row_ids].numpy()
 
         embedding_tensor_data = utils.convert_embedding_source_tensor_to_embeddings(
             dataset=self.dataset,
