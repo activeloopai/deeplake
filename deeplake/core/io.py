@@ -563,6 +563,7 @@ class SampleStreaming(Streaming):
                 link_creds=self.dataset.link_creds,
             )
         chunk_engine = ChunkEngine(tensor_key, cache, version_state)
+        # disable chunk engine level cache because it can be corrupted by multiple workers
         chunk_engine.cache_enabled = False
         return chunk_engine
 
