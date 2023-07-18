@@ -15,8 +15,8 @@ def log_dataset_connection_success(ds_path: str):
     log_visualizer_link(ds_path)
 
 
-def is_path_connectable(path: str) -> bool:
-    return get_path_type(path) in ("s3", "gcs", "azure")
+def is_path_connectable(path: str, allow_local: bool) -> bool:
+    return get_path_type(path) in ("s3", "gcs", "azure") + ("local",) * allow_local
 
 
 def connect_dataset_entry(
@@ -27,9 +27,10 @@ def connect_dataset_entry(
     ds_name: Optional[str] = None,
     token: Optional[str] = None,
     verbose: bool = True,
+    allow_local: bool = False,
 ) -> str:
     dataset_entry = DatasetEntry(src_path, creds_key, dest_path, org_id, ds_name, token)
-    dataset_entry.validate()
+    dataset_entry.validate(allow_local=allow_local)
     connected_id = dataset_entry.connect_dataset_entry()
 
     result_path = f"hub://{connected_id}"
@@ -76,7 +77,7 @@ class DatasetEntry:
 
         self.org_id, self.ds_name = ds_info.get_org_id_and_ds_name()
 
-    def validate(self):
+    def validate(self, allow_local: bool = False) -> None:
         """Validates the attributes to make that dataset at ``src_path`` can be connected.
 
         Raises:
@@ -87,7 +88,7 @@ class DatasetEntry:
                 "Source dataset is already accessible via a Deep Lake path."
             )
 
-        if not is_path_connectable(self.src_path):
+        if not is_path_connectable(self.src_path, allow_local=allow_local):
             raise InvalidSourcePathError(
                 f"Source path may only be an s3, gcs or azure path. Got {self.src_path}."
             )

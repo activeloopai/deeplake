@@ -65,6 +65,7 @@ def create_or_load_dataset(
         exec_option,
         embedding_function,
         overwrite,
+        creds,
         runtime,
         **kwargs,
     )
@@ -72,7 +73,7 @@ def create_or_load_dataset(
 
 def dataset_exists(dataset_path, token, creds, **kwargs):
     return (
-        deeplake.exists(dataset_path, token=token, **creds)
+        deeplake.exists(dataset_path, token=token, creds=creds)
         and "overwrite" not in kwargs
     )
 
@@ -164,6 +165,7 @@ def create_dataset(
     exec_option,
     embedding_function,
     overwrite,
+    creds,
     runtime,
     **kwargs,
 ):
@@ -184,6 +186,7 @@ def create_dataset(
         runtime=runtime,
         verbose=False,
         overwrite=overwrite,
+        creds=creds,
         **kwargs,
     )
     create_tensors(tensor_params, dataset, logger, embedding_function)

@@ -7,8 +7,8 @@ from deeplake.util.exceptions import InvalidDestinationPathError
 
 
 def test_source_and_destination_paths():
-    assert not is_path_connectable("hub://org_id/ds_name")
-    assert is_path_connectable("s3://bucket/path/to/dataset")
+    assert not is_path_connectable("hub://org_id/ds_name", allow_local=False)
+    assert is_path_connectable("s3://bucket/path/to/dataset", allow_local=False)
 
     ds_info = DsInfo(dest_path="hub://org_id/ds_name")
     ds_info.validate()

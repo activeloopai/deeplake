@@ -129,6 +129,7 @@ def parse_search_args(**kwargs):
 
     if (
         kwargs["embedding_function"] is None
+        and kwargs["initial_embedding_function"] is None
         and kwargs["embedding"] is None
         and kwargs["query"] is None
         and kwargs["filter"] is None
