@@ -147,8 +147,6 @@ import jwt
 _LOCKABLE_STORAGES = {S3Provider, GCSProvider, AzureProvider, LocalProvider}
 
 
-
-
 class Dataset:
     def __init__(
         self,
@@ -2922,7 +2920,6 @@ class Dataset:
 
                     # Regenerate Index.
                     tensor.regenerate_vdb_indexes()
-
                 except Exception as e:
                     if extend:
                         raise NotImplementedError(
@@ -3124,7 +3121,6 @@ class Dataset:
 
                         # Regenerate Index
                         self[k].regenerate_vdb_indexes()
-
                     self[k] = v
             except Exception as e:
                 for k, v in saved.items():

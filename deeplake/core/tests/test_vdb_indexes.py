@@ -43,7 +43,7 @@ def test_query_recall(local_ds_generator):
         deeplake_ds.create_tensor("embedding", htype="embedding", dtype=np.float32)
         for _ in range(2000):
             random_embedding = np.random.random_sample(384).astype(np.float32)
-            deeplake_ds.embedding.append({"embedding": random_embedding})
+            deeplake_ds.append({"embedding": random_embedding})
 
         deeplake_ds.embedding.create_vdb_index("hnsw_1")
     correct = 0
