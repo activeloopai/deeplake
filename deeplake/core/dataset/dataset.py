@@ -2568,7 +2568,7 @@ class Dataset:
                     "time": str(commit_node.commit_time)[:-7],
                     "message": commit_node.commit_message,
                 }
-            commits.append(commit_info)
+                commits.append(commit_info)
             commit_node = commit_node.parent
         return commits
 
