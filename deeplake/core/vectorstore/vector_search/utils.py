@@ -177,14 +177,14 @@ def parse_search_args(**kwargs):
 
 
 def get_embedding_tensor(embedding_tensor, embedding_source_tensor, dataset):
+    if embedding_source_tensor is None:
+        raise ValueError("`embedding_source_tensor` was not specified")
+
     embedding_tensor = get_embedding_tensors(
         embedding_tensor=embedding_tensor,
         tensor_args={},
         dataset=dataset,
     )
-
-    if embedding_source_tensor is None:
-        raise ValueError("`embedding_source_tensor` was not specified")
 
     return embedding_tensor
 
