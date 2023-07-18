@@ -92,6 +92,12 @@ class TensorMeta(Meta):
                 return True
         return False
 
+    def get_vdb_index_ids(self):
+        index_ids = []
+        for index in getattr(self, "vdb_indexes", []):
+            index_ids.append(index["id"])
+        return index_ids
+
     def add_vdb_index(self, id: str, type: str, distance: str, **kwargs):
         if self.contains_vdb_index(id):
             raise ValueError(f"Tensor meta already has a vdb index with name '{id}'.")

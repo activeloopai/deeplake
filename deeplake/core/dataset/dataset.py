@@ -147,6 +147,8 @@ import jwt
 _LOCKABLE_STORAGES = {S3Provider, GCSProvider, AzureProvider, LocalProvider}
 
 
+
+
 class Dataset:
     def __init__(
         self,
@@ -2419,6 +2421,15 @@ class Dataset:
                 raise DatasetTooLargeToDelete(self.path)
 
         self._unlock()
+
+        # Clear out the associated index.
+        tensor_dict = self.tensors
+        for key, tensor in tensor_dict.items():
+            if tensor.htype == "embedding" and hasattr(tensor.meta, "vdb_indexes"):
+                indexes = tensor.meta.get_vdb_index_ids()
+                for id in indexes:
+                    tensor.delete_vdb_index(id)
+
         self.storage.clear()
 
     def summary(self, force: bool = False):
@@ -2908,6 +2919,11 @@ class Dataset:
                     else:
                         tensor.append(v)
                     tensors_appended.append(k)
+
+                    # Regenerate indexes.
+                    if tensor.htype == "embedding" and hasattr(tensor.meta, "vdb_indexes"):
+                       tensor.regenerate_indexes()
+
                 except Exception as e:
                     if extend:
                         raise NotImplementedError(
@@ -3106,6 +3122,10 @@ class Dataset:
                             )
 
                         saved[k].append(old_sample)
+
+                        if self[k].htype == "embedding" and hasattr(self[k].meta, "vdb_indexes"):
+                            self[k].regenerate_indexes()
+
                     self[k] = v
             except Exception as e:
                 for k, v in saved.items():

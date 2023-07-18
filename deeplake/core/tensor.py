@@ -136,6 +136,12 @@ def delete_tensor(key: str, dataset):
     tensor = Tensor(key, dataset)
     chunk_engine: ChunkEngine = tensor.chunk_engine
     enc = chunk_engine.chunk_id_encoder
+
+    # Clear out the indexes associated with tensor.
+    index_ids = tensor.meta.get_vdb_index_ids()
+    for id in index_ids:
+        tensor.delete_vdb_index(id)
+
     n_chunks = chunk_engine.num_chunks
     chunk_names = [enc.get_name_for_chunk(i) for i in range(n_chunks)]
     chunk_keys = [
@@ -1410,6 +1416,14 @@ class Tensor:
         self.meta.remove_vdb_index(id=id)
         self.invalidate_libdeeplake_dataset()
         self.storage.flush()
+
+    def regenerate_indexes(self):
+        index_ids = self.meta.get_vdb_index_ids()
+        for id in index_ids:
+            # delete the index.
+            self.delete_vdb_index(id)
+            # recreate it back.
+            self.create_vdb_index(id)
 
     def load_vdb_index(self, id: str) -> Indexer:
         if self.meta.htype != "embedding":
