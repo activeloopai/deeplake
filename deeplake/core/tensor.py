@@ -1417,13 +1417,18 @@ class Tensor:
         self.invalidate_libdeeplake_dataset()
         self.storage.flush()
 
-    def regenerate_indexes(self):
-        index_ids = self.meta.get_vdb_index_ids()
-        for id in index_ids:
-            # delete the index.
-            self.delete_vdb_index(id)
-            # recreate it back.
-            self.create_vdb_index(id)
+    def regenerate_vdb_indexes(self):
+        is_embedding = self.htype == "embedding"
+        has_vdb_indexes = hasattr(self.meta, "vdb_indexes")
+        vdb_index_ids_present = len(self.meta.get_vdb_index_ids()) > 0
+
+        if is_embedding and has_vdb_indexes and vdb_index_ids_present:
+            index_ids = self.meta.get_vdb_index_ids()
+            for id in index_ids:
+                # Delete the index.
+                self.delete_vdb_index(id)
+                # Recreate it back.
+                self.create_vdb_index(id)
 
     def load_vdb_index(self, id: str) -> Indexer:
         if self.meta.htype != "embedding":

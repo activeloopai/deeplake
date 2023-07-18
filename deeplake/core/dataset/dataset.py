@@ -2568,7 +2568,7 @@ class Dataset:
                     "time": str(commit_node.commit_time)[:-7],
                     "message": commit_node.commit_message,
                 }
-                commits.append(commit_info)
+            commits.append(commit_info)
             commit_node = commit_node.parent
         return commits
 
@@ -2920,9 +2920,8 @@ class Dataset:
                         tensor.append(v)
                     tensors_appended.append(k)
 
-                    # Regenerate indexes.
-                    if tensor.htype == "embedding" and hasattr(tensor.meta, "vdb_indexes"):
-                       tensor.regenerate_indexes()
+                    # Regenerate Index.
+                    tensor.regenerate_vdb_indexes()
 
                 except Exception as e:
                     if extend:
@@ -3123,8 +3122,8 @@ class Dataset:
 
                         saved[k].append(old_sample)
 
-                        if self[k].htype == "embedding" and hasattr(self[k].meta, "vdb_indexes"):
-                            self[k].regenerate_indexes()
+                        # Regenerate Index
+                        self[k].regenerate_vdb_indexes()
 
                     self[k] = v
             except Exception as e:

@@ -12,11 +12,8 @@ def test_index_management(local_ds_generator):
     with deeplake_ds:
         deeplake_ds.create_tensor("embedding", htype="embedding", dtype=np.float32)
         for _ in range(200):
-            deeplake_ds.embedding.append(
-                np.random.random_sample(
-                    384
-                ).astype(np.float32)
-            )
+            random_embedding = np.random.random_sample(384).astype(np.float32)
+            deeplake_ds.append({"embedding": random_embedding})
     deeplake_ds.embedding.create_vdb_index("hnsw_1")
     es = deeplake_ds.embedding.get_vdb_indexes()
     assert len(es) == 1
@@ -45,11 +42,9 @@ def test_query_recall(local_ds_generator):
     with deeplake_ds:
         deeplake_ds.create_tensor("embedding", htype="embedding", dtype=np.float32)
         for _ in range(2000):
-            deeplake_ds.embedding.append(
-                np.random.random_sample(
-                    384
-                ).astype(np.float32)
-            )
+            random_embedding = np.random.random_sample(384).astype(np.float32)
+            deeplake_ds.embedding.append({"embedding": random_embedding})
+
         deeplake_ds.embedding.create_vdb_index("hnsw_1")
     correct = 0
     for i in range(len(deeplake_ds.embedding)):
@@ -74,17 +69,13 @@ def test_index_maintenance_append(local_ds_generator):
     with deeplake_ds:
         deeplake_ds.create_tensor("embedding", htype="embedding", dtype=np.float32)
         for _ in range(200):
-            deeplake_ds.embedding.append(
-                np.random.random_sample(
-                    384
-                ).astype(np.float32)
-            )
+            random_embedding = np.random.random_sample(384).astype(np.float32)
+            deeplake_ds.append({"embedding": random_embedding})
+
     deeplake_ds.embedding.create_vdb_index("hnsw_1")
     # Append rows and check query recall.
-    deeplake_ds.embedding.append(
-            np.random.random_sample(
-                384
-            ).astype(np.float32))
+    random_embedding = np.random.random_sample(384).astype(np.float32)
+    deeplake_ds.append({"embedding": random_embedding})
 
     # Check if the index is recreated properly.
     es = deeplake_ds.embedding.get_vdb_indexes()
@@ -115,13 +106,12 @@ def test_index_maintenance_update(local_ds_generator):
     deeplake_ds = local_ds_generator()
     with deeplake_ds:
         deeplake_ds.create_tensor("embedding", htype="embedding", dtype=np.float32)
-        deeplake_ds.embedding.append(
-            np.random.random_sample(
-                200
-            ).astype(np.float32))
+        random_embedding = np.random.random_sample(384).astype(np.float32)
+        deeplake_ds.append({"embedding": random_embedding})
+
     deeplake_ds.embedding.create_vdb_index("hnsw_1")
     # Append rows and check query recall.
-    deeplake_ds.embedding.update({"embedding": [1] * 200})
+    deeplake_ds.update({"embedding": [1] * 200})
 
     # Check if the index is recreated properly.
     es = deeplake_ds.embedding.get_vdb_indexes()
@@ -154,11 +144,9 @@ def test_index_maintenance_delete(local_ds_generator):
     with deeplake_ds:
         deeplake_ds.create_tensor("embedding", htype="embedding", dtype=np.float32)
         for _ in range(200):
-            deeplake_ds.embedding.append(
-                np.random.random_sample(
-                    384
-                ).astype(np.float32)
-            )
+            random_embedding = np.random.random_sample(384).astype(np.float32)
+            deeplake_ds.append({"embedding": random_embedding})
+
     deeplake_ds.embedding.create_vdb_index("hnsw_1")
     # delete dataset and check if the index exists.
     deeplake_ds.delete()
