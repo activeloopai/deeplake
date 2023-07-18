@@ -546,24 +546,30 @@ class VectorStore:
         """Recompute existing embeddings of the VectorStore, that match either query, filter, ids or row_ids.
 
         Examples:
-            >>> # Delete using ids:
+            >>> # Update using ids:
             >>> data = vector_store.update(
             ...    ids,
             ...    embedding_source_tensor = "text",
             ...    embedding_tensor = "embedding",
+            ...    embedding_unction = embedding_function,
             ... )
 
-            >>> # Delete data using filter and several embedding_tensors:
+            >>> # Update data using filter and several embedding_tensors, several embedding_source_tensors
+            >>> # and several embedding_functions:
             >>> data = vector_store.update(
-            ...        embedding_source_tensor = "text",
-            ...        filter = {"json_tensor_name": {"key: value"}, "json_tensor_name_2": {"key_2: value_2"}},
+            ...     embedding_source_tensor = ["text", "metadata"],
+            ...     embedding_function = ["text_embedding_function", "metadata_embedding_function"],
+            ...     filter = {"json_tensor_name": {"key: value"}, "json_tensor_name_2": {"key_2: value_2"}},
+            ...     embedding_tensor = ["text_embedding", "metadata_embedding"]
             ... )
 
-            >>> # Delete data using TQL
+            >>> # Update data using TQL, if new embedding function is not specified the embedding_function used
+            >>> # during initialization will be used
             >>> data = vector_store.update(
-            ...        embedding_source_tensor = "text",
-            ...        query = "select * where ..... <add TQL syntax>",
-            ...        exec_option = "compute_engine",
+            ...     embedding_source_tensor = "text",
+            ...     query = "select * where ..... <add TQL syntax>",
+            ...     exec_option = "compute_engine",
+            ...     embedding_tensor = "embedding_tensor",
             ... )
 
         Args:
