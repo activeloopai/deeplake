@@ -244,7 +244,7 @@ def parse_update_arguments(
 ):
     if embedding_function is None and initial_embedding_function is None:
         raise ValueError(
-            "`embedding_function` was not specified during initialization and update call"
+            "`embedding_function` was not specified during initialization of vector store or the update call"
         )
 
     embedding_tensor = get_embedding_tensor(
@@ -275,7 +275,7 @@ def parse_update_arguments(
 
     if isinstance(embedding_tensor, list) and isinstance(embedding_source_tensor, list):
         assert len(embedding_tensor) == len(embedding_source_tensor), (
-            "The length of the `embedding_tensor` doesn't coincide with the length of the "
+            "The length of the `embedding_tensor` does not match the length of "
             "`embedding_source_tensor`"
         )
 
