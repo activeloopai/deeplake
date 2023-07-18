@@ -129,7 +129,7 @@ def unlink_dataset_if_needed(load_path, token, unlink, num_workers, scheduler):
             )
 
             for tensor in linked_tensors:
-                ds.delete_tensor(tensor)
+                ds.delete_tensor(tensor, large_ok=True)
 
             for tensor in links_ds.tensors:
                 ds.create_tensor_like(tensor, links_ds[tensor])
@@ -163,6 +163,10 @@ def get_local_dataset(
 
     managed_creds_used = managed_creds_used_in_dataset(path, creds, token)
 
+    spinner = deeplake.util.spinner.ACTIVE_SPINNER
+    if spinner:
+        spinner.hide()
+
     if download:
         if not ds_exists:
             raise DatasetHandlerError(
@@ -185,6 +189,9 @@ def get_local_dataset(
     )
 
     unlink_dataset_if_needed(load_path, token, unlink, num_workers, scheduler)
+
+    if spinner:
+        spinner.show()
 
     ds = deeplake.load(
         load_path,

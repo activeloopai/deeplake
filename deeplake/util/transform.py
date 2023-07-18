@@ -534,8 +534,15 @@ def get_pbar_description(compute_functions: List):
     return f"Evaluating [{names_desc}]"
 
 
+def len_data_in(data_in):
+    if isinstance(data_in, deeplake.Dataset):
+        return data_in.max_len
+    else:
+        return len(data_in)
+
+
 def create_slices(data_in, num_workers):
-    size = math.ceil(len(data_in) / num_workers)
+    size = math.ceil(len_data_in(data_in) / num_workers)
 
     if isinstance(data_in, Tensor):
         ret = [
@@ -552,7 +559,7 @@ def create_slices(data_in, num_workers):
             for tensor_key in data_in.version_state["tensor_names"].values():
                 _tensors[tensor_key] = Tensor(tensor_key, ds)
 
-    offsets = list(range(0, len(data_in), size))
+    offsets = list(range(0, len_data_in(data_in), size))
     return ret, offsets
 
 
@@ -696,11 +703,11 @@ def check_checkpoint_interval(
         raise ValueError(
             "checkpoint_interval should be a multiple of num_workers if num_workers > 0"
         )
-    if checkpoint_interval > len(data_in):
+    if checkpoint_interval > len_data_in(data_in):
         raise ValueError(
             "checkpoint_interval should be less than or equal to the length of data_in"
         )
-    if checkpoint_interval < len(data_in) / 10 and verbose:
+    if checkpoint_interval < len_data_in(data_in) / 10 and verbose:
         warnings.warn(
             "checkpoint_interval is less than 10% of the length of data_in, this can lead to too many commits, consider increasing checkpoint_interval."
         )
