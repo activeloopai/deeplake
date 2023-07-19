@@ -4365,6 +4365,8 @@ class Dataset:
         for tensor in self.tensors.values():
             if tensor.num_samples > index:
                 tensor.pop(index)
+                # Regenerate vdb indexes.
+                tensor.regenerate_vdb_indexes()
 
         self.storage.autoflush = self._initial_autoflush.pop()
 
