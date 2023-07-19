@@ -408,28 +408,6 @@ def hub_cloud_path(request, hub_cloud_dev_token):
 
 
 @pytest.fixture
-def managed_db_path(request, hub_cloud_dev_token):
-    if not is_opt_true(request, HUB_CLOUD_OPT):
-        pytest.skip()
-        return
-
-    path = _get_storage_path(request, HUB_CLOUD)
-    storage_provider_from_hub_path(path, token=hub_cloud_dev_token).clear()
-
-    yield path
-
-    # clear storage unless flagged otherwise
-    if not is_opt_true(request, KEEP_STORAGE_OPT):
-        try:
-            deeplake.delete(path, force=True, large_ok=True, token=hub_cloud_dev_token)
-        except Exception:
-            # TODO: investigate flakey `BadRequestException:
-            # Invalid Request. One or more request parameters is incorrect.`
-            # (on windows 3.8 only)
-            pass
-
-
-@pytest.fixture
 def hub_cloud_vstream_path(request, hub_cloud_dev_token):
     if not is_opt_true(request, HUB_CLOUD_OPT):
         pytest.skip()

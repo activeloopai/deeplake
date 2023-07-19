@@ -156,14 +156,6 @@ def hub_cloud_ds_generator(hub_cloud_path, hub_cloud_dev_token):
 
 
 @pytest.fixture
-def managed_db_ds_generator(managed_db_path, hub_cloud_dev_token):
-    def generate_hub_cloud_ds(**kwargs):
-        return deeplake.dataset(managed_db_path, token=hub_cloud_dev_token, **kwargs)
-
-    return generate_hub_cloud_ds
-
-
-@pytest.fixture
 def hub_cloud_gcs_ds_generator(gcs_path, gcs_creds, hub_cloud_dev_token):
     def generate_hub_cloud_gcs_ds(**kwargs):
         ds = deeplake.dataset(gcs_path, creds=gcs_creds, **kwargs)
