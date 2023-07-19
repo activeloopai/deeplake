@@ -3840,6 +3840,9 @@ class Dataset:
             verbose=verbose,
         )
 
+        dest_ds.link_creds = self.link_creds
+        save_link_creds(dest_ds.link_creds, dest_ds.storage)
+
         def _copy_tensor(sample_in, sample_out):
             for tensor_name in dest_ds.tensors:
                 src = sample_in[tensor_name]

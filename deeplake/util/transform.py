@@ -360,8 +360,10 @@ def store_data_slice_with_pbar(pg_callback, transform_input: Tuple) -> Dict:
                 ignore_errors,
             )
     except Exception as e:
-        print(e)
-        transform_dataset.flush()
+        try:
+            transform_dataset.flush()
+        except Exception:
+            pass
         err = e
     finally:
         # retrieve relevant objects from memory
