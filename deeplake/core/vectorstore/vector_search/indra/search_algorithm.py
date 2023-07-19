@@ -38,7 +38,10 @@ def search(
     Returns:
         Union[Dict, DeepLakeDataset]: Dictionary where keys are tensor names and values are the results of the search, or a Deep Lake dataset view.
     """
-    from indra import api  # type: ignore
+    try:
+        from indra import api  # type: ignore
+    except ImportError:
+        pass
 
     if tql_string:
         tql_query = tql_string
