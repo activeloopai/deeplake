@@ -123,11 +123,9 @@ def _extend_data_slice(
         transform_fn.kwargs,
     )
     if pg_callback is not None:
-        pg_callback = _normalize_pg(pg_callback, len(updated_tensors))
+        pg_callback = _normalize_pg(pg_callback, len(transform_dataset.tensors))
     transform_dataset.set_pg_callback(pg_callback)
     extend_fn(data_slice, transform_dataset, *args, **kwargs)
-    data = transform_dataset.data
-    updated_tensors = set(k for k in data if not data[k].is_group and len(data[k]) > 0)
     transform_dataset.flush()
 
 
