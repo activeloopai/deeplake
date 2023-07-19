@@ -1,5 +1,5 @@
 import uuid
-from typing import List, Dict, Any
+from typing import List, Dict, Any, Optional, Callable, Union
 
 import numpy as np
 from math import ceil
@@ -14,7 +14,6 @@ except ImportError:  # pragma: no cover
 import deeplake
 from deeplake.constants import MB
 from deeplake.core.vectorstore.vector_search import utils
-from deeplake.core.vectorstore.vector_search import dataset as dataset_utils
 from deeplake.core.vectorstore.vector_search.ingestion import ingest_data
 from deeplake.constants import (
     DEFAULT_VECTORSTORE_DEEPLAKE_PATH,
@@ -66,6 +65,7 @@ def create_or_load_dataset(
         exec_option,
         embedding_function,
         overwrite,
+        creds,
         runtime,
         **kwargs,
     )
@@ -73,7 +73,7 @@ def create_or_load_dataset(
 
 def dataset_exists(dataset_path, token, creds, **kwargs):
     return (
-        deeplake.exists(dataset_path, token=token, **creds)
+        deeplake.exists(dataset_path, token=token, creds=creds)
         and "overwrite" not in kwargs
     )
 
@@ -165,6 +165,7 @@ def create_dataset(
     exec_option,
     embedding_function,
     overwrite,
+    creds,
     runtime,
     **kwargs,
 ):
@@ -185,6 +186,7 @@ def create_dataset(
         runtime=runtime,
         verbose=False,
         overwrite=overwrite,
+        creds=creds,
         **kwargs,
     )
     create_tensors(tensor_params, dataset, logger, embedding_function)
@@ -416,7 +418,7 @@ def extend_or_ingest_dataset(
 
         dataset.extend(processed_tensors)
     else:
-        elements = dataset_utils.create_elements(processed_tensors)
+        elements = create_elements(processed_tensors)
 
         num_workers_auto = ceil(len(elements) / ingestion_batch_size)
         if num_workers_auto < num_workers:
@@ -462,14 +464,52 @@ def convert_id_to_row_id(ids, dataset, search_fn, query, exec_option, filter):
     return row_ids
 
 
-def check_delete_arguments(ids, filter, query, delete_all, row_ids):
+def check_arguments_compatibility(
+    ids, filter, query, exec_option, select_all=None, row_ids=None
+):
     if (
         ids is None
         and filter is None
         and query is None
-        and delete_all is None
         and row_ids is None
+        and select_all is None
     ):
         raise ValueError(
-            "Either ids, row_ids, filter, query, or delete_all must be specified."
+            "Either ids, row_ids, filter, query, or select_all must be specified."
         )
+    if exec_option not in ("python", "compute_engine", "tensor_db"):
+        raise ValueError(
+            "Invalid `exec_option` it should be either `python`, `compute_engine`."
+        )
+
+
+def search_row_ids(
+    dataset: deeplake.core.dataset.Dataset,
+    search_fn: Callable,
+    ids: Optional[List[str]] = None,
+    filter: Optional[Union[Dict, Callable]] = None,
+    query: Optional[str] = None,
+    exec_option: Optional[str] = "python",
+    select_all: Optional[bool] = None,
+):
+    check_arguments_compatibility(
+        ids=ids,
+        filter=filter,
+        query=query,
+        select_all=select_all,
+        exec_option=exec_option,
+    )
+
+    if select_all:
+        return None
+
+    row_ids = convert_id_to_row_id(
+        ids=ids,
+        dataset=dataset,
+        search_fn=search_fn,
+        query=query,
+        exec_option=exec_option,
+        filter=filter,
+    )
+
+    return row_ids

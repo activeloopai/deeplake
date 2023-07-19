@@ -1,5 +1,6 @@
 import deeplake
 import pytest
+import numpy as np
 from deeplake.util.exceptions import DatasetHandlerError
 from deeplake.util.access_method import parse_access_method, get_local_storage_path
 
@@ -74,5 +75,42 @@ def test_access_method(s3_ds_generator):
 
     with pytest.raises(ValueError):
         s3_ds_generator(access_method="local", overwrite=True)
+
+    ds.delete()
+
+
+def test_access_method_with_creds(
+    hub_cloud_ds_generator, hub_cloud_dev_managed_creds_key
+):
+    with hub_cloud_ds_generator() as ds:
+        ds.create_tensor("abc")
+        ds.create_tensor("images", htype="link[image]", sample_compression="jpg")
+
+        ds.add_creds_key(hub_cloud_dev_managed_creds_key, managed=True)
+
+        ds.abc.extend([1, 2, 3, 4, 5, 6, 7, 8, 9, 10])
+        ds.images.extend(
+            [
+                deeplake.link(
+                    "https://picsum.photos/20/30",
+                    creds_key=hub_cloud_dev_managed_creds_key,
+                )
+                for _ in range(10)
+            ]
+        )
+
+    ds = hub_cloud_ds_generator(access_method="download:2")
+
+    assert ds.images.htype == "link[image]"
+    assert ds.images.shape == (10, 30, 20, 3)
+    np.testing.assert_array_equal(ds.abc.numpy(), np.arange(1, 11).reshape(-1, 1))
+
+    ds.delete()
+
+    ds = hub_cloud_ds_generator(access_method="download:2", unlink=True)
+
+    assert ds.images.htype == "image"
+    assert ds.images.shape == (10, 30, 20, 3)
+    np.testing.assert_array_equal(ds.abc.numpy(), np.arange(1, 11).reshape(-1, 1))
 
     ds.delete()
