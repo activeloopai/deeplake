@@ -3864,6 +3864,7 @@ class Dataset:
                             sample_out[tensor_name].append(
                                 src.chunk_engine.get_deeplake_read_sample(i)
                             )
+                            sample_out.check_flush()
                 else:
                     sample_out[tensor_name].extend(src)
 
