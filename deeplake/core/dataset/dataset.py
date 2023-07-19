@@ -3860,12 +3860,10 @@ class Dataset:
                             )
                         else:
                             sample_idxs = [sample_in.index.values[0].value]
-                        sample_out[tensor_name].extend(
-                            [
+                        for i in sample_idxs:
+                            sample_out[tensor_name].append(
                                 src.chunk_engine.get_deeplake_read_sample(i)
-                                for i in sample_idxs
-                            ]
-                        )
+                            )
                 else:
                     sample_out[tensor_name].extend(src)
 
