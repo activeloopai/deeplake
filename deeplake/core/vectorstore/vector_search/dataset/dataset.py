@@ -479,7 +479,7 @@ def check_arguments_compatibility(
         )
     if exec_option not in ("python", "compute_engine", "tensor_db"):
         raise ValueError(
-            "Invalid `exec_option` it should be either `python`, `compute_engine`."
+            "Invalid `exec_option` it should be either `python`, `compute_engine` or `tensor_db`."
         )
 
 
