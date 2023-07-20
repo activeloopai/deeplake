@@ -33,11 +33,19 @@ from deeplake.core.dataset.deeplake_query_tensor import DeepLakeQueryTensor
 
 
 class DeepLakeQueryDataset(Dataset):
-    def __init__(self, deeplake_ds, indra_ds, group_index=None, enabled_tensors=None):
+    def __init__(
+        self,
+        deeplake_ds,
+        indra_ds,
+        group_index=None,
+        enabled_tensors=None,
+        index: Optional[Index] = None,
+    ):
         self.deeplake_ds = deeplake_ds
         self.indra_ds = indra_ds
         self.group_index = group_index or deeplake_ds.group_index
         self.enabled_tensors = enabled_tensors or deeplake_ds.enabled_tensors
+        self._index = index or self.deeplake_ds.index
 
     @property
     def meta(self):
@@ -63,7 +71,9 @@ class DeepLakeQueryDataset(Dataset):
                 except:
                     pass
                 indra_tensor = tensor
-                return DeepLakeQueryTensor(deeplake_tensor, indra_tensor)
+                return DeepLakeQueryTensor(
+                    deeplake_tensor, indra_tensor, index=self.index
+                )
 
     def pytorch(
         self,
@@ -113,6 +123,7 @@ class DeepLakeQueryDataset(Dataset):
                 ret = DeepLakeQueryDataset(
                     deeplake_ds=self.deeplake_ds,
                     indra_ds=self.indra_ds,
+                    index=self.index,
                     group_index=posixpath.join(self.group_index, item),
                 )
             elif "/" in item:
@@ -144,6 +155,7 @@ class DeepLakeQueryDataset(Dataset):
                     deeplake_ds=self.deeplake_ds,
                     indra_ds=self.indra_ds,
                     enabled_tensors=enabled_tensors,
+                    index=self.index,
                 )
             elif isinstance(item, tuple) and len(item) and isinstance(item[0], str):
                 ret = self
@@ -160,6 +172,7 @@ class DeepLakeQueryDataset(Dataset):
                 ret = DeepLakeQueryDataset(
                     deeplake_ds=self.deeplake_ds,
                     indra_ds=self.indra_ds[item],
+                    index=self.index[item],
                 )
         else:
             raise InvalidKeyTypeError(item)
@@ -258,7 +271,7 @@ class DeepLakeQueryDataset(Dataset):
 
     @property
     def index(self):
-        return self.deeplake_ds.index
+        return self._index
 
     def _tensors(
         self, include_hidden: bool = True, include_disabled=True
@@ -274,10 +287,12 @@ class DeepLakeQueryDataset(Dataset):
         for t in indra_tensors:
             if t.name in original_keys:
                 original_tensors[t.name] = DeepLakeQueryTensor(
-                    original_tensors[t.name], t
+                    original_tensors[t.name], t, index=self.index
                 )
             else:
-                original_tensors[t.name] = DeepLakeQueryTensor(None, t)
+                original_tensors[t.name] = DeepLakeQueryTensor(
+                    None, t, index=self.index
+                )
         return original_tensors
 
     def __str__(self):
@@ -305,7 +320,8 @@ class DeepLakeQueryDataset(Dataset):
         )
 
     def __del__(self):
-        self.indra_ds = None
+        """Leaving the implementation empty as at the moement indra dataset deletaion is taken care of in other place"""
+        pass
 
     def random_split(self, lengths: Sequence[Union[int, float]]):
         if math.isclose(sum(lengths), 1) and sum(lengths) <= 1:
