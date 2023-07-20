@@ -24,7 +24,7 @@ class Embedding:
         return [0 for i in range(embedding_dim)]  # pragma: no cover
 
 
-def test_create(caplog, hub_cloud_dev_token):
+def test_create(caplog, hub_cloud_ds_generator, hub_cloud_dev_token):
     # dataset creation
     dataset = dataset_utils.create_or_load_dataset(
         tensor_params=DEFAULT_VECTORSTORE_TENSORS,
@@ -53,9 +53,12 @@ def test_create(caplog, hub_cloud_dev_token):
         "max_retries": None,
     }
 
+    dataset = hub_cloud_ds_generator()
+    dataset_path = dataset.path
+
     dataset = dataset_utils.create_or_load_dataset(
         tensor_params=DEFAULT_VECTORSTORE_TENSORS,
-        dataset_path="hub://testingacc2/vectorstore_test_create_dbengine",
+        dataset_path=dataset_path,
         token=hub_cloud_dev_token,
         creds={},
         logger=logger,
@@ -83,6 +86,7 @@ def test_create(caplog, hub_cloud_dev_token):
         "s3://activeloopai-db-engine"
         in dataset.storage.__dict__["next_storage"].__dict__["root"]
     )
+    deeplake.delete(dataset_path)
 
     # Test whether not specifiying runtime with exec_option tensor_db raises error
     with pytest.raises(ValueError):
