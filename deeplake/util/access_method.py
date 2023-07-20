@@ -88,7 +88,7 @@ def connect_dataset_entry_if_needed(
 ):
     if managed_creds_used:
         print(
-            "Managed credentials are used in the dataset. Connecting local dataset to backend..."
+            "Managed credentials are used in the dataset. Connecting local dataset to Activeloop server..."
         )
         connect_path = path + DOWNLOAD_MANAGED_PATH_SUFFIX
         if download:
