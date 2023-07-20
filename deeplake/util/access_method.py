@@ -113,10 +113,9 @@ def unlink_dataset_if_needed(load_path, token, unlink, num_workers, scheduler):
             filter(lambda x: ds[x].htype.startswith("link"), ds.tensors)
         )
 
-        print("Downloading data from links...")
-
         if linked_tensors:
             local_path = get_base_storage(ds.storage).root
+            print("Downloading data from links...")
             links_ds = ds._copy(
                 local_path + "_tmp",
                 tensors=linked_tensors,
