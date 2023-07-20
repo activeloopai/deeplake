@@ -16,6 +16,7 @@ class DeepLakeQueryTensor(tensor.Tensor):
         self,
         deeplake_tensor,
         indra_tensor,
+        index: Optional[Index] = None,
         is_iteration: bool = False,
     ):
         self.deeplake_tensor = deeplake_tensor
@@ -29,6 +30,8 @@ class DeepLakeQueryTensor(tensor.Tensor):
         )
 
         self.first_dim = None
+
+        self._index = index or Index(self.indra_tensor.index)
 
     def __getattr__(self, key):
         try:
@@ -57,6 +60,7 @@ class DeepLakeQueryTensor(tensor.Tensor):
         return DeepLakeQueryTensor(
             self.deeplake_tensor,
             indra_tensor,
+            index=self.index[item],
             is_iteration=is_iteration,
         )
 
@@ -74,7 +78,7 @@ class DeepLakeQueryTensor(tensor.Tensor):
 
     def text(self, fetch_chunks: bool = False):
         """Return text data. Only applicable for tensors with 'text' base htype."""
-        if len(self.indra_tensor) == 1:
+        if self.ndim == 1:
             return self.indra_tensor.bytes().decode()
         return list(
             self.indra_tensor[i].bytes().decode() for i in range(len(self.indra_tensor))
@@ -82,7 +86,7 @@ class DeepLakeQueryTensor(tensor.Tensor):
 
     def dict(self, fetch_chunks: bool = False):
         """Return json data. Only applicable for tensors with 'json' base htype."""
-        if len(self.indra_tensor) == 1:
+        if self.ndim == 1:
             return json.loads(self.indra_tensor.bytes().decode())
         return list(
             json.loads(self.indra_tensor[i].bytes().decode())
@@ -127,10 +131,19 @@ class DeepLakeQueryTensor(tensor.Tensor):
 
     @property
     def shape(self):
-        return self.indra_tensor.shape
+        if (
+            not self.indra_tensor.is_sequence
+            and len(self.indra_tensor) == 1
+            and self.index.values[0].subscriptable()
+        ):
+            return (len(self.indra_tensor), *self.indra_tensor.shape)
+        else:
+            return self.indra_tensor.shape
 
     @property
     def index(self):
+        if self._index is not None:
+            return self._index
         return Index(self.indra_tensor.indexes)
 
     @property
@@ -139,7 +152,7 @@ class DeepLakeQueryTensor(tensor.Tensor):
 
     @property
     def ndim(self):
-        return len(self.max_shape)
+        return len(self.shape)
 
     @property
     def meta(self):

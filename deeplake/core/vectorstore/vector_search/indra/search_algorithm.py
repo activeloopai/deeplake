@@ -4,6 +4,7 @@ from typing import Union, Dict, List
 from deeplake.core.vectorstore.vector_search.indra import query
 from deeplake.core.vectorstore.vector_search import utils
 from deeplake.core.dataset import Dataset as DeepLakeDataset
+from deeplake.enterprise.util import raise_indra_installation_error
 
 
 def search(
@@ -38,7 +39,12 @@ def search(
     Returns:
         Union[Dict, DeepLakeDataset]: Dictionary where keys are tensor names and values are the results of the search, or a Deep Lake dataset view.
     """
-    from indra import api  # type: ignore
+    try:
+        from indra import api  # type: ignore
+        INDRA_INSTALLED = True
+    except ImportError:
+        INDRA_INSTALLED = False
+        pass
 
     if tql_string:
         tql_query = tql_string
@@ -58,6 +64,10 @@ def search(
         )
         return_data = data
     else:
+        if not INDRA_INSTALLED:
+            raise raise_indra_installation_error(
+                indra_import_error=False
+            )  # pragma: no cover
         return_data = {}
 
         view = deeplake_dataset.query(
