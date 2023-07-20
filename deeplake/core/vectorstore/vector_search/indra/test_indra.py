@@ -87,6 +87,8 @@ def test_search_resulting_shapes():
 
     view2 = vector_store.dataset.query(TQL_QUERY)
     view2_value = view2.text.data(aslist=True)["value"]
+    view2.text.summary()
+    assert len(view2.text) == len(view2) == 1
     view2_value_0 = view2[0].text.data(aslist=True)["value"]
 
     assert view_value == view1_value == view2_value

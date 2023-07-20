@@ -320,6 +320,7 @@ class DeepLakeQueryDataset(Dataset):
         )
 
     def __del__(self):
+        """Leaving the implementation empty as at the moement indra dataset deletaion is taken care of in other place"""
         pass
 
     def random_split(self, lengths: Sequence[Union[int, float]]):
