@@ -38,6 +38,7 @@ class VectorStore:
         embedding_function: Optional[Callable] = None,
         read_only: Optional[bool] = False,
         ingestion_batch_size: int = 1000,
+        vdb_index_creation_threshold : int = 1000000,
         num_workers: int = 0,
         exec_option: str = "auto",
         token: Optional[str] = None,
@@ -83,6 +84,7 @@ class VectorStore:
             read_only (bool, optional):  Opens dataset in read-only mode if True. Defaults to False.
             num_workers (int): Number of workers to use for parallel ingestion.
             ingestion_batch_size (int): Batch size to use for parallel ingestion.
+            vdb_index_creation_threshold (int): Threshold for dataset size, after crossing the limit vector indexes are created for the embedding tensors.
             exec_option (str): Default method for search execution. It could be either ``"auto"``, ``"python"``, ``"compute_engine"`` or ``"tensor_db"``. Defaults to ``"auto"``. If None, it's set to "auto".
                 - ``auto``- Selects the best execution method based on the storage location of the Vector Store. It is the default option.
                 - ``python`` - Pure-python implementation that runs on the client and can be used for data stored anywhere. WARNING: using this option with big datasets is discouraged because it can lead to memory issues.
@@ -117,6 +119,7 @@ class VectorStore:
                 "overwrite": overwrite,
                 "read_only": read_only,
                 "ingestion_batch_size": ingestion_batch_size,
+                "vdb_index_creation_threshold" : vdb_index_creation_threshold,
                 "exec_option": exec_option,
                 "token": token,
                 "verbose": verbose,
@@ -126,6 +129,7 @@ class VectorStore:
         )
 
         self.ingestion_batch_size = ingestion_batch_size
+        self.vdb_index_creation_threshold = vdb_index_creation_threshold
         self.num_workers = num_workers
 
         if creds is None:
@@ -150,6 +154,20 @@ class VectorStore:
         )
         self.verbose = verbose
         self.tensor_params = tensor_params
+        self.validate_and_create_vector_index()
+
+    def validate_and_create_vector_index(self):
+        if len(self.dataset) < self.vdb_index_creation_threshold:
+            return
+
+        # Check all tensors from the dataset.
+        tensors = self.dataset.tensors
+        for _, tensor in tensors.items():
+            is_embedding = tensor.htype == "embedding"
+            vdb_index_absent = len(tensor.meta.get_vdb_index_ids()) == 0
+            if is_embedding and vdb_index_absent:
+                print("creating vector index hnsw_1 for tensor", tensor.htype)
+                tensor.create_vdb_index("hnsw_1")
 
     def add(
         self,
@@ -160,6 +178,7 @@ class VectorStore:
         return_ids: bool = False,
         num_workers: Optional[int] = None,
         ingestion_batch_size: Optional[int] = None,
+        vdb_index_creation_threshold: Optional[int] = None,
         **tensors,
     ) -> Optional[List[str]]:
         """Adding elements to deeplake vector store.
@@ -231,6 +250,7 @@ class VectorStore:
             return_ids (bool): Whether to return added ids as an ouput of the method. Defaults to False.
             num_workers (int): Number of workers to use for parallel ingestion. Overrides the ``num_workers`` specified when initializing the Vector Store.
             ingestion_batch_size (int): Batch size to use for parallel ingestion. Defaults to 1000. Overrides the ``ingestion_batch_size`` specified when initializing the Vector Store.
+            vdb_index_creation_threshold (int): Threshhold for creating the vector index. Whenever Dataset size will cross the threshold index will be automatically created. Default is 1000000. Overrides the ``vdb_index_creation_threshold`` specified when initializing the Vector Store.
             **tensors: Keyword arguments where the key is the tensor name, and the value is a list of samples that should be uploaded to that tensor.
 
         Returns:
@@ -246,6 +266,7 @@ class VectorStore:
                 "return_ids": return_ids,
                 "embedding_function": True if embedding_function is not None else False,
                 "embedding_data": True if embedding_data is not None else False,
+                "vdb_index_creation_threshold": vdb_index_creation_threshold,
             },
         )
 
@@ -290,8 +311,11 @@ class VectorStore:
             total_samples_processed=total_samples_processed,
             logger=logger,
         )
+        if vdb_index_creation_threshold is not None:
+            self.vdb_index_creation_threshold = vdb_index_creation_threshold
 
-        self.dataset.commit(allow_empty=True)
+        self.validate_and_create_vector_index()
+
         if self.verbose:
             self.dataset.summary()
 
@@ -529,7 +553,7 @@ class VectorStore:
         if dataset_deleted:
             return True
 
-        dataset_utils.delete_and_commit(self.dataset, row_ids)
+        dataset_utils.delete_and_without_commit(self.dataset, row_ids)
         return True
 
     def update_embedding(
@@ -632,7 +656,6 @@ class VectorStore:
         )
 
         self.dataset[row_ids].update(embedding_tensor_data)
-        self.dataset.commit(allow_empty=True)
 
     @staticmethod
     def delete_by_path(
@@ -657,6 +680,14 @@ class VectorStore:
         )
         deeplake.delete(path, large_ok=True, token=token, force=True)
 
+    def commit(self, allow_empty: bool = True) -> None:
+        """Commits the Vector Store.
+
+        Args:
+            allow_empty (bool, optional): Whether to allow empty commits. Defaults to True.
+        """
+        self.dataset.commit(allow_empty=allow_empty)
+        
     def tensors(self):
         """Returns the list of tensors present in the dataset"""
         return self.dataset.tensors

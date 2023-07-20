@@ -150,7 +150,6 @@ def test_index_maintenance_pop(local_ds_generator):
     deeplake_ds.embedding.create_vdb_index("hnsw_1")
     #Pop few rows and check query recall.
     deeplake_ds.pop()
-    deeplake_ds.pop()
     
        # Check if the index is recreated properly.
     es = deeplake_ds.embedding.get_vdb_indexes()

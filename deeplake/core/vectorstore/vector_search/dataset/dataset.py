@@ -221,6 +221,11 @@ def delete_and_commit(dataset, ids):
             dataset.pop(id)
         dataset.commit(f"deleted {len(ids)} samples", allow_empty=True)
 
+def delete_and_without_commit(dataset, ids):
+    with dataset:
+        for id in sorted(ids)[::-1]:
+            dataset.pop(id)
+
 
 def delete_all_samples_if_specified(dataset, delete_all):
     if delete_all:
