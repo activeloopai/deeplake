@@ -21,7 +21,7 @@ def search(
     distance_metric: str,
     exec_option: str,
     deeplake_dataset: DeepLakeDataset,
-    return_tensors: List[str],
+    return_tensors: Optional[List[str]] = None,
     query: Optional[str] = None,
     logger: Optional[logging.Logger] = None,
     filter: Optional[Union[Dict, Callable]] = None,
@@ -44,7 +44,7 @@ def search(
             ``compute_engine`` - runs on the client and can be used for any data stored in or connected to Deep Lake.
             ``tensor_db`` - runs on the Deep Lake Managed Database and can be used for any data stored in the Deep Lake Managed.
         deeplake_dataset (DeepLakeDataset): deeplake dataset object.
-        return_tensors (List[str]): List of tensors to return data for.
+        return_tensors (Optional[List[str]], optional): List of tensors to return data for.
         embedding_tensor (str): name of the tensor in the dataset with `htype="embedding"`. Defaults to "embedding".
         return_view (Bool): Return a Deep Lake dataset view that satisfied the search parameters, instead of a dictinary with data. Defaults to False.
     """
