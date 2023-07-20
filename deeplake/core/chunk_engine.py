@@ -236,6 +236,7 @@ class ChunkEngine:
 
         self._numpy_extend_optimization_enabled = numpy_extend_optimization_enabled
 
+        self.cache_enabled = True
         self.cached_data: Optional[np.ndarray] = None
         self.cache_range: range = range(0)
 
@@ -255,14 +256,16 @@ class ChunkEngine:
 
     @property
     def is_data_cachable(self):
-        tensor_meta = self.tensor_meta
-        return (
-            self.chunk_class == UncompressedChunk
-            and tensor_meta.htype not in ["text", "json", "list", "polygon"]
-            and tensor_meta.max_shape
-            and (tensor_meta.max_shape == tensor_meta.min_shape)
-            and (np.prod(tensor_meta.max_shape) < 20)
-        )
+        if self.cache_enabled:
+            tensor_meta = self.tensor_meta
+            return (
+                self.chunk_class == UncompressedChunk
+                and tensor_meta.htype not in ["text", "json", "list", "polygon"]
+                and tensor_meta.max_shape
+                and (tensor_meta.max_shape == tensor_meta.min_shape)
+                and (np.prod(tensor_meta.max_shape) < 20)
+            )
+        return False
 
     @property
     def commit_id(self):

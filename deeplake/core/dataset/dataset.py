@@ -383,6 +383,7 @@ class Dataset:
             "_locking_enabled",
             "_lock_timeout",
             "enabled_tensors",
+            "is_iteration",
         ]
         state = {k: getattr(self, k) for k in keys}
         state["link_creds"] = self.link_creds
@@ -396,7 +397,6 @@ class Dataset:
         """
         state["is_first_load"] = True
         state["_info"] = None
-        state["is_iteration"] = False
         state["_read_only_error"] = False
         state["_initial_autoflush"] = []
         state["_ds_diff"] = None
