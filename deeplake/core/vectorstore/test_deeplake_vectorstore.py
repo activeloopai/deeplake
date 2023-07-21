@@ -1068,6 +1068,7 @@ def test_update_embedding(
     vector_store.delete_by_path(path)
 
 
+@requires_libdeeplake
 def test_vdb_index_creation(local_path, capsys):
     number_of_data = 1000
     texts, embeddings, ids, metadatas, _ = utils.create_data(
@@ -1119,7 +1120,7 @@ def test_vdb_index_creation(local_path, capsys):
     assert es[0]['type'] == 'hnsw'
 
 
-
+@requires_libdeeplake
 def test_vdb_index_creation_threshold(local_path, capsys):
     number_of_data = 1000
     texts, embeddings, ids, metadatas, _ = utils.create_data(
