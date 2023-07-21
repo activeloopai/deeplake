@@ -21,7 +21,7 @@ def is_path_connectable(path: str, allow_local: bool) -> bool:
 
 def connect_dataset_entry(
     src_path: str,
-    creds_key: str,
+    creds_key: Optional[str],
     dest_path: Optional[str] = None,
     org_id: Optional[str] = None,
     ds_name: Optional[str] = None,

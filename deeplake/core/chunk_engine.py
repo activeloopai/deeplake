@@ -2279,7 +2279,7 @@ class ChunkEngine:
         return
 
     @property
-    def sequence_encoder(self) -> SequenceEncoder:
+    def sequence_encoder(self) -> Optional[SequenceEncoder]:
         """Gets the shape encoder from cache, if one is not found it creates a blank encoder.
 
         Raises:
@@ -2676,7 +2676,7 @@ class ChunkEngine:
         convert_bad_to_list: bool = True,
     ):
         if len(index) > 1:
-            raise IndexError(f"`.shapes` only accepts indexing on the primary axis.")
+            raise IndexError("`.shapes` only accepts indexing on the primary axis.")
 
         index_0 = index.values[0]
         num_samples, sample_ndim = self._get_total_samples_and_sample_ndim(index_0)
