@@ -512,7 +512,7 @@ class VectorStore:
                 filter=filter,
                 query=query,
                 select_all=delete_all,
-                exec_option=exec_option,
+                exec_option=exec_option or self.exec_option,
             )
 
         (
@@ -534,7 +534,7 @@ class VectorStore:
         ids: Optional[List[str]] = None,
         filter: Optional[Union[Dict, Callable]] = None,
         query: Optional[str] = None,
-        exec_option: Optional[str] = "python",
+        exec_option: Optional[str] = None,
         embedding_function: Optional[Union[Callable, List[Callable]]] = None,
         embedding_source_tensor: Union[str, List[str]] = "text",
         embedding_tensor: Optional[Union[str, List[str]]] = None,
@@ -616,7 +616,7 @@ class VectorStore:
                 ids=ids,
                 filter=filter,
                 query=query,
-                exec_option=exec_option,
+                exec_option=exec_option or self.exec_option,
             )
 
         embedding_tensor_data = utils.convert_embedding_source_tensor_to_embeddings(
