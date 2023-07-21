@@ -405,45 +405,49 @@ def extend_or_ingest_dataset(
     ]
     extend_threshold = min(threshold_by_htype + [VECTORSTORE_EXTEND_MAX_SIZE])
 
-    if len(processed_tensors[first_item]) <= extend_threshold:
-        if embedding_function:
-            for func, data, tensor in zip(
-                embedding_function, embedding_data, embedding_tensor
-            ):
-                embedded_data = func(data)
-                try:
-                    embedded_data = np.array(embedded_data, dtype=np.float32)
-                except ValueError:
-                    raise IncorrectEmbeddingShapeError()
+    # TODO run_data_ingestion uses checkpointing through commits()
+    #  As in vector_store APIs we make explicit commit() calls therefore
+    #  the implicit calls inside run_data_ingestion is an anomaly.
+    #  Revisit run_data_ingestion algo and implement it.
+    # if len(processed_tensors[first_item]) <= extend_threshold:
+    if embedding_function:
+        for func, data, tensor in zip(
+            embedding_function, embedding_data, embedding_tensor
+        ):
+            embedded_data = func(data)
+            try:
+                embedded_data = np.array(embedded_data, dtype=np.float32)
+            except ValueError:
+                raise IncorrectEmbeddingShapeError()
 
-                if len(embedded_data) == 0:
-                    raise ValueError("embedding function returned empty list")
+            if len(embedded_data) == 0:
+                raise ValueError("embedding function returned empty list")
 
-                processed_tensors[tensor] = embedded_data
+            processed_tensors[tensor] = embedded_data
 
-        dataset.extend(processed_tensors)
-    else:
-        elements = create_elements(processed_tensors)
-
-        num_workers_auto = ceil(len(elements) / ingestion_batch_size)
-        if num_workers_auto < num_workers:
-            logger.warning(
-                f"Number of workers is {num_workers}, but {len(elements)} rows of data are being added and the ingestion_batch_size is {ingestion_batch_size}. "
-                f"Setting the number of workers to {num_workers_auto} instead, in order reduce overhead from excessive workers that will not accelerate ingestion."
-                f"If you want to parallelizing using more workers, please reduce ``ingestion_batch_size``."
-            )
-            num_workers = min(num_workers_auto, num_workers)
-
-        ingest_data.run_data_ingestion(
-            elements=elements,
-            dataset=dataset,
-            embedding_function=embedding_function,
-            embedding_tensor=embedding_tensor,
-            ingestion_batch_size=ingestion_batch_size,
-            num_workers=num_workers,
-            total_samples_processed=total_samples_processed,
-            logger=logger,
-        )
+    dataset.extend(processed_tensors)
+    # else:
+    #     elements = create_elements(processed_tensors)
+    #
+    #     num_workers_auto = ceil(len(elements) / ingestion_batch_size)
+    #     if num_workers_auto < num_workers:
+    #         logger.warning(
+    #             f"Number of workers is {num_workers}, but {len(elements)} rows of data are being added and the ingestion_batch_size is {ingestion_batch_size}. "
+    #             f"Setting the number of workers to {num_workers_auto} instead, in order reduce overhead from excessive workers that will not accelerate ingestion."
+    #             f"If you want to parallelizing using more workers, please reduce ``ingestion_batch_size``."
+    #         )
+    #         num_workers = min(num_workers_auto, num_workers)
+    #
+    #     ingest_data.run_data_ingestion(
+    #         elements=elements,
+    #         dataset=dataset,
+    #         embedding_function=embedding_function,
+    #         embedding_tensor=embedding_tensor,
+    #         ingestion_batch_size=ingestion_batch_size,
+    #         num_workers=num_workers,
+    #         total_samples_processed=total_samples_processed,
+    #         logger=logger,
+    #     )
 
 
 def convert_id_to_row_id(ids, dataset, search_fn, query, exec_option, filter):

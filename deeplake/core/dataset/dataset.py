@@ -2938,6 +2938,8 @@ class Dataset:
                     for k in tensors_appended:
                         try:
                             self[k].pop()
+                            # Regenerate Index.
+                            self[k]._regenerate_vdb_indexes()
                         except Exception as e2:
                             raise Exception(
                                 "Error while attempting to rollback appends"
@@ -3119,9 +3121,10 @@ class Dataset:
 
                         saved[k].append(old_sample)
 
-                        # Regenerate Index
-                        self[k]._regenerate_vdb_indexes()
                     self[k] = v
+                    # Regenerate Index
+                    self[k]._regenerate_vdb_indexes()
+
             except Exception as e:
                 for k, v in saved.items():
                     # squeeze
