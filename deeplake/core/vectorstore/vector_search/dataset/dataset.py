@@ -220,6 +220,7 @@ def delete_and_commit(dataset, ids):
         for id in sorted(ids)[::-1]:
             dataset.pop(id)
         dataset.commit(f"deleted {len(ids)} samples", allow_empty=True)
+    return True
 
 def delete_and_without_commit(dataset, ids):
     with dataset:
@@ -483,7 +484,7 @@ def check_arguments_compatibility(
         )
     if exec_option not in ("python", "compute_engine", "tensor_db"):
         raise ValueError(
-            "Invalid `exec_option` it should be either `python`, `compute_engine`."
+            "Invalid `exec_option` it should be either `python`, `compute_engine` or `tensor_db`."
         )
 
 

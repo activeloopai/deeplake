@@ -293,11 +293,11 @@ class VectorStore:
             **tensors,
         )
 
-        processed_tensors, id = dataset_utils.preprocess_tensors(
+        processed_tensors, id_ = dataset_utils.preprocess_tensors(
             embedding_data, embedding_tensor, self.dataset, **tensors
         )
 
-        assert id is not None
+        assert id_ is not None
         utils.check_length_of_each_tensor(processed_tensors)
 
         dataset_utils.extend_or_ingest_dataset(
@@ -320,7 +320,7 @@ class VectorStore:
             self.dataset.summary()
 
         if return_ids:
-            return id
+            return id_
         return None
 
     def search(
@@ -414,11 +414,7 @@ class VectorStore:
             },
         )
 
-        if (
-            exec_option is None
-            and self.exec_option != "python"
-            and isinstance(filter, Callable)
-        ):
+        if exec_option is None and self.exec_option != "python" and callable(filter):
             logger.warning(
                 'Switching exec_option to "python" (runs on client) because filter is specified as a function. '
                 f'To continue using the original exec_option "{self.exec_option}", please specify the filter as a dictionary or use the "query" parameter to specify a TQL query.'
@@ -540,7 +536,7 @@ class VectorStore:
                 filter=filter,
                 query=query,
                 select_all=delete_all,
-                exec_option=exec_option,
+                exec_option=exec_option or self.exec_option,
             )
 
         (
@@ -562,7 +558,7 @@ class VectorStore:
         ids: Optional[List[str]] = None,
         filter: Optional[Union[Dict, Callable]] = None,
         query: Optional[str] = None,
-        exec_option: Optional[str] = "python",
+        exec_option: Optional[str] = None,
         embedding_function: Optional[Union[Callable, List[Callable]]] = None,
         embedding_source_tensor: Union[str, List[str]] = "text",
         embedding_tensor: Optional[Union[str, List[str]]] = None,
@@ -644,7 +640,7 @@ class VectorStore:
                 ids=ids,
                 filter=filter,
                 query=query,
-                exec_option=exec_option,
+                exec_option=exec_option or self.exec_option,
             )
 
         embedding_tensor_data = utils.convert_embedding_source_tensor_to_embeddings(

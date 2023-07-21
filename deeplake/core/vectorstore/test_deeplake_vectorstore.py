@@ -1194,7 +1194,7 @@ def test_ingestion(local_path, capsys):
             metadata=metadatas,
         )
 
-    with pytest.raises(Exception):
+    with pytest.raises(ValueError):
         # add data to the dataset:
         vector_store.add(
             embedding=embeddings,

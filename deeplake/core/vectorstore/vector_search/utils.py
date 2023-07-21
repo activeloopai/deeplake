@@ -324,7 +324,10 @@ def parse_add_arguments(
         embedding_tensor = [embedding_tensor]
 
     if embedding_function:
-        embedding_function = check_embedding_function_embedding_tensor_consistency(
+        (
+            embedding_function,
+            embedding_tensor,
+        ) = check_embedding_function_embedding_tensor_consistency(
             embedding_tensor,
             embedding_function,
             embedding_data,
@@ -338,14 +341,15 @@ def parse_add_arguments(
             check_tensor_name_consistency(tensors, dataset.tensors, None)
             return (None, None, None, tensors)
 
-        initial_embedding_function = (
-            check_embedding_function_embedding_tensor_consistency(
-                embedding_tensor,
-                initial_embedding_function,
-                embedding_data,
-                tensors,
-                dataset,
-            )
+        (
+            initial_embedding_function,
+            embedding_tensor,
+        ) = check_embedding_function_embedding_tensor_consistency(
+            embedding_tensor,
+            initial_embedding_function,
+            embedding_data,
+            tensors,
+            dataset,
         )
         return (initial_embedding_function, embedding_data, embedding_tensor, tensors)
 
@@ -391,7 +395,7 @@ def check_embedding_function_embedding_tensor_consistency(
     ), "embedding_function and embedding_tensor must be of the same length"
 
     check_tensor_name_consistency(tensors, dataset.tensors, embedding_tensor)
-    return embedding_function
+    return embedding_function, embedding_tensor
 
 
 def check_tensor_name_consistency(tensors, dataset_tensors, embedding_tensor):
