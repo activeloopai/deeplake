@@ -541,7 +541,7 @@ def video_paths():
     paths = {
         "mp4": ["samplemp4.mp4"],
         "mkv": ["samplemkv.mkv"],
-        "avi": ["sampleavi.avi"],
+        "avi": ["sampleavi.avi", "tinyavi.avi"],
     }
 
     parent = get_dummy_data_path("video")

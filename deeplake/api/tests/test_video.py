@@ -199,3 +199,14 @@ def test_linked_video_timestamps(local_ds):
         ds.videos[0, 5:10].timestamps == np.array(
             [0.04170833, 0.08341666, 0.125125, 0.16683333, 0.20854166]
         )
+
+
+def test_uncompressed_video_bug(local_path, video_paths):
+    with deeplake.empty(local_path, overwrite=True) as ds:
+        ds.create_tensor("video", htype="video", sample_compression=None)
+        ds.video.append(deeplake.read(video_paths["avi"][1]))
+
+    assert ds.video[0].numpy().shape == (3, 480, 852, 3)
+
+    with deeplake.load(local_path) as ds:
+        assert ds.video[0].numpy().shape == (3, 480, 852, 3)
