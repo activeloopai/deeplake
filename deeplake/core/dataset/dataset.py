@@ -383,6 +383,7 @@ class Dataset:
             "_locking_enabled",
             "_lock_timeout",
             "enabled_tensors",
+            "is_iteration",
         ]
         state = {k: getattr(self, k) for k in keys}
         state["link_creds"] = self.link_creds
@@ -396,7 +397,6 @@ class Dataset:
         """
         state["is_first_load"] = True
         state["_info"] = None
-        state["is_iteration"] = False
         state["_read_only_error"] = False
         state["_initial_autoflush"] = []
         state["_ds_diff"] = None
@@ -3840,6 +3840,11 @@ class Dataset:
             verbose=verbose,
         )
 
+        # dest_ds needs link creds of source dataset for copying linked tensors
+        dest_ds.link_creds = LinkCreds()
+        dest_ds.link_creds.__setstate__(self.link_creds.__getstate__())
+        save_link_creds(dest_ds.link_creds, dest_ds.storage)
+
         def _copy_tensor(sample_in, sample_out):
             for tensor_name in dest_ds.tensors:
                 src = sample_in[tensor_name]
@@ -3857,12 +3862,11 @@ class Dataset:
                             )
                         else:
                             sample_idxs = [sample_in.index.values[0].value]
-                        sample_out[tensor_name].extend(
-                            [
+                        for i in sample_idxs:
+                            sample_out[tensor_name].append(
                                 src.chunk_engine.get_deeplake_read_sample(i)
-                                for i in sample_idxs
-                            ]
-                        )
+                            )
+                            sample_out.check_flush()
                 else:
                     sample_out[tensor_name].extend(src)
 
@@ -3911,6 +3915,10 @@ class Dataset:
                 dest_ds.flush()
                 dest_ds = dest_ds[0]
                 self.index.values[0] = old_first_index
+
+            # Actual credentials should be removed from dest_ds after copy
+            dest_ds.link_creds = None
+            dest_ds._load_link_creds()
         return dest_ds
 
     def copy(
