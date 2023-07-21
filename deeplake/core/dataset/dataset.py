@@ -2919,7 +2919,7 @@ class Dataset:
                     tensors_appended.append(k)
 
                     # Regenerate Index.
-                    tensor.regenerate_vdb_indexes()
+                    tensor._regenerate_vdb_indexes()
                 except Exception as e:
                     if extend:
                         raise NotImplementedError(
@@ -3120,7 +3120,7 @@ class Dataset:
                         saved[k].append(old_sample)
 
                         # Regenerate Index
-                        self[k].regenerate_vdb_indexes()
+                        self[k]._regenerate_vdb_indexes()
                     self[k] = v
             except Exception as e:
                 for k, v in saved.items():
@@ -3129,6 +3129,8 @@ class Dataset:
                         v = v[0]
                     try:
                         self[k] = v
+                        # in case of error, regenerate index again to avoid index corruption
+                        self[k]._regenerate_vdb_indexes()
                     except Exception as e2:
                         raise Exception(
                             f"Error while attempting to rollback updates"
@@ -4366,7 +4368,7 @@ class Dataset:
             if tensor.num_samples > index:
                 tensor.pop(index)
                 # Regenerate vdb indexes.
-                tensor.regenerate_vdb_indexes()
+                tensor._regenerate_vdb_indexes()
 
         self.storage.autoflush = self._initial_autoflush.pop()
 

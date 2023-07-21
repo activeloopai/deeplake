@@ -1068,6 +1068,109 @@ def test_update_embedding(
     vector_store.delete_by_path(path)
 
 
+def test_vdb_index_creation(local_path, capsys):
+    number_of_data = 1000
+    texts, embeddings, ids, metadatas, _ = utils.create_data(
+        number_of_data=number_of_data, embedding_dim=EMBEDDING_DIM
+    )
+
+    # initialize vector store object with vdb index threshold as 200.
+    vector_store = DeepLakeVectorStore(
+        path=local_path,
+        overwrite=True,
+        verbose=True,
+        vdb_index_creation_threshold=200,
+    )
+
+    vector_store.add(embedding=embeddings, text=texts, id=ids, metadata=metadatas)
+    captured = capsys.readouterr()
+
+    output = (
+        f"Dataset(path='{local_path}', tensors=['embedding', 'id', 'metadata', 'text'])\n\n"
+        "  tensor      htype       shape      dtype  compression\n"
+        "  -------    -------     -------    -------  ------- \n"
+        " embedding  embedding  (1000, 100)  float32   None   \n"
+        "    id        text      (1000, 1)     str     None   \n"
+        " metadata     json      (1000, 1)     str     None   \n"
+        "   text       text      (1000, 1)     str     None   \n"
+    )
+    assert output in captured.out
+
+    assert len(vector_store) == number_of_data
+    assert list(vector_store.dataset.tensors) == [
+        "embedding",
+        "id",
+        "metadata",
+        "text",
+    ]
+    assert list(vector_store.tensors()) == [
+        "embedding",
+        "id",
+        "metadata",
+        "text",
+    ]
+
+    # Check if the index is recreated properly.
+    ds = vector_store.dataset
+    es = ds.embedding.get_vdb_indexes()
+    assert len(es) == 1
+    assert es[0]['id'] == 'hnsw_1'
+    assert es[0]['distance'] == 'l2_norm'
+    assert es[0]['type'] == 'hnsw'
+
+
+
+def test_vdb_index_creation_threshold(local_path, capsys):
+    number_of_data = 1000
+    texts, embeddings, ids, metadatas, _ = utils.create_data(
+        number_of_data=number_of_data, embedding_dim=EMBEDDING_DIM
+    )
+
+    # initialize vector store object
+    # As the default threshold is 1 million. So with number_of_data as 100
+    # vdb_indexes should not be created.
+    vector_store = DeepLakeVectorStore(
+        path=local_path,
+        overwrite=True,
+        verbose=True,
+    )
+
+    vector_store.add(embedding=embeddings, text=texts, id=ids, metadata=metadatas)
+    captured = capsys.readouterr()
+
+    output = (
+        f"Dataset(path='{local_path}', tensors=['embedding', 'id', 'metadata', 'text'])\n\n"
+        "  tensor      htype       shape      dtype  compression\n"
+        "  -------    -------     -------    -------  ------- \n"
+        " embedding  embedding  (1000, 100)  float32   None   \n"
+        "    id        text      (1000, 1)     str     None   \n"
+        " metadata     json      (1000, 1)     str     None   \n"
+        "   text       text      (1000, 1)     str     None   \n"
+    )
+    assert output in captured.out
+
+    assert len(vector_store) == number_of_data
+    assert list(vector_store.dataset.tensors) == [
+        "embedding",
+        "id",
+        "metadata",
+        "text",
+    ]
+    assert list(vector_store.tensors()) == [
+        "embedding",
+        "id",
+        "metadata",
+        "text",
+    ]
+
+    # Check if the index is recreated properly.
+    ds = vector_store.dataset
+    es = ds.embedding.get_vdb_indexes()
+    assert len(es) == 0
+
+
+
+
 def test_ingestion(local_path, capsys):
     # create data
     number_of_data = 1000

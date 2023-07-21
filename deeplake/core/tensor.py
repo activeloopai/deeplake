@@ -1417,7 +1417,7 @@ class Tensor:
         self.invalidate_libdeeplake_dataset()
         self.storage.flush()
 
-    def regenerate_vdb_indexes(self):
+    def _regenerate_vdb_indexes(self):
         is_embedding = self.htype == "embedding"
         has_vdb_indexes = hasattr(self.meta, "vdb_indexes")
         vdb_index_ids_present = len(self.meta.get_vdb_index_ids()) > 0
