@@ -698,23 +698,22 @@ def assert_updated_vector_store(
             )
 
 
-
 @requires_libdeeplake
 @pytest.mark.parametrize(
-    "ds_generator, vector_store_hash_ids, vector_store_row_ids, vector_store_filters, vector_store_query",
+    "ds, vector_store_hash_ids, vector_store_row_ids, vector_store_filters, vector_store_query",
     [
-        ("local_ds_generator", "vector_store_hash_ids", None, None, None),
-        ("local_ds_generator", None, "vector_store_row_ids", None, None),
-        ("local_ds_generator", None, None, "vector_store_filter_udf", None),
-        ("local_ds_generator", None, None, "vector_store_filters", None),
-        ("hub_cloud_ds_generator", None, None, None, "vector_store_query"),
+        ("local_auth_ds", "vector_store_hash_ids", None, None, None),
+        ("local_auth_ds", None, "vector_store_row_ids", None, None),
+        ("local_auth_ds", None, None, "vector_store_filter_udf", None),
+        ("local_auth_ds", None, None, "vector_store_filters", None),
+        ("hub_cloud_ds", None, None, None, "vector_store_query"),
     ],
     indirect=True,
 )
 @pytest.mark.parametrize("init_embedding_function", [embedding_fn3, None])
 @requires_libdeeplake
 def test_update_embedding(
-    ds_generator,
+    ds,
     vector_store_hash_ids,
     vector_store_row_ids,
     vector_store_filters,
@@ -727,7 +726,7 @@ def test_update_embedding(
     embedding_tensor = "embedding"
     embedding_source_tensor = "text"
     # dataset has a single embedding_tensor:
-    ds = ds_generator()
+
     path = ds.path
     vector_store = DeepLakeVectorStore(
         path=path,
@@ -735,6 +734,7 @@ def test_update_embedding(
         verbose=False,
         embedding_function=init_embedding_function,
         vdb_index_creation_threshold=10,
+        token=ds.token,
     )
 
     # add data to the dataset:
@@ -826,8 +826,6 @@ def test_update_embedding(
             num_changed_samples=5,
         )
 
-    vector_store.delete_by_path(path)
-
     # dataset has a multiple embedding_tensor:
     tensors = [
         {
@@ -873,11 +871,12 @@ def test_update_embedding(
     multiple_embedding_tensor = ["embedding", "embedding_md"]
     multiple_embedding_source_tensor = ["embedding", "metadata"]
     vector_store = DeepLakeVectorStore(
-        path=path + "_multi",
+        path=path,
         overwrite=True,
         verbose=False,
         embedding_function=init_embedding_function,
         tensor_params=tensors,
+        token=ds.token,
     )
 
     vector_store.add(
@@ -1053,7 +1052,6 @@ def test_update_embedding(
         "compute_engine",
         num_changed_samples=5,
     )
-    vector_store.delete_by_path(path)
 
 
 @requires_libdeeplake
@@ -1074,26 +1072,30 @@ def test_vdb_index_creation(local_path, capsys):
     vector_store.add(embedding=embeddings, text=texts, id=ids, metadata=metadatas)
 
     assert len(vector_store) == number_of_data
-    assert set(vector_store.dataset.tensors) == set([
-        "embedding",
-        "id",
-        "metadata",
-        "text",
-    ])
-    assert set(vector_store.tensors()) == set([
-        "embedding",
-        "id",
-        "metadata",
-        "text",
-    ])
+    assert set(vector_store.dataset.tensors) == set(
+        [
+            "embedding",
+            "id",
+            "metadata",
+            "text",
+        ]
+    )
+    assert set(vector_store.tensors()) == set(
+        [
+            "embedding",
+            "id",
+            "metadata",
+            "text",
+        ]
+    )
 
     # Check if the index is recreated properly.
     ds = vector_store.dataset
     es = ds.embedding.get_vdb_indexes()
     assert len(es) == 1
-    assert es[0]['id'] == 'hnsw_1'
-    assert es[0]['distance'] == 'l2_norm'
-    assert es[0]['type'] == 'hnsw'
+    assert es[0]["id"] == "hnsw_1"
+    assert es[0]["distance"] == "l2_norm"
+    assert es[0]["type"] == "hnsw"
 
     vector_store.delete_by_path(local_path)
 
@@ -1117,27 +1119,29 @@ def test_vdb_index_creation_threshold(local_path, capsys):
     vector_store.add(embedding=embeddings, text=texts, id=ids, metadata=metadatas)
 
     assert len(vector_store) == number_of_data
-    assert set(vector_store.dataset.tensors) == set([
-        "embedding",
-        "id",
-        "metadata",
-        "text",
-    ])
-    assert set(vector_store.tensors()) == set([
-        "embedding",
-        "id",
-        "metadata",
-        "text",
-    ])
+    assert set(vector_store.dataset.tensors) == set(
+        [
+            "embedding",
+            "id",
+            "metadata",
+            "text",
+        ]
+    )
+    assert set(vector_store.tensors()) == set(
+        [
+            "embedding",
+            "id",
+            "metadata",
+            "text",
+        ]
+    )
 
     # Check if the index is recreated properly.
     ds = vector_store.dataset
     es = ds.embedding.get_vdb_indexes()
     assert len(es) == 0
-    
+
     vector_store.delete_by_path(local_path)
-
-
 
 
 def test_ingestion(local_path, capsys):
@@ -1176,18 +1180,22 @@ def test_ingestion(local_path, capsys):
     vector_store.add(embedding=embeddings, text=texts, id=ids, metadata=metadatas)
 
     assert len(vector_store) == number_of_data
-    assert set(vector_store.dataset.tensors) == set([
-        "embedding",
-        "id",
-        "metadata",
-        "text",
-    ])
-    assert set(vector_store.tensors()) == set([
-        "embedding",
-        "id",
-        "metadata",
-        "text",
-    ])
+    assert set(vector_store.dataset.tensors) == set(
+        [
+            "embedding",
+            "id",
+            "metadata",
+            "text",
+        ]
+    )
+    assert set(vector_store.tensors()) == set(
+        [
+            "embedding",
+            "id",
+            "metadata",
+            "text",
+        ]
+    )
 
     vector_store.add(
         embedding_function=embedding_fn3,
@@ -1197,12 +1205,14 @@ def test_ingestion(local_path, capsys):
         metadata=metadatas,
     )
     assert len(vector_store) == 2 * number_of_data
-    assert set(vector_store.tensors()) == set([
-        "embedding",
-        "id",
-        "metadata",
-        "text",
-    ])
+    assert set(vector_store.tensors()) == set(
+        [
+            "embedding",
+            "id",
+            "metadata",
+            "text",
+        ]
+    )
 
     vector_store.add(
         embedding_function=embedding_fn3,
@@ -1213,12 +1223,14 @@ def test_ingestion(local_path, capsys):
     )
 
     assert len(vector_store) == 27000
-    assert set(vector_store.tensors()) == set([
-        "embedding",
-        "id",
-        "metadata",
-        "text",
-    ])
+    assert set(vector_store.tensors()) == set(
+        [
+            "embedding",
+            "id",
+            "metadata",
+            "text",
+        ]
+    )
 
 
 @requires_libdeeplake
@@ -1239,7 +1251,7 @@ def test_ingestion_images(local_path):
         tensor_params=tensor_params,
         overwrite=True,
         verbose=True,
-        vdb_index_creation_threshold = 2,
+        vdb_index_creation_threshold=2,
     )
 
     ids = vector_store.add(image=images, embedding=embeddings, return_ids=True)
