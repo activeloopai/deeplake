@@ -171,4 +171,4 @@ def test_save_view_ignore_errors(local_ds):
     assert view.images.htype == "image"
     assert view.images.shape == (8, 30, 20, 3)
 
-    assert view.labels.data()["value"] == [0] * 8
+    assert np.testing.assert_array_equal(view.labels.numpy(), np.array([[0]] * 8))
