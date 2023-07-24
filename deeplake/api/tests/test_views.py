@@ -1,4 +1,4 @@
-from deeplake.util.exceptions import ReadOnlyModeError, EmptyTensorError
+from deeplake.util.exceptions import ReadOnlyModeError, EmptyTensorError, TransformError
 from deeplake.client.utils import get_user_name
 from deeplake.cli.auth import logout, login
 from click.testing import CliRunner
@@ -139,3 +139,34 @@ def test_view_from_different_commit(local_ds):
         view3 = ds.load_view("efg")
         assert ds.commit_id == cid2
         assert view3.is_optimized
+
+
+def test_save_view_ignore_errors(local_ds):
+    with local_ds as ds:
+        ds.create_tensor(
+            "images", htype="link[image]", sample_compression="jpg", verify=False
+        )
+        ds.create_tensor("labels", htype="class_label")
+
+        ds.images.extend(
+            [deeplake.link("https://picsum.photos/20/30") for _ in range(8)]
+        )
+        ds.images.extend([deeplake.link("https://abcd/20") for _ in range(2)])
+        ds.images.extend(
+            [deeplake.link("https://picsum.photos/20/30") for _ in range(10)]
+        )
+
+        ds.labels.extend([0 for _ in range(20)])
+
+    with pytest.raises(TransformError):
+        ds[:10].save_view(id="one", optimize=True)
+
+    ds[:10].save_view(id="two", optimize=True, ignore_errors=True)
+    view = ds.load_view("two")
+
+    assert len(view) == 8
+
+    assert ds.images.htype == "image"
+    assert ds.images.shape == (8, 30, 20, 3)
+
+    assert ds.labels.data()["value"] == [0] * 20
