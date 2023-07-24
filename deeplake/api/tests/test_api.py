@@ -1714,7 +1714,7 @@ def test_hub_remote_read_videos(storage, memory_ds):
     memory_ds.create_tensor("videos", htype="video", sample_compression="mp4")
 
     video = deeplake.read(
-        "http://commondatastorage.googleapis.com/gtv-videos-bucket/sample/ForBiggerJoyrides.mp4",
+        "https://commondatastorage.googleapis.com/gtv-videos-bucket/sample/ForBiggerJoyrides.mp4",
     )
     memory_ds.videos.append(video)
     assert memory_ds.videos[0].shape == (361, 720, 1280, 3)
