@@ -168,7 +168,7 @@ def test_save_view_ignore_errors(local_ds):
 
     assert len(view) == 8
 
-    assert ds.images.htype == "image"
-    assert ds.images.shape == (8, 30, 20, 3)
+    assert view.images.htype == "image"
+    assert view.images.shape == (8, 30, 20, 3)
 
-    assert ds.labels.data()["value"] == [0] * 20
+    assert view.labels.data()["value"] == [0] * 8
