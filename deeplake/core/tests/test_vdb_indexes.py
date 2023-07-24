@@ -189,6 +189,6 @@ def test_index_maintenance_delete(local_ds_generator):
     # delete dataset and check if the index exists.
     deeplake_ds.delete()
 
-    with pytest.raises(ValueError):
+    with pytest.raises(KeyError):
         deeplake_ds.embedding.delete_vdb_index("hnsw_1")
         

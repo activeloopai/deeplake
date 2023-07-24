@@ -712,6 +712,7 @@ def assert_updated_vector_store(
     indirect=True,
 )
 @pytest.mark.parametrize("init_embedding_function", [embedding_fn3, None])
+@requires_libdeeplake
 def test_update_embedding(
     ds_generator,
     vector_store_hash_ids,
@@ -1220,6 +1221,7 @@ def test_ingestion(local_path, capsys):
     ])
 
 
+@requires_libdeeplake
 def test_ingestion_images(local_path):
     tensor_params = [
         {"name": "image", "htype": "image", "sample_compression": "jpg"},
