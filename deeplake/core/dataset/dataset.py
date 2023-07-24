@@ -3871,8 +3871,10 @@ class Dataset:
             ):
                 return True
 
+        # If we have to unlink any tensor, we will use sample-by-sample append implementation (_copy_tensor_append)
+        # Otherwise, we will use extend-by-whole-slice implementation (_copy_tensor_extend)
         extend_only = not any(
-            _is_unlink_tensor(dest_ds[tensor_name]) for tensor_name in dest_ds.tensors
+            _is_unlink_tensor(self[tensor_name]) for tensor_name in dest_ds.tensors
         )
 
         def _copy_tensor_extend(sample_in, sample_out):
