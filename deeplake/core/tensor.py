@@ -1431,7 +1431,7 @@ class Tensor:
                     # Recreate it back.
                     self.create_vdb_index(id)
         except Exception as e:
-            print(f"An error occurred while regenerating VDB indexes: {e}")
+            raise Exception(f"An error occurred while regenerating VDB indexes: {e}")
         
     def load_vdb_index(self, id: str) -> Indexer:
         if self.meta.htype != "embedding":
