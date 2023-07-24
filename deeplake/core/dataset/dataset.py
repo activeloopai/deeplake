@@ -3227,6 +3227,7 @@ class Dataset:
         tensors: Optional[List[str]] = None,
         num_workers: Optional[int] = 0,
         scheduler: str = "threaded",
+        ignore_errors: bool = False,
         unlink=True,
     ):
         """Writes the indices of this view to a vds."""
@@ -3241,6 +3242,7 @@ class Dataset:
                         scheduler=scheduler,
                         unlink=unlink,
                         create_vds_index_tensor=True,
+                        ignore_errors=ignore_errors,
                     )
                 else:
                     vds.create_tensor(
@@ -3270,13 +3272,14 @@ class Dataset:
         tensors: Optional[List[str]],
         num_workers: int,
         scheduler: str,
+        ignore_errors: bool,
     ):
         """Saves this view under ".queries" sub directory of same storage."""
         info = self._get_view_info(id, message, copy)
         hash = info["id"]
         path = f".queries/{hash}"
         vds = self._sub_ds(path, empty=True, verbose=False)
-        self._write_vds(vds, info, copy, tensors, num_workers, scheduler)
+        self._write_vds(vds, info, copy, tensors, num_workers, scheduler, ignore_errors)
         self._append_to_queries_json(info)
         return vds
 
@@ -3289,6 +3292,7 @@ class Dataset:
         tensors: Optional[List[str]],
         num_workers: int,
         scheduler: str,
+        ignore_errors: bool,
         **ds_args,
     ):
         """Saves this view at a given dataset path"""
@@ -3299,7 +3303,7 @@ class Dataset:
         except Exception as e:
             raise DatasetViewSavingError from e
         info = self._get_view_info(id, message, copy)
-        self._write_vds(vds, info, copy, tensors, num_workers, scheduler)
+        self._write_vds(vds, info, copy, tensors, num_workers, scheduler, ignore_errors)
         return vds
 
     def save_view(
@@ -3312,6 +3316,7 @@ class Dataset:
         num_workers: int = 0,
         scheduler: str = "threaded",
         verbose: bool = True,
+        ignore_errors: bool = False,
         **ds_args,
     ) -> str:
         """Saves a dataset view as a virtual dataset (VDS)
@@ -3346,6 +3351,7 @@ class Dataset:
             num_workers (int): Number of workers to be used for optimization process. Applicable only if ``optimize=True``. Defaults to 0.
             scheduler (str): The scheduler to be used for optimization. Supported values include: 'serial', 'threaded', 'processed' and 'ray'. Only applicable if ``optimize=True``. Defaults to 'threaded'.
             verbose (bool): If ``True``, logs will be printed. Defaults to ``True``.
+            ignore_errors (bool): Skip samples that cause errors while saving views. Only applicable if ``optimize=True``. Defaults to ``False``.
             ds_args (dict): Additional args for creating VDS when path is specified. (See documentation for :func:`deeplake.dataset()`)
 
         Returns:
@@ -3385,6 +3391,7 @@ class Dataset:
             scheduler,
             verbose,
             False,
+            ignore_errors,
             **ds_args,
         )
 
@@ -3399,6 +3406,7 @@ class Dataset:
         scheduler: str = "threaded",
         verbose: bool = True,
         _ret_ds: bool = False,
+        ignore_errors: bool = False,
         **ds_args,
     ) -> Union[str, Any]:
         """Saves a dataset view as a virtual dataset (VDS)
@@ -3416,6 +3424,7 @@ class Dataset:
             verbose (bool): If ``True``, logs will be printed. Defaults to ``True``.
             _ret_ds (bool): If ``True``, the VDS is retured as such without converting it to a view. If ``False``, the VDS path is returned.
                 Default False.
+            ignore_errors (bool): Skip samples that cause errors while saving views. Only applicable if ``optimize=True``. Defaults to ``False``.
             ds_args (dict): Additional args for creating VDS when path is specified. (See documentation for `deeplake.dataset()`)
 
         Returns:
@@ -3457,6 +3466,7 @@ class Dataset:
                                     tensors,
                                     num_workers,
                                     scheduler,
+                                    ignore_errors,
                                 )
                         except ReadOnlyModeError as e:
                             raise ReadOnlyModeError(
@@ -3469,7 +3479,7 @@ class Dataset:
                         )
                 else:
                     vds = self._save_view_in_subdir(
-                        id, message, optimize, tensors, num_workers, scheduler
+                        id, message, optimize, tensors, num_workers, scheduler, ignore_errors,
                     )
             else:
                 vds = self._save_view_in_path(
@@ -3480,6 +3490,7 @@ class Dataset:
                     tensors,
                     num_workers,
                     scheduler,
+                    ignore_errors,
                     **ds_args,
                 )
         if verbose and self.verbose:
@@ -3811,6 +3822,7 @@ class Dataset:
         public: bool = False,
         unlink: bool = False,
         create_vds_index_tensor: bool = False,
+        ignore_errors: bool = False,
         verbose: bool = True,
     ):
         if isinstance(dest, str):
@@ -3869,6 +3881,22 @@ class Dataset:
                             sample_out.check_flush()
                 else:
                     sample_out[tensor_name].extend(src)
+        
+        def _copy_tensor(sample_in, sample_out):
+            for tensor_name in dest_ds.tensors:
+                src = sample_in[tensor_name]
+                if (
+                    unlink
+                    and src.is_link
+                    and (src.base_htype != "video" or deeplake.constants._UNLINK_VIDEOS)
+                ):
+                    if len(sample_in.index) > 1:
+                        sample_out[tensor_name].append(src)
+                    else:
+                        idx = sample_in.index.values[0].value
+                        sample_out[tensor_name].append(src.chunk_engine.get_deeplake_read_sample(idx))
+                else:
+                    sample_out[tensor_name].append(src)
 
         if not self.index.subscriptable_at(0):
             old_first_index = self.index.values[0]
@@ -3888,8 +3916,9 @@ class Dataset:
                 progressbar=progressbar,
                 skip_ok=True,
                 check_lengths=False,
+                ignore_errors=ignore_errors,
                 disable_label_sync=True,
-                extend_only=True,
+                # extend_only=True,
             )
 
             dest_ds.flush()
