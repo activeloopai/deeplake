@@ -26,7 +26,10 @@ def test_video(local_ds, compression, video_paths):
             elif compression == "mkv":
                 assert sample.shape == (399, 360, 640, 3)
             elif compression == "avi":
-                assert sample.shape == (901, 270, 480, 3)
+                if i == 0:
+                    assert sample.shape == (901, 270, 480, 3)
+                elif i == 1:
+                    assert sample.shape == (3, 480, 852, 3)
         assert sample.shape[-1] == 3
         with local_ds:
             for _ in range(5):
