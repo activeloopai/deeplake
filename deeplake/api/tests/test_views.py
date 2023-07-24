@@ -158,6 +158,8 @@ def test_save_view_ignore_errors(local_ds):
 
         ds.labels.extend([0 for _ in range(20)])
 
+        ds.commit()
+
     with pytest.raises(TransformError):
         ds[:10].save_view(id="one", optimize=True)
 
