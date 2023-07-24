@@ -3479,7 +3479,13 @@ class Dataset:
                         )
                 else:
                     vds = self._save_view_in_subdir(
-                        id, message, optimize, tensors, num_workers, scheduler, ignore_errors,
+                        id,
+                        message,
+                        optimize,
+                        tensors,
+                        num_workers,
+                        scheduler,
+                        ignore_errors,
                     )
             else:
                 vds = self._save_view_in_path(
@@ -3857,45 +3863,34 @@ class Dataset:
         dest_ds.link_creds.__setstate__(self.link_creds.__getstate__())
         save_link_creds(dest_ds.link_creds, dest_ds.storage)
 
-        def _copy_tensor(sample_in, sample_out):
+        def _is_unlink_tensor(tensor):
+            if (
+                unlink
+                and tensor.is_link
+                and (tensor.base_htype != "video" or deeplake.constants._UNLINK_VIDEOS)
+            ):
+                return True
+
+        extend_only = not any(
+            _is_unlink_tensor(dest_ds[tensor_name]) for tensor_name in dest_ds.tensors
+        )
+
+        def _copy_tensor_extend(sample_in, sample_out):
             for tensor_name in dest_ds.tensors:
-                src = sample_in[tensor_name]
-                if (
-                    unlink
-                    and src.is_link
-                    and (src.base_htype != "video" or deeplake.constants._UNLINK_VIDEOS)
-                ):
-                    if len(sample_in.index) > 1:
-                        sample_out[tensor_name].extend(src)
-                    else:
-                        if sample_in.index.subscriptable_at(0):
-                            sample_idxs = sample_in.index.values[0].indices(
-                                src.num_samples
-                            )
-                        else:
-                            sample_idxs = [sample_in.index.values[0].value]
-                        for i in sample_idxs:
-                            sample_out[tensor_name].append(
-                                src.chunk_engine.get_deeplake_read_sample(i)
-                            )
-                            sample_out.check_flush()
-                else:
-                    sample_out[tensor_name].extend(src)
+                sample_out[tensor_name].extend(sample_in[tensor_name])
             sample_out.flush()
-        
-        def _copy_tensor(sample_in, sample_out):
+
+        def _copy_tensor_append(sample_in, sample_out):
             for tensor_name in dest_ds.tensors:
                 src = sample_in[tensor_name]
-                if (
-                    unlink
-                    and src.is_link
-                    and (src.base_htype != "video" or deeplake.constants._UNLINK_VIDEOS)
-                ):
+                if _is_unlink_tensor(src):
                     if len(sample_in.index) > 1:
                         sample_out[tensor_name].append(src)
                     else:
                         idx = sample_in.index.values[0].value
-                        sample_out[tensor_name].append(src.chunk_engine.get_deeplake_read_sample(idx))
+                        sample_out[tensor_name].append(
+                            src.chunk_engine.get_deeplake_read_sample(idx)
+                        )
                 else:
                     sample_out[tensor_name].append(src)
 
@@ -3909,7 +3904,10 @@ class Dataset:
         else:
             reset_index = False
         try:
-            deeplake.compute(_copy_tensor, name="copy transform")().eval(
+            deeplake.compute(
+                _copy_tensor_extend if extend_only else _copy_tensor_append,
+                name="copy transform",
+            )().eval(
                 self,
                 dest_ds,
                 num_workers=num_workers,
@@ -3919,7 +3917,7 @@ class Dataset:
                 check_lengths=False,
                 ignore_errors=ignore_errors,
                 disable_label_sync=True,
-                # extend_only=True,
+                extend_only=extend_only,
             )
 
             dest_ds.flush()
