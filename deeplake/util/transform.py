@@ -126,6 +126,7 @@ def _extend_data_slice(
         pg_callback = _normalize_pg(pg_callback, len(transform_dataset.tensors))
     transform_dataset.set_pg_callback(pg_callback)
     extend_fn(data_slice, transform_dataset, *args, **kwargs)
+    transform_dataset.flush()
 
 
 def _check_pipeline(out, tensors, skip_ok):

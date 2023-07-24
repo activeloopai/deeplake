@@ -3880,7 +3880,6 @@ class Dataset:
         def _copy_tensor_extend(sample_in, sample_out):
             for tensor_name in dest_ds.tensors:
                 sample_out[tensor_name].extend(sample_in[tensor_name])
-            sample_out.flush()
 
         def _copy_tensor_append(sample_in, sample_out):
             for tensor_name in dest_ds.tensors:
