@@ -161,9 +161,9 @@ def test_save_view_ignore_errors(local_ds):
         ds.commit()
 
     with pytest.raises(TransformError):
-        ds[:10].save_view(id="one", optimize=True)
+        ds[:10].save_view(id="one", optimize=True, num_workers=2)
 
-    ds[:10].save_view(id="two", optimize=True, ignore_errors=True)
+    ds[:10].save_view(id="two", optimize=True, ignore_errors=True, num_workers=2)
     view = ds.load_view("two")
 
     assert len(view) == 8
