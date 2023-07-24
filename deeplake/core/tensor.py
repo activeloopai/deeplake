@@ -1418,18 +1418,21 @@ class Tensor:
         self.storage.flush()
 
     def _regenerate_vdb_indexes(self):
-        is_embedding = self.htype == "embedding"
-        has_vdb_indexes = hasattr(self.meta, "vdb_indexes")
-        vdb_index_ids_present = len(self.meta.get_vdb_index_ids()) > 0
+        try:
+            is_embedding = self.htype == "embedding"
+            has_vdb_indexes = hasattr(self.meta, "vdb_indexes")
+            vdb_index_ids_present = len(self.meta.get_vdb_index_ids()) > 0
 
-        if is_embedding and has_vdb_indexes and vdb_index_ids_present:
-            index_ids = self.meta.get_vdb_index_ids()
-            for id in index_ids:
-                # Delete the index.
-                self.delete_vdb_index(id)
-                # Recreate it back.
-                self.create_vdb_index(id)
-
+            if is_embedding and has_vdb_indexes and vdb_index_ids_present:
+                index_ids = self.meta.get_vdb_index_ids()
+                for id in index_ids:
+                    # Delete the index.
+                    self.delete_vdb_index(id)
+                    # Recreate it back.
+                    self.create_vdb_index(id)
+        except Exception as e:
+            print(f"An error occurred while regenerating VDB indexes: {e}")
+        
     def load_vdb_index(self, id: str) -> Indexer:
         if self.meta.htype != "embedding":
             raise Exception(f"Only supported for embedding tensors.")

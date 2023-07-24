@@ -1093,6 +1093,8 @@ def test_vdb_index_creation(local_path, capsys):
     assert es[0]['distance'] == 'l2_norm'
     assert es[0]['type'] == 'hnsw'
 
+    vector_store.delete_by_path(local_path)
+
 
 @requires_libdeeplake
 def test_vdb_index_creation_threshold(local_path, capsys):
@@ -1130,6 +1132,8 @@ def test_vdb_index_creation_threshold(local_path, capsys):
     ds = vector_store.dataset
     es = ds.embedding.get_vdb_indexes()
     assert len(es) == 0
+    
+    vector_store.delete_by_path(local_path)
 
 
 

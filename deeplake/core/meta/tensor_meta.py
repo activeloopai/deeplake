@@ -1,4 +1,5 @@
 from random import sample
+import copy
 import deeplake
 from deeplake.core.fast_forwarding import ffw_tensor_meta
 from typing import Any, Callable, Dict, List, Sequence, Union, Optional, Tuple
@@ -276,7 +277,8 @@ def _required_meta_from_htype(htype: str) -> dict:
     """Gets a dictionary with all required meta information to define a tensor."""
 
     _validate_htype_exists(htype)
-    defaults = HTYPE_CONFIGURATIONS[htype]
+    # Do deepcopy to avoid overwriting,
+    defaults = copy.deepcopy(HTYPE_CONFIGURATIONS[htype])
 
     required_meta = {
         "htype": htype,
