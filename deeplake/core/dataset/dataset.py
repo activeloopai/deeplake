@@ -3881,6 +3881,7 @@ class Dataset:
                             sample_out.check_flush()
                 else:
                     sample_out[tensor_name].extend(src)
+            sample_out.flush()
         
         def _copy_tensor(sample_in, sample_out):
             for tensor_name in dest_ds.tensors:
