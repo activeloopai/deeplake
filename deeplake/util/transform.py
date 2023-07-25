@@ -261,9 +261,10 @@ def _transform_and_append_data_slice(
             )
             continue
 
-    if skipped_samples == n:
-        return False
-    return True
+    return {
+        "samples_skipped": skipped_samples,
+        "all_samples_skipped": skipped_samples == n,
+    }
 
 
 def _retrieve_memory_objects(all_chunk_engines):
@@ -335,7 +336,10 @@ def store_data_slice_with_pbar(pg_callback, transform_input: Tuple) -> Dict:
         cache_size=cache_size,
     )
 
-    ret = True
+    ret = {
+        "all_samples_skipped": False,
+        "samples_skipped": 0,
+    }
     err = None
     try:
         if extend_only:
@@ -366,7 +370,7 @@ def store_data_slice_with_pbar(pg_callback, transform_input: Tuple) -> Dict:
     finally:
         # retrieve relevant objects from memory
         meta = _retrieve_memory_objects(all_chunk_engines)
-        meta["all_samples_skipped"] = not ret
+        meta.update(ret)
         meta["error"] = err
         return meta
 
@@ -539,6 +543,18 @@ def len_data_in(data_in):
         return data_in.max_len
     else:
         return len(data_in)
+
+
+def transform_summary(data_in, result):
+    samples_skipped = sum(result["samples_skipped"])
+    successful = len_data_in(data_in) - samples_skipped
+    successful_percent = round((successful / len_data_in(data_in)) * 100, 2)
+    skipped_percent = round(100 - successful_percent, 2)
+
+    print(
+        "No. of samples successfully processed:", successful, f"({successful_percent}%)"
+    )
+    print("No. of samples skipped:", samples_skipped, f"({skipped_percent}%)")
 
 
 def create_slices(data_in, num_workers):
