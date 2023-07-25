@@ -1055,7 +1055,7 @@ def test_update_embedding(
 
 
 @requires_libdeeplake
-def test_vdb_index_creation(local_path, capsys):
+def test_vdb_index_creation(local_path, capsys, hub_cloud_dev_token):
     number_of_data = 1000
     texts, embeddings, ids, metadatas, _ = utils.create_data(
         number_of_data=number_of_data, embedding_dim=EMBEDDING_DIM
@@ -1067,6 +1067,7 @@ def test_vdb_index_creation(local_path, capsys):
         overwrite=True,
         verbose=True,
         vdb_index_creation_threshold=200,
+        token=hub_cloud_dev_token,
     )
 
     vector_store.add(embedding=embeddings, text=texts, id=ids, metadata=metadatas)
@@ -1101,7 +1102,7 @@ def test_vdb_index_creation(local_path, capsys):
 
 
 @requires_libdeeplake
-def test_vdb_index_creation_threshold(local_path, capsys):
+def test_vdb_index_creation_threshold(local_path, capsys, hub_cloud_dev_token):
     number_of_data = 1000
     texts, embeddings, ids, metadatas, _ = utils.create_data(
         number_of_data=number_of_data, embedding_dim=EMBEDDING_DIM
@@ -1114,6 +1115,7 @@ def test_vdb_index_creation_threshold(local_path, capsys):
         path=local_path,
         overwrite=True,
         verbose=True,
+        token=hub_cloud_dev_token,
     )
 
     vector_store.add(embedding=embeddings, text=texts, id=ids, metadata=metadatas)
