@@ -24,6 +24,7 @@ from deeplake.constants import (
     VERSION_CONTROL_INFO_LOCK_FILENAME,
     QUERIES_FILENAME,
     QUERIES_LOCK_FILENAME,
+    BRANCH_LOCK_FILENAME_SUFFIX,
 )
 from deeplake.util.exceptions import (
     S3GetError,
@@ -265,3 +266,7 @@ def get_pad_encoder_key(key: str, commit_id: str) -> str:
             UNSHARDED_ENCODER_FILENAME,
         )
     )
+
+
+def get_branch_lock_key(branch_name: str) -> str:
+    return branch_name + BRANCH_LOCK_FILENAME_SUFFIX

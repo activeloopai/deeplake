@@ -118,6 +118,7 @@ from deeplake.util.keys import (
     get_downsampled_tensor_key,
     filter_name,
     get_dataset_linked_creds_key,
+    get_branch_lock_key,
 )
 from deeplake.util.path import get_path_from_storage
 from deeplake.util.remove_cache import get_base_storage
@@ -1533,11 +1534,28 @@ class Dataset:
 
         try_flushing(self)
 
+        target_commit = target_id
+        try:
+            target_commit = self.version_state["branch_commit_map"][target_id]
+        except KeyError:
+            pass
+        if isinstance(self.base_storage, _LOCKABLE_STORAGES) and not (
+            isinstance(self.base_storage, LocalProvider)
+            and not deeplake.constants.LOCK_LOCAL_DATASETS
+        ):
+            lock_dataset(self, version=target_commit)
+            locked = True
+        else:
+            locked = False
         self._initial_autoflush.append(self.storage.autoflush)
         self.storage.autoflush = False
-        merge(self, target_id, conflict_resolution, delete_removed_tensors, force)
-        self.storage.autoflush = self._initial_autoflush.pop()
-        self.storage.maybe_flush()
+        try:
+            merge(self, target_id, conflict_resolution, delete_removed_tensors, force)
+        finally:
+            if locked:
+                unlock_dataset(self, version=target_commit)
+            self.storage.autoflush = self._initial_autoflush.pop()
+            self.storage.maybe_flush()
 
     def _commit(
         self,
