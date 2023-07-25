@@ -196,8 +196,11 @@ class DeepLakeQueryDataset(Dataset):
         return len(self.indra_ds)
 
     @deeplake_reporter.record_call
-    def dataloader(self):
+    def dataloader(self, ignore_errors: bool = False):
         """Returns a :class:`~deeplake.enterprise.DeepLakeDataLoader` object. To use this, install deeplake with ``pip install deeplake[enterprise]``.
+
+        Args:
+            ignore_errors (bool): If ``True``, the data loader will ignore errors apperaing during dataloading otherwise it will collct the statistics and report appeard errors. Default value is ``False``
 
         Returns:
             ~deeplake.enterprise.DeepLakeDataLoader: A :class:`deeplake.enterprise.DeepLakeDataLoader` object.
@@ -262,7 +265,9 @@ class DeepLakeQueryDataset(Dataset):
         """
         from deeplake.enterprise import DeepLakeDataLoader
 
-        dataloader = DeepLakeDataLoader(self, _indra_dataset=self.indra_ds)
+        dataloader = DeepLakeDataLoader(
+            self, _indra_dataset=self.indra_ds, _ignore_errors=ignore_errors
+        )
         return dataloader
 
     @property
