@@ -118,8 +118,8 @@ from deeplake.util.keys import (
     get_downsampled_tensor_key,
     filter_name,
     get_dataset_linked_creds_key,
-    get_branch_lock_key,
 )
+
 from deeplake.util.path import get_path_from_storage
 from deeplake.util.remove_cache import get_base_storage
 from deeplake.util.diff import get_all_changes_string, get_changes_and_messages
