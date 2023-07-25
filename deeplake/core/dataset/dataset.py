@@ -1722,7 +1722,7 @@ class Dataset:
         Raises:
             CommitError: If ``branch`` could not be found.
             ReadOnlyModeError: If branch deletion is attempted in read-only mode.
-            Exception: If you have the given branch currently checked out.
+            Exception: If you have have the given branch currently checked out.
 
         Examples:
 
