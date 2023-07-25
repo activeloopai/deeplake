@@ -1539,7 +1539,7 @@ class Dataset:
             target_commit = self.version_state["branch_commit_map"][target_id]
         except KeyError:
             pass
-        if isinstance(self.base_storage, _LOCKABLE_STORAGES) and not (
+        if isinstance(self.base_storage, tuple(_LOCKABLE_STORAGES)) and not (
             isinstance(self.base_storage, LocalProvider)
             and not deeplake.constants.LOCK_LOCAL_DATASETS
         ):
