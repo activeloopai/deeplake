@@ -1299,7 +1299,6 @@ def test_ingestion_images(local_path):
         tensor_params=tensor_params,
         overwrite=True,
         verbose=True,
-        vdb_index_creation_threshold=2,
     )
 
     ids = vector_store.add(image=images, embedding=embeddings, return_ids=True)

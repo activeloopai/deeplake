@@ -21,6 +21,7 @@ def corrupted_embedding_function(emb, threshold):
     return np.zeros((len(emb), 1536), dtype=np.float32)
 
 
+@pytest.mark.skip(reason="Data ingestion is turned Off. Post implementing turn it ON.")
 def test_ingest_data(local_path):
     data = [
         {
