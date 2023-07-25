@@ -25,6 +25,7 @@ from deeplake.util.transform import (
     store_data_slice_with_pbar,
     check_checkpoint_interval,
     len_data_in,
+    transform_summary,
 )
 from deeplake.util.encoder import merge_all_meta_info
 from deeplake.util.exceptions import (
@@ -463,6 +464,8 @@ class Pipeline:
                 scheduler=scheduler,
                 verbose=progressbar,
             )
+        
+        transform_summary(data_in, result)
 
         for res in result["error"]:
             if res is not None:
