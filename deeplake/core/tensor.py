@@ -1378,7 +1378,7 @@ class Tensor:
 
     def create_vdb_index(
         self, id: str, distance: Union[DistanceType, str] = DistanceType.L2_NORM
-    ) -> Indexer:
+    ):
         self.storage.check_readonly()
         if self.meta.htype != "embedding":
             raise Exception(f"Only supported for embedding tensors.")
@@ -1435,7 +1435,7 @@ class Tensor:
         except Exception as e:
             raise Exception(f"An error occurred while regenerating VDB indexes: {e}")
 
-    def load_vdb_index(self, id: str) -> Indexer:
+    def load_vdb_index(self, id: str):
         if self.meta.htype != "embedding":
             raise Exception(f"Only supported for embedding tensors.")
         if not self.meta.contains_vdb_index(id):

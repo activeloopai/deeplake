@@ -85,6 +85,7 @@ class VectorStore:
             num_workers (int): Number of workers to use for parallel ingestion.
             ingestion_batch_size (int): Batch size to use for parallel ingestion.
             vdb_index_creation_threshold (int): Threshold for dataset size, after crossing the limit vector indexes are created for the embedding tensors.
+                                                When vdb_index_creation_threshold is set to 0 then index creation is turned off from vectorstore APIs.
             exec_option (str): Default method for search execution. It could be either ``"auto"``, ``"python"``, ``"compute_engine"`` or ``"tensor_db"``. Defaults to ``"auto"``. If None, it's set to "auto".
                 - ``auto``- Selects the best execution method based on the storage location of the Vector Store. It is the default option.
                 - ``python`` - Pure-python implementation that runs on the client and can be used for data stored anywhere. WARNING: using this option with big datasets is discouraged because it can lead to memory issues.
@@ -157,7 +158,9 @@ class VectorStore:
         self.validate_and_create_vector_index()
 
     def validate_and_create_vector_index(self):
-        if len(self.dataset) < self.vdb_index_creation_threshold:
+        if self.vdb_index_creation_threshold == 0:
+            return
+        elif len(self.dataset) < self.vdb_index_creation_threshold:
             return
 
         # Check all tensors from the dataset.
@@ -166,7 +169,6 @@ class VectorStore:
             is_embedding = tensor.htype == "embedding"
             vdb_index_absent = len(tensor.meta.get_vdb_index_ids()) == 0
             if is_embedding and vdb_index_absent:
-                print("creating vector index hnsw_1 for tensor", tensor.htype)
                 tensor.create_vdb_index("hnsw_1")
 
     def add(

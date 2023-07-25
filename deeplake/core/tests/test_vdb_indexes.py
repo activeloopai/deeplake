@@ -1,14 +1,15 @@
 import deeplake
 import numpy as np
 from deeplake.tests.common import requires_libdeeplake
+from deeplake.tests.dataset_fixtures import local_auth_ds_generator
 from deeplake.util.exceptions import ReadOnlyModeError
 import pytest
 import warnings
 
 
 @requires_libdeeplake
-def test_index_management(local_ds_generator):
-    deeplake_ds = local_ds_generator()
+def test_index_management(local_auth_ds_generator):
+    deeplake_ds = local_auth_ds_generator()
     with deeplake_ds:
         deeplake_ds.create_tensor("embedding", htype="embedding", dtype=np.float32)
         for _ in range(200):
@@ -37,8 +38,8 @@ def test_index_management(local_ds_generator):
 
 
 @requires_libdeeplake
-def test_query_recall(local_ds_generator):
-    deeplake_ds = local_ds_generator()
+def test_query_recall(local_auth_ds_generator):
+    deeplake_ds = local_auth_ds_generator()
     with deeplake_ds:
         deeplake_ds.create_tensor("embedding", htype="embedding", dtype=np.float32)
         for _ in range(2000):
@@ -64,8 +65,8 @@ def test_query_recall(local_ds_generator):
 
 
 @requires_libdeeplake
-def test_index_maintenance_append(local_ds_generator):
-    deeplake_ds = local_ds_generator()
+def test_index_maintenance_append(local_auth_ds_generator):
+    deeplake_ds = local_auth_ds_generator()
     with deeplake_ds:
         deeplake_ds.create_tensor("embedding", htype="embedding", dtype=np.float32)
         for _ in range(200):
@@ -102,8 +103,8 @@ def test_index_maintenance_append(local_ds_generator):
         print(f"Recall is in the expected range - {recall}")
 
 @requires_libdeeplake
-def test_index_maintenance_update(local_ds_generator):
-    deeplake_ds = local_ds_generator()
+def test_index_maintenance_update(local_auth_ds_generator):
+    deeplake_ds = local_auth_ds_generator()
     with deeplake_ds:
         deeplake_ds.create_tensor("embedding", htype="embedding", dtype=np.float32)
         random_embedding = np.random.random_sample(384).astype(np.float32)
@@ -139,8 +140,8 @@ def test_index_maintenance_update(local_ds_generator):
         print(f"Recall is in the expected range - {recall}")
 
 @requires_libdeeplake
-def test_index_maintenance_pop(local_ds_generator):
-    deeplake_ds = local_ds_generator()
+def test_index_maintenance_pop(local_auth_ds_generator):
+    deeplake_ds = local_auth_ds_generator()
     with deeplake_ds:
         deeplake_ds.create_tensor("embedding", htype="embedding", dtype=np.float32)
         for _ in range(200):
@@ -177,8 +178,8 @@ def test_index_maintenance_pop(local_ds_generator):
         print(f"Recall is in the expected range - {recall}")
 
 @requires_libdeeplake
-def test_index_maintenance_delete(local_ds_generator):
-    deeplake_ds = local_ds_generator()
+def test_index_maintenance_delete(local_auth_ds_generator):
+    deeplake_ds = local_auth_ds_generator()
     with deeplake_ds:
         deeplake_ds.create_tensor("embedding", htype="embedding", dtype=np.float32)
         for _ in range(200):

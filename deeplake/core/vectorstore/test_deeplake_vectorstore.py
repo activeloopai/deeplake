@@ -83,7 +83,8 @@ def test_id_backward_compatibility(local_path):
     embedding_dim = 100
 
     ids = [f"{i}" for i in range(num_of_items)]
-    embedding = [np.zeros(embedding_dim) for i in range(num_of_items)]
+    # Creating embeddings of float32 as dtype of embedding tensor is float32.
+    embedding = [np.zeros(embedding_dim, dtype=np.float32) for i in range(num_of_items)]
     text = ["aadfv" for i in range(num_of_items)]
     metadata = [{"key": i} for i in range(num_of_items)]
 
@@ -1102,7 +1103,7 @@ def test_vdb_index_creation(local_path, capsys, hub_cloud_dev_token):
 
 
 @requires_libdeeplake
-def test_vdb_index_creation_threshold(local_path, capsys, hub_cloud_dev_token):
+def test_vdb_no_index_default_threshold(local_path, capsys, hub_cloud_dev_token):
     number_of_data = 1000
     texts, embeddings, ids, metadatas, _ = utils.create_data(
         number_of_data=number_of_data, embedding_dim=EMBEDDING_DIM
@@ -1145,6 +1146,51 @@ def test_vdb_index_creation_threshold(local_path, capsys, hub_cloud_dev_token):
 
     vector_store.delete_by_path(local_path)
 
+
+@requires_libdeeplake
+def test_vdb_no_index_zero_threshold(local_path, capsys, hub_cloud_dev_token):
+    number_of_data = 1000
+    texts, embeddings, ids, metadatas, _ = utils.create_data(
+        number_of_data=number_of_data, embedding_dim=EMBEDDING_DIM
+    )
+
+    # initialize vector store object
+    # As the default threshold is 1 million. So with number_of_data as 100
+    # vdb_indexes should not be created.
+    vector_store = DeepLakeVectorStore(
+        path=local_path,
+        overwrite=True,
+        verbose=True,
+        vdb_index_creation_threshold=0,
+        token=hub_cloud_dev_token,
+    )
+
+    vector_store.add(embedding=embeddings, text=texts, id=ids, metadata=metadatas)
+
+    assert len(vector_store) == number_of_data
+    assert set(vector_store.dataset.tensors) == set(
+        [
+            "embedding",
+            "id",
+            "metadata",
+            "text",
+        ]
+    )
+    assert set(vector_store.tensors()) == set(
+        [
+            "embedding",
+            "id",
+            "metadata",
+            "text",
+        ]
+    )
+
+    # Check if the index is recreated properly.
+    ds = vector_store.dataset
+    es = ds.embedding.get_vdb_indexes()
+    assert len(es) == 0
+
+    vector_store.delete_by_path(local_path)
 
 def test_ingestion(local_path, capsys):
     # create data
