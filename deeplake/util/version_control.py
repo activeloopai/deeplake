@@ -1,4 +1,5 @@
 import random
+import shutil
 import time
 import hashlib
 import pickle
@@ -17,7 +18,12 @@ from deeplake.core.version_control.commit_node import CommitNode  # type: ignore
 from deeplake.core.version_control.commit_chunk_map import CommitChunkMap  # type: ignore
 from deeplake.core.storage import LRUCache
 from deeplake.core.lock import Lock
-from deeplake.util.exceptions import CheckoutError, CommitError, DatasetCorruptError
+from deeplake.util.exceptions import (
+    CheckoutError,
+    CommitError,
+    DatasetCorruptError,
+    VersionControlError,
+)
 from deeplake.util.keys import (
     get_chunk_id_encoder_key,
     get_creds_encoder_key,
@@ -279,6 +285,99 @@ def checkout(
         raise CheckoutError(
             f"Unable to checkout to '{address}', failed to load meta data."
         ) from e
+
+
+def delete_branch(
+    dataset,
+    branch_name: str,
+) -> None:
+    """Deletes the branch reference and cleans up any unneeded data."""
+
+    storage = dataset.storage
+    storage.check_readonly()
+
+    # storage = dataset.storage
+    version_state = dataset.version_state
+    if version_state["branch"] == branch_name:
+        raise VersionControlError(
+            f"Cannot delete the currently checked out branch: {branch_name}"
+        )
+
+    if branch_name == "main":
+        raise VersionControlError("Cannot delete the main branch")
+
+    storage = get_base_storage(storage)
+    lock = Lock(storage, get_version_control_info_lock_key(), duration=10)
+    lock.acquire()  # Blocking
+    try:
+        key = get_version_control_info_key()
+
+        try:
+            stored_version_info = _version_info_from_json(
+                json.loads(storage[key].decode("utf-8"))
+            )
+        except KeyError:
+            try:
+                stored_version_info = pickle.loads(
+                    storage[get_version_control_info_key_old()]
+                )  # backward compatiblity
+            except KeyError:
+                raise VersionControlError(f"Cannot read version control info.")
+
+        if branch_name not in stored_version_info["branch_commit_map"].keys():
+            raise VersionControlError(f"Branch {branch_name} does not exist.")
+
+        # remove branch reference
+        stored_version_info["branch_commit_map"].pop(branch_name)
+
+        # garbage collect unreferenced commits
+        referenced_commits = set()
+        for existing_branch, branch_head_commit in stored_version_info[
+            "branch_commit_map"
+        ].items():
+            referenced_commits.add(branch_head_commit)
+
+            parent_commit = stored_version_info["commit_node_map"][
+                branch_head_commit
+            ].parent
+            while parent_commit is not None:
+                referenced_commits.add(parent_commit.commit_id)
+                parent_commit = parent_commit.parent
+
+        for existing_commit in list(stored_version_info["commit_node_map"].keys()):
+            if existing_commit not in referenced_commits:
+                print(f"deleting commit {existing_commit}")
+                stored_version_info["commit_node_map"].pop(existing_commit)
+
+                delete_version_from_storage(storage, existing_commit)
+            else:
+                version_to_keep = stored_version_info["commit_node_map"][
+                    existing_commit
+                ]
+                # clear out invalid children
+                version_to_keep.children = [
+                    child
+                    for child in version_to_keep.children
+                    if child.commit_id in referenced_commits
+                ]
+
+                # set branch to a valid branch name
+                if (
+                    version_to_keep.branch
+                    not in stored_version_info["branch_commit_map"].keys()
+                ):
+                    version_to_keep.branch = version_to_keep.children[0].branch
+
+        storage[key] = json.dumps(_version_info_to_json(stored_version_info)).encode(
+            "utf-8"
+        )
+        storage.flush()
+    finally:
+        lock.release()
+
+    dataset._reload_version_state()
+
+    dataset._send_branch_deletion_event(branch_name)
 
 
 def copy_metas(
