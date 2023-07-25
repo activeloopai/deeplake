@@ -261,7 +261,10 @@ def _transform_and_append_data_slice(
             )
             continue
 
-    return {"samples_skipped": skipped_samples, "all_samples_skipped": skipped_samples == n}
+    return {
+        "samples_skipped": skipped_samples,
+        "all_samples_skipped": skipped_samples == n,
+    }
 
 
 def _retrieve_memory_objects(all_chunk_engines):
@@ -541,15 +544,17 @@ def len_data_in(data_in):
     else:
         return len(data_in)
 
+
 def transform_summary(data_in, result):
     samples_skipped = sum(result["samples_skipped"])
-    if samples_skipped > 0:
-        successful = len_data_in(data_in) - samples_skipped
-        successful_percent = round((successful / len_data_in(data_in)) * 100, 2)
-        skipped_percent = round(100 - successful_percent, 2)
+    successful = len_data_in(data_in) - samples_skipped
+    successful_percent = round((successful / len_data_in(data_in)) * 100, 2)
+    skipped_percent = round(100 - successful_percent, 2)
 
-        print("Successfully processed samples:", successful, f"({successful_percent}%)")
-        print("Skipped samples:", samples_skipped, f"({skipped_percent}%)")
+    print(
+        "No. of samples successfully processed:", successful, f"({successful_percent}%)"
+    )
+    print("No. of samples skipped:", samples_skipped, f"({skipped_percent}%)")
 
 
 def create_slices(data_in, num_workers):

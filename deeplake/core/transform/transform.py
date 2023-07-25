@@ -464,8 +464,9 @@ class Pipeline:
                 scheduler=scheduler,
                 verbose=progressbar,
             )
-        
-        transform_summary(data_in, result)
+
+        if ignore_errors:
+            transform_summary(data_in, result)
 
         for res in result["error"]:
             if res is not None:
