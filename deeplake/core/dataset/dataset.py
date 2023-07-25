@@ -1982,8 +1982,11 @@ class Dataset:
         dataset_read(self)
         return dataloader
 
-    def dataloader(self):
+    def dataloader(self, ignore_errors: bool = False):
         """Returns a :class:`~deeplake.enterprise.DeepLakeDataLoader` object. To use this, install deeplake with ``pip install deeplake[enterprise]``.
+
+        Args:
+            ignore_errors (bool): If ``True``, the data loader will ignore errors apperaing during dataloading otherwise it will collct the statistics and report appeard errors. Default value is ``False``
 
         Returns:
             ~deeplake.enterprise.DeepLakeDataLoader: A :class:`deeplake.enterprise.DeepLakeDataLoader` object.
@@ -2044,7 +2047,7 @@ class Dataset:
 
         deeplake_reporter.feature_report(feature_name="dataloader", parameters={})
 
-        return dataloader(self)
+        return dataloader(self, ignore_errors=ignore_errors)
 
     def filter(
         self,
