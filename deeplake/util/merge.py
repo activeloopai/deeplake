@@ -384,10 +384,11 @@ def find_updated_and_conflicts(
         target_id_to_index_map: A dictionary mapping sample ids to their index in the target id.
 
     Returns:
-        A tuple of list of tuples of the form (original_idx, target_idx)
+        updated indexes, conflict indexes, resurrect_indexes
     """
     updated_indexes: List[Tuple[int, int]] = []
     conflict_indexes: List[Tuple[int, int]] = []
+    resurrect_indexes: List[int] = []
     for id in target_id_changes_commit_map:
         target_commit_ids = target_id_changes_commit_map[id]
         original_commit_ids = original_id_changes_commit_map[id]
@@ -403,15 +404,18 @@ def find_updated_and_conflicts(
             idx is not None and target_commit_ids[idx] == original_commit_ids[0]
         ):
             target_idx: int = target_id_to_index_map[id]
-            original_idx: int = original_id_to_index_map[id]
-            updated_indexes.append((original_idx, target_idx))
+            try:
+                original_idx: int = original_id_to_index_map[id]
+                updated_indexes.append((original_idx, target_idx))
+            except KeyError:
+                resurrect_indexes.append(target_idx)
 
         # if no id is common or if a commit id other than the most recent commit_id is in common, there's a conflict
         elif idx is None or idx > 0:
             target_idx = target_id_to_index_map[id]
             original_idx = original_id_to_index_map[id]
             conflict_indexes.append((original_idx, target_idx))
-    return updated_indexes, conflict_indexes
+    return updated_indexes, conflict_indexes, resurrect_indexes
 
 
 def find_new_updated_and_conflict_indexes(
@@ -466,12 +470,13 @@ def find_new_updated_and_conflict_indexes(
     )
     conflict_indexes: List[Tuple[int, int]] = []
     updated_indexes: List[Tuple[int, int]] = []
-    updated_indexes, conflict_indexes = find_updated_and_conflicts(
+    updated_indexes, conflict_indexes, resurrect_indexes = find_updated_and_conflicts(
         original_id_changes_commit_map,
         target_id_changes_commit_map,
         original_id_to_index_map,
         target_id_to_index_map,
     )
+    new_indexes.extend(resurrect_indexes)
     return new_indexes, updated_indexes, conflict_indexes
 
 
