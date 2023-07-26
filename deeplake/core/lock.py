@@ -233,18 +233,20 @@ def _get_lock_file_path(version: Optional[str] = None) -> str:
 def lock_dataset(
     dataset,
     lock_lost_callback: Optional[Callable] = None,
+    version: Optional[str] = None,
 ):
     """Locks a StorageProvider instance to avoid concurrent writes from multiple machines.
 
     Args:
         dataset: Dataset instance.
         lock_lost_callback (Callable, Optional): Called if the lock is lost after acquiring.
+        version (str, optional): The version to be locked. If None, the current version is locked.
 
     Raises:
         LockedException: If the storage is already locked by a different machine.
     """
     storage = get_base_storage(dataset.storage)
-    version = dataset.version_state["commit_id"]
+    version = version or dataset.version_state["commit_id"]
     key = _get_lock_key(get_path_from_storage(storage), version)
     lock = _LOCKS.get(key)
     if lock:
@@ -260,14 +262,15 @@ def lock_dataset(
     _REFS[key].add(id(dataset))
 
 
-def unlock_dataset(dataset):
+def unlock_dataset(dataset, version: Optional[str] = None):
     """Unlocks a storage provider that was locked by this machine.
 
     Args:
         dataset: The dataset to be unlocked
+        version (str, optional): The version to be unlocked. If None, the current version is unlocked.
     """
     storage = get_base_storage(dataset.storage)
-    version = dataset.version_state["commit_id"]
+    version = version or dataset.version_state["commit_id"]
     key = _get_lock_key(get_path_from_storage(storage), version)
     try:
         lock = _LOCKS[key]
