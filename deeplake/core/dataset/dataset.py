@@ -1159,6 +1159,7 @@ class Dataset:
     def _rename_tensor(self, name, new_name):
         tensor = self[name]
         tensor.meta.name = new_name
+        tensor.meta.is_dirty = True
         key = self.version_state["tensor_names"].pop(name)
         meta = self.meta
         if key not in meta.hidden_tensors:

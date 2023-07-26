@@ -983,8 +983,6 @@ def copy_tensor_slice(
             dest_meta.length = dest_meta_orig_length + (
                 dest_meta_seq_length if is_seq else dest_meta_length
             )
-            dest_meta.is_dirty = True
-            dest_storage.flush()
         finally:
             dest_tensor.meta.links = links
         dest_meta.is_dirty = True
