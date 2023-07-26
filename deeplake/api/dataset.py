@@ -687,7 +687,7 @@ class dataset:
         if storage.read_only:
             msg = "Cannot reset when loading dataset in read-only mode."
             if parent_commit_id:
-                msg += f" However, you can try loading the previous commit using "
+                msg += " However, you can try loading the previous commit using "
                 msg += f"`deeplake.load('{dataset_kwargs.get('path')}@{parent_commit_id}')`."
             raise ReadOnlyModeError(msg)
         if parent_commit_id is None:
@@ -1175,7 +1175,7 @@ class dataset:
         else:
             if not isinstance(src, Dataset):
                 raise TypeError(
-                    f"The specified ``src`` is not an allowed type. Please specify a dataset or a materialized dataset view."
+                    "The specified ``src`` is not an allowed type. Please specify a dataset or a materialized dataset view."
                 )
 
             if not src.index.is_trivial():

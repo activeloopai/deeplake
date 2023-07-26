@@ -242,13 +242,13 @@ def test_sequences_accessing_data(local_auth_ds_generator):
 
     deeplake_indra_ds = deeplake_ds.query("SELECT * GROUP BY label")
     assert len(deeplake_indra_ds) == 2
-    assert deeplake_indra_ds.image.shape == [2, None, None, 10, 3]
-    assert deeplake_indra_ds[0].image.shape == [101, 10, 10, 3]
-    assert deeplake_indra_ds[0, 0].image.shape == [10, 10, 3]
+    assert deeplake_indra_ds.image.shape == (2, None, None, 10, 3)
+    assert deeplake_indra_ds[0].image.shape == (101, 10, 10, 3)
+    assert deeplake_indra_ds[0, 0].image.shape == (10, 10, 3)
     assert deeplake_indra_ds[0].image.numpy().shape == (101, 10, 10, 3)
-    assert deeplake_indra_ds[1].image.shape == [99, None, 10, 3]
-    assert deeplake_indra_ds[1, 0].image.shape == [10, 10, 3]
-    assert deeplake_indra_ds[1, 98].image.shape == [20, 10, 3]
+    assert deeplake_indra_ds[1].image.shape == (99, None, 10, 3)
+    assert deeplake_indra_ds[1, 0].image.shape == (10, 10, 3)
+    assert deeplake_indra_ds[1, 98].image.shape == (20, 10, 3)
     assert deeplake_indra_ds[1].image.numpy().shape == (99,)
     assert deeplake_indra_ds[1].image.numpy()[0].shape == (10, 10, 3)
     assert deeplake_indra_ds[1].image.numpy()[98].shape == (20, 10, 3)
@@ -335,7 +335,7 @@ def test_virtual_tensors(local_auth_ds_generator):
         "json",
         "num_labels",
     ]
-    assert deeplake_indra_ds.text[0].data() == {"value": "Hello 0"}
+    assert deeplake_indra_ds.text[0].data() == deeplake_ds.text[0].data()
     assert deeplake_indra_ds.json[0].data() == {"value": '{"key": "val"}'}
     assert deeplake_ds.json[0].data() == {"value": '{"key": "val"}'}
 

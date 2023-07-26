@@ -37,7 +37,7 @@ def test_linked_video_playback(local_ds_generator, gcs_path):
         ds.populate_creds("ENV", from_environment=True)
         ds.video_links.append(
             deeplake.link(
-                "http://commondatastorage.googleapis.com/gtv-videos-bucket/sample/ForBiggerJoyrides.mp4",
+                "https://commondatastorage.googleapis.com/gtv-videos-bucket/sample/ForBiggerJoyrides.mp4",
                 creds_key="ENV",
             )
         )
@@ -49,7 +49,7 @@ def test_linked_video_playback(local_ds_generator, gcs_path):
         url = ds.video_links[0]._get_video_stream_url()
         assert (
             url
-            == "http://commondatastorage.googleapis.com/gtv-videos-bucket/sample/ForBiggerJoyrides.mp4"
+            == "https://commondatastorage.googleapis.com/gtv-videos-bucket/sample/ForBiggerJoyrides.mp4"
         )
         http_data = urlopen(url).read()
 

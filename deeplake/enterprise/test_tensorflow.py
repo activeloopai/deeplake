@@ -628,7 +628,7 @@ def test_indexes_tensors(hub_cloud_ds, num_workers):
             ds.xyz.append(i * np.ones((2, 2)))
 
     with pytest.raises(ValueError):
-        ptds = (
+        (
             hub_cloud_ds.dataloader()
             .batch(4)
             .tensorflow(

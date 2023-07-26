@@ -6,6 +6,7 @@ from deeplake.core.vectorstore.vector_search.indra import query
 from deeplake.core.vectorstore.vector_search.indra.tql_distance_metrics import (
     get_tql_distance_metric,
 )
+from deeplake.core.vectorstore.deeplake_vectorstore import VectorStore
 
 array = "ARRAY[1.0, 2.0, 3.0, 4.0, 5.0, 6.0, 7.0, 8.0]"
 METRIC_FUNC_TO_METRIC_STRING = {
@@ -61,3 +62,34 @@ def test_tql_metric_to_tql_str(metric, limit=10):
         metric, 10, query_embedding, embedding_tensor, "", ["*"]
     )
     assert parsed_query == METRIC_FUNC_TO_QUERY_STRING[metric]
+
+
+def test_search_resulting_shapes():
+    vector_store = VectorStore("hub://activeloop/paul_graham_essay", read_only=True)
+    search_text = "What I Worked On"
+
+    def filter_fn(x):
+        return search_text in x["text"].data()["value"]
+
+    embedding = vector_store.dataset.embedding[0].numpy()
+    embedding_str = "ARRAY[{}]".format(", ".join(map(str, embedding)))
+    TQL_QUERY = f"select * from (select *, L2_NORM(embedding-{embedding_str}) as score where contains(text, '{search_text}')) order by score ASC limit 4"
+
+    view = vector_store.dataset.filter(filter_fn)
+    view_value = view.text.data(aslist=True)["value"]
+    view_value_0 = view[0].text.data(aslist=True)["value"]
+
+    view1 = vector_store.dataset.query(
+        f"select * where contains(text, '{search_text}')"
+    )
+    view1_value = view1.text.data(aslist=True)["value"]
+    view1_value_0 = view1[0].text.data(aslist=True)["value"]
+
+    view2 = vector_store.dataset.query(TQL_QUERY)
+    view2_value = view2.text.data(aslist=True)["value"]
+    view2.text.summary()
+    assert len(view2.text) == len(view2) == 1
+    view2_value_0 = view2[0].text.data(aslist=True)["value"]
+
+    assert view_value == view1_value == view2_value
+    assert view_value_0 == view1_value_0 == view2_value_0

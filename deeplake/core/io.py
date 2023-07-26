@@ -562,7 +562,10 @@ class SampleStreaming(Streaming):
                 version_state,
                 link_creds=self.dataset.link_creds,
             )
-        return ChunkEngine(tensor_key, cache, version_state)
+        chunk_engine = ChunkEngine(tensor_key, cache, version_state)
+        # disable chunk engine level cache because it can be corrupted by multiple workers
+        chunk_engine.cache_enabled = False
+        return chunk_engine
 
     def _get_dataset_length(self):
         version_state = self.dataset.version_state

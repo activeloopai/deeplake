@@ -88,7 +88,7 @@ def connect_dataset_entry_if_needed(
 ):
     if managed_creds_used:
         print(
-            "Managed credentials are used in the dataset. Connecting local dataset to backend..."
+            "Managed credentials are used in the dataset. Connecting local dataset to Activeloop server..."
         )
         connect_path = path + DOWNLOAD_MANAGED_PATH_SUFFIX
         if download:
@@ -113,10 +113,9 @@ def unlink_dataset_if_needed(load_path, token, unlink, num_workers, scheduler):
             filter(lambda x: ds[x].htype.startswith("link"), ds.tensors)
         )
 
-        print("Downloading data from links...")
-
         if linked_tensors:
             local_path = get_base_storage(ds.storage).root
+            print("Downloading data from links...")
             links_ds = ds._copy(
                 local_path + "_tmp",
                 tensors=linked_tensors,
@@ -129,7 +128,7 @@ def unlink_dataset_if_needed(load_path, token, unlink, num_workers, scheduler):
             )
 
             for tensor in linked_tensors:
-                ds.delete_tensor(tensor)
+                ds.delete_tensor(tensor, large_ok=True)
 
             for tensor in links_ds.tensors:
                 ds.create_tensor_like(tensor, links_ds[tensor])
@@ -163,6 +162,10 @@ def get_local_dataset(
 
     managed_creds_used = managed_creds_used_in_dataset(path, creds, token)
 
+    spinner = deeplake.util.spinner.ACTIVE_SPINNER
+    if spinner:
+        spinner.hide()
+
     if download:
         if not ds_exists:
             raise DatasetHandlerError(
@@ -185,6 +188,9 @@ def get_local_dataset(
     )
 
     unlink_dataset_if_needed(load_path, token, unlink, num_workers, scheduler)
+
+    if spinner:
+        spinner.show()
 
     ds = deeplake.load(
         load_path,

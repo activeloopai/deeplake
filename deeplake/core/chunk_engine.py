@@ -236,6 +236,7 @@ class ChunkEngine:
 
         self._numpy_extend_optimization_enabled = numpy_extend_optimization_enabled
 
+        self.cache_enabled = True
         self.cached_data: Optional[np.ndarray] = None
         self.cache_range: range = range(0)
 
@@ -255,14 +256,16 @@ class ChunkEngine:
 
     @property
     def is_data_cachable(self):
-        tensor_meta = self.tensor_meta
-        return (
-            self.chunk_class == UncompressedChunk
-            and tensor_meta.htype not in ["text", "json", "list", "polygon"]
-            and tensor_meta.max_shape
-            and (tensor_meta.max_shape == tensor_meta.min_shape)
-            and (np.prod(tensor_meta.max_shape) < 20)
-        )
+        if self.cache_enabled:
+            tensor_meta = self.tensor_meta
+            return (
+                self.chunk_class == UncompressedChunk
+                and tensor_meta.htype not in ["text", "json", "list", "polygon"]
+                and tensor_meta.max_shape
+                and (tensor_meta.max_shape == tensor_meta.min_shape)
+                and (np.prod(tensor_meta.max_shape) < 20)
+            )
+        return False
 
     @property
     def commit_id(self):
@@ -2276,7 +2279,7 @@ class ChunkEngine:
         return
 
     @property
-    def sequence_encoder(self) -> SequenceEncoder:
+    def sequence_encoder(self) -> Optional[SequenceEncoder]:
         """Gets the shape encoder from cache, if one is not found it creates a blank encoder.
 
         Raises:
@@ -2673,7 +2676,7 @@ class ChunkEngine:
         convert_bad_to_list: bool = True,
     ):
         if len(index) > 1:
-            raise IndexError(f"`.shapes` only accepts indexing on the primary axis.")
+            raise IndexError("`.shapes` only accepts indexing on the primary axis.")
 
         index_0 = index.values[0]
         num_samples, sample_ndim = self._get_total_samples_and_sample_ndim(index_0)
