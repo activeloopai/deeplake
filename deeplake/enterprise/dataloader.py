@@ -101,6 +101,7 @@ class DeepLakeDataLoader(DataLoader):
         _persistent_workers=None,
         _dataloader=None,
         _world_size=1,
+        _ignore_errors=False,
         **kwargs,
     ):
         import_indra_loader()
@@ -124,6 +125,7 @@ class DeepLakeDataLoader(DataLoader):
         self._persistent_workers = _persistent_workers
         self._dataloader = _dataloader
         self._world_size = _world_size
+        self._ignore_errors = _ignore_errors
         for k, v in kwargs.items():
             setattr(self, k, v)
 
@@ -199,6 +201,13 @@ class DeepLakeDataLoader(DataLoader):
     @property
     def _index_sampler(self):
         return self.sampler
+
+    @property
+    def summary(self):
+        if not self._ignore_errors or self._dataloader is None:
+            return
+        else:
+            self._dataloader.summary
 
     @property
     def collate_fn(self):
@@ -644,6 +653,7 @@ class DeepLakeDataLoader(DataLoader):
                     prefetch_factor=self._prefetch_factor,
                     tensors=tensors,
                     drop_last=self._drop_last,
+                    ignore_errors=self._ignore_errors,
                     upcast=upcast,
                     return_index=self._return_index,
                     primary_tensor=primary_tensor_name,
@@ -661,12 +671,14 @@ class DeepLakeDataLoader(DataLoader):
         return iter(self._dataloader)
 
 
-def dataloader(dataset) -> DeepLakeDataLoader:
+def dataloader(dataset, ignore_errors: bool = False) -> DeepLakeDataLoader:
     """Returns a :class:`~deeplake.enterprise.dataloader.DeepLakeDataLoader` object which can be transformed to either pytorch dataloader or numpy.
 
 
     Args:
         dataset: :class:`~deeplake.core.dataset.Dataset` object on which dataloader needs to be built
+        ignore_errors (bool): If ``True``, the data loader will ignore errors apperaing during dataloading otherwise it will collct the statistics and report appeard errors. Default value is ``False``
+
 
     Returns:
         DeepLakeDataLoader: A :class:`~deeplake.enterprise.dataloader.DeepLakeDataLoader` object.
@@ -728,7 +740,7 @@ def dataloader(dataset) -> DeepLakeDataLoader:
         ...     pass
     """
     verify_base_storage(dataset)
-    return DeepLakeDataLoader(dataset)
+    return DeepLakeDataLoader(dataset, _ignore_errors=ignore_errors)
 
 
 def validate_tensors(tensors, dataset, all_vars):

@@ -33,7 +33,6 @@ from deeplake.util.exceptions import (
     TensorMismatchError,
     TensorDoesNotExistError,
     TransformError,
-    SampleAppendError,
 )
 
 import posixpath
@@ -123,12 +122,10 @@ def _extend_data_slice(
         transform_fn.args,
         transform_fn.kwargs,
     )
-    extend_fn(data_slice, transform_dataset, *args, **kwargs)
-    data = transform_dataset.data
-    updated_tensors = set(k for k in data if not data[k].is_group and len(data[k]) > 0)
     if pg_callback is not None:
-        pg_callback = _normalize_pg(pg_callback, len(updated_tensors))
+        pg_callback = _normalize_pg(pg_callback, len(transform_dataset.tensors))
     transform_dataset.set_pg_callback(pg_callback)
+    extend_fn(data_slice, transform_dataset, *args, **kwargs)
     transform_dataset.flush()
 
 
@@ -181,7 +178,7 @@ def _handle_transform_error(
 
             transform_dataset.flush()
         except Exception as e:
-            if isinstance(e, SampleAppendError) and ignore_errors:
+            if ignore_errors:
                 skipped_samples += 1
                 continue
             raise TransformError(offset + i, sample) from e
@@ -222,7 +219,7 @@ def _transform_and_append_data_slice(
 
                 write_sample_to_transform_dataset(out, transform_dataset)
 
-            except SampleAppendError as e:
+            except Exception as e:
                 if ignore_errors:
                     skipped_samples += 1
                     skipped_samples_in_current_batch += 1
@@ -244,7 +241,11 @@ def _transform_and_append_data_slice(
 
         # failure at chunk_engine
         # retry one sample at a time
-        except SampleAppendError:
+        except Exception as e:
+            # TransformError pass through
+            if isinstance(e, TransformError):
+                raise e
+
             # reset skipped sample count to avoid double counting
             skipped_samples -= skipped_samples_in_current_batch
             skipped_samples_in_current_batch = 0
@@ -260,9 +261,10 @@ def _transform_and_append_data_slice(
             )
             continue
 
-    if skipped_samples == n:
-        return False
-    return True
+    return {
+        "samples_skipped": skipped_samples,
+        "all_samples_skipped": skipped_samples == n,
+    }
 
 
 def _retrieve_memory_objects(all_chunk_engines):
@@ -334,7 +336,10 @@ def store_data_slice_with_pbar(pg_callback, transform_input: Tuple) -> Dict:
         cache_size=cache_size,
     )
 
-    ret = True
+    ret = {
+        "all_samples_skipped": False,
+        "samples_skipped": 0,
+    }
     err = None
     try:
         if extend_only:
@@ -357,13 +362,15 @@ def store_data_slice_with_pbar(pg_callback, transform_input: Tuple) -> Dict:
                 ignore_errors,
             )
     except Exception as e:
-        print(e)
-        transform_dataset.flush()
+        try:
+            transform_dataset.flush()
+        except Exception:
+            pass
         err = e
     finally:
         # retrieve relevant objects from memory
         meta = _retrieve_memory_objects(all_chunk_engines)
-        meta["all_samples_skipped"] = not ret
+        meta.update(ret)
         meta["error"] = err
         return meta
 
@@ -531,8 +538,27 @@ def get_pbar_description(compute_functions: List):
     return f"Evaluating [{names_desc}]"
 
 
+def len_data_in(data_in):
+    if isinstance(data_in, deeplake.Dataset):
+        return data_in.max_len
+    else:
+        return len(data_in)
+
+
+def transform_summary(data_in, result):
+    samples_skipped = sum(result["samples_skipped"])
+    successful = len_data_in(data_in) - samples_skipped
+    successful_percent = round((successful / len_data_in(data_in)) * 100, 2)
+    skipped_percent = round(100 - successful_percent, 2)
+
+    print(
+        "No. of samples successfully processed:", successful, f"({successful_percent}%)"
+    )
+    print("No. of samples skipped:", samples_skipped, f"({skipped_percent}%)")
+
+
 def create_slices(data_in, num_workers):
-    size = math.ceil(len(data_in) / num_workers)
+    size = math.ceil(len_data_in(data_in) / num_workers)
 
     if isinstance(data_in, Tensor):
         ret = [
@@ -549,7 +575,7 @@ def create_slices(data_in, num_workers):
             for tensor_key in data_in.version_state["tensor_names"].values():
                 _tensors[tensor_key] = Tensor(tensor_key, ds)
 
-    offsets = list(range(0, len(data_in), size))
+    offsets = list(range(0, len_data_in(data_in), size))
     return ret, offsets
 
 
@@ -693,11 +719,11 @@ def check_checkpoint_interval(
         raise ValueError(
             "checkpoint_interval should be a multiple of num_workers if num_workers > 0"
         )
-    if checkpoint_interval > len(data_in):
+    if checkpoint_interval > len_data_in(data_in):
         raise ValueError(
             "checkpoint_interval should be less than or equal to the length of data_in"
         )
-    if checkpoint_interval < len(data_in) / 10 and verbose:
+    if checkpoint_interval < len_data_in(data_in) / 10 and verbose:
         warnings.warn(
             "checkpoint_interval is less than 10% of the length of data_in, this can lead to too many commits, consider increasing checkpoint_interval."
         )

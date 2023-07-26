@@ -14,14 +14,17 @@ from deeplake.util.link import save_link_creds
 from deeplake.util.path import is_hub_cloud_path
 from deeplake.util.tag import process_hub_path
 from deeplake.util.logging import log_visualizer_link
-from deeplake.util.storage import storage_provider_from_hub_path
+from deeplake.util.storage import (
+    storage_provider_from_hub_path,
+    get_dataset_credentials,
+)
 from warnings import warn
 import time
 import deeplake
 
 
 class DeepLakeCloudDataset(Dataset):
-    """Subclass of :class:`Dataset`. Deep Lake cloud datasets are those datasets which are stored on Activeloop servers, their paths look like:
+    """Subclass of :class:`Dataset`. Deep Lake cloud datasets are those datasets which are stored in or connected to Activeloop servers, their paths look like:
     ``hub://username/dataset_name``."""
 
     def _first_load_init(self, verbose=True):
@@ -377,13 +380,21 @@ class DeepLakeCloudDataset(Dataset):
         class _TmpWriteAccess:
             def __enter__(self2):
                 self2.orig_storage = self.base_storage
-                storage = storage_provider_from_hub_path(
-                    self.path, read_only=False, token=self._token
+
+                # check for write access
+                client = DeepLakeBackendClient(self._token)
+                _, org_id, ds_name, _ = process_hub_path(self.path)
+                _, _, mode, _, _ = get_dataset_credentials(
+                    client, org_id, ds_name, mode=None, db_engine=False
                 )
-                if storage.read_only:
+                if mode == "r":
                     raise ReadOnlyModeError(
                         f"You do not have permission to write to this dataset ({self.path})."
                     )
+
+                storage = storage_provider_from_hub_path(
+                    self.path, read_only=False, token=self._token
+                )
                 self.base_storage = storage
 
             def __exit__(self2, *_, **__):

@@ -335,5 +335,5 @@ def test_rechunk_text_like_lz4(local_ds):
     assert ds.list.chunk_engine.num_chunks == 1
 
     assert ds.text[-1].data()["value"] == "hello world"
-    assert ds.json[-1].data()["value"] == [{"a": 2, "b": 4}]
+    assert ds.json[-1].data()["value"] == {"a": 2, "b": 4}
     assert ds.list[-1].data()["value"] == [4, 5, 6]

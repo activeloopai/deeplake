@@ -9,7 +9,7 @@ Creating a Deep Lake Vector Store
     :toctree:
     :nosignatures:
 
-    DeepLakeVectorStore.__init__
+    VectorStore.__init__
 
 Vector Store Operations
 ~~~~~~~~~~~~~~~~~~~~~~~
@@ -18,10 +18,11 @@ Vector Store Operations
     :toctree:
     :nosignatures:
 
-    DeepLakeVectorStore.add
-    DeepLakeVectorStore.search
-    DeepLakeVectorStore.delete
-    DeepLakeVectorStore.delete_by_path
+    VectorStore.add
+    VectorStore.search
+    VectorStore.delete
+    VectorStore.delete_by_path
+    VectorStore.update_embedding
 
 Vector Store Properties
 ~~~~~~~~~~~~~~~~~~~~~~~
@@ -30,6 +31,6 @@ Vector Store Properties
     :toctree:
     :nosignatures:
 
-    DeepLakeVectorStore.summary
-    DeepLakeVectorStore.tensors
-    DeepLakeVectorStore.__len__
+    VectorStore.summary
+    VectorStore.tensors
+    VectorStore.__len__

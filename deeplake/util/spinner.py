@@ -20,9 +20,12 @@ class DummyFile:
 
     def write(self, text):
         if len(text.strip()) > 0:
-            with self.spinner._stderr_lock:
-                self.spinner._clear_line()
-                self.file.write(f"{text}\n")
+            if self.spinner._hide_event.is_set():
+                self.file.write(text)
+            else:
+                with self.spinner._stderr_lock:
+                    self.spinner._clear_line()
+                    self.file.write(f"{text}\n")
 
     def __getattr__(self, attr):
         return getattr(self.file, attr)
@@ -99,12 +102,13 @@ class Spinner(threading.Thread):
         if self._hide_event.is_set():
             with self._stderr_lock:
                 self._hide_event.clear()
-                self._clear_line()
+                self.file.write("\n")
                 self._hide_cursor()
 
     def stop(self):
         self._stop_event.set()
-        self._clear_line()
+        if not self._hide_event.is_set():
+            self._clear_line()
         self._show_cursor()
 
     def _clear_line(self):
@@ -114,6 +118,7 @@ class Spinner(threading.Thread):
         else:
             fill = " " * self._cur_line_len
             self.file.write(f"\r{fill}\r")
+        self._cur_line_len = 0
 
     def _hide_cursor(self):
         if self.file.isatty():

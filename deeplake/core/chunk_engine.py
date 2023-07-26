@@ -236,6 +236,7 @@ class ChunkEngine:
 
         self._numpy_extend_optimization_enabled = numpy_extend_optimization_enabled
 
+        self.cache_enabled = True
         self.cached_data: Optional[np.ndarray] = None
         self.cache_range: range = range(0)
 
@@ -267,14 +268,16 @@ class ChunkEngine:
 
     @property
     def is_data_cachable(self):
-        tensor_meta = self.tensor_meta
-        return (
-            self.chunk_class == UncompressedChunk
-            and tensor_meta.htype not in ["text", "json", "list", "polygon"]
-            and tensor_meta.max_shape
-            and (tensor_meta.max_shape == tensor_meta.min_shape)
-            and (np.prod(tensor_meta.max_shape) < 20)
-        )
+        if self.cache_enabled:
+            tensor_meta = self.tensor_meta
+            return (
+                self.chunk_class == UncompressedChunk
+                and tensor_meta.htype not in ["text", "json", "list", "polygon"]
+                and tensor_meta.max_shape
+                and (tensor_meta.max_shape == tensor_meta.min_shape)
+                and (np.prod(tensor_meta.max_shape) < 20)
+            )
+        return False
 
     @property
     def commit_id(self):
@@ -1315,6 +1318,10 @@ class ChunkEngine:
         link_callback: Optional[Callable] = None,
     ):
         """Update data at `index` with `samples`."""
+
+        cmap = self.commit_chunk_map
+        if cmap is not None:
+            cmap = CommitChunkMap.frombuffer(cmap.tobytes())
         try:
             self.check_link_ready()
             (self._sequence_update if self.is_sequence else self._update)(  # type: ignore
@@ -1324,10 +1331,15 @@ class ChunkEngine:
                 link_callback=link_callback,
             )
         except Exception as e:
+            if cmap is not None:
+                key = get_tensor_commit_chunk_map_key(self.key, self.commit_id)
+                self.meta_cache[key] = cmap
+                self._commit_chunk_map = cmap
+                self.meta_cache.register_deeplake_object(key, cmap)
             raise SampleUpdateError(self.name) from e
 
     def _get_samples_to_move(self, chunk) -> List[Sample]:
-        decompress = isinstance(chunk, ChunkCompressedChunk)
+        decompress = isinstance(chunk, ChunkCompressedChunk) or self.is_text_like
         samples_to_move: List[Sample] = []
         sum_bytes = 0
 
@@ -1345,7 +1357,7 @@ class ChunkEngine:
         return samples_to_move
 
     def _get_chunk_samples(self, chunk) -> List[Optional[Sample]]:
-        decompress = isinstance(chunk, ChunkCompressedChunk)
+        decompress = isinstance(chunk, ChunkCompressedChunk) or self.is_text_like
         all_samples_in_chunk: List[Optional[Sample]] = []
 
         for idx in range(chunk.num_samples):
@@ -1367,25 +1379,27 @@ class ChunkEngine:
     ):
         if isinstance(sample_data, Polygons):
             return sample_data
-        if decompress:
-            if self.is_text_like:
-                byts, shape = text_to_bytes(sample_data, dtype, self.tensor_meta.htype)
-                sample = Sample(buffer=byts, shape=shape)
+
+        if self.is_text_like:
+            if self.tensor_meta.is_link:
+                sample = LinkedSample(sample_data)
             else:
-                sample = Sample(array=sample_data, shape=sample_shape)
+                sample = sample_data
+                if self.tensor_meta.htype == "json" and isinstance(sample, np.ndarray):
+                    sample = sample.squeeze()
+            return sample
+
+        if decompress:
+            sample = Sample(array=sample_data, shape=sample_shape)
         else:
+            # sample data should not be an array here
+            assert not isinstance(sample_data, np.ndarray)
             sample = Sample(
                 buffer=sample_data,
                 shape=sample_shape,
                 compression=compression,
                 dtype=dtype,
             )
-
-        if self.is_text_like:
-            sample.htype = self.tensor_meta.htype
-        if self.tensor_meta.is_link:
-            sample.htype = "text"
-            sample = LinkedSample(sample.array[0])
         return sample
 
     def __rechunk(self, chunk: BaseChunk, chunk_row: int):
@@ -1569,46 +1583,49 @@ class ChunkEngine:
         self.cached_data = None
         initial_autoflush = self.cache.autoflush
         self.cache.autoflush = False
+        try:
+            if operator is not None:
+                return self._update_with_operator(index, samples, operator)
 
-        if operator is not None:
-            return self._update_with_operator(index, samples, operator)
+            enc = self.chunk_id_encoder
+            index_length = index.length(self.num_samples)
+            samples = make_sequence(samples, index_length)
+            verified_samples = self.check_each_sample(samples)
+            if self.tensor_meta.htype == "class_label":
+                samples = self._convert_class_labels(samples)
+            if self.tensor_meta.htype == "polygon":
+                samples = [Polygons(sample, self.tensor_meta.dtype) for sample in samples]  # type: ignore
+            nbytes_after_updates: List[int] = []
+            global_sample_indices = tuple(index.values[0].indices(self.num_samples))
+            is_sequence = self.is_sequence
+            for i, sample in enumerate(samples):  # type: ignore
+                sample = None if is_empty_list(sample) else sample
+                global_sample_index = global_sample_indices[i]  # TODO!
+                if self._is_tiled_sample(global_sample_index):
+                    self._update_tiled_sample(
+                        global_sample_index, index, sample, nbytes_after_updates
+                    )
+                else:
+                    self._update_non_tiled_sample(
+                        global_sample_index, index, sample, nbytes_after_updates
+                    )
+                self.update_creds(global_sample_index, sample)
+                if update_commit_diff:
+                    self.commit_diff.update_data(global_sample_index)
+                chunk_min, chunk_max = self.min_chunk_size, self.max_chunk_size
+                check_suboptimal_chunks(nbytes_after_updates, chunk_min, chunk_max)
 
-        enc = self.chunk_id_encoder
-        index_length = index.length(self.num_samples)
-        samples = make_sequence(samples, index_length)
-        verified_samples = self.check_each_sample(samples)
-        if self.tensor_meta.htype == "class_label":
-            samples = self._convert_class_labels(samples)
-        nbytes_after_updates: List[int] = []
-        global_sample_indices = tuple(index.values[0].indices(self.num_samples))
-        is_sequence = self.is_sequence
-        for i, sample in enumerate(samples):  # type: ignore
-            sample = None if is_empty_list(sample) else sample
-            global_sample_index = global_sample_indices[i]  # TODO!
-            if self._is_tiled_sample(global_sample_index):
-                self._update_tiled_sample(
-                    global_sample_index, index, sample, nbytes_after_updates
-                )
-            else:
-                self._update_non_tiled_sample(
-                    global_sample_index, index, sample, nbytes_after_updates
-                )
-            self.update_creds(global_sample_index, sample)
-            if update_commit_diff:
-                self.commit_diff.update_data(global_sample_index)
-            chunk_min, chunk_max = self.min_chunk_size, self.max_chunk_size
-            check_suboptimal_chunks(nbytes_after_updates, chunk_min, chunk_max)
-
-            if link_callback:
-                new_sample = verified_samples[i] if verified_samples else sample
-                link_callback(
-                    global_sample_index,
-                    sub_index=Index(index.values[1:]),
-                    new_sample=new_sample,
-                    flat=True if is_sequence else None,
-                )
-        self.cache.autoflush = initial_autoflush
-        self.cache.maybe_flush()
+                if link_callback:
+                    new_sample = verified_samples[i] if verified_samples else sample
+                    link_callback(
+                        global_sample_index,
+                        sub_index=Index(index.values[1:]),
+                        new_sample=new_sample,
+                        flat=True if is_sequence else None,
+                    )
+        finally:
+            self.cache.autoflush = initial_autoflush
+            self.cache.maybe_flush()
         return verified_samples
 
     def _update_with_operator(
@@ -1851,7 +1868,12 @@ class ChunkEngine:
         return chunk_id, row, worst_case_header_size
 
     def get_basic_sample(
-        self, global_sample_index, index, fetch_chunks=False, is_tile=False
+        self,
+        global_sample_index,
+        index,
+        fetch_chunks=False,
+        is_tile=False,
+        decompress=True,
     ):
         enc = self.chunk_id_encoder
         chunk_id, row, worst_case_header_size = self.get_chunk_info(
@@ -1861,20 +1883,28 @@ class ChunkEngine:
         chunk = self.get_chunk_from_chunk_id(
             chunk_id, partial_chunk_bytes=worst_case_header_size
         )
+        decompress = decompress or (
+            isinstance(chunk, ChunkCompressedChunk) or len(index) > 1
+        )
         ret = chunk.read_sample(
             local_sample_index,
             cast=self.tensor_meta.htype != "dicom",
             is_tile=is_tile,
+            decompress=decompress,
         )
         if len(index) > 1:
             ret = ret[tuple(entry.value for entry in index.values[1:])]
         return ret
 
-    def get_non_tiled_sample(self, global_sample_index, index, fetch_chunks=False):
+    def get_non_tiled_sample(
+        self, global_sample_index, index, fetch_chunks=False, decompress=True
+    ):
         if self.is_video:
-            return self.get_video_sample(global_sample_index, index)
+            return self.get_video_sample(
+                global_sample_index, index, decompress=decompress
+            )
         return self.get_basic_sample(
-            global_sample_index, index, fetch_chunks=fetch_chunks
+            global_sample_index, index, fetch_chunks=fetch_chunks, decompress=decompress
         )
 
     def get_full_tiled_sample(self, global_sample_index, fetch_chunks=False):
@@ -1904,7 +1934,12 @@ class ChunkEngine:
         return sample
 
     def get_single_sample(
-        self, global_sample_index, index, fetch_chunks=False, pad_tensor=False
+        self,
+        global_sample_index,
+        index,
+        fetch_chunks=False,
+        pad_tensor=False,
+        decompress=True,
     ):
         if pad_tensor and global_sample_index >= self.tensor_length:
             sample = self.get_empty_sample()
@@ -1915,11 +1950,15 @@ class ChunkEngine:
 
         if not self._is_tiled_sample(global_sample_index):
             sample = self.get_non_tiled_sample(
-                global_sample_index, index, fetch_chunks=fetch_chunks
+                global_sample_index,
+                index,
+                fetch_chunks=fetch_chunks,
+                decompress=decompress,
             )
         elif len(index.values) == 1:
             sample = self.get_full_tiled_sample(
-                global_sample_index, fetch_chunks=fetch_chunks
+                global_sample_index,
+                fetch_chunks=fetch_chunks,
             )
         else:
             sample = self.get_partial_tiled_sample(
@@ -2258,7 +2297,7 @@ class ChunkEngine:
         return
 
     @property
-    def sequence_encoder(self) -> SequenceEncoder:
+    def sequence_encoder(self) -> Optional[SequenceEncoder]:
         """Gets the shape encoder from cache, if one is not found it creates a blank encoder.
 
         Raises:
@@ -2458,10 +2497,14 @@ class ChunkEngine:
             verified_samples = []
             for sample in samples:  # type: ignore
                 verified_sample = []
-                for _ in sample:  # type: ignore
-                    verified_sample.append(flat_verified_samples[i])
+                if isinstance(sample, Iterable):
+                    for _ in sample:  # type: ignore
+                        verified_sample.append(flat_verified_samples[i])
+                        i += 1
+                    verified_samples.append(verified_sample)
+                else:
+                    verified_samples.append(flat_verified_samples[i])
                     i += 1
-                verified_samples.append(verified_sample)
 
         list(
             map(
@@ -2508,7 +2551,8 @@ class ChunkEngine:
         if nrows == 0:
             return 0, 0
         min_ = max_ = enc[0][1] - enc[0][0]
-        for i in range(1, nrows):
+        # sequence length is number of samples in tensor
+        for i in range(1, self._sequence_length):
             length = enc[i][1] - enc[i][0]
             if length < min_:
                 min_ = length
@@ -2567,6 +2611,8 @@ class ChunkEngine:
 
         sample_ndim = self.ndim() - 1
 
+        bad_shapes = []
+        offset = 0
         for i, idx in enumerate(sample_indices):
             if self.tensor_meta.htype in ("text", "json"):
                 shape = (1,)
@@ -2583,11 +2629,21 @@ class ChunkEngine:
                     sample_shapes = np.zeros((num_samples, sample_ndim), dtype=np.int32)
 
             if flatten:
-                start, end = self.sequence_encoder[i]
-                sample_shapes[start:end] = shape
+                # fill sample shapes with sequence item shapes, no nesting
+                start, end = self.sequence_encoder[idx]
+                length = end - start
+                sample_shapes[offset : offset + length] = shape
+                offset += length
             else:
-                sample_shapes[i] = shape
-        return sample_shapes
+                try:
+                    sample_shapes[i] = shape
+                except ValueError:
+                    # Backwards compatibility for old datasets with
+                    # grayscale images stored as (H, W) instead of (H, W, 1)
+                    if len(shape) == 2 and sample_shapes.shape[1] == 3:
+                        sample_shapes[i] = shape + (1,)
+                        bad_shapes.append(i)
+        return sample_shapes, bad_shapes
 
     def _get_total_samples_and_sample_ndim(self, index_0):
         """Returns total number of samples (including sequence items) and sample ndim using first index"""
@@ -2610,16 +2666,24 @@ class ChunkEngine:
         """Groups shapes of flattened sequence items"""
         sample_indices = list(index_0.indices(self._sequence_length))
         num_samples = len(sample_indices)
+        seq_item_length = self.sequence_encoder[sample_indices[0]]
+        seq_item_length = seq_item_length[1] - seq_item_length[0]
+        # try reshape to (num_samples, seq_item_length, sample_ndim)
         try:
+            if isinstance(sample_shapes, list):
+                raise ValueError
             sample_shapes = sample_shapes[np.newaxis, :].reshape(
-                num_samples, -1, sample_ndim
+                num_samples, seq_item_length, sample_ndim
             )
             return sample_shapes
         except ValueError:
             sample_shapes_list = []
-            for i in sample_indices:
-                start, end = self.sequence_encoder[i]
-                sample_shapes_list.append(sample_shapes[start:end])
+            offset = 0
+            for i, idx in enumerate(sample_indices):
+                start, end = self.sequence_encoder[idx]
+                length = end - start
+                sample_shapes_list.append(sample_shapes[offset : offset + length])
+                offset += length
             return sample_shapes_list
 
     def shapes(
@@ -2627,16 +2691,24 @@ class ChunkEngine:
         index: Index,
         sample_shape_provider: Optional[Callable] = None,
         pad_tensor: bool = False,
+        convert_bad_to_list: bool = True,
     ):
         if len(index) > 1:
-            raise IndexError(f"`.shapes` only accepts indexing on the primary axis.")
+            raise IndexError("`.shapes` only accepts indexing on the primary axis.")
 
         index_0 = index.values[0]
         num_samples, sample_ndim = self._get_total_samples_and_sample_ndim(index_0)
 
         sample_shapes = np.zeros((num_samples, sample_ndim), dtype=np.int32)
 
-        shape = self.shape_interval(index).astuple()[1:]
+        if (
+            index.is_trivial()
+            or self.tensor_meta.min_shape == self.tensor_meta.max_shape
+            or num_samples == 0
+        ):
+            shape = self.shape_interval(index).astuple()[1:]
+        else:
+            shape = None
 
         if (
             not index_0.subscriptable()
@@ -2645,13 +2717,18 @@ class ChunkEngine:
         ):
             shape = self.get_empty_sample().shape
 
-        if num_samples > 0 and None in shape or self.tensor_meta.is_link:
-            sample_shapes = self._populate_sample_shapes(
+        if shape is None or None in shape or self.tensor_meta.is_link:
+            sample_shapes, bad_shapes = self._populate_sample_shapes(
                 sample_shapes,
                 index,
                 sample_shape_provider,
                 flatten=True if self.is_sequence else False,
             )
+            # convert to list if grayscale images were stored as (H, W) instead of (H, W, 1)
+            if bad_shapes and convert_bad_to_list:
+                sample_shapes = sample_shapes.tolist()
+                for i in bad_shapes:
+                    sample_shapes[i] = sample_shapes[i][:-1]
             if self.is_sequence:
                 sample_shapes = self._group_flat_shapes(
                     sample_shapes, index_0, sample_ndim
@@ -2707,20 +2784,21 @@ class ChunkEngine:
         ):
             return self.get_empty_sample().shape
 
-        shape = self.shape_interval(index).astuple()
-        if index_0.is_trivial():
-            return shape
-
         num_samples = index_0.length(self._sequence_length or self.num_samples)
-        if num_samples == 0:
-            return shape
+        if self.tensor_meta.min_shape == self.tensor_meta.max_shape:
+            if index_0.is_trivial() or num_samples == 0:
+                shape = self.shape_interval(index).astuple()
+                return shape
+            else:
+                shape = self.shape_interval(index).astuple()[1:]
+        else:
+            shape = None
 
-        shape = shape[1:]
         sample_ndim = tensor_ndim - 1
         sample_shapes = np.zeros((num_samples, sample_ndim), dtype=np.int32)
 
-        if None in shape or self.tensor_meta.is_link:
-            sample_shapes = self._populate_sample_shapes(
+        if shape is None or None in shape or self.tensor_meta.is_link:
+            sample_shapes, bad_shapes = self._populate_sample_shapes(
                 sample_shapes, index, sample_shape_provider, flatten=False
             )
             sample_ndim = sample_shapes.shape[1]
@@ -2735,7 +2813,7 @@ class ChunkEngine:
         if index_0.subscriptable():
             shape = (num_samples, *shape)  # type: ignore
 
-        return shape
+        return shape  # type: ignore
 
     def ndim(self, index: Optional[Index] = None) -> int:
         ndim = len(self.tensor_meta.min_shape) + 1
@@ -2747,11 +2825,14 @@ class ChunkEngine:
                     ndim -= 1
         return ndim
 
-    def shape_interval(self, index: Index) -> ShapeInterval:
+    def shape_interval(
+        self, index: Index, sample_shape_provider: Optional[Callable] = None
+    ) -> ShapeInterval:
         """Returns a `ShapeInterval` object that describes this tensor's shape more accurately. Length is included.
 
         Args:
             index (Index): Index to use for shape calculation.
+            sample_shape_provider (Optional, Callable): Function that returns a sample shape for a given index.
 
         Note:
             If you are expecting a `tuple`, use `tensor.shape` instead.
@@ -2769,14 +2850,46 @@ class ChunkEngine:
         """
         meta = self.tensor_meta
         if self.is_sequence:
-            seq_length = index.length(self._sequence_length)
-            min_item_length, max_item_length = self._sequence_item_length_range
-            min_length = [seq_length, min_item_length]
-            max_length = [seq_length, max_item_length]
+            tensor_length = index.length(self._sequence_length)
         else:
-            min_length = max_length = [index.length(meta.length)]
-        min_shape = min_length + list(meta.min_shape)
-        max_shape = max_length + list(meta.max_shape)
+            tensor_length = index.length(meta.length)
+
+        if index.is_trivial() or meta.min_shape == meta.max_shape or tensor_length == 0:
+            if self.is_sequence:
+                min_item_length, max_item_length = self._sequence_item_length_range
+                min_length = [tensor_length, min_item_length]
+                max_length = [tensor_length, max_item_length]
+            else:
+                min_length = max_length = [tensor_length]
+            min_shape = min_length + list(meta.min_shape)
+            max_shape = max_length + list(meta.max_shape)
+        else:
+            # need to fetch all shapes for the index
+            shapes = self.shapes(
+                index, sample_shape_provider, convert_bad_to_list=False
+            )
+            if self.is_sequence:
+                if isinstance(shapes, np.ndarray):
+                    # uniform sequence of shape (num_samples, num_items, ...)
+                    min_shape = [*shapes.shape[:-1], *np.amin(shapes, axis=(0, 1))]
+                    max_shape = [*shapes.shape[:-1], *np.amax(shapes, axis=(0, 1))]
+                else:
+                    # non-uniform sequence
+                    item_lengths = list(map(len, shapes))
+                    min_item_length, max_item_length = min(item_lengths), max(
+                        item_lengths
+                    )
+                    min_item_shape = np.amin(
+                        list(map(lambda x: np.amin(x, axis=0), shapes)), axis=0
+                    )
+                    max_item_shape = np.amax(
+                        list(map(lambda x: np.amax(x, axis=0), shapes)), axis=0
+                    )
+                    min_shape = [len(shapes), min_item_length, *min_item_shape]
+                    max_shape = [len(shapes), max_item_length, *max_item_shape]
+            else:
+                min_shape = [len(shapes), *np.amin(shapes, axis=0)]
+                max_shape = [len(shapes), *np.amax(shapes, axis=0)]
 
         return ShapeInterval(min_shape, max_shape)
 

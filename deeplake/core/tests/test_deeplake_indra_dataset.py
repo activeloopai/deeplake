@@ -13,10 +13,10 @@ import pytest
 
 
 @requires_libdeeplake
-def test_indexing(local_ds_generator):
+def test_indexing(local_auth_ds_generator):
     from deeplake.enterprise.convert_to_libdeeplake import dataset_to_libdeeplake
 
-    deeplake_ds = local_ds_generator()
+    deeplake_ds = local_auth_ds_generator()
     with deeplake_ds:
         deeplake_ds.create_tensor("label", htype="generic", dtype=np.int32)
         for i in range(1000):
@@ -58,10 +58,10 @@ def test_indexing(local_ds_generator):
 
 
 @requires_libdeeplake
-def test_save_view(local_ds_generator):
+def test_save_view(local_auth_ds_generator):
     from deeplake.enterprise.convert_to_libdeeplake import dataset_to_libdeeplake
 
-    deeplake_ds = local_ds_generator()
+    deeplake_ds = local_auth_ds_generator()
     with deeplake_ds:
         deeplake_ds.create_tensor("label", htype="generic", dtype=np.int32)
         for i in range(1000):
@@ -79,23 +79,23 @@ def test_save_view(local_ds_generator):
 
 
 @requires_libdeeplake
-def test_empty_token_exception(local_ds):
+def test_empty_token_exception(local_auth_ds):
     from deeplake.enterprise.convert_to_libdeeplake import dataset_to_libdeeplake
 
-    with local_ds:
-        local_ds.create_tensor("label", htype="generic", dtype=np.int32)
+    with local_auth_ds:
+        local_auth_ds.create_tensor("label", htype="generic", dtype=np.int32)
 
-    loaded = deeplake.load(local_ds.path, token="")
+    loaded = deeplake.load(local_auth_ds.path, token="")
 
     with pytest.raises(EmptyTokenException):
         dss = dataset_to_libdeeplake(loaded)
 
 
 @requires_libdeeplake
-def test_load_view(local_ds_generator):
+def test_load_view(local_auth_ds_generator):
     from deeplake.enterprise.convert_to_libdeeplake import dataset_to_libdeeplake
 
-    deeplake_ds = local_ds_generator()
+    deeplake_ds = local_auth_ds_generator()
     with deeplake_ds:
         deeplake_ds.create_tensor("label", htype="generic", dtype=np.int32)
         deeplake_ds.create_tensor(
@@ -144,10 +144,10 @@ def test_load_view(local_ds_generator):
 
 
 @requires_libdeeplake
-def test_query(local_ds_generator):
+def test_query(local_auth_ds_generator):
     from deeplake.enterprise.convert_to_libdeeplake import dataset_to_libdeeplake
 
-    deeplake_ds = local_ds_generator()
+    deeplake_ds = local_auth_ds_generator()
     with deeplake_ds:
         deeplake_ds.create_tensor("label", htype="generic", dtype=np.int32)
         deeplake_ds.create_tensor(
@@ -178,10 +178,10 @@ def test_query(local_ds_generator):
 
 
 @requires_libdeeplake
-def test_metadata(local_ds_generator):
+def test_metadata(local_auth_ds_generator):
     from deeplake.enterprise.convert_to_libdeeplake import dataset_to_libdeeplake
 
-    deeplake_ds = local_ds_generator()
+    deeplake_ds = local_auth_ds_generator()
     with deeplake_ds:
         deeplake_ds.create_tensor("label", htype="generic", dtype=np.int32)
         deeplake_ds.create_tensor(
@@ -209,10 +209,10 @@ def test_metadata(local_ds_generator):
 
 
 @requires_libdeeplake
-def test_accessing_data(local_ds_generator):
+def test_accessing_data(local_auth_ds_generator):
     from deeplake.enterprise.convert_to_libdeeplake import dataset_to_libdeeplake
 
-    deeplake_ds = local_ds_generator()
+    deeplake_ds = local_auth_ds_generator()
     with deeplake_ds:
         deeplake_ds.create_tensor("label", htype="generic", dtype=np.int32)
         for i in range(1000):
@@ -227,8 +227,8 @@ def test_accessing_data(local_ds_generator):
 
 
 @requires_libdeeplake
-def test_sequences_accessing_data(local_ds_generator):
-    deeplake_ds = local_ds_generator()
+def test_sequences_accessing_data(local_auth_ds_generator):
+    deeplake_ds = local_auth_ds_generator()
     with deeplake_ds:
         deeplake_ds.create_tensor("label", htype="generic", dtype=np.int32)
         for i in range(200):
@@ -242,21 +242,21 @@ def test_sequences_accessing_data(local_ds_generator):
 
     deeplake_indra_ds = deeplake_ds.query("SELECT * GROUP BY label")
     assert len(deeplake_indra_ds) == 2
-    assert deeplake_indra_ds.image.shape == [2, None, None, 10, 3]
-    assert deeplake_indra_ds[0].image.shape == [101, 10, 10, 3]
-    assert deeplake_indra_ds[0, 0].image.shape == [10, 10, 3]
+    assert deeplake_indra_ds.image.shape == (2, None, None, 10, 3)
+    assert deeplake_indra_ds[0].image.shape == (101, 10, 10, 3)
+    assert deeplake_indra_ds[0, 0].image.shape == (10, 10, 3)
     assert deeplake_indra_ds[0].image.numpy().shape == (101, 10, 10, 3)
-    assert deeplake_indra_ds[1].image.shape == [99, None, 10, 3]
-    assert deeplake_indra_ds[1, 0].image.shape == [10, 10, 3]
-    assert deeplake_indra_ds[1, 98].image.shape == [20, 10, 3]
+    assert deeplake_indra_ds[1].image.shape == (99, None, 10, 3)
+    assert deeplake_indra_ds[1, 0].image.shape == (10, 10, 3)
+    assert deeplake_indra_ds[1, 98].image.shape == (20, 10, 3)
     assert deeplake_indra_ds[1].image.numpy().shape == (99,)
     assert deeplake_indra_ds[1].image.numpy()[0].shape == (10, 10, 3)
     assert deeplake_indra_ds[1].image.numpy()[98].shape == (20, 10, 3)
 
 
 @requires_libdeeplake
-def test_random_split(local_ds_generator):
-    deeplake_ds = local_ds_generator()
+def test_random_split(local_auth_ds_generator):
+    deeplake_ds = local_auth_ds_generator()
     with deeplake_ds:
         deeplake_ds.create_tensor("label", htype="generic", dtype=np.int32)
         for i in range(1000):
@@ -298,8 +298,8 @@ def test_random_split(local_ds_generator):
 
 
 @requires_libdeeplake
-def test_virtual_tensors(local_ds_generator):
-    deeplake_ds = local_ds_generator()
+def test_virtual_tensors(local_auth_ds_generator):
+    deeplake_ds = local_auth_ds_generator()
     with deeplake_ds:
         deeplake_ds.create_tensor("label", htype="generic", dtype=np.int32)
         deeplake_ds.create_tensor("embeddings", htype="generic", dtype=np.float32)
@@ -335,7 +335,7 @@ def test_virtual_tensors(local_ds_generator):
         "json",
         "num_labels",
     ]
-    assert deeplake_indra_ds.text[0].data() == {"value": "Hello 0"}
+    assert deeplake_indra_ds.text[0].data() == deeplake_ds.text[0].data()
     assert deeplake_indra_ds.json[0].data() == {"value": '{"key": "val"}'}
     assert deeplake_ds.json[0].data() == {"value": '{"key": "val"}'}
 

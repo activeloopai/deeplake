@@ -190,3 +190,7 @@ class DummyDataloader:
 
     def __len__(self):
         return len(self.loader)
+
+    @property
+    def summary(self):
+        return

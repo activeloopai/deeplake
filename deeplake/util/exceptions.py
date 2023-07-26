@@ -1066,3 +1066,12 @@ class FailedIngestionError(Exception):
 
 class ConcurrentModeError(Exception):
     pass
+
+
+class IncorrectEmbeddingShapeError(Exception):
+    def __init__(self):
+        super().__init__(
+            "The embedding function returned embeddings of different shapes. "
+            "Please either use different embedding function or exclude invalid "
+            "files that are not supported by the embedding function. "
+        )
