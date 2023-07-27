@@ -545,7 +545,7 @@ class ChunkEngine:
     def last_appended_chunk_id(self) -> str:
         return self.chunk_id_encoder.get_id_for_chunk(-1)
 
-    def last_appended_chunk(self) -> Optional[BaseChunk]:
+    def last_appended_chunk(self, allow_copy=True) -> Optional[BaseChunk]:
         last_index = self.num_samples - 1
         if self.num_chunks == 0 or last_index in self.tile_encoder:
             return None
@@ -556,6 +556,8 @@ class ChunkEngine:
         chunk.key = chunk_key
         chunk.id = self.last_appended_chunk_id
         if chunk_commit_id != self.commit_id:
+            if not allow_copy:
+                return None
             chunk = self.copy_chunk_to_new_commit(chunk, chunk_name)
         if (
             self.active_appended_chunk is not None
@@ -1010,7 +1012,7 @@ class ChunkEngine:
         )
         self._samples_to_chunks(
             samples,
-            start_chunk=self.last_appended_chunk(),
+            start_chunk=self.last_appended_chunk(allow_copy=False),
             register=True,
             progressbar=progressbar,
             update_commit_diff=update_commit_diff,
