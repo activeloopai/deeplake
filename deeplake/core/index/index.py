@@ -267,16 +267,10 @@ class IndexEntry:
         # Check each index of a tuple for ints that are too large (positive or negative)
         if isinstance(value_to_check, tuple):
             value_arr = np.array(value_to_check)
-            value_arr -= parent_length
-            if np.any(value_arr >= 0) or np.any(value_arr < -parent_length):
+            if np.any(value_arr >= parent_length | value_arr < -parent_length):
                 raise IndexError(
                     f"Index {value_to_check} is out of range for tensors with length {parent_length}"
                 )
-            # for idx in value_to_check:
-            #     if idx >= parent_length or idx < -parent_length:
-            #         raise IndexError(
-            #             f"Index {idx} is out of range for tensors with length {parent_length}"
-            #         )
 
     def downsample(self, factor: int, length: int):
         """Downsamples an IndexEntry by a given factor.
