@@ -414,14 +414,11 @@ class Index:
             new_index = self
             for idx, sub_item in enumerate(item):
                 ax = new_index.find_axis(offset=idx)
-                print(ax)
                 new_index = new_index.compose_at(sub_item, ax)
-                print([item.value for item in new_index.values])
             return new_index
         elif isinstance(item, list):
             return self[(tuple(item),)]  # type: ignore
         elif isinstance(item, Index):
-            print(tuple(v.value for v in item.values))
             return self[tuple(v.value for v in item.values)]  # type: ignore
         else:
             raise TypeError(f"Value {item} is of unrecognized type {type(item)}.")
