@@ -145,6 +145,11 @@ def dataset_to_libdeeplake(hub2_dataset):
             raise ValueError("In memory datasets are not supported for libdeeplake")
         elif path.startswith("hub://"):
             token = hub2_dataset._token
+            if token is None or token == "" and not hub2_dataset.public:
+                token = hub2_dataset.client.get_token()
+                if token is None or token == "":
+                    raise EmptyTokenException
+
             provider = hub2_dataset.storage.next_storage
             if isinstance(provider, S3Provider):
                 libdeeplake_dataset = _get_indra_ds_from_s3_provider(
