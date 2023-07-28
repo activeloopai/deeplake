@@ -1769,3 +1769,8 @@ def test_uuid_fix(local_path):
     vector_store.add(text=texts, id=ids, embedding=embeddings, metadata=metadatas)
 
     assert vector_store.dataset.id.data()["value"] == list(map(str, ids))
+
+
+def test_read_only():
+    db = VectorStore("hub://davitbun/twitter-algorithm")
+    assert db.dataset.read_only == True

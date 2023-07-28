@@ -36,7 +36,7 @@ class VectorStore:
         path: Union[str, pathlib.Path],
         tensor_params: List[Dict[str, object]] = DEFAULT_VECTORSTORE_TENSORS,
         embedding_function: Optional[Callable] = None,
-        read_only: Optional[bool] = False,
+        read_only: Optional[bool] = None,
         ingestion_batch_size: int = 1000,
         num_workers: int = 0,
         exec_option: str = "auto",
