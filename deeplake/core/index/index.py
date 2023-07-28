@@ -267,7 +267,7 @@ class IndexEntry:
         # Check each index of a tuple for ints that are too large (positive or negative)
         if isinstance(value_to_check, tuple):
             value_arr = np.array(value_to_check)
-            if np.any(value_arr >= parent_length | value_arr < -parent_length):
+            if np.any((value_arr >= parent_length) | (value_arr < -parent_length)):
                 raise IndexError(
                     f"Index {value_to_check} is out of range for tensors with length {parent_length}"
                 )
