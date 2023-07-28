@@ -1713,16 +1713,17 @@ class Dataset:
         return self.commit_id
 
     @invalid_view_op
-    def delete_branch(self, name: str) -> None:
+    def delete_branch(self, name: str, delete_commits: Optional[bool] = False) -> None:
         """Deletes a specific branch. You cannot delete the branch currently checked out.
 
         Args:
             name (str): The branch to delete.
+            delete_commits (bool, Optional): If ``True``, deletes all commits in the branch.
 
         Raises:
             CommitError: If ``branch`` could not be found.
             ReadOnlyModeError: If branch deletion is attempted in read-only mode.
-            Exception: If you have have the given branch currently checked out.
+            Exception: If you have the given branch currently checked out.
 
         Examples:
 
@@ -1746,10 +1747,10 @@ class Dataset:
             parameters={},
         )
 
-        self._delete_branch(name)
+        self._delete_branch(name, delete_commits)
         integrity_check(self)
 
-    def _delete_branch(self, name: str) -> None:
+    def _delete_branch(self, name: str, delete_commits: Optional[bool] = False) -> None:
         if self._is_filtered_view:
             raise Exception(
                 "Cannot perform version control operations on a filtered dataset view."
@@ -1762,7 +1763,7 @@ class Dataset:
         self.storage.autoflush = False
         try:
             self._unlock()
-            delete_branch(self, name)
+            delete_branch(self, name, delete_commits)
         finally:
             self._set_read_only(read_only, err=True)
             self.storage.autoflush = self._initial_autoflush.pop()

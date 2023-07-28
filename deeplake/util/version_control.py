@@ -7,6 +7,7 @@ from typing import Any, Dict, Optional, List
 import warnings
 from deeplake.client.log import logger
 from deeplake.constants import FIRST_COMMIT_ID
+from deeplake.core import lock
 from deeplake.core.fast_forwarding import ffw_dataset_meta
 from deeplake.core.meta.dataset_meta import DatasetMeta
 from deeplake.core.storage.deeplake_memory_object import DeepLakeMemoryObject
@@ -17,7 +18,7 @@ from deeplake.core.version_control.dataset_diff import DatasetDiff
 from deeplake.core.version_control.commit_node import CommitNode  # type: ignore
 from deeplake.core.version_control.commit_chunk_map import CommitChunkMap  # type: ignore
 from deeplake.core.storage import LRUCache
-from deeplake.core.lock import Lock
+from deeplake.core.lock import Lock, PersistentLock
 from deeplake.util.exceptions import (
     CheckoutError,
     CommitError,
@@ -290,6 +291,7 @@ def checkout(
 def delete_branch(
     dataset,
     branch_name: str,
+    delete_commits: Optional[bool] = False,
 ) -> None:
     """Deletes the branch reference and cleans up any unneeded data."""
 
@@ -307,8 +309,11 @@ def delete_branch(
         raise VersionControlError("Cannot delete the main branch")
 
     storage = get_base_storage(storage)
-    lock = Lock(storage, get_version_control_info_lock_key(), duration=10)
-    lock.acquire()  # Blocking
+    versioncontrol_lock = PersistentLock(storage, get_version_control_info_lock_key())
+    versioncontrol_lock.acquire()  # Blocking
+
+    dataset_lock = lock.lock_dataset(dataset, version=branch_name)
+
     try:
         key = get_version_control_info_key()
 
@@ -330,50 +335,51 @@ def delete_branch(
         # remove branch reference
         stored_version_info["branch_commit_map"].pop(branch_name)
 
-        # garbage collect unreferenced commits
-        referenced_commits = set()
-        for existing_branch, branch_head_commit in stored_version_info[
-            "branch_commit_map"
-        ].items():
-            referenced_commits.add(branch_head_commit)
+        if delete_commits:
+            referenced_commits = set()
+            for existing_branch, branch_head_commit in stored_version_info[
+                "branch_commit_map"
+            ].items():
+                referenced_commits.add(branch_head_commit)
 
-            parent_commit = stored_version_info["commit_node_map"][
-                branch_head_commit
-            ].parent
-            while parent_commit is not None:
-                referenced_commits.add(parent_commit.commit_id)
-                parent_commit = parent_commit.parent
+                parent_commit = stored_version_info["commit_node_map"][
+                    branch_head_commit
+                ].parent
+                while parent_commit is not None:
+                    referenced_commits.add(parent_commit.commit_id)
+                    parent_commit = parent_commit.parent
 
-        for existing_commit in list(stored_version_info["commit_node_map"].keys()):
-            if existing_commit not in referenced_commits:
-                print(f"deleting commit {existing_commit}")
-                stored_version_info["commit_node_map"].pop(existing_commit)
+            for existing_commit in list(stored_version_info["commit_node_map"].keys()):
+                if existing_commit not in referenced_commits:
+                    print(f"deleting commit {existing_commit}")
+                    stored_version_info["commit_node_map"].pop(existing_commit)
 
-                delete_version_from_storage(storage, existing_commit)
-            else:
-                version_to_keep = stored_version_info["commit_node_map"][
-                    existing_commit
-                ]
-                # clear out invalid children
-                version_to_keep.children = [
-                    child
-                    for child in version_to_keep.children
-                    if child.commit_id in referenced_commits
-                ]
+                    delete_version_from_storage(storage, existing_commit)
+                else:
+                    version_to_keep = stored_version_info["commit_node_map"][
+                        existing_commit
+                    ]
+                    # clear out invalid children
+                    version_to_keep.children = [
+                        child
+                        for child in version_to_keep.children
+                        if child.commit_id in referenced_commits
+                    ]
 
-                # set branch to a valid branch name
-                if (
-                    version_to_keep.branch
-                    not in stored_version_info["branch_commit_map"].keys()
-                ):
-                    version_to_keep.branch = version_to_keep.children[0].branch
+                    # set branch to a valid branch name
+                    if (
+                        version_to_keep.branch
+                        not in stored_version_info["branch_commit_map"].keys()
+                    ):
+                        version_to_keep.branch = version_to_keep.children[0].branch
 
         storage[key] = json.dumps(_version_info_to_json(stored_version_info)).encode(
             "utf-8"
         )
         storage.flush()
     finally:
-        lock.release()
+        versioncontrol_lock.release()
+        dataset_lock.release()
 
     dataset._reload_version_state()
 
