@@ -182,7 +182,10 @@ class IndexEntry:
             elif isinstance(item, slice):
                 return IndexEntry(merge_slices(self.value, item))
             elif isinstance(item, (tuple, list)):
-                new_value = tuple(slice_at_int(self.value, idx) for idx in item)
+                if self.is_trivial():
+                    new_value = tuple(item)
+                else:
+                    new_value = tuple(slice_at_int(self.value, idx) for idx in item)
                 return IndexEntry(new_value)
         elif isinstance(self.value, (tuple, list)):
             if isinstance(item, int) or isinstance(item, slice):
@@ -252,18 +255,28 @@ class IndexEntry:
 
     def validate(self, parent_length: int):
         """Checks that the index is not accessing values outside the range of the parent."""
-        # Slices are okay, as an out-of-range slice will just yield no samples
-        # Check each index of a tuple
-        if isinstance(self.value, tuple):
-            for idx in self.value:
-                IndexEntry(idx).validate(parent_length)
 
-        # Check ints that are too large (positive or negative)
-        if isinstance(self.value, int):
-            if self.value >= parent_length or self.value < -parent_length:
+        # Slices are okay, as an out-of-range slice will just yield no samples
+        if isinstance(self.value, slice):
+            return
+
+        value_to_check = self.value
+        if isinstance(value_to_check, int):
+            value_to_check = (value_to_check,)
+
+        # Check each index of a tuple for ints that are too large (positive or negative)
+        if isinstance(value_to_check, tuple):
+            value_arr = np.array(value_to_check)
+            value_arr -= parent_length
+            if np.any(value_arr >= 0) or np.any(value_arr < -parent_length):
                 raise IndexError(
-                    f"Index {self.value} is out of range for tensors with length {parent_length}"
+                    f"Index {value_to_check} is out of range for tensors with length {parent_length}"
                 )
+            # for idx in value_to_check:
+            #     if idx >= parent_length or idx < -parent_length:
+            #         raise IndexError(
+            #             f"Index {idx} is out of range for tensors with length {parent_length}"
+            #         )
 
     def downsample(self, factor: int, length: int):
         """Downsamples an IndexEntry by a given factor.
@@ -401,11 +414,14 @@ class Index:
             new_index = self
             for idx, sub_item in enumerate(item):
                 ax = new_index.find_axis(offset=idx)
+                print(ax)
                 new_index = new_index.compose_at(sub_item, ax)
+                print([item.value for item in new_index.values])
             return new_index
         elif isinstance(item, list):
             return self[(tuple(item),)]  # type: ignore
         elif isinstance(item, Index):
+            print(tuple(v.value for v in item.values))
             return self[tuple(v.value for v in item.values)]  # type: ignore
         else:
             raise TypeError(f"Value {item} is of unrecognized type {type(item)}.")
