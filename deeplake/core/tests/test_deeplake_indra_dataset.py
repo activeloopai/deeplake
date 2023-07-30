@@ -23,7 +23,8 @@ def test_empty_token_exception_in_libdeeplake(hub_cloud_dev_credentials):
 
     ds = deeplake.load("hub://activeloop/mnist-train")
     assert ds._token == None
-    dss = dataset_to_libdeeplake(ds)
+    with pytest.raises(EmptyTokenException):
+        dss = dataset_to_libdeeplake(ds)
 
 
 @requires_libdeeplake
