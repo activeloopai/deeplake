@@ -137,6 +137,15 @@ def dataset_to_libdeeplake(hub2_dataset):
     try_flushing(hub2_dataset)
     api = import_indra_api()
     path: str = hub2_dataset.path
+    token = hub2_dataset._token
+
+    token = (
+        hub2_dataset._token
+        if hub2_dataset._token is not None or hub2_dataset._token != ""
+        else hub2_dataset.client.get_token()
+    )
+    if token is None or token == "":
+        raise EmptyTokenException
     if hub2_dataset.libdeeplake_dataset is None:
         libdeeplake_dataset = None
         if path.startswith("gdrive://"):
@@ -144,12 +153,6 @@ def dataset_to_libdeeplake(hub2_dataset):
         elif path.startswith("mem://"):
             raise ValueError("In memory datasets are not supported for libdeeplake")
         elif path.startswith("hub://"):
-            token = hub2_dataset._token
-            if token is None or token == "" and not hub2_dataset.public:
-                token = hub2_dataset.client.get_token()
-                if token is None or token == "":
-                    raise EmptyTokenException
-
             provider = hub2_dataset.storage.next_storage
             if isinstance(provider, S3Provider):
                 libdeeplake_dataset = _get_indra_ds_from_s3_provider(
@@ -167,49 +170,29 @@ def dataset_to_libdeeplake(hub2_dataset):
                 )
 
         elif path.startswith("s3://"):
-            s3_provider = hub2_dataset.storage.next_storage
-            aws_access_key_id = s3_provider.aws_access_key_id
-            aws_secret_access_key = s3_provider.aws_secret_access_key
-            aws_session_token = s3_provider.aws_session_token
-            region_name = s3_provider.aws_region
-            endpoint_url = s3_provider.endpoint_url
-
-            # we don't need to pass profile name as hub has already found creds for it
-            libdeeplake_dataset = api.dataset(
-                path,
-                aws_access_key_id=aws_access_key_id,
-                aws_secret_access_key=aws_secret_access_key,
-                aws_session_token=aws_session_token,
-                region_name=region_name,
-                endpoint_url=endpoint_url,
+            libdeeplake_dataset = _get_indra_ds_from_s3_provider(
+                path=path, token=token, provider=hub2_dataset.storage.next_storage
             )
 
         elif path.startswith(("gcs://", "gs://", "gcp://")):
             provider = get_base_storage(hub2_dataset.storage)
 
             libdeeplake_dataset = _get_indra_ds_from_gcp_provider(
-                path=path, token=None, provider=provider
+                path=path, token=token, provider=provider
             )
 
         elif path.startswith(("az://", "azure://")):
             az_provider = get_base_storage(hub2_dataset.storage)
             libdeeplake_dataset = _get_indra_ds_from_azure_provider(
-                path=path, token=None, provider=az_provider
+                path=path, token=token, provider=az_provider
             )
 
         else:
-            token = hub2_dataset._token
             org_id = hub2_dataset.org_id
-            if token is None:
-                libdeeplake_dataset = api.dataset(path)
-            elif token == "":
-                raise EmptyTokenException
-            else:
-                org_id = (
-                    org_id
-                    or jwt.decode(token, options={"verify_signature": False})["id"]
-                )
-                libdeeplake_dataset = api.dataset(path, token=token, org_id=org_id)
+            org_id = (
+                org_id or jwt.decode(token, options={"verify_signature": False})["id"]
+            )
+            libdeeplake_dataset = api.dataset(path, token=token, org_id=org_id)
 
         hub2_dataset.libdeeplake_dataset = libdeeplake_dataset
     else:
