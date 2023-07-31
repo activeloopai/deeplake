@@ -50,12 +50,8 @@ def create_fetching_schedule(dataset, primary_tensor_name, shuffle_within_chunks
     if isinstance(index_struct, set):
         schedule = [int(idx) for idx in schedule if idx in index_struct]
     elif isinstance(index_struct, dict):
-        nested_schedule = [
-            [int(idx)] * index_struct[idx] for idx in schedule if idx in index_struct
-        ]
-        schedule = []
-        for indexes_list in nested_schedule:
-            schedule.extend(indexes_list)
+        idxs = filter(lambda idx: idx in index_struct, schedule)
+        schedule = [int(idx) for idx in idxs for _ in range(index_struct[idx])]
     return schedule
 
 
