@@ -137,12 +137,11 @@ def dataset_to_libdeeplake(hub2_dataset):
     try_flushing(hub2_dataset)
     api = import_indra_api()
     path: str = hub2_dataset.path
-    token = hub2_dataset._token
 
     token = (
-        hub2_dataset._token
-        if hub2_dataset._token is not None or hub2_dataset._token != ""
-        else hub2_dataset.client.get_token()
+        hub2_dataset.client.get_token()
+        if hub2_dataset._token is None or hub2_dataset._token == ""
+        else hub2_dataset._token
     )
     if token is None or token == "":
         raise EmptyTokenException
