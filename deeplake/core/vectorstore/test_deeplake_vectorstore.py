@@ -721,7 +721,7 @@ def assert_updated_vector_store(
         ("local_auth_ds", None, "vector_store_row_ids", None, None),
         ("local_auth_ds", None, None, "vector_store_filter_udf", None),
         ("local_auth_ds", None, None, "vector_store_filters", None),
-        ("local_auth_ds", None, None, None, "vector_store_query"),
+        ("hub_cloud_ds", None, None, None, "vector_store_query"),
     ],
     indirect=True,
 )
