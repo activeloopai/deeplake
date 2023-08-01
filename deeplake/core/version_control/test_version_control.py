@@ -1,3 +1,4 @@
+import glob
 from collections import OrderedDict
 import deeplake
 import pytest
@@ -15,6 +16,7 @@ from deeplake.util.exceptions import (
     InfoError,
     TensorModifiedError,
     EmptyCommitError,
+    VersionControlError,
 )
 
 NO_COMMIT_PASSED_DIFF = ""
@@ -2436,3 +2438,115 @@ def test_version_in_path(local_path):
 
     with pytest.raises(ValueError):
         deeplake.exists(f"{local_path}@main")
+
+
+def test_branch_delete(local_ds_generator):
+    local_ds = local_ds_generator()
+    local_ds.create_tensor("test")
+
+    with pytest.raises(VersionControlError) as e:
+        local_ds.delete_branch("main")
+    assert "Cannot delete the currently checked out branch: main" in str(e.value)
+
+    # Add commits to main
+    local_ds.test.append("main 1")
+    local_ds.test.append("main 2")
+    local_ds.commit("first main commit")
+    local_ds.test.append("main 3")
+    local_ds.commit("second main commit")
+    local_ds.test.append("main 4")
+    local_ds.commit("third main commit")
+
+    assert len(local_ds.branches) == 1
+    original_version_count = len(glob.glob(local_ds.path + "/versions/*"))
+
+    with pytest.raises(VersionControlError) as e:
+        local_ds.delete_branch("invalid_branch")
+    assert "Branch invalid_branch does not exist" in str(e.value)
+
+    # Create a simple branch to delete with commits
+    local_ds.checkout("alt1", create=True)
+    assert len(local_ds.branches) == 2
+
+    with pytest.raises(VersionControlError) as e:
+        local_ds.delete_branch("alt1")
+    assert "Cannot delete the currently checked out branch: alt1" in str(e.value)
+
+    with pytest.raises(VersionControlError) as e:
+        local_ds.delete_branch("main")
+    assert "Cannot delete the main branch" in str(e.value)
+
+    # Simple branch can be deleted and it's correctly cleaned out
+    local_ds.checkout("main")
+    local_ds.delete_branch("alt1")
+    assert len(local_ds.branches) == 1
+    with open(local_ds.path + "/version_control_info.json", "r") as f:
+        assert '"alt1"' not in f.read()
+    assert original_version_count == len(glob.glob(local_ds.path + "/versions/*"))
+
+    # Branches with children cannot be deleted until children are deleted
+    local_ds.checkout("alt1", create=True)
+    local_ds.test.append("alt1 4")
+    local_ds.commit("first alt1 commit")
+
+    local_ds.checkout("alt1_sub1", create=True)
+    local_ds.test.append("alt1_sub1 5")
+    local_ds.commit("first alt1_sub1 commit")
+
+    local_ds.checkout("alt1")
+    local_ds.checkout("alt1_sub2", create=True)
+    local_ds.test.append("alt1_sub2 5")
+    local_ds.commit("first alt1_sub2 commit")
+
+    local_ds.checkout("main")
+    with pytest.raises(VersionControlError) as e:
+        local_ds.delete_branch("alt1")
+    assert "Cannot delete branch alt1 because it has sub-branches" in str(e.value)
+
+    assert len(local_ds.branches) == 4
+
+    local_ds.delete_branch("alt1_sub1")
+    assert len(local_ds.branches) == 3
+    with open(local_ds.path + "/version_control_info.json", "r") as f:
+        content = f.read()
+        assert '"alt1_sub1"' not in content
+        assert '"alt1_sub2"' in content
+        assert '"alt1"' in content
+
+    local_ds.delete_branch("alt1_sub2")
+    assert len(local_ds.branches) == 2
+    with open(local_ds.path + "/version_control_info.json", "r") as f:
+        content = f.read()
+        assert '"alt1_sub2"' not in content
+        assert '"alt1"' in content
+
+    local_ds.delete_branch("alt1")
+    assert len(local_ds.branches) == 1
+    with open(local_ds.path + "/version_control_info.json", "r") as f:
+        assert '"alt1"' not in f.read()
+
+    assert original_version_count == len(glob.glob(local_ds.path + "/versions/*"))
+
+    # Branches that have been merged into other branches cannot be merged
+    local_ds.checkout("alt1", create=True)
+    local_ds.test.append("alt1 4")
+    local_ds.commit("first alt1 commit")
+
+    local_ds.checkout("main")
+    local_ds.merge("alt1")
+
+    with pytest.raises(VersionControlError) as e:
+        local_ds.delete_branch("alt1")
+    assert (
+        "Cannot delete branch alt1 because it has been previously merged into main"
+        in str(e.value)
+    )
+
+    local_ds.checkout("alt1")
+    local_ds.checkout("alt1_sub1", create=True)
+    local_ds.test.append("alt1_sub1 5")
+
+    local_ds.checkout("main")
+
+    local_ds.delete_branch("alt1_sub1")
+    assert len(local_ds.branches) == 2
