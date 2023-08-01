@@ -20,6 +20,7 @@ from deeplake.constants import MB
 from deeplake.util.exceptions import (
     IncorrectEmbeddingShapeError,
     TensorDoesNotExistError,
+    DatasetHandlerError,
 )
 from deeplake.core.vectorstore.vector_search import dataset as dataset_utils
 
@@ -1768,3 +1769,8 @@ def test_uuid_fix(local_path):
     vector_store.add(text=texts, id=ids, embedding=embeddings, metadata=metadatas)
 
     assert vector_store.dataset.id.data()["value"] == list(map(str, ids))
+
+
+def test_delete_by_path_wrong_path():
+    with pytest.raises(DatasetHandlerError):
+        VectorStore.delete_by_path("some_path")
