@@ -6,8 +6,6 @@ from deeplake.util.exceptions import (
     EmptyTokenException,
 )
 
-from click.testing import CliRunner
-from deeplake.cli.auth import logout
 from deeplake.core.dataset.deeplake_query_dataset import DeepLakeQueryDataset
 import random
 import math
