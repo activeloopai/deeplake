@@ -140,8 +140,7 @@ def dataset_to_libdeeplake(hub2_dataset):
 
     token = (
         hub2_dataset.client.get_token()
-        if hub2_dataset._token is None
-        or hub2_dataset._token == ""
+        if (hub2_dataset._token is None or hub2_dataset._token == "")
         and hub2_dataset.client
         else hub2_dataset._token
     )

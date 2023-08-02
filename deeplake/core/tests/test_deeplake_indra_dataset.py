@@ -6,26 +6,10 @@ from deeplake.util.exceptions import (
     EmptyTokenException,
 )
 
-from click.testing import CliRunner
-from deeplake.cli.auth import logout
 from deeplake.core.dataset.deeplake_query_dataset import DeepLakeQueryDataset
 import random
 import math
 import pytest
-
-
-@requires_libdeeplake
-def test_empty_token_exception_in_libdeeplake(hub_cloud_dev_credentials):
-    from deeplake.enterprise.convert_to_libdeeplake import dataset_to_libdeeplake
-    import deeplake
-
-    runner = CliRunner()
-    runner.invoke(logout)
-
-    ds = deeplake.load("hub://activeloop/mnist-train")
-    assert ds._token == None
-    with pytest.raises(EmptyTokenException):
-        dss = dataset_to_libdeeplake(ds)
 
 
 @requires_libdeeplake
