@@ -68,7 +68,7 @@ class DeepLakeQueryTensor(tensor.Tensor):
         self, aslist=False, *args, **kwargs
     ) -> Union[np.ndarray, List[np.ndarray]]:
         r = self.indra_tensor.numpy(aslist=aslist)
-        if aslist or isinstance(r, np.ndarray):
+        if aslist or isinstance(r, (np.ndarray, list)):
             return r
         else:
             try:

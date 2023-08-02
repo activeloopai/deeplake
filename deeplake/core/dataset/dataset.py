@@ -3273,7 +3273,13 @@ class Dataset:
                         create_shape_tensor=False,
                         create_id_tensor=False,
                         create_sample_info_tensor=False,
-                    ).extend(list(self.index.values[0].indices(self.num_samples)))
+                    ).extend(
+                        np.array(
+                            tuple(self.index.values[0].indices(self.num_samples)),
+                            dtype="uint64",
+                        ),
+                        progressbar=True,
+                    )
                     info["first-index-subscriptable"] = self.index.subscriptable_at(0)
                     if len(self.index) > 1:
                         info["sub-sample-index"] = Index(
