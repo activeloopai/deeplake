@@ -571,6 +571,11 @@ class Dataset:
                 else:
                     indra_item = item
 
+                if self.libdeeplake_dataset is None:
+                    libdeeplake_dataset = self.libdeeplake_dataset[indra_item]
+                else:
+                    libdeeplake_dataset = None
+
                 ret = self.__class__(
                     storage=self.storage,
                     index=self.index[item],
@@ -585,7 +590,7 @@ class Dataset:
                     pad_tensors=self._pad_tensors,
                     enabled_tensors=self.enabled_tensors,
                     view_base=self._view_base or self,
-                    libdeeplake_dataset=self.libdeeplake_dataset[indra_item],
+                    libdeeplake_dataset=libdeeplake_dataset,
                 )
         else:
             raise InvalidKeyTypeError(item)
