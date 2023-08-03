@@ -20,6 +20,7 @@ from deeplake.constants import MB
 from deeplake.util.exceptions import (
     IncorrectEmbeddingShapeError,
     TensorDoesNotExistError,
+    DatasetHandlerError,
 )
 from deeplake.core.vectorstore.vector_search import dataset as dataset_utils
 
@@ -83,8 +84,7 @@ def test_id_backward_compatibility(local_path):
     embedding_dim = 100
 
     ids = [f"{i}" for i in range(num_of_items)]
-    # Creating embeddings of float32 as dtype of embedding tensor is float32.
-    embedding = [np.zeros(embedding_dim, dtype=np.float32) for i in range(num_of_items)]
+    embedding = [np.zeros(embedding_dim) for i in range(num_of_items)]
     text = ["aadfv" for i in range(num_of_items)]
     metadata = [{"key": i} for i in range(num_of_items)]
 
@@ -580,7 +580,19 @@ def test_delete(local_path, capsys):
     # add data to the dataset:
     vector_store.add(id=ids, embedding=embeddings, text=texts, metadata=metadatas)
 
-    assert len(vector_store) == 10
+    output = (
+        f"Dataset(path='{local_path}', tensors=['embedding', 'id', 'metadata', 'text'])\n\n"
+        "  tensor      htype      shape     dtype  compression\n"
+        "  -------    -------    -------   -------  ------- \n"
+        " embedding  embedding  (10, 100)  float32   None   \n"
+        "    id        text      (10, 1)     str     None   \n"
+        " metadata     json      (10, 1)     str     None   \n"
+        "   text       text      (10, 1)     str     None   \n"
+    )
+
+    vector_store.summary()
+    captured = capsys.readouterr()
+    assert output in captured.out
 
     # delete the data in the dataset by id:
     vector_store.delete(row_ids=[4, 8, 9])
@@ -1867,3 +1879,13 @@ def test_uuid_fix(local_path):
     vector_store.add(text=texts, id=ids, embedding=embeddings, metadata=metadatas)
 
     assert vector_store.dataset.id.data()["value"] == list(map(str, ids))
+
+
+def test_read_only():
+    db = VectorStore("hub://davitbun/twitter-algorithm")
+    assert db.dataset.read_only == True
+
+
+def test_delete_by_path_wrong_path():
+    with pytest.raises(DatasetHandlerError):
+        VectorStore.delete_by_path("some_path")

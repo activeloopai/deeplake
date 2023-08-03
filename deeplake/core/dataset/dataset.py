@@ -119,6 +119,7 @@ from deeplake.util.keys import (
     filter_name,
     get_dataset_linked_creds_key,
 )
+
 from deeplake.util.path import get_path_from_storage
 from deeplake.util.remove_cache import get_base_storage
 from deeplake.util.diff import get_all_changes_string, get_changes_and_messages
@@ -1158,6 +1159,7 @@ class Dataset:
     def _rename_tensor(self, name, new_name):
         tensor = self[name]
         tensor.meta.name = new_name
+        tensor.meta.is_dirty = True
         key = self.version_state["tensor_names"].pop(name)
         meta = self.meta
         if key not in meta.hidden_tensors:
@@ -1533,11 +1535,28 @@ class Dataset:
 
         try_flushing(self)
 
+        target_commit = target_id
+        try:
+            target_commit = self.version_state["branch_commit_map"][target_id]
+        except KeyError:
+            pass
+        if isinstance(self.base_storage, tuple(_LOCKABLE_STORAGES)) and not (
+            isinstance(self.base_storage, LocalProvider)
+            and not deeplake.constants.LOCK_LOCAL_DATASETS
+        ):
+            lock_dataset(self, version=target_commit)
+            locked = True
+        else:
+            locked = False
         self._initial_autoflush.append(self.storage.autoflush)
         self.storage.autoflush = False
-        merge(self, target_id, conflict_resolution, delete_removed_tensors, force)
-        self.storage.autoflush = self._initial_autoflush.pop()
-        self.storage.maybe_flush()
+        try:
+            merge(self, target_id, conflict_resolution, delete_removed_tensors, force)
+        finally:
+            if locked:
+                unlock_dataset(self, version=target_commit)
+            self.storage.autoflush = self._initial_autoflush.pop()
+            self.storage.maybe_flush()
 
     def _commit(
         self,
@@ -1982,8 +2001,11 @@ class Dataset:
         dataset_read(self)
         return dataloader
 
-    def dataloader(self):
+    def dataloader(self, ignore_errors: bool = False):
         """Returns a :class:`~deeplake.enterprise.DeepLakeDataLoader` object. To use this, install deeplake with ``pip install deeplake[enterprise]``.
+
+        Args:
+            ignore_errors (bool): If ``True``, the data loader will ignore errors apperaing during dataloading otherwise it will collct the statistics and report appeard errors. Default value is ``False``
 
         Returns:
             ~deeplake.enterprise.DeepLakeDataLoader: A :class:`deeplake.enterprise.DeepLakeDataLoader` object.
@@ -2044,7 +2066,7 @@ class Dataset:
 
         deeplake_reporter.feature_report(feature_name="dataloader", parameters={})
 
-        return dataloader(self)
+        return dataloader(self, ignore_errors=ignore_errors)
 
     def filter(
         self,
@@ -3247,6 +3269,7 @@ class Dataset:
         tensors: Optional[List[str]] = None,
         num_workers: Optional[int] = 0,
         scheduler: str = "threaded",
+        ignore_errors: bool = False,
         unlink=True,
     ):
         """Writes the indices of this view to a vds."""
@@ -3261,6 +3284,7 @@ class Dataset:
                         scheduler=scheduler,
                         unlink=unlink,
                         create_vds_index_tensor=True,
+                        ignore_errors=ignore_errors,
                     )
                 else:
                     vds.create_tensor(
@@ -3269,7 +3293,13 @@ class Dataset:
                         create_shape_tensor=False,
                         create_id_tensor=False,
                         create_sample_info_tensor=False,
-                    ).extend(list(self.index.values[0].indices(self.num_samples)))
+                    ).extend(
+                        np.array(
+                            tuple(self.index.values[0].indices(self.num_samples)),
+                            dtype="uint64",
+                        ),
+                        progressbar=True,
+                    )
                     info["first-index-subscriptable"] = self.index.subscriptable_at(0)
                     if len(self.index) > 1:
                         info["sub-sample-index"] = Index(
@@ -3290,13 +3320,14 @@ class Dataset:
         tensors: Optional[List[str]],
         num_workers: int,
         scheduler: str,
+        ignore_errors: bool,
     ):
         """Saves this view under ".queries" sub directory of same storage."""
         info = self._get_view_info(id, message, copy)
         hash = info["id"]
         path = f".queries/{hash}"
         vds = self._sub_ds(path, empty=True, verbose=False)
-        self._write_vds(vds, info, copy, tensors, num_workers, scheduler)
+        self._write_vds(vds, info, copy, tensors, num_workers, scheduler, ignore_errors)
         self._append_to_queries_json(info)
         return vds
 
@@ -3309,6 +3340,7 @@ class Dataset:
         tensors: Optional[List[str]],
         num_workers: int,
         scheduler: str,
+        ignore_errors: bool,
         **ds_args,
     ):
         """Saves this view at a given dataset path"""
@@ -3319,7 +3351,7 @@ class Dataset:
         except Exception as e:
             raise DatasetViewSavingError from e
         info = self._get_view_info(id, message, copy)
-        self._write_vds(vds, info, copy, tensors, num_workers, scheduler)
+        self._write_vds(vds, info, copy, tensors, num_workers, scheduler, ignore_errors)
         return vds
 
     def save_view(
@@ -3332,6 +3364,7 @@ class Dataset:
         num_workers: int = 0,
         scheduler: str = "threaded",
         verbose: bool = True,
+        ignore_errors: bool = False,
         **ds_args,
     ) -> str:
         """Saves a dataset view as a virtual dataset (VDS)
@@ -3366,6 +3399,7 @@ class Dataset:
             num_workers (int): Number of workers to be used for optimization process. Applicable only if ``optimize=True``. Defaults to 0.
             scheduler (str): The scheduler to be used for optimization. Supported values include: 'serial', 'threaded', 'processed' and 'ray'. Only applicable if ``optimize=True``. Defaults to 'threaded'.
             verbose (bool): If ``True``, logs will be printed. Defaults to ``True``.
+            ignore_errors (bool): Skip samples that cause errors while saving views. Only applicable if ``optimize=True``. Defaults to ``False``.
             ds_args (dict): Additional args for creating VDS when path is specified. (See documentation for :func:`deeplake.dataset()`)
 
         Returns:
@@ -3405,6 +3439,7 @@ class Dataset:
             scheduler,
             verbose,
             False,
+            ignore_errors,
             **ds_args,
         )
 
@@ -3419,6 +3454,7 @@ class Dataset:
         scheduler: str = "threaded",
         verbose: bool = True,
         _ret_ds: bool = False,
+        ignore_errors: bool = False,
         **ds_args,
     ) -> Union[str, Any]:
         """Saves a dataset view as a virtual dataset (VDS)
@@ -3436,6 +3472,7 @@ class Dataset:
             verbose (bool): If ``True``, logs will be printed. Defaults to ``True``.
             _ret_ds (bool): If ``True``, the VDS is retured as such without converting it to a view. If ``False``, the VDS path is returned.
                 Default False.
+            ignore_errors (bool): Skip samples that cause errors while saving views. Only applicable if ``optimize=True``. Defaults to ``False``.
             ds_args (dict): Additional args for creating VDS when path is specified. (See documentation for `deeplake.dataset()`)
 
         Returns:
@@ -3477,6 +3514,7 @@ class Dataset:
                                     tensors,
                                     num_workers,
                                     scheduler,
+                                    ignore_errors,
                                 )
                         except ReadOnlyModeError as e:
                             raise ReadOnlyModeError(
@@ -3489,7 +3527,13 @@ class Dataset:
                         )
                 else:
                     vds = self._save_view_in_subdir(
-                        id, message, optimize, tensors, num_workers, scheduler
+                        id,
+                        message,
+                        optimize,
+                        tensors,
+                        num_workers,
+                        scheduler,
+                        ignore_errors,
                     )
             else:
                 vds = self._save_view_in_path(
@@ -3500,6 +3544,7 @@ class Dataset:
                     tensors,
                     num_workers,
                     scheduler,
+                    ignore_errors,
                     **ds_args,
                 )
         if verbose and self.verbose:
@@ -3831,6 +3876,7 @@ class Dataset:
         public: bool = False,
         unlink: bool = False,
         create_vds_index_tensor: bool = False,
+        ignore_errors: bool = False,
         verbose: bool = True,
     ):
         if isinstance(dest, str):
@@ -3865,30 +3911,37 @@ class Dataset:
         dest_ds.link_creds.__setstate__(self.link_creds.__getstate__())
         save_link_creds(dest_ds.link_creds, dest_ds.storage)
 
-        def _copy_tensor(sample_in, sample_out):
+        def _is_unlink_tensor(tensor):
+            if (
+                unlink
+                and tensor.is_link
+                and (tensor.base_htype != "video" or deeplake.constants._UNLINK_VIDEOS)
+            ):
+                return True
+
+        # If we have to unlink any tensor, we will use sample-by-sample append implementation (_copy_tensor_append)
+        # Otherwise, we will use extend-by-whole-slice implementation (_copy_tensor_extend)
+        extend_only = not any(
+            _is_unlink_tensor(self[tensor_name]) for tensor_name in dest_ds.tensors
+        )
+
+        def _copy_tensor_extend(sample_in, sample_out):
+            for tensor_name in dest_ds.tensors:
+                sample_out[tensor_name].extend(sample_in[tensor_name])
+
+        def _copy_tensor_append(sample_in, sample_out):
             for tensor_name in dest_ds.tensors:
                 src = sample_in[tensor_name]
-                if (
-                    unlink
-                    and src.is_link
-                    and (src.base_htype != "video" or deeplake.constants._UNLINK_VIDEOS)
-                ):
+                if _is_unlink_tensor(src):
                     if len(sample_in.index) > 1:
-                        sample_out[tensor_name].extend(src)
+                        sample_out[tensor_name].append(src)
                     else:
-                        if sample_in.index.subscriptable_at(0):
-                            sample_idxs = sample_in.index.values[0].indices(
-                                src.num_samples
-                            )
-                        else:
-                            sample_idxs = [sample_in.index.values[0].value]
-                        for i in sample_idxs:
-                            sample_out[tensor_name].append(
-                                src.chunk_engine.get_deeplake_read_sample(i)
-                            )
-                            sample_out.check_flush()
+                        idx = sample_in.index.values[0].value
+                        sample_out[tensor_name].append(
+                            src.chunk_engine.get_deeplake_read_sample(idx)
+                        )
                 else:
-                    sample_out[tensor_name].extend(src)
+                    sample_out[tensor_name].append(src)
 
         if not self.index.subscriptable_at(0):
             old_first_index = self.index.values[0]
@@ -3900,7 +3953,10 @@ class Dataset:
         else:
             reset_index = False
         try:
-            deeplake.compute(_copy_tensor, name="copy transform")().eval(
+            deeplake.compute(
+                _copy_tensor_extend if extend_only else _copy_tensor_append,
+                name="copy transform",
+            )().eval(
                 self,
                 dest_ds,
                 num_workers=num_workers,
@@ -3908,8 +3964,9 @@ class Dataset:
                 progressbar=progressbar,
                 skip_ok=True,
                 check_lengths=False,
+                ignore_errors=ignore_errors,
                 disable_label_sync=True,
-                extend_only=True,
+                extend_only=extend_only,
             )
 
             dest_ds.flush()
