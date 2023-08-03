@@ -202,6 +202,9 @@ def _transform_and_append_data_slice(
 
     pipeline_checked = False
 
+    last_pg_update_time = time.time()
+    progress = 0
+
     for i, sample in enumerate(
         (data_slice[i : i + 1] for i in range(n))
         if pd and isinstance(data_slice, pd.DataFrame)
@@ -237,7 +240,13 @@ def _transform_and_append_data_slice(
                     skipped_samples_in_current_batch = 0
 
                 if pg_callback is not None:
-                    pg_callback(1)
+                    progress += 1
+                    if (
+                        time.time() - last_pg_update_time
+                        > TRANSFORM_PROGRESSBAR_UPDATE_INTERVAL
+                        or i == n - 1
+                    ):
+                        pg_callback(progress)
 
         # failure at chunk_engine
         # retry one sample at a time
