@@ -21,6 +21,7 @@ from deeplake.core.vectorstore import utils
 from deeplake.core.vectorstore.vector_search import vector_search
 from deeplake.core.vectorstore.vector_search import dataset as dataset_utils
 from deeplake.core.vectorstore.vector_search import filter as filter_utils
+from deeplake.core.vectorstore.vector_search.indra import index
 
 from deeplake.util.bugout_reporter import (
     feature_report_path,
@@ -40,7 +41,10 @@ class VectorStore:
         embedding_function: Optional[Callable] = None,
         read_only: Optional[bool] = None,
         ingestion_batch_size: int = 1000,
-        vector_index_params:Dict[str, Union[int, str]] = {"threshold": 1000000, "distance_metric": "l2_norm"},
+        vector_index_params: Dict[str, Union[int, str]] = {
+            "threshold": 1000000,
+            "distance_metric": "l2_norm",
+        },
         num_workers: int = 0,
         exec_option: str = "auto",
         token: Optional[str] = None,
@@ -89,9 +93,9 @@ class VectorStore:
             vector_index_params (Dict[str, Union[int, str]]): List of dictionaries that contains information about vector indexes that will be created when certain threshold is met.
                 - threshold: This key corresponds to the threshold for the dataset size. Vector indexes are created for the embedding tensors once the size of the dataset crosses this threshold. When the threshold value is set to -1, index creation is turned off from VectorStore APIs. By default, the threshold set to 1000000.
                 - distance_metric: This key specifies the method of calculating the distance between vectors when creating the vector database (VDB) index. It can either be a string that corresponds to a member of the DistanceType enumeration, or the string value itself.
-                    - If no value is provided, it defaults to "l2_norm".
-                    - "l2_norm" corresponds to DistanceType.L2_NORM.
-                    - "cosine_similarity" corresponds to DistanceType.COSINE_SIMILARITY.
+                    - If no value is provided, it defaults to "L2".
+                    - "L2" corresponds to DistanceType.L2_NORM.
+                    - "COS" corresponds to DistanceType.COSINE_SIMILARITY.
             exec_option (str): Default method for search execution. It could be either ``"auto"``, ``"python"``, ``"compute_engine"`` or ``"tensor_db"``. Defaults to ``"auto"``. If None, it's set to "auto".
                 - ``auto``- Selects the best execution method based on the storage location of the Vector Store. It is the default option.
                 - ``python`` - Pure-python implementation that runs on the client and can be used for data stored anywhere. WARNING: using this option with big datasets is discouraged because it can lead to memory issues.
@@ -161,31 +165,10 @@ class VectorStore:
         )
         self.verbose = verbose
         self.tensor_params = tensor_params
-        self.validate_and_create_vector_index()
-
-    def str_to_distance_type(dist_str: str) -> DistanceType:
-        try:
-            return DistanceType[dist_str.upper()]
-        except KeyError:
-            raise ValueError(
-                f"Invalid distance metric: {dist_str}. Valid options are: {', '.join([e.value for e in DistanceType])}")
-
-    def validate_and_create_vector_index(self):
-        threshold = self.vector_index_params['threshold']
-        if threshold <= 0:
-            return
-        elif len(self.dataset) < threshold:
-            return
-
-        # Check all tensors from the dataset.
-        tensors = self.dataset.tensors
-        for _, tensor in tensors.items():
-            is_embedding = tensor.htype == "embedding"
-            vdb_index_absent = len(tensor.meta.get_vdb_index_ids()) == 0
-            if is_embedding and vdb_index_absent:
-                distance_str = self.vector_index_params['distance_metric']
-                distance = self.str_to_distance_type(distance)
-                tensor.create_vdb_index("hnsw_1", distance = distance)
+        self.index_created = index.validate_and_create_vector_index(
+            dataset=self.dataset,
+            vector_index_params=self.vector_index_params,
+        )
 
     def add(
         self,
@@ -327,7 +310,10 @@ class VectorStore:
             logger=logger,
         )
 
-        self.validate_and_create_vector_index()
+        self.index_created = index.validate_and_create_vector_index(
+            dataset=self.dataset,
+            vector_index_params=self.vector_index_params,
+        )
 
         if self.verbose:
             self.dataset.summary()
@@ -342,7 +328,7 @@ class VectorStore:
         embedding_function: Optional[Callable] = None,
         embedding: Optional[Union[List[float], np.ndarray]] = None,
         k: int = 4,
-        distance_metric: str = "COS",
+        distance_metric: Optional[str] = None,
         query: Optional[str] = None,
         filter: Optional[Union[Dict, Callable]] = None,
         exec_option: Optional[str] = None,
@@ -396,6 +382,7 @@ class VectorStore:
                 - ``python`` - Pure-python implementation that runs on the client and can be used for data stored anywhere. WARNING: using this option with big datasets is discouraged because it can lead to memory issues.
                 - ``compute_engine`` - Performant C++ implementation of the Deep Lake Compute Engine that runs on the client and can be used for any data stored in or connected to Deep Lake. It cannot be used with in-memory or local datasets.
                 - ``tensor_db`` - Performant and fully-hosted Managed Tensor Database that is responsible for storage and query execution. Only available for data stored in the Deep Lake Managed Database. Store datasets in this database by specifying runtime = {"tensor_db": True} during dataset creation.
+
             embedding_tensor (str): Name of tensor with embeddings. Defaults to "embedding".
             return_tensors (Optional[List[str]]): List of tensors to return data for. Defaults to None, which returns data for all tensors except the embedding tensor (in order to minimize payload). To return data for all tensors, specify return_tensors = "*".
             return_view (bool): Return a Deep Lake dataset view that satisfied the search parameters, instead of a dictionary with data. Defaults to False. If ``True`` return_tensors is set to "*" beucase data is lazy-loaded and there is no cost to including all tensors in the view.
@@ -461,10 +448,11 @@ class VectorStore:
                 embedding_data,
                 embedding_function=embedding_function or self.embedding_function,
             )
-            if isinstance(query_emb, np.ndarray):
-                assert (
-                    query_emb.ndim == 1 or query_emb.shape[0] == 1
-                ), "Query embedding must be 1-dimensional. Please consider using another embedding function for converting query string to embedding."
+
+        if self.index_created:
+            distance_metric = index.get_index_distance_metric_from_params(
+                logger, self.vector_index_params, distance_metric
+            )
 
         return vector_search.search(
             query=query,

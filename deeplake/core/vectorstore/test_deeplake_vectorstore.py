@@ -1204,6 +1204,7 @@ def test_vdb_no_index_zero_threshold(local_path, capsys, hub_cloud_dev_token):
 
     vector_store.delete_by_path(local_path)
 
+
 def test_ingestion(local_path, capsys):
     # create data
     number_of_data = 1000
