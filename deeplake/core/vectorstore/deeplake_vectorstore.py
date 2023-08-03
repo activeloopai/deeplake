@@ -4,6 +4,8 @@ from typing import Optional, Any, Iterable, List, Dict, Union, Callable
 
 import numpy as np
 
+from deeplake.core.vector_index.distance_type import DistanceType
+
 try:
     from indra import api  # type: ignore
 
@@ -38,7 +40,7 @@ class VectorStore:
         embedding_function: Optional[Callable] = None,
         read_only: Optional[bool] = None,
         ingestion_batch_size: int = 1000,
-        vdb_index_creation_threshold: int = 1000000,
+        vector_index_params:Dict[str, Union[int, str]] = {"threshold": 1000000, "distance_metric": "l2_norm"},
         num_workers: int = 0,
         exec_option: str = "auto",
         token: Optional[str] = None,
@@ -84,7 +86,12 @@ class VectorStore:
             read_only (bool, optional):  Opens dataset in read-only mode if True. Defaults to False.
             num_workers (int): Number of workers to use for parallel ingestion.
             ingestion_batch_size (int): Batch size to use for parallel ingestion.
-            vdb_index_creation_threshold (int): Threshold for dataset size, after crossing the limit vector indexes are created for the embedding tensors. When vdb_index_creation_threshold is set to 0 then index creation is turned off from vectorstore APIs.
+            vector_index_params (Dict[str, Union[int, str]]): List of dictionaries that contains information about vector indexes that will be created when certain threshold is met.
+                - threshold: This key corresponds to the threshold for the dataset size. Vector indexes are created for the embedding tensors once the size of the dataset crosses this threshold. When the threshold value is set to -1, index creation is turned off from VectorStore APIs. By default, the threshold set to 1000000.
+                - distance_metric: This key specifies the method of calculating the distance between vectors when creating the vector database (VDB) index. It can either be a string that corresponds to a member of the DistanceType enumeration, or the string value itself.
+                    - If no value is provided, it defaults to "l2_norm".
+                    - "l2_norm" corresponds to DistanceType.L2_NORM.
+                    - "cosine_similarity" corresponds to DistanceType.COSINE_SIMILARITY.
             exec_option (str): Default method for search execution. It could be either ``"auto"``, ``"python"``, ``"compute_engine"`` or ``"tensor_db"``. Defaults to ``"auto"``. If None, it's set to "auto".
                 - ``auto``- Selects the best execution method based on the storage location of the Vector Store. It is the default option.
                 - ``python`` - Pure-python implementation that runs on the client and can be used for data stored anywhere. WARNING: using this option with big datasets is discouraged because it can lead to memory issues.
@@ -119,7 +126,7 @@ class VectorStore:
                 "overwrite": overwrite,
                 "read_only": read_only,
                 "ingestion_batch_size": ingestion_batch_size,
-                "vdb_index_creation_threshold": vdb_index_creation_threshold,
+                "vector_index_params": vector_index_params,
                 "exec_option": exec_option,
                 "token": token,
                 "verbose": verbose,
@@ -129,7 +136,7 @@ class VectorStore:
         )
 
         self.ingestion_batch_size = ingestion_batch_size
-        self.vdb_index_creation_threshold = vdb_index_creation_threshold
+        self.vector_index_params = vector_index_params
         self.num_workers = num_workers
 
         if creds is None:
@@ -156,10 +163,18 @@ class VectorStore:
         self.tensor_params = tensor_params
         self.validate_and_create_vector_index()
 
+    def str_to_distance_type(dist_str: str) -> DistanceType:
+        try:
+            return DistanceType[dist_str.upper()]
+        except KeyError:
+            raise ValueError(
+                f"Invalid distance metric: {dist_str}. Valid options are: {', '.join([e.value for e in DistanceType])}")
+
     def validate_and_create_vector_index(self):
-        if self.vdb_index_creation_threshold == 0:
+        threshold = self.vector_index_params['threshold']
+        if threshold <= 0:
             return
-        elif len(self.dataset) < self.vdb_index_creation_threshold:
+        elif len(self.dataset) < threshold:
             return
 
         # Check all tensors from the dataset.
@@ -168,7 +183,9 @@ class VectorStore:
             is_embedding = tensor.htype == "embedding"
             vdb_index_absent = len(tensor.meta.get_vdb_index_ids()) == 0
             if is_embedding and vdb_index_absent:
-                tensor.create_vdb_index("hnsw_1")
+                distance_str = self.vector_index_params['distance_metric']
+                distance = self.str_to_distance_type(distance)
+                tensor.create_vdb_index("hnsw_1", distance = distance)
 
     def add(
         self,
@@ -179,7 +196,6 @@ class VectorStore:
         return_ids: bool = False,
         num_workers: Optional[int] = None,
         ingestion_batch_size: Optional[int] = None,
-        vdb_index_creation_threshold: Optional[int] = None,
         **tensors,
     ) -> Optional[List[str]]:
         """Adding elements to deeplake vector store.
@@ -251,7 +267,6 @@ class VectorStore:
             return_ids (bool): Whether to return added ids as an ouput of the method. Defaults to False.
             num_workers (int): Number of workers to use for parallel ingestion. Overrides the ``num_workers`` specified when initializing the Vector Store.
             ingestion_batch_size (int): Batch size to use for parallel ingestion. Defaults to 1000. Overrides the ``ingestion_batch_size`` specified when initializing the Vector Store.
-            vdb_index_creation_threshold (int): Threshhold for creating the vector index. Whenever Dataset size will cross the threshold index will be automatically created. Default is 1000000. Overrides the ``vdb_index_creation_threshold`` specified when initializing the Vector Store.
             **tensors: Keyword arguments where the key is the tensor name, and the value is a list of samples that should be uploaded to that tensor.
 
         Returns:
@@ -267,7 +282,6 @@ class VectorStore:
                 "return_ids": return_ids,
                 "embedding_function": True if embedding_function is not None else False,
                 "embedding_data": True if embedding_data is not None else False,
-                "vdb_index_creation_threshold": vdb_index_creation_threshold,
             },
         )
 
@@ -312,8 +326,6 @@ class VectorStore:
             total_samples_processed=total_samples_processed,
             logger=logger,
         )
-        if vdb_index_creation_threshold is not None:
-            self.vdb_index_creation_threshold = vdb_index_creation_threshold
 
         self.validate_and_create_vector_index()
 
