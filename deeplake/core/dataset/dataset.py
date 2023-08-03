@@ -571,10 +571,11 @@ class Dataset:
                 else:
                     indra_item = item
 
-                if self.libdeeplake_dataset is None:
-                    libdeeplake_dataset = self.libdeeplake_dataset[indra_item]
-                else:
-                    libdeeplake_dataset = None
+                libdeeplake_dataset = (
+                    None
+                    if self.libdeeplake_dataset is None
+                    else self.libdeeplake_dataset[indra_item]
+                )
 
                 ret = self.__class__(
                     storage=self.storage,
