@@ -564,6 +564,13 @@ class Dataset:
                         warnings.warn(
                             "Indexing by integer in a for loop, like `for i in range(len(ds)): ... ds[i]` can be quite slow. Use `for i, sample in enumerate(ds)` instead."
                         )
+                if isinstance(item, Index):
+                    indra_item = item.values[0].value
+                elif isinstance(item, IndexEntry):
+                    indra_item = item.value
+                else:
+                    indra_item = item
+
                 ret = self.__class__(
                     storage=self.storage,
                     index=self.index[item],
@@ -578,7 +585,7 @@ class Dataset:
                     pad_tensors=self._pad_tensors,
                     enabled_tensors=self.enabled_tensors,
                     view_base=self._view_base or self,
-                    libdeeplake_dataset=self.libdeeplake_dataset,
+                    libdeeplake_dataset=self.libdeeplake_dataset[indra_item],
                 )
         else:
             raise InvalidKeyTypeError(item)
