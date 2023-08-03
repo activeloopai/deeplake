@@ -171,7 +171,7 @@ class VectorStore:
                 f"Invalid distance metric: {dist_str}. Valid options are: {', '.join([e.value for e in DistanceType])}")
 
     def validate_and_create_vector_index(self):
-        threshold = self.vector_index_params['threshold']
+        threshold = self.vector_index_params.get('threshold', 1000000)
         if threshold <= 0:
             return
         elif len(self.dataset) < threshold:
@@ -183,8 +183,8 @@ class VectorStore:
             is_embedding = tensor.htype == "embedding"
             vdb_index_absent = len(tensor.meta.get_vdb_index_ids()) == 0
             if is_embedding and vdb_index_absent:
-                distance_str = self.vector_index_params['distance_metric']
-                distance = self.str_to_distance_type(distance)
+                distance_str = self.vector_index_params.get('distance_metric', 'l2_norm')
+                distance = VectorStore.str_to_distance_type(distance_str)
                 tensor.create_vdb_index("hnsw_1", distance = distance)
 
     def add(
