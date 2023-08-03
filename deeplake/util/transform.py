@@ -247,6 +247,8 @@ def _transform_and_append_data_slice(
                         or i == n - 1
                     ):
                         pg_callback(progress)
+                        progress = 0
+                        last_pg_update_time = time.time()
 
         # failure at chunk_engine
         # retry one sample at a time
