@@ -84,7 +84,8 @@ def test_id_backward_compatibility(local_path):
     embedding_dim = 100
 
     ids = [f"{i}" for i in range(num_of_items)]
-    embedding = [np.zeros(embedding_dim) for i in range(num_of_items)]
+    # Creating embeddings of float32 as dtype of embedding tensor is float32.
+    embedding = [np.zeros(embedding_dim, dtype=np.float32) for i in range(num_of_items)]
     text = ["aadfv" for i in range(num_of_items)]
     metadata = [{"key": i} for i in range(num_of_items)]
 
@@ -654,6 +655,82 @@ def test_delete(local_path, capsys):
     vector_store.delete(ids=ids[:3])
     assert len(vector_store) == NUMBER_OF_DATA - 3
 
+
+@requires_libdeeplake
+def test_delete_with_indexes(local_path, capsys, hub_cloud_dev_token):
+    # initialize vector store object:
+    vector_store = DeepLakeVectorStore(
+        path=local_path,
+        overwrite=True,
+        verbose=False,
+        vector_index_params={"threshold": 2},
+        token=hub_cloud_dev_token,
+    )
+
+    # add data to the dataset:
+    vector_store.add(id=ids, embedding=embeddings, text=texts, metadata=metadatas)
+
+    vector_store.summary()
+
+    # delete the data in the dataset by id:
+    vector_store.delete(row_ids=[4, 8, 9])
+    assert len(vector_store.dataset) == NUMBER_OF_DATA - 3
+
+    vector_store.delete(filter={"metadata": {"abc": 1}})
+    assert len(vector_store.dataset) == NUMBER_OF_DATA - 4
+
+    vector_store.delete(ids=["7"])
+    assert len(vector_store.dataset) == NUMBER_OF_DATA - 5
+
+    with pytest.raises(ValueError):
+        vector_store.delete()
+
+    tensors_before_delete = vector_store.dataset.tensors
+    vector_store.delete(delete_all=True)
+    assert len(vector_store.dataset) == 0
+    assert vector_store.dataset.tensors.keys() == tensors_before_delete.keys()
+
+    vector_store.delete_by_path(local_path)
+    dirs = os.listdir("./")
+    assert local_path not in dirs
+
+    # backwards compatibility test:
+    vector_store_b = DeepLakeVectorStore(
+        path=local_path,
+        overwrite=True,
+        tensor_params=[
+            {
+                "name": "ids",
+                "htype": "text",
+            },
+            {
+                "name": "docs",
+                "htype": "text",
+            },
+        ],
+    )
+    # add data to the dataset:
+    vector_store_b.add(ids=ids, docs=texts)
+
+    # delete the data in the dataset by id:
+    vector_store_b.delete(row_ids=[0])
+    assert len(vector_store_b.dataset) == NUMBER_OF_DATA - 1
+
+    ds = deeplake.empty(local_path, overwrite=True)
+    ds.create_tensor("id", htype="text")
+    ds.create_tensor("embedding", htype="embedding")
+    ds.extend(
+        {
+            "id": ids,
+            "embedding": embeddings,
+        }
+    )
+
+    vector_store = DeepLakeVectorStore(
+        path=local_path,
+    )
+    vector_store.delete(ids=ids[:3])
+    assert len(vector_store) == NUMBER_OF_DATA - 3
 
 def assert_updated_vector_store(
     new_embedding_value,
