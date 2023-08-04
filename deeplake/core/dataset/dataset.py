@@ -536,6 +536,7 @@ class Dataset:
                     enabled_tensors.extend(
                         self[posixpath.relpath(x, self.group_index)].meta.links.keys()
                     )
+
                 ret = self.__class__(
                     storage=self.storage,
                     index=self.index,
@@ -564,6 +565,7 @@ class Dataset:
                         warnings.warn(
                             "Indexing by integer in a for loop, like `for i in range(len(ds)): ... ds[i]` can be quite slow. Use `for i, sample in enumerate(ds)` instead."
                         )
+
                 ret = self.__class__(
                     storage=self.storage,
                     index=self.index[item],
