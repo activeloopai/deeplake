@@ -38,6 +38,11 @@ def query(dataset, query_string: str):
         ds = dataset.indra_ds
     elif dataset.libdeeplake_dataset is not None:
         ds = dataset.libdeeplake_dataset
+        slice_ = dataset.index.values[0].value
+        if slice_ != slice(None):
+            if isinstance(slice_, tuple):
+                slice_ = list(slice_)
+        ds = ds[slice_]
     else:
         ds = dataset_to_libdeeplake(dataset)
     dsv = ds.query(query_string)

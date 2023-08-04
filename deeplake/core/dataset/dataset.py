@@ -536,6 +536,7 @@ class Dataset:
                     enabled_tensors.extend(
                         self[posixpath.relpath(x, self.group_index)].meta.links.keys()
                     )
+
                 ret = self.__class__(
                     storage=self.storage,
                     index=self.index,
@@ -564,18 +565,6 @@ class Dataset:
                         warnings.warn(
                             "Indexing by integer in a for loop, like `for i in range(len(ds)): ... ds[i]` can be quite slow. Use `for i, sample in enumerate(ds)` instead."
                         )
-                if isinstance(item, Index):
-                    indra_item = item.values[0].value
-                elif isinstance(item, IndexEntry):
-                    indra_item = item.value
-                else:
-                    indra_item = item
-
-                libdeeplake_dataset = (
-                    None
-                    if self.libdeeplake_dataset is None
-                    else self.libdeeplake_dataset[indra_item]
-                )
 
                 ret = self.__class__(
                     storage=self.storage,
@@ -591,7 +580,7 @@ class Dataset:
                     pad_tensors=self._pad_tensors,
                     enabled_tensors=self.enabled_tensors,
                     view_base=self._view_base or self,
-                    libdeeplake_dataset=libdeeplake_dataset,
+                    libdeeplake_dataset=self.libdeeplake_dataset,
                 )
         else:
             raise InvalidKeyTypeError(item)
