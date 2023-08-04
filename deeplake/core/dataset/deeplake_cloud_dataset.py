@@ -207,6 +207,16 @@ class DeepLakeCloudDataset(Dataset):
             has_head_changes=False,
         )
 
+    def _send_branch_deletion_event(self, branch_name: str):
+        deeplake_meta = {"branch_name": branch_name}
+        event_id = f"{self.org_id}/{self.ds_name}.branch_deleted"
+        self._send_event(
+            event_id=event_id,
+            event_group="dataset_branch_deletion",
+            deeplake_meta=deeplake_meta,
+            has_head_changes=False,
+        )
+
     def _send_dataset_creation_event(self):
         deeplake_meta = {}
         event_id = f"{self.org_id}/{self.ds_name}.dataset_created"
