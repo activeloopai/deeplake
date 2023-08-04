@@ -476,7 +476,7 @@ def test_search_quantitative(distance_metric, hub_cloud_dev_token):
     # use python implementation to search the data
     data_p = vector_store.search(
         embedding=query_embedding,
-        exec_option="tensor_db",
+        exec_option="python",
         distance_metric=distance_metric,
     )
 
