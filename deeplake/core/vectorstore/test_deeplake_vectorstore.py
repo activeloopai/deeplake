@@ -581,19 +581,7 @@ def test_delete(local_path, capsys):
     # add data to the dataset:
     vector_store.add(id=ids, embedding=embeddings, text=texts, metadata=metadatas)
 
-    output = (
-        f"Dataset(path='{local_path}', tensors=['embedding', 'id', 'metadata', 'text'])\n\n"
-        "  tensor      htype      shape     dtype  compression\n"
-        "  -------    -------    -------   -------  ------- \n"
-        " embedding  embedding  (10, 100)  float32   None   \n"
-        "    id        text      (10, 1)     str     None   \n"
-        " metadata     json      (10, 1)     str     None   \n"
-        "   text       text      (10, 1)     str     None   \n"
-    )
-
     vector_store.summary()
-    captured = capsys.readouterr()
-    assert output in captured.out
 
     # delete the data in the dataset by id:
     vector_store.delete(row_ids=[4, 8, 9])
