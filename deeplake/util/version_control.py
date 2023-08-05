@@ -369,7 +369,7 @@ def delete_branch(
 
 
 def _delete_branch_and_commits(
-    branch_name: str, all_branch_commits: list[str], dataset, storage
+    branch_name: str, all_branch_commits: List[str], dataset, storage
 ) -> None:
     """
     Physically deletes the given branch and list of commits from the version_control_info.json and versions directories.
@@ -401,7 +401,7 @@ def _delete_branch_and_commits(
     ).encode("utf-8")
 
 
-def _find_branch_commits(branch_name: str, version_state: dict) -> list[str]:
+def _find_branch_commits(branch_name: str, version_state: dict) -> List[str]:
     """
     Returns a list of all commits used by the given branch
     """
