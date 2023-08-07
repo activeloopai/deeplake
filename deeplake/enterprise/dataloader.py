@@ -62,6 +62,7 @@ def indra_available() -> bool:
 
 def import_indra_loader():
     global INDRA_LOADER
+    global INDRA_API
     if INDRA_LOADER:
         return INDRA_LOADER
     if not importlib.util.find_spec("indra"):
@@ -70,11 +71,13 @@ def import_indra_loader():
         from indra import api  # type: ignore
         from indra.pytorch.loader import Loader  # type:ignore
 
+        INDRA_API = api
         INDRA_LOADER = Loader
         return Loader
     except Exception as e:
         if not deeplake.constants.RETURN_DUMMY_DATA_FOR_DATALOADER:
             raise_indra_installation_error(e)
+        INDRA_API = None
         INDRA_LOADER = None
 
 
@@ -584,6 +587,24 @@ class DeepLakeDataLoader(DataLoader):
         all_vars["_dataloader"] = None
         return self.__class__(**all_vars)
 
+    def _get_suboptimal_thread_count(self) -> Optional[int]:
+        assert self._distributed
+
+        if self._num_threads is None and self._mode == "pytorch":
+            import torch
+
+            num_devices = (
+                torch.cuda.device_count() if torch.cuda.is_available() else None
+            )
+
+            num_suboptimal_threads = (
+                int(INDRA_API.num_available_threads() / num_devices)
+                if INDRA_API is not None and num_devices is not None
+                else None
+            )
+            return num_suboptimal_threads
+        return self._num_threads
+
     def __iter__(self):
         if self._dataloader is None:
             dataset = self._orig_dataset
@@ -641,10 +662,16 @@ class DeepLakeDataLoader(DataLoader):
                     indra_dataset = dataset_to_libdeeplake(dataset)
                 else:
                     indra_dataset = self._indra_dataset
+
+                num_threads = (
+                    self._get_suboptimal_thread_count()
+                    if self._distributed
+                    else self._num_threads
+                )
                 self._dataloader = INDRA_LOADER(
                     indra_dataset,
                     batch_size=self._batch_size,
-                    num_threads=self._num_threads,
+                    num_threads=num_threads,
                     shuffle=self._shuffle,
                     num_workers=self._num_workers,
                     collate_fn=collate_fn,
