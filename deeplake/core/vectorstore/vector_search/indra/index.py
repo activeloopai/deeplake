@@ -3,8 +3,8 @@ from deeplake.core.storage import azure, gcs, google_drive, local, lru_cache, me
 
 
 METRIC_TO_INDEX_METRIC = {
-    "L2": "L2_NORM",
-    "COS": "COSINE_SIMILARITY",
+    "L2": "l2_norm",
+    "COS": "cosine_similarity",
 }
 
 
@@ -42,7 +42,7 @@ def validate_and_create_vector_index(dataset, vector_index_params):
         is_embedding = tensor.htype == "embedding"
         vdb_index_absent = len(tensor.meta.get_vdb_index_ids()) == 0
         if is_embedding and vdb_index_absent:
-            distance_str = vector_index_params["distance_metric"]
+            distance_str = vector_index_params.get("distance_metric", "L2")
             distance = get_index_metric(distance_str)
             tensor.create_vdb_index("hnsw_1", distance=distance)
 

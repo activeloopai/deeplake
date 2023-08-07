@@ -459,6 +459,8 @@ class VectorStore:
                 logger, self.vector_index_params, distance_metric
             )
 
+        distance_metric = distance_metric or "L2"
+
         return vector_search.search(
             query=query,
             logger=logger,

@@ -1,5 +1,5 @@
 def cosine_similarity(embedding_tensor, query_embedding):
-    return f"COSINE_SIMILARITY({embedding_tensor}-{query_embedding})"
+    return f"COSINE_SIMILARITY({embedding_tensor}, {query_embedding})"
 
 
 def l1_norm(embedding_tensor, query_embedding):

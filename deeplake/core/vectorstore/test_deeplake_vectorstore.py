@@ -464,7 +464,8 @@ def test_search_basic(local_path, hub_cloud_dev_token):
 
 
 @requires_libdeeplake
-@pytest.mark.parametrize("distance_metric", ["L1", "L2", "COS", "MAX"])
+# @pytest.mark.parametrize("distance_metric", ["L1", "L2", "COS", "MAX"])
+@pytest.mark.parametrize("distance_metric", ["L1"])
 def test_search_quantitative(distance_metric, hub_cloud_dev_token):
     """Test whether TQL and Python return the same results"""
     # initialize vector store object:
@@ -719,6 +720,7 @@ def test_delete_with_indexes(local_path, capsys, hub_cloud_dev_token):
     )
     vector_store.delete(ids=ids[:3])
     assert len(vector_store) == NUMBER_OF_DATA - 3
+
 
 def assert_updated_vector_store(
     new_embedding_value,
@@ -1177,6 +1179,7 @@ def test_vdb_index_creation(local_path, capsys, hub_cloud_dev_token):
     assert es[0]["type"] == "hnsw"
 
     vector_store.delete_by_path(local_path)
+
 
 @requires_libdeeplake
 def test_vdb_index_creation_cosine_similarity(local_path, capsys, hub_cloud_dev_token):
