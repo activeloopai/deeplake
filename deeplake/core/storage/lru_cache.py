@@ -7,6 +7,8 @@ from typing import Any, Dict, Optional, Union
 
 from deeplake.core.storage.provider import StorageProvider
 
+# How many times part of a chunk should be read before the full chunk gets downloaded
+_CHUNK_PARTIAL_READ_THRESHOLD = 5
 
 def _get_nbytes(obj: Union[bytes, memoryview, DeepLakeMemoryObject]):
     if isinstance(obj, DeepLakeMemoryObject):
@@ -239,17 +241,36 @@ class LRUCache(StorageProvider):
             if path in self.lru_sizes:
                 self.lru_sizes.move_to_end(path)  # refresh position for LRU
             return self.deeplake_objects[path].tobytes()[start_byte:end_byte]
-        # if it is a partially read chunk in the cache, to get new bytes, we need to look at actual storage and not the cache
-        elif path in self.lru_sizes and not (
-            isinstance(self.cache_storage[path], BaseChunk)
-            and self.cache_storage[path].is_partially_read_chunk
-        ):
+
+        if path in self.lru_sizes:
+            base_chunk = self.cache_storage[path]
+            if isinstance(base_chunk, BaseChunk):
+                if base_chunk.is_partially_read_chunk:
+                    # if it is a partially read chunk in the cache, to get new bytes, we need to look at actual storage and not the cache
+
+                    if len(base_chunk.data_bytes.data_fetched) > _CHUNK_PARTIAL_READ_THRESHOLD:
+                        # we've asked for a few pieces already, probably going to need the whole thing, so just get it all
+                        # self.cache_storage[path] = self.next_storage.get_bytes(path)
+                        itemsize = self.lru_sizes[path]
+                        self.cache_used -= itemsize
+
+                        base_chunk.data_bytes = base_chunk.data_bytes.get_all_bytes()[
+                            base_chunk.header_bytes:
+                        ]
+                        new_itemsize = base_chunk.nbytes
+                        self.cache_used += new_itemsize
+                        self.lru_sizes[path] = new_itemsize
+
+                        return base_chunk.data_bytes[start_byte:end_byte]
+                    else:
+                        return self.next_storage.get_bytes(path, start_byte, end_byte)
+
             self.lru_sizes.move_to_end(path)  # refresh position for LRU
-            return self.cache_storage[path][start_byte:end_byte]
-        else:
-            if self.next_storage is not None:
-                return self.next_storage.get_bytes(path, start_byte, end_byte)
-            raise KeyError(path)
+            return base_chunk[start_byte:end_byte]
+
+        if self.next_storage is not None:
+            return self.next_storage.get_bytes(path, start_byte, end_byte)
+        raise KeyError(path)
 
     def __setitem__(self, path: str, value: Union[bytes, DeepLakeMemoryObject]):
         """Puts the item in the cache_storage (if possible), else writes to next_storage.
