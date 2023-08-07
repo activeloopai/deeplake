@@ -35,7 +35,11 @@ def validate_and_create_vector_index(dataset, vector_index_params):
         return False
 
     # Check whether the index is supported by the provider
-
+    if not dataset.base_storage._is_hub_path:
+        raise ValueError(
+            "The index is supported only for hub paths. "
+            "Consider connecting your dataset to the hub."
+        )
     # Check all tensors from the dataset.
     tensors = dataset.tensors
     for _, tensor in tensors.items():
