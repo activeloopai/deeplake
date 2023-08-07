@@ -16,7 +16,6 @@
      <a href="https://github.com/activeloopai/deeplake/issues">
     <img alt="GitHub issues" src="https://img.shields.io/github/issues/activeloopai/deeplake"> </a>
     <a href="https://codecov.io/gh/activeloopai/deeplake/branch/main"><img src="https://codecov.io/gh/activeloopai/deeplake/branch/main/graph/badge.svg" alt="codecov" height="18"></a>
-    <a href="https://sonarcloud.io/summary/new_code?id=activeloopai_deeplake"><img src=https://sonarcloud.io/api/project_badges/measure?project=activeloopai_deeplake&metric=alert_status alt="sonar_quality_gate" height="18"></a>
   <h3 align="center">
    <a href="https://docs.activeloop.ai/?utm_source=github&utm_medium=github&utm_campaign=github_readme&utm_id=readme"><b>Docs</b></a> &bull;
    <a href="https://docs.activeloop.ai/getting-started/?utm_source=github&utm_medium=github&utm_campaign=github_readme&utm_id=readme"><b>Get Started</b></a> &bull;
@@ -30,14 +29,14 @@
 
 *Read this in other languages: [简体中文](README.zh-cn.md)*
 
-## About Deep Lake
+## What is Deep Lake?
 
 Deep Lake is a Database for AI powered by a storage format optimized for deep-learning applications. Deep Lake can be used for:
 
 1. Storing data and vectors while building LLM applications
 2. Managing datasets while training deep learning models
    
-Deep Lake simplifies the deployment of enterprise-grade LLM-based products by offering storage for all data types (embeddings, audio, text, videos, images, pdfs, annotations, etc.), querying and vector search, data streaming while training models at scale, data versioning and lineage, and integrations with popular tools such as LangChain, LlamaIndex, Weights & Biases, and many more. Deep Lake works with data of any size, it is serverless, and it enables you to store all of your data in your own cloud and in once place. Deep Lake is used by Intel, Airbus, Matterport, ZERO Systems, Red Cross, Yale, & Oxford. 
+Deep Lake simplifies the deployment of enterprise-grade LLM-based products by offering storage for all data types (embeddings, audio, text, videos, images, pdfs, annotations, etc.), querying and vector search, data streaming while training models at scale, data versioning and lineage, and integrations with popular tools such as LangChain, LlamaIndex, Weights & Biases, and many more. Deep Lake works with data of any size, it is serverless, and it enables you to store all of your data in your own cloud and in one place. Deep Lake is used by Intel, Airbus, Matterport, ZERO Systems, Red Cross, Yale, & Oxford. 
 
 ### Deep Lake includes the following features:
 
@@ -47,7 +46,7 @@ Use one API to upload, download, and stream datasets to/from S3, Azure, GCP, Act
 </details>
 <details>
   <summary><b>Native Compression with Lazy NumPy-like Indexing</b></summary>
-Store images, audios and videos in their native compression. Slice, index, iterate and interact with your data like a collection of NumPy arrays in your system's memory. Deep Lake lazily loads data only when needed, e.g., when training a model or running queries.
+Store images, audio, and videos in their native compression. Slice, index, iterate, and interact with your data like a collection of NumPy arrays in your system's memory. Deep Lake lazily loads data only when needed, e.g., when training a model or running queries.
 </details>
 <details>
   <summary><b>Dataset Version Control</b></summary>
@@ -55,7 +54,7 @@ Commits, branches, checkout - Concepts you are already familiar with in your cod
 </details>
 <details>
   <summary><b>Dataloaders for Popular Deep Learning Frameworks</b></summary>
-Deep Lake comes with built-in dataloaders for Pytorch and Tensorflow. Train your model with a few lines of code - we even take care of dataset shuffling. :)
+Deep Lake comes with built-in dataloaders for Pytorch and TensorFlow. Train your model with a few lines of code - we even take care of dataset shuffling. :)
 </details>
 <details>
   <summary><b>Integrations with Powerful Tools</b></summary>
@@ -146,7 +145,7 @@ Both Deep Lake & ChromaDB enable users to store and search vectors (embeddings) 
 <details>
   <summary><b>Deep Lake vs Pinecone</b></summary>
   
-Both Deep Lake and Pinecone enable users to store and search vectors (embeddings) and offer integrations with LangChain and LlamaIndex. However, they are  architecturally very different. Pinecone is a fully-managed Vector Database that is optimized for highly demanding applications requiring search for billions of vectors. Deep Lake is a serverless. All computations run client-side, which enables users to get started in seconds. Unlike Pinecone, Deep Lake’s data format can store raw data such as images, videos, and text, in addition to embeddings. Deep Lake datasets can be visualized and version controlled. Pinecone is limited to light metadata on top of the embeddings and has no visualization. Deep Lake also has a performant dataloader for fine-tuning your Large Language Models.
+Both Deep Lake and Pinecone enable users to store and search vectors (embeddings) and offer integrations with LangChain and LlamaIndex. However, they are  architecturally very different. Pinecone is a fully-managed Vector Database that is optimized for highly demanding applications requiring a search for billions of vectors. Deep Lake is serverless. All computations run client-side, which enables users to get started in seconds. Unlike Pinecone, Deep Lake’s data format can store raw data such as images, videos, and text, in addition to embeddings. Deep Lake datasets can be visualized and version controlled. Pinecone is limited to light metadata on top of the embeddings and has no visualization. Deep Lake also has a performant dataloader for fine-tuning your Large Language Models.
 
 </details>
 

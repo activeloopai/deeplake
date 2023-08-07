@@ -41,6 +41,7 @@ def search(
     """
     try:
         from indra import api  # type: ignore
+
         INDRA_INSTALLED = True
     except ImportError:
         INDRA_INSTALLED = False

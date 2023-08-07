@@ -20,6 +20,7 @@ from deeplake.constants import MB
 from deeplake.util.exceptions import (
     IncorrectEmbeddingShapeError,
     TensorDoesNotExistError,
+    DatasetHandlerError,
 )
 from deeplake.core.vectorstore.vector_search import dataset as dataset_utils
 
@@ -715,19 +716,19 @@ def assert_updated_vector_store(
 
 @requires_libdeeplake
 @pytest.mark.parametrize(
-    "ds_generator, vector_store_hash_ids, vector_store_row_ids, vector_store_filters, vector_store_query",
+    "ds, vector_store_hash_ids, vector_store_row_ids, vector_store_filters, vector_store_query",
     [
-        ("local_ds_generator", "vector_store_hash_ids", None, None, None),
-        ("local_ds_generator", None, "vector_store_row_ids", None, None),
-        ("local_ds_generator", None, None, "vector_store_filter_udf", None),
-        ("local_ds_generator", None, None, "vector_store_filters", None),
-        ("hub_cloud_ds_generator", None, None, None, "vector_store_query"),
+        ("local_auth_ds", "vector_store_hash_ids", None, None, None),
+        ("local_auth_ds", None, "vector_store_row_ids", None, None),
+        ("local_auth_ds", None, None, "vector_store_filter_udf", None),
+        ("local_auth_ds", None, None, "vector_store_filters", None),
+        ("hub_cloud_ds", None, None, None, "vector_store_query"),
     ],
     indirect=True,
 )
 @pytest.mark.parametrize("init_embedding_function", [embedding_fn3, None])
 def test_update_embedding(
-    ds_generator,
+    ds,
     vector_store_hash_ids,
     vector_store_row_ids,
     vector_store_filters,
@@ -740,7 +741,6 @@ def test_update_embedding(
     embedding_tensor = "embedding"
     embedding_source_tensor = "text"
     # dataset has a single embedding_tensor:
-    ds = ds_generator()
     path = ds.path
     vector_store = DeepLakeVectorStore(
         path=path,
@@ -1769,3 +1769,13 @@ def test_uuid_fix(local_path):
     vector_store.add(text=texts, id=ids, embedding=embeddings, metadata=metadatas)
 
     assert vector_store.dataset.id.data()["value"] == list(map(str, ids))
+
+
+def test_read_only():
+    db = VectorStore("hub://davitbun/twitter-algorithm")
+    assert db.dataset.read_only == True
+
+
+def test_delete_by_path_wrong_path():
+    with pytest.raises(DatasetHandlerError):
+        VectorStore.delete_by_path("some_path")

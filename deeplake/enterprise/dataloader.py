@@ -698,7 +698,7 @@ class DeepLakeDataLoader(DataLoader):
         return iter(self._dataloader)
 
 
-def dataloader(dataset, ignore_errors: bool = True) -> DeepLakeDataLoader:
+def dataloader(dataset, ignore_errors: bool = False) -> DeepLakeDataLoader:
     """Returns a :class:`~deeplake.enterprise.dataloader.DeepLakeDataLoader` object which can be transformed to either pytorch dataloader or numpy.
 
 
