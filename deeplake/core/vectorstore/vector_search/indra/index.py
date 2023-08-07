@@ -1,5 +1,5 @@
 from deeplake.core.vector_index.distance_type import DistanceType
-from deeplake.core.storage import azure, gcs, google_drive, local, lru_cache, memory, 
+from deeplake.core.storage import azure, gcs, google_drive, local, lru_cache, memory
 
 
 METRIC_TO_INDEX_METRIC = {
@@ -34,8 +34,8 @@ def validate_and_create_vector_index(dataset, vector_index_params):
     elif len(dataset) < threshold:
         return False
 
-    
-    
+    # Check whether the index is supported by the provider
+
     # Check all tensors from the dataset.
     tensors = dataset.tensors
     for _, tensor in tensors.items():
