@@ -231,7 +231,6 @@ def delete_and_without_commit(dataset, ids):
 
 def delete_all_samples_if_specified(dataset, delete_all):
     if delete_all:
-
         # delete any indexes linked to any tensors.
         for t in dataset.tensors:
             dataset[t]._verify_and_delete_vdb_indexes()
@@ -264,9 +263,9 @@ def get_embedding(embedding, embedding_data, embedding_function=None):
     ):
         embedding = np.array(embedding, dtype=np.float32)
 
-    if embedding is not None:
+    if isinstance(embedding, np.ndarray):
         assert (
-                (embedding.ndim == 1 or embedding.shape[0] == 1)
+            embedding.ndim == 1 or embedding.shape[0] == 1
         ), "Query embedding must be 1-dimensional. Please consider using another embedding function for converting query string to embedding."
 
     return embedding

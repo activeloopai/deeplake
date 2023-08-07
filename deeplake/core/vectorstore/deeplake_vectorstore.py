@@ -459,6 +459,8 @@ class VectorStore:
                 logger, self.vector_index_params, distance_metric
             )
 
+        distance_metric = distance_metric or "L2"
+
         return vector_search.search(
             query=query,
             logger=logger,
@@ -690,7 +692,7 @@ class VectorStore:
             token=token,
         )
 
-        deeplake.delete(path, large_ok=True, token=token, force=True, creds=creds)
+        deeplake.delete(path, large_ok=True, token=token, creds=creds)
 
     def commit(self, allow_empty: bool = True) -> None:
         """Commits the Vector Store.
