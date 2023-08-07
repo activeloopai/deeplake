@@ -833,6 +833,10 @@ class dataset:
                 logger.info(f"{path} dataset deleted successfully.")
         except Exception as e:
             if force:
+                if get_path_type(path) == "local" and not os.path.isdir(path):
+                    raise DatasetHandlerError(
+                        f"Path {path} is not a directory. Cannot delete."
+                    )
                 base_storage = storage_provider_from_path(
                     path=path,
                     creds=creds,
