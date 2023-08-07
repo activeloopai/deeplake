@@ -692,7 +692,7 @@ class VectorStore:
             token=token,
         )
 
-        deeplake.delete(path, large_ok=True, token=token, force=True, creds=creds)
+        deeplake.delete(path, large_ok=True, token=token, creds=creds)
 
     def commit(self, allow_empty: bool = True) -> None:
         """Commits the Vector Store.

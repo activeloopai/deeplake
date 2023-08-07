@@ -15,7 +15,7 @@ def get_index_distance_metric_from_params(logger, vector_index_params, distance_
             f"call is not supported. `distance_metric = {distance_metric}` "
             "specified during index creation will be used instead."
         )
-    return vector_index_params["distance_metric"]
+    return vector_index_params.get("distance_metric", "L2")
 
 
 def get_index_metric(metric):

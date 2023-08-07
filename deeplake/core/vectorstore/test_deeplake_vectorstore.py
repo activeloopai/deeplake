@@ -1146,7 +1146,7 @@ def test_vdb_index_creation(local_path, capsys, hub_cloud_dev_token):
         path=local_path,
         overwrite=True,
         verbose=True,
-        vector_index_params={"threshold": 200, "distance_metric": "l2_norm"},
+        vector_index_params={"threshold": 200, "distance_metric": "L2"},
         token=hub_cloud_dev_token,
     )
 
@@ -1193,7 +1193,7 @@ def test_vdb_index_creation_cosine_similarity(local_path, capsys, hub_cloud_dev_
         path=local_path,
         overwrite=True,
         verbose=True,
-        vector_index_params={"threshold": 200, "distance_metric": "cosine_similarity"},
+        vector_index_params={"threshold": 200, "distance_metric": "COS"},
         token=hub_cloud_dev_token,
     )
 
