@@ -44,7 +44,7 @@ class VectorStore:
         ingestion_batch_size: int = 1000,
         vector_index_params: Dict[str, Union[int, str]] = {
             "threshold": 1000000,
-            "distance_metric": "l2_norm",
+            "distance_metric": "L2",
         },
         num_workers: int = 0,
         exec_option: str = "auto",
