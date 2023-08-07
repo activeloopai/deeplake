@@ -5,6 +5,7 @@ from typing import Optional, Any, Iterable, List, Dict, Union, Callable
 import numpy as np
 
 from deeplake.core.vector_index.distance_type import DistanceType
+from deeplake.util.dataset import try_flushing
 
 try:
     from indra import api  # type: ignore
@@ -268,6 +269,8 @@ class VectorStore:
             },
         )
 
+        try_flushing(self.dataset)
+
         (
             embedding_function,
             embedding_data,
@@ -414,6 +417,8 @@ class VectorStore:
             },
         )
 
+        try_flushing(self.dataset)
+
         if exec_option is None and self.exec_option != "python" and callable(filter):
             logger.warning(
                 'Switching exec_option to "python" (runs on client) because filter is specified as a function. '
@@ -529,6 +534,8 @@ class VectorStore:
             },
         )
 
+        try_flushing(self.dataset)
+
         if not row_ids:
             row_ids = dataset_utils.search_row_ids(
                 dataset=self.dataset,
@@ -622,6 +629,8 @@ class VectorStore:
             },
         )
 
+        try_flushing(self.dataset)
+
         (
             embedding_function,
             embedding_source_tensor,
@@ -680,6 +689,7 @@ class VectorStore:
             {"creds": creds},
             token=token,
         )
+
         deeplake.delete(path, large_ok=True, token=token, force=True, creds=creds)
 
     def commit(self, allow_empty: bool = True) -> None:
