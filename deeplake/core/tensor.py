@@ -1423,17 +1423,36 @@ class Tensor:
         try:
             is_embedding = self.htype == "embedding"
             has_vdb_indexes = hasattr(self.meta, "vdb_indexes")
-            vdb_index_ids_present = len(self.meta.get_vdb_index_ids()) > 0
+            try:
+                vdb_index_ids_present = len(self.meta.vdb_indexes) > 0
+            except AttributeError:
+                vdb_index_ids_present = False
 
             if is_embedding and has_vdb_indexes and vdb_index_ids_present:
-                index_ids = self.meta.get_vdb_index_ids()
-                for id in index_ids:
-                    # Delete the index.
+                for vdb_index in self.meta.vdb_indexes:
+                    id = vdb_index["id"]
+                    distance = vdb_index["distance"]
                     self.delete_vdb_index(id)
                     # Recreate it back.
-                    self.create_vdb_index(id)
+                    self.create_vdb_index(id, distance)
         except Exception as e:
             raise Exception(f"An error occurred while regenerating VDB indexes: {e}")
+
+    def _verify_and_delete_vdb_indexes(self):
+        try:
+            is_embedding = self.htype == "embedding"
+            has_vdb_indexes = hasattr(self.meta, "vdb_indexes")
+            try:
+                vdb_index_ids_present = len(self.meta.vdb_indexes) > 0
+            except AttributeError:
+                vdb_index_ids_present = False
+
+            if is_embedding and has_vdb_indexes and vdb_index_ids_present:
+                for vdb_index in self.meta.vdb_indexes:
+                    id = vdb_index["id"]
+                    self.delete_vdb_index(id)
+        except Exception as e:
+            raise Exception(f"An error occurred while deleting VDB indexes: {e}")
 
     def load_vdb_index(self, id: str):
         if self.meta.htype != "embedding":

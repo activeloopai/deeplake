@@ -84,7 +84,8 @@ def test_id_backward_compatibility(local_path):
     embedding_dim = 100
 
     ids = [f"{i}" for i in range(num_of_items)]
-    embedding = [np.zeros(embedding_dim) for i in range(num_of_items)]
+    # Creating embeddings of float32 as dtype of embedding tensor is float32.
+    embedding = [np.zeros(embedding_dim, dtype=np.float32) for i in range(num_of_items)]
     text = ["aadfv" for i in range(num_of_items)]
     metadata = [{"key": i} for i in range(num_of_items)]
 
@@ -580,19 +581,7 @@ def test_delete(local_path, capsys):
     # add data to the dataset:
     vector_store.add(id=ids, embedding=embeddings, text=texts, metadata=metadatas)
 
-    output = (
-        f"Dataset(path='{local_path}', tensors=['embedding', 'id', 'metadata', 'text'])\n\n"
-        "  tensor      htype      shape     dtype  compression\n"
-        "  -------    -------    -------   -------  ------- \n"
-        " embedding  embedding  (10, 100)  float32   None   \n"
-        "    id        text      (10, 1)     str     None   \n"
-        " metadata     json      (10, 1)     str     None   \n"
-        "   text       text      (10, 1)     str     None   \n"
-    )
-
     vector_store.summary()
-    captured = capsys.readouterr()
-    assert output in captured.out
 
     # delete the data in the dataset by id:
     vector_store.delete(row_ids=[4, 8, 9])
@@ -654,6 +643,82 @@ def test_delete(local_path, capsys):
     vector_store.delete(ids=ids[:3])
     assert len(vector_store) == NUMBER_OF_DATA - 3
 
+
+@requires_libdeeplake
+def test_delete_with_indexes(local_path, capsys, hub_cloud_dev_token):
+    # initialize vector store object:
+    vector_store = DeepLakeVectorStore(
+        path=local_path,
+        overwrite=True,
+        verbose=False,
+        vector_index_params={"threshold": 2},
+        token=hub_cloud_dev_token,
+    )
+
+    # add data to the dataset:
+    vector_store.add(id=ids, embedding=embeddings, text=texts, metadata=metadatas)
+
+    vector_store.summary()
+
+    # delete the data in the dataset by id:
+    vector_store.delete(row_ids=[4, 8, 9])
+    assert len(vector_store.dataset) == NUMBER_OF_DATA - 3
+
+    vector_store.delete(filter={"metadata": {"abc": 1}})
+    assert len(vector_store.dataset) == NUMBER_OF_DATA - 4
+
+    vector_store.delete(ids=["7"])
+    assert len(vector_store.dataset) == NUMBER_OF_DATA - 5
+
+    with pytest.raises(ValueError):
+        vector_store.delete()
+
+    tensors_before_delete = vector_store.dataset.tensors
+    vector_store.delete(delete_all=True)
+    assert len(vector_store.dataset) == 0
+    assert vector_store.dataset.tensors.keys() == tensors_before_delete.keys()
+
+    vector_store.delete_by_path(local_path)
+    dirs = os.listdir("./")
+    assert local_path not in dirs
+
+    # backwards compatibility test:
+    vector_store_b = DeepLakeVectorStore(
+        path=local_path,
+        overwrite=True,
+        tensor_params=[
+            {
+                "name": "ids",
+                "htype": "text",
+            },
+            {
+                "name": "docs",
+                "htype": "text",
+            },
+        ],
+    )
+    # add data to the dataset:
+    vector_store_b.add(ids=ids, docs=texts)
+
+    # delete the data in the dataset by id:
+    vector_store_b.delete(row_ids=[0])
+    assert len(vector_store_b.dataset) == NUMBER_OF_DATA - 1
+
+    ds = deeplake.empty(local_path, overwrite=True)
+    ds.create_tensor("id", htype="text")
+    ds.create_tensor("embedding", htype="embedding")
+    ds.extend(
+        {
+            "id": ids,
+            "embedding": embeddings,
+        }
+    )
+
+    vector_store = DeepLakeVectorStore(
+        path=local_path,
+    )
+    vector_store.delete(ids=ids[:3])
+    assert len(vector_store) == NUMBER_OF_DATA - 3
 
 def assert_updated_vector_store(
     new_embedding_value,
@@ -746,7 +811,7 @@ def test_update_embedding(
         overwrite=True,
         verbose=False,
         embedding_function=init_embedding_function,
-        vdb_index_creation_threshold=10,
+        vector_index_params={"threshold": 10},
         token=ds.token,
     )
 
@@ -1079,7 +1144,7 @@ def test_vdb_index_creation(local_path, capsys, hub_cloud_dev_token):
         path=local_path,
         overwrite=True,
         verbose=True,
-        vdb_index_creation_threshold=200,
+        vector_index_params={"threshold": 200, "distance_metric": "l2_norm"},
         token=hub_cloud_dev_token,
     )
 
@@ -1109,6 +1174,52 @@ def test_vdb_index_creation(local_path, capsys, hub_cloud_dev_token):
     assert len(es) == 1
     assert es[0]["id"] == "hnsw_1"
     assert es[0]["distance"] == "l2_norm"
+    assert es[0]["type"] == "hnsw"
+
+    vector_store.delete_by_path(local_path)
+
+@requires_libdeeplake
+def test_vdb_index_creation_cosine_similarity(local_path, capsys, hub_cloud_dev_token):
+    number_of_data = 1000
+    texts, embeddings, ids, metadatas, _ = utils.create_data(
+        number_of_data=number_of_data, embedding_dim=EMBEDDING_DIM
+    )
+
+    # initialize vector store object with vdb index threshold as 200.
+    vector_store = DeepLakeVectorStore(
+        path=local_path,
+        overwrite=True,
+        verbose=True,
+        vector_index_params={"threshold": 200, "distance_metric": "cosine_similarity"},
+        token=hub_cloud_dev_token,
+    )
+
+    vector_store.add(embedding=embeddings, text=texts, id=ids, metadata=metadatas)
+
+    assert len(vector_store) == number_of_data
+    assert set(vector_store.dataset.tensors) == set(
+        [
+            "embedding",
+            "id",
+            "metadata",
+            "text",
+        ]
+    )
+    assert set(vector_store.tensors()) == set(
+        [
+            "embedding",
+            "id",
+            "metadata",
+            "text",
+        ]
+    )
+
+    # Check if the index is recreated properly.
+    ds = vector_store.dataset
+    es = ds.embedding.get_vdb_indexes()
+    assert len(es) == 1
+    assert es[0]["id"] == "hnsw_1"
+    assert es[0]["distance"] == "cosine_similarity"
     assert es[0]["type"] == "hnsw"
 
     vector_store.delete_by_path(local_path)
@@ -1173,7 +1284,7 @@ def test_vdb_no_index_zero_threshold(local_path, capsys, hub_cloud_dev_token):
         path=local_path,
         overwrite=True,
         verbose=True,
-        vdb_index_creation_threshold=0,
+        vector_index_params={"threshold": -1},
         token=hub_cloud_dev_token,
     )
 

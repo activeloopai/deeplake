@@ -231,6 +231,11 @@ def delete_and_without_commit(dataset, ids):
 
 def delete_all_samples_if_specified(dataset, delete_all):
     if delete_all:
+
+        # delete any indexes linked to any tensors.
+        for t in dataset.tensors:
+            dataset[t]._verify_and_delete_vdb_indexes()
+
         dataset = deeplake.like(
             dataset.path,
             dataset,
