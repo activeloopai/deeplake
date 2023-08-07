@@ -126,6 +126,7 @@ from deeplake.util.diff import get_all_changes_string, get_changes_and_messages
 from deeplake.util.version_control import (
     auto_checkout,
     checkout,
+    delete_branch,
     commit,
     current_commit_has_change,
     load_meta,
@@ -536,6 +537,7 @@ class Dataset:
                     enabled_tensors.extend(
                         self[posixpath.relpath(x, self.group_index)].meta.links.keys()
                     )
+
                 ret = self.__class__(
                     storage=self.storage,
                     index=self.index,
@@ -564,6 +566,7 @@ class Dataset:
                         warnings.warn(
                             "Indexing by integer in a for loop, like `for i in range(len(ds)): ... ds[i]` can be quite slow. Use `for i, sample in enumerate(ds)` instead."
                         )
+
                 ret = self.__class__(
                     storage=self.storage,
                     index=self.index[item],
@@ -1709,6 +1712,61 @@ class Dataset:
             self.maybe_flush()
         return self.commit_id
 
+    @invalid_view_op
+    def delete_branch(self, name: str) -> None:
+        """Deletes a specific branch. You cannot delete the branch currently checked out.
+
+        Args:
+            name (str): The branch to delete.
+
+        Raises:
+            CommitError: If ``branch`` could not be found.
+            ReadOnlyModeError: If branch deletion is attempted in read-only mode.
+            Exception: If you have have the given branch currently checked out.
+
+        Examples:
+
+            >>> ds = deeplake.empty("../test/test_ds")
+            >>> ds.create_tensor("abc")
+            Tensor(key='abc')
+            >>> ds.abc.append([1, 2, 3])
+            >>> first_commit = ds.commit()
+            >>> ds.checkout("alt", create=True)
+            'firstdbf9474d461a19e9333c2fd19b46115348f'
+            >>> ds.abc.append([4, 5, 6])
+            >>> ds.abc.numpy()
+            array([[1, 2, 3],
+                   [4, 5, 6]])
+            >>> ds.checkout(first_commit)
+            'firstdbf9474d461a19e9333c2fd19b46115348f'
+            >>> ds.delete_branch("alt")
+        """
+        deeplake_reporter.feature_report(
+            feature_name="branch_delete",
+            parameters={},
+        )
+
+        self._delete_branch(name)
+        integrity_check(self)
+
+    def _delete_branch(self, name: str) -> None:
+        if self._is_filtered_view:
+            raise Exception(
+                "Cannot perform version control operations on a filtered dataset view."
+            )
+        read_only = self._read_only
+        if read_only:
+            raise ReadOnlyModeError()
+        try_flushing(self)
+        self._initial_autoflush.append(self.storage.autoflush)
+        self.storage.autoflush = False
+        try:
+            self._unlock()
+            delete_branch(self, name)
+        finally:
+            self._set_read_only(read_only, err=True)
+            self.storage.autoflush = self._initial_autoflush.pop()
+
     def log(self):
         """Displays the details of all the past commits."""
 
@@ -1832,6 +1890,9 @@ class Dataset:
         """overridden in DeepLakeCloudDataset"""
 
     def _send_branch_creation_event(self, *args, **kwargs):
+        """overridden in DeepLakeCloudDataset"""
+
+    def _send_branch_deletion_event(self, *args, **kwargs):
         """overridden in DeepLakeCloudDataset"""
 
     def _first_load_init(self):
