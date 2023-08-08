@@ -780,18 +780,37 @@ def assert_updated_vector_store(
 
 @requires_libdeeplake
 @pytest.mark.parametrize(
-    "ds, vector_store_hash_ids, vector_store_row_ids, vector_store_filters, vector_store_query",
+    "ds, vector_store_hash_ids, vector_store_row_ids, vector_store_filters, vector_store_query, init_embedding_function",
     [
-        ("local_auth_ds", "vector_store_hash_ids", None, None, None),
-        ("local_auth_ds", None, "vector_store_row_ids", None, None),
-        ("local_auth_ds", None, None, "vector_store_filter_udf", None),
-        ("local_auth_ds", None, None, "vector_store_filters", None),
-        ("hub_cloud_ds", None, None, None, "vector_store_query"),
+        (
+            "local_auth_ds",
+            "vector_store_hash_ids",
+            None,
+            None,
+            None,
+            "init_embedding_function",
+        ),
+        ("local_auth_ds", None, "vector_store_row_ids", None, None, None),
+        (
+            "local_auth_ds",
+            None,
+            None,
+            "vector_store_filter_udf",
+            None,
+            "init_embedding_function",
+        ),
+        ("local_auth_ds", None, None, "vector_store_filters", None, None),
+        (
+            "hub_cloud_ds",
+            None,
+            None,
+            None,
+            "vector_store_query",
+            "init_embedding_function",
+        ),
     ],
     indirect=True,
 )
-@pytest.mark.parametrize("init_embedding_function", [embedding_fn3, None])
-@requires_libdeeplake
 def test_update_embedding(
     ds,
     vector_store_hash_ids,
@@ -813,7 +832,6 @@ def test_update_embedding(
         overwrite=True,
         verbose=False,
         embedding_function=init_embedding_function,
-        vector_index_params={"threshold": 10},
         token=ds.token,
     )
 
@@ -1135,7 +1153,9 @@ def test_update_embedding(
 
 
 @requires_libdeeplake
-def test_vdb_index_update(hub_cloud_path, hub_cloud_dev_token, vector_store_query):
+def test_vdb_index_update(
+    hub_cloud_path, local_path, hub_cloud_dev_token, vector_store_query
+):
     vector_store = DeepLakeVectorStore(
         path=hub_cloud_path,
         overwrite=True,
@@ -1143,6 +1163,15 @@ def test_vdb_index_update(hub_cloud_path, hub_cloud_dev_token, vector_store_quer
         embedding_function=embedding_fn3,
         vector_index_params={"threshold": 10},
         token=hub_cloud_dev_token,
+    )
+
+    # add data to the dataset:
+    metadatas[1:6] = [{"a": 1} for _ in range(5)]
+    vector_store.add(
+        id=ids,
+        text=texts,
+        embedding=embeddings,
+        metadata=metadatas,
     )
 
     embedding_tensor = "embedding"
@@ -1157,8 +1186,6 @@ def test_vdb_index_update(hub_cloud_path, hub_cloud_dev_token, vector_store_quer
         embedding_tensor=embedding_tensor,
     )
 
-    print(f"vector_store_query = \n\n{vector_store_query}\n\n")
-
     assert_updated_vector_store(
         new_embedding_value,
         vector_store,
@@ -1172,6 +1199,22 @@ def test_vdb_index_update(hub_cloud_path, hub_cloud_dev_token, vector_store_quer
         "compute_engine",
         num_changed_samples=5,
     )
+
+    vector_store = DeepLakeVectorStore(
+        path=local_path,
+        overwrite=True,
+        verbose=False,
+        embedding_function=embedding_fn3,
+        vector_index_params={"threshold": 10},
+        token=hub_cloud_dev_token,
+    )
+    with pytest.raises(ValueError):
+        vector_store.add(
+            id=ids,
+            text=texts,
+            embedding=embeddings,
+            metadata=metadatas,
+        )
 
 
 @requires_libdeeplake

@@ -38,6 +38,8 @@ from deeplake.tests.common import (
 import pytest
 import sys
 
+import numpy as np
+
 
 MEMORY = "memory"
 LOCAL = "local"
@@ -635,4 +637,13 @@ def vector_store_filters(request):
 
 @pytest.fixture
 def vector_store_query(request):
-    return "select * where metadata=={'a': 1}"
+    return "select * where metadata['a'] == 1"
+
+
+@pytest.fixture
+def init_embedding_function(request):
+    def embedding_fn(text, embedding_dim=100):
+        """Returns embedding in List[np.ndarray] format"""
+        return [np.zeros(embedding_dim) for i in range(len(text))]
+
+    return embedding_fn
