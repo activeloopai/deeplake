@@ -304,8 +304,8 @@ class VectorStore:
 
         # In Case prefilled dataset which is already having index defined
         # regenerate the index post ingestion.
-        index_regeneration = False;
-        if (len(self.dataset) > 0 and index.check_vdb_indexes(self.dataset)):
+        index_regeneration = False
+        if len(self.dataset) > 0 and index.check_vdb_indexes(self.dataset):
             index_regeneration = True
             
         dataset_utils.extend_or_ingest_dataset(
