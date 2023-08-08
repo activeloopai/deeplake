@@ -1135,7 +1135,47 @@ def test_update_embedding(
 
 
 @requires_libdeeplake
-def test_vdb_index_creation(local_path, capsys, hub_cloud_dev_token):
+def test_vdb_index_update(hub_cloud_path, hub_cloud_dev_token, vector_store_query):
+    vector_store = DeepLakeVectorStore(
+        path=hub_cloud_path,
+        overwrite=True,
+        verbose=False,
+        embedding_function=embedding_fn3,
+        vector_index_params={"threshold": 10},
+        token=hub_cloud_dev_token,
+    )
+
+    embedding_tensor = "embedding"
+    embedding_source_tensor = "text"
+
+    new_embedding_value = 100
+    embedding_fn = get_embedding_function(embedding_value=new_embedding_value)
+    vector_store.update_embedding(
+        query=vector_store_query,
+        embedding_function=embedding_fn,
+        embedding_source_tensor=embedding_source_tensor,
+        embedding_tensor=embedding_tensor,
+    )
+
+    print(f"vector_store_query = \n\n{vector_store_query}\n\n")
+
+    assert_updated_vector_store(
+        new_embedding_value,
+        vector_store,
+        None,
+        None,
+        None,
+        vector_store_query,
+        embedding_fn,
+        embedding_source_tensor,
+        embedding_tensor,
+        "compute_engine",
+        num_changed_samples=5,
+    )
+
+
+@requires_libdeeplake
+def test_vdb_index_creation(hub_cloud_path, capsys, hub_cloud_dev_token):
     number_of_data = 1000
     texts, embeddings, ids, metadatas, _ = utils.create_data(
         number_of_data=number_of_data, embedding_dim=EMBEDDING_DIM
@@ -1143,7 +1183,7 @@ def test_vdb_index_creation(local_path, capsys, hub_cloud_dev_token):
 
     # initialize vector store object with vdb index threshold as 200.
     vector_store = DeepLakeVectorStore(
-        path=local_path,
+        path=hub_cloud_path,
         overwrite=True,
         verbose=True,
         vector_index_params={"threshold": 200, "distance_metric": "L2"},
@@ -1178,11 +1218,11 @@ def test_vdb_index_creation(local_path, capsys, hub_cloud_dev_token):
     assert es[0]["distance"] == "l2_norm"
     assert es[0]["type"] == "hnsw"
 
-    vector_store.delete_by_path(local_path)
-
 
 @requires_libdeeplake
-def test_vdb_index_creation_cosine_similarity(local_path, capsys, hub_cloud_dev_token):
+def test_vdb_index_creation_cosine_similarity(
+    hub_cloud_path, capsys, hub_cloud_dev_token
+):
     number_of_data = 1000
     texts, embeddings, ids, metadatas, _ = utils.create_data(
         number_of_data=number_of_data, embedding_dim=EMBEDDING_DIM
@@ -1190,7 +1230,7 @@ def test_vdb_index_creation_cosine_similarity(local_path, capsys, hub_cloud_dev_
 
     # initialize vector store object with vdb index threshold as 200.
     vector_store = DeepLakeVectorStore(
-        path=local_path,
+        path=hub_cloud_path,
         overwrite=True,
         verbose=True,
         vector_index_params={"threshold": 200, "distance_metric": "COS"},
@@ -1224,8 +1264,6 @@ def test_vdb_index_creation_cosine_similarity(local_path, capsys, hub_cloud_dev_
     assert es[0]["id"] == "hnsw_1"
     assert es[0]["distance"] == "cosine_similarity"
     assert es[0]["type"] == "hnsw"
-
-    vector_store.delete_by_path(local_path)
 
 
 @requires_libdeeplake
