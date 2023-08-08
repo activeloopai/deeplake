@@ -24,6 +24,7 @@ from deeplake.util.version_control import (
     integrity_check,
     save_commit_info,
     rebuild_version_info,
+    squash_commits,
 )
 from deeplake.util.invalid_view_op import invalid_view_op
 from deeplake.util.spinner import spinner
@@ -1722,7 +1723,7 @@ class Dataset:
         Raises:
             CommitError: If ``branch`` could not be found.
             ReadOnlyModeError: If branch deletion is attempted in read-only mode.
-            Exception: If you have have the given branch currently checked out.
+            Exception: If you have the given branch currently checked out.
 
         Examples:
 
@@ -1763,6 +1764,35 @@ class Dataset:
         try:
             self._unlock()
             delete_branch(self, name)
+        finally:
+            self._set_read_only(read_only, err=True)
+            self.storage.autoflush = self._initial_autoflush.pop()
+
+    @invalid_view_op
+    def squash_commits(self) -> None:
+        """
+        Squashes all commits in 'main' into one commit.
+        This is cannot be run if there are any branches besides `main`
+
+        Raises:
+            ReadOnlyModeError: If branch deletion is attempted in read-only mode.
+            VersionControlError: If the main branch cannot be squashed.
+        """
+        if self._is_filtered_view:
+            raise Exception(
+                "Cannot perform version control operations on a filtered dataset view."
+            )
+        read_only = self._read_only
+        if read_only:
+            raise ReadOnlyModeError()
+
+        try_flushing(self)
+
+        self._initial_autoflush.append(self.storage.autoflush)
+        self.storage.autoflush = False
+        try:
+            self._unlock()
+            squash_commits(self)
         finally:
             self._set_read_only(read_only, err=True)
             self.storage.autoflush = self._initial_autoflush.pop()
