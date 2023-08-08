@@ -1389,6 +1389,20 @@ class Dataset:
             link_creds = LinkCreds.frombuffer(data_bytes)
         self.link_creds = link_creds
 
+    def regenerate_vdb_indexes(self):
+        tensors = self.tensors
+
+        for _, tensor in tensors.items():
+            is_embedding = tensor.htype == "embedding"
+            has_vdb_indexes = hasattr(tensor.meta, "vdb_indexes")
+            try:
+                vdb_index_ids_present = len(tensor.meta.vdb_indexes) > 0
+            except AttributeError:
+                vdb_index_ids_present = False
+
+            if is_embedding and has_vdb_indexes and vdb_index_ids_present:
+                tensor._regenerate_vdb_indexes()
+
     def _lock(self, err=False, verbose=True):
         if not self.is_head_node or not self._locking_enabled:
             return True
@@ -2917,6 +2931,7 @@ class Dataset:
         extend: bool = False,
         skip_ok: bool = False,
         append_empty: bool = False,
+        index_regeneration: bool = True,
     ):
         """Append or extend samples to mutliple tensors at once. This method expects all tensors being updated to be of the same length.
 
@@ -2925,6 +2940,7 @@ class Dataset:
             sample (dict): Dictionary with tensor names as keys and samples as values.
             skip_ok (bool): Skip tensors not in ``sample`` if set to ``True``.
             append_empty (bool): Append empty samples to tensors not specified in ``sample`` if set to ``True``. If True, ``skip_ok`` is ignored.
+            index_regeneration (bool): VDB Index regeneration will occur by default.
 
         Raises:
             KeyError: If any tensor in the dataset is not a key in ``sample`` and ``skip_ok`` is ``False``.
@@ -3001,8 +3017,7 @@ class Dataset:
                         tensor.append(v)
                     tensors_appended.append(k)
 
-                    # Regenerate Index.
-                    tensor._regenerate_vdb_indexes()
+
                 except Exception as e:
                     if extend:
                         raise NotImplementedError(
@@ -3021,13 +3036,17 @@ class Dataset:
                     for k in tensors_appended:
                         try:
                             self[k].pop()
-                            # Regenerate Index.
-                            self[k]._regenerate_vdb_indexes()
                         except Exception as e2:
                             raise Exception(
                                 "Error while attempting to rollback appends"
                             ) from e2
+                    # Regenerate Index.
+                    if index_regeneration:
+                        self.regenerate_vdb_indexes()
                     raise e
+            # Regenerate Index.
+            if index_regeneration:
+                self.regenerate_vdb_indexes()
 
     def extend(
         self,
@@ -3035,6 +3054,7 @@ class Dataset:
         skip_ok: bool = False,
         append_empty: bool = False,
         ignore_errors: bool = False,
+        index_regeneration = True,
     ):
         """Appends multiple rows of samples to mutliple tensors at once. This method expects all tensors being updated to be of the same length.
 
@@ -3043,6 +3063,7 @@ class Dataset:
             skip_ok (bool): Skip tensors not in ``samples`` if set to True.
             append_empty (bool): Append empty samples to tensors not specified in ``sample`` if set to ``True``. If True, ``skip_ok`` is ignored.
             ignore_errors (bool): Skip samples that cause errors while extending, if set to ``True``.
+            index_regeneration (bool): Regenerate VDB indexes when base data is modified.
 
         Raises:
             KeyError: If any tensor in the dataset is not a key in ``samples`` and ``skip_ok`` is ``False``.
@@ -3073,7 +3094,7 @@ class Dataset:
                     "`ignore_errors` argument will be ignored while extending with numpy arrays or tensors."
                 )
             return self._append_or_extend(
-                samples, extend=True, skip_ok=skip_ok, append_empty=append_empty
+                samples, extend=True, skip_ok=skip_ok, append_empty=append_empty, index_regeneration=index_regeneration,
             )
         with self:
             for i in range(n):
@@ -3082,6 +3103,7 @@ class Dataset:
                         {k: v[i] for k, v in samples.items()},
                         skip_ok=skip_ok,
                         append_empty=append_empty,
+                        index_regeneration=index_regeneration,
                     )
                 except Exception as e:
                     if ignore_errors:
@@ -3091,7 +3113,11 @@ class Dataset:
 
     @invalid_view_op
     def append(
-        self, sample: Dict[str, Any], skip_ok: bool = False, append_empty: bool = False
+            self,
+            sample: Dict[str, Any],
+            skip_ok: bool = False,
+            append_empty: bool = False,
+            index_regeneration: bool = True,
     ):
         """Append samples to mutliple tensors at once. This method expects all tensors being updated to be of the same length.
 
@@ -3099,6 +3125,7 @@ class Dataset:
             sample (dict): Dictionary with tensor names as keys and samples as values.
             skip_ok (bool): Skip tensors not in ``sample`` if set to ``True``.
             append_empty (bool): Append empty samples to tensors not specified in ``sample`` if set to ``True``. If True, ``skip_ok`` is ignored.
+            index_regeneration (bool): VDB Index regeneration will happen by default.
 
         Raises:
             KeyError: If any tensor in the dataset is not a key in ``sample`` and ``skip_ok`` is ``False``.
@@ -3119,7 +3146,7 @@ class Dataset:
 
         """
         self._append_or_extend(
-            sample, extend=False, skip_ok=skip_ok, append_empty=append_empty
+            sample, extend=False, skip_ok=skip_ok, append_empty=append_empty, index_regeneration=index_regeneration,
         )
 
     def update(self, sample: Dict[str, Any]):
@@ -3205,8 +3232,8 @@ class Dataset:
                         saved[k].append(old_sample)
 
                     self[k] = v
-                    # Regenerate Index
-                    self[k]._regenerate_vdb_indexes()
+                # Regenerate Index
+                self.regenerate_vdb_indexes()
 
             except Exception as e:
                 for k, v in saved.items():
@@ -3215,12 +3242,12 @@ class Dataset:
                         v = v[0]
                     try:
                         self[k] = v
-                        # in case of error, regenerate index again to avoid index corruption
-                        self[k]._regenerate_vdb_indexes()
                     except Exception as e2:
                         raise Exception(
                             "Error while attempting to rollback updates"
                         ) from e2
+                # in case of error, regenerate index again to avoid index corruption
+                self.regenerate_vdb_indexes()
                 raise e
             finally:
                 # restore update hooks
@@ -4496,9 +4523,9 @@ class Dataset:
         for tensor in self.tensors.values():
             if tensor.num_samples > index:
                 tensor.pop(index)
-                # Regenerate vdb indexes.
-                tensor._regenerate_vdb_indexes()
 
+        # Regenerate vdb indexes.
+        self.regenerate_vdb_indexes()
         self.storage.autoflush = self._initial_autoflush.pop()
 
     @property

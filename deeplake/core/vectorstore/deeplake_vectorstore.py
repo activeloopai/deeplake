@@ -169,6 +169,7 @@ class VectorStore:
         self.index_created = index.validate_and_create_vector_index(
             dataset=self.dataset,
             vector_index_params=self.vector_index_params,
+            regenerate_index = False,
         )
 
     def add(
@@ -301,6 +302,12 @@ class VectorStore:
         assert id_ is not None
         utils.check_length_of_each_tensor(processed_tensors)
 
+        # In Case prefilled dataset which is already having index defined
+        # regenerate the index post ingestion.
+        index_regeneration = False;
+        if (len(self.dataset) > 0 and index.check_vdb_indexes(self.dataset)):
+            index_regeneration = True
+            
         dataset_utils.extend_or_ingest_dataset(
             processed_tensors=processed_tensors,
             dataset=self.dataset,
@@ -316,6 +323,7 @@ class VectorStore:
         self.index_created = index.validate_and_create_vector_index(
             dataset=self.dataset,
             vector_index_params=self.vector_index_params,
+            regenerate_index = index_regeneration,
         )
 
         if self.verbose:

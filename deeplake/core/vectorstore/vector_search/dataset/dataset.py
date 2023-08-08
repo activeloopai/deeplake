@@ -404,6 +404,7 @@ def extend_or_ingest_dataset(
     num_workers,
     total_samples_processed,
     logger,
+    index_regeneration = False,
 ):
     first_item = next(iter(processed_tensors))
 
@@ -435,7 +436,7 @@ def extend_or_ingest_dataset(
 
             processed_tensors[tensor] = embedded_data
 
-    dataset.extend(processed_tensors)
+    dataset.extend(processed_tensors, index_regeneration = index_regeneration)
     # else:
     #     elements = create_elements(processed_tensors)
     #

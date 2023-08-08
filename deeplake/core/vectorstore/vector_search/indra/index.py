@@ -26,18 +26,48 @@ def get_index_metric(metric):
         )
     return METRIC_TO_INDEX_METRIC[metric]
 
+def check_vdb_indexes(dataset):
+    tensors = dataset.tensors
 
-def validate_and_create_vector_index(dataset, vector_index_params):
+    vdb_index_present = False
+    for _, tensor in tensors.items():
+        is_embedding = tensor.htype == "embedding"
+        has_vdb_indexes = hasattr(tensor.meta, "vdb_indexes")
+        try:
+            vdb_index_ids_present = len(tensor.meta.vdb_indexes) > 0
+        except AttributeError:
+            vdb_index_ids_present = False
+
+        if is_embedding and has_vdb_indexes and vdb_index_ids_present:
+            return True
+    return False
+
+def validate_and_create_vector_index(dataset, vector_index_params, regenerate_index = False):
     threshold = vector_index_params.get("threshold", 1000000)
     if threshold <= 0:
         return False
     elif len(dataset) < threshold:
         return False
 
-    # Check whether the index is supported by the provider
+    index_regen = False
+    tensors = dataset.tensors
+    # Check if regenerate_index is true.
+    if regenerate_index:
+        for _, tensor in tensors.items():
+            is_embedding = tensor.htype == "embedding"
+            has_vdb_indexes = hasattr(tensor.meta, "vdb_indexes")
+            try:
+                vdb_index_ids_present = len(tensor.meta.vdb_indexes) > 0
+            except AttributeError:
+                vdb_index_ids_present = False
+
+            if is_embedding and has_vdb_indexes and vdb_index_ids_present:
+                tensor._regenerate_vdb_indexes()
+                index_regen = True
+        if index_regen:
+            return
 
     # Check all tensors from the dataset.
-    tensors = dataset.tensors
     for _, tensor in tensors.items():
         is_embedding = tensor.htype == "embedding"
         vdb_index_absent = len(tensor.meta.get_vdb_index_ids()) == 0
