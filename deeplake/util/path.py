@@ -1,6 +1,6 @@
 import pathlib
 import posixpath
-from typing import Optional, Union, Tuple
+from typing import Optional, Union, Tuple, Dict
 from deeplake.core.storage.provider import StorageProvider
 from deeplake.util.tag import process_hub_path
 from deeplake.constants import HUB_CLOUD_DEV_USERNAME
