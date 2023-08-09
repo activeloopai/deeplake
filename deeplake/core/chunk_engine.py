@@ -236,6 +236,7 @@ class ChunkEngine:
 
         self._numpy_extend_optimization_enabled = numpy_extend_optimization_enabled
 
+        self.cache_enabled = True
         self.cached_data: Optional[np.ndarray] = None
         self.cache_range: range = range(0)
 
@@ -255,14 +256,16 @@ class ChunkEngine:
 
     @property
     def is_data_cachable(self):
-        tensor_meta = self.tensor_meta
-        return (
-            self.chunk_class == UncompressedChunk
-            and tensor_meta.htype not in ["text", "json", "list", "polygon"]
-            and tensor_meta.max_shape
-            and (tensor_meta.max_shape == tensor_meta.min_shape)
-            and (np.prod(tensor_meta.max_shape) < 20)
-        )
+        if self.cache_enabled:
+            tensor_meta = self.tensor_meta
+            return (
+                self.chunk_class == UncompressedChunk
+                and tensor_meta.htype not in ["text", "json", "list", "polygon"]
+                and tensor_meta.max_shape
+                and (tensor_meta.max_shape == tensor_meta.min_shape)
+                and (np.prod(tensor_meta.max_shape) < 20)
+            )
+        return False
 
     @property
     def commit_id(self):
@@ -542,7 +545,7 @@ class ChunkEngine:
     def last_appended_chunk_id(self) -> str:
         return self.chunk_id_encoder.get_id_for_chunk(-1)
 
-    def last_appended_chunk(self) -> Optional[BaseChunk]:
+    def last_appended_chunk(self, allow_copy=True) -> Optional[BaseChunk]:
         last_index = self.num_samples - 1
         if self.num_chunks == 0 or last_index in self.tile_encoder:
             return None
@@ -553,6 +556,8 @@ class ChunkEngine:
         chunk.key = chunk_key
         chunk.id = self.last_appended_chunk_id
         if chunk_commit_id != self.commit_id:
+            if not allow_copy:
+                return None
             chunk = self.copy_chunk_to_new_commit(chunk, chunk_name)
         if (
             self.active_appended_chunk is not None
@@ -1007,7 +1012,7 @@ class ChunkEngine:
         )
         self._samples_to_chunks(
             samples,
-            start_chunk=self.last_appended_chunk(),
+            start_chunk=self.last_appended_chunk(allow_copy=False),
             register=True,
             progressbar=progressbar,
             update_commit_diff=update_commit_diff,
@@ -2276,7 +2281,7 @@ class ChunkEngine:
         return
 
     @property
-    def sequence_encoder(self) -> SequenceEncoder:
+    def sequence_encoder(self) -> Optional[SequenceEncoder]:
         """Gets the shape encoder from cache, if one is not found it creates a blank encoder.
 
         Raises:
@@ -2673,7 +2678,7 @@ class ChunkEngine:
         convert_bad_to_list: bool = True,
     ):
         if len(index) > 1:
-            raise IndexError(f"`.shapes` only accepts indexing on the primary axis.")
+            raise IndexError("`.shapes` only accepts indexing on the primary axis.")
 
         index_0 = index.values[0]
         num_samples, sample_ndim = self._get_total_samples_and_sample_ndim(index_0)

@@ -190,6 +190,8 @@ class UncompressedChunk(BaseChunk):
         local_index: int,
         cast: bool = True,
         copy: bool = False,
+        sub_index: Optional[Union[int, slice]] = None,
+        stream: bool = False,
         decompress: bool = True,
         is_tile: bool = False,
     ):

@@ -62,6 +62,7 @@ def indra_available() -> bool:
 
 def import_indra_loader():
     global INDRA_LOADER
+    global INDRA_API
     if INDRA_LOADER:
         return INDRA_LOADER
     if not importlib.util.find_spec("indra"):
@@ -70,11 +71,13 @@ def import_indra_loader():
         from indra import api  # type: ignore
         from indra.pytorch.loader import Loader  # type:ignore
 
+        INDRA_API = api
         INDRA_LOADER = Loader
         return Loader
     except Exception as e:
         if not deeplake.constants.RETURN_DUMMY_DATA_FOR_DATALOADER:
             raise_indra_installation_error(e)
+        INDRA_API = None
         INDRA_LOADER = None
 
 
@@ -101,6 +104,7 @@ class DeepLakeDataLoader(DataLoader):
         _persistent_workers=None,
         _dataloader=None,
         _world_size=1,
+        _ignore_errors=False,
         **kwargs,
     ):
         import_indra_loader()
@@ -124,6 +128,7 @@ class DeepLakeDataLoader(DataLoader):
         self._persistent_workers = _persistent_workers
         self._dataloader = _dataloader
         self._world_size = _world_size
+        self._ignore_errors = _ignore_errors
         for k, v in kwargs.items():
             setattr(self, k, v)
 
@@ -199,6 +204,13 @@ class DeepLakeDataLoader(DataLoader):
     @property
     def _index_sampler(self):
         return self.sampler
+
+    @property
+    def summary(self):
+        if not self._ignore_errors or self._dataloader is None:
+            return
+        else:
+            self._dataloader.summary
 
     @property
     def collate_fn(self):
@@ -575,6 +587,24 @@ class DeepLakeDataLoader(DataLoader):
         all_vars["_dataloader"] = None
         return self.__class__(**all_vars)
 
+    def _get_suboptimal_thread_count(self) -> Optional[int]:
+        assert self._distributed
+
+        if self._num_threads is None and self._mode == "pytorch":
+            import torch
+
+            num_devices = (
+                torch.cuda.device_count() if torch.cuda.is_available() else None
+            )
+
+            num_suboptimal_threads = (
+                int(INDRA_API.num_available_threads() / num_devices)
+                if INDRA_API is not None and num_devices is not None
+                else None
+            )
+            return num_suboptimal_threads
+        return self._num_threads
+
     def __iter__(self):
         if self._dataloader is None:
             dataset = self._orig_dataset
@@ -632,10 +662,16 @@ class DeepLakeDataLoader(DataLoader):
                     indra_dataset = dataset_to_libdeeplake(dataset)
                 else:
                     indra_dataset = self._indra_dataset
+
+                num_threads = (
+                    self._get_suboptimal_thread_count()
+                    if self._distributed
+                    else self._num_threads
+                )
                 self._dataloader = INDRA_LOADER(
                     indra_dataset,
                     batch_size=self._batch_size,
-                    num_threads=self._num_threads,
+                    num_threads=num_threads,
                     shuffle=self._shuffle,
                     num_workers=self._num_workers,
                     collate_fn=collate_fn,
@@ -644,6 +680,7 @@ class DeepLakeDataLoader(DataLoader):
                     prefetch_factor=self._prefetch_factor,
                     tensors=tensors,
                     drop_last=self._drop_last,
+                    ignore_errors=self._ignore_errors,
                     upcast=upcast,
                     return_index=self._return_index,
                     primary_tensor=primary_tensor_name,
@@ -661,12 +698,14 @@ class DeepLakeDataLoader(DataLoader):
         return iter(self._dataloader)
 
 
-def dataloader(dataset) -> DeepLakeDataLoader:
+def dataloader(dataset, ignore_errors: bool = False) -> DeepLakeDataLoader:
     """Returns a :class:`~deeplake.enterprise.dataloader.DeepLakeDataLoader` object which can be transformed to either pytorch dataloader or numpy.
 
 
     Args:
         dataset: :class:`~deeplake.core.dataset.Dataset` object on which dataloader needs to be built
+        ignore_errors (bool): If ``True``, the data loader will ignore errors apperaing during dataloading otherwise it will collct the statistics and report appeard errors. Default value is ``False``
+
 
     Returns:
         DeepLakeDataLoader: A :class:`~deeplake.enterprise.dataloader.DeepLakeDataLoader` object.
@@ -728,7 +767,7 @@ def dataloader(dataset) -> DeepLakeDataLoader:
         ...     pass
     """
     verify_base_storage(dataset)
-    return DeepLakeDataLoader(dataset)
+    return DeepLakeDataLoader(dataset, _ignore_errors=ignore_errors)
 
 
 def validate_tensors(tensors, dataset, all_vars):

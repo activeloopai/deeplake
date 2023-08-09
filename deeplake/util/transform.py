@@ -122,12 +122,10 @@ def _extend_data_slice(
         transform_fn.args,
         transform_fn.kwargs,
     )
-    extend_fn(data_slice, transform_dataset, *args, **kwargs)
-    data = transform_dataset.data
-    updated_tensors = set(k for k in data if not data[k].is_group and len(data[k]) > 0)
     if pg_callback is not None:
-        pg_callback = _normalize_pg(pg_callback, len(updated_tensors))
+        pg_callback = _normalize_pg(pg_callback, len(transform_dataset.tensors))
     transform_dataset.set_pg_callback(pg_callback)
+    extend_fn(data_slice, transform_dataset, *args, **kwargs)
     transform_dataset.flush()
 
 
@@ -204,6 +202,9 @@ def _transform_and_append_data_slice(
 
     pipeline_checked = False
 
+    last_pg_update_time = time.time()
+    progress = 0
+
     for i, sample in enumerate(
         (data_slice[i : i + 1] for i in range(n))
         if pd and isinstance(data_slice, pd.DataFrame)
@@ -239,7 +240,15 @@ def _transform_and_append_data_slice(
                     skipped_samples_in_current_batch = 0
 
                 if pg_callback is not None:
-                    pg_callback(1)
+                    progress += 1
+                    if (
+                        time.time() - last_pg_update_time
+                        > TRANSFORM_PROGRESSBAR_UPDATE_INTERVAL
+                        or i == n - 1
+                    ):
+                        pg_callback(progress)
+                        progress = 0
+                        last_pg_update_time = time.time()
 
         # failure at chunk_engine
         # retry one sample at a time
@@ -263,9 +272,10 @@ def _transform_and_append_data_slice(
             )
             continue
 
-    if skipped_samples == n:
-        return False
-    return True
+    return {
+        "samples_skipped": skipped_samples,
+        "all_samples_skipped": skipped_samples == n,
+    }
 
 
 def _retrieve_memory_objects(all_chunk_engines):
@@ -337,7 +347,10 @@ def store_data_slice_with_pbar(pg_callback, transform_input: Tuple) -> Dict:
         cache_size=cache_size,
     )
 
-    ret = True
+    ret = {
+        "all_samples_skipped": False,
+        "samples_skipped": 0,
+    }
     err = None
     try:
         if extend_only:
@@ -360,13 +373,15 @@ def store_data_slice_with_pbar(pg_callback, transform_input: Tuple) -> Dict:
                 ignore_errors,
             )
     except Exception as e:
-        print(e)
-        transform_dataset.flush()
+        try:
+            transform_dataset.flush()
+        except Exception:
+            pass
         err = e
     finally:
         # retrieve relevant objects from memory
         meta = _retrieve_memory_objects(all_chunk_engines)
-        meta["all_samples_skipped"] = not ret
+        meta.update(ret)
         meta["error"] = err
         return meta
 
@@ -539,6 +554,18 @@ def len_data_in(data_in):
         return data_in.max_len
     else:
         return len(data_in)
+
+
+def transform_summary(data_in, result):
+    samples_skipped = sum(result["samples_skipped"])
+    successful = len_data_in(data_in) - samples_skipped
+    successful_percent = round((successful / len_data_in(data_in)) * 100, 2)
+    skipped_percent = round(100 - successful_percent, 2)
+
+    print(
+        "No. of samples successfully processed:", successful, f"({successful_percent}%)"
+    )
+    print("No. of samples skipped:", samples_skipped, f"({skipped_percent}%)")
 
 
 def create_slices(data_in, num_workers):
