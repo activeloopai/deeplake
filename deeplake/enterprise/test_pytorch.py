@@ -154,11 +154,11 @@ def test_pytorch_transform(hub_cloud_ds):
 
 
 @requires_libdeeplake
-def test_intequal_tensors_dataloader_length(local_auth_ds):
+def test_inequal_tensors_dataloader_length(local_auth_ds):
     with local_auth_ds as ds:
-        ds.create_tensor("image")
+        ds.create_tensor("images")
         ds.create_tensor("label")
-        ds.image.extend(([i * np.ones((i + 1, i + 1)) for i in range(16)]))
+        ds.images.extend(([i * np.ones((i + 1, i + 1)) for i in range(16)]))
 
     ld = local_auth_ds.dataloader().batch(1).pytorch()
     assert len(ld) == 0
