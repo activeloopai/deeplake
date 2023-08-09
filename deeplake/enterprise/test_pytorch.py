@@ -1,4 +1,3 @@
-from indra import api
 import pickle
 import deeplake
 import numpy as np
