@@ -1771,12 +1771,12 @@ class Dataset:
     @invalid_view_op
     def squash_commits(self) -> None:
         """
-        Squashes all commits in 'main' into one commit.
-        This is cannot be run if there are any branches besides `main`
+        Squashes all commits in current branch into one commit.
+        NOTE: This is cannot be run if there are any branches besides `main`
 
         Raises:
             ReadOnlyModeError: If branch deletion is attempted in read-only mode.
-            VersionControlError: If the main branch cannot be squashed.
+            VersionControlError: If the branch cannot be squashed.
         """
         if self._is_filtered_view:
             raise Exception(
@@ -1795,6 +1795,7 @@ class Dataset:
             squash_commits(self)
         finally:
             self._set_read_only(read_only, err=True)
+            self.libdeeplake_dataset = None
             self.storage.autoflush = self._initial_autoflush.pop()
 
     def log(self):

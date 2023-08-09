@@ -42,7 +42,7 @@ from deeplake.util.keys import (
     get_version_control_info_key,
     get_version_control_info_key_old,
     get_version_control_info_lock_key,
-    get_commit_info_key,
+    get_commit_info_key, get_pad_encoder_key,
 )
 from deeplake.constants import COMMIT_INFO_FILENAME
 from deeplake.util.remove_cache import get_base_storage
@@ -299,7 +299,6 @@ def squash_commits(
     storage = dataset.storage
     storage.check_readonly()
 
-    # storage = dataset.storage
     version_state = dataset.version_state
 
     if len(dataset.branches) > 1:
@@ -332,22 +331,23 @@ def squash_commits(
                         )
                     ] = chunk.tobytes()
 
-            base_storage[
-                get_chunk_id_encoder_key(chunk_engine.key, FIRST_COMMIT_ID)
-            ] = storage.get_bytes(
-                get_chunk_id_encoder_key(chunk_engine.key, dataset.pending_commit_id)
-            )
-            base_storage[
-                get_tensor_tile_encoder_key(chunk_engine.key, FIRST_COMMIT_ID)
-            ] = storage.get_bytes(
-                get_tensor_tile_encoder_key(chunk_engine.key, dataset.pending_commit_id)
-            )
-            base_storage[
-                get_tensor_meta_key(chunk_engine.key, FIRST_COMMIT_ID)
-            ] = storage.get_bytes(
-                get_tensor_meta_key(chunk_engine.key, dataset.pending_commit_id)
-            )
-            # print(tensor.key, chunk_engine.chunk_id_encoder.name_from_id(chunk_id))
+
+            for key_fn in [
+                get_tensor_info_key,
+                get_tensor_meta_key,
+                get_creds_encoder_key,
+                get_chunk_id_encoder_key,
+                get_pad_encoder_key,
+                get_sequence_encoder_key,
+                get_tensor_tile_encoder_key,
+            ]:
+                try:
+                    data_bytes = storage.get_bytes(key_fn(chunk_engine.key, dataset.pending_commit_id))
+                except KeyError:
+                    continue
+
+                base_storage[key_fn(chunk_engine.key, FIRST_COMMIT_ID)] = data_bytes
+
 
         commits_to_delete = [
             commit_id
