@@ -3030,6 +3030,7 @@ class Dataset:
             skip_ok (bool): Skip tensors not in ``samples`` if set to True.
             append_empty (bool): Append empty samples to tensors not specified in ``sample`` if set to ``True``. If True, ``skip_ok`` is ignored.
             ignore_errors (bool): Skip samples that cause errors while extending, if set to ``True``.
+            progressbar (bool): Displays a progress bar if set to ``True``.
 
         Raises:
             KeyError: If any tensor in the dataset is not a key in ``samples`` and ``skip_ok`` is ``False``.
