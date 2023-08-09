@@ -217,10 +217,13 @@ class DeepLakeDataLoader(DataLoader):
         return get_collate_fn(self._collate, self._mode)
 
     def __len__(self):
-        round_fn = math.floor if self._drop_last else math.ceil
-        return round_fn(
-            len(self._orig_dataset) / ((self.batch_size) * self._world_size)
+        len_ds = (
+            len(self._orig_dataset[self._tensors])
+            if self._tensors is not None
+            else len(self._orig_dataset)
         )
+        round_fn = math.floor if self._drop_last else math.ceil
+        return round_fn(len_ds / ((self.batch_size) * self._world_size))
 
     def batch(self, batch_size: int, drop_last: bool = False):
         """Returns a batched :class:`DeepLakeDataLoader` object.
