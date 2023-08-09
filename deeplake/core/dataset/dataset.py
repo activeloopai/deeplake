@@ -1772,7 +1772,7 @@ class Dataset:
     def squash_commits(self) -> None:
         """
         Squashes all commits in current branch into one commit.
-        NOTE: This is cannot be run if there are any branches besides `main`
+        NOTE: This cannot be run if there are any branches besides ``main``
 
         Raises:
             ReadOnlyModeError: If branch deletion is attempted in read-only mode.
