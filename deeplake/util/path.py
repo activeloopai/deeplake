@@ -8,6 +8,7 @@ from deeplake.util.exceptions import InvalidDatasetNameException
 import glob
 import os
 import re
+import requests
 
 CLOUD_DS_NAME_PATTERN = re.compile(r"^[A-Za-z0-9_-]*$")
 LOCAL_DS_NAME_PATTERN = re.compile(r"^[A-Za-z0-9_ .-]*$")
@@ -16,6 +17,19 @@ LOCAL_DS_NAME_PATTERN = re.compile(r"^[A-Za-z0-9_ .-]*$")
 def is_hub_cloud_path(path: str):
     """Whether given ``path`` is a Deep Lake cloud path."""
     return path.startswith("hub://")
+
+
+def is_db_engine(path: str, token: str, runtime: Dict):
+    # TO DO:
+    # path, runtime, token
+    # if dataset exists, return its type
+    # if dataset does not exist -> path is empty, ability to create managed dataset
+
+    if not is_hub_cloud_path(path):
+        return False
+
+    # TO DO: Add request to backend
+    return True
 
 
 def get_path_from_storage(storage) -> str:
