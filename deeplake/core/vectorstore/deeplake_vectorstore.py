@@ -169,7 +169,7 @@ class VectorStore:
         self.index_created = index.validate_and_create_vector_index(
             dataset=self.dataset,
             vector_index_params=self.vector_index_params,
-            regenerate_index = False,
+            regenerate_index=False,
         )
 
     def add(
@@ -270,8 +270,6 @@ class VectorStore:
             },
         )
 
-        try_flushing(self.dataset)
-
         (
             embedding_function,
             embedding_data,
@@ -307,7 +305,7 @@ class VectorStore:
         index_regeneration = False
         if len(self.dataset) > 0 and index.check_vdb_indexes(self.dataset):
             index_regeneration = True
-            
+
         dataset_utils.extend_or_ingest_dataset(
             processed_tensors=processed_tensors,
             dataset=self.dataset,
@@ -323,8 +321,10 @@ class VectorStore:
         self.index_created = index.validate_and_create_vector_index(
             dataset=self.dataset,
             vector_index_params=self.vector_index_params,
-            regenerate_index = index_regeneration,
+            regenerate_index=index_regeneration,
         )
+
+        try_flushing(self.dataset)
 
         if self.verbose:
             self.dataset.summary()
@@ -544,8 +544,6 @@ class VectorStore:
             },
         )
 
-        try_flushing(self.dataset)
-
         if not row_ids:
             row_ids = dataset_utils.search_row_ids(
                 dataset=self.dataset,
@@ -568,6 +566,7 @@ class VectorStore:
             return True
 
         dataset_utils.delete_and_without_commit(self.dataset, row_ids)
+        try_flushing(self.dataset)
         return True
 
     def update_embedding(
@@ -672,6 +671,7 @@ class VectorStore:
         )
 
         self.dataset[row_ids].update(embedding_tensor_data)
+        try_flushing(self.dataset)
 
     @staticmethod
     def delete_by_path(
