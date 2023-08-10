@@ -677,6 +677,7 @@ class VectorStore:
     def delete_by_path(
         path: Union[str, pathlib.Path],
         token: Optional[str] = None,
+        force: bool = False,
         creds: Optional[Union[Dict, str]] = None,
     ) -> None:
         """Deleted the Vector Store at the specified path.
@@ -699,8 +700,7 @@ class VectorStore:
             {"creds": creds},
             token=token,
         )
-
-        deeplake.delete(path, large_ok=True, token=token, creds=creds)
+        deeplake.delete(path, large_ok=True, token=token, force=force, creds=creds)
 
     def commit(self, allow_empty: bool = True) -> None:
         """Commits the Vector Store.

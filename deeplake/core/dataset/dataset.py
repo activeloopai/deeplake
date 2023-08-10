@@ -3016,8 +3016,6 @@ class Dataset:
                     else:
                         tensor.append(v)
                     tensors_appended.append(k)
-
-
                 except Exception as e:
                     if extend:
                         raise NotImplementedError(
@@ -3054,6 +3052,7 @@ class Dataset:
         skip_ok: bool = False,
         append_empty: bool = False,
         ignore_errors: bool = False,
+        progressbar: bool = False,
         index_regeneration = True,
     ):
         """Appends multiple rows of samples to mutliple tensors at once. This method expects all tensors being updated to be of the same length.
@@ -3063,6 +3062,7 @@ class Dataset:
             skip_ok (bool): Skip tensors not in ``samples`` if set to True.
             append_empty (bool): Append empty samples to tensors not specified in ``sample`` if set to ``True``. If True, ``skip_ok`` is ignored.
             ignore_errors (bool): Skip samples that cause errors while extending, if set to ``True``.
+            progressbar (bool): Displays a progress bar if set to ``True``.
             index_regeneration (bool): Regenerate VDB indexes when base data is modified.
 
         Raises:
@@ -3097,7 +3097,11 @@ class Dataset:
                 samples, extend=True, skip_ok=skip_ok, append_empty=append_empty, index_regeneration=index_regeneration,
             )
         with self:
-            for i in range(n):
+            if progressbar:
+                indices = tqdm(range(n))
+            else:
+                indices = range(n)
+            for i in indices:
                 try:
                     self.append(
                         {k: v[i] for k, v in samples.items()},
@@ -3230,7 +3234,6 @@ class Dataset:
                             )
 
                         saved[k].append(old_sample)
-
                     self[k] = v
                 # Regenerate Index
                 self.regenerate_vdb_indexes()
