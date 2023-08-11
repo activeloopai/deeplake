@@ -24,7 +24,7 @@ from deeplake.util.version_control import (
     integrity_check,
     save_commit_info,
     rebuild_version_info,
-    squash_commits,
+    _squash_main,
 )
 from deeplake.util.invalid_view_op import invalid_view_op
 from deeplake.util.spinner import spinner
@@ -1769,8 +1769,10 @@ class Dataset:
             self.storage.autoflush = self._initial_autoflush.pop()
 
     @invalid_view_op
-    def squash_commits(self) -> None:
+    def _squash_main(self) -> None:
         """
+        DEPRECATED: This method is deprecated and will be removed in a future release.
+
         Squashes all commits in current branch into one commit.
         NOTE: This cannot be run if there are any branches besides ``main``
 
@@ -1792,7 +1794,7 @@ class Dataset:
         self.storage.autoflush = False
         try:
             self._unlock()
-            squash_commits(self)
+            _squash_main(self)
         finally:
             self._set_read_only(read_only, err=True)
             self.libdeeplake_dataset = None

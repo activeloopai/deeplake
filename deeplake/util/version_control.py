@@ -290,7 +290,7 @@ def checkout(
         ) from e
 
 
-def squash_commits(
+def _squash_main(
     dataset,
 ) -> None:
     """
@@ -305,6 +305,11 @@ def squash_commits(
         raise VersionControlError(
             f"Cannot squash commits if there are multiple branches"
         )
+    if len(dataset.get_views()) > 0:
+        raise VersionControlError(
+            f"Cannot squash commits if there are views present"
+        )
+
     try:
         base_storage = get_base_storage(storage)
         versioncontrol_lock = PersistentLock(

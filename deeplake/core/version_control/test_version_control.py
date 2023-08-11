@@ -2556,7 +2556,32 @@ def test_branch_delete(local_ds_generator):
     assert len(local_ds.branches) == 2
 
 
-def test_branch_squash(local_ds_generator):
+def test_squash_main_has_branch(local_ds_generator):
+    local_ds = local_ds_generator()
+    local_ds.create_tensor("test")
+    with local_ds:
+        local_ds.test.append("main 1")
+        local_ds.commit("first main commit")
+    local_ds.checkout("alt", create=True)
+
+    with pytest.raises(VersionControlError) as e:
+        local_ds._squash_main()
+    assert "Cannot squash commits if there are multiple branches" in str(e.value)
+
+def test_squash_main_has_view(local_ds_generator):
+    local_ds = local_ds_generator()
+    local_ds.create_tensor("test")
+    with local_ds:
+        local_ds.test.append("main 1")
+        local_ds.commit("first main commit")
+    query = local_ds.filter("test == 'a'")
+    query.save_view("test_view")
+
+    with pytest.raises(VersionControlError) as e:
+        local_ds._squash_main()
+    assert "Cannot squash commits if there are views present" in str(e.value)
+
+def test_squash_main(local_ds_generator):
     local_ds = local_ds_generator()
     local_ds.create_tensor("test")
 
@@ -2587,7 +2612,7 @@ def test_branch_squash(local_ds_generator):
         "first main commit",
     ]
 
-    local_ds.squash_commits()
+    local_ds._squash_main()
 
     assert len(local_ds.branches) == 1
     assert len(glob.glob(local_ds.path + "/versions/*")) == 0
@@ -2611,3 +2636,4 @@ def test_branch_squash(local_ds_generator):
     assert [i["message"] for i in local_ds.commits] == []
     assert local_ds.commit_id == None
     assert local_ds.pending_commit_id == FIRST_COMMIT_ID
+
