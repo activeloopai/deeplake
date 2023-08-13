@@ -509,3 +509,14 @@ class DeepLakeBackendClient:
         ).json()
 
         return response
+
+    def get_seed(self) -> Optional[int]:
+        """
+        Get the seed used in library
+        """
+        import numpy as np
+
+        try:
+            return np.random.get_state()[1][0]
+        except Exception:
+            return None

@@ -28,7 +28,6 @@ from deeplake.util.scheduling import calculate_absolute_lengths
 from deeplake.core.dataset import Dataset
 
 import warnings
-import numpy as np
 
 from deeplake.core.dataset.deeplake_query_tensor import DeepLakeQueryTensor
 
@@ -332,10 +331,6 @@ class DeepLakeQueryDataset(Dataset):
     def random_split(self, lengths: Sequence[Union[int, float]]):
         if math.isclose(sum(lengths), 1) and sum(lengths) <= 1:
             lengths = calculate_absolute_lengths(lengths, len(self))
-        try:
-            seed = np.random.get_state()[1][0]
-        except Exception:
-            seed = None
 
-        vs = self.indra_ds.random_split(lengths, seed)
+        vs = self.indra_ds.random_split(lengths)
         return [DeepLakeQueryDataset(self.deeplake_ds, v) for v in vs]
