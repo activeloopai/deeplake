@@ -552,6 +552,8 @@ def test_search_managed(hub_cloud_dev_token):
         exec_option="tensor_db",
     )
 
+    assert "vectordb/" in vector_store.dataset.base_storage.path
+
     assert len(data_ce["score"]) == len(data_db["score"])
     assert all(
         [

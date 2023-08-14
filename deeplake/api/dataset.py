@@ -839,6 +839,10 @@ class dataset:
                     read_only=False,
                     token=token,
                 )
+                if len(base_storage) == 0:
+                    raise DatasetHandlerError(
+                        f"Path {path} is empty or does not exist. Cannot delete."
+                    )
                 base_storage.clear()
                 remove_path_from_backend(path, token)
                 if verbose:

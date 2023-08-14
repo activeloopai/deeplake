@@ -634,6 +634,7 @@ class VectorStore:
     def delete_by_path(
         path: Union[str, pathlib.Path],
         token: Optional[str] = None,
+        force: bool = False,
     ) -> None:
         """Deleted the Vector Store at the specified path.
 
@@ -651,7 +652,7 @@ class VectorStore:
             {},
             token=token,
         )
-        deeplake.delete(path, large_ok=True, token=token)
+        deeplake.delete(path, large_ok=True, token=token, force=force)
 
     def tensors(self):
         """Returns the list of tensors present in the dataset"""
