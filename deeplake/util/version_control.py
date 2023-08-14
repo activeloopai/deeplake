@@ -42,7 +42,8 @@ from deeplake.util.keys import (
     get_version_control_info_key,
     get_version_control_info_key_old,
     get_version_control_info_lock_key,
-    get_commit_info_key, get_pad_encoder_key,
+    get_commit_info_key,
+    get_pad_encoder_key,
 )
 from deeplake.constants import COMMIT_INFO_FILENAME
 from deeplake.util.remove_cache import get_base_storage
@@ -306,9 +307,7 @@ def _squash_main(
             f"Cannot squash commits if there are multiple branches"
         )
     if len(dataset.get_views()) > 0:
-        raise VersionControlError(
-            f"Cannot squash commits if there are views present"
-        )
+        raise VersionControlError(f"Cannot squash commits if there are views present")
 
     try:
         base_storage = get_base_storage(storage)
@@ -336,7 +335,6 @@ def _squash_main(
                         )
                     ] = chunk.tobytes()
 
-
             for key_fn in [
                 get_tensor_info_key,
                 get_tensor_meta_key,
@@ -347,12 +345,13 @@ def _squash_main(
                 get_tensor_tile_encoder_key,
             ]:
                 try:
-                    data_bytes = storage.get_bytes(key_fn(chunk_engine.key, dataset.pending_commit_id))
+                    data_bytes = storage.get_bytes(
+                        key_fn(chunk_engine.key, dataset.pending_commit_id)
+                    )
                 except KeyError:
                     continue
 
                 base_storage[key_fn(chunk_engine.key, FIRST_COMMIT_ID)] = data_bytes
-
 
         commits_to_delete = [
             commit_id
@@ -389,6 +388,8 @@ def _squash_main(
             delete_version_from_storage(dataset.storage, commit_to_delete)
 
         dataset._reload_version_state()
+
+        dataset.commit("Squashed commits")
 
     finally:
         versioncontrol_lock.release()

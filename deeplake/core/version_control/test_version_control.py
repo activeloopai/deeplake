@@ -2568,6 +2568,7 @@ def test_squash_main_has_branch(local_ds_generator):
         local_ds._squash_main()
     assert "Cannot squash commits if there are multiple branches" in str(e.value)
 
+
 def test_squash_main_has_view(local_ds_generator):
     local_ds = local_ds_generator()
     local_ds.create_tensor("test")
@@ -2580,6 +2581,7 @@ def test_squash_main_has_view(local_ds_generator):
     with pytest.raises(VersionControlError) as e:
         local_ds._squash_main()
     assert "Cannot squash commits if there are views present" in str(e.value)
+
 
 def test_squash_main(local_ds_generator):
     local_ds = local_ds_generator()
@@ -2615,7 +2617,9 @@ def test_squash_main(local_ds_generator):
     local_ds._squash_main()
 
     assert len(local_ds.branches) == 1
-    assert len(glob.glob(local_ds.path + "/versions/*")) == 0
+    assert len(glob.glob(local_ds.path + "/versions/*")) == 1
+    assert [commit["message"] for commit in local_ds.commits] == ["Squashed commits"]
+    assert local_ds.pending_commit_id != FIRST_COMMIT_ID
 
     with open(local_ds.path + "/version_control_info.json", "r") as f:
         data = json.load(f)
@@ -2633,7 +2637,5 @@ def test_squash_main(local_ds_generator):
         "main 4",
         "main uncommitted",
     ]
-    assert [i["message"] for i in local_ds.commits] == []
-    assert local_ds.commit_id == None
-    assert local_ds.pending_commit_id == FIRST_COMMIT_ID
-
+    assert [i["message"] for i in local_ds.commits] == ["Squashed commits"]
+    assert local_ds.pending_commit_id != FIRST_COMMIT_ID
