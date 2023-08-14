@@ -241,11 +241,17 @@ def fetch_embeddings(view, embedding_tensor: str = "embedding"):
 
 
 def get_embedding(embedding, embedding_data, embedding_function=None):
+    if embedding_data is str:
+        embedding_data = [embedding_data]
+
     if (
         embedding is None
         and embedding_function is not None
         and embedding_data is not None
     ):
+        if len(embedding_data) > 1:
+            raise NotImplementedError("Searching batched queries is not supported yet.")
+
         embedding = embedding_function(embedding_data)  # type: ignore
 
     if embedding is not None and (
