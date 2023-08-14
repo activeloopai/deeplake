@@ -7,7 +7,7 @@ import numpy as np
 import pytest
 
 import deeplake
-from deeplake.core.vectorstore.deeplake_vectorstore import (
+from deeplake.core.vectorstore import (
     DeepLakeVectorStore,
     VectorStore,
 )
