@@ -434,6 +434,24 @@ def test_search_basic(local_path, hub_cloud_dev_token):
     assert data.embedding[0].numpy().size > 0
 
     data = vector_store.search(
+        embedding_function=embedding_fn3,
+        embedding_data="dummy",
+        return_view=True,
+        k=2,
+    )
+    assert len(data) == 2
+    assert isinstance(data.text[0].data()["value"], str)
+    assert data.embedding[0].numpy().size > 0
+
+    with pytest.raises(NotImplementedError):
+        data = vector_store.search(
+            embedding_function=embedding_fn3,
+            embedding_data=["dummy", "dummy2"],
+            return_view=True,
+            k=2,
+        )
+
+    data = vector_store.search(
         filter={"metadata": {"abcdefh": 1}},
         embedding=None,
         return_view=True,

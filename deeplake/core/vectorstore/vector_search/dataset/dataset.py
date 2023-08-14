@@ -241,7 +241,7 @@ def fetch_embeddings(view, embedding_tensor: str = "embedding"):
 
 
 def get_embedding(embedding, embedding_data, embedding_function=None):
-    if embedding_data is str:
+    if isinstance(embedding_data, str):
         embedding_data = [embedding_data]
 
     if (
