@@ -1010,6 +1010,77 @@ def test_dataset_deepcopy(path, hub_token, num_workers, progressbar):
     ],
     indirect=True,
 )
+def test_deepcopy(path, hub_token):
+    src_path = "_".join((path, "src"))
+    dest_path = "_".join((path, "dest"))
+
+    src_ds = deeplake.empty(src_path, overwrite=True, token=hub_token)
+    dest_ds = deeplake.empty(dest_path, overwrite=True, token=hub_token)
+
+    with src_ds:
+        src_ds.info.update(key=0)
+
+        src_ds.create_tensor("a", htype="image", sample_compression="png")
+        src_ds.create_tensor("b", htype="class_label")
+        src_ds.create_tensor("c")
+        src_ds.create_tensor("d", dtype=bool)
+        src_ds.create_group("g")
+
+        src_ds.d.info.update(key=1)
+
+        src_ds["a"].append(np.ones((28, 28), dtype="uint8"))
+        src_ds["b"].append(0)
+
+    deeplake.deepcopy(
+        src_ds,
+        dest_path,
+        overwrite=True,
+        token=hub_token,
+        num_workers=0,
+    )
+
+    deeplake.deepcopy(
+        src_path,
+        dest_path,
+        overwrite=True,
+        token=hub_token,
+        num_workers=1,
+    )
+
+    with pytest.raises(TypeError):
+        deeplake.deepcopy(
+            src_ds.a,
+            dest_path,
+            overwrite=True,
+            token=hub_token,
+            num_workers=0,
+        )
+    with pytest.raises(TypeError):
+        deeplake.deepcopy(
+            src_ds.g,
+            dest_path,
+            overwrite=True,
+            token=hub_token,
+            num_workers=0,
+        )
+    with pytest.raises(TypeError):
+        deeplake.deepcopy(
+            src_ds[0],
+            dest_path,
+            overwrite=True,
+            token=hub_token,
+            num_workers=0,
+        )
+
+
+@pytest.mark.parametrize(
+    "path,hub_token",
+    [
+        ["local_path", "hub_cloud_dev_token"],
+        ["hub_cloud_path", "hub_cloud_dev_token"],
+    ],
+    indirect=True,
+)
 def test_deepcopy_errors(path, hub_token):
     src_path = "_".join((path, "src"))
     dest_path = "_".join((path, "dest"))
@@ -1048,13 +1119,6 @@ def test_deepcopy_errors(path, hub_token):
             overwrite=True,
             dest_token=hub_token,
         )
-
-
-def test_cloud_delete_doesnt_exist(hub_cloud_path, hub_cloud_dev_token):
-    username = hub_cloud_path.split("/")[2]
-    # this dataset doesn't exist
-    new_path = f"hub://{username}/doesntexist123"
-    deeplake.delete(new_path, token=hub_cloud_dev_token, force=True)
 
 
 def test_invalid_tensor_name(memory_ds):
@@ -1643,7 +1707,7 @@ def test_hub_remote_read_videos(storage, memory_ds):
     memory_ds.create_tensor("videos", htype="video", sample_compression="mp4")
 
     video = deeplake.read(
-        "http://commondatastorage.googleapis.com/gtv-videos-bucket/sample/ForBiggerJoyrides.mp4",
+        "https://commondatastorage.googleapis.com/gtv-videos-bucket/sample/ForBiggerJoyrides.mp4",
     )
     memory_ds.videos.append(video)
     assert memory_ds.videos[0].shape == (361, 720, 1280, 3)

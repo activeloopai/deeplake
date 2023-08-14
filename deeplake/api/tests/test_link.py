@@ -332,7 +332,7 @@ def test_video(request, local_ds_generator, create_shape_tensor, verify):
         )
         for _ in range(3):
             sample = deeplake.link(
-                "http://commondatastorage.googleapis.com/gtv-videos-bucket/sample/ForBiggerJoyrides.mp4"
+                "https://commondatastorage.googleapis.com/gtv-videos-bucket/sample/ForBiggerJoyrides.mp4"
             )
             ds.linked_videos.append(sample)
 

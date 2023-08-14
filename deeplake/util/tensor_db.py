@@ -34,7 +34,7 @@ def parse_runtime_parameters(
     if tensor_db and not is_hub_cloud_path(path):
         raise ValueError(
             f"Path {path} is not a valid Deep Lake cloud path."
-            " runtime = {'tensor_db': True} can only be used with Deep Lake cloud paths."
+            " runtime = {'tensor_db': True} can only be used with datasets stored in the Deep Lake Managed Tensor Database."
         )
 
     invalid_keys = set(runtime.keys()) - {"db_engine", "tensor_db"}

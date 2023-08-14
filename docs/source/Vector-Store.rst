@@ -22,6 +22,7 @@ Vector Store Operations
     VectorStore.search
     VectorStore.delete
     VectorStore.delete_by_path
+    VectorStore.update_embedding
 
 Vector Store Properties
 ~~~~~~~~~~~~~~~~~~~~~~~

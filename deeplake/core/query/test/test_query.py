@@ -7,6 +7,7 @@ from deeplake.util.exceptions import (
     DatasetViewSavingError,
     InvalidOperationError,
     InvalidViewException,
+    DatasetHandlerError,
 )
 import deeplake
 from uuid import uuid4
@@ -186,6 +187,7 @@ def test_dataset_view_save(optimize):
         "local_ds_generator",
         "s3_ds_generator",
         # "gcs_ds_generator",
+        "azure_ds_generator",
         "hub_cloud_ds_generator",
     ],
     indirect=True,
@@ -396,7 +398,10 @@ def test_view_saving_with_path(local_ds):
         with pytest.raises(DatasetViewSavingError):
             ds[:10].save_view(path=local_ds.path)
         vds_path = local_ds.path + "/../vds"
-        deeplake.delete(vds_path, force=True)
+        try:
+            deeplake.delete(vds_path, force=True)
+        except DatasetHandlerError:
+            pass
         ds[:10].save_view(path=vds_path)
         with pytest.raises(DatasetViewSavingError):
             ds[:10].save_view(path=vds_path)

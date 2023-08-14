@@ -15,6 +15,8 @@ from tqdm import tqdm  # type: ignore
 import deeplake
 from deeplake.core.index.index import IndexEntry
 from deeplake.core.link_creds import LinkCreds
+from deeplake.core.sample import Sample
+from deeplake.core.linked_sample import LinkedSample
 from deeplake.util.connect_dataset import connect_dataset_entry
 from deeplake.util.downsample import validate_downsampling
 from deeplake.util.version_control import (
@@ -22,6 +24,7 @@ from deeplake.util.version_control import (
     integrity_check,
     save_commit_info,
     rebuild_version_info,
+    _squash_main,
 )
 from deeplake.util.invalid_view_op import invalid_view_op
 from deeplake.util.spinner import spinner
@@ -117,12 +120,14 @@ from deeplake.util.keys import (
     filter_name,
     get_dataset_linked_creds_key,
 )
+
 from deeplake.util.path import get_path_from_storage
 from deeplake.util.remove_cache import get_base_storage
 from deeplake.util.diff import get_all_changes_string, get_changes_and_messages
 from deeplake.util.version_control import (
     auto_checkout,
     checkout,
+    delete_branch,
     commit,
     current_commit_has_change,
     load_meta,
@@ -136,6 +141,7 @@ from deeplake.util.pretty_print import summary_dataset
 from deeplake.core.dataset.view_entry import ViewEntry
 from deeplake.core.dataset.invalid_view import InvalidView
 from deeplake.hooks import dataset_read
+from collections import defaultdict
 from itertools import chain
 import warnings
 import jwt
@@ -161,7 +167,8 @@ class Dataset:
         is_iteration: bool = False,
         link_creds=None,
         pad_tensors: bool = False,
-        lock: bool = True,
+        lock_enabled: bool = True,
+        lock_timeout: Optional[int] = 0,
         enabled_tensors: Optional[List[str]] = None,
         view_base: Optional["Dataset"] = None,
         libdeeplake_dataset=None,
@@ -186,7 +193,8 @@ class Dataset:
             link_creds (LinkCreds, Optional): The LinkCreds object used to access tensors that have external data linked to them.
             pad_tensors (bool): If ``True``, shorter tensors will be padded to the length of the longest tensor.
             **kwargs: Passing subclass variables through without errors.
-            lock (bool): Whether the dataset should be locked for writing. Only applicable for S3, Deep Lake storage and GCS datasets. No effect if read_only=True.
+            lock_enabled (bool): Whether the dataset should be locked for writing. Only applicable for S3, Deep Lake storage and GCS datasets. No effect if read_only=True.
+            lock_timeout (int): How many seconds to wait for a lock before throwing an exception. If None, wait indefinitely
             enabled_tensors (List[str], Optional): List of tensors that are enabled in this view. By default all tensors are enabled.
             view_base (Optional["Dataset"]): Base dataset of this view.
             libdeeplake_dataset : The libdeeplake dataset object corresponding to this dataset.
@@ -209,8 +217,8 @@ class Dataset:
         )
         d["storage"] = storage
         d["_read_only_error"] = read_only is False
-        d["_read_only"] = DEFAULT_READONLY if read_only is None else read_only
         d["base_storage"] = get_base_storage(storage)
+        d["_read_only"] = d["base_storage"].read_only
         d["_locked_out"] = False  # User requested write access but was denied
         d["is_iteration"] = is_iteration
         d["is_first_load"] = version_state is None
@@ -234,7 +242,8 @@ class Dataset:
         d["_checkout_hooks"] = {}
         d["_parent_dataset"] = None
         d["_pad_tensors"] = pad_tensors
-        d["_locking_enabled"] = lock
+        d["_locking_enabled"] = lock_enabled
+        d["_lock_timeout"] = lock_timeout
         d["_temp_tensors"] = []
         d["_vc_info_updated"] = True
         dct = self.__dict__
@@ -375,7 +384,9 @@ class Dataset:
             "_parent_dataset",
             "_pad_tensors",
             "_locking_enabled",
+            "_lock_timeout",
             "enabled_tensors",
+            "is_iteration",
         ]
         state = {k: getattr(self, k) for k in keys}
         state["link_creds"] = self.link_creds
@@ -389,7 +400,6 @@ class Dataset:
         """
         state["is_first_load"] = True
         state["_info"] = None
-        state["is_iteration"] = False
         state["_read_only_error"] = False
         state["_initial_autoflush"] = []
         state["_ds_diff"] = None
@@ -528,6 +538,7 @@ class Dataset:
                     enabled_tensors.extend(
                         self[posixpath.relpath(x, self.group_index)].meta.links.keys()
                     )
+
                 ret = self.__class__(
                     storage=self.storage,
                     index=self.index,
@@ -556,6 +567,7 @@ class Dataset:
                         warnings.warn(
                             "Indexing by integer in a for loop, like `for i in range(len(ds)): ... ds[i]` can be quite slow. Use `for i, sample in enumerate(ds)` instead."
                         )
+
                 ret = self.__class__(
                     storage=self.storage,
                     index=self.index[item],
@@ -577,6 +589,13 @@ class Dataset:
         if hasattr(self, "_view_entry"):
             ret._view_entry = self._view_entry
         return ret
+
+    def __setitem__(self, item: str, value: Any):
+        if not isinstance(item, str):
+            raise TypeError("Datasets do not support item assignment")
+        tensor = self[item]
+        tensor.index = Index()
+        tensor[self.index] = value
 
     @invalid_view_op
     def create_tensor(
@@ -635,7 +654,7 @@ class Dataset:
             verbose (bool): Shows warnings if ``True``.
             downsampling (tuple[int, int]): If not ``None``, the tensor will be downsampled by the provided factors. For example, ``(2, 5)`` will downsample the tensor by a factor of 2 in both dimensions and create 5 layers of downsampled tensors.
                 Only support for image and mask htypes.
-            tiling_threshold (Optional, int): In MB. Tiles large images if their size exceeds this threshold. Set to -1 to disable tiling.
+            tiling_threshold (Optional, int): In bytes. Tiles large images if their size exceeds this threshold. Set to -1 to disable tiling.
             **kwargs:
                 - ``htype`` defaults can be overridden by passing any of the compatible parameters.
                 - To see all htypes and their correspondent arguments, check out :ref:`Htypes`.
@@ -1144,6 +1163,7 @@ class Dataset:
     def _rename_tensor(self, name, new_name):
         tensor = self[name]
         tensor.meta.name = new_name
+        tensor.meta.is_dirty = True
         key = self.version_state["tensor_names"].pop(name)
         meta = self.meta
         if key not in meta.hidden_tensors:
@@ -1296,6 +1316,18 @@ class Dataset:
                 i, is_iteration=not isinstance(self.index.values[0], list)
             )
 
+    def _get_commit_id_for_address(self, address, version_state):
+        if address in version_state["branch_commit_map"]:
+            branch = address
+            commit_id = version_state["branch_commit_map"][branch]
+        elif address in version_state["commit_node_map"]:
+            commit_id = address
+        else:
+            raise CheckoutError(
+                f"Address {address} not found. Ensure the commit id / branch name is correct."
+            )
+        return commit_id
+
     def _load_version_info(self, address=None):
         """Loads data from version_control_file otherwise assume it doesn't exist and load all empty"""
         if self.version_state:
@@ -1315,15 +1347,7 @@ class Dataset:
             version_state["branch_commit_map"] = version_info["branch_commit_map"]
             version_state["commit_node_map"] = version_info["commit_node_map"]
 
-            if address in version_state["branch_commit_map"]:
-                branch = address
-                commit_id = version_state["branch_commit_map"][branch]
-            elif address in version_state["commit_node_map"]:
-                commit_id = address
-            else:
-                raise CheckoutError(
-                    f"Address {address} not found. Ensure the commit id / branch name is correct."
-                )
+            commit_id = self._get_commit_id_for_address(address, version_state)
 
             version_state["commit_id"] = commit_id
             version_state["commit_node"] = version_state["commit_node_map"][commit_id]
@@ -1515,11 +1539,28 @@ class Dataset:
 
         try_flushing(self)
 
+        target_commit = target_id
+        try:
+            target_commit = self.version_state["branch_commit_map"][target_id]
+        except KeyError:
+            pass
+        if isinstance(self.base_storage, tuple(_LOCKABLE_STORAGES)) and not (
+            isinstance(self.base_storage, LocalProvider)
+            and not deeplake.constants.LOCK_LOCAL_DATASETS
+        ):
+            lock_dataset(self, version=target_commit)
+            locked = True
+        else:
+            locked = False
         self._initial_autoflush.append(self.storage.autoflush)
         self.storage.autoflush = False
-        merge(self, target_id, conflict_resolution, delete_removed_tensors, force)
-        self.storage.autoflush = self._initial_autoflush.pop()
-        self.storage.maybe_flush()
+        try:
+            merge(self, target_id, conflict_resolution, delete_removed_tensors, force)
+        finally:
+            if locked:
+                unlock_dataset(self, version=target_commit)
+            self.storage.autoflush = self._initial_autoflush.pop()
+            self.storage.maybe_flush()
 
     def _commit(
         self,
@@ -1672,6 +1713,93 @@ class Dataset:
             self.maybe_flush()
         return self.commit_id
 
+    @invalid_view_op
+    def delete_branch(self, name: str) -> None:
+        """Deletes a specific branch. You cannot delete the branch currently checked out.
+
+        Args:
+            name (str): The branch to delete.
+
+        Raises:
+            CommitError: If ``branch`` could not be found.
+            ReadOnlyModeError: If branch deletion is attempted in read-only mode.
+            Exception: If you have the given branch currently checked out.
+
+        Examples:
+
+            >>> ds = deeplake.empty("../test/test_ds")
+            >>> ds.create_tensor("abc")
+            Tensor(key='abc')
+            >>> ds.abc.append([1, 2, 3])
+            >>> first_commit = ds.commit()
+            >>> ds.checkout("alt", create=True)
+            'firstdbf9474d461a19e9333c2fd19b46115348f'
+            >>> ds.abc.append([4, 5, 6])
+            >>> ds.abc.numpy()
+            array([[1, 2, 3],
+                   [4, 5, 6]])
+            >>> ds.checkout(first_commit)
+            'firstdbf9474d461a19e9333c2fd19b46115348f'
+            >>> ds.delete_branch("alt")
+        """
+        deeplake_reporter.feature_report(
+            feature_name="branch_delete",
+            parameters={},
+        )
+
+        self._delete_branch(name)
+        integrity_check(self)
+
+    def _delete_branch(self, name: str) -> None:
+        if self._is_filtered_view:
+            raise Exception(
+                "Cannot perform version control operations on a filtered dataset view."
+            )
+        read_only = self._read_only
+        if read_only:
+            raise ReadOnlyModeError()
+        try_flushing(self)
+        self._initial_autoflush.append(self.storage.autoflush)
+        self.storage.autoflush = False
+        try:
+            self._unlock()
+            delete_branch(self, name)
+        finally:
+            self._set_read_only(read_only, err=True)
+            self.storage.autoflush = self._initial_autoflush.pop()
+
+    @invalid_view_op
+    def _squash_main(self) -> None:
+        """
+        DEPRECATED: This method is deprecated and will be removed in a future release.
+
+        Squashes all commits in current branch into one commit.
+        NOTE: This cannot be run if there are any branches besides ``main``
+
+        Raises:
+            ReadOnlyModeError: If branch deletion is attempted in read-only mode.
+            VersionControlError: If the branch cannot be squashed.
+        """
+        if self._is_filtered_view:
+            raise Exception(
+                "Cannot perform version control operations on a filtered dataset view."
+            )
+        read_only = self._read_only
+        if read_only:
+            raise ReadOnlyModeError()
+
+        try_flushing(self)
+
+        self._initial_autoflush.append(self.storage.autoflush)
+        self.storage.autoflush = False
+        try:
+            self._unlock()
+            _squash_main(self)
+        finally:
+            self._set_read_only(read_only, err=True)
+            self.libdeeplake_dataset = None
+            self.storage.autoflush = self._initial_autoflush.pop()
+
     def log(self):
         """Displays the details of all the past commits."""
 
@@ -1747,9 +1875,14 @@ class Dataset:
         print(all_changes)
         return None
 
-    def _populate_meta(self, verbose=True):
+    def _populate_meta(self, address: Optional[str] = None, verbose=True):
         """Populates the meta information for the dataset."""
-        if dataset_exists(self.storage):
+        if address is None:
+            commit_id = self._get_commit_id_for_address("main", self.version_state)
+        else:
+            commit_id = self._get_commit_id_for_address(address, self.version_state)
+
+        if dataset_exists(self.storage, commit_id):
             load_meta(self)
 
         elif not self.storage.empty():
@@ -1792,6 +1925,9 @@ class Dataset:
     def _send_branch_creation_event(self, *args, **kwargs):
         """overridden in DeepLakeCloudDataset"""
 
+    def _send_branch_deletion_event(self, *args, **kwargs):
+        """overridden in DeepLakeCloudDataset"""
+
     def _first_load_init(self):
         """overridden in DeepLakeCloudDataset"""
 
@@ -1812,18 +1948,6 @@ class Dataset:
         return self.is_head_node and current_commit_has_change(
             self.version_state, self.storage
         )
-
-    def _acquire_lock(self, timeout: Optional[int] = None):
-        if timeout is not None:
-            start_time = time()
-        while True:
-            try:
-                self._set_read_only(False, True)
-                return
-            except LockedException:
-                if timeout is not None and time() - start_time > timeout:
-                    raise LockedException()
-                sleep(1)
 
     def _set_read_only(self, value: bool, err: bool):
         storage = self.storage
@@ -1873,6 +1997,7 @@ class Dataset:
         pad_tensors: bool = False,
         transform_kwargs: Optional[Dict[str, Any]] = None,
         decode_method: Optional[Dict[str, str]] = None,
+        cache_size: int = 32 * MB,
         *args,
         **kwargs,
     ):
@@ -1907,6 +2032,10 @@ class Dataset:
                     :'tobytes': Returns raw bytes of the samples.
                     :'pil': Returns samples as PIL images. Especially useful when transformation use torchvision transforms, that
                             require PIL images as input. Only supported for tensors with ``sample_compression='jpeg'`` or ``'png'``.
+            cache_size (int): The size of the cache per tensor in MBs. Defaults to max(maximum chunk size of tensor, 32 MB).
+
+        ..
+            # noqa: DAR101
 
         Returns:
             A torch.utils.data.DataLoader object.
@@ -1957,6 +2086,7 @@ class Dataset:
             return_index=return_index,
             pad_tensors=pad_tensors,
             decode_method=decode_method,
+            cache_size=cache_size,
             **kwargs,
         )
 
@@ -1965,8 +2095,11 @@ class Dataset:
         dataset_read(self)
         return dataloader
 
-    def dataloader(self):
+    def dataloader(self, ignore_errors: bool = False):
         """Returns a :class:`~deeplake.enterprise.DeepLakeDataLoader` object. To use this, install deeplake with ``pip install deeplake[enterprise]``.
+
+        Args:
+            ignore_errors (bool): If ``True``, the data loader will ignore errors apperaing during dataloading otherwise it will collct the statistics and report appeard errors. Default value is ``False``
 
         Returns:
             ~deeplake.enterprise.DeepLakeDataLoader: A :class:`deeplake.enterprise.DeepLakeDataLoader` object.
@@ -2027,7 +2160,7 @@ class Dataset:
 
         deeplake_reporter.feature_report(feature_name="dataloader", parameters={})
 
-        return dataloader(self)
+        return dataloader(self, ignore_errors=ignore_errors)
 
     def filter(
         self,
@@ -2231,7 +2364,9 @@ class Dataset:
             self._set_read_only(
                 self._read_only, err=self._read_only_error
             )  # TODO: weird fix for dataset unpickling
-            self._populate_meta(verbose)  # TODO: use the same scheme as `load_info`
+            self._populate_meta(
+                address, verbose
+            )  # TODO: use the same scheme as `load_info`
             if self.index.is_trivial():
                 self.index = Index.from_json(self.meta.default_index)
         elif not self._read_only:
@@ -2800,43 +2935,17 @@ class Dataset:
     def __bool__(self):
         return True
 
-    def extend(self, samples: Dict[str, Any], skip_ok: bool = False):
-        """Appends multiple rows of samples to mutliple tensors at once. This method expects all tensors being updated to be of the same length.
-
-        Args:
-            samples (Dict[str, Any]): Dictionary with tensor names as keys and samples as values.
-            skip_ok (bool): Skip tensors not in ``samples`` if set to True.
-
-        Raises:
-            KeyError: If any tensor in the dataset is not a key in ``samples`` and ``skip_ok`` is ``False``.
-            TensorDoesNotExistError: If tensor in ``samples`` does not exist.
-            ValueError: If all tensors being updated are not of the same length.
-            NotImplementedError: If an error occurs while writing tiles.
-            Exception: Error while attempting to rollback appends.
-        """
-        if isinstance(samples, Dataset):
-            samples = samples.tensors
-        if not samples:
-            return
-        n = len(samples[next(iter(samples.keys()))])
-        for v in samples.values():
-            if len(v) != n:
-                sizes = {k: len(v) for (k, v) in samples.items()}
-                raise ValueError(
-                    f"Incoming samples are not of equal lengths. Incoming sample sizes: {sizes}"
-                )
-        [f() for f in list(self._update_hooks.values())]
-        with self:
-            for i in range(n):
-                self.append({k: v[i] for k, v in samples.items()}, skip_ok=skip_ok)
-
-    @invalid_view_op
-    def append(
-        self, sample: Dict[str, Any], skip_ok: bool = False, append_empty: bool = False
+    def _append_or_extend(
+        self,
+        sample: Dict[str, Any],
+        extend: bool = False,
+        skip_ok: bool = False,
+        append_empty: bool = False,
     ):
-        """Append samples to mutliple tensors at once. This method expects all tensors being updated to be of the same length.
+        """Append or extend samples to mutliple tensors at once. This method expects all tensors being updated to be of the same length.
 
         Args:
+            extend (bool): Extends if True. Appends if False.
             sample (dict): Dictionary with tensor names as keys and samples as values.
             skip_ok (bool): Skip tensors not in ``sample`` if set to ``True``.
             append_empty (bool): Append empty samples to tensors not specified in ``sample`` if set to ``True``. If True, ``skip_ok`` is ignored.
@@ -2876,26 +2985,50 @@ class Dataset:
         tensors_to_check_length = tensors if append_empty else sample
         if len(set(map(len, (tensors[k] for k in tensors_to_check_length)))) != 1:
             raise ValueError(
-                "When appending using Dataset.append, all tensors being updated are expected to have the same length."
+                "When appending using Dataset.append or Dataset.extend, all tensors being updated are expected to have the same length."
             )
+        if extend:
+            sample_lens = set(map(len, sample.values()))
+            if sample_lens == {0}:
+                return
+            if len(sample_lens) > 1 and not append_empty:
+                raise ValueError(
+                    "All tensors have to be extended to the same length. Specify `append_empty=True` to pad tensors receiving fewer samples."
+                )
+            max_len = max(sample_lens)
         [f() for f in list(self._update_hooks.values())]
         tensors_appended = []
         with self:
             for k in tensors:
+                extend_extra_nones = 0
                 if k in sample:
                     v = sample[k]
+                    if extend:
+                        extend_extra_nones = max(max_len - len(v), 0)
                 else:
                     if skip_ok:
                         continue
                     else:
-                        v = None
+                        if extend:
+                            v = [None] * max_len
+                        else:
+                            v = None
                 try:
                     tensor = tensors[k]
                     enc = tensor.chunk_engine.chunk_id_encoder
                     num_chunks = enc.num_chunks
-                    tensor.append(v)
+                    if extend:
+                        tensor.extend(v)
+                        if extend_extra_nones:
+                            tensor.extend([None] * extend_extra_nones)
+                    else:
+                        tensor.append(v)
                     tensors_appended.append(k)
                 except Exception as e:
+                    if extend:
+                        raise NotImplementedError(
+                            "Unable to recover from error while extending multiple tensors with numpy arrays."
+                        )
                     new_num_chunks = enc.num_chunks
                     num_chunks_added = new_num_chunks - num_chunks
                     if num_chunks_added > 1:
@@ -2914,6 +3047,204 @@ class Dataset:
                                 "Error while attempting to rollback appends"
                             ) from e2
                     raise e
+
+    def extend(
+        self,
+        samples: Dict[str, Any],
+        skip_ok: bool = False,
+        append_empty: bool = False,
+        ignore_errors: bool = False,
+        progressbar: bool = False,
+    ):
+        """Appends multiple rows of samples to mutliple tensors at once. This method expects all tensors being updated to be of the same length.
+
+        Args:
+            samples (Dict[str, Any]): Dictionary with tensor names as keys and samples as values.
+            skip_ok (bool): Skip tensors not in ``samples`` if set to True.
+            append_empty (bool): Append empty samples to tensors not specified in ``sample`` if set to ``True``. If True, ``skip_ok`` is ignored.
+            ignore_errors (bool): Skip samples that cause errors while extending, if set to ``True``.
+            progressbar (bool): Displays a progress bar if set to ``True``.
+
+        Raises:
+            KeyError: If any tensor in the dataset is not a key in ``samples`` and ``skip_ok`` is ``False``.
+            TensorDoesNotExistError: If tensor in ``samples`` does not exist.
+            ValueError: If all tensors being updated are not of the same length.
+            NotImplementedError: If an error occurs while writing tiles.
+            Exception: Error while attempting to rollback appends.
+        """
+        extend = False
+        if isinstance(samples, Dataset):
+            samples = samples.tensors
+            extend = True
+        elif set(map(type, samples.values())) == {np.ndarray}:
+            extend = True
+        if not samples:
+            return
+        n = len(samples[next(iter(samples.keys()))])
+        for v in samples.values():
+            if len(v) != n:
+                sizes = {k: len(v) for (k, v) in samples.items()}
+                raise ValueError(
+                    f"Incoming samples are not of equal lengths. Incoming sample sizes: {sizes}"
+                )
+        [f() for f in list(self._update_hooks.values())]
+        if extend:
+            if ignore_errors:
+                warnings.warn(
+                    "`ignore_errors` argument will be ignored while extending with numpy arrays or tensors."
+                )
+            return self._append_or_extend(
+                samples, extend=True, skip_ok=skip_ok, append_empty=append_empty
+            )
+        with self:
+            if progressbar:
+                indices = tqdm(range(n))
+            else:
+                indices = range(n)
+            for i in indices:
+                try:
+                    self.append(
+                        {k: v[i] for k, v in samples.items()},
+                        skip_ok=skip_ok,
+                        append_empty=append_empty,
+                    )
+                except Exception as e:
+                    if ignore_errors:
+                        continue
+                    else:
+                        raise e
+
+    @invalid_view_op
+    def append(
+        self, sample: Dict[str, Any], skip_ok: bool = False, append_empty: bool = False
+    ):
+        """Append samples to mutliple tensors at once. This method expects all tensors being updated to be of the same length.
+
+        Args:
+            sample (dict): Dictionary with tensor names as keys and samples as values.
+            skip_ok (bool): Skip tensors not in ``sample`` if set to ``True``.
+            append_empty (bool): Append empty samples to tensors not specified in ``sample`` if set to ``True``. If True, ``skip_ok`` is ignored.
+
+        Raises:
+            KeyError: If any tensor in the dataset is not a key in ``sample`` and ``skip_ok`` is ``False``.
+            TensorDoesNotExistError: If tensor in ``sample`` does not exist.
+            ValueError: If all tensors being updated are not of the same length.
+            NotImplementedError: If an error occurs while writing tiles.
+            Exception: Error while attempting to rollback appends.
+            SampleAppendingError: Error that occurs when someone tries to append a tensor value directly to the dataset without specifying tensor name.
+
+        Examples:
+
+            >>> ds = deeplake.empty("../test/test_ds")
+            >>> ds.create_tensor('data')
+            Tensor(key='data')
+            >>> ds.create_tensor('labels')
+            Tensor(key='labels')
+            >>> ds.append({"data": [1, 2, 3, 4], "labels":[0, 1, 2, 3]})
+
+        """
+        self._append_or_extend(
+            sample, extend=False, skip_ok=skip_ok, append_empty=append_empty
+        )
+
+    def update(self, sample: Dict[str, Any]):
+        """Update existing samples in the dataset with new values.
+
+        Examples:
+
+            >>> ds[0].update({"images": deeplake.read("new_image.png"), "labels": 1})
+
+            >>> new_images = [deeplake.read(f"new_image_{i}.png") for i in range(3)]
+            >>> ds[:3].update({"images": new_images, "labels": [1, 2, 3]})
+
+        Args:
+            sample (dict): Dictionary with tensor names as keys and samples as values.
+
+        Raises:
+            ValueError: If partial update of a sample is attempted.
+            Exception: Error while attempting to rollback updates.
+        """
+        if len(self.index) > 1:
+            raise ValueError(
+                "Cannot make partial updates to samples using `ds.update`. Use `ds.tensor[index] = value` instead."
+            )
+
+        def get_sample_from_engine(
+            engine, idx, is_link, compression, dtype, decompress
+        ):
+            # tiled data will always be decompressed
+            decompress = decompress or engine._is_tiled_sample(idx)
+            if is_link:
+                creds_key = engine.creds_key(idx)
+                item = engine.get_path(idx)
+                return LinkedSample(item, creds_key)
+            item = engine.get_single_sample(idx, self.index, decompress=decompress)
+            shape = engine.read_shape_for_sample(idx)
+            return engine._get_sample_object(
+                item, shape, compression, dtype, decompress
+            )
+
+        # remove update hooks from view base so that the view is not invalidated
+        if self._view_base:
+            saved_update_hooks = self._view_base._update_hooks
+            self._view_base._update_hooks = {}
+        idx = self.index.values[0].value
+        with self:
+            saved = defaultdict(list)
+            try:
+                for k, v in sample.items():
+                    tensor_meta = self[k].meta
+                    dtype = tensor_meta.dtype
+                    sample_compression = tensor_meta.sample_compression
+                    chunk_compression = tensor_meta.chunk_compression
+
+                    compression = sample_compression or chunk_compression
+
+                    engine = self[k].chunk_engine
+
+                    decompress = chunk_compression is not None or engine.is_text_like
+
+                    for idx in self.index.values[0].indices(self[k].num_samples):
+                        if tensor_meta.is_sequence:
+                            old_sample = []
+                            for i in range(*engine.sequence_encoder[idx]):
+                                item = get_sample_from_engine(
+                                    engine,
+                                    i,
+                                    tensor_meta.is_link,
+                                    compression,
+                                    dtype,
+                                    decompress,
+                                )
+                                old_sample.append(item)
+                        else:
+                            old_sample = get_sample_from_engine(
+                                engine,
+                                idx,
+                                tensor_meta.is_link,
+                                compression,
+                                dtype,
+                                decompress,
+                            )
+
+                        saved[k].append(old_sample)
+                    self[k] = v
+            except Exception as e:
+                for k, v in saved.items():
+                    # squeeze
+                    if len(v) == 1:
+                        v = v[0]
+                    try:
+                        self[k] = v
+                    except Exception as e2:
+                        raise Exception(
+                            "Error while attempting to rollback updates"
+                        ) from e2
+                raise e
+            finally:
+                # restore update hooks
+                if self._view_base:
+                    self._view_base._update_hooks = saved_update_hooks
 
     def _view_hash(self) -> str:
         """Generates a unique hash for a filtered dataset view."""
@@ -3018,6 +3349,7 @@ class Dataset:
         tensors: Optional[List[str]] = None,
         num_workers: Optional[int] = 0,
         scheduler: str = "threaded",
+        ignore_errors: bool = False,
         unlink=True,
     ):
         """Writes the indices of this view to a vds."""
@@ -3032,6 +3364,7 @@ class Dataset:
                         scheduler=scheduler,
                         unlink=unlink,
                         create_vds_index_tensor=True,
+                        ignore_errors=ignore_errors,
                     )
                 else:
                     vds.create_tensor(
@@ -3040,7 +3373,13 @@ class Dataset:
                         create_shape_tensor=False,
                         create_id_tensor=False,
                         create_sample_info_tensor=False,
-                    ).extend(list(self.index.values[0].indices(self.num_samples)))
+                    ).extend(
+                        np.array(
+                            tuple(self.index.values[0].indices(self.num_samples)),
+                            dtype="uint64",
+                        ),
+                        progressbar=True,
+                    )
                     info["first-index-subscriptable"] = self.index.subscriptable_at(0)
                     if len(self.index) > 1:
                         info["sub-sample-index"] = Index(
@@ -3061,13 +3400,14 @@ class Dataset:
         tensors: Optional[List[str]],
         num_workers: int,
         scheduler: str,
+        ignore_errors: bool,
     ):
         """Saves this view under ".queries" sub directory of same storage."""
         info = self._get_view_info(id, message, copy)
         hash = info["id"]
         path = f".queries/{hash}"
         vds = self._sub_ds(path, empty=True, verbose=False)
-        self._write_vds(vds, info, copy, tensors, num_workers, scheduler)
+        self._write_vds(vds, info, copy, tensors, num_workers, scheduler, ignore_errors)
         self._append_to_queries_json(info)
         return vds
 
@@ -3080,6 +3420,7 @@ class Dataset:
         tensors: Optional[List[str]],
         num_workers: int,
         scheduler: str,
+        ignore_errors: bool,
         **ds_args,
     ):
         """Saves this view at a given dataset path"""
@@ -3090,7 +3431,7 @@ class Dataset:
         except Exception as e:
             raise DatasetViewSavingError from e
         info = self._get_view_info(id, message, copy)
-        self._write_vds(vds, info, copy, tensors, num_workers, scheduler)
+        self._write_vds(vds, info, copy, tensors, num_workers, scheduler, ignore_errors)
         return vds
 
     def save_view(
@@ -3103,6 +3444,7 @@ class Dataset:
         num_workers: int = 0,
         scheduler: str = "threaded",
         verbose: bool = True,
+        ignore_errors: bool = False,
         **ds_args,
     ) -> str:
         """Saves a dataset view as a virtual dataset (VDS)
@@ -3137,6 +3479,7 @@ class Dataset:
             num_workers (int): Number of workers to be used for optimization process. Applicable only if ``optimize=True``. Defaults to 0.
             scheduler (str): The scheduler to be used for optimization. Supported values include: 'serial', 'threaded', 'processed' and 'ray'. Only applicable if ``optimize=True``. Defaults to 'threaded'.
             verbose (bool): If ``True``, logs will be printed. Defaults to ``True``.
+            ignore_errors (bool): Skip samples that cause errors while saving views. Only applicable if ``optimize=True``. Defaults to ``False``.
             ds_args (dict): Additional args for creating VDS when path is specified. (See documentation for :func:`deeplake.dataset()`)
 
         Returns:
@@ -3176,6 +3519,7 @@ class Dataset:
             scheduler,
             verbose,
             False,
+            ignore_errors,
             **ds_args,
         )
 
@@ -3190,6 +3534,7 @@ class Dataset:
         scheduler: str = "threaded",
         verbose: bool = True,
         _ret_ds: bool = False,
+        ignore_errors: bool = False,
         **ds_args,
     ) -> Union[str, Any]:
         """Saves a dataset view as a virtual dataset (VDS)
@@ -3207,6 +3552,7 @@ class Dataset:
             verbose (bool): If ``True``, logs will be printed. Defaults to ``True``.
             _ret_ds (bool): If ``True``, the VDS is retured as such without converting it to a view. If ``False``, the VDS path is returned.
                 Default False.
+            ignore_errors (bool): Skip samples that cause errors while saving views. Only applicable if ``optimize=True``. Defaults to ``False``.
             ds_args (dict): Additional args for creating VDS when path is specified. (See documentation for `deeplake.dataset()`)
 
         Returns:
@@ -3248,6 +3594,7 @@ class Dataset:
                                     tensors,
                                     num_workers,
                                     scheduler,
+                                    ignore_errors,
                                 )
                         except ReadOnlyModeError as e:
                             raise ReadOnlyModeError(
@@ -3260,7 +3607,13 @@ class Dataset:
                         )
                 else:
                     vds = self._save_view_in_subdir(
-                        id, message, optimize, tensors, num_workers, scheduler
+                        id,
+                        message,
+                        optimize,
+                        tensors,
+                        num_workers,
+                        scheduler,
+                        ignore_errors,
                     )
             else:
                 vds = self._save_view_in_path(
@@ -3271,6 +3624,7 @@ class Dataset:
                     tensors,
                     num_workers,
                     scheduler,
+                    ignore_errors,
                     **ds_args,
                 )
         if verbose and self.verbose:
@@ -3602,6 +3956,8 @@ class Dataset:
         public: bool = False,
         unlink: bool = False,
         create_vds_index_tensor: bool = False,
+        ignore_errors: bool = False,
+        verbose: bool = True,
     ):
         if isinstance(dest, str):
             path = dest
@@ -3627,33 +3983,45 @@ class Dataset:
             ]
             if unlink
             else False,
+            verbose=verbose,
         )
 
-        def _copy_tensor(sample_in, sample_out):
+        # dest_ds needs link creds of source dataset for copying linked tensors
+        dest_ds.link_creds = LinkCreds()
+        dest_ds.link_creds.__setstate__(self.link_creds.__getstate__())
+        save_link_creds(dest_ds.link_creds, dest_ds.storage)
+
+        def _is_unlink_tensor(tensor):
+            if (
+                unlink
+                and tensor.is_link
+                and (tensor.base_htype != "video" or deeplake.constants._UNLINK_VIDEOS)
+            ):
+                return True
+
+        # If we have to unlink any tensor, we will use sample-by-sample append implementation (_copy_tensor_append)
+        # Otherwise, we will use extend-by-whole-slice implementation (_copy_tensor_extend)
+        extend_only = not any(
+            _is_unlink_tensor(self[tensor_name]) for tensor_name in dest_ds.tensors
+        )
+
+        def _copy_tensor_extend(sample_in, sample_out):
+            for tensor_name in dest_ds.tensors:
+                sample_out[tensor_name].extend(sample_in[tensor_name])
+
+        def _copy_tensor_append(sample_in, sample_out):
             for tensor_name in dest_ds.tensors:
                 src = sample_in[tensor_name]
-                if (
-                    unlink
-                    and src.is_link
-                    and (src.base_htype != "video" or deeplake.constants._UNLINK_VIDEOS)
-                ):
+                if _is_unlink_tensor(src):
                     if len(sample_in.index) > 1:
-                        sample_out[tensor_name].extend(src)
+                        sample_out[tensor_name].append(src)
                     else:
-                        if sample_in.index.subscriptable_at(0):
-                            sample_idxs = sample_in.index.values[0].indices(
-                                src.num_samples
-                            )
-                        else:
-                            sample_idxs = [sample_in.index.values[0].value]
-                        sample_out[tensor_name].extend(
-                            [
-                                src.chunk_engine.get_deeplake_read_sample(i)
-                                for i in sample_idxs
-                            ]
+                        idx = sample_in.index.values[0].value
+                        sample_out[tensor_name].append(
+                            src.chunk_engine.get_deeplake_read_sample(idx)
                         )
                 else:
-                    sample_out[tensor_name].extend(src)
+                    sample_out[tensor_name].append(src)
 
         if not self.index.subscriptable_at(0):
             old_first_index = self.index.values[0]
@@ -3665,7 +4033,10 @@ class Dataset:
         else:
             reset_index = False
         try:
-            deeplake.compute(_copy_tensor, name="copy transform")().eval(
+            deeplake.compute(
+                _copy_tensor_extend if extend_only else _copy_tensor_append,
+                name="copy transform",
+            )().eval(
                 self,
                 dest_ds,
                 num_workers=num_workers,
@@ -3673,8 +4044,9 @@ class Dataset:
                 progressbar=progressbar,
                 skip_ok=True,
                 check_lengths=False,
+                ignore_errors=ignore_errors,
                 disable_label_sync=True,
-                extend_only=True,
+                extend_only=extend_only,
             )
 
             dest_ds.flush()
@@ -3700,6 +4072,10 @@ class Dataset:
                 dest_ds.flush()
                 dest_ds = dest_ds[0]
                 self.index.values[0] = old_first_index
+
+            # Actual credentials should be removed from dest_ds after copy
+            dest_ds.link_creds = None
+            dest_ds._load_link_creds()
         return dest_ds
 
     def copy(
@@ -4120,8 +4496,6 @@ class Dataset:
         Raises:
             IndexError: If the index is out of range.
         """
-        self._initial_autoflush.append(self.storage.autoflush)
-        self.storage.autoflush = False
         max_len = max((t.num_samples for t in self.tensors.values()), default=0)
         if max_len == 0:
             raise IndexError("Can't pop from empty dataset.")
@@ -4136,11 +4510,10 @@ class Dataset:
                 f"Index {index} is out of range. The longest tensor has {max_len} samples."
             )
 
-        for tensor in self.tensors.values():
-            if tensor.num_samples > index:
-                tensor.pop(index)
-
-        self.storage.autoflush = self._initial_autoflush.pop()
+        with self:
+            for tensor in self.tensors.values():
+                if tensor.num_samples > index:
+                    tensor.pop(index)
 
     @property
     def is_view(self) -> bool:

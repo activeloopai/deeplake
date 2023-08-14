@@ -26,7 +26,10 @@ def test_video(local_ds, compression, video_paths):
             elif compression == "mkv":
                 assert sample.shape == (399, 360, 640, 3)
             elif compression == "avi":
-                assert sample.shape == (901, 270, 480, 3)
+                if i == 0:
+                    assert sample.shape == (901, 270, 480, 3)
+                elif i == 1:
+                    assert sample.shape == (3, 480, 852, 3)
         assert sample.shape[-1] == 3
         with local_ds:
             for _ in range(5):
@@ -192,10 +195,21 @@ def test_linked_video_timestamps(local_ds):
         ds.create_tensor("videos", htype="link[video]", sample_compression="mp4")
         ds.videos.append(
             deeplake.link(
-                "http://commondatastorage.googleapis.com/gtv-videos-bucket/sample/ForBiggerBlazes.mp4",
+                "https://commondatastorage.googleapis.com/gtv-videos-bucket/sample/ForBiggerBlazes.mp4",
                 creds_key="ENV",
             )
         )
         ds.videos[0, 5:10].timestamps == np.array(
             [0.04170833, 0.08341666, 0.125125, 0.16683333, 0.20854166]
         )
+
+
+def test_uncompressed_video_bug(local_path, video_paths):
+    with deeplake.empty(local_path, overwrite=True) as ds:
+        ds.create_tensor("video", htype="video", sample_compression=None)
+        ds.video.append(deeplake.read(video_paths["avi"][1]))
+
+    assert ds.video[0].numpy().shape == (3, 480, 852, 3)
+
+    with deeplake.load(local_path) as ds:
+        assert ds.video[0].numpy().shape == (3, 480, 852, 3)

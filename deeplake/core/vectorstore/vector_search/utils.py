@@ -2,6 +2,8 @@ from deeplake.constants import MB
 from deeplake.enterprise.util import raise_indra_installation_error
 from deeplake.util.warnings import always_warn
 
+from deeplake.core.dataset import DeepLakeCloudDataset
+
 import numpy as np
 
 import random
@@ -17,6 +19,37 @@ EXEC_OPTION_TO_RUNTIME: Dict[str, Optional[Dict]] = {
 
 def parse_tensor_return(tensor):
     return tensor.data(aslist=True)["value"]
+
+
+def parse_exec_option(dataset, exec_option, indra_installed):
+    """Select the best available exec_option for the given dataset and environment"""
+
+    if exec_option is None or exec_option == "auto":
+        if isinstance(dataset, DeepLakeCloudDataset):
+            if "vectordb/" in dataset.base_storage.path:
+                return "tensor_db"
+            elif indra_installed:
+                return "compute_engine"
+            else:
+                return "python"
+        else:
+            return "python"
+    else:
+        return exec_option
+
+
+def parse_return_tensors(dataset, return_tensors, embedding_tensor, return_view):
+    """Select the best selection of data and tensors to be returned"""
+    if return_view:
+        return_tensors = "*"
+
+    if not return_tensors or return_tensors == "*":
+        return_tensors = [
+            tensor
+            for tensor in dataset.tensors
+            if (tensor != embedding_tensor or return_tensors == "*")
+        ]
+    return return_tensors
 
 
 def check_indra_installation(exec_option, indra_installed):
@@ -89,8 +122,14 @@ def parse_search_args(**kwargs):
             "Invalid `exec_option` it should be either `python`, `compute_engine` or `tensor_db`."
         )
 
+    if kwargs.get("embedding") is not None and kwargs.get("query") is not None:
+        raise ValueError(
+            "Both `embedding` and `query` were specified. Please specify either one or the other."
+        )
+
     if (
         kwargs["embedding_function"] is None
+        and kwargs["initial_embedding_function"] is None
         and kwargs["embedding"] is None
         and kwargs["query"] is None
         and kwargs["filter"] is None
@@ -135,6 +174,19 @@ def parse_search_args(**kwargs):
             raise ValueError(
                 f"return_tensors and query parameters cannot be specified simultaneously, becuase the data that is returned is directly specified in the query."
             )
+
+
+def get_embedding_tensor(embedding_tensor, embedding_source_tensor, dataset):
+    if embedding_source_tensor is None:
+        raise ValueError("`embedding_source_tensor` was not specified")
+
+    embedding_tensor = get_embedding_tensors(
+        embedding_tensor=embedding_tensor,
+        tensor_args={},
+        dataset=dataset,
+    )
+
+    return embedding_tensor
 
 
 def parse_tensors_kwargs(tensors, embedding_function, embedding_data, embedding_tensor):
@@ -183,6 +235,80 @@ def parse_tensors_kwargs(tensors, embedding_function, embedding_data, embedding_
     return funcs, data, tensors_, tensors
 
 
+def parse_update_arguments(
+    dataset,
+    embedding_function=None,
+    initial_embedding_function=None,
+    embedding_source_tensor=None,
+    embedding_tensor=None,
+):
+    if embedding_function is None and initial_embedding_function is None:
+        raise ValueError(
+            "`embedding_function` was not specified during initialization of vector store or the update call"
+        )
+
+    embedding_tensor = get_embedding_tensor(
+        embedding_tensor, embedding_source_tensor, dataset
+    )
+    if isinstance(embedding_tensor, list) and len(embedding_tensor) == 1:
+        embedding_tensor = embedding_tensor[0]
+
+    if isinstance(embedding_source_tensor, str) and isinstance(embedding_tensor, list):
+        raise ValueError(
+            "Multiple `embedding_tensor` were specifed. "
+            "While single `embedding_source_tensor` was given. "
+        )
+    elif (
+        isinstance(embedding_source_tensor, list)
+        and len(embedding_source_tensor) > 1
+        and isinstance(embedding_tensor, str)
+    ):
+        raise ValueError(
+            "Multiple `embedding_source_tensor` were specifed. "
+            "While single `embedding_tensor` was given. "
+        )
+
+    final_embedding_function = embedding_function or initial_embedding_function
+
+    if isinstance(embedding_tensor, list) and callable(final_embedding_function):
+        final_embedding_function = [final_embedding_function] * len(embedding_tensor)
+
+    if isinstance(embedding_tensor, list) and isinstance(embedding_source_tensor, list):
+        assert len(embedding_tensor) == len(embedding_source_tensor), (
+            "The length of the `embedding_tensor` does not match the length of "
+            "`embedding_source_tensor`"
+        )
+
+    return (final_embedding_function, embedding_source_tensor, embedding_tensor)
+
+
+def convert_embedding_source_tensor_to_embeddings(
+    dataset,
+    embedding_source_tensor,
+    embedding_tensor,
+    embedding_function,
+    row_ids,
+):
+    embedding_tensor_data = {}
+    if isinstance(embedding_source_tensor, list):
+        for embedding_source_tensor_i, embedding_tensor_i, embedding_fn_i in zip(
+            embedding_source_tensor, embedding_tensor, embedding_function
+        ):
+            embedding_data = dataset[row_ids][embedding_source_tensor_i].numpy()
+            embedding_tensor_data[embedding_tensor_i] = embedding_fn_i(embedding_data)
+            embedding_tensor_data[embedding_tensor_i] = np.array(
+                embedding_tensor_data[embedding_tensor_i], dtype=np.float32
+            )
+    else:
+        embedding_data = dataset[row_ids][embedding_source_tensor].numpy()
+        embedding_tensor_data[embedding_tensor] = embedding_function(embedding_data)
+        embedding_tensor_data[embedding_tensor] = np.array(
+            embedding_tensor_data[embedding_tensor], dtype=np.float32
+        )
+
+    return embedding_tensor_data
+
+
 def parse_add_arguments(
     dataset,
     embedding_function=None,
@@ -198,25 +324,16 @@ def parse_add_arguments(
         embedding_tensor = [embedding_tensor]
 
     if embedding_function:
-        if not embedding_data:
-            raise ValueError(
-                f"embedding_data is not specified. When using embedding_function it is also necessary to specify the data that you want to embed"
-            )
-
-        # if single embedding function is specified, use it for all embedding data
-        if not isinstance(embedding_function, list):
-            embedding_function = [embedding_function] * len(embedding_data)
-
-        embedding_tensor = get_embedding_tensors(embedding_tensor, tensors, dataset)
-
-        assert len(embedding_function) == len(
-            embedding_data
-        ), "embedding_function and embedding_data must be of the same length"
-        assert len(embedding_function) == len(
-            embedding_tensor
-        ), "embedding_function and embedding_tensor must be of the same length"
-
-        check_tensor_name_consistency(tensors, dataset.tensors, embedding_tensor)
+        (
+            embedding_function,
+            embedding_tensor,
+        ) = check_embedding_function_embedding_tensor_consistency(
+            embedding_tensor,
+            embedding_function,
+            embedding_data,
+            tensors,
+            dataset,
+        )
         return (embedding_function, embedding_data, embedding_tensor, tensors)
 
     if initial_embedding_function:
@@ -224,13 +341,16 @@ def parse_add_arguments(
             check_tensor_name_consistency(tensors, dataset.tensors, None)
             return (None, None, None, tensors)
 
-        if not isinstance(initial_embedding_function, list):
-            initial_embedding_function = [initial_embedding_function] * len(
-                embedding_data
-            )
-
-        embedding_tensor = get_embedding_tensors(embedding_tensor, tensors, dataset)
-        check_tensor_name_consistency(tensors, dataset.tensors, embedding_tensor)
+        (
+            initial_embedding_function,
+            embedding_tensor,
+        ) = check_embedding_function_embedding_tensor_consistency(
+            embedding_tensor,
+            initial_embedding_function,
+            embedding_data,
+            tensors,
+            dataset,
+        )
         return (initial_embedding_function, embedding_data, embedding_tensor, tensors)
 
     if embedding_tensor:
@@ -247,6 +367,35 @@ def parse_add_arguments(
 
     check_tensor_name_consistency(tensors, dataset.tensors, embedding_tensor)
     return (None, None, None, tensors)
+
+
+def check_embedding_function_embedding_tensor_consistency(
+    embedding_tensor,
+    embedding_function,
+    embedding_data,
+    tensors,
+    dataset,
+):
+    if not embedding_data:
+        raise ValueError(
+            f"embedding_data is not specified. When using embedding_function it is also necessary to specify the data that you want to embed"
+        )
+
+    # if single embedding function is specified, use it for all embedding data
+    if not isinstance(embedding_function, list):
+        embedding_function = [embedding_function] * len(embedding_data)
+
+    embedding_tensor = get_embedding_tensors(embedding_tensor, tensors, dataset)
+
+    assert len(embedding_function) == len(
+        embedding_data
+    ), "embedding_function and embedding_data must be of the same length"
+    assert len(embedding_function) == len(
+        embedding_tensor
+    ), "embedding_function and embedding_tensor must be of the same length"
+
+    check_tensor_name_consistency(tensors, dataset.tensors, embedding_tensor)
+    return embedding_function, embedding_tensor
 
 
 def check_tensor_name_consistency(tensors, dataset_tensors, embedding_tensor):

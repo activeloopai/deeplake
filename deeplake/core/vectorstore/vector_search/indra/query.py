@@ -1,15 +1,15 @@
 import numpy as np
 
-from typing import List
+from typing import List, Optional
 
 from deeplake.core.vectorstore.vector_search.indra import tql_distance_metrics
 
 
 def create_query_string(
-    distance_metric: str,
+    distance_metric: Optional[str],
     tql_filter: str,
     limit: int,
-    order: str,
+    order: Optional[str],
     tensor_list: List[str],
 ):
     """Function for creating a query string from a distance metric, limit and order.
@@ -63,6 +63,7 @@ def create_query(
     tql_distrance_metric = tql_distance_metrics.get_tql_distance_metric(
         distance_metric, embedding_tensor, query_embedding
     )
+
     query = create_query_string(
         tql_distrance_metric, tql_filter, limit, order, tensor_list
     )

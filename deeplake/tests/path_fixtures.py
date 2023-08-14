@@ -427,6 +427,14 @@ def cat_path():
 
 
 @pytest.fixture
+def dog_path():
+    """Path to a dog image in the dummy data folder. Expected shape: (323, 480, 3)"""
+
+    path = get_dummy_data_path("images")
+    return os.path.join(path, "dog2.jpg")
+
+
+@pytest.fixture
 def flower_path():
     """Path to a flower image in the dummy data folder. Expected shape: (513, 464, 4)"""
 
@@ -533,7 +541,7 @@ def video_paths():
     paths = {
         "mp4": ["samplemp4.mp4"],
         "mkv": ["samplemkv.mkv"],
-        "avi": ["sampleavi.avi"],
+        "avi": ["sampleavi.avi", "tinyavi.avi"],
     }
 
     parent = get_dummy_data_path("video")
@@ -603,3 +611,28 @@ def yolo_ingestion_data():
 @pytest.fixture(scope="session")
 def dataframe_ingestion_data():
     return _download_hub_test_dataframe_data()
+
+
+@pytest.fixture
+def vector_store_hash_ids(request):
+    return [f"{i}" for i in range(5)]
+
+
+@pytest.fixture
+def vector_store_row_ids(request):
+    return [i for i in range(5)]
+
+
+@pytest.fixture
+def vector_store_filter_udf(request):
+    return "filter_udf"
+
+
+@pytest.fixture
+def vector_store_filters(request):
+    return {"a": 1}
+
+
+@pytest.fixture
+def vector_store_query(request):
+    return "select * where metadata=={'a': 1}"

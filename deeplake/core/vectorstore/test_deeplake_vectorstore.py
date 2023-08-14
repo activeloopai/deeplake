@@ -1,3 +1,8 @@
+import uuid
+import os
+from math import isclose
+from functools import partial
+
 import numpy as np
 import pytest
 
@@ -11,9 +16,14 @@ from deeplake.tests.common import requires_libdeeplake
 from deeplake.constants import (
     DEFAULT_VECTORSTORE_TENSORS,
 )
+from deeplake.constants import MB
+from deeplake.util.exceptions import (
+    IncorrectEmbeddingShapeError,
+    TensorDoesNotExistError,
+    DatasetHandlerError,
+)
+from deeplake.core.vectorstore.vector_search import dataset as dataset_utils
 
-from math import isclose
-import os
 
 EMBEDDING_DIM = 100
 NUMBER_OF_DATA = 10
@@ -32,7 +42,7 @@ def embedding_fn(text, embedding_dim=EMBEDDING_DIM):
 
 
 def embedding_fn2(text, embedding_dim=EMBEDDING_DIM):
-    pass  # pragma: no cover
+    return []  # pragma: no cover
 
 
 def embedding_fn3(text, embedding_dim=EMBEDDING_DIM):
@@ -42,6 +52,65 @@ def embedding_fn3(text, embedding_dim=EMBEDDING_DIM):
 
 def embedding_fn4(text, embedding_dim=EMBEDDING_DIM):
     return np.zeros((1, EMBEDDING_DIM))  # pragma: no cover
+
+
+def embedding_fn5(text, embedding_dim=EMBEDDING_DIM):
+    """Returns embedding in List[np.ndarray] format"""
+    return [np.zeros(i) for i in range(len(text))]
+
+
+def embedding_function(embedding_value, text):
+    """Embedding function with custom embedding values"""
+    return [np.ones(EMBEDDING_DIM) * embedding_value for _ in range(len(text))]
+
+
+def get_embedding_function(embedding_value):
+    """Function for creation embedding function with given embedding value"""
+    return partial(embedding_function, embedding_value)
+
+
+def get_multiple_embedding_function(embedding_value, num_of_funcs=2):
+    return [
+        partial(embedding_function, embedding_value[i]) for i in range(num_of_funcs)
+    ]
+
+
+def filter_udf(x):
+    return x["metadata"].data()["value"] in [f"{i}" for i in range(5)]
+
+
+def test_id_backward_compatibility(local_path):
+    num_of_items = 10
+    embedding_dim = 100
+
+    ids = [f"{i}" for i in range(num_of_items)]
+    embedding = [np.zeros(embedding_dim) for i in range(num_of_items)]
+    text = ["aadfv" for i in range(num_of_items)]
+    metadata = [{"key": i} for i in range(num_of_items)]
+
+    ds = deeplake.empty(local_path, overwrite=True)
+    ds.create_tensor("ids", htype="text")
+    ds.create_tensor("embedding", htype="embedding")
+    ds.create_tensor("text", htype="text")
+    ds.create_tensor("metadata", htype="json")
+
+    ds.extend(
+        {
+            "ids": ids,
+            "embedding": embedding,
+            "text": text,
+            "metadata": metadata,
+        }
+    )
+
+    vectorstore = VectorStore(path=local_path)
+    vectorstore.add(
+        text=text,
+        embedding=embedding,
+        metadata=metadata,
+    )
+
+    assert len(vectorstore) == 20
 
 
 def test_custom_tensors(local_path):
@@ -73,6 +142,87 @@ def test_custom_tensors(local_path):
     assert len(data.keys()) == 3
     assert "texts_custom" in data.keys() and "id" in data.keys()
 
+    vector_store = DeepLakeVectorStore(
+        path=local_path,
+        overwrite=True,
+        tensor_params=[
+            {"name": "texts_custom", "htype": "text"},
+            {"name": "emb_custom", "htype": "embedding"},
+        ],
+        embedding_function=embedding_fn5,
+    )
+
+    with pytest.raises(IncorrectEmbeddingShapeError):
+        vector_store.add(
+            embedding_data=texts,
+            embedding_tensor="emb_custom",
+            texts_custom=texts,
+        )
+
+    texts_extended = texts * 2500
+    with pytest.raises(IncorrectEmbeddingShapeError):
+        vector_store.add(
+            embedding_data=texts_extended,
+            embedding_tensor="emb_custom",
+            texts_custom=texts_extended,
+        )
+
+
+@pytest.mark.parametrize(
+    ("path", "hub_token"),
+    [
+        ("local_path", "hub_cloud_dev_token"),
+        ("s3_path", "hub_cloud_dev_token"),
+        ("gcs_path", "hub_cloud_dev_token"),
+        ("azure_path", "hub_cloud_dev_token"),
+        ("hub_cloud_path", "hub_cloud_dev_token"),
+    ],
+    indirect=True,
+)
+def test_providers(path, hub_token):
+    vector_store = DeepLakeVectorStore(
+        path=path,
+        overwrite=True,
+        tensor_params=[
+            {"name": "texts_custom", "htype": "text"},
+            {"name": "emb_custom", "htype": "embedding"},
+        ],
+        token=hub_token,
+    )
+
+    vector_store.add(
+        texts_custom=texts,
+        emb_custom=embeddings,
+    )
+    assert len(vector_store) == 10
+
+
+def test_creds(gcs_path, gcs_creds):
+    # testing create dataset with creds
+    vector_store = DeepLakeVectorStore(
+        path=gcs_path,
+        overwrite=True,
+        tensor_params=[
+            {"name": "texts_custom", "htype": "text"},
+            {"name": "emb_custom", "htype": "embedding"},
+        ],
+        creds=gcs_creds,
+    )
+
+    vector_store.add(
+        texts_custom=texts,
+        emb_custom=embeddings,
+    )
+    assert len(vector_store) == 10
+
+    # testing dataset loading with creds
+    vector_store = DeepLakeVectorStore(
+        path=gcs_path,
+        overwrite=False,
+        creds=gcs_creds,
+    )
+    assert len(vector_store) == 10
+
 
 @requires_libdeeplake
 def test_search_basic(local_path, hub_cloud_dev_token):
@@ -83,18 +233,26 @@ def test_search_basic(local_path, hub_cloud_dev_token):
         overwrite=True,
         token=hub_cloud_dev_token,
     )
+
+    assert vector_store.exec_option == "python"
+
     vector_store.add(embedding=embeddings, text=texts, metadata=metadatas)
 
+    with pytest.raises(ValueError):
+        vector_store.add(
+            embedding_function=embedding_fn2,
+            embedding_data=texts,
+            text=texts,
+            metadata=metadatas,
+        )
     # Check that default option works
     data_default = vector_store.search(
         embedding=query_embedding,
     )
     assert (len(data_default.keys())) > 0
-
     # Use python implementation to search the data
     data_p = vector_store.search(
         embedding=query_embedding,
-        exec_option="python",
         k=2,
         return_tensors=["id", "text"],
         filter={"metadata": {"abc": 1}},
@@ -112,12 +270,13 @@ def test_search_basic(local_path, hub_cloud_dev_token):
         read_only=True,
         token=hub_cloud_dev_token,
     )
+    assert vector_store_cloud.exec_option == "compute_engine"
+
     # Use indra implementation to search the data
     data_ce = vector_store_cloud.search(
         embedding=query_embedding,
-        exec_option="compute_engine",
         k=2,
-        return_tensors=["ids", "text"],
+        return_tensors=["id", "text"],
     )
     assert len(data_ce["text"]) == 2
     assert (
@@ -126,10 +285,18 @@ def test_search_basic(local_path, hub_cloud_dev_token):
     )  # One for each return_tensors
     assert len(data_ce.keys()) == 3  # One for each return_tensors + score
 
+    with pytest.raises(ValueError):
+        vector_store_cloud.search(
+            query=f"SELECT * WHERE id=='{vector_store_cloud.dataset.id[0].numpy()[0]}'",
+            embedding=query_embedding,
+            k=2,
+            return_tensors=["id", "text"],
+        )
+
     # Run a full custom query
     test_text = vector_store_cloud.dataset.text[0].data()["value"]
     data_q = vector_store_cloud.search(
-        query=f"select * where text == '{test_text}'", exec_option="compute_engine"
+        query=f"select * where text == '{test_text}'",
     )
 
     assert len(data_q["text"]) == 1
@@ -142,7 +309,6 @@ def test_search_basic(local_path, hub_cloud_dev_token):
 
     # Run a filter query using a json
     data_e_j = vector_store.search(
-        exec_option="python",
         k=2,
         return_tensors=["id", "text"],
         filter={"metadata": metadatas[2], "text": texts[2]},
@@ -158,7 +324,6 @@ def test_search_basic(local_path, hub_cloud_dev_token):
         return x["metadata"].data()["value"]["abc"] == 1
 
     data_e_f = vector_store.search(
-        exec_option="python",
         k=2,
         return_tensors=["id", "text"],
         filter=filter_fn,
@@ -195,7 +360,6 @@ def test_search_basic(local_path, hub_cloud_dev_token):
     # Check returning views
     data_p_v = vector_store.search(
         embedding=query_embedding,
-        exec_option="python",
         k=2,
         filter={"metadata": {"abc": 1}},
         return_view=True,
@@ -204,53 +368,85 @@ def test_search_basic(local_path, hub_cloud_dev_token):
     assert isinstance(data_p_v.text[0].data()["value"], str)
     assert data_p_v.embedding[0].numpy().size > 0
 
+    # Check that specifying exec option during search works, by specifying an invalid option
+    with pytest.raises(ValueError):
+        vector_store.search(
+            embedding=query_embedding,
+            exec_option="tensor_db",
+            k=2,
+            filter={"metadata": {"abc": 1}},
+            return_view=True,
+        )
+
     data_ce_v = vector_store_cloud.search(
-        embedding=query_embedding, exec_option="compute_engine", k=2, return_view=True
+        embedding=query_embedding, k=2, return_view=True
     )
     assert len(data_ce_v) == 2
     assert isinstance(data_ce_v.text[0].data()["value"], str)
     assert data_ce_v.embedding[0].numpy().size > 0
 
+    # Check that None option works
+    vector_store_none_exec = DeepLakeVectorStore(
+        path=local_path, overwrite=True, token=hub_cloud_dev_token, exec_option=None
+    )
+
+    assert vector_store_none_exec.exec_option == "python"
+
+    # Check that filter_fn with cloud dataset (and therefore "compute_engine" exec option) switches to "python" automatically.
+    with pytest.warns(None):
+        _ = vector_store_cloud.search(
+            filter=filter_fn,
+        )
+
     # Check exceptions
+    # Invalid exec option
     with pytest.raises(ValueError):
-        vector_store.search(embedding=query_embedding, exec_option="remote_tensor_db")
+        vector_store.search(
+            embedding=query_embedding, exec_option="invalid_exec_option"
+        )
+    # Search without parameters
     with pytest.raises(ValueError):
         vector_store.search()
+    # Query with python exec_option
     with pytest.raises(ValueError):
         vector_store.search(query="dummy", exec_option="python")
-    with pytest.raises(ValueError):
+    # Returning a tensor that does not exist
+    with pytest.raises(TensorDoesNotExistError):
         vector_store.search(
-            query="dummy",
+            embedding=query_embedding,
             return_tensors=["non_existant_tensor"],
-            exec_option="compute_engine",
         )
+    # Specifying return tensors is not valid when also specifying a query
     with pytest.raises(ValueError):
-        vector_store.search(query="dummy", return_tensors=["ids"], exec_option="python")
+        vector_store_cloud.search(query="dummy", return_tensors=["id"])
+    # Specifying a filter function is not valid when also specifying a query
     with pytest.raises(ValueError):
-        vector_store.search(
-            query="dummy", filter=filter_fn, exec_option="compute_engine"
+        vector_store_cloud.search(query="dummy", filter=filter_fn)
+    # Specifying a filter function is not valid when exec_option is "compute_engine"
+    with pytest.raises(ValueError):
+        vector_store_cloud.search(
+            embedding=query_embedding, filter=filter_fn, exec_option="compute_engine"
         )
+    # Not specifying a query or data that should be embedded
     with pytest.raises(ValueError):
         vector_store.search(
             embedding_function=embedding_fn,
         )
-
+    # Empty dataset cannot be queried
     with pytest.raises(ValueError):
-        vector_store = DeepLakeVectorStore(path="mem://xyz")
-
-        vector_store.search(
+        vector_store_empty = DeepLakeVectorStore(path="mem://xyz")
+        vector_store_empty.search(
             embedding=query_embedding,
-            exec_option="python",
             k=2,
             filter={"metadata": {"abc": 1}},
             return_view=True,
         )
 
     vector_store = DeepLakeVectorStore(path="mem://xyz")
+    assert vector_store.exec_option == "python"
     vector_store.add(embedding=embeddings, text=texts, metadata=metadatas)
 
     data = vector_store.search(
-        exec_option="python",
         embedding_function=embedding_fn3,
         embedding_data=["dummy"],
         return_view=True,
@@ -261,7 +457,6 @@ def test_search_basic(local_path, hub_cloud_dev_token):
     assert data.embedding[0].numpy().size > 0
 
     data = vector_store.search(
-        exec_option="python",
         filter={"metadata": {"abcdefh": 1}},
         embedding=None,
         return_view=True,
@@ -270,7 +465,6 @@ def test_search_basic(local_path, hub_cloud_dev_token):
     assert len(data) == 0
 
     data = vector_store.search(
-        exec_option="python",
         filter={"metadata": {"abcdefh": 1}},
         embedding=query_embedding,
         k=2,
@@ -281,25 +475,13 @@ def test_search_basic(local_path, hub_cloud_dev_token):
     assert len(data["text"]) == 0
     assert len(data["score"]) == 0
 
-    with pytest.raises(ValueError):
-        data = vector_store.search(
-            exec_option="compute_engine",
-            filter=filter_fn,
-            k=2,
-        )
-
-    with pytest.raises(ValueError):
-        data = vector_store.search(
-            exec_option="compute_engine",
-            query="select * where metadata == {'abcdefg': 28}",
-            return_tensors=["metadata", "id"],
-        )
-
+    # Test that the embedding function during initalization works
     vector_store = DeepLakeVectorStore(
-        path="mem://xyz", embedding_function=embedding_fn
+        path="mem://xyz", embedding_function=embedding_fn3
     )
+    assert vector_store.exec_option == "python"
     vector_store.add(embedding=embeddings, text=texts, metadata=metadatas)
-    result = vector_store.search(embedding=np.zeros((1, EMBEDDING_DIM)))
+    result = vector_store.search(embedding_data=["dummy"])
     assert len(result) == 4
 
 
@@ -340,7 +522,7 @@ def test_search_quantitative(distance_metric, hub_cloud_dev_token):
         ]
     )
     assert data_p["text"] == data_ce["text"]
-    assert data_p["ids"] == data_ce["ids"]
+    assert data_p["id"] == data_ce["id"]
     assert data_p["metadata"] == data_ce["metadata"]
 
     # use indra implementation to search the data
@@ -348,25 +530,28 @@ def test_search_quantitative(distance_metric, hub_cloud_dev_token):
         embedding=None,
         exec_option="compute_engine",
         distance_metric=distance_metric,
-        filter={"metadata": {"abcdefg": 28}},
+        filter={"metadata": {"abc": 100}},
     )
 
-    assert data_ce["ids"] == "0"
+    # All medatata are the same to this should return k (k) results
+    assert len(data_ce["id"]) == 4
 
     with pytest.raises(ValueError):
         # use indra implementation to search the data
-        data_ce = vector_store.search(
+        vector_store.search(
             query="select * where metadata == {'abcdefg': 28}",
             exec_option="compute_engine",
             distance_metric=distance_metric,
             filter={"metadata": {"abcdefg": 28}},
         )
 
+    test_id = vector_store.dataset.id[0].data()["value"]
+
     data_ce = vector_store.search(
-        query="select * where ids == '0'",
+        query=f"select * where id == '{test_id}'",
         exec_option="compute_engine",
     )
-    assert data_ce["ids"] == ["0"]
+    assert data_ce["id"][0] == test_id
 
 
 @requires_libdeeplake
@@ -390,6 +575,8 @@ def test_search_managed(hub_cloud_dev_token):
         exec_option="tensor_db",
     )
 
+    assert "vectordb/" in vector_store.dataset.base_storage.path
+
     assert len(data_ce["score"]) == len(data_db["score"])
     assert all(
         [
@@ -404,7 +591,7 @@ def test_search_managed(hub_cloud_dev_token):
         ]
     )
     assert data_ce["text"] == data_db["text"]
-    assert data_ce["ids"] == data_db["ids"]
+    assert data_ce["id"] == data_db["id"]
 
 
 def test_delete(local_path, capsys):
@@ -455,7 +642,7 @@ def test_delete(local_path, capsys):
     assert local_path not in dirs
 
     # backwards compatibility test:
-    vector_store = DeepLakeVectorStore(
+    vector_store_b = DeepLakeVectorStore(
         path=local_path,
         overwrite=True,
         tensor_params=[
@@ -470,18 +657,18 @@ def test_delete(local_path, capsys):
         ],
     )
     # add data to the dataset:
-    vector_store.add(ids=ids, docs=texts)
+    vector_store_b.add(ids=ids, docs=texts)
 
     # delete the data in the dataset by id:
-    vector_store.delete(row_ids=[0])
-    assert len(vector_store.dataset) == NUMBER_OF_DATA - 1
+    vector_store_b.delete(row_ids=[0])
+    assert len(vector_store_b.dataset) == NUMBER_OF_DATA - 1
 
     ds = deeplake.empty(local_path, overwrite=True)
-    ds.create_tensor("ids", htype="text")
+    ds.create_tensor("id", htype="text")
     ds.create_tensor("embedding", htype="embedding")
     ds.extend(
         {
-            "ids": ids,
+            "id": ids,
             "embedding": embeddings,
         }
     )
@@ -492,8 +679,418 @@ def test_delete(local_path, capsys):
     vector_store.delete(ids=ids[:3])
     assert len(vector_store) == NUMBER_OF_DATA - 3
 
+
+def assert_updated_vector_store(
+    new_embedding_value,
+    vector_store,
+    ids,
+    row_ids,
+    filters,
+    query,
+    embedding_function,
+    embedding_source_tensor,
+    embedding_tensor,
+    exec_option,
+    num_changed_samples=3,
+):
+    if isinstance(embedding_tensor, str):
+        new_embeddings = [
+            np.ones(EMBEDDING_DIM) * new_embedding_value
+        ] * num_changed_samples
+    else:
+        new_embeddings = []
+        for i in range(len(embedding_tensor)):
+            new_embedding = [
+                np.ones(EMBEDDING_DIM) * new_embedding_value[i]
+            ] * num_changed_samples
+            new_embeddings.append(new_embedding)
+
+    if not row_ids:
+        row_ids = dataset_utils.search_row_ids(
+            dataset=vector_store.dataset,
+            search_fn=vector_store.search,
+            ids=ids,
+            filter=filters,
+            query=query,
+            exec_option=exec_option,
+        )
+
+    if callable(embedding_function) and isinstance(embedding_tensor, str):
+        np.testing.assert_array_equal(
+            vector_store.dataset[embedding_tensor][row_ids].numpy(),
+            new_embeddings,
+        )
+
+    if callable(embedding_function) and isinstance(embedding_tensor, list):
+        for i in range(len(embedding_tensor)):
+            np.testing.assert_array_equal(
+                vector_store.dataset[embedding_tensor[i]][row_ids].numpy(),
+                new_embeddings[i],
+            )
+
+    if isinstance(embedding_function, list) and isinstance(embedding_tensor, list):
+        for i in range(len(embedding_tensor)):
+            np.testing.assert_array_equal(
+                vector_store.dataset[embedding_tensor[i]][row_ids].numpy(),
+                new_embeddings[i],
+            )
+
+    # check whether we are doing commits actually
+    assert len(vector_store.dataset.commits) > 0
+
+
+@requires_libdeeplake
+@pytest.mark.parametrize(
+    "ds, vector_store_hash_ids, vector_store_row_ids, vector_store_filters, vector_store_query",
+    [
+        ("local_auth_ds", "vector_store_hash_ids", None, None, None),
+        ("local_auth_ds", None, "vector_store_row_ids", None, None),
+        ("local_auth_ds", None, None, "vector_store_filter_udf", None),
+        ("local_auth_ds", None, None, "vector_store_filters", None),
+        ("hub_cloud_ds", None, None, None, "vector_store_query"),
+    ],
+    indirect=True,
+)
+@pytest.mark.parametrize("init_embedding_function", [embedding_fn3, None])
+def test_update_embedding(
+    ds,
+    vector_store_hash_ids,
+    vector_store_row_ids,
+    vector_store_filters,
+    vector_store_query,
+    init_embedding_function,
+):
+    if vector_store_filters == "filter_udf":
+        vector_store_filters = filter_udf
+
+    embedding_tensor = "embedding"
+    embedding_source_tensor = "text"
+    # dataset has a single embedding_tensor:
+    path = ds.path
+    vector_store = DeepLakeVectorStore(
+        path=path,
+        overwrite=True,
+        verbose=False,
+        embedding_function=init_embedding_function,
+    )
+
+    # add data to the dataset:
+    metadatas[1:6] = [{"a": 1} for _ in range(5)]
+    vector_store.add(id=ids, embedding=embeddings, text=texts, metadata=metadatas)
+
+    # case 1: single embedding_source_tensor, single embedding_tensor, single embedding_function
+    new_embedding_value = 100
+    embedding_fn = get_embedding_function(embedding_value=new_embedding_value)
+    vector_store.update_embedding(
+        ids=vector_store_hash_ids,
+        row_ids=vector_store_row_ids,
+        filter=vector_store_filters,
+        query=vector_store_query,
+        embedding_function=embedding_fn,
+        embedding_source_tensor=embedding_source_tensor,
+        embedding_tensor=embedding_tensor,
+    )
+    assert_updated_vector_store(
+        new_embedding_value,
+        vector_store,
+        vector_store_hash_ids,
+        vector_store_row_ids,
+        vector_store_filters,
+        vector_store_query,
+        embedding_fn,
+        embedding_source_tensor,
+        embedding_tensor,
+        "compute_engine",
+        num_changed_samples=5,
+    )
+
+    # case 2: single embedding_source_tensor, single embedding_tensor not specified, single embedding_function
+    new_embedding_value = 100
+    embedding_fn = get_embedding_function(embedding_value=new_embedding_value)
+    vector_store.update_embedding(
+        ids=vector_store_hash_ids,
+        row_ids=vector_store_row_ids,
+        filter=vector_store_filters,
+        query=vector_store_query,
+        embedding_function=embedding_fn,
+        embedding_source_tensor=embedding_source_tensor,
+    )
+    assert_updated_vector_store(
+        new_embedding_value,
+        vector_store,
+        vector_store_hash_ids,
+        vector_store_row_ids,
+        vector_store_filters,
+        vector_store_query,
+        embedding_fn,
+        embedding_source_tensor,
+        embedding_tensor,
+        "compute_engine",
+        num_changed_samples=5,
+    )
+
+    # case 3-4: single embedding_source_tensor, single embedding_tensor, single init_embedding_function
+    if init_embedding_function is None:
+        # case 3: errors out when init_embedding_function is not specified
+        with pytest.raises(ValueError):
+            vector_store.update_embedding(
+                ids=vector_store_hash_ids,
+                row_ids=vector_store_row_ids,
+                filter=vector_store_filters,
+                query=vector_store_query,
+                embedding_source_tensor=embedding_source_tensor,
+            )
+    else:
+        # case 4
+        vector_store.update_embedding(
+            ids=vector_store_hash_ids,
+            row_ids=vector_store_row_ids,
+            filter=vector_store_filters,
+            query=vector_store_query,
+            embedding_source_tensor=embedding_source_tensor,
+        )
+        assert_updated_vector_store(
+            0,
+            vector_store,
+            vector_store_hash_ids,
+            vector_store_row_ids,
+            vector_store_filters,
+            vector_store_query,
+            init_embedding_function,
+            embedding_source_tensor,
+            embedding_tensor,
+            "compute_engine",
+            num_changed_samples=5,
+        )
+
+    vector_store.delete_by_path(path)
+
+    # dataset has a multiple embedding_tensor:
+    tensors = [
+        {
+            "name": "text",
+            "htype": "text",
+            "create_id_tensor": False,
+            "create_sample_info_tensor": False,
+            "create_shape_tensor": False,
+        },
+        {
+            "name": "metadata",
+            "htype": "json",
+            "create_id_tensor": False,
+            "create_sample_info_tensor": False,
+            "create_shape_tensor": False,
+        },
+        {
+            "name": "embedding",
+            "htype": "embedding",
+            "dtype": np.float32,
+            "create_id_tensor": False,
+            "create_sample_info_tensor": False,
+            "create_shape_tensor": True,
+            "max_chunk_size": 64 * MB,
+        },
+        {
+            "name": "embedding_md",
+            "htype": "embedding",
+            "dtype": np.float32,
+            "create_id_tensor": False,
+            "create_sample_info_tensor": False,
+            "create_shape_tensor": True,
+            "max_chunk_size": 64 * MB,
+        },
+        {
+            "name": "id",
+            "htype": "text",
+            "create_id_tensor": False,
+            "create_sample_info_tensor": False,
+            "create_shape_tensor": False,
+        },
+    ]
+    multiple_embedding_tensor = ["embedding", "embedding_md"]
+    multiple_embedding_source_tensor = ["embedding", "metadata"]
+    vector_store = DeepLakeVectorStore(
+        path=path + "_multi",
+        overwrite=True,
+        verbose=False,
+        embedding_function=init_embedding_function,
+        tensor_params=tensors,
+    )
+
+    vector_store.add(
+        id=ids,
+        text=texts,
+        embedding=embeddings,
+        embedding_md=embeddings,
+        metadata=metadatas,
+    )
+
+    # case 1: multiple embedding_source_tensor, single embedding_tensor, single embedding_function
+    new_embedding_value = [100, 200]
+    embedding_fn = get_multiple_embedding_function(new_embedding_value)
     with pytest.raises(ValueError):
-        vector_store.delete(ids=ids[5:7], exec_option="remote_tensor_db")
+        vector_store.update_embedding(
+            ids=vector_store_hash_ids,
+            row_ids=vector_store_row_ids,
+            filter=vector_store_filters,
+            query=vector_store_query,
+            embedding_function=embedding_function,
+            embedding_source_tensor=multiple_embedding_source_tensor,
+            embedding_tensor=embedding_tensor,
+        )
+
+    # case 2: multiple embedding_source_tensor, single embedding_tensor, multiple embedding_function -> error out?
+    with pytest.raises(ValueError):
+        vector_store.update_embedding(
+            ids=vector_store_hash_ids,
+            row_ids=vector_store_row_ids,
+            filter=vector_store_filters,
+            query=vector_store_query,
+            embedding_function=embedding_fn,
+            embedding_source_tensor=multiple_embedding_source_tensor,
+            embedding_tensor=embedding_tensor,
+        )
+
+    # case 3: 4 embedding_source_tensor, 2 embedding_tensor, 2 embedding_function
+    with pytest.raises(ValueError):
+        vector_store.update_embedding(
+            ids=vector_store_hash_ids,
+            row_ids=vector_store_row_ids,
+            filter=vector_store_filters,
+            query=vector_store_query,
+            embedding_function=embedding_fn,
+            embedding_source_tensor=multiple_embedding_source_tensor * 2,
+            embedding_tensor=embedding_tensor,
+        )
+
+    # case 4: multiple embedding_source_tensor, multiple embedding_tensor, multiple embedding_function
+    new_embedding_value = [100, 200]
+    embedding_fn = get_multiple_embedding_function(new_embedding_value)
+    vector_store.update_embedding(
+        ids=vector_store_hash_ids,
+        row_ids=vector_store_row_ids,
+        filter=vector_store_filters,
+        query=vector_store_query,
+        embedding_function=embedding_fn,
+        embedding_source_tensor=multiple_embedding_source_tensor,
+        embedding_tensor=multiple_embedding_tensor,
+    )
+
+    assert_updated_vector_store(
+        new_embedding_value,
+        vector_store,
+        vector_store_hash_ids,
+        vector_store_row_ids,
+        vector_store_filters,
+        vector_store_query,
+        embedding_fn,
+        multiple_embedding_source_tensor,
+        multiple_embedding_tensor,
+        "compute_engine",
+        num_changed_samples=5,
+    )
+
+    # case 5-6: multiple embedding_source_tensor, multiple embedding_tensor, single init_embedding_function
+    new_embedding_value = [0, 0]
+
+    if init_embedding_function is None:
+        with pytest.raises(ValueError):
+            # case 5: error out because no embedding function was specified
+            vector_store.update_embedding(
+                ids=vector_store_hash_ids,
+                row_ids=vector_store_row_ids,
+                filter=vector_store_filters,
+                query=vector_store_query,
+                embedding_source_tensor=multiple_embedding_source_tensor,
+                embedding_tensor=multiple_embedding_tensor,
+            )
+    else:
+        # case 6
+        vector_store.update_embedding(
+            ids=vector_store_hash_ids,
+            row_ids=vector_store_row_ids,
+            filter=vector_store_filters,
+            query=vector_store_query,
+            embedding_source_tensor=multiple_embedding_source_tensor,
+            embedding_tensor=multiple_embedding_tensor,
+        )
+        assert_updated_vector_store(
+            new_embedding_value,
+            vector_store,
+            vector_store_hash_ids,
+            vector_store_row_ids,
+            vector_store_filters,
+            vector_store_query,
+            embedding_fn3,
+            multiple_embedding_source_tensor,
+            multiple_embedding_tensor,
+            "compute_engine",
+            num_changed_samples=5,
+        )
+
+    # case 7: multiple embedding_source_tensor, not specified embedding_tensor, multiple embedding_function -> error out?
+    with pytest.raises(ValueError):
+        vector_store.update_embedding(
+            ids=vector_store_hash_ids,
+            row_ids=vector_store_row_ids,
+            filter=vector_store_filters,
+            query=vector_store_query,
+            embedding_source_tensor=multiple_embedding_source_tensor,
+            embedding_function=embedding_fn,
+        )
+
+    # case 8-9: single embedding_source_tensor, multiple embedding_tensor, single init_embedding_function
+    with pytest.raises(ValueError):
+        # case 8: error out because embedding_function is not specified during init call and update call
+        vector_store.update_embedding(
+            ids=vector_store_hash_ids,
+            row_ids=vector_store_row_ids,
+            filter=vector_store_filters,
+            query=vector_store_query,
+            embedding_source_tensor=embedding_source_tensor,
+            embedding_function=embedding_fn,
+        )
+
+    # case 10: single embedding_source_tensor, multiple embedding_tensor,  multiple embedding_function -> error out?
+    with pytest.raises(ValueError):
+        # error out because single embedding_source_tensor is specified
+        vector_store.update_embedding(
+            ids=vector_store_hash_ids,
+            row_ids=vector_store_row_ids,
+            filter=vector_store_filters,
+            query=vector_store_query,
+            embedding_source_tensor=embedding_source_tensor,
+            embedding_tensor=multiple_embedding_tensor,
+            embedding_function=embedding_fn,
+        )
+
+    # case 11: single embedding_source_tensor, single embedding_tensor, single embedding_function, single init_embedding_function
+    new_embedding_value = 300
+    embedding_fn = get_embedding_function(new_embedding_value)
+    vector_store.update_embedding(
+        ids=vector_store_hash_ids,
+        row_ids=vector_store_row_ids,
+        filter=vector_store_filters,
+        query=vector_store_query,
+        embedding_source_tensor=embedding_source_tensor,
+        embedding_tensor=embedding_tensor,
+        embedding_function=embedding_fn,
+    )
+
+    assert_updated_vector_store(
+        new_embedding_value,
+        vector_store,
+        vector_store_hash_ids,
+        vector_store_row_ids,
+        vector_store_filters,
+        vector_store_query,
+        embedding_function,
+        embedding_source_tensor,
+        embedding_tensor,
+        "compute_engine",
+        num_changed_samples=5,
+    )
+    vector_store.delete_by_path(path)
 
 
 def test_ingestion(local_path, capsys):
@@ -519,7 +1116,7 @@ def test_ingestion(local_path, capsys):
             metadata=metadatas,
         )
 
-    with pytest.raises(Exception):
+    with pytest.raises(ValueError):
         # add data to the dataset:
         vector_store.add(
             embedding=embeddings,
@@ -1187,3 +1784,23 @@ def test_embeddings_only(local_path):
     assert len(vector_store.dataset) == 10
     assert len(vector_store.dataset.embedding_1) == 10
     assert len(vector_store.dataset.embedding_2) == 10
+
+
+def test_uuid_fix(local_path):
+    vector_store = VectorStore(local_path, overwrite=True)
+
+    ids = [uuid.uuid4() for _ in range(NUMBER_OF_DATA)]
+
+    vector_store.add(text=texts, id=ids, embedding=embeddings, metadata=metadatas)
+
+    assert vector_store.dataset.id.data()["value"] == list(map(str, ids))
+
+
+def test_read_only():
+    db = VectorStore("hub://davitbun/twitter-algorithm")
+    assert db.dataset.read_only == True
+
+
+def test_delete_by_path_wrong_path():
+    with pytest.raises(DatasetHandlerError):
+        VectorStore.delete_by_path("some_path")

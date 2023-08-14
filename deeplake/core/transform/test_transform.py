@@ -1479,6 +1479,26 @@ def test_ds_append_errors(
         assert ds["labels"].numpy().shape == (40, 10)
 
 
+def test_ds_update(local_ds):
+    @deeplake.compute
+    def update_ds(sample_in, ds):
+        i = sample_in.pop("index")
+        ds[i].update(sample_in)
+
+    with local_ds as ds:
+        ds.create_tensor("abc")
+        ds.create_tensor("xyz")
+
+        ds.abc.extend([1, 2, 3, 4, 5])
+        ds.xyz.extend([1, 2, 3, 4, 5])
+
+    samples = [{"abc": 1, "xyz": 2, "index": 0}, {"abc": 3, "xyz": 4, "index": 1}]
+
+    with pytest.raises(TransformError) as e:
+        update_ds().eval(samples, ds, num_workers=TRANSFORM_TEST_NUM_WORKERS)
+        assert isinstance(e.__cause__, NotImplementedError)
+
+
 def test_all_samples_skipped(local_ds):
     @deeplake.compute
     def upload(stuff, ds):
@@ -1636,3 +1656,82 @@ def test_ds_append_empty(local_ds):
     ds.label2.append(1)
 
     np.testing.assert_array_equal(ds.label2[:20].numpy(), np.array([]).reshape((20, 0)))
+
+
+def test_catch_value_error(local_path):
+    @deeplake.compute
+    def upload(sample_in, ds, class_names):
+        label = class_names.index(sample_in)
+
+        ds.append(
+            {
+                "abc": sample_in,
+                "label": label,
+            }
+        )
+
+    ds = deeplake.empty(local_path, overwrite=True)
+    ds.create_tensor("abc")
+    ds.create_tensor("label", htype="class_label")
+
+    class_names = [-1, 0, 1, 2, 3]
+
+    with pytest.raises(TransformError) as e:
+        upload(class_names=class_names).eval(
+            [0] * 10 + [1] * 10 + [10] * 10, ds, num_workers=TRANSFORM_TEST_NUM_WORKERS
+        )
+        assert e.index == 20
+        assert e.sample == 10
+
+
+def test_transform_summary(local_ds, capsys):
+    @deeplake.compute
+    def upload(sample_in, sample_out):
+        sample_out.images.append(sample_in)
+
+    with local_ds as ds:
+        ds.create_tensor("images", htype="image", sample_compression="jpg")
+
+    samples = (
+        ["bad_sample"]
+        + [np.random.randint(0, 255, (10, 10), dtype=np.uint8) for _ in range(8)]
+        + ["bad_sample"]
+    ) * 2
+
+    upload().eval(
+        samples,
+        ds,
+        num_workers=TRANSFORM_TEST_NUM_WORKERS,
+        progressbar=False,
+        ignore_errors=True,
+    )
+
+    captured = capsys.readouterr()
+    assert captured.out == (
+        "No. of samples successfully processed: 16 (80.0%)\n"
+        "No. of samples skipped: 4 (20.0%)\n"
+    )
+
+    samples = [np.random.randint(0, 255, (10, 10), dtype=np.uint8) for _ in range(8)]
+    upload().eval(
+        samples,
+        ds,
+        num_workers=TRANSFORM_TEST_NUM_WORKERS,
+        progressbar=False,
+        ignore_errors=True,
+    )
+
+    captured = capsys.readouterr()
+    assert captured.out == (
+        "No. of samples successfully processed: 8 (100.0%)\n"
+        "No. of samples skipped: 0 (0.0%)\n"
+    )
+
+    # no summary if ignore_errors=False
+    samples = [np.random.randint(0, 255, (10, 10), dtype=np.uint8) for _ in range(8)]
+    upload().eval(
+        samples, ds, num_workers=TRANSFORM_TEST_NUM_WORKERS, progressbar=False
+    )
+
+    captured = capsys.readouterr()
+    assert captured.out == ""

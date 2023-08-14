@@ -66,7 +66,7 @@ def index_transform(sample):
 @requires_libdeeplake
 @pytest.mark.parametrize(
     "ds",
-    ["hub_cloud_ds", "local_ds"],
+    ["hub_cloud_ds", "local_auth_ds"],
     indirect=True,
 )
 def test_pytorch_small(ds):
@@ -151,6 +151,19 @@ def test_pytorch_transform(hub_cloud_ds):
             expected_image2 = i * np.ones((12, 12))
             np.testing.assert_array_equal(actual_image, expected_image)
             np.testing.assert_array_equal(actual_image2, expected_image2)
+
+
+@requires_libdeeplake
+def test_inequal_tensors_dataloader_length(local_auth_ds):
+    with local_auth_ds as ds:
+        ds.create_tensor("images")
+        ds.create_tensor("label")
+        ds.images.extend(([i * np.ones((i + 1, i + 1)) for i in range(16)]))
+
+    ld = local_auth_ds.dataloader().batch(1).pytorch()
+    assert len(ld) == 0
+    ld1 = local_auth_ds.dataloader().batch(2).pytorch(tensors=["images"])
+    assert len(ld1) == 8
 
 
 @requires_torch
@@ -699,14 +712,14 @@ def test_pil_decode_method(hub_cloud_ds):
 @patch("deeplake.constants.RETURN_DUMMY_DATA_FOR_DATALOADER", True)
 @requires_torch
 @requires_libdeeplake
-def test_pytorch_dummy_data(local_ds):
+def test_pytorch_dummy_data(local_auth_ds):
     x_data = [
         np.random.randint(0, 255, (100, 100, 3), dtype="uint8"),
         np.random.randint(0, 255, (120, 120, 3), dtype="uint8"),
     ]
     y_data = [np.random.rand(100, 100, 3), np.random.rand(120, 120, 3)]
     z_data = ["hello", "world"]
-    with local_ds as ds:
+    with local_auth_ds as ds:
         ds.create_tensor("x")
         ds.create_tensor("y")
         ds.create_tensor("z")

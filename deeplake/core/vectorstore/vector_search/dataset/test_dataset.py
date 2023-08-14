@@ -24,8 +24,7 @@ class Embedding:
         return [0 for i in range(embedding_dim)]  # pragma: no cover
 
 
-@requires_libdeeplake
-def test_create(caplog, hub_cloud_dev_token):
+def test_create(caplog, hub_cloud_path, hub_cloud_dev_token):
     # dataset creation
     dataset = dataset_utils.create_or_load_dataset(
         tensor_params=DEFAULT_VECTORSTORE_TENSORS,
@@ -34,9 +33,10 @@ def test_create(caplog, hub_cloud_dev_token):
         creds={},
         logger=logger,
         read_only=False,
-        exec_option="compute_engine",
         overwrite=True,
         embedding_function=Embedding,
+        runtime=None,
+        exec_option="python",
     )
     assert len(dataset) == 0
     assert set(dataset.tensors.keys()) == {
@@ -55,12 +55,13 @@ def test_create(caplog, hub_cloud_dev_token):
 
     dataset = dataset_utils.create_or_load_dataset(
         tensor_params=DEFAULT_VECTORSTORE_TENSORS,
-        dataset_path="hub://testingacc2/vectorstore_dbengine",
+        dataset_path=hub_cloud_path,
         token=hub_cloud_dev_token,
         creds={},
         logger=logger,
         read_only=False,
         exec_option="tensor_db",
+        runtime={"tensor_db": True},
         overwrite=True,
         embedding_function=Embedding,
     )
@@ -78,6 +79,25 @@ def test_create(caplog, hub_cloud_dev_token):
         "chunk_size": None,
         "max_retries": None,
     }
+    assert (
+        "s3://activeloopai-db-engine"
+        in dataset.storage.__dict__["next_storage"].__dict__["root"]
+    )
+
+    # Test whether not specifiying runtime with exec_option tensor_db raises error
+    with pytest.raises(ValueError):
+        dataset_utils.create_or_load_dataset(
+            tensor_params=DEFAULT_VECTORSTORE_TENSORS,
+            dataset_path="hub://testingacc2/vectorstore_test_create_dbengine",
+            token=hub_cloud_dev_token,
+            creds={},
+            logger=logger,
+            read_only=False,
+            exec_option="tensor_db",
+            runtime=None,
+            overwrite=True,
+            embedding_function=Embedding,
+        )
 
 
 def test_load(caplog, hub_cloud_dev_token):
@@ -92,6 +112,7 @@ def test_load(caplog, hub_cloud_dev_token):
         read_only=True,
         token=hub_cloud_dev_token,
         embedding_function=None,
+        runtime=None,
     )
     assert dataset.max_len == 10
 
@@ -102,7 +123,7 @@ def test_load(caplog, hub_cloud_dev_token):
     test_logger = logging.getLogger("test_logger")
     with caplog.at_level(logging.WARNING, logger="test_logger"):
         # dataset loading
-        dataset = dataset_utils.create_or_load_dataset(
+        dataset_utils.create_or_load_dataset(
             tensor_params=DEFAULT_VECTORSTORE_TENSORS,
             dataset_path=DEFAULT_VECTORSTORE_DEEPLAKE_PATH,
             token=None,
@@ -112,6 +133,7 @@ def test_load(caplog, hub_cloud_dev_token):
             exec_option="python",
             embedding_function=None,
             overwrite=False,
+            runtime=None,
         )
         assert (
             f"The default deeplake path location is used: {DEFAULT_VECTORSTORE_DEEPLAKE_PATH}"
@@ -120,7 +142,7 @@ def test_load(caplog, hub_cloud_dev_token):
         )
 
     with pytest.raises(ValueError):
-        dataset = dataset_utils.create_or_load_dataset(
+        dataset_utils.create_or_load_dataset(
             tensor_params={"name": "image", "htype": "image"},
             dataset_path=DEFAULT_VECTORSTORE_DEEPLAKE_PATH,
             token=None,
@@ -130,6 +152,7 @@ def test_load(caplog, hub_cloud_dev_token):
             exec_option="python",
             embedding_function=None,
             overwrite=False,
+            runtime=None,
         )
 
     with pytest.raises(ValueError):
@@ -170,7 +193,7 @@ def test_delete_and_commit():
     dataset.ids.extend([1, 2, 3, 4, 5, 6, 7, 8, 9])
 
     dataset_utils.delete_and_commit(dataset, ids=[1, 2, 3])
-    len(dataset) == 6
+    assert len(dataset) == 6
 
 
 def test_delete_all():
@@ -206,7 +229,7 @@ def test_fetch_embeddings():
 def test_embeding_data():
     query = "tql query"
     with pytest.raises(Exception):
-        embedding = dataset_utils.get_embedding(
+        dataset_utils.get_embedding(
             embedding=None, query=query, embedding_function=None
         )
 
@@ -246,13 +269,20 @@ def test_embeding_data():
     assert embedding.shape == (1, 1538)
 
 
-def test_preprocess_tensors():
+def test_preprocess_tensors(local_path):
+    dataset = deeplake.empty(local_path, overwrite=True)
+
+    dataset.create_tensor("ids", htype="text")
+    dataset.create_tensor("metadata", htype="json")
+    dataset.create_tensor("embedding", htype="embedding")
+    dataset.create_tensor("text", htype="text")
+
     texts = ["a", "b", "c", "d"]
     processed_tensors, ids = dataset_utils.preprocess_tensors(
-        text=texts,
+        text=texts, dataset=dataset
     )
 
-    assert len(processed_tensors["id"]) == 4
+    assert len(processed_tensors["ids"]) == 4
     assert processed_tensors["text"] == texts
 
     texts = ("a", "b", "c", "d")
@@ -264,14 +294,22 @@ def test_preprocess_tensors():
         text=texts,
         metadata=metadatas,
         embedding=embeddings,
+        dataset=dataset,
     )
-    assert np.array_equal(processed_tensors["id"], ids)
+    assert np.array_equal(processed_tensors["ids"], ids)
     assert processed_tensors["text"] == list(texts)
     assert processed_tensors["metadata"] == metadatas
     assert processed_tensors["embedding"] == embeddings
 
 
-def test_create_elements():
+def test_create_elements(local_path):
+    dataset = deeplake.empty(local_path, overwrite=True)
+
+    dataset.create_tensor("ids", htype="text")
+    dataset.create_tensor("metadata", htype="json")
+    dataset.create_tensor("embedding", htype="embedding")
+    dataset.create_tensor("text", htype="text")
+
     ids = np.array([1, 2, 3, 4])
     texts = ["a", "b", "c", "d"]
     metadatas = [{"a": 1}, {"b": 2}, {"c": 3}, {"d": 4}]
@@ -310,7 +348,7 @@ def test_create_elements():
         )
 
     processed_tensors, ids = dataset_utils.preprocess_tensors(
-        id=ids, text=texts, embedding=embeddings, metadata=metadatas
+        dataset=dataset, id=ids, text=texts, embedding=embeddings, metadata=metadatas
     )
     elements = dataset_utils.create_elements(processed_tensors)
 
