@@ -3021,6 +3021,7 @@ class Dataset:
         skip_ok: bool = False,
         append_empty: bool = False,
         ignore_errors: bool = False,
+        progressbar: bool = False,
     ):
         """Appends multiple rows of samples to mutliple tensors at once. This method expects all tensors being updated to be of the same length.
 
@@ -3029,6 +3030,7 @@ class Dataset:
             skip_ok (bool): Skip tensors not in ``samples`` if set to True.
             append_empty (bool): Append empty samples to tensors not specified in ``sample`` if set to ``True``. If True, ``skip_ok`` is ignored.
             ignore_errors (bool): Skip samples that cause errors while extending, if set to ``True``.
+            progressbar (bool): Displays a progress bar if set to ``True``.
 
         Raises:
             KeyError: If any tensor in the dataset is not a key in ``samples`` and ``skip_ok`` is ``False``.
@@ -3062,7 +3064,11 @@ class Dataset:
                 samples, extend=True, skip_ok=skip_ok, append_empty=append_empty
             )
         with self:
-            for i in range(n):
+            if progressbar:
+                indices = tqdm(range(n))
+            else:
+                indices = range(n)
+            for i in indices:
                 try:
                     self.append(
                         {k: v[i] for k, v in samples.items()},

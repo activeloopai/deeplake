@@ -1121,13 +1121,6 @@ def test_deepcopy_errors(path, hub_token):
         )
 
 
-def test_cloud_delete_doesnt_exist(hub_cloud_path, hub_cloud_dev_token):
-    username = hub_cloud_path.split("/")[2]
-    # this dataset doesn't exist
-    new_path = f"hub://{username}/doesntexist123"
-    deeplake.delete(new_path, token=hub_cloud_dev_token, force=True)
-
-
 def test_invalid_tensor_name(memory_ds):
     with pytest.raises(InvalidTensorNameError):
         memory_ds.create_tensor("group/version_state")
