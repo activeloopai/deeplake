@@ -4,6 +4,9 @@ import hashlib
 import pickle
 from typing import Any, Dict, Optional, List
 import warnings
+
+from deeplake.core.meta.encode.chunk_id import ChunkIdEncoder
+
 from deeplake.client.log import logger
 from deeplake.constants import FIRST_COMMIT_ID
 from deeplake.core import lock
@@ -40,6 +43,7 @@ from deeplake.util.keys import (
     get_version_control_info_key_old,
     get_version_control_info_lock_key,
     get_commit_info_key,
+    get_pad_encoder_key,
 )
 from deeplake.constants import COMMIT_INFO_FILENAME
 from deeplake.util.remove_cache import get_base_storage
@@ -285,6 +289,113 @@ def checkout(
         raise CheckoutError(
             f"Unable to checkout to '{address}', failed to load meta data."
         ) from e
+
+
+def _squash_main(
+    dataset,
+) -> None:
+    """
+    Combines all commits in the main branch into a single commit.
+    """
+    storage = dataset.storage
+    storage.check_readonly()
+
+    version_state = dataset.version_state
+
+    if len(dataset.branches) > 1:
+        raise VersionControlError(
+            f"Cannot squash commits if there are multiple branches"
+        )
+    if len(dataset.get_views()) > 0:
+        raise VersionControlError(f"Cannot squash commits if there are views present")
+
+    try:
+        base_storage = get_base_storage(storage)
+        versioncontrol_lock = PersistentLock(
+            base_storage, get_version_control_info_lock_key()
+        )
+        versioncontrol_lock.acquire()  # Blocking
+
+        dataset_lock = lock.lock_dataset(dataset, dataset.branches[0])
+
+        for tensor in dataset._tensors(
+            include_hidden=True, include_disabled=True
+        ).values():
+            chunk_engine = tensor.chunk_engine
+            for chunk_id in [row[0] for row in chunk_engine.chunk_id_encoder._encoded]:
+                chunk = chunk_engine.get_chunk_from_chunk_id(chunk_id)
+                if chunk.key.startswith("versions"):
+                    base_storage[
+                        "/".join(
+                            [
+                                tensor.key,
+                                "chunks",
+                                ChunkIdEncoder.name_from_id(chunk_id),
+                            ]
+                        )
+                    ] = chunk.tobytes()
+
+            for key_fn in [
+                get_tensor_info_key,
+                get_tensor_meta_key,
+                get_creds_encoder_key,
+                get_chunk_id_encoder_key,
+                get_pad_encoder_key,
+                get_sequence_encoder_key,
+                get_tensor_tile_encoder_key,
+            ]:
+                try:
+                    data_bytes = storage.get_bytes(
+                        key_fn(chunk_engine.key, dataset.pending_commit_id)
+                    )
+                except KeyError:
+                    continue
+
+                base_storage[key_fn(chunk_engine.key, FIRST_COMMIT_ID)] = data_bytes
+
+        commits_to_delete = [
+            commit_id
+            for commit_id in version_state["commit_node_map"].keys()
+            if commit_id != FIRST_COMMIT_ID
+        ]
+
+        dataset.version_state["commit_node_map"] = {
+            FIRST_COMMIT_ID: dataset.version_state["commit_node_map"][FIRST_COMMIT_ID],
+        }
+        dataset.version_state["commit_node_map"][FIRST_COMMIT_ID].children = []
+        dataset.version_state["commit_node_map"][FIRST_COMMIT_ID].commit_message = None
+        dataset.version_state["commit_node_map"][FIRST_COMMIT_ID].commit_time = None
+        dataset.version_state["commit_node_map"][
+            FIRST_COMMIT_ID
+        ].commit_user_name = None
+
+        dataset.version_state["branch_commit_map"]["main"] = FIRST_COMMIT_ID
+        dataset.version_state["commit_id"] = FIRST_COMMIT_ID
+        dataset.version_state["commit_node"] = dataset.version_state["commit_node_map"][
+            FIRST_COMMIT_ID
+        ]
+
+        base_storage[get_version_control_info_key()] = json.dumps(
+            _version_info_to_json(
+                {
+                    "commit_node_map": version_state["commit_node_map"],
+                    "branch_commit_map": version_state["branch_commit_map"],
+                }
+            )
+        ).encode("utf-8")
+
+        for commit_to_delete in commits_to_delete:
+            delete_version_from_storage(dataset.storage, commit_to_delete)
+
+        dataset._reload_version_state()
+
+        dataset.commit("Squashed commits")
+
+    finally:
+        versioncontrol_lock.release()
+        dataset_lock and dataset_lock.release()
+    #
+    # dataset._send_branch_deletion_event(branch_name)
 
 
 def delete_branch(
