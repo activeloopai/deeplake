@@ -301,7 +301,7 @@ class VectorStore:
 
     def search(
         self,
-        embedding_data=None,
+        embedding_data: Union[str, List[str]] = None,
         embedding_function: Optional[Callable] = None,
         embedding: Optional[Union[List[float], np.ndarray]] = None,
         k: int = 4,
@@ -344,7 +344,7 @@ class VectorStore:
 
         Args:
             embedding (Union[np.ndarray, List[float]], optional): Embedding representation for performing the search. Defaults to None. The ``embedding_data`` and ``embedding`` cannot both be specified.
-            embedding_data: Data against which the search will be performed by embedding it using the `embedding_function`. Defaults to None. The `embedding_data` and `embedding` cannot both be specified.
+            embedding_data (List[str]): Data against which the search will be performed by embedding it using the `embedding_function`. Defaults to None. The `embedding_data` and `embedding` cannot both be specified.
             embedding_function (Optional[Callable], optional): function for converting `embedding_data` into embedding. Only valid if `embedding_data` is specified
             k (int): Number of elements to return after running query. Defaults to 4.
             distance_metric (str): Type of distance metric to use for sorting the data. Avaliable options are: ``"L1", "L2", "COS", "MAX"``. Defaults to ``"COS"``.
@@ -424,11 +424,6 @@ class VectorStore:
                 embedding_data,
                 embedding_function=embedding_function or self.embedding_function,
             )
-            if isinstance(query_emb, np.ndarray):
-                assert (
-                    query_emb.ndim == 1 or query_emb.shape[0] == 1
-                ), "Query embedding must be 1-dimensional. Please consider using another embedding function for converting query string to embedding."
-
         return vector_search.search(
             query=query,
             logger=logger,
