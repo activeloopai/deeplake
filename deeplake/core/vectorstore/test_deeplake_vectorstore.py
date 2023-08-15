@@ -1754,7 +1754,7 @@ def test_query_dim(local_path):
     )
 
     vector_store.add(text=texts, embedding=embeddings)
-    with pytest.raises(AssertionError):
+    with pytest.raises(NotImplementedError):
         vector_store.search([texts[0], texts[0]], embedding_fn3, k=1)
 
     vector_store.search([texts[0]], embedding_fn4, k=1)
