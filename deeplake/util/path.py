@@ -1,14 +1,14 @@
+import os
+import re
+import glob
 import pathlib
-import posixpath
 from typing import Optional, Union, Tuple, Dict
+
+from deeplake.client.client import DeepLakeBackendClient
 from deeplake.core.storage.provider import StorageProvider
 from deeplake.util.tag import process_hub_path
 from deeplake.constants import HUB_CLOUD_DEV_USERNAME
 from deeplake.util.exceptions import InvalidDatasetNameException
-import glob
-import os
-import re
-import requests
 
 CLOUD_DS_NAME_PATTERN = re.compile(r"^[A-Za-z0-9_-]*$")
 LOCAL_DS_NAME_PATTERN = re.compile(r"^[A-Za-z0-9_ .-]*$")
@@ -20,16 +20,15 @@ def is_hub_cloud_path(path: str):
 
 
 def is_db_engine(path: str, token: str, runtime: Dict):
-    # TO DO:
-    # path, runtime, token
-    # if dataset exists, return its type
-    # if dataset does not exist -> path is empty, ability to create managed dataset
-
     if not is_hub_cloud_path(path):
         return False
 
-    # TO DO: Add request to backend
-    return True
+    client = DeepLakeBackendClient(token)
+    org_id, ds_name, _ = process_hub_path(path)
+
+    return client.is_dataset_managed(
+        org_id, ds_name, db_engine={"enabled": runtime.get("tensor_db", False)}
+    )
 
 
 def get_path_from_storage(storage) -> str:

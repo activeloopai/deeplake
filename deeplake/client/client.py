@@ -22,6 +22,7 @@ from deeplake.client.utils import (
 from deeplake.client.config import (
     ACCEPT_AGREEMENTS_SUFFIX,
     REJECT_AGREEMENTS_SUFFIX,
+    GET_DATASET_TYPE_SUFFIX,
     GET_MANAGED_CREDS_SUFFIX,
     HUB_REST_ENDPOINT,
     HUB_REST_ENDPOINT_LOCAL,
@@ -206,6 +207,29 @@ class DeepLakeBackendClient:
 
         json = {"username": username, "email": email, "password": password}
         self.request("POST", REGISTER_USER_SUFFIX, json=json)
+
+    def is_dataset_managed(
+        self, org_id: str, ds_name: str, db_engine: Optional[dict] = None
+    ):
+        """Checks if the dataset is managed by the backend.
+
+        Args:
+            org_id (str): The name of the user/organization to which the dataset belongs.
+            ds_name (str): The name of the dataset being accessed.
+            db_engine (dict, optional): The database engine args to use for the dataset.
+
+        Returns:
+            bool: True if the dataset is managed, False otherwise.
+        """
+        db_engine = db_engine or {}
+        relative_url = GET_DATASET_TYPE_SUFFIX.format(org_id, ds_name)
+        response = self.request(
+            "GET",
+            relative_url,
+            endpoint=self.endpoint(),
+            params={"db_engine": db_engine},
+        ).json()
+        return response["is_managed"]
 
     def get_dataset_credentials(
         self,
