@@ -24,6 +24,7 @@ from deeplake.util.version_control import (
     integrity_check,
     save_commit_info,
     rebuild_version_info,
+    _squash_main,
 )
 from deeplake.util.invalid_view_op import invalid_view_op
 from deeplake.util.spinner import spinner
@@ -1722,7 +1723,7 @@ class Dataset:
         Raises:
             CommitError: If ``branch`` could not be found.
             ReadOnlyModeError: If branch deletion is attempted in read-only mode.
-            Exception: If you have have the given branch currently checked out.
+            Exception: If you have the given branch currently checked out.
 
         Examples:
 
@@ -1765,6 +1766,38 @@ class Dataset:
             delete_branch(self, name)
         finally:
             self._set_read_only(read_only, err=True)
+            self.storage.autoflush = self._initial_autoflush.pop()
+
+    @invalid_view_op
+    def _squash_main(self) -> None:
+        """
+        DEPRECATED: This method is deprecated and will be removed in a future release.
+
+        Squashes all commits in current branch into one commit.
+        NOTE: This cannot be run if there are any branches besides ``main``
+
+        Raises:
+            ReadOnlyModeError: If branch deletion is attempted in read-only mode.
+            VersionControlError: If the branch cannot be squashed.
+        """
+        if self._is_filtered_view:
+            raise Exception(
+                "Cannot perform version control operations on a filtered dataset view."
+            )
+        read_only = self._read_only
+        if read_only:
+            raise ReadOnlyModeError()
+
+        try_flushing(self)
+
+        self._initial_autoflush.append(self.storage.autoflush)
+        self.storage.autoflush = False
+        try:
+            self._unlock()
+            _squash_main(self)
+        finally:
+            self._set_read_only(read_only, err=True)
+            self.libdeeplake_dataset = None
             self.storage.autoflush = self._initial_autoflush.pop()
 
     def log(self):
@@ -4463,8 +4496,6 @@ class Dataset:
         Raises:
             IndexError: If the index is out of range.
         """
-        self._initial_autoflush.append(self.storage.autoflush)
-        self.storage.autoflush = False
         max_len = max((t.num_samples for t in self.tensors.values()), default=0)
         if max_len == 0:
             raise IndexError("Can't pop from empty dataset.")
@@ -4479,11 +4510,10 @@ class Dataset:
                 f"Index {index} is out of range. The longest tensor has {max_len} samples."
             )
 
-        for tensor in self.tensors.values():
-            if tensor.num_samples > index:
-                tensor.pop(index)
-
-        self.storage.autoflush = self._initial_autoflush.pop()
+        with self:
+            for tensor in self.tensors.values():
+                if tensor.num_samples > index:
+                    tensor.pop(index)
 
     @property
     def is_view(self) -> bool:
