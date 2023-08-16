@@ -17,6 +17,32 @@ def test_query(hub_cloud_ds):
 
 
 @requires_libdeeplake
+def test_default_query_message(hub_cloud_ds_generator):
+    with hub_cloud_ds_generator() as ds:
+        ds.create_tensor("label")
+        for i in range(100):
+            ds.label.append(floor(i / 20))
+
+    query_string = "SELECT * WHERE CONTAINS(label, 2)"
+    dsv = ds.query(query_string)
+    dsv.save_view(id="test_1")
+
+    ds = hub_cloud_ds_generator()
+    message = ds.get_view("test_1")
+    assert message == query_string
+
+    query_string = "SELECT * WHERE " + " OR ".join(
+        [f"CONTAINS(label, {i})" for i in range(100)]
+    )
+    dsv = ds.query(query_string)
+    dsv.save_view(id="test_2")
+
+    ds = hub_cloud_ds_generator()
+    message = ds.get_view("test_2")
+    assert message == query_string[:997] + "..."
+
+
+@requires_libdeeplake
 def test_sample(local_auth_ds):
     with local_auth_ds as ds:
         ds.create_tensor("label")

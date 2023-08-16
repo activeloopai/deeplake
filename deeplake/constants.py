@@ -246,3 +246,6 @@ DEFAULT_VECTORSTORE_TENSORS = [
 ]
 
 VIEW_SUMMARY_SAFE_LIMIT = 10000
+
+# Maximum default message length for saving query views
+QUERY_MESSAGE_MAX_SIZE = 1000
