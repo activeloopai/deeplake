@@ -1,4 +1,5 @@
 from math import floor
+from deeplake.constants import QUERY_MESSAGE_MAX_SIZE
 from deeplake.tests.common import requires_libdeeplake
 import numpy as np
 
@@ -39,7 +40,7 @@ def test_default_query_message(hub_cloud_ds_generator):
 
     ds = hub_cloud_ds_generator()
     message = ds.get_view("test_2")
-    assert message == query_string[:997] + "..."
+    assert message == query_string[: QUERY_MESSAGE_MAX_SIZE - 3] + "..."
 
 
 @requires_libdeeplake
