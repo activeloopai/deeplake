@@ -40,6 +40,35 @@ from deeplake.util.class_label import sync_labels
 from deeplake.constants import DEFAULT_TRANSFORM_SAMPLE_CACHE_SIZE
 
 import posixpath
+import time
+from threading import Lock
+
+
+from multiprocessing import Manager
+from time import time, sleep
+
+
+class RateLimiter:
+    def __init__(self, requests_per_minute):
+        self.manager = Manager()
+        self.lock = self.manager.Lock()
+        self.counter = self.manager.Value('i', 0)
+        self.start_time = self.manager.Value('d', time())
+        self.requests_per_minute = requests_per_minute
+
+    def request(self):
+        with self.lock:
+            elapsed_time = time() - self.start_time.value
+            if elapsed_time < 60:  # Within a minute
+                if self.counter.value >= self.requests_per_minute:  # Rate limit exceeded
+                    sleep(60 - elapsed_time)  # Sleep until a minute is over
+                    self.counter.value = 0  # Reset counter after sleeping
+                    self.start_time.value = time()  # Reset start time after sleeping
+                else:
+                    self.counter.value += 1  # Increment the request count
+            else:
+                self.counter.value = 1  # Reset counter and set current request as the first
+                self.start_time.value = time()  # Reset the start time
 
 
 class ComputeFunction:
@@ -64,6 +93,7 @@ class ComputeFunction:
         cache_size: int = DEFAULT_TRANSFORM_SAMPLE_CACHE_SIZE,
         checkpoint_interval: int = 0,
         ignore_errors: bool = False,
+        requests_per_minute: int = 10000,
         **kwargs,
     ):
         """Evaluates the ComputeFunction on data_in to produce an output dataset ds_out.
@@ -113,6 +143,7 @@ class ComputeFunction:
             cache_size,
             checkpoint_interval,
             ignore_errors,
+            requests_per_minute,
             **kwargs,
         )
 
@@ -141,6 +172,7 @@ class Pipeline:
         read_only_ok: bool = False,
         cache_size: int = DEFAULT_TRANSFORM_SAMPLE_CACHE_SIZE,
         checkpoint_interval: int = 0,
+        requests_per_minute: int = 10000,
         ignore_errors: bool = False,
         verbose: bool = True,
         **kwargs,
@@ -278,7 +310,7 @@ class Pipeline:
             progress_args = {"compute_id": compute_id, "progress": progress, "end": end}
 
             try:
-                self.run(
+                output = self.run(
                     data_in,
                     target_ds,
                     compute_provider,
@@ -292,11 +324,13 @@ class Pipeline:
                     pbar,
                     pqueue,
                     ignore_errors,
+                    requests_per_minute,
                     **kwargs,
                 )
-                target_ds._send_compute_progress(**progress_args, status="success")
-                samples_processed += len_data_in(data_in)
-                completed = end
+                if output == "success":
+                    target_ds._send_compute_progress(**progress_args, status="success")
+                    samples_processed += len_data_in(data_in)
+                    completed = end
             except Exception as e:
                 if checkpointing_enabled:
                     print(
@@ -347,6 +381,7 @@ class Pipeline:
         pbar=None,
         pqueue=None,
         ignore_errors: bool = False,
+        requests_per_minute: int = 10000,
         **kwargs,
     ):
         """Runs the pipeline on the input data to produce output samples and stores in the dataset.
@@ -414,7 +449,8 @@ class Pipeline:
             cache_size,
             ignore_errors,
         )
-        map_inp = zip(slices, offsets, storages, repeat(args))
+        rate_limiter = RateLimiter(requests_per_minute=requests_per_minute)
+        map_inp = zip(repeat(rate_limiter), slices, offsets, storages, repeat(args))
         try:
             if progressbar:
                 desc = get_pbar_description(self.functions)

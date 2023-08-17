@@ -23,6 +23,10 @@ from deeplake.constants import (
 )
 from deeplake.util.exceptions import IncorrectEmbeddingShapeError
 
+from tqdm import tqdm
+import time
+from deeplake.constants import MAX_BYTES_PER_MINUTE, TARGET_BATCH_SIZE
+
 
 def create_or_load_dataset(
     tensor_params,
@@ -411,7 +415,21 @@ def extend_or_ingest_dataset(
             for func, data, tensor in zip(
                 embedding_function, embedding_data, embedding_tensor
             ):
-                embedded_data = func(data)
+                data_batched = chunk_by_bytes(data)
+                # Calculate average batch size
+                avg_batch_size = get_size_of_list_strings(data_batched) / len(data_batched)
+                
+                # Calculate the number of batches you can send each minute
+                batches_per_minute = MAX_BYTES_PER_MINUTE / avg_batch_size  
+                
+                # Calculate sleep time in seconds between batches
+                sleep_time = 60 / batches_per_minute        
+                    
+                embedded_data = []
+                
+                for data_i in tqdm(data_batched, total=len(data_batched), desc="Creating embedding data"):
+                    embedded_data += func(data_i)
+                    time.sleep(sleep_time)
                 try:
                     embedded_data = np.array(embedded_data, dtype=np.float32)
                 except ValueError:
@@ -445,6 +463,54 @@ def extend_or_ingest_dataset(
             total_samples_processed=total_samples_processed,
             logger=logger,
         )
+
+
+import sys
+
+def get_size_of_list_strings(lst):
+    total_size = sys.getsizeof(lst)  # size of the list itself
+
+    for s in lst:
+        total_size += sys.getsizeof(s)  # size of each string
+
+    return total_size
+
+
+def chunk_by_bytes(data, target_byte_size=TARGET_BATCH_SIZE):
+    """
+    Splits a list of strings into chunks where each chunk has approximately the given target byte size.
+    
+    Args:
+    - strings (list of str): List of strings to be chunked.
+    - target_byte_size (int): The target byte size for each chunk.
+    
+    Returns:
+    - list of lists containing the chunked strings.
+    """
+    # Calculate byte sizes for all strings
+    sizes = [len(s.encode('utf-8')) for s in data]
+
+    chunks = []
+    current_chunk = []
+    current_chunk_size = 0
+    index = 0
+    
+    while index < len(data):
+        if current_chunk_size + sizes[index] > target_byte_size:
+            chunks.append(current_chunk)
+            current_chunk = []
+            current_chunk_size = 0
+            continue
+        current_chunk.append(data[index])
+        current_chunk_size += sizes[index]
+        index += 1
+
+    # Add the last chunk if it's not empty
+    if current_chunk:
+        chunks.append(current_chunk)
+    
+    return chunks
+
 
 
 def convert_id_to_row_id(ids, dataset, search_fn, query, exec_option, filter):
