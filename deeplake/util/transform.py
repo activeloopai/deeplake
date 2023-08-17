@@ -316,8 +316,7 @@ def _retrieve_memory_objects(all_chunk_engines):
 
 
 def store_data_slice_with_pbar(pg_callback, transform_input: Tuple) -> Dict:
-    rate_limiter, data_slice, offset, output_storage, inp = transform_input
-    rate_limiter.request()
+    data_slice, offset, output_storage, inp = transform_input
     (
         group_index,
         tensors,

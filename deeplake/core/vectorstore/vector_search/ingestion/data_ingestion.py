@@ -42,32 +42,20 @@ class DataIngestion:
         self.logger = logger
 
     def collect_batched_data(self, ingestion_byte_size=10000):
+        ingestion_batch_size = ingestion_batch_size or self.ingestion_batch_size
+        batch_size = min(ingestion_batch_size, len(self.elements))
+        if batch_size == 0:
+            raise ValueError("batch_size must be a positive number greater than zero.")
+        
         elements = self.elements
         if self.total_samples_processed:
             elements = self.elements[self.total_samples_processed :]
 
-        current_batch = []
-        current_byte_size = 0
-        batched = []
-        cumulative_length_to_idx = {0: 0}
-        cum_length = 0
-        
-        batched = chunk_by_bytes(elements)
-        
-        for idx, element in enumerate(elements):
-            element_size = sys.getsizeof(element)
-            
-            if current_byte_size + element_size > ingestion_byte_size:
-                current_batch = []
-                current_byte_size = 0
-            
-            current_batch.append(element)
-            current_byte_size += element_size
-            
-            cum_length += len(current_batch)
-            cumulative_length_to_idx[cum_length] = idx+1
+        batched = [
+             elements[i : i + batch_size] for i in range(0, len(elements), batch_size)
+         ]
 
-        return batched, cumulative_length_to_idx
+        return batched
 
     def get_num_workers(self, batched):
         return min(self.num_workers, len(batched) // max(self.num_workers, 1))
@@ -87,7 +75,7 @@ class DataIngestion:
         return checkpoint_interval
 
     def run(self):
-        batched_data, cumulative_length_to_idx = self.collect_batched_data()
+        batched_data = self.collect_batched_data()
         num_workers = self.get_num_workers(batched_data)
         checkpoint_interval = self.get_checkpoint_interval_and_batched_data(
             batched_data, num_workers=num_workers
@@ -97,7 +85,6 @@ class DataIngestion:
             batched=batched_data,
             num_workers=num_workers,
             checkpoint_interval=checkpoint_interval,
-            cumulative_length_to_idx=cumulative_length_to_idx,
         )
 
     def _ingest(
@@ -107,9 +94,6 @@ class DataIngestion:
         checkpoint_interval,
         cumulative_length_to_idx,
     ):
-        # Calculate the number of batches you can send each minute
-        avg_batch_size = get_size_of_list_strings(batched) / len(batched)
-        batches_per_minute = MAX_BYTES_PER_MINUTE / avg_batch_size
         try:
             ingest(
                 embedding_function=self.embedding_function,
@@ -119,7 +103,6 @@ class DataIngestion:
                 self.dataset,
                 num_workers=num_workers,
                 checkpoint_interval=checkpoint_interval,
-                requests_per_minute=batches_per_minute,
                 verbose=False,
             )
         except Exception as e:
@@ -128,14 +111,9 @@ class DataIngestion:
 
             self.retry_attempt += 1
             last_checkpoint = self.dataset.version_state["commit_node"].parent
-            current_idx = cumulative_length_to_idx[self.total_samples_processed]
-            slice_length = compute_length(
-                batched, 
-                start_idx=current_idx, 
-                # end_idx=last_checkpoint.total_samples_processed or 0
-                end_idx=0,
+            self.total_samples_processed += (
+                last_checkpoint.total_samples_processed * self.ingestion_batch_size
             )
-            self.total_samples_processed += slice_length
 
             index = int(self.total_samples_processed / self.ingestion_batch_size)
             if isinstance(e, TransformError) and e.index is not None:
@@ -169,10 +147,6 @@ class DataIngestion:
                 embedding_tensor=self.embedding_tensor,
             )
             data_ingestion.run()
-
-
-def compute_length(data: List[List[str]], start_idx: int, end_idx: int):
-    return sum([len(d) for d in data[start_idx:end_idx]])
 
 
 @deeplake.compute
@@ -209,50 +183,3 @@ def ingest(
                 sample_in_i[tensor] = np.array(emb, dtype=np.float32)
 
         sample_out.append(sample_in_i)
-
-
-import sys
-
-def get_size_of_list_strings(lst):
-    total_size = sys.getsizeof(lst)  # size of the list itself
-
-    for s in lst:
-        total_size += sys.getsizeof(s)  # size of each string
-
-    return total_size
-
-
-def chunk_by_bytes(data, target_byte_size=TARGET_BATCH_SIZE):
-    """
-    Splits a list of strings into chunks where each chunk has approximately the given target byte size.
-    
-    Args:
-    - strings (list of str): List of strings to be chunked.
-    - target_byte_size (int): The target byte size for each chunk.
-    
-    Returns:
-    - list of lists containing the chunked strings.
-    """
-    # Calculate byte sizes for all strings
-    sizes = [len(s.encode('utf-8')) for s in data]
-
-    chunks = []
-    current_chunk = []
-    current_chunk_size = 0
-    index = 0
-    
-    while index < len(data):
-        if current_chunk_size + sizes[index] > target_byte_size:
-            chunks.append(current_chunk)
-            current_chunk = []
-            current_chunk_size = 0
-            continue
-        current_chunk.append(data[index])
-        current_chunk_size += sizes[index]
-        index += 1
-
-    # Add the last chunk if it's not empty
-    if current_chunk:
-        chunks.append(current_chunk)
-    
-    return chunks
