@@ -42,7 +42,16 @@ def check_vdb_indexes(dataset):
             return True
     return False
 
-def validate_and_create_vector_index(dataset, vector_index_params, regenerate_index = False):
+
+def index_cache_cleanup(dataset):
+    tensors = dataset.tensors
+    for _, tensor in tensors.items():
+        is_embedding = tensor.htype == "embedding"
+        if is_embedding:
+            tensor.unload_index_cache()
+
+
+def validate_and_create_vector_index(dataset, vector_index_params, regenerate_index=False):
     threshold = vector_index_params.get("threshold", 1000000)
     if threshold <= 0:
         return False

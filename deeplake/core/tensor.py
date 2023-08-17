@@ -1484,6 +1484,26 @@ class Tensor:
             ts, b, index_type=index_meta["type"], distance_type=index_meta["distance"]
         )
 
+    def unload_index_cache(self):
+        if self.meta.htype != "embedding":
+            raise Exception(f"Only supported for embedding tensors.")
+        if not self.dataset.libdeeplake_dataset is None:
+            ds = self.dataset.libdeeplake_dataset
+        else:
+            from deeplake.enterprise.convert_to_libdeeplake import (
+                dataset_to_libdeeplake,
+            )
+
+            ds = dataset_to_libdeeplake(self.dataset)
+
+        ts = getattr(ds, self.meta.name)
+        from indra import api  # type: ignore
+        try:
+            api.vdb.unload_index_cache(ts)
+        except Exception as e:
+            raise Exception(f"An error occurred while cleaning VDB Cache: {e}")
+
+
     def get_vdb_indexes(self) -> List[Dict[str, str]]:
         if self.meta.htype != "embedding":
             raise Exception(f"Only supported for embedding tensors.")
