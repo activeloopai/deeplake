@@ -40,8 +40,6 @@ from deeplake.util.class_label import sync_labels
 from deeplake.constants import DEFAULT_TRANSFORM_SAMPLE_CACHE_SIZE
 
 import posixpath
-import time
-from threading import Lock
 
 
 class ComputeFunction:
@@ -296,7 +294,6 @@ class Pipeline:
                     ignore_errors,
                     **kwargs,
                 )
-
                 target_ds._send_compute_progress(**progress_args, status="success")
                 samples_processed += len_data_in(data_in)
                 completed = end

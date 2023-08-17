@@ -1,8 +1,11 @@
 import uuid
+import sys
+import time
+from math import ceil
 from typing import List, Dict, Any, Optional, Callable, Union
+from tqdm import tqdm
 
 import numpy as np
-from math import ceil
 
 try:
     from indra import api  # type: ignore
@@ -12,7 +15,6 @@ except ImportError:  # pragma: no cover
     _INDRA_INSTALLED = False  # pragma: no cover
 
 import deeplake
-from deeplake.constants import MB
 from deeplake.core.vectorstore.vector_search import utils
 from deeplake.core.vectorstore.vector_search.ingestion import ingest_data
 from deeplake.constants import (
@@ -20,12 +22,10 @@ from deeplake.constants import (
     VECTORSTORE_EXTEND_MAX_SIZE,
     DEFAULT_VECTORSTORE_TENSORS,
     VECTORSTORE_EXTEND_MAX_SIZE_BY_HTYPE,
+    MAX_BYTES_PER_MINUTE,
+    TARGET_BATCH_SIZE,
 )
 from deeplake.util.exceptions import IncorrectEmbeddingShapeError
-
-from tqdm import tqdm
-import time
-from deeplake.constants import MAX_BYTES_PER_MINUTE, TARGET_BATCH_SIZE
 
 
 def create_or_load_dataset(
@@ -465,9 +465,15 @@ def extend_or_ingest_dataset(
         )
 
 
-import sys
-
-def get_size_of_list_strings(lst):
+def get_size_of_list_strings(lst: List[str]):
+    """
+    Finds the total size of a list of strings in bytes.
+    
+    Args:
+        lst (list of str): List of strings to be measured.
+    Returns:
+        total_size: Total size of the list of strings in bytes.
+    """
     total_size = sys.getsizeof(lst)  # size of the list itself
 
     for s in lst:
@@ -510,7 +516,6 @@ def chunk_by_bytes(data, target_byte_size=TARGET_BATCH_SIZE):
         chunks.append(current_chunk)
     
     return chunks
-
 
 
 def convert_id_to_row_id(ids, dataset, search_fn, query, exec_option, filter):
