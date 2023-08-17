@@ -5,7 +5,6 @@ from typing import Optional, Any, Iterable, List, Dict, Union, Callable
 
 import numpy as np
 
-from deeplake.core.vector_index.distance_type import DistanceType
 from deeplake.util.dataset import try_flushing
 
 try:
@@ -23,7 +22,6 @@ from deeplake.core.vectorstore import utils
 from deeplake.core.vectorstore.vector_search import vector_search
 from deeplake.core.vectorstore.vector_search import dataset as dataset_utils
 from deeplake.core.vectorstore.vector_search import filter as filter_utils
-from deeplake.core.vectorstore.vector_search.indra import index
 
 from deeplake.util.bugout_reporter import (
     feature_report_path,
@@ -108,7 +106,6 @@ class VectorStoreBase(ABC):
     ):
         ...
 
-    @abstractmethod
     @staticmethod
     def delete_by_path(
         path: Union[str, pathlib.Path],

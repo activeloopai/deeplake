@@ -1,17 +1,9 @@
-from abc import ABC, abstractmethod
 import logging
 import pathlib
 from typing import Optional, Any, Iterable, List, Dict, Union, Callable
 
 import numpy as np
-from deeplake.util.exceptions import IncorrectEmbeddingShapeError
 
-try:
-    from indra import api  # type: ignore
-
-    _INDRA_INSTALLED = True
-except Exception:  # pragma: no cover
-    _INDRA_INSTALLED = False  # pragma: no cover
 
 import deeplake
 from deeplake.constants import (
@@ -19,7 +11,11 @@ from deeplake.constants import (
     VECTORSTORE_EXTEND_MAX_SIZE_BY_HTYPE,
     VECTORSTORE_EXTEND_MAX_SIZE,
 )
+from deeplake.util.exceptions import IncorrectEmbeddingShapeError
+from deeplake.client.managed_client import ManagedServiceClient
+
 from deeplake.core.vectorstore import utils
+from deeplake.core.vectorstore.vectorstores.vectorstore_base import VectorStoreBase
 from deeplake.core.vectorstore.vector_search import vector_search
 from deeplake.core.vectorstore.vector_search import dataset as dataset_utils
 from deeplake.core.vectorstore.vector_search import filter as filter_utils
@@ -32,9 +28,7 @@ from deeplake.util.bugout_reporter import (
 logger = logging.getLogger(__name__)
 
 
-class ManagedDBVectorStore(ABC):
-    """Base class for VectorStore"""
-
+class ManagedDBVectorStore:
     def __init__(
         self,
         path: Union[str, pathlib.Path],
@@ -44,16 +38,20 @@ class ManagedDBVectorStore(ABC):
         token: Optional[str] = None,
         overwrite: bool = False,
         verbose: bool = True,
-        creds: Optional[Union[Dict, str]] = None,
-        runtime: Dict = {"tensor_db": True},
         **kwargs: Any,
     ) -> None:
-        self.read_only = read_only
-        self.runtime = runtime
-        self.exec_option = "tensor_db"  # TODO: remove it, need to hadle all edge cases.
-        # TODO: add create_or_load request from backend
+        self._path = path
+        self.exec_option = "tensor_db"
+        self.read_only = True
+        self.client = ManagedServiceClient(token=token)
+        try:
+            mode = self.client.load_vectorstore(path, mode="r" if read_only else "w")
+            self.read_only = mode == "r"
+        except Exception:
+            self.read_only = True
 
-    @abstractmethod
+        self.embedding_function = embedding_function
+
     def add(
         self,
         embedding_function: Optional[Union[Callable, List[Callable]]] = None,
@@ -64,15 +62,6 @@ class ManagedDBVectorStore(ABC):
         num_workers: Optional[int] = None,
         **tensors,
     ) -> Optional[List[str]]:
-        (
-            embedding_function,
-            embedding_data,
-            embedding_tensor,
-            tensors,
-        ) = utils.parse_tensors_kwargs(
-            tensors, embedding_function, embedding_data, embedding_tensor
-        )
-
         (
             embedding_function,
             embedding_data,
@@ -119,7 +108,10 @@ class ManagedDBVectorStore(ABC):
                         raise ValueError("embedding function returned empty list")
 
                     processed_tensors[tensor] = embedded_data
-        # TODO: send processed_tensors to the backend
+        return processed_tensors
+        indices = self.client.extend_vectorstore(self._path, processed_tensors)
+        if return_ids:
+            return indices
 
     def search(
         self,
@@ -161,6 +153,7 @@ class ManagedDBVectorStore(ABC):
         # TODO: send delete_all and row_ids to backend.
         # delete_all and row_ids can't be used at the same time,
         # both of them can'be specified at the same time.
+        self.client.remove_vectorstore_indices(self._path, row_ids)
 
     def update_embedding(
         self,
@@ -203,15 +196,6 @@ class ManagedDBVectorStore(ABC):
             row_ids=row_ids,
         )
         # TODO: send embedding_tensor_data and row_ids to backend
-
-    @staticmethod
-    def delete_by_path(
-        path: Union[str, pathlib.Path],
-        token: Optional[str] = None,
-        creds: Optional[Union[Dict, str]] = None,
-    ) -> None:
-        # TODO: request to backend to delete the dataset
-        ...
 
     def commit(self, allow_empty: bool = True) -> None:
         # TODO: request to backend to commit the dataset
