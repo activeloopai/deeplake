@@ -435,6 +435,24 @@ def test_search_basic(local_path, hub_cloud_dev_token):
     assert data.embedding[0].numpy().size > 0
 
     data = vector_store.search(
+        embedding_function=embedding_fn3,
+        embedding_data="dummy",
+        return_view=True,
+        k=2,
+    )
+    assert len(data) == 2
+    assert isinstance(data.text[0].data()["value"], str)
+    assert data.embedding[0].numpy().size > 0
+
+    with pytest.raises(NotImplementedError):
+        data = vector_store.search(
+            embedding_function=embedding_fn3,
+            embedding_data=["dummy", "dummy2"],
+            return_view=True,
+            k=2,
+        )
+
+    data = vector_store.search(
         filter={"metadata": {"abcdefh": 1}},
         embedding=None,
         return_view=True,
@@ -553,6 +571,8 @@ def test_search_managed(hub_cloud_dev_token):
         embedding=query_embedding,
         exec_option="tensor_db",
     )
+
+    assert "vectordb/" in vector_store.dataset.base_storage.path
 
     assert len(data_ce["score"]) == len(data_db["score"])
     assert all(
@@ -1961,7 +1981,7 @@ def test_query_dim(local_path):
     )
 
     vector_store.add(text=texts, embedding=embeddings)
-    with pytest.raises(AssertionError):
+    with pytest.raises(NotImplementedError):
         vector_store.search([texts[0], texts[0]], embedding_fn3, k=1)
 
     vector_store.search([texts[0]], embedding_fn4, k=1)
