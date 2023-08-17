@@ -51,11 +51,13 @@ class DataIngestion:
         batched = []
         cumulative_length_to_idx = {0: 0}
         cum_length = 0
+        
+        batched = chunk_by_bytes(elements)
+        
         for idx, element in enumerate(elements):
             element_size = sys.getsizeof(element)
             
             if current_byte_size + element_size > ingestion_byte_size:
-                batched.append(current_batch)
                 current_batch = []
                 current_byte_size = 0
             
@@ -65,8 +67,6 @@ class DataIngestion:
             cum_length += len(current_batch)
             cumulative_length_to_idx[cum_length] = idx+1
 
-        if current_batch:
-            batched.append(current_batch)
         return batched, cumulative_length_to_idx
 
     def get_num_workers(self, batched):
@@ -220,3 +220,39 @@ def get_size_of_list_strings(lst):
         total_size += sys.getsizeof(s)  # size of each string
 
     return total_size
+
+
+def chunk_by_bytes(data, target_byte_size=TARGET_BATCH_SIZE):
+    """
+    Splits a list of strings into chunks where each chunk has approximately the given target byte size.
+    
+    Args:
+    - strings (list of str): List of strings to be chunked.
+    - target_byte_size (int): The target byte size for each chunk.
+    
+    Returns:
+    - list of lists containing the chunked strings.
+    """
+    # Calculate byte sizes for all strings
+    sizes = [len(s.encode('utf-8')) for s in data]
+
+    chunks = []
+    current_chunk = []
+    current_chunk_size = 0
+    index = 0
+    
+    while index < len(data):
+        if current_chunk_size + sizes[index] > target_byte_size:
+            chunks.append(current_chunk)
+            current_chunk = []
+            current_chunk_size = 0
+            continue
+        current_chunk.append(data[index])
+        current_chunk_size += sizes[index]
+        index += 1
+
+    # Add the last chunk if it's not empty
+    if current_chunk:
+        chunks.append(current_chunk)
+    
+    return chunks
