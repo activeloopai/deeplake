@@ -45,6 +45,10 @@ class VectorStore:
         vector_index_params: Dict[str, Union[int, str]] = {
             "threshold": 1000000,
             "distance_metric": "L2",
+            "additional_params": {
+                "efConstruction": 200,
+                "M": 16,
+            }
         },
         num_workers: int = 0,
         exec_option: str = "auto",
@@ -97,6 +101,7 @@ class VectorStore:
                     - If no value is provided, it defaults to "L2".
                     - "L2" corresponds to DistanceType.L2_NORM.
                     - "COS" corresponds to DistanceType.COSINE_SIMILARITY.
+                - additional params: Additional parameters for fine-tuning the index.
             exec_option (str): Default method for search execution. It could be either ``"auto"``, ``"python"``, ``"compute_engine"`` or ``"tensor_db"``. Defaults to ``"auto"``. If None, it's set to "auto".
                 - ``auto``- Selects the best execution method based on the storage location of the Vector Store. It is the default option.
                 - ``python`` - Pure-python implementation that runs on the client and can be used for data stored anywhere. WARNING: using this option with big datasets is discouraged because it can lead to memory issues.

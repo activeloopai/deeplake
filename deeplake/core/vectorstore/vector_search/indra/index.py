@@ -73,7 +73,13 @@ def validate_and_create_vector_index(dataset, vector_index_params, regenerate_in
         vdb_index_absent = len(tensor.meta.get_vdb_index_ids()) == 0
         if is_embedding and vdb_index_absent:
             distance_str = vector_index_params.get("distance_metric", "L2")
+            additional_params_dict = vector_index_params.get("additional_params", None)
             distance = get_index_metric(distance_str.upper())
-            tensor.create_vdb_index("hnsw_1", distance=distance)
+            if additional_params_dict and len(additional_params_dict) > 0:
+                tensor.create_vdb_index("hnsw_1",
+                                        distance=distance,
+                                        additional_params=additional_params_dict)
+            else:
+                tensor.create_vdb_index("hnsw_1", distance=distance)
 
     return True

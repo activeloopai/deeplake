@@ -1377,7 +1377,10 @@ class Tensor:
         self.dataset.libdeeplake_dataset = None
 
     def create_vdb_index(
-        self, id: str, distance: Union[DistanceType, str] = DistanceType.L2_NORM
+            self,
+            id: str,
+            distance: Union[DistanceType, str] = DistanceType.L2_NORM,
+            additional_params: Optional[Dict[str, int]] = None
     ):
         self.storage.check_readonly()
         if self.meta.htype != "embedding":
@@ -1395,11 +1398,12 @@ class Tensor:
 
         if type(distance) == DistanceType:
             distance = distance.value
-        self.meta.add_vdb_index(id=id, type="hnsw", distance=distance)
+        self.meta.add_vdb_index(id=id, type="hnsw", distance=distance, additional_params=additional_params)
         try:
-            index = api.vdb.generate_index(
-                ts, index_type="hnsw", distance_type=distance
-            )
+            if additional_params is None:
+                index = api.vdb.generate_index(ts, index_type="hnsw", distance_type=distance)
+            else:
+                index = api.vdb.generate_index(ts, index_type="hnsw", distance_type=distance, params=additional_params)
             b = index.serialize()
             commit_id = self.version_state["commit_id"]
             self.storage[get_tensor_vdb_index_key(self.key, commit_id, id)] = b
