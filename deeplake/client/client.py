@@ -1,6 +1,7 @@
 import deeplake
 import requests
 from typing import Any, Optional, Dict
+from deeplake.core.seed import DeeplakeRandom
 from deeplake.util.exceptions import (
     AgreementNotAcceptedError,
     AuthorizationException,
@@ -514,9 +515,4 @@ class DeepLakeBackendClient:
         """
         Get the seed used in library
         """
-        import numpy as np
-
-        try:
-            return np.random.get_state()[1][0]
-        except Exception:
-            return None
+        return DeeplakeRandom().get_seed()

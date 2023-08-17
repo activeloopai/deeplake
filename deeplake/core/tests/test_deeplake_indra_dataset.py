@@ -296,6 +296,8 @@ def test_query_tensors_polygon_htype_consistency(local_auth_ds_generator):
 @requires_libdeeplake
 def test_random_split_with_seed(local_auth_ds_generator):
     deeplake_ds = local_auth_ds_generator()
+    from deeplake.core.seed import DeeplakeRandom
+
     with deeplake_ds:
         deeplake_ds.create_tensor("label", htype="generic", dtype=np.int32)
         for i in range(1000):
@@ -304,17 +306,17 @@ def test_random_split_with_seed(local_auth_ds_generator):
     deeplake_indra_ds = deeplake_ds.query("SELECT * GROUP BY label")
 
     initial_state = np.random.get_state()
-    np.random.seed(100)
+    DeeplakeRandom().seed(100)
     split1 = deeplake_indra_ds.random_split([0.2, 0.2, 0.6])
     assert len(split1) == 3
     assert len(split1[0]) == 20
 
-    np.random.seed(101)
+    DeeplakeRandom().seed(101)
     split2 = deeplake_indra_ds.random_split([0.2, 0.2, 0.6])
     assert len(split2) == 3
     assert len(split2[0]) == 20
 
-    np.random.seed(100)
+    DeeplakeRandom().seed(100)
     split3 = deeplake_indra_ds.random_split([0.2, 0.2, 0.6])
     assert len(split3) == 3
     assert len(split3[0]) == 20
