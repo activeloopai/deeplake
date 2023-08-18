@@ -1,4 +1,5 @@
 import pytest
+import time
 import logging
 
 import numpy as np
@@ -11,6 +12,7 @@ from deeplake.constants import (
     DEFAULT_VECTORSTORE_TENSORS,
 )
 from deeplake.tests.common import requires_libdeeplake
+import json
 
 
 logger = logging.getLogger(__name__)
@@ -357,3 +359,63 @@ def test_create_elements(local_path):
         assert np.array_equal(elements[i]["id"], targ_elements[i]["id"])
         assert np.array_equal(elements[i]["embedding"], targ_elements[i]["embedding"])
         assert np.array_equal(elements[i]["metadata"], targ_elements[i]["metadata"])
+
+
+def test_rate_limited_send():
+    local_path = "./local_ds"
+
+    def mock_embedding_function(text):
+        return np.zeros((len(text), 10), dtype=np.float32)
+
+    dataset = deeplake.empty(local_path, overwrite=True)
+    dataset.create_tensor("ids", htype="text")
+    dataset.create_tensor("metadata", htype="json")
+    dataset.create_tensor("embedding", htype="embedding")
+    dataset.create_tensor("text", htype="text")
+
+    embedding_function = mock_embedding_function
+    embedding_function.__module__ = "langchain.embeddings.openai"
+
+    data = ["a" * 10000] * 10  # 10 chunks of 10 bytes
+    max_bytes_per_minute = 10000  # 100 bytes per minute
+
+    processed_tensors = {
+        "text": data,
+        "id": [i for i in range(len(data))],
+        "metadata": [{"a": 1} for i in range(len(data))],
+    }
+
+    start_time = time.time()
+    dataset_utils.extend(
+        embedding_function=[mock_embedding_function],
+        embedding_data=[data],
+        embedding_tensor=["embedding"],
+        processed_tensors=processed_tensors,
+        dataset=dataset,
+        max_bytes_per_minute=max_bytes_per_minute,
+    )
+    end_time = time.time()
+
+    elapsed_minutes = (end_time - start_time) / 60.0
+    expected_time = (
+        len(data) * 10 / max_bytes_per_minute
+    )  # each data chunk has 10 bytes
+
+    # Let's allow for a small tolerance since exact timing can be tricky
+    tolerance = 0.1  # for example, 0.1 minutes tolerance
+
+    assert (
+        abs(elapsed_minutes - expected_time) <= tolerance
+    ), "Rate limiting did not work as expected!"
+
+
+def test_chunk_by_bytest():
+    data = ["a" * 10000] * 10  # 10 chunks of 10000 bytes
+
+    batched_data = dataset_utils.chunk_by_bytes(data)
+    serialized_data = json.dumps(batched_data)
+    byte_size = len(serialized_data.encode("utf-8"))
+    list_wieght = 100
+    assert (
+        byte_size <= 100000 + list_wieght
+    ), "Chunking by bytes did not work as expected!"

@@ -23,7 +23,7 @@ from deeplake.constants import (
     DEFAULT_VECTORSTORE_TENSORS,
     VECTORSTORE_EXTEND_MAX_SIZE_BY_HTYPE,
     MAX_BYTES_PER_MINUTE,
-    TARGET_BATCH_SIZE,
+    TARGET_BYTE_SIZE,
 )
 from deeplake.util.exceptions import IncorrectEmbeddingShapeError
 
@@ -389,6 +389,64 @@ def update_embedding_info(logger, dataset, embedding_function):
     set_embedding_info(dataset[embeddings_tensors[0]], embedding_function)
 
 
+def extend(
+    embedding_function: List[Callable],
+    embedding_data: List[Any],
+    embedding_tensor: Union[str, List[str]],
+    processed_tensors: Dict[str, List[Any]],
+    dataset: deeplake.core.dataset.Dataset,
+    max_bytes_per_minute: int = MAX_BYTES_PER_MINUTE,
+    target_byte_size: int = TARGET_BYTE_SIZE,
+):
+    """
+    Function to extend the dataset with new data.
+
+    Args:
+        embedding_function (List[Callable]): List of embedding functions to be used to create embedding data.
+        embedding_data (List[Any]): List of data to be embedded.
+        embedding_tensor (Union[str, List[str]]): Name of the tensor(s) to store the embedding data.
+        processed_tensors (Dict[str, List[Any]]): Dictionary of tensors to be added to the dataset.
+        dataset (deeplake.core.dataset.Dataset): Dataset to be extended.
+
+
+    """
+    if embedding_function:
+        for func, data, tensor in zip(
+            embedding_function, embedding_data, embedding_tensor
+        ):
+            data_batched = chunk_by_bytes(data, target_byte_size=target_byte_size)
+
+            # Calculate the number of batches you can send each minute
+            batches_per_minute = max_bytes_per_minute / target_byte_size
+
+            # Calculate sleep time in seconds between batches
+            sleep_time = 60 / batches_per_minute
+
+            embedded_data = []
+
+            for data_i in tqdm(
+                data_batched, total=len(data_batched), desc="Creating embedding data"
+            ):
+                start = time.time()
+                embedded_data += func(data_i)
+                end = time.time()
+                if func.__module__ == "langchain.embeddings.openai":
+                    diff = sleep_time - (end - start)
+                    if diff > 0:
+                        time.sleep(diff)
+            try:
+                embedded_data = np.array(embedded_data, dtype=np.float32)
+            except ValueError:
+                raise IncorrectEmbeddingShapeError()
+
+            if len(embedded_data) == 0:
+                raise ValueError("embedding function returned empty list")
+
+            processed_tensors[tensor] = embedded_data
+
+    dataset.extend(processed_tensors)
+
+
 def extend_or_ingest_dataset(
     processed_tensors,
     dataset,
@@ -411,36 +469,13 @@ def extend_or_ingest_dataset(
     extend_threshold = min(threshold_by_htype + [VECTORSTORE_EXTEND_MAX_SIZE])
 
     if len(processed_tensors[first_item]) <= extend_threshold:
-        if embedding_function:
-            for func, data, tensor in zip(
-                embedding_function, embedding_data, embedding_tensor
-            ):
-                data_batched = chunk_by_bytes(data)
-                # Calculate average batch size
-                avg_batch_size = get_size_of_list_strings(data_batched) / len(data_batched)
-                
-                # Calculate the number of batches you can send each minute
-                batches_per_minute = MAX_BYTES_PER_MINUTE / avg_batch_size  
-                
-                # Calculate sleep time in seconds between batches
-                sleep_time = 60 / batches_per_minute        
-                    
-                embedded_data = []
-                
-                for data_i in tqdm(data_batched, total=len(data_batched), desc="Creating embedding data"):
-                    embedded_data += func(data_i)
-                    time.sleep(sleep_time)
-                try:
-                    embedded_data = np.array(embedded_data, dtype=np.float32)
-                except ValueError:
-                    raise IncorrectEmbeddingShapeError()
-
-                if len(embedded_data) == 0:
-                    raise ValueError("embedding function returned empty list")
-
-                processed_tensors[tensor] = embedded_data
-
-        dataset.extend(processed_tensors)
+        extend(
+            embedding_function,
+            embedding_data,
+            embedding_tensor,
+            processed_tensors,
+            dataset,
+        )
     else:
         elements = create_elements(processed_tensors)
 
@@ -465,10 +500,10 @@ def extend_or_ingest_dataset(
         )
 
 
-def get_size_of_list_strings(lst: List[str]):
+def total_size_get_size_of_list_strings(lst: List[str]):
     """
     Finds the total size of a list of strings in bytes.
-    
+
     Args:
         lst (list of str): List of strings to be measured.
     Returns:
@@ -477,30 +512,60 @@ def get_size_of_list_strings(lst: List[str]):
     total_size = sys.getsizeof(lst)  # size of the list itself
 
     for s in lst:
-        total_size += sys.getsizeof(s)  # size of each string
+        total_size += len(s.encode("utf-8"))  # size of each string
 
     return total_size
 
 
-def chunk_by_bytes(data, target_byte_size=TARGET_BATCH_SIZE):
+def deep_getsizeof(obj, seen=None):
+    """Recursively compute the memory size of an object and its references."""
+    if seen is None:
+        seen = set()
+
+    # If the object is already seen, return 0 to prevent infinite recursion
+    if id(obj) in seen:
+        return 0
+
+    seen.add(id(obj))
+
+    size = sys.getsizeof(obj)
+    if isinstance(obj, (list, tuple, set, dict)):
+        # Recursive case for containers
+        if isinstance(obj, dict):
+            # For dictionaries, check keys and values
+            for key, value in obj.items():
+                size += deep_getsizeof(key, seen)
+                size += deep_getsizeof(value, seen)
+        else:
+            # For other containers, check each item
+            for item in obj:
+                size += deep_getsizeof(item, seen)
+    elif hasattr(obj, "__dict__"):
+        # Handle custom objects
+        size += deep_getsizeof(obj.__dict__, seen)
+
+    return size
+
+
+def chunk_by_bytes(data, target_byte_size=TARGET_BYTE_SIZE):
     """
     Splits a list of strings into chunks where each chunk has approximately the given target byte size.
-    
+
     Args:
     - strings (list of str): List of strings to be chunked.
     - target_byte_size (int): The target byte size for each chunk.
-    
+
     Returns:
     - list of lists containing the chunked strings.
     """
     # Calculate byte sizes for all strings
-    sizes = [len(s.encode('utf-8')) for s in data]
+    sizes = [len(s.encode("utf-8")) for s in data]
 
     chunks = []
     current_chunk = []
     current_chunk_size = 0
     index = 0
-    
+
     while index < len(data):
         if current_chunk_size + sizes[index] > target_byte_size:
             chunks.append(current_chunk)
@@ -514,7 +579,7 @@ def chunk_by_bytes(data, target_byte_size=TARGET_BATCH_SIZE):
     # Add the last chunk if it's not empty
     if current_chunk:
         chunks.append(current_chunk)
-    
+
     return chunks
 
 

@@ -9,5 +9,6 @@ from deeplake.core.vectorstore.vector_search.dataset.dataset import (
     extend_or_ingest_dataset,
     convert_id_to_row_id,
     search_row_ids,
-    get_size_of_list_strings,
+    extend,
+    chunk_by_bytes,
 )

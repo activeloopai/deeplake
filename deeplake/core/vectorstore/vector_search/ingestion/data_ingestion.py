@@ -15,7 +15,7 @@ from deeplake.constants import (
     MAX_CHECKPOINTING_INTERVAL,
 )
 import sys
-from deeplake.constants import MAX_BYTES_PER_MINUTE, TARGET_BATCH_SIZE
+from deeplake.constants import MAX_BYTES_PER_MINUTE, TARGET_BYTE_SIZE
 
 
 class DataIngestion:
