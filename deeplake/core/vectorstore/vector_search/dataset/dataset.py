@@ -431,6 +431,7 @@ def extend(
                 embedded_data += func(data_i)
                 end = time.time()
                 if func.__module__ == "langchain.embeddings.openai":
+                    # we need to take into account the time spent on openai call
                     diff = sleep_time - (end - start)
                     if diff > 0:
                         time.sleep(diff)
