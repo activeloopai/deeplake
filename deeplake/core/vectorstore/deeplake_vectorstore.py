@@ -56,8 +56,9 @@ class VectorStore:
             ... )
 
             >>> # Create a vector store in the Deep Lake Managed Tensor Database
+            >>> # instead of "testingacc2" use your own org_name
             >>> data = VectorStore(
-            ...        path = "hub://org_id/dataset_name",
+            ...        path = "hub://testingacc2/dataset_name",
             ...        runtime = {"tensor_db": True},
             ... )
 
@@ -69,7 +70,8 @@ class VectorStore:
             ...                         {"name": "embedding_2", "htype": "embedding"},
             ...                         {"name": "source", "htype": "text"},
             ...                         {"name": "metadata", "htype": "json"}
-            ...                        ]
+            ...                        ],
+            ...        overwrite = True,
             ... )
 
         Args:
@@ -171,18 +173,24 @@ class VectorStore:
             >>> texts = ["Hello", "World"]
             >>> embeddings = [[1, 2, 3], [4, 5, 6]]
             >>> metadatas = [{"timestamp": "01:20"}, {"timestamp": "01:22"}]
-            >>> emebdding_fn = lambda x: [[1, 2, 3]] * len(x)
+            >>> embedding_fn = lambda x: [[1, 2, 3]] * len(x)
             >>> embedding_fn_2 = lambda x: [[4, 5]] * len(x)
+            >>> # initializing vectorstore:
+            >>> vector_store = VectorStore(
+            ...     path = "./my_vector_store",
+            ...     overwrite = True,
+            ...     verbose = False,
+            ... )
 
             >>> # Directly upload embeddings
-            >>> deeplake_vector_store.add(
+            >>> vector_store.add(
             ...     text = texts,
             ...     embedding = embeddings,
             ...     metadata = metadatas,
             ... )
 
             >>> # Upload embedding via embedding function
-            >>> deeplake_vector_store.add(
+            >>> vector_store.add(
             ...     text = texts,
             ...     metadata = metadatas,
             ...     embedding_function = embedding_fn,
@@ -190,31 +198,60 @@ class VectorStore:
             ... )
 
             >>> # Upload embedding via embedding function to a user-defined embedding tensor
-            >>> deeplake_vector_store.add(
+            >>> vector_store.add(
             ...     text = texts,
             ...     metadata = metadatas,
             ...     embedding_function = embedding_fn,
             ...     embedding_data = texts,
-            ...     embedding_tensor = "embedding_1",
+            ...     embedding_tensor = "embedding",
+            ... )
+
+            >>> # initializing vectorstore with multiple embeddings:
+            >>> vector_store = VectorStore(
+            ...     path = "./my_vector_store",
+            ...     overwrite = True,
+            ...     tensor_params = [
+            ...         {"name": "text", "htype": "text"},
+            ...         {"name": "embedding_1", "htype": "embedding"},
+            ...         {"name": "embedding_2", "htype": "embedding"},
+            ...         {"name": "id", "htype": "text"},
+            ...         {"name": "metadata", "htype": "json"}
+            ...     ],
+            ...     verbose = False,
             ... )
 
             >>> # Multiple embedding functions (user defined embedding tensors must be specified)
-            >>> deeplake_vector_store.add(
-            ...     embedding_tensor = ["embedding_1", "embedding_2"]
+            >>> vector_store.add(
+            ...     embedding_tensor = ["embedding_1", "embedding_2"],
             ...     embedding_function = [embedding_fn, embedding_fn_2],
             ...     embedding_data = [texts, texts],
+            ...     text = texts,
+            ...     metadata = metadatas,
             ... )
 
             >>> # Alternative syntax for multiple embedding functions
-            >>> deeplake_vector_store.add(
+            >>> vector_store.add(
             ...     text = texts,
             ...     metadata = metadatas,
-            ...     embedding_tensor_1 = (embedding_fn, texts),
-            ...     embedding_tensor_2 = (embedding_fn_2, texts),
+            ...     embedding_1 = (embedding_fn, texts),
+            ...     embedding_2 = (embedding_fn_2, texts),
+            ... )
+
+            >>> # initializing fully custom tensor dataset:
+            >>> vector_store = VectorStore(
+            ...     path = "./my_vector_store",
+            ...     overwrite = True,
+            ...     tensor_params = [
+            ...         {"name": "tensor_A"},
+            ...         {"name": "tensor_B", "htype": "text"},
+            ...         {"name": "tensor_C", "htype": "text"},
+            ...         {"name": "embedding_1", "htype": "embedding"},
+            ...     ],
+            ...     verbose = False,
             ... )
 
             >>> # Add data to fully custom tensors
-            >>> deeplake_vector_store.add(
+            >>> vector_store.add(
             ...     tensor_A = [1, 2],
             ...     tensor_B = ["a", "b"],
             ...     tensor_C = ["some", "data"],
@@ -316,30 +353,73 @@ class VectorStore:
         """VectorStore search method that combines embedding search, metadata search, and custom TQL search.
 
         Examples:
+            >>> embedding_fn = lambda x: [[1, 2, 3]] * len(x)
+            >>> # Dummy data
+            >>> id = [0, 1, 2, 3, 4]
+
+            >>> text = ["abc"] * 5
+
+            >>> embedding = [
+            ...     [1, 2, 3],
+            ...     [2, 3, 4],
+            ...     [3, 4, 5],
+            ...     [4, 5, 6],
+            ...     [5, 6, 7],
+            ... ]
+
+            >>> metadata = [
+            ...     {"abc": 1},
+            ...     {"abc": 2},
+            ...     {"abc": 3},
+            ...     {"abc": 4},
+            ...     {"abc": 5},
+            ... ]
+
+            >>> # creating vectorstore
+            >>> vector_store = VectorStore(
+            ...     "./my_vector_store",
+            ...     overwrite = True,
+            ...     verbose = False,
+            ... )
+
+            >>> vector_store.add(
+            ...     text = text,
+            ...     embedding = embedding,
+            ...     metadata = metadata,
+            ...     id = id,
+            ... )
+
             >>> # Search using an embedding
             >>> data = vector_store.search(
             ...        embedding = [1, 2, 3],
             ...        exec_option = "python",
             ... )
 
-            >>> # Search using an embedding function and data for embedding
-            >>> data = vector_store.search(
-            ...        embedding_data = "What does this chatbot do?",
-            ...        embedding_function = query_embedding_fn,
-            ...        exec_option = "compute_engine",
-            ... )
-
             >>> # Add a filter to your search
             >>> data = vector_store.search(
             ...        embedding = np.ones(3),
             ...        exec_option = "python",
-            ...        filter = {"json_tensor_name": {"key: value"}, "json_tensor_name_2": {"key_2: value_2"},...}, # Only valid for exec_option = "python"
+            ...        filter = {"metadata": {"abc": 1}}, # Only valid for exec_option = "python"
+            ... )
+
+            >>> # creating vectorstore on hub cloud
+            >>> vector_store = VectorStore(
+            ...        path = "hub://testingacc2/dataset_name",
+            ...        runtime = {"tensor_db": True},
+            ...        overwrite = True,
+            ...        verbose = False,
+            ... )
+
+            >>> vector_store.add(
+            ...     text = text,
+            ...     embedding = embedding,
+            ...     metadata = metadata,
+            ...     id = id,
             ... )
 
             >>> # Search using TQL
             >>> data = vector_store.search(
-            ...        query = "select * where ..... <add TQL syntax>",
-            ...        exec_option = "tensor_db", # Only valid for exec_option = "compute_engine" or "tensor_db"
+            ...        query = "select * where metadata['abc'] == 2",
             ... )
 
         Args:
@@ -438,228 +518,228 @@ class VectorStore:
             return_view=return_view,
         )
 
-    def delete(
-        self,
-        row_ids: Optional[List[str]] = None,
-        ids: Optional[List[str]] = None,
-        filter: Optional[Union[Dict, Callable]] = None,
-        query: Optional[str] = None,
-        exec_option: Optional[str] = None,
-        delete_all: Optional[bool] = None,
-    ) -> bool:
-        """Delete the data in the Vector Store. Does not delete the tensor definitions. To delete the vector store completely, first run :meth:`VectorStore.delete_by_path()`.
+    # def delete(
+    #     self,
+    #     row_ids: Optional[List[str]] = None,
+    #     ids: Optional[List[str]] = None,
+    #     filter: Optional[Union[Dict, Callable]] = None,
+    #     query: Optional[str] = None,
+    #     exec_option: Optional[str] = None,
+    #     delete_all: Optional[bool] = None,
+    # ) -> bool:
+    #     """Delete the data in the Vector Store. Does not delete the tensor definitions. To delete the vector store completely, first run :meth:`VectorStore.delete_by_path()`.
 
-        Examples:
-            >>> # Delete using ids:
-            >>> data = vector_store.delete(ids)
+    #     Examples:
+    #         >>> # Delete using ids:
+    #         >>> data = vector_store.delete(ids)
 
-            >>> # Delete data using filter
-            >>> data = vector_store.delete(
-            ...        filter = {"json_tensor_name": {"key: value"}, "json_tensor_name_2": {"key_2: value_2"}},
-            ... )
+    #         >>> # Delete data using filter
+    #         >>> data = vector_store.delete(
+    #         ...        filter = {"json_tensor_name": {"key: value"}, "json_tensor_name_2": {"key_2: value_2"}},
+    #         ... )
 
-            >>> # Delete data using TQL
-            >>> data = vector_store.delete(
-            ...        query = "select * where ..... <add TQL syntax>",
-            ...        exec_option = "compute_engine",
-            ... )
+    #         >>> # Delete data using TQL
+    #         >>> data = vector_store.delete(
+    #         ...        query = "select * where ..... <add TQL syntax>",
+    #         ...        exec_option = "compute_engine",
+    #         ... )
 
-        Args:
-            ids (Optional[List[str]]): List of unique ids. Defaults to None.
-            row_ids (Optional[List[str]]): List of absolute row indices from the dataset. Defaults to None.
-            filter (Union[Dict, Callable], optional): Filter for finding samples for deletion.
-                - ``Dict`` - Key-value search on tensors of htype json, evaluated on an AND basis (a sample must satisfy all key-value filters to be True) Dict = {"tensor_name_1": {"key": value}, "tensor_name_2": {"key": value}}
-                - ``Function`` - Any function that is compatible with `deeplake.filter`.
-            query (Optional[str]):  TQL Query string for direct evaluation for finding samples for deletion, without application of additional filters.
-            exec_option (Optional[str]): Method for search execution. It could be either ``"python"``, ``"compute_engine"`` or ``"tensor_db"``. Defaults to ``None``, which inherits the option from the Vector Store initialization.
-                - ``python`` - Pure-python implementation that runs on the client and can be used for data stored anywhere. WARNING: using this option with big datasets is discouraged because it can lead to memory issues.
-                - ``compute_engine`` - Performant C++ implementation of the Deep Lake Compute Engine that runs on the client and can be used for any data stored in or connected to Deep Lake. It cannot be used with in-memory or local datasets.
-                - ``tensor_db`` - Performant and fully-hosted Managed Tensor Database that is responsible for storage and query execution. Only available for data stored in the Deep Lake Managed Database. Store datasets in this database by specifying runtime = {"tensor_db": True} during dataset creation.
-            delete_all (Optional[bool]): Whether to delete all the samples and version history of the dataset. Defaults to None.
+    #     Args:
+    #         ids (Optional[List[str]]): List of unique ids. Defaults to None.
+    #         row_ids (Optional[List[str]]): List of absolute row indices from the dataset. Defaults to None.
+    #         filter (Union[Dict, Callable], optional): Filter for finding samples for deletion.
+    #             - ``Dict`` - Key-value search on tensors of htype json, evaluated on an AND basis (a sample must satisfy all key-value filters to be True) Dict = {"tensor_name_1": {"key": value}, "tensor_name_2": {"key": value}}
+    #             - ``Function`` - Any function that is compatible with `deeplake.filter`.
+    #         query (Optional[str]):  TQL Query string for direct evaluation for finding samples for deletion, without application of additional filters.
+    #         exec_option (Optional[str]): Method for search execution. It could be either ``"python"``, ``"compute_engine"`` or ``"tensor_db"``. Defaults to ``None``, which inherits the option from the Vector Store initialization.
+    #             - ``python`` - Pure-python implementation that runs on the client and can be used for data stored anywhere. WARNING: using this option with big datasets is discouraged because it can lead to memory issues.
+    #             - ``compute_engine`` - Performant C++ implementation of the Deep Lake Compute Engine that runs on the client and can be used for any data stored in or connected to Deep Lake. It cannot be used with in-memory or local datasets.
+    #             - ``tensor_db`` - Performant and fully-hosted Managed Tensor Database that is responsible for storage and query execution. Only available for data stored in the Deep Lake Managed Database. Store datasets in this database by specifying runtime = {"tensor_db": True} during dataset creation.
+    #         delete_all (Optional[bool]): Whether to delete all the samples and version history of the dataset. Defaults to None.
 
-        ..
-            # noqa: DAR101
+    #     ..
+    #         # noqa: DAR101
 
-        Returns:
-            bool: Returns True if deletion was successful, otherwise it raises a ValueError.
+    #     Returns:
+    #         bool: Returns True if deletion was successful, otherwise it raises a ValueError.
 
-        Raises:
-            ValueError: If neither ``ids``, ``filter``, ``query``, nor ``delete_all`` are specified, or if an invalid ``exec_option`` is provided.
-        """
+    #     Raises:
+    #         ValueError: If neither ``ids``, ``filter``, ``query``, nor ``delete_all`` are specified, or if an invalid ``exec_option`` is provided.
+    #     """
 
-        deeplake_reporter.feature_report(
-            feature_name="vs.delete",
-            parameters={
-                "ids": True if ids is not None else False,
-                "row_ids": True if row_ids is not None else False,
-                "query": query[0:100] if query is not None else False,
-                "filter": True if filter is not None else False,
-                "exec_option": exec_option,
-                "delete_all": delete_all,
-            },
-        )
+    #     deeplake_reporter.feature_report(
+    #         feature_name="vs.delete",
+    #         parameters={
+    #             "ids": True if ids is not None else False,
+    #             "row_ids": True if row_ids is not None else False,
+    #             "query": query[0:100] if query is not None else False,
+    #             "filter": True if filter is not None else False,
+    #             "exec_option": exec_option,
+    #             "delete_all": delete_all,
+    #         },
+    #     )
 
-        if not row_ids:
-            row_ids = dataset_utils.search_row_ids(
-                dataset=self.dataset,
-                search_fn=self.search,
-                ids=ids,
-                filter=filter,
-                query=query,
-                select_all=delete_all,
-                exec_option=exec_option or self.exec_option,
-            )
+    #     if not row_ids:
+    #         row_ids = dataset_utils.search_row_ids(
+    #             dataset=self.dataset,
+    #             search_fn=self.search,
+    #             ids=ids,
+    #             filter=filter,
+    #             query=query,
+    #             select_all=delete_all,
+    #             exec_option=exec_option or self.exec_option,
+    #         )
 
-        (
-            self.dataset,
-            dataset_deleted,
-        ) = dataset_utils.delete_all_samples_if_specified(
-            self.dataset,
-            delete_all,
-        )
-        if dataset_deleted:
-            return True
+    #     (
+    #         self.dataset,
+    #         dataset_deleted,
+    #     ) = dataset_utils.delete_all_samples_if_specified(
+    #         self.dataset,
+    #         delete_all,
+    #     )
+    #     if dataset_deleted:
+    #         return True
 
-        dataset_utils.delete_and_commit(self.dataset, row_ids)
-        return True
+    #     dataset_utils.delete_and_commit(self.dataset, row_ids)
+    #     return True
 
-    def update_embedding(
-        self,
-        row_ids: Optional[List[str]] = None,
-        ids: Optional[List[str]] = None,
-        filter: Optional[Union[Dict, Callable]] = None,
-        query: Optional[str] = None,
-        exec_option: Optional[str] = None,
-        embedding_function: Optional[Union[Callable, List[Callable]]] = None,
-        embedding_source_tensor: Union[str, List[str]] = "text",
-        embedding_tensor: Optional[Union[str, List[str]]] = None,
-    ):
-        """Recompute existing embeddings of the VectorStore, that match either query, filter, ids or row_ids.
+    # def update_embedding(
+    #     self,
+    #     row_ids: Optional[List[str]] = None,
+    #     ids: Optional[List[str]] = None,
+    #     filter: Optional[Union[Dict, Callable]] = None,
+    #     query: Optional[str] = None,
+    #     exec_option: Optional[str] = None,
+    #     embedding_function: Optional[Union[Callable, List[Callable]]] = None,
+    #     embedding_source_tensor: Union[str, List[str]] = "text",
+    #     embedding_tensor: Optional[Union[str, List[str]]] = None,
+    # ):
+    #     """Recompute existing embeddings of the VectorStore, that match either query, filter, ids or row_ids.
 
-        Examples:
-            >>> # Update using ids:
-            >>> data = vector_store.update(
-            ...    ids,
-            ...    embedding_source_tensor = "text",
-            ...    embedding_tensor = "embedding",
-            ...    embedding_unction = embedding_function,
-            ... )
+    #     Examples:
+    #         >>> # Update using ids:
+    #         >>> data = vector_store.update(
+    #         ...    ids,
+    #         ...    embedding_source_tensor = "text",
+    #         ...    embedding_tensor = "embedding",
+    #         ...    embedding_unction = embedding_function,
+    #         ... )
 
-            >>> # Update data using filter and several embedding_tensors, several embedding_source_tensors
-            >>> # and several embedding_functions:
-            >>> data = vector_store.update(
-            ...     embedding_source_tensor = ["text", "metadata"],
-            ...     embedding_function = ["text_embedding_function", "metadata_embedding_function"],
-            ...     filter = {"json_tensor_name": {"key: value"}, "json_tensor_name_2": {"key_2: value_2"}},
-            ...     embedding_tensor = ["text_embedding", "metadata_embedding"]
-            ... )
+    #         >>> # Update data using filter and several embedding_tensors, several embedding_source_tensors
+    #         >>> # and several embedding_functions:
+    #         >>> data = vector_store.update(
+    #         ...     embedding_source_tensor = ["text", "metadata"],
+    #         ...     embedding_function = ["text_embedding_function", "metadata_embedding_function"],
+    #         ...     filter = {"json_tensor_name": {"key: value"}, "json_tensor_name_2": {"key_2: value_2"}},
+    #         ...     embedding_tensor = ["text_embedding", "metadata_embedding"]
+    #         ... )
 
-            >>> # Update data using TQL, if new embedding function is not specified the embedding_function used
-            >>> # during initialization will be used
-            >>> data = vector_store.update(
-            ...     embedding_source_tensor = "text",
-            ...     query = "select * where ..... <add TQL syntax>",
-            ...     exec_option = "compute_engine",
-            ...     embedding_tensor = "embedding_tensor",
-            ... )
+    #         >>> # Update data using TQL, if new embedding function is not specified the embedding_function used
+    #         >>> # during initialization will be used
+    #         >>> data = vector_store.update(
+    #         ...     embedding_source_tensor = "text",
+    #         ...     query = "select * where ..... <add TQL syntax>",
+    #         ...     exec_option = "compute_engine",
+    #         ...     embedding_tensor = "embedding_tensor",
+    #         ... )
 
-        Args:
-            row_ids (Optional[List[str]], optional): Row ids of the elements for replacement.
-                Defaults to None.
-            ids (Optional[List[str]], optional): hash ids of the elements for replacement.
-                Defaults to None.
-            filter (Optional[Union[Dict, Callable]], optional): Filter for finding samples for replacement.
-                - ``Dict`` - Key-value search on tensors of htype json, evaluated on an AND basis (a sample must satisfy all key-value filters to be True) Dict = {"tensor_name_1": {"key": value}, "tensor_name_2": {"key": value}}
-                - ``Function`` - Any function that is compatible with `deeplake.filter`
-            query (Optional[str], optional): TQL Query string for direct evaluation for finding samples for deletion, without application of additional filters.
-                Defaults to None.
-            exec_option (Optional[str]): Method for search execution. It could be either ``"python"``, ``"compute_engine"`` or ``"tensor_db"``. Defaults to ``None``, which inherits the option from the Vector Store initialization.
-                - ``python`` - Pure-python implementation that runs on the client and can be used for data stored anywhere. WARNING: using this option with big datasets is discouraged because it can lead to memory issues.
-                - ``compute_engine`` - Performant C++ implementation of the Deep Lake Compute Engine that runs on the client and can be used for any data stored in or connected to Deep Lake. It cannot be used with in-memory or local datasets.
-                - ``tensor_db`` - Performant and fully-hosted Managed Tensor Database that is responsible for storage and query execution. Only available for data stored in the Deep Lake Managed Database. Store datasets in this database by specifying runtime = {"tensor_db": True} during dataset creation.
-            embedding_function (Optional[Union[Callable, List[Callable]]], optional): function for converting `embedding_source_tensor` into embedding. Only valid if `embedding_source_tensor` is specified. Defaults to None.
-            embedding_source_tensor (Union[str, List[str]], optional): Name of tensor with data that needs to be converted to embeddings. Defaults to `text`.
-            embedding_tensor (Optional[Union[str, List[str]]], optional): Name of the tensor with embeddings. Defaults to None.
-        """
-        deeplake_reporter.feature_report(
-            feature_name="vs.delete",
-            parameters={
-                "ids": True if ids is not None else False,
-                "row_ids": True if row_ids is not None else False,
-                "query": query[0:100] if query is not None else False,
-                "filter": True if filter is not None else False,
-                "exec_option": exec_option,
-            },
-        )
+    #     Args:
+    #         row_ids (Optional[List[str]], optional): Row ids of the elements for replacement.
+    #             Defaults to None.
+    #         ids (Optional[List[str]], optional): hash ids of the elements for replacement.
+    #             Defaults to None.
+    #         filter (Optional[Union[Dict, Callable]], optional): Filter for finding samples for replacement.
+    #             - ``Dict`` - Key-value search on tensors of htype json, evaluated on an AND basis (a sample must satisfy all key-value filters to be True) Dict = {"tensor_name_1": {"key": value}, "tensor_name_2": {"key": value}}
+    #             - ``Function`` - Any function that is compatible with `deeplake.filter`
+    #         query (Optional[str], optional): TQL Query string for direct evaluation for finding samples for deletion, without application of additional filters.
+    #             Defaults to None.
+    #         exec_option (Optional[str]): Method for search execution. It could be either ``"python"``, ``"compute_engine"`` or ``"tensor_db"``. Defaults to ``None``, which inherits the option from the Vector Store initialization.
+    #             - ``python`` - Pure-python implementation that runs on the client and can be used for data stored anywhere. WARNING: using this option with big datasets is discouraged because it can lead to memory issues.
+    #             - ``compute_engine`` - Performant C++ implementation of the Deep Lake Compute Engine that runs on the client and can be used for any data stored in or connected to Deep Lake. It cannot be used with in-memory or local datasets.
+    #             - ``tensor_db`` - Performant and fully-hosted Managed Tensor Database that is responsible for storage and query execution. Only available for data stored in the Deep Lake Managed Database. Store datasets in this database by specifying runtime = {"tensor_db": True} during dataset creation.
+    #         embedding_function (Optional[Union[Callable, List[Callable]]], optional): function for converting `embedding_source_tensor` into embedding. Only valid if `embedding_source_tensor` is specified. Defaults to None.
+    #         embedding_source_tensor (Union[str, List[str]], optional): Name of tensor with data that needs to be converted to embeddings. Defaults to `text`.
+    #         embedding_tensor (Optional[Union[str, List[str]]], optional): Name of the tensor with embeddings. Defaults to None.
+    #     """
+    #     deeplake_reporter.feature_report(
+    #         feature_name="vs.delete",
+    #         parameters={
+    #             "ids": True if ids is not None else False,
+    #             "row_ids": True if row_ids is not None else False,
+    #             "query": query[0:100] if query is not None else False,
+    #             "filter": True if filter is not None else False,
+    #             "exec_option": exec_option,
+    #         },
+    #     )
 
-        (
-            embedding_function,
-            embedding_source_tensor,
-            embedding_tensor,
-        ) = utils.parse_update_arguments(
-            dataset=self.dataset,
-            embedding_function=embedding_function,
-            initial_embedding_function=self.embedding_function,
-            embedding_source_tensor=embedding_source_tensor,
-            embedding_tensor=embedding_tensor,
-        )
+    #     (
+    #         embedding_function,
+    #         embedding_source_tensor,
+    #         embedding_tensor,
+    #     ) = utils.parse_update_arguments(
+    #         dataset=self.dataset,
+    #         embedding_function=embedding_function,
+    #         initial_embedding_function=self.embedding_function,
+    #         embedding_source_tensor=embedding_source_tensor,
+    #         embedding_tensor=embedding_tensor,
+    #     )
 
-        if not row_ids:
-            row_ids = dataset_utils.search_row_ids(
-                dataset=self.dataset,
-                search_fn=self.search,
-                ids=ids,
-                filter=filter,
-                query=query,
-                exec_option=exec_option or self.exec_option,
-            )
+    #     if not row_ids:
+    #         row_ids = dataset_utils.search_row_ids(
+    #             dataset=self.dataset,
+    #             search_fn=self.search,
+    #             ids=ids,
+    #             filter=filter,
+    #             query=query,
+    #             exec_option=exec_option or self.exec_option,
+    #         )
 
-        embedding_tensor_data = utils.convert_embedding_source_tensor_to_embeddings(
-            dataset=self.dataset,
-            embedding_source_tensor=embedding_source_tensor,
-            embedding_tensor=embedding_tensor,
-            embedding_function=embedding_function,
-            row_ids=row_ids,
-        )
+    #     embedding_tensor_data = utils.convert_embedding_source_tensor_to_embeddings(
+    #         dataset=self.dataset,
+    #         embedding_source_tensor=embedding_source_tensor,
+    #         embedding_tensor=embedding_tensor,
+    #         embedding_function=embedding_function,
+    #         row_ids=row_ids,
+    #     )
 
-        self.dataset[row_ids].update(embedding_tensor_data)
-        self.dataset.commit(allow_empty=True)
+    #     self.dataset[row_ids].update(embedding_tensor_data)
+    #     self.dataset.commit(allow_empty=True)
 
-    @staticmethod
-    def delete_by_path(
-        path: Union[str, pathlib.Path],
-        token: Optional[str] = None,
-        force: bool = False,
-    ) -> None:
-        """Deleted the Vector Store at the specified path.
+    # @staticmethod
+    # def delete_by_path(
+    #     path: Union[str, pathlib.Path],
+    #     token: Optional[str] = None,
+    #     force: bool = False,
+    # ) -> None:
+    #     """Deleted the Vector Store at the specified path.
 
-        Args:
-            path (str, pathlib.Path): The full path to the Deep Lake Vector Store.
-            token (str, optional): Activeloop token, used for fetching user credentials. This is optional, as tokens are normally autogenerated. Defaults to ``None``.
+    #     Args:
+    #         path (str, pathlib.Path): The full path to the Deep Lake Vector Store.
+    #         token (str, optional): Activeloop token, used for fetching user credentials. This is optional, as tokens are normally autogenerated. Defaults to ``None``.
 
-        Danger:
-            This method permanently deletes all of your data if the Vector Store exists! Be very careful when using this method.
-        """
+    #     Danger:
+    #         This method permanently deletes all of your data if the Vector Store exists! Be very careful when using this method.
+    #     """
 
-        feature_report_path(
-            path,
-            "vs.delete_by_path",
-            {},
-            token=token,
-        )
-        deeplake.delete(path, large_ok=True, token=token, force=force)
+    #     feature_report_path(
+    #         path,
+    #         "vs.delete_by_path",
+    #         {},
+    #         token=token,
+    #     )
+    #     deeplake.delete(path, large_ok=True, token=token, force=force)
 
-    def tensors(self):
-        """Returns the list of tensors present in the dataset"""
-        return self.dataset.tensors
+    # def tensors(self):
+    #     """Returns the list of tensors present in the dataset"""
+    #     return self.dataset.tensors
 
-    def summary(self):
-        """Prints a summary of the dataset"""
-        return self.dataset.summary()
+    # def summary(self):
+    #     """Prints a summary of the dataset"""
+    #     return self.dataset.summary()
 
-    def __len__(self):
-        """Length of the dataset"""
-        return len(self.dataset)
+    # def __len__(self):
+    #     """Length of the dataset"""
+    #     return len(self.dataset)
 
 
 DeepLakeVectorStore = VectorStore
