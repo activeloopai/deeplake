@@ -501,53 +501,6 @@ def extend_or_ingest_dataset(
         )
 
 
-def total_size_get_size_of_list_strings(lst: List[str]):
-    """
-    Finds the total size of a list of strings in bytes.
-
-    Args:
-        lst (list of str): List of strings to be measured.
-    Returns:
-        total_size: Total size of the list of strings in bytes.
-    """
-    total_size = sys.getsizeof(lst)  # size of the list itself
-
-    for s in lst:
-        total_size += len(s.encode("utf-8"))  # size of each string
-
-    return total_size
-
-
-def deep_getsizeof(obj, seen=None):
-    """Recursively compute the memory size of an object and its references."""
-    if seen is None:
-        seen = set()
-
-    # If the object is already seen, return 0 to prevent infinite recursion
-    if id(obj) in seen:
-        return 0
-
-    seen.add(id(obj))
-
-    size = sys.getsizeof(obj)
-    if isinstance(obj, (list, tuple, set, dict)):
-        # Recursive case for containers
-        if isinstance(obj, dict):
-            # For dictionaries, check keys and values
-            for key, value in obj.items():
-                size += deep_getsizeof(key, seen)
-                size += deep_getsizeof(value, seen)
-        else:
-            # For other containers, check each item
-            for item in obj:
-                size += deep_getsizeof(item, seen)
-    elif hasattr(obj, "__dict__"):
-        # Handle custom objects
-        size += deep_getsizeof(obj.__dict__, seen)
-
-    return size
-
-
 def chunk_by_bytes(data, target_byte_size=TARGET_BYTE_SIZE):
     """
     Splits a list of strings into chunks where each chunk has approximately the given target byte size.
