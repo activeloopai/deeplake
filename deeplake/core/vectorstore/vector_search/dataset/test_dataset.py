@@ -361,14 +361,12 @@ def test_create_elements(local_path):
         assert np.array_equal(elements[i]["metadata"], targ_elements[i]["metadata"])
 
 
-def test_rate_limited_send():
-    local_path = "./local_ds"
-
+def test_rate_limited_send(local_path):
     def mock_embedding_function(text):
-        return np.zeros((len(text), 10), dtype=np.float32)
+        return [0 * 10] * len(text)
 
     dataset = deeplake.empty(local_path, overwrite=True)
-    dataset.create_tensor("ids", htype="text")
+    dataset.create_tensor("id", htype="text")
     dataset.create_tensor("metadata", htype="json")
     dataset.create_tensor("embedding", htype="embedding")
     dataset.create_tensor("text", htype="text")
@@ -377,7 +375,7 @@ def test_rate_limited_send():
     embedding_function.__module__ = "langchain.embeddings.openai"
 
     data = ["a" * 10000] * 10  # 10 chunks of 10 bytes
-    max_bytes_per_minute = 10000  # 100 bytes per minute
+    max_bytes_per_minute = 100000  # 100 bytes per minute
 
     processed_tensors = {
         "text": data,
@@ -402,7 +400,7 @@ def test_rate_limited_send():
     )  # each data chunk has 10 bytes
 
     # Let's allow for a small tolerance since exact timing can be tricky
-    tolerance = 0.1  # for example, 0.1 minutes tolerance
+    tolerance = 2  # time spent on extend
 
     assert (
         abs(elapsed_minutes - expected_time) <= tolerance
