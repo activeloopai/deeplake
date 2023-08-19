@@ -29,7 +29,7 @@ def test_default_query_message(hub_cloud_ds_generator):
     dsv.save_view(id="test_1")
 
     ds = hub_cloud_ds_generator()
-    message = ds.get_view("test_1")
+    message = ds.get_view("test_1").message
     assert message == query_string
 
     query_string = "SELECT * WHERE " + " OR ".join(
@@ -39,7 +39,7 @@ def test_default_query_message(hub_cloud_ds_generator):
     dsv.save_view(id="test_2")
 
     ds = hub_cloud_ds_generator()
-    message = ds.get_view("test_2")
+    message = ds.get_view("test_2").message
     assert message == query_string[: QUERY_MESSAGE_MAX_SIZE - 3] + "..."
 
 
