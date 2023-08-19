@@ -23,6 +23,7 @@ def test_default_query_message(hub_cloud_ds_generator):
         ds.create_tensor("label")
         for i in range(100):
             ds.label.append(floor(i / 20))
+        ds.commit()
 
     query_string = "SELECT * WHERE CONTAINS(label, 2)"
     dsv = ds.query(query_string)
