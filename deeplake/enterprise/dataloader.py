@@ -137,6 +137,8 @@ class DeepLakeDataLoader(DataLoader):
         self._IterableDataset_len_called = None
         self._iterator = None
 
+        self._worker_init_fn = None
+
     @property
     def batch_size(self):
         return self._batch_size or 1
@@ -167,7 +169,11 @@ class DeepLakeDataLoader(DataLoader):
 
     @property
     def worker_init_fn(self):
-        return None
+        return self._worker_init_fn
+
+    @worker_init_fn.setter
+    def worker_init_fn(self, fn):
+        self._worker_init_fn = fn
 
     @property  # type: ignore
     def multiprocessing_context(self):
