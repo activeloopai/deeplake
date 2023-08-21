@@ -428,7 +428,7 @@ def extend(
                 data_batched, total=len(data_batched), desc="Creating embedding data"
             ):
                 start = time.time()
-                embedded_data += func(data_i)
+                embedded_data.append(func(data_i))
                 end = time.time()
                 if func.__module__ == "langchain.embeddings.openai":
                     # we need to take into account the time spent on openai call
@@ -436,7 +436,7 @@ def extend(
                     if diff > 0:
                         time.sleep(diff)
             try:
-                embedded_data = np.array(embedded_data, dtype=np.float32)
+                embedded_data = np.vstack(embedded_data, dtype=np.float32)
             except ValueError:
                 raise IncorrectEmbeddingShapeError()
 

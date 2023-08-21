@@ -46,23 +46,23 @@ class DataIngestion:
         batch_size = min(ingestion_batch_size, len(self.elements))
         if batch_size == 0:
             raise ValueError("batch_size must be a positive number greater than zero.")
-        
+
         elements = self.elements
         if self.total_samples_processed:
             elements = self.elements[self.total_samples_processed :]
 
         batched = [
-             elements[i : i + batch_size] for i in range(0, len(elements), batch_size)
-         ]
+            elements[i : i + batch_size] for i in range(0, len(elements), batch_size)
+        ]
 
         if self.logger:
-             batch_upload_str = f"Batch upload: {len(elements)} samples are being uploaded in {len(batched)} batches of batch size {batch_size}"
-             if self.total_samples_processed:
-                 batch_upload_str = (
-                     f"Batch reupload: {len(self.elements)-len(elements)} samples already uploaded, while "
-                     f"{len(elements)} samples are being uploaded in {len(batched)} batches of batch size {batch_size}"
-                 )
-             self.logger.warning(batch_upload_str)
+            batch_upload_str = f"Batch upload: {len(elements)} samples are being uploaded in {len(batched)} batches of batch size {batch_size}"
+            if self.total_samples_processed:
+                batch_upload_str = (
+                    f"Batch reupload: {len(self.elements)-len(elements)} samples already uploaded, while "
+                    f"{len(elements)} samples are being uploaded in {len(batched)} batches of batch size {batch_size}"
+                )
+            self.logger.warning(batch_upload_str)
         return batched
 
     def get_num_workers(self, batched):
@@ -100,7 +100,6 @@ class DataIngestion:
         batched,
         num_workers,
         checkpoint_interval,
-        cumulative_length_to_idx,
     ):
         try:
             ingest(
