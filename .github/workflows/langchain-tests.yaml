@@ -1,0 +1,36 @@
+name: Langchain Tests
+
+permissions:
+  contents: read
+  id-token: write
+
+on:
+  schedule:
+    - cron: '0 4 * * *'
+  workflow_dispatch: {}
+
+jobs:
+  cron:
+    runs-on: ubuntu-latest
+    steps:
+      - name: checkout
+        uses: actions/checkout@v3
+        with:
+          ref: ${{ github.sha }}
+
+      - name: Configure AWS Credentials
+        uses: aws-actions/configure-aws-credentials@v2
+        with:
+          role-to-assume: ${{ secrets.aws_role_arn }}
+          aws-region: us-east-1
+          role-duration-seconds: 21600
+          role-session-name: deeplake-${{ github.sha }}
+
+      - name: Run tests script
+        working-directory: .github/langchain-tests
+        env:
+          ACTIVELOOP_TOKEN: ${{ secrets.ACTIVELOOP_TOKEN }}
+          OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
+          BUCKET: ${{ secrets.AWS_S3_BUCKET }}         
+        run: |
+          bash order_of_runing.sh
