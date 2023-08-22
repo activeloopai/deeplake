@@ -339,7 +339,7 @@ def test_search_basic(local_path, hub_cloud_dev_token):
         embedding=query_embedding,
         exec_option="compute_engine",
         k=2,
-        return_tensors=["ids", "text"],
+        return_tensors=["id", "text"],
         filter={
             "metadata": vector_store_cloud.dataset.metadata[0].data()["value"],
             "text": vector_store_cloud.dataset.text[0].data()["value"],
