@@ -119,22 +119,23 @@ class Spinner(threading.Thread):
             pass
 
     def _clear_line(self):
-        if self.file.isatty():
-            # ANSI Control Sequence EL does not work in Jupyter
-            self.file.write("\r\033[K")
-        else:
-            fill = " " * self._cur_line_len
-            self.file.write(f"\r{fill}\r")
-        self._cur_line_len = 0
+        if not self.file.closed:
+            if self.file.isatty():
+                # ANSI Control Sequence EL does not work in Jupyter
+                self.file.write("\r\033[K")
+            else:
+                fill = " " * self._cur_line_len
+                self.file.write(f"\r{fill}\r")
+            self._cur_line_len = 0
 
     def _hide_cursor(self):
-        if self.file.isatty():
+        if not self.file.closed and self.file.isatty():
             # ANSI Control Sequence DECTCEM 1 does not work in Jupyter
             self.file.write("\033[?25l")
             self.file.flush()
 
     def _show_cursor(self):
-        if self.file.isatty():
+        if not self.file.closed and self.file.isatty():
             # ANSI Control Sequence DECTCEM 2 does not work in Jupyter
             self.file.write("\033[?25h")
             self.file.flush()
