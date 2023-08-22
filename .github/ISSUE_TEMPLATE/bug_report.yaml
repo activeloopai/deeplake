@@ -62,7 +62,7 @@ body:
   - type: input
     attributes:
       label: Packages
-      placeholders: "Example: Tensorflow==2.1.2 - latest"
+      placeholder: "Example: Tensorflow==2.1.2 - latest"
 
   - type: textarea
     attributes:
