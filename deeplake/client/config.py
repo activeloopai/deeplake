@@ -30,6 +30,7 @@ REMOTE_QUERY_SUFFIX = "/api/query/dataset/{}/{}"
 
 # ManagedService Endpoints
 LOAD_VECTORSTORE_SUFFIX = "/api/dlserver/vectorstore"
+GET_VECTORSTORE_SUMMARY_SUFFIX = "/api/dlserver/vectorstore/summary"
 CREATE_VECTORSTORE_SUFFIX = "/api/dlserver/vectorstore"
 DELETE_VECTORSTORE_SUFFIX = "/api/dlserver/vectorstore/delete"
 

@@ -2,7 +2,11 @@ from requests import Response
 from typing import Dict, List, Any
 
 from deeplake.client.client import DeepLakeBackendClient
+from deeplake.client.utils import (
+    check_response_status,
+)
 from deeplake.client.config import (
+    GET_VECTORSTORE_SUMMARY_SUFFIX,
     LOAD_VECTORSTORE_SUFFIX,
     CREATE_VECTORSTORE_SUFFIX,
     DELETE_VECTORSTORE_SUFFIX,
@@ -23,9 +27,20 @@ class ManagedServiceClient(DeepLakeBackendClient):
             relative_url=LOAD_VECTORSTORE_SUFFIX,
             params={"path": path, "mode": mode},
         )
+        check_response_status(response)
         response = response.json()
 
         return response["mode"]
+
+    def get_vectorstore_summary(self, path: str):
+        response = self.request(
+            method="GET",
+            relative_url=LOAD_VECTORSTORE_SUFFIX,
+            params={"path": path},
+        )
+        response = response.json()
+
+        return response
 
     def create_vectorstore(self, path: str, tensor_params: List[Dict[str, Any]]):
         response = self.request(
