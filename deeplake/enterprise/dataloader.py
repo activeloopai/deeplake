@@ -174,6 +174,8 @@ class DeepLakeDataLoader(DataLoader):
     @worker_init_fn.setter
     def worker_init_fn(self, fn):
         self._worker_init_fn = fn
+        if self._dataloader is not None:
+            self._dataloader.worker_init_fn = fn
 
     @property  # type: ignore
     def multiprocessing_context(self):
@@ -702,10 +704,16 @@ class DeepLakeDataLoader(DataLoader):
                     htype_dict=htype_dict,
                     ndim_dict=ndim_dict,
                     tensor_info_dict=tensor_info_dict,
+                    worker_init_fn=self.worker_init_fn
                 )
         dataset_read(self._orig_dataset)
         return iter(self._dataloader)
+        # return self
 
+    def __next__(self):
+        if self._dataloader is None:
+            self.__iter__()
+        return next(self._dataloader)
 
 def dataloader(dataset, ignore_errors: bool = False) -> DeepLakeDataLoader:
     """Returns a :class:`~deeplake.enterprise.dataloader.DeepLakeDataLoader` object which can be transformed to either pytorch dataloader or numpy.
