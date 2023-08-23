@@ -1,4 +1,5 @@
 import pytest
+import sys
 import time
 import logging
 
@@ -362,6 +363,10 @@ def test_create_elements(local_path):
         assert np.array_equal(elements[i]["metadata"], targ_elements[i]["metadata"])
 
 
+@pytest.mark.skipif(
+    sys.platform != "linux",
+    reason="Sometimes MacOS fails this test due to speed issues",
+)
 def test_rate_limited_send(local_path):
     def mock_embedding_function(text):
         return [0 * 10] * len(text)
