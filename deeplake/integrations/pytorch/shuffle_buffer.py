@@ -1,6 +1,5 @@
 from typing import List, Any, Sequence
-import random
-from random import randrange
+from random import Random
 from functools import reduce
 from operator import mul
 import numpy as np
@@ -32,7 +31,7 @@ class ShuffleBuffer:
         if size <= 0:
             raise ValueError("Buffer size should be positive value more than zero")
         from deeplake.core.seed import DeeplakeRandom
-        random.seed(DeeplakeRandom().get_seed())
+        self.random = Random(DeeplakeRandom().get_seed())
         self.size = size
         self.buffer: List[Any] = list()
         self.buffer_used = 0
@@ -85,7 +84,7 @@ class ShuffleBuffer:
                 return sample
 
             # exchange samples with shuffle buffer
-            selected = randrange(buffer_len)
+            selected = self.random.randrange(buffer_len)
             val = self.buffer[selected]
             self.buffer[selected] = sample
 
@@ -99,7 +98,7 @@ class ShuffleBuffer:
                 self.close_buffer_pbar()
             if buffer_len > 0:
                 # return random selection
-                selected = randrange(buffer_len)
+                selected = self.random.randrange(buffer_len)
                 val = self.buffer.pop(selected)
                 self.buffer_used -= self._sample_size(val)
 
