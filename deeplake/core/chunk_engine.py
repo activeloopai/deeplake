@@ -2054,7 +2054,7 @@ class ChunkEngine:
                     dtype = self.tensor_meta.dtype
 
                     data_bytes = bytearray(chunk.data_bytes)
-                    self.cached_data = np.frombuffer(data_bytes, dtype).reshape(
+                    self.cached_data = np.frombuffer(data_bytes, dtype, self.tensor_meta.length).reshape(
                         full_shape
                     )
                     self.cache_range = range(first_sample, last_sample + 1)
