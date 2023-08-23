@@ -44,6 +44,10 @@ def check_vdb_indexes(dataset):
 
 
 def index_cache_cleanup(dataset):
+    # Gdrive and In memory datasets are not supported for libdeeplake
+    if dataset.path.startswith("gdrive://") or dataset.path.startswith("mem://"):
+        return
+
     tensors = dataset.tensors
     for _, tensor in tensors.items():
         is_embedding = tensor.htype == "embedding"
