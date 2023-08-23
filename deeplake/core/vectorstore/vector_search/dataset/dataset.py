@@ -395,8 +395,6 @@ def extend(
     embedding_tensor: Union[str, List[str]],
     processed_tensors: Dict[str, List[Any]],
     dataset: deeplake.core.dataset.Dataset,
-    max_bytes_per_minute: int = MAX_BYTES_PER_MINUTE,
-    target_byte_size: int = TARGET_BYTE_SIZE,
 ):
     """
     Function to extend the dataset with new data.
@@ -408,16 +406,15 @@ def extend(
         processed_tensors (Dict[str, List[Any]]): Dictionary of tensors to be added to the dataset.
         dataset (deeplake.core.dataset.Dataset): Dataset to be extended.
 
-
     """
     if embedding_function:
         for func, data, tensor in zip(
             embedding_function, embedding_data, embedding_tensor
         ):
-            data_batched = chunk_by_bytes(data, target_byte_size=target_byte_size)
+            data_batched = chunk_by_bytes(data, target_byte_size=TARGET_BYTE_SIZE)
 
             # Calculate the number of batches you can send each minute
-            batches_per_minute = max_bytes_per_minute / target_byte_size
+            batches_per_minute = MAX_BYTES_PER_MINUTE / TARGET_BYTE_SIZE
 
             # Calculate sleep time in seconds between batches
             sleep_time = 60 / batches_per_minute
