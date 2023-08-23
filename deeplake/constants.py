@@ -254,3 +254,6 @@ MAX_BYTES_PER_MINUTE = (
     0.9 * OPENAI_TOKEN_SIZE * OPENAI_ADA_MAX_TOKENS_PER_MINUTE
 )  # 0.9 is a safety factor
 TARGET_BYTE_SIZE = 10000
+
+# Maximum default message length for saving query views
+QUERY_MESSAGE_MAX_SIZE = 1000

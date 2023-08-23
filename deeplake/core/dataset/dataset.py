@@ -45,6 +45,7 @@ from deeplake.constants import (
     SAMPLE_INFO_TENSOR_MAX_CHUNK_SIZE,
     DEFAULT_READONLY,
     ENV_HUB_DEV_USERNAME,
+    QUERY_MESSAGE_MAX_SIZE,
 )
 from deeplake.core.fast_forwarding import ffw_dataset_meta
 from deeplake.core.index import Index
@@ -246,6 +247,7 @@ class Dataset:
         d["_lock_timeout"] = lock_timeout
         d["_temp_tensors"] = []
         d["_vc_info_updated"] = True
+        d["_query_string"] = None
         dct = self.__dict__
         dct.update(d)
 
@@ -2290,7 +2292,15 @@ class Dataset:
 
         from deeplake.enterprise import query
 
-        return query(self, query_string)
+        result = query(self, query_string)
+
+        if len(query_string) > QUERY_MESSAGE_MAX_SIZE:
+            message = query_string[: QUERY_MESSAGE_MAX_SIZE - 3] + "..."
+        else:
+            message = query_string
+        result._query_string = message
+
+        return result
 
     def sample_by(
         self,
@@ -3512,7 +3522,7 @@ class Dataset:
         return self._save_view(
             path,
             id,
-            message,
+            message or self._query_string,
             optimize,
             tensors,
             num_workers,

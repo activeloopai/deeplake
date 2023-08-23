@@ -209,3 +209,13 @@ def test_read_from_full_url(storage, color_image_paths):
     storage["sample/samplejpg.jpg"] = byts
     data = storage.get_object_from_full_url(f"{storage.root}/sample/samplejpg.jpg")
     assert byts == data
+
+
+def test_azure_storage_clear(azure_storage):
+    for i in range(257):
+        key = f"test_{i}"
+        azure_storage[key] = "123"
+
+    azure_storage.clear()
+
+    assert len(azure_storage) == 0
