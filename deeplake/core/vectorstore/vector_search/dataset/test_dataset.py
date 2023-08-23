@@ -12,6 +12,7 @@ from deeplake.constants import (
     DEFAULT_VECTORSTORE_TENSORS,
 )
 from deeplake.tests.common import requires_libdeeplake
+from deeplake.constants import MAX_BYTES_PER_MINUTE
 import json
 
 
@@ -374,8 +375,7 @@ def test_rate_limited_send(local_path):
     embedding_function = mock_embedding_function
     embedding_function.__module__ = "langchain.embeddings.openai"
 
-    data = ["a" * 10000] * 10  # 10 chunks of 10 bytes
-    max_bytes_per_minute = 100000  # 100 bytes per minute
+    data = ["a" * 10000] * 100  # 100 chunks of 10000 bytes
 
     processed_tensors = {
         "text": data,
@@ -390,13 +390,12 @@ def test_rate_limited_send(local_path):
         embedding_tensor=["embedding"],
         processed_tensors=processed_tensors,
         dataset=dataset,
-        max_bytes_per_minute=max_bytes_per_minute,
     )
     end_time = time.time()
 
-    elapsed_minutes = (end_time - start_time) / 60.0
-    expected_time = (
-        len(data) * 10 / max_bytes_per_minute
+    elapsed_minutes = end_time - start_time
+    expected_time = 60 * (
+        len(data) * 10000 / MAX_BYTES_PER_MINUTE
     )  # each data chunk has 10 bytes
 
     # Let's allow for a small tolerance since exact timing can be tricky
