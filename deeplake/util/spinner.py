@@ -55,7 +55,6 @@ def run_spinner(spinner):
         yield
     finally:
         if spinner_started:
-            spinner._show_cursor()
             spinner.stop()
             sys.stdout = save_stdout
             sys.stderr = save_stderr
@@ -74,21 +73,25 @@ class Spinner(threading.Thread):
         self.file = sys.stderr
 
     def run(self):
-        time.sleep(deeplake.constants.SPINNER_START_DELAY)
-        frames = cycle("/-\\|")
-        if not self._hide_event.is_set():
-            self._hide_cursor()
-        while not self._stop_event.is_set():
-            if self._hide_event.is_set():
-                time.sleep(0.1)
-                continue
-            with self._stderr_lock:
-                self._clear_line()
-                self.file.write(next(frames))
-                self.file.flush()
-                self._cur_line_len = 1
+        try:
+            time.sleep(deeplake.constants.SPINNER_START_DELAY)
+            frames = cycle("/-\\|")
+            if not self._hide_event.is_set():
+                self._hide_cursor()
+            while not self._stop_event.is_set():
+                if self._hide_event.is_set():
+                    time.sleep(0.1)
+                    continue
+                with self._stderr_lock:
+                    self._clear_line()
+                    self.file.write(next(frames))
+                    self.file.flush()
+                    self._cur_line_len = 1
 
-            self._stop_event.wait(0.1)
+                self._stop_event.wait(0.1)
+        except ValueError:
+            # I/O operation on closed file
+            pass
 
     def hide(self):
         if not self._hide_event.is_set():
@@ -106,28 +109,33 @@ class Spinner(threading.Thread):
                 self._hide_cursor()
 
     def stop(self):
-        self._stop_event.set()
-        if not self._hide_event.is_set():
-            self._clear_line()
-        self._show_cursor()
+        try:
+            self._stop_event.set()
+            if not self._hide_event.is_set():
+                self._clear_line()
+            self._show_cursor()
+        except ValueError:
+            # I/O operation on closed file
+            pass
 
     def _clear_line(self):
-        if self.file.isatty():
-            # ANSI Control Sequence EL does not work in Jupyter
-            self.file.write("\r\033[K")
-        else:
-            fill = " " * self._cur_line_len
-            self.file.write(f"\r{fill}\r")
-        self._cur_line_len = 0
+        if not self.file.closed:
+            if self.file.isatty():
+                # ANSI Control Sequence EL does not work in Jupyter
+                self.file.write("\r\033[K")
+            else:
+                fill = " " * self._cur_line_len
+                self.file.write(f"\r{fill}\r")
+            self._cur_line_len = 0
 
     def _hide_cursor(self):
-        if self.file.isatty():
+        if not self.file.closed and self.file.isatty():
             # ANSI Control Sequence DECTCEM 1 does not work in Jupyter
             self.file.write("\033[?25l")
             self.file.flush()
 
     def _show_cursor(self):
-        if self.file.isatty():
+        if not self.file.closed and self.file.isatty():
             # ANSI Control Sequence DECTCEM 2 does not work in Jupyter
             self.file.write("\033[?25h")
             self.file.flush()

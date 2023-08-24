@@ -33,6 +33,7 @@ from deeplake.util.exceptions import (
     TensorMismatchError,
     TensorDoesNotExistError,
     TransformError,
+    SampleAppendError,
 )
 
 import posixpath
@@ -181,7 +182,9 @@ def _handle_transform_error(
             if ignore_errors:
                 skipped_samples += 1
                 continue
-            raise TransformError(offset + i, sample) from e
+            raise TransformError(
+                offset + i, sample, suggest=isinstance(e, SampleAppendError)
+            ) from e
     return skipped_samples
 
 
@@ -227,7 +230,9 @@ def _transform_and_append_data_slice(
                     skipped_samples += 1
                     skipped_samples_in_current_batch += 1
                 else:
-                    raise TransformError(offset + i, sample) from e
+                    raise TransformError(
+                        offset + i, sample, suggest=isinstance(e, SampleAppendError)
+                    ) from e
 
             finally:
                 if i == n - 1:

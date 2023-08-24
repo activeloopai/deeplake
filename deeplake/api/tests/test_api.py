@@ -40,6 +40,7 @@ from deeplake.util.exceptions import (
     InvalidDatasetNameException,
     UnsupportedParameterException,
     DynamicTensorNumpyError,
+    SampleExtendError,
 )
 from deeplake.util.path import convert_string_to_pathlib_if_needed, verify_dataset_name
 from deeplake.util.testing import assert_array_equal
@@ -2766,3 +2767,16 @@ def test_non_local_org_id():
 def test_azure_bad_path():
     with pytest.raises(ValueError):
         ds = deeplake.empty("az://storage_account")
+
+
+def test_dataset_extend_error_suggestion(local_ds):
+    with local_ds as ds:
+        ds.create_tensor("abc")
+
+    with pytest.raises(SampleExtendError) as e:
+        ds.extend({"abc": [1, 2, 3, 4, "abcd", 5]})
+
+    assert (
+        "If you wish to skip the samples that cause errors,"
+        " please specify `ignore_errors=True`."
+    ) in str(e)

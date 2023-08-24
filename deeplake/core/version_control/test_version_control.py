@@ -1,5 +1,9 @@
 import glob
+import json
 from collections import OrderedDict
+
+from deeplake.constants import FIRST_COMMIT_ID
+
 import deeplake
 import pytest
 import numpy as np
@@ -2550,3 +2554,88 @@ def test_branch_delete(local_ds_generator):
 
     local_ds.delete_branch("alt1_sub1")
     assert len(local_ds.branches) == 2
+
+
+def test_squash_main_has_branch(local_ds_generator):
+    local_ds = local_ds_generator()
+    local_ds.create_tensor("test")
+    with local_ds:
+        local_ds.test.append("main 1")
+        local_ds.commit("first main commit")
+    local_ds.checkout("alt", create=True)
+
+    with pytest.raises(VersionControlError) as e:
+        local_ds._squash_main()
+    assert "Cannot squash commits if there are multiple branches" in str(e.value)
+
+
+def test_squash_main_has_view(local_ds_generator):
+    local_ds = local_ds_generator()
+    local_ds.create_tensor("test")
+    with local_ds:
+        local_ds.test.append("main 1")
+        local_ds.commit("first main commit")
+    query = local_ds.filter("test == 'a'")
+    query.save_view("test_view")
+
+    with pytest.raises(VersionControlError) as e:
+        local_ds._squash_main()
+    assert "Cannot squash commits if there are views present" in str(e.value)
+
+
+def test_squash_main(local_ds_generator):
+    local_ds = local_ds_generator()
+    local_ds.create_tensor("test")
+
+    with local_ds:
+        # Add commits to main
+        local_ds.test.append("main 1")
+        local_ds.test.append("main 2")
+        local_ds.commit("first main commit")
+        local_ds.test.append("main 3")
+        local_ds.commit("second main commit")
+        local_ds.test.append("main 4")
+        local_ds.commit("third main commit")
+        local_ds.test.append("main uncommitted")
+
+    assert len(local_ds.branches) == 1
+    assert len(glob.glob(local_ds.path + "/versions/*")) > 0
+    assert len(local_ds.test) == 5
+    assert [i.data()["value"] for i in local_ds.test] == [
+        "main 1",
+        "main 2",
+        "main 3",
+        "main 4",
+        "main uncommitted",
+    ]
+    assert [i["message"] for i in local_ds.commits] == [
+        "third main commit",
+        "second main commit",
+        "first main commit",
+    ]
+
+    local_ds._squash_main()
+
+    assert len(local_ds.branches) == 1
+    assert len(glob.glob(local_ds.path + "/versions/*")) == 1
+    assert [commit["message"] for commit in local_ds.commits] == ["Squashed commits"]
+    assert local_ds.pending_commit_id != FIRST_COMMIT_ID
+
+    with open(local_ds.path + "/version_control_info.json", "r") as f:
+        data = json.load(f)
+        assert len(data["commits"]) == 1
+        assert data["commits"][FIRST_COMMIT_ID]["commit_message"] == None
+        assert data["commits"][FIRST_COMMIT_ID]["commit_time"] == None
+        assert data["commits"][FIRST_COMMIT_ID]["commit_user_name"] == None
+        assert len(data["commits"][FIRST_COMMIT_ID]["children"]) == 0
+        assert data["commits"][FIRST_COMMIT_ID]["parent"] == None
+
+    assert [i.data()["value"] for i in local_ds.test] == [
+        "main 1",
+        "main 2",
+        "main 3",
+        "main 4",
+        "main uncommitted",
+    ]
+    assert [i["message"] for i in local_ds.commits] == ["Squashed commits"]
+    assert local_ds.pending_commit_id != FIRST_COMMIT_ID

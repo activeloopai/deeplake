@@ -150,7 +150,10 @@ class AzureProvider(StorageProvider):
         blobs = [
             posixpath.join(self.root_folder, key) for key in self._all_keys(prefix)
         ]
-        self.container_client.delete_blobs(*blobs)
+        # delete_blobs can only delete 256 blobs at a time
+        batches = [blobs[i : i + 256] for i in range(0, len(blobs), 256)]
+        for batch in batches:
+            self.container_client.delete_blobs(*batch)
 
     def get_sas_token(self):
         self._check_update_creds()

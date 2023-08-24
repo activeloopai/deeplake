@@ -14,6 +14,8 @@ from deeplake.constants import (
     MAX_VECTORSTORE_INGESTION_RETRY_ATTEMPTS,
     MAX_CHECKPOINTING_INTERVAL,
 )
+import sys
+from deeplake.constants import MAX_BYTES_PER_MINUTE, TARGET_BYTE_SIZE
 
 
 class DataIngestion:
