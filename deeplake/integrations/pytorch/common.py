@@ -142,7 +142,7 @@ def validate_decode_method(
     for tensor_name, decode_method in decode_method.items():
         if tensor_name not in all_tensor_keys:
             raise ValueError(
-                "tensor {tensor_name} specified in decode_method not found in tensors."
+                f"tensor {tensor_name} specified in decode_method not found in tensors."
             )
         if tensor_name in jpeg_png_compressed_tensors_set:
             if decode_method not in jpeg_png_supported_decode_methods:
