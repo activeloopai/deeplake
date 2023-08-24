@@ -747,7 +747,7 @@ class Dataset:
                 "is_link": is_link,
                 "is_sequence": is_sequence,
             }
-            base_config = HTYPE_CONFIGURATIONS.get(htype).copy()
+            base_config = HTYPE_CONFIGURATIONS.get(htype, {}).copy()
             for key in new_config:
                 if new_config[key] == UNSPECIFIED:
                     new_config[key] = base_config.get(key) or UNSPECIFIED
