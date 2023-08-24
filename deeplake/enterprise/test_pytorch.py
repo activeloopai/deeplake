@@ -2,6 +2,7 @@ import pickle
 import deeplake
 import numpy as np
 import pytest
+from functools import partial
 from deeplake.util.exceptions import EmptyTensorError, TensorDoesNotExistError
 
 from deeplake.util.remove_cache import get_base_storage
@@ -60,6 +61,19 @@ def my_transform_collate(batch):
 
 def index_transform(sample):
     return sample["index"], sample["xyz"]
+
+
+def dummy_init_fn(arg):
+    return f"function called with arg {arg}"
+
+
+@requires_libdeeplake
+def test_setting_woker_init_function(local_auth_ds):
+    dl = local_auth_ds.dataloader().pytorch()
+
+    assert dl.worker_init_fn == None
+    dl.worker_init_fn = partial(dummy_init_fn, 1024)
+    assert dl.worker_init_fn() == f"function called with arg 1024"
 
 
 @requires_torch
