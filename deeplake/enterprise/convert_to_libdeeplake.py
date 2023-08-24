@@ -13,19 +13,30 @@ import jwt
 INDRA_API = None
 
 
-def import_indra_api():
+def import_indra_api_silent():
     global INDRA_API
     if INDRA_API:
         return INDRA_API
     if not importlib.util.find_spec("indra"):
-        raise_indra_installation_error()  # type: ignore
+        return None
     try:
         from indra import api  # type: ignore
 
         INDRA_API = api
         return api
     except Exception as e:
-        raise_indra_installation_error(e)
+        return e
+
+
+def import_indra_api():
+    api = import_indra_api_silently()
+
+    if api is None:
+        raise_indra_installation_error()  # type: ignore
+    elif isinstance(api, Exception):
+        raise_indra_installation_error(api)
+    else:
+        return api
 
 
 INDRA_INSTALLED = bool(importlib.util.find_spec("indra"))
