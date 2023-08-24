@@ -410,6 +410,7 @@ def extend(
     embedding_tensor: Union[str, List[str]],
     processed_tensors: Dict[str, List[Any]],
     dataset: deeplake.core.dataset.Dataset,
+    index_regeneration: bool = False,
 ):
     """
     Function to extend the dataset with new data.
@@ -420,6 +421,7 @@ def extend(
         embedding_tensor (Union[str, List[str]]): Name of the tensor(s) to store the embedding data.
         processed_tensors (Dict[str, List[Any]]): Dictionary of tensors to be added to the dataset.
         dataset (deeplake.core.dataset.Dataset): Dataset to be extended.
+        index_regeneration (Boolean): Denotes if index will be regenerated or not.
 
     """
     if embedding_function:
@@ -457,7 +459,7 @@ def extend(
 
             processed_tensors[tensor] = embedded_data
 
-    dataset.extend(processed_tensors)
+    dataset.extend(processed_tensors, index_regeneration=index_regeneration)
 
 
 def extend_or_ingest_dataset(
@@ -492,6 +494,7 @@ def extend_or_ingest_dataset(
         embedding_tensor,
         processed_tensors,
         dataset,
+        index_regeneration=index_regeneration,
     )
 
 
