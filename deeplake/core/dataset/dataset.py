@@ -106,6 +106,8 @@ from deeplake.util.exceptions import (
     CheckoutError,
     DatasetCorruptError,
     BadRequestException,
+    SampleAppendError,
+    SampleExtendError,
 )
 from deeplake.util.keys import (
     dataset_exists,
@@ -3080,6 +3082,7 @@ class Dataset:
             TensorDoesNotExistError: If tensor in ``samples`` does not exist.
             ValueError: If all tensors being updated are not of the same length.
             NotImplementedError: If an error occurs while writing tiles.
+            SampleExtendError: If the extend failed while appending a sample.
             Exception: Error while attempting to rollback appends.
         """
         extend = False
@@ -3122,6 +3125,8 @@ class Dataset:
                     if ignore_errors:
                         continue
                     else:
+                        if isinstance(e, SampleAppendError):
+                            raise SampleExtendError(str(e)) from e.__cause__
                         raise e
 
     @invalid_view_op

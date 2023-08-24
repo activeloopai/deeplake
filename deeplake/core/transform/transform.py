@@ -33,6 +33,7 @@ from deeplake.util.exceptions import (
     HubComposeEmptyListError,
     HubComposeIncompatibleFunction,
     TransformError,
+    SampleAppendError,
 )
 from deeplake.hooks import dataset_written, dataset_read
 from deeplake.util.version_control import auto_checkout
@@ -305,9 +306,9 @@ class Pipeline:
                     target_ds.reset(force=True)
                 target_ds._send_compute_progress(**progress_args, status="failed")
                 close_states(compute_provider, pbar, pqueue)
-                index, sample = None, None
+                index, sample, suggest = None, None, False
                 if isinstance(e, TransformError):
-                    index, sample = e.index, e.sample
+                    index, sample, suggest = e.index, e.sample, e.suggest
                     if checkpointing_enabled and isinstance(index, int):
                         index = samples_processed + index
                     e = e.__cause__  # type: ignore
@@ -317,6 +318,7 @@ class Pipeline:
                     index=index,
                     sample=sample,
                     samples_processed=samples_processed,
+                    suggest=suggest,
                 ) from e
             finally:
                 reload_and_rechunk(
