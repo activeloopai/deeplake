@@ -29,7 +29,7 @@ def import_indra_api_silent():
 
 
 def import_indra_api():
-    api = import_indra_api_silently()
+    api = import_indra_api_silent()
 
     if api is None:
         raise_indra_installation_error()  # type: ignore
