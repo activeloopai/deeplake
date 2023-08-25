@@ -171,12 +171,14 @@ class VectorStore:
         )
         self.verbose = verbose
         self.tensor_params = tensor_params
-        index.index_cache_cleanup(self.dataset)
-        self.index_created = index.validate_and_create_vector_index(
-            dataset=self.dataset,
-            vector_index_params=self.vector_index_params,
-            regenerate_index=False,
-        )
+        self.index_created = False
+        if self.exec_option in ('tensor_db', 'compute_engine'):
+           index.index_cache_cleanup(self.dataset)
+           self.index_created = index.validate_and_create_vector_index(
+               dataset=self.dataset,
+               vector_index_params=self.vector_index_params,
+               regenerate_index=False,
+           )
 
     def add(
         self,
@@ -324,11 +326,12 @@ class VectorStore:
             logger=logger,
         )
 
-        self.index_created = index.validate_and_create_vector_index(
-            dataset=self.dataset,
-            vector_index_params=self.vector_index_params,
-            regenerate_index=index_regeneration,
-        )
+        if self.exec_option in ('tensor_db', 'compute_engine'):
+            self.index_created = index.validate_and_create_vector_index(
+                dataset=self.dataset,
+                vector_index_params=self.vector_index_params,
+                regenerate_index=index_regeneration,
+            )
 
         try_flushing(self.dataset)
 

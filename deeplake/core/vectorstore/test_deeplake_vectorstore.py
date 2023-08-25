@@ -79,7 +79,7 @@ def filter_udf(x):
     return x["metadata"].data()["value"] in [f"{i}" for i in range(5)]
 
 
-def test_id_backward_compatibility(local_path, hub_cloud_dev_token):
+def test_id_backward_compatibility(local_path):
     num_of_items = 10
     embedding_dim = 100
 
@@ -104,7 +104,7 @@ def test_id_backward_compatibility(local_path, hub_cloud_dev_token):
         }
     )
 
-    vectorstore = VectorStore(path=local_path, token=hub_cloud_dev_token)
+    vectorstore = VectorStore(path=local_path)
     vectorstore.add(
         text=text,
         embedding=embedding,
@@ -114,7 +114,7 @@ def test_id_backward_compatibility(local_path, hub_cloud_dev_token):
     assert len(vectorstore) == 20
 
 
-def test_custom_tensors(local_path, hub_cloud_dev_token):
+def test_custom_tensors(local_path):
     # initialize vector store object:
     vector_store = DeepLakeVectorStore(
         path=local_path,
@@ -123,7 +123,6 @@ def test_custom_tensors(local_path, hub_cloud_dev_token):
             {"name": "texts_custom", "htype": "text"},
             {"name": "emb_custom", "htype": "embedding"},
         ],
-        token=hub_cloud_dev_token,
     )
 
     with pytest.raises(ValueError):
@@ -152,7 +151,6 @@ def test_custom_tensors(local_path, hub_cloud_dev_token):
             {"name": "emb_custom", "htype": "embedding"},
         ],
         embedding_function=embedding_fn5,
-        token=hub_cloud_dev_token,
     )
 
     with pytest.raises(IncorrectEmbeddingShapeError):
@@ -234,7 +232,6 @@ def test_search_basic(local_path, hub_cloud_dev_token):
     vector_store = DeepLakeVectorStore(
         path=local_path,
         overwrite=True,
-        token=hub_cloud_dev_token,
     )
 
     assert vector_store.exec_option == "python"
@@ -367,7 +364,7 @@ def test_search_basic(local_path, hub_cloud_dev_token):
 
     # Check that None option works
     vector_store_none_exec = DeepLakeVectorStore(
-        path=local_path, overwrite=True, token=hub_cloud_dev_token, exec_option=None,
+        path=local_path, overwrite=True, exec_option=None,
     )
 
     assert vector_store_none_exec.exec_option == "python"
@@ -422,7 +419,7 @@ def test_search_basic(local_path, hub_cloud_dev_token):
             return_view=True,
         )
 
-    vector_store = DeepLakeVectorStore(path="mem://xyz", token=hub_cloud_dev_token,)
+    vector_store = DeepLakeVectorStore(path="mem://xyz")
     assert vector_store.exec_option == "python"
     vector_store.add(embedding=embeddings, text=texts, metadata=metadatas)
 
@@ -475,7 +472,7 @@ def test_search_basic(local_path, hub_cloud_dev_token):
 
     # Test that the embedding function during initalization works
     vector_store = DeepLakeVectorStore(
-        path="mem://xyz", embedding_function=embedding_fn3, token=hub_cloud_dev_token,
+        path="mem://xyz", embedding_function=embedding_fn3
     )
     assert vector_store.exec_option == "python"
     vector_store.add(embedding=embeddings, text=texts, metadata=metadatas)
@@ -593,13 +590,12 @@ def test_search_managed(hub_cloud_dev_token):
     assert data_ce["id"] == data_db["id"]
 
 
-def test_delete(local_path, capsys, hub_cloud_dev_token):
+def test_delete(local_path, capsys):
     # initialize vector store object:
     vector_store = DeepLakeVectorStore(
         path=local_path,
         overwrite=True,
         verbose=False,
-        token=hub_cloud_dev_token,
     )
 
     # add data to the dataset:
@@ -643,7 +639,6 @@ def test_delete(local_path, capsys, hub_cloud_dev_token):
                 "htype": "text",
             },
         ],
-        token=hub_cloud_dev_token,
     )
     # add data to the dataset:
     vector_store_b.add(ids=ids, docs=texts)
@@ -664,7 +659,6 @@ def test_delete(local_path, capsys, hub_cloud_dev_token):
 
     vector_store = DeepLakeVectorStore(
         path=local_path,
-        token=hub_cloud_dev_token,
     )
     vector_store.delete(ids=ids[:3])
     assert len(vector_store) == NUMBER_OF_DATA - 3
@@ -677,6 +671,7 @@ def test_delete_with_indexes(local_path, capsys, hub_cloud_dev_token):
         path=local_path,
         overwrite=True,
         verbose=False,
+        exec_option="compute_engine",
         vector_index_params={"threshold": 2},
         token=hub_cloud_dev_token,
     )
@@ -712,6 +707,7 @@ def test_delete_with_indexes(local_path, capsys, hub_cloud_dev_token):
     vector_store_b = DeepLakeVectorStore(
         path=local_path,
         overwrite=True,
+        exec_option="compute_engine",
         tensor_params=[
             {
                 "name": "ids",
@@ -743,6 +739,7 @@ def test_delete_with_indexes(local_path, capsys, hub_cloud_dev_token):
 
     vector_store = DeepLakeVectorStore(
         path=local_path,
+        exec_option="compute_engine",
         token=hub_cloud_dev_token,
     )
     vector_store.delete(ids=ids[:3])
@@ -1173,6 +1170,7 @@ def test_vdb_index_creation(local_path, capsys, hub_cloud_dev_token):
         path=local_path,
         overwrite=True,
         verbose=True,
+        exec_option="compute_engine",
         vector_index_params={"threshold": 200, "distance_metric": "L2"},
         token=hub_cloud_dev_token,
     )
@@ -1220,6 +1218,7 @@ def test_vdb_index_creation_cosine_similarity(local_path, capsys, hub_cloud_dev_
         path=local_path,
         overwrite=True,
         verbose=True,
+        exec_option="compute_engine",
         vector_index_params={"threshold": 200, "distance_metric": "COS"},
         token=hub_cloud_dev_token,
     )
@@ -1269,6 +1268,7 @@ def test_vdb_no_index_default_threshold(local_path, capsys, hub_cloud_dev_token)
         path=local_path,
         overwrite=True,
         verbose=True,
+        exec_option="compute_engine",
         token=hub_cloud_dev_token,
     )
 
@@ -1314,6 +1314,7 @@ def test_vdb_no_index_zero_threshold(local_path, capsys, hub_cloud_dev_token):
         path=local_path,
         overwrite=True,
         verbose=True,
+        exec_option="compute_engine",
         vector_index_params={"threshold": -1},
         token=hub_cloud_dev_token,
     )
@@ -1346,7 +1347,7 @@ def test_vdb_no_index_zero_threshold(local_path, capsys, hub_cloud_dev_token):
     vector_store.delete_by_path(local_path)
 
 
-def test_ingestion(local_path, capsys, hub_cloud_dev_token):
+def test_ingestion(local_path, capsys):
     # create data
     number_of_data = 1000
     texts, embeddings, ids, metadatas, _ = utils.create_data(
@@ -1358,7 +1359,6 @@ def test_ingestion(local_path, capsys, hub_cloud_dev_token):
         path=local_path,
         overwrite=True,
         verbose=True,
-        token=hub_cloud_dev_token,
     )
 
     with pytest.raises(Exception):
@@ -1437,7 +1437,7 @@ def test_ingestion(local_path, capsys, hub_cloud_dev_token):
 
 
 @requires_libdeeplake
-def test_ingestion_images(local_path, hub_cloud_dev_token):
+def test_ingestion_images(local_path):
     tensor_params = [
         {"name": "image", "htype": "image", "sample_compression": "jpg"},
         {"name": "embedding", "htype": "embedding"},
@@ -1454,7 +1454,6 @@ def test_ingestion_images(local_path, hub_cloud_dev_token):
         tensor_params=tensor_params,
         overwrite=True,
         verbose=True,
-        token=hub_cloud_dev_token,
     )
 
     ids = vector_store.add(image=images, embedding=embeddings, return_ids=True)
@@ -1466,12 +1465,11 @@ def test_ingestion_images(local_path, hub_cloud_dev_token):
     assert len(ids) == 10
 
 
-def test_parse_add_arguments(local_path, hub_cloud_dev_token):
+def test_parse_add_arguments(local_path):
     deeplake_vector_store = DeepLakeVectorStore(
         path="mem://dummy",
         overwrite=True,
         embedding_function=embedding_fn,
-        token=hub_cloud_dev_token,
     )
 
     with pytest.raises(ValueError):
@@ -1668,7 +1666,6 @@ def test_parse_add_arguments(local_path, hub_cloud_dev_token):
                 "htype": "text",
             },
         ],
-        token=hub_cloud_dev_token,
     )
 
     # There are two embedding but an embedding_tensor is not specified, so it's not clear where to add the embedding data
@@ -1692,7 +1689,6 @@ def test_parse_add_arguments(local_path, hub_cloud_dev_token):
                 "htype": "text",
             },
         ],
-        token=hub_cloud_dev_token,
     )
 
     # There is no embedding tensor, so it's not clear where to add the embedding data
@@ -1719,7 +1715,6 @@ def test_parse_add_arguments(local_path, hub_cloud_dev_token):
                 "htype": "text",
             },
         ],
-        token=hub_cloud_dev_token,
     )
 
     (
@@ -1742,7 +1737,6 @@ def test_parse_add_arguments(local_path, hub_cloud_dev_token):
         path="mem://dummy",
         overwrite=True,
         embedding_function=embedding_fn,
-        token=hub_cloud_dev_token,
     )
 
     (
@@ -1870,7 +1864,7 @@ def test_parse_tensors_kwargs():
         utils.parse_tensors_kwargs(tensors, None, None, "embedding_1")
 
 
-def test_multiple_embeddings(local_path, capsys, hub_cloud_dev_token):
+def test_multiple_embeddings(local_path, capsys):
     vector_store = DeepLakeVectorStore(
         path=local_path,
         overwrite=True,
@@ -1888,7 +1882,6 @@ def test_multiple_embeddings(local_path, capsys, hub_cloud_dev_token):
                 "htype": "embedding",
             },
         ],
-        token=hub_cloud_dev_token,
     )
 
     with pytest.raises(AssertionError):
@@ -1964,7 +1957,7 @@ def test_multiple_embeddings(local_path, capsys, hub_cloud_dev_token):
     assert len(vector_store.dataset.text) == 50040
 
 
-def test_extend_none(local_path, hub_cloud_dev_token):
+def test_extend_none(local_path):
     vector_store = DeepLakeVectorStore(
         path=local_path,
         overwrite=True,
@@ -1977,7 +1970,6 @@ def test_extend_none(local_path, hub_cloud_dev_token):
             },
             {"name": "metadata", "htype": "json"},
         ],
-        token=hub_cloud_dev_token,
     )
 
     vector_store.add(text=texts, embedding=None, id=ids, metadata=None)
@@ -1988,7 +1980,7 @@ def test_extend_none(local_path, hub_cloud_dev_token):
     assert len(vector_store.dataset.metadata) == 10
 
 
-def test_query_dim(local_path, hub_cloud_dev_token):
+def test_query_dim(local_path):
     vector_store = DeepLakeVectorStore(
         path=local_path,
         overwrite=True,
@@ -1996,7 +1988,6 @@ def test_query_dim(local_path, hub_cloud_dev_token):
             {"name": "text", "htype": "text"},
             {"name": "embedding", "htype": "embedding"},
         ],
-        token=hub_cloud_dev_token,
     )
 
     vector_store.add(text=texts, embedding=embeddings)
@@ -2006,7 +1997,7 @@ def test_query_dim(local_path, hub_cloud_dev_token):
     vector_store.search([texts[0]], embedding_fn4, k=1)
 
 
-def test_embeddings_only(local_path, hub_cloud_dev_token):
+def test_embeddings_only(local_path):
     vector_store = VectorStore(
         path=local_path,
         overwrite=True,
@@ -2014,7 +2005,6 @@ def test_embeddings_only(local_path, hub_cloud_dev_token):
             {"name": "embedding_1", "htype": "embedding"},
             {"name": "embedding_2", "htype": "embedding"},
         ],
-        token=hub_cloud_dev_token,
     )
 
     vector_store.add(
@@ -2026,8 +2016,8 @@ def test_embeddings_only(local_path, hub_cloud_dev_token):
     assert len(vector_store.dataset.embedding_2) == 10
 
 
-def test_uuid_fix(local_path, hub_cloud_dev_token):
-    vector_store = VectorStore(local_path, overwrite=True, token=hub_cloud_dev_token,)
+def test_uuid_fix(local_path):
+    vector_store = VectorStore(local_path, overwrite=True)
 
     ids = [uuid.uuid4() for _ in range(NUMBER_OF_DATA)]
 
