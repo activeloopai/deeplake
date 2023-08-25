@@ -28,7 +28,7 @@ def create_query_string(
 
     tql_filter_str = tql_filter if tql_filter == "" else " where " + tql_filter
     tensor_list_str = ", ".join(tensor_list)
-    order_str = "" if order is None else f" order by score {order}"
+    order_str = "" if order is None else f" order by {distance_metric} {order}"
     distance_metric_str = (
         "" if distance_metric is None else f", {distance_metric} as score"
     )

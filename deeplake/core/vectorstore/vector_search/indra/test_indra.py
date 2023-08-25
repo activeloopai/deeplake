@@ -18,7 +18,8 @@ METRIC_FUNC_TO_METRIC_STRING = {
 
 
 def create_tql_string(metric_function, order="ASC"):
-    return f"select * from (select *, {METRIC_FUNC_TO_METRIC_STRING[metric_function]} as score) order by score {order} limit 10"
+    distane_metric = METRIC_FUNC_TO_METRIC_STRING[metric_function]
+    return f"select * from (select *, {distane_metric} as score) order by {distane_metric} {order} limit 10"
 
 
 METRIC_FUNC_TO_QUERY_STRING = {
