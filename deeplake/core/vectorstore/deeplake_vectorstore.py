@@ -327,6 +327,7 @@ class VectorStore:
         )
 
         if self.exec_option in ('tensor_db', 'compute_engine'):
+            index.index_cache_cleanup(self.dataset)
             self.index_created = index.validate_and_create_vector_index(
                 dataset=self.dataset,
                 vector_index_params=self.vector_index_params,
