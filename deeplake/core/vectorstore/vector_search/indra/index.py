@@ -8,14 +8,14 @@ METRIC_TO_INDEX_METRIC = {
 }
 
 
-def get_index_distance_metric_from_params(logger, vector_index_params, distance_metric):
+def get_index_distance_metric_from_params(logger, index_params, distance_metric):
     if distance_metric:
         logger.warning(
             "specifying distance_metric for indexed dataset during the search "
             f"call is not supported. `distance_metric = {distance_metric}` "
             "specified during index creation will be used instead."
         )
-    return vector_index_params.get("distance_metric", "L2")
+    return index_params.get("distance_metric", "L2")
 
 
 def get_index_metric(metric):
@@ -25,6 +25,36 @@ def get_index_metric(metric):
             f"Valid options are: {', '.join([e for e in list(METRIC_TO_INDEX_METRIC.keys())])}"
         )
     return METRIC_TO_INDEX_METRIC[metric]
+
+
+def normalize_additional_params(params: dict) -> dict:
+    mapping = {
+        "efconstruction": "efConstruction",
+        "m": "M"
+    }
+
+    allowed_keys = ["efConstruction", "m"]
+
+    # New dictionary to store the result with desired key format
+    result_dict = {}
+
+    for key, value in params.items():
+        normalized_key = key.lower()
+
+        # Check if the normalized key is one of the allowed keys
+        if normalized_key not in mapping:
+            raise ValueError(f"Unexpected key: {key} in additional_params"
+                             f" {allowed_keys} should be used instead.")
+
+        # Check if the value is an integer
+        if not isinstance(value, int):
+            raise ValueError(f"Expected value for key {key} to be an integer, but got {type(value).__name__}")
+
+        # Populate the result dictionary with the proper format for the keys
+        result_dict[mapping[normalized_key]] = value
+
+    return result_dict
+
 
 def check_vdb_indexes(dataset):
     tensors = dataset.tensors
@@ -55,8 +85,8 @@ def index_cache_cleanup(dataset):
             tensor.unload_index_cache()
 
 
-def validate_and_create_vector_index(dataset, vector_index_params, regenerate_index=False):
-    threshold = vector_index_params.get("threshold", 1000000)
+def validate_and_create_vector_index(dataset, index_params, regenerate_index=False):
+    threshold = index_params.get("threshold", -1)
     if threshold <= 0:
         return False
     elif len(dataset) < threshold:
@@ -85,14 +115,19 @@ def validate_and_create_vector_index(dataset, vector_index_params, regenerate_in
         is_embedding = tensor.htype == "embedding"
         vdb_index_absent = len(tensor.meta.get_vdb_index_ids()) == 0
         if is_embedding and vdb_index_absent:
-            distance_str = vector_index_params.get("distance_metric", "L2")
-            additional_params_dict = vector_index_params.get("additional_params", None)
-            distance = get_index_metric(distance_str.upper())
-            if additional_params_dict and len(additional_params_dict) > 0:
-                tensor.create_vdb_index("hnsw_1",
-                                        distance=distance,
-                                        additional_params=additional_params_dict)
-            else:
-                tensor.create_vdb_index("hnsw_1", distance=distance)
+            try:
+                distance_str = index_params.get("distance_metric", "L2")
+                additional_params_dict = index_params.get("additional_params", None)
+                distance = get_index_metric(distance_str.upper())
+                if additional_params_dict and len(additional_params_dict) > 0:
+                    param_dict=normalize_additional_params(additional_params_dict)
+                    tensor.create_vdb_index("hnsw_1",
+                                            distance=distance,
+                                            additional_params=param_dict)
+                else:
+                    tensor.create_vdb_index("hnsw_1", distance=distance)
+            except ValueError as e:
+                raise e
+
 
     return True

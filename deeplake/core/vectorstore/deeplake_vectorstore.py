@@ -42,8 +42,8 @@ class VectorStore:
         embedding_function: Optional[Callable] = None,
         read_only: Optional[bool] = None,
         ingestion_batch_size: int = 1000,
-        vector_index_params: Dict[str, Union[int, str]] = {
-            "threshold": 1000000,
+        index_params: Dict[str, Union[int, str]] = {
+            "threshold": -1,
             "distance_metric": "L2",
             "additional_params": {
                 "efConstruction": 200,
@@ -95,8 +95,9 @@ class VectorStore:
             read_only (bool, optional):  Opens dataset in read-only mode if True. Defaults to False.
             num_workers (int): Number of workers to use for parallel ingestion.
             ingestion_batch_size (int): Batch size to use for parallel ingestion.
-            vector_index_params (Dict[str, Union[int, str]]): List of dictionaries that contains information about vector indexes that will be created when certain threshold is met.
-                - threshold: This key corresponds to the threshold for the dataset size. Vector indexes are created for the embedding tensors once the size of the dataset crosses this threshold. When the threshold value is set to -1, index creation is turned off from VectorStore APIs. By default, the threshold set to 1000000.
+            index_params (Dict[str, Union[int, str]]): List of dictionaries that contains information about vector indexes that will be created when certain threshold is met.
+                - threshold: This key corresponds to the threshold for the dataset size. Vector indexes are created for the embedding tensors once the size of the dataset crosses this threshold. When the threshold value is set to -1, index creation is turned off from VectorStore APIs.
+                             By default, the threshold set to -1 which prohibits from creating Indexes.
                 - distance_metric: This key specifies the method of calculating the distance between vectors when creating the vector database (VDB) index. It can either be a string that corresponds to a member of the DistanceType enumeration, or the string value itself.
                     - If no value is provided, it defaults to "L2".
                     - "L2" corresponds to DistanceType.L2_NORM.
@@ -136,7 +137,7 @@ class VectorStore:
                 "overwrite": overwrite,
                 "read_only": read_only,
                 "ingestion_batch_size": ingestion_batch_size,
-                "vector_index_params": vector_index_params,
+                "index_params": index_params,
                 "exec_option": exec_option,
                 "token": token,
                 "verbose": verbose,
@@ -146,7 +147,7 @@ class VectorStore:
         )
 
         self.ingestion_batch_size = ingestion_batch_size
-        self.vector_index_params = vector_index_params
+        self.index_params = index_params
         self.num_workers = num_workers
 
         if creds is None:
@@ -176,7 +177,7 @@ class VectorStore:
            index.index_cache_cleanup(self.dataset)
            self.index_created = index.validate_and_create_vector_index(
                dataset=self.dataset,
-               vector_index_params=self.vector_index_params,
+               index_params=self.index_params,
                regenerate_index=False,
            )
 
@@ -330,7 +331,7 @@ class VectorStore:
             index.index_cache_cleanup(self.dataset)
             self.index_created = index.validate_and_create_vector_index(
                 dataset=self.dataset,
-                vector_index_params=self.vector_index_params,
+                index_params=self.index_params,
                 regenerate_index=index_regeneration,
             )
 
@@ -474,7 +475,7 @@ class VectorStore:
 
         if self.index_created:
             distance_metric = index.get_index_distance_metric_from_params(
-                logger, self.vector_index_params, distance_metric
+                logger, self.index_params, distance_metric
             )
 
         distance_metric = distance_metric or "L2"

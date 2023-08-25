@@ -672,7 +672,7 @@ def test_delete_with_indexes(local_path, capsys, hub_cloud_dev_token):
         overwrite=True,
         verbose=False,
         exec_option="compute_engine",
-        vector_index_params={"threshold": 2},
+        index_params={"threshold": 2},
         token=hub_cloud_dev_token,
     )
 
@@ -837,7 +837,7 @@ def test_update_embedding(
         overwrite=True,
         verbose=False,
         embedding_function=init_embedding_function,
-        vector_index_params={"threshold": 10},
+        index_params={"threshold": 10},
         token=ds.token,
     )
 
@@ -1171,7 +1171,7 @@ def test_vdb_index_creation(local_path, capsys, hub_cloud_dev_token):
         overwrite=True,
         verbose=True,
         exec_option="compute_engine",
-        vector_index_params={"threshold": 200, "distance_metric": "L2"},
+        index_params={"threshold": 200, "distance_metric": "L2"},
         token=hub_cloud_dev_token,
     )
 
@@ -1219,7 +1219,7 @@ def test_vdb_index_creation_cosine_similarity(local_path, capsys, hub_cloud_dev_
         overwrite=True,
         verbose=True,
         exec_option="compute_engine",
-        vector_index_params={"threshold": 200, "distance_metric": "COS"},
+        index_params={"threshold": 200, "distance_metric": "COS"},
         token=hub_cloud_dev_token,
     )
 
@@ -1315,7 +1315,7 @@ def test_vdb_no_index_zero_threshold(local_path, capsys, hub_cloud_dev_token):
         overwrite=True,
         verbose=True,
         exec_option="compute_engine",
-        vector_index_params={"threshold": -1},
+        index_params={"threshold": -1},
         token=hub_cloud_dev_token,
     )
 
