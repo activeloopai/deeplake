@@ -1052,48 +1052,57 @@ class ChunkEngine:
                         self.commit_diff.add_data(1)
                         num_samples_added += 1
                         verified_samples.append(verified_sample or sample)
+
+                    if link_callback:
+                        samples = [
+                            None if is_empty_list(s) else s for s in verified_samples
+                        ]
+                        link_callback(
+                            verified_samples,
+                            flat=False,
+                            progressbar=progressbar,
+                        )
+                        for s in verified_samples:
+                            link_callback(
+                                s,
+                                flat=True,
+                                progressbar=progressbar,
+                            )
                 except Exception:
                     for _ in range(num_samples_added):
                         self.pop()
                     raise
-                if link_callback:
-                    samples = [
-                        None if is_empty_list(s) else s for s in verified_samples
-                    ]
-                    link_callback(
-                        verified_samples,
-                        flat=False,
-                        progressbar=progressbar,
-                    )
-                    for s in verified_samples:
-                        link_callback(
-                            s,
-                            flat=True,
-                            progressbar=progressbar,
-                        )
 
             else:
-                verified_samples = (
-                    self._extend(samples, progressbar, pg_callback=pg_callback)
-                    or samples
-                )
-                if link_callback:
-                    if not isinstance(verified_samples, np.ndarray):
-                        samples = [
-                            None
-                            if is_empty_list(s)
-                            or (
-                                isinstance(s, deeplake.core.tensor.Tensor)
-                                and s.is_empty_tensor
-                            )
-                            else s
-                            for s in verified_samples
-                        ]
-                    link_callback(
-                        samples,
-                        flat=None,
-                        progressbar=progressbar,
+                num_samples = self.tensor_length
+                try:
+                    verified_samples = (
+                        self._extend(samples, progressbar, pg_callback=pg_callback)
+                        or samples
                     )
+                    if link_callback:
+                        if not isinstance(verified_samples, np.ndarray):
+                            samples = [
+                                None
+                                if is_empty_list(s)
+                                or (
+                                    isinstance(s, deeplake.core.tensor.Tensor)
+                                    and s.is_empty_tensor
+                                )
+                                else s
+                                for s in verified_samples
+                            ]
+
+                            link_callback(
+                                samples,
+                                flat=None,
+                                progressbar=progressbar,
+                            )
+                except Exception as e:
+                    num_samples_added = self.tensor_length - num_samples
+                    for _ in range(num_samples_added):
+                        self.pop()
+                    raise
 
             self.cache.autoflush = initial_autoflush
             self.cache.maybe_flush()
@@ -2885,29 +2894,36 @@ class ChunkEngine:
             if self._all_chunk_engines and (
                 flat is None or v["flatten_sequence"] == flat
             ):
-                tensor = self.version_state["full_tensors"][k]
-                func = get_link_transform(v["extend"])
-                meta = self.tensor_meta
-                vs = func(
-                    samples,
-                    factor=tensor.info.downsampling_factor
-                    if func == extend_downsample
-                    else None,
-                    compression=meta.sample_compression,
-                    htype=meta.htype,
-                    link_creds=self.link_creds,
-                    progressbar=progressbar,
-                    tensor_meta=self.tensor_meta,
-                )
-                dtype = tensor.dtype
-                if dtype:
-                    if isinstance(vs, np.ndarray):
-                        vs = cast_to_type(vs, dtype)
-                    else:
-                        vs = [cast_to_type(v, dtype) for v in vs]
-                chunk_engine = self._all_chunk_engines[k]
-                chunk_engine.extend(vs)
-                chunk_engine._transform_callback(vs, flat)
+                try:
+                    tensor = self.version_state["full_tensors"][k]
+                    func = get_link_transform(v["extend"])
+                    meta = self.tensor_meta
+                    vs = func(
+                        samples,
+                        factor=tensor.info.downsampling_factor
+                        if func == extend_downsample
+                        else None,
+                        compression=meta.sample_compression,
+                        htype=meta.htype,
+                        link_creds=self.link_creds,
+                        progressbar=progressbar,
+                        tensor_meta=self.tensor_meta,
+                    )
+                    dtype = tensor.dtype
+                    if dtype:
+                        if isinstance(vs, np.ndarray):
+                            vs = cast_to_type(vs, dtype)
+                        else:
+                            vs = [cast_to_type(v, dtype) for v in vs]
+                    chunk_engine = self._all_chunk_engines[k]
+                    num_samples = chunk_engine.tensor_length
+                    chunk_engine.extend(vs)
+                    chunk_engine._transform_callback(vs, flat)
+                except Exception:
+                    num_samples_added = chunk_engine.num_samples - num_samples
+                    for _ in range(num_samples_added):
+                        chunk_engine.pop()
+                    raise
 
     def _transform_pop_callback(self, index: int):
         if self._all_chunk_engines:
