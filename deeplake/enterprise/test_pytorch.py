@@ -693,6 +693,7 @@ def test_pytorch_error_handling(hub_cloud_ds):
 @requires_libdeeplake
 @requires_torch
 def test_pil_decode_method(hub_cloud_ds):
+    from indra.pytorch.exceptions import CollateExceptionWrapper
     with hub_cloud_ds as ds:
         ds.create_tensor("x", htype="image", sample_compression="jpeg")
         ds.x.extend(np.random.randint(0, 255, (10, 10, 10, 3), np.uint8))
@@ -704,7 +705,7 @@ def test_pil_decode_method(hub_cloud_ds):
         assert batch["x"].shape == (1, 10, 10, 3)
 
     ptds = ds.dataloader().pytorch(decode_method={"x": "pil"})
-    with pytest.raises(TypeError):
+    with pytest.raises(CollateExceptionWrapper):
         for _ in ptds:
             pass
 
