@@ -11,7 +11,7 @@ class DeeplakeRandom(object):
 
 
     def seed(self, seed: Optional[int] = None):
-        if isinstance(seed, int):
+        if seed is None or isinstance(seed, int):
             self.internal_seed = seed
             if self.indra_api is None:
                 from deeplake.enterprise.convert_to_libdeeplake import import_indra_api_silent
@@ -19,7 +19,7 @@ class DeeplakeRandom(object):
             if self.indra_api is not None:
                 self.indra_api.set_seed(self.internal_seed)
         else:
-            raise TypeError(f"provided seed type `{type(seed)}` is increect seed must be an integer")
+            raise TypeError(f"provided seed type `{type(seed)}` is incorrect seed must be an integer")
 
     def get_seed(self) -> Optional[int]:
         return self.internal_seed
