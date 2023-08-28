@@ -3038,7 +3038,6 @@ class Dataset:
                         tensor.append(v)
                     tensors_appended.append(k)
                 except Exception as e:
-                    print(e)
                     if extend:
                         raise NotImplementedError(
                             "Unable to recover from error while extending multiple tensors with numpy arrays."
