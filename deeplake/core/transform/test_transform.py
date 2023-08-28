@@ -1428,7 +1428,10 @@ def test_ds_append_errors(
         err_msg += re.escape(
             " Last checkpoint: 10 samples processed. You can slice the input to resume from this point."
         )
-    err_msg += re.escape(" See traceback for more details.")
+    err_msg += re.escape(
+        " See traceback for more details."
+        " If you wish to skip the samples that cause errors, please specify `ignore_errors=True`."
+    )
 
     samples.insert(17, bad_sample)
 

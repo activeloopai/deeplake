@@ -1681,9 +1681,11 @@ def test_multiple_embeddings(local_path, capsys):
         embedding_data=[texts, texts],
         embedding_tensor=["embedding_1", "embedding_2"],
     )
+
     vector_store.add(
         text=texts, embedding_1=(embedding_fn, texts), embedding_2=(embedding_fn, texts)
     )
+
     vector_store.add(
         text=texts,
         embedding_function=embedding_fn,

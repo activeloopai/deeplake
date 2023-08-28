@@ -1,8 +1,11 @@
 import uuid
+import sys
+import time
+from math import ceil
 from typing import List, Dict, Any, Optional, Callable, Union
+from tqdm import tqdm
 
 import numpy as np
-from math import ceil
 
 try:
     from indra import api  # type: ignore
@@ -12,7 +15,6 @@ except ImportError:  # pragma: no cover
     _INDRA_INSTALLED = False  # pragma: no cover
 
 import deeplake
-from deeplake.constants import MB
 from deeplake.core.vectorstore.vector_search import utils
 from deeplake.core.vectorstore.vector_search.ingestion import ingest_data
 from deeplake.constants import (
@@ -20,6 +22,8 @@ from deeplake.constants import (
     VECTORSTORE_EXTEND_MAX_SIZE,
     DEFAULT_VECTORSTORE_TENSORS,
     VECTORSTORE_EXTEND_MAX_SIZE_BY_HTYPE,
+    MAX_BYTES_PER_MINUTE,
+    TARGET_BYTE_SIZE,
 )
 from deeplake.util.exceptions import IncorrectEmbeddingShapeError
 
@@ -385,6 +389,62 @@ def update_embedding_info(logger, dataset, embedding_function):
     set_embedding_info(dataset[embeddings_tensors[0]], embedding_function)
 
 
+def extend(
+    embedding_function: List[Callable],
+    embedding_data: List[Any],
+    embedding_tensor: Union[str, List[str]],
+    processed_tensors: Dict[str, List[Any]],
+    dataset: deeplake.core.dataset.Dataset,
+):
+    """
+    Function to extend the dataset with new data.
+
+    Args:
+        embedding_function (List[Callable]): List of embedding functions to be used to create embedding data.
+        embedding_data (List[Any]): List of data to be embedded.
+        embedding_tensor (Union[str, List[str]]): Name of the tensor(s) to store the embedding data.
+        processed_tensors (Dict[str, List[Any]]): Dictionary of tensors to be added to the dataset.
+        dataset (deeplake.core.dataset.Dataset): Dataset to be extended.
+
+    """
+    if embedding_function:
+        for func, data, tensor in zip(
+            embedding_function, embedding_data, embedding_tensor
+        ):
+            data_batched = chunk_by_bytes(data, target_byte_size=TARGET_BYTE_SIZE)
+
+            # Calculate the number of batches you can send each minute
+            batches_per_minute = MAX_BYTES_PER_MINUTE / TARGET_BYTE_SIZE
+
+            # Calculate sleep time in seconds between batches
+            sleep_time = 60 / batches_per_minute
+
+            embedded_data = []
+
+            for data_i in tqdm(
+                data_batched, total=len(data_batched), desc="Creating embedding data"
+            ):
+                start = time.time()
+                embedded_data.append(func(data_i))
+                end = time.time()
+                if func.__module__ == "langchain.embeddings.openai":
+                    # we need to take into account the time spent on openai call
+                    diff = sleep_time - (end - start)
+                    if diff > 0:
+                        time.sleep(diff)
+            try:
+                embedded_data = np.vstack(embedded_data, dtype=np.float32)
+            except ValueError:
+                raise IncorrectEmbeddingShapeError()
+
+            if len(embedded_data) == 0:
+                raise ValueError("embedding function returned empty list")
+
+            processed_tensors[tensor] = embedded_data
+
+    dataset.extend(processed_tensors)
+
+
 def extend_or_ingest_dataset(
     processed_tensors,
     dataset,
@@ -396,55 +456,50 @@ def extend_or_ingest_dataset(
     total_samples_processed,
     logger,
 ):
-    first_item = next(iter(processed_tensors))
+    # TODO: Add back the old logic with checkpointing after indexing is fixed
+    extend(
+        embedding_function,
+        embedding_data,
+        embedding_tensor,
+        processed_tensors,
+        dataset,
+    )
 
-    htypes = [
-        dataset[item].meta.htype for item in dataset.tensors
-    ]  # Inspect raw htype (not parsed htype like tensor.htype) in order to avoid parsing links and sequences separately.
-    threshold_by_htype = [
-        VECTORSTORE_EXTEND_MAX_SIZE_BY_HTYPE.get(h, int(1e10)) for h in htypes
-    ]
-    extend_threshold = min(threshold_by_htype + [VECTORSTORE_EXTEND_MAX_SIZE])
 
-    if len(processed_tensors[first_item]) <= extend_threshold:
-        if embedding_function:
-            for func, data, tensor in zip(
-                embedding_function, embedding_data, embedding_tensor
-            ):
-                embedded_data = func(data)
-                try:
-                    embedded_data = np.array(embedded_data, dtype=np.float32)
-                except ValueError:
-                    raise IncorrectEmbeddingShapeError()
+def chunk_by_bytes(data, target_byte_size=TARGET_BYTE_SIZE):
+    """
+    Splits a list of strings into chunks where each chunk has approximately the given target byte size.
 
-                if len(embedded_data) == 0:
-                    raise ValueError("embedding function returned empty list")
+    Args:
+    - strings (list of str): List of strings to be chunked.
+    - target_byte_size (int): The target byte size for each chunk.
 
-                processed_tensors[tensor] = embedded_data
+    Returns:
+    - list of lists containing the chunked strings.
+    """
+    # Calculate byte sizes for all strings
+    sizes = [len(s.encode("utf-8")) for s in data]
 
-        dataset.extend(processed_tensors)
-    else:
-        elements = create_elements(processed_tensors)
+    chunks = []
+    current_chunk = []
+    current_chunk_size = 0
+    index = 0
 
-        num_workers_auto = ceil(len(elements) / ingestion_batch_size)
-        if num_workers_auto < num_workers:
-            logger.warning(
-                f"Number of workers is {num_workers}, but {len(elements)} rows of data are being added and the ingestion_batch_size is {ingestion_batch_size}. "
-                f"Setting the number of workers to {num_workers_auto} instead, in order reduce overhead from excessive workers that will not accelerate ingestion."
-                f"If you want to parallelizing using more workers, please reduce ``ingestion_batch_size``."
-            )
-            num_workers = min(num_workers_auto, num_workers)
+    while index < len(data):
+        if current_chunk_size + sizes[index] > target_byte_size:
+            chunks.append(current_chunk)
+            current_chunk = []
+            current_chunk_size = 0
+            continue
+        current_chunk.append(data[index])
+        current_chunk_size += sizes[index]
+        index += 1
 
-        ingest_data.run_data_ingestion(
-            elements=elements,
-            dataset=dataset,
-            embedding_function=embedding_function,
-            embedding_tensor=embedding_tensor,
-            ingestion_batch_size=ingestion_batch_size,
-            num_workers=num_workers,
-            total_samples_processed=total_samples_processed,
-            logger=logger,
-        )
+    # Add the last chunk if it's not empty
+    if current_chunk:
+        chunks.append(current_chunk)
+
+    return chunks
 
 
 def convert_id_to_row_id(ids, dataset, search_fn, query, exec_option, filter):

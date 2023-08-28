@@ -24,6 +24,7 @@ from .api.tiled import tiled
 from .core.dataset import Dataset
 from .core.transform import compute, compose
 from .core.tensor import Tensor
+from .core.seed import DeeplakeRandom
 from .util.bugout_reporter import deeplake_reporter
 from .compression import SUPPORTED_COMPRESSIONS
 from .htype import HTYPE_CONFIGURATIONS
@@ -50,6 +51,7 @@ ingest_dataframe = api_dataset.ingest_dataframe
 ingest_huggingface = huggingface.ingest_huggingface
 dataset = api_dataset.init  # type: ignore
 tensor = Tensor
+random = DeeplakeRandom()
 
 __all__ = [
     "tensor",
@@ -76,10 +78,11 @@ __all__ = [
     "delete",
     "copy",
     "rename",
+    "random",
 ]
 
 
-__version__ = "3.6.20"
+__version__ = "3.6.22"
 warn_if_update_required(__version__)
 __encoded_version__ = np.array(__version__)
 config = {"s3": Config(max_pool_connections=50, connect_timeout=300, read_timeout=300)}
