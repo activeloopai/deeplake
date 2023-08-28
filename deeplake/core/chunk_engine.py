@@ -1093,11 +1093,11 @@ class ChunkEngine:
                                 for s in verified_samples
                             ]
 
-                            link_callback(
-                                samples,
-                                flat=None,
-                                progressbar=progressbar,
-                            )
+                        link_callback(
+                            samples,
+                            flat=None,
+                            progressbar=progressbar,
+                        )
                 except Exception as e:
                     num_samples_added = self.tensor_length - num_samples
                     for _ in range(num_samples_added):
