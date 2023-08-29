@@ -277,6 +277,7 @@ class Tensor:
         self,
         samples: Union[np.ndarray, Sequence[InputSample], "Tensor"],
         progressbar: bool = False,
+        ignore_errors: bool = False,
     ):
         """Extends the end of the tensor by appending multiple elements from a sequence. Accepts a sequence, a single batched numpy array,
         or a sequence of :func:`deeplake.read` outputs, which can be used to load files. See examples down below.
@@ -307,6 +308,7 @@ class Tensor:
             samples (np.ndarray, Sequence, Sequence[Sample]): The data to add to the tensor.
                 The length should be equal to the number of samples to add.
             progressbar (bool): Specifies whether a progressbar should be displayed while extending.
+            ignore_errors (bool): Skip samples that cause errors while extending, if set to ``True``.
 
         Raises:
             TensorDtypeMismatchError: Dtype for array must be equal to or castable to this tensor's dtype.

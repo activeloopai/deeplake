@@ -994,16 +994,21 @@ class ChunkEngine:
     def update_creds(self, sample_index, sample):
         return
 
-    def _extend(self, samples, progressbar, pg_callback=None, update_commit_diff=True):
+    def _extend(self, samples, progressbar, pg_callback=None, update_commit_diff=True, ignore_errors=False):
         if isinstance(samples, deeplake.Tensor):
             samples = tqdm(samples) if progressbar else samples
             for sample in samples:
-                self._extend(
-                    [sample],
-                    update_commit_diff=update_commit_diff,
-                    progressbar=False,
-                    pg_callback=pg_callback,
-                )  # TODO optimize this
+                try:
+                    self._extend(
+                        [sample],
+                        update_commit_diff=update_commit_diff,
+                        progressbar=False,
+                        pg_callback=pg_callback,
+                    )  # TODO optimize this
+                except Exception:
+                    if ignore_errors:
+                        continue
+                    raise
             return
         if len(samples) == 0:
             return
@@ -1026,6 +1031,7 @@ class ChunkEngine:
         progressbar: bool = False,
         link_callback: Optional[Callable] = None,
         pg_callback=None,
+        ignore_errors: bool = False,
     ):
         try:
             assert not (progressbar and pg_callback)
@@ -1041,8 +1047,8 @@ class ChunkEngine:
                 samples = tqdm(samples) if progressbar else samples
                 verified_samples = []
                 num_samples_added = 0
-                try:
-                    for sample in samples:
+                for sample in samples:
+                    try:
                         if sample is None:
                             sample = []
                         verified_sample = self._extend(
@@ -1052,10 +1058,12 @@ class ChunkEngine:
                         self.commit_diff.add_data(1)
                         num_samples_added += 1
                         verified_samples.append(verified_sample or sample)
-                except Exception:
-                    for _ in range(num_samples_added):
-                        self.pop()
-                    raise
+                    except Exception:
+                        if ignore_errors:
+                            continue
+                        for _ in range(num_samples_added):
+                            self.pop()
+                        raise
                 if link_callback:
                     samples = [
                         None if is_empty_list(s) else s for s in verified_samples
@@ -1074,12 +1082,12 @@ class ChunkEngine:
 
             else:
                 verified_samples = (
-                    self._extend(samples, progressbar, pg_callback=pg_callback)
+                    self._extend(samples, progressbar, pg_callback=pg_callback, ignore_errors=ignore_errors)
                     or samples
                 )
                 if link_callback:
                     if not isinstance(verified_samples, np.ndarray):
-                        samples = [
+                        verified_samples = [
                             None
                             if is_empty_list(s)
                             or (
@@ -1090,7 +1098,7 @@ class ChunkEngine:
                             for s in verified_samples
                         ]
                     link_callback(
-                        samples,
+                        verified_samples,
                         flat=None,
                         progressbar=progressbar,
                     )
