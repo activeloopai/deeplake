@@ -3038,6 +3038,7 @@ class Dataset:
                     tensor = tensors[k]
                     enc = tensor.chunk_engine.chunk_id_encoder
                     num_chunks = enc.num_chunks
+                    num_samples = tensor.meta.length
                     if extend:
                         tensor.extend(v)
                         if extend_extra_nones:
@@ -3060,6 +3061,8 @@ class Dataset:
                         ) from e
                     elif num_chunks_added == 1:
                         enc._encoded = enc._encoded[:-1]
+                        diff = tensor.meta.length - num_samples
+                        tensor.meta.update_length(-diff)
                     for k in tensors_appended:
                         try:
                             self[k].pop()

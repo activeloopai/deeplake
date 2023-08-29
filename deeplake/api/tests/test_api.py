@@ -2810,3 +2810,26 @@ def test_dataset_extend_error_suggestion(local_ds):
         "If you wish to skip the samples that cause errors,"
         " please specify `ignore_errors=True`."
     ) in str(e)
+
+
+def test_extend_rollbacks(local_ds):
+    with local_ds as ds:
+        ds.create_tensor("images", htype="image", sample_compression="jpg")
+
+        # Broken LFPW links
+        links = [
+            "http://cm1.theinsider.com/media/0/428/93/spl41194_011.0.0.0x0.636x912.jpeg",
+            "http://cm1.theinsider.com/media/0/428/93/spl47823_060.0.0.0x0.633x912.jpeg",
+            "http://cm1.theinsider.com/media/0/428/90/spl91520_012.0.0.0x0.636x912.jpeg",
+            "http://blog.themavenreport.com/wp-content/uploads/2008/02/kimora_show_575.jpg",
+            "http://cache.thephoenix.com/secure/uploadedImages/The_Phoenix/Movies/Reviews/FILM_Queen_6.jpg",
+            "http://www.todoelmundo.org/archivos/99/imagenes/En_america.jpg",
+            "http://image.toutlecine.com/photos/b/l/o/blood-diamond-2006-22-g.jpg",
+        ]
+
+        ds.extend(
+            {"images": [deeplake.read(link) for link in links]}, ignore_errors=True
+        )
+
+    # Commit should work
+    ds.commit()

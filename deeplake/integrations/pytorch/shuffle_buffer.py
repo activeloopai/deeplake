@@ -31,6 +31,7 @@ class ShuffleBuffer:
         if size <= 0:
             raise ValueError("Buffer size should be positive value more than zero")
         from deeplake.core.seed import DeeplakeRandom
+
         self.random = Random(DeeplakeRandom().get_seed())
         self.size = size
         self.buffer: List[Any] = list()
