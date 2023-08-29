@@ -2,7 +2,6 @@ import numpy as np
 from deeplake.core.seed import DeeplakeRandom
 
 
-
 def shuffle(ds):
     """Returns a shuffled wrapper of a given Dataset."""
     prev_state = np.random.get_state()

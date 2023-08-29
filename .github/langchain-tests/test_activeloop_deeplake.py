@@ -101,10 +101,7 @@ def test():
 
     embedding = OpenAIEmbeddings()
     db = DeepLake.from_documents(
-        docs,
-        dataset_path=dataset_path,
-        embedding=embeddings,
-        overwrite=True
+        docs, dataset_path=dataset_path, embedding=embeddings, overwrite=True
     )
 
     db.vectorstore.summary()

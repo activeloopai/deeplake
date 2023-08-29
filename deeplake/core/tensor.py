@@ -1005,31 +1005,42 @@ class Tensor:
 
     def _extend_links(self, samples, flat: Optional[bool], progressbar: bool = False):
         has_shape_tensor = False
-        for k, v in self.meta.links.items():
-            if flat is None or v["flatten_sequence"] == flat:
+        updated_tensors = {}
+        try:
+            for k, v in self.meta.links.items():
+                if flat is None or v["flatten_sequence"] == flat:
+                    tensor = self.version_state["full_tensors"][k]
+                    func_name = v["extend"]
+                    if func_name == "extend_shape":
+                        has_shape_tensor = True
+                    func = get_link_transform(func_name)
+                    vs = func(
+                        samples,
+                        factor=tensor.info.downsampling_factor
+                        if func == extend_downsample
+                        else None,
+                        compression=self.meta.sample_compression,
+                        htype=self.htype,
+                        link_creds=self.link_creds,
+                        progressbar=progressbar,
+                        tensor_meta=self.meta,
+                    )
+                    dtype = tensor.dtype
+                    if dtype:
+                        if isinstance(vs, np.ndarray):
+                            vs = cast_to_type(vs, dtype)
+                        else:
+                            vs = [cast_to_type(v, dtype) for v in vs]
+                    updated_tensors[k] = tensor.num_samples
+                    tensor.extend(vs)
+        except Exception:
+            for k, num_samples in updated_tensors.items():
                 tensor = self.version_state["full_tensors"][k]
-                func_name = v["extend"]
-                if func_name == "extend_shape":
-                    has_shape_tensor = True
-                func = get_link_transform(func_name)
-                vs = func(
-                    samples,
-                    factor=tensor.info.downsampling_factor
-                    if func == extend_downsample
-                    else None,
-                    compression=self.meta.sample_compression,
-                    htype=self.htype,
-                    link_creds=self.link_creds,
-                    progressbar=progressbar,
-                    tensor_meta=self.meta,
-                )
-                dtype = tensor.dtype
-                if dtype:
-                    if isinstance(vs, np.ndarray):
-                        vs = cast_to_type(vs, dtype)
-                    else:
-                        vs = [cast_to_type(v, dtype) for v in vs]
-                tensor.extend(vs)
+                num_samples_added = tensor.num_samples - num_samples
+                for _ in range(num_samples_added):
+                    tensor.pop()
+            raise
+
         # if self.meta.is_link and not has_shape_tensor:
         #     func = get_link_transform("extend_shape")
         #     func(samples, tensor_meta=self.meta)
