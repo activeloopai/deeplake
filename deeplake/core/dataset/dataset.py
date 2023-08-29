@@ -67,6 +67,7 @@ from deeplake.htype import (
     UNSPECIFIED,
     verify_htype_key_value,
 )
+from deeplake.compression import COMPRESSION_ALIASES
 from deeplake.integrations import dataset_to_tensorflow
 from deeplake.util.bugout_reporter import deeplake_reporter, feature_report_path
 from deeplake.util.dataset import try_flushing
@@ -736,12 +737,20 @@ class Dataset:
             new_config = {
                 "htype": htype,
                 "dtype": dtype,
-                "sample_compression": sample_compression,
-                "chunk_compression": chunk_compression,
+                "sample_compression": COMPRESSION_ALIASES.get(
+                    sample_compression, sample_compression
+                ),
+                "chunk_compression": COMPRESSION_ALIASES.get(
+                    chunk_compression, chunk_compression
+                ),
                 "hidden": hidden,
                 "is_link": is_link,
                 "is_sequence": is_sequence,
             }
+            base_config = HTYPE_CONFIGURATIONS.get(htype, {}).copy()
+            for key in new_config:
+                if new_config[key] == UNSPECIFIED:
+                    new_config[key] = base_config.get(key) or UNSPECIFIED
             if current_config != new_config:
                 raise ValueError(
                     f"Tensor {name} already exists with different configuration. "

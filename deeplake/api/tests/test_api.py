@@ -1942,6 +1942,36 @@ def test_exist_ok(local_ds):
         ds.create_group("grp", exist_ok=True)
 
 
+def test_exist_ok_htype(local_ds):
+    with local_ds as ds:
+        ds.create_tensor("test1", htype="text")
+        with pytest.raises(TensorAlreadyExistsError):
+            ds.create_tensor("test1")
+        ds.create_tensor("test1", htype="text", exist_ok=True)
+
+        ds.create_tensor("test2", htype="bbox")
+        with pytest.raises(TensorAlreadyExistsError):
+            ds.create_tensor("test2")
+        ds.create_tensor("test2", htype="bbox", exist_ok=True)
+
+        ds.create_tensor("test3", htype="polygon")
+        with pytest.raises(TensorAlreadyExistsError):
+            ds.create_tensor("test3")
+        ds.create_tensor("test3", htype="polygon", exist_ok=True)
+
+        ds.create_tensor("test4", htype="image", sample_compression="jpg")
+        with pytest.raises(TensorAlreadyExistsError):
+            ds.create_tensor("test4")
+        ds.create_tensor(
+            "test4", htype="image", sample_compression="jpg", exist_ok=True
+        )
+
+        ds.create_tensor("test5", htype="class_label")
+        with pytest.raises(TensorAlreadyExistsError):
+            ds.create_tensor("test5")
+        ds.create_tensor("test5", htype="class_label", exist_ok=True)
+
+
 def verify_label_data(ds):
     text_labels = [
         ["airplane"],
