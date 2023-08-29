@@ -433,7 +433,7 @@ def extend(
                     if diff > 0:
                         time.sleep(diff)
             try:
-                embedded_data = np.vstack(embedded_data, dtype=np.float32)
+                embedded_data = np.vstack(embedded_data).astype(dtype=np.float32)
             except ValueError:
                 raise IncorrectEmbeddingShapeError()
 
