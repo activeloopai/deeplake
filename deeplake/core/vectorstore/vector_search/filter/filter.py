@@ -14,14 +14,15 @@ def dp_filter_python(x: dict, filter: Dict) -> bool:
     result = True
 
     for tensor in filter.keys():
-        data = x[tensor].data()["value"]
+        if result:  # Only evaluate more data if previous filters were True
+            data = x[tensor].data()["value"]
 
-        if x[tensor].meta.htype == "json":
-            result = result and all(
-                k in data and v == data[k] for k, v in filter[tensor].items()
-            )
-        else:
-            result = result and data == filter[tensor]
+            if x[tensor].meta.htype == "json":
+                result = result and all(
+                    k in data and v == data[k] for k, v in filter[tensor].items()
+                )
+            else:
+                result = result and data == filter[tensor]
 
     return result
 
