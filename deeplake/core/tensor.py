@@ -1005,9 +1005,10 @@ class Tensor:
 
     def _extend_links(self, samples, flat: Optional[bool], progressbar: bool = False):
         has_shape_tensor = False
-        for k, v in self.meta.links.items():
-            if flat is None or v["flatten_sequence"] == flat:
-                try:
+        updated_tensors = {}
+        try:
+            for k, v in self.meta.links.items():
+                if flat is None or v["flatten_sequence"] == flat:
                     tensor = self.version_state["full_tensors"][k]
                     func_name = v["extend"]
                     if func_name == "extend_shape":
@@ -1030,12 +1031,15 @@ class Tensor:
                             vs = cast_to_type(vs, dtype)
                         else:
                             vs = [cast_to_type(v, dtype) for v in vs]
-                    num_samples = tensor.num_samples
+                    updated_tensors[k] = tensor.num_samples
                     tensor.extend(vs)
-                except Exception:
-                    num_samples_added = tensor.num_samples - num_samples
-                    for _ in range(num_samples_added):
-                        tensor.pop()
+        except Exception:
+            for k, num_samples in updated_tensors.items():
+                tensor = self.version_state["full_tensors"][k]
+                num_samples_added = tensor.num_samples - num_samples
+                for _ in range(num_samples_added):
+                    tensor.pop()
+            raise
 
         # if self.meta.is_link and not has_shape_tensor:
         #     func = get_link_transform("extend_shape")

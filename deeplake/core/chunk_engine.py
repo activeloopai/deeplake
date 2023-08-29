@@ -2890,11 +2890,12 @@ class ChunkEngine:
         self, samples, flat: Optional[bool], progressbar: bool = False
     ):
         """Used in transforms to handle linked tensors."""
-        for k, v in self.tensor_meta.links.items():
-            if self._all_chunk_engines and (
-                flat is None or v["flatten_sequence"] == flat
-            ):
-                try:
+        updated_tensors = {}
+        try:
+            for k, v in self.tensor_meta.links.items():
+                if self._all_chunk_engines and (
+                    flat is None or v["flatten_sequence"] == flat
+                ):
                     tensor = self.version_state["full_tensors"][k]
                     func = get_link_transform(v["extend"])
                     meta = self.tensor_meta
@@ -2916,14 +2917,16 @@ class ChunkEngine:
                         else:
                             vs = [cast_to_type(v, dtype) for v in vs]
                     chunk_engine = self._all_chunk_engines[k]
-                    num_samples = chunk_engine.tensor_length
+                    updated_tensors[k] = chunk_engine.tensor_length
                     chunk_engine.extend(vs)
                     chunk_engine._transform_callback(vs, flat)
-                except Exception:
-                    num_samples_added = chunk_engine.num_samples - num_samples
-                    for _ in range(num_samples_added):
-                        chunk_engine.pop()
-                    raise
+        except Exception:
+            for k, num_samples in updated_tensors.items():
+                chunk_engine = self._all_chunk_engines[k]
+                num_samples_added = chunk_engine.tensor_length - num_samples
+                for _ in range(num_samples_added):
+                    chunk_engine.pop()
+            raise
 
     def _transform_pop_callback(self, index: int):
         if self._all_chunk_engines:
