@@ -67,6 +67,7 @@ from deeplake.htype import (
     UNSPECIFIED,
     verify_htype_key_value,
 )
+from deeplake.compression import COMPRESSION_ALIASES
 from deeplake.integrations import dataset_to_tensorflow
 from deeplake.util.bugout_reporter import deeplake_reporter, feature_report_path
 from deeplake.util.dataset import try_flushing
@@ -736,12 +737,20 @@ class Dataset:
             new_config = {
                 "htype": htype,
                 "dtype": dtype,
-                "sample_compression": sample_compression,
-                "chunk_compression": chunk_compression,
+                "sample_compression": COMPRESSION_ALIASES.get(
+                    sample_compression, sample_compression
+                ),
+                "chunk_compression": COMPRESSION_ALIASES.get(
+                    chunk_compression, chunk_compression
+                ),
                 "hidden": hidden,
                 "is_link": is_link,
                 "is_sequence": is_sequence,
             }
+            base_config = HTYPE_CONFIGURATIONS.get(htype, {}).copy()
+            for key in new_config:
+                if new_config[key] == UNSPECIFIED:
+                    new_config[key] = base_config.get(key) or UNSPECIFIED
             if current_config != new_config:
                 raise ValueError(
                     f"Tensor {name} already exists with different configuration. "
@@ -3029,6 +3038,7 @@ class Dataset:
                     tensor = tensors[k]
                     enc = tensor.chunk_engine.chunk_id_encoder
                     num_chunks = enc.num_chunks
+                    num_samples = tensor.meta.length
                     if extend:
                         tensor.extend(v)
                         if extend_extra_nones:
@@ -3051,6 +3061,8 @@ class Dataset:
                         ) from e
                     elif num_chunks_added == 1:
                         enc._encoded = enc._encoded[:-1]
+                        diff = tensor.meta.length - num_samples
+                        tensor.meta.update_length(-diff)
                     for k in tensors_appended:
                         try:
                             self[k].pop()
