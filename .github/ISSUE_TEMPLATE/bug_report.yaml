@@ -1,0 +1,83 @@
+name: Bug report
+title: "[BUG] "
+labels:
+  - bug
+
+description: Create a report to help us improve
+
+body:
+  - type: dropdown
+    attributes:
+      label: Severity
+      description: What is the impact of this bug?
+      options:
+        - P2 - Not urgent, nice to have
+        - P1 - Urgent, but non-breaking
+        - P0 - Critical breaking issue or missing functionality
+  - type: textarea
+    attributes:
+      label: Current Behavior
+      description: |
+        A clear and concise description of the behavior.
+        - Describe the problematic behavior
+        - Include console output if relevant
+        - Ensure private information is redacted
+        - Include screenshots if applicable
+    validations:
+      required: true
+
+  - type: textarea
+    attributes:
+      label: Steps to Reproduce
+      description: |
+        List the steps to reproduce the issue
+        - Include sample code, REPL, or repo link if applicable 
+        - Ensure private information is redacted
+    validations:
+      required: true
+
+  - type: textarea
+    attributes:
+      label: Expected/Desired Behavior
+      description: |
+        A clear and concise description of what you expected to happen (or code).
+    validations:
+      required: true
+
+  - type: input
+    attributes:
+      label: Python Version
+      placeholder: "Example: 3.8.6 - Clang 12.0.0 (clang-1200.0.32.27)"
+
+  - type: input
+    attributes:
+      label: OS
+      placeholder: "Examples: Ubuntu 18.04, OSX 10.13.4, Windows 10"
+
+  - type: input
+    attributes:
+      label: IDE
+      placeholder: "Examples: Vim, VS-Code, PyCharm"
+
+  - type: input
+    attributes:
+      label: Packages
+      placeholder: "Example: Tensorflow==2.1.2 - latest"
+
+  - type: textarea
+    attributes:
+      label: Additional Context
+      description: Add any other context that may be relevant. System configuration, network setup, etc.
+
+  - type: textarea
+    attributes:
+      label: Possible Solution
+      description: |
+        Any suggestions for a fix?
+
+  - type: checkboxes
+    attributes:
+      label: Are you willing to submit a PR?
+      description: Your contributions are greatly appreciated and play a vital role in helping to improve the project!
+      options:
+        - label: I'm willing to submit a PR (Thank you!)

@@ -126,6 +126,7 @@ KAGGLE_OPT = "--kaggle"
 
 EMERGENCY_STORAGE_PATH = "/tmp/emergency_storage"
 LOCAL_CACHE_PREFIX = "~/.activeloop/cache"
+DOWNLOAD_MANAGED_PATH_SUFFIX = "__local-managed-entry__"
 
 # used to identify the first commit so its data will not be in similar directory structure to the rest
 FIRST_COMMIT_ID = "firstdbf9474d461a19e9333c2fd19b46115348f"
@@ -245,3 +246,14 @@ DEFAULT_VECTORSTORE_TENSORS = [
 ]
 
 VIEW_SUMMARY_SAFE_LIMIT = 10000
+
+# openai constants
+OPENAI_TOKEN_SIZE = 2 * B
+OPENAI_ADA_MAX_TOKENS_PER_MINUTE = 1000000
+MAX_BYTES_PER_MINUTE = (
+    0.9 * OPENAI_TOKEN_SIZE * OPENAI_ADA_MAX_TOKENS_PER_MINUTE
+)  # 0.9 is a safety factor
+TARGET_BYTE_SIZE = 10000
+
+# Maximum default message length for saving query views
+QUERY_MESSAGE_MAX_SIZE = 1000

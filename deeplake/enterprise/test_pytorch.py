@@ -2,6 +2,7 @@ import pickle
 import deeplake
 import numpy as np
 import pytest
+from functools import partial
 from deeplake.util.exceptions import EmptyTensorError, TensorDoesNotExistError
 
 from deeplake.util.remove_cache import get_base_storage
@@ -60,6 +61,19 @@ def my_transform_collate(batch):
 
 def index_transform(sample):
     return sample["index"], sample["xyz"]
+
+
+def dummy_init_fn(arg):
+    return f"function called with arg {arg}"
+
+
+@requires_libdeeplake
+def test_setting_woker_init_function(local_auth_ds):
+    dl = local_auth_ds.dataloader().pytorch()
+
+    assert dl.worker_init_fn == None
+    dl.worker_init_fn = partial(dummy_init_fn, 1024)
+    assert dl.worker_init_fn() == f"function called with arg 1024"
 
 
 @requires_torch
@@ -151,6 +165,19 @@ def test_pytorch_transform(hub_cloud_ds):
             expected_image2 = i * np.ones((12, 12))
             np.testing.assert_array_equal(actual_image, expected_image)
             np.testing.assert_array_equal(actual_image2, expected_image2)
+
+
+@requires_libdeeplake
+def test_inequal_tensors_dataloader_length(local_auth_ds):
+    with local_auth_ds as ds:
+        ds.create_tensor("images")
+        ds.create_tensor("label")
+        ds.images.extend(([i * np.ones((i + 1, i + 1)) for i in range(16)]))
+
+    ld = local_auth_ds.dataloader().batch(1).pytorch()
+    assert len(ld) == 0
+    ld1 = local_auth_ds.dataloader().batch(2).pytorch(tensors=["images"])
+    assert len(ld1) == 8
 
 
 @requires_torch
@@ -666,6 +693,7 @@ def test_pytorch_error_handling(hub_cloud_ds):
 @requires_libdeeplake
 @requires_torch
 def test_pil_decode_method(hub_cloud_ds):
+    from indra.pytorch.exceptions import CollateExceptionWrapper
     with hub_cloud_ds as ds:
         ds.create_tensor("x", htype="image", sample_compression="jpeg")
         ds.x.extend(np.random.randint(0, 255, (10, 10, 10, 3), np.uint8))
@@ -677,7 +705,7 @@ def test_pil_decode_method(hub_cloud_ds):
         assert batch["x"].shape == (1, 10, 10, 3)
 
     ptds = ds.dataloader().pytorch(decode_method={"x": "pil"})
-    with pytest.raises(TypeError):
+    with pytest.raises(CollateExceptionWrapper):
         for _ in ptds:
             pass
 

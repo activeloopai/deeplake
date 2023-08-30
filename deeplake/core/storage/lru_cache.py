@@ -451,6 +451,7 @@ class LRUCache(StorageProvider):
             "next_storage": self.next_storage,
             "cache_storage": self.cache_storage,
             "cache_size": self.cache_size,
+            "use_async": self.use_async,
         }
 
     def __setstate__(self, state: Dict[str, Any]):
@@ -469,6 +470,7 @@ class LRUCache(StorageProvider):
         self.next_storage = state["next_storage"]
         self.cache_storage = state["cache_storage"]
         self.cache_size = state["cache_size"]
+        self.use_async = state["use_async"]
         self.lru_sizes = OrderedDict()
         self.dirty_keys = OrderedDict()
         self.cache_used = 0

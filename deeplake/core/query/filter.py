@@ -7,7 +7,10 @@ from deeplake.core.io import SampleStreaming
 from deeplake.core.query.query import DatasetQuery
 from deeplake.util.compute import get_compute_provider
 from deeplake.util.dataset import map_tensor_keys
-from deeplake.constants import QUERY_PROGRESS_UPDATE_FREQUENCY
+from deeplake.constants import (
+    QUERY_PROGRESS_UPDATE_FREQUENCY,
+    TRANSFORM_PROGRESSBAR_UPDATE_INTERVAL,
+)
 from time import time
 
 import inspect
@@ -156,6 +159,8 @@ def filter_with_compute(
     query_text: Optional[str] = None,
     vds: Optional[deeplake.Dataset] = None,
 ) -> List[int]:
+    initial_is_iteration = dataset.is_iteration
+    dataset.is_iteration = True
     blocks = SampleStreaming(dataset, tensors=map_tensor_keys(dataset)).list_blocks()
     compute = get_compute_provider(scheduler=scheduler, num_workers=num_workers)
 
@@ -198,6 +203,8 @@ def filter_with_compute(
 
     def pg_filter_slice(pg_callback, indices: Sequence[int]):
         result = list()
+        progress = 0
+        t1 = time()
         for i in indices:
             if filter_function(dataset[i]):
                 result.append(i)
@@ -207,7 +214,14 @@ def filter_with_compute(
             elif vds:
                 vds_queue.put((i, False))
                 _event_callback()
-            pg_callback(1)
+            progress += 1
+
+            if time() - t1 > TRANSFORM_PROGRESSBAR_UPDATE_INTERVAL:
+                pg_callback(progress)
+                progress = 0
+                t1 = time()
+        if progress > 0:
+            pg_callback(progress)
         return result
 
     result: Sequence[List[int]]
@@ -248,6 +262,7 @@ def filter_with_compute(
             if hasattr(vds_queue, "close"):
                 vds_queue.close()
         _del_counter(query_id)
+        dataset.is_iteration = initial_is_iteration
     if vds:
         vds.autoflush = True
         vds_thread.join()

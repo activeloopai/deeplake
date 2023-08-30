@@ -4,6 +4,7 @@ import warnings
 import numpy as np
 from collections import defaultdict
 from deeplake.core.meta.encode.chunk_id import ChunkIdEncoder
+from deeplake.core.seed import DeeplakeRandom
 
 
 def find_primary_tensor(dataset):
@@ -37,6 +38,8 @@ def create_fetching_schedule(dataset, primary_tensor_name, shuffle_within_chunks
     enc_array = chunk_id_encoder.array
     num_chunks = chunk_id_encoder.num_chunks
     # pick chunks randomly, one by one
+    prev_state = np.random.get_state()
+    np.random.seed(DeeplakeRandom().get_seed())
     chunk_order = np.random.choice(num_chunks, num_chunks, replace=False)
     schedule = []
     for chunk_idx in chunk_order:
@@ -50,12 +53,9 @@ def create_fetching_schedule(dataset, primary_tensor_name, shuffle_within_chunks
     if isinstance(index_struct, set):
         schedule = [int(idx) for idx in schedule if idx in index_struct]
     elif isinstance(index_struct, dict):
-        nested_schedule = [
-            [int(idx)] * index_struct[idx] for idx in schedule if idx in index_struct
-        ]
-        schedule = []
-        for indexes_list in nested_schedule:
-            schedule.extend(indexes_list)
+        idxs = filter(lambda idx: idx in index_struct, schedule)
+        schedule = [int(idx) for idx in idxs for _ in range(index_struct[idx])]
+    np.random.set_state(prev_state)
     return schedule
 
 

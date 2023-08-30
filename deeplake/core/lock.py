@@ -77,7 +77,7 @@ class Lock(object):
             raise LockedException()
         self._write_lock()
 
-    def acquire(self, timeout: Optional[int] = None):
+    def acquire(self, timeout: Optional[int] = 0):
         storage = self.storage
         path = self.path
         if timeout is not None:
@@ -159,7 +159,7 @@ class PersistentLock(Lock):
     Args:
         storage (StorageProvider): The storage provder to be locked.
         lock_lost_callback (Callable, optional): Called if the lock is lost after acquiring.
-
+        timeout(int, optional): Keep trying to acquire the lock for the given number of seconds before throwing a LockedException. Passing None will wait forever
     Raises:
         LockedException: If the storage is already locked by a different machine.
     """
@@ -169,6 +169,7 @@ class PersistentLock(Lock):
         storage: StorageProvider,
         path: Optional[str] = None,
         lock_lost_callback: Optional[Callable] = None,
+        timeout: Optional[int] = 0,
     ):
         self.storage = storage
         self.path = get_dataset_lock_key() if path is None else path
@@ -178,13 +179,14 @@ class PersistentLock(Lock):
         self._previous_update_timestamp = None
         self.lock = Lock(storage, self.path, deeplake.constants.DATASET_LOCK_VALIDITY)
         self.acquired = False
+        self.timeout = timeout
         self.acquire()
         atexit.register(self.release)
 
     def acquire(self):
         if self.acquired:
             return
-        self.lock.acquire(timeout=0)
+        self.lock.acquire(timeout=self.timeout)
         self._thread = threading.Thread(target=self._lock_loop, daemon=True)
         self._thread.start()
         self.acquired = True
@@ -194,7 +196,7 @@ class PersistentLock(Lock):
             while True:
                 time.sleep(deeplake.constants.DATASET_LOCK_UPDATE_INTERVAL)
                 try:
-                    self.lock.refresh_lock(timeout=0)
+                    self.lock.refresh_lock(timeout=self.timeout)
                 except LockedException:
                     if self.lock_lost_callback:
                         self.lock_lost_callback()
@@ -231,18 +233,20 @@ def _get_lock_file_path(version: Optional[str] = None) -> str:
 def lock_dataset(
     dataset,
     lock_lost_callback: Optional[Callable] = None,
+    version: Optional[str] = None,
 ):
     """Locks a StorageProvider instance to avoid concurrent writes from multiple machines.
 
     Args:
         dataset: Dataset instance.
         lock_lost_callback (Callable, Optional): Called if the lock is lost after acquiring.
+        version (str, optional): The version to be locked. If None, the current version is locked.
 
     Raises:
         LockedException: If the storage is already locked by a different machine.
     """
     storage = get_base_storage(dataset.storage)
-    version = dataset.version_state["commit_id"]
+    version = version or dataset.version_state["commit_id"]
     key = _get_lock_key(get_path_from_storage(storage), version)
     lock = _LOCKS.get(key)
     if lock:
@@ -252,19 +256,21 @@ def lock_dataset(
             storage,
             path=_get_lock_file_path(version),
             lock_lost_callback=lock_lost_callback,
+            timeout=dataset._lock_timeout,
         )
         _LOCKS[key] = lock
     _REFS[key].add(id(dataset))
 
 
-def unlock_dataset(dataset):
+def unlock_dataset(dataset, version: Optional[str] = None):
     """Unlocks a storage provider that was locked by this machine.
 
     Args:
         dataset: The dataset to be unlocked
+        version (str, optional): The version to be unlocked. If None, the current version is unlocked.
     """
     storage = get_base_storage(dataset.storage)
-    version = dataset.version_state["commit_id"]
+    version = version or dataset.version_state["commit_id"]
     key = _get_lock_key(get_path_from_storage(storage), version)
     try:
         lock = _LOCKS[key]

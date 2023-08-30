@@ -24,7 +24,7 @@ import deeplake
 
 
 class DeepLakeCloudDataset(Dataset):
-    """Subclass of :class:`Dataset`. Deep Lake cloud datasets are those datasets which are stored on Activeloop servers, their paths look like:
+    """Subclass of :class:`Dataset`. Deep Lake cloud datasets are those datasets which are stored in or connected to Activeloop servers, their paths look like:
     ``hub://username/dataset_name``."""
 
     def _first_load_init(self, verbose=True):
@@ -203,6 +203,16 @@ class DeepLakeCloudDataset(Dataset):
         self._send_event(
             event_id=event_id,
             event_group="dataset_branch_creation",
+            deeplake_meta=deeplake_meta,
+            has_head_changes=False,
+        )
+
+    def _send_branch_deletion_event(self, branch_name: str):
+        deeplake_meta = {"branch_name": branch_name}
+        event_id = f"{self.org_id}/{self.ds_name}.branch_deleted"
+        self._send_event(
+            event_id=event_id,
+            event_group="dataset_branch_deletion",
             deeplake_meta=deeplake_meta,
             has_head_changes=False,
         )

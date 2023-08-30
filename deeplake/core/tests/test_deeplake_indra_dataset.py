@@ -6,9 +6,9 @@ from deeplake.util.exceptions import (
     EmptyTokenException,
 )
 
-
 from deeplake.core.dataset.deeplake_query_dataset import DeepLakeQueryDataset
 import random
+import math
 import pytest
 
 
@@ -242,16 +242,90 @@ def test_sequences_accessing_data(local_auth_ds_generator):
 
     deeplake_indra_ds = deeplake_ds.query("SELECT * GROUP BY label")
     assert len(deeplake_indra_ds) == 2
-    assert deeplake_indra_ds.image.shape == [2, None, None, 10, 3]
-    assert deeplake_indra_ds[0].image.shape == [101, 10, 10, 3]
-    assert deeplake_indra_ds[0, 0].image.shape == [10, 10, 3]
-    assert deeplake_indra_ds[0].image.numpy().shape == (101, 10, 10, 3)
-    assert deeplake_indra_ds[1].image.shape == [99, None, 10, 3]
-    assert deeplake_indra_ds[1, 0].image.shape == [10, 10, 3]
-    assert deeplake_indra_ds[1, 98].image.shape == [20, 10, 3]
-    assert deeplake_indra_ds[1].image.numpy().shape == (99,)
+    assert deeplake_indra_ds.image.shape == (2, None, None, 10, 3)
+    assert deeplake_indra_ds[0].image.shape == (101, 10, 10, 3)
+    assert deeplake_indra_ds[0, 0].image.shape == (10, 10, 3)
+    assert len(deeplake_indra_ds[0].image.numpy()) == 101
+    assert deeplake_indra_ds[1].image.shape == (99, None, 10, 3)
+    assert deeplake_indra_ds[1, 0].image.shape == (10, 10, 3)
+    assert deeplake_indra_ds[1, 98].image.shape == (20, 10, 3)
+    assert len(deeplake_indra_ds[1].image.numpy()) == 99
     assert deeplake_indra_ds[1].image.numpy()[0].shape == (10, 10, 3)
     assert deeplake_indra_ds[1].image.numpy()[98].shape == (20, 10, 3)
+
+
+@requires_libdeeplake
+def test_query_tensors_polygon_htype_consistency(local_auth_ds_generator):
+    ds = local_auth_ds_generator()
+    with ds:
+        ds.create_tensor(
+            "polygon",
+            dtype=np.float32,
+            htype="polygon",
+            sample_compression=None,
+        )
+        ds.create_tensor(
+            "labels",
+            dtype=np.uint16,
+            htype="generic",
+            sample_compression=None,
+        )
+        for i in range(10):
+            polygons = []
+            for j in range(i):
+                p = np.ndarray((3 + j, 2))
+                for k in range(3 + j):
+                    p[k] = [
+                        200 * (j % 3) + 150 * (math.sin(6.28 * k / (3 + j)) + 1) / 2,
+                        200 * (j / 3) + 150 * (math.cos(6.28 * k / (3 + j)) + 1) / 2,
+                    ]
+                polygons.append(p)
+            ds.labels.append(i)
+            ds.polygon.append(polygons)
+
+    view = ds.query("select *, labels+labels as new_tensor")
+    for i in range(len(ds)):
+        orig = ds.polygon[i].numpy()
+        new = view.polygon[i].numpy()
+
+        assert type(orig) == type(new)
+        for i, j in zip(orig, new):
+            assert np.all(i == j)
+
+
+@requires_libdeeplake
+def test_random_split_with_seed(local_auth_ds_generator):
+    deeplake_ds = local_auth_ds_generator()
+    from deeplake.core.seed import DeeplakeRandom
+
+    with deeplake_ds:
+        deeplake_ds.create_tensor("label", htype="generic", dtype=np.int32)
+        for i in range(1000):
+            deeplake_ds.label.append(int(i % 100))
+
+    deeplake_indra_ds = deeplake_ds.query("SELECT * GROUP BY label")
+
+    initial_state = np.random.get_state()
+    DeeplakeRandom().seed(100)
+    split1 = deeplake_indra_ds.random_split([0.2, 0.2, 0.6])
+    assert len(split1) == 3
+    assert len(split1[0]) == 20
+
+    DeeplakeRandom().seed(101)
+    split2 = deeplake_indra_ds.random_split([0.2, 0.2, 0.6])
+    assert len(split2) == 3
+    assert len(split2[0]) == 20
+
+    DeeplakeRandom().seed(100)
+    split3 = deeplake_indra_ds.random_split([0.2, 0.2, 0.6])
+    assert len(split3) == 3
+    assert len(split3[0]) == 20
+
+    for i in range(len(split1)):
+        assert np.all(split1[i].label.numpy() == split3[i].label.numpy())
+        assert not np.all(split1[i].label.numpy() == split2[i].label.numpy())
+
+    np.random.set_state(initial_state)
 
 
 @requires_libdeeplake
@@ -267,6 +341,7 @@ def test_random_split(local_auth_ds_generator):
     split = deeplake_indra_ds.random_split([0.2, 0.2, 0.6])
     assert len(split) == 3
     assert len(split[0]) == 20
+
     l = split[0].dataloader().pytorch()
     for b in l:
         pass
@@ -335,7 +410,7 @@ def test_virtual_tensors(local_auth_ds_generator):
         "json",
         "num_labels",
     ]
-    assert deeplake_indra_ds.text[0].data() == {"value": "Hello 0"}
+    assert deeplake_indra_ds.text[0].data() == deeplake_ds.text[0].data()
     assert deeplake_indra_ds.json[0].data() == {"value": '{"key": "val"}'}
     assert deeplake_ds.json[0].data() == {"value": '{"key": "val"}'}
 

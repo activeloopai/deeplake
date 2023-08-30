@@ -19,8 +19,6 @@ except ImportError:
 
 
 os.system("wandb offline")
-os.environ["ACTIVELOOP_HUB_USERNAME"] = "testingacc2"
-os.environ["ACTIVELOOP_HUB_PASSWORD"] = "snarkai123"
 
 _THIS_FILE = pathlib.Path(__file__).parent.absolute()
 _COCO_PATH = "hub://activeloop/coco-train"

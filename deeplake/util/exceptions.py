@@ -548,9 +548,10 @@ def has_path(sample):
 
 
 class TransformError(Exception):
-    def __init__(self, index=None, sample=None, samples_processed=0):
+    def __init__(self, index=None, sample=None, samples_processed=0, suggest=False):
         self.index = index
         self.sample = sample
+        self.suggest = suggest
         # multiprocessing re raises error with str
         if isinstance(index, str):
             super().__init__(index)
@@ -574,6 +575,13 @@ class TransformError(Exception):
                 msg += f" Last checkpoint: {samples_processed} samples processed. You can slice the input to resume from this point."
 
             msg += " See traceback for more details."
+
+            if suggest:
+                msg += (
+                    " If you wish to skip the samples that cause errors,"
+                    " please specify `ignore_errors=True`."
+                )
+
             super().__init__(msg)
 
 
@@ -596,6 +604,15 @@ class SampleAppendError(Exception):
         msg += f"to the tensor '{tensor}'. See more details in the traceback."
 
         super().__init__(msg)
+
+
+class SampleExtendError(Exception):
+    def __init__(self, message):
+        message += (
+            " If you wish to skip the samples that cause errors,"
+            " please specify `ignore_errors=True`."
+        )
+        super().__init__(message)
 
 
 class FilterError(Exception):

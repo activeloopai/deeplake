@@ -3,6 +3,7 @@ from deeplake.util.cache_chain import generate_chain
 from deeplake.constants import LOCAL_CACHE_PREFIX, MB
 from deeplake.util.exceptions import AgreementNotAcceptedError
 from deeplake.util.tag import process_hub_path
+from deeplake.util.path import get_path_type
 from typing import Dict, Optional, Union
 from deeplake.core.storage.provider import StorageProvider
 import os
@@ -56,9 +57,18 @@ def storage_provider_from_path(
             path, read_only, db_engine=db_engine, token=token, creds=creds
         )
     else:
-        if isinstance(creds, str):
+        if isinstance(creds, str) and not path.startswith("s3://"):
             creds = {}
         if path.startswith("s3://"):
+            creds_used = "PLATFORM"
+            if creds == "ENV":
+                creds_used = "ENV"
+            elif isinstance(creds, dict) and set(creds.keys()) == {"profile_name"}:
+                creds_used = "ENV"
+            elif isinstance(creds, dict) and bool(creds):
+                creds_used = "DICT"
+            if isinstance(creds, str):
+                creds = {}
             key = creds.get("aws_access_key_id")
             secret = creds.get("aws_secret_access_key")
             session_token = creds.get("aws_session_token")
@@ -75,6 +85,7 @@ def storage_provider_from_path(
                 profile_name=profile,
                 token=token,
             )
+            storage.creds_used = creds_used
         elif (
             path.startswith("gcp://")
             or path.startswith("gcs://")
@@ -137,7 +148,10 @@ def storage_provider_from_hub_path(
         client, org_id, ds_name, mode, db_engine
     )
 
-    if mode == "r" and read_only is None and not DEFAULT_READONLY:
+    is_local = get_path_type(url) == "local"
+
+    # ignore mode returned from backend if underlying storage is local
+    if mode == "r" and read_only is None and not DEFAULT_READONLY and not is_local:
         # warns user about automatic mode change
         print("Opening dataset in read-only mode as you don't have write permissions.")
         read_only = True

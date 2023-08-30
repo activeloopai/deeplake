@@ -1428,7 +1428,10 @@ def test_ds_append_errors(
         err_msg += re.escape(
             " Last checkpoint: 10 samples processed. You can slice the input to resume from this point."
         )
-    err_msg += re.escape(" See traceback for more details.")
+    err_msg += re.escape(
+        " See traceback for more details."
+        " If you wish to skip the samples that cause errors, please specify `ignore_errors=True`."
+    )
 
     samples.insert(17, bad_sample)
 
@@ -1682,3 +1685,56 @@ def test_catch_value_error(local_path):
         )
         assert e.index == 20
         assert e.sample == 10
+
+
+def test_transform_summary(local_ds, capsys):
+    @deeplake.compute
+    def upload(sample_in, sample_out):
+        sample_out.images.append(sample_in)
+
+    with local_ds as ds:
+        ds.create_tensor("images", htype="image", sample_compression="jpg")
+
+    samples = (
+        ["bad_sample"]
+        + [np.random.randint(0, 255, (10, 10), dtype=np.uint8) for _ in range(8)]
+        + ["bad_sample"]
+    ) * 2
+
+    upload().eval(
+        samples,
+        ds,
+        num_workers=TRANSFORM_TEST_NUM_WORKERS,
+        progressbar=False,
+        ignore_errors=True,
+    )
+
+    captured = capsys.readouterr()
+    assert captured.out == (
+        "No. of samples successfully processed: 16 (80.0%)\n"
+        "No. of samples skipped: 4 (20.0%)\n"
+    )
+
+    samples = [np.random.randint(0, 255, (10, 10), dtype=np.uint8) for _ in range(8)]
+    upload().eval(
+        samples,
+        ds,
+        num_workers=TRANSFORM_TEST_NUM_WORKERS,
+        progressbar=False,
+        ignore_errors=True,
+    )
+
+    captured = capsys.readouterr()
+    assert captured.out == (
+        "No. of samples successfully processed: 8 (100.0%)\n"
+        "No. of samples skipped: 0 (0.0%)\n"
+    )
+
+    # no summary if ignore_errors=False
+    samples = [np.random.randint(0, 255, (10, 10), dtype=np.uint8) for _ in range(8)]
+    upload().eval(
+        samples, ds, num_workers=TRANSFORM_TEST_NUM_WORKERS, progressbar=False
+    )
+
+    captured = capsys.readouterr()
+    assert captured.out == ""

@@ -40,6 +40,7 @@ from deeplake.util.exceptions import (
     InvalidDatasetNameException,
     UnsupportedParameterException,
     DynamicTensorNumpyError,
+    SampleExtendError,
 )
 from deeplake.util.path import convert_string_to_pathlib_if_needed, verify_dataset_name
 from deeplake.util.testing import assert_array_equal
@@ -1121,13 +1122,6 @@ def test_deepcopy_errors(path, hub_token):
         )
 
 
-def test_cloud_delete_doesnt_exist(hub_cloud_path, hub_cloud_dev_token):
-    username = hub_cloud_path.split("/")[2]
-    # this dataset doesn't exist
-    new_path = f"hub://{username}/doesntexist123"
-    deeplake.delete(new_path, token=hub_cloud_dev_token, force=True)
-
-
 def test_invalid_tensor_name(memory_ds):
     with pytest.raises(InvalidTensorNameError):
         memory_ds.create_tensor("group/version_state")
@@ -1714,7 +1708,7 @@ def test_hub_remote_read_videos(storage, memory_ds):
     memory_ds.create_tensor("videos", htype="video", sample_compression="mp4")
 
     video = deeplake.read(
-        "http://commondatastorage.googleapis.com/gtv-videos-bucket/sample/ForBiggerJoyrides.mp4",
+        "https://commondatastorage.googleapis.com/gtv-videos-bucket/sample/ForBiggerJoyrides.mp4",
     )
     memory_ds.videos.append(video)
     assert memory_ds.videos[0].shape == (361, 720, 1280, 3)
@@ -1946,6 +1940,36 @@ def test_exist_ok(local_ds):
         with pytest.raises(TensorGroupAlreadyExistsError):
             ds.create_group("grp")
         ds.create_group("grp", exist_ok=True)
+
+
+def test_exist_ok_htype(local_ds):
+    with local_ds as ds:
+        ds.create_tensor("test1", htype="text")
+        with pytest.raises(TensorAlreadyExistsError):
+            ds.create_tensor("test1")
+        ds.create_tensor("test1", htype="text", exist_ok=True)
+
+        ds.create_tensor("test2", htype="bbox")
+        with pytest.raises(TensorAlreadyExistsError):
+            ds.create_tensor("test2")
+        ds.create_tensor("test2", htype="bbox", exist_ok=True)
+
+        ds.create_tensor("test3", htype="polygon")
+        with pytest.raises(TensorAlreadyExistsError):
+            ds.create_tensor("test3")
+        ds.create_tensor("test3", htype="polygon", exist_ok=True)
+
+        ds.create_tensor("test4", htype="image", sample_compression="jpg")
+        with pytest.raises(TensorAlreadyExistsError):
+            ds.create_tensor("test4")
+        ds.create_tensor(
+            "test4", htype="image", sample_compression="jpg", exist_ok=True
+        )
+
+        ds.create_tensor("test5", htype="class_label")
+        with pytest.raises(TensorAlreadyExistsError):
+            ds.create_tensor("test5")
+        ds.create_tensor("test5", htype="class_label", exist_ok=True)
 
 
 def verify_label_data(ds):
@@ -2773,3 +2797,39 @@ def test_non_local_org_id():
 def test_azure_bad_path():
     with pytest.raises(ValueError):
         ds = deeplake.empty("az://storage_account")
+
+
+def test_dataset_extend_error_suggestion(local_ds):
+    with local_ds as ds:
+        ds.create_tensor("abc")
+
+    with pytest.raises(SampleExtendError) as e:
+        ds.extend({"abc": [1, 2, 3, 4, "abcd", 5]})
+
+    assert (
+        "If you wish to skip the samples that cause errors,"
+        " please specify `ignore_errors=True`."
+    ) in str(e)
+
+
+def test_extend_rollbacks(local_ds):
+    with local_ds as ds:
+        ds.create_tensor("images", htype="image", sample_compression="jpg")
+
+        # Broken LFPW links
+        links = [
+            "http://cm1.theinsider.com/media/0/428/93/spl41194_011.0.0.0x0.636x912.jpeg",
+            "http://cm1.theinsider.com/media/0/428/93/spl47823_060.0.0.0x0.633x912.jpeg",
+            "http://cm1.theinsider.com/media/0/428/90/spl91520_012.0.0.0x0.636x912.jpeg",
+            "http://blog.themavenreport.com/wp-content/uploads/2008/02/kimora_show_575.jpg",
+            "http://cache.thephoenix.com/secure/uploadedImages/The_Phoenix/Movies/Reviews/FILM_Queen_6.jpg",
+            "http://www.todoelmundo.org/archivos/99/imagenes/En_america.jpg",
+            "http://image.toutlecine.com/photos/b/l/o/blood-diamond-2006-22-g.jpg",
+        ]
+
+        ds.extend(
+            {"images": [deeplake.read(link) for link in links]}, ignore_errors=True
+        )
+
+    # Commit should work
+    ds.commit()

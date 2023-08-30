@@ -1,8 +1,11 @@
 import uuid
-from typing import List, Dict, Any
+import sys
+import time
+from math import ceil
+from typing import List, Dict, Any, Optional, Callable, Union
+from tqdm import tqdm
 
 import numpy as np
-from math import ceil
 
 try:
     from indra import api  # type: ignore
@@ -12,15 +15,15 @@ except ImportError:  # pragma: no cover
     _INDRA_INSTALLED = False  # pragma: no cover
 
 import deeplake
-from deeplake.constants import MB
 from deeplake.core.vectorstore.vector_search import utils
-from deeplake.core.vectorstore.vector_search import dataset as dataset_utils
 from deeplake.core.vectorstore.vector_search.ingestion import ingest_data
 from deeplake.constants import (
     DEFAULT_VECTORSTORE_DEEPLAKE_PATH,
     VECTORSTORE_EXTEND_MAX_SIZE,
     DEFAULT_VECTORSTORE_TENSORS,
     VECTORSTORE_EXTEND_MAX_SIZE_BY_HTYPE,
+    MAX_BYTES_PER_MINUTE,
+    TARGET_BYTE_SIZE,
 )
 from deeplake.util.exceptions import IncorrectEmbeddingShapeError
 
@@ -66,6 +69,7 @@ def create_or_load_dataset(
         exec_option,
         embedding_function,
         overwrite,
+        creds,
         runtime,
         **kwargs,
     )
@@ -73,7 +77,7 @@ def create_or_load_dataset(
 
 def dataset_exists(dataset_path, token, creds, **kwargs):
     return (
-        deeplake.exists(dataset_path, token=token, **creds)
+        deeplake.exists(dataset_path, token=token, creds=creds)
         and "overwrite" not in kwargs
     )
 
@@ -165,6 +169,7 @@ def create_dataset(
     exec_option,
     embedding_function,
     overwrite,
+    creds,
     runtime,
     **kwargs,
 ):
@@ -185,6 +190,7 @@ def create_dataset(
         runtime=runtime,
         verbose=False,
         overwrite=overwrite,
+        creds=creds,
         **kwargs,
     )
     create_tensors(tensor_params, dataset, logger, embedding_function)
@@ -218,6 +224,7 @@ def delete_and_commit(dataset, ids):
         for id in sorted(ids)[::-1]:
             dataset.pop(id)
         dataset.commit(f"deleted {len(ids)} samples", allow_empty=True)
+    return True
 
 
 def delete_all_samples_if_specified(dataset, delete_all):
@@ -238,11 +245,17 @@ def fetch_embeddings(view, embedding_tensor: str = "embedding"):
 
 
 def get_embedding(embedding, embedding_data, embedding_function=None):
+    if isinstance(embedding_data, str):
+        embedding_data = [embedding_data]
+
     if (
         embedding is None
         and embedding_function is not None
         and embedding_data is not None
     ):
+        if len(embedding_data) > 1:
+            raise NotImplementedError("Searching batched queries is not supported yet.")
+
         embedding = embedding_function(embedding_data)  # type: ignore
 
     if embedding is not None and (
@@ -310,8 +323,8 @@ def get_not_none_tensors(tensors, embedding_data):
 
 def populate_id_tensor_if_needed(ids_tensor, tensors, not_none_tensors, num_items):
     if "id" not in not_none_tensors and "ids" not in not_none_tensors:
-        id = [str(uuid.uuid1()) for _ in range(num_items)]
-        tensors[ids_tensor] = id
+        found_id = [str(uuid.uuid1()) for _ in range(num_items)]
+        tensors[ids_tensor] = found_id
     else:
         for tensor in not_none_tensors:
             if tensor in ("id", "ids"):
@@ -361,19 +374,75 @@ def update_embedding_info(logger, dataset, embedding_function):
 
     if num_embedding_tensors == 0:
         logger.warning(
-            f"No embedding tensors were found, so the embedding function metadata will not be added to any tensor. "
+            "No embedding tensors were found, so the embedding function metadata will not be added to any tensor. "
             "Consider doing that manually using `vector_store.dataset.tensor_name.info. = <embedding_function_info_dictionary>`"
         )
         return
     if num_embedding_tensors > 1:
         logger.warning(
             f"{num_embedding_tensors} embedding tensors were found. "
-            f"It is not clear to which tensor the embedding function information should be added, so the embedding function metadata will not be added to any tensor. "
+            "It is not clear to which tensor the embedding function information should be added, so the embedding function metadata will not be added to any tensor. "
             "Consider doing that manually using `vector_store.dataset.tensor_name.info = <embedding_function_info_dictionary>`"
         )
         return
 
     set_embedding_info(dataset[embeddings_tensors[0]], embedding_function)
+
+
+def extend(
+    embedding_function: List[Callable],
+    embedding_data: List[Any],
+    embedding_tensor: Union[str, List[str]],
+    processed_tensors: Dict[str, List[Any]],
+    dataset: deeplake.core.dataset.Dataset,
+):
+    """
+    Function to extend the dataset with new data.
+
+    Args:
+        embedding_function (List[Callable]): List of embedding functions to be used to create embedding data.
+        embedding_data (List[Any]): List of data to be embedded.
+        embedding_tensor (Union[str, List[str]]): Name of the tensor(s) to store the embedding data.
+        processed_tensors (Dict[str, List[Any]]): Dictionary of tensors to be added to the dataset.
+        dataset (deeplake.core.dataset.Dataset): Dataset to be extended.
+
+    """
+    if embedding_function:
+        for func, data, tensor in zip(
+            embedding_function, embedding_data, embedding_tensor
+        ):
+            data_batched = chunk_by_bytes(data, target_byte_size=TARGET_BYTE_SIZE)
+
+            # Calculate the number of batches you can send each minute
+            batches_per_minute = MAX_BYTES_PER_MINUTE / TARGET_BYTE_SIZE
+
+            # Calculate sleep time in seconds between batches
+            sleep_time = 60 / batches_per_minute
+
+            embedded_data = []
+
+            for data_i in tqdm(
+                data_batched, total=len(data_batched), desc="Creating embedding data"
+            ):
+                start = time.time()
+                embedded_data.append(func(data_i))
+                end = time.time()
+                if func.__module__ == "langchain.embeddings.openai":
+                    # we need to take into account the time spent on openai call
+                    diff = sleep_time - (end - start)
+                    if diff > 0:
+                        time.sleep(diff)
+            try:
+                embedded_data = np.vstack(embedded_data).astype(dtype=np.float32)
+            except ValueError:
+                raise IncorrectEmbeddingShapeError()
+
+            if len(embedded_data) == 0:
+                raise ValueError("embedding function returned empty list")
+
+            processed_tensors[tensor] = embedded_data
+
+    dataset.extend(processed_tensors)
 
 
 def extend_or_ingest_dataset(
@@ -387,55 +456,50 @@ def extend_or_ingest_dataset(
     total_samples_processed,
     logger,
 ):
-    first_item = next(iter(processed_tensors))
+    # TODO: Add back the old logic with checkpointing after indexing is fixed
+    extend(
+        embedding_function,
+        embedding_data,
+        embedding_tensor,
+        processed_tensors,
+        dataset,
+    )
 
-    htypes = [
-        dataset[item].meta.htype for item in dataset.tensors
-    ]  # Inspect raw htype (not parsed htype like tensor.htype) in order to avoid parsing links and sequences separately.
-    threshold_by_htype = [
-        VECTORSTORE_EXTEND_MAX_SIZE_BY_HTYPE.get(h, int(1e10)) for h in htypes
-    ]
-    extend_threshold = min(threshold_by_htype + [VECTORSTORE_EXTEND_MAX_SIZE])
 
-    if len(processed_tensors[first_item]) <= extend_threshold:
-        if embedding_function:
-            for func, data, tensor in zip(
-                embedding_function, embedding_data, embedding_tensor
-            ):
-                embedded_data = func(data)
-                try:
-                    embedded_data = np.array(embedded_data, dtype=np.float32)
-                except ValueError:
-                    raise IncorrectEmbeddingShapeError()
+def chunk_by_bytes(data, target_byte_size=TARGET_BYTE_SIZE):
+    """
+    Splits a list of strings into chunks where each chunk has approximately the given target byte size.
 
-                if len(embedded_data) == 0:
-                    raise ValueError("embedding function returned empty list")
+    Args:
+    - strings (list of str): List of strings to be chunked.
+    - target_byte_size (int): The target byte size for each chunk.
 
-                processed_tensors[tensor] = embedded_data
+    Returns:
+    - list of lists containing the chunked strings.
+    """
+    # Calculate byte sizes for all strings
+    sizes = [len(s.encode("utf-8")) for s in data]
 
-        dataset.extend(processed_tensors)
-    else:
-        elements = dataset_utils.create_elements(processed_tensors)
+    chunks = []
+    current_chunk = []
+    current_chunk_size = 0
+    index = 0
 
-        num_workers_auto = ceil(len(elements) / ingestion_batch_size)
-        if num_workers_auto < num_workers:
-            logger.warning(
-                f"Number of workers is {num_workers}, but {len(elements)} rows of data are being added and the ingestion_batch_size is {ingestion_batch_size}. "
-                f"Setting the number of workers to {num_workers_auto} instead, in order reduce overhead from excessive workers that will not accelerate ingestion."
-                f"If you want to parallelizing using more workers, please reduce ``ingestion_batch_size``."
-            )
-            num_workers = min(num_workers_auto, num_workers)
+    while index < len(data):
+        if current_chunk_size + sizes[index] > target_byte_size:
+            chunks.append(current_chunk)
+            current_chunk = []
+            current_chunk_size = 0
+            continue
+        current_chunk.append(data[index])
+        current_chunk_size += sizes[index]
+        index += 1
 
-        ingest_data.run_data_ingestion(
-            elements=elements,
-            dataset=dataset,
-            embedding_function=embedding_function,
-            embedding_tensor=embedding_tensor,
-            ingestion_batch_size=ingestion_batch_size,
-            num_workers=num_workers,
-            total_samples_processed=total_samples_processed,
-            logger=logger,
-        )
+    # Add the last chunk if it's not empty
+    if current_chunk:
+        chunks.append(current_chunk)
+
+    return chunks
 
 
 def convert_id_to_row_id(ids, dataset, search_fn, query, exec_option, filter):
@@ -461,18 +525,52 @@ def convert_id_to_row_id(ids, dataset, search_fn, query, exec_option, filter):
     return row_ids
 
 
-def check_delete_arguments(ids, filter, query, delete_all, row_ids, exec_option):
+def check_arguments_compatibility(
+    ids, filter, query, exec_option, select_all=None, row_ids=None
+):
     if (
         ids is None
         and filter is None
         and query is None
-        and delete_all is None
         and row_ids is None
+        and select_all is None
     ):
         raise ValueError(
-            "Either ids, row_ids, filter, query, or delete_all must be specified."
+            "Either ids, row_ids, filter, query, or select_all must be specified."
         )
     if exec_option not in ("python", "compute_engine", "tensor_db"):
         raise ValueError(
-            "Invalid `exec_option` it should be either `python`, `compute_engine`."
+            "Invalid `exec_option` it should be either `python`, `compute_engine` or `tensor_db`."
         )
+
+
+def search_row_ids(
+    dataset: deeplake.core.dataset.Dataset,
+    search_fn: Callable,
+    ids: Optional[List[str]] = None,
+    filter: Optional[Union[Dict, Callable]] = None,
+    query: Optional[str] = None,
+    exec_option: Optional[str] = "python",
+    select_all: Optional[bool] = None,
+):
+    check_arguments_compatibility(
+        ids=ids,
+        filter=filter,
+        query=query,
+        select_all=select_all,
+        exec_option=exec_option,
+    )
+
+    if select_all:
+        return None
+
+    row_ids = convert_id_to_row_id(
+        ids=ids,
+        dataset=dataset,
+        search_fn=search_fn,
+        query=query,
+        exec_option=exec_option,
+        filter=filter,
+    )
+
+    return row_ids

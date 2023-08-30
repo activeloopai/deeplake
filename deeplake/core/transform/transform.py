@@ -24,6 +24,8 @@ from deeplake.util.transform import (
     store_data_slice,
     store_data_slice_with_pbar,
     check_checkpoint_interval,
+    len_data_in,
+    transform_summary,
 )
 from deeplake.util.encoder import merge_all_meta_info
 from deeplake.util.exceptions import (
@@ -31,6 +33,7 @@ from deeplake.util.exceptions import (
     HubComposeEmptyListError,
     HubComposeIncompatibleFunction,
     TransformError,
+    SampleAppendError,
 )
 from deeplake.hooks import dataset_written, dataset_read
 from deeplake.util.version_control import auto_checkout
@@ -233,7 +236,7 @@ class Pipeline:
             skip_ok = True
 
         checkpointing_enabled = checkpoint_interval > 0
-        total_samples = len(data_in)
+        total_samples = len_data_in(data_in)
         if checkpointing_enabled:
             check_checkpoint_interval(
                 data_in,
@@ -244,7 +247,7 @@ class Pipeline:
             )
             datas_in = [
                 data_in[i : i + checkpoint_interval]
-                for i in range(0, len(data_in), checkpoint_interval)
+                for i in range(0, len_data_in(data_in), checkpoint_interval)
             ]
 
         else:
@@ -253,7 +256,7 @@ class Pipeline:
         samples_processed = 0
         desc = get_pbar_description(self.functions)
         if progressbar:
-            pbar = get_progress_bar(len(data_in), desc)
+            pbar = get_progress_bar(len_data_in(data_in), desc)
             pqueue = compute_provider.create_queue()
         else:
             pbar, pqueue = None, None
@@ -270,7 +273,7 @@ class Pipeline:
                     total_samples_processed=samples_processed,
                 )
             progress = round(
-                (samples_processed + len(data_in)) / total_samples * 100, 2
+                (samples_processed + len_data_in(data_in)) / total_samples * 100, 2
             )
             end = progress == 100
             progress_args = {"compute_id": compute_id, "progress": progress, "end": end}
@@ -293,7 +296,7 @@ class Pipeline:
                     **kwargs,
                 )
                 target_ds._send_compute_progress(**progress_args, status="success")
-                samples_processed += len(data_in)
+                samples_processed += len_data_in(data_in)
                 completed = end
             except Exception as e:
                 if checkpointing_enabled:
@@ -303,9 +306,9 @@ class Pipeline:
                     target_ds.reset(force=True)
                 target_ds._send_compute_progress(**progress_args, status="failed")
                 close_states(compute_provider, pbar, pqueue)
-                index, sample = None, None
+                index, sample, suggest = None, None, False
                 if isinstance(e, TransformError):
-                    index, sample = e.index, e.sample
+                    index, sample, suggest = e.index, e.sample, e.suggest
                     if checkpointing_enabled and isinstance(index, int):
                         index = samples_processed + index
                     e = e.__cause__  # type: ignore
@@ -315,6 +318,7 @@ class Pipeline:
                     index=index,
                     sample=sample,
                     samples_processed=samples_processed,
+                    suggest=suggest,
                 ) from e
             finally:
                 reload_and_rechunk(
@@ -419,7 +423,7 @@ class Pipeline:
                 result = compute.map_with_progress_bar(
                     store_data_slice_with_pbar,
                     map_inp,
-                    total_length=len(data_in),
+                    total_length=len_data_in(data_in),
                     desc=desc,
                     pbar=pbar,
                     pqueue=pqueue,
@@ -462,6 +466,9 @@ class Pipeline:
                 scheduler=scheduler,
                 verbose=progressbar,
             )
+
+        if ignore_errors:
+            transform_summary(data_in, result)
 
         for res in result["error"]:
             if res is not None:
