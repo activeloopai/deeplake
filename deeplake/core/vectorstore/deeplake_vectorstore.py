@@ -38,6 +38,7 @@ class VectorStore:
         embedding_function: Optional[Callable] = None,
         read_only: Optional[bool] = None,
         ingestion_batch_size: int = 1000,
+        num_workers: int = 0,
         exec_option: str = "auto",
         token: Optional[str] = None,
         overwrite: bool = False,
@@ -80,6 +81,7 @@ class VectorStore:
             tensor_params (List[Dict[str, dict]], optional): List of dictionaries that contains information about tensors that user wants to create. See ``create_tensor`` in Deep Lake API docs for more information. Defaults to ``DEFAULT_VECTORSTORE_TENSORS``.
             embedding_function (Optional[callable], optional): Function that converts the embeddable data into embeddings. Defaults to None.
             read_only (bool, optional):  Opens dataset in read-only mode if True. Defaults to False.
+            num_workers (int): Number of workers to use for parallel ingestion.
             ingestion_batch_size (int): Batch size to use for parallel ingestion.
             exec_option (str): Default method for search execution. It could be either ``"auto"``, ``"python"``, ``"compute_engine"`` or ``"tensor_db"``. Defaults to ``"auto"``. If None, it's set to "auto".
                 - ``auto``- Selects the best execution method based on the storage location of the Vector Store. It is the default option.
@@ -111,6 +113,7 @@ class VectorStore:
                 if tensor_params is not None
                 else tensor_params,
                 "embedding_function": True if embedding_function is not None else False,
+                "num_workers": num_workers,
                 "overwrite": overwrite,
                 "read_only": read_only,
                 "ingestion_batch_size": ingestion_batch_size,
@@ -123,6 +126,7 @@ class VectorStore:
         )
 
         self.ingestion_batch_size = ingestion_batch_size
+        self.num_workers = num_workers
 
         if creds is None:
             creds = {}
