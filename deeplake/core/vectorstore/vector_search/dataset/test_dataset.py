@@ -421,3 +421,15 @@ def test_chunk_by_bytest():
     assert (
         byte_size <= 100000 + list_wieght
     ), "Chunking by bytes did not work as expected!"
+
+
+def test_chunk_by_bytes():
+    data = ["a" * 10000] * 10  # 10 chunks of 10000 bytes
+
+    batched_data = dataset_utils.chunk_by_bytes(data, target_byte_size=10)
+    serialized_data = json.dumps(batched_data)
+    byte_size = len(serialized_data.encode("utf-8"))
+    list_wieght = 100
+    assert (
+        byte_size <= 100000 + list_wieght
+    ), "Chunking by bytes did not work as expected!"
