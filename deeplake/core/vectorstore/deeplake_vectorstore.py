@@ -221,7 +221,6 @@ class VectorStore:
             embedding_function (Optional[Callable]): embedding function used to convert ``embedding_data`` into embeddings. Overrides the ``embedding_function`` specified when initializing the Vector Store.
             embedding_data (Optional[List]): Data to be converted into embeddings using the provided ``embedding_function``. Defaults to None.
             embedding_tensor (Optional[str]): Tensor where results from the embedding function will be stored. If None, the embedding tensor is automatically inferred (when possible). Defaults to None.
-            total_samples_processed (int): Total number of samples processed before ingestion stopped. When specified.
             return_ids (bool): Whether to return added ids as an ouput of the method. Defaults to False.
             ingestion_batch_size (int): Batch size to use for parallel ingestion. Defaults to 1000. Overrides the ``ingestion_batch_size`` specified when initializing the Vector Store.
             **tensors: Keyword arguments where the key is the tensor name, and the value is a list of samples that should be uploaded to that tensor.
@@ -235,7 +234,6 @@ class VectorStore:
             parameters={
                 "tensors": list(tensors.keys()) if tensors else None,
                 "embedding_tensor": embedding_tensor,
-                "total_samples_processed": total_samples_processed,
                 "return_ids": return_ids,
                 "embedding_function": True if embedding_function is not None else False,
                 "embedding_data": True if embedding_data is not None else False,
