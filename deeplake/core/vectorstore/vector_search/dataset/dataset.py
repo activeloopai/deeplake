@@ -452,8 +452,6 @@ def extend_or_ingest_dataset(
     embedding_tensor,
     embedding_data,
     ingestion_batch_size,
-    num_workers,
-    total_samples_processed,
     logger,
 ):
     # TODO: Add back the old logic with checkpointing after indexing is fixed
