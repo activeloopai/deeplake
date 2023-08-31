@@ -277,6 +277,8 @@ class VectorStore:
             embedding_data=embedding_data,
             embedding_tensor=embedding_tensor,
             ingestion_batch_size=ingestion_batch_size or self.ingestion_batch_size,
+            num_workers=0,
+            total_samples_processed=0,
             logger=logger,
         )
 
