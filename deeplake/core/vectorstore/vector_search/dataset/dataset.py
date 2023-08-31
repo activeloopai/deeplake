@@ -483,14 +483,16 @@ def chunk_by_bytes(data, target_byte_size=TARGET_BYTE_SIZE):
     chunks = []
     current_chunk = []
     current_chunk_size = 0
+    index = 0
 
-    for index, item in enumerate(data):
+    while index < len(data):
         if current_chunk_size + sizes[index] > target_byte_size:
             chunks.append(current_chunk)
             current_chunk = []
             current_chunk_size = 0
-        current_chunk.append(item)
+        current_chunk.append(data[index])
         current_chunk_size += sizes[index]
+        index += 1
 
     # Add the last chunk if it's not empty
     if current_chunk:
