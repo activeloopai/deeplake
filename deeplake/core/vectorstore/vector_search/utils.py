@@ -25,13 +25,13 @@ def parse_exec_option(dataset, exec_option, indra_installed):
     """Select the best available exec_option for the given dataset and environment"""
 
     if exec_option is None or exec_option == "auto":
-        if isinstance(dataset, DeepLakeCloudDataset):
-            if "vectordb/" in dataset.base_storage.path:
-                return "tensor_db"
-            elif indra_installed:
-                return "compute_engine"
-            else:
-                return "python"
+        if (
+            isinstance(dataset, DeepLakeCloudDataset)
+            and "vectordb/" in dataset.base_storage.path
+        ):
+            return "tensor_db"
+        elif isinstance(dataset, DeepLakeCloudDataset) and indra_installed:
+            return "compute_engine"
         else:
             return "python"
     else:

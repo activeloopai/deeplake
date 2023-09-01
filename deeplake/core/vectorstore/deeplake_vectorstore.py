@@ -15,6 +15,7 @@ import deeplake
 from deeplake.constants import (
     DEFAULT_VECTORSTORE_TENSORS,
 )
+from deeplake.client.client import DeepLakeBackendClient
 from deeplake.core.vectorstore import utils
 from deeplake.core.vectorstore.vector_search import vector_search
 from deeplake.core.vectorstore.vector_search import dataset as dataset_utils
@@ -127,6 +128,7 @@ class VectorStore:
 
         self.ingestion_batch_size = ingestion_batch_size
         self.num_workers = num_workers
+        token = token or DeepLakeBackendClient().get_token()
 
         if creds is None:
             creds = {}
