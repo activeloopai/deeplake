@@ -728,6 +728,7 @@ def test_pytorch_error_handling(local_auth_ds):
 @pytest.mark.flaky
 def test_pil_decode_method(local_auth_ds):
     from indra.pytorch.exceptions import CollateExceptionWrapper
+
     with local_auth_ds as ds:
         ds.create_tensor("x", htype="image", sample_compression="jpeg")
         ds.x.extend(np.random.randint(0, 255, (10, 10, 10, 3), np.uint8))
