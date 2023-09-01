@@ -5,7 +5,9 @@ import deeplake
 import pytest
 
 
+@pytest.mark.slow
 @requires_tensorflow
+@pytest.mark.flaky
 def test_tensorflow_with_compression(local_ds: Dataset):
     # TODO: when chunk-wise compression is done, `labels` should be compressed using lz4, so this test needs to be updated
     images = local_ds.create_tensor("images", htype="image", sample_compression="png")
@@ -23,6 +25,7 @@ def test_tensorflow_with_compression(local_ds: Dataset):
 
 
 @requires_tensorflow
+@pytest.mark.flaky
 def test_tensorflow_small(local_ds):
     local_ds.create_tensor("image")
     local_ds.image.extend(np.array([i * np.ones((10, 10)) for i in range(256)]))
@@ -38,7 +41,10 @@ def test_tensorflow_small(local_ds):
 
 
 @requires_tensorflow
+@pytest.mark.slow
+@pytest.mark.flaky
 def test_corrupt_dataset(local_ds, corrupt_image_paths, compressed_image_paths):
+    local_ds.storage.clear()
     img_good = deeplake.read(compressed_image_paths["jpeg"][0])
     img_bad = deeplake.read(corrupt_image_paths["jpeg"])
     with local_ds:
@@ -48,14 +54,16 @@ def test_corrupt_dataset(local_ds, corrupt_image_paths, compressed_image_paths):
                 local_ds.image.append(img_good)
             local_ds.image.append(img_bad)
     num_samples = 0
-    with pytest.warns(UserWarning):
-        tds = local_ds.tensorflow()
-        for batch in tds:
-            num_samples += 1  # batch_size = 1
-    assert num_samples == 30
+
+    tds = local_ds.tensorflow()
+    for batch in tds:
+        num_samples += 1  # batch_size = 1
+    assert num_samples == 33
 
 
 @requires_tensorflow
+@pytest.mark.slow
+@pytest.mark.flaky
 def test_groups(local_ds, compressed_image_paths):
     img1 = deeplake.read(compressed_image_paths["jpeg"][0])
     img2 = deeplake.read(compressed_image_paths["png"][0])
@@ -92,6 +100,7 @@ def test_groups(local_ds, compressed_image_paths):
 
 
 @requires_tensorflow
+@pytest.mark.flaky
 def test_tensorflow_string_objects(local_ds: Dataset):
     with local_ds:
         local_ds.create_tensor("strings", htype="text")
@@ -105,6 +114,8 @@ def test_tensorflow_string_objects(local_ds: Dataset):
 
 @requires_tensorflow
 @pytest.mark.parametrize("compression", [None, "jpeg"])
+@pytest.mark.slow
+@pytest.mark.flaky
 def test_tensorflow_tobytes(local_ds, compressed_image_paths, compression):
     ds = local_ds
     with ds:

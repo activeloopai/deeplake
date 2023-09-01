@@ -356,6 +356,7 @@ def test_sequence_htype_with_broadcasting(memory_ds):
 
 
 @pytest.mark.parametrize("shape", [(13, 17, 3), (1007, 3001, 3)])
+@pytest.mark.slow
 def test_sequence_htype_with_deeplake_read(local_ds, shape, compressed_image_paths):
     ds = local_ds
     imgs = list(map(deeplake.read, compressed_image_paths["jpeg"][:3]))
@@ -426,6 +427,7 @@ def test_update_partial(memory_ds, htype, args):
     np.testing.assert_array_equal(arr.reshape(-1), exp.reshape(-1))
 
 
+@pytest.mark.slow
 def test_ds_update_image(local_ds, cat_path, dog_path):
     with local_ds as ds:
         ds.create_tensor("images_sc", htype="image", sample_compression="png")
@@ -569,6 +571,7 @@ def test_ds_update_text_like(local_ds, sc, cc):
     assert ds.json.data()["value"] == [j] * 6
 
 
+@pytest.mark.slow
 def test_ds_update_sequence(local_ds, cat_path, dog_path):
     with local_ds as ds:
         ds.create_tensor("seq", htype="sequence")
@@ -678,6 +681,7 @@ def test_ds_update_polygon(local_ds):
     assert ds.xyz.shape == (6, 3, 3, 2)
 
 
+@pytest.mark.slow
 def test_ds_update_tiles(local_ds, cat_path, dog_path):
     with local_ds as ds:
         ds.create_tensor(

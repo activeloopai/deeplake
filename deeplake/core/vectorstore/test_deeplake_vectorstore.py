@@ -179,6 +179,7 @@ def test_custom_tensors(local_path):
     ],
     indirect=True,
 )
+@pytest.mark.slow
 def test_providers(path, hub_token):
     vector_store = DeepLakeVectorStore(
         path=path,
@@ -197,6 +198,7 @@ def test_providers(path, hub_token):
     assert len(vector_store) == 10
 
 
+@pytest.mark.slow
 def test_creds(gcs_path, gcs_creds):
     # testing create dataset with creds
     vector_store = DeepLakeVectorStore(
@@ -224,6 +226,7 @@ def test_creds(gcs_path, gcs_creds):
     assert len(vector_store) == 10
 
 
+@pytest.mark.slow
 @requires_libdeeplake
 def test_search_basic(local_path, hub_cloud_dev_token):
     """Test basic search features"""
@@ -503,6 +506,7 @@ def test_search_basic(local_path, hub_cloud_dev_token):
     assert len(result) == 4
 
 
+@pytest.mark.slow
 @requires_libdeeplake
 @pytest.mark.parametrize("distance_metric", ["L1", "L2", "COS", "MAX"])
 def test_search_quantitative(distance_metric, hub_cloud_dev_token):
@@ -573,6 +577,7 @@ def test_search_quantitative(distance_metric, hub_cloud_dev_token):
 
 
 @requires_libdeeplake
+@pytest.mark.slow
 def test_search_managed(hub_cloud_dev_token):
     """Test whether managed TQL and client-side TQL return the same results"""
     # initialize vector store object:
@@ -757,6 +762,7 @@ def assert_updated_vector_store(
     indirect=True,
 )
 @pytest.mark.parametrize("init_embedding_function", [embedding_fn3, None])
+@pytest.mark.slow
 def test_update_embedding(
     ds,
     vector_store_hash_ids,
@@ -777,6 +783,7 @@ def test_update_embedding(
         overwrite=True,
         verbose=False,
         embedding_function=init_embedding_function,
+        token=ds.token,
     )
 
     # add data to the dataset:
@@ -868,7 +875,7 @@ def test_update_embedding(
             num_changed_samples=5,
         )
 
-    vector_store.delete_by_path(path)
+    vector_store.delete_by_path(path, token=ds.token)
 
     # dataset has a multiple embedding_tensor:
     tensors = [
@@ -920,6 +927,7 @@ def test_update_embedding(
         verbose=False,
         embedding_function=init_embedding_function,
         tensor_params=tensors,
+        token=ds.token,
     )
 
     vector_store.add(
@@ -1095,7 +1103,7 @@ def test_update_embedding(
         "compute_engine",
         num_changed_samples=5,
     )
-    vector_store.delete_by_path(path)
+    vector_store.delete_by_path(path + "_multi", token=ds.token)
 
 
 def assert_vectorstore_structure(vector_store, number_of_data):
@@ -1122,6 +1130,7 @@ def assert_vectorstore_structure(vector_store, number_of_data):
     assert vector_store.dataset.text.dtype == "str"
 
 
+@pytest.mark.slow
 def test_ingestion(local_path):
     # create data
     number_of_data = 1000
@@ -1604,6 +1613,7 @@ def test_parse_tensors_kwargs():
         utils.parse_tensors_kwargs(tensors, None, None, "embedding_1")
 
 
+@pytest.mark.slow
 def test_multiple_embeddings(local_path):
     vector_store = DeepLakeVectorStore(
         path=local_path,
