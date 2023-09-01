@@ -2,7 +2,7 @@ from deeplake.constants import MB
 from deeplake.enterprise.util import raise_indra_installation_error
 from deeplake.util.warnings import always_warn
 
-from deeplake.core.dataset import DeepLakeCloudDataset
+from deeplake.core.dataset import DeepLakeCloudDataset, Dataset
 
 import numpy as np
 
@@ -30,7 +30,7 @@ def parse_exec_option(dataset, exec_option, indra_installed):
             and "vectordb/" in dataset.base_storage.path
         ):
             return "tensor_db"
-        elif isinstance(dataset, DeepLakeCloudDataset) and indra_installed:
+        elif isinstance(dataset, (DeepLakeCloudDataset, Dataset)) and indra_installed:
             return "compute_engine"
         else:
             return "python"
