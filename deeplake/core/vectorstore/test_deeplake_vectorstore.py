@@ -589,7 +589,7 @@ def test_search_managed(hub_cloud_dev_token):
     assert data_ce["id"] == data_db["id"]
 
 
-def test_delete(local_path, capsys):
+def test_delete(local_path):
     # initialize vector store object:
     vector_store = DeepLakeVectorStore(
         path=local_path,
@@ -599,20 +599,7 @@ def test_delete(local_path, capsys):
 
     # add data to the dataset:
     vector_store.add(id=ids, embedding=embeddings, text=texts, metadata=metadatas)
-
-    output = (
-        f"Dataset(path='{local_path}', tensors=['embedding', 'id', 'metadata', 'text'])\n\n"
-        "  tensor      htype      shape     dtype  compression\n"
-        "  -------    -------    -------   -------  ------- \n"
-        " embedding  embedding  (10, 100)  float32   None   \n"
-        "    id        text      (10, 1)     str     None   \n"
-        " metadata     json      (10, 1)     str     None   \n"
-        "   text       text      (10, 1)     str     None   \n"
-    )
-
-    vector_store.summary()
-    captured = capsys.readouterr()
-    assert output in captured.out
+    assert_vectorstore_structure(vector_store, 10)
 
     # delete the data in the dataset by id:
     vector_store.delete(row_ids=[4, 8, 9])
@@ -1088,7 +1075,31 @@ def test_update_embedding(
     vector_store.delete_by_path(path)
 
 
-def test_ingestion(local_path, capsys):
+def assert_vectorstore_structure(vector_store, number_of_data):
+    assert len(vector_store) == number_of_data
+    assert set(vector_store.dataset.tensors) == {
+        "embedding",
+        "id",
+        "metadata",
+        "text",
+    }
+    assert set(vector_store.tensors()) == {
+        "embedding",
+        "id",
+        "metadata",
+        "text",
+    }
+    assert vector_store.dataset.embedding.htype == "embedding"
+    assert vector_store.dataset.id.htype == "text"
+    assert vector_store.dataset.metadata.htype == "json"
+    assert vector_store.dataset.text.htype == "text"
+    assert vector_store.dataset.embedding.dtype == "float32"
+    assert vector_store.dataset.id.dtype == "str"
+    assert vector_store.dataset.metadata.dtype == "str"
+    assert vector_store.dataset.text.dtype == "str"
+
+
+def test_ingestion(local_path):
     # create data
     number_of_data = 1000
     texts, embeddings, ids, metadatas, _ = utils.create_data(
@@ -1122,32 +1133,7 @@ def test_ingestion(local_path, capsys):
         )
 
     vector_store.add(embedding=embeddings, text=texts, id=ids, metadata=metadatas)
-    captured = capsys.readouterr()
-
-    output = (
-        f"Dataset(path='{local_path}', tensors=['embedding', 'id', 'metadata', 'text'])\n\n"
-        "  tensor      htype       shape      dtype  compression\n"
-        "  -------    -------     -------    -------  ------- \n"
-        " embedding  embedding  (1000, 100)  float32   None   \n"
-        "    id        text      (1000, 1)     str     None   \n"
-        " metadata     json      (1000, 1)     str     None   \n"
-        "   text       text      (1000, 1)     str     None   \n"
-    )
-    assert output in captured.out
-
-    assert len(vector_store) == number_of_data
-    assert list(vector_store.dataset.tensors) == [
-        "embedding",
-        "id",
-        "metadata",
-        "text",
-    ]
-    assert list(vector_store.tensors()) == [
-        "embedding",
-        "id",
-        "metadata",
-        "text",
-    ]
+    assert_vectorstore_structure(vector_store, number_of_data)
 
     vector_store.add(
         embedding_function=embedding_fn3,
@@ -1156,25 +1142,7 @@ def test_ingestion(local_path, capsys):
         id=ids,
         metadata=metadatas,
     )
-    captured = capsys.readouterr()
-
-    output = (
-        f"Dataset(path='{local_path}', tensors=['embedding', 'id', 'metadata', 'text'])\n\n"
-        "  tensor      htype       shape      dtype  compression\n"
-        "  -------    -------     -------    -------  ------- \n"
-        " embedding  embedding  (2000, 100)  float32   None   \n"
-        "    id        text      (2000, 1)     str     None   \n"
-        " metadata     json      (2000, 1)     str     None   \n"
-        "   text       text      (2000, 1)     str     None   \n"
-    )
-    assert output in captured.out
-    assert len(vector_store) == 2 * number_of_data
-    assert list(vector_store.tensors()) == [
-        "embedding",
-        "id",
-        "metadata",
-        "text",
-    ]
+    assert_vectorstore_structure(vector_store, 2 * number_of_data)
 
     vector_store.add(
         embedding_function=embedding_fn3,
@@ -1183,25 +1151,7 @@ def test_ingestion(local_path, capsys):
         id=25 * ids,
         metadata=25 * metadatas,
     )
-    captured = capsys.readouterr()
-
-    output = (
-        f"Dataset(path='{local_path}', tensors=['embedding', 'id', 'metadata', 'text'])\n\n"
-        "  tensor      htype       shape       dtype  compression\n"
-        "  -------    -------     -------     -------  ------- \n"
-        " embedding  embedding  (27000, 100)  float32   None   \n"
-        "    id        text      (27000, 1)     str     None   \n"
-        " metadata     json      (27000, 1)     str     None   \n"
-        "   text       text      (27000, 1)     str     None   \n"
-    )
-    assert output in captured.out
-    assert len(vector_store) == 27000
-    assert list(vector_store.tensors()) == [
-        "embedding",
-        "id",
-        "metadata",
-        "text",
-    ]
+    assert_vectorstore_structure(vector_store, 27000)
 
 
 def test_ingestion_images(local_path):
@@ -1631,7 +1581,7 @@ def test_parse_tensors_kwargs():
         utils.parse_tensors_kwargs(tensors, None, None, "embedding_1")
 
 
-def test_multiple_embeddings(local_path, capsys):
+def test_multiple_embeddings(local_path):
     vector_store = DeepLakeVectorStore(
         path=local_path,
         overwrite=True,
