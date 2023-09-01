@@ -724,6 +724,17 @@ def test_pytorch_error_handling(local_auth_ds):
 
 @requires_libdeeplake
 @requires_torch
+def test_batch_sampler_attribute(local_auth_ds):
+    ld = local_auth_ds.dataloader().pytorch()
+
+    from torch.utils.data import BatchSampler
+
+    assert isinstance(ld.batch_sampler, BatchSampler)
+    assert ld.batch_sampler.sampler is not None
+
+
+@requires_libdeeplake
+@requires_torch
 @pytest.mark.slow
 @pytest.mark.flaky
 def test_pil_decode_method(local_auth_ds):
