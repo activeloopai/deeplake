@@ -28,6 +28,7 @@ class Embedding:
         return [0 for i in range(embedding_dim)]  # pragma: no cover
 
 
+@pytest.mark.slow
 def test_create(caplog, hub_cloud_path, hub_cloud_dev_token):
     # dataset creation
     dataset = dataset_utils.create_or_load_dataset(
@@ -104,6 +105,7 @@ def test_create(caplog, hub_cloud_path, hub_cloud_dev_token):
         )
 
 
+@pytest.mark.slow
 def test_load(caplog, hub_cloud_dev_token):
     # dataset loading
     dataset = dataset_utils.create_or_load_dataset(
@@ -415,6 +417,18 @@ def test_chunk_by_bytest():
     data = ["a" * 10000] * 10  # 10 chunks of 10000 bytes
 
     batched_data = dataset_utils.chunk_by_bytes(data)
+    serialized_data = json.dumps(batched_data)
+    byte_size = len(serialized_data.encode("utf-8"))
+    list_wieght = 100
+    assert (
+        byte_size <= 100000 + list_wieght
+    ), "Chunking by bytes did not work as expected!"
+
+
+def test_chunk_by_bytes():
+    data = ["a" * 10000] * 10  # 10 chunks of 10000 bytes
+
+    batched_data = dataset_utils.chunk_by_bytes(data, target_byte_size=10)
     serialized_data = json.dumps(batched_data)
     byte_size = len(serialized_data.encode("utf-8"))
     list_wieght = 100

@@ -84,7 +84,7 @@ def azure_storage(azure_path):
 @pytest.fixture
 def s3_root_storage(request):
     if not is_opt_true(request, S3_OPT):
-        pytest.skip()
+        pytest.skip(f"{S3_OPT} flag not set")
         return
 
     return S3Provider(PYTEST_S3_PROVIDER_BASE_ROOT)
@@ -93,7 +93,7 @@ def s3_root_storage(request):
 @pytest.fixture
 def gcs_root_storage(request, gcs_creds):
     if not is_opt_true(request, GCS_OPT):
-        pytest.skip()
+        pytest.skip(f"{GCS_OPT} flag not set")
         return
 
     return GCSProvider(PYTEST_GCS_PROVIDER_BASE_ROOT, token=gcs_creds)
@@ -102,7 +102,7 @@ def gcs_root_storage(request, gcs_creds):
 @pytest.fixture
 def azure_root_storage(request):
     if not is_opt_true(request, AZURE_OPT):
-        pytest.skip()
+        pytest.skip(f"{AZURE_OPT} flag not set")
 
     return AzureProvider(PYTEST_AZURE_PROVIDER_BASE_ROOT)
 

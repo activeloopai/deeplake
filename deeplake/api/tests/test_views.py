@@ -23,6 +23,7 @@ def populate(ds):
     ds.commit()
 
 
+@pytest.mark.slow
 def test_view_token_only(
     hub_cloud_path, hub_cloud_dev_token, hub_cloud_dev_credentials
 ):
@@ -58,6 +59,7 @@ def test_view_token_only(
     deeplake.delete(hub_cloud_path, token=hub_cloud_dev_token)
 
 
+@pytest.mark.slow
 def test_view_public(hub_cloud_dev_credentials):
     runner = CliRunner()
     result = runner.invoke(logout)
@@ -105,6 +107,7 @@ def test_view_with_empty_tensor(local_ds):
     )
 
 
+@pytest.mark.slow
 def test_vds_read_only(hub_cloud_path, hub_cloud_dev_token):
     ds = deeplake.empty(hub_cloud_path, token=hub_cloud_dev_token)
     with ds:

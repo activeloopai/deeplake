@@ -29,6 +29,15 @@ from deeplake.tests.storage_fixtures import *
 from deeplake.tests.cache_fixtures import *
 from deeplake.tests.client_fixtures import *
 import pytest
+from tqdm.std import tqdm
+
+tqdm.monitor_interval = 0
+
+def pytest_configure(config):
+    config.addinivalue_line(
+        "markers",
+        "slow: marks tests as slow (deselect with '-m \"not slow\"')",
+    )
 
 
 def pytest_addoption(parser):
