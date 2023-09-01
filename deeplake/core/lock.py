@@ -78,6 +78,10 @@ class Lock(object):
         self._write_lock()
 
     def acquire(self, timeout: Optional[int] = 0):
+        if not deeplake.constants.LOCKS_ENABLED:
+            self.acquired = True
+            return
+
         storage = self.storage
         path = self.path
         if timeout is not None:
@@ -122,6 +126,10 @@ class Lock(object):
                 continue
 
     def release(self):
+        if not deeplake.constants.LOCKS_ENABLED:
+            self.acquired = False
+            return
+
         if not self.acquired:
             return
         storage = self.storage
@@ -184,6 +192,10 @@ class PersistentLock(Lock):
         atexit.register(self.release)
 
     def acquire(self):
+        if not deeplake.constants.LOCKS_ENABLED:
+            self.acquired = True
+            return
+
         if self.acquired:
             return
         self.lock.acquire(timeout=self.timeout)
@@ -205,6 +217,10 @@ class PersistentLock(Lock):
             return
 
     def release(self):
+        if not deeplake.constants.LOCKS_ENABLED:
+            self.acquired = True
+            return
+
         if not self.acquired:
             return
         with self._thread_lock:
@@ -245,6 +261,9 @@ def lock_dataset(
     Raises:
         LockedException: If the storage is already locked by a different machine.
     """
+    if not deeplake.constants.LOCKS_ENABLED:
+        return
+
     storage = get_base_storage(dataset.storage)
     version = version or dataset.version_state["commit_id"]
     key = _get_lock_key(get_path_from_storage(storage), version)
@@ -269,6 +288,9 @@ def unlock_dataset(dataset, version: Optional[str] = None):
         dataset: The dataset to be unlocked
         version (str, optional): The version to be unlocked. If None, the current version is unlocked.
     """
+    if not deeplake.constants.LOCKS_ENABLED:
+        return
+
     storage = get_base_storage(dataset.storage)
     version = version or dataset.version_state["commit_id"]
     key = _get_lock_key(get_path_from_storage(storage), version)

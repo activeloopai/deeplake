@@ -3,6 +3,7 @@ import pytest
 import numpy as np
 
 
+@pytest.mark.slow
 @pytest.mark.parametrize(
     "kwargs",
     [

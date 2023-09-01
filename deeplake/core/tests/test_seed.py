@@ -10,6 +10,7 @@ def test_seed(input):
 
     assert obj.get_seed() == input
 
+
 @pytest.mark.parametrize("input", [1.3, "a string"])
 def test_invalid_seed(input):
     obj = DeeplakeRandom()

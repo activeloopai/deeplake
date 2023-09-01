@@ -6,7 +6,13 @@ import pickle
 
 @pytest.mark.parametrize(
     "ds",
-    ["memory_ds", "local_ds", "s3_ds", "gcs_ds", "hub_cloud_ds"],
+    [
+        "memory_ds",
+        "local_ds",
+        pytest.param("s3_ds", marks=pytest.mark.slow),
+        pytest.param("gcs_ds", marks=pytest.mark.slow),
+        pytest.param("hub_cloud_ds", marks=pytest.mark.slow),
+    ],
     indirect=True,
 )
 def test_dataset(ds):

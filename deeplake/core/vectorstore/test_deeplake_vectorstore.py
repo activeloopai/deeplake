@@ -179,6 +179,7 @@ def test_custom_tensors(local_path):
     ],
     indirect=True,
 )
+@pytest.mark.slow
 def test_providers(path, hub_token):
     vector_store = DeepLakeVectorStore(
         path=path,
@@ -197,6 +198,7 @@ def test_providers(path, hub_token):
     assert len(vector_store) == 10
 
 
+@pytest.mark.slow
 def test_creds(gcs_path, gcs_creds):
     # testing create dataset with creds
     vector_store = DeepLakeVectorStore(
@@ -224,6 +226,7 @@ def test_creds(gcs_path, gcs_creds):
     assert len(vector_store) == 10
 
 
+@pytest.mark.slow
 @requires_libdeeplake
 def test_search_basic(local_path, hub_cloud_dev_token):
     """Test basic search features"""
@@ -503,6 +506,7 @@ def test_search_basic(local_path, hub_cloud_dev_token):
     assert len(result) == 4
 
 
+@pytest.mark.slow
 @requires_libdeeplake
 @pytest.mark.parametrize("distance_metric", ["L1", "L2", "COS", "MAX"])
 def test_search_quantitative(distance_metric, hub_cloud_dev_token):
@@ -573,6 +577,7 @@ def test_search_quantitative(distance_metric, hub_cloud_dev_token):
 
 
 @requires_libdeeplake
+@pytest.mark.slow
 def test_search_managed(hub_cloud_dev_token):
     """Test whether managed TQL and client-side TQL return the same results"""
     # initialize vector store object:
@@ -612,7 +617,7 @@ def test_search_managed(hub_cloud_dev_token):
     assert data_ce["id"] == data_db["id"]
 
 
-def test_delete(local_path, capsys):
+def test_delete(local_path):
     # initialize vector store object:
     vector_store = DeepLakeVectorStore(
         path=local_path,
@@ -622,20 +627,7 @@ def test_delete(local_path, capsys):
 
     # add data to the dataset:
     vector_store.add(id=ids, embedding=embeddings, text=texts, metadata=metadatas)
-
-    output = (
-        f"Dataset(path='{local_path}', tensors=['embedding', 'id', 'metadata', 'text'])\n\n"
-        "  tensor      htype      shape     dtype  compression\n"
-        "  -------    -------    -------   -------  ------- \n"
-        " embedding  embedding  (10, 100)  float32   None   \n"
-        "    id        text      (10, 1)     str     None   \n"
-        " metadata     json      (10, 1)     str     None   \n"
-        "   text       text      (10, 1)     str     None   \n"
-    )
-
-    vector_store.summary()
-    captured = capsys.readouterr()
-    assert output in captured.out
+    assert_vectorstore_structure(vector_store, 10)
 
     # delete the data in the dataset by id:
     vector_store.delete(row_ids=[4, 8, 9])
@@ -770,6 +762,7 @@ def assert_updated_vector_store(
     indirect=True,
 )
 @pytest.mark.parametrize("init_embedding_function", [embedding_fn3, None])
+@pytest.mark.slow
 def test_update_embedding(
     ds,
     vector_store_hash_ids,
@@ -790,6 +783,7 @@ def test_update_embedding(
         overwrite=True,
         verbose=False,
         embedding_function=init_embedding_function,
+        token=ds.token,
     )
 
     # add data to the dataset:
@@ -881,7 +875,7 @@ def test_update_embedding(
             num_changed_samples=5,
         )
 
-    vector_store.delete_by_path(path)
+    vector_store.delete_by_path(path, token=ds.token)
 
     # dataset has a multiple embedding_tensor:
     tensors = [
@@ -933,6 +927,7 @@ def test_update_embedding(
         verbose=False,
         embedding_function=init_embedding_function,
         tensor_params=tensors,
+        token=ds.token,
     )
 
     vector_store.add(
@@ -1108,10 +1103,35 @@ def test_update_embedding(
         "compute_engine",
         num_changed_samples=5,
     )
-    vector_store.delete_by_path(path)
+    vector_store.delete_by_path(path + "_multi", token=ds.token)
 
 
-def test_ingestion(local_path, capsys):
+def assert_vectorstore_structure(vector_store, number_of_data):
+    assert len(vector_store) == number_of_data
+    assert set(vector_store.dataset.tensors) == {
+        "embedding",
+        "id",
+        "metadata",
+        "text",
+    }
+    assert set(vector_store.tensors()) == {
+        "embedding",
+        "id",
+        "metadata",
+        "text",
+    }
+    assert vector_store.dataset.embedding.htype == "embedding"
+    assert vector_store.dataset.id.htype == "text"
+    assert vector_store.dataset.metadata.htype == "json"
+    assert vector_store.dataset.text.htype == "text"
+    assert vector_store.dataset.embedding.dtype == "float32"
+    assert vector_store.dataset.id.dtype == "str"
+    assert vector_store.dataset.metadata.dtype == "str"
+    assert vector_store.dataset.text.dtype == "str"
+
+
+@pytest.mark.slow
+def test_ingestion(local_path):
     # create data
     number_of_data = 1000
     texts, embeddings, ids, metadatas, _ = utils.create_data(
@@ -1145,32 +1165,7 @@ def test_ingestion(local_path, capsys):
         )
 
     vector_store.add(embedding=embeddings, text=texts, id=ids, metadata=metadatas)
-    captured = capsys.readouterr()
-
-    output = (
-        f"Dataset(path='{local_path}', tensors=['embedding', 'id', 'metadata', 'text'])\n\n"
-        "  tensor      htype       shape      dtype  compression\n"
-        "  -------    -------     -------    -------  ------- \n"
-        " embedding  embedding  (1000, 100)  float32   None   \n"
-        "    id        text      (1000, 1)     str     None   \n"
-        " metadata     json      (1000, 1)     str     None   \n"
-        "   text       text      (1000, 1)     str     None   \n"
-    )
-    assert output in captured.out
-
-    assert len(vector_store) == number_of_data
-    assert list(vector_store.dataset.tensors) == [
-        "embedding",
-        "id",
-        "metadata",
-        "text",
-    ]
-    assert list(vector_store.tensors()) == [
-        "embedding",
-        "id",
-        "metadata",
-        "text",
-    ]
+    assert_vectorstore_structure(vector_store, number_of_data)
 
     vector_store.add(
         embedding_function=embedding_fn3,
@@ -1179,25 +1174,7 @@ def test_ingestion(local_path, capsys):
         id=ids,
         metadata=metadatas,
     )
-    captured = capsys.readouterr()
-
-    output = (
-        f"Dataset(path='{local_path}', tensors=['embedding', 'id', 'metadata', 'text'])\n\n"
-        "  tensor      htype       shape      dtype  compression\n"
-        "  -------    -------     -------    -------  ------- \n"
-        " embedding  embedding  (2000, 100)  float32   None   \n"
-        "    id        text      (2000, 1)     str     None   \n"
-        " metadata     json      (2000, 1)     str     None   \n"
-        "   text       text      (2000, 1)     str     None   \n"
-    )
-    assert output in captured.out
-    assert len(vector_store) == 2 * number_of_data
-    assert list(vector_store.tensors()) == [
-        "embedding",
-        "id",
-        "metadata",
-        "text",
-    ]
+    assert_vectorstore_structure(vector_store, 2 * number_of_data)
 
     vector_store.add(
         embedding_function=embedding_fn3,
@@ -1206,25 +1183,7 @@ def test_ingestion(local_path, capsys):
         id=25 * ids,
         metadata=25 * metadatas,
     )
-    captured = capsys.readouterr()
-
-    output = (
-        f"Dataset(path='{local_path}', tensors=['embedding', 'id', 'metadata', 'text'])\n\n"
-        "  tensor      htype       shape       dtype  compression\n"
-        "  -------    -------     -------     -------  ------- \n"
-        " embedding  embedding  (27000, 100)  float32   None   \n"
-        "    id        text      (27000, 1)     str     None   \n"
-        " metadata     json      (27000, 1)     str     None   \n"
-        "   text       text      (27000, 1)     str     None   \n"
-    )
-    assert output in captured.out
-    assert len(vector_store) == 27000
-    assert list(vector_store.tensors()) == [
-        "embedding",
-        "id",
-        "metadata",
-        "text",
-    ]
+    assert_vectorstore_structure(vector_store, 27000)
 
 
 def test_ingestion_images(local_path):
@@ -1654,7 +1613,8 @@ def test_parse_tensors_kwargs():
         utils.parse_tensors_kwargs(tensors, None, None, "embedding_1")
 
 
-def test_multiple_embeddings(local_path, capsys):
+@pytest.mark.slow
+def test_multiple_embeddings(local_path):
     vector_store = DeepLakeVectorStore(
         path=local_path,
         overwrite=True,

@@ -132,7 +132,7 @@ wandb/
 *Python-3.7*
 *mem:/*
 hub_pytest/
-deeplake/test-dataset
+test-dataset
 
 # Translations
 *.mo

@@ -25,6 +25,7 @@ def deeplake_compute_filter(sample_in, mod):
     return val % mod == 0
 
 
+@pytest.mark.slow
 def _populate_data_linked(ds, n, compressed_image_paths, labels):
     with ds:
         if "images" not in ds:
@@ -128,6 +129,7 @@ def test_query_scheduler(local_ds):
     np.testing.assert_array_equal(view1.labels.numpy(), view2.labels.numpy())
 
 
+@pytest.mark.slow
 @pytest.mark.parametrize(
     "optimize,idx_subscriptable", [(True, True), (False, False), (True, False)]
 )
@@ -185,10 +187,10 @@ def test_dataset_view_save(optimize):
     "ds_generator",
     [
         "local_ds_generator",
-        "s3_ds_generator",
-        # "gcs_ds_generator",
-        "azure_ds_generator",
-        "hub_cloud_ds_generator",
+        pytest.param("s3_ds_generator", marks=pytest.mark.slow),
+        # pytest.param("gcs_ds_generator", marks=pytest.mark.slow),
+        pytest.param("azure_ds_generator", marks=pytest.mark.slow),
+        pytest.param("hub_cloud_ds_generator", marks=pytest.mark.slow),
     ],
     indirect=True,
 )
@@ -330,6 +332,7 @@ def test_query_shape(local_ds):
         assert len(ds.filter(f"image.shape == {shape}")) == count
 
 
+@pytest.mark.slow
 def test_query_sample_info(local_ds, compressed_image_paths):
     ds = local_ds
     with ds:
@@ -456,6 +459,7 @@ def test_view_mutability(local_ds):
     assert full_view.commit_id == a
 
 
+@pytest.mark.slow
 @pytest.mark.parametrize("num_workers", [1, 2])
 def test_link_materialize(local_ds, num_workers):
     with local_ds as ds:
