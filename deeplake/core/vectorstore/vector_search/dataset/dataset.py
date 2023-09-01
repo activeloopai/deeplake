@@ -490,7 +490,6 @@ def chunk_by_bytes(data, target_byte_size=TARGET_BYTE_SIZE):
             chunks.append(current_chunk)
             current_chunk = []
             current_chunk_size = 0
-            continue
         current_chunk.append(data[index])
         current_chunk_size += sizes[index]
         index += 1
