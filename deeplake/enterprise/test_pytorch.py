@@ -733,6 +733,8 @@ def test_batch_sampler_attribute(local_auth_ds):
     assert ld.batch_sampler.sampler is not None
 
 
+@requires_libdeeplake
+@requires_torch
 @pytest.mark.slow
 @pytest.mark.flaky
 def test_pil_decode_method(local_auth_ds):
