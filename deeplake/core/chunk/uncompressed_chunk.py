@@ -19,6 +19,7 @@ class UncompressedChunk(BaseChunk):
         incoming_samples: Union[List[InputSample], np.ndarray],
         update_tensor_meta: bool = True,
         lengths: Optional[List[int]] = None,
+        ignore_errors: bool = False,
     ) -> float:
         self.prepare_for_write()
         if lengths is not None:  # this is triggered only for htype == "text"
@@ -32,7 +33,9 @@ class UncompressedChunk(BaseChunk):
                 return self._extend_if_has_space_numpy(
                     incoming_samples, update_tensor_meta
                 )
-        return self._extend_if_has_space_list(incoming_samples, update_tensor_meta)
+        return self._extend_if_has_space_list(
+            incoming_samples, update_tensor_meta, ignore_errors=ignore_errors
+        )
 
     def _extend_if_has_space_text(
         self,
@@ -149,13 +152,25 @@ class UncompressedChunk(BaseChunk):
         self,
         incoming_samples: List[InputSample],
         update_tensor_meta: bool = True,
+        ignore_errors: bool = False,
     ) -> float:
         num_samples: float = 0
+        skipped: List[int] = []
+
         for i, incoming_sample in enumerate(incoming_samples):
-            serialized_sample, shape = self.serialize_sample(incoming_sample)
-            if shape is not None and not self.tensor_meta.is_link:
-                self.num_dims = self.num_dims or len(shape)
-                check_sample_shape(shape, self.num_dims)
+            try:
+                serialized_sample, shape = self.serialize_sample(incoming_sample)
+                if shape is not None and not self.tensor_meta.is_link:
+                    self.num_dims = self.num_dims or len(shape)
+                    check_sample_shape(shape, self.num_dims)
+            except Exception:
+                if ignore_errors:
+                    if not isinstance(incoming_sample, SampleTiles) and not isinstance(
+                        incoming_sample, LinkedTiledSample
+                    ):
+                        skipped.append(i)
+                        continue
+                raise
 
             # NOTE re-chunking logic should not reach to this point, for Tiled ones we do not have this logic
             if isinstance(serialized_sample, SampleTiles):
@@ -182,6 +197,8 @@ class UncompressedChunk(BaseChunk):
                 else:
                     break
 
+        for i in reversed(skipped):
+            incoming_samples.pop(i)
         return num_samples
 
     @catch_chunk_read_error

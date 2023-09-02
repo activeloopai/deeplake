@@ -319,6 +319,7 @@ class Tensor:
             samples,
             progressbar=progressbar,
             link_callback=self._extend_links if self.meta.links else None,
+            ignore_errors=ignore_errors,
         )
         dataset_written(self.dataset)
         self.invalidate_libdeeplake_dataset()

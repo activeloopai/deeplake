@@ -14,17 +14,25 @@ from .base_chunk import BaseChunk, InputSample, catch_chunk_read_error
 
 
 class SampleCompressedChunk(BaseChunk):
-    def extend_if_has_space(self, incoming_samples: List[InputSample], update_tensor_meta: bool = True, **kwargs) -> float:  # type: ignore
+    def extend_if_has_space(self, incoming_samples: List[InputSample], update_tensor_meta: bool = True, ignore_errors: bool = False, **kwargs) -> float:  # type: ignore
         self.prepare_for_write()
         num_samples: float = 0
         dtype = self.dtype if self.is_byte_compression else None
         compr = self.compression
+        skipped: List[int] = []
 
         for i, incoming_sample in enumerate(incoming_samples):
-            serialized_sample, shape = self.serialize_sample(incoming_sample, compr)
-            if shape is not None:
-                self.num_dims = self.num_dims or len(shape)
-                check_sample_shape(shape, self.num_dims)
+            try:
+                serialized_sample, shape = self.serialize_sample(incoming_sample, compr)
+                if shape is not None:
+                    self.num_dims = self.num_dims or len(shape)
+                    check_sample_shape(shape, self.num_dims)
+            except Exception:
+                if ignore_errors:
+                    if not isinstance(incoming_sample, SampleTiles):
+                        skipped.append(i)
+                        continue
+                raise
 
             if isinstance(serialized_sample, SampleTiles):
                 incoming_samples[i] = serialized_sample  # type: ignore
@@ -52,6 +60,9 @@ class SampleCompressedChunk(BaseChunk):
                         sample.htype = self.htype
                         incoming_samples[i] = sample
                     break
+
+        for i in reversed(skipped):
+            incoming_samples.pop(i)
         return num_samples
 
     @catch_chunk_read_error
