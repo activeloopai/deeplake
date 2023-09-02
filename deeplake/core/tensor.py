@@ -1036,7 +1036,7 @@ class Tensor:
                             vs = [cast_to_type(v, dtype) for v in vs]
                     updated_tensors[k] = tensor.num_samples
                     tensor.extend(vs)
-        except Exception:
+        except Exception as e:
             for k, num_samples in updated_tensors.items():
                 tensor = self.version_state["full_tensors"][k]
                 num_samples_added = tensor.num_samples - num_samples

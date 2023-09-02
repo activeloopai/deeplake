@@ -1040,6 +1040,26 @@ class ChunkEngine:
         )
         return samples
 
+    def _extend_link_callback(
+        self, link_callback, samples, flat, progressbar, ignore_errors
+    ):
+        skipped = 0
+        try:
+            link_callback(samples, flat=flat, progressbar=progressbar)
+        except Exception:
+            if ignore_errors and not flat:
+                # retry one at a time
+                # don't retry if flat
+                for i, sample in enumerate(samples):
+                    try:
+                        link_callback([sample], flat=flat, progressbar=progressbar)
+                    except Exception:
+                        # if link callback fails, remove the sample
+                        self.pop(self.tensor_length - len(samples) + i - skipped)
+                        skipped += 1
+                return
+            raise
+
     def _extend_sequence(self, samples, progressbar, link_callback, ignore_errors):
         samples = tqdm(samples) if progressbar else samples
         verified_samples = []
@@ -1061,13 +1081,33 @@ class ChunkEngine:
                 raise
 
         if link_callback:
+            skipped = []
+            for i, s in enumerate(verified_samples):
+                try:
+                    self._extend_link_callback(
+                        link_callback, s, True, progressbar, ignore_errors
+                    )
+                except Exception:
+                    if ignore_errors:
+                        self.pop(
+                            self.tensor_length
+                            - len(verified_samples)
+                            + i
+                            - len(skipped)
+                        )
+                        skipped.append(i)
+                        continue
+                    raise
+
+            for i in reversed(skipped):
+                verified_samples.pop(i)
+
             self._extend_link_callback(
                 link_callback, verified_samples, False, progressbar, ignore_errors
             )
-            for s in verified_samples:
-                self._extend_link_callback(
-                    link_callback, s, True, progressbar, ignore_errors
-                )
+
+            # TODO: Handle case of samples passing the flat link callbacks
+            # but failing the non-flat link callback but this is not yet a possibility
 
     def _prepare_samples_for_link_callback(self, samples):
         if not isinstance(samples, np.ndarray):
@@ -1079,25 +1119,6 @@ class ChunkEngine:
                 for s in samples
             ]
         return samples
-
-    def _extend_link_callback(
-        self, link_callback, samples, flat, progressbar, ignore_errors
-    ):
-        skipped = 0
-        try:
-            link_callback(samples, flat=flat, progressbar=progressbar)
-        except Exception:
-            if ignore_errors:
-                # retry one at a time
-                for i, sample in enumerate(samples):
-                    try:
-                        link_callback([sample], flat=flat, progressbar=progressbar)
-                    except Exception:
-                        # if link callback fails, remove the sample
-                        self.pop(self.tensor_length - len(samples) + i - skipped)
-                        skipped += 1
-                return
-            raise
 
     def extend(
         self,
