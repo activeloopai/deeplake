@@ -2812,26 +2812,11 @@ def test_dataset_extend_error_suggestion(local_ds):
     ) in str(e)
 
 
-# Broken LFPW links
-BROKEN_LINKS = [
-    "http://cm1.theinsider.com/media/0/428/93/spl41194_011.0.0.0x0.636x912.jpeg",
-    "http://cm1.theinsider.com/media/0/428/93/spl47823_060.0.0.0x0.633x912.jpeg",
-    "http://cm1.theinsider.com/media/0/428/90/spl91520_012.0.0.0x0.636x912.jpeg",
-    "http://blog.themavenreport.com/wp-content/uploads/2008/02/kimora_show_575.jpg",
-    "http://cache.thephoenix.com/secure/uploadedImages/The_Phoenix/Movies/Reviews/FILM_Queen_6.jpg",
-    "http://img2.timeinc.net/people/i/2008/features/theysaid/080331/kimora_lee_simmons400.jpg",
-    "http://img2.timeinc.net/people/i/cbb/2008/04/05/kylieminogue.jpg",
-    "http://i41.tinypic.com/2ih5b7q.png",
-    "http://www.todoelmundo.org/archivos/99/imagenes/En_america.jpg",
-    "http://image.toutlecine.com/photos/b/l/o/blood-diamond-2006-22-g.jpg",
-]
-
-
-def test_extend_rollbacks(local_ds):
+def test_extend_rollbacks(local_ds, lfpw_links):
     with local_ds as ds:
         ds.create_tensor("images", htype="image", sample_compression="jpg")
         ds.extend(
-            {"images": [deeplake.read(link) for link in BROKEN_LINKS]},
+            {"images": [deeplake.read(link) for link in lfpw_links]},
             ignore_errors=True,
         )
 
@@ -2839,7 +2824,7 @@ def test_extend_rollbacks(local_ds):
     ds.commit()
 
 
-def test_tensor_extend_ignore(local_ds):
+def test_tensor_extend_ignore(local_ds, lfpw_links):
     with local_ds as ds:
         ds.create_tensor("images", htype="image", sample_compression="jpg")
         ds.create_tensor(
@@ -2847,16 +2832,16 @@ def test_tensor_extend_ignore(local_ds):
         )
         ds.create_tensor("link_images", htype="link[image]", sample_compression="jpg")
 
-    images = [deeplake.read(link) for link in BROKEN_LINKS]
+    images = [deeplake.read(link) for link in lfpw_links]
     ds.images.extend(images, ignore_errors=True)
 
     seqs = [
-        list(map(deeplake.read, BROKEN_LINKS[i : i + 2]))
-        for i in range(0, len(BROKEN_LINKS), 2)
+        list(map(deeplake.read, lfpw_links[i : i + 2]))
+        for i in range(0, len(lfpw_links), 2)
     ]
     ds.seq_images.extend(seqs, ignore_errors=True)
 
-    links = [deeplake.link(link) for link in BROKEN_LINKS]
+    links = [deeplake.link(link) for link in lfpw_links]
     ds.link_images.extend(links, ignore_errors=True)
 
     # Commit should work
