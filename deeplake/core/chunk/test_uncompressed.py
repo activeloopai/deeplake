@@ -41,6 +41,7 @@ def test_read_write_sequence():
         data_in = data_in[num_samples:]
 
 
+@pytest.mark.slow
 def test_read_write_sequence_big(cat_path):
     tensor_meta = create_tensor_meta()
     common_args["tensor_meta"] = tensor_meta

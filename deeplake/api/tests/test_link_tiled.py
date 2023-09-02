@@ -48,6 +48,7 @@ def check_data(actual_data, ds, index, downsampled=False):
     )
 
 
+@pytest.mark.slow
 def test_link_tiled(local_ds_generator, cat_path):
     arr = np.empty((10, 10), dtype=object)
     for j, i in itertools.product(range(10), range(10)):
@@ -81,6 +82,7 @@ def test_link_tiled(local_ds_generator, cat_path):
     assert sample.creds_key is None
 
 
+@pytest.mark.slow
 def test_link_tiled_transform(local_ds_generator, cat_path):
     data_in = [cat_path] * 2
     with local_ds_generator() as ds:

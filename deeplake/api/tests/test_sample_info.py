@@ -14,6 +14,7 @@ def get_exif_helper(path):
     return json.loads(json.dumps(getexif(img)))
 
 
+@pytest.mark.slow
 def test_image_samples(local_ds_generator, compressed_image_paths):
     ds = local_ds_generator()
     jpg = ds.create_tensor("jpg_images", htype="image", sample_compression="jpg")

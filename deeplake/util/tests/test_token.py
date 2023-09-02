@@ -1,7 +1,10 @@
+import pytest
+
 from deeplake.util.token import expires_in_to_expires_at, is_expired_token
 from time import sleep
 
 
+@pytest.mark.slow
 def test_expiry():
     creds = {"Authorization": "Bearer 12345", "expires_in": 2}
     expires_in_to_expires_at(creds)

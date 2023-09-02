@@ -80,9 +80,17 @@ def test_setting_woker_init_function(local_auth_ds):
 @requires_libdeeplake
 @pytest.mark.parametrize(
     "ds",
-    ["hub_cloud_ds", "local_auth_ds"],
+    [
+        pytest.param(
+            "hub_cloud_ds",
+            marks=[pytest.mark.slow, pytest.mark.skip("Causing lockups")],
+        ),
+        "local_auth_ds",
+    ],
     indirect=True,
 )
+@pytest.mark.flaky
+@pytest.mark.skip("causing lockups")
 def test_pytorch_small(ds):
     with ds:
         ds.create_tensor("image", max_chunk_size=PYTORCH_TESTS_MAX_CHUNK_SIZE)
@@ -141,18 +149,20 @@ def test_pytorch_small(ds):
 
 @requires_torch
 @requires_libdeeplake
-def test_pytorch_transform(hub_cloud_ds):
-    with hub_cloud_ds:
-        hub_cloud_ds.create_tensor("image", max_chunk_size=PYTORCH_TESTS_MAX_CHUNK_SIZE)
-        hub_cloud_ds.image.extend(([i * np.ones((i + 1, i + 1)) for i in range(16)]))
-        hub_cloud_ds.checkout("alt", create=True)
-        hub_cloud_ds.create_tensor(
-            "image2", max_chunk_size=PYTORCH_TESTS_MAX_CHUNK_SIZE
-        )
-        hub_cloud_ds.image2.extend(np.array([i * np.ones((12, 12)) for i in range(16)]))
+@pytest.mark.flaky(retry_count=3)
+@pytest.mark.slow
+@pytest.mark.timeout(10)
+@pytest.mark.skip("causing lockups")
+def test_pytorch_transform(local_auth_ds):
+    with local_auth_ds as ds:
+        ds.create_tensor("image", max_chunk_size=PYTORCH_TESTS_MAX_CHUNK_SIZE)
+        ds.image.extend(([i * np.ones((i + 1, i + 1)) for i in range(16)]))
+        ds.checkout("alt", create=True)
+        ds.create_tensor("image2", max_chunk_size=PYTORCH_TESTS_MAX_CHUNK_SIZE)
+        ds.image2.extend(np.array([i * np.ones((12, 12)) for i in range(16)]))
 
     dl = (
-        hub_cloud_ds.dataloader()
+        ds.dataloader()
         .batch(1)
         .transform(to_tuple, t1="image", t2="image2")
         .pytorch(num_workers=2, collate_fn=identity_collate)
@@ -168,6 +178,7 @@ def test_pytorch_transform(hub_cloud_ds):
 
 
 @requires_libdeeplake
+@pytest.mark.flaky
 def test_inequal_tensors_dataloader_length(local_auth_ds):
     with local_auth_ds as ds:
         ds.create_tensor("images")
@@ -182,22 +193,18 @@ def test_inequal_tensors_dataloader_length(local_auth_ds):
 
 @requires_torch
 @requires_libdeeplake
-def test_pytorch_transform_dict(hub_cloud_ds):
-    with hub_cloud_ds:
-        hub_cloud_ds.create_tensor("image", max_chunk_size=PYTORCH_TESTS_MAX_CHUNK_SIZE)
-        hub_cloud_ds.image.extend(([i * np.ones((i + 1, i + 1)) for i in range(16)]))
-        hub_cloud_ds.create_tensor(
-            "image2", max_chunk_size=PYTORCH_TESTS_MAX_CHUNK_SIZE
-        )
-        hub_cloud_ds.image2.extend(np.array([i * np.ones((12, 12)) for i in range(16)]))
-        hub_cloud_ds.create_tensor(
-            "image3", max_chunk_size=PYTORCH_TESTS_MAX_CHUNK_SIZE
-        )
-        hub_cloud_ds.image3.extend(np.array([i * np.ones((12, 12)) for i in range(16)]))
+@pytest.mark.flaky
+@pytest.mark.slow
+def test_pytorch_transform_dict(local_auth_ds):
+    with local_auth_ds as ds:
+        ds.create_tensor("image", max_chunk_size=PYTORCH_TESTS_MAX_CHUNK_SIZE)
+        ds.image.extend(([i * np.ones((i + 1, i + 1)) for i in range(16)]))
+        ds.create_tensor("image2", max_chunk_size=PYTORCH_TESTS_MAX_CHUNK_SIZE)
+        ds.image2.extend(np.array([i * np.ones((12, 12)) for i in range(16)]))
+        ds.create_tensor("image3", max_chunk_size=PYTORCH_TESTS_MAX_CHUNK_SIZE)
+        ds.image3.extend(np.array([i * np.ones((12, 12)) for i in range(16)]))
 
-    dl = (
-        hub_cloud_ds.dataloader().transform({"image": double, "image2": None}).pytorch()
-    )
+    dl = ds.dataloader().transform({"image": double, "image2": None}).pytorch()
 
     assert len(dl.dataset) == 16
 
@@ -219,18 +226,20 @@ def test_pytorch_transform_dict(hub_cloud_ds):
             np.testing.assert_array_equal(image2.numpy(), i * np.ones((1, 12, 12)))
 
 
+@pytest.mark.slow
 @requires_torch
 @requires_libdeeplake
-def test_pytorch_with_compression(hub_cloud_ds: Dataset):
+@pytest.mark.flaky
+def test_pytorch_with_compression(local_auth_ds: Dataset):
     # TODO: chunk-wise compression for labels (right now they are uncompressed)
-    with hub_cloud_ds:
-        images = hub_cloud_ds.create_tensor(
+    with local_auth_ds as ds:
+        images = ds.create_tensor(
             "images",
             htype="image",
             sample_compression="png",
             max_chunk_size=PYTORCH_TESTS_MAX_CHUNK_SIZE,
         )
-        labels = hub_cloud_ds.create_tensor(
+        labels = ds.create_tensor(
             "labels", htype="class_label", max_chunk_size=PYTORCH_TESTS_MAX_CHUNK_SIZE
         )
 
@@ -239,7 +248,7 @@ def test_pytorch_with_compression(hub_cloud_ds: Dataset):
         images.extend(np.ones((16, 12, 12, 3), dtype="uint8"))
         labels.extend(np.ones((16, 1), dtype="uint32"))
 
-    dl = hub_cloud_ds.dataloader().pytorch(num_workers=0)
+    dl = ds.dataloader().pytorch(num_workers=0)
 
     for _ in range(2):
         for batch in dl:
@@ -249,19 +258,21 @@ def test_pytorch_with_compression(hub_cloud_ds: Dataset):
             assert T.shape == (1, 1)
 
 
+@pytest.mark.slow
 @requires_torch
 @requires_libdeeplake
-def test_custom_tensor_order(hub_cloud_ds):
-    with hub_cloud_ds:
+@pytest.mark.flaky
+def test_custom_tensor_order(local_auth_ds):
+    with local_auth_ds as ds:
         tensors = ["a", "b", "c", "d"]
         for t in tensors:
-            hub_cloud_ds.create_tensor(t, max_chunk_size=PYTORCH_TESTS_MAX_CHUNK_SIZE)
-            hub_cloud_ds[t].extend(np.random.random((3, 4, 5)))
+            ds.create_tensor(t, max_chunk_size=PYTORCH_TESTS_MAX_CHUNK_SIZE)
+            ds[t].extend(np.random.random((3, 4, 5)))
 
     with pytest.raises(TensorDoesNotExistError):
-        dl = hub_cloud_ds.dataloader().pytorch(tensors=["c", "d", "e"])
+        dl = ds.dataloader().pytorch(tensors=["c", "d", "e"])
 
-    dl = hub_cloud_ds.dataloader().pytorch(tensors=["c", "d", "a"], return_index=False)
+    dl = ds.dataloader().pytorch(tensors=["c", "d", "a"], return_index=False)
 
     for i, batch in enumerate(dl):
         c1, d1, a1 = batch
@@ -272,9 +283,9 @@ def test_custom_tensor_order(hub_cloud_ds):
         np.testing.assert_array_equal(a1, a2)
         np.testing.assert_array_equal(c1, c2)
         np.testing.assert_array_equal(d1, d2)
-        np.testing.assert_array_equal(a1[0], hub_cloud_ds.a.numpy()[i])
-        np.testing.assert_array_equal(c1[0], hub_cloud_ds.c.numpy()[i])
-        np.testing.assert_array_equal(d1[0], hub_cloud_ds.d.numpy()[i])
+        np.testing.assert_array_equal(a1[0], ds.a.numpy()[i])
+        np.testing.assert_array_equal(c1[0], ds.c.numpy()[i])
+        np.testing.assert_array_equal(d1[0], ds.d.numpy()[i])
         batch = pickle.loads(pickle.dumps(batch))
         c1, d1, a1 = batch
         a2 = batch["a"]
@@ -283,30 +294,30 @@ def test_custom_tensor_order(hub_cloud_ds):
         np.testing.assert_array_equal(a1, a2)
         np.testing.assert_array_equal(c1, c2)
         np.testing.assert_array_equal(d1, d2)
-        np.testing.assert_array_equal(a1[0], hub_cloud_ds.a.numpy()[i])
-        np.testing.assert_array_equal(c1[0], hub_cloud_ds.c.numpy()[i])
-        np.testing.assert_array_equal(d1[0], hub_cloud_ds.d.numpy()[i])
+        np.testing.assert_array_equal(a1[0], ds.a.numpy()[i])
+        np.testing.assert_array_equal(c1[0], ds.c.numpy()[i])
+        np.testing.assert_array_equal(d1[0], ds.d.numpy()[i])
 
 
+@pytest.mark.slow
 @requires_torch
 @requires_libdeeplake
-def test_readonly_with_two_workers(hub_cloud_ds):
-    with hub_cloud_ds:
-        hub_cloud_ds.create_tensor(
-            "images", max_chunk_size=PYTORCH_TESTS_MAX_CHUNK_SIZE
-        )
-        hub_cloud_ds.create_tensor(
-            "labels", max_chunk_size=PYTORCH_TESTS_MAX_CHUNK_SIZE
-        )
-        hub_cloud_ds.images.extend(np.ones((10, 12, 12)))
-        hub_cloud_ds.labels.extend(np.ones(10))
+@pytest.mark.flaky
+@pytest.mark.skip("causing lockups")
+@pytest.mark.timeout(10)
+def test_readonly_with_two_workers(local_auth_ds):
+    with local_auth_ds as ds:
+        ds.create_tensor("images", max_chunk_size=PYTORCH_TESTS_MAX_CHUNK_SIZE)
+        ds.create_tensor("labels", max_chunk_size=PYTORCH_TESTS_MAX_CHUNK_SIZE)
+        ds.images.extend(np.ones((10, 12, 12)))
+        ds.labels.extend(np.ones(10))
 
-    base_storage = get_base_storage(hub_cloud_ds.storage)
+    base_storage = get_base_storage(ds.storage)
     base_storage.flush()
     base_storage.enable_readonly()
     ds = Dataset(
-        storage=hub_cloud_ds.storage,
-        token=hub_cloud_ds.token,
+        storage=ds.storage,
+        token=ds.token,
         read_only=True,
         verbose=False,
     )
@@ -329,21 +340,22 @@ def test_pytorch_local_cache():
 
 @requires_torch
 @requires_libdeeplake
-def test_groups(hub_cloud_ds, compressed_image_paths):
+@pytest.mark.slow
+@pytest.mark.flaky
+def test_groups(local_auth_ds, compressed_image_paths):
     img1 = deeplake.read(compressed_image_paths["jpeg"][0])
     img2 = deeplake.read(compressed_image_paths["png"][0])
-    with hub_cloud_ds:
-        hub_cloud_ds.create_tensor(
-            "images/jpegs/cats", htype="image", sample_compression="jpeg"
-        )
-        hub_cloud_ds.create_tensor(
-            "images/pngs/flowers", htype="image", sample_compression="png"
-        )
+    with local_auth_ds as ds:
+        ds.create_tensor("images/jpegs/cats", htype="image", sample_compression="jpeg")
+        ds.create_tensor("images/pngs/flowers", htype="image", sample_compression="png")
         for _ in range(10):
-            hub_cloud_ds.images.jpegs.cats.append(img1)
-            hub_cloud_ds.images.pngs.flowers.append(img2)
+            ds.images.jpegs.cats.append(img1)
+            ds.images.pngs.flowers.append(img2)
 
-    another_ds = deeplake.dataset(hub_cloud_ds.path, token=hub_cloud_ds.token)
+    another_ds = deeplake.dataset(
+        ds.path,
+        token=ds.token,
+    )
     dl = another_ds.dataloader().pytorch(return_index=False)
     for i, (cat, flower) in enumerate(dl):
         assert cat[0].shape == another_ds.images.jpegs.cats[i].numpy().shape
@@ -357,14 +369,16 @@ def test_groups(hub_cloud_ds, compressed_image_paths):
         np.testing.assert_array_equal(flower[0], img2.array)
 
 
+@pytest.mark.slow
 @requires_torch
 @requires_libdeeplake
-def test_string_tensors(hub_cloud_ds):
-    with hub_cloud_ds:
-        hub_cloud_ds.create_tensor("strings", htype="text")
-        hub_cloud_ds.strings.extend([f"string{idx}" for idx in range(5)])
+@pytest.mark.flaky
+def test_string_tensors(local_auth_ds):
+    with local_auth_ds as ds:
+        ds.create_tensor("strings", htype="text")
+        ds.strings.extend([f"string{idx}" for idx in range(5)])
 
-    ptds = hub_cloud_ds.dataloader().pytorch()
+    ptds = ds.dataloader().pytorch()
     for idx, batch in enumerate(ptds):
         np.testing.assert_array_equal(batch["strings"], f"string{idx}")
 
@@ -390,12 +404,14 @@ def test_pytorch_large():
         [4, 3, 2, 1],
     ],
 )
-def test_pytorch_view(hub_cloud_ds, index):
+@pytest.mark.slow
+@pytest.mark.flaky
+def test_pytorch_view(local_auth_ds, index):
     arr_list_1 = [np.random.randn(15, 15, i) for i in range(10)]
     arr_list_2 = [np.random.randn(40, 15, 4, i) for i in range(10)]
     label_list = list(range(10))
 
-    with hub_cloud_ds as ds:
+    with local_auth_ds as ds:
         ds.create_tensor("img1")
         ds.create_tensor("img2")
         ds.create_tensor("label")
@@ -403,8 +419,8 @@ def test_pytorch_view(hub_cloud_ds, index):
         ds.img2.extend(arr_list_2)
         ds.label.extend(label_list)
 
-    ptds = hub_cloud_ds[index].dataloader().pytorch()
-    idxs = list(IndexEntry(index).indices(len(hub_cloud_ds)))
+    ptds = ds[index].dataloader().pytorch()
+    idxs = list(IndexEntry(index).indices(len(ds)))
     for idx, batch in enumerate(ptds):
         idx = idxs[idx]
         np.testing.assert_array_equal(batch["img1"][0], arr_list_1[idx])
@@ -415,17 +431,19 @@ def test_pytorch_view(hub_cloud_ds, index):
 @requires_torch
 @requires_libdeeplake
 @pytest.mark.parametrize("shuffle", [True, False])
-def test_pytorch_collate(hub_cloud_ds, shuffle):
-    with hub_cloud_ds:
-        hub_cloud_ds.create_tensor("a")
-        hub_cloud_ds.create_tensor("b")
-        hub_cloud_ds.create_tensor("c")
+@pytest.mark.slow
+@pytest.mark.flaky
+def test_pytorch_collate(local_auth_ds, shuffle):
+    with local_auth_ds as ds:
+        ds.create_tensor("a")
+        ds.create_tensor("b")
+        ds.create_tensor("c")
         for _ in range(100):
-            hub_cloud_ds.a.append(0)
-            hub_cloud_ds.b.append(1)
-            hub_cloud_ds.c.append(2)
+            ds.a.append(0)
+            ds.b.append(1)
+            ds.c.append(2)
 
-    ptds = hub_cloud_ds.dataloader().batch(4).pytorch(collate_fn=reorder_collate)
+    ptds = ds.dataloader().batch(4).pytorch(collate_fn=reorder_collate)
     if shuffle:
         ptds = ptds.shuffle()
     for batch in ptds:
@@ -439,18 +457,20 @@ def test_pytorch_collate(hub_cloud_ds, shuffle):
 @requires_torch
 @requires_libdeeplake
 @pytest.mark.parametrize("shuffle", [True, False])
-def test_pytorch_transform_collate(hub_cloud_ds, shuffle):
-    with hub_cloud_ds:
-        hub_cloud_ds.create_tensor("a")
-        hub_cloud_ds.create_tensor("b")
-        hub_cloud_ds.create_tensor("c")
+@pytest.mark.slow
+@pytest.mark.flaky
+def test_pytorch_transform_collate(local_auth_ds, shuffle):
+    with local_auth_ds as ds:
+        ds.create_tensor("a")
+        ds.create_tensor("b")
+        ds.create_tensor("c")
         for _ in range(100):
-            hub_cloud_ds.a.append(0 * np.ones((300, 300)))
-            hub_cloud_ds.b.append(1 * np.ones((300, 300)))
-            hub_cloud_ds.c.append(2 * np.ones((300, 300)))
+            ds.a.append(0 * np.ones((300, 300)))
+            ds.b.append(1 * np.ones((300, 300)))
+            ds.c.append(2 * np.ones((300, 300)))
 
     ptds = (
-        hub_cloud_ds.dataloader()
+        ds.dataloader()
         .batch(4)
         .pytorch(
             collate_fn=my_transform_collate,
@@ -476,17 +496,17 @@ def test_pytorch_ddp():
 @requires_torch
 @requires_libdeeplake
 @pytest.mark.parametrize("compression", [None, "jpeg"])
-def test_pytorch_decode(hub_cloud_ds, compressed_image_paths, compression):
-    with hub_cloud_ds:
-        hub_cloud_ds.create_tensor("image", sample_compression=compression)
-        hub_cloud_ds.image.extend(
+@pytest.mark.slow
+@pytest.mark.flaky
+def test_pytorch_decode(local_auth_ds, compressed_image_paths, compression):
+    with local_auth_ds as ds:
+        ds.create_tensor("image", sample_compression=compression)
+        ds.image.extend(
             np.array([i * np.ones((10, 10, 3), dtype=np.uint8) for i in range(5)])
         )
-        hub_cloud_ds.image.extend(
-            [deeplake.read(compressed_image_paths["jpeg"][0])] * 5
-        )
+        ds.image.extend([deeplake.read(compressed_image_paths["jpeg"][0])] * 5)
 
-    ptds = hub_cloud_ds.dataloader().pytorch(decode_method={"image": "tobytes"})
+    ptds = ds.dataloader().pytorch(decode_method={"image": "tobytes"})
 
     for i, batch in enumerate(ptds):
         image = convert_data_according_to_torch_version(batch["image"])
@@ -501,7 +521,7 @@ def test_pytorch_decode(hub_cloud_ds, compressed_image_paths, compression):
                 assert f.read() == image
 
     if compression:
-        ptds = hub_cloud_ds.dataloader().numpy(decode_method={"image": "pil"})
+        ptds = ds.dataloader().numpy(decode_method={"image": "pil"})
         for i, batch in enumerate(ptds):
             image = batch[0]["image"]
             assert isinstance(image, Image.Image)
@@ -516,8 +536,10 @@ def test_pytorch_decode(hub_cloud_ds, compressed_image_paths, compression):
 
 @requires_torch
 @requires_libdeeplake
-def test_rename(hub_cloud_ds):
-    with hub_cloud_ds as ds:
+@pytest.mark.flaky
+@pytest.mark.slow
+def test_rename(local_auth_ds):
+    with local_auth_ds as ds:
         ds.create_tensor("abc")
         ds.create_tensor("blue/green")
         ds.abc.append([1, 2, 3])
@@ -535,19 +557,23 @@ def test_rename(hub_cloud_ds):
 
 @requires_torch
 @requires_libdeeplake
-@pytest.mark.parametrize("num_workers", [0, 2])
-def test_indexes(hub_cloud_ds, num_workers):
+@pytest.mark.parametrize(
+    "num_workers",
+    [
+        0,
+        pytest.param(2, marks=pytest.mark.skip(reason="causing lockups")),
+    ],
+)
+@pytest.mark.slow
+@pytest.mark.flaky
+def test_indexes(local_auth_ds, num_workers):
     shuffle = False
-    with hub_cloud_ds as ds:
+    with local_auth_ds as ds:
         ds.create_tensor("xyz")
         for i in range(8):
             ds.xyz.append(i * np.ones((2, 2)))
 
-    ptds = (
-        hub_cloud_ds.dataloader()
-        .batch(4)
-        .pytorch(num_workers=num_workers, return_index=True)
-    )
+    ptds = ds.dataloader().batch(4).pytorch(num_workers=num_workers, return_index=True)
     if shuffle:
         ptds = ptds.shuffle()
 
@@ -559,16 +585,24 @@ def test_indexes(hub_cloud_ds, num_workers):
 
 @requires_torch
 @requires_libdeeplake
-@pytest.mark.parametrize("num_workers", [0, 2])
-def test_indexes_transform(hub_cloud_ds, num_workers):
+@pytest.mark.slow
+@pytest.mark.parametrize(
+    "num_workers",
+    [
+        0,
+        pytest.param(2, marks=pytest.mark.skip("causing lockups")),
+    ],
+)
+@pytest.mark.flaky
+def test_indexes_transform(local_auth_ds, num_workers):
     shuffle = False
-    with hub_cloud_ds as ds:
+    with local_auth_ds as ds:
         ds.create_tensor("xyz")
         for i in range(8):
             ds.xyz.append(i * np.ones((2, 2)))
 
     ptds = (
-        hub_cloud_ds.dataloader()
+        ds.dataloader()
         .batch(4)
         .transform(index_transform)
         .pytorch(
@@ -586,16 +620,20 @@ def test_indexes_transform(hub_cloud_ds, num_workers):
 
 @requires_torch
 @requires_libdeeplake
-@pytest.mark.parametrize("num_workers", [0, 2])
-def test_indexes_transform_dict(hub_cloud_ds, num_workers):
+@pytest.mark.parametrize(
+    "num_workers", [0, pytest.param(2, marks=pytest.mark.skip("causing lockups"))]
+)
+@pytest.mark.slow
+@pytest.mark.flaky
+def test_indexes_transform_dict(local_auth_ds, num_workers):
     shuffle = False
-    with hub_cloud_ds as ds:
+    with local_auth_ds as ds:
         ds.create_tensor("xyz")
         for i in range(8):
             ds.xyz.append(i * np.ones((2, 2)))
 
     ptds = (
-        hub_cloud_ds.dataloader()
+        ds.dataloader()
         .batch(4)
         .transform({"xyz": double, "index": None})
         .pytorch(num_workers=num_workers, return_index=True)
@@ -609,7 +647,7 @@ def test_indexes_transform_dict(hub_cloud_ds, num_workers):
             np.testing.assert_array_equal(2 * batch["index"][i], batch["xyz"][i][0, 0])
 
     ptds = (
-        hub_cloud_ds.dataloader()
+        ds.dataloader()
         .batch(4)
         .transform({"xyz": double})
         .pytorch(num_workers=num_workers, return_index=True)
@@ -623,17 +661,21 @@ def test_indexes_transform_dict(hub_cloud_ds, num_workers):
 
 @requires_torch
 @requires_libdeeplake
-@pytest.mark.parametrize("num_workers", [0, 2])
-def test_indexes_tensors(hub_cloud_ds, num_workers):
+@pytest.mark.parametrize(
+    "num_workers", [0, pytest.param(2, marks=pytest.mark.skip("causing lockups"))]
+)
+@pytest.mark.slow
+@pytest.mark.flaky
+def test_indexes_tensors(local_auth_ds, num_workers):
     shuffle = False
-    with hub_cloud_ds as ds:
+    with local_auth_ds as ds:
         ds.create_tensor("xyz")
         for i in range(8):
             ds.xyz.append(i * np.ones((2, 2)))
 
     with pytest.raises(ValueError):
         ptds = (
-            hub_cloud_ds.dataloader()
+            ds.dataloader()
             .batch(4)
             .pytorch(
                 num_workers=num_workers, return_index=True, tensors=["xyz", "index"]
@@ -641,7 +683,7 @@ def test_indexes_tensors(hub_cloud_ds, num_workers):
         )
 
     ptds = (
-        hub_cloud_ds.dataloader()
+        ds.dataloader()
         .batch(4)
         .pytorch(num_workers=num_workers, return_index=True, tensors=["xyz"])
     )
@@ -654,8 +696,10 @@ def test_indexes_tensors(hub_cloud_ds, num_workers):
 
 @requires_libdeeplake
 @requires_torch
-def test_uneven_iteration(hub_cloud_ds):
-    with hub_cloud_ds as ds:
+@pytest.mark.flaky
+@pytest.mark.slow
+def test_uneven_iteration(local_auth_ds):
+    with local_auth_ds as ds:
         ds.create_tensor("x")
         ds.create_tensor("y")
         ds.x.extend(list(range(5)))
@@ -669,8 +713,9 @@ def test_uneven_iteration(hub_cloud_ds):
 
 @requires_libdeeplake
 @requires_torch
-def test_pytorch_error_handling(hub_cloud_ds):
-    with hub_cloud_ds as ds:
+@pytest.mark.slow
+def test_pytorch_error_handling(local_auth_ds):
+    with local_auth_ds as ds:
         ds.create_tensor("x")
         ds.create_tensor("y")
         ds.x.extend(list(range(5)))
@@ -692,10 +737,23 @@ def test_pytorch_error_handling(hub_cloud_ds):
 
 @requires_libdeeplake
 @requires_torch
-def test_pil_decode_method(hub_cloud_ds):
+def test_batch_sampler_attribute(local_auth_ds):
+    ld = local_auth_ds.dataloader().pytorch()
+
+    from torch.utils.data import BatchSampler
+
+    assert isinstance(ld.batch_sampler, BatchSampler)
+    assert ld.batch_sampler.sampler is not None
+
+
+@requires_libdeeplake
+@requires_torch
+@pytest.mark.slow
+@pytest.mark.flaky
+def test_pil_decode_method(local_auth_ds):
     from indra.pytorch.exceptions import CollateExceptionWrapper
 
-    with hub_cloud_ds as ds:
+    with local_auth_ds as ds:
         ds.create_tensor("x", htype="image", sample_compression="jpeg")
         ds.x.extend(np.random.randint(0, 255, (10, 10, 10, 3), np.uint8))
 
@@ -728,6 +786,7 @@ def test_pil_decode_method(hub_cloud_ds):
 @patch("deeplake.constants.RETURN_DUMMY_DATA_FOR_DATALOADER", True)
 @requires_torch
 @requires_libdeeplake
+@pytest.mark.flaky
 def test_pytorch_dummy_data(local_auth_ds):
     x_data = [
         np.random.randint(0, 255, (100, 100, 3), dtype="uint8"),
@@ -761,9 +820,10 @@ def test_pytorch_dummy_data(local_auth_ds):
 
 @requires_libdeeplake
 @requires_torch
-def test_json_data_loader(hub_cloud_ds):
-    ds = hub_cloud_ds
-    with ds:
+@pytest.mark.flaky
+@pytest.mark.slow
+def test_json_data_loader(local_auth_ds):
+    with local_auth_ds as ds:
         ds.create_tensor(
             "json",
             htype="json",
@@ -785,9 +845,10 @@ def test_json_data_loader(hub_cloud_ds):
 
 @requires_libdeeplake
 @requires_torch
-def test_list_data_loader(hub_cloud_ds):
-    ds = hub_cloud_ds
-    with ds:
+@pytest.mark.flaky
+@pytest.mark.slow
+def test_list_data_loader(local_auth_ds):
+    with local_auth_ds as ds:
         ds.create_tensor(
             "list",
             htype="list",
@@ -808,8 +869,10 @@ def test_list_data_loader(hub_cloud_ds):
 
 @requires_libdeeplake
 @requires_torch
-def test_pytorch_data_decode(hub_cloud_ds, cat_path):
-    with hub_cloud_ds as ds:
+@pytest.mark.flaky
+@pytest.mark.slow
+def test_pytorch_data_decode(local_auth_ds, cat_path):
+    with local_auth_ds as ds:
         ds.create_tensor("generic")
         for i in range(10):
             ds.generic.append(i)

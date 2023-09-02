@@ -23,7 +23,7 @@ from warnings import warn
 @pytest.fixture(scope="session")
 def hub_cloud_dev_credentials(request):
     if not is_opt_true(request, HUB_CLOUD_OPT):
-        pytest.skip()
+        pytest.skip(f"{HUB_CLOUD_OPT} flag not set")
 
     if not (USE_LOCAL_HOST or USE_DEV_ENVIRONMENT or USE_STAGING_ENVIRONMENT):
         warn(
@@ -61,7 +61,7 @@ def hub_dev_token():
 @pytest.fixture(scope="session")
 def hub_kaggle_credentials(request):
     if not is_opt_true(request, KAGGLE_OPT):
-        pytest.skip()
+        pytest.skip(f"{KAGGLE_OPT} flag not set")
 
     username = os.getenv(ENV_KAGGLE_USERNAME)
     key = os.getenv(ENV_KAGGLE_KEY)
@@ -76,7 +76,7 @@ def hub_kaggle_credentials(request):
 @pytest.fixture(scope="session")
 def hub_cloud_dev_managed_creds_key(request):
     if not is_opt_true(request, HUB_CLOUD_OPT):
-        pytest.skip()
+        pytest.skip(f"{HUB_CLOUD_OPT} flag not set")
 
     creds_key = os.getenv(ENV_HUB_DEV_MANAGED_CREDS_KEY, "aws_creds")
     return creds_key

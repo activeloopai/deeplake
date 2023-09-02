@@ -1,8 +1,11 @@
 import numpy as np
+import pytest
+
 import deeplake
 import wandb
 
 
+@pytest.mark.slow
 def test_wandb(hub_cloud_path, hub_cloud_dev_token):
     run = wandb.init(mode="offline")
     ds = deeplake.empty(hub_cloud_path, token=hub_cloud_dev_token, overwrite=True)

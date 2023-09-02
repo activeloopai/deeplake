@@ -17,6 +17,7 @@ def test_text(memory_ds):
         assert ds.text[i].numpy()[0] == items[i % 3]
 
 
+@pytest.mark.slow
 @enabled_non_gcs_gdrive_datasets
 def test_text_transform(ds, scheduler="threaded"):
     ds.create_tensor("text", htype="text")
