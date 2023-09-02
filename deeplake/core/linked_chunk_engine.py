@@ -239,6 +239,7 @@ class LinkedChunkEngine(ChunkEngine):
     def check_each_sample(self, samples, verify=True, ignore_errors=False):
         link_creds = self.link_creds
         verified_samples = []
+        skipped = []
         for i, sample in enumerate(samples):
             try:
                 if isinstance(sample, deeplake.core.tensor.Tensor) and sample.is_link:
@@ -280,8 +281,13 @@ class LinkedChunkEngine(ChunkEngine):
                         raise BadLinkError(sample.path, sample.creds_key) from e
             except Exception:
                 if ignore_errors:
+                    skipped.append(i)
                     continue
                 raise
+
+        for i in reversed(skipped):
+            samples.pop(i)
+
         return verified_samples
 
     def register_new_creds(self, num_samples_added, samples):

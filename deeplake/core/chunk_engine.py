@@ -681,18 +681,8 @@ class ChunkEngine:
         self, samples, verify=True, pg_callback=None, ignore_errors=False
     ):
         check_samples_type(samples)
-        if isinstance(samples, list):
-            samples = [
-                None
-                if is_empty_list(sample)
-                or (
-                    isinstance(sample, deeplake.core.tensor.Tensor)
-                    and sample.is_empty_tensor
-                )
-                else sample
-                for sample in samples
-            ]
-        samples = self.check_each_sample(
+        samples = self._prepare_samples_for_link_callback(samples)
+        verified_samples = self.check_each_sample(
             samples, verify=verify, ignore_errors=ignore_errors
         )
         tensor_meta = self.tensor_meta
@@ -730,7 +720,7 @@ class ChunkEngine:
                 p if isinstance(p, Polygons) else Polygons(p, dtype=tensor_meta.dtype)
                 for p in samples
             ]
-        return samples
+        return samples, verified_samples
 
     def _convert_class_labels(self, samples):
         tensor_info_path = get_tensor_info_key(self.key, self.commit_id)
@@ -1026,7 +1016,7 @@ class ChunkEngine:
             return
         if len(samples) == 0:
             return
-        samples = self._sanitize_samples(
+        samples, verified_samples = self._sanitize_samples(
             samples, pg_callback=pg_callback, ignore_errors=ignore_errors
         )
         self._samples_to_chunks(
@@ -1038,7 +1028,7 @@ class ChunkEngine:
             pg_callback=pg_callback,
             ignore_errors=ignore_errors,
         )
-        return samples
+        return verified_samples
 
     def _extend_link_callback(
         self, link_callback, samples, flat, progressbar, ignore_errors
