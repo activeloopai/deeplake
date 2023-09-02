@@ -60,6 +60,7 @@ def test_dataset_empty_load():
         assert len(ds_overwrite_empty.tensors) == 0
 
 
+@pytest.mark.slow
 def test_update_privacy(hub_cloud_ds):
     assert not hub_cloud_ds.public
     hub_cloud_ds.make_public()

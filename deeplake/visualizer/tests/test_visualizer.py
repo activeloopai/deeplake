@@ -9,12 +9,13 @@ import deeplake as dp
     "ds_generator",
     [
         "local_ds_generator",
-        "s3_ds_generator",
-        "gcs_ds_generator",
-        "hub_cloud_ds_generator",
+        pytest.param("s3_ds_generator", marks=pytest.mark.slow),
+        pytest.param("gcs_ds_generator", marks=pytest.mark.slow),
+        pytest.param("hub_cloud_ds_generator", marks=pytest.mark.slow),
     ],
     indirect=True,
 )
+@pytest.mark.threadleak(enabled=False)
 def test_local_server(ds_generator):
     ds = ds_generator()
     ds.create_tensor("images", htype="image", sample_compression="jpg")

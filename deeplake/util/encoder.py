@@ -23,6 +23,8 @@ from deeplake.util.keys import (
 )
 import posixpath
 
+from deeplake.util.path import relpath
+
 
 def merge_all_meta_info(
     target_ds, storage, generated_tensors, overwrite, all_num_samples, result
@@ -73,7 +75,7 @@ def merge_all_tensor_metas(
     """Merges tensor metas from all workers into a single one and stores it in target_ds."""
     commit_id = target_ds.version_state["commit_id"]
     for tensor in tensors:
-        rel_path = posixpath.relpath(tensor, target_ds.group_index)
+        rel_path = relpath(tensor, target_ds.group_index)
         tensor_meta = None if overwrite else target_ds[rel_path].meta
         for current_worker_metas in all_workers_tensor_metas:
             current_meta = current_worker_metas[tensor]
@@ -122,7 +124,7 @@ def merge_all_chunk_id_encoders(
     """Merges chunk_id_encoders from all workers into a single one and stores it in target_ds."""
     commit_id = target_ds.version_state["commit_id"]
     for tensor in tensors:
-        rel_path = posixpath.relpath(tensor, target_ds.group_index)
+        rel_path = relpath(tensor, target_ds.group_index)
         chunk_id_encoder = (
             None if overwrite else target_ds[rel_path].chunk_engine.chunk_id_encoder
         )
@@ -167,7 +169,7 @@ def merge_all_tile_encoders(
 ) -> None:
     commit_id = target_ds.version_state["commit_id"]
     for tensor in tensors:
-        rel_path = posixpath.relpath(tensor, target_ds.group_index)
+        rel_path = relpath(tensor, target_ds.group_index)
         chunk_engine = target_ds[rel_path].chunk_engine
         offset = 0 if overwrite else chunk_engine.num_samples
         tile_encoder = None if overwrite else chunk_engine.tile_encoder
@@ -212,7 +214,7 @@ def merge_all_commit_chunk_maps(
     """Merges commit_chunk_maps from all workers into a single one and stores it in target_ds."""
     commit_id = target_ds.version_state["commit_id"]
     for tensor in tensors:
-        rel_path = posixpath.relpath(tensor, target_ds.group_index)
+        rel_path = relpath(tensor, target_ds.group_index)
         commit_chunk_map = (
             None if overwrite else target_ds[rel_path].chunk_engine.commit_chunk_map
         )
@@ -245,7 +247,7 @@ def merge_all_commit_diffs(
     """Merges commit_diffs from all workers into a single one and stores it in target_ds."""
     commit_id = target_ds.version_state["commit_id"]
     for tensor in tensors:
-        rel_path = posixpath.relpath(tensor, target_ds.group_index)  # type: ignore
+        rel_path = relpath(tensor, target_ds.group_index)  # type: ignore
         commit_diff = None if overwrite else target_ds[rel_path].chunk_engine.commit_diff  # type: ignore
         for current_worker_commit_diffs in all_workers_commit_diffs:
             current_commit_diff = current_worker_commit_diffs[tensor]
@@ -275,7 +277,7 @@ def merge_all_creds_encoders(
 ) -> None:
     commit_id = target_ds.version_state["commit_id"]
     for tensor in tensors:
-        rel_path = posixpath.relpath(tensor, target_ds.group_index)
+        rel_path = relpath(tensor, target_ds.group_index)
         actual_tensor = target_ds[rel_path]
         if not actual_tensor.is_link:
             continue
@@ -315,7 +317,7 @@ def merge_all_sequence_encoders(
 ) -> None:
     commit_id = target_ds.version_state["commit_id"]
     for tensor in tensors:
-        rel_path = posixpath.relpath(tensor, target_ds.group_index)
+        rel_path = relpath(tensor, target_ds.group_index)
         actual_tensor = target_ds[rel_path]
         if not actual_tensor.is_sequence:
             continue
@@ -374,7 +376,7 @@ def merge_all_pad_encoders(
 ) -> None:
     commit_id = target_ds.version_state["commit_id"]
     for tensor in tensors:
-        rel_path = posixpath.relpath(tensor, target_ds.group_index)
+        rel_path = relpath(tensor, target_ds.group_index)
         actual_tensor = target_ds[rel_path]
         pad_encoder = None if overwrite else actual_tensor.chunk_engine.pad_encoder
         for current_worker_pad_encoder in all_workers_pad_encoders:

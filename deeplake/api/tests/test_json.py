@@ -45,6 +45,7 @@ def test_json_with_numpy(memory_ds):
         )
 
 
+@pytest.mark.slow
 def test_json_with_deeplake_sample(memory_ds, compressed_image_paths):
     ds = memory_ds
     ds.create_tensor("json", htype="json")
@@ -137,6 +138,7 @@ def test_list_with_numpy(memory_ds):
         assert actual[1:] == expected[1:]
 
 
+@pytest.mark.slow
 def test_list_with_deeplake_sample(memory_ds, compressed_image_paths):
     ds = memory_ds
     ds.create_tensor("list", htype="list")
@@ -193,6 +195,7 @@ def test_json_with_schema(memory_ds):
 
 @enabled_non_gcs_datasets
 @pytest.mark.parametrize("compression", ["lz4", None])
+@pytest.mark.slow
 def test_json_transform(ds, compression, scheduler="threaded"):
     ds.create_tensor("json", htype="json", sample_compression=compression)
 
@@ -222,6 +225,7 @@ def test_json_transform(ds, compression, scheduler="threaded"):
         ds.json.list()
 
 
+@pytest.mark.slow
 @enabled_non_gcs_gdrive_datasets
 def test_list_transform(ds, scheduler="threaded"):
     ds.create_tensor("list", htype="list")

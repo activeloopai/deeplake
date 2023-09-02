@@ -156,9 +156,7 @@ class VectorStore:
         embedding_function: Optional[Union[Callable, List[Callable]]] = None,
         embedding_data: Optional[Union[List, List[List]]] = None,
         embedding_tensor: Optional[Union[str, List[str]]] = None,
-        total_samples_processed: int = 0,
         return_ids: bool = False,
-        num_workers: Optional[int] = None,
         ingestion_batch_size: Optional[int] = None,
         **tensors,
     ) -> Optional[List[str]]:
@@ -227,9 +225,7 @@ class VectorStore:
             embedding_function (Optional[Callable]): embedding function used to convert ``embedding_data`` into embeddings. Input to `embedding_function` is a list of data and output is a list of embeddings. Overrides the ``embedding_function`` specified when initializing the Vector Store.
             embedding_data (Optional[List]): Data to be converted into embeddings using the provided ``embedding_function``. Defaults to None.
             embedding_tensor (Optional[str]): Tensor where results from the embedding function will be stored. If None, the embedding tensor is automatically inferred (when possible). Defaults to None.
-            total_samples_processed (int): Total number of samples processed before ingestion stopped. When specified.
             return_ids (bool): Whether to return added ids as an ouput of the method. Defaults to False.
-            num_workers (int): Number of workers to use for parallel ingestion. Overrides the ``num_workers`` specified when initializing the Vector Store.
             ingestion_batch_size (int): Batch size to use for parallel ingestion. Defaults to 1000. Overrides the ``ingestion_batch_size`` specified when initializing the Vector Store.
             **tensors: Keyword arguments where the key is the tensor name, and the value is a list of samples that should be uploaded to that tensor.
 
@@ -242,7 +238,6 @@ class VectorStore:
             parameters={
                 "tensors": list(tensors.keys()) if tensors else None,
                 "embedding_tensor": embedding_tensor,
-                "total_samples_processed": total_samples_processed,
                 "return_ids": return_ids,
                 "embedding_function": True if embedding_function is not None else False,
                 "embedding_data": True if embedding_data is not None else False,
@@ -286,12 +281,11 @@ class VectorStore:
             embedding_data=embedding_data,
             embedding_tensor=embedding_tensor,
             ingestion_batch_size=ingestion_batch_size or self.ingestion_batch_size,
-            num_workers=num_workers or self.num_workers,
-            total_samples_processed=total_samples_processed,
+            num_workers=0,
+            total_samples_processed=0,
             logger=logger,
         )
 
-        self.dataset.commit(allow_empty=True)
         if self.verbose:
             self.dataset.summary()
 

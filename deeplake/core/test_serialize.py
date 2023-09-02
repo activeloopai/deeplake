@@ -1,3 +1,5 @@
+import pytest
+
 import numpy as np
 
 import deeplake
@@ -49,6 +51,7 @@ def test_numpy_and_base_types():
     np.testing.assert_array_equal(arr2, out3)
 
 
+@pytest.mark.slow
 def test_sample_img_compression(cat_path, compression="png"):
     sample = deeplake.read(cat_path)
     arr = sample.array

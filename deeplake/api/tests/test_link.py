@@ -207,6 +207,7 @@ def test_none_used_key(local_ds_generator, cat_path):
     assert ds.link_creds.used_creds_keys == {"my_s3_key"}
 
 
+@pytest.mark.slow
 @pytest.mark.parametrize("create_shape_tensor", [True, False])
 @pytest.mark.parametrize("verify", [True, False])
 def test_basic(local_ds_generator, cat_path, flower_path, create_shape_tensor, verify):
@@ -313,6 +314,7 @@ def test_jwt_link(local_ds):
             ds.img[0].shape
 
 
+@pytest.mark.slow
 @pytest.mark.parametrize("create_shape_tensor", [True, False])
 @pytest.mark.parametrize("verify", [True, False])
 @pytest.mark.skipif(
@@ -359,6 +361,7 @@ def test_video(request, local_ds_generator, create_shape_tensor, verify):
         assert ds.linked_videos[3].shape == (361, 720, 1280, 3)
 
 
+@pytest.mark.slow
 def test_complex_creds(local_ds_generator):
     local_ds = local_ds_generator()
     with local_ds as ds:
@@ -490,6 +493,7 @@ def test_transform_2(local_ds_generator, cat_path, flower_path):
     check_transformed_ds(ds)
 
 
+@pytest.mark.slow
 def test_link_managed(hub_cloud_ds_generator, cat_path):
     key_name = "CREDS_MANAGEMENT_TEST"
     with hub_cloud_ds_generator() as ds:
@@ -653,6 +657,7 @@ def test_rgb_gray(local_ds, cat_path, hopper_gray_path):
         assert len(ds.abc[1].numpy().shape) == 3
 
 
+@pytest.mark.slow
 def test_creds(hub_cloud_ds_generator, cat_path):
     creds_key = "ENV"
     ds = hub_cloud_ds_generator()
@@ -672,6 +677,7 @@ def test_creds(hub_cloud_ds_generator, cat_path):
     assert set(ds.get_creds_keys()) == {"aws_creds", "ENV"}
 
 
+@pytest.mark.slow
 def test_bad_link_no_verify(memory_ds):
     with memory_ds as ds:
         ds.add_creds_key("S3_CREDS")
@@ -686,6 +692,7 @@ def test_bad_link_no_verify(memory_ds):
         assert ds.abc[0]._linked_sample().path == "s3://some-bucket/does-not-exist.jpg"
 
 
+@pytest.mark.slow
 def test_update_creds_to_existing(hub_cloud_ds_generator, cat_path):
     creds_key = "ENV"
     ds = hub_cloud_ds_generator()
