@@ -125,6 +125,10 @@ class SampleTiles:
     def is_last_write(self) -> bool:
         return self.tiles_yielded == self.num_tiles
 
+    @property
+    def shape(self):
+        return self.sample_shape
+
     def yield_tile(self):
         self.tiles_yielded += 1
         if self.tiles is None:

@@ -1016,9 +1016,9 @@ class ChunkEngine:
                     progressbar=False,
                     pg_callback=pg_callback,
                 )  # TODO optimize this
-            return
+            return samples
         if len(samples) == 0:
-            return
+            return samples
         samples, verified_samples = self._sanitize_samples(
             samples, pg_callback=pg_callback, ignore_errors=ignore_errors
         )
@@ -1067,7 +1067,9 @@ class ChunkEngine:
                 self.sequence_encoder.register_samples(len(sample), 1)
                 self.commit_diff.add_data(1)
                 num_samples_added += 1
-                verified_samples.append(verified_sample if verified_sample else sample)
+                verified_samples.append(
+                    verified_sample if verified_sample is not None else sample
+                )
             except Exception:
                 if ignore_errors:
                     continue
