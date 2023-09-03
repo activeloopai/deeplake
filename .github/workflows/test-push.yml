@@ -129,7 +129,7 @@ jobs:
   test:
     name: Test
     needs: setup
-    uses: activeloopai/shared-github-actions/.github/workflows/full_test.yml@identify_slow_tests
+    uses: activeloopai/shared-github-actions/.github/workflows/full_test.yml@main
     if: github.repository == 'activeloopai/deeplake'
     with:
       repo: ${{ github.repository }}
