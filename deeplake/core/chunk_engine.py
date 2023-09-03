@@ -682,6 +682,7 @@ class ChunkEngine:
     ):
         check_samples_type(samples)
         samples = self._prepare_samples_for_link_callback(samples)
+        # verified samples are present only in case of linked tensors
         verified_samples = self.check_each_sample(
             samples, verify=verify, ignore_errors=ignore_errors
         )
@@ -1030,7 +1031,7 @@ class ChunkEngine:
             pg_callback=pg_callback,
             ignore_errors=ignore_errors,
         )
-        return verified_samples
+        return verified_samples or samples
 
     def _extend_link_callback(
         self, link_callback, samples, flat, progressbar, ignore_errors
@@ -1136,14 +1137,11 @@ class ChunkEngine:
                     samples, progressbar, link_callback, ignore_errors
                 )
             else:
-                verified_samples = (
-                    self._extend(
-                        samples,
-                        progressbar,
-                        pg_callback=pg_callback,
-                        ignore_errors=ignore_errors,
-                    )
-                    or samples
+                verified_samples = self._extend(
+                    samples,
+                    progressbar,
+                    pg_callback=pg_callback,
+                    ignore_errors=ignore_errors,
                 )
                 if link_callback:
                     verified_samples = self._prepare_samples_for_link_callback(
