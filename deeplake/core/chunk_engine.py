@@ -675,7 +675,7 @@ class ChunkEngine:
 
     def check_each_sample(self, samples, verify=True, ignore_errors=False):
         # overridden in LinkedChunkEngine
-        return samples
+        return
 
     def _sanitize_samples(
         self, samples, verify=True, pg_callback=None, ignore_errors=False
@@ -834,10 +834,12 @@ class ChunkEngine:
                 num_samples_added = 0
                 current_chunk_full = False
             else:
+                initial_num_samples = len(samples)
                 num_samples_added = current_chunk.extend_if_has_space(
                     samples, update_tensor_meta=update_tensor_meta, ignore_errors=ignore_errors, **extra_args  # type: ignore
                 )  # type: ignore
-                incoming_num_samples = len(samples)
+                skipped_num_samples = initial_num_samples - len(samples)
+                incoming_num_samples -= skipped_num_samples
                 if register_creds:
                     self.register_new_creds(num_samples_added, samples)
             if num_samples_added == 0:
@@ -1064,7 +1066,7 @@ class ChunkEngine:
                 self.sequence_encoder.register_samples(len(sample), 1)
                 self.commit_diff.add_data(1)
                 num_samples_added += 1
-                verified_samples.append(verified_sample or sample)
+                verified_samples.append(verified_sample if verified_sample else sample)
             except Exception:
                 if ignore_errors:
                     continue
@@ -1134,11 +1136,14 @@ class ChunkEngine:
                     samples, progressbar, link_callback, ignore_errors
                 )
             else:
-                verified_samples = self._extend(
-                    samples,
-                    progressbar,
-                    pg_callback=pg_callback,
-                    ignore_errors=ignore_errors,
+                verified_samples = (
+                    self._extend(
+                        samples,
+                        progressbar,
+                        pg_callback=pg_callback,
+                        ignore_errors=ignore_errors,
+                    )
+                    or samples
                 )
                 if link_callback:
                     verified_samples = self._prepare_samples_for_link_callback(
