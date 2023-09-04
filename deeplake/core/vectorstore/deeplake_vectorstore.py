@@ -128,7 +128,9 @@ class VectorStore:
 
         self.ingestion_batch_size = ingestion_batch_size
         self.num_workers = num_workers
-        token = token or DeepLakeBackendClient().get_token()
+        user_profile = DeepLakeBackendClient().get_user_profile()
+        if user_profile["name"] != "public":
+            token = token or DeepLakeBackendClient().get_token()
 
         if creds is None:
             creds = {}

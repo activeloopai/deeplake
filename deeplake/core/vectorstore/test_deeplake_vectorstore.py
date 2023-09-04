@@ -1819,6 +1819,7 @@ def test_exec_option_cli(
     username,
     password,
     runner,
+    hub_cloud_dev_token,
 ):
     # Testing exec_option with cli login and logout commands are executed
     runner.invoke(login, f"-u {username} -p {password}")
@@ -1843,6 +1844,13 @@ def test_exec_option_cli(
         path=hub_cloud_path,
     )
     assert db.exec_option == "python"
+
+    # logging in with cli token
+    runner.invoke(login, f"-t {hub_cloud_dev_token}")
+    db = VectorStore(
+        path=local_path,
+    )
+    assert db.exec_option == "compute_engine"
 
 
 @requires_libdeeplake
