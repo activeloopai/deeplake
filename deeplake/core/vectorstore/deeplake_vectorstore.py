@@ -148,7 +148,7 @@ class VectorStore:
         )
         self.embedding_function = embedding_function
         self.exec_option = utils.parse_exec_option(
-            self.dataset, exec_option, _INDRA_INSTALLED
+            self.dataset, exec_option, _INDRA_INSTALLED, token
         )
         self.verbose = verbose
         self.tensor_params = tensor_params

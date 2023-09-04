@@ -23,6 +23,7 @@ from deeplake.util.exceptions import (
     DatasetHandlerError,
 )
 from deeplake.core.vectorstore.vector_search import dataset as dataset_utils
+from deeplake.cli.auth import login, logout
 
 
 EMBEDDING_DIM = 100
@@ -1801,3 +1802,91 @@ def test_read_only():
 def test_delete_by_path_wrong_path():
     with pytest.raises(DatasetHandlerError):
         VectorStore.delete_by_path("some_path")
+
+
+@requires_libdeeplake
+def test_exec_option_with_auth(local_path, hub_cloud_path, hub_cloud_dev_token):
+    db = VectorStore(path=local_path)
+    assert db.exec_option == "python"
+
+    db = VectorStore(
+        path=local_path,
+        token=hub_cloud_dev_token,
+    )
+    assert db.exec_option == "compute_engine"
+
+    db = VectorStore(
+        path=hub_cloud_path,
+        token=hub_cloud_dev_token,
+    )
+    assert db.exec_option == "compute_engine"
+
+    db = VectorStore(
+        path=hub_cloud_path,
+        token=hub_cloud_dev_token,
+        runtime={"tensor_db": True},
+    )
+    assert db.exec_option == "tensor_db"
+
+
+@requires_libdeeplake
+def test_exec_option_cli(
+    local_path,
+    hub_cloud_path,
+    username,
+    password,
+    runner,
+):
+    # Testing exec_option with cli login and logout commands are executed
+    runner.invoke(login, f"-u {username} -p {password}")
+
+    # local dataset and logged in with cli
+    db = VectorStore(
+        path=local_path,
+    )
+    assert db.exec_option == "compute_engine"
+
+    # hub cloud dataset and logged in with cli
+    db = VectorStore(
+        path=hub_cloud_path,
+    )
+    assert db.exec_option == "compute_engine"
+
+    # logging out with cli
+    runner.invoke(logout)
+
+    # local dataset and logged out with cli
+    db = VectorStore(
+        path=hub_cloud_path,
+    )
+    assert db.exec_option == "python"
+
+
+@requires_libdeeplake
+@pytest.mark.parametrize(
+    "generator",
+    [
+        "s3_ds_generator",
+        "gcs_ds_generator",
+        "azure_ds_generator",
+    ],
+)
+def test_exec_option_with_connected_datasets(
+    hub_cloud_dev_token,
+    hub_cloud_path,
+    hub_cloud_dev_managed_creds_key,
+    generator,
+):
+    ds = generator()
+    ds.create_tensor("x")
+    ds.x.append(10)
+
+    ds.connect(
+        creds_key=hub_cloud_dev_managed_creds_key,
+        dest_path=hub_cloud_path,
+        token=hub_cloud_dev_token,
+    )
+    ds.add_creds_key(hub_cloud_dev_managed_creds_key, managed=True)
+
+    db = VectorStore(path=hub_cloud_path)
+    assert db.exec_option == "compute_engine"
