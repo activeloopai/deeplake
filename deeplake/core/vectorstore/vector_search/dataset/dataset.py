@@ -395,6 +395,11 @@ def extend(
     embedding_tensor: Union[str, List[str]],
     processed_tensors: Dict[str, List[Any]],
     dataset: deeplake.core.dataset.Dataset,
+    rate_limiter={
+        "turn_on": False,
+        "bytes_per_minute": MAX_BYTES_PER_MINUTE,
+        "target_byte_size": TARGET_BYTE_SIZE,
+    },
 ):
     """
     Function to extend the dataset with new data.
@@ -407,14 +412,17 @@ def extend(
         dataset (deeplake.core.dataset.Dataset): Dataset to be extended.
 
     """
+    target_byte_size = rate_limiter["target_byte_size"]
+    bytes_per_minute = rate_limiter["bytes_per_minute"]
+
     if embedding_function:
         for func, data, tensor in zip(
             embedding_function, embedding_data, embedding_tensor
         ):
-            data_batched = chunk_by_bytes(data, target_byte_size=TARGET_BYTE_SIZE)
+            data_batched = chunk_by_bytes(data, target_byte_size=target_byte_size)
 
             # Calculate the number of batches you can send each minute
-            batches_per_minute = MAX_BYTES_PER_MINUTE / TARGET_BYTE_SIZE
+            batches_per_minute = bytes_per_minute / target_byte_size
 
             # Calculate sleep time in seconds between batches
             sleep_time = 60 / batches_per_minute
@@ -427,7 +435,7 @@ def extend(
                 start = time.time()
                 embedded_data.append(func(data_i))
                 end = time.time()
-                if func.__module__ == "langchain.embeddings.openai":
+                if rate_limiter["turn_on"]:
                     # we need to take into account the time spent on openai call
                     diff = sleep_time - (end - start)
                     if diff > 0:
