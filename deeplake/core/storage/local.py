@@ -10,6 +10,7 @@ from deeplake.util.exceptions import (
     FileAtPathException,
     PathNotEmptyException,
 )
+from deeplake.util.path import relpath
 
 
 class LocalProvider(StorageProvider):
@@ -174,7 +175,7 @@ class LocalProvider(StorageProvider):
             for root, dirs, files in os.walk(full_path):
                 for file in files:
                     key_set.add(
-                        posixpath.relpath(
+                        relpath(
                             posixpath.join(pathlib.Path(root).as_posix(), file),
                             pathlib.Path(full_path).as_posix(),
                         )

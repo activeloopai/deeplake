@@ -9,6 +9,7 @@ from deeplake.client.utils import (
 )
 
 
+@pytest.mark.slow
 def test_client_requests(hub_cloud_dev_credentials):
     username, password = hub_cloud_dev_credentials
 
@@ -28,6 +29,7 @@ def test_client_utils():
     assert read_token() is None
 
 
+@pytest.mark.slow
 @pytest.mark.parametrize("method", ["creds", "token"])
 def test_client_workspace_organizations(
     method, hub_cloud_dev_credentials, hub_cloud_dev_token

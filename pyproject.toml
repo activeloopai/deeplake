@@ -1,0 +1,3 @@
+[tool.coverage.run]
+relative_files = true
+source = ["deeplake"]

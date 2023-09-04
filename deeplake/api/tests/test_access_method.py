@@ -39,6 +39,7 @@ def test_access_method_parsing():
         parse_access_method("local:processed:5:processed")
 
 
+@pytest.mark.slow
 def test_access_method(s3_ds_generator):
     with pytest.raises(DatasetHandlerError):
         deeplake.dataset("./some_non_existent_path", access_method="download")
@@ -79,6 +80,7 @@ def test_access_method(s3_ds_generator):
     ds.delete()
 
 
+@pytest.mark.slow
 def test_access_method_with_creds(
     hub_cloud_ds_generator, hub_cloud_dev_managed_creds_key
 ):

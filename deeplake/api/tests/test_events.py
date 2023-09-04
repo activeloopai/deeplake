@@ -1,12 +1,16 @@
+import pytest
+
 import deeplake
 import numpy as np
 
 
+@pytest.mark.slow
 def test_commit_checkout_event(hub_cloud_ds):
     hub_cloud_ds.commit()
     hub_cloud_ds.checkout("abc", create=True)
 
 
+@pytest.mark.slow
 def test_query_progress_event(hub_cloud_ds):
     with hub_cloud_ds as ds:
         ds.create_tensor("labels")
@@ -17,6 +21,7 @@ def test_query_progress_event(hub_cloud_ds):
     assert len(result) == 1
 
 
+@pytest.mark.slow
 def test_compute_progress_event(hub_cloud_ds):
     with hub_cloud_ds as ds:
         ds.create_tensor("abc")
@@ -33,5 +38,6 @@ def test_compute_progress_event(hub_cloud_ds):
 
 
 # test is empty as pytorch events aren't sent currently
+@pytest.mark.slow
 def test_pytorch_progress_event(hub_cloud_ds):
     pass

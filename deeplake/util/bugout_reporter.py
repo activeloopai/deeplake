@@ -154,6 +154,9 @@ def feature_report_path(
 ):
     """Helper function for generating humbug feature reports depending on the path"""
 
+    if not deeplake_reporter.consent.check():
+        return
+
     path = convert_pathlib_to_string_if_needed(path)
 
     if path.startswith(starts_with):

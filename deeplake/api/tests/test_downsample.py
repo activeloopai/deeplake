@@ -92,6 +92,7 @@ def test_downsample_link(local_ds, cat_path):
             assert cat.shape == shape
 
 
+@pytest.mark.slow
 def test_downsample_tiled(memory_ds):
     with memory_ds as ds:
         ds.create_tensor(
