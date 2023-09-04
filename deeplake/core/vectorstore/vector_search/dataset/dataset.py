@@ -450,7 +450,7 @@ def extend(
                     if diff > 0:
                         time.sleep(diff)
             try:
-                embedded_data = np.vstack(embedded_data, dtype=np.float32)
+                embedded_data = np.vstack(embedded_data).astype(dtype=np.float32)
             except ValueError:
                 raise IncorrectEmbeddingShapeError()
 
@@ -474,20 +474,7 @@ def extend_or_ingest_dataset(
     logger,
     index_regeneration=False,
 ):
-    first_item = next(iter(processed_tensors))
-
-    htypes = [
-        dataset[item].meta.htype for item in dataset.tensors
-    ]  # Inspect raw htype (not parsed htype like tensor.htype) in order to avoid parsing links and sequences separately.
-    threshold_by_htype = [
-        VECTORSTORE_EXTEND_MAX_SIZE_BY_HTYPE.get(h, int(1e10)) for h in htypes
-    ]
-    extend_threshold = min(threshold_by_htype + [VECTORSTORE_EXTEND_MAX_SIZE])
-
-    # TODO run_data_ingestion uses checkpointing through commits()
-    #  As in vector_store APIs we make explicit commit() calls therefore
-    #  the implicit calls inside run_data_ingestion is an anomaly.
-    #  Revisit run_data_ingestion algo and implement it.
+    # TODO: Add back the old logic with checkpointing after indexing is fixed
     extend(
         embedding_function,
         embedding_data,
@@ -522,7 +509,6 @@ def chunk_by_bytes(data, target_byte_size=TARGET_BYTE_SIZE):
             chunks.append(current_chunk)
             current_chunk = []
             current_chunk_size = 0
-            continue
         current_chunk.append(data[index])
         current_chunk_size += sizes[index]
         index += 1

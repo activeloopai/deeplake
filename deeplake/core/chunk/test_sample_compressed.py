@@ -46,6 +46,7 @@ def test_read_write_sequence(compression):
         data_in2 = data_in2[num_samples:]
 
 
+@pytest.mark.slow
 @compressions_paremetrized
 def test_read_write_sequence_big(cat_path, compression):
     tensor_meta = create_tensor_meta()

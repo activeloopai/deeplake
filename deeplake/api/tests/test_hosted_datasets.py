@@ -1,6 +1,8 @@
+import pytest
 import deeplake
 
 
+@pytest.mark.slow
 def test_mnist():
     ds = deeplake.load("hub://activeloop/mnist-test")
     sample = ds[0]

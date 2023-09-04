@@ -331,5 +331,6 @@ class DeepLakeQueryDataset(Dataset):
     def random_split(self, lengths: Sequence[Union[int, float]]):
         if math.isclose(sum(lengths), 1) and sum(lengths) <= 1:
             lengths = calculate_absolute_lengths(lengths, len(self))
+
         vs = self.indra_ds.random_split(lengths)
         return [DeepLakeQueryDataset(self.deeplake_ds, v) for v in vs]

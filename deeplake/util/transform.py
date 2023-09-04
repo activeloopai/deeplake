@@ -19,6 +19,7 @@ from deeplake.constants import (
     TRANSFORM_CHUNK_CACHE_SIZE,
 )
 from deeplake.util.dataset import try_flushing
+from deeplake.util.path import relpath
 from deeplake.util.remove_cache import (
     get_base_storage,
     get_dataset_with_zero_size_cache,
@@ -33,6 +34,7 @@ from deeplake.util.exceptions import (
     TensorMismatchError,
     TensorDoesNotExistError,
     TransformError,
+    SampleAppendError,
 )
 
 import posixpath
@@ -181,7 +183,9 @@ def _handle_transform_error(
             if ignore_errors:
                 skipped_samples += 1
                 continue
-            raise TransformError(offset + i, sample) from e
+            raise TransformError(
+                offset + i, sample, suggest=isinstance(e, SampleAppendError)
+            ) from e
     return skipped_samples
 
 
@@ -227,7 +231,9 @@ def _transform_and_append_data_slice(
                     skipped_samples += 1
                     skipped_samples_in_current_batch += 1
                 else:
-                    raise TransformError(offset + i, sample) from e
+                    raise TransformError(
+                        offset + i, sample, suggest=isinstance(e, SampleAppendError)
+                    ) from e
 
             finally:
                 if i == n - 1:
@@ -337,7 +343,7 @@ def store_data_slice_with_pbar(pg_callback, transform_input: Tuple) -> Dict:
     if isinstance(data_slice, deeplake.Dataset):
         data_slice = add_cache_to_dataset_slice(data_slice, tensors)
 
-    rel_tensors = [posixpath.relpath(tensor, group_index) for tensor in visible_tensors]
+    rel_tensors = [relpath(tensor, group_index) for tensor in visible_tensors]
 
     transform_dataset = TransformDataset(
         rel_tensors,

@@ -25,10 +25,13 @@ import importlib
 try:
     from torch.utils.data.dataloader import DataLoader, _InfiniteConstantSampler
     from torch.utils.data.distributed import DistributedSampler
+    from torch.utils.data import BatchSampler
+
 except ImportError:
     DataLoader = object  # type: ignore
     _InfiniteConstantSampler = None  # type: ignore
     DistributedSampler = None  # type: ignore
+    BatchSampler = None  # type: ignore
 
 import numpy as np
 
@@ -136,6 +139,9 @@ class DeepLakeDataLoader(DataLoader):
         self.__initialized = True
         self._IterableDataset_len_called = None
         self._iterator = None
+        self._worker_init_fn = None
+
+        self._internal_iterator = None
 
     @property
     def batch_size(self):
@@ -167,7 +173,13 @@ class DeepLakeDataLoader(DataLoader):
 
     @property
     def worker_init_fn(self):
-        return None
+        return self._worker_init_fn
+
+    @worker_init_fn.setter
+    def worker_init_fn(self, fn):
+        self._worker_init_fn = fn
+        if self._dataloader is not None:
+            self._dataloader.worker_init_fn = fn
 
     @property  # type: ignore
     def multiprocessing_context(self):
@@ -187,7 +199,7 @@ class DeepLakeDataLoader(DataLoader):
 
     @property
     def batch_sampler(self):
-        return DistributedSampler(self.dataset) if self._distributed else None
+        return BatchSampler(self.sampler, self.batch_size, self.drop_last) if BatchSampler else None
 
     @property
     def generator(self):
@@ -696,9 +708,20 @@ class DeepLakeDataLoader(DataLoader):
                     htype_dict=htype_dict,
                     ndim_dict=ndim_dict,
                     tensor_info_dict=tensor_info_dict,
+                    worker_init_fn=self.worker_init_fn,
                 )
         dataset_read(self._orig_dataset)
-        return iter(self._dataloader)
+
+        if self._internal_iterator is not None:
+            self._internal_iterator = iter(self._internal_iterator)
+        return self
+
+    def __next__(self):
+        if self._dataloader is None:
+            self.__iter__()
+        if self._internal_iterator is None:
+            self._internal_iterator = iter(self._dataloader)
+        return next(self._internal_iterator)
 
 
 def dataloader(dataset, ignore_errors: bool = False) -> DeepLakeDataLoader:
