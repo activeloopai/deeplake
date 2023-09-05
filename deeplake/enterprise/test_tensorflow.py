@@ -62,9 +62,7 @@ def test_tensorflow_small(local_auth_ds):
         ds.create_tensor("image2", max_chunk_size=TF_TESTS_MAX_CHUNK_SIZE)
         ds.image2.extend(np.array([i * np.ones((12, 12)) for i in range(16)]))
 
-    if isinstance(
-        get_base_storage(ds.storage), (MemoryProvider, GCSProvider)
-    ):
+    if isinstance(get_base_storage(ds.storage), (MemoryProvider, GCSProvider)):
         with pytest.raises(ValueError):
             dl = ds.dataloader()
         return
@@ -130,9 +128,7 @@ def test_tensorflow_transform(local_auth_ds):
         ds.create_tensor("image2", max_chunk_size=TF_TESTS_MAX_CHUNK_SIZE)
         ds.image2.extend(np.array([i * np.ones((12, 12)) for i in range(16)]))
 
-    if isinstance(
-        get_base_storage(ds.storage), (MemoryProvider, GCSProvider)
-    ):
+    if isinstance(get_base_storage(ds.storage), (MemoryProvider, GCSProvider)):
         with pytest.raises(ValueError):
             dl = ds.dataloader()
         return
@@ -167,18 +163,12 @@ def test_tensorflow_transform_dict(local_auth_ds):
         ds.create_tensor("image3", max_chunk_size=TF_TESTS_MAX_CHUNK_SIZE)
         ds.image3.extend(np.array([i * np.ones((12, 12)) for i in range(16)]))
 
-    if isinstance(
-        get_base_storage(ds.storage), (MemoryProvider, GCSProvider)
-    ):
+    if isinstance(get_base_storage(ds.storage), (MemoryProvider, GCSProvider)):
         with pytest.raises(ValueError):
             dl = ds.dataloader()
         return
 
-    dl = (
-        ds.dataloader()
-        .transform({"image": double, "image2": None})
-        .tensorflow()
-    )
+    dl = ds.dataloader().transform({"image": double, "image2": None}).tensorflow()
 
     assert len(dl.dataset) == 16
 
@@ -222,9 +212,7 @@ def test_tensorflow_with_compression(local_auth_ds: Dataset):
         images.extend(np.ones((16, 12, 12, 3), dtype="uint8"))
         labels.extend(np.ones((16, 1), dtype="uint32"))
 
-    if isinstance(
-        get_base_storage(ds.storage), (MemoryProvider, GCSProvider)
-    ):
+    if isinstance(get_base_storage(ds.storage), (MemoryProvider, GCSProvider)):
         with pytest.raises(ValueError):
             dl = ds.dataloader()
         return
@@ -250,9 +238,7 @@ def test_custom_tensor_order(local_auth_ds):
             ds.create_tensor(t, max_chunk_size=TF_TESTS_MAX_CHUNK_SIZE)
             ds[t].extend(np.random.random((3, 4, 5)))
 
-    if isinstance(
-        get_base_storage(ds.storage), (MemoryProvider, GCSProvider)
-    ):
+    if isinstance(get_base_storage(ds.storage), (MemoryProvider, GCSProvider)):
         with pytest.raises(ValueError):
             dl = ds.dataloader()
         return
@@ -260,9 +246,7 @@ def test_custom_tensor_order(local_auth_ds):
     with pytest.raises(TensorDoesNotExistError):
         dl = ds.dataloader().tensorflow(tensors=["c", "d", "e"])
 
-    dl = ds.dataloader().tensorflow(
-        tensors=["c", "d", "a"], return_index=False
-    )
+    dl = ds.dataloader().tensorflow(tensors=["c", "d", "a"], return_index=False)
 
     for i, batch in enumerate(dl):
         c1, d1, a1 = batch
@@ -334,12 +318,8 @@ def test_groups(local_auth_ds, compressed_image_paths):
     img1 = deeplake.read(compressed_image_paths["jpeg"][0])
     img2 = deeplake.read(compressed_image_paths["png"][0])
     with local_auth_ds as ds:
-        ds.create_tensor(
-            "images/jpegs/cats", htype="image", sample_compression="jpeg"
-        )
-        ds.create_tensor(
-            "images/pngs/flowers", htype="image", sample_compression="png"
-        )
+        ds.create_tensor("images/jpegs/cats", htype="image", sample_compression="jpeg")
+        ds.create_tensor("images/pngs/flowers", htype="image", sample_compression="png")
         for _ in range(10):
             ds.images.jpegs.cats.append(img1)
             ds.images.pngs.flowers.append(img2)
@@ -559,10 +539,13 @@ def test_rename(local_auth_ds):
 
 @requires_tensorflow
 @requires_libdeeplake
-@pytest.mark.parametrize("num_workers", [
-    0,
-    pytest.param(2, marks=pytest.mark.skip("causing lockups")),
-])
+@pytest.mark.parametrize(
+    "num_workers",
+    [
+        0,
+        pytest.param(2, marks=pytest.mark.skip("causing lockups")),
+    ],
+)
 @pytest.mark.slow
 @pytest.mark.flaky
 def test_indexes(local_auth_ds, num_workers):
@@ -573,9 +556,7 @@ def test_indexes(local_auth_ds, num_workers):
             ds.xyz.append(i * np.ones((2, 2)))
 
     ptds = (
-        ds.dataloader()
-        .batch(4)
-        .tensorflow(num_workers=num_workers, return_index=True)
+        ds.dataloader().batch(4).tensorflow(num_workers=num_workers, return_index=True)
     )
     if shuffle:
         ptds = ptds.shuffle()
@@ -588,10 +569,13 @@ def test_indexes(local_auth_ds, num_workers):
 
 @requires_tensorflow
 @requires_libdeeplake
-@pytest.mark.parametrize("num_workers", [
-    0,
-    pytest.param(2, marks=pytest.mark.skip("causing lockups")),
-])
+@pytest.mark.parametrize(
+    "num_workers",
+    [
+        0,
+        pytest.param(2, marks=pytest.mark.skip("causing lockups")),
+    ],
+)
 @pytest.mark.slow
 @pytest.mark.flaky
 def test_indexes_transform(local_auth_ds, num_workers):
@@ -660,10 +644,9 @@ def test_indexes_transform_dict(local_auth_ds, num_workers):
 
 @requires_tensorflow
 @requires_libdeeplake
-@pytest.mark.parametrize("num_workers", [
-    0,
-    pytest.param(2, marks=pytest.mark.skip("causing lockups"))
-])
+@pytest.mark.parametrize(
+    "num_workers", [0, pytest.param(2, marks=pytest.mark.skip("causing lockups"))]
+)
 @pytest.mark.slow
 @pytest.mark.flaky
 def test_indexes_tensors(local_auth_ds, num_workers):
