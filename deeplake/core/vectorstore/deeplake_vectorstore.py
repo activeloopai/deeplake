@@ -14,6 +14,8 @@ except Exception:  # pragma: no cover
 import deeplake
 from deeplake.constants import (
     DEFAULT_VECTORSTORE_TENSORS,
+    MAX_BYTES_PER_MINUTE,
+    TARGET_BYTE_SIZE,
 )
 from deeplake.core.vectorstore import utils
 from deeplake.core.vectorstore.vector_search import vector_search
@@ -157,7 +159,11 @@ class VectorStore:
         embedding_data: Optional[Union[List, List[List]]] = None,
         embedding_tensor: Optional[Union[str, List[str]]] = None,
         return_ids: bool = False,
-        ingestion_batch_size: Optional[int] = None,
+        rate_limiter: Dict = {
+            "turn_on": False,
+            "bytes_per_minute": MAX_BYTES_PER_MINUTE,
+        },
+        batch_byte_size: int = TARGET_BYTE_SIZE,
         **tensors,
     ) -> Optional[List[str]]:
         """Adding elements to deeplake vector store.
@@ -280,10 +286,8 @@ class VectorStore:
             embedding_function=embedding_function,
             embedding_data=embedding_data,
             embedding_tensor=embedding_tensor,
-            ingestion_batch_size=ingestion_batch_size or self.ingestion_batch_size,
-            num_workers=0,
-            total_samples_processed=0,
-            logger=logger,
+            batch_byte_size=batch_byte_size,
+            rate_limiter=rate_limiter,
         )
 
         if self.verbose:

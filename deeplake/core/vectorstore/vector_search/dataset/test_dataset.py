@@ -397,6 +397,7 @@ def test_rate_limited_send(local_path):
         embedding_tensor=["embedding"],
         processed_tensors=processed_tensors,
         dataset=dataset,
+        rate_limiter={"turn_on": True, "bytes_per_minute": MAX_BYTES_PER_MINUTE},
     )
     end_time = time.time()
 
