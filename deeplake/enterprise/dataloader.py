@@ -717,6 +717,7 @@ class DeepLakeDataLoader(DataLoader):
             ndim_dict=ndim_dict,
             tensor_info_dict=tensor_info_dict,
             offset=self._offset,
+            worker_init_fn=self.worker_init_fn,
         )
 
     def __iter__(self):
@@ -770,7 +771,6 @@ class DeepLakeDataLoader(DataLoader):
                     htype_dict=htype_dict,
                     ndim_dict=ndim_dict,
                     tensor_info_dict=tensor_info_dict,
-                    worker_init_fn=self.worker_init_fn,
                 )
 
         dataset_read(self._orig_dataset)

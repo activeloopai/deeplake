@@ -1,5 +1,4 @@
 import pickle
-from indra import api
 import deeplake
 import numpy as np
 import pytest

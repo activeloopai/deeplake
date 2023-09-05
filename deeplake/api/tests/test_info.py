@@ -130,8 +130,6 @@ def test_update_reference_manually(local_ds_generator):
     l.append(99)
     ds.info.update()
 
-    ds = local_ds_generator()
-
     assert l == [1, 2, 3, 99]
 
 
