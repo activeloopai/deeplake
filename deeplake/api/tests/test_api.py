@@ -90,7 +90,6 @@ def test_persist(ds_generator):
 
     ds2 = ds_generator()
 
-    ds2.storage["dataset_meta.json"] == ds_new.storage["dataset_meta.json"]
     assert len(ds2) == 4
     assert_array_equal(ds2.label.numpy(), np.array([[1], [2], [3], [4]]))
 
@@ -1921,7 +1920,9 @@ def test_dataset_copy(
     [
         ("local_ds_generator", "local_path", "hub_cloud_dev_token"),
         pytest.param(
-            "s3_ds_generator", "s3_path", "hub_cloud_dev_token",
+            "s3_ds_generator",
+            "s3_path",
+            "hub_cloud_dev_token",
             marks=pytest.mark.slow,
         ),
         pytest.param(

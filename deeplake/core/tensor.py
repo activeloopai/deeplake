@@ -1350,7 +1350,7 @@ class Tensor:
     def list(self, fetch_chunks: bool = False):
         """Return list data. Only applicable for tensors with 'list' base htype."""
         if self.base_htype != "list":
-            raise Exception(f"Only supported for list tensors.")
+            raise Exception("Only supported for list tensors.")
 
         if self.ndim == 1:
             return list(self.numpy(fetch_chunks=fetch_chunks))
@@ -1360,14 +1360,14 @@ class Tensor:
     def path(self, fetch_chunks: bool = False):
         """Return path data. Only applicable for linked tensors"""
         if not self.is_link:
-            raise Exception(f"Only supported for linked tensors.")
+            raise Exception("Only supported for linked tensors.")
         assert isinstance(self.chunk_engine, LinkedChunkEngine)
         return self.chunk_engine.path(self.index, fetch_chunks=fetch_chunks)
 
     def creds_key(self):
         """Return path data. Only applicable for linked tensors"""
         if not self.is_link:
-            raise Exception(f"Only supported for linked tensors.")
+            raise Exception("Only supported for linked tensors.")
         if self.index.values[0].subscriptable() or len(self.index.values) > 1:
             raise ValueError("_linked_sample can be used only on exatcly 1 sample.")
         assert isinstance(self.chunk_engine, LinkedChunkEngine)

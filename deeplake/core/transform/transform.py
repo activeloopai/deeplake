@@ -323,7 +323,7 @@ class Pipeline:
                         index=index,
                         sample=sample,
                         samples_processed=samples_processed,
-                    suggest=suggest,
+                        suggest=suggest,
                     ) from e
                 finally:
                     reload_and_rechunk(

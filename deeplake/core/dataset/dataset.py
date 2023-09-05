@@ -1939,7 +1939,7 @@ class Dataset:
     def _send_branch_deletion_event(self, *args, **kwargs):
         """overridden in DeepLakeCloudDataset"""
 
-    def _first_load_init(self):
+    def _first_load_init(self, , verbose=True):
         """overridden in DeepLakeCloudDataset"""
 
     @property
