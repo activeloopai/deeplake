@@ -203,7 +203,11 @@ class DeepLakeDataLoader(DataLoader):
 
     @property
     def batch_sampler(self):
-        return BatchSampler(self.sampler, self.batch_size, self.drop_last) if BatchSampler else None
+        return (
+            BatchSampler(self.sampler, self.batch_size, self.drop_last)
+            if BatchSampler
+            else None
+        )
 
     @property
     def generator(self):
@@ -688,7 +692,9 @@ class DeepLakeDataLoader(DataLoader):
         seed = DeeplakeRandom().get_seed()
         if self._offset is not None and self._shuffle and seed is None:
             warnings.warn(
-                "To keep dataloader consistent during setting offset and shuffling params please confider seeting deeplake.random.seed"
+                "offset and shuffle parameters are set without a random seed. This means that the ordering of the samples are "
+                "not equal after each initialization and iteration through the dataloader. If you intend to shuffle data while "
+                "preserving the offset for resuming iteration at a predictable index and order, please set a random seed using deeplake.random()"
             )
 
         return INDRA_LOADER(
