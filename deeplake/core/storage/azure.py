@@ -7,6 +7,7 @@ from datetime import datetime, timedelta, timezone
 from deeplake.core.storage.provider import StorageProvider
 from deeplake.client.client import DeepLakeBackendClient
 from deeplake.util.exceptions import PathNotEmptyException
+from deeplake.util.path import relpath
 
 try:
     from azure.identity import DefaultAzureCredential
@@ -178,7 +179,7 @@ class AzureProvider(StorageProvider):
         self._check_update_creds()
         prefix = posixpath.join(self.root_folder, prefix)
         return {
-            posixpath.relpath(blob.name, self.root_folder)
+            relpath(blob.name, self.root_folder)
             for blob in self.container_client.list_blobs(
                 name_starts_with=prefix, include=["metadata"]
             )

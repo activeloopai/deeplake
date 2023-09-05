@@ -24,6 +24,7 @@ def test_simple(memory_ds):
     np.testing.assert_array_equal(memory_ds.abc.numpy(), np.ones((3, 253, 501, 5)))
 
 
+@pytest.mark.slow
 @compressions_paremetrized
 def test_mixed_small_large(local_ds_generator, compression):
     ds = local_ds_generator()
@@ -94,6 +95,7 @@ def test_mixed_small_large(local_ds_generator, compression):
             np.testing.assert_array_equal(ds.abc[i].numpy(), arr2)
 
 
+@pytest.mark.slow
 @compressions_paremetrized
 def test_updates(memory_ds, compression):
     arr1 = np.random.randint(0, 255, (3003, 2001, 3)).astype(np.uint8)
@@ -151,6 +153,7 @@ def test_cachable_overflow(memory_ds):
     assert len(ds.y) == 3
 
 
+@pytest.mark.slow
 @compressions_paremetrized
 def test_empty_array(memory_ds, compression):
     ds = memory_ds
@@ -170,6 +173,7 @@ def test_empty_array(memory_ds, compression):
         np.testing.assert_array_equal(ds.x[i].numpy(), arr_list[i])
 
 
+@pytest.mark.slow
 @compressions_paremetrized
 def test_no_tiling(memory_ds, compression):
     ds = memory_ds
@@ -185,6 +189,7 @@ def test_no_tiling(memory_ds, compression):
     assert ds.x.chunk_engine.num_chunks == 2
 
 
+@pytest.mark.slow
 def test_chunk_sizes(memory_ds):
     ds = memory_ds
     with ds:
@@ -201,6 +206,7 @@ def test_chunk_sizes(memory_ds):
     assert num_chunks == 4
 
 
+@pytest.mark.slow
 def test_tiled_indexing(memory_ds):
     with memory_ds as ds:
         ds.create_tensor("abc", sample_compression="lz4")

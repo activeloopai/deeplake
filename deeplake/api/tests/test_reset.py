@@ -30,7 +30,11 @@ def verify_reset_on_checkout(ds, branch, commit_id, old_head, data):
         np.testing.assert_array_equal(ds[tensor].numpy(), data[tensor])
 
 
-@pytest.mark.parametrize("path", ["local_path", "s3_path"], indirect=True)
+@pytest.mark.parametrize(
+    "path",
+    ["local_path", pytest.param("s3_path", marks=pytest.mark.slow)],
+    indirect=True,
+)
 def test_load_corrupt_dataset(path):
     ds = deeplake.empty(path, overwrite=True)
 

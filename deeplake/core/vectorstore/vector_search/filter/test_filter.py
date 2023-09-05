@@ -8,10 +8,12 @@ def test_attribute_based_filtering():
     ds = deeplake.empty("mem://deeplake_test")
     ds.create_tensor("metadata", htype="json")
     ds.create_tensor("metadata2", htype="json")
+    ds.create_tensor("text", htype="text")
     ds.metadata.extend([{"k": 1}, {"k": 2}, {"k": 3}, {"k": 4}])
     ds.metadata2.extend([{"kk": "a"}, {"kk": "b"}, {"kk": "c"}, {"kk": "d"}])
+    ds.text.extend(["AA", "BB", "CC", "DD"])
 
-    filter_dict = {"metadata": {"k": 1}, "metadata2": {"kk": "a"}}
+    filter_dict = {"metadata": {"k": 1}, "metadata2": {"kk": "a"}, "text": "AA"}
 
     def filter_udf(x):
         metadata = x["metadata"].data()["value"]
@@ -27,13 +29,27 @@ def test_attribute_based_filtering():
 
     assert view_dict.metadata.data()["value"][0] == filter_dict["metadata"]
     assert view_dict.metadata2.data()["value"][0] == filter_dict["metadata2"]
+    assert view_dict.text.data()["value"][0] == filter_dict["text"]
 
     assert view_udf.metadata.data()["value"][0] == filter_dict["metadata"]
 
     assert len(view_tql) == len(ds)
-    assert tql_filter == "metadata['k'] == 1 and metadata2['kk'] == 'a'"
+    assert (
+        tql_filter == "metadata['k'] == 1 and metadata2['kk'] == 'a' and text == 'AA'"
+    )
+
+    filter_dict_bad_tensor = {
+        "metadata_bad": {"k": 1},
+        "metadata2": {"kk": "a"},
+        "text": "AA",
+    }
+    with pytest.raises(ValueError):
+        filter_utils.attribute_based_filtering_python(ds, filter=filter_dict_bad_tensor)
+    with pytest.raises(ValueError):
+        filter_utils.attribute_based_filtering_tql(ds, filter=filter_dict_bad_tensor)
 
 
+# No longer used in user-facing features but we still have it in the repo and will continue to test it
 def test_exact_text_search():
     view = deeplake.empty("mem://deeplake_test")
     view.create_tensor("text", htype="text")

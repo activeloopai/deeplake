@@ -9,6 +9,7 @@ from deeplake.util.exceptions import DynamicTensorNumpyError
 import numpy as np
 
 
+@pytest.mark.slow
 @pytest.mark.skipif(
     os.name == "nt" and sys.version_info < (3, 7), reason="requires python 3.7 or above"
 )
@@ -39,6 +40,7 @@ def test_video(local_ds, compression, video_paths):
             assert tensor[i].numpy().shape == sample.shape  # type: ignore
 
 
+@pytest.mark.slow
 @pytest.mark.skipif(
     os.name == "nt" and sys.version_info < (3, 7), reason="requires python 3.7 or above"
 )
@@ -75,6 +77,7 @@ def test_video_slicing(local_ds: Dataset, video_paths):
     ],
     indirect=True,
 )
+@pytest.mark.slow
 def test_video_streaming(vstream_path, hub_token):
     ds = deeplake.load(vstream_path, read_only=True, token=hub_token)
 
@@ -103,6 +106,7 @@ def test_video_streaming(vstream_path, hub_token):
     ],
     indirect=True,
 )
+@pytest.mark.slow
 def test_video_timestamps(vstream_path, hub_token):
     ds = deeplake.load(vstream_path, read_only=True, token=hub_token)
 
@@ -151,6 +155,7 @@ def test_video_sequence(local_ds, video_paths):
         assert ds.video_seq[0][1, 5:10].timestamps.shape == (5,)
 
 
+@pytest.mark.slow
 @pytest.mark.skipif(
     os.name == "nt" and sys.version_info < (3, 7), reason="requires python 3.7 or above"
 )
@@ -185,6 +190,7 @@ def test_video_data(local_ds, video_paths):
         assert data["timestamps"][1].shape == (ds.video[3].shape[0],)
 
 
+@pytest.mark.slow
 @pytest.mark.skipif(
     os.name == "nt" and sys.version_info < (3, 7), reason="requires python 3.7 or above"
 )
