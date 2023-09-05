@@ -983,7 +983,6 @@ def test_dataset_deepcopy(path, hub_token, num_workers, progressbar):
     dest_path = "_".join((path, "dest1"))
 
     src_ds = deeplake.empty(src_path, overwrite=True, token=hub_token)
-    # dest_ds = deeplake.empty(dest_path, overwrite=True, token=hub_token)
 
     with src_ds:
         src_ds.info.update(key=0)

@@ -3,6 +3,7 @@ import deeplake
 from deeplake.enterprise.convert_to_libdeeplake import dataset_to_libdeeplake
 from deeplake.enterprise.dummy_dataloader import DummyDataloader  # type: ignore
 from deeplake.util.scheduling import create_fetching_schedule, find_primary_tensor
+from deeplake.core.seed import DeeplakeRandom
 from deeplake.enterprise.util import (
     handle_mode,
     raise_indra_installation_error,
@@ -34,6 +35,7 @@ except ImportError:
     BatchSampler = None  # type: ignore
 
 import numpy as np
+import warnings
 
 import math
 
@@ -108,6 +110,7 @@ class DeepLakeDataLoader(DataLoader):
         _dataloader=None,
         _world_size=1,
         _ignore_errors=False,
+        _offset=None,
         **kwargs,
     ):
         import_indra_loader()
@@ -132,6 +135,7 @@ class DeepLakeDataLoader(DataLoader):
         self._dataloader = _dataloader
         self._world_size = _world_size
         self._ignore_errors = _ignore_errors
+        self._offset = _offset
         for k, v in kwargs.items():
             setattr(self, k, v)
 
@@ -256,6 +260,25 @@ class DeepLakeDataLoader(DataLoader):
         all_vars = self.__dict__.copy()
         all_vars["_batch_size"] = batch_size
         all_vars["_drop_last"] = drop_last
+        return self.__class__(**all_vars)
+
+    def offset(self, off: int = 0):
+        """Returns a shifted :class:`DeepLakeDataLoader` object.
+
+        Args:
+            off (int): index that the dataloadee will start to iterate.
+
+        Returns:
+            DeepLakeDataLoader: A :class:`DeepLakeDataLoader` object.
+
+        Raises:
+            ValueError: If .offset() has already been called.
+        """
+        if self._offset is not None:
+            raise ValueError("offset is already set")
+
+        all_vars = self.__dict__.copy()
+        all_vars["_offset"] = off
         return self.__class__(**all_vars)
 
     def shuffle(self, shuffle: bool = True, buffer_size: int = 2048):
@@ -620,15 +643,85 @@ class DeepLakeDataLoader(DataLoader):
             return num_suboptimal_threads
         return self._num_threads
 
+    def __create_dummy_dataloader(
+        self,
+        dataset,
+        tensors: Optional[List[str]] = None,
+        raw_tensors: Optional[List[str]] = None,
+        pil_compressed_tensors: Optional[List[str]] = None,
+    ) -> DummyDataloader:
+        return DummyDataloader(
+            deeplake_dataset=dataset,
+            batch_size=self._batch_size,
+            shuffle=self._shuffle,
+            num_workers=self._num_workers,
+            collate_fn=self.collate_fn,
+            transform_fn=self._transform,
+            distributed=self._distributed,
+            prefetch_factor=self._prefetch_factor,
+            tensors=tensors,
+            drop_last=self._drop_last,
+            upcast=self._mode == "pytorch",  # upcast to handle unsupported dtypes,
+            return_index=self._return_index,
+            raw_tensors=raw_tensors,
+            pil_compressed_tensors=pil_compressed_tensors,
+            persistent_workers=self._persistent_workers,
+        )
+
+    def __get_indra_dataloader(
+        self,
+        indra_dataset,
+        tensors: Optional[List[str]] = None,
+        raw_tensors: Optional[List[str]] = None,
+        pil_compressed_tensors: Optional[List[str]] = None,
+        json_tensors: Optional[List[str]] = None,
+        list_tensors: Optional[List[str]] = None,
+        htype_dict: Optional[dict] = None,
+        ndim_dict: Optional[dict] = None,
+        tensor_info_dict: Optional[dict] = None,
+    ):
+        num_threads = (
+            self._get_suboptimal_thread_count()
+            if self._distributed
+            else self._num_threads
+        )
+        seed = DeeplakeRandom().get_seed()
+        if self._offset is not None and self._shuffle and seed is None:
+            warnings.warn(
+                "To keep dataloader consistent during setting offset and shuffling params please confider seeting deeplake.random.seed"
+            )
+
+        return INDRA_LOADER(
+            indra_dataset,
+            batch_size=self._batch_size,
+            num_threads=num_threads,
+            shuffle=self._shuffle,
+            num_workers=self._num_workers,
+            collate_fn=self.collate_fn,
+            transform_fn=self._transform,
+            distributed=self._distributed,
+            prefetch_factor=self._prefetch_factor,
+            tensors=tensors,
+            drop_last=self._drop_last,
+            ignore_errors=self._ignore_errors,
+            upcast=self._mode == "pytorch",  # upcast to handle unsupported dtypes,
+            return_index=self._return_index,
+            primary_tensor=self._primary_tensor_name,
+            buffer_size=self._buffer_size,
+            raw_tensors=raw_tensors,
+            pil_compressed_tensors=pil_compressed_tensors,
+            json_tensors=json_tensors,
+            list_tensors=list_tensors,
+            persistent_workers=self._persistent_workers,
+            htype_dict=htype_dict,
+            ndim_dict=ndim_dict,
+            tensor_info_dict=tensor_info_dict,
+            offset=self._offset,
+        )
+
     def __iter__(self):
         if self._dataloader is None:
             dataset = self._orig_dataset
-            collate_fn = self.collate_fn
-            upcast = self._mode == "pytorch"  # upcast to handle unsupported dtypes
-
-            primary_tensor_name = self._primary_tensor_name
-            buffer_size = self._buffer_size
-
             tensors = self._tensors or map_tensor_keys(dataset, None)
 
             jpeg_png_compressed_tensors, json_tensors, list_tensors = check_tensors(
@@ -655,22 +748,11 @@ class DeepLakeDataLoader(DataLoader):
                 dataset, data_tensors, tensor_info_tensors
             )
             if deeplake.constants.RETURN_DUMMY_DATA_FOR_DATALOADER:
-                self._dataloader = DummyDataloader(
-                    deeplake_dataset=dataset,
-                    batch_size=self._batch_size,
-                    shuffle=self._shuffle,
-                    num_workers=self._num_workers,
-                    collate_fn=collate_fn,
-                    transform_fn=self._transform,
-                    distributed=self._distributed,
-                    prefetch_factor=self._prefetch_factor,
+                self._dataloader = self.__create_dummy_dataloader(
+                    dataset,
                     tensors=tensors,
-                    drop_last=self._drop_last,
-                    upcast=upcast,
-                    return_index=self._return_index,
                     raw_tensors=raw_tensors,
                     pil_compressed_tensors=pil_compressed_tensors,
-                    persistent_workers=self._persistent_workers,
                 )
             else:
                 if not hasattr(self, "_indra_dataset"):
@@ -678,38 +760,19 @@ class DeepLakeDataLoader(DataLoader):
                 else:
                     indra_dataset = self._indra_dataset
 
-                num_threads = (
-                    self._get_suboptimal_thread_count()
-                    if self._distributed
-                    else self._num_threads
-                )
-                self._dataloader = INDRA_LOADER(
+                self._dataloader = self.__get_indra_dataloader(
                     indra_dataset,
-                    batch_size=self._batch_size,
-                    num_threads=num_threads,
-                    shuffle=self._shuffle,
-                    num_workers=self._num_workers,
-                    collate_fn=collate_fn,
-                    transform_fn=self._transform,
-                    distributed=self._distributed,
-                    prefetch_factor=self._prefetch_factor,
                     tensors=tensors,
-                    drop_last=self._drop_last,
-                    ignore_errors=self._ignore_errors,
-                    upcast=upcast,
-                    return_index=self._return_index,
-                    primary_tensor=primary_tensor_name,
-                    buffer_size=buffer_size,
                     raw_tensors=raw_tensors,
                     pil_compressed_tensors=pil_compressed_tensors,
                     json_tensors=json_tensors,
                     list_tensors=list_tensors,
-                    persistent_workers=self._persistent_workers,
                     htype_dict=htype_dict,
                     ndim_dict=ndim_dict,
                     tensor_info_dict=tensor_info_dict,
                     worker_init_fn=self.worker_init_fn,
                 )
+
         dataset_read(self._orig_dataset)
 
         if self._internal_iterator is not None:
