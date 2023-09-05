@@ -617,6 +617,7 @@ def test_search_managed(hub_cloud_dev_token):
     assert data_ce["id"] == data_db["id"]
 
 
+@requires_libdeeplake
 def test_delete(local_path, hub_cloud_dev_token):
     # initialize vector store object:
     vector_store = DeepLakeVectorStore(

@@ -682,7 +682,7 @@ def test_htype(memory_ds: Dataset):
     # Along the first direcection three matrices are concatenated, the first matrix is P,
     # the second one is Tr and the third one is R
     intrinsics.append(np.zeros((3, 4, 4), dtype=np.float32))
-    embedding.append(np.random.rand((100)))
+    embedding.append(np.random.rand((100)).astype("float32"))
 
 
 def test_dtype(memory_ds: Dataset):
