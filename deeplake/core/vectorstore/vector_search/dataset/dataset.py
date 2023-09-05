@@ -407,7 +407,8 @@ def extend(
         embedding_tensor (Union[str, List[str]]): Name of the tensor(s) to store the embedding data.
         processed_tensors (Dict[str, List[Any]]): Dictionary of tensors to be added to the dataset.
         dataset (deeplake.core.dataset.Dataset): Dataset to be extended.
-
+        batch_byte_size (int): Batch size to use for parallel ingestion.
+        rate_limiter (Dict): Rate limiter configuration.
     """
     if embedding_function:
         for func, data, tensor in zip(

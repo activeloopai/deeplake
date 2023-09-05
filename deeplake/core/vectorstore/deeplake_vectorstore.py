@@ -232,7 +232,8 @@ class VectorStore:
             embedding_data (Optional[List]): Data to be converted into embeddings using the provided ``embedding_function``. Defaults to None.
             embedding_tensor (Optional[str]): Tensor where results from the embedding function will be stored. If None, the embedding tensor is automatically inferred (when possible). Defaults to None.
             return_ids (bool): Whether to return added ids as an ouput of the method. Defaults to False.
-            ingestion_batch_size (int): Batch size to use for parallel ingestion. Defaults to 1000. Overrides the ``ingestion_batch_size`` specified when initializing the Vector Store.
+            rate_limiter (Dict): Rate limiter configuration. Defaults to ``{"turn_on": False, "bytes_per_minute": MAX_BYTES_PER_MINUTE}``.
+            batch_byte_size (int): Batch size to use for parallel ingestion. Defaults to ``TARGET_BYTE_SIZE``.
             **tensors: Keyword arguments where the key is the tensor name, and the value is a list of samples that should be uploaded to that tensor.
 
         Returns:
