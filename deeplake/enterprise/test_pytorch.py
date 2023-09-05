@@ -77,7 +77,7 @@ def test_setting_woker_init_function(local_auth_ds):
 
 
 @requires_torch
-# @requires_libdeeplake
+@requires_libdeeplake
 def test_offset_ds_iteration(local_auth_ds):
     with local_auth_ds as ds:
         ds.create_tensor("abc", htype="generic", dtype="uint16")
