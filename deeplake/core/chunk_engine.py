@@ -861,7 +861,7 @@ class ChunkEngine:
                     updated_chunks.append(current_chunk.id)
             elif num_samples_added == PARTIAL_NUM_SAMPLES:
                 sample = samples[0]
-                if isinstance(sample, LinkedTiledSample):
+                if self.tensor_meta.is_link:
                     verified_samples.append(sample)
                 else:
                     if sample.is_first_write:
