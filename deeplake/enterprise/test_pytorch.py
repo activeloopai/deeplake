@@ -102,14 +102,13 @@ def test_offset_ds_iteration(local_auth_ds):
     [
         pytest.param(
             "hub_cloud_ds",
-            marks=[pytest.mark.slow, pytest.mark.skip("Causing lockups")],
+            marks=[pytest.mark.slow],
         ),
         "local_auth_ds",
     ],
     indirect=True,
 )
 @pytest.mark.flaky
-@pytest.mark.skip("causing lockups")
 def test_pytorch_small(ds):
     with ds:
         ds.create_tensor("image", max_chunk_size=PYTORCH_TESTS_MAX_CHUNK_SIZE)
@@ -171,7 +170,6 @@ def test_pytorch_small(ds):
 @pytest.mark.flaky(retry_count=3)
 @pytest.mark.slow
 @pytest.mark.timeout(10)
-@pytest.mark.skip("causing lockups")
 def test_pytorch_transform(local_auth_ds):
     with local_auth_ds as ds:
         ds.create_tensor("image", max_chunk_size=PYTORCH_TESTS_MAX_CHUNK_SIZE)
@@ -322,7 +320,6 @@ def test_custom_tensor_order(local_auth_ds):
 @requires_torch
 @requires_libdeeplake
 @pytest.mark.flaky
-@pytest.mark.skip("causing lockups")
 @pytest.mark.timeout(10)
 def test_readonly_with_two_workers(local_auth_ds):
     with local_auth_ds as ds:
@@ -577,13 +574,7 @@ def test_rename(local_auth_ds):
 
 @requires_torch
 @requires_libdeeplake
-@pytest.mark.parametrize(
-    "num_workers",
-    [
-        0,
-        pytest.param(2, marks=pytest.mark.skip(reason="causing lockups")),
-    ],
-)
+@pytest.mark.parametrize("num_workers", [0, 2])
 @pytest.mark.slow
 @pytest.mark.flaky
 def test_indexes(local_auth_ds, num_workers):
@@ -604,13 +595,7 @@ def test_indexes(local_auth_ds, num_workers):
 @requires_torch
 @requires_libdeeplake
 @pytest.mark.slow
-@pytest.mark.parametrize(
-    "num_workers",
-    [
-        0,
-        pytest.param(2, marks=pytest.mark.skip("causing lockups")),
-    ],
-)
+@pytest.mark.parametrize("num_workers", [0, 2])
 @pytest.mark.flaky
 def test_indexes_transform(local_auth_ds, num_workers):
     with local_auth_ds as ds:
@@ -635,9 +620,7 @@ def test_indexes_transform(local_auth_ds, num_workers):
 
 @requires_torch
 @requires_libdeeplake
-@pytest.mark.parametrize(
-    "num_workers", [0, pytest.param(2, marks=pytest.mark.skip("causing lockups"))]
-)
+@pytest.mark.parametrize("num_workers", [0, 2])
 @pytest.mark.slow
 @pytest.mark.flaky
 def test_indexes_transform_dict(local_auth_ds, num_workers):
@@ -671,9 +654,7 @@ def test_indexes_transform_dict(local_auth_ds, num_workers):
 
 @requires_torch
 @requires_libdeeplake
-@pytest.mark.parametrize(
-    "num_workers", [0, pytest.param(2, marks=pytest.mark.skip("causing lockups"))]
-)
+@pytest.mark.parametrize("num_workers", [0, 2])
 @pytest.mark.slow
 @pytest.mark.flaky
 def test_indexes_tensors(local_auth_ds, num_workers):
