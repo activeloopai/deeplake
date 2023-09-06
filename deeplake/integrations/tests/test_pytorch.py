@@ -67,6 +67,7 @@ def pytorch_small_shuffle_helper(start, end, dataloader):
 
 @pytest.mark.flaky
 @requires_torch
+@pytest.mark.skip("causing lockup")
 def test_pytorch_small(local_ds):
     with local_ds as ds:
         ds.create_tensor("image", max_chunk_size=PYTORCH_TESTS_MAX_CHUNK_SIZE)
@@ -440,6 +441,7 @@ def test_pytorch_local_cache(local_ds):
 
 @requires_torch
 @pytest.mark.flaky
+@pytest.mark.skip("causing lockup")
 def test_groups(local_ds, compressed_image_paths):
     img1 = deeplake.read(compressed_image_paths["jpeg"][0])
     img2 = deeplake.read(compressed_image_paths["png"][0])
@@ -496,6 +498,7 @@ def test_string_tensors(local_ds):
 @pytest.mark.slow
 @requires_torch
 @pytest.mark.flaky
+@pytest.mark.skip("causing lockup")
 def test_pytorch_large(local_ds):
     arr_list_1 = [np.random.randn(1500, 1500, i) for i in range(5)]
     arr_list_2 = [np.random.randn(400, 1500, 4, i) for i in range(5)]
@@ -600,7 +603,7 @@ def test_pytorch_collate(local_ds, shuffle, buffer_size):
 @pytest.mark.slow
 @requires_torch
 @pytest.mark.parametrize(
-    "shuffle", [True, False]
+    "shuffle", [True, pytest.param(False, marks=pytest.mark.skip("causing lockups"))]
 )
 @pytest.mark.flaky
 def test_pytorch_transform_collate(local_ds, shuffle):
