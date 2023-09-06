@@ -47,10 +47,11 @@ def test_chunkids_serialize():
     assert version2 == version
     np.testing.assert_array_equal(arr, ids)
 
+
 @pytest.mark.slow
 def test_get_large_header():
     # headers for videos in this dataset are larger than the 100 bytes originally fetched
     # ideally this test would just be calling `serialize.get_header_from_url` directly, but that requires all the URL buliding up logic that lives in the chunk engine.
     # So calling a larger codepath that includes `get_header_from_url`
-    ds = deeplake.load('hub://activeloop/hmdb51-train')
+    ds = deeplake.load("hub://activeloop/hmdb51-train")
     assert ds.videos[0].shape == (75, 240, 560, 3)

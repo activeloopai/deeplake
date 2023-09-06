@@ -148,7 +148,7 @@ def get_header_from_url(url: str):
     enc_dtype = np.dtype(deeplake.constants.ENCODING_DTYPE)
     itemsize = enc_dtype.itemsize
 
-    headers = {"Range": "bytes=0-100"}
+    headers = {"Range": "bytes=0-1000"}
 
     request = Request(url, None, headers)
     byts = urlopen(request).read()
@@ -173,7 +173,7 @@ def get_header_from_url(url: str):
             byts = urlopen(request).read()
 
         shape_info = (
-            np.frombuffer(byts[offset: end_bytes], dtype=enc_dtype)
+            np.frombuffer(byts[offset:end_bytes], dtype=enc_dtype)
             .reshape(shape_info_nrows, shape_info_ncols)
             .copy()
         )
@@ -194,9 +194,7 @@ def get_header_from_url(url: str):
             byts = urlopen(request).read()
 
         byte_positions = (
-            np.frombuffer(
-                byts[offset : end_bytes], dtype=enc_dtype
-            )
+            np.frombuffer(byts[offset:end_bytes], dtype=enc_dtype)
             .reshape(byte_positions_rows, 3)
             .copy()
         )
