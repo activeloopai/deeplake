@@ -594,7 +594,7 @@ class VectorStore:
             ...    ids,
             ...    embedding_source_tensor = "text",
             ...    embedding_tensor = "embedding",
-            ...    embedding_unction = embedding_function,
+            ...    embedding_function = embedding_function,
             ... )
 
             >>> # Update data using filter and several embedding_tensors, several embedding_source_tensors
