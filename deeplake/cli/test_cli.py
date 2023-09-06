@@ -27,5 +27,5 @@ def test_cli_auth(hub_cloud_dev_credentials, hub_cloud_dev_token, method):
 def test_bad_token():
     runner = CliRunner()
 
-    result = runner.invoke(login, f"-t abcd")
+    result = runner.invoke(login, "-t abcd")
     assert isinstance(result.exception, LoginException)

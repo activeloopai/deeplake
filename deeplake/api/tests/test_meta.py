@@ -35,8 +35,6 @@ def test_subsequent_updates(local_ds_generator):
     assert len(ds) == 10
     assert ds.tensor.shape == (10, 100, 100)
 
-    ds = local_ds_generator()
-
     with local_ds_generator() as ds:
         for _ in range(5):
             ds.tensor.append(np.ones((100, 200)))

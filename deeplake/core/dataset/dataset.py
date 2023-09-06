@@ -1726,7 +1726,9 @@ class Dataset:
 
     @invalid_view_op
     def delete_branch(self, name: str) -> None:
-        """Deletes a specific branch. You cannot delete the branch currently checked out.
+        """
+        Deletes the branch and cleans up any unneeded data.
+        Branches can only be deleted if there are no sub-branches and if it has never been merged into another branch.
 
         Args:
             name (str): The branch to delete.
@@ -1939,7 +1941,7 @@ class Dataset:
     def _send_branch_deletion_event(self, *args, **kwargs):
         """overridden in DeepLakeCloudDataset"""
 
-    def _first_load_init(self):
+    def _first_load_init(self, verbose=True):
         """overridden in DeepLakeCloudDataset"""
 
     @property

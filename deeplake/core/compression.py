@@ -157,8 +157,6 @@ def compress_bytes(
     if not buffer:
         return b""
     if compression == "lz4":
-        if not buffer:
-            return b""
         return numcodecs.lz4.compress(buffer)
     else:
         raise SampleCompressionError(
