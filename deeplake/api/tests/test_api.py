@@ -2871,14 +2871,25 @@ def test_extend_rollbacks(local_ds, lfpw_links):
     ds.commit()
 
 
-@pytest.mark.parametrize("compression_args", [{"sample_compression": None}, {"sample_compression": "jpg"}, {"chunk_compression": "jpg"}])
+@pytest.mark.parametrize(
+    "compression_args",
+    [
+        {"sample_compression": None},
+        {"sample_compression": "jpg"},
+        {"chunk_compression": "jpg"},
+    ],
+)
 def test_tensor_extend_ignore(local_ds, lfpw_links, compression_args):
     with local_ds as ds:
         ds.create_tensor("images", htype="image", **compression_args)
-        ds.create_tensor("tiled_images", htype="image", tiling_threshold=1*KB, max_chunk_size=1*KB, **compression_args)
         ds.create_tensor(
-            "seq_images", htype="sequence[image]", **compression_args
+            "tiled_images",
+            htype="image",
+            tiling_threshold=1 * KB,
+            max_chunk_size=1 * KB,
+            **compression_args,
         )
+        ds.create_tensor("seq_images", htype="sequence[image]", **compression_args)
         ds.create_tensor("link_images", htype="link[image]", **compression_args)
 
     images = [deeplake.read(link) for link in lfpw_links]

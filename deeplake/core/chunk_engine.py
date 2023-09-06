@@ -23,6 +23,7 @@ from deeplake.core.tensor_link import (
     extend_downsample,
     get_link_transform,
 )
+from deeplake.core.linked_tiled_sample import LinkedTiledSample
 from deeplake.core.version_control.commit_diff import CommitDiff
 from deeplake.core.partial_reader import PartialReader
 from deeplake.core.version_control.commit_node import CommitNode  # type: ignore
@@ -859,8 +860,12 @@ class ChunkEngine:
                 if not register:
                     updated_chunks.append(current_chunk.id)
             elif num_samples_added == PARTIAL_NUM_SAMPLES:
-                if samples[0].is_first_write:
-                    verified_samples.append(samples[0])
+                sample = samples[0]
+                if isinstance(sample, LinkedTiledSample):
+                    verified_samples.append(sample)
+                else:
+                    if sample.is_first_write:
+                        verified_samples.append(sample)
                 num_samples_added, samples, lengths = self._handle_tiled_sample(
                     enc,
                     register,
