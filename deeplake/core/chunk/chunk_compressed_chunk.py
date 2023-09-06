@@ -322,9 +322,8 @@ class ChunkCompressedChunk(BaseChunk):
                     self.change_dimensionality(shape)
             except Exception:
                 if ignore_errors:
-                    if not isinstance(incoming_sample, SampleTiles):
-                        skipped.append(i)
-                        continue
+                    skipped.append(i)
+                    continue
                 raise
 
             if isinstance(incoming_sample, SampleTiles):

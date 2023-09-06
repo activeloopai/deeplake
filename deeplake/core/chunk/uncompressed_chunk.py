@@ -165,11 +165,8 @@ class UncompressedChunk(BaseChunk):
                     check_sample_shape(shape, self.num_dims)
             except Exception as e:
                 if ignore_errors:
-                    if not isinstance(incoming_sample, SampleTiles) and not isinstance(
-                        incoming_sample, LinkedTiledSample
-                    ):
-                        skipped.append(i)
-                        continue
+                    skipped.append(i)
+                    continue
                 raise
 
             # NOTE re-chunking logic should not reach to this point, for Tiled ones we do not have this logic

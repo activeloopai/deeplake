@@ -756,6 +756,7 @@ class ChunkEngine:
         progressbar: bool = False,
         register_creds: bool = True,
         pg_callback=None,
+        return_samples: bool = False,
         ignore_errors: bool = False,
     ):
         """Add samples to chunks, in case if there is a space on the start_chunk,
@@ -771,6 +772,7 @@ class ChunkEngine:
             progressbar (bool): Parameter that shows if need to show sample insertion progress
             register_creds (bool): Parameter that shows if need to register the creds_key of the sample
             pg_callback: Progress bar callback parameter
+            return_samples (bool): Returns successfully added samples if ``True``.
             ignore_errors (bool): Skips samples that cause errors, if possible.
 
         Returns:
@@ -829,6 +831,7 @@ class ChunkEngine:
         ):
             # Note: in the future we can get rid of this conversion of sample compressed chunks too by predicting the compression ratio.
             samples = list(samples)
+        verified_samples = []
         current_chunk_full = False
         while len(samples) > 0:
             if current_chunk_full:
@@ -856,6 +859,8 @@ class ChunkEngine:
                 if not register:
                     updated_chunks.append(current_chunk.id)
             elif num_samples_added == PARTIAL_NUM_SAMPLES:
+                if samples[0].is_first_write:
+                    verified_samples.append(samples[0])
                 num_samples_added, samples, lengths = self._handle_tiled_sample(
                     enc,
                     register,
@@ -884,6 +889,7 @@ class ChunkEngine:
                 samples = list(samples)
             else:
                 current_chunk_full = True
+                verified_samples.extend(samples[:num_samples_added])
                 num_samples_added, samples, lengths = self._handle_one_or_more_samples(
                     enc,
                     register,
@@ -930,6 +936,9 @@ class ChunkEngine:
             tenc.is_dirty = True
         if progressbar:
             pbar.close()
+
+        if return_samples:
+            return verified_samples
 
         if not register:
             return updated_chunks, tiles
@@ -1022,13 +1031,14 @@ class ChunkEngine:
         samples, verified_samples = self._sanitize_samples(
             samples, pg_callback=pg_callback, ignore_errors=ignore_errors
         )
-        self._samples_to_chunks(
+        samples = self._samples_to_chunks(
             samples,
             start_chunk=self.last_appended_chunk(allow_copy=False),
             register=True,
             progressbar=progressbar,
             update_commit_diff=update_commit_diff,
             pg_callback=pg_callback,
+            return_samples=True,
             ignore_errors=ignore_errors,
         )
         return verified_samples or samples

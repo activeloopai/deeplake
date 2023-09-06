@@ -46,7 +46,7 @@ from deeplake.util.path import convert_string_to_pathlib_if_needed, verify_datas
 from deeplake.util.testing import assert_array_equal
 from deeplake.util.pretty_print import summary_tensor, summary_dataset
 from deeplake.util.shape_interval import ShapeInterval
-from deeplake.constants import GDRIVE_OPT, MB
+from deeplake.constants import GDRIVE_OPT, MB, KB
 from deeplake.client.config import REPORTING_CONFIG_FILE_PATH
 
 from click.testing import CliRunner
@@ -2873,16 +2873,19 @@ def test_extend_rollbacks(local_ds, lfpw_links):
     ds.commit()
 
 
-def test_tensor_extend_ignore(local_ds, lfpw_links):
+@pytest.mark.parametrize("compression_args", [{"sample_compression": None}, {"sample_compression": "jpg"}, {"chunk_compression": "jpg"}])
+def test_tensor_extend_ignore(local_ds, lfpw_links, compression_args):
     with local_ds as ds:
-        ds.create_tensor("images", htype="image", sample_compression="jpg")
+        ds.create_tensor("images", htype="image", **compression_args)
+        ds.create_tensor("tiled_images", htype="image", tiling_threshold=1*KB, max_chunk_size=1*KB, **compression_args)
         ds.create_tensor(
-            "seq_images", htype="sequence[image]", sample_compression="jpg"
+            "seq_images", htype="sequence[image]", **compression_args
         )
-        ds.create_tensor("link_images", htype="link[image]", sample_compression="jpg")
+        ds.create_tensor("link_images", htype="link[image]", **compression_args)
 
     images = [deeplake.read(link) for link in lfpw_links]
     ds.images.extend(images, ignore_errors=True)
+    ds.tiled_images.extend(images, ignore_errors=True)
 
     seqs = [
         list(map(deeplake.read, lfpw_links[i : i + 2]))

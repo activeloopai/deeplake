@@ -29,9 +29,8 @@ class SampleCompressedChunk(BaseChunk):
                     check_sample_shape(shape, self.num_dims)
             except Exception:
                 if ignore_errors:
-                    if not isinstance(incoming_sample, SampleTiles):
-                        skipped.append(i)
-                        continue
+                    skipped.append(i)
+                    continue
                 raise
 
             if isinstance(serialized_sample, SampleTiles):
