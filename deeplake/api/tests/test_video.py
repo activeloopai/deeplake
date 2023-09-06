@@ -111,7 +111,7 @@ def test_video_timestamps(vstream_path, hub_token):
     ds = deeplake.load(vstream_path, read_only=True, token=hub_token)
 
     with pytest.raises(ValueError):
-        stamps = ds.mp4_videos[:2].timestamps
+        ds.mp4_videos[:2].timestamps
 
     stamps = ds.large_video[0, 12000:1199:-100].timestamps
 
@@ -131,7 +131,7 @@ def test_video_exception(local_ds):
     with local_ds as ds:
         ds.create_tensor("abc")
         with pytest.raises(Exception):
-            stamps = ds.abc.timestamps
+            ds.abc.timestamps
 
 
 @pytest.mark.skipif(
