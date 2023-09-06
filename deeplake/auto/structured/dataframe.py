@@ -58,7 +58,7 @@ class DataFrame(StructuredDataset):
 
         if len(fn_iterator) == 0:
             raise IngestionError(
-                f"Cannot determine the most frequent image compression because no valid image files were provided."
+                "Cannot determine the most frequent image compression because no valid image files were provided."
             )
 
         supported_image_extensions = tuple(

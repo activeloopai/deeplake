@@ -73,7 +73,26 @@ def test_setting_woker_init_function(local_auth_ds):
 
     assert dl.worker_init_fn == None
     dl.worker_init_fn = partial(dummy_init_fn, 1024)
-    assert dl.worker_init_fn() == f"function called with arg 1024"
+    assert dl.worker_init_fn() == "function called with arg 1024"
+
+
+@requires_torch
+@requires_libdeeplake
+def test_offset_ds_iteration(local_auth_ds):
+    with local_auth_ds as ds:
+        ds.create_tensor("abc", htype="generic", dtype="uint16")
+        ds.abc.extend([i for i in range(10)])
+
+    dl = (
+        local_auth_ds.dataloader()
+        .offset(4)
+        .transform(identity)
+        .pytorch(collate_fn=identity)
+    )
+
+    idx_table = [4, 5, 6, 7, 8, 9, 0, 1, 2, 3]
+    for i, item in enumerate(dl):
+        assert idx_table[i] == item[0]["index"].astype(int)
 
 
 @requires_torch
@@ -270,7 +289,7 @@ def test_custom_tensor_order(local_auth_ds):
             ds[t].extend(np.random.random((3, 4, 5)))
 
     with pytest.raises(TensorDoesNotExistError):
-        dl = ds.dataloader().pytorch(tensors=["c", "d", "e"])
+        ds.dataloader().pytorch(tensors=["c", "d", "e"])
 
     dl = ds.dataloader().pytorch(tensors=["c", "d", "a"], return_index=False)
 
@@ -325,7 +344,7 @@ def test_readonly_with_two_workers(local_auth_ds):
     ptds = ds.dataloader().pytorch(num_workers=2)
     # no need to check input, only care that readonly works
     for _ in ptds:
-        pass
+        continue
 
 
 @pytest.mark.xfail(raises=NotImplementedError, strict=True)
@@ -539,19 +558,20 @@ def test_pytorch_decode(local_auth_ds, compressed_image_paths, compression):
 @pytest.mark.flaky
 @pytest.mark.slow
 def test_rename(local_auth_ds):
+    group_name = "red/green"
     with local_auth_ds as ds:
         ds.create_tensor("abc")
         ds.create_tensor("blue/green")
         ds.abc.append([1, 2, 3])
         ds.rename_tensor("abc", "xyz")
         ds.rename_group("blue", "red")
-        ds["red/green"].append([1, 2, 3, 4])
+        ds[group_name].append([1, 2, 3, 4])
     loader = ds.dataloader().pytorch(return_index=False)
     for sample in loader:
-        assert set(sample.keys()) == {"xyz", "red/green"}
+        assert set(sample.keys()) == {"xyz", group_name}
         np.testing.assert_array_equal(np.array(sample["xyz"]), np.array([[1, 2, 3]]))
         np.testing.assert_array_equal(
-            np.array(sample["red/green"]), np.array([[1, 2, 3, 4]])
+            np.array(sample[group_name]), np.array([[1, 2, 3, 4]])
         )
 
 
@@ -567,15 +587,13 @@ def test_rename(local_auth_ds):
 @pytest.mark.slow
 @pytest.mark.flaky
 def test_indexes(local_auth_ds, num_workers):
-    shuffle = False
     with local_auth_ds as ds:
         ds.create_tensor("xyz")
         for i in range(8):
             ds.xyz.append(i * np.ones((2, 2)))
 
     ptds = ds.dataloader().batch(4).pytorch(num_workers=num_workers, return_index=True)
-    if shuffle:
-        ptds = ptds.shuffle()
+    ptds = ptds.shuffle()
 
     for batch in ptds:
         assert batch.keys() == {"xyz", "index"}
@@ -595,7 +613,6 @@ def test_indexes(local_auth_ds, num_workers):
 )
 @pytest.mark.flaky
 def test_indexes_transform(local_auth_ds, num_workers):
-    shuffle = False
     with local_auth_ds as ds:
         ds.create_tensor("xyz")
         for i in range(8):
@@ -609,8 +626,6 @@ def test_indexes_transform(local_auth_ds, num_workers):
             num_workers=num_workers, return_index=True, collate_fn=identity_collate
         )
     )
-    if shuffle:
-        ptds = ptds.shuffle()
 
     for batch in ptds:
         assert len(batch) == 4
@@ -626,7 +641,6 @@ def test_indexes_transform(local_auth_ds, num_workers):
 @pytest.mark.slow
 @pytest.mark.flaky
 def test_indexes_transform_dict(local_auth_ds, num_workers):
-    shuffle = False
     with local_auth_ds as ds:
         ds.create_tensor("xyz")
         for i in range(8):
@@ -638,8 +652,6 @@ def test_indexes_transform_dict(local_auth_ds, num_workers):
         .transform({"xyz": double, "index": None})
         .pytorch(num_workers=num_workers, return_index=True)
     )
-    if shuffle:
-        ptds = ptds.shuffle()
 
     for batch in ptds:
         assert batch.keys() == {"xyz", "index"}
@@ -652,8 +664,6 @@ def test_indexes_transform_dict(local_auth_ds, num_workers):
         .transform({"xyz": double})
         .pytorch(num_workers=num_workers, return_index=True)
     )
-    if shuffle:
-        ptds = ptds.shuffle()
 
     for batch in ptds:
         assert batch.keys() == {"xyz"}
@@ -667,14 +677,13 @@ def test_indexes_transform_dict(local_auth_ds, num_workers):
 @pytest.mark.slow
 @pytest.mark.flaky
 def test_indexes_tensors(local_auth_ds, num_workers):
-    shuffle = False
     with local_auth_ds as ds:
         ds.create_tensor("xyz")
         for i in range(8):
             ds.xyz.append(i * np.ones((2, 2)))
 
     with pytest.raises(ValueError):
-        ptds = (
+        (
             ds.dataloader()
             .batch(4)
             .pytorch(
@@ -687,8 +696,6 @@ def test_indexes_tensors(local_auth_ds, num_workers):
         .batch(4)
         .pytorch(num_workers=num_workers, return_index=True, tensors=["xyz"])
     )
-    if shuffle:
-        ptds = ptds.shuffle()
 
     for batch in ptds:
         assert batch.keys() == {"xyz", "index"}
@@ -723,16 +730,16 @@ def test_pytorch_error_handling(local_auth_ds):
     ptds = ds.dataloader().pytorch()
     with pytest.raises(EmptyTensorError):
         for _ in ptds:
-            pass
+            continue
 
     ptds = ds.dataloader().pytorch(tensors=["x", "y"])
     with pytest.raises(EmptyTensorError):
         for _ in ptds:
-            pass
+            continue
 
     ptds = ds.dataloader().pytorch(tensors=["x"])
     for _ in ptds:
-        pass
+        continue
 
 
 @requires_libdeeplake
@@ -766,7 +773,7 @@ def test_pil_decode_method(local_auth_ds):
     ptds = ds.dataloader().pytorch(decode_method={"x": "pil"})
     with pytest.raises(CollateExceptionWrapper):
         for _ in ptds:
-            pass
+            continue
 
     def custom_transform(batch):
         batch["x"] = np.array(batch["x"])
