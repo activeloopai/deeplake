@@ -40,7 +40,7 @@ def query(dataset, query_string: str):
         ds = dataset.libdeeplake_dataset
         slice_ = dataset.index.values[0].value
         if slice_ != slice(None) and isinstance(slice_, tuple):
-                slice_ = list(slice_)
+            slice_ = list(slice_)
         ds = ds[slice_]
     else:
         ds = dataset_to_libdeeplake(dataset)
