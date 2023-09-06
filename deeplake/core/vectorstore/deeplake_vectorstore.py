@@ -16,10 +16,12 @@ from deeplake.constants import (
     DEFAULT_VECTORSTORE_TENSORS,
 )
 from deeplake.client.client import DeepLakeBackendClient
+from deeplake.client.utils import read_token
 from deeplake.core.vectorstore import utils
 from deeplake.core.vectorstore.vector_search import vector_search
 from deeplake.core.vectorstore.vector_search import dataset as dataset_utils
 from deeplake.core.vectorstore.vector_search import filter as filter_utils
+from time import time
 
 from deeplake.util.bugout_reporter import (
     feature_report_path,
@@ -46,6 +48,7 @@ class VectorStore:
         verbose: bool = True,
         runtime: Optional[Dict] = None,
         creds: Optional[Union[Dict, str]] = None,
+        org_id: Optional[str] = None,
         **kwargs: Any,
     ) -> None:
         """Creates an empty VectorStore or loads an existing one if it exists at the specified ``path``.
@@ -106,6 +109,13 @@ class VectorStore:
         Danger:
             Setting ``overwrite`` to ``True`` will delete all of your data if the Vector Store exists! Be very careful when setting this parameter.
         """
+        token = token or read_token(from_env=True)
+        if token is not None and org_id is None:
+            # for local datasets
+            client = DeepLakeBackendClient(token=token)
+            org_id = client.get_user_profile()["name"]
+            # if org_id is None and
+
         feature_report_path(
             path,
             "vs.initialize",
@@ -124,13 +134,11 @@ class VectorStore:
                 "runtime": runtime,
             },
             token=token,
+            username=org_id,
         )
 
         self.ingestion_batch_size = ingestion_batch_size
         self.num_workers = num_workers
-        user_profile = DeepLakeBackendClient().get_user_profile()
-        if user_profile["name"] != "public":
-            token = token or DeepLakeBackendClient().get_token()
 
         if creds is None:
             creds = {}
@@ -146,12 +154,17 @@ class VectorStore:
             embedding_function,
             overwrite,
             runtime,
+            org_id,
             **kwargs,
         )
         self.embedding_function = embedding_function
+        start = time()
         self.exec_option = utils.parse_exec_option(
-            self.dataset, exec_option, _INDRA_INSTALLED, token
+            self.dataset, exec_option, _INDRA_INSTALLED, token, org_id
         )
+        # self.exec_option = "python"
+        end = time()
+        print("finished parsing exec option in ", end - start)
         self.verbose = verbose
         self.tensor_params = tensor_params
 

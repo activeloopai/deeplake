@@ -1,11 +1,15 @@
+from abc import ABC, abstractmethod
+
 from deeplake.constants import MB
 from deeplake.enterprise.util import raise_indra_installation_error
 from deeplake.util.warnings import always_warn
-
+from deeplake.client.utils import read_token
 from deeplake.core.dataset import DeepLakeCloudDataset, Dataset
+from deeplake.client.client import DeepLakeBackendClient
 
 import numpy as np
 
+import jwt
 import random
 import string
 from typing import Optional, List, Dict, Callable
@@ -21,26 +25,118 @@ def parse_tensor_return(tensor):
     return tensor.data(aslist=True)["value"]
 
 
-def parse_exec_option(dataset, exec_option, indra_installed, token):
-    """Select the best available exec_option for the given dataset and environment"""
+def parse_exec_option_for_cloud_dataset(dataset, indra_installed, token, org_id):
+    client = dataset.client
+    user_profile = client.get_user_profile()
+    if user_profile["name"] != "public":
+        token = token or client.get_token()
+    response = client.has_indra_org_permission(org_id)
+    has_access_to_indra = response.get("available", False)
 
-    if exec_option is None or exec_option == "auto":
+    # option 1: dataset is created in vector_db:
+    if (
+        isinstance(dataset, DeepLakeCloudDataset)
+        and "vectordb/" in dataset.base_storage.path
+        and token is not None
+    ):
+        return "tensor_db"
+    # option 2: dataset is created in a linked storage or locally,
+    # indra is installed user/org has access to indra
+    elif (
+        isinstance(dataset, (DeepLakeCloudDataset))
+        and indra_installed
+        and has_access_to_indra
+    ):
+        return "compute_engine"
+    else:
+        return "python"
+
+
+class ExecOptionBase(ABC):
+    def get_token(self, token):
+        user_profile = self.client.get_user_profile()
+        if user_profile["name"] != "public":
+            token = token or self.client.get_token()
+        return token
+
+    def get_response(self):
+        response = self.client.has_indra_org_permission(self.org_id)
+        return response.get("available", False)
+
+    @abstractmethod
+    def get_exec_option(self):
+        return NotImplementedError()
+
+    @abstractmethod
+    def get_org_id(self):
+        return NotImplementedError()
+
+
+class ExecOptionCloudDataset(ExecOptionBase):
+    def __init__(self, dataset, indra_installed, org_id):
+        self.dataset = dataset
+        self.indra_installed = indra_installed
+        self.client = dataset.client
+        self.token = self.dataset.token
+        self.org_id = self.get_org_id()
+
+    def get_exec_option(self):
+        # option 1: dataset is created in vector_db:
         if (
-            isinstance(dataset, DeepLakeCloudDataset)
-            and "vectordb/" in dataset.base_storage.path
-            and token is not None
+            isinstance(self.dataset, DeepLakeCloudDataset)
+            and "vectordb/" in self.dataset.base_storage.path
+            and self.token is not None
         ):
             return "tensor_db"
+        # option 2: dataset is created in a linked storage or locally,
+        # indra is installed user/org has access to indra
         elif (
-            isinstance(dataset, (DeepLakeCloudDataset, Dataset))
-            and indra_installed
-            and token is not None
+            isinstance(self.dataset, (DeepLakeCloudDataset))
+            and self.indra_installed
+            and self.get_response()
         ):
             return "compute_engine"
         else:
             return "python"
-    else:
-        return exec_option
+
+    def get_org_id(self):
+        return self.dataset.org_id
+
+
+class ExecOptionLocalDataset(ExecOptionBase):
+    def __init__(self, dataset, indra_installed, org_id):
+        self.dataset = dataset
+        self.indra_installed = indra_installed
+        self.token = self.dataset.token
+        self.org_id = org_id
+
+    def get_org_id(self):
+        if self.org_id is None and self.token:
+            return jwt.decode(self.token, options={"verify_signature": False})["id"]
+        return self.org_id
+
+    def get_exec_option(self):
+        if self.token is None:
+            return "python"
+
+        self.org_id = self.get_org_id()
+
+        if self.indra_installed and self.get_response():
+            return "compute_engine"
+        return "python"
+
+
+def exec_option_factory(dataset, indra_installed, org_id):
+    if dataset.client is None:
+        return ExecOptionLocalDataset(dataset, indra_installed, org_id)
+    return ExecOptionCloudDataset(dataset, indra_installed, org_id)
+
+
+def parse_exec_option(dataset, exec_option, indra_installed, org_id):
+    if exec_option is None or exec_option == "auto":
+        exec_option = exec_option_factory(dataset, indra_installed, org_id)
+        return exec_option.get_exec_option()
+    return exec_option
 
 
 def parse_return_tensors(dataset, return_tensors, embedding_tensor, return_view):

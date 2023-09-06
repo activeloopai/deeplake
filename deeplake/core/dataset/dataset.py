@@ -4681,3 +4681,6 @@ class Dataset:
 
     def _get_storage_repository(self) -> Optional[str]:
         return getattr(self.base_storage, "repository", None)
+
+    def get_user_name(self) -> Optional[str]:
+        return getattr(self.base_storage, "user_name", None)

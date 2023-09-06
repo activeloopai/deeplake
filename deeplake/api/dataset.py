@@ -11,6 +11,7 @@ from deeplake.auto.unstructured.coco.coco import CocoDataset
 from deeplake.auto.unstructured.yolo.yolo import YoloDataset
 from deeplake.client.client import DeepLakeBackendClient
 from deeplake.client.log import logger
+from deeplake.client.utils import read_token
 from deeplake.core.dataset import Dataset, dataset_factory
 from deeplake.core.tensor import Tensor
 from deeplake.core.meta.dataset_meta import DatasetMeta
@@ -424,6 +425,12 @@ class dataset:
                 local_cache_size=local_cache_size,
             )
 
+            token = token or read_token(from_env=True)
+            if token is not None and org_id is None:
+                # for local datasets
+                client = DeepLakeBackendClient(token=token)
+                org_id = client.get_user_profile()["name"]
+
             feature_report_path(
                 path,
                 "empty",
@@ -434,6 +441,7 @@ class dataset:
                     "lock_timeout": lock_timeout,
                 },
                 token=token,
+                username=org_id or "public",
             )
         except Exception as e:
             if isinstance(e, UserNotLoggedInException):

@@ -15,6 +15,7 @@ except ImportError:  # pragma: no cover
     _INDRA_INSTALLED = False  # pragma: no cover
 
 import deeplake
+from deeplake.util.path import get_path_type
 from deeplake.core.vectorstore.vector_search import utils
 from deeplake.core.vectorstore.vector_search.ingestion import ingest_data
 from deeplake.constants import (
@@ -39,11 +40,13 @@ def create_or_load_dataset(
     embedding_function,
     overwrite,
     runtime,
+    org_id,
     **kwargs,
 ):
     utils.check_indra_installation(
         exec_option=exec_option, indra_installed=_INDRA_INSTALLED
     )
+    org_id = org_id if get_path_type(dataset_path) == "local" else None
 
     if not overwrite and dataset_exists(dataset_path, token, creds, **kwargs):
         if tensor_params is not None and tensor_params != DEFAULT_VECTORSTORE_TENSORS:
@@ -58,6 +61,7 @@ def create_or_load_dataset(
             logger,
             read_only,
             runtime,
+            org_id,
             **kwargs,
         )
 
@@ -71,6 +75,7 @@ def create_or_load_dataset(
         overwrite,
         creds,
         runtime,
+        org_id,
         **kwargs,
     )
 
@@ -89,6 +94,7 @@ def load_dataset(
     logger,
     read_only,
     runtime,
+    org_id,
     **kwargs,
 ):
     if dataset_path == DEFAULT_VECTORSTORE_DEEPLAKE_PATH:
@@ -103,6 +109,7 @@ def load_dataset(
         read_only=read_only,
         creds=creds,
         verbose=False,
+        org_id=org_id,
         **kwargs,
     )
     check_tensors(dataset)
@@ -171,6 +178,7 @@ def create_dataset(
     overwrite,
     creds,
     runtime,
+    org_id,
     **kwargs,
 ):
     if exec_option == "tensor_db" and (
@@ -191,6 +199,7 @@ def create_dataset(
         verbose=False,
         overwrite=overwrite,
         creds=creds,
+        org_id=org_id,
         **kwargs,
     )
     create_tensors(tensor_params, dataset, logger, embedding_function)
