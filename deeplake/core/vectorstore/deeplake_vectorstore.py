@@ -1,6 +1,6 @@
 import logging
 import pathlib
-from typing import Optional, Any, Iterable, List, Dict, Union, Callable
+from typing import Optional, Any, List, Dict, Union, Callable
 import jwt
 
 import numpy as np
@@ -16,13 +16,10 @@ import deeplake
 from deeplake.constants import (
     DEFAULT_VECTORSTORE_TENSORS,
 )
-from deeplake.client.client import DeepLakeBackendClient
-from deeplake.client.utils import get_user_name, read_token
+from deeplake.client.utils import read_token
 from deeplake.core.vectorstore import utils
 from deeplake.core.vectorstore.vector_search import vector_search
 from deeplake.core.vectorstore.vector_search import dataset as dataset_utils
-from deeplake.core.vectorstore.vector_search import filter as filter_utils
-from time import time
 
 from deeplake.util.bugout_reporter import (
     feature_report_path,

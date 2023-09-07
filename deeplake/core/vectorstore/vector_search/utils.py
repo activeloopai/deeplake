@@ -25,33 +25,6 @@ def parse_tensor_return(tensor):
     return tensor.data(aslist=True)["value"]
 
 
-def parse_exec_option_for_cloud_dataset(dataset, indra_installed, token, org_id):
-    client = dataset.client
-    user_profile = client.get_user_profile()
-    if user_profile["name"] != "public":
-        token = token or client.get_token()
-    response = client.has_indra_org_permission(org_id)
-    has_access_to_indra = response.get("available", False)
-
-    # option 1: dataset is created in vector_db:
-    if (
-        isinstance(dataset, DeepLakeCloudDataset)
-        and "vectordb/" in dataset.base_storage.path
-        and token is not None
-    ):
-        return "tensor_db"
-    # option 2: dataset is created in a linked storage or locally,
-    # indra is installed user/org has access to indra
-    elif (
-        isinstance(dataset, (DeepLakeCloudDataset))
-        and indra_installed
-        and has_access_to_indra
-    ):
-        return "compute_engine"
-    else:
-        return "python"
-
-
 class ExecOptionBase(ABC):
     def get_token(self, token):
         user_profile = self.client.get_user_profile()
