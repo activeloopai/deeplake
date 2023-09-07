@@ -24,6 +24,7 @@ from deeplake.util.exceptions import (
 )
 from deeplake.core.vectorstore.vector_search import dataset as dataset_utils
 from deeplake.cli.auth import login, logout
+from click.testing import CliRunner
 
 
 EMBEDDING_DIM = 100
@@ -1816,11 +1817,12 @@ def test_exec_option_with_auth(local_path, hub_cloud_path, hub_cloud_dev_token):
 def test_exec_option_cli(
     local_path,
     hub_cloud_path,
-    username,
-    password,
-    runner,
     hub_cloud_dev_token,
+    hub_cloud_dev_credentials,
 ):
+    runner = CliRunner()
+    username, password = hub_cloud_dev_credentials
+    runner.invoke(login, f"-u {username} -p {password}")
     # Testing exec_option with cli login and logout commands are executed
     runner.invoke(login, f"-u {username} -p {password}")
 
