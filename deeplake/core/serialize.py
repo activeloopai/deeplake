@@ -148,7 +148,7 @@ def get_header_from_url(url: str):
     enc_dtype = np.dtype(deeplake.constants.ENCODING_DTYPE)
     itemsize = enc_dtype.itemsize
 
-    headers = {"Range": "bytes=0-100"}
+    headers = {"Range": "bytes=0-1000"}
 
     request = Request(url, None, headers)
     byts = urlopen(request).read()
@@ -164,8 +164,16 @@ def get_header_from_url(url: str):
     if shape_info_nbytes == 0:
         shape_info = np.array([], dtype=enc_dtype)
     else:
+        end_bytes = offset + shape_info_nbytes
+        if len(byts) < end_bytes:
+            # need to fetch more data than the initial guess of 100 bytes. Doubling to hopefully have enough for reading the byte positions
+            headers = {"Range": f"bytes=0-{end_bytes * 2}"}
+
+            request = Request(url, None, headers)
+            byts = urlopen(request).read()
+
         shape_info = (
-            np.frombuffer(byts[offset : offset + shape_info_nbytes], dtype=enc_dtype)
+            np.frombuffer(byts[offset:end_bytes], dtype=enc_dtype)
             .reshape(shape_info_nrows, shape_info_ncols)
             .copy()
         )
@@ -178,10 +186,15 @@ def get_header_from_url(url: str):
     if byte_positions_nbytes == 0:
         byte_positions = np.array([], dtype=enc_dtype)
     else:
+        end_bytes = offset + byte_positions_nbytes
+        if len(byts) < end_bytes:
+            headers = {"Range": f"bytes=0-{end_bytes}"}
+
+            request = Request(url, None, headers)
+            byts = urlopen(request).read()
+
         byte_positions = (
-            np.frombuffer(
-                byts[offset : offset + byte_positions_nbytes], dtype=enc_dtype
-            )
+            np.frombuffer(byts[offset:end_bytes], dtype=enc_dtype)
             .reshape(byte_positions_rows, 3)
             .copy()
         )

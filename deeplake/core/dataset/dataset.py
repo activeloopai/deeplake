@@ -1792,6 +1792,7 @@ class Dataset:
         Raises:
             ReadOnlyModeError: If branch deletion is attempted in read-only mode.
             VersionControlError: If the branch cannot be squashed.
+            Exception: If the dataset is filtered view.
         """
         if self._is_filtered_view:
             raise Exception(
