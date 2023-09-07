@@ -498,7 +498,7 @@ class RateLimitedDataIterator:
 
 
 def data_iteratot_factory(data, func, batch_byte_size, rate_limiter):
-    if rate_limiter["enable"]:
+    if rate_limiter["enabled"]:
         return RateLimitedDataIterator(data, func, batch_byte_size, rate_limiter)
     else:
         return DataIterator(data, func, batch_byte_size)
