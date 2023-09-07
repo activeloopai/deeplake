@@ -107,10 +107,12 @@ class VectorStore:
         Danger:
             Setting ``overwrite`` to ``True`` will delete all of your data if the Vector Store exists! Be very careful when setting this parameter.
         """
-        token = token or read_token(from_env=True)
-        username = "public"
-        if token is not None:
-            username = jwt.decode(token, options={"verify_signature": False})["id"]
+        self.token = token or read_token(from_env=True)
+        self.username = "public"
+        if self.token is not None:
+            self.username = jwt.decode(self.token, options={"verify_signature": False})[
+                "id"
+            ]
 
         feature_report_path(
             path,
@@ -125,12 +127,12 @@ class VectorStore:
                 "read_only": read_only,
                 "ingestion_batch_size": ingestion_batch_size,
                 "exec_option": exec_option,
-                "token": token,
+                "token": self.token,
                 "verbose": verbose,
                 "runtime": runtime,
             },
-            token=token,
-            username=username,
+            token=self.token,
+            username=self.username,
         )
 
         self.ingestion_batch_size = ingestion_batch_size
@@ -142,7 +144,7 @@ class VectorStore:
         self.dataset = dataset_utils.create_or_load_dataset(
             tensor_params,
             path,
-            token,
+            self.token,
             creds,
             logger,
             read_only,
@@ -151,12 +153,12 @@ class VectorStore:
             overwrite,
             runtime,
             org_id,
-            username,
+            self.username,
             **kwargs,
         )
         self.embedding_function = embedding_function
         self.exec_option = utils.parse_exec_option(
-            self.dataset, exec_option, _INDRA_INSTALLED, username
+            self.dataset, exec_option, _INDRA_INSTALLED, self.username
         )
         self.verbose = verbose
         self.tensor_params = tensor_params
@@ -252,6 +254,8 @@ class VectorStore:
                 "embedding_function": True if embedding_function is not None else False,
                 "embedding_data": True if embedding_data is not None else False,
             },
+            token=self.token,
+            username=self.username,
         )
 
         (
@@ -392,6 +396,8 @@ class VectorStore:
                 "return_tensors": return_tensors,
                 "return_view": return_view,
             },
+            token=self.token,
+            username=self.username,
         )
 
         if exec_option is None and self.exec_option != "python" and callable(filter):
@@ -501,6 +507,8 @@ class VectorStore:
                 "exec_option": exec_option,
                 "delete_all": delete_all,
             },
+            token=self.token,
+            username=self.username,
         )
 
         if not row_ids:
@@ -594,6 +602,8 @@ class VectorStore:
                 "filter": True if filter is not None else False,
                 "exec_option": exec_option,
             },
+            token=self.token,
+            username=self.username,
         )
 
         (
@@ -645,12 +655,20 @@ class VectorStore:
         Danger:
             This method permanently deletes all of your data if the Vector Store exists! Be very careful when using this method.
         """
+        token = token or read_token(from_env=True)
+        if token:
+            username = jwt.decode(token, options={"verify_signature": False})["id"]
 
         feature_report_path(
             path,
             "vs.delete_by_path",
-            {},
+            parameters={
+                "path": path,
+                "token": token,
+                "force": force,
+            },
             token=token,
+            username=username,
         )
         deeplake.delete(path, large_ok=True, token=token, force=force)
 
