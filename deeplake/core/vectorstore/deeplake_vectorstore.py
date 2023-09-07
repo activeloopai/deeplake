@@ -661,6 +661,7 @@ class VectorStore:
             This method permanently deletes all of your data if the Vector Store exists! Be very careful when using this method.
         """
         token = token or read_token(from_env=True)
+        username = "public"
         if token:
             username = jwt.decode(token, options={"verify_signature": False})["id"]
 

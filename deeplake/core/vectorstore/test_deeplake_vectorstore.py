@@ -1805,7 +1805,7 @@ def test_exec_option_with_auth(local_path, hub_cloud_path, hub_cloud_dev_token):
     assert db.exec_option == "compute_engine"
 
     db = VectorStore(
-        path=hub_cloud_path,
+        path=hub_cloud_path + "_tensor_db",
         token=hub_cloud_dev_token,
         runtime={"tensor_db": True},
     )
