@@ -110,8 +110,8 @@ def gdrive_ds(gdrive_ds_generator):
 
 @pytest.fixture
 def gdrive_ds_generator(gdrive_path, gdrive_creds):
-    def generate_gdrive_ds():
-        return deeplake.dataset(gdrive_path, creds=gdrive_creds)
+    def generate_gdrive_ds(**kwargs):
+        return deeplake.dataset(gdrive_path, creds=gdrive_creds, **kwargs)
 
     return generate_gdrive_ds
 

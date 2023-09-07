@@ -30,7 +30,11 @@ def verify_reset_on_checkout(ds, branch, commit_id, old_head, data):
         np.testing.assert_array_equal(ds[tensor].numpy(), data[tensor])
 
 
-@pytest.mark.parametrize("path", ["local_path", "s3_path"], indirect=True)
+@pytest.mark.parametrize(
+    "path",
+    ["local_path", pytest.param("s3_path", marks=pytest.mark.slow)],
+    indirect=True,
+)
 def test_load_corrupt_dataset(path):
     ds = deeplake.empty(path, overwrite=True)
 
@@ -50,12 +54,10 @@ def test_load_corrupt_dataset(path):
     save_head = ds.pending_commit_id
 
     with pytest.raises(DatasetCorruptError):
-        ds = deeplake.load(path, access_method=access_method)
+        deeplake.load(path, access_method=access_method)
 
     with pytest.raises(ReadOnlyModeError):
-        ds = deeplake.load(
-            path, read_only=True, access_method=access_method, reset=True
-        )
+        deeplake.load(path, read_only=True, access_method=access_method, reset=True)
 
     ds = deeplake.load(
         path,
@@ -112,7 +114,7 @@ def test_load_corrupted_branch(local_path):
     save_head = ds.pending_commit_id
 
     with pytest.raises(DatasetCorruptError):
-        ds = deeplake.load(f"{local_path}@alt")
+        deeplake.load(f"{local_path}@alt")
 
     ds = deeplake.load(f"{local_path}@alt", reset=True)
     verify_reset_on_checkout(ds, "alt", main_2, save_head, {"abc": [[1], [2]]})
@@ -127,10 +129,10 @@ def test_load_corrupted_branch(local_path):
     save_head = ds.pending_commit_id
 
     with pytest.raises(DatasetCorruptError):
-        ds = deeplake.load(f"{local_path}@alt")
+        deeplake.load(f"{local_path}@alt")
 
     with pytest.raises(DatasetCorruptError):
-        ds = deeplake.load(f"{local_path}@{save_head}")
+        deeplake.load(f"{local_path}@{save_head}")
 
     ds = deeplake.load(f"{local_path}@alt", reset=True)
     verify_reset_on_checkout(ds, "alt", alt_2, save_head, {"abc": [[1], [2], [3], [4]]})
@@ -196,10 +198,10 @@ def test_load_corrupt_dataset_with_no_commits(local_path):
     corrupt_ds(ds, "abc", 1)
 
     with pytest.raises(DatasetCorruptError):
-        ds = deeplake.load(local_path)
+        deeplake.load(local_path)
 
     with pytest.raises(ReadOnlyModeError):
-        ds = deeplake.load(local_path, read_only=True, reset=True)
+        deeplake.load(local_path, read_only=True, reset=True)
 
     ds = deeplake.load(local_path, reset=True)
 

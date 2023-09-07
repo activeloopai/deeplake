@@ -10,6 +10,7 @@ import pytest
 import deeplake
 
 
+@pytest.mark.slow
 @pytest.mark.parametrize("convert_to_pathlib", [True, False])
 def test_before_split(convert_to_pathlib):
     mem_path = convert_string_to_pathlib_if_needed("mem://xyz", convert_to_pathlib)
@@ -40,6 +41,7 @@ def test_split():
         assert_array_equal(dl_ds[column].numpy().reshape(-1), ds[column])
 
 
+@pytest.mark.slow
 def test_seq_with_dict(local_path):
     ds = load_dataset("squad", split="train[:5%]")
     dl_ds = deeplake.ingest_huggingface(ds, local_path)

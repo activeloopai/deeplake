@@ -159,7 +159,8 @@ ALL_CLOUD_PREFIXES = (
     "gcp://",
     "gs://",
     "az://",
-    "azure://" "gdrive://",
+    "azure://",
+    "gdrive://",
 )
 
 _ENABLE_HUB_SUB_DATASETS = False
@@ -193,7 +194,7 @@ PYTEST_ENABLED = os.environ.get("DEEPLAKE_PYTEST_ENABLED", "").lower().strip() =
 
 SPINNER_ENABLED = not PYTEST_ENABLED
 
-LOCK_LOCAL_DATASETS = not PYTEST_ENABLED
+LOCKS_ENABLED = not PYTEST_ENABLED
 
 # Rechunk after transform if average chunk size is less than
 # this fraction of min chunk size

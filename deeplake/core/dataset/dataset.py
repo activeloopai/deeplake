@@ -67,6 +67,7 @@ from deeplake.htype import (
     UNSPECIFIED,
     verify_htype_key_value,
 )
+from deeplake.compression import COMPRESSION_ALIASES
 from deeplake.integrations import dataset_to_tensorflow
 from deeplake.util.bugout_reporter import deeplake_reporter, feature_report_path
 from deeplake.util.dataset import try_flushing
@@ -124,7 +125,7 @@ from deeplake.util.keys import (
     get_dataset_linked_creds_key,
 )
 
-from deeplake.util.path import get_path_from_storage
+from deeplake.util.path import get_path_from_storage, relpath
 from deeplake.util.remove_cache import get_base_storage
 from deeplake.util.diff import get_all_changes_string, get_changes_and_messages
 from deeplake.util.version_control import (
@@ -540,7 +541,7 @@ class Dataset:
                 ]
                 for x in enabled_tensors:
                     enabled_tensors.extend(
-                        self[posixpath.relpath(x, self.group_index)].meta.links.keys()
+                        self[relpath(x, self.group_index)].meta.links.keys()
                     )
 
                 ret = self.__class__(
@@ -736,12 +737,20 @@ class Dataset:
             new_config = {
                 "htype": htype,
                 "dtype": dtype,
-                "sample_compression": sample_compression,
-                "chunk_compression": chunk_compression,
+                "sample_compression": COMPRESSION_ALIASES.get(
+                    sample_compression, sample_compression
+                ),
+                "chunk_compression": COMPRESSION_ALIASES.get(
+                    chunk_compression, chunk_compression
+                ),
                 "hidden": hidden,
                 "is_link": is_link,
                 "is_sequence": is_sequence,
             }
+            base_config = HTYPE_CONFIGURATIONS.get(htype, {}).copy()
+            for key in new_config:
+                if new_config[key] == UNSPECIFIED:
+                    new_config[key] = base_config.get(key) or UNSPECIFIED
             if current_config != new_config:
                 raise ValueError(
                     f"Tensor {name} already exists with different configuration. "
@@ -1291,7 +1300,7 @@ class Dataset:
         ):
             root._rename_tensor(
                 tensor,
-                posixpath.join(new_name, posixpath.relpath(tensor, name)),
+                posixpath.join(new_name, relpath(tensor, name)),
             )
 
         self.storage.maybe_flush()
@@ -1406,9 +1415,7 @@ class Dataset:
         if isinstance(storage, tuple(_LOCKABLE_STORAGES)) and (
             not self.read_only or self._locked_out
         ):
-            if not deeplake.constants.LOCK_LOCAL_DATASETS and isinstance(
-                storage, LocalProvider
-            ):
+            if not deeplake.constants.LOCKS_ENABLED:
                 return True
             try:
                 # temporarily disable read only on base storage, to try to acquire lock, if exception, it will be again made readonly
@@ -1548,9 +1555,9 @@ class Dataset:
             target_commit = self.version_state["branch_commit_map"][target_id]
         except KeyError:
             pass
-        if isinstance(self.base_storage, tuple(_LOCKABLE_STORAGES)) and not (
-            isinstance(self.base_storage, LocalProvider)
-            and not deeplake.constants.LOCK_LOCAL_DATASETS
+        if (
+            isinstance(self.base_storage, tuple(_LOCKABLE_STORAGES))
+            and not deeplake.constants.LOCKS_ENABLED
         ):
             lock_dataset(self, version=target_commit)
             locked = True
@@ -1719,7 +1726,9 @@ class Dataset:
 
     @invalid_view_op
     def delete_branch(self, name: str) -> None:
-        """Deletes a specific branch. You cannot delete the branch currently checked out.
+        """
+        Deletes the branch and cleans up any unneeded data.
+        Branches can only be deleted if there are no sub-branches and if it has never been merged into another branch.
 
         Args:
             name (str): The branch to delete.
@@ -1783,6 +1792,7 @@ class Dataset:
         Raises:
             ReadOnlyModeError: If branch deletion is attempted in read-only mode.
             VersionControlError: If the branch cannot be squashed.
+            Exception: If the dataset is filtered view.
         """
         if self._is_filtered_view:
             raise Exception(
@@ -1932,7 +1942,7 @@ class Dataset:
     def _send_branch_deletion_event(self, *args, **kwargs):
         """overridden in DeepLakeCloudDataset"""
 
-    def _first_load_init(self):
+    def _first_load_init(self, verbose=True):
         """overridden in DeepLakeCloudDataset"""
 
     @property
@@ -2632,7 +2642,7 @@ class Dataset:
         tensor_names = self.version_state["tensor_names"]
         enabled_tensors = self.enabled_tensors
         return [
-            posixpath.relpath(t, self.group_index)
+            relpath(t, self.group_index)
             for t in tensor_names
             if (not self.group_index or t.startswith(self.group_index + "/"))
             and (include_hidden or tensor_names[t] not in hidden_tensors)
@@ -3029,6 +3039,7 @@ class Dataset:
                     tensor = tensors[k]
                     enc = tensor.chunk_engine.chunk_id_encoder
                     num_chunks = enc.num_chunks
+                    num_samples = tensor.meta.length
                     if extend:
                         tensor.extend(v)
                         if extend_extra_nones:
@@ -3051,6 +3062,8 @@ class Dataset:
                         ) from e
                     elif num_chunks_added == 1:
                         enc._encoded = enc._encoded[:-1]
+                        diff = tensor.meta.length - num_samples
+                        tensor.meta.update_length(-diff)
                     for k in tensors_appended:
                         try:
                             self[k].pop()

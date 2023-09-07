@@ -45,6 +45,7 @@ image_compressions = list(
 
 
 @pytest.mark.parametrize("compression", image_compressions + BYTE_COMPRESSIONS)
+@pytest.mark.slow
 def test_array(compression, compressed_image_paths):
     # TODO: check dtypes and no information loss
     compression_type = get_compression_type(compression)
@@ -68,6 +69,7 @@ def test_array(compression, compressed_image_paths):
 
 
 @pytest.mark.parametrize("compression", image_compressions + BYTE_COMPRESSIONS)
+@pytest.mark.slow
 def test_multi_array(compression, compressed_image_paths):
     compression_type = get_compression_type(compression)
     if compression_type == IMAGE_COMPRESSION:
@@ -94,6 +96,7 @@ def test_multi_array(compression, compressed_image_paths):
 
 
 @pytest.mark.parametrize("compression", image_compressions)
+@pytest.mark.slow
 def test_verify(compression, compressed_image_paths, corrupt_image_paths):
     for path in compressed_image_paths[compression]:
         sample = deeplake.read(path)
@@ -158,6 +161,7 @@ def test_audio(compression, audio_paths):
         assert sample.compressed_bytes(compression) == f.read()
 
 
+@pytest.mark.slow
 @pytest.mark.skipif(
     os.name == "nt" and sys.version_info < (3, 7), reason="requires python 3.7 or above"
 )

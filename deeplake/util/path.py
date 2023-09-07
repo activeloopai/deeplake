@@ -11,6 +11,7 @@ import re
 
 CLOUD_DS_NAME_PATTERN = re.compile(r"^[A-Za-z0-9_-]*$")
 LOCAL_DS_NAME_PATTERN = re.compile(r"^[A-Za-z0-9_ .-]*$")
+_relpath_cache = {}
 
 
 def is_hub_cloud_path(path: str):
@@ -134,3 +135,17 @@ def verify_dataset_name(path):
         match = bool(CLOUD_DS_NAME_PATTERN.match(ds_name))
     if not match:
         raise InvalidDatasetNameException(path_type)
+
+
+def relpath(path, start):
+    """
+    Wrapper around posixpath.relpath that caches results to avoid performance overhead
+    """
+    key = path + "::" + start
+    if key not in _relpath_cache:
+        if len(_relpath_cache) > 1000:
+            ### Simple way to keep the cache from growing too large without doing a full LRU cache.
+            ### There should not be that many files that we deal with, so likely we will never even hit this.
+            _relpath_cache.clear()
+        _relpath_cache[key] = posixpath.relpath(path, start)
+    return _relpath_cache[key]

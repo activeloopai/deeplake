@@ -47,6 +47,7 @@ def test_readonly_doesnt_exist(local_path):
     deeplake.dataset(local_path, read_only=True)
 
 
+@pytest.mark.slow
 def test_readonly_viewer(capsys, hub_cloud_dev_token):
     # testingacc2 is viewer on notify org
     ds = deeplake.load("hub://notify/p-8M-trp", token=hub_cloud_dev_token)

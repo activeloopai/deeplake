@@ -3,6 +3,8 @@ from deeplake.core.meta.meta import Meta
 from deeplake.core.index import Index
 import posixpath
 
+from deeplake.util.path import relpath
+
 
 class DatasetMeta(Meta):
     """Stores dataset metadata."""
@@ -98,7 +100,7 @@ class DatasetMeta(Meta):
         self.groups.remove(name)
         self.groups = list(
             map(
-                lambda g: posixpath.join(new_name, posixpath.relpath(g, name))
+                lambda g: posixpath.join(new_name, relpath(g, name))
                 if (g == name or g.startswith(name + "/"))
                 else g,
                 self.groups,

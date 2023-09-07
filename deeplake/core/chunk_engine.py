@@ -23,6 +23,7 @@ from deeplake.core.tensor_link import (
     extend_downsample,
     get_link_transform,
 )
+from deeplake.core.linked_tiled_sample import LinkedTiledSample
 from deeplake.core.version_control.commit_diff import CommitDiff
 from deeplake.core.partial_reader import PartialReader
 from deeplake.core.version_control.commit_node import CommitNode  # type: ignore
@@ -673,24 +674,19 @@ class ChunkEngine:
     def _convert_to_list(self, samples):
         return False
 
-    def check_each_sample(self, samples, verify=True):
+    def check_each_sample(self, samples, verify=True, ignore_errors=False):
         # overridden in LinkedChunkEngine
         return
 
-    def _sanitize_samples(self, samples, verify=True, pg_callback=None):
+    def _sanitize_samples(
+        self, samples, verify=True, pg_callback=None, ignore_errors=False
+    ):
         check_samples_type(samples)
-        if isinstance(samples, list):
-            samples = [
-                None
-                if is_empty_list(sample)
-                or (
-                    isinstance(sample, deeplake.core.tensor.Tensor)
-                    and sample.is_empty_tensor
-                )
-                else sample
-                for sample in samples
-            ]
-        verified_samples = self.check_each_sample(samples, verify=verify)
+        samples = self._prepare_samples_for_link_callback(samples)
+        # verified samples are present only in case of linked tensors
+        verified_samples = self.check_each_sample(
+            samples, verify=verify, ignore_errors=ignore_errors
+        )
         tensor_meta = self.tensor_meta
         all_empty = all(sample is None for sample in samples)
         if tensor_meta.htype is None and not all_empty:
@@ -702,22 +698,27 @@ class ChunkEngine:
         if self._convert_to_list(samples):
             samples = list(samples)
         if self._is_temp_label_tensor:
-            samples = verified_samples = convert_to_hash(samples, self._hash_label_map)
+            samples = convert_to_hash(samples, self._hash_label_map)
         elif tensor_meta.htype in ("image.gray", "image.rgb"):
             mode = "L" if tensor_meta.htype == "image.gray" else "RGB"
             converted = []
             for sample in samples:
-                if isinstance(sample, Sample):
-                    converted.append(convert_sample(sample, mode))
-                elif isinstance(sample, np.ndarray):
-                    converted.append(convert_img_arr(sample, mode))
-                else:
-                    raise SampleHtypeMismatchError(tensor_meta.htype, type(sample))
-            samples = verified_samples = converted
+                try:
+                    if isinstance(sample, Sample):
+                        converted.append(convert_sample(sample, mode))
+                    elif isinstance(sample, np.ndarray):
+                        converted.append(convert_img_arr(sample, mode))
+                    else:
+                        raise SampleHtypeMismatchError(tensor_meta.htype, type(sample))
+                except Exception:
+                    if ignore_errors:
+                        continue
+                    raise
+            samples = converted
         elif tensor_meta.htype == "class_label":
-            samples = verified_samples = self._convert_class_labels(samples)
+            samples = self._convert_class_labels(samples)
         elif tensor_meta.htype == "polygon":
-            samples = verified_samples = [
+            samples = [
                 p if isinstance(p, Polygons) else Polygons(p, dtype=tensor_meta.dtype)
                 for p in samples
             ]
@@ -756,6 +757,8 @@ class ChunkEngine:
         progressbar: bool = False,
         register_creds: bool = True,
         pg_callback=None,
+        return_samples: bool = False,
+        ignore_errors: bool = False,
     ):
         """Add samples to chunks, in case if there is a space on the start_chunk,
         othewise creating new chunk and append samples to newly created chunk
@@ -770,6 +773,8 @@ class ChunkEngine:
             progressbar (bool): Parameter that shows if need to show sample insertion progress
             register_creds (bool): Parameter that shows if need to register the creds_key of the sample
             pg_callback: Progress bar callback parameter
+            return_samples (bool): Returns successfully added samples if ``True``.
+            ignore_errors (bool): Skips samples that cause errors, if possible.
 
         Returns:
             Tuple[List[BaseChunk], Dict[Any, Any]]
@@ -827,15 +832,19 @@ class ChunkEngine:
         ):
             # Note: in the future we can get rid of this conversion of sample compressed chunks too by predicting the compression ratio.
             samples = list(samples)
+        verified_samples = []
         current_chunk_full = False
         while len(samples) > 0:
             if current_chunk_full:
                 num_samples_added = 0
                 current_chunk_full = False
             else:
+                initial_num_samples = len(samples)
                 num_samples_added = current_chunk.extend_if_has_space(
-                    samples, update_tensor_meta=update_tensor_meta, **extra_args  # type: ignore
+                    samples, update_tensor_meta=update_tensor_meta, ignore_errors=ignore_errors, **extra_args  # type: ignore
                 )  # type: ignore
+                skipped_num_samples = initial_num_samples - len(samples)
+                incoming_num_samples -= skipped_num_samples
                 if register_creds:
                     self.register_new_creds(num_samples_added, samples)
             if num_samples_added == 0:
@@ -851,6 +860,12 @@ class ChunkEngine:
                 if not register:
                     updated_chunks.append(current_chunk.id)
             elif num_samples_added == PARTIAL_NUM_SAMPLES:
+                sample = samples[0]
+                if self.tensor_meta.is_link:
+                    verified_samples.append(sample)
+                else:
+                    if sample.is_first_write:
+                        verified_samples.append(sample)
                 num_samples_added, samples, lengths = self._handle_tiled_sample(
                     enc,
                     register,
@@ -879,6 +894,7 @@ class ChunkEngine:
                 samples = list(samples)
             else:
                 current_chunk_full = True
+                verified_samples.extend(samples[:num_samples_added])
                 num_samples_added, samples, lengths = self._handle_one_or_more_samples(
                     enc,
                     register,
@@ -925,6 +941,9 @@ class ChunkEngine:
             tenc.is_dirty = True
         if progressbar:
             pbar.close()
+
+        if return_samples:
+            return verified_samples
 
         if not register:
             return updated_chunks, tiles
@@ -994,7 +1013,14 @@ class ChunkEngine:
     def update_creds(self, sample_index, sample):
         return
 
-    def _extend(self, samples, progressbar, pg_callback=None, update_commit_diff=True):
+    def _extend(
+        self,
+        samples,
+        progressbar,
+        pg_callback=None,
+        update_commit_diff=True,
+        ignore_errors=False,
+    ):
         if isinstance(samples, deeplake.Tensor):
             samples = tqdm(samples) if progressbar else samples
             for sample in samples:
@@ -1004,21 +1030,105 @@ class ChunkEngine:
                     progressbar=False,
                     pg_callback=pg_callback,
                 )  # TODO optimize this
-            return
+            return samples
         if len(samples) == 0:
-            return
+            return samples
         samples, verified_samples = self._sanitize_samples(
-            samples, pg_callback=pg_callback
+            samples, pg_callback=pg_callback, ignore_errors=ignore_errors
         )
-        self._samples_to_chunks(
+        samples = self._samples_to_chunks(
             samples,
             start_chunk=self.last_appended_chunk(allow_copy=False),
             register=True,
             progressbar=progressbar,
             update_commit_diff=update_commit_diff,
             pg_callback=pg_callback,
+            return_samples=True,
+            ignore_errors=ignore_errors,
         )
-        return verified_samples
+        return verified_samples or samples
+
+    def _extend_link_callback(
+        self, link_callback, samples, flat, progressbar, ignore_errors
+    ):
+        skipped = 0
+        try:
+            link_callback(samples, flat=flat, progressbar=progressbar)
+        except Exception:
+            if ignore_errors and not flat:
+                # retry one at a time
+                # don't retry if flat
+                for i, sample in enumerate(samples):
+                    try:
+                        link_callback([sample], flat=flat, progressbar=progressbar)
+                    except Exception:
+                        # if link callback fails, remove the sample
+                        self.pop(self.tensor_length - len(samples) + i - skipped)
+                        skipped += 1
+                return
+            raise
+
+    def _extend_sequence(self, samples, progressbar, link_callback, ignore_errors):
+        samples = tqdm(samples) if progressbar else samples
+        verified_samples = []
+        num_samples_added = 0
+        for sample in samples:
+            try:
+                if sample is None:
+                    sample = []
+                verified_sample = self._extend(
+                    sample, progressbar=False, update_commit_diff=False
+                )
+                self.sequence_encoder.register_samples(len(sample), 1)
+                self.commit_diff.add_data(1)
+                num_samples_added += 1
+                verified_samples.append(
+                    verified_sample if verified_sample is not None else sample
+                )
+            except Exception:
+                if ignore_errors:
+                    continue
+                raise
+
+        if link_callback:
+            skipped = []
+            for i, s in enumerate(verified_samples):
+                try:
+                    self._extend_link_callback(
+                        link_callback, s, True, progressbar, ignore_errors
+                    )
+                except Exception:
+                    if ignore_errors:
+                        self.pop(
+                            self.tensor_length
+                            - len(verified_samples)
+                            + i
+                            - len(skipped)
+                        )
+                        skipped.append(i)
+                        continue
+                    raise
+
+            for i in reversed(skipped):
+                verified_samples.pop(i)
+
+            self._extend_link_callback(
+                link_callback, verified_samples, False, progressbar, ignore_errors
+            )
+
+            # TODO: Handle case of samples passing the flat link callbacks
+            # but failing the non-flat link callback but this is not yet a possibility
+
+    def _prepare_samples_for_link_callback(self, samples):
+        if not isinstance(samples, np.ndarray):
+            samples = [
+                None
+                if is_empty_list(s)
+                or (isinstance(s, deeplake.core.tensor.Tensor) and s.is_empty_tensor)
+                else s
+                for s in samples
+            ]
+        return samples
 
     def extend(
         self,
@@ -1026,6 +1136,7 @@ class ChunkEngine:
         progressbar: bool = False,
         link_callback: Optional[Callable] = None,
         pg_callback=None,
+        ignore_errors: bool = False,
     ):
         try:
             assert not (progressbar and pg_callback)
@@ -1036,68 +1147,37 @@ class ChunkEngine:
 
             initial_autoflush = self.cache.autoflush
             self.cache.autoflush = False
+            num_samples = self.tensor_length
 
             if self.is_sequence:
-                samples = tqdm(samples) if progressbar else samples
-                verified_samples = []
-                num_samples_added = 0
-                try:
-                    for sample in samples:
-                        if sample is None:
-                            sample = []
-                        verified_sample = self._extend(
-                            sample, progressbar=False, update_commit_diff=False
-                        )
-                        self.sequence_encoder.register_samples(len(sample), 1)
-                        self.commit_diff.add_data(1)
-                        num_samples_added += 1
-                        verified_samples.append(verified_sample or sample)
-                except Exception:
-                    for _ in range(num_samples_added):
-                        self.pop()
-                    raise
-                if link_callback:
-                    samples = [
-                        None if is_empty_list(s) else s for s in verified_samples
-                    ]
-                    link_callback(
-                        verified_samples,
-                        flat=False,
-                        progressbar=progressbar,
-                    )
-                    for s in verified_samples:
-                        link_callback(
-                            s,
-                            flat=True,
-                            progressbar=progressbar,
-                        )
-
+                self._extend_sequence(
+                    samples, progressbar, link_callback, ignore_errors
+                )
             else:
-                verified_samples = (
-                    self._extend(samples, progressbar, pg_callback=pg_callback)
-                    or samples
+                verified_samples = self._extend(
+                    samples,
+                    progressbar,
+                    pg_callback=pg_callback,
+                    ignore_errors=ignore_errors,
                 )
                 if link_callback:
-                    if not isinstance(verified_samples, np.ndarray):
-                        samples = [
-                            None
-                            if is_empty_list(s)
-                            or (
-                                isinstance(s, deeplake.core.tensor.Tensor)
-                                and s.is_empty_tensor
-                            )
-                            else s
-                            for s in verified_samples
-                        ]
-                    link_callback(
-                        samples,
-                        flat=None,
-                        progressbar=progressbar,
+                    verified_samples = self._prepare_samples_for_link_callback(
+                        verified_samples
+                    )
+                    self._extend_link_callback(
+                        link_callback,
+                        verified_samples,
+                        None,
+                        progressbar,
+                        ignore_errors,
                     )
 
             self.cache.autoflush = initial_autoflush
             self.cache.maybe_flush()
         except Exception as e:
+            num_samples_added = self.tensor_length - num_samples
+            for _ in range(num_samples_added):
+                self.pop()
             raise SampleAppendError(self.name) from e
 
     def _create_new_chunk(self, register=True, row: Optional[int] = None) -> BaseChunk:
@@ -2881,33 +2961,43 @@ class ChunkEngine:
         self, samples, flat: Optional[bool], progressbar: bool = False
     ):
         """Used in transforms to handle linked tensors."""
-        for k, v in self.tensor_meta.links.items():
-            if self._all_chunk_engines and (
-                flat is None or v["flatten_sequence"] == flat
-            ):
-                tensor = self.version_state["full_tensors"][k]
-                func = get_link_transform(v["extend"])
-                meta = self.tensor_meta
-                vs = func(
-                    samples,
-                    factor=tensor.info.downsampling_factor
-                    if func == extend_downsample
-                    else None,
-                    compression=meta.sample_compression,
-                    htype=meta.htype,
-                    link_creds=self.link_creds,
-                    progressbar=progressbar,
-                    tensor_meta=self.tensor_meta,
-                )
-                dtype = tensor.dtype
-                if dtype:
-                    if isinstance(vs, np.ndarray):
-                        vs = cast_to_type(vs, dtype)
-                    else:
-                        vs = [cast_to_type(v, dtype) for v in vs]
+        updated_tensors = {}
+        try:
+            for k, v in self.tensor_meta.links.items():
+                if self._all_chunk_engines and (
+                    flat is None or v["flatten_sequence"] == flat
+                ):
+                    tensor = self.version_state["full_tensors"][k]
+                    func = get_link_transform(v["extend"])
+                    meta = self.tensor_meta
+                    vs = func(
+                        samples,
+                        factor=tensor.info.downsampling_factor
+                        if func == extend_downsample
+                        else None,
+                        compression=meta.sample_compression,
+                        htype=meta.htype,
+                        link_creds=self.link_creds,
+                        progressbar=progressbar,
+                        tensor_meta=self.tensor_meta,
+                    )
+                    dtype = tensor.dtype
+                    if dtype:
+                        if isinstance(vs, np.ndarray):
+                            vs = cast_to_type(vs, dtype)
+                        else:
+                            vs = [cast_to_type(v, dtype) for v in vs]
+                    chunk_engine = self._all_chunk_engines[k]
+                    updated_tensors[k] = chunk_engine.tensor_length
+                    chunk_engine.extend(vs)
+                    chunk_engine._transform_callback(vs, flat)
+        except Exception:
+            for k, num_samples in updated_tensors.items():
                 chunk_engine = self._all_chunk_engines[k]
-                chunk_engine.extend(vs)
-                chunk_engine._transform_callback(vs, flat)
+                num_samples_added = chunk_engine.tensor_length - num_samples
+                for _ in range(num_samples_added):
+                    chunk_engine.pop()
+            raise
 
     def _transform_pop_callback(self, index: int):
         if self._all_chunk_engines:

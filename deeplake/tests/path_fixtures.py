@@ -47,7 +47,15 @@ GCS = "gcs"
 AZURE = "azure"
 HUB_CLOUD = "hub_cloud"
 
-_GIT_CLONE_CACHE_DIR = ".test_resources"
+REPO_ROOT = os.path.abspath(".")
+while REPO_ROOT != os.path.dirname(REPO_ROOT):
+    if os.path.isfile(os.path.join(REPO_ROOT, "LICENSE")):
+        break
+    REPO_ROOT = os.path.dirname(REPO_ROOT)
+assert REPO_ROOT != "/"
+
+## .test_resources should always be in the root of the repo, regardless of where the tests were ran from
+_GIT_CLONE_CACHE_DIR = os.path.join(REPO_ROOT, ".test_resources")
 
 _HUB_TEST_RESOURCES_URL = "https://www.github.com/activeloopai/hub-test-resources.git"
 _PILLOW_URL = "https://www.github.com/python-pillow/Pillow.git"
@@ -253,7 +261,7 @@ def _get_storage_path(
 @pytest.fixture
 def memory_path(request):
     if is_opt_true(request, MEMORY_OPT):
-        pytest.skip()
+        pytest.skip(f"{MEMORY_OPT} flag not set")
         return
 
     # no need to clear memory paths
@@ -263,7 +271,7 @@ def memory_path(request):
 @pytest.fixture
 def local_path(request):
     if not is_opt_true(request, LOCAL_OPT):
-        pytest.skip()
+        pytest.skip(f"{LOCAL_OPT} flag not set")
         return
 
     path = _get_storage_path(request, LOCAL)
@@ -279,7 +287,7 @@ def local_path(request):
 @pytest.fixture
 def s3_path(request):
     if not is_opt_true(request, S3_OPT):
-        pytest.skip()
+        pytest.skip(f"{S3_OPT} flag not set")
         return
 
     path = _get_storage_path(request, S3)
@@ -295,7 +303,7 @@ def s3_path(request):
 @pytest.fixture
 def s3_vstream_path(request):
     if not is_opt_true(request, S3_OPT):
-        pytest.skip()
+        pytest.skip(f"{S3_OPT} flag not set")
         return
 
     path = f"{PYTEST_S3_PROVIDER_BASE_ROOT}vstream_test"
@@ -310,7 +318,7 @@ def gcs_creds():
 @pytest.fixture
 def gcs_path(request, gcs_creds):
     if not is_opt_true(request, GCS_OPT):
-        pytest.skip()
+        pytest.skip(f"{GCS_OPT} flag not set")
         return
 
     path = _get_storage_path(request, GCS)
@@ -326,7 +334,7 @@ def gcs_path(request, gcs_creds):
 @pytest.fixture
 def gcs_vstream_path(request):
     if not is_opt_true(request, GCS_OPT):
-        pytest.skip()
+        pytest.skip(f"{GCS_OPT} flag not set")
         return
 
     path = f"{PYTEST_GCS_PROVIDER_BASE_ROOT}vstream_test"
@@ -336,7 +344,7 @@ def gcs_vstream_path(request):
 @pytest.fixture
 def azure_path(request):
     if not is_opt_true(request, AZURE_OPT):
-        pytest.skip()
+        pytest.skip(f"{AZURE_OPT} flag not set")
 
     path = _get_storage_path(request, AZURE)
     AzureProvider(path).clear()
@@ -351,7 +359,7 @@ def azure_path(request):
 @pytest.fixture
 def azure_vstream_path(request):
     if not is_opt_true(request, AZURE_OPT):
-        pytest.skip()
+        pytest.skip(f"{AZURE_OPT} flag not set")
 
     path = f"{PYTEST_AZURE_PROVIDER_BASE_ROOT}vstream_test"
     yield path
@@ -373,7 +381,7 @@ def gdrive_creds():
 @pytest.fixture
 def gdrive_path(request, gdrive_creds):
     if not is_opt_true(request, GDRIVE_OPT):
-        pytest.skip()
+        pytest.skip(f"{GDRIVE_OPT} flag not set")
         return
 
     path = _get_storage_path(request, GDRIVE, with_current_test_name=False)
@@ -388,7 +396,7 @@ def gdrive_path(request, gdrive_creds):
 @pytest.fixture
 def hub_cloud_path(request, hub_cloud_dev_token):
     if not is_opt_true(request, HUB_CLOUD_OPT):
-        pytest.skip()
+        pytest.skip(f"{HUB_CLOUD_OPT} flag not set")
         return
 
     path = _get_storage_path(request, HUB_CLOUD)
@@ -410,7 +418,7 @@ def hub_cloud_path(request, hub_cloud_dev_token):
 @pytest.fixture
 def hub_cloud_vstream_path(request, hub_cloud_dev_token):
     if not is_opt_true(request, HUB_CLOUD_OPT):
-        pytest.skip()
+        pytest.skip(f"{HUB_CLOUD_OPT} flag not set")
         return
 
     path = f"{PYTEST_HUB_CLOUD_PROVIDER_BASE_ROOT}vstream_test_dataset"
@@ -466,6 +474,24 @@ def grayscale_image_paths():
         "jpeg": os.path.join(base, "hopper_gray.jpg"),
     }
     return paths
+
+
+@pytest.fixture
+def lfpw_links():
+    """Mix of working and broken links to images from the LFPW dataset."""
+    BROKEN_LINKS = [
+        "https://cm1.theinsider.com/media/0/428/93/spl41194_011.0.0.0x0.636x912.jpeg",
+        "https://cm1.theinsider.com/media/0/428/93/spl47823_060.0.0.0x0.633x912.jpeg",
+        "https://cm1.theinsider.com/media/0/428/90/spl91520_012.0.0.0x0.636x912.jpeg",
+        "https://blog.themavenreport.com/wp-content/uploads/2008/02/kimora_show_575.jpg",
+        "https://cache.thephoenix.com/secure/uploadedImages/The_Phoenix/Movies/Reviews/FILM_Queen_6.jpg",
+        "https://img2.timeinc.net/people/i/2008/features/theysaid/080331/kimora_lee_simmons400.jpg",
+        "https://img2.timeinc.net/people/i/cbb/2008/04/05/kylieminogue.jpg",
+        "https://i41.tinypic.com/2ih5b7q.png",
+        "https://www.todoelmundo.org/archivos/99/imagenes/En_america.jpg",
+        "https://image.toutlecine.com/photos/b/l/o/blood-diamond-2006-22-g.jpg",
+    ]
+    return BROKEN_LINKS
 
 
 @pytest.fixture(scope="session")
@@ -525,7 +551,7 @@ def corrupt_image_paths():
 @pytest.fixture
 def audio_paths():
     if sys.platform.startswith("linux") and sys.version_info[:2] == (3, 6):  # FixMe
-        pytest.skip()
+        pytest.skip("Skipping audio tests on linux 3.6")
         return
     paths = {"mp3": "samplemp3.mp3", "flac": "sampleflac.flac", "wav": "samplewav.wav"}
 

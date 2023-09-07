@@ -20,6 +20,7 @@ def test_tile_shape():
 
 
 @pytest.mark.parametrize("compression", ["jpeg", "png", "tiff"])
+@pytest.mark.slow
 def test_tile_shape_compressed(compression, compressed_image_paths):
     path = compressed_image_paths[compression][0]
     sample_size = os.path.getsize(path)

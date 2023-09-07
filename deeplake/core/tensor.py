@@ -277,6 +277,7 @@ class Tensor:
         self,
         samples: Union[np.ndarray, Sequence[InputSample], "Tensor"],
         progressbar: bool = False,
+        ignore_errors: bool = False,
     ):
         """Extends the end of the tensor by appending multiple elements from a sequence. Accepts a sequence, a single batched numpy array,
         or a sequence of :func:`deeplake.read` outputs, which can be used to load files. See examples down below.
@@ -307,6 +308,7 @@ class Tensor:
             samples (np.ndarray, Sequence, Sequence[Sample]): The data to add to the tensor.
                 The length should be equal to the number of samples to add.
             progressbar (bool): Specifies whether a progressbar should be displayed while extending.
+            ignore_errors (bool): Skip samples that cause errors while extending, if set to ``True``.
 
         Raises:
             TensorDtypeMismatchError: Dtype for array must be equal to or castable to this tensor's dtype.
@@ -317,6 +319,7 @@ class Tensor:
             samples,
             progressbar=progressbar,
             link_callback=self._extend_links if self.meta.links else None,
+            ignore_errors=ignore_errors,
         )
         dataset_written(self.dataset)
         self.invalidate_libdeeplake_dataset()
@@ -1005,31 +1008,42 @@ class Tensor:
 
     def _extend_links(self, samples, flat: Optional[bool], progressbar: bool = False):
         has_shape_tensor = False
-        for k, v in self.meta.links.items():
-            if flat is None or v["flatten_sequence"] == flat:
+        updated_tensors = {}
+        try:
+            for k, v in self.meta.links.items():
+                if flat is None or v["flatten_sequence"] == flat:
+                    tensor = self.version_state["full_tensors"][k]
+                    func_name = v["extend"]
+                    if func_name == "extend_shape":
+                        has_shape_tensor = True
+                    func = get_link_transform(func_name)
+                    vs = func(
+                        samples,
+                        factor=tensor.info.downsampling_factor
+                        if func == extend_downsample
+                        else None,
+                        compression=self.meta.sample_compression,
+                        htype=self.htype,
+                        link_creds=self.link_creds,
+                        progressbar=progressbar,
+                        tensor_meta=self.meta,
+                    )
+                    dtype = tensor.dtype
+                    if dtype:
+                        if isinstance(vs, np.ndarray):
+                            vs = cast_to_type(vs, dtype)
+                        else:
+                            vs = [cast_to_type(v, dtype) for v in vs]
+                    updated_tensors[k] = tensor.num_samples
+                    tensor.extend(vs)
+        except Exception as e:
+            for k, num_samples in updated_tensors.items():
                 tensor = self.version_state["full_tensors"][k]
-                func_name = v["extend"]
-                if func_name == "extend_shape":
-                    has_shape_tensor = True
-                func = get_link_transform(func_name)
-                vs = func(
-                    samples,
-                    factor=tensor.info.downsampling_factor
-                    if func == extend_downsample
-                    else None,
-                    compression=self.meta.sample_compression,
-                    htype=self.htype,
-                    link_creds=self.link_creds,
-                    progressbar=progressbar,
-                    tensor_meta=self.meta,
-                )
-                dtype = tensor.dtype
-                if dtype:
-                    if isinstance(vs, np.ndarray):
-                        vs = cast_to_type(vs, dtype)
-                    else:
-                        vs = [cast_to_type(v, dtype) for v in vs]
-                tensor.extend(vs)
+                num_samples_added = tensor.num_samples - num_samples
+                for _ in range(num_samples_added):
+                    tensor.pop()
+            raise
+
         # if self.meta.is_link and not has_shape_tensor:
         #     func = get_link_transform("extend_shape")
         #     func(samples, tensor_meta=self.meta)
@@ -1339,7 +1353,7 @@ class Tensor:
     def list(self, fetch_chunks: bool = False):
         """Return list data. Only applicable for tensors with 'list' base htype."""
         if self.base_htype != "list":
-            raise Exception(f"Only supported for list tensors.")
+            raise Exception("Only supported for list tensors.")
 
         if self.ndim == 1:
             return list(self.numpy(fetch_chunks=fetch_chunks))
@@ -1349,14 +1363,14 @@ class Tensor:
     def path(self, fetch_chunks: bool = False):
         """Return path data. Only applicable for linked tensors"""
         if not self.is_link:
-            raise Exception(f"Only supported for linked tensors.")
+            raise Exception("Only supported for linked tensors.")
         assert isinstance(self.chunk_engine, LinkedChunkEngine)
         return self.chunk_engine.path(self.index, fetch_chunks=fetch_chunks)
 
     def creds_key(self):
         """Return path data. Only applicable for linked tensors"""
         if not self.is_link:
-            raise Exception(f"Only supported for linked tensors.")
+            raise Exception("Only supported for linked tensors.")
         if self.index.values[0].subscriptable() or len(self.index.values) > 1:
             raise ValueError("_linked_sample can be used only on exatcly 1 sample.")
         assert isinstance(self.chunk_engine, LinkedChunkEngine)
