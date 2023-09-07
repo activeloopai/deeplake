@@ -236,47 +236,58 @@ class LinkedChunkEngine(ChunkEngine):
     def verify(self):
         return self.tensor_meta.is_link and self.tensor_meta.verify
 
-    def check_each_sample(self, samples, verify=True):
+    def check_each_sample(self, samples, verify=True, ignore_errors=False):
         link_creds = self.link_creds
         verified_samples = []
+        skipped = []
         for i, sample in enumerate(samples):
-            if isinstance(sample, deeplake.core.tensor.Tensor) and sample.is_link:
-                sample = sample._linked_sample()
-                samples[i] = sample
-            elif (
-                not isinstance(sample, (LinkedSample, LinkedTiledSample))
-                and sample is not None
-            ):
-                raise TypeError(
-                    f"Expected LinkedSample or LinkedTiledSample, got {type(sample)} instead. Use deeplake.link() to link samples or deeplake.link_tiled() to link multiple images as tiles."
-                )
-
-            path, creds_key = get_path_creds_key(sample)
-
-            # verifies existence of creds_key
-            if verify:
-                link_creds.get_encoding(creds_key, path)
-
-            if sample is None or sample.path == "":
-                verified_samples.append(sample)
-            elif isinstance(sample, LinkedTiledSample):
-                verify_samples = self.verify and verify
-                sample.set_check_tile_shape(self.link_creds, verify_samples)
-                sample.set_sample_shape()
-                verified_samples.append(sample)
-            else:
-                try:
-                    _verify = verify and self.verify
-                    verified_samples.append(
-                        read_linked_sample(
-                            sample.path,
-                            sample.creds_key,
-                            self.link_creds,
-                            verify=_verify,
-                        )
+            try:
+                if isinstance(sample, deeplake.core.tensor.Tensor) and sample.is_link:
+                    sample = sample._linked_sample()
+                    samples[i] = sample
+                elif (
+                    not isinstance(sample, (LinkedSample, LinkedTiledSample))
+                    and sample is not None
+                ):
+                    raise TypeError(
+                        f"Expected LinkedSample or LinkedTiledSample, got {type(sample)} instead. Use deeplake.link() to link samples or deeplake.link_tiled() to link multiple images as tiles."
                     )
-                except Exception as e:
-                    raise BadLinkError(sample.path, sample.creds_key) from e
+
+                path, creds_key = get_path_creds_key(sample)
+
+                # verifies existence of creds_key
+                if verify:
+                    link_creds.get_encoding(creds_key, path)
+
+                if sample is None or sample.path == "":
+                    verified_samples.append(sample)
+                elif isinstance(sample, LinkedTiledSample):
+                    verify_samples = self.verify and verify
+                    sample.set_check_tile_shape(self.link_creds, verify_samples)
+                    sample.set_sample_shape()
+                    verified_samples.append(sample)
+                else:
+                    try:
+                        _verify = verify and self.verify
+                        verified_samples.append(
+                            read_linked_sample(
+                                sample.path,
+                                sample.creds_key,
+                                self.link_creds,
+                                verify=_verify,
+                            )
+                        )
+                    except Exception as e:
+                        raise BadLinkError(sample.path, sample.creds_key) from e
+            except Exception:
+                if ignore_errors:
+                    skipped.append(i)
+                    continue
+                raise
+
+        for i in reversed(skipped):
+            samples.pop(i)
+
         return verified_samples
 
     def register_new_creds(self, num_samples_added, samples):

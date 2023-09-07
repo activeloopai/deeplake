@@ -28,6 +28,7 @@ class SampleTiles:
         dtype: Optional[Union[np.dtype, str]] = None,
     ):
         self.tiles_yielded = 0
+        self.dtype = dtype
         if arr is not None:
             self._init_from_array(
                 arr,
@@ -124,6 +125,10 @@ class SampleTiles:
     @property
     def is_last_write(self) -> bool:
         return self.tiles_yielded == self.num_tiles
+
+    @property
+    def shape(self):
+        return self.sample_shape
 
     def yield_tile(self):
         self.tiles_yielded += 1
