@@ -399,7 +399,7 @@ def test_rate_limited_send(local_path):
         processed_tensors=processed_tensors,
         dataset=dataset,
         batch_byte_size=TARGET_BYTE_SIZE,
-        rate_limiter={"turn_on": True, "bytes_per_minute": MAX_BYTES_PER_MINUTE},
+        rate_limiter={"enable": True, "bytes_per_minute": MAX_BYTES_PER_MINUTE},
     )
     end_time = time.time()
 
