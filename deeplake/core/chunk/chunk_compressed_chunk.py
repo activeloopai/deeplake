@@ -36,7 +36,7 @@ class ChunkCompressedChunk(BaseChunk):
         self._changed = False
         self._compression_ratio = 0.5
 
-    def extend_if_has_space(self, incoming_samples: List[InputSample], update_tensor_meta: bool = True, lengths: Optional[List[int]] = None) -> float:  # type: ignore
+    def extend_if_has_space(self, incoming_samples: List[InputSample], update_tensor_meta: bool = True, lengths: Optional[List[int]] = None, ignore_errors: bool = False) -> float:  # type: ignore
         self.prepare_for_write()
         if lengths is not None:  # this is triggered only for htype == "text"
             return self.extend_if_has_space_byte_compression_text(
@@ -48,10 +48,14 @@ class ChunkCompressedChunk(BaseChunk):
                     incoming_samples, update_tensor_meta
                 )
             return self.extend_if_has_space_byte_compression(
-                incoming_samples, update_tensor_meta=update_tensor_meta
+                incoming_samples,
+                update_tensor_meta=update_tensor_meta,
+                ignore_errors=ignore_errors,
             )
         return self.extend_if_has_space_image_compression(
-            incoming_samples, update_tensor_meta=update_tensor_meta
+            incoming_samples,
+            update_tensor_meta=update_tensor_meta,
+            ignore_errors=ignore_errors,
         )
 
     def extend_if_has_space_byte_compression_text(
@@ -226,19 +230,28 @@ class ChunkCompressedChunk(BaseChunk):
         self,
         incoming_samples: List[InputSample],
         update_tensor_meta: bool = True,
+        ignore_errors: bool = False,
     ):
         num_samples = 0
+        skipped: List[int] = []
 
         for i, incoming_sample in enumerate(incoming_samples):
-            serialized_sample, shape = self.serialize_sample(
-                incoming_sample,
-                chunk_compression=self.compression,
-                store_uncompressed_tiles=True,
-            )
+            try:
+                serialized_sample, shape = self.serialize_sample(
+                    incoming_sample,
+                    chunk_compression=self.compression,
+                    store_uncompressed_tiles=True,
+                )
 
-            if shape is not None:
-                self.num_dims = self.num_dims or len(shape)
-                check_sample_shape(shape, self.num_dims)
+                if shape is not None:
+                    self.num_dims = self.num_dims or len(shape)
+                    check_sample_shape(shape, self.num_dims)
+            except Exception:
+                if ignore_errors:
+                    if not isinstance(incoming_sample, SampleTiles):
+                        skipped.append(i)
+                        continue
+                raise
 
             # for tiles we do not need to check
             if isinstance(serialized_sample, SampleTiles):
@@ -284,23 +297,34 @@ class ChunkCompressedChunk(BaseChunk):
                 sample_nbytes, shape, update_tensor_meta=update_tensor_meta
             )
             num_samples += 1
+
+        for i in reversed(skipped):
+            incoming_samples.pop(i)
         return num_samples
 
     def extend_if_has_space_image_compression(
         self,
         incoming_samples: List[InputSample],
         update_tensor_meta: bool = True,
+        ignore_errors: bool = False,
     ):
         num_samples = 0
         num_decompressed_bytes = sum(
             x.nbytes for x in self.decompressed_samples  # type: ignore
         )
+        skipped: List[int] = []
 
         for i, incoming_sample in enumerate(incoming_samples):
-            incoming_sample, shape = self.process_sample_img_compr(incoming_sample)
+            try:
+                incoming_sample, shape = self.process_sample_img_compr(incoming_sample)
 
-            if shape is not None and self.is_empty_tensor and len(shape) != 3:
-                self.change_dimensionality(shape)
+                if shape is not None and self.is_empty_tensor and len(shape) != 3:
+                    self.change_dimensionality(shape)
+            except Exception:
+                if ignore_errors:
+                    skipped.append(i)
+                    continue
+                raise
 
             if isinstance(incoming_sample, SampleTiles):
                 incoming_samples[i] = incoming_sample  # type: ignore
@@ -348,6 +372,9 @@ class ChunkCompressedChunk(BaseChunk):
                 None, shape, update_tensor_meta=update_tensor_meta
             )
             num_samples += 1
+
+        for i in reversed(skipped):
+            incoming_samples.pop(i)
         return num_samples
 
     def _get_partial_sample_tile(self, as_bytes=None):
