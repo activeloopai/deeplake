@@ -1739,7 +1739,8 @@ class ChunkEngine:
         buffer = chunk.memoryview_data
         if not buffer:
             return b""
-        if self.is_sequence and self.sequence_encoder is not None:
+        if self.is_sequence:
+            assert self.sequence_encoder is not None
             start_idx, end_idx = self.sequence_encoder[global_sample_index]
             end_idx -= 1
             start_idx, end_idx = map(
@@ -2242,7 +2243,8 @@ class ChunkEngine:
         sample_id: Optional[int] = None,
     ):
         if global_sample_index is None:
-            if self.is_sequence and self.sequence_encoder is not None:
+            if self.is_sequence:
+                assert self.sequence_encoder is not None
                 global_sample_index = self.sequence_encoder.num_samples - 1
             else:
                 global_sample_index = self.num_samples - 1
@@ -2263,7 +2265,8 @@ class ChunkEngine:
             link_callback(global_sample_index)
 
         self.commit_diff.pop(global_sample_index, sample_id)
-        if self.is_sequence and self.sequence_encoder is not None:
+        if self.is_sequence:
+            assert self.sequence_encoder is not None
             # pop in reverse order else indices get shifted
             for idx in reversed(range(*self.sequence_encoder[global_sample_index])):
                 self.pop_item(idx)
