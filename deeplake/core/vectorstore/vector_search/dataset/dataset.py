@@ -422,6 +422,10 @@ def extend(
         processed_tensors (Dict[str, List[Any]]): Dictionary of tensors to be added to the dataset.
         dataset (deeplake.core.dataset.Dataset): Dataset to be extended.
 
+    Raises:
+        IncorrectEmbeddingShapeError: If embeding function shapes is incorrect.
+        ValueError: If embedding function returned empty list
+
     """
     if embedding_function:
         for func, data, tensor in zip(

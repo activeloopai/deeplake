@@ -602,7 +602,9 @@ def test_pytorch_collate(local_ds, shuffle, buffer_size):
 
 @pytest.mark.slow
 @requires_torch
-@pytest.mark.parametrize("shuffle", [True, pytest.param(False, marks=pytest.mark.skip("causing lockups"))])
+@pytest.mark.parametrize(
+    "shuffle", [True, pytest.param(False, marks=pytest.mark.skip("causing lockups"))]
+)
 @pytest.mark.flaky
 def test_pytorch_transform_collate(local_ds, shuffle):
     local_ds.create_tensor("a")
