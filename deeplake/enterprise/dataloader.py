@@ -54,7 +54,7 @@ itertools.islice = deeplake_islice  # type: ignore
 
 
 # Load lazy to avoid cycylic import.
-INDRA_LOADER = None
+INDRA_LOADER = None # type: ignore
 
 
 def indra_available() -> bool:
@@ -205,7 +205,7 @@ class DeepLakeDataLoader(DataLoader):
     def batch_sampler(self):
         return (
             BatchSampler(self.sampler, self.batch_size, self.drop_last)
-            if BatchSampler
+            if BatchSampler is not None
             else None
         )
 
@@ -640,8 +640,8 @@ class DeepLakeDataLoader(DataLoader):
             )
 
             num_suboptimal_threads = (
-                int(INDRA_API.num_available_threads() / num_devices)
-                if INDRA_API is not None and num_devices is not None
+                int(INDRA_API.num_available_threads() / num_devices) # type: ignore [name-defined]
+                if INDRA_API is not None and num_devices is not None # type: ignore [name-defined]
                 else None
             )
             return num_suboptimal_threads
@@ -697,7 +697,7 @@ class DeepLakeDataLoader(DataLoader):
                 "preserving the offset for resuming iteration at a predictable index and order, please set a random seed using deeplake.random()"
             )
 
-        return INDRA_LOADER(
+        return INDRA_LOADER( # type: ignore [misc]
             indra_dataset,
             batch_size=self._batch_size,
             num_threads=num_threads,
