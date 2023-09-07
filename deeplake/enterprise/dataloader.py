@@ -394,8 +394,9 @@ class DeepLakeDataLoader(DataLoader):
 
     def close(self):
         """Shuts down the workers and releases the resources."""
+        if self._internal_iterator is not None:
+            self._internal_iterator = None
         if self._dataloader is not None:
-            self._dataloader.close()
             self._dataloader = None
 
     def pytorch(
@@ -709,8 +710,10 @@ class DeepLakeDataLoader(DataLoader):
                 )
         dataset_read(self._orig_dataset)
 
+
         if self._internal_iterator is not None:
             self._internal_iterator = iter(self._internal_iterator)
+
         return self
 
     def __next__(self):
@@ -719,6 +722,9 @@ class DeepLakeDataLoader(DataLoader):
         if self._internal_iterator is None:
             self._internal_iterator = iter(self._dataloader)
         return next(self._internal_iterator)
+
+    def __del__(self):
+        self.close()
 
 
 def dataloader(dataset, ignore_errors: bool = False) -> DeepLakeDataLoader:
