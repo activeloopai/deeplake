@@ -9,7 +9,7 @@ class PartialSample:
         self,
         sample_shape: Tuple[int, ...],
         tile_shape: Optional[Tuple[int, ...]] = None,
-        dtype: Union[str, np.dtype] = np.dtype("uint8"),
+        dtype: Optional[Union[str, np.dtype]] = np.dtype("uint8"),
     ):
         self.sample_shape = sample_shape
         self.tile_shape = tile_shape
