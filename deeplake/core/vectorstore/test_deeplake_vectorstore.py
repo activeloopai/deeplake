@@ -1855,29 +1855,26 @@ def test_exec_option_cli(
 
 @requires_libdeeplake
 @pytest.mark.parametrize(
-    "generator",
+    "path",
     [
-        "s3_ds_generator",
-        "gcs_ds_generator",
-        "azure_ds_generator",
+        "s3_path",
+        "gcs_path",
+        "azure_path",
     ],
+    indirect=True,
 )
 def test_exec_option_with_connected_datasets(
     hub_cloud_dev_token,
     hub_cloud_path,
     hub_cloud_dev_managed_creds_key,
-    generator,
+    path,
 ):
-    ds = generator()
-    ds.create_tensor("x")
-    ds.x.append(10)
+    db = VectorStore(path, overwrite=True)
 
-    ds.connect(
+    db.dataset.connect(
         creds_key=hub_cloud_dev_managed_creds_key,
         dest_path=hub_cloud_path,
         token=hub_cloud_dev_token,
     )
-    ds.add_creds_key(hub_cloud_dev_managed_creds_key, managed=True)
-
-    db = VectorStore(path=hub_cloud_path)
+    db.dataset.add_creds_key(hub_cloud_dev_managed_creds_key, managed=True)
     assert db.exec_option == "compute_engine"

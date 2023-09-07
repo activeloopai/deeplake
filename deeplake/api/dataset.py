@@ -1,6 +1,7 @@
 import os
 
 import deeplake
+import jwt
 import pathlib
 import posixpath
 from typing import Dict, Optional, Union, List
@@ -11,7 +12,7 @@ from deeplake.auto.unstructured.coco.coco import CocoDataset
 from deeplake.auto.unstructured.yolo.yolo import YoloDataset
 from deeplake.client.client import DeepLakeBackendClient
 from deeplake.client.log import logger
-from deeplake.client.utils import read_token
+from deeplake.client.utils import get_user_name, read_token
 from deeplake.core.dataset import Dataset, dataset_factory
 from deeplake.core.tensor import Tensor
 from deeplake.core.meta.dataset_meta import DatasetMeta
@@ -362,6 +363,7 @@ class dataset:
         lock_enabled: Optional[bool] = True,
         lock_timeout: Optional[int] = 0,
         verbose: bool = True,
+        username: str = "public",
     ) -> Dataset:
         """Creates an empty dataset
 
@@ -384,7 +386,8 @@ class dataset:
             org_id (str, Optional): Organization id to be used for enabling enterprise features. Only applicable for local datasets.
             verbose (bool): If True, logs will be printed. Defaults to True.
             lock_timeout (int): Number of seconds to wait before throwing a LockException. If None, wait indefinitely
-            lock_enabled (bool): If true, the dataset manages a write lock. NOTE: Only set to False if you are managing concurrent access externally
+            lock_enabled (bool): If true, the dataset manages a write lock. NOTE: Only set to False if you are managing concurrent access externally.
+            username (str): Username to be used for creating a dataset in the Deep Lake Tensor Database.
         Returns:
             Dataset: Dataset created using the arguments provided.
 
@@ -425,12 +428,6 @@ class dataset:
                 local_cache_size=local_cache_size,
             )
 
-            token = token or read_token(from_env=True)
-            if token is not None and org_id is None:
-                # for local datasets
-                client = DeepLakeBackendClient(token=token)
-                org_id = client.get_user_profile()["name"]
-
             feature_report_path(
                 path,
                 "empty",
@@ -441,7 +438,7 @@ class dataset:
                     "lock_timeout": lock_timeout,
                 },
                 token=token,
-                username=org_id or "public",
+                username=username,
             )
         except Exception as e:
             if isinstance(e, UserNotLoggedInException):
@@ -488,6 +485,7 @@ class dataset:
         check_integrity: bool = True,
         lock_timeout: Optional[int] = 0,
         lock_enabled: Optional[bool] = True,
+        username: str = "public",
     ) -> Dataset:
         """Loads an existing dataset
 
@@ -553,6 +551,7 @@ class dataset:
             reset (bool): If the specified dataset cannot be loaded due to a corrupted HEAD state of the branch being loaded,
                           setting ``reset=True`` will reset HEAD changes and load the previous version.
             check_integrity (bool): If the param is True it will do integrity check during dataset loading otherwise the check is not performed
+            username: (str): Username to be used for creating a dataset in the Deep Lake Tensor Database.
 
         ..
             # noqa: DAR101
@@ -605,6 +604,7 @@ class dataset:
                 "load",
                 {"lock_enabled": lock_enabled, "lock_timeout": lock_timeout},
                 token=token,
+                username=username,
             )
         except Exception as e:
             if isinstance(e, UserNotLoggedInException):

@@ -1,6 +1,7 @@
 import logging
 import pathlib
 from typing import Optional, Any, Iterable, List, Dict, Union, Callable
+import jwt
 
 import numpy as np
 
@@ -16,7 +17,7 @@ from deeplake.constants import (
     DEFAULT_VECTORSTORE_TENSORS,
 )
 from deeplake.client.client import DeepLakeBackendClient
-from deeplake.client.utils import read_token
+from deeplake.client.utils import get_user_name, read_token
 from deeplake.core.vectorstore import utils
 from deeplake.core.vectorstore.vector_search import vector_search
 from deeplake.core.vectorstore.vector_search import dataset as dataset_utils
@@ -110,11 +111,9 @@ class VectorStore:
             Setting ``overwrite`` to ``True`` will delete all of your data if the Vector Store exists! Be very careful when setting this parameter.
         """
         token = token or read_token(from_env=True)
-        if token is not None and org_id is None:
-            # for local datasets
-            client = DeepLakeBackendClient(token=token)
-            org_id = client.get_user_profile()["name"]
-            # if org_id is None and
+        username = "public"
+        if token is not None:
+            username = jwt.decode(token, options={"verify_signature": False})["id"]
 
         feature_report_path(
             path,
@@ -134,7 +133,7 @@ class VectorStore:
                 "runtime": runtime,
             },
             token=token,
-            username=org_id,
+            username=username,
         )
 
         self.ingestion_batch_size = ingestion_batch_size
@@ -155,16 +154,13 @@ class VectorStore:
             overwrite,
             runtime,
             org_id,
+            username,
             **kwargs,
         )
         self.embedding_function = embedding_function
-        start = time()
         self.exec_option = utils.parse_exec_option(
-            self.dataset, exec_option, _INDRA_INSTALLED, token, org_id
+            self.dataset, exec_option, _INDRA_INSTALLED, username
         )
-        # self.exec_option = "python"
-        end = time()
-        print("finished parsing exec option in ", end - start)
         self.verbose = verbose
         self.tensor_params = tensor_params
 

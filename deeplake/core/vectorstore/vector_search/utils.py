@@ -59,26 +59,18 @@ class ExecOptionBase(ABC):
             token = token or self.client.get_token()
         return token
 
-    def get_response(self):
-        response = self.client.has_indra_org_permission(self.org_id)
-        return response.get("available", False)
-
     @abstractmethod
     def get_exec_option(self):
         return NotImplementedError()
 
-    @abstractmethod
-    def get_org_id(self):
-        return NotImplementedError()
-
 
 class ExecOptionCloudDataset(ExecOptionBase):
-    def __init__(self, dataset, indra_installed, org_id):
+    def __init__(self, dataset, indra_installed, username):
         self.dataset = dataset
         self.indra_installed = indra_installed
         self.client = dataset.client
         self.token = self.dataset.token
-        self.org_id = self.get_org_id()
+        self.username = username
 
     def get_exec_option(self):
         # option 1: dataset is created in vector_db:
@@ -93,48 +85,38 @@ class ExecOptionCloudDataset(ExecOptionBase):
         elif (
             isinstance(self.dataset, (DeepLakeCloudDataset))
             and self.indra_installed
-            and self.get_response()
+            and self.username != "public"
         ):
             return "compute_engine"
         else:
             return "python"
 
-    def get_org_id(self):
-        return self.dataset.org_id
-
 
 class ExecOptionLocalDataset(ExecOptionBase):
-    def __init__(self, dataset, indra_installed, org_id):
+    def __init__(self, dataset, indra_installed, username):
         self.dataset = dataset
         self.indra_installed = indra_installed
         self.token = self.dataset.token
-        self.org_id = org_id
-
-    def get_org_id(self):
-        if self.org_id is None and self.token:
-            return jwt.decode(self.token, options={"verify_signature": False})["id"]
-        return self.org_id
+        self.username = username
 
     def get_exec_option(self):
         if self.token is None:
             return "python"
 
-        self.org_id = self.get_org_id()
-
-        if self.indra_installed and self.get_response():
+        if self.indra_installed and self.username != "public":
             return "compute_engine"
         return "python"
 
 
-def exec_option_factory(dataset, indra_installed, org_id):
+def exec_option_factory(dataset, indra_installed, username):
     if dataset.client is None:
-        return ExecOptionLocalDataset(dataset, indra_installed, org_id)
-    return ExecOptionCloudDataset(dataset, indra_installed, org_id)
+        return ExecOptionLocalDataset(dataset, indra_installed, username)
+    return ExecOptionCloudDataset(dataset, indra_installed, username)
 
 
-def parse_exec_option(dataset, exec_option, indra_installed, org_id):
+def parse_exec_option(dataset, exec_option, indra_installed, username):
     if exec_option is None or exec_option == "auto":
-        exec_option = exec_option_factory(dataset, indra_installed, org_id)
+        exec_option = exec_option_factory(dataset, indra_installed, username)
         return exec_option.get_exec_option()
     return exec_option
 
