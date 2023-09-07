@@ -1,10 +1,11 @@
 import math
-from typing import List
+from typing import List, Sequence, Union, Any
 import warnings
 import numpy as np
 from collections import defaultdict
 from deeplake.core.meta.encode.chunk_id import ChunkIdEncoder
 from deeplake.core.seed import DeeplakeRandom
+import deeplake.core.dataset
 
 
 def find_primary_tensor(dataset):
@@ -20,8 +21,14 @@ def find_primary_tensor(dataset):
     return primary_tensor_name
 
 
-def create_fetching_schedule(dataset, primary_tensor_name, shuffle_within_chunks=False):
+def create_fetching_schedule(
+    dataset: "deeplake.core.dataset.Dataset",
+    primary_tensor_name: str,
+    shuffle_within_chunks: bool = False,
+):
     slice_ = dataset.index.values[0].value
+    index_struct: Union[set, dict, None] = None
+
     if isinstance(slice_, int):
         return None
     elif isinstance(slice_, slice):
@@ -41,7 +48,7 @@ def create_fetching_schedule(dataset, primary_tensor_name, shuffle_within_chunks
     prev_state = np.random.get_state()
     np.random.seed(DeeplakeRandom().get_seed())
     chunk_order = np.random.choice(num_chunks, num_chunks, replace=False)
-    schedule = []
+    schedule: List[Any] = []
     for chunk_idx in chunk_order:
         start_index = int(enc_array[chunk_idx - 1][1]) + 1 if chunk_idx > 0 else 0
         last_index = int(enc_array[chunk_idx][1]) + 1
@@ -53,13 +60,15 @@ def create_fetching_schedule(dataset, primary_tensor_name, shuffle_within_chunks
     if isinstance(index_struct, set):
         schedule = [int(idx) for idx in schedule if idx in index_struct]
     elif isinstance(index_struct, dict):
-        idxs = filter(lambda idx: idx in index_struct, schedule)
+        idxs = filter(lambda idx: idx in index_struct, schedule)  # type: ignore
         schedule = [int(idx) for idx in idxs for _ in range(index_struct[idx])]
     np.random.set_state(prev_state)
     return schedule
 
 
-def calculate_absolute_lengths(percent_lengths, absolute_length):
+def calculate_absolute_lengths(
+    percent_lengths: Sequence[Union[int, float]], absolute_length: int
+):
     subset_lengths: List[int] = []
     for i, frac in enumerate(percent_lengths):
         if frac < 0 or frac > 1:

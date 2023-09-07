@@ -1,3 +1,4 @@
+import deeplake.core.dataset
 from contextlib import contextmanager
 from collections import defaultdict
 from typing import Dict, List, Optional, Set, Tuple
@@ -234,7 +235,9 @@ def get_changes_commit_ids_for_node(
     return changes_commit_map
 
 
-def get_tensor_commit_diff(dataset, tensor_key, commit_id):
+def get_tensor_commit_diff(
+    dataset: "deeplake.core.dataset.Dataset", tensor_key: str, commit_id: str
+):
     diff_key = get_tensor_commit_diff_key(tensor_key, commit_id)
     diff: Optional[CommitDiff]
     try:
@@ -374,7 +377,7 @@ def find_updated_and_conflicts(
     target_id_changes_commit_map,
     original_id_to_index_map,
     target_id_to_index_map,
-) -> Tuple[List[Tuple[int, int]], List[Tuple[int, int]]]:
+) -> Tuple[List[Tuple[int, int]], List[Tuple[int, int]], List[int]]:
     """Finds the conflicts between the original commit and target id.
 
     Args:

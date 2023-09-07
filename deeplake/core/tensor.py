@@ -1112,6 +1112,7 @@ class Tensor:
 
             if flat_links:
                 seq_enc = self.chunk_engine.sequence_encoder
+                assert seq_enc is not None
                 for link in flat_links:
                     link_tensor = self.dataset[rev_tensor_names.get(link)]
                     for idx in reversed(range(*seq_enc[global_sample_index])):
@@ -1159,6 +1160,7 @@ class Tensor:
         if self.is_sequence:
 
             def get_sample_shape(global_sample_index: int):
+                assert self.chunk_engine.sequence_encoder is not None
                 seq_pos = slice(
                     *self.chunk_engine.sequence_encoder[global_sample_index]
                 )
@@ -1179,6 +1181,7 @@ class Tensor:
 
     def _get_sample_info_at_index(self, global_sample_index: int, sample_info_tensor):
         if self.is_sequence:
+            assert self.chunk_engine.sequence_encoder is not None
             return [
                 sample_info_tensor[i].data()
                 for i in range(*self.chunk_engine.sequence_encoder[global_sample_index])

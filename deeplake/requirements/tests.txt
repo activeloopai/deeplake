@@ -15,6 +15,7 @@ darglint
 typing_extensions>=3.10.0.0
 types-requests
 types-click
+types-tqdm
 boto3-stubs[essential]
 
 lz4
