@@ -80,6 +80,9 @@ class DatasetEntry:
     def validate(self, allow_local: bool = False) -> None:
         """Validates the attributes to make that dataset at ``src_path`` can be connected.
 
+        Args:
+            allow_local (bool): If local path is allowd to connect. Defaults to ``True``.
+
         Raises:
             InvalidSourcePathError: If the ``src_path`` is not a valid s3, gcs or azure path.
         """
