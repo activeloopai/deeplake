@@ -109,6 +109,7 @@ class VectorStore:
         """
         self.token = token or read_token(from_env=True)
         self.username = "public"
+        self.path = path
         if self.token is not None:
             self.username = jwt.decode(self.token, options={"verify_signature": False})[
                 "id"
@@ -245,7 +246,8 @@ class VectorStore:
             Optional[List[str]]: List of ids if ``return_ids`` is set to True. Otherwise, None.
         """
 
-        deeplake_reporter.feature_report(
+        feature_report_path(
+            path=self.path,
             feature_name="vs.add",
             parameters={
                 "tensors": list(tensors.keys()) if tensors else None,
@@ -381,7 +383,8 @@ class VectorStore:
             Dict: Dictionary where keys are tensor names and values are the results of the search
         """
 
-        deeplake_reporter.feature_report(
+        feature_report_path(
+            path=self.path,
             feature_name="vs.search",
             parameters={
                 "embedding_data": True if embedding_data is not None else False,
@@ -497,7 +500,8 @@ class VectorStore:
             ValueError: If neither ``ids``, ``filter``, ``query``, nor ``delete_all`` are specified, or if an invalid ``exec_option`` is provided.
         """
 
-        deeplake_reporter.feature_report(
+        feature_report_path(
+            path=self.path,
             feature_name="vs.delete",
             parameters={
                 "ids": True if ids is not None else False,
@@ -593,7 +597,8 @@ class VectorStore:
             embedding_source_tensor (Union[str, List[str]], optional): Name of tensor with data that needs to be converted to embeddings. Defaults to `text`.
             embedding_tensor (Optional[Union[str, List[str]]], optional): Name of the tensor with embeddings. Defaults to None.
         """
-        deeplake_reporter.feature_report(
+        feature_report_path(
+            path=self.path,
             feature_name="vs.delete",
             parameters={
                 "ids": True if ids is not None else False,
