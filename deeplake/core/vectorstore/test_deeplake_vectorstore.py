@@ -1842,7 +1842,7 @@ def test_exec_option_cli(
 
     # local dataset and logged out with cli
     db = VectorStore(
-        path=hub_cloud_path,
+        path=local_path,
     )
     assert db.exec_option == "python"
 
