@@ -404,8 +404,8 @@ def delete_branch(
     branch_name: str,
 ) -> None:
     """
-    Deletes the branch reference and cleans up any unneeded data.
-    Branches can only be deleted if there are no sub-branches or if the branch has been merged into another branch ever.
+    Deletes the branch and cleans up any unneeded data.
+    Branches can only be deleted if there are no sub-branches and if it has never been merged into another branch.
     """
 
     storage = dataset.storage

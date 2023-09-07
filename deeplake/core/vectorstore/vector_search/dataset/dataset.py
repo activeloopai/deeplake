@@ -409,6 +409,11 @@ def extend(
         dataset (deeplake.core.dataset.Dataset): Dataset to be extended.
         batch_byte_size (int): Batch size to use for parallel ingestion.
         rate_limiter (Dict): Rate limiter configuration.
+
+    Raises:
+        IncorrectEmbeddingShapeError: If embeding function shapes is incorrect.
+        ValueError: If embedding function returned empty list
+
     """
     if embedding_function:
         for func, data, tensor in zip(

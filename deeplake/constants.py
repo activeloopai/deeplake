@@ -159,7 +159,8 @@ ALL_CLOUD_PREFIXES = (
     "gcp://",
     "gs://",
     "az://",
-    "azure://" "gdrive://",
+    "azure://",
+    "gdrive://",
 )
 
 _ENABLE_HUB_SUB_DATASETS = False

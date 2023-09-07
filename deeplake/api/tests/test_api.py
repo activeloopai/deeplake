@@ -46,7 +46,7 @@ from deeplake.util.path import convert_string_to_pathlib_if_needed, verify_datas
 from deeplake.util.testing import assert_array_equal
 from deeplake.util.pretty_print import summary_tensor, summary_dataset
 from deeplake.util.shape_interval import ShapeInterval
-from deeplake.constants import GDRIVE_OPT, MB
+from deeplake.constants import GDRIVE_OPT, MB, KB
 from deeplake.client.config import REPORTING_CONFIG_FILE_PATH
 
 from click.testing import CliRunner
@@ -90,7 +90,6 @@ def test_persist(ds_generator):
 
     ds2 = ds_generator()
 
-    ds2.storage["dataset_meta.json"] == ds_new.storage["dataset_meta.json"]
     assert len(ds2) == 4
     assert_array_equal(ds2.label.numpy(), np.array([[1], [2], [3], [4]]))
 
@@ -983,7 +982,6 @@ def test_dataset_deepcopy(path, hub_token, num_workers, progressbar):
     dest_path = "_".join((path, "dest1"))
 
     src_ds = deeplake.empty(src_path, overwrite=True, token=hub_token)
-    # dest_ds = deeplake.empty(dest_path, overwrite=True, token=hub_token)
 
     with src_ds:
         src_ds.info.update(key=0)
@@ -1922,7 +1920,9 @@ def test_dataset_copy(
     [
         ("local_ds_generator", "local_path", "hub_cloud_dev_token"),
         pytest.param(
-            "s3_ds_generator", "s3_path", "hub_cloud_dev_token",
+            "s3_ds_generator",
+            "s3_path",
+            "hub_cloud_dev_token",
             marks=pytest.mark.slow,
         ),
         pytest.param(
@@ -2859,24 +2859,51 @@ def test_dataset_extend_error_suggestion(local_ds):
     ) in str(e)
 
 
-def test_extend_rollbacks(local_ds):
+def test_extend_rollbacks(local_ds, lfpw_links):
     with local_ds as ds:
         ds.create_tensor("images", htype="image", sample_compression="jpg")
-
-        # Broken LFPW links
-        links = [
-            "http://cm1.theinsider.com/media/0/428/93/spl41194_011.0.0.0x0.636x912.jpeg",
-            "http://cm1.theinsider.com/media/0/428/93/spl47823_060.0.0.0x0.633x912.jpeg",
-            "http://cm1.theinsider.com/media/0/428/90/spl91520_012.0.0.0x0.636x912.jpeg",
-            "http://blog.themavenreport.com/wp-content/uploads/2008/02/kimora_show_575.jpg",
-            "http://cache.thephoenix.com/secure/uploadedImages/The_Phoenix/Movies/Reviews/FILM_Queen_6.jpg",
-            "http://www.todoelmundo.org/archivos/99/imagenes/En_america.jpg",
-            "http://image.toutlecine.com/photos/b/l/o/blood-diamond-2006-22-g.jpg",
-        ]
-
         ds.extend(
-            {"images": [deeplake.read(link) for link in links]}, ignore_errors=True
+            {"images": [deeplake.read(link) for link in lfpw_links]},
+            ignore_errors=True,
         )
+
+    # Commit should work
+    ds.commit()
+
+
+@pytest.mark.parametrize(
+    "compression_args",
+    [
+        {"sample_compression": None},
+        {"sample_compression": "jpg"},
+        {"chunk_compression": "jpg"},
+    ],
+)
+def test_tensor_extend_ignore(local_ds, lfpw_links, compression_args):
+    with local_ds as ds:
+        ds.create_tensor("images", htype="image", **compression_args)
+        ds.create_tensor(
+            "tiled_images",
+            htype="image",
+            tiling_threshold=1 * KB,
+            max_chunk_size=1 * KB,
+            **compression_args,
+        )
+        ds.create_tensor("seq_images", htype="sequence[image]", **compression_args)
+        ds.create_tensor("link_images", htype="link[image]", **compression_args)
+
+    images = [deeplake.read(link) for link in lfpw_links]
+    ds.images.extend(images, ignore_errors=True)
+    ds.tiled_images.extend(images, ignore_errors=True)
+
+    seqs = [
+        list(map(deeplake.read, lfpw_links[i : i + 2]))
+        for i in range(0, len(lfpw_links), 2)
+    ]
+    ds.seq_images.extend(seqs, ignore_errors=True)
+
+    links = [deeplake.link(link) for link in lfpw_links]
+    ds.link_images.extend(links, ignore_errors=True)
 
     # Commit should work
     ds.commit()

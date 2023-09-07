@@ -51,9 +51,8 @@ def _make_update_assert_equal(
     # this is necessary because `expected` uses `aslist=True` to handle dynamic cases.
     # with `aslist=False`, this wouldn't be necessary.
     expected_value = value
-    if hasattr(value, "__len__"):
-        if len(value) == 1:
-            expected_value = value[0]
+    if hasattr(value, "__len__") and len(value) == 1:
+        expected_value = value[0]
 
     # make updates
     tensor[index] = value
