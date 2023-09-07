@@ -1822,7 +1822,6 @@ def test_exec_option_cli(
 ):
     runner = CliRunner()
     username, password = hub_cloud_dev_credentials
-    runner.invoke(login, f"-u {username} -p {password}")
     # Testing exec_option with cli login and logout commands are executed
     runner.invoke(login, f"-u {username} -p {password}")
 
