@@ -13,7 +13,7 @@ class DeeplakeRandom(object):
     def seed(self, seed: Optional[int] = None):
         if seed is None or isinstance(seed, int):
             self.internal_seed = seed
-            if self.indra_api is None:
+            if self.indra_api is None:  # type: ignore
                 from deeplake.enterprise.convert_to_libdeeplake import (
                     import_indra_api_silent,
                 )
