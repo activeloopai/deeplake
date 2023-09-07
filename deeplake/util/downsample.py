@@ -1,6 +1,7 @@
 from typing import Optional, Union
 from PIL import Image  # type: ignore
 import deeplake
+from deeplake.core.tiling.sample_tiles import SampleTiles
 from deeplake.core.partial_sample import PartialSample
 from deeplake.core.linked_tiled_sample import LinkedTiledSample
 import numpy as np
@@ -58,7 +59,12 @@ def downsample_sample(
     try:
         if sample is None:
             return None
-        elif isinstance(sample, PartialSample):
+        elif isinstance(sample, SampleTiles):
+            sample = sample.arr or PartialSample(
+                sample.sample_shape, sample.tile_shape, sample.dtype
+            )
+
+        if isinstance(sample, PartialSample):
             return sample.downsample(factor)
         elif isinstance(sample, LinkedTiledSample):
             return downsample_link_tiled(sample, factor, compression, htype, link_creds)
