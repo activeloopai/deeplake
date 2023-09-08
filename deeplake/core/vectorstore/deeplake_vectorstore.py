@@ -14,6 +14,8 @@ except Exception:  # pragma: no cover
 import deeplake
 from deeplake.constants import (
     DEFAULT_VECTORSTORE_TENSORS,
+    MAX_BYTES_PER_MINUTE,
+    TARGET_BYTE_SIZE,
 )
 from deeplake.core.vectorstore import utils
 from deeplake.core.vectorstore.vector_search import vector_search
@@ -157,7 +159,11 @@ class VectorStore:
         embedding_data: Optional[Union[List, List[List]]] = None,
         embedding_tensor: Optional[Union[str, List[str]]] = None,
         return_ids: bool = False,
-        ingestion_batch_size: Optional[int] = None,
+        rate_limiter: Dict = {
+            "enabled": False,
+            "bytes_per_minute": MAX_BYTES_PER_MINUTE,
+        },
+        batch_byte_size: int = TARGET_BYTE_SIZE,
         **tensors,
     ) -> Optional[List[str]]:
         """Adding elements to deeplake vector store.
@@ -226,7 +232,8 @@ class VectorStore:
             embedding_data (Optional[List]): Data to be converted into embeddings using the provided ``embedding_function``. Defaults to None.
             embedding_tensor (Optional[str]): Tensor where results from the embedding function will be stored. If None, the embedding tensor is automatically inferred (when possible). Defaults to None.
             return_ids (bool): Whether to return added ids as an ouput of the method. Defaults to False.
-            ingestion_batch_size (int): Batch size to use for parallel ingestion. Defaults to 1000. Overrides the ``ingestion_batch_size`` specified when initializing the Vector Store.
+            rate_limiter (Dict): Rate limiter configuration. Defaults to ``{"enabled": False, "bytes_per_minute": MAX_BYTES_PER_MINUTE}``.
+            batch_byte_size (int): Batch size to use for parallel ingestion. Defaults to ``TARGET_BYTE_SIZE``.
             **tensors: Keyword arguments where the key is the tensor name, and the value is a list of samples that should be uploaded to that tensor.
 
         Returns:
@@ -280,10 +287,8 @@ class VectorStore:
             embedding_function=embedding_function,
             embedding_data=embedding_data,
             embedding_tensor=embedding_tensor,
-            ingestion_batch_size=ingestion_batch_size or self.ingestion_batch_size,
-            num_workers=0,
-            total_samples_processed=0,
-            logger=logger,
+            batch_byte_size=batch_byte_size,
+            rate_limiter=rate_limiter,
         )
 
         if self.verbose:
