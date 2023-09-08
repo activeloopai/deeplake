@@ -1,4 +1,6 @@
 from typing import Callable, Dict
+
+import numpy as np
 from deeplake.compression import (
     IMAGE_COMPRESSIONS,
     VIDEO_COMPRESSIONS,
@@ -113,6 +115,9 @@ class constraints:
     shape_error = (
         lambda htype, shape: f"Incompatible shape of tensor for htype {htype}: {shape}"
     )
+    dtype_error = (
+        lambda htype, dtype: f"Incompatible dtype of tensor for htype {htype}: {dtype}"
+    )
 
     @staticmethod
     def IMAGE(shape, dtype):
@@ -150,6 +155,8 @@ class constraints:
             raise IncompatibleHtypeError(
                 constraints.ndim_error("binary_mask", len(shape))
             )
+        if dtype != np.dtype("bool"):
+            raise IncompatibleHtypeError(constraints.dtype_error("binary_mask", dtype))
 
     SEGMENT_MASK = BINARY_MASK
 
