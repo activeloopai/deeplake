@@ -199,7 +199,11 @@ class DeepLakeDataLoader(DataLoader):
 
     @property
     def batch_sampler(self):
-        return BatchSampler(self.sampler, self.batch_size, self.drop_last) if BatchSampler else None
+        return (
+            BatchSampler(self.sampler, self.batch_size, self.drop_last)
+            if BatchSampler
+            else None
+        )
 
     @property
     def generator(self):
