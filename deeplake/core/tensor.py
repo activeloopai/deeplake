@@ -42,6 +42,7 @@ from deeplake.util.exceptions import (
     TensorDoesNotExistError,
     InvalidKeyTypeError,
     TensorAlreadyExistsError,
+    UnsupportedCompressionError,
 )
 from deeplake.util.iteration_warning import check_if_iteration
 from deeplake.hooks import dataset_read, dataset_written
@@ -63,7 +64,12 @@ from deeplake.util.object_3d.mesh import (
     parse_mesh_to_dict,
     get_mesh_vertices,
 )
-from deeplake.htype import HTYPE_CONVERSION_LHS, HTYPE_CONSTRAINTS
+from deeplake.util.htype import parse_complex_htype
+from deeplake.htype import (
+    HTYPE_CONVERSION_LHS,
+    HTYPE_CONSTRAINTS,
+    HTYPE_SUPPORTED_COMPRESSIONS,
+)
 import warnings
 import webbrowser
 
@@ -1392,6 +1398,9 @@ class Tensor:
         """Checks if the tensor is compatible with the given htype.
         Raises an error if not compatible.
         """
+        is_sequence, is_link, htype = parse_complex_htype(htype)
+        if is_sequence or is_link:
+            raise ValueError(f"Cannot change htype to a sequence or link.")
         _validate_htype_exists(htype)
         if self.htype not in HTYPE_CONVERSION_LHS:
             raise NotImplementedError(
@@ -1401,9 +1410,10 @@ class Tensor:
             raise NotImplementedError(
                 f"Changing the htype to {htype} is not supported."
             )
-        if self.meta.sample_compression or self.meta.chunk_compression:
-            raise NotImplementedError(
-                "Changing the htype of a compressed tensor is not supported."
-            )
+        compression = self.meta.sample_compression or self.meta.chunk_compression
+        if compression:
+            supported_compressions = HTYPE_SUPPORTED_COMPRESSIONS.get(htype)
+            if supported_compressions and compression not in supported_compressions:
+                raise UnsupportedCompressionError(compression, htype)
         constraints = HTYPE_CONSTRAINTS[htype]
         constraints(self.shape, self.dtype)
