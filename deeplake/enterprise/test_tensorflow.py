@@ -521,19 +521,20 @@ def test_tensorflow_decode(local_auth_ds, compressed_image_paths, compression):
 @pytest.mark.slow
 @pytest.mark.flaky
 def test_rename(local_auth_ds):
+    tensor_name = "red/green"
     with local_auth_ds as ds:
         ds.create_tensor("abc")
         ds.create_tensor("blue/green")
         ds.abc.append([1, 2, 3])
         ds.rename_tensor("abc", "xyz")
         ds.rename_group("blue", "red")
-        ds["red/green"].append([1, 2, 3, 4])
+        ds[tensor_name].append([1, 2, 3, 4])
     loader = ds.dataloader().tensorflow(return_index=False)
     for sample in loader:
-        assert set(sample.keys()) == {"xyz", "red/green"}
+        assert set(sample.keys()) == {"xyz", tensor_name}
         np.testing.assert_array_equal(np.array(sample["xyz"]), np.array([[1, 2, 3]]))
         np.testing.assert_array_equal(
-            np.array(sample["red/green"]), np.array([[1, 2, 3, 4]])
+            np.array(sample[tensor_name]), np.array([[1, 2, 3, 4]])
         )
 
 
@@ -650,7 +651,6 @@ def test_indexes_transform_dict(local_auth_ds, num_workers):
 @pytest.mark.slow
 @pytest.mark.flaky
 def test_indexes_tensors(local_auth_ds, num_workers):
-    shuffle = False
     with local_auth_ds as ds:
         ds.create_tensor("xyz")
         for i in range(8):
@@ -670,8 +670,6 @@ def test_indexes_tensors(local_auth_ds, num_workers):
         .batch(4)
         .tensorflow(num_workers=num_workers, return_index=True, tensors=["xyz"])
     )
-    if shuffle:
-        ptds = ptds.shuffle()
 
     for batch in ptds:
         assert batch.keys() == {"xyz", "index"}
@@ -705,13 +703,13 @@ def test_tensorflow_error_handling(local_auth_ds):
     ptds = ds.dataloader().tensorflow()
     with pytest.raises(EmptyTensorError):
         for _ in ptds:
-            pass
+            continue
 
     ptds = ds.dataloader().tensorflow(tensors=["x", "y"])
     with pytest.raises(EmptyTensorError):
         for _ in ptds:
-            pass
+            continue
 
     ptds = ds.dataloader().tensorflow(tensors=["x"])
     for _ in ptds:
-        pass
+        continue
