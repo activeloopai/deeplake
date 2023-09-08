@@ -3,7 +3,7 @@ from typing import Union
 import tensorflow  # type: ignore
 import tensorflow_datasets as tfds  # type: ignore
 from tensorflow_datasets import Split
-from tqdm import tqdm  # type: ignore
+from tqdm import tqdm
 
 from deeplake.core.dataset import Dataset
 import deeplake

@@ -295,7 +295,7 @@ class VectorStore:
 
     def search(
         self,
-        embedding_data: Union[str, List[str]] = None,
+        embedding_data: Union[str, List[str], None] = None,
         embedding_function: Optional[Callable] = None,
         embedding: Optional[Union[List[float], np.ndarray]] = None,
         k: int = 4,

@@ -393,7 +393,7 @@ def extend(
     embedding_function: List[Callable],
     embedding_data: List[Any],
     embedding_tensor: Union[str, List[str]],
-    processed_tensors: Dict[str, List[Any]],
+    processed_tensors: Dict[str, Union[List[Any], np.ndarray]],
     dataset: deeplake.core.dataset.Dataset,
 ):
     """
@@ -437,14 +437,14 @@ def extend(
                     if diff > 0:
                         time.sleep(diff)
             try:
-                embedded_data = np.vstack(embedded_data).astype(dtype=np.float32)
+                return_embedded_data = np.vstack(embedded_data).astype(dtype=np.float32)
             except ValueError:
                 raise IncorrectEmbeddingShapeError()
 
-            if len(embedded_data) == 0:
+            if len(return_embedded_data) == 0:
                 raise ValueError("embedding function returned empty list")
 
-            processed_tensors[tensor] = embedded_data
+            processed_tensors[tensor] = return_embedded_data
 
     dataset.extend(processed_tensors)
 
