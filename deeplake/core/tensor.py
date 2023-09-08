@@ -566,6 +566,8 @@ class Tensor:
     def htype(self, value):
         self._check_compatibility_with_htype(value)
         self.meta.htype = value
+        if value == "class_label":
+            self.meta._disable_temp_transform = False
         self.meta.is_dirty = True
         self.dataset.maybe_flush()
 

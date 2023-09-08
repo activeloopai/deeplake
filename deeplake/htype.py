@@ -155,8 +155,6 @@ class constraints:
             raise IncompatibleHtypeError(
                 constraints.ndim_error("binary_mask", len(shape))
             )
-        if dtype != np.dtype("bool"):
-            raise IncompatibleHtypeError(constraints.dtype_error("binary_mask", dtype))
 
     SEGMENT_MASK = BINARY_MASK
 
