@@ -109,6 +109,11 @@ class VectorStore:
         """
         self.token = token or read_token(from_env=True)
         self.path = path
+        self.username = "public"
+        if self.token is not None:
+            self.username = jwt.decode(self.token, options={"verify_signature": False})[
+                "id"
+            ]
 
         feature_report_path(
             path,
@@ -128,6 +133,7 @@ class VectorStore:
                 "runtime": runtime,
             },
             token=self.token,
+            username=self.username,
         )
 
         self.ingestion_batch_size = ingestion_batch_size
@@ -250,6 +256,7 @@ class VectorStore:
                 "embedding_data": True if embedding_data is not None else False,
             },
             token=self.token,
+            username=self.username,
         )
 
         (
@@ -392,6 +399,7 @@ class VectorStore:
                 "return_view": return_view,
             },
             token=self.token,
+            username=self.username,
         )
 
         if exec_option is None and self.exec_option != "python" and callable(filter):
@@ -503,6 +511,7 @@ class VectorStore:
                 "delete_all": delete_all,
             },
             token=self.token,
+            username=self.username,
         )
 
         if not row_ids:
@@ -598,6 +607,7 @@ class VectorStore:
                 "exec_option": exec_option,
             },
             token=self.token,
+            username=self.username,
         )
 
         (
@@ -650,9 +660,6 @@ class VectorStore:
             This method permanently deletes all of your data if the Vector Store exists! Be very careful when using this method.
         """
         token = token or read_token(from_env=True)
-        username = "public"
-        if token:
-            username = jwt.decode(token, options={"verify_signature": False})["id"]
 
         feature_report_path(
             path,

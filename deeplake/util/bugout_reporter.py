@@ -152,6 +152,7 @@ def feature_report_path(
     parameters: dict,
     starts_with: str = "hub://",
     token: Optional[str] = None,
+    username: str = "public",
 ):
     """Helper function for generating humbug feature reports depending on the path"""
 
