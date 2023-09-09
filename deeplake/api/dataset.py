@@ -363,7 +363,6 @@ class dataset:
         lock_enabled: Optional[bool] = True,
         lock_timeout: Optional[int] = 0,
         verbose: bool = True,
-        username: str = "public",
     ) -> Dataset:
         """Creates an empty dataset
 
@@ -387,7 +386,6 @@ class dataset:
             verbose (bool): If True, logs will be printed. Defaults to True.
             lock_timeout (int): Number of seconds to wait before throwing a LockException. If None, wait indefinitely
             lock_enabled (bool): If true, the dataset manages a write lock. NOTE: Only set to False if you are managing concurrent access externally.
-            username (str): Username to be used for creating a dataset in the Deep Lake Tensor Database.
         Returns:
             Dataset: Dataset created using the arguments provided.
 
@@ -438,7 +436,6 @@ class dataset:
                     "lock_timeout": lock_timeout,
                 },
                 token=token,
-                username=username,
             )
         except Exception as e:
             if isinstance(e, UserNotLoggedInException):
@@ -485,7 +482,6 @@ class dataset:
         check_integrity: bool = True,
         lock_timeout: Optional[int] = 0,
         lock_enabled: Optional[bool] = True,
-        username: str = "public",
     ) -> Dataset:
         """Loads an existing dataset
 
@@ -551,7 +547,6 @@ class dataset:
             reset (bool): If the specified dataset cannot be loaded due to a corrupted HEAD state of the branch being loaded,
                           setting ``reset=True`` will reset HEAD changes and load the previous version.
             check_integrity (bool): If the param is True it will do integrity check during dataset loading otherwise the check is not performed
-            username: (str): Username to be used for creating a dataset in the Deep Lake Tensor Database.
 
         ..
             # noqa: DAR101
@@ -604,7 +599,6 @@ class dataset:
                 "load",
                 {"lock_enabled": lock_enabled, "lock_timeout": lock_timeout},
                 token=token,
-                username=username,
             )
         except Exception as e:
             if isinstance(e, UserNotLoggedInException):

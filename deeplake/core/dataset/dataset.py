@@ -35,7 +35,7 @@ from deeplake.util.iteration_warning import (
 from deeplake.util.tensor_db import parse_runtime_parameters
 from deeplake.api.info import load_info
 from deeplake.client.log import logger
-from deeplake.client.utils import get_user_name
+from deeplake.client.utils import read_token
 from deeplake.client.client import DeepLakeBackendClient
 from deeplake.constants import (
     FIRST_COMMIT_ID,
@@ -4684,6 +4684,3 @@ class Dataset:
 
     def _get_storage_repository(self) -> Optional[str]:
         return getattr(self.base_storage, "repository", None)
-
-    def get_user_name(self) -> Optional[str]:
-        return getattr(self.base_storage, "user_name", None)

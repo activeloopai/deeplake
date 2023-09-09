@@ -108,12 +108,7 @@ class VectorStore:
             Setting ``overwrite`` to ``True`` will delete all of your data if the Vector Store exists! Be very careful when setting this parameter.
         """
         self.token = token or read_token(from_env=True)
-        self.username = "public"
         self.path = path
-        if self.token is not None:
-            self.username = jwt.decode(self.token, options={"verify_signature": False})[
-                "id"
-            ]
 
         feature_report_path(
             path,
@@ -133,7 +128,6 @@ class VectorStore:
                 "runtime": runtime,
             },
             token=self.token,
-            username=self.username,
         )
 
         self.ingestion_batch_size = ingestion_batch_size
@@ -154,7 +148,6 @@ class VectorStore:
             overwrite,
             runtime,
             org_id,
-            self.username,
             **kwargs,
         )
         self.embedding_function = embedding_function
@@ -257,7 +250,6 @@ class VectorStore:
                 "embedding_data": True if embedding_data is not None else False,
             },
             token=self.token,
-            username=self.username,
         )
 
         (
@@ -400,7 +392,6 @@ class VectorStore:
                 "return_view": return_view,
             },
             token=self.token,
-            username=self.username,
         )
 
         if exec_option is None and self.exec_option != "python" and callable(filter):
@@ -512,7 +503,6 @@ class VectorStore:
                 "delete_all": delete_all,
             },
             token=self.token,
-            username=self.username,
         )
 
         if not row_ids:
@@ -608,7 +598,6 @@ class VectorStore:
                 "exec_option": exec_option,
             },
             token=self.token,
-            username=self.username,
         )
 
         (
@@ -674,7 +663,6 @@ class VectorStore:
                 "force": force,
             },
             token=token,
-            username=username,
         )
         deeplake.delete(path, large_ok=True, token=token, force=force)
 

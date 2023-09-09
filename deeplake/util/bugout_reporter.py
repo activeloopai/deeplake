@@ -152,7 +152,6 @@ def feature_report_path(
     parameters: dict,
     starts_with: str = "hub://",
     token: Optional[str] = None,
-    username: str = "public",
 ):
     """Helper function for generating humbug feature reports depending on the path"""
 
@@ -166,9 +165,10 @@ def feature_report_path(
 
     token = token or read_token(from_env=True)
 
-    if token is not None and username == "public":
+    username = "public"
+    if token is not None:
         username = jwt.decode(token, options={"verify_signature": False})["id"]
-        set_username(username)
+    set_username(username)
 
     deeplake_reporter.feature_report(
         feature_name=feature_name,
