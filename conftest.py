@@ -33,6 +33,7 @@ from tqdm.std import tqdm
 
 tqdm.monitor_interval = 0
 
+
 def pytest_configure(config):
     config.addinivalue_line(
         "markers",

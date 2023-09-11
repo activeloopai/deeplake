@@ -142,6 +142,9 @@ class AzureProvider(StorageProvider):
         )
         if not blob_client.exists():
             raise KeyError(path)
+        # Azure raises an error when trying to download an empty blob
+        if blob_client.get_blob_properties().size == 0:
+            return b""
         byts = blob_client.download_blob(offset=offset, length=length).readall()
         return byts
 
@@ -342,6 +345,9 @@ class AzureProvider(StorageProvider):
 
     def get_object_from_full_url(self, url: str) -> bytes:
         blob_client, _ = self.get_clients_from_full_path(url)
+        # Azure raises an error when trying to download an empty blob
+        if blob_client.get_blob_properties().size == 0:
+            return b""
         return blob_client.download_blob().readall()
 
     def _check_update_creds(self, force=False):

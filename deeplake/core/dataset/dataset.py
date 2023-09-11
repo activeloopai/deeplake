@@ -10,7 +10,7 @@ from functools import partial
 import pathlib
 import numpy as np
 from time import time, sleep
-from tqdm import tqdm  # type: ignore
+from tqdm import tqdm
 
 import deeplake
 from deeplake.core.index.index import IndexEntry
@@ -1726,7 +1726,9 @@ class Dataset:
 
     @invalid_view_op
     def delete_branch(self, name: str) -> None:
-        """Deletes a specific branch. You cannot delete the branch currently checked out.
+        """
+        Deletes the branch and cleans up any unneeded data.
+        Branches can only be deleted if there are no sub-branches and if it has never been merged into another branch.
 
         Args:
             name (str): The branch to delete.
@@ -1790,6 +1792,7 @@ class Dataset:
         Raises:
             ReadOnlyModeError: If branch deletion is attempted in read-only mode.
             VersionControlError: If the branch cannot be squashed.
+            Exception: If the dataset is filtered view.
         """
         if self._is_filtered_view:
             raise Exception(
@@ -1939,7 +1942,7 @@ class Dataset:
     def _send_branch_deletion_event(self, *args, **kwargs):
         """overridden in DeepLakeCloudDataset"""
 
-    def _first_load_init(self):
+    def _first_load_init(self, verbose=True):
         """overridden in DeepLakeCloudDataset"""
 
     @property

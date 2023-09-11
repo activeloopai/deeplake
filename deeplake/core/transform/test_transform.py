@@ -138,7 +138,7 @@ def add_image(sample_in, samples_out):
 
 @deeplake.compute
 def add_images(i, sample_out):
-    for i in range(5):
+    for _ in range(5):
         image = deeplake.read(get_dummy_data_path("images/flower.png"))
         sample_out.append({"image": image})
 

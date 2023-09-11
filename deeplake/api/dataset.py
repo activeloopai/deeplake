@@ -383,7 +383,8 @@ class dataset:
             org_id (str, Optional): Organization id to be used for enabling enterprise features. Only applicable for local datasets.
             verbose (bool): If True, logs will be printed. Defaults to True.
             lock_timeout (int): Number of seconds to wait before throwing a LockException. If None, wait indefinitely
-            lock_enabled (bool): If true, the dataset manages a write lock. NOTE: Only set to False if you are managing concurrent access externally
+            lock_enabled (bool): If true, the dataset manages a write lock. NOTE: Only set to False if you are managing concurrent access externally. Defaults to ``True``.
+
         Returns:
             Dataset: Dataset created using the arguments provided.
 

@@ -4,7 +4,7 @@ from deeplake.core.dataset import Dataset
 import posixpath
 import deeplake
 from typing import Optional
-from tqdm import tqdm  # type: ignore
+from tqdm import tqdm
 from deeplake.util.bugout_reporter import feature_report_path, deeplake_reporter
 
 
