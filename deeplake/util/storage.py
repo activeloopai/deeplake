@@ -18,6 +18,7 @@ from deeplake.core.storage import (
 from deeplake.client.client import DeepLakeBackendClient
 import posixpath
 from deeplake.constants import DEFAULT_READONLY
+import deeplake.core.dataset
 
 
 def storage_provider_from_path(
@@ -57,8 +58,6 @@ def storage_provider_from_path(
             path, read_only, db_engine=db_engine, token=token, creds=creds
         )
     else:
-        if isinstance(creds, str) and not path.startswith("s3://"):
-            creds = {}
         if path.startswith("s3://"):
             creds_used = "PLATFORM"
             if creds == "ENV":
@@ -86,25 +85,29 @@ def storage_provider_from_path(
                 token=token,
             )
             storage.creds_used = creds_used
-        elif (
-            path.startswith("gcp://")
-            or path.startswith("gcs://")
-            or path.startswith("gs://")
-        ):
-            storage = GCSProvider(path, creds)
-        elif path.startswith(("az://", "azure://")):
-            storage = AzureProvider(path, creds)
-        elif path.startswith("gdrive://"):
-            storage = GDriveProvider(path, creds)
-        elif path.startswith("mem://"):
-            storage = MemoryProvider(path)
         else:
-            if not os.path.exists(path) or os.path.isdir(path):
-                storage = LocalProvider(path)
+            if isinstance(creds, str):
+                creds = {}
+
+            if (
+                path.startswith("gcp://")
+                or path.startswith("gcs://")
+                or path.startswith("gs://")
+            ):
+                storage = GCSProvider(path, creds)
+            elif path.startswith(("az://", "azure://")):
+                storage = AzureProvider(path, creds)
+            elif path.startswith("gdrive://"):
+                storage = GDriveProvider(path, creds)
+            elif path.startswith("mem://"):
+                storage = MemoryProvider(path)
             else:
-                raise ValueError(
-                    f"Local path {path} must be a path to a local directory"
-                )
+                if not os.path.exists(path) or os.path.isdir(path):
+                    storage = LocalProvider(path)
+                else:
+                    raise ValueError(
+                        f"Local path {path} must be a path to a local directory"
+                    )
     if not storage._is_hub_path:
         storage._is_hub_path = is_hub_path
 
@@ -241,7 +244,7 @@ def get_local_storage_path(path: str, prefix: str):
     return os.path.join(prefix, local_cache_name)
 
 
-def get_pytorch_local_storage(dataset):
+def get_pytorch_local_storage(dataset: "deeplake.core.dataset.Dataset"):
     """Returns a local storage provider for a given dataset to be used for Pytorch iteration"""
     local_cache_name: str = f"{dataset.path}_pytorch"
     local_cache_prefix = os.getenv("LOCAL_CACHE_PREFIX", default=LOCAL_CACHE_PREFIX)

@@ -11,6 +11,7 @@ from deeplake.core.vectorstore import DeepLakeVectorStore
 from deeplake.constants import (
     DEFAULT_VECTORSTORE_DEEPLAKE_PATH,
     DEFAULT_VECTORSTORE_TENSORS,
+    TARGET_BYTE_SIZE,
 )
 from deeplake.tests.common import requires_libdeeplake
 from deeplake.constants import MAX_BYTES_PER_MINUTE
@@ -397,6 +398,8 @@ def test_rate_limited_send(local_path):
         embedding_tensor=["embedding"],
         processed_tensors=processed_tensors,
         dataset=dataset,
+        batch_byte_size=TARGET_BYTE_SIZE,
+        rate_limiter={"enabled": True, "bytes_per_minute": MAX_BYTES_PER_MINUTE},
     )
     end_time = time.time()
 

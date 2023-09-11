@@ -153,7 +153,9 @@ class LinkedChunkEngine(ChunkEngine):
         except Exception as e:
             raise GetDataFromLinkError(path)
 
-    def get_full_tiled_sample(self, global_sample_index, fetch_chunks=False):
+    def get_full_tiled_sample(
+        self, global_sample_index: int, fetch_chunks: bool = False
+    ):
         tile_enc = self.tile_encoder
         shape = tile_enc.get_sample_shape(global_sample_index)
         tile_shape = tile_enc.get_tile_shape(global_sample_index)

@@ -9,7 +9,7 @@ from deeplake.core.meta.encode.chunk_id import ChunkIdEncoder
 
 from deeplake.client.log import logger
 from deeplake.constants import FIRST_COMMIT_ID
-from deeplake.core import lock
+from deeplake.core import lock, StorageProvider
 from deeplake.core.fast_forwarding import ffw_dataset_meta
 from deeplake.core.meta.dataset_meta import DatasetMeta
 from deeplake.core.storage.deeplake_memory_object import DeepLakeMemoryObject
@@ -50,6 +50,7 @@ from deeplake.util.path import relpath
 from deeplake.util.remove_cache import get_base_storage
 from deeplake.hooks import dataset_committed
 from datetime import datetime
+import deeplake.core.dataset
 
 import posixpath
 import json
@@ -821,7 +822,9 @@ def get_parent_and_reset_commit_ids(version_info, address):
     return previous_commit_id, commit_id
 
 
-def _create_new_head(storage, version_state, branch, parent_commit_id, new_commit_id):
+def _create_new_head(
+    storage: LRUCache, version_state, branch, parent_commit_id, new_commit_id
+):
     # populate new commit folder
     copy_metas(parent_commit_id, new_commit_id, storage)
     create_commit_chunk_maps(parent_commit_id, new_commit_id, storage)
@@ -836,7 +839,7 @@ def _create_new_head(storage, version_state, branch, parent_commit_id, new_commi
     return new_node
 
 
-def _replace_head(storage, version_state, commit_id, new_head):
+def _replace_head(storage: LRUCache, version_state, commit_id, new_head):
     parent_node = new_head.parent
     del version_state["commit_node_map"][commit_id]
     for i, child in enumerate(parent_node.children):
@@ -847,13 +850,13 @@ def _replace_head(storage, version_state, commit_id, new_head):
     save_version_info(version_state, storage)
 
 
-def delete_version_from_storage(storage, commit_id):
+def delete_version_from_storage(storage: LRUCache, commit_id: str):
     deletion_folder = "/".join(("versions", commit_id))
     storage.clear(prefix=deletion_folder)
     storage.flush()
 
 
-def replace_head(storage, version_state, reset_commit_id):
+def replace_head(storage: LRUCache, version_state: Dict, reset_commit_id: str):
     """Replace HEAD of current branch with new HEAD"""
     branch = version_state["commit_node_map"][reset_commit_id].branch
     parent_commit_id = version_state["commit_id"]
@@ -870,7 +873,7 @@ def replace_head(storage, version_state, reset_commit_id):
     return new_node.commit_id
 
 
-def _replace_missing_with_head(missing_id, commits, branch_commit_map):
+def _replace_missing_with_head(missing_id: str, commits: Dict, branch_commit_map: Dict):
     new_commit_id = generate_hash()
     branch = None
     parent_commit_id = None
@@ -896,12 +899,12 @@ def _replace_missing_with_head(missing_id, commits, branch_commit_map):
     return branch, parent_commit_id, new_commit_id
 
 
-def rebuild_version_info(storage):
+def rebuild_version_info(storage: LRUCache):
     """Rebuilds version info from commit info."""
-    branch_commit_map = {}
-    commits = {}
+    branch_commit_map: Dict[str, str] = {}
+    commits: Dict[str, Dict] = {}
 
-    # dont do anything if first commit info is missing
+    # don't do anything if first commit info is missing
     try:
         commit_info = load_commit_info(FIRST_COMMIT_ID, storage)
     except Exception:
@@ -1074,7 +1077,7 @@ def _get_dataset_meta_at_commit(storage, commit_id):
     return meta
 
 
-def load_meta(dataset):
+def load_meta(dataset: "deeplake.core.dataset.Dataset"):
     """Loads the meta info for the version state."""
     from deeplake.core.tensor import Tensor
 

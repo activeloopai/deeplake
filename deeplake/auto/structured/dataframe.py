@@ -7,7 +7,7 @@ from deeplake.util.exceptions import IngestionError
 from deeplake.util.dataset import sanitize_tensor_name
 
 from collections import defaultdict
-from typing import DefaultDict, List, Union, Optional
+from typing import DefaultDict, List, Union, Optional, Dict
 from deeplake.core.sample import Sample
 from deeplake.core.linked_sample import LinkedSample
 import pathlib
@@ -53,7 +53,7 @@ class DataFrame(StructuredDataset):
                 column_params[key] = {"name": sanitize_tensor_name(key)}
         self.column_params = column_params
 
-    def _get_most_frequent_image_extension(self, fn_iterator):
+    def _get_most_frequent_image_extension(self, fn_iterator: List[str]):
         # TODO: Make this generic and work for any htype that requires compression
 
         if len(fn_iterator) == 0:
@@ -77,7 +77,7 @@ class DataFrame(StructuredDataset):
         )
         return most_frequent_image_extension
 
-    def _parse_tensor_params(self, key, inspect_limit=1000):
+    def _parse_tensor_params(self, key: str, inspect_limit: int = 1000):
         """Parse the tensor parameters for a column. Required parameters that are not specified will be inferred by inspecting up to 'inspect_limit' rows in the data."""
 
         tensor_params: Dict = self.column_params[key]

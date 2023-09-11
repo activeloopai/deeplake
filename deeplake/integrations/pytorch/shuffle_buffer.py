@@ -9,7 +9,7 @@ import sys
 
 from PIL import Image  # type: ignore
 from io import BytesIO
-from tqdm import tqdm  # type: ignore
+from tqdm import tqdm
 from deeplake.util.warnings import always_warn
 from deeplake.constants import MB
 import deeplake
