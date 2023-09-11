@@ -57,7 +57,7 @@ def libdeeplake_availabe():
         if (
             (mac_ver[0] > 10 or mac_ver[0] == 10 and mac_ver[1] >= 12)
             and py_ver >= (3, 7)
-            and py_ver <= (3, 11)
+            and py_ver < (3, 12)
         ):
             return True
     return False
