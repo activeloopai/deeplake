@@ -154,18 +154,17 @@ def generate_random_string(length):
     return random_string
 
 
-def generate_json(value):
-    key = "abc"
+def generate_json(value, key):
     return {key: value}
 
 
-def create_data(number_of_data, embedding_dim=100):
+def create_data(number_of_data, embedding_dim=100, metadata_key="abc"):
     embeddings = np.random.uniform(
         low=-10, high=10, size=(number_of_data, embedding_dim)
     ).astype(np.float32)
     texts = [generate_random_string(1000) for i in range(number_of_data)]
     ids = [f"{i}" for i in range(number_of_data)]
-    metadata = [generate_json(i) for i in range(number_of_data)]
+    metadata = [generate_json(i, metadata_key) for i in range(number_of_data)]
     images = ["deeplake/tests/dummy_data/images/car.jpg" for i in range(number_of_data)]
     return texts, embeddings, ids, metadata, images
 

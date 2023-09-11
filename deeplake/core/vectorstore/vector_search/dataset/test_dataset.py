@@ -43,7 +43,6 @@ def test_create(caplog, hub_cloud_path, hub_cloud_dev_token):
         runtime=None,
         exec_option="python",
         org_id=None,
-        username="public",
     )
     assert len(dataset) == 0
     assert set(dataset.tensors.keys()) == {
@@ -72,7 +71,6 @@ def test_create(caplog, hub_cloud_path, hub_cloud_dev_token):
         overwrite=True,
         embedding_function=Embedding,
         org_id=None,
-        username="testingacc2",
     )
     assert len(dataset) == 0
     assert set(dataset.tensors.keys()) == {
@@ -107,7 +105,6 @@ def test_create(caplog, hub_cloud_path, hub_cloud_dev_token):
             overwrite=True,
             embedding_function=Embedding,
             org_id=None,
-            username="testingacc2",
         )
 
 
@@ -126,7 +123,6 @@ def test_load(caplog, hub_cloud_dev_token):
         embedding_function=None,
         runtime=None,
         org_id=None,
-        username="testingacc2",
     )
     assert dataset.max_len == 10
 
@@ -149,7 +145,6 @@ def test_load(caplog, hub_cloud_dev_token):
             overwrite=False,
             runtime=None,
             org_id=None,
-            username="public",
         )
         assert (
             f"The default deeplake path location is used: {DEFAULT_VECTORSTORE_DEEPLAKE_PATH}"
@@ -170,7 +165,6 @@ def test_load(caplog, hub_cloud_dev_token):
             overwrite=False,
             runtime=None,
             org_id=None,
-            username="public",
         )
 
     with pytest.raises(ValueError):

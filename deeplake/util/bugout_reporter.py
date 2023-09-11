@@ -166,7 +166,6 @@ def feature_report_path(
 
     token = token or read_token(from_env=True)
 
-    username = "public"
     if token is not None:
         username = jwt.decode(token, options={"verify_signature": False})["id"]
     set_username(username)
