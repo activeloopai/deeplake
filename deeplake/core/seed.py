@@ -37,6 +37,5 @@ class DeeplakeRandom(object):
             )
 
     def get_seed(self) -> Optional[int]:
-        """ Returns the seed which set to the deeplake to control the flows
-        """
+        """Returns the seed which set to the deeplake to control the flows"""
         return self.internal_seed
