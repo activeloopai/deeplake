@@ -106,6 +106,10 @@ class DeepLakeQueryTensor(tensor.Tensor):
             htype = f"link[{htype}]"
         return htype
 
+    @htype.setter
+    def htype(self, value):
+        raise NotImplementedError("htype of a query tensor cannot be set.")
+
     @property
     def sample_compression(self):
         return self.indra_tensor.sample_compression
