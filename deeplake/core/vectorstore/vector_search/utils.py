@@ -2,6 +2,7 @@ from abc import ABC, abstractmethod
 
 from deeplake.constants import MB
 from deeplake.enterprise.util import raise_indra_installation_error
+from deeplake.util.exceptions import TensorDoesNotExistError
 from deeplake.util.warnings import always_warn
 from deeplake.client.utils import read_token
 from deeplake.core.dataset import DeepLakeCloudDataset, Dataset
@@ -105,6 +106,10 @@ def parse_return_tensors(dataset, return_tensors, embedding_tensor, return_view)
             for tensor in dataset.tensors
             if (tensor != embedding_tensor or return_tensors == "*")
         ]
+    for tensor in return_tensors:
+        if tensor not in dataset.tensors:
+            raise TensorDoesNotExistError(tensor)
+
     return return_tensors
 
 

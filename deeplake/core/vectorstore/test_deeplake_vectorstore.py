@@ -239,7 +239,7 @@ def test_search_basic(local_path, hub_cloud_dev_token):
         token=hub_cloud_dev_token,
     )
 
-    assert vector_store.exec_option == "python"
+    assert vector_store.exec_option == "compute_engine"
 
     vector_store.add(embedding=embeddings, text=texts, metadata=metadatas)
 
@@ -395,7 +395,7 @@ def test_search_basic(local_path, hub_cloud_dev_token):
         path=local_path, overwrite=True, token=hub_cloud_dev_token, exec_option=None
     )
 
-    assert vector_store_none_exec.exec_option == "python"
+    assert vector_store_none_exec.exec_option == "compute_engine"
 
     # Check that filter_fn with cloud dataset (and therefore "compute_engine" exec option) switches to "python" automatically.
     with pytest.warns(None):
