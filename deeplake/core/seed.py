@@ -4,6 +4,7 @@ from typing import Optional
 
 class DeeplakeRandom(object):
     def __new__(cls):
+        """Returns a :class:`~deeplake.random.DeeplakeRandom` object songlton instance."""
         if not hasattr(cls, "instance"):
             cls.instance = super(DeeplakeRandom, cls).__new__(cls)
             cls.instance.internal_seed = None
@@ -11,6 +12,15 @@ class DeeplakeRandom(object):
         return cls.instance
 
     def seed(self, seed: Optional[int] = None):
+        """Set random seed to the deeplake engines
+
+        Args:
+            seed (int, optional): integer seed to initialise the engines, used to control random behaviour and bring reproducability. Set number to initialise the engines to reset the seed set None. Defaults to None.
+
+        Raises:
+            TypeError: If the provided value is not expected one.
+
+        """
         if seed is None or isinstance(seed, int):
             self.internal_seed = seed
             if self.indra_api is None:  # type: ignore
@@ -27,4 +37,6 @@ class DeeplakeRandom(object):
             )
 
     def get_seed(self) -> Optional[int]:
+        """ Returns the seed which set to the deeplake to control the flows
+        """
         return self.internal_seed
