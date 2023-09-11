@@ -1,5 +1,5 @@
-Reproducibility
-===============
+deeplake.random.seed
+====================
 
 Train and operate with the deeplake features and keep reproducibility between all the engines
 See the ``deeplake.random.seed`` method on hot to operate with the random engines:
@@ -13,7 +13,7 @@ See the ``deeplake.random.seed`` method on hot to operate with the random engine
     deeplake.random
 
 Deeplake random number generator
--------------------------------
+--------------------------------
 Deeplake does not provide random in-house random number generator but to control the reproducibility
 and keep track on the stages of 
 You can use :meth:`deeplake.random.seed` to seed the RNG for all the engines (both
