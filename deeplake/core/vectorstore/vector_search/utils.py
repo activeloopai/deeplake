@@ -7,6 +7,7 @@ from deeplake.util.warnings import always_warn
 from deeplake.client.utils import read_token
 from deeplake.core.dataset import DeepLakeCloudDataset, Dataset
 from deeplake.client.client import DeepLakeBackendClient
+from deeplake.util.path import get_path_type
 
 import numpy as np
 
@@ -39,12 +40,13 @@ class ExecOptionBase(ABC):
 
 
 class ExecOptionCloudDataset(ExecOptionBase):
-    def __init__(self, dataset, indra_installed, username):
+    def __init__(self, dataset, indra_installed, username, path_type):
         self.dataset = dataset
         self.indra_installed = indra_installed
         self.client = dataset.client
         self.token = self.dataset.token
         self.username = username
+        self.path_type = path_type
 
     def get_exec_option(self):
         # option 1: dataset is created in vector_db:
@@ -57,7 +59,7 @@ class ExecOptionCloudDataset(ExecOptionBase):
         # option 2: dataset is created in a linked storage or locally,
         # indra is installed user/org has access to indra
         elif (
-            isinstance(self.dataset, (DeepLakeCloudDataset))
+            self.path_type == "hub"
             and self.indra_installed
             and self.username != "public"
         ):
@@ -77,15 +79,19 @@ class ExecOptionLocalDataset(ExecOptionBase):
         if self.token is None:
             return "python"
 
+        if "mem" in self.dataset.path:
+            return "python"
+
         if self.indra_installed and self.username != "public":
             return "compute_engine"
         return "python"
 
 
 def exec_option_factory(dataset, indra_installed, username):
-    if dataset.client is None:
+    path_type = get_path_type(dataset.path)
+    if path_type == "local":
         return ExecOptionLocalDataset(dataset, indra_installed, username)
-    return ExecOptionCloudDataset(dataset, indra_installed, username)
+    return ExecOptionCloudDataset(dataset, indra_installed, username, path_type)
 
 
 def parse_exec_option(dataset, exec_option, indra_installed, username):

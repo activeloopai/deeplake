@@ -1837,6 +1837,12 @@ def test_exec_option_cli(
     )
     assert db.exec_option == "compute_engine"
 
+    # hub cloud dataset and logged in with cli
+    db = VectorStore(
+        path="mem://abc",
+    )
+    assert db.exec_option == "python"
+
     # logging out with cli
     runner.invoke(logout)
 
@@ -1846,11 +1852,27 @@ def test_exec_option_cli(
     )
     assert db.exec_option == "python"
 
+    # Check whether after logging out exec_option changes to python
     # logging in with cli token
     runner.invoke(login, f"-t {hub_cloud_dev_token}")
     db = VectorStore(
         path=local_path,
     )
+    assert db.exec_option == "compute_engine"
+    # logging out with cli
+    runner.invoke(logout)
+    assert db.exec_option == "python"
+
+    # Check whether after logging out when token specified exec_option doesn't change
+    # logging in with cli token
+    runner.invoke(login, f"-t {hub_cloud_dev_token}")
+    db = VectorStore(
+        path=local_path,
+        token=hub_cloud_dev_token,
+    )
+    assert db.exec_option == "compute_engine"
+    # logging out with cli
+    runner.invoke(logout)
     assert db.exec_option == "compute_engine"
 
 
@@ -1870,7 +1892,13 @@ def test_exec_option_with_connected_datasets(
     hub_cloud_dev_managed_creds_key,
     path,
 ):
+    runner = CliRunner()
+
     db = VectorStore(path, overwrite=True)
+    assert db.exec_option == "python"
+
+    runner.invoke(login, f"-t {hub_cloud_dev_token}")
+    assert db.exec_option == "python"
 
     db.dataset.connect(
         creds_key=hub_cloud_dev_managed_creds_key,

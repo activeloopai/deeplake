@@ -107,13 +107,8 @@ class VectorStore:
         Danger:
             Setting ``overwrite`` to ``True`` will delete all of your data if the Vector Store exists! Be very careful when setting this parameter.
         """
-        self.token = token or read_token(from_env=True)
+        self._token = token
         self.path = path
-        self.username = "public"
-        if self.token is not None:
-            self.username = jwt.decode(self.token, options={"verify_signature": False})[
-                "id"
-            ]
 
         feature_report_path(
             path,
@@ -157,11 +152,26 @@ class VectorStore:
             **kwargs,
         )
         self.embedding_function = embedding_function
-        self.exec_option = utils.parse_exec_option(
-            self.dataset, exec_option, _INDRA_INSTALLED, self.username
-        )
+        self._exec_option = exec_option
         self.verbose = verbose
         self.tensor_params = tensor_params
+
+    @property
+    def token(self):
+        return self._token or read_token(from_env=True)
+
+    @property
+    def exec_option(self) -> str:
+        return utils.parse_exec_option(
+            self.dataset, self._exec_option, _INDRA_INSTALLED, self.username
+        )
+
+    @property
+    def username(self) -> str:
+        username = "public"
+        if self.token is not None:
+            username = jwt.decode(self.token, options={"verify_signature": False})["id"]
+        return username
 
     def add(
         self,
