@@ -15,20 +15,20 @@ class DeeplakeRandom(object):
         """Set random seed to the deeplake engines
 
         Args:
-            seed (int, optional): integer seed to initialize the engines, used to control random behavior and bring reproducibility. Set number to initialize the engines, to reset the seed set None. Defaults to None.
+            seed (int, optional): Integer seed for initializing the computational engines, used to bring reproducibility to random operations. Set to None to reset the seed. Defaults to None.
 
         Raises:
-            TypeError: If the provided value type is not an expected one.
+            TypeError: If the provided value type is not supported.
 
         Background
         ----------
 
-        To train and operate with the deeplake features and keep reproducibility between all the engines
-        See the examples below on how to operate with the random engines.
+        Specify a seed to train models and run randomized Deep Lake operations reproducibly.
 
-        Deeplake does not provide in-house random number generator but to control the reproducibility
-        and keep track on flow stages can be used :meth:`deeplake.random.seed` to seed the RNG for all the engines (both
-        enterprise and non enterprise)::
+        Deeplake does not provide in-house random number generator to control the reproducibility
+        and keep track on flow stages can be
+
+        The random seed can be specified using :meth:`deeplake.random.seed` to seed the random number generator in applicable deeplake functions::
 
             import deeplake
             deeplake.random.seed(0)
