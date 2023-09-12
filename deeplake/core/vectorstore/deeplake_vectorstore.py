@@ -1,6 +1,7 @@
 import logging
 import pathlib
-from typing import Optional, Any, Iterable, List, Dict, Union, Callable
+from typing import Optional, Any, List, Dict, Union, Callable
+import jwt
 
 import numpy as np
 
@@ -17,10 +18,10 @@ from deeplake.constants import (
     MAX_BYTES_PER_MINUTE,
     TARGET_BYTE_SIZE,
 )
+from deeplake.client.utils import read_token
 from deeplake.core.vectorstore import utils
 from deeplake.core.vectorstore.vector_search import vector_search
 from deeplake.core.vectorstore.vector_search import dataset as dataset_utils
-from deeplake.core.vectorstore.vector_search import filter as filter_utils
 
 from deeplake.util.bugout_reporter import (
     feature_report_path,
@@ -47,6 +48,7 @@ class VectorStore:
         verbose: bool = True,
         runtime: Optional[Dict] = None,
         creds: Optional[Union[Dict, str]] = None,
+        org_id: Optional[str] = None,
         **kwargs: Any,
     ) -> None:
         """Creates an empty VectorStore or loads an existing one if it exists at the specified ``path``.
@@ -107,6 +109,9 @@ class VectorStore:
         Danger:
             Setting ``overwrite`` to ``True`` will delete all of your data if the Vector Store exists! Be very careful when setting this parameter.
         """
+        self._token = token
+        self.path = path
+
         feature_report_path(
             path,
             "vs.initialize",
@@ -120,11 +125,12 @@ class VectorStore:
                 "read_only": read_only,
                 "ingestion_batch_size": ingestion_batch_size,
                 "exec_option": exec_option,
-                "token": token,
+                "token": self.token,
                 "verbose": verbose,
                 "runtime": runtime,
             },
-            token=token,
+            token=self.token,
+            username=self.username,
         )
 
         self.ingestion_batch_size = ingestion_batch_size
@@ -136,7 +142,7 @@ class VectorStore:
         self.dataset = dataset_utils.create_or_load_dataset(
             tensor_params,
             path,
-            token,
+            self.token,
             creds,
             logger,
             read_only,
@@ -144,14 +150,30 @@ class VectorStore:
             embedding_function,
             overwrite,
             runtime,
+            org_id,
             **kwargs,
         )
         self.embedding_function = embedding_function
-        self.exec_option = utils.parse_exec_option(
-            self.dataset, exec_option, _INDRA_INSTALLED
-        )
+        self._exec_option = exec_option
         self.verbose = verbose
         self.tensor_params = tensor_params
+
+    @property
+    def token(self):
+        return self._token or read_token(from_env=True)
+
+    @property
+    def exec_option(self) -> str:
+        return utils.parse_exec_option(
+            self.dataset, self._exec_option, _INDRA_INSTALLED, self.username
+        )
+
+    @property
+    def username(self) -> str:
+        username = "public"
+        if self.token is not None:
+            username = jwt.decode(self.token, options={"verify_signature": False})["id"]
+        return username
 
     def add(
         self,
@@ -240,7 +262,8 @@ class VectorStore:
             Optional[List[str]]: List of ids if ``return_ids`` is set to True. Otherwise, None.
         """
 
-        deeplake_reporter.feature_report(
+        feature_report_path(
+            path=self.path,
             feature_name="vs.add",
             parameters={
                 "tensors": list(tensors.keys()) if tensors else None,
@@ -249,6 +272,8 @@ class VectorStore:
                 "embedding_function": True if embedding_function is not None else False,
                 "embedding_data": True if embedding_data is not None else False,
             },
+            token=self.token,
+            username=self.username,
         )
 
         (
@@ -372,7 +397,8 @@ class VectorStore:
             Dict: Dictionary where keys are tensor names and values are the results of the search
         """
 
-        deeplake_reporter.feature_report(
+        feature_report_path(
+            path=self.path,
             feature_name="vs.search",
             parameters={
                 "embedding_data": True if embedding_data is not None else False,
@@ -387,6 +413,8 @@ class VectorStore:
                 "return_tensors": return_tensors,
                 "return_view": return_view,
             },
+            token=self.token,
+            username=self.username,
         )
 
         if exec_option is None and self.exec_option != "python" and callable(filter):
@@ -486,7 +514,8 @@ class VectorStore:
             ValueError: If neither ``ids``, ``filter``, ``query``, nor ``delete_all`` are specified, or if an invalid ``exec_option`` is provided.
         """
 
-        deeplake_reporter.feature_report(
+        feature_report_path(
+            path=self.path,
             feature_name="vs.delete",
             parameters={
                 "ids": True if ids is not None else False,
@@ -496,6 +525,8 @@ class VectorStore:
                 "exec_option": exec_option,
                 "delete_all": delete_all,
             },
+            token=self.token,
+            username=self.username,
         )
 
         if not row_ids:
@@ -580,7 +611,8 @@ class VectorStore:
             embedding_source_tensor (Union[str, List[str]], optional): Name of tensor with data that needs to be converted to embeddings. Defaults to `text`.
             embedding_tensor (Optional[Union[str, List[str]]], optional): Name of the tensor with embeddings. Defaults to None.
         """
-        deeplake_reporter.feature_report(
+        feature_report_path(
+            path=self.path,
             feature_name="vs.delete",
             parameters={
                 "ids": True if ids is not None else False,
@@ -589,6 +621,8 @@ class VectorStore:
                 "filter": True if filter is not None else False,
                 "exec_option": exec_option,
             },
+            token=self.token,
+            username=self.username,
         )
 
         (
@@ -640,11 +674,16 @@ class VectorStore:
         Danger:
             This method permanently deletes all of your data if the Vector Store exists! Be very careful when using this method.
         """
+        token = token or read_token(from_env=True)
 
         feature_report_path(
             path,
             "vs.delete_by_path",
-            {},
+            parameters={
+                "path": path,
+                "token": token,
+                "force": force,
+            },
             token=token,
         )
         deeplake.delete(path, large_ok=True, token=token, force=force)

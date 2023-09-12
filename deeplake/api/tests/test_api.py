@@ -2871,6 +2871,7 @@ def test_extend_rollbacks(local_ds, lfpw_links):
     ds.commit()
 
 
+@pytest.mark.slow
 @pytest.mark.parametrize(
     "compression_args",
     [

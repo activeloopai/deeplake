@@ -1,11 +1,17 @@
+from abc import ABC, abstractmethod
+
 from deeplake.constants import MB
 from deeplake.enterprise.util import raise_indra_installation_error
+from deeplake.util.exceptions import TensorDoesNotExistError
 from deeplake.util.warnings import always_warn
-
-from deeplake.core.dataset import DeepLakeCloudDataset
+from deeplake.client.utils import read_token
+from deeplake.core.dataset import DeepLakeCloudDataset, Dataset
+from deeplake.client.client import DeepLakeBackendClient
+from deeplake.util.path import get_path_type
 
 import numpy as np
 
+import jwt
 import random
 import string
 from typing import Optional, List, Dict, Callable
@@ -21,21 +27,78 @@ def parse_tensor_return(tensor):
     return tensor.data(aslist=True)["value"]
 
 
-def parse_exec_option(dataset, exec_option, indra_installed):
-    """Select the best available exec_option for the given dataset and environment"""
+class ExecOptionBase(ABC):
+    def get_token(self, token):
+        user_profile = self.client.get_user_profile()
+        if user_profile["name"] != "public":
+            token = token or self.client.get_token()
+        return token
 
-    if exec_option is None or exec_option == "auto":
-        if isinstance(dataset, DeepLakeCloudDataset):
-            if "vectordb/" in dataset.base_storage.path:
-                return "tensor_db"
-            elif indra_installed:
-                return "compute_engine"
-            else:
-                return "python"
+    @abstractmethod
+    def get_exec_option(self):
+        return NotImplementedError()
+
+
+class ExecOptionCloudDataset(ExecOptionBase):
+    def __init__(self, dataset, indra_installed, username, path_type):
+        self.dataset = dataset
+        self.indra_installed = indra_installed
+        self.client = dataset.client
+        self.token = self.dataset.token
+        self.username = username
+        self.path_type = path_type
+
+    def get_exec_option(self):
+        # option 1: dataset is created in vector_db:
+        if (
+            isinstance(self.dataset, DeepLakeCloudDataset)
+            and "vectordb/" in self.dataset.base_storage.path
+            and self.token is not None
+        ):
+            return "tensor_db"
+        # option 2: dataset is created in a linked storage or locally,
+        # indra is installed user/org has access to indra
+        elif (
+            self.path_type == "hub"
+            and self.indra_installed
+            and self.username != "public"
+        ):
+            return "compute_engine"
         else:
             return "python"
-    else:
-        return exec_option
+
+
+class ExecOptionLocalDataset(ExecOptionBase):
+    def __init__(self, dataset, indra_installed, username):
+        self.dataset = dataset
+        self.indra_installed = indra_installed
+        self.token = self.dataset.token
+        self.username = username
+
+    def get_exec_option(self):
+        if self.token is None:
+            return "python"
+
+        if "mem" in self.dataset.path:
+            return "python"
+
+        if self.indra_installed and self.username != "public":
+            return "compute_engine"
+        return "python"
+
+
+def exec_option_factory(dataset, indra_installed, username):
+    path_type = get_path_type(dataset.path)
+    if path_type == "local":
+        return ExecOptionLocalDataset(dataset, indra_installed, username)
+    return ExecOptionCloudDataset(dataset, indra_installed, username, path_type)
+
+
+def parse_exec_option(dataset, exec_option, indra_installed, username):
+    if exec_option is None or exec_option == "auto":
+        exec_option = exec_option_factory(dataset, indra_installed, username)
+        return exec_option.get_exec_option()
+    return exec_option
 
 
 def parse_return_tensors(dataset, return_tensors, embedding_tensor, return_view):
@@ -49,6 +112,10 @@ def parse_return_tensors(dataset, return_tensors, embedding_tensor, return_view)
             for tensor in dataset.tensors
             if (tensor != embedding_tensor or return_tensors == "*")
         ]
+    for tensor in return_tensors:
+        if tensor not in dataset.tensors:
+            raise TensorDoesNotExistError(tensor)
+
     return return_tensors
 
 
@@ -98,18 +165,17 @@ def generate_random_string(length):
     return random_string
 
 
-def generate_json(value):
-    key = "abc"
+def generate_json(value, key):
     return {key: value}
 
 
-def create_data(number_of_data, embedding_dim=100):
+def create_data(number_of_data, embedding_dim=100, metadata_key="abc"):
     embeddings = np.random.uniform(
         low=-10, high=10, size=(number_of_data, embedding_dim)
     ).astype(np.float32)
     texts = [generate_random_string(1000) for i in range(number_of_data)]
     ids = [f"{i}" for i in range(number_of_data)]
-    metadata = [generate_json(i) for i in range(number_of_data)]
+    metadata = [generate_json(i, metadata_key) for i in range(number_of_data)]
     images = ["deeplake/tests/dummy_data/images/car.jpg" for i in range(number_of_data)]
     return texts, embeddings, ids, metadata, images
 

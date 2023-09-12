@@ -30,3 +30,4 @@ REMOTE_QUERY_SUFFIX = "/api/query/dataset/{}/{}"
 DEFAULT_REQUEST_TIMEOUT = 170
 
 DEEPLAKE_AUTH_TOKEN = "ACTIVELOOP_TOKEN"
+ORG_PERMISSION_SUFFIX = "/api/organizations/{}/features/dataset_query"
