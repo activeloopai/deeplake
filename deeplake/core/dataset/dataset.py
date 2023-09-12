@@ -10,7 +10,7 @@ from functools import partial
 import pathlib
 import numpy as np
 from time import time, sleep
-from tqdm import tqdm  # type: ignore
+from tqdm import tqdm
 
 import deeplake
 from deeplake.core.index.index import IndexEntry

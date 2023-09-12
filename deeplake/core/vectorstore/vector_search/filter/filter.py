@@ -67,7 +67,7 @@ def attribute_based_filtering_tql(
                     val_str = (
                         f"'{filter[tensor]}'"
                         if isinstance(filter[tensor], str)
-                        or isinstance(filter[tensor], np._str)
+                        or isinstance(filter[tensor], np.str_)
                         else f"{filter[tensor]}"
                     )
                     tql_filter += f"{tensor} == {val_str} and "

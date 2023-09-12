@@ -288,9 +288,9 @@ def filter_inplace(
         vds_thread = _get_vds_thread(vds, vds_queue, num_samples)
         vds_thread.start()
     if progressbar:
-        from tqdm import tqdm  # type: ignore
+        from tqdm import tqdm
 
-        it = tqdm(it, total=num_samples)
+        it = tqdm(it, total=num_samples)  # type: ignore
 
     query_id = hash_inputs(dataset.path, dataset.pending_commit_id, query_text)
 

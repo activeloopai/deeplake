@@ -2,7 +2,7 @@ from collections import OrderedDict
 from deeplake.client.log import logger
 import deeplake
 import numpy as np
-from tqdm import tqdm  # type: ignore
+from tqdm import tqdm
 from typing import (
     Any,
     Callable,
@@ -1740,6 +1740,7 @@ class ChunkEngine:
         if not buffer:
             return b""
         if self.is_sequence:
+            assert self.sequence_encoder is not None
             start_idx, end_idx = self.sequence_encoder[global_sample_index]
             end_idx -= 1
             start_idx, end_idx = map(
@@ -2211,7 +2212,7 @@ class ChunkEngine:
             for chunk in self.list_all_chunks()
         ]
 
-    def list_orphaned_chunks(self, storage):
+    def list_orphaned_chunks(self, storage: StorageProvider) -> List[str]:
         """Return paths for orphaned chunks (chunks what are not linked to the `current_version`)"""
 
         commit_id = self.commit_id
@@ -2243,6 +2244,7 @@ class ChunkEngine:
     ):
         if global_sample_index is None:
             if self.is_sequence:
+                assert self.sequence_encoder is not None
                 global_sample_index = self.sequence_encoder.num_samples - 1
             else:
                 global_sample_index = self.num_samples - 1
@@ -2264,6 +2266,7 @@ class ChunkEngine:
 
         self.commit_diff.pop(global_sample_index, sample_id)
         if self.is_sequence:
+            assert self.sequence_encoder is not None
             # pop in reverse order else indices get shifted
             for idx in reversed(range(*self.sequence_encoder[global_sample_index])):
                 self.pop_item(idx)
@@ -2431,6 +2434,7 @@ class ChunkEngine:
             return self.get_empty_sample()
         if index.subscriptable_at(0) and index.subscriptable_at(1):
             item_lengths = []
+            assert self.sequence_encoder is not None
             for i in index.values[0].indices(self._sequence_length):
                 item_length = index.length_at(
                     1, -int(np.subtract(*self.sequence_encoder[i]))
@@ -2475,6 +2479,7 @@ class ChunkEngine:
                     for j in y.indices(_item_length):
                         yield i * _item_length + j
 
+        assert self.sequence_encoder is not None
         idx0_gen.__len__ = (  # type: ignore
             (
                 lambda: sum(
@@ -2693,6 +2698,7 @@ class ChunkEngine:
                     sample_shapes = np.zeros((num_samples, sample_ndim), dtype=np.int32)
 
             if flatten:
+                assert self.sequence_encoder is not None
                 # fill sample shapes with sequence item shapes, no nesting
                 start, end = self.sequence_encoder[idx]
                 length = end - start
@@ -2993,6 +2999,7 @@ class ChunkEngine:
                     chunk_engine._transform_callback(vs, flat)
         except Exception:
             for k, num_samples in updated_tensors.items():
+                assert self._all_chunk_engines is not None
                 chunk_engine = self._all_chunk_engines[k]
                 num_samples_added = chunk_engine.tensor_length - num_samples
                 for _ in range(num_samples_added):
@@ -3009,6 +3016,8 @@ class ChunkEngine:
 
                 if flat_links:
                     seq_enc = self.sequence_encoder
+                    assert seq_enc is not None
+                    assert self._all_chunk_engines is not None
                     for link in flat_links:
                         link_chunk_engine = self._all_chunk_engines[link]
                         for idx in reversed(range(*seq_enc[index])):

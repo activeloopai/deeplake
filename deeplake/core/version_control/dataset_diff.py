@@ -3,6 +3,7 @@ from deeplake.core.storage import LRUCache
 from deeplake.util.keys import get_dataset_diff_key
 import typing
 from collections import OrderedDict
+import deeplake.core.dataset
 
 
 class DatasetDiff(DeepLakeMemoryObject):
@@ -118,7 +119,7 @@ class DatasetDiff(DeepLakeMemoryObject):
             self.is_dirty = True
 
 
-def load_dataset_diff(dataset):
+def load_dataset_diff(dataset: "deeplake.core.dataset.Dataset"):
     storage: LRUCache = dataset.storage
     path = get_dataset_diff_key(dataset.version_state["commit_id"])
     try:

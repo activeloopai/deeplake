@@ -6,7 +6,11 @@ from deeplake.core.tiling.sample_tiles import SampleTiles
 
 
 class TileEncoder(DeepLakeMemoryObject):
-    def __init__(self, entries=None, version=None):
+    def __init__(
+        self,
+        entries: Optional[Dict[int, Tuple[Tuple[int, ...], Tuple[int, ...]]]] = None,
+        version: Optional[str] = None,
+    ):
         self.is_dirty = False
         self.entries: Dict[int, Tuple[Tuple[int, ...], Tuple[int, ...]]] = entries or {}
         self.version = version or deeplake.__version__

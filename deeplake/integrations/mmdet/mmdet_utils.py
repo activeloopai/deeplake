@@ -22,7 +22,7 @@ from deeplake.util.warnings import always_warn
 import json
 import mmcv  # type: ignore
 import math
-from tqdm import tqdm  # type: ignore
+from tqdm import tqdm
 
 
 def _isArrayLike(obj):

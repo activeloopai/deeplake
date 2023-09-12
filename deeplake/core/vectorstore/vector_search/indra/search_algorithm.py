@@ -68,7 +68,7 @@ def search(
     else:
         if not INDRA_INSTALLED:
             raise raise_indra_installation_error(
-                indra_import_error=False
+                indra_import_error=None
             )  # pragma: no cover
         return_data = {}
 

@@ -44,7 +44,7 @@ jobs:
                   "windows-latest",
               ],
               "python-version": [
-                  "3.10",
+                  "3.11",
               ],
               "storage": [
                   "--hub-cloud --local",
@@ -59,7 +59,7 @@ jobs:
                           "ubuntu-latest",
                       ],
                       "python-version": [
-                          "3.10",
+                          "3.11",
                       ],
                       "storage": [
                           "local",
