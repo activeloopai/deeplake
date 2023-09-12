@@ -1,3 +1,5 @@
+deeplake.random.seed
+====================
 
 .. currentmodule:: deeplake.core.seed
 
