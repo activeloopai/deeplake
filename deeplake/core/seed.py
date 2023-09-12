@@ -4,7 +4,7 @@ from typing import Optional
 
 class DeeplakeRandom(object):
     def __new__(cls):
-        """Returns a :class:`~deeplake.random.DeeplakeRandom` object songlton instance."""
+        """Returns a :class:`~deeplake.core.seed.DeeplakeRandom` object singleton instance."""
         if not hasattr(cls, "instance"):
             cls.instance = super(DeeplakeRandom, cls).__new__(cls)
             cls.instance.internal_seed = None
