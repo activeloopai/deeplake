@@ -189,7 +189,8 @@ def dataset_exists(storage, commit_id=None) -> bool:
     """
     try:
         return (
-            get_dataset_meta_key(commit_id or FIRST_COMMIT_ID) in storage
+            "_deeplake_log/00000000000000000000.json" in storage
+            or get_dataset_meta_key(commit_id or FIRST_COMMIT_ID) in storage
             or get_version_control_info_key() in storage
         )
     except S3GetAccessError as err:
