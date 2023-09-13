@@ -1106,7 +1106,7 @@ def load_meta(dataset: "deeplake.core.dataset.Dataset"):
         _tensors.clear()
         _tensor_names = version_state["tensor_names"]
         _tensor_names.clear()
-        tensor_names = {action.name: action.key for action in log.tensors()}
+        tensor_names = {action.name: action.key for action in log.tensors().data()}
         _tensor_names.update(tensor_names)
 
 

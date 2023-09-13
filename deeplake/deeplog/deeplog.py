@@ -1,4 +1,4 @@
-from typing import List, Union
+from typing import List, Union, Generic, TypeVar, Type
 
 from deeplake.deeplog.actions import (
     DeepLogAction,
@@ -9,8 +9,9 @@ from deeplake.deeplog.actions import (
     CreateTensorAction,
 )
 
+ActionType = TypeVar("ActionType", bound=DeepLogAction)
 
-class DeeplogState:
+class DeeplogState(Generic[ActionType]):
 
     def __init__(self, action: Union[DeepLogAction, List[DeepLogAction]]):
         self.action = action
@@ -18,7 +19,7 @@ class DeeplogState:
     def version(self) -> str:
         return 5
 
-    def data(self) -> DeepLogAction:
+    def data(self) -> ActionType:
         return self.action
 
 class DeepLog:
