@@ -6,6 +6,7 @@ from deeplake.deeplog.actions import (
     CreateBranchAction,
     ProtocolAction,
     MetadataAction,
+    CreateTensorAction,
 )
 
 
@@ -46,4 +47,10 @@ class DeepLog:
         return DeeplogState([
             AddFileAction("my/path.txt"),
             AddFileAction("other/path.txt"),
+        ])
+    
+    def tensors(self, version: int = -1) -> DeeplogState[List[CreateTensorAction]]:
+        return DeeplogState([
+            CreateTensorAction("my_tensor", "my_tensor"),
+            CreateTensorAction("other_tensor", "other_tensor"),
         ])

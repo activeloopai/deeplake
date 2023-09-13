@@ -44,11 +44,13 @@ from deeplake.util.keys import (
     get_version_control_info_lock_key,
     get_commit_info_key,
     get_pad_encoder_key,
+    is_dataset_v3,
 )
 from deeplake.constants import COMMIT_INFO_FILENAME
 from deeplake.util.path import relpath
 from deeplake.util.remove_cache import get_base_storage
 from deeplake.hooks import dataset_committed
+from deeplake.deeplog import DeepLog
 from datetime import datetime
 import deeplake.core.dataset
 
@@ -1086,16 +1088,27 @@ def load_meta(dataset: "deeplake.core.dataset.Dataset"):
     storage.clear_deeplake_objects()
     dataset._info = None
     dataset._ds_diff = None
-    meta = _get_dataset_meta_at_commit(storage, version_state["commit_id"])
 
-    ffw_dataset_meta(meta)
-    version_state["meta"] = meta
+    if is_dataset_v3(dataset, version_state["commit_id"]):
+        meta = _get_dataset_meta_at_commit(storage, version_state["commit_id"])
 
-    _tensors = version_state["full_tensors"]
-    _tensors.clear()
-    _tensor_names = version_state["tensor_names"]
-    _tensor_names.clear()
-    _tensor_names.update(meta.tensor_names)
+        ffw_dataset_meta(meta)
+        version_state["meta"] = meta
+
+        _tensors = version_state["full_tensors"]
+        _tensors.clear()
+        _tensor_names = version_state["tensor_names"]
+        _tensor_names.clear()
+        _tensor_names.update(meta.tensor_names)
+    else:
+        log = DeepLog()
+        _tensors = version_state["full_tensors"]
+        _tensors.clear()
+        _tensor_names = version_state["tensor_names"]
+        _tensor_names.clear()
+        tensor_names = {action.name: action.key for action in log.tensors()}
+        _tensor_names.update(tensor_names)
+
 
     for tensor_key in _tensor_names.values():
         if tensor_key.startswith("__temp"):

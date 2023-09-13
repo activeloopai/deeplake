@@ -32,3 +32,9 @@ class ProtocolAction(DeepLogAction):
     def __init__(self):
         self.min_reader_version = 4
         self.min_writer_version = 4
+
+
+class CreateTensorAction(DeepLogAction):
+    def __init__(self, key: str, name: str):
+        self.key = key
+        self.name = name

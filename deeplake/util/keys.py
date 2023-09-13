@@ -198,6 +198,14 @@ def dataset_exists(storage, commit_id=None) -> bool:
     except (KeyError, S3GetError) as err:
         return False
 
+def is_dataset_v3(storage, commit_id=None) -> bool:
+    try:
+        return get_dataset_meta_key(commit_id or FIRST_COMMIT_ID) in storage or get_version_control_info_key() in storage
+    except S3GetAccessError as err:
+        raise AuthorizationException("The dataset storage cannot be accessed") from err
+    except (KeyError, S3GetError) as err:
+        return False
+
 
 def tensor_exists(key: str, storage, commit_id: str) -> bool:
     try:
