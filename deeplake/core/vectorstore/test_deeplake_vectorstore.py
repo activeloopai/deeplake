@@ -23,6 +23,8 @@ from deeplake.util.exceptions import (
     DatasetHandlerError,
 )
 from deeplake.core.vectorstore.vector_search import dataset as dataset_utils
+from deeplake.cli.auth import login, logout
+from click.testing import CliRunner
 
 
 EMBEDDING_DIM = 100
@@ -237,7 +239,7 @@ def test_search_basic(local_path, hub_cloud_dev_token):
         token=hub_cloud_dev_token,
     )
 
-    assert vector_store.exec_option == "python"
+    assert vector_store.exec_option == "compute_engine"
 
     vector_store.add(embedding=embeddings, text=texts, metadata=metadatas)
 
@@ -393,7 +395,7 @@ def test_search_basic(local_path, hub_cloud_dev_token):
         path=local_path, overwrite=True, token=hub_cloud_dev_token, exec_option=None
     )
 
-    assert vector_store_none_exec.exec_option == "python"
+    assert vector_store_none_exec.exec_option == "compute_engine"
 
     # Check that filter_fn with cloud dataset (and therefore "compute_engine" exec option) switches to "python" automatically.
     with pytest.warns(None):
@@ -1784,3 +1786,124 @@ def test_read_only():
 def test_delete_by_path_wrong_path():
     with pytest.raises(DatasetHandlerError):
         VectorStore.delete_by_path("some_path")
+
+
+@requires_libdeeplake
+def test_exec_option_with_auth(local_path, hub_cloud_path, hub_cloud_dev_token):
+    db = VectorStore(path=local_path)
+    assert db.exec_option == "python"
+
+    db = VectorStore(
+        path=local_path,
+        token=hub_cloud_dev_token,
+    )
+    assert db.exec_option == "compute_engine"
+
+    db = VectorStore(
+        path=hub_cloud_path,
+        token=hub_cloud_dev_token,
+    )
+    assert db.exec_option == "compute_engine"
+
+    db = VectorStore(
+        path=hub_cloud_path + "_tensor_db",
+        token=hub_cloud_dev_token,
+        runtime={"tensor_db": True},
+    )
+    assert db.exec_option == "tensor_db"
+
+
+@requires_libdeeplake
+def test_exec_option_cli(
+    local_path,
+    hub_cloud_path,
+    hub_cloud_dev_token,
+    hub_cloud_dev_credentials,
+):
+    runner = CliRunner()
+    username, password = hub_cloud_dev_credentials
+    # Testing exec_option with cli login and logout commands are executed
+    runner.invoke(login, f"-u {username} -p {password}")
+
+    # local dataset and logged in with cli
+    db = VectorStore(
+        path=local_path,
+    )
+    assert db.exec_option == "compute_engine"
+
+    # hub cloud dataset and logged in with cli
+    db = VectorStore(
+        path=hub_cloud_path,
+    )
+    assert db.exec_option == "compute_engine"
+
+    # hub cloud dataset and logged in with cli
+    db = VectorStore(
+        path="mem://abc",
+    )
+    assert db.exec_option == "python"
+
+    # logging out with cli
+    runner.invoke(logout)
+
+    # local dataset and logged out with cli
+    db = VectorStore(
+        path=local_path,
+    )
+    assert db.exec_option == "python"
+
+    # Check whether after logging out exec_option changes to python
+    # logging in with cli token
+    runner.invoke(login, f"-t {hub_cloud_dev_token}")
+    db = VectorStore(
+        path=local_path,
+    )
+    assert db.exec_option == "compute_engine"
+    # logging out with cli
+    runner.invoke(logout)
+    assert db.exec_option == "python"
+
+    # Check whether after logging out when token specified exec_option doesn't change
+    # logging in with cli token
+    runner.invoke(login, f"-t {hub_cloud_dev_token}")
+    db = VectorStore(
+        path=local_path,
+        token=hub_cloud_dev_token,
+    )
+    assert db.exec_option == "compute_engine"
+    # logging out with cli
+    runner.invoke(logout)
+    assert db.exec_option == "compute_engine"
+
+
+@requires_libdeeplake
+@pytest.mark.parametrize(
+    "path",
+    [
+        "s3_path",
+        "gcs_path",
+        "azure_path",
+    ],
+    indirect=True,
+)
+def test_exec_option_with_connected_datasets(
+    hub_cloud_dev_token,
+    hub_cloud_path,
+    hub_cloud_dev_managed_creds_key,
+    path,
+):
+    runner = CliRunner()
+
+    db = VectorStore(path, overwrite=True)
+    assert db.exec_option == "python"
+
+    runner.invoke(login, f"-t {hub_cloud_dev_token}")
+    assert db.exec_option == "python"
+
+    db.dataset.connect(
+        creds_key=hub_cloud_dev_managed_creds_key,
+        dest_path=hub_cloud_path,
+        token=hub_cloud_dev_token,
+    )
+    db.dataset.add_creds_key(hub_cloud_dev_managed_creds_key, managed=True)
+    assert db.exec_option == "compute_engine"
