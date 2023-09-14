@@ -86,6 +86,7 @@ class DeepLog:
         return DeeplogState(
             [
                 CreateTensorAction("858123-889g81-43626", "my_tensor"),
+                CreateTensorAction("81123-889g81-455626", "_text_id"),
                 CreateTensorAction("88623-gasdg-398gasdg", "other_tensor"),
             ]
         )
