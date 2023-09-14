@@ -530,7 +530,7 @@ class DeepLakeBackendClient:
 
 
 class DeepMemoryBackendClient(DeepLakeBackendClient):
-    def __init__(token: Optional[str] = None):
+    def __init__(self, token: Optional[str] = None):
         super().__init__(token=token)
 
     def start_taining(
@@ -541,7 +541,7 @@ class DeepMemoryBackendClient(DeepLakeBackendClient):
         response = self.request(
             method="POST",
             relative_url="/api/deepmemory/v1/train",
-            json={"corpus_dataset": corpus_path, "queries_dataset": queries_path},
+            json={"corpus_dataset": corpus_path, "query_dataset": queries_path},
         )
         check_response_status(response)
         return response.json()
@@ -563,8 +563,8 @@ class DeepMemoryBackendClient(DeepLakeBackendClient):
         response_status_schema = JobResponseStatusSchema(response=response.json())
         return response_status_schema
 
-    def list_jobs(self):
-        dataset_id = self.dataset.path.split("//")[1]
+    def list_jobs(self, dataset_path):
+        dataset_id = dataset_path.split("//")[1]
         response = self.request(
             method="POST",
             relative_url=f"/api/v1/deepmemory/{dataset_id}/jobs",
