@@ -556,7 +556,7 @@ class DeepMemoryBackendClient(DeepLakeBackendClient):
 
     def check_status(self, job_id: str):
         response = self.request(
-            method="POST",
+            method="GET",
             relative_url=f"/api/deepmemory/v1/jobs/{job_id}/status",
         )
         check_response_status(response)
@@ -564,9 +564,9 @@ class DeepMemoryBackendClient(DeepLakeBackendClient):
         return response_status_schema
 
     def list_jobs(self):
-        dataset_id = self.dataset.path.split("//")[1]
+        dataset_id = self.dataset.path[6:]
         response = self.request(
-            method="POST",
+            method="GET",
             relative_url=f"/api/v1/deepmemory/{dataset_id}/jobs",
         )
         check_response_status(response)
