@@ -24,12 +24,13 @@ class DeeplakeRandom(object):
         ----------
 
         Specify a seed to train models and run randomized Deep Lake operations reproducibly. Feature affected are:
-        -- dataloader shuffling
-        -- Sampling and random operations in Tensor Query Language (TQL)
-        -- ``dataset.random_split``
+
+            - dataloader shuffling
+            - Sampling and random operations in Tensor Query Language (TQL)
+            - ``dataset.random_split``
 
 
-        The random seed can be specified using :meth:`deeplake.random.seed` to seed the random number generator in applicable deeplake functions::
+        The random seed can be specified using :meth:`deeplake.random.seed`::
 
             import deeplake
             deeplake.random.seed(0)
@@ -37,9 +38,9 @@ class DeeplakeRandom(object):
         Random number generators in other libraries
         -------------------------------------------
 
-        The Deep Lake random seed does not affect random number generators in other libraries such as numpy.
+        The Deep Lake random seed does not affect random number generators in other libraries such as ``numpy``.
 
-        However, seeds in other libraries will affect code where Deep Lake uses those libraries, but it will not impact the code where Deep Lake uses its internal seed :meth:`deeplake.random.seed`.
+        However, seeds in other libraries will affect code where Deep Lake uses those libraries, but it will not impact the methods above where Deep Lake uses its internal seed.
 
         """
         if seed is None or isinstance(seed, int):
