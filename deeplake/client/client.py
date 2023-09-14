@@ -1,6 +1,6 @@
 import deeplake
 import requests
-from typing import Any, Optional, Dict
+from typing import Any, Optional, Dict, List
 from deeplake.util.exceptions import (
     AgreementNotAcceptedError,
     AuthorizationException,
@@ -509,3 +509,68 @@ class DeepLakeBackendClient:
         ).json()
 
         return response
+
+
+class DeepMemoryBackendClient(DeepLakeBackendClient):
+    def __init__(token: Optional[str] = None):
+        super().__init__(token=token)
+
+    def start_taining(
+        self,
+        corpus_path,
+        queries_path,
+    ) -> Dict[str, Any]:
+        response = self.request(
+            method="POST",
+            relative_url="/api/deepmemory/v1/train",
+            json={"corpus_dataset": corpus_path, "queries_dataset": queries_path},
+        )
+        check_response_status(response)
+        return response.json()
+
+    def cancel(self, job_id: str):
+        response = self.request(
+            method="POST",
+            relative_url=f"/api/deepmemory/v1/jobs/{job_id}/cancel",
+        )
+        check_response_status(response)
+        return response.json()
+
+    def check_status(self, job_id: str):
+        response = self.request(
+            method="POST",
+            relative_url=f"/api/deepmemory/v1/jobs/{job_id}/status",
+        )
+        check_response_status(response)
+        response_status_schema = JobResponseStatusSchema(response=response.json())
+        return response_status_schema
+
+    def list_jobs(self):
+        dataset_id = self.dataset.path.split("//")[1]
+        response = self.request(
+            method="POST",
+            relative_url=f"/api/v1/deepmemory/{dataset_id}/jobs",
+        )
+        check_response_status(response)
+        response_status_schema = JobResponseStatusSchema(response=response.json())
+        return response_status_schema
+
+
+class JobResponseStatusSchema:
+    def __init__(self, resonse: Dict[str, Any]):
+        if not isinstance(resonse, List):
+            responses = [resonse]
+
+        self.responses = responses
+        self.validate_status_response()
+
+    def validate_status_response(self):
+        for response in self.responses:
+            if "_id" not in response:
+                raise ValueError("Invalid response. Missing 'id' key.")
+
+    def print_status(self):
+        pass
+
+    def print_jobs(self):
+        pass
