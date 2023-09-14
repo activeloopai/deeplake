@@ -119,6 +119,9 @@ class constraints:
         lambda htype, dtype: f"Incompatible dtype of tensor for htype {htype}: {dtype}"
     )
 
+    EMBEDDING = lambda shape, dtype: True
+    INSTANCE_LABEL = lambda shape, dtype: True
+
     @staticmethod
     def IMAGE(shape, dtype):
         if len(shape) not in (3, 4):
@@ -147,8 +150,6 @@ class constraints:
         if shape[-1] != 8:
             raise IncompatibleHtypeError(constraints.shape_error("bbox.3d", shape))
 
-    EMBEDDING = lambda shape, dtype: True
-
     @staticmethod
     def BINARY_MASK(shape, dtype):
         if len(shape) not in (3, 4):
@@ -168,8 +169,6 @@ class constraints:
             raise IncompatibleHtypeError(
                 constraints.shape_error("keypoints_coco", shape)
             )
-
-    INSTANCE_LABEL = lambda shape, dtype: True
 
     @staticmethod
     def POINT(shape, dtype):

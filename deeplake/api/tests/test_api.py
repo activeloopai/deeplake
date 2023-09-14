@@ -3031,3 +3031,7 @@ def test_change_htype_fail(local_ds_generator):
 
         with pytest.raises(NotImplementedError):
             ds.images.htype = "text"
+
+        ds.create_tensor("images3", htype="image", sample_compression="jpg")
+        with pytest.raises(UnsupportedCompressionError):
+            ds.images3.htype = "embedding"
