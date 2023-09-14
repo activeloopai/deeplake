@@ -274,10 +274,6 @@ class ChunkEngine:
         return self.version_state["commit_id"]
 
     @property
-    def deeplog(self):
-        return self.base_storage.deeplog
-
-    @property
     def max_chunk_size(self):
         # no chunks may exceed this
         return (
@@ -312,18 +308,18 @@ class ChunkEngine:
     @property
     def tensor_meta(self):
         commit_id = self.commit_id
-        if self.deeplog.log_format() < 4 and (
+        if self.base_storage.deeplog.log_format() < 4 and (
             self._tensor_meta is None or self._tensor_meta_commit_id != commit_id
         ):
             key = get_tensor_meta_key(self.key, commit_id)
             self._tensor_meta = self.meta_cache.get_deeplake_object(key, TensorMeta)
             self._tensor_meta_commit_id = commit_id
             self.meta_cache.register_deeplake_object(key, self._tensor_meta)
-        elif self.deeplog.log_format() >= 4 and (
+        elif self.base_storage.deeplog.log_format() >= 4 and (
             self._tensor_meta is None or self._tensor_meta_commit_id != commit_id
         ):
             branch_id, branch_version = parse_commit_id(self.commit_id)
-            self._tensor_meta = get_tensor_metadata(self.deeplog, branch_id, branch_version)
+            self._tensor_meta = get_tensor_metadata(self.base_storage.deeplog, branch_id, branch_version)
             self._tensor_meta_commit_id = commit_id
 
         return self._tensor_meta
@@ -350,18 +346,21 @@ class ChunkEngine:
             or self._chunk_id_encoder_commit_id != commit_id
         ):
             commit_id = self.commit_id
-            key = get_chunk_id_encoder_key(self.key, commit_id)
-            if not self.chunk_id_encoder_exists:
-                enc = ChunkIdEncoder(dtype=np.uint64)
-                try:
-                    self.meta_cache[key] = enc
-                except ReadOnlyModeError:
-                    pass
+            if self.base_storage.deeplog.log_format() < 4:
+                key = get_chunk_id_encoder_key(self.key, commit_id)
+                if not self.chunk_id_encoder_exists:
+                    enc = ChunkIdEncoder(dtype=np.uint64)
+                    try:
+                        self.meta_cache[key] = enc
+                    except ReadOnlyModeError:
+                        pass
+                else:
+                    enc = self.meta_cache.get_deeplake_object(key, ChunkIdEncoder)
+                self._chunk_id_encoder = enc
+                self._chunk_id_encoder_commit_id = commit_id
+                self.meta_cache.register_deeplake_object(key, enc)
             else:
-                enc = self.meta_cache.get_deeplake_object(key, ChunkIdEncoder)
-            self._chunk_id_encoder = enc
-            self._chunk_id_encoder_commit_id = commit_id
-            self.meta_cache.register_deeplake_object(key, enc)
+                self._chunk_id_encoder = ChunkIdEncoder(dtype=np.uint64)
         return self._chunk_id_encoder
 
     @property
@@ -468,18 +467,21 @@ class ChunkEngine:
         """Gets the tile encoder from cache, if one is not found it creates a blank encoder."""
         commit_id = self.commit_id
         if self._tile_encoder is None or self._tile_encoder_commit_id != commit_id:
-            key = get_tensor_tile_encoder_key(self.key, commit_id)
-            if not self.tile_encoder_exists:
-                enc = TileEncoder()
-                try:
-                    self.meta_cache[key] = enc
-                except ReadOnlyModeError:
-                    pass
+            if self.base_storage.deeplog.log_format() < 4:
+                key = get_tensor_tile_encoder_key(self.key, commit_id)
+                if not self.tile_encoder_exists:
+                    enc = TileEncoder()
+                    try:
+                        self.meta_cache[key] = enc
+                    except ReadOnlyModeError:
+                        pass
+                else:
+                    enc = self.meta_cache.get_deeplake_object(key, TileEncoder)
+                self._tile_encoder = enc
+                self._tile_encoder_commit_id = commit_id
+                self.meta_cache.register_deeplake_object(key, enc)
             else:
-                enc = self.meta_cache.get_deeplake_object(key, TileEncoder)
-            self._tile_encoder = enc
-            self._tile_encoder_commit_id = commit_id
-            self.meta_cache.register_deeplake_object(key, enc)
+                self._tile_encoder = TileEncoder()
         return self._tile_encoder
 
     @property
