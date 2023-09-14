@@ -567,7 +567,7 @@ class DeepMemoryBackendClient(DeepLakeBackendClient):
         dataset_id = dataset_path[6:]
         response = self.request(
             method="GET",
-            relative_url=f"/api/v1/deepmemory/{dataset_id}/jobs",
+            relative_url=f"/api/deepmemory/v1/{dataset_id}/jobs",
         )
         check_response_status(response)
         response_status_schema = JobResponseStatusSchema(response=response.json(), dataset_id)
