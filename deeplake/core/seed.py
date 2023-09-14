@@ -15,7 +15,7 @@ class DeeplakeRandom(object):
         """Set random seed to the deeplake engines
 
         Args:
-            seed (int, optional): Integer seed for initializing the computational engines, used to bring reproducibility to random operations. Set to None to reset the seed. Defaults to None.
+            seed (int, optional): Integer seed for initializing the computational engines, used for bringing reproducibility to random operations. Set to None to reset the seed. Defaults to None.
 
         Raises:
             TypeError: If the provided value type is not supported.
@@ -23,10 +23,11 @@ class DeeplakeRandom(object):
         Background
         ----------
 
-        Specify a seed to train models and run randomized Deep Lake operations reproducibly.
+        Specify a seed to train models and run randomized Deep Lake operations reproducibly. Feature affected are:
+        -- dataloader shuffling
+        -- Sampling and random operations in Tensor Query Language (TQL)
+        -- ``dataset.random_split``
 
-        Deeplake does not provide in-house random number generator to control the reproducibility
-        and keep track on flow stages can be
 
         The random seed can be specified using :meth:`deeplake.random.seed` to seed the random number generator in applicable deeplake functions::
 
@@ -35,18 +36,10 @@ class DeeplakeRandom(object):
 
         Random number generators in other libraries
         -------------------------------------------
-        If you or any of the libraries you are using rely on NumPy, you can seed the global
-        NumPy RNG with::
 
-            import numpy as np
-            np.random.seed(0)
+        The Deep Lake random seed does not affect random number generators in other libraries such as numpy.
 
-            import random
-            random.seed(0)
-
-        Those will impact to all the places where deeplake uses those libraries but with use of use :meth:`deeplake.random.seed` we are nor changing any library
-        global state instead just initializing singleton instances in the random engines
-
+        However, seeds in other libraries will affect code where Deep Lake uses those libraries, but it will not impact the code where Deep Lake uses its internal seed :meth:`deeplake.random.seed`.
 
         """
         if seed is None or isinstance(seed, int):
