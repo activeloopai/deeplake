@@ -556,7 +556,7 @@ class DeepMemoryBackendClient(DeepLakeBackendClient):
 
     def check_status(self, job_id: str):
         response = self.request(
-            method="POST",
+            method="GET",
             relative_url=f"/api/deepmemory/v1/jobs/{job_id}/status",
         )
         check_response_status(response)
@@ -564,27 +564,34 @@ class DeepMemoryBackendClient(DeepLakeBackendClient):
         return response_status_schema
 
     def list_jobs(self, dataset_path):
-        dataset_id = dataset_path.split("//")[1]
+        dataset_id = dataset_path[6:]
         response = self.request(
-            method="POST",
+            method="GET",
             relative_url=f"/api/v1/deepmemory/{dataset_id}/jobs",
         )
         check_response_status(response)
-        response_status_schema = JobResponseStatusSchema(response=response.json())
+        response_status_schema = JobResponseStatusSchema(response=response.json(), dataset_id)
         return response_status_schema
 
 
 class JobResponseStatusSchema:
-    def __init__(self, resonse: Dict[str, Any]):
-        if not isinstance(resonse, List):
-            responses = [resonse]
+    def __init__(self, response: Dict[str, Any], dataset_id: str):
+        if not isinstance(response, List):
+            responses = [response]
 
         self.responses = responses
+        self.dataset_id = dataset_id
         self.validate_status_response()
 
     def validate_status_response(self):
         for response in self.responses:
-            if "_id" not in response:
+            if "dataset_id" not in response:
+                raise ValueError("Invalid response. Missing 'dataset_id' key.")
+
+            if self.dataset_id != response["dataset_id"]:
+                raise ValueError("Invalid `dataset_id` is returned in response")
+            
+            if "id" not in response:
                 raise ValueError("Invalid response. Missing 'id' key.")
 
     def print_status(self):
