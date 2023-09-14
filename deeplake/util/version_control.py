@@ -21,6 +21,7 @@ from deeplake.core.version_control.commit_node import CommitNode  # type: ignore
 from deeplake.core.version_control.commit_chunk_map import CommitChunkMap  # type: ignore
 from deeplake.core.storage import LRUCache
 from deeplake.core.lock import Lock, PersistentLock
+from deeplake.deeplog.adapters import parse_commit_id
 from deeplake.util.exceptions import (
     CheckoutError,
     CommitError,
@@ -44,7 +45,6 @@ from deeplake.util.keys import (
     get_version_control_info_lock_key,
     get_commit_info_key,
     get_pad_encoder_key,
-    is_dataset_v3,
 )
 from deeplake.constants import COMMIT_INFO_FILENAME
 from deeplake.util.path import relpath
@@ -1068,7 +1068,6 @@ def commit_diff_exists(
     except KeyError:
         return False
 
-
 def _get_dataset_meta_at_commit(storage, commit_id):
     """Get dataset meta at commit."""
     meta_key = get_dataset_meta_key(commit_id)
@@ -1076,6 +1075,26 @@ def _get_dataset_meta_at_commit(storage, commit_id):
     if not meta.tensor_names:  # backward compatibility
         meta.tensor_names = {key: key for key in meta.tensors}
     storage.register_deeplake_object(meta_key, meta)
+    return meta
+
+
+def _get_deeplog_meta_at_commit(deeplog: DeepLog, branch_id: str, branch_version: int) -> DatasetMeta:
+    meta = DatasetMeta()
+    tensor_data = deeplog.tensors(branch_id, branch_version).data()
+
+    meta.tensors = [action.id for action in tensor_data]
+    meta.tensor_names = {action.name: action.id for action in tensor_data}
+    meta.hidden_tensors = [action.id for action in tensor_data if action.hidden]
+    meta.version = deeplake.__version__
+    meta.default_index = [
+        {
+            "start": None,
+            "step": None,
+            "stop": None,
+        }
+    ]
+    meta.groups = []
+
     return meta
 
 
@@ -1089,7 +1108,8 @@ def load_meta(dataset: "deeplake.core.dataset.Dataset"):
     dataset._info = None
     dataset._ds_diff = None
 
-    if is_dataset_v3(dataset, version_state["commit_id"]):
+    deeplog = dataset.storage.deeplog
+    if deeplog.log_format() < 4:
         meta = _get_dataset_meta_at_commit(storage, version_state["commit_id"])
 
         ffw_dataset_meta(meta)
@@ -1101,12 +1121,14 @@ def load_meta(dataset: "deeplake.core.dataset.Dataset"):
         _tensor_names.clear()
         _tensor_names.update(meta.tensor_names)
     else:
-        log = DeepLog()
+        branch_id, branch_version = parse_commit_id(version_state["commit_id"])
+        version_state["meta"] = _get_deeplog_meta_at_commit(dataset.storage.deeplog, branch_id, branch_version)
+
         _tensors = version_state["full_tensors"]
         _tensors.clear()
         _tensor_names = version_state["tensor_names"]
         _tensor_names.clear()
-        tensor_names = {action.name: action.key for action in log.tensors().data()}
+        tensor_names = {action.name: action.id for action in deeplog.tensors(branch_id, branch_version).data()}
         _tensor_names.update(tensor_names)
 
 

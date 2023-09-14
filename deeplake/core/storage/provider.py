@@ -1,8 +1,9 @@
 from abc import ABC, abstractmethod
 from collections.abc import MutableMapping
-from typing import Optional, Set, Sequence, Dict
+from typing import Optional, Set, Sequence, Dict, Union
 
 from deeplake.constants import BYTE_PADDING
+from deeplake.deeplog import DeepLog
 from deeplake.util.assert_byte_indexes import assert_byte_indexes
 from deeplake.util.exceptions import ReadOnlyModeError
 from deeplake.util.keys import get_dataset_lock_key
@@ -71,6 +72,17 @@ class StorageProvider(ABC, MutableMapping):
         """
         assert_byte_indexes(start_byte, end_byte)
         return self[path][start_byte:end_byte]
+
+    def set_deeplog(self, deeplog: DeepLog):
+        from deeplake.util.remove_cache import get_base_storage
+        storage_to_use = get_base_storage(self)
+        storage_to_use._deeplog = deeplog
+
+    @property
+    def deeplog(self) -> Union[DeepLog, None]:
+        from deeplake.util.remove_cache import get_base_storage
+        storage_to_use = get_base_storage(self)
+        return storage_to_use._deeplog
 
     @abstractmethod
     def __setitem__(self, path: str, value: bytes):

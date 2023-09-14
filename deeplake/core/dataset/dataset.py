@@ -17,6 +17,7 @@ from deeplake.core.index.index import IndexEntry
 from deeplake.core.link_creds import LinkCreds
 from deeplake.core.sample import Sample
 from deeplake.core.linked_sample import LinkedSample
+from deeplake.deeplog.adapters import to_commit_id
 from deeplake.util.connect_dataset import connect_dataset_entry
 from deeplake.util.downsample import validate_downsampling
 from deeplake.util.version_control import (
@@ -1350,39 +1351,71 @@ class Dataset:
             address = "main"
 
         version_state = {}
-        try:
+        if self.storage.deeplog.log_format() < 4:
             try:
-                version_info = load_version_info(self.storage)
-            except Exception as e:
-                version_info = rebuild_version_info(self.storage)
-                if version_info is None:
-                    raise e
-            version_state["branch_commit_map"] = version_info["branch_commit_map"]
-            version_state["commit_node_map"] = version_info["commit_node_map"]
+                try:
+                    version_info = load_version_info(self.storage)
+                except Exception as e:
+                    version_info = rebuild_version_info(self.storage)
+                    if version_info is None:
+                        raise e
+                version_state["branch_commit_map"] = version_info["branch_commit_map"]
+                version_state["commit_node_map"] = version_info["commit_node_map"]
 
-            commit_id = self._get_commit_id_for_address(address, version_state)
+                commit_id = self._get_commit_id_for_address(address, version_state)
+
+                version_state["commit_id"] = commit_id
+                version_state["commit_node"] = version_state["commit_node_map"][commit_id]
+                version_state["branch"] = version_state["commit_node"].branch
+            except Exception as e:
+                if isinstance(e, CheckoutError):
+                    raise e from None
+                if address != "main":
+                    raise CheckoutError(
+                        f"Address {address} not found. Ensure the commit id / branch name is correct."
+                    )
+                branch = "main"
+                version_state["branch"] = branch
+                version_state["branch_commit_map"] = {}
+                version_state["commit_node_map"] = {}
+                # used to identify that this is the first commit so its data will not be in similar directory structure to the rest
+                commit_id = FIRST_COMMIT_ID
+                commit_node = CommitNode(branch, commit_id)
+                version_state["commit_id"] = commit_id
+                version_state["commit_node"] = commit_node
+                version_state["branch_commit_map"][branch] = commit_id
+                version_state["commit_node_map"][commit_id] = commit_node
+        else:
+            version = self.storage.deeplog.version("")
+            branch_data = self.storage.deeplog.branches(version).data()
+            commit_data = self.storage.deeplog.commits(version).data()
+
+            branch_names = {}
+            branch_ids = {}
+            for branch in branch_data:
+                branch_names[branch.id] = branch.name
+                branch_ids[branch.name] = branch.id
+
+            version_state["branch_commit_map"] = {}
+            version_state["commit_node_map"] = {}
+            for commit_info in commit_data:
+                version_state["commit_node_map"][to_commit_id(commit_info.branch_id, commit_info.branch_version)] = CommitNode(branch_names[commit_info.branch_id], commit_info.id)
+
+            for branch_info in branch_data:
+                # create head commit for branch
+                branch_version = self.storage.deeplog.version(branch_info.id)
+                head_commit_id = to_commit_id(branch_info.id, branch_version)
+                if head_commit_id not in version_state["commit_node_map"]:
+                    version_state["commit_node_map"][head_commit_id] = CommitNode(branch_names[branch_info.id], branch_version)
+
+                version_state["branch_commit_map"][branch_info.name] = [commit_info.id for commit_info in commit_data if commit_info.branch_id == branch_info.id][0]
+
+            commit_id = to_commit_id("", version)
 
             version_state["commit_id"] = commit_id
             version_state["commit_node"] = version_state["commit_node_map"][commit_id]
             version_state["branch"] = version_state["commit_node"].branch
-        except Exception as e:
-            if isinstance(e, CheckoutError):
-                raise e from None
-            if address != "main":
-                raise CheckoutError(
-                    f"Address {address} not found. Ensure the commit id / branch name is correct."
-                )
-            branch = "main"
-            version_state["branch"] = branch
-            version_state["branch_commit_map"] = {}
-            version_state["commit_node_map"] = {}
-            # used to identify that this is the first commit so its data will not be in similar directory structure to the rest
-            commit_id = FIRST_COMMIT_ID
-            commit_node = CommitNode(branch, commit_id)
-            version_state["commit_id"] = commit_id
-            version_state["commit_node"] = commit_node
-            version_state["branch_commit_map"][branch] = commit_id
-            version_state["commit_node_map"][commit_id] = commit_node
+
         # keeps track of the full unindexed tensors
         version_state["full_tensors"] = {}
         version_state["tensor_names"] = {}

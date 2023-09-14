@@ -39,6 +39,7 @@ from deeplake.core.tiling.deserialize import (
 )
 from deeplake.core.tiling.serialize import break_into_tiles
 from deeplake.core.polygon import Polygons
+from deeplake.deeplog.adapters import get_tensor_metadata, parse_commit_id
 from deeplake.util.casting import get_empty_text_like_sample, intelligent_cast
 from deeplake.util.empty_sample import is_empty_list
 from deeplake.util.shape_interval import ShapeInterval
@@ -273,6 +274,10 @@ class ChunkEngine:
         return self.version_state["commit_id"]
 
     @property
+    def deeplog(self):
+        return self.base_storage.deeplog
+
+    @property
     def max_chunk_size(self):
         # no chunks may exceed this
         return (
@@ -307,11 +312,20 @@ class ChunkEngine:
     @property
     def tensor_meta(self):
         commit_id = self.commit_id
-        if self._tensor_meta is None or self._tensor_meta_commit_id != commit_id:
+        if self.deeplog.log_format() < 4 and (
+            self._tensor_meta is None or self._tensor_meta_commit_id != commit_id
+        ):
             key = get_tensor_meta_key(self.key, commit_id)
             self._tensor_meta = self.meta_cache.get_deeplake_object(key, TensorMeta)
             self._tensor_meta_commit_id = commit_id
             self.meta_cache.register_deeplake_object(key, self._tensor_meta)
+        elif self.deeplog.log_format() >= 4 and (
+            self._tensor_meta is None or self._tensor_meta_commit_id != commit_id
+        ):
+            branch_id, branch_version = parse_commit_id(self.commit_id)
+            self._tensor_meta = get_tensor_metadata(self.deeplog, branch_id, branch_version)
+            self._tensor_meta_commit_id = commit_id
+
         return self._tensor_meta
 
     @property

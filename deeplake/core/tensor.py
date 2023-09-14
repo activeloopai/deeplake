@@ -1,6 +1,7 @@
 import deeplake
 from deeplake.core.linked_chunk_engine import LinkedChunkEngine
 from deeplake.core.storage.lru_cache import LRUCache
+from deeplake.deeplog.adapters import get_tensor_metadata, parse_commit_id
 from deeplake.util.downsample import apply_partial_downsample
 from deeplake.util.invalid_view_op import invalid_view_op
 from deeplake.core.version_control.commit_chunk_map import CommitChunkMap
@@ -34,6 +35,7 @@ from deeplake.util.keys import (
     get_sample_id_tensor_key,
     get_sample_info_tensor_key,
     get_sample_shape_tensor_key,
+    tensor_exists_in_log,
 )
 from deeplake.util.modified import get_modified_indexes
 from deeplake.util.class_label import convert_to_text
@@ -204,7 +206,7 @@ class Tensor:
     def __init__(
         self,
         key: str,
-        dataset,
+        dataset: "deeplake.core.dataset.Dataset",
         index: Optional[Index] = None,
         is_iteration: bool = False,
         chunk_engine: Optional[ChunkEngine] = None,
@@ -235,13 +237,30 @@ class Tensor:
         self.is_iteration = is_iteration
         commit_id = self.version_state["commit_id"]
 
-        if not self.is_iteration and not tensor_exists(
-            self.key, self.storage, commit_id
-        ):
-            raise TensorDoesNotExistError(self.key)
+        if dataset.storage.deeplog.log_format() < 4:
+            if not self.is_iteration and not tensor_exists(
+                self.key, self.storage, commit_id
+            ):
+                raise TensorDoesNotExistError(self.key)
 
-        meta_key = get_tensor_meta_key(self.key, commit_id)
-        meta = self.storage.get_deeplake_object(meta_key, TensorMeta)
+            meta_key = get_tensor_meta_key(self.key, commit_id)
+            meta = self.storage.get_deeplake_object(meta_key, TensorMeta)
+        else:
+            branch_id, branch_version = parse_commit_id(commit_id)
+            if not self.is_iteration and not tensor_exists_in_log(
+                dataset.storage.deeplog,
+                self.key,
+                branch_id,
+                branch_version,
+            ):
+                raise TensorDoesNotExistError(self.key)
+
+            meta = get_tensor_metadata(
+                dataset.storage.deeplog,
+                branch_id,
+                branch_version,
+            )
+
         if chunk_engine is not None:
             self.chunk_engine = chunk_engine
         elif meta.is_link:

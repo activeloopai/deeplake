@@ -25,6 +25,7 @@ from deeplake.constants import (
     QUERIES_FILENAME,
     QUERIES_LOCK_FILENAME,
 )
+from deeplake.deeplog import DeepLog
 from deeplake.util.exceptions import (
     S3GetError,
     S3GetAccessError,
@@ -198,14 +199,6 @@ def dataset_exists(storage, commit_id=None) -> bool:
     except (KeyError, S3GetError) as err:
         return False
 
-def is_dataset_v3(storage, commit_id=None) -> bool:
-    try:
-        return get_dataset_meta_key(commit_id or FIRST_COMMIT_ID) in storage or get_version_control_info_key() in storage
-    except S3GetAccessError as err:
-        raise AuthorizationException("The dataset storage cannot be accessed") from err
-    except (KeyError, S3GetError) as err:
-        return False
-
 
 def tensor_exists(key: str, storage, commit_id: str) -> bool:
     try:
@@ -213,6 +206,10 @@ def tensor_exists(key: str, storage, commit_id: str) -> bool:
         return True
     except KeyError:
         return False
+
+
+def tensor_exists_in_log(deeplog: DeepLog, tensor_id: str, branch: str, branch_version: int) -> bool:
+    return tensor_id in [tensor.id for tensor in deeplog.tensors(branch, branch_version).data()]
 
 
 def get_queries_key() -> str:
