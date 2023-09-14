@@ -39,6 +39,7 @@ from deeplake.client.config import (
     GET_PRESIGNED_URL_SUFFIX,
     CONNECT_DATASET_SUFFIX,
     REMOTE_QUERY_SUFFIX,
+    ORG_PERMISSION_SUFFIX,
 )
 from deeplake.client.log import logger
 import jwt  # should add it to requirements.txt
@@ -505,6 +506,23 @@ class DeepLakeBackendClient:
             "POST",
             REMOTE_QUERY_SUFFIX.format(org_id, ds_name),
             json={"query": query_string},
+            endpoint=self.endpoint(),
+        ).json()
+
+        return response
+
+    def has_indra_org_permission(self, org_id: str) -> Dict[str, Any]:
+        """Queries a remote dataset.
+
+        Args:
+            org_id (str): The organization to which the dataset belongs.
+
+        Returns:
+            Dict[str, Any]: The json response containing org permissions.
+        """
+        response = self.request(
+            "GET",
+            ORG_PERMISSION_SUFFIX.format(org_id),
             endpoint=self.endpoint(),
         ).json()
 
