@@ -60,7 +60,7 @@ class CreateTensorAction(DeepLogAction):
         self.htype = "text"
         self.is_link = False
         self.is_sequence = False
-        self.length = 0
+        self.length = 5
         self.links = {
             "81123-889g81-455626": {
                 "extend": "extend_id",

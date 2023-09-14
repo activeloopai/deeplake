@@ -360,7 +360,7 @@ class ChunkEngine:
                 self._chunk_id_encoder_commit_id = commit_id
                 self.meta_cache.register_deeplake_object(key, enc)
             else:
-                self._chunk_id_encoder = ChunkIdEncoder(dtype=np.uint64)
+                self._chunk_id_encoder = ChunkIdEncoder(dtype=np.uint64, encoded=np.array([[8823025984165662238], [4]], dtype=np.uint64))
         return self._chunk_id_encoder
 
     @property
@@ -598,19 +598,28 @@ class ChunkEngine:
     def get_chunk_from_chunk_id(
         self, chunk_id, copy: bool = False, partial_chunk_bytes=0
     ) -> BaseChunk:
-        chunk_key = None
-        try:
-            chunk_name = ChunkIdEncoder.name_from_id(chunk_id)
-            chunk_commit_id, tkey = self.get_chunk_commit(chunk_name)
-            chunk_key = get_chunk_key(tkey, chunk_name, chunk_commit_id)
-            chunk = self.get_chunk(chunk_key, partial_chunk_bytes=partial_chunk_bytes)
-            chunk.key = chunk_key
-            chunk.id = chunk_id
-            if copy and chunk_commit_id != self.commit_id:
-                chunk = self.copy_chunk_to_new_commit(chunk, chunk_name)
-            return chunk
-        except Exception as e:
-            raise GetChunkError(chunk_key) from e
+        if self.base_storage.deeplog.log_format() < 4:
+            chunk_key = None
+            try:
+                chunk_name = ChunkIdEncoder.name_from_id(chunk_id)
+                chunk_commit_id, tkey = self.get_chunk_commit(chunk_name)
+                chunk_key = get_chunk_key(tkey, chunk_name, chunk_commit_id)
+                chunk = self.get_chunk(chunk_key, partial_chunk_bytes=partial_chunk_bytes)
+                chunk.key = chunk_key
+                chunk.id = chunk_id
+                if copy and chunk_commit_id != self.commit_id:
+                    chunk = self.copy_chunk_to_new_commit(chunk, chunk_name)
+                return chunk
+
+            except Exception as e:
+                raise GetChunkError(chunk_key) from e
+        else:
+            try:
+                chunk_name = ChunkIdEncoder.name_from_id(chunk_id)
+                return self.get_chunk(chunk_name, partial_chunk_bytes=partial_chunk_bytes)
+            except Exception as e:
+                raise GetChunkError(chunk_name) from e
+
 
     def get_video_chunk(self, chunk_id, copy: bool = False):
         """Returns video chunks. Chunk will contain presigned url to the video instead of data if the chunk is large."""
