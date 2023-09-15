@@ -15,7 +15,8 @@ class DeeplakeRandom(object):
         """Set random seed to the deeplake engines
 
         Args:
-            seed (int, optional): Integer seed for initializing the computational engines, used for bringing reproducibility to random operations. Set to None to reset the seed. Defaults to None.
+            seed (int, optional): Integer seed for initializing the computational engines, used for bringing reproducibility to random operations.
+                Set to ``None`` to reset the seed. Defaults to ``None``.
 
         Raises:
             TypeError: If the provided value type is not supported.
@@ -23,24 +24,25 @@ class DeeplakeRandom(object):
         Background
         ----------
 
-        Specify a seed to train models and run randomized Deep Lake operations reproducibly. Feature affected are:
+        Specify a seed to train models and run randomized Deep Lake operations reproducibly. Features affected are:
 
-            - dataloader shuffling
+            - Dataloader shuffling
             - Sampling and random operations in Tensor Query Language (TQL)
-            - ``dataset.random_split``
+            - :meth:`Dataset.random_split <deeplake.core.dataset.Dataset.random_split>`
 
 
-        The random seed can be specified using :meth:`deeplake.random.seed`::
+        The random seed can be specified using ``deeplake.random.seed``:
 
-            import deeplake
-            deeplake.random.seed(0)
+            >>> import deeplake
+            >>> deeplake.random.seed(0)
 
         Random number generators in other libraries
         -------------------------------------------
 
         The Deep Lake random seed does not affect random number generators in other libraries such as ``numpy``.
 
-        However, seeds in other libraries will affect code where Deep Lake uses those libraries, but it will not impact the methods above where Deep Lake uses its internal seed.
+        However, seeds in other libraries will affect code where Deep Lake uses those libraries, but it will not impact
+        the methods above where Deep Lake uses its internal seed.
 
         """
         if seed is None or isinstance(seed, int):

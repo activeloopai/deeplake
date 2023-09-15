@@ -69,6 +69,7 @@ Dataset Operations
     Dataset.flush
     Dataset.clear_cache
     Dataset.size_approx
+    Dataset.random_split
 
 Dataset Visualization
 ~~~~~~~~~~~~~~~~~~~~~
