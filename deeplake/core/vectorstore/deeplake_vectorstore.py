@@ -745,11 +745,11 @@ class VectorStore:
         feature_report_path(
             path,
             "vs.delete_by_path",
-            {"creds": creds},
             parameters={
                 "path": path,
                 "token": token,
                 "force": force,
+                "creds": creds,
             },
             token=token,
         )
