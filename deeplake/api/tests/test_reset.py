@@ -57,9 +57,7 @@ def test_load_corrupt_dataset(path):
         deeplake.load(path, access_method=access_method)
 
     with pytest.raises(ReadOnlyModeError):
-        deeplake.load(
-            path, read_only=True, access_method=access_method, reset=True
-        )
+        deeplake.load(path, read_only=True, access_method=access_method, reset=True)
 
     ds = deeplake.load(
         path,

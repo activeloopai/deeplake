@@ -11,6 +11,7 @@ from deeplake.core.vectorstore import DeepLakeVectorStore
 from deeplake.constants import (
     DEFAULT_VECTORSTORE_DEEPLAKE_PATH,
     DEFAULT_VECTORSTORE_TENSORS,
+    TARGET_BYTE_SIZE,
 )
 from deeplake.tests.common import requires_libdeeplake
 from deeplake.constants import MAX_BYTES_PER_MINUTE
@@ -42,6 +43,7 @@ def test_create(caplog, hub_cloud_path, hub_cloud_dev_token):
         embedding_function=Embedding,
         runtime=None,
         exec_option="python",
+        org_id=None,
     )
     assert len(dataset) == 0
     assert set(dataset.tensors.keys()) == {
@@ -69,6 +71,7 @@ def test_create(caplog, hub_cloud_path, hub_cloud_dev_token):
         runtime={"tensor_db": True},
         overwrite=True,
         embedding_function=Embedding,
+        org_id=None,
     )
     assert len(dataset) == 0
     assert set(dataset.tensors.keys()) == {
@@ -102,6 +105,7 @@ def test_create(caplog, hub_cloud_path, hub_cloud_dev_token):
             runtime=None,
             overwrite=True,
             embedding_function=Embedding,
+            org_id=None,
         )
 
 
@@ -119,6 +123,7 @@ def test_load(caplog, hub_cloud_dev_token):
         token=hub_cloud_dev_token,
         embedding_function=None,
         runtime=None,
+        org_id=None,
     )
     assert dataset.max_len == 10
 
@@ -140,6 +145,7 @@ def test_load(caplog, hub_cloud_dev_token):
             embedding_function=None,
             overwrite=False,
             runtime=None,
+            org_id=None,
         )
         assert (
             f"The default deeplake path location is used: {DEFAULT_VECTORSTORE_DEEPLAKE_PATH}"
@@ -159,6 +165,7 @@ def test_load(caplog, hub_cloud_dev_token):
             embedding_function=None,
             overwrite=False,
             runtime=None,
+            org_id=None,
         )
 
     with pytest.raises(ValueError):
@@ -397,6 +404,8 @@ def test_rate_limited_send(local_path):
         embedding_tensor=["embedding"],
         processed_tensors=processed_tensors,
         dataset=dataset,
+        batch_byte_size=TARGET_BYTE_SIZE,
+        rate_limiter={"enabled": True, "bytes_per_minute": MAX_BYTES_PER_MINUTE},
     )
     end_time = time.time()
 

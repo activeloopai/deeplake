@@ -35,6 +35,7 @@ def search(
 
     Raises:
         ValueError: If both tql_string and tql_filter are specified.
+        raise_indra_installation_error: If the indra is not installed
 
     Returns:
         Union[Dict, DeepLakeDataset]: Dictionary where keys are tensor names and values are the results of the search, or a Deep Lake dataset view.
@@ -67,7 +68,7 @@ def search(
     else:
         if not INDRA_INSTALLED:
             raise raise_indra_installation_error(
-                indra_import_error=False
+                indra_import_error=None
             )  # pragma: no cover
         return_data = {}
 

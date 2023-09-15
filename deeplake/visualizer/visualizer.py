@@ -187,7 +187,7 @@ def access_creds(path: str):
 
 
 @_APP.route("/<path:path>")
-def access_data(path):
+def access_data(path: str):
     try:
         paths = path.split("/", 1)
         range_header = request.headers.get("Range", None)
@@ -200,6 +200,7 @@ def access_data(path):
                 return Response("", 404)
         if range_header:
             match = re.search(r"(\d+)-(\d*)", range_header)
+            assert match is not None
             groups = match.groups()
 
             if groups[0]:

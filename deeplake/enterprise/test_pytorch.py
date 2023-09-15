@@ -758,7 +758,7 @@ def test_batch_sampler_attribute(local_auth_ds):
 @pytest.mark.slow
 @pytest.mark.flaky
 def test_pil_decode_method(local_auth_ds):
-    from indra.pytorch.exceptions import CollateExceptionWrapper
+    from indra.pytorch.exceptions import CollateExceptionWrapper  # type: ignore
 
     with local_auth_ds as ds:
         ds.create_tensor("x", htype="image", sample_compression="jpeg")

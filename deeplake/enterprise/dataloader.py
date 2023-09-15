@@ -54,7 +54,7 @@ itertools.islice = deeplake_islice  # type: ignore
 
 
 # Load lazy to avoid cycylic import.
-INDRA_LOADER = None
+INDRA_LOADER = None  # type: ignore
 
 
 def indra_available() -> bool:
@@ -205,7 +205,7 @@ class DeepLakeDataLoader(DataLoader):
     def batch_sampler(self):
         return (
             BatchSampler(self.sampler, self.batch_size, self.drop_last)
-            if BatchSampler
+            if BatchSampler is not None
             else None
         )
 
@@ -424,8 +424,9 @@ class DeepLakeDataLoader(DataLoader):
 
     def close(self):
         """Shuts down the workers and releases the resources."""
+        if self._internal_iterator is not None:
+            self._internal_iterator = None
         if self._dataloader is not None:
-            self._dataloader.close()
             self._dataloader = None
 
     def pytorch(
@@ -640,8 +641,8 @@ class DeepLakeDataLoader(DataLoader):
             )
 
             num_suboptimal_threads = (
-                int(INDRA_API.num_available_threads() / num_devices)
-                if INDRA_API is not None and num_devices is not None
+                int(INDRA_API.num_available_threads() / num_devices)  # type: ignore [name-defined]
+                if INDRA_API is not None and num_devices is not None  # type: ignore [name-defined]
                 else None
             )
             return num_suboptimal_threads
@@ -697,7 +698,7 @@ class DeepLakeDataLoader(DataLoader):
                 "preserving the offset for resuming iteration at a predictable index and order, please set a random seed using deeplake.random()"
             )
 
-        return INDRA_LOADER(
+        return INDRA_LOADER(  # type: ignore [misc]
             indra_dataset,
             batch_size=self._batch_size,
             num_threads=num_threads,
@@ -783,6 +784,7 @@ class DeepLakeDataLoader(DataLoader):
 
         if self._internal_iterator is not None:
             self._internal_iterator = iter(self._internal_iterator)
+
         return self
 
     def __next__(self):
@@ -791,6 +793,9 @@ class DeepLakeDataLoader(DataLoader):
         if self._internal_iterator is None:
             self._internal_iterator = iter(self._dataloader)
         return next(self._internal_iterator)
+
+    def __del__(self):
+        self.close()
 
 
 def dataloader(dataset, ignore_errors: bool = False) -> DeepLakeDataLoader:

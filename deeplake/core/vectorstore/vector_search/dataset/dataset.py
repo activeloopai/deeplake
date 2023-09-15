@@ -15,6 +15,7 @@ except ImportError:  # pragma: no cover
     _INDRA_INSTALLED = False  # pragma: no cover
 
 import deeplake
+from deeplake.util.path import get_path_type
 from deeplake.core.vectorstore.vector_search import utils
 from deeplake.core.vectorstore.vector_search.ingestion import ingest_data
 from deeplake.constants import (
@@ -39,11 +40,13 @@ def create_or_load_dataset(
     embedding_function,
     overwrite,
     runtime,
+    org_id,
     **kwargs,
 ):
     utils.check_indra_installation(
         exec_option=exec_option, indra_installed=_INDRA_INSTALLED
     )
+    org_id = org_id if get_path_type(dataset_path) == "local" else None
 
     if not overwrite and dataset_exists(dataset_path, token, creds, **kwargs):
         if tensor_params is not None and tensor_params != DEFAULT_VECTORSTORE_TENSORS:
@@ -58,6 +61,7 @@ def create_or_load_dataset(
             logger,
             read_only,
             runtime,
+            org_id,
             **kwargs,
         )
 
@@ -71,6 +75,7 @@ def create_or_load_dataset(
         overwrite,
         creds,
         runtime,
+        org_id,
         **kwargs,
     )
 
@@ -89,6 +94,7 @@ def load_dataset(
     logger,
     read_only,
     runtime,
+    org_id,
     **kwargs,
 ):
     if dataset_path == DEFAULT_VECTORSTORE_DEEPLAKE_PATH:
@@ -103,6 +109,7 @@ def load_dataset(
         read_only=read_only,
         creds=creds,
         verbose=False,
+        org_id=org_id,
         **kwargs,
     )
     check_tensors(dataset)
@@ -171,6 +178,7 @@ def create_dataset(
     overwrite,
     creds,
     runtime,
+    org_id,
     **kwargs,
 ):
     if exec_option == "tensor_db" and (
@@ -191,6 +199,7 @@ def create_dataset(
         verbose=False,
         overwrite=overwrite,
         creds=creds,
+        org_id=org_id,
         **kwargs,
     )
     create_tensors(tensor_params, dataset, logger, embedding_function)
@@ -408,8 +417,10 @@ def extend(
     embedding_function: List[Callable],
     embedding_data: List[Any],
     embedding_tensor: Union[str, List[str]],
-    processed_tensors: Dict[str, List[Any]],
+    processed_tensors: Dict[str, Union[List[Any], np.ndarray]],
     dataset: deeplake.core.dataset.Dataset,
+    batch_byte_size: int,
+    rate_limiter: Dict,
     index_regeneration: bool = False,
 ):
     """
@@ -421,45 +432,108 @@ def extend(
         embedding_tensor (Union[str, List[str]]): Name of the tensor(s) to store the embedding data.
         processed_tensors (Dict[str, List[Any]]): Dictionary of tensors to be added to the dataset.
         dataset (deeplake.core.dataset.Dataset): Dataset to be extended.
+        batch_byte_size (int): Batch size to use for parallel ingestion.
+        rate_limiter (Dict): Rate limiter configuration.
         index_regeneration (Boolean): Denotes if index will be regenerated or not.
+
+    Raises:
+        IncorrectEmbeddingShapeError: If embeding function shapes is incorrect.
+        ValueError: If embedding function returned empty list
+
 
     """
     if embedding_function:
         for func, data, tensor in zip(
             embedding_function, embedding_data, embedding_tensor
         ):
-            data_batched = chunk_by_bytes(data, target_byte_size=TARGET_BYTE_SIZE)
-
-            # Calculate the number of batches you can send each minute
-            batches_per_minute = MAX_BYTES_PER_MINUTE / TARGET_BYTE_SIZE
-
-            # Calculate sleep time in seconds between batches
-            sleep_time = 60 / batches_per_minute
-
+            data_iterator = data_iteratot_factory(
+                data, func, batch_byte_size, rate_limiter
+            )
             embedded_data = []
 
-            for data_i in tqdm(
-                data_batched, total=len(data_batched), desc="Creating embedding data"
+            for data in tqdm(
+                data_iterator, total=len(data_iterator), desc="creating embeddings"
             ):
-                start = time.time()
-                embedded_data.append(func(data_i))
-                end = time.time()
-                if func.__module__ == "langchain.embeddings.openai":
-                    # we need to take into account the time spent on openai call
-                    diff = sleep_time - (end - start)
-                    if diff > 0:
-                        time.sleep(diff)
+                embedded_data.append(data)
+
             try:
-                embedded_data = np.vstack(embedded_data).astype(dtype=np.float32)
+                return_embedded_data = np.vstack(embedded_data).astype(dtype=np.float32)
             except ValueError:
                 raise IncorrectEmbeddingShapeError()
 
-            if len(embedded_data) == 0:
+            if len(return_embedded_data) == 0:
                 raise ValueError("embedding function returned empty list")
 
-            processed_tensors[tensor] = embedded_data
+            processed_tensors[tensor] = return_embedded_data
 
-    dataset.extend(processed_tensors, index_regeneration=index_regeneration)
+    dataset.extend(processed_tensors, progressbar=True,  index_regeneration=index_regeneration)
+
+
+class DataIterator:
+    def __init__(self, data, func, batch_byte_size):
+        self.data = chunk_by_bytes(data, batch_byte_size)
+        self.data_itr = iter(self.data)
+        self.index = 0
+        self.func = func
+
+    def __iter__(self):
+        return self
+
+    def __next__(self):
+        if self.index >= len(self.data):
+            raise StopIteration
+        batch = next(self.data_itr)
+        batch = self.func(batch)
+        self.index += 1
+        return batch
+
+    def __len__(self):
+        return len(self.data)
+
+
+class RateLimitedDataIterator:
+    def __init__(self, data, func, batch_byte_size, rate_limiter):
+        self.data = chunk_by_bytes(data, batch_byte_size)
+        self.data_iter = iter(self.data)
+        self.index = 0
+        self.rate_limiter = rate_limiter
+        self.bytes_per_minute = rate_limiter["bytes_per_minute"]
+        self.target_byte_size = batch_byte_size
+        self.func = func
+
+    def __iter__(self):
+        return self
+
+    def __next__(self):
+        if self.index >= len(self.data):
+            raise StopIteration
+        batch = next(self.data_iter)
+        self.index += 1
+        # Calculate the number of batches you can send each minute
+        batches_per_minute = self.bytes_per_minute / self.target_byte_size
+
+        # Calculate sleep time in seconds between batches
+        sleep_time = 60 / batches_per_minute
+
+        start = time.time()
+        batch = self.func(batch)
+        end = time.time()
+
+        # we need to take into account the time spent on openai call
+        diff = sleep_time - (end - start)
+        if diff > 0:
+            time.sleep(diff)
+        return batch
+
+    def __len__(self):
+        return len(self.data)
+
+
+def data_iteratot_factory(data, func, batch_byte_size, rate_limiter):
+    if rate_limiter["enabled"]:
+        return RateLimitedDataIterator(data, func, batch_byte_size, rate_limiter)
+    else:
+        return DataIterator(data, func, batch_byte_size)
 
 
 def extend_or_ingest_dataset(
@@ -468,10 +542,8 @@ def extend_or_ingest_dataset(
     embedding_function,
     embedding_tensor,
     embedding_data,
-    ingestion_batch_size,
-    num_workers,
-    total_samples_processed,
-    logger,
+    batch_byte_size,
+    rate_limiter,
     index_regeneration=False,
 ):
     # TODO: Add back the old logic with checkpointing after indexing is fixed
@@ -481,6 +553,8 @@ def extend_or_ingest_dataset(
         embedding_tensor,
         processed_tensors,
         dataset,
+        batch_byte_size,
+        rate_limiter,
         index_regeneration=index_regeneration,
     )
 

@@ -52,7 +52,7 @@ class DatasetEntry:
 
     Attributes:
         src_path (str): Cloud path to the source dataset.
-        creds_key (str): The managed credentials used for accessing the source path.
+        creds_key (str, optional): The managed credentials used for accessing the source path.
         dest_path (str, optional): The explicit Deep Lake path to where the connected Deep Lake dataset will reside.
         org_id (str, optional): The organization to where the connected Deep Lake dataset will be added.
         ds_name (str, optional): Explicit name of the connected Deep Lake dataset.
@@ -62,7 +62,7 @@ class DatasetEntry:
     def __init__(
         self,
         src_path: str,
-        creds_key: str,
+        creds_key: Optional[str] = None,
         dest_path: Optional[str] = None,
         org_id: Optional[str] = None,
         ds_name: Optional[str] = None,
@@ -79,6 +79,9 @@ class DatasetEntry:
 
     def validate(self, allow_local: bool = False) -> None:
         """Validates the attributes to make that dataset at ``src_path`` can be connected.
+
+        Args:
+            allow_local (bool): If local path is allowd to connect. Defaults to ``True``.
 
         Raises:
             InvalidSourcePathError: If the ``src_path`` is not a valid s3, gcs or azure path.

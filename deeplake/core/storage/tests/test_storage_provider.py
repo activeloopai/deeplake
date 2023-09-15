@@ -220,3 +220,12 @@ def test_azure_storage_clear(azure_storage):
     azure_storage.clear()
 
     assert len(azure_storage) == 0
+
+
+def test_azure_empty_blob(azure_storage):
+    azure_storage["empty_blob"] = b""
+    assert azure_storage["empty_blob"] == b""
+    assert (
+        azure_storage.get_object_from_full_url(f"{azure_storage.root}/empty_blob")
+        == b""
+    )

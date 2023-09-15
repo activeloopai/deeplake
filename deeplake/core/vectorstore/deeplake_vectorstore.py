@@ -1,6 +1,7 @@
 import logging
 import pathlib
-from typing import Optional, Any, Iterable, List, Dict, Union, Callable
+from typing import Optional, Any, List, Dict, Union, Callable
+import jwt
 
 import numpy as np
 
@@ -17,7 +18,10 @@ except Exception:  # pragma: no cover
 import deeplake
 from deeplake.constants import (
     DEFAULT_VECTORSTORE_TENSORS,
+    MAX_BYTES_PER_MINUTE,
+    TARGET_BYTE_SIZE,
 )
+from deeplake.client.utils import read_token
 from deeplake.core.vectorstore import utils
 from deeplake.core.vectorstore.vector_search import vector_search
 from deeplake.core.vectorstore.vector_search import dataset as dataset_utils
@@ -57,6 +61,7 @@ class VectorStore:
         verbose: bool = True,
         runtime: Optional[Dict] = None,
         creds: Optional[Union[Dict, str]] = None,
+        org_id: Optional[str] = None,
         **kwargs: Any,
     ) -> None:
         """Creates an empty VectorStore or loads an existing one if it exists at the specified ``path``.
@@ -125,6 +130,9 @@ class VectorStore:
         Danger:
             Setting ``overwrite`` to ``True`` will delete all of your data if the Vector Store exists! Be very careful when setting this parameter.
         """
+        self._token = token
+        self.path = path
+
         feature_report_path(
             path,
             "vs.initialize",
@@ -139,11 +147,12 @@ class VectorStore:
                 "ingestion_batch_size": ingestion_batch_size,
                 "index_params": index_params,
                 "exec_option": exec_option,
-                "token": token,
+                "token": self.token,
                 "verbose": verbose,
                 "runtime": runtime,
             },
-            token=token,
+            token=self.token,
+            username=self.username,
         )
 
         self.ingestion_batch_size = ingestion_batch_size
@@ -156,7 +165,7 @@ class VectorStore:
         self.dataset = dataset_utils.create_or_load_dataset(
             tensor_params,
             path,
-            token,
+            self.token,
             creds,
             logger,
             read_only,
@@ -164,12 +173,11 @@ class VectorStore:
             embedding_function,
             overwrite,
             runtime,
+            org_id,
             **kwargs,
         )
         self.embedding_function = embedding_function
-        self.exec_option = utils.parse_exec_option(
-            self.dataset, exec_option, _INDRA_INSTALLED
-        )
+        self._exec_option = exec_option
         self.verbose = verbose
         self.tensor_params = tensor_params
         self.index_created = False
@@ -181,13 +189,34 @@ class VectorStore:
                regenerate_index=False,
            )
 
+    @property
+    def token(self):
+        return self._token or read_token(from_env=True)
+
+    @property
+    def exec_option(self) -> str:
+        return utils.parse_exec_option(
+            self.dataset, self._exec_option, _INDRA_INSTALLED, self.username
+        )
+
+    @property
+    def username(self) -> str:
+        username = "public"
+        if self.token is not None:
+            username = jwt.decode(self.token, options={"verify_signature": False})["id"]
+        return username
+
     def add(
         self,
         embedding_function: Optional[Union[Callable, List[Callable]]] = None,
         embedding_data: Optional[Union[List, List[List]]] = None,
         embedding_tensor: Optional[Union[str, List[str]]] = None,
         return_ids: bool = False,
-        ingestion_batch_size: Optional[int] = None,
+        rate_limiter: Dict = {
+            "enabled": False,
+            "bytes_per_minute": MAX_BYTES_PER_MINUTE,
+        },
+        batch_byte_size: int = TARGET_BYTE_SIZE,
         **tensors,
     ) -> Optional[List[str]]:
         """Adding elements to deeplake vector store.
@@ -256,14 +285,16 @@ class VectorStore:
             embedding_data (Optional[List]): Data to be converted into embeddings using the provided ``embedding_function``. Defaults to None.
             embedding_tensor (Optional[str]): Tensor where results from the embedding function will be stored. If None, the embedding tensor is automatically inferred (when possible). Defaults to None.
             return_ids (bool): Whether to return added ids as an ouput of the method. Defaults to False.
-            ingestion_batch_size (int): Batch size to use for parallel ingestion. Defaults to 1000. Overrides the ``ingestion_batch_size`` specified when initializing the Vector Store.
+            rate_limiter (Dict): Rate limiter configuration. Defaults to ``{"enabled": False, "bytes_per_minute": MAX_BYTES_PER_MINUTE}``.
+            batch_byte_size (int): Batch size to use for parallel ingestion. Defaults to ``TARGET_BYTE_SIZE``.
             **tensors: Keyword arguments where the key is the tensor name, and the value is a list of samples that should be uploaded to that tensor.
 
         Returns:
             Optional[List[str]]: List of ids if ``return_ids`` is set to True. Otherwise, None.
         """
 
-        deeplake_reporter.feature_report(
+        feature_report_path(
+            path=self.path,
             feature_name="vs.add",
             parameters={
                 "tensors": list(tensors.keys()) if tensors else None,
@@ -272,6 +303,8 @@ class VectorStore:
                 "embedding_function": True if embedding_function is not None else False,
                 "embedding_data": True if embedding_data is not None else False,
             },
+            token=self.token,
+            username=self.username,
         )
 
         (
@@ -316,10 +349,8 @@ class VectorStore:
             embedding_function=embedding_function,
             embedding_data=embedding_data,
             embedding_tensor=embedding_tensor,
-            ingestion_batch_size=ingestion_batch_size or self.ingestion_batch_size,
-            num_workers=0,
-            total_samples_processed=0,
-            logger=logger,
+            batch_byte_size=batch_byte_size,
+            rate_limiter=rate_limiter,
         )
 
         if self.exec_option in ('tensor_db', 'compute_engine'):
@@ -341,7 +372,7 @@ class VectorStore:
 
     def search(
         self,
-        embedding_data: Union[str, List[str]] = None,
+        embedding_data: Union[str, List[str], None] = None,
         embedding_function: Optional[Callable] = None,
         embedding: Optional[Union[List[float], np.ndarray]] = None,
         k: int = 4,
@@ -414,7 +445,8 @@ class VectorStore:
             Dict: Dictionary where keys are tensor names and values are the results of the search
         """
 
-        deeplake_reporter.feature_report(
+        feature_report_path(
+            path=self.path,
             feature_name="vs.search",
             parameters={
                 "embedding_data": True if embedding_data is not None else False,
@@ -429,6 +461,8 @@ class VectorStore:
                 "return_tensors": return_tensors,
                 "return_view": return_view,
             },
+            token=self.token,
+            username=self.username,
         )
 
         try_flushing(self.dataset)
@@ -538,7 +572,8 @@ class VectorStore:
             ValueError: If neither ``ids``, ``filter``, ``query``, nor ``delete_all`` are specified, or if an invalid ``exec_option`` is provided.
         """
 
-        deeplake_reporter.feature_report(
+        feature_report_path(
+            path=self.path,
             feature_name="vs.delete",
             parameters={
                 "ids": True if ids is not None else False,
@@ -548,6 +583,8 @@ class VectorStore:
                 "exec_option": exec_option,
                 "delete_all": delete_all,
             },
+            token=self.token,
+            username=self.username,
         )
 
         if not row_ids:
@@ -633,7 +670,8 @@ class VectorStore:
             embedding_source_tensor (Union[str, List[str]], optional): Name of tensor with data that needs to be converted to embeddings. Defaults to `text`.
             embedding_tensor (Optional[Union[str, List[str]]], optional): Name of the tensor with embeddings. Defaults to None.
         """
-        deeplake_reporter.feature_report(
+        feature_report_path(
+            path=self.path,
             feature_name="vs.delete",
             parameters={
                 "ids": True if ids is not None else False,
@@ -642,6 +680,8 @@ class VectorStore:
                 "filter": True if filter is not None else False,
                 "exec_option": exec_option,
             },
+            token=self.token,
+            username=self.username,
         )
 
         try_flushing(self.dataset)
@@ -695,15 +735,22 @@ class VectorStore:
                 - If 'aws_access_key_id', 'aws_secret_access_key', 'aws_session_token' are present, these take precedence over credentials present in the environment or in credentials file. Currently only works with s3 paths.
                 - It supports 'aws_access_key_id', 'aws_secret_access_key', 'aws_session_token', 'endpoint_url', 'aws_region', 'profile_name' as keys.
                 - If 'ENV' is passed, credentials are fetched from the environment variables. This is also the case when creds is not passed for cloud datasets. For datasets connected to hub cloud, specifying 'ENV' will override the credentials fetched from Activeloop and use local ones.
+            force (bool): delete the path in a forced manner without rising an exception. Defaults to ``True``.
 
         Danger:
             This method permanently deletes all of your data if the Vector Store exists! Be very careful when using this method.
         """
+        token = token or read_token(from_env=True)
 
         feature_report_path(
             path,
             "vs.delete_by_path",
             {"creds": creds},
+            parameters={
+                "path": path,
+                "token": token,
+                "force": force,
+            },
             token=token,
         )
         deeplake.delete(path, large_ok=True, token=token, force=force, creds=creds)

@@ -1,3 +1,5 @@
+from deeplake import Dataset
+
 from deeplake.core.storage.gcs import GCSProvider
 from deeplake.enterprise.util import raise_indra_installation_error  # type: ignore
 from deeplake.core.storage import S3Provider
@@ -143,7 +145,7 @@ def _get_indra_ds_from_s3_provider(
         )
 
 
-def dataset_to_libdeeplake(hub2_dataset):
+def dataset_to_libdeeplake(hub2_dataset: Dataset):
     """Convert a hub 2.x dataset object to a libdeeplake dataset object."""
     try_flushing(hub2_dataset)
     api = import_indra_api()
@@ -208,10 +210,13 @@ def dataset_to_libdeeplake(hub2_dataset):
         hub2_dataset.libdeeplake_dataset = libdeeplake_dataset
     else:
         libdeeplake_dataset = hub2_dataset.libdeeplake_dataset
+
+    assert libdeeplake_dataset is not None
     commit_id = hub2_dataset.pending_commit_id
     libdeeplake_dataset.checkout(commit_id)
     slice_ = hub2_dataset.index.values[0].value
-    if slice_ != slice(None) and isinstance(slice_, tuple):
-        slice_ = list(slice_)
-    libdeeplake_dataset = libdeeplake_dataset[slice_]
+    if slice_ != slice(None):
+        if isinstance(slice_, tuple):
+            slice_ = list(slice_)
+        libdeeplake_dataset = libdeeplake_dataset[slice_]
     return libdeeplake_dataset

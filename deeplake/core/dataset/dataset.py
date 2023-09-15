@@ -10,7 +10,7 @@ from functools import partial
 import pathlib
 import numpy as np
 from time import time, sleep
-from tqdm import tqdm  # type: ignore
+from tqdm import tqdm
 
 import deeplake
 from deeplake.core.index.index import IndexEntry
@@ -35,7 +35,7 @@ from deeplake.util.iteration_warning import (
 from deeplake.util.tensor_db import parse_runtime_parameters
 from deeplake.api.info import load_info
 from deeplake.client.log import logger
-from deeplake.client.utils import get_user_name
+from deeplake.client.utils import read_token
 from deeplake.client.client import DeepLakeBackendClient
 from deeplake.constants import (
     FIRST_COMMIT_ID,
@@ -1806,6 +1806,7 @@ class Dataset:
         Raises:
             ReadOnlyModeError: If branch deletion is attempted in read-only mode.
             VersionControlError: If the branch cannot be squashed.
+            Exception: If the dataset is filtered view.
         """
         if self._is_filtered_view:
             raise Exception(

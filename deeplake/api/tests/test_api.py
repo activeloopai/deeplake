@@ -17,6 +17,7 @@ from deeplake.tests.storage_fixtures import enabled_remote_storages
 from deeplake.core.storage import GCSProvider
 from deeplake.util.exceptions import (
     GroupInfoNotSupportedError,
+    IncompatibleHtypeError,
     InvalidOperationError,
     SampleAppendError,
     TensorDoesNotExistError,
@@ -46,7 +47,7 @@ from deeplake.util.path import convert_string_to_pathlib_if_needed, verify_datas
 from deeplake.util.testing import assert_array_equal
 from deeplake.util.pretty_print import summary_tensor, summary_dataset
 from deeplake.util.shape_interval import ShapeInterval
-from deeplake.constants import GDRIVE_OPT, MB
+from deeplake.constants import GDRIVE_OPT, MB, KB
 from deeplake.client.config import REPORTING_CONFIG_FILE_PATH
 
 from click.testing import CliRunner
@@ -2859,24 +2860,179 @@ def test_dataset_extend_error_suggestion(local_ds):
     ) in str(e)
 
 
-def test_extend_rollbacks(local_ds):
+def test_extend_rollbacks(local_ds, lfpw_links):
     with local_ds as ds:
         ds.create_tensor("images", htype="image", sample_compression="jpg")
-
-        # Broken LFPW links
-        links = [
-            "http://cm1.theinsider.com/media/0/428/93/spl41194_011.0.0.0x0.636x912.jpeg",
-            "http://cm1.theinsider.com/media/0/428/93/spl47823_060.0.0.0x0.633x912.jpeg",
-            "http://cm1.theinsider.com/media/0/428/90/spl91520_012.0.0.0x0.636x912.jpeg",
-            "http://blog.themavenreport.com/wp-content/uploads/2008/02/kimora_show_575.jpg",
-            "http://cache.thephoenix.com/secure/uploadedImages/The_Phoenix/Movies/Reviews/FILM_Queen_6.jpg",
-            "http://www.todoelmundo.org/archivos/99/imagenes/En_america.jpg",
-            "http://image.toutlecine.com/photos/b/l/o/blood-diamond-2006-22-g.jpg",
-        ]
-
         ds.extend(
-            {"images": [deeplake.read(link) for link in links]}, ignore_errors=True
+            {"images": [deeplake.read(link) for link in lfpw_links]},
+            ignore_errors=True,
         )
 
     # Commit should work
     ds.commit()
+
+
+@pytest.mark.slow
+@pytest.mark.parametrize(
+    "compression_args",
+    [
+        {"sample_compression": None},
+        {"sample_compression": "jpg"},
+        {"chunk_compression": "jpg"},
+    ],
+)
+def test_tensor_extend_ignore(local_ds, lfpw_links, compression_args):
+    with local_ds as ds:
+        ds.create_tensor("images", htype="image", **compression_args)
+        ds.create_tensor(
+            "tiled_images",
+            htype="image",
+            tiling_threshold=1 * KB,
+            max_chunk_size=1 * KB,
+            **compression_args,
+        )
+        ds.create_tensor("seq_images", htype="sequence[image]", **compression_args)
+        ds.create_tensor("link_images", htype="link[image]", **compression_args)
+
+    images = [deeplake.read(link) for link in lfpw_links]
+    ds.images.extend(images, ignore_errors=True)
+    ds.tiled_images.extend(images, ignore_errors=True)
+
+    seqs = [
+        list(map(deeplake.read, lfpw_links[i : i + 2]))
+        for i in range(0, len(lfpw_links), 2)
+    ]
+    ds.seq_images.extend(seqs, ignore_errors=True)
+
+    links = [deeplake.link(link) for link in lfpw_links]
+    ds.link_images.extend(links, ignore_errors=True)
+
+    # Commit should work
+    ds.commit()
+
+
+def test_change_htype(local_ds_generator):
+    with local_ds_generator() as ds:
+        ds.create_tensor("images", sample_compression="jpg")
+        ds.images.extend(np.random.randint(0, 256, (10, 10, 3), dtype=np.uint8))
+
+        ds.create_tensor("labels")
+        ds.labels.extend([1, 2, 3, 4, 5, 6, 7, 8, 9, 10])
+
+        ds.create_tensor("boxes")
+        ds.boxes.extend(np.random.randn(10, 5, 4))
+
+        ds.create_tensor("boxes_3d")
+        ds.boxes_3d.extend(np.random.randn(10, 5, 8))
+
+        ds.create_tensor("embeddings")
+        ds.embeddings.extend(np.random.randn(10, 1536))
+
+        mask = np.zeros((10, 100, 100, 5), dtype=bool)
+        mask[:, :, :512, 1] = 1
+        ds.create_tensor("masks")
+        ds.masks.extend(mask)
+        ds.create_tensor("image_masks", htype="image", sample_compression=None)
+        ds.image_masks.extend(mask)
+
+        ds.create_tensor("keypoints")
+        ds.keypoints.extend(np.zeros((10, 9, 5)))
+
+        ds.create_tensor("points")
+        ds.points.extend(np.zeros((10, 5, 3)))
+
+    ds.images.htype = "image"
+    ds.labels.htype = "class_label"
+    ds.boxes.htype = "bbox"
+    ds.boxes_3d.htype = "bbox.3d"
+    ds.embeddings.htype = "embedding"
+    ds.masks.htype = "binary_mask"
+    ds.image_masks.htype = "binary_mask"
+    ds.keypoints.htype = "keypoints_coco"
+    ds.points.htype = "point"
+
+    with local_ds_generator() as ds:
+        assert ds.images.htype == "image"
+        assert ds.labels.htype == "class_label"
+        assert ds.boxes.htype == "bbox"
+        assert ds.boxes_3d.htype == "bbox.3d"
+        assert ds.embeddings.htype == "embedding"
+        assert ds.masks.htype == "binary_mask"
+        assert ds.image_masks.htype == "binary_mask"
+        assert ds.keypoints.htype == "keypoints_coco"
+        assert ds.points.htype == "point"
+
+
+def test_change_htype_fail(local_ds_generator):
+    with local_ds_generator() as ds:
+        ds.create_tensor("images")
+        ds.images.extend(np.zeros((10, 5, 5, 5, 5)))
+        with pytest.raises(IncompatibleHtypeError):
+            ds.images.htype = "image"
+
+        ds.create_tensor("images2")
+        ds.images2.extend(np.zeros((10, 5, 5, 6)))
+        with pytest.raises(IncompatibleHtypeError):
+            ds.images2.htype = "image"
+
+        ds.create_tensor("labels")
+        ds.labels.extend(np.ones((10, 5, 5)))
+        with pytest.raises(IncompatibleHtypeError):
+            ds.labels.htype = "class_label"
+
+        ds.create_tensor("boxes")
+        ds.boxes.extend(np.zeros((10, 5, 5, 2)))
+        with pytest.raises(IncompatibleHtypeError):
+            ds.boxes.htype = "bbox"
+        with pytest.raises(IncompatibleHtypeError):
+            ds.boxes.htype = "bbox.3d"
+
+        ds.create_tensor("boxes2")
+        ds.boxes2.extend(np.zeros((10, 5, 5)))
+        with pytest.raises(IncompatibleHtypeError):
+            ds.boxes2.htype = "bbox"
+        with pytest.raises(IncompatibleHtypeError):
+            ds.boxes2.htype = "bbox.3d"
+
+        ds.create_tensor("masks")
+        ds.masks.extend(np.zeros((10, 5, 5, 5, 5)))
+        with pytest.raises(IncompatibleHtypeError):
+            ds.masks.htype = "binary_mask"
+
+        ds.create_tensor("keypoints")
+        ds.keypoints.extend(np.zeros((10, 5, 5, 5)))
+        with pytest.raises(IncompatibleHtypeError):
+            ds.keypoints.htype = "keypoints_coco"
+
+        ds.create_tensor("keypoints2")
+        ds.keypoints2.extend(np.zeros((10, 10, 5)))
+        with pytest.raises(IncompatibleHtypeError):
+            ds.keypoints2.htype = "keypoints_coco"
+
+        ds.create_tensor("points")
+        ds.points.extend(np.zeros((10, 5, 5, 5)))
+        with pytest.raises(IncompatibleHtypeError):
+            ds.points.htype = "point"
+
+        ds.create_tensor("points2")
+        ds.points2.extend(np.zeros((10, 5, 5)))
+        with pytest.raises(IncompatibleHtypeError):
+            ds.points2.htype = "point"
+
+        with pytest.raises(ValueError):
+            ds.images.htype = "link[image]"
+
+        with pytest.raises(ValueError):
+            ds.images.htype = "sequence[image]"
+
+        ds.create_tensor("boxes3", htype="bbox")
+        ds.boxes3.extend(np.zeros((10, 5, 4), dtype=np.float32))
+        with pytest.raises(NotImplementedError):
+            ds.boxes3.htype = "embedding"
+
+        with pytest.raises(NotImplementedError):
+            ds.images.htype = "text"
+
+        ds.create_tensor("images3", htype="image", sample_compression="jpg")
+        with pytest.raises(UnsupportedCompressionError):
+            ds.images3.htype = "embedding"

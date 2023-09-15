@@ -10,7 +10,7 @@ import numpy as np
 from typing import Dict, List, Sequence, Union, Optional, Tuple, Any, Callable
 from functools import reduce, partial
 from deeplake.core.index import Index, IndexEntry, replace_ellipsis_with_slices
-from deeplake.core.meta.tensor_meta import TensorMeta
+from deeplake.core.meta.tensor_meta import TensorMeta, _validate_htype_exists
 from deeplake.core.storage import StorageProvider
 from deeplake.core.chunk_engine import ChunkEngine
 from deeplake.core.compression import _read_timestamps
@@ -43,6 +43,7 @@ from deeplake.util.exceptions import (
     TensorDoesNotExistError,
     InvalidKeyTypeError,
     TensorAlreadyExistsError,
+    UnsupportedCompressionError,
 )
 from deeplake.util.iteration_warning import check_if_iteration
 from deeplake.hooks import dataset_read, dataset_written
@@ -63,6 +64,12 @@ from deeplake.util.object_3d.point_cloud import parse_point_cloud_to_dict
 from deeplake.util.object_3d.mesh import (
     parse_mesh_to_dict,
     get_mesh_vertices,
+)
+from deeplake.util.htype import parse_complex_htype
+from deeplake.htype import (
+    HTYPE_CONVERSION_LHS,
+    HTYPE_CONSTRAINTS,
+    HTYPE_SUPPORTED_COMPRESSIONS,
 )
 import warnings
 import webbrowser
@@ -287,6 +294,7 @@ class Tensor:
         self,
         samples: Union[np.ndarray, Sequence[InputSample], "Tensor"],
         progressbar: bool = False,
+        ignore_errors: bool = False,
     ):
         """Extends the end of the tensor by appending multiple elements from a sequence. Accepts a sequence, a single batched numpy array,
         or a sequence of :func:`deeplake.read` outputs, which can be used to load files. See examples down below.
@@ -317,6 +325,7 @@ class Tensor:
             samples (np.ndarray, Sequence, Sequence[Sample]): The data to add to the tensor.
                 The length should be equal to the number of samples to add.
             progressbar (bool): Specifies whether a progressbar should be displayed while extending.
+            ignore_errors (bool): Skip samples that cause errors while extending, if set to ``True``.
 
         Raises:
             TensorDtypeMismatchError: Dtype for array must be equal to or castable to this tensor's dtype.
@@ -327,6 +336,7 @@ class Tensor:
             samples,
             progressbar=progressbar,
             link_callback=self._extend_links if self.meta.links else None,
+            ignore_errors=ignore_errors,
         )
         dataset_written(self.dataset)
         self.invalidate_libdeeplake_dataset()
@@ -561,6 +571,15 @@ class Tensor:
         if self.is_link:
             htype = f"link[{htype}]"
         return htype
+
+    @htype.setter
+    def htype(self, value):
+        self._check_compatibility_with_htype(value)
+        self.meta.htype = value
+        if value == "class_label":
+            self.meta._disable_temp_transform = False
+        self.meta.is_dirty = True
+        self.dataset.maybe_flush()
 
     @property
     def hidden(self) -> bool:
@@ -1043,7 +1062,7 @@ class Tensor:
                             vs = [cast_to_type(v, dtype) for v in vs]
                     updated_tensors[k] = tensor.num_samples
                     tensor.extend(vs)
-        except Exception:
+        except Exception as e:
             for k, num_samples in updated_tensors.items():
                 tensor = self.version_state["full_tensors"][k]
                 num_samples_added = tensor.num_samples - num_samples
@@ -1119,6 +1138,7 @@ class Tensor:
 
             if flat_links:
                 seq_enc = self.chunk_engine.sequence_encoder
+                assert seq_enc is not None
                 for link in flat_links:
                     link_tensor = self.dataset[rev_tensor_names.get(link)]
                     for idx in reversed(range(*seq_enc[global_sample_index])):
@@ -1166,6 +1186,7 @@ class Tensor:
         if self.is_sequence:
 
             def get_sample_shape(global_sample_index: int):
+                assert self.chunk_engine.sequence_encoder is not None
                 seq_pos = slice(
                     *self.chunk_engine.sequence_encoder[global_sample_index]
                 )
@@ -1186,6 +1207,7 @@ class Tensor:
 
     def _get_sample_info_at_index(self, global_sample_index: int, sample_info_tensor):
         if self.is_sequence:
+            assert self.chunk_engine.sequence_encoder is not None
             return [
                 sample_info_tensor[i].data()
                 for i in range(*self.chunk_engine.sequence_encoder[global_sample_index])
@@ -1519,3 +1541,27 @@ class Tensor:
         if self.meta.htype != "embedding":
             raise Exception(f"Only supported for embedding tensors.")
         return self.meta.vdb_indexes
+
+    def _check_compatibility_with_htype(self, htype):
+        """Checks if the tensor is compatible with the given htype.
+        Raises an error if not compatible.
+        """
+        is_sequence, is_link, htype = parse_complex_htype(htype)
+        if is_sequence or is_link:
+            raise ValueError(f"Cannot change htype to a sequence or link.")
+        _validate_htype_exists(htype)
+        if self.htype not in HTYPE_CONVERSION_LHS:
+            raise NotImplementedError(
+                f"Changing the htype of a tensor of htype {self.htype} is not supported."
+            )
+        if htype not in HTYPE_CONSTRAINTS:
+            raise NotImplementedError(
+                f"Changing the htype to {htype} is not supported."
+            )
+        compression = self.meta.sample_compression or self.meta.chunk_compression
+        if compression:
+            supported_compressions = HTYPE_SUPPORTED_COMPRESSIONS.get(htype)
+            if supported_compressions and compression not in supported_compressions:
+                raise UnsupportedCompressionError(compression, htype)
+        constraints = HTYPE_CONSTRAINTS[htype]
+        constraints(self.shape, self.dtype)
