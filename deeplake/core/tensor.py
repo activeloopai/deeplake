@@ -65,6 +65,7 @@ from deeplake.util.object_3d.mesh import (
     parse_mesh_to_dict,
     get_mesh_vertices,
 )
+from deeplake.deeplog.actions import CreateTensorAction
 import warnings
 import webbrowser
 
@@ -100,23 +101,26 @@ def create_tensor(
     if not overwrite and tensor_exists(key, storage, commit_id):
         raise TensorAlreadyExistsError(key)
 
-    meta_key = get_tensor_meta_key(key, commit_id)
-    meta = TensorMeta(
-        htype=htype,
-        sample_compression=sample_compression,
-        chunk_compression=chunk_compression,
-        **kwargs,
-    )
-    storage[meta_key] = meta  # type: ignore
+    if storage.deeplog.log_format() < 4:
+        meta_key = get_tensor_meta_key(key, commit_id)
+        meta = TensorMeta(
+            htype=htype,
+            sample_compression=sample_compression,
+            chunk_compression=chunk_compression,
+            **kwargs,
+        )
+        storage[meta_key] = meta  # type: ignore
 
-    if commit_id != FIRST_COMMIT_ID:
-        cmap_key = get_tensor_commit_chunk_map_key(key, commit_id)
-        cmap = CommitChunkMap()
-        storage[cmap_key] = cmap  # type: ignore
+        if commit_id != FIRST_COMMIT_ID:
+            cmap_key = get_tensor_commit_chunk_map_key(key, commit_id)
+            cmap = CommitChunkMap()
+            storage[cmap_key] = cmap  # type: ignore
 
-    diff_key = get_tensor_commit_diff_key(key, commit_id)
-    diff = CommitDiff(created=True)
-    storage[diff_key] = diff  # type: ignore
+        diff_key = get_tensor_commit_diff_key(key, commit_id)
+        diff = CommitDiff(created=True)
+        storage[diff_key] = diff  # type: ignore
+    else:
+        storage.deeplog.commit([CreateTensorAction(key, key)])
 
 
 def delete_tensor(key: str, dataset):
