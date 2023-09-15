@@ -841,7 +841,7 @@ class ChunkEngine:
         extra_args = {"lengths": lengths}
         current_chunk = start_chunk
         updated_chunks: List[Optional[str]] = []
-        if current_chunk is None:
+        if current_chunk is None or self.base_storage.deeplog.log_format() >= 4:
             current_chunk = self._create_new_chunk(
                 register and start_chunk_row is not None
             )

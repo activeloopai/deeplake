@@ -19,6 +19,7 @@ from deeplake.util.exceptions import (
 )
 from deeplake.util.path import relpath
 from deeplake.util.warnings import always_warn
+from deeplake.deeplog.actions import AddFileAction
 from botocore.exceptions import (
     ReadTimeoutError,
     ConnectionError,
@@ -157,6 +158,7 @@ class S3Provider(StorageProvider):
             Key=path,
             ContentType="application/octet-stream",  # signifies binary data
         )
+        self.deeplog.commit([AddFileAction(path)])
 
     def __setitem__(self, path, content):
         """Sets the object present at the path with the value

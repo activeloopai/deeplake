@@ -32,6 +32,7 @@ from deeplake.util.exceptions import (
     PathNotEmptyException,
 )
 from deeplake.client.client import DeepLakeBackendClient
+from deeplake.deeplog.actions import AddFileAction
 
 
 def _remove_protocol_from_path(path: str) -> str:
@@ -422,6 +423,7 @@ class GCSProvider(StorageProvider):
         elif isinstance(value, bytearray):
             value = bytes(value)
         blob.upload_from_string(value, retry=self.retry)
+        self.deeplog.commit([AddFileAction(key)])
 
     def __iter__(self):
         """Iterating over the structure."""

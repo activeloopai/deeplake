@@ -91,6 +91,9 @@ class DeepLog:
             ]
         )
 
+    def commit(self, actions: List[DeepLogAction]):
+        pass
+
 
 class DeepLogV3(DeepLog):
     def __init__(self, path: str, storage: "deeplake.core.StorageProvider"):
