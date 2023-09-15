@@ -120,5 +120,3 @@ def open_deeplog(path: str, storage: "deeplake.core.StorageProvider") -> DeepLog
         return DeepLog(path, storage)
     else:
         return DeepLogV3(path, storage)
-
-

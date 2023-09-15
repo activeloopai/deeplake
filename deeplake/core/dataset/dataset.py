@@ -145,6 +145,7 @@ from deeplake.util.version_control import (
 from deeplake.util.pretty_print import summary_dataset
 from deeplake.core.dataset.view_entry import ViewEntry
 from deeplake.core.dataset.invalid_view import InvalidView
+from deeplake.deeplog import DeepLog
 from deeplake.hooks import dataset_read
 from collections import defaultdict
 from itertools import chain
@@ -309,6 +310,10 @@ class Dataset:
                 if self._vc_info_updated:
                     self._flush_vc_info()
                 self.storage.flush()
+
+    @property
+    def deeplog(self) -> DeepLog:
+        return self.storage.deeplog
 
     @property
     def num_samples(self) -> int:
@@ -1365,7 +1370,9 @@ class Dataset:
                 commit_id = self._get_commit_id_for_address(address, version_state)
 
                 version_state["commit_id"] = commit_id
-                version_state["commit_node"] = version_state["commit_node_map"][commit_id]
+                version_state["commit_node"] = version_state["commit_node_map"][
+                    commit_id
+                ]
                 version_state["branch"] = version_state["commit_node"].branch
             except Exception as e:
                 if isinstance(e, CheckoutError):
@@ -1399,16 +1406,27 @@ class Dataset:
             version_state["branch_commit_map"] = {}
             version_state["commit_node_map"] = {}
             for commit_info in commit_data:
-                version_state["commit_node_map"][to_commit_id(commit_info.branch_id, commit_info.branch_version)] = CommitNode(branch_names[commit_info.branch_id], to_commit_id(commit_info.branch_id, commit_info.branch_version))
+                version_state["commit_node_map"][
+                    to_commit_id(commit_info.branch_id, commit_info.branch_version)
+                ] = CommitNode(
+                    branch_names[commit_info.branch_id],
+                    to_commit_id(commit_info.branch_id, commit_info.branch_version),
+                )
 
             for branch_info in branch_data:
                 # create head commit for branch
                 branch_version = self.storage.deeplog.version(branch_info.id)
                 head_commit_id = to_commit_id(branch_info.id, branch_version)
                 if head_commit_id not in version_state["commit_node_map"]:
-                    version_state["commit_node_map"][head_commit_id] = CommitNode(branch_names[branch_info.id], head_commit_id)
+                    version_state["commit_node_map"][head_commit_id] = CommitNode(
+                        branch_names[branch_info.id], head_commit_id
+                    )
 
-                version_state["branch_commit_map"][branch_info.name] = [commit_info.id for commit_info in commit_data if commit_info.branch_id == branch_info.id][0]
+                version_state["branch_commit_map"][branch_info.name] = [
+                    commit_info.id
+                    for commit_info in commit_data
+                    if commit_info.branch_id == branch_info.id
+                ][0]
 
             commit_id = to_commit_id("", version)
 
@@ -1941,11 +1959,12 @@ class Dataset:
                 # cannot create a new dataset when in read_only mode.
                 raise CouldNotCreateNewDatasetException(self.path)
             meta = DatasetMeta()
-            key = get_dataset_meta_key(self.version_state["commit_id"])
             self.version_state["meta"] = meta
-            self.storage.register_deeplake_object(key, meta)
-            self._register_dataset()
-            self.flush()
+            if self.deeplog.log_format() < 4:
+                key = get_dataset_meta_key(self.version_state["commit_id"])
+                self.storage.register_deeplake_object(key, meta)
+                self._register_dataset()
+                self.flush()
 
     def _register_dataset(self):
         if not self.__dict__["org_id"]:
@@ -2509,7 +2528,7 @@ class Dataset:
         self.storage.flush()
 
     def _flush_vc_info(self):
-        if self._vc_info_updated:
+        if self.deeplog.log_format() < 4 and self._vc_info_updated:
             save_version_info(self.version_state, self.storage)
             for node in self.version_state["commit_node_map"].values():
                 if node._info_updated:

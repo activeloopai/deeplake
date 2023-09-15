@@ -1068,6 +1068,7 @@ def commit_diff_exists(
     except KeyError:
         return False
 
+
 def _get_dataset_meta_at_commit(storage, commit_id):
     """Get dataset meta at commit."""
     meta_key = get_dataset_meta_key(commit_id)
@@ -1078,7 +1079,9 @@ def _get_dataset_meta_at_commit(storage, commit_id):
     return meta
 
 
-def _get_deeplog_meta_at_commit(deeplog: DeepLog, branch_id: str, branch_version: int) -> DatasetMeta:
+def _get_deeplog_meta_at_commit(
+    deeplog: DeepLog, branch_id: str, branch_version: int
+) -> DatasetMeta:
     meta = DatasetMeta()
     tensor_data = deeplog.tensors(branch_id, branch_version).data()
 
@@ -1122,15 +1125,19 @@ def load_meta(dataset: "deeplake.core.dataset.Dataset"):
         _tensor_names.update(meta.tensor_names)
     else:
         branch_id, branch_version = parse_commit_id(version_state["commit_id"])
-        version_state["meta"] = _get_deeplog_meta_at_commit(dataset.storage.deeplog, branch_id, branch_version)
+        version_state["meta"] = _get_deeplog_meta_at_commit(
+            dataset.storage.deeplog, branch_id, branch_version
+        )
 
         _tensors = version_state["full_tensors"]
         _tensors.clear()
         _tensor_names = version_state["tensor_names"]
         _tensor_names.clear()
-        tensor_names = {action.name: action.id for action in deeplog.tensors(branch_id, branch_version).data()}
+        tensor_names = {
+            action.name: action.id
+            for action in deeplog.tensors(branch_id, branch_version).data()
+        }
         _tensor_names.update(tensor_names)
-
 
     for tensor_key in _tensor_names.values():
         if tensor_key.startswith("__temp"):

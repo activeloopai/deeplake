@@ -75,12 +75,14 @@ class StorageProvider(ABC, MutableMapping):
 
     def set_deeplog(self, deeplog: DeepLog):
         from deeplake.util.remove_cache import get_base_storage
+
         storage_to_use = get_base_storage(self)
         storage_to_use._deeplog = deeplog
 
     @property
     def deeplog(self) -> Union[DeepLog, None]:
         from deeplake.util.remove_cache import get_base_storage
+
         storage_to_use = get_base_storage(self)
         return storage_to_use._deeplog
 

@@ -208,8 +208,12 @@ def tensor_exists(key: str, storage, commit_id: str) -> bool:
         return False
 
 
-def tensor_exists_in_log(deeplog: DeepLog, tensor_id: str, branch: str, branch_version: int) -> bool:
-    return tensor_id in [tensor.id for tensor in deeplog.tensors(branch, branch_version).data()]
+def tensor_exists_in_log(
+    deeplog: DeepLog, tensor_id: str, branch: str, branch_version: int
+) -> bool:
+    return tensor_id in [
+        tensor.id for tensor in deeplog.tensors(branch, branch_version).data()
+    ]
 
 
 def get_queries_key() -> str:
