@@ -86,7 +86,7 @@ def test_id_backward_compatibility(local_path):
     embedding_dim = 100
 
     ids = [f"{i}" for i in range(num_of_items)]
-    embedding = [np.zeros(embedding_dim) for i in range(num_of_items)]
+    embedding = [np.zeros(embedding_dim, dtype=np.float32) for i in range(num_of_items)]
     text = ["aadfv" for i in range(num_of_items)]
     metadata = [{"key": i} for i in range(num_of_items)]
 

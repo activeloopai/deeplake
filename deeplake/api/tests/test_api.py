@@ -2926,7 +2926,7 @@ def test_change_htype(local_ds_generator):
         ds.boxes_3d.extend(np.random.randn(10, 5, 8))
 
         ds.create_tensor("embeddings")
-        ds.embeddings.extend(np.random.randn(10, 1536))
+        ds.embeddings.extend(np.random.randn(10, 1536).astype(np.float32))
 
         mask = np.zeros((10, 100, 100, 5), dtype=bool)
         mask[:, :, :512, 1] = 1
@@ -2993,6 +2993,12 @@ def test_change_htype_fail(local_ds_generator):
             ds.boxes2.htype = "bbox"
         with pytest.raises(IncompatibleHtypeError):
             ds.boxes2.htype = "bbox.3d"
+
+        # bad dtype
+        ds.create_tensor("embeddings")
+        ds.embeddings.extend(np.zeros((1, 1536)))
+        with pytest.raises(IncompatibleHtypeError):
+            ds.embeddings.htype = "embedding"
 
         ds.create_tensor("masks")
         ds.masks.extend(np.zeros((10, 5, 5, 5, 5)))
