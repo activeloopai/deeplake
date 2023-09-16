@@ -42,13 +42,13 @@ add_library(deeplog
 
 add_executable(
         runTests
-        deeplog/actions/protocol_action.test.cpp
-        deeplog/actions/metadata_action.test.cpp
-        deeplog/actions/add_file_action.test.cpp
-        deeplog/actions/create_branch_action.test.cpp
-        deeplog/actions/remove_file_action.test.cpp
-        deeplog/deeplog.test.cpp
-        deeplog/last_checkpoint.test.cpp
+        tests/deeplog/actions/protocol_action_test.cpp
+        tests/deeplog/actions/metadata_action_test.cpp
+        tests/deeplog/actions/add_file_action_test.cpp
+        tests/deeplog/actions/create_branch_action_test.cpp
+        tests/deeplog/actions/remove_file_action_test.cpp
+        tests/deeplog/deeplog_test.cpp
+        tests/deeplog/last_checkpoint_test.cpp
 )
 
 pybind11_add_module(_deeplake

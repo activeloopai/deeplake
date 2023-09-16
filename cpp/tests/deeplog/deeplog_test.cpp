@@ -1,12 +1,12 @@
 #include <gtest/gtest.h>
 #include <filesystem>
-#include "deeplog.hpp"
-#include "actions/protocol_action.hpp"
-#include "actions/metadata_action.hpp"
-#include "last_checkpoint.hpp"
+#include "../../deeplog/deeplog.hpp"
+#include "../../deeplog/actions/protocol_action.hpp"
+#include "../../deeplog/actions/metadata_action.hpp"
+#include "../../deeplog/last_checkpoint.hpp"
 #include <fstream>
 #include <string>
-#include <nlohmann/json.hpp>
+#include "nlohmann/json.hpp"
 
 class DeeplogTest : public ::testing::Test {
 protected:

@@ -1,7 +1,7 @@
 #include <gtest/gtest.h>
 #include <filesystem>
 #include "nlohmann/json.hpp"
-#include "last_checkpoint.hpp"
+#include "../../deeplog/last_checkpoint.hpp"
 
 TEST(LastCheckpoint, to_json) {
     nlohmann::json j = deeplake::last_checkpoint(31, 1003);

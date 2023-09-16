@@ -1,7 +1,7 @@
 #include <gtest/gtest.h>
 #include <filesystem>
 #include "nlohmann/json.hpp"
-#include "add_file_action.hpp"
+#include "../../../deeplog/actions/add_file_action.hpp"
 
 using json = nlohmann::json;
 
