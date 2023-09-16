@@ -3,6 +3,7 @@ project(deeplake)
 
 set(CMAKE_CXX_STANDARD 20)
 set(CMAKE_CXX_STANDARD_REQUIRED True)
+set(PYTHON_EXECUTABLE /opt/homebrew/opt/python@3.10/bin/python3.10)
 
 include(FetchContent)
 
@@ -50,11 +51,16 @@ add_executable(
         deeplog/last_checkpoint.test.cpp
 )
 
-target_link_libraries(deeplog nlohmann_json::nlohmann_json stduuid Arrow::arrow_static Parquet::parquet_static ArrowDataset::arrow_dataset_static pybind11::module pybind11::lto pybind11::windows_extras)
+pybind11_add_module(_deeplake
+    py_api/deeplog.cpp
+)
+
+target_link_libraries(deeplog PUBLIC nlohmann_json::nlohmann_json stduuid Arrow::arrow_static Parquet::parquet_static ArrowDataset::arrow_dataset_static)
 target_link_libraries(runTests
         deeplog
         GTest::gtest_main
 )
+target_link_libraries(_deeplake PUBLIC deeplog)
 
 include(GoogleTest)
 gtest_discover_tests(runTests)
