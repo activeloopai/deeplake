@@ -3111,7 +3111,7 @@ class Dataset:
         append_empty: bool = False,
         ignore_errors: bool = False,
         progressbar: bool = False,
-        index_regeneration = True,
+        index_regeneration=True,
     ):
         """Appends multiple rows of samples to mutliple tensors at once. This method expects all tensors being updated to be of the same length.
 
@@ -3153,7 +3153,11 @@ class Dataset:
                     "`ignore_errors` argument will be ignored while extending with numpy arrays or tensors."
                 )
             return self._append_or_extend(
-                samples, extend=True, skip_ok=skip_ok, append_empty=append_empty, index_regeneration=index_regeneration,
+                samples,
+                extend=True,
+                skip_ok=skip_ok,
+                append_empty=append_empty,
+                index_regeneration=index_regeneration,
             )
         with self:
             if progressbar:
@@ -3178,11 +3182,11 @@ class Dataset:
 
     @invalid_view_op
     def append(
-            self,
-            sample: Dict[str, Any],
-            skip_ok: bool = False,
-            append_empty: bool = False,
-            index_regeneration: bool = True,
+        self,
+        sample: Dict[str, Any],
+        skip_ok: bool = False,
+        append_empty: bool = False,
+        index_regeneration: bool = True,
     ):
         """Append samples to mutliple tensors at once. This method expects all tensors being updated to be of the same length.
 
@@ -3211,7 +3215,11 @@ class Dataset:
 
         """
         self._append_or_extend(
-            sample, extend=False, skip_ok=skip_ok, append_empty=append_empty, index_regeneration=index_regeneration,
+            sample,
+            extend=False,
+            skip_ok=skip_ok,
+            append_empty=append_empty,
+            index_regeneration=index_regeneration,
         )
 
     def update(self, sample: Dict[str, Any]):

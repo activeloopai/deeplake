@@ -28,10 +28,7 @@ def get_index_metric(metric):
 
 
 def normalize_additional_params(params: dict) -> dict:
-    mapping = {
-        "efconstruction": "efConstruction",
-        "m": "M"
-    }
+    mapping = {"efconstruction": "efConstruction", "m": "M"}
 
     allowed_keys = ["efConstruction", "m"]
 
@@ -43,12 +40,16 @@ def normalize_additional_params(params: dict) -> dict:
 
         # Check if the normalized key is one of the allowed keys
         if normalized_key not in mapping:
-            raise ValueError(f"Unexpected key: {key} in additional_params"
-                             f" {allowed_keys} should be used instead.")
+            raise ValueError(
+                f"Unexpected key: {key} in additional_params"
+                f" {allowed_keys} should be used instead."
+            )
 
         # Check if the value is an integer
         if not isinstance(value, int):
-            raise ValueError(f"Expected value for key {key} to be an integer, but got {type(value).__name__}")
+            raise ValueError(
+                f"Expected value for key {key} to be an integer, but got {type(value).__name__}"
+            )
 
         # Populate the result dictionary with the proper format for the keys
         result_dict[mapping[normalized_key]] = value
@@ -120,14 +121,13 @@ def validate_and_create_vector_index(dataset, index_params, regenerate_index=Fal
                 additional_params_dict = index_params.get("additional_params", None)
                 distance = get_index_metric(distance_str.upper())
                 if additional_params_dict and len(additional_params_dict) > 0:
-                    param_dict=normalize_additional_params(additional_params_dict)
-                    tensor.create_vdb_index("hnsw_1",
-                                            distance=distance,
-                                            additional_params=param_dict)
+                    param_dict = normalize_additional_params(additional_params_dict)
+                    tensor.create_vdb_index(
+                        "hnsw_1", distance=distance, additional_params=param_dict
+                    )
                 else:
                     tensor.create_vdb_index("hnsw_1", distance=distance)
             except ValueError as e:
                 raise e
-
 
     return True

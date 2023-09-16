@@ -392,7 +392,9 @@ def test_search_basic(local_path, hub_cloud_dev_token):
 
     # Check that None option works
     vector_store_none_exec = DeepLakeVectorStore(
-        path=local_path, overwrite=True, exec_option=None,
+        path=local_path,
+        overwrite=True,
+        exec_option=None,
     )
 
     assert vector_store_none_exec.exec_option == "compute_engine"

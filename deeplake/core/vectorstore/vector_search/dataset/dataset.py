@@ -466,7 +466,9 @@ def extend(
 
             processed_tensors[tensor] = return_embedded_data
 
-    dataset.extend(processed_tensors, progressbar=True,  index_regeneration=index_regeneration)
+    dataset.extend(
+        processed_tensors, progressbar=True, index_regeneration=index_regeneration
+    )
 
 
 class DataIterator:

@@ -1410,10 +1410,10 @@ class Tensor:
         self.dataset.libdeeplake_dataset = None
 
     def create_vdb_index(
-            self,
-            id: str,
-            distance: Union[DistanceType, str] = DistanceType.L2_NORM,
-            additional_params: Optional[Dict[str, int]] = None
+        self,
+        id: str,
+        distance: Union[DistanceType, str] = DistanceType.L2_NORM,
+        additional_params: Optional[Dict[str, int]] = None,
     ):
         self.storage.check_readonly()
         if self.meta.htype != "embedding":
@@ -1431,12 +1431,21 @@ class Tensor:
 
         if type(distance) == DistanceType:
             distance = distance.value
-        self.meta.add_vdb_index(id=id, type="hnsw", distance=distance, additional_params=additional_params)
+        self.meta.add_vdb_index(
+            id=id, type="hnsw", distance=distance, additional_params=additional_params
+        )
         try:
             if additional_params is None:
-                index = api.vdb.generate_index(ts, index_type="hnsw", distance_type=distance)
+                index = api.vdb.generate_index(
+                    ts, index_type="hnsw", distance_type=distance
+                )
             else:
-                index = api.vdb.generate_index(ts, index_type="hnsw", distance_type=distance, param=additional_params)
+                index = api.vdb.generate_index(
+                    ts,
+                    index_type="hnsw",
+                    distance_type=distance,
+                    param=additional_params,
+                )
             b = index.serialize()
             commit_id = self.version_state["commit_id"]
             self.storage[get_tensor_vdb_index_key(self.key, commit_id, id)] = b
@@ -1531,11 +1540,11 @@ class Tensor:
 
         ts = getattr(ds, self.meta.name)
         from indra import api  # type: ignore
+
         try:
             api.vdb.unload_index_cache(ts)
         except Exception as e:
             raise Exception(f"An error occurred while cleaning VDB Cache: {e}")
-
 
     def get_vdb_indexes(self) -> List[Dict[str, str]]:
         if self.meta.htype != "embedding":

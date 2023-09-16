@@ -26,6 +26,7 @@ def create_query_string(
         str: TQL representation of the query string.
     """
 
+    # TODO: BRING THIS BACK AND DELETE IMPLEMENTATION BELOW
     # tql_filter_str = tql_filter if tql_filter == "" else " where " + tql_filter
     # tensor_list_str = ", ".join(tensor_list)
     # order_str = "" if order is None else f" order by score {order}"
@@ -44,7 +45,7 @@ def create_query_string(
 
     order_str = "" if order is None else f" order by {distance_metric}"
 
-    return f"select {tensor_list_str}, score from (select *{distance_metric_str}{order_str} {tql_filter_str} {order} limit {limit})"
+    return f"select {tensor_list_str}, score from (select *{distance_metric_str}{tql_filter_str}{order_str} {order} limit {limit})"
 
 
 def create_query(

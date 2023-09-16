@@ -52,7 +52,7 @@ class VectorStore:
             "additional_params": {
                 "efConstruction": 200,
                 "M": 16,
-            }
+            },
         },
         num_workers: int = 0,
         exec_option: str = "auto",
@@ -181,13 +181,13 @@ class VectorStore:
         self.verbose = verbose
         self.tensor_params = tensor_params
         self.index_created = False
-        if self.exec_option in ('tensor_db', 'compute_engine'):
-           index.index_cache_cleanup(self.dataset)
-           self.index_created = index.validate_and_create_vector_index(
-               dataset=self.dataset,
-               index_params=self.index_params,
-               regenerate_index=False,
-           )
+        if self.exec_option in ("tensor_db", "compute_engine"):
+            index.index_cache_cleanup(self.dataset)
+            self.index_created = index.validate_and_create_vector_index(
+                dataset=self.dataset,
+                index_params=self.index_params,
+                regenerate_index=False,
+            )
 
     @property
     def token(self):
@@ -353,7 +353,7 @@ class VectorStore:
             rate_limiter=rate_limiter,
         )
 
-        if self.exec_option in ('tensor_db', 'compute_engine'):
+        if self.exec_option in ("tensor_db", "compute_engine"):
             index.index_cache_cleanup(self.dataset)
             self.index_created = index.validate_and_create_vector_index(
                 dataset=self.dataset,
