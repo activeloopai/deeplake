@@ -1,12 +1,12 @@
 #include <gtest/gtest.h>
 #include <filesystem>
-#include "deeplog.hpp"
-#include "actions/protocol_action.hpp"
-#include "actions/metadata_action.hpp"
-#include "last_checkpoint.hpp"
+#include "../../deeplog/deeplog.hpp"
+#include "../../deeplog/actions/protocol_action.hpp"
+#include "../../deeplog/actions/metadata_action.hpp"
+#include "../../deeplog/last_checkpoint.hpp"
 #include <fstream>
 #include <string>
-#include <nlohmann/json.hpp>
+#include "nlohmann/json.hpp"
 
 class DeeplogTest : public ::testing::Test {
 protected:
@@ -210,23 +210,23 @@ TEST_F(DeeplogTest, checkpoint) {
     EXPECT_EQ("name 3", new_log->metadata().data->name());
 }
 
-TEST(IntTest, e2eTest) {
-    auto test_dir = "../test-ds";
-//    auto log = deeplake::deeplog::create(test_dir);
-    auto log = deeplake::deeplog::open(test_dir);
-
-    const auto &current_metadata = log->metadata();
-    std::cout << current_metadata.data->id() << std::endl;
-
-    for (auto file : log->data_files(deeplake::MAIN_BRANCH_ID, std::nullopt).data) {
-        std::cout << file->path() << std::endl;
-    }
-
-    auto action = deeplake::metadata_action(current_metadata.data->id(), "new name", "new desc", current_metadata.data->created_time());
-    log->commit(deeplake::MAIN_BRANCH_ID, current_metadata.version, {&action});
-
-//    auto action = deeplake::add_file_action("path/to/file.txt", 15, deeplake::current_timestamp(), true);
-//    log->commit(deeplake::MAIN_BRANCH_ID, 1, {&action});
-
-//    log->checkpoint(deeplake::MAIN_BRANCH_ID);
-}
+//TEST(IntTest, e2eTest) {
+//    auto test_dir = "../test-ds";
+////    auto log = deeplake::deeplog::create(test_dir);
+//    auto log = deeplake::deeplog::open(test_dir);
+//
+//    const auto &current_metadata = log->metadata();
+//    std::cout << current_metadata.data->id() << std::endl;
+//
+//    for (auto file : log->data_files(deeplake::MAIN_BRANCH_ID, std::nullopt).data) {
+//        std::cout << file->path() << std::endl;
+//    }
+//
+//    auto action = deeplake::metadata_action(current_metadata.data->id(), "new name", "new desc", current_metadata.data->created_time());
+//    log->commit(deeplake::MAIN_BRANCH_ID, current_metadata.version, {&action});
+//
+////    auto action = deeplake::add_file_action("path/to/file.txt", 15, deeplake::current_timestamp(), true);
+////    log->commit(deeplake::MAIN_BRANCH_ID, 1, {&action});
+//
+////    log->checkpoint(deeplake::MAIN_BRANCH_ID);
+//}
