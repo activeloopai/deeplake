@@ -1,6 +1,6 @@
 import deeplake
 import requests
-from typing import Any, Optional, Dict, List
+from typing import Any, Optional, Dict, List, Union
 from deeplake.util.exceptions import (
     AgreementNotAcceptedError,
     AuthorizationException,
@@ -552,7 +552,6 @@ class DeepMemoryBackendClient(DeepLakeBackendClient):
             relative_url=f"/api/deepmemory/v1/jobs/{job_id}/cancel",
         )
         check_response_status(response)
-        return response.json()
 
     def check_status(self, job_id: str):
         response = self.request(
@@ -560,8 +559,9 @@ class DeepMemoryBackendClient(DeepLakeBackendClient):
             relative_url=f"/api/deepmemory/v1/jobs/{job_id}/status",
         )
         check_response_status(response)
-        response_status_schema = JobResponseStatusSchema(response=response.json())
-        return response_status_schema
+        # response_status_schema = JobResponseStatusSchema(response=response.json())
+        # response_status_schema.print_status(job_id)
+        return response.json()
 
     def list_jobs(self, dataset_path):
         dataset_id = dataset_path[6:]
@@ -570,17 +570,24 @@ class DeepMemoryBackendClient(DeepLakeBackendClient):
             relative_url=f"/api/deepmemory/v1/{dataset_id}/jobs",
         )
         check_response_status(response)
-        response_status_schema = JobResponseStatusSchema(response=response.json(), dataset_id)
-        return response_status_schema
+        # response_status_schema = JobResponseStatusSchema(response=response.json())
+        # response_status_schema.print_jobs()
+        return response.json()
+
+    def delete(self, job_id):
+        response = self.request(
+            method="DELETE",
+            relative_url=f"/api/deepmemory/v1/jobs/{job_id}",
+        )
+        check_response_status(response)
 
 
 class JobResponseStatusSchema:
-    def __init__(self, response: Dict[str, Any], dataset_id: str):
+    def __init__(self, response: Dict[str, Any]):
         if not isinstance(response, List):
-            responses = [response]
+            response = [response]
 
-        self.responses = responses
-        self.dataset_id = dataset_id
+        self.responses = response
         self.validate_status_response()
 
     def validate_status_response(self):
@@ -588,14 +595,65 @@ class JobResponseStatusSchema:
             if "dataset_id" not in response:
                 raise ValueError("Invalid response. Missing 'dataset_id' key.")
 
-            if self.dataset_id != response["dataset_id"]:
-                raise ValueError("Invalid `dataset_id` is returned in response")
-            
             if "id" not in response:
                 raise ValueError("Invalid response. Missing 'id' key.")
 
-    def print_status(self):
-        pass
+    def print_status(self, job_id: Union[str, List[str]]):
+        if not isinstance(job_id, List):
+            job_id = [job_id]
+
+        line = "-" * 60
+        for response in self.responses:
+            if response["id"] not in job_id:
+                continue
+            print(line)
+            print("|{:^58}|".format(response["id"]))
+            print(line)
+            print("| {:<26}| {:<29}|".format("status", response["status"]))
+            print(line)
+            progress = response["progress"] if response["progress"] else "None"
+            print("| {:<26}| {:<29}|".format("progress", progress))
+            print(line)
+            print(
+                "| {:<26}| {:<29}|".format(
+                    "results",
+                    response["results"]
+                    if response.get("results")
+                    else "not available yet",
+                )
+            )
+            print(line)
+            print("\n")
 
     def print_jobs(self):
-        pass
+        header_format = "{:<28}  {:<20}  {:<16}  {:<10}  {:<20}  {:<10}"
+        data_format = "{:<28}  {:<20}  {:<16}  {:<10}  {:<20}  {:<10}"
+        separator = "-" * 85
+
+        print(
+            header_format.format(
+                "ID", "DATASET ID", "ORGANIZATION ID", "STATUS", "RESULTS", "PROGRESS"
+            )
+        )
+        # print(separator)
+        for response in self.responses:
+            response_id = response["id"]
+            response_dataset_id = response["dataset_id"]
+            response_organization_id = response["organization_id"]
+            response_status = response["status"]
+            response_results = (
+                response["results"] if response.get("results") else "not available yet"
+            )
+            reposne_progress = response["progress"] if response["progress"] else "None"
+
+            print(
+                data_format.format(
+                    response_id,
+                    response_dataset_id,
+                    response_organization_id,
+                    response_status,
+                    response_results,
+                    reposne_progress,
+                )
+            )
+            # print(separator)

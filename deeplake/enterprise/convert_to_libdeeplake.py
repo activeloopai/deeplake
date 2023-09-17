@@ -1,4 +1,4 @@
-from deeplake import Dataset
+from deeplake.core.dataset import Dataset
 
 from deeplake.core.storage.gcs import GCSProvider
 from deeplake.enterprise.util import raise_indra_installation_error  # type: ignore

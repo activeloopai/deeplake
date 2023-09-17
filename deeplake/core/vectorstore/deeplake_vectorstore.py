@@ -12,7 +12,8 @@ try:
 except Exception:  # pragma: no cover
     _INDRA_INSTALLED = False  # pragma: no cover
 
-import deeplake
+from deeplake.api import dataset
+from deeplake.core.dataset import Dataset
 from deeplake.constants import (
     DEFAULT_VECTORSTORE_TENSORS,
     MAX_BYTES_PER_MINUTE,
@@ -336,7 +337,7 @@ class VectorStore:
         embedding_tensor: str = "embedding",
         return_tensors: Optional[List[str]] = None,
         return_view: bool = False,
-    ) -> Union[Dict, deeplake.core.dataset.Dataset]:
+    ) -> Union[Dict, Dataset]:
         """VectorStore search method that combines embedding search, metadata search, and custom TQL search.
 
         Examples:
@@ -686,7 +687,7 @@ class VectorStore:
             },
             token=token,
         )
-        deeplake.delete(path, large_ok=True, token=token, force=force)
+        dataset.delete(path, large_ok=True, token=token, force=force)
 
     def tensors(self):
         """Returns the list of tensors present in the dataset"""
