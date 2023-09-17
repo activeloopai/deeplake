@@ -46,7 +46,7 @@ class VectorStore:
         embedding_function: Optional[Callable] = None,
         read_only: Optional[bool] = None,
         ingestion_batch_size: int = 1000,
-        index_params: Optional(Dict[str, Union[int, str]]) = None,
+        index_params: Optional[Dict[str, Union[int, str]]] = None,
         num_workers: int = 0,
         exec_option: str = "auto",
         token: Optional[str] = None,
