@@ -46,14 +46,7 @@ class VectorStore:
         embedding_function: Optional[Callable] = None,
         read_only: Optional[bool] = None,
         ingestion_batch_size: int = 1000,
-        index_params: Dict[str, Union[int, str]] = {
-            "threshold": -1,
-            "distance_metric": "L2",
-            "additional_params": {
-                "efConstruction": 200,
-                "M": 16,
-            },
-        },
+        index_params: Dict[str, Union[int, str]] = None,
         num_workers: int = 0,
         exec_option: str = "auto",
         token: Optional[str] = None,
@@ -100,14 +93,14 @@ class VectorStore:
             read_only (bool, optional):  Opens dataset in read-only mode if True. Defaults to False.
             num_workers (int): Number of workers to use for parallel ingestion.
             ingestion_batch_size (int): Batch size to use for parallel ingestion.
-            index_params (Dict[str, Union[int, str]]): List of dictionaries that contains information about vector indexes that will be created when certain threshold is met.
-                - threshold: This key corresponds to the threshold for the dataset size. Vector indexes are created for the embedding tensors once the size of the dataset crosses this threshold. When the threshold value is set to -1, index creation is turned off from VectorStore APIs.
-                             By default, the threshold set to -1 which prohibits from creating Indexes.
+            index_params (Dict[str, Union[int, str]]): Dictionary containing information about vector index that will be created. Defaults to None, which will utilize ``DEFAULT_VECTORSTORE_INDEX_PARAMS`` from ``deeplake.constants``. The specified key-values override the default ones.
+                - threshold: The threshold for the dataset size above which an index will be created for the embedding tensor. When the threshold value is set to -1, index creation is turned off.
+                             Defaults to -1, which turns off the index.
                 - distance_metric: This key specifies the method of calculating the distance between vectors when creating the vector database (VDB) index. It can either be a string that corresponds to a member of the DistanceType enumeration, or the string value itself.
                     - If no value is provided, it defaults to "L2".
                     - "L2" corresponds to DistanceType.L2_NORM.
                     - "COS" corresponds to DistanceType.COSINE_SIMILARITY.
-                - additional params: Additional parameters for fine-tuning the index.
+                - additional_params: Additional parameters for fine-tuning the index.
             exec_option (str): Default method for search execution. It could be either ``"auto"``, ``"python"``, ``"compute_engine"`` or ``"tensor_db"``. Defaults to ``"auto"``. If None, it's set to "auto".
                 - ``auto``- Selects the best execution method based on the storage location of the Vector Store. It is the default option.
                 - ``python`` - Pure-python implementation that runs on the client and can be used for data stored anywhere. WARNING: using this option with big datasets is discouraged because it can lead to memory issues.
@@ -156,7 +149,7 @@ class VectorStore:
         )
 
         self.ingestion_batch_size = ingestion_batch_size
-        self.index_params = index_params
+        self.index_params = utils.parse_index_params(index_params)
         self.num_workers = num_workers
 
         if creds is None:

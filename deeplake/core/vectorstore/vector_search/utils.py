@@ -1,6 +1,6 @@
 from abc import ABC, abstractmethod
 
-from deeplake.constants import MB
+from deeplake.constants import MB, DEFAULT_VECTORSTORE_INDEX_PARAMS
 from deeplake.enterprise.util import raise_indra_installation_error
 from deeplake.util.exceptions import TensorDoesNotExistError
 from deeplake.util.warnings import always_warn
@@ -99,6 +99,16 @@ def parse_exec_option(dataset, exec_option, indra_installed, username):
         exec_option = exec_option_factory(dataset, indra_installed, username)
         return exec_option.get_exec_option()
     return exec_option
+
+
+def parse_index_params(index_params):
+    ip = DEFAULT_VECTORSTORE_INDEX_PARAMS
+
+    if index_params:
+        for key, value in index_params.items():
+            ip[key] = value
+
+    return ip
 
 
 def parse_return_tensors(dataset, return_tensors, embedding_tensor, return_view):
