@@ -36,16 +36,18 @@ def create_query_string(
 
     # return f"select * from (select {tensor_list_str}{distance_metric_str}{tql_filter_str}){order_str} limit {limit}"
 
-    ## TODO: DELETE THIS AND BRING BACK ABOVE IMPLEMNTATION
+    ## TODO: DELETE IMPLEMENTATION BELOW AND BRING BACK IMPLEMENTATION ABOVE
+
     tql_filter_str = tql_filter if tql_filter == "" else " where " + tql_filter
     tensor_list_str = ", ".join(tensor_list)
     distance_metric_str = (
         "" if distance_metric is None else f", {distance_metric} as score"
     )
 
-    order_str = "" if order is None else f" order by {distance_metric}"
+    order_str = "" if order is None else f" order by {distance_metric} {order}"
+    score_str = "" if order is None else f", score"
 
-    return f"select {tensor_list_str}, score from (select *{distance_metric_str}{tql_filter_str}{order_str} {order} limit {limit})"
+    return f"select {tensor_list_str}{score_str} from (select *{distance_metric_str}{tql_filter_str}{order_str} limit {limit})"
 
 
 def create_query(

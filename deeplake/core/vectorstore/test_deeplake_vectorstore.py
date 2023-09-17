@@ -552,7 +552,7 @@ def test_search_quantitative(distance_metric, hub_cloud_dev_token):
     assert data_p["metadata"] == data_ce["metadata"]
 
     # use indra implementation to search the data
-    data_ce = vector_store.search(
+    data_ce_f = vector_store.search(
         embedding=None,
         exec_option="compute_engine",
         distance_metric=distance_metric,
@@ -560,7 +560,7 @@ def test_search_quantitative(distance_metric, hub_cloud_dev_token):
     )
 
     # All medatata are the same to this should return k (k) results
-    assert len(data_ce["id"]) == 4
+    assert len(data_ce_f["id"]) == 4
 
     with pytest.raises(ValueError):
         # use indra implementation to search the data
@@ -573,11 +573,11 @@ def test_search_quantitative(distance_metric, hub_cloud_dev_token):
 
     test_id = vector_store.dataset.id[0].data()["value"]
 
-    data_ce = vector_store.search(
+    data_ce_q = vector_store.search(
         query=f"select * where id == '{test_id}'",
         exec_option="compute_engine",
     )
-    assert data_ce["id"][0] == test_id
+    assert data_ce_q["id"][0] == test_id
 
 
 @requires_libdeeplake
