@@ -534,7 +534,7 @@ def find_embedding_tensors(dataset) -> List[str]:
     matching_tensors = []
     for tensor in dataset.tensors.values():
         if is_embedding_tensor(tensor):
-            matching_tensors.append(tensor)
+            matching_tensors.append(tensor.key)
 
     return matching_tensors
 
