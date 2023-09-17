@@ -532,12 +532,17 @@ def get_embedding_tensors(embedding_tensor, tensor_args, dataset) -> List[str]:
 def find_embedding_tensors(dataset) -> List[str]:
     """Find all the embedding tensors in a dataset."""
     matching_tensors = []
-    for tensor in dataset.tensors:
-        if (
-            dataset[tensor].htype == "embedding"
-            or tensor == "embedding"
-            or tensor == "embeddings"
-        ):
+    for tensor in dataset.tensors.values():
+        if is_embedding_tensor(tensor):
             matching_tensors.append(tensor)
 
     return matching_tensors
+
+
+def is_embedding_tensor(tensor):
+    """Check if a tensor is an embedding tensor."""
+    return (
+        tensor.htype == "embedding"
+        or tensor.key == "embedding"
+        or tensor.key == "embeddings"
+    )

@@ -1,5 +1,6 @@
 from deeplake.core.vector_index.distance_type import DistanceType
 from deeplake.core.storage import azure, gcs, google_drive, local, lru_cache, memory
+from deeplake.core.vectorstore import utils
 
 
 METRIC_TO_INDEX_METRIC = {
@@ -62,7 +63,7 @@ def check_vdb_indexes(dataset):
 
     vdb_index_present = False
     for _, tensor in tensors.items():
-        is_embedding = tensor.htype == "embedding"
+        is_embedding = utils.is_embedding_tensor(tensor)
         has_vdb_indexes = hasattr(tensor.meta, "vdb_indexes")
         try:
             vdb_index_ids_present = len(tensor.meta.vdb_indexes) > 0
@@ -81,7 +82,7 @@ def index_cache_cleanup(dataset):
 
     tensors = dataset.tensors
     for _, tensor in tensors.items():
-        is_embedding = tensor.htype == "embedding"
+        is_embedding = utils.is_embedding_tensor(tensor)
         if is_embedding:
             tensor.unload_index_cache()
 
@@ -98,7 +99,7 @@ def validate_and_create_vector_index(dataset, index_params, regenerate_index=Fal
     # Check if regenerate_index is true.
     if regenerate_index:
         for _, tensor in tensors.items():
-            is_embedding = tensor.htype == "embedding"
+            is_embedding = utils.is_embedding_tensor(tensor)
             has_vdb_indexes = hasattr(tensor.meta, "vdb_indexes")
             try:
                 vdb_index_ids_present = len(tensor.meta.vdb_indexes) > 0
@@ -113,7 +114,7 @@ def validate_and_create_vector_index(dataset, index_params, regenerate_index=Fal
 
     # Check all tensors from the dataset.
     for _, tensor in tensors.items():
-        is_embedding = tensor.htype == "embedding"
+        is_embedding = utils.is_embedding_tensor(tensor)
         vdb_index_absent = len(tensor.meta.get_vdb_index_ids()) == 0
         if is_embedding and vdb_index_absent:
             try:
