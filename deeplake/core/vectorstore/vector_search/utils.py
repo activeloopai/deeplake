@@ -546,3 +546,8 @@ def is_embedding_tensor(tensor):
         or tensor.key == "embedding"
         or tensor.key == "embeddings"
     )
+
+
+def index_used(exec_option):
+    """Check if the index is used for the exec_option"""
+    return exec_option in ("tensor_db", "compute_engine")
