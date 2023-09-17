@@ -434,7 +434,7 @@ def extend(
         dataset (deeplake.core.dataset.Dataset): Dataset to be extended.
         batch_byte_size (int): Batch size to use for parallel ingestion.
         rate_limiter (Dict): Rate limiter configuration.
-        index_regeneration (Boolean): Denotes if index will be regenerated or not.
+        index_regeneration (bool): Denotes if index will be regenerated or not.
 
     Raises:
         IncorrectEmbeddingShapeError: If embeding function shapes is incorrect.

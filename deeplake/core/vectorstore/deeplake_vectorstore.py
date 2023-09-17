@@ -752,7 +752,7 @@ class VectorStore:
         """Commits the Vector Store.
 
         Args:
-            allow_empty (bool, optional): Whether to allow empty commits. Defaults to True.
+            allow_empty (bool): Whether to allow empty commits. Defaults to True.
         """
         self.dataset.commit(allow_empty=allow_empty)
 
