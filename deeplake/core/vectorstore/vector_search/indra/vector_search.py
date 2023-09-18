@@ -12,6 +12,8 @@ from deeplake.core.vectorstore.vector_search import utils
 from deeplake.core.vectorstore.vector_search import filter as filter_utils
 from deeplake.core import vectorstore
 
+_INDRA_INSTALLED = True  # pragma: no cover
+
 
 def vector_search(
     query,

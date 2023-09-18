@@ -1,5 +1,6 @@
 import deeplake
 import requests
+import textwrap
 from typing import Any, Optional, Dict, List, Union
 from deeplake.util.exceptions import (
     AgreementNotAcceptedError,
@@ -559,8 +560,8 @@ class DeepMemoryBackendClient(DeepLakeBackendClient):
             relative_url=f"/api/deepmemory/v1/jobs/{job_id}/status",
         )
         check_response_status(response)
-        # response_status_schema = JobResponseStatusSchema(response=response.json())
-        # response_status_schema.print_status(job_id)
+        response_status_schema = JobResponseStatusSchema(response=response.json())
+        response_status_schema.print_status(job_id)
         return response.json()
 
     def list_jobs(self, dataset_path):
@@ -570,8 +571,8 @@ class DeepMemoryBackendClient(DeepLakeBackendClient):
             relative_url=f"/api/deepmemory/v1/{dataset_id}/jobs",
         )
         check_response_status(response)
-        # response_status_schema = JobResponseStatusSchema(response=response.json())
-        # response_status_schema.print_jobs()
+        response_status_schema = JobResponseStatusSchema(response=response.json())
+        response_status_schema.print_jobs()
         return response.json()
 
     def delete(self, job_id):
@@ -606,16 +607,22 @@ class JobResponseStatusSchema:
         for response in self.responses:
             if response["id"] not in job_id:
                 continue
+
+            if response["status"] == "completed":
+                response["results"] = get_results(
+                    response, " " * 29, add_vertical_bars=True
+                )
+
             print(line)
             print("|{:^58}|".format(response["id"]))
             print(line)
             print("| {:<26}| {:<29}|".format("status", response["status"]))
             print(line)
-            progress = response["progress"] if response["progress"] else "None"
-            print("| {:<26}| {:<29}|".format("progress", progress))
+            progress = preprocess_progress(response, " " * 29, add_vertical_bars=True)
+            print("| {:<26}| {:<29}".format("progress", progress))
             print(line)
             print(
-                "| {:<26}| {:<29}|".format(
+                "| {:<26}| {:<29}".format(
                     "results",
                     response["results"]
                     if response.get("results")
@@ -626,9 +633,29 @@ class JobResponseStatusSchema:
             print("\n")
 
     def print_jobs(self):
-        header_format = "{:<28}  {:<20}  {:<16}  {:<10}  {:<20}  {:<10}"
-        data_format = "{:<28}  {:<20}  {:<16}  {:<10}  {:<20}  {:<10}"
-        separator = "-" * 85
+        (
+            id_size,
+            dataset_id_size,
+            organization_id_size,
+            status_size,
+            results_size,
+        ) = get_table_size(responses=self.responses)
+
+        progress_size = (
+            15  # Keep it fixed for simplicity or compute dynamically if needed
+        )
+
+        header_format = f"{{:<{id_size}}}  {{:<{dataset_id_size}}}  {{:<{organization_id_size}}}  {{:<{status_size}}}  {{:<{results_size}}}  {{:<{progress_size}}}"
+        data_format = header_format  # as they are the same
+        separator = "-" * (
+            id_size
+            + dataset_id_size
+            + organization_id_size
+            + status_size
+            + results_size
+            + progress_size
+            + 5 * 2
+        )  # 5 spaces for 5 columns
 
         print(
             header_format.format(
@@ -641,10 +668,19 @@ class JobResponseStatusSchema:
             response_dataset_id = response["dataset_id"]
             response_organization_id = response["organization_id"]
             response_status = response["status"]
+
             response_results = (
                 response["results"] if response.get("results") else "not available yet"
             )
-            reposne_progress = response["progress"] if response["progress"] else "None"
+            progress_indent = " " * (
+                id_size
+                + dataset_id_size
+                + organization_id_size
+                + status_size
+                + results_size
+                + 5 * 2
+            )
+            response_progress = preprocess_progress(response, progress_indent)
 
             print(
                 data_format.format(
@@ -653,7 +689,137 @@ class JobResponseStatusSchema:
                     response_organization_id,
                     response_status,
                     response_results,
-                    reposne_progress,
+                    str(response_progress),
                 )
             )
-            # print(separator)
+        # print(separator)
+
+
+def get_results(response, indent, add_vertical_bars):
+    progress = response["progress"]
+
+    for progress_key, progress_value in progress.items():
+        if progress_key == "best_recall@10":
+            recall, improvement = progress_value.split("%")[:2]
+            output = (
+                "Congratulations! Your model has achieved a recall@10 of "
+                + str(recall)
+                + " which is an improvement of "
+                + str(improvement)
+                + " on the validation set compared to base model."
+            )
+            return format_to_fixed_width(output, 21, indent, add_vertical_bars)
+
+
+def format_to_fixed_width(s, width, indent, add_vertical_bars):
+    words = s.split()
+    lines = ""
+    line = ""
+    first_entry = True
+    for word in words:
+        # If adding the new word to the current line would make it too long
+        if len(line) + len(word) + 1 > width:  # +1 for space
+            current_indent = ""
+            if first_entry:
+                first_entry = False
+            else:
+                current_indent = (
+                    "|" + indent[:-2] + "| " if add_vertical_bars else indent
+                )
+            lines += (
+                current_indent + line.rstrip()
+            )  # Add the current line to lines and remove trailing spaces
+            lines += (29 - len(line)) * " " + " |\n" if add_vertical_bars else "\n"
+            line = ""  # Start a new line
+        line += word + " "
+
+    # Add the last line if it's not empty
+    if line:
+        current_indent = "|" + indent[:-2] + "| " if add_vertical_bars else indent
+        lines += current_indent
+        lines += (
+            line.rstrip() + (29 - len(line)) * " " + " |" if add_vertical_bars else "\n"
+        )
+
+    return lines
+
+
+def preprocess_progress(response, progress_indent, add_vertical_bars=False):
+    progress_indent = (
+        "|" + progress_indent[:-1] if add_vertical_bars else progress_indent
+    )
+    response_progress = response["progress"] if response.get("progress") else "None"
+
+    if response_progress != "None":
+        response_progress_str = ""
+        first_entry = True
+        first_error_line = True
+        for key, value in response_progress.items():
+            if key == "error" and value is None:
+                continue
+            elif key == "error" and value is not None:
+                value = textwrap.fill(value, width=20)
+                values = value.split("\n")
+                value = ""
+                for value_i in values:
+                    if first_error_line:
+                        first_error_line = False
+                        value += value_i + (22 - len(value_i)) * " " + "|"
+                    else:
+                        value += (
+                            "\n"
+                            + progress_indent[:-1]
+                            + "| "
+                            + " " * 7
+                            + value_i
+                            + (22 - len(value_i)) * " "
+                            + "|"
+                        )
+
+            if isinstance(value, float):
+                value = f"{value:.1f}"
+
+            # Add indentation for every line after the first
+            if first_entry:
+                first_entry = False
+            else:
+                response_progress_str += (
+                    progress_indent[:-1] + "| "
+                    if add_vertical_bars
+                    else progress_indent
+                )
+
+            key_value_pair = f"{key}: {value}"
+
+            vertical_bar_if_needed = (
+                (29 - len(f"{key}: {value}")) * " " + "|\n"
+                if add_vertical_bars
+                else "\n"
+            )
+            key_value_pair += vertical_bar_if_needed
+            response_progress_str += key_value_pair
+
+        response_progress = response_progress_str.rstrip()  # remove trailing newline
+    return response_progress
+
+
+def get_table_size(responses):
+    id_size, dataset_id_size, organization_id_size, status_size, results_size = (
+        2,  # Minimum size to fit "ID"
+        10,  # Minimum size to fit "DATASET ID"
+        15,  # Minimum size to fit "ORGANIZATION ID"
+        6,  # Minimum size to fit "STATUS"
+        7,  # Minimum size to fit "RESULTS"
+    )
+    for response in responses:
+        id_size = max(id_size, len(response["id"]))
+        dataset_id_size = max(dataset_id_size, len(response["dataset_id"]))
+        organization_id_size = max(
+            organization_id_size, len(response["organization_id"])
+        )
+        status_size = max(status_size, len(response["status"]))
+        results_size = max(
+            results_size, len(response.get("results", "not available yet"))
+        )
+
+    return id_size, dataset_id_size, organization_id_size, status_size, results_size

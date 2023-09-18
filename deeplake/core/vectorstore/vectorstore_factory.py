@@ -4,7 +4,6 @@ from deeplake.core.vectorstore.deepmemory_vectorstore import DeepMemoryVectorSto
 
 
 def vectorstore_factory(
-    self,
     *args,
     **kwargs,
 ):

@@ -1,11 +1,13 @@
 import os
 from typing import Any, Optional, List, Dict, Union, Callable, Tuple
+import textwrap
 
 import torch
 import numpy as np
 from time import time
 
 from deeplake.client import config
+from deeplake.core.vectorstore.vector_search import vector_search
 
 config.USE_DEV_ENVIRONMENT = True
 
@@ -47,11 +49,6 @@ class DeepMemory:
             ImportError: if indra is not installed
         """
         self.dataset = dataset
-        if not INDRA_AVAILABLE:
-            raise ImportError(
-                "Evaluation on DeepMemory managed service requires the indra package. "
-                "Please install it with `pip install deeplake[enterprise]`."
-            )
         self.embedding_function = embedding_function
         self.client = DeepMemoryBackendClient(token=token)
 
@@ -59,6 +56,7 @@ class DeepMemory:
         self,
         queries: List[str],
         relevances: List[List[Tuple[str, int]]],
+        query_embeddings: Optional[List[np.ndarray]] = None,
         embedding_function: Optional[Callable[[str], np.ndarray]] = None,
     ):
         """Train a model on DeepMemory managed service.
@@ -72,18 +70,26 @@ class DeepMemory:
             str: job_id of the training job.
         """
         corpus_path = self.dataset.path
-        queries_path = os.path.join(corpus_path, "queries")
+        queries_path = corpus_path + "_queries"
 
         queries_vs = VectorStore(
             path=queries_path,
             overwrite=True,
-            embedding_function=embedding_function or self.embedding.embed_query,
+            runtime={"tensor_db": True},
+            embedding_function=embedding_function
+            or self.embedding_function.embed_documents,
         )
-        queries_vs.add(
-            text=[query for query in queries],
-            metadata=[{"relevance": relevance} for relevance in relevances],
-            embedding_data=[relelvence for _, relelvence in queries.items()],
-        )
+
+        add_kwargs = {
+            "text": [query for query in queries],
+            "metadata": [relevance for relevance in relevances],
+        }
+
+        if query_embeddings:
+            add_kwargs["embedding"] = query_embeddings
+        else:
+            add_kwargs["embedding_data"] = [query for query in queries]
+        queries_vs.add(**add_kwargs)
         # do some rest_api calls to train the model
         response = self.client.start_taining(
             corpus_path=corpus_path,
@@ -111,9 +117,9 @@ class DeepMemory:
         """
         self.client.check_status(job_id=job_id)
 
-    def list_jobs(self):
+    def list_jobs(self, dataset_path: str):
         """List all training jobs on DeepMemory managed service."""
-        self.client.list_jobs()
+        self.client.list_jobs(dataset_path=dataset_path)
 
     def evaluate(
         self,
@@ -135,6 +141,12 @@ class DeepMemory:
         if not run_locally:
             raise NotImplementedError(
                 "Evaluation on DeepMemory managed service is not yet implemented"
+            )
+
+        if not INDRA_AVAILABLE:
+            raise ImportError(
+                "Evaluation on DeepMemory managed service requires the indra package. "
+                "Please install it with `pip install deeplake[enterprise]`."
             )
 
         indra_dataset = api.dataset(self.dataset.path)
@@ -163,7 +175,7 @@ class DeepMemory:
 
     def search(
         self,
-        embedding_data=str,
+        embedding_data: str,
         embedding_function: Optional[Callable[[str], np.ndarray]] = None,
         embedding: Optional[Union[List[float], np.ndarray]] = None,
         filter: Optional[Union[Dict, Callable]] = None,
@@ -191,13 +203,61 @@ class DeepMemory:
         Returns:
             Union[Dict, DeepLakeDataset]: Dictionary where keys are tensor names and values are the results of the search, or a Deep Lake dataset view.
         """
-        if not run_locally:
-            return NotImplementedError()
+        # if not run_locally:
+        #     exec_option = "tensor_db"
+        # else:
+        #     exec_option = "compute_engine"
+        # query = None
+        # utils.parse_search_args(
+        #     embedding_data=embedding_data,
+        #     embedding_function=embedding_function,
+        #     initial_embedding_function=self.embedding_function,
+        #     embedding=embedding,
+        #     k=k,
+        #     distance_metric=metric,
+        #     query=None,
+        #     filter=filter,
+        #     exec_option=exec_option,
+        #     embedding_tensor=embedding_tensor,
+        #     return_tensors=return_tensors,
+        # )
+
+        # return_tensors = utils.parse_return_tensors(
+        #     self.dataset, return_tensors, embedding_tensor, return_view
+        # )
+
+        # query_emb: Optional[Union[List[float], np.ndarray[Any, Any]]] = None
+        # if query is None:
+        #     query_emb = dataset_utils.get_embedding(
+        #         embedding,
+        #         embedding_data,
+        #         embedding_function=embedding_function or self.embedding_function,
+        #     )
+        # return vector_search.search(
+        #     query=query,
+        #     logger=None,
+        #     filter=filter,
+        #     query_embedding=query_emb,
+        #     k=k,
+        #     distance_metric=metric,
+        #     exec_option=exec_option,
+        #     deeplake_dataset=self.dataset,
+        #     embedding_tensor=embedding_tensor,
+        #     return_tensors=return_tensors,
+        #     return_view=return_view,
+        # )
+        from indra import api
 
         if callable(filter):
             raise NotImplementedError(
                 "UDF filter functions are not supported with the deepmemory yet."
             )
+
+        # if not INDRA_AVAILABLE:
+        #     raise ImportError(
+        #         "Evaluation on DeepMemory managed service requires the indra package. "
+        #         "Please install it with `pip install deeplake[enterprise]`."
+        #     )
 
         indra_dataset = api.dataset(self.dataset.path)
         api.tql.prepare_deepmemory_metrics(indra_dataset)
@@ -235,8 +295,9 @@ class DeepMemory:
         view_top_k = get_view_top_k(
             metric=metric,
             query_emb=query_emb,
-            k=k,
+            top_k=k,
             indra_dataset=indra_dataset,
+            dataset=self.dataset,
             return_deeplake_view=True,
             return_tensors=return_tensors,
             tql_filter=tql_filter,
