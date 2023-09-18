@@ -3,7 +3,7 @@
 #include <iostream>
 #include <set>
 #include <fstream>
-#include "nlohmann/json.hpp"
+#include <nlohmann/json.hpp>
 #include "actions/protocol_action.hpp"
 #include "actions/metadata_action.hpp"
 #include "actions/create_branch_action.hpp"

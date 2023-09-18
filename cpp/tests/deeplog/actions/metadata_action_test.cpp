@@ -1,6 +1,6 @@
 #include <gtest/gtest.h>
 #include <filesystem>
-#include "nlohmann/json.hpp"
+#include <nlohmann/json.hpp>
 #include "../../../deeplog/actions/metadata_action.hpp"
 
 using json = nlohmann::json;

@@ -2,9 +2,9 @@
 #define DEEPLAKE_METADATA_ACTION_HPP
 
 #include "action.hpp"
-#include "uuid.h"
+#include <uuid.h>
 #include <random>
-#include "nlohmann/json.hpp"
+#include <nlohmann/json.hpp>
 #include <arrow/api.h>
 
 namespace deeplake {

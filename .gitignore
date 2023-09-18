@@ -219,3 +219,4 @@ benchmarks/torch_data
 api_docs/
 
 /cpp/cmake-build-debug/
+/cpp/external/

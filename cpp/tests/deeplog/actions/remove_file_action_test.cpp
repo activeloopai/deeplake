@@ -1,6 +1,6 @@
 #include <gtest/gtest.h>
 #include <filesystem>
-#include "nlohmann/json.hpp"
+#include <nlohmann/json.hpp>
 #include "../../../deeplog/actions/add_file_action.hpp"
 #include "../../../deeplog/actions/remove_file_action.hpp"
 

@@ -2,7 +2,7 @@
 #define DEEPLAKE_REMOVE_FILE_ACTION_HPP
 
 #include <string>
-#include "nlohmann/json.hpp"
+#include <nlohmann/json.hpp>
 #include "action.hpp"
 
 namespace deeplake {

@@ -6,7 +6,7 @@
 #include "../../deeplog/last_checkpoint.hpp"
 #include <fstream>
 #include <string>
-#include "nlohmann/json.hpp"
+#include <nlohmann/json.hpp>
 
 class DeeplogTest : public ::testing::Test {
 protected:
