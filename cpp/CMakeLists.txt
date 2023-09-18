@@ -25,11 +25,6 @@ include(${CMAKE_CURRENT_SOURCE_DIR}/cmake/FindJson.cmake)
 include(${CMAKE_CURRENT_SOURCE_DIR}/cmake/FindPybind11.cmake)
 include(${DEFAULT_PARENT_DIR}/cmake/FindGoogleTest.cmake)
 
-#TODO revisit the external dependencies
-include(FetchContent)
-
-# FetchContent_Declare(stduuid URL https://github.com/mariusbancila/stduuid/archive/refs/tags/v1.2.3.zip)
-
 add_subdirectory(deeplog)
 add_subdirectory(tests)
 add_subdirectory(py_api)
