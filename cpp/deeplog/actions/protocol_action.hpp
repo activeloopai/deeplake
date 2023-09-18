@@ -4,7 +4,7 @@
 #include "action.hpp"
 #include <arrow/api.h>
 
-namespace deeplake {
+namespace deeplog {
 
     class protocol_action : public action {
     public:

@@ -4,7 +4,7 @@
 #include <nlohmann/json.hpp>
 #include <arrow/api.h>
 
-namespace deeplake {
+namespace deeplog {
 
     class action {
 

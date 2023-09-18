@@ -4,10 +4,10 @@
 
 using json = nlohmann::json;
 
-namespace deeplake {
+namespace deeplog {
 
 
-    deeplake::metadata_action::metadata_action(std::string id,
+    deeplog::metadata_action::metadata_action(std::string id,
                                                std::optional<std::string> name,
                                                std::optional<std::string> description,
                                                long created_time) :
@@ -35,23 +35,23 @@ namespace deeplake {
 
 
 
-    std::string deeplake::metadata_action::id() const {
+    std::string deeplog::metadata_action::id() const {
         return id_;
     }
 
-    std::optional<std::string> deeplake::metadata_action::name() const {
+    std::optional<std::string> deeplog::metadata_action::name() const {
         return name_;
     }
 
-    std::optional<std::string> deeplake::metadata_action::description() const {
+    std::optional<std::string> deeplog::metadata_action::description() const {
         return description_;
     }
 
-    long deeplake::metadata_action::created_time() const {
+    long deeplog::metadata_action::created_time() const {
         return created_time_;
     }
 
-    void deeplake::metadata_action::to_json(nlohmann::json &j) {
+    void deeplog::metadata_action::to_json(nlohmann::json &j) {
         j["metadata"]["id"] = id_;
         if (name_.has_value()) {
             j["metadata"]["name"] = name_.value();
@@ -86,7 +86,7 @@ namespace deeplake {
         return arrow::Status::OK();
     }
 
-    std::shared_ptr<arrow::StructBuilder> deeplake::metadata_action::arrow_array() {
+    std::shared_ptr<arrow::StructBuilder> deeplog::metadata_action::arrow_array() {
         auto protocol_struct = arrow::struct_({
                                                       arrow::field("id", arrow::utf8()),
                                                       arrow::field("name", arrow::utf8()),

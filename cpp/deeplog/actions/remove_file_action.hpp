@@ -5,7 +5,7 @@
 #include <nlohmann/json.hpp>
 #include "action.hpp"
 
-namespace deeplake {
+namespace deeplog {
     class remove_file_action : public action {
     public:
         remove_file_action(std::string path, long size, long deletion_timestamp, bool data_change);

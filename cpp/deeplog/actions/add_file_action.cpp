@@ -1,6 +1,6 @@
 #include "add_file_action.hpp"
 
-namespace deeplake {
+namespace deeplog {
     add_file_action::add_file_action(std::string path, long size, long modification_time, bool data_change) :
             path_(path), size_(size), modification_time_(modification_time), data_change_(data_change) {}
 
@@ -32,7 +32,7 @@ namespace deeplake {
         j["add"]["dataChange"] = data_change_;
     }
 
-    std::shared_ptr<arrow::StructBuilder> deeplake::add_file_action::arrow_array() {
+    std::shared_ptr<arrow::StructBuilder> deeplog::add_file_action::arrow_array() {
         auto protocol_struct = arrow::struct_({
                                                       arrow::field("path", arrow::utf8()),
                                                       arrow::field("size", arrow::uint64()),

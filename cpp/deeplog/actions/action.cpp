@@ -2,7 +2,7 @@
 #include <nlohmann/json.hpp>
 using json = nlohmann::json;
 
-namespace deeplake {
+namespace deeplog {
 
 
 };

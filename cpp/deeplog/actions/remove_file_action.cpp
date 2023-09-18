@@ -1,6 +1,6 @@
 #include "remove_file_action.hpp"
 
-namespace deeplake {
+namespace deeplog {
     remove_file_action::remove_file_action(const nlohmann::json &j) {
         const auto &base = j.at("remove");
         base.at("path").get_to(path_);

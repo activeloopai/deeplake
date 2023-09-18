@@ -8,7 +8,7 @@
 #include "actions/metadata_action.hpp"
 #include "actions/create_branch_action.hpp"
 
-namespace deeplake {
+namespace deeplog {
 
     const std::string MAIN_BRANCH_ID = "";
 
@@ -32,19 +32,19 @@ namespace deeplake {
 
         long version(const std::string &branch_id) const;
 
-        deeplog_state<std::shared_ptr<deeplake::protocol_action>> protocol() const;
+        deeplog_state<std::shared_ptr<protocol_action>> protocol() const;
 
-        deeplog_state<std::shared_ptr<deeplake::metadata_action>> metadata() const;
+        deeplog_state<std::shared_ptr<metadata_action>> metadata() const;
 
-        deeplog_state<std::vector<std::shared_ptr<deeplake::create_branch_action>>> branches() const;
+        deeplog_state<std::vector<std::shared_ptr<create_branch_action>>> branches() const;
 
-        deeplog_state<std::shared_ptr<deeplake::create_branch_action>> branch_by_id(const std::string &branch_id) const;
+        deeplog_state<std::shared_ptr<create_branch_action>> branch_by_id(const std::string &branch_id) const;
 
-        deeplog_state<std::vector<std::shared_ptr<deeplake::add_file_action>>> data_files(const std::string &branch_id, const std::optional<long> &version);
+        deeplog_state<std::vector<std::shared_ptr<add_file_action>>> data_files(const std::string &branch_id, const std::optional<long> &version);
 
         void commit(const std::string &branch_id,
                     const long &base_version,
-                    const std::vector<deeplake::action *> &actions);
+                    const std::vector<action *> &actions);
 
         void checkpoint(const std::string &branch_id);
 

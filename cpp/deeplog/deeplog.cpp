@@ -18,11 +18,11 @@
 #include "arrow/api.h"
 #include "last_checkpoint.hpp"
 
-namespace deeplake {
+namespace deeplog {
 
     deeplog::deeplog(std::string path) : path_(path) {};
 
-    std::shared_ptr<deeplake::deeplog> deeplog::create(const std::string &path) {
+    std::shared_ptr<deeplog> deeplog::create(const std::string &path) {
         if (std::filesystem::exists(path)) {
             throw std::runtime_error("'" + path + "' already exists");
         }
@@ -33,10 +33,10 @@ namespace deeplake {
         auto log = open(path);
         std::vector<action *> actions;
 
-        auto protocol = deeplake::protocol_action(4, 4);
-        auto metadata = deeplake::metadata_action(generate_uuid(), std::nullopt, std::nullopt, current_timestamp());
+        auto protocol = protocol_action(4, 4);
+        auto metadata = metadata_action(generate_uuid(), std::nullopt, std::nullopt, current_timestamp());
 
-        auto branch = deeplake::create_branch_action(MAIN_BRANCH_ID, "main", MAIN_BRANCH_ID, -1);
+        auto branch = create_branch_action(MAIN_BRANCH_ID, "main", MAIN_BRANCH_ID, -1);
 
         log->commit(MAIN_BRANCH_ID, -1, {&protocol, &metadata, &branch});
 
@@ -44,8 +44,8 @@ namespace deeplake {
 
     }
 
-    std::shared_ptr<deeplake::deeplog> deeplog::open(const std::string &path) {
-        return std::make_shared<deeplake::deeplog>(deeplog(path));
+    std::shared_ptr<deeplog> deeplog::open(const std::string &path) {
+        return std::make_shared<deeplog>(deeplog(path));
     }
 
     std::string deeplog::path() { return path_; }
@@ -64,7 +64,7 @@ namespace deeplake {
         return list_actions(branch_id, 0, std::nullopt).version;
     }
 
-    deeplog_state<std::shared_ptr<deeplake::protocol_action>> deeplog::protocol() const {
+    deeplog_state<std::shared_ptr<protocol_action>> deeplog::protocol() const {
         auto actions = list_actions(MAIN_BRANCH_ID, 0, std::nullopt);
 
         std::shared_ptr<protocol_action> protocol;
@@ -79,7 +79,7 @@ namespace deeplake {
         return {protocol, actions.version};
     }
 
-    deeplog_state<std::shared_ptr<deeplake::metadata_action>> deeplog::metadata() const {
+    deeplog_state<std::shared_ptr<metadata_action>> deeplog::metadata() const {
         auto actions = list_actions(MAIN_BRANCH_ID, 0, std::nullopt);
 
         std::shared_ptr<metadata_action> metadata;
@@ -94,7 +94,7 @@ namespace deeplake {
         return {metadata, actions.version};
     }
 
-    deeplog_state<std::vector<std::shared_ptr<deeplake::add_file_action>>> deeplog::data_files(const std::string &branch_id, const std::optional<long> &version) {
+    deeplog_state<std::vector<std::shared_ptr<add_file_action>>> deeplog::data_files(const std::string &branch_id, const std::optional<long> &version) {
         auto actions = list_actions(MAIN_BRANCH_ID, 0, std::nullopt);
 
         std::vector<std::shared_ptr<add_file_action>> branches = {};
@@ -109,7 +109,7 @@ namespace deeplake {
         return {std::vector<std::shared_ptr<add_file_action>>(branches), actions.version};
     }
 
-    deeplog_state<std::vector<std::shared_ptr<deeplake::create_branch_action>>> deeplog::branches() const {
+    deeplog_state<std::vector<std::shared_ptr<create_branch_action>>> deeplog::branches() const {
         auto actions = list_actions(MAIN_BRANCH_ID, 0, std::nullopt);
 
         std::vector<std::shared_ptr<create_branch_action>> branches = {};
@@ -127,7 +127,7 @@ namespace deeplake {
 
     void deeplog::commit(const std::string &branch_id,
                          const long &base_version,
-                         const std::vector<deeplake::action *> &actions) {
+                         const std::vector<action *> &actions) {
         nlohmann::json commit_json;
 
         for (auto action: actions) {
@@ -151,12 +151,12 @@ namespace deeplake {
         file.close();
     }
 
-    deeplog_state<std::shared_ptr<deeplake::create_branch_action>> deeplog::branch_by_id(const std::string &branch_id) const {
+    deeplog_state<std::shared_ptr<create_branch_action>> deeplog::branch_by_id(const std::string &branch_id) const {
         auto all_branches = this->branches();
         auto data = all_branches.data;
 
         auto branch = std::ranges::find_if(data,
-                                           [branch_id](std::shared_ptr<deeplake::create_branch_action> b) { return b->id() == branch_id; });
+                                           [branch_id](std::shared_ptr<create_branch_action> b) { return b->id() == branch_id; });
         if (branch == data.end()) {
             throw std::runtime_error("Branch id '" + branch_id + "' not found");
         }
@@ -219,13 +219,13 @@ namespace deeplake {
             nlohmann::json jsonArray = nlohmann::json::parse(ifs);
             for (auto &element: jsonArray) {
                 if (element.contains("add")) {
-                    return_actions.push_back(std::make_shared<add_file_action>(deeplake::add_file_action(element)));
+                    return_actions.push_back(std::make_shared<add_file_action>(add_file_action(element)));
                 } else if (element.contains("createBranch")) {
-                    return_actions.push_back(std::make_shared<create_branch_action>(deeplake::create_branch_action(element)));
+                    return_actions.push_back(std::make_shared<create_branch_action>(create_branch_action(element)));
                 } else if (element.contains("protocol")) {
-                    return_actions.push_back(std::make_shared<protocol_action>(deeplake::protocol_action(element)));
+                    return_actions.push_back(std::make_shared<protocol_action>(protocol_action(element)));
                 } else if (element.contains("metadata")) {
-                    return_actions.push_back(std::make_shared<metadata_action>(deeplake::metadata_action(element)));
+                    return_actions.push_back(std::make_shared<metadata_action>(metadata_action(element)));
                 }
             }
         }
@@ -260,7 +260,7 @@ namespace deeplake {
         file.close();
     }
 
-    arrow::Status deeplog::read_checkpoint(const std::string &dir_path, const long &version, std::vector<std::shared_ptr<deeplake::action>> &actions) const {
+    arrow::Status deeplog::read_checkpoint(const std::string &dir_path, const long &version, std::vector<std::shared_ptr<action>> &actions) const {
 
 
         auto reader_properties = parquet::ReaderProperties(arrow::default_memory_pool());
@@ -286,21 +286,21 @@ namespace deeplake {
                     std::shared_ptr<arrow::Scalar> val;
                     ARROW_ASSIGN_OR_RAISE(val, batch->GetColumnByName("protocol")->GetScalar(i));
 
-                    actions.push_back(std::make_shared<deeplake::protocol_action>(protocol_action(reinterpret_pointer_cast<arrow::StructScalar>(val))));
+                    actions.push_back(std::make_shared<protocol_action>(protocol_action(reinterpret_pointer_cast<arrow::StructScalar>(val))));
                 }
 
                 if (!batch->GetColumnByName("metadata")->data()->IsNull(i)) {
                     std::shared_ptr<arrow::Scalar> val;
                     ARROW_ASSIGN_OR_RAISE(val, batch->GetColumnByName("metadata")->GetScalar(i));
 
-                    actions.push_back(std::make_shared<deeplake::metadata_action>(metadata_action(reinterpret_pointer_cast<arrow::StructScalar>(val))));
+                    actions.push_back(std::make_shared<metadata_action>(metadata_action(reinterpret_pointer_cast<arrow::StructScalar>(val))));
                 }
 
                 if (!batch->GetColumnByName("add")->data()->IsNull(i)) {
                     std::shared_ptr<arrow::Scalar> val;
                     ARROW_ASSIGN_OR_RAISE(val, batch->GetColumnByName("add")->GetScalar(i));
 
-                    actions.push_back(std::make_shared<deeplake::add_file_action>(add_file_action(reinterpret_pointer_cast<arrow::StructScalar>(val))));
+                    actions.push_back(std::make_shared<add_file_action>(add_file_action(reinterpret_pointer_cast<arrow::StructScalar>(val))));
                 }
             }
         }
@@ -309,9 +309,9 @@ namespace deeplake {
     }
 
     arrow::Status deeplog::write_checkpoint(const std::string &branch_id, const long &version) {
-        auto protocol_builder = deeplake::protocol_action::arrow_array();
-        auto metadata_builder = deeplake::metadata_action::arrow_array();
-        auto add_file_builder = deeplake::add_file_action::arrow_array();
+        auto protocol_builder = protocol_action::arrow_array();
+        auto metadata_builder = metadata_action::arrow_array();
+        auto add_file_builder = add_file_action::arrow_array();
 
         ARROW_RETURN_NOT_OK(protocol().data->append_to(protocol_builder));
         ARROW_RETURN_NOT_OK(metadata_builder->AppendNull());

@@ -3,7 +3,7 @@
 
 #include <nlohmann/json.hpp>
 
-namespace deeplake {
+namespace deeplog {
 
     struct last_checkpoint {
     public:

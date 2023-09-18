@@ -3,7 +3,7 @@
 
 #include "action.hpp"
 
-namespace deeplake {
+namespace deeplog {
     class create_branch_action : public action {
 
     public:

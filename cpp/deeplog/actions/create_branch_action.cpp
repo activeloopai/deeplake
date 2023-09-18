@@ -1,6 +1,6 @@
 #include "create_branch_action.hpp"
 
-namespace deeplake {
+namespace deeplog {
     create_branch_action::create_branch_action(std::string id,
                                                std::string name,
                                                std::string from_branch,

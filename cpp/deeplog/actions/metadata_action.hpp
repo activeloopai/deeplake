@@ -7,7 +7,7 @@
 #include <nlohmann/json.hpp>
 #include <arrow/api.h>
 
-namespace deeplake {
+namespace deeplog {
 
     class metadata_action : public action {
     public:
