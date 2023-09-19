@@ -102,10 +102,16 @@ def parse_exec_option(dataset, exec_option, indra_installed, username):
 
 
 def parse_index_params(index_params):
-    ip = DEFAULT_VECTORSTORE_INDEX_PARAMS
+    ip = DEFAULT_VECTORSTORE_INDEX_PARAMS.copy()
+    valid_keys = ip.keys()
 
     if index_params:
         for key, value in index_params.items():
+            if key not in valid_keys:
+                raise ValueError(
+                    f"Invalid key '{key}' in index_params. Valid keys are: {valid_keys}"
+                )
+
             ip[key] = value
 
     return ip
