@@ -118,16 +118,6 @@ def load_dataset(
         f"Deep Lake Dataset in {dataset_path} already exists, "
         f"loading from the storage"
     )
-
-    if runtime is not None and runtime["tensor_db"] == True:
-        logger.warning(
-            "Specifying runtime option when loading a Vector Store is not supported and this parameter will "
-            "be ignored. If you wanted to create a new Vector Store, please specify a path to a Vector Store "
-            "that does not already exist. To transfer an existing Vector Store to the Managed Tensor Database, "
-            "use the steps in the link below: "
-            "(https://docs.activeloop.ai/enterprise-features/managed-database/migrating-datasets-to-the-tensor-database)."
-        )
-
     return dataset
 
 

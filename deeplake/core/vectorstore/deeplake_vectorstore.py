@@ -50,6 +50,7 @@ class VectorStore:
         runtime: Optional[Dict] = None,
         creds: Optional[Union[Dict, str]] = None,
         org_id: Optional[str] = None,
+        logger: logging.Logger = logger,
         **kwargs: Any,
     ) -> None:
         """Creates an empty VectorStore or loads an existing one if it exists at the specified ``path``.
@@ -112,6 +113,7 @@ class VectorStore:
         """
         self._token = token
         self.path = path
+        self.logger = logger
 
         feature_report_path(
             path,
@@ -145,7 +147,7 @@ class VectorStore:
             path,
             self.token,
             creds,
-            logger,
+            self.logger,
             read_only,
             exec_option,
             embedding_function,
@@ -419,7 +421,7 @@ class VectorStore:
         )
 
         if exec_option is None and self.exec_option != "python" and callable(filter):
-            logger.warning(
+            self.logger.warning(
                 'Switching exec_option to "python" (runs on client) because filter is specified as a function. '
                 f'To continue using the original exec_option "{self.exec_option}", please specify the filter as a dictionary or use the "query" parameter to specify a TQL query.'
             )
@@ -454,7 +456,7 @@ class VectorStore:
             )
         return vector_search.search(
             query=query,
-            logger=logger,
+            logger=self.logger,
             filter=filter,
             query_embedding=query_emb,
             k=k,

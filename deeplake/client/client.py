@@ -619,7 +619,11 @@ class JobResponseStatusSchema:
             print("| {:<26}| {:<29}|".format("status", response["status"]))
             print(line)
             progress = preprocess_progress(response, " " * 29, add_vertical_bars=True)
-            print("| {:<26}| {:<29}".format("progress", progress))
+            progress_string = "| {:<26}| {:<29}"
+            if progress == "None":
+                progress_string += "|"
+            progress_string = progress_string.format("progress", progress)
+            print(progress_string)
             print(line)
             print(
                 "| {:<26}| {:<29}".format(

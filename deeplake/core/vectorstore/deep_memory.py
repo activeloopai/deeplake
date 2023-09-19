@@ -26,11 +26,6 @@ from deeplake.client.client import DeepMemoryBackendClient
 from deeplake.core.vectorstore.vector_search import filter as filter_utils
 
 
-def deep_memory_available() -> bool:
-    # some check whether deepmemory is available
-    return True
-
-
 class DeepMemory:
     def __init__(
         self,
@@ -83,7 +78,8 @@ class DeepMemory:
         add_kwargs = {
             "text": [query for query in queries],
             "metadata": [
-                [(doc_id, 1) for doc_id in relevance] for relevance in relevances
+                {"relevance": [(doc_id, 1) for doc_id in relevance]}
+                for relevance in relevances
             ],
         }
 
@@ -177,145 +173,6 @@ class DeepMemory:
                 )
                 print(f"Recall@{k}:\t {100*recall: .1f}%")
 
-    def search(
-        self,
-        embedding_data: str,
-        embedding_function: Optional[Callable[[str], np.ndarray]] = None,
-        embedding: Optional[Union[List[float], np.ndarray]] = None,
-        filter: Optional[Union[Dict, Callable]] = None,
-        embedding_tensor: str = "embedding",
-        return_tensors: Optional[List[str]] = None,
-        return_view: bool = False,
-        run_locally: bool = False,
-        k: int = 4,
-        metric="deepmemory_norm",
-    ):
-        """Search the dataset on DeepMemory managed service.
-
-        Args:
-            embedding_data (str): Query string to search for.
-            embedding_function (Optional[Callable[[str], np.ndarray]], optional): Embedding funtion used to convert queries to embeddings. Defaults to None.
-            embedding (Optional[Union[List[float], np.ndarray]], optional): Embedding representation of the query string. Defaults to None.
-            filter (Optional[Union[Dict, Callable]], optional): Filter to apply to the dataset. Defaults to None.
-            embedding_tensor (str, optional): Name of the tensor in the dataset with `htype = "embedding"`. Defaults to "embedding".
-            return_tensors (Optional[List[str]], optional): List of tensors to return data for. Defaults to None.
-            return_view (bool, optional): Return a Deep Lake dataset view that satisfied the search parameters, instead of a dictinary with data. Defaults to False.
-            run_locally (bool, optional): Whether to run the search locally or on the DeepMemory managed service. Defaults to False.
-            k (int, optional): Number of samples to return after the search. Defaults to 4.
-            metric (str, optional): Distance metric to compute similarity between query embedding and dataset embeddings. Defaults to "deepmemory_norm".
-
-        Returns:
-            Union[Dict, DeepLakeDataset]: Dictionary where keys are tensor names and values are the results of the search, or a Deep Lake dataset view.
-        """
-        # if not run_locally:
-        #     exec_option = "tensor_db"
-        # else:
-        #     exec_option = "compute_engine"
-        # query = None
-        # utils.parse_search_args(
-        #     embedding_data=embedding_data,
-        #     embedding_function=embedding_function,
-        #     initial_embedding_function=self.embedding_function,
-        #     embedding=embedding,
-        #     k=k,
-        #     distance_metric=metric,
-        #     query=None,
-        #     filter=filter,
-        #     exec_option=exec_option,
-        #     embedding_tensor=embedding_tensor,
-        #     return_tensors=return_tensors,
-        # )
-
-        # return_tensors = utils.parse_return_tensors(
-        #     self.dataset, return_tensors, embedding_tensor, return_view
-        # )
-
-        # query_emb: Optional[Union[List[float], np.ndarray[Any, Any]]] = None
-        # if query is None:
-        #     query_emb = dataset_utils.get_embedding(
-        #         embedding,
-        #         embedding_data,
-        #         embedding_function=embedding_function or self.embedding_function,
-        #     )
-        # return vector_search.search(
-        #     query=query,
-        #     logger=None,
-        #     filter=filter,
-        #     query_embedding=query_emb,
-        #     k=k,
-        #     distance_metric=metric,
-        #     exec_option=exec_option,
-        #     deeplake_dataset=self.dataset,
-        #     embedding_tensor=embedding_tensor,
-        #     return_tensors=return_tensors,
-        #     return_view=return_view,
-        # )
-        from indra import api
-
-        if callable(filter):
-            raise NotImplementedError(
-                "UDF filter functions are not supported with the deepmemory yet."
-            )
-
-        # if not INDRA_AVAILABLE:
-        #     raise ImportError(
-        #         "Evaluation on DeepMemory managed service requires the indra package. "
-        #         "Please install it with `pip install deeplake[enterprise]`."
-        #     )
-
-        indra_dataset = api.dataset(self.dataset.path)
-        api.tql.prepare_deepmemory_metrics(indra_dataset)
-
-        utils.parse_search_args(
-            embedding_data=embedding_data,
-            embedding_function=embedding_function,
-            initial_embedding_function=self.embedding_function,
-            embedding=embedding,
-            k=k,
-            distance_metric="deepmemory_norm",
-            query=None,
-            filter=filter,
-            exec_option="compute_engine",
-            embedding_tensor=embedding_tensor,
-            return_tensors=return_tensors,
-        )
-
-        return_tensors = utils.parse_return_tensors(
-            self.dataset, return_tensors, embedding_tensor, return_view
-        )
-
-        query_emb = dataset_utils.get_embedding(
-            embedding,
-            embedding_data,
-            embedding_function=embedding_function or self.embedding_function,
-        )
-
-        _, tql_filter = filter_utils.attribute_based_filtering_tql(
-            view=self.dataset,
-            filter=filter,
-        )
-
-        # Compute the cosine similarity between the query and all data points
-        view_top_k = get_view_top_k(
-            metric=metric,
-            query_emb=query_emb,
-            top_k=k,
-            indra_dataset=indra_dataset,
-            dataset=self.dataset,
-            return_deeplake_view=True,
-            return_tensors=return_tensors,
-            tql_filter=tql_filter,
-        )
-        if return_view:
-            return view_top_k
-
-        return_data = {}
-        for tensor in view_top_k.tensors:
-            if tensor == "indices":
-                continue
-            return_data[tensor] = utils.parse_tensor_return(view_top_k[tensor])
-        return return_data
-
 
 def recall_at_k(
     dataset: Dataset,
@@ -383,9 +240,3 @@ def get_view_top_k(
         deeplake_view = dataset[indices]
         return deeplake_view
     return indra_view
-
-
-def get_deep_memory() -> Optional[DeepMemory]:
-    if deep_memory_available():
-        return DeepMemory()
-    return None
