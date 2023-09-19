@@ -44,6 +44,7 @@ from deeplake.client.config import (
 )
 from deeplake.client.log import logger
 import jwt  # should add it to requirements.txt
+from itertools import zip_longest
 
 # for these codes, we will retry requests upto 3 times
 retry_status_codes = {502}
@@ -603,36 +604,34 @@ class JobResponseStatusSchema:
         if not isinstance(job_id, List):
             job_id = [job_id]
 
-        line = "-" * 60
+        line = "-" * 62
         for response in self.responses:
             if response["id"] not in job_id:
                 continue
 
             if response["status"] == "completed":
                 response["results"] = get_results(
-                    response, " " * 29, add_vertical_bars=True
+                    response, " " * 30, add_vertical_bars=True
                 )
 
             print(line)
-            print("|{:^58}|".format(response["id"]))
+            print("|{:^60}|".format(response["id"]))
             print(line)
-            print("| {:<26}| {:<29}|".format("status", response["status"]))
+            print("| {:<27}| {:<30}|".format("status", response["status"]))
             print(line)
-            progress = preprocess_progress(response, " " * 29, add_vertical_bars=True)
-            progress_string = "| {:<26}| {:<29}"
+            progress = preprocess_progress(response, " " * 30, add_vertical_bars=True)
+            progress_string = "| {:<27}| {:<30}"
             if progress == "None":
                 progress_string += "|"
             progress_string = progress_string.format("progress", progress)
             print(progress_string)
             print(line)
-            print(
-                "| {:<26}| {:<29}".format(
-                    "results",
-                    response["results"]
-                    if response.get("results")
-                    else "not available yet",
-                )
-            )
+            results_str = "| {:<27}| {:<30}"
+            if not response.get("results"):
+                results_str += "|"
+                response["results"] = "not available yet"
+
+            print(results_str.format("results", response["results"]))
             print(line)
             print("\n")
 
@@ -651,15 +650,6 @@ class JobResponseStatusSchema:
 
         header_format = f"{{:<{id_size}}}  {{:<{dataset_id_size}}}  {{:<{organization_id_size}}}  {{:<{status_size}}}  {{:<{results_size}}}  {{:<{progress_size}}}"
         data_format = header_format  # as they are the same
-        separator = "-" * (
-            id_size
-            + dataset_id_size
-            + organization_id_size
-            + status_size
-            + results_size
-            + progress_size
-            + 5 * 2
-        )  # 5 spaces for 5 columns
 
         print(
             header_format.format(
@@ -676,6 +666,21 @@ class JobResponseStatusSchema:
             response_results = (
                 response["results"] if response.get("results") else "not available yet"
             )
+            if response_status == "completed":
+                progress_indent = " " * (
+                    id_size
+                    + dataset_id_size
+                    + organization_id_size
+                    + status_size
+                    + 5 * 2
+                )
+                response_results = get_results(
+                    response,
+                    "",
+                    add_vertical_bars=False,
+                    width=15,
+                )
+
             progress_indent = " " * (
                 id_size
                 + dataset_id_size
@@ -684,22 +689,62 @@ class JobResponseStatusSchema:
                 + results_size
                 + 5 * 2
             )
-            response_progress = preprocess_progress(response, progress_indent)
-
-            print(
-                data_format.format(
-                    response_id,
-                    response_dataset_id,
-                    response_organization_id,
-                    response_status,
-                    response_results,
-                    str(response_progress),
-                )
+            response_progress = preprocess_progress(
+                response, progress_indent, add_vertical_bars=False
             )
+
+            if response_status == "completed":
+                response_progress = preprocess_progress(
+                    response, "", add_vertical_bars=False
+                )
+                response_results_items = response_results.split("\n")[1:]
+                response_progress_items = response_progress.split("\n")
+
+                first_time = True
+                for idx, response_results_item in enumerate(response_results_items):
+                    if first_time:
+                        first_time = False
+                        print(
+                            data_format.format(
+                                response_id,
+                                response_dataset_id,
+                                response_organization_id,
+                                response_status,
+                                response_results_item,
+                                response_progress_items[idx],
+                            )
+                        )
+                    else:
+                        response_progress_item = ""
+                        if idx < len(response_progress_items):
+                            response_progress_item = response_progress_items[idx]
+
+                        print(
+                            data_format.format(
+                                "",
+                                "",
+                                "",
+                                "",
+                                response_results_item,
+                                response_progress_item,
+                            )
+                        )
+
+            else:
+                print(
+                    data_format.format(
+                        response_id,
+                        response_dataset_id,
+                        response_organization_id,
+                        response_status,
+                        response_results,
+                        str(response_progress),
+                    )
+                )
         # print(separator)
 
 
-def get_results(response, indent, add_vertical_bars):
+def get_results(response, indent, add_vertical_bars, width=21):
     progress = response["progress"]
 
     for progress_key, progress_value in progress.items():
@@ -710,9 +755,9 @@ def get_results(response, indent, add_vertical_bars):
                 + str(recall)
                 + " which is an improvement of "
                 + str(improvement)
-                + " on the validation set compared to base model."
+                + " on the validation set compared to naive vector search."
             )
-            return format_to_fixed_width(output, 21, indent, add_vertical_bars)
+            return format_to_fixed_width(output, width, indent, add_vertical_bars)
 
 
 def format_to_fixed_width(s, width, indent, add_vertical_bars):
@@ -733,7 +778,7 @@ def format_to_fixed_width(s, width, indent, add_vertical_bars):
             lines += (
                 current_indent + line.rstrip()
             )  # Add the current line to lines and remove trailing spaces
-            lines += (29 - len(line)) * " " + " |\n" if add_vertical_bars else "\n"
+            lines += (30 - len(line)) * " " + " |\n" if add_vertical_bars else "\n"
             line = ""  # Start a new line
         line += word + " "
 
@@ -742,14 +787,14 @@ def format_to_fixed_width(s, width, indent, add_vertical_bars):
         current_indent = "|" + indent[:-2] + "| " if add_vertical_bars else indent
         lines += current_indent
         lines += (
-            line.rstrip() + (29 - len(line)) * " " + " |" if add_vertical_bars else "\n"
+            line.rstrip() + (30 - len(line)) * " " + " |" if add_vertical_bars else "\n"
         )
 
     return lines
 
 
 def preprocess_progress(response, progress_indent, add_vertical_bars=False):
-    allowed_progress_items = ["eta", "best_recall", "dataset", "error"]
+    allowed_progress_items = ["eta", "best_recall@10", "dataset", "error"]
     progress_indent = (
         "|" + progress_indent[:-1] if add_vertical_bars else progress_indent
     )
@@ -773,17 +818,20 @@ def preprocess_progress(response, progress_indent, add_vertical_bars=False):
                 for value_i in values:
                     if first_error_line:
                         first_error_line = False
-                        value += value_i + (22 - len(value_i)) * " " + "|"
+                        if add_vertical_bars:
+                            value_i += (22 - len(value_i)) * " " + "|"
                     else:
-                        value += (
-                            "\n"
-                            + progress_indent[:-1]
-                            + "| "
-                            + " " * 7
-                            + value_i
-                            + (22 - len(value_i)) * " "
-                            + "|"
-                        )
+                        if add_vertical_bars:
+                            value_i = (
+                                "\n"
+                                + progress_indent[:-1]
+                                + "| "
+                                + " " * 7
+                                + value_i
+                                + (22 - len(value_i)) * " "
+                                + "|"
+                            )
+                    value += value_i
 
             if isinstance(value, float):
                 value = f"{value:.1f}"
@@ -800,10 +848,14 @@ def preprocess_progress(response, progress_indent, add_vertical_bars=False):
 
             key_value_pair = f"{key}: {value}"
 
+            if key == "eta":
+                key_value_pair = f"{key}: {value} seconds"
+            elif key == "best_recall@10":
+                key = "recall@10"
+                key_value_pair = f"{key}: {value}"
+
             vertical_bar_if_needed = (
-                (29 - len(f"{key}: {value}")) * " " + "|\n"
-                if add_vertical_bars
-                else "\n"
+                (30 - len(key_value_pair)) * " " + "|\n" if add_vertical_bars else "\n"
             )
             key_value_pair += vertical_bar_if_needed
             response_progress_str += key_value_pair
