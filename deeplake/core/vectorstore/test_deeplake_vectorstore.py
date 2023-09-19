@@ -237,6 +237,7 @@ def test_search_basic(local_path, hub_cloud_dev_token):
     vector_store = DeepLakeVectorStore(
         path=local_path,
         overwrite=True,
+        token=hub_cloud_dev_token,
     )
 
     assert vector_store.exec_option == "compute_engine"
