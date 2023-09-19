@@ -1,5 +1,4 @@
-#ifndef DEEPLAKE_CREATE_BRANCH_ACTION_HPP
-#define DEEPLAKE_CREATE_BRANCH_ACTION_HPP
+#pragma once
 
 #include "action.hpp"
 
@@ -11,6 +10,9 @@ namespace deeplog {
 
         create_branch_action(const nlohmann::json &j);
 
+        /**
+         * Return the id of the branch
+         */
         std::string id() const;
 
         std::string name() const;
@@ -27,11 +29,8 @@ namespace deeplog {
     private:
         std::string id_;
         std::string name_;
-        std::string from_branch_id_;
+        std::string from_id_;
         long from_version_;
 
     };
 }
-
-
-#endif //DEEPLAKE_CREATE_BRANCH_ACTION_HPP

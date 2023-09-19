@@ -25,6 +25,8 @@ namespace deeplog {
 
     long add_file_action::modification_time() const { return modification_time_; }
 
+    bool add_file_action::data_change() const { return data_change_; }
+
     void add_file_action::to_json(nlohmann::json &j) {
         j["add"]["path"] = path_;
         j["add"]["size"] = size_;

@@ -1,5 +1,4 @@
-#ifndef DEEPLAKE_ACTION_HPP
-#define DEEPLAKE_ACTION_HPP
+#pragma once
 
 #include <nlohmann/json.hpp>
 #include <arrow/api.h>
@@ -15,4 +14,3 @@ namespace deeplog {
     };
 
 }
-#endif //DEEPLAKE_ACTION_HPP

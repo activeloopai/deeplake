@@ -50,10 +50,6 @@ namespace deeplog {
 
     std::string deeplog::path() { return path_; }
 
-    long deeplog::version() const {
-        return version(MAIN_BRANCH_ID);
-    }
-
     std::string zero_pad(const long &version) {
         std::ostringstream ss;
         ss << std::setw(20) << std::setfill('0') << (version);

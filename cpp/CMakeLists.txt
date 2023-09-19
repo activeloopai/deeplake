@@ -10,7 +10,7 @@ endif()
 
 set(CMAKE_CXX_STANDARD 20)
 set(CMAKE_CXX_STANDARD_REQUIRED True)
-set(PYTHON_EXECUTABLE /opt/homebrew/opt/python@3.10/bin/python3.10)
+option(PYTHON_EXECUTABLE "Path to python executable")
 
 if(APPLE)
     set (CMAKE_OSX_DEPLOYMENT_TARGET 10.15)
@@ -20,6 +20,7 @@ else()
 endif()
 
 set(DEFAULT_PARENT_DIR ${CMAKE_CURRENT_SOURCE_DIR})
+set(PYTHON_SOURCE ${CMAKE_CURRENT_SOURCE_DIR}/../)
 include(${CMAKE_CURRENT_SOURCE_DIR}/cmake/FindStduuid.cmake)
 include(${CMAKE_CURRENT_SOURCE_DIR}/cmake/FindJson.cmake)
 include(${CMAKE_CURRENT_SOURCE_DIR}/cmake/FindPybind11.cmake)

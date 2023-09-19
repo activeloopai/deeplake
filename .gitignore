@@ -220,3 +220,4 @@ api_docs/
 
 /cpp/cmake-build-debug/
 /cpp/external/
+_deeplake/**/*.pyi

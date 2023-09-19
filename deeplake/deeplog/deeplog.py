@@ -1,4 +1,4 @@
-from typing import List, Union, Generic, TypeVar, Type
+from typing import List, Union, Generic, TypeVar
 
 from deeplake.deeplog.actions import (
     DeepLogAction,

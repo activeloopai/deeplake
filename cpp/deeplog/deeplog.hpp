@@ -1,5 +1,4 @@
-#ifndef DEEPLAKE_DEEPLOG_HPP
-#define DEEPLAKE_DEEPLOG_HPP
+#pragma once
 
 #include <string>
 #include <arrow/status.h>
@@ -27,8 +26,6 @@ namespace deeplog {
         static std::shared_ptr<deeplog> open(const std::string &path);
 
         std::string path();
-
-        long version() const;
 
         long version(const std::string &branch_id) const;
 
@@ -64,6 +61,4 @@ namespace deeplog {
         std::string path_;
     };
 
-} // deeplake
-
-#endif //DEEPLAKE_DEEPLOG_HPP
+}

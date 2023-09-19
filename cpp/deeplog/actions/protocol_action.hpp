@@ -1,5 +1,4 @@
-#ifndef DEEPLAKE_PROTOCOL_ACTION_HPP
-#define DEEPLAKE_PROTOCOL_ACTION_HPP
+#pragma once
 
 #include "action.hpp"
 #include <arrow/api.h>
@@ -30,4 +29,3 @@ namespace deeplog {
     };
 
 }
-#endif //DEEPLAKE_PROTOCOL_ACTION_HPP

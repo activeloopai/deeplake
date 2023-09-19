@@ -1,5 +1,4 @@
-#ifndef DEEPLAKE_LAST_CHECKPOINT_HPP
-#define DEEPLAKE_LAST_CHECKPOINT_HPP
+#pragma once
 
 #include <nlohmann/json.hpp>
 
@@ -18,6 +17,3 @@ namespace deeplog {
 
     NLOHMANN_DEFINE_TYPE_NON_INTRUSIVE(last_checkpoint, version, size);
 }
-
-
-#endif //DEEPLAKE_LAST_CHECKPOINT_HPP

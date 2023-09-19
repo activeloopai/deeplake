@@ -18,6 +18,8 @@ namespace deeplog {
 
     long remove_file_action::deletion_timestamp() { return deletion_time_; }
 
+    bool remove_file_action::data_change() { return data_change_; }
+
     void remove_file_action::to_json(nlohmann::json &j) {
         j["remove"]["path"] = path_;
         j["remove"]["deletionTime"] = deletion_time_;

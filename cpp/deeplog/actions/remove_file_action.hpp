@@ -1,5 +1,4 @@
-#ifndef DEEPLAKE_REMOVE_FILE_ACTION_HPP
-#define DEEPLAKE_REMOVE_FILE_ACTION_HPP
+#pragma once
 
 #include <string>
 #include <nlohmann/json.hpp>
@@ -18,6 +17,8 @@ namespace deeplog {
 
         long deletion_timestamp();
 
+        bool data_change();
+
         virtual void to_json(nlohmann::json &json) override;
 
         arrow::Status append_to(const std::shared_ptr<arrow::StructBuilder> &builder) override;
@@ -30,6 +31,3 @@ namespace deeplog {
         long size_;
     };
 }
-
-
-#endif //DEEPLAKE_REMOVE_FILE_ACTION_HPP

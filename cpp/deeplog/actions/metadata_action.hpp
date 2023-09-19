@@ -1,5 +1,4 @@
-#ifndef DEEPLAKE_METADATA_ACTION_HPP
-#define DEEPLAKE_METADATA_ACTION_HPP
+#pragma once
 
 #include "action.hpp"
 #include <uuid.h>
@@ -43,4 +42,3 @@ namespace deeplog {
 
     long current_timestamp();
 }
-#endif //DEEPLAKE_METADATA_ACTION_HPP
