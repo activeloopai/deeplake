@@ -82,7 +82,9 @@ class DeepMemory:
 
         add_kwargs = {
             "text": [query for query in queries],
-            "metadata": [relevance for relevance in relevances],
+            "metadata": [
+                [(doc_id, 1) for doc_id in relevance] for relevance in relevances
+            ],
         }
 
         if query_embeddings:
@@ -143,11 +145,12 @@ class DeepMemory:
                 "Evaluation on DeepMemory managed service is not yet implemented"
             )
 
-        if not INDRA_AVAILABLE:
-            raise ImportError(
-                "Evaluation on DeepMemory managed service requires the indra package. "
-                "Please install it with `pip install deeplake[enterprise]`."
-            )
+        # if not INDRA_AVAILABLE:
+        #     raise ImportError(
+        #         "Evaluation on DeepMemory managed service requires the indra package. "
+        #         "Please install it with `pip install deeplake[enterprise]`."
+        #     )
+        from indra import api
 
         indra_dataset = api.dataset(self.dataset.path)
         api.tql.prepare_deepmemory_metrics(indra_dataset)
@@ -164,6 +167,7 @@ class DeepMemory:
             print(f"---- Evaluating {'with' if use_model else 'without'} model ---- ")
             for k in top_k:
                 recall = recall_at_k(
+                    self.dataset,
                     queries,
                     indra_dataset,
                     relevance,
@@ -314,6 +318,7 @@ class DeepMemory:
 
 
 def recall_at_k(
+    dataset: Dataset,
     queries: torch.Tensor,
     indra_dataset: torch.Tensor,
     relevance: List[List[Tuple[str, int]]],
@@ -331,6 +336,7 @@ def recall_at_k(
 
         # Compute the cosine similarity between the query and all data points
         view_top_k = get_view_top_k(
+            dataset=dataset,
             metric=metric,
             query_emb=query_emb,
             top_k=top_k,
@@ -364,12 +370,13 @@ def get_view_top_k(
     indra_dataset,
     dataset,
     return_deeplake_view,
-    return_tensors,
+    return_tensors=["text", "metadata", "id"],
     tql_filter="",
 ):
     tql_filter_str = tql_filter if tql_filter == "" else " where " + tql_filter
     query_emb = ",".join([f"{q}" for q in query_emb])
-    tql = f"SELECT * FROM (SELECT {return_tensors}, ROW_NUMBER() as indices) {metric}(embedding, ARRAY[{query_emb}]) {tql_filter_str} order by {metric}(embedding, ARRAY[{query_emb}]) desc limit {top_k}"
+    return_tensors = ", ".join(return_tensors)
+    tql = f"SELECT * FROM (SELECT {return_tensors}, ROW_NUMBER() as indices, {metric}(embedding, ARRAY[{query_emb}]) as score {tql_filter_str} order by {metric}(embedding, ARRAY[{query_emb}]) desc limit {top_k})"
     indra_view = indra_dataset.query(tql)
     if return_deeplake_view:
         indices = [[sample.indices.numpy() for sample in indra_view]]

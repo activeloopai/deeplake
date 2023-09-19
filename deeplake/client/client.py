@@ -745,6 +745,7 @@ def format_to_fixed_width(s, width, indent, add_vertical_bars):
 
 
 def preprocess_progress(response, progress_indent, add_vertical_bars=False):
+    allowed_progress_items = ["eta", "best_recall", "dataset", "error"]
     progress_indent = (
         "|" + progress_indent[:-1] if add_vertical_bars else progress_indent
     )
@@ -755,8 +756,12 @@ def preprocess_progress(response, progress_indent, add_vertical_bars=False):
         first_entry = True
         first_error_line = True
         for key, value in response_progress.items():
+            if key not in allowed_progress_items:
+                continue
+
             if key == "error" and value is None:
                 continue
+
             elif key == "error" and value is not None:
                 value = textwrap.fill(value, width=20)
                 values = value.split("\n")
