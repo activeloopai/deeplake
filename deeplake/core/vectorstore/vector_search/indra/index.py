@@ -12,9 +12,8 @@ METRIC_TO_INDEX_METRIC = {
 def get_index_distance_metric_from_params(logger, index_params, distance_metric):
     if distance_metric:
         logger.warning(
-            "specifying distance_metric for indexed dataset during the search "
-            f"call is not supported. `distance_metric = {distance_metric}` "
-            "specified during index creation will be used instead."
+            f"Specifying `distance_metric` for a Vector Store with an index is not supported; `distance_metric` was specified as: `{distance_metric}`. "
+            f"The search will be performed using the distance metric from index_params['distance_metric']: `{index_params['distance_metric']}`"
         )
     return index_params.get("distance_metric", "L2")
 
