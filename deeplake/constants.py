@@ -259,9 +259,11 @@ TARGET_BYTE_SIZE = 10000
 # Maximum default message length for saving query views
 QUERY_MESSAGE_MAX_SIZE = 1000
 
+DEFAULT_VECTORSTORE_DISTANCE_METRIC = "COS"
+
 DEFAULT_VECTORSTORE_INDEX_PARAMS = {
     "threshold": -1,
-    "distance_metric": "L2",
+    "distance_metric": DEFAULT_VECTORSTORE_DISTANCE_METRIC,
     "additional_params": {
         "efConstruction": 200,
         "M": 16,

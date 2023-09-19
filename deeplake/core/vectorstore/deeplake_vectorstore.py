@@ -20,6 +20,7 @@ from deeplake.constants import (
     DEFAULT_VECTORSTORE_TENSORS,
     MAX_BYTES_PER_MINUTE,
     TARGET_BYTE_SIZE,
+    DEFAULT_VECTORSTORE_DISTANCE_METRIC,
 )
 from deeplake.client.utils import read_token
 from deeplake.core.vectorstore import utils
@@ -411,7 +412,7 @@ class VectorStore:
             embedding_data (List[str]): Data against which the search will be performed by embedding it using the `embedding_function`. Defaults to None. The `embedding_data` and `embedding` cannot both be specified.
             embedding_function (Optional[Callable], optional): function for converting `embedding_data` into embedding. Only valid if `embedding_data` is specified. Input to `embedding_function` is a list of data and output is a list of embeddings.
             k (int): Number of elements to return after running query. Defaults to 4.
-            distance_metric (str): Type of distance metric to use for sorting the data. Avaliable options are: ``"L1", "L2", "COS", "MAX"``. Defaults to ``"COS"``.
+            distance_metric (str): Distance metric to use for sorting the data. Avaliable options are: ``"L1", "L2", "COS", "MAX"``. Defaults to None, which uses same distance metric specified in ``index_params``. If there is no index, it performs linear search using ``DEFAULT_VECTORSTORE_DISTANCE_METRIC``.
             query (Optional[str]):  TQL Query string for direct evaluation, without application of additional filters or vector search.
             filter (Union[Dict, Callable], optional): Additional filter evaluated prior to the embedding search.
 
@@ -500,7 +501,7 @@ class VectorStore:
                 logger, self.index_params, distance_metric
             )
 
-        distance_metric = distance_metric or "L2"
+        distance_metric = distance_metric or DEFAULT_VECTORSTORE_DISTANCE_METRIC
 
         return vector_search.search(
             query=query,
