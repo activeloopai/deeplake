@@ -87,8 +87,13 @@ def index_cache_cleanup(dataset):
             tensor.unload_index_cache()
 
 
-def validate_and_create_vector_index(dataset, index_params, regenerate_index=False):
+def validate_and_create_vector_index(dataset,
+                                     index_params,
+                                     regenerate_index=False,
+                                     previous_dataset_len = 0):
     threshold = index_params.get("threshold", -1)
+    incr_maintenance_index = False
+
     if threshold <= 0:
         return False
     elif len(dataset) < threshold:
@@ -101,13 +106,27 @@ def validate_and_create_vector_index(dataset, index_params, regenerate_index=Fal
         for _, tensor in tensors.items():
             is_embedding = utils.is_embedding_tensor(tensor)
             has_vdb_indexes = hasattr(tensor.meta, "vdb_indexes")
+
             try:
                 vdb_index_ids_present = len(tensor.meta.vdb_indexes) > 0
             except AttributeError:
                 vdb_index_ids_present = False
 
             if is_embedding and has_vdb_indexes and vdb_index_ids_present:
-                tensor._regenerate_vdb_indexes()
+                # Currently only single index is supported.
+                first_index = tensor.meta.vdb_indexes[0]
+                distance = first_index["distance"]
+                current_distance = index_params.get("distance_metric")
+                if distance == METRIC_TO_INDEX_METRIC[current_distance.upper()]:
+                    incr_maintenance_index = True
+
+
+            if is_embedding and has_vdb_indexes and vdb_index_ids_present:
+                if incr_maintenance_index == True:
+                    add_index = list(range(previous_dataset_len, len(dataset)))
+                    tensor._incr_maintenance_vdb_indexes(add_index)
+                else:
+                    tensor._regenerate_vdb_indexes()
                 index_regen = True
         if index_regen:
             return

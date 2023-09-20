@@ -1417,6 +1417,20 @@ class Dataset:
             if is_embedding and has_vdb_indexes and vdb_index_ids_present:
                 tensor._regenerate_vdb_indexes()
 
+    def incr_maintenance_vdb_indexes(self, indexes, delete = False):
+        tensors = self.tensors
+
+        for _, tensor in tensors.items():
+            is_embedding = tensor.htype == "embedding"
+            has_vdb_indexes = hasattr(tensor.meta, "vdb_indexes")
+            try:
+                vdb_index_ids_present = len(tensor.meta.vdb_indexes) > 0
+            except AttributeError:
+                vdb_index_ids_present = False
+
+            if is_embedding and has_vdb_indexes and vdb_index_ids_present:
+                tensor._incr_maintenance_vdb_indexes(indexes, delete)
+
     def _lock(self, err=False, verbose=True):
         if not self.is_head_node or not self._locking_enabled:
             return True
@@ -3016,6 +3030,7 @@ class Dataset:
 
         """
         tensors = self.tensors
+        new_row_ids = list(range(len(self), len(self) + len(sample)))
         if isinstance(sample, Dataset):
             sample = sample.tensors
         if not isinstance(sample, dict):
@@ -3096,13 +3111,10 @@ class Dataset:
                             raise Exception(
                                 "Error while attempting to rollback appends"
                             ) from e2
-                    # Regenerate Index.
-                    if index_regeneration:
-                        self.regenerate_vdb_indexes()
                     raise e
             # Regenerate Index.
             if index_regeneration:
-                self.regenerate_vdb_indexes()
+                self.incr_maintenance_vdb_indexes(new_row_ids)
 
     def extend(
         self,
@@ -3305,7 +3317,7 @@ class Dataset:
                         saved[k].append(old_sample)
                     self[k] = v
                 # Regenerate Index
-                self.regenerate_vdb_indexes()
+                self.incr_maintenance_vdb_indexes(self.index)
 
             except Exception as e:
                 for k, v in saved.items():
@@ -4595,7 +4607,7 @@ class Dataset:
                 if tensor.num_samples > index:
                     tensor.pop(index)
             # Regenerate vdb indexes.
-            self.regenerate_vdb_indexes()
+            self.incr_maintenance_vdb_indexes(index)
 
     @property
     def is_view(self) -> bool:
