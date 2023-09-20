@@ -269,3 +269,9 @@ DEFAULT_VECTORSTORE_INDEX_PARAMS = {
         "M": 16,
     },
 }
+
+_INDEX_OPERATION_MAPPING= {
+    "ADD": 1,
+    "REMOVE": 2,
+    "UPDATE": 3,
+}

@@ -1,6 +1,7 @@
 from deeplake.core.storage import azure, gcs, google_drive, local, lru_cache, memory
 from deeplake.core.distance_type import DistanceType
 from deeplake.core.vectorstore import utils
+from deeplake.constants import _INDEX_OPERATION_MAPPING
 
 
 METRIC_TO_INDEX_METRIC = {
@@ -100,7 +101,7 @@ def index_cache_cleanup(dataset):
 def validate_and_create_vector_index(dataset,
                                      index_params,
                                      regenerate_index=False,
-                                     previous_dataset_len = 0):
+                                     previous_dataset_len = 0,):
     """
     Validate if the index is present in the dataset and create one if not present but required based on the specified index_params.
     Currently only supports 1 index per dataset.
@@ -139,7 +140,7 @@ def validate_and_create_vector_index(dataset,
             if is_embedding and has_vdb_indexes and vdb_index_ids_present:
                 if incr_maintenance_index == True:
                     add_index = list(range(previous_dataset_len, len(dataset)))
-                    tensor._incr_maintenance_vdb_indexes(add_index)
+                    tensor._incr_maintenance_vdb_indexes(add_index, _INDEX_OPERATION_MAPPING["ADD"])
                 else:
                     tensor._regenerate_vdb_indexes()
                 index_regen = True
