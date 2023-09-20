@@ -1414,7 +1414,7 @@ class Tensor:
         """Invalidates the libdeeplake dataset object."""
         self.dataset.libdeeplake_dataset = None
 
-    def get_operation_indices(operation_kind, row_ids):
+    def get_operation_indices(self, operation_kind, row_ids):
         add_indices = []
         remove_indices = []
         update_indices = []
@@ -1433,9 +1433,11 @@ class Tensor:
             raise Exception(f"Unsupported operation_kind: {operation_kind}")
 
         return add_indices, remove_indices, update_indices
+
     def update_vdb_index(
             self,
             id: str,
+            distance: Union[DistanceType, str],
             operation_kind: int,
             row_ids: List[int] = None,
     ):
@@ -1450,31 +1452,31 @@ class Tensor:
             )
 
             ds = dataset_to_libdeeplake(self.dataset)
-            ts = getattr(ds, self.meta.name)
-            from indra import api
+        ts = getattr(ds, self.meta.name)
+        from indra import api
 
+        commit_id = self.version_state["commit_id"]
+        index_data = self.chunk_engine.base_storage[
+            get_tensor_vdb_index_key(self.key, commit_id, id)
+        ]
+
+        add_indices, remove_indices, update_indices = self.get_operation_indices(
+            operation_kind=operation_kind, row_ids=row_ids)
+
+        try:
+            index = api.vdb.apply_index_changes(ts,
+                                                index_type="hnsw",
+                                                distance_type=distance,
+                                                add_indices=add_indices,
+                                                remove_indices=remove_indices,
+                                                update_indices=update_indices,
+                                                data=index_data)
+            b = index.serialize()
             commit_id = self.version_state["commit_id"]
-            index_data = self.chunk_engine.base_storage[
-                get_tensor_vdb_index_key(self.key, commit_id, id)
-            ]
-
-            add_indices, remove_indices, update_indices = self.get_operation_indices(
-                operation_kind, row_ids)
-
-            try:
-                index = api.vdb.apply_index_changes(ts,
-                                                    index_type="hnsw",
-                                                    add_row = add_indices,
-                                                    delete_row = remove_indices,
-                                                    update_row = update_indices,
-                                                    index_data=index_data)
-                b = index.serialize()
-                commit_id = self.version_state["commit_id"]
-                self.storage[get_tensor_vdb_index_key(self.key, commit_id, id)] = b
-                self.invalidate_libdeeplake_dataset()
-            except:
-                raise
-        return index
+            self.storage[get_tensor_vdb_index_key(self.key, commit_id, id)] = b
+            self.invalidate_libdeeplake_dataset()
+        except:
+            raise
 
     def create_vdb_index(
         self,
@@ -1565,7 +1567,7 @@ class Tensor:
                     # Maintain incrementally.
                     distance = vdb_index["distance"]
                     id = vdb_index["id"]
-                    self.update_vdb_index(id, operation_kind=index_operation,  row_ids=indexes)
+                    self.update_vdb_index(id, distance = distance, operation_kind=index_operation,  row_ids=indexes)
         except Exception as e:
             raise Exception(f"An error occurred while regenerating VDB indexes: {e}")
 

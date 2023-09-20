@@ -4612,7 +4612,8 @@ class Dataset:
                 if tensor.num_samples > index:
                     tensor.pop(index)
             # Regenerate vdb indexes.
-            self.incr_maintenance_vdb_indexes(index, _INDEX_OPERATION_MAPPING["REMOVE"])
+            row_ids = [index]
+            self.incr_maintenance_vdb_indexes(row_ids, _INDEX_OPERATION_MAPPING["REMOVE"])
 
     @property
     def is_view(self) -> bool:
