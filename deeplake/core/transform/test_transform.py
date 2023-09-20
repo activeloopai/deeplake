@@ -1795,4 +1795,6 @@ def test_transform_extend(local_ds):
 
     assert len(ds) == 52
     assert ds.abc.numpy().shape == (52, 10, 10)
-    assert ds.xyz.numpy().shape == (12, 1)
+    assert ds.xyz.shape == (52, None)
+    assert ds.xyz[:2].numpy().shape == (2, 1)
+    assert ds.xyz[2:].numpy().shape == (50, 0)
