@@ -23,7 +23,6 @@ def create_tql_string(metric_function, order="ASC"):
     # return f"select * from (select *, {METRIC_FUNC_TO_METRIC_STRING[metric_function]} as score) order by score {order} limit 10"
 
     return f"select *, score from (select *, {METRIC_FUNC_TO_METRIC_STRING[metric_function]} as score order by {METRIC_FUNC_TO_METRIC_STRING[metric_function]} {order} limit 10)"
-    # select ids, metadata, text, score from (select *, L2_NORM(embedding-ARRAY[0.09883059561252594, 0.7354139089584351]) as score where metadata['source'] == '/Users/istranic/ActiveloopCode/the-algorithm/README.md' order by L2_NORM(embedding-ARRAY[0.09883059561252594, 0.7354139089584351]) ASC limit 4)
 
 
 METRIC_FUNC_TO_QUERY_STRING = {
