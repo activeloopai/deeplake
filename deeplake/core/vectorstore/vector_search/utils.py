@@ -547,10 +547,13 @@ def find_embedding_tensors(dataset) -> List[str]:
 
 def is_embedding_tensor(tensor):
     """Check if a tensor is an embedding tensor."""
+
+    valid_names = ["embedding", "embeddings"]
+
     return (
         tensor.htype == "embedding"
-        or tensor.key == "embedding"
-        or tensor.key == "embeddings"
+        or tensor.meta.name in valid_names
+        or tensor.key in valid_names
     )
 
 
