@@ -1412,6 +1412,8 @@ class Tensor:
     def create_vdb_index(
         self,
         id: str,
+        incr_row_ids: List[int] = None,
+        delete_row: bool = False,
         distance: Union[DistanceType, str] = DistanceType.L2_NORM,
         additional_params: Optional[Dict[str, int]] = None,
     ):
@@ -1431,21 +1433,35 @@ class Tensor:
 
         if type(distance) == DistanceType:
             distance = distance.value
-        self.meta.add_vdb_index(
-            id=id, type="hnsw", distance=distance, additional_params=additional_params
-        )
+        if incr_row_ids is not None:
+            self.meta.add_vdb_index(
+                id=id, type="hnsw", distance=distance, additional_params=additional_params
+            )
         try:
-            if additional_params is None:
-                index = api.vdb.generate_index(
-                    ts, index_type="hnsw", distance_type=distance
-                )
-            else:
-                index = api.vdb.generate_index(
-                    ts,
-                    index_type="hnsw",
-                    distance_type=distance,
-                    param=additional_params,
-                )
+            if incr_row_ids is not None:
+                if additional_params is None:
+                    index = api.vdb.generate_index(
+                        ts, index_type="hnsw", incr_row_ids=incr_row_ids, delete_row = delete_row,)
+                else:
+                    index = api.vdb.generate_index(
+                        ts,
+                        index_type="hnsw",
+                        incr_row_ids=incr_row_ids,
+                        delete_row = delete_row,
+                        param=additional_params,
+                    )
+            else:    
+                if additional_params is None:
+                    index = api.vdb.generate_index(
+                        ts, index_type="hnsw", distance_type=distance
+                    )
+                else:
+                    index = api.vdb.generate_index(
+                        ts,
+                        index_type="hnsw",
+                        distance_type=distance,
+                        param=additional_params,
+                    )
             b = index.serialize()
             commit_id = self.version_state["commit_id"]
             self.storage[get_tensor_vdb_index_key(self.key, commit_id, id)] = b
@@ -1481,6 +1497,24 @@ class Tensor:
                     self.delete_vdb_index(id)
                     # Recreate it back.
                     self.create_vdb_index(id, distance)
+        except Exception as e:
+            raise Exception(f"An error occurred while regenerating VDB indexes: {e}")
+
+    def _incr_maintenance_vdb_indexes(self, indexes, delete = False):
+        try:
+            is_embedding = self.htype == "embedding"
+            has_vdb_indexes = hasattr(self.meta, "vdb_indexes")
+            try:
+                vdb_index_ids_present = len(self.meta.vdb_indexes) > 0
+            except AttributeError:
+                vdb_index_ids_present = False
+
+            if is_embedding and has_vdb_indexes and vdb_index_ids_present:
+                for vdb_index in self.meta.vdb_indexes:
+                    # Maintain incrementally.
+                    distance = vdb_index["distance"]
+                    id = vdb_index["id"]
+                    self.create_vdb_index(id, incr_row_ids=indexes, delete_row = delete, distance=distance,)
         except Exception as e:
             raise Exception(f"An error occurred while regenerating VDB indexes: {e}")
 

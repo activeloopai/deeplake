@@ -334,8 +334,10 @@ class VectorStore:
         # In Case prefilled dataset which is already having index defined
         # regenerate the index post ingestion.
         index_regeneration = False
+        previous_dataset_len = 0
         if len(self.dataset) > 0 and index.check_vdb_indexes(self.dataset):
             index_regeneration = True
+            previous_dataset_len =  len(self.dataset)
 
         dataset_utils.extend_or_ingest_dataset(
             processed_tensors=processed_tensors,
@@ -353,6 +355,7 @@ class VectorStore:
                 dataset=self.dataset,
                 index_params=self.index_params,
                 regenerate_index=index_regeneration,
+                previous_dataset_len=previous_dataset_len,
             )
 
         try_flushing(self.dataset)

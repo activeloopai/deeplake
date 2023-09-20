@@ -1,5 +1,5 @@
-from deeplake.core.distance_type import DistanceType
 from deeplake.core.storage import azure, gcs, google_drive, local, lru_cache, memory
+from deeplake.core.distance_type import DistanceType
 from deeplake.core.vectorstore import utils
 
 
@@ -97,7 +97,10 @@ def index_cache_cleanup(dataset):
             tensor.unload_index_cache()
 
 
-def validate_and_create_vector_index(dataset, index_params, regenerate_index=False):
+def validate_and_create_vector_index(dataset,
+                                     index_params,
+                                     regenerate_index=False,
+                                     previous_dataset_len = 0):
     """
     Validate if the index is present in the dataset and create one if not present but required based on the specified index_params.
     Currently only supports 1 index per dataset.
@@ -111,26 +114,37 @@ def validate_and_create_vector_index(dataset, index_params, regenerate_index=Fal
 
     below_threshold = threshold <= 0 or len(dataset) < threshold
 
+    index_regen = False
     tensors = dataset.tensors
-
-    # TODO: BRING BACK WHEN IT IS IN USE
-
-    # index_regen = False
     # Check if regenerate_index is true.
-    # if regenerate_index:
-    #     for _, tensor in tensors.items():
-    #         is_embedding = utils.is_embedding_tensor(tensor)
-    #         has_vdb_indexes = hasattr(tensor.meta, "vdb_indexes")
-    #         try:
-    #             vdb_index_ids_present = len(tensor.get_vdb_indexes()) > 0
-    #         except AttributeError:
-    #             vdb_index_ids_present = False
+    if regenerate_index:
+        for _, tensor in tensors.items():
+            is_embedding = utils.is_embedding_tensor(tensor)
+            has_vdb_indexes = hasattr(tensor.meta, "vdb_indexes")
 
-    #         if is_embedding and has_vdb_indexes and vdb_index_ids_present:
-    #             tensor._regenerate_vdb_indexes()
-    #             index_regen = True
-    #     if index_regen:
-    #         return
+            try:
+                vdb_index_ids_present = len(tensor.meta.vdb_indexes) > 0
+            except AttributeError:
+                vdb_index_ids_present = False
+
+            if is_embedding and has_vdb_indexes and vdb_index_ids_present:
+                # Currently only single index is supported.
+                first_index = tensor.meta.vdb_indexes[0]
+                distance = first_index["distance"]
+                current_distance = index_params.get("distance_metric")
+                if distance == METRIC_TO_INDEX_METRIC[current_distance.upper()]:
+                    incr_maintenance_index = True
+
+
+            if is_embedding and has_vdb_indexes and vdb_index_ids_present:
+                if incr_maintenance_index == True:
+                    add_index = list(range(previous_dataset_len, len(dataset)))
+                    tensor._incr_maintenance_vdb_indexes(add_index)
+                else:
+                    tensor._regenerate_vdb_indexes()
+                index_regen = True
+        if index_regen:
+            return
 
     # Check all tensors from the dataset.
     for _, tensor in tensors.items():
