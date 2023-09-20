@@ -119,7 +119,6 @@ class constraints:
         lambda htype, dtype: f"Incompatible dtype of tensor for htype {htype}: {dtype}"
     )
 
-    EMBEDDING = lambda shape, dtype: True
     INSTANCE_LABEL = lambda shape, dtype: True
 
     @staticmethod
@@ -149,6 +148,11 @@ class constraints:
             raise IncompatibleHtypeError(constraints.ndim_error("bbox.3d", len(shape)))
         if shape[-1] != 8:
             raise IncompatibleHtypeError(constraints.shape_error("bbox.3d", shape))
+
+    @staticmethod
+    def EMBEDDING(shape, dtype):
+        if dtype != np.float32:
+            raise IncompatibleHtypeError(constraints.dtype_error("embedding", dtype))
 
     @staticmethod
     def BINARY_MASK(shape, dtype):
