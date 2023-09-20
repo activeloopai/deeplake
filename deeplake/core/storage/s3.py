@@ -172,7 +172,7 @@ class S3Provider(StorageProvider):
         self.check_readonly()
         self._check_update_creds()
         path = "".join((self.path, path))
-        content = bytearray(memoryview(content))
+        content = bytes(memoryview(content))
         try:
             self._set(path, content)
         except botocore.exceptions.ClientError as err:
