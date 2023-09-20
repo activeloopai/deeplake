@@ -10,17 +10,16 @@
 namespace py_api {
 
     void actions::pybind(pybind11::module &module) {
-        auto base_action = pybind11::class_<py_deeplog_action>(module, "DeepLogAction")
-                .def(pybind11::init<>());
+        pybind11::class_<deeplog::action, std::shared_ptr<deeplog::action>>(module, "DeepLogAction");
 
-        pybind11::class_<deeplog::add_file_action>(module, "AddFileAction", base_action)
+        pybind11::class_<deeplog::add_file_action, deeplog::action, std::shared_ptr<deeplog::add_file_action>>(module, "AddFileAction")
                 .def(pybind11::init<std::string, long, long, bool>(),
                      pybind11::arg("path"), pybind11::arg("size"), pybind11::arg("modification_time"), pybind11::arg("data_change"))
                 .def("path", &deeplog::add_file_action::path)
                 .def("size", &deeplog::add_file_action::size)
                 .def("modification_time", &deeplog::add_file_action::modification_time);
 
-        pybind11::class_<deeplog::create_branch_action>(module, "CreateBranchAction", base_action)
+        pybind11::class_<deeplog::create_branch_action, deeplog::action, std::shared_ptr<deeplog::create_branch_action>>(module, "CreateBranchAction")
                 .def(pybind11::init<std::string, std::string, std::string, long>(),
                      pybind11::arg("id"), pybind11::arg("name"), pybind11::arg("from_branch_id"), pybind11::arg("from_branch_version"))
                 .def("id", &deeplog::create_branch_action::id)
@@ -29,7 +28,7 @@ namespace py_api {
                 .def("from_version", &deeplog::create_branch_action::from_version);
 
 
-        pybind11::class_<deeplog::create_commit_action>(module, "CreateCommitAction", base_action)
+        pybind11::class_<deeplog::create_commit_action, deeplog::action, std::shared_ptr<deeplog::create_commit_action>>(module, "CreateCommitAction")
                 .def(pybind11::init<std::string, std::string, long, std::optional<std::string>, long>(),
                      pybind11::arg("id"), pybind11::arg("branch_id"), pybind11::arg("branch_version"), pybind11::arg("message"), pybind11::arg("commit_time"))
                 .def("id", &deeplog::create_commit_action::id)
@@ -38,7 +37,7 @@ namespace py_api {
                 .def("message", &deeplog::create_commit_action::message)
                 .def("commit_time", &deeplog::create_commit_action::commit_time);
 
-        pybind11::class_<deeplog::create_tensor_action>(module, "CreateTensorAction", base_action)
+        pybind11::class_<deeplog::create_tensor_action, deeplog::action, std::shared_ptr<deeplog::create_tensor_action>>(module, "CreateTensorAction")
                 .def(pybind11::init<std::string, std::string, std::string, std::string, long, bool, bool, bool, std::optional<std::string>,
                              std::optional<std::string>,
                              std::map<std::string, std::map<std::string, std::string>>,
@@ -84,7 +83,7 @@ namespace py_api {
                 .def("verify", &deeplog::create_tensor_action::verify)
                 .def("version", &deeplog::create_tensor_action::version);
 
-        pybind11::class_<deeplog::metadata_action>(module, "MetadataAction", base_action)
+        pybind11::class_<deeplog::metadata_action, deeplog::action, std::shared_ptr<deeplog::metadata_action>>(module, "MetadataAction")
                 .def(pybind11::init<std::string, std::string, std::string, long>(),
                      pybind11::arg("id"), pybind11::arg("name"), pybind11::arg("description"), pybind11::arg("created_time"))
                 .def("id", &deeplog::metadata_action::id)
@@ -92,13 +91,13 @@ namespace py_api {
                 .def("description", &deeplog::metadata_action::description)
                 .def("created_time", &deeplog::metadata_action::created_time);
 
-        pybind11::class_<deeplog::protocol_action>(module, "ProtocolAction", base_action)
+        pybind11::class_<deeplog::protocol_action, deeplog::action, std::shared_ptr<deeplog::protocol_action>>(module, "ProtocolAction")
                 .def(pybind11::init<int, int>(),
                      pybind11::arg("min_reader_version"), pybind11::arg("min_writer_version"))
                 .def("min_reader_version", &deeplog::protocol_action::min_reader_version)
                 .def("min_writer_version", &deeplog::protocol_action::min_writer_version);
 
-        pybind11::class_<deeplog::remove_file_action>(module, "RemoveFileAction", base_action)
+        pybind11::class_<deeplog::remove_file_action, deeplog::action, std::shared_ptr<deeplog::remove_file_action>>(module, "RemoveFileAction")
                 .def(pybind11::init<std::string, long, long, bool>(),
                      pybind11::arg("path"), pybind11::arg("size"), pybind11::arg("deletion_timestamp"), pybind11::arg("data_change"))
                 .def("path", &deeplog::remove_file_action::path)

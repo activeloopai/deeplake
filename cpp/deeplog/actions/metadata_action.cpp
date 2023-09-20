@@ -1,6 +1,7 @@
 #include "metadata_action.hpp"
 #include <nlohmann/json.hpp>
 #include <arrow/api.h>
+#include <iostream>
 
 using json = nlohmann::json;
 

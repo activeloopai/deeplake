@@ -6,6 +6,8 @@
 #include "actions/protocol_action.hpp"
 #include "actions/metadata_action.hpp"
 #include "actions/create_branch_action.hpp"
+#include "actions/create_tensor_action.hpp"
+#include "actions/create_commit_action.hpp"
 
 namespace deeplog {
 
@@ -21,11 +23,13 @@ namespace deeplog {
 
     class deeplog {
     public:
-        static std::shared_ptr<deeplog> create(const std::string &path);
+        [[nodiscard]] static std::shared_ptr<deeplog> create(const std::string &path);
 
-        static std::shared_ptr<deeplog> open(const std::string &path);
+        [[nodiscard]] static std::shared_ptr<deeplog> open(const std::string &path);
 
-        std::string path();
+        const std::string path;
+
+        virtual int log_format() const;
 
         long version(const std::string &branch_id) const;
 
@@ -37,11 +41,15 @@ namespace deeplog {
 
         deeplog_state<std::shared_ptr<create_branch_action>> branch_by_id(const std::string &branch_id) const;
 
+        deeplog_state<std::vector<std::shared_ptr<create_tensor_action>>> tensors(const std::string &branch_id, const std::optional<long> &version) const;
+
         deeplog_state<std::vector<std::shared_ptr<add_file_action>>> data_files(const std::string &branch_id, const std::optional<long> &version);
+
+        deeplog_state<std::vector<std::shared_ptr<create_commit_action>>> commits(const std::string &branch_id, const std::optional<long> &version);
 
         void commit(const std::string &branch_id,
                     const long &base_version,
-                    const std::vector<action *> &actions);
+                    const std::vector<std::shared_ptr<action>> &actions);
 
         void checkpoint(const std::string &branch_id);
 
@@ -57,8 +65,6 @@ namespace deeplog {
         arrow::Status write_checkpoint(const std::string &branch_id, const long &version);
 
         long file_version(const std::filesystem::path &path) const;
-
-        std::string path_;
     };
 
 }

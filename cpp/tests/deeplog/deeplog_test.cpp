@@ -39,7 +39,7 @@ protected:
 TEST_F(DeeplogTest, create) {
     auto log = deeplog::deeplog::create(test_dir);
 
-    EXPECT_EQ(test_dir, log->path());
+    EXPECT_EQ(test_dir, log->path);
     EXPECT_TRUE(std::filesystem::exists({test_dir + "/_deeplake_log/"}));
     EXPECT_EQ(std::set < std::string > {"00000000000000000000.json"}, list_log_files());
 
@@ -72,7 +72,7 @@ TEST_F(DeeplogTest, create) {
 TEST_F(DeeplogTest, open) {
     auto log = deeplog::deeplog::open(test_dir);
 
-    EXPECT_EQ(test_dir, log->path());
+    EXPECT_EQ(test_dir, log->path);
 }
 
 TEST_F(DeeplogTest, version) {
@@ -90,7 +90,7 @@ TEST_F(DeeplogTest, commit_protocol) {
     auto log = deeplog::deeplog::create(test_dir);
 
     auto action = deeplog::protocol_action(5, 6);
-    log->commit(deeplog::MAIN_BRANCH_ID, log->version(deeplog::MAIN_BRANCH_ID), {&action});
+    log->commit(deeplog::MAIN_BRANCH_ID, log->version(deeplog::MAIN_BRANCH_ID), {std::make_shared<deeplog::protocol_action>(action)});
 
     EXPECT_EQ((std::set < std::string > {"00000000000000000000.json", "00000000000000000001.json"}), list_log_files());
     std::ifstream ifs(test_dir + "/_deeplake_log/00000000000000000001.json");
@@ -107,7 +107,7 @@ TEST_F(DeeplogTest, commit_metadata) {
 
     auto original_metadata = log->metadata().data;
     auto action = deeplog::metadata_action(original_metadata->id(), "new name", "new desc", original_metadata->created_time());
-    log->commit(deeplog::MAIN_BRANCH_ID, log->version(deeplog::MAIN_BRANCH_ID), {&action});
+    log->commit(deeplog::MAIN_BRANCH_ID, log->version(deeplog::MAIN_BRANCH_ID), {std::make_shared<deeplog::metadata_action>(action)});
 
     EXPECT_EQ((std::set < std::string > {"00000000000000000000.json", "00000000000000000001.json"}), list_log_files());
     std::ifstream ifs(test_dir + "/_deeplake_log/00000000000000000001.json");
@@ -125,7 +125,7 @@ TEST_F(DeeplogTest, commit_add_file) {
     auto log = deeplog::deeplog::create(test_dir);
 
     auto action = deeplog::add_file_action("my/path", 3, 45, true);
-    log->commit(deeplog::MAIN_BRANCH_ID, log->version(deeplog::MAIN_BRANCH_ID), {&action});
+    log->commit(deeplog::MAIN_BRANCH_ID, log->version(deeplog::MAIN_BRANCH_ID), {std::make_shared<deeplog::add_file_action>(action)});
 
     EXPECT_EQ((std::set < std::string > {"00000000000000000000.json", "00000000000000000001.json"}), list_log_files());
     std::ifstream ifs(test_dir + "/_deeplake_log/00000000000000000001.json");
@@ -145,7 +145,7 @@ TEST_F(DeeplogTest, commit_create_branch) {
     auto log = deeplog::deeplog::create(test_dir);
 
     auto action = deeplog::create_branch_action("123", "branch1", deeplog::MAIN_BRANCH_ID, 0);
-    log->commit(deeplog::MAIN_BRANCH_ID, log->version(deeplog::MAIN_BRANCH_ID), {&action});
+    log->commit(deeplog::MAIN_BRANCH_ID, log->version(deeplog::MAIN_BRANCH_ID), {std::make_shared<deeplog::create_branch_action>(action)});
 
     EXPECT_EQ((std::set < std::string > {"00000000000000000000.json", "00000000000000000001.json"}), list_log_files());
     std::ifstream ifs(test_dir + "/_deeplake_log/00000000000000000001.json");
@@ -169,12 +169,12 @@ TEST_F(DeeplogTest, checkpoint) {
     auto original_metadata = log->metadata().data;
     for (int i = 0; i <= 3; ++i) {
         auto action = deeplog::metadata_action(original_metadata->id(), "name " + std::to_string(i), "desc " + std::to_string(i), original_metadata->created_time());
-        log->commit(deeplog::MAIN_BRANCH_ID, log->version(deeplog::MAIN_BRANCH_ID), {&action});
+        log->commit(deeplog::MAIN_BRANCH_ID, log->version(deeplog::MAIN_BRANCH_ID), {std::make_shared<deeplog::metadata_action>(action)});
     }
 
     for (int i=0; i<4; ++i) {
         auto action = deeplog::add_file_action("my/path" + std::to_string(i), 3, 45, true);
-        log->commit(deeplog::MAIN_BRANCH_ID, log->version(deeplog::MAIN_BRANCH_ID), {&action});
+        log->commit(deeplog::MAIN_BRANCH_ID, log->version(deeplog::MAIN_BRANCH_ID), {std::make_shared<deeplog::add_file_action>(action)});
     }
 
     EXPECT_EQ(8, log->version(deeplog::MAIN_BRANCH_ID));

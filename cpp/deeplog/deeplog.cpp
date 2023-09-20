@@ -7,6 +7,7 @@
 #include "actions/protocol_action.hpp"
 #include "actions/metadata_action.hpp"
 #include "actions/create_branch_action.hpp"
+#include "actions/create_tensor_action.hpp"
 #include "arrow/io/file.h"
 #include "parquet/stream_writer.h"
 #include "parquet/arrow/writer.h"
@@ -20,7 +21,7 @@
 
 namespace deeplog {
 
-    deeplog::deeplog(std::string path) : path_(path) {};
+    deeplog::deeplog(std::string path) : path(path) {};
 
     std::shared_ptr<deeplog> deeplog::create(const std::string &path) {
         if (std::filesystem::exists(path)) {
@@ -33,12 +34,12 @@ namespace deeplog {
         auto log = open(path);
         std::vector<action *> actions;
 
-        auto protocol = protocol_action(4, 4);
-        auto metadata = metadata_action(generate_uuid(), std::nullopt, std::nullopt, current_timestamp());
+        auto protocol = std::make_shared<protocol_action>(protocol_action(4, 4));
+        auto metadata = std::make_shared<metadata_action>(metadata_action(generate_uuid(), std::nullopt, std::nullopt, current_timestamp()));
 
-        auto branch = create_branch_action(MAIN_BRANCH_ID, "main", MAIN_BRANCH_ID, -1);
+        auto branch = std::make_shared<create_branch_action>(create_branch_action(MAIN_BRANCH_ID, "main", MAIN_BRANCH_ID, -1));
 
-        log->commit(MAIN_BRANCH_ID, -1, {&protocol, &metadata, &branch});
+        log->commit(MAIN_BRANCH_ID, -1, {protocol, metadata, branch});
 
         return log;
 
@@ -48,7 +49,9 @@ namespace deeplog {
         return std::make_shared<deeplog>(deeplog(path));
     }
 
-    std::string deeplog::path() { return path_; }
+    int deeplog::log_format() const {
+        return 4;
+    }
 
     std::string zero_pad(const long &version) {
         std::ostringstream ss;
@@ -91,7 +94,7 @@ namespace deeplog {
     }
 
     deeplog_state<std::vector<std::shared_ptr<add_file_action>>> deeplog::data_files(const std::string &branch_id, const std::optional<long> &version) {
-        auto actions = list_actions(MAIN_BRANCH_ID, 0, std::nullopt);
+        auto actions = list_actions(branch_id, 0, std::nullopt);
 
         std::vector<std::shared_ptr<add_file_action>> branches = {};
 
@@ -103,6 +106,36 @@ namespace deeplog {
         }
 
         return {std::vector<std::shared_ptr<add_file_action>>(branches), actions.version};
+    }
+
+    deeplog_state<std::vector<std::shared_ptr<create_commit_action>>> deeplog::commits(const std::string &branch_id, const std::optional<long> &version) {
+        auto actions = list_actions(branch_id, 0, std::nullopt);
+
+        std::vector<std::shared_ptr<create_commit_action>> commits = {};
+
+        for (const auto action: actions.data) {
+            auto casted = std::dynamic_pointer_cast<create_commit_action>(action);
+            if (casted != nullptr) {
+                commits.push_back(casted);
+            }
+        }
+
+        return {std::vector<std::shared_ptr<create_commit_action>>(commits), actions.version};
+    }
+
+    deeplog_state<std::vector<std::shared_ptr<create_tensor_action>>> deeplog::tensors(const std::string &branch_id, const std::optional<long> &version) const {
+        auto actions = list_actions(MAIN_BRANCH_ID, 0, std::nullopt);
+
+        std::vector<std::shared_ptr<create_tensor_action>> tensors = {};
+
+        for (const auto action: actions.data) {
+            auto casted = std::dynamic_pointer_cast<create_tensor_action>(action);
+            if (casted != nullptr) {
+                tensors.push_back(casted);
+            }
+        }
+
+        return {std::vector<std::shared_ptr<create_tensor_action>>(tensors), actions.version};
     }
 
     deeplog_state<std::vector<std::shared_ptr<create_branch_action>>> deeplog::branches() const {
@@ -123,7 +156,7 @@ namespace deeplog {
 
     void deeplog::commit(const std::string &branch_id,
                          const long &base_version,
-                         const std::vector<action *> &actions) {
+                         const std::vector<std::shared_ptr<action>> &actions) {
         nlohmann::json commit_json;
 
         for (auto action: actions) {
@@ -132,7 +165,7 @@ namespace deeplog {
             commit_json.push_back(action_json);
         }
 
-        auto log_dir = path_ + "/_deeplake_log/" + branch_id + "/";
+        auto log_dir = path + "/_deeplake_log/" + branch_id + "/";
 
         std::filesystem::create_directories(log_dir);
 
@@ -166,7 +199,7 @@ namespace deeplog {
         long higheset_version = -1;
         std::vector<std::shared_ptr<action>> return_actions = {};
 
-        const std::filesystem::path dir_path = {path_ + "/_deeplake_log/" + branch_id};
+        const std::filesystem::path dir_path = {path + "/_deeplake_log/" + branch_id};
 
         std::filesystem::path last_checkpoint_path = {dir_path.string() + "/_last_checkpoint.json"};
         if (std::filesystem::exists(last_checkpoint_path)) {
@@ -246,7 +279,7 @@ namespace deeplog {
         }
         nlohmann::json checkpoint_json = last_checkpoint(version_to_checkpoint, 3013);
 
-        auto checkpoint_path = path_ + "/_deeplake_log/_last_checkpoint.json";
+        auto checkpoint_path = path + "/_deeplake_log/_last_checkpoint.json";
         std::fstream file(checkpoint_path, std::ios::out);
         if (!file.is_open()) {
             throw std::runtime_error("Error opening file: " + checkpoint_path);
@@ -339,7 +372,7 @@ namespace deeplog {
         std::shared_ptr<parquet::ArrowWriterProperties> arrow_props = parquet::ArrowWriterProperties::Builder().store_schema()->build();
 
         std::shared_ptr<arrow::io::FileOutputStream> outfile;
-        ARROW_ASSIGN_OR_RAISE(outfile, arrow::io::FileOutputStream::Open(path_ + "/_deeplake_log/" + zero_pad(version) + ".checkpoint.parquet"));
+        ARROW_ASSIGN_OR_RAISE(outfile, arrow::io::FileOutputStream::Open(path + "/_deeplake_log/" + zero_pad(version) + ".checkpoint.parquet"));
 //
         ARROW_RETURN_NOT_OK(parquet::arrow::WriteTable(*checkpoint_table, arrow::default_memory_pool(), outfile, 3, props, arrow_props));
 
