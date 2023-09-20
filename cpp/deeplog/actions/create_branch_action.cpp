@@ -5,32 +5,24 @@ namespace deeplog {
                                                std::string name,
                                                std::string from_branch,
                                                long from_version) :
-            id_(id), name_(name), from_id_(from_branch), from_version_(from_version) {}
+            id(id), name(name), from_id(from_branch), from_version(from_version) {}
 
     create_branch_action::create_branch_action(const nlohmann::json &j) {
         const auto &base = j.at("createBranch");
-        base.at("id").get_to(id_);
-        base.at("name").get_to(name_);
-        base.at("fromId").get_to(from_id_);
-        base.at("fromVersion").get_to(from_version_);
+        base.at("id").get_to(id);
+        base.at("name").get_to(name);
+        base.at("fromId").get_to(from_id);
+        base.at("fromVersion").get_to(from_version);
     }
 
     void create_branch_action::to_json(nlohmann::json &j) {
-        j["createBranch"]["id"] = id_;
-        j["createBranch"]["name"] = name_;
-        j["createBranch"]["fromId"] = from_id_;
-        j["createBranch"]["fromVersion"] = from_version_;
+        j["createBranch"]["id"] = id;
+        j["createBranch"]["name"] = name;
+        j["createBranch"]["fromId"] = from_id;
+        j["createBranch"]["fromVersion"] = from_version;
     }
 
     arrow::Status create_branch_action::append_to(const std::shared_ptr<arrow::StructBuilder> &builder) {
         return arrow::Status::OK();
     }
-
-    std::string create_branch_action::id() const { return id_; }
-
-    std::string create_branch_action::name() const { return name_; }
-
-    std::string create_branch_action::from_id() const { return from_id_; }
-
-    long create_branch_action::from_version() const { return from_version_; }
 }

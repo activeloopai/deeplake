@@ -13,7 +13,7 @@ TEST(AddFileActionTest, to_json) {
     EXPECT_EQ("{\"add\":{\"dataChange\":true,\"modificationTime\":551,\"path\":\"my/path\",\"size\":3}}", j.dump());
 
     auto parsed = deeplog::add_file_action(j);
-    EXPECT_EQ("my/path", parsed.path());
-    EXPECT_EQ(3, parsed.size());
-    EXPECT_EQ(551, parsed.modification_time());
+    EXPECT_EQ("my/path", parsed.path);
+    EXPECT_EQ(3, parsed.size);
+    EXPECT_EQ(551, parsed.modification_time);
 }

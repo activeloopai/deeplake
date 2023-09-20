@@ -3,28 +3,20 @@
 namespace deeplog {
     remove_file_action::remove_file_action(const nlohmann::json &j) {
         const auto &base = j.at("remove");
-        base.at("path").get_to(path_);
-        base.at("deletionTime").get_to(deletion_time_);
-        base.at("dataChange").get_to(data_change_);
-        base.at("size").get_to(size_);
+        base.at("path").get_to(path);
+        base.at("deletionTime").get_to(deletion_time);
+        base.at("dataChange").get_to(data_change);
+        base.at("size").get_to(size);
     }
 
     remove_file_action::remove_file_action(std::string path, long size, long deletion_timestamp, bool data_change) :
-            path_(path), size_(size), deletion_time_(deletion_timestamp), data_change_(data_change) {};
-
-    std::string remove_file_action::path() { return path_; }
-
-    long remove_file_action::size() { return size_; }
-
-    long remove_file_action::deletion_timestamp() { return deletion_time_; }
-
-    bool remove_file_action::data_change() { return data_change_; }
+            path(path), size(size), deletion_time(deletion_timestamp), data_change(data_change) {};
 
     void remove_file_action::to_json(nlohmann::json &j) {
-        j["remove"]["path"] = path_;
-        j["remove"]["deletionTime"] = deletion_time_;
-        j["remove"]["dataChange"] = data_change_;
-        j["remove"]["size"] = size_;
+        j["remove"]["path"] = path;
+        j["remove"]["deletionTime"] = deletion_time;
+        j["remove"]["dataChange"] = data_change;
+        j["remove"]["size"] = size;
     }
 
     arrow::Status remove_file_action::append_to(const std::shared_ptr<arrow::StructBuilder> &builder) {

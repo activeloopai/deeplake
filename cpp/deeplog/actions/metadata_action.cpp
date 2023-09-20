@@ -12,76 +12,58 @@ namespace deeplog {
                                                std::optional<std::string> name,
                                                std::optional<std::string> description,
                                                long created_time) :
-            id_(id), name_(name), description_(description), created_time_(created_time) {}
+            id(id), name(name), description(description), created_time(created_time) {}
 
     metadata_action::metadata_action(const nlohmann::json &j) {
         const auto &base = j.at("metadata");
-        base.at("id").get_to(id_);
+        base.at("id").get_to(id);
         if (!base.at("name").is_null()) {
-            name_ = base.at("name").get<std::string>();
+            name = base.at("name").get<std::string>();
         }
         if (!base.at("description").is_null()) {
-            description_ = base.at("description").get<std::string>();
+            description = base.at("description").get<std::string>();
         }
 
-        base.at("createdTime").get_to(created_time_);
+        base.at("createdTime").get_to(created_time);
     }
 
     metadata_action::metadata_action(const std::shared_ptr<arrow::StructScalar> &value) {
-        id_ = reinterpret_pointer_cast<arrow::StringScalar>(value->field("id").ValueOrDie())->view();
-        name_ = reinterpret_pointer_cast<arrow::StringScalar>(value->field("name").ValueOrDie())->view();
-        description_ = reinterpret_pointer_cast<arrow::StringScalar>(value->field("description").ValueOrDie())->view();
-        created_time_ = reinterpret_pointer_cast<arrow::Int32Scalar>(value->field("description").ValueOrDie())->value;
-    }
-
-
-
-    std::string deeplog::metadata_action::id() const {
-        return id_;
-    }
-
-    std::optional<std::string> deeplog::metadata_action::name() const {
-        return name_;
-    }
-
-    std::optional<std::string> deeplog::metadata_action::description() const {
-        return description_;
-    }
-
-    long deeplog::metadata_action::created_time() const {
-        return created_time_;
+        id = reinterpret_pointer_cast<arrow::StringScalar>(value->field("id").ValueOrDie())->view();
+        name = reinterpret_pointer_cast<arrow::StringScalar>(value->field("name").ValueOrDie())->view();
+        description = reinterpret_pointer_cast<arrow::StringScalar>(value->field("description").ValueOrDie())->view();
+        created_time = reinterpret_pointer_cast<arrow::Int32Scalar>(value->field("description").ValueOrDie())->value;
     }
 
     void deeplog::metadata_action::to_json(nlohmann::json &j) {
-        j["metadata"]["id"] = id_;
-        if (name_.has_value()) {
-            j["metadata"]["name"] = name_.value();
+        j["metadata"]["id"] = id;
+        if (name.has_value()) {
+            j["metadata"]["name"] = name.value();
         } else {
             j["metadata"]["name"] = json::value_t::null;
         }
 
-        if (description_.has_value()) {
-            j["metadata"]["description"] = description_.value();
+        if (description.has_value()) {
+            j["metadata"]["description"] = description.value();
         } else {
             j["metadata"]["description"] = json::value_t::null;
         }
-        j["metadata"]["createdTime"] = created_time_;
+        j["metadata"]["createdTime"] = created_time;
 
     }
 
     arrow::Status metadata_action::append_to(const std::shared_ptr<arrow::StructBuilder> &builder) {
-        ARROW_RETURN_NOT_OK(builder->field_builder(0)->AppendScalar(arrow::StringScalar{id_}));
-        if (name_.has_value()) {
-            ARROW_RETURN_NOT_OK(builder->field_builder(1)->AppendScalar(arrow::StringScalar{name_.value()}));
+        ARROW_RETURN_NOT_OK(builder->field_builder(0)->AppendScalar(arrow::StringScalar{id}));
+        if (name.has_value()) {
+            ARROW_RETURN_NOT_OK(builder->field_builder(1)->AppendScalar(arrow::StringScalar{name.value()}));
         } else {
             ARROW_RETURN_NOT_OK(builder->field_builder(1)->AppendNull());
         }
-        if (description_.has_value()) {
-            ARROW_RETURN_NOT_OK(builder->field_builder(2)->AppendScalar(arrow::StringScalar{description_.value()}));
+        if (description.has_value()) {
+            ARROW_RETURN_NOT_OK(builder->field_builder(2)->AppendScalar(arrow::StringScalar{description.value()}));
         } else {
             ARROW_RETURN_NOT_OK(builder->field_builder(2)->AppendNull());
         }
-        ARROW_RETURN_NOT_OK(builder->field_builder(3)->AppendScalar(arrow::Int64Scalar{created_time_}));
+        ARROW_RETURN_NOT_OK(builder->field_builder(3)->AppendScalar(arrow::Int64Scalar{created_time}));
 
         ARROW_RETURN_NOT_OK(builder->Append());
         return arrow::Status::OK();

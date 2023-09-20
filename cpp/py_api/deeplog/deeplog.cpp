@@ -19,7 +19,7 @@ namespace py_api {
         pybind11::class_<::deeplog::deeplog_v3, ::deeplog::deeplog, std::shared_ptr<::deeplog::deeplog_v3>>(module, "DeepLogV3")
                 .def("log_format", &::deeplog::deeplog::log_format);
 
-        pybind11::class_<::deeplog::snapshot, std::shared_ptr<::deeplog::snapshot>>(module, "Snapshot")
+        pybind11::class_<::deeplog::snapshot, std::shared_ptr<::deeplog::snapshot>>(module, "DeepLogSnapshot")
                 .def(pybind11::init<std::string, const std::shared_ptr<::deeplog::deeplog> &>(),
                      pybind11::arg("branch_id"), pybind11::arg("deeplog"))
                 .def(pybind11::init<std::string, const long &, const std::shared_ptr<::deeplog::deeplog> &>(),

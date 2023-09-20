@@ -24,7 +24,7 @@ TEST_F(DeeplogSnapshotTest, construct) {
     auto log = deeplog::deeplog::create(test_dir);
 
     auto original_metadata = log->metadata().data;
-    auto action = deeplog::metadata_action(original_metadata->id(), "new name", "new desc", original_metadata->created_time());
+    auto action = deeplog::metadata_action(original_metadata->id, "new name", "new desc", original_metadata->created_time);
     log->commit(deeplog::MAIN_BRANCH_ID, log->version(deeplog::MAIN_BRANCH_ID), {std::make_shared<deeplog::metadata_action>(action)});
 
     auto snapshot0 = deeplog::snapshot(deeplog::MAIN_BRANCH_ID, 0, log);

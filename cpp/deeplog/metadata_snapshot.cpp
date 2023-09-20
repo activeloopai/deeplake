@@ -29,8 +29,8 @@ namespace deeplog {
 
     std::optional<std::string> metadata_snapshot::branch_id(const std::string &name) const {
         for (auto &branch : branches()) {
-            if (branch->name() == name) {
-                return branch->id();
+            if (branch->name == name) {
+                return branch->id;
             }
         }
         return std::nullopt;

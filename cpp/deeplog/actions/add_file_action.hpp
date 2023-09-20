@@ -12,14 +12,6 @@ namespace deeplog {
 
         add_file_action(const std::shared_ptr<arrow::StructScalar> &struct_scalar);
 
-        std::string path() const;
-
-        long size() const;
-
-        long modification_time() const;
-
-        bool data_change() const;
-
         void to_json(nlohmann::json &json) override;
 
         arrow::Status append_to(const std::shared_ptr<arrow::StructBuilder> &builder) override;
@@ -27,10 +19,10 @@ namespace deeplog {
         static std::shared_ptr<arrow::StructBuilder> arrow_array();
 
 
-    private:
-        std::string path_;
-        long size_;
-        long modification_time_;
-        bool data_change_;
+    public:
+        std::string path;
+        long size;
+        long modification_time;
+        bool data_change;
     };
 }

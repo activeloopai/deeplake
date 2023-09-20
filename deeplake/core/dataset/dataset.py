@@ -13,7 +13,7 @@ from time import time, sleep
 from tqdm import tqdm
 
 import deeplake
-from deeplake.deeplog import Snapshot, MetadataSnapshot
+from deeplake.deeplog import DeepLogSnapshot, MetadataSnapshot
 from deeplake.core.index.index import IndexEntry
 from deeplake.core.link_creds import LinkCreds
 from deeplake.core.sample import Sample
@@ -1388,7 +1388,7 @@ class Dataset:
                 version_state["commit_node_map"][commit_id] = commit_node
         else:
             metadata_snapshot = MetadataSnapshot(self.storage.deeplog)
-            snapshot = Snapshot(metadata_snapshot.branch_id(address), self.storage.deeplog)
+            snapshot = DeepLogSnapshot(metadata_snapshot.branch_id(address), self.storage.deeplog)
             branch_data = metadata_snapshot.branches()
             commit_data = snapshot.commits()
 
@@ -1405,12 +1405,12 @@ class Dataset:
 
             for branch_info in branch_data:
                 # create head commit for branch
-                branch_version = self.storage.deeplog.version(branch_info.id())
+                branch_version = self.storage.deeplog.version(branch_info.id)
                 head_commit_id = to_commit_id(branch_info.id, branch_version)
                 if head_commit_id not in version_state["commit_node_map"]:
                     version_state["commit_node_map"][head_commit_id] = CommitNode(branch_names[branch_info.id], head_commit_id)
 
-                version_state["branch_commit_map"][branch_info.name] = [commit_info.id for commit_info in commit_data if commit_info.branch_id == branch_info.id][0]
+                version_state["branch_commit_map"][branch_info.name] = branch_info.id
 
             commit_id = to_commit_id(snapshot.branch_id, snapshot.version)
 

@@ -14,7 +14,7 @@ TEST(RemoveFileActionTest, to_json) {
     EXPECT_EQ("{\"remove\":{\"dataChange\":true,\"deletionTime\":551,\"path\":\"my/path\",\"size\":3}}", j.dump());
 
     auto parsed = deeplog::remove_file_action(j);
-    EXPECT_EQ("my/path", parsed.path());
-    EXPECT_EQ(3, parsed.size());
-    EXPECT_EQ(551, parsed.deletion_timestamp());
+    EXPECT_EQ("my/path", parsed.path);
+    EXPECT_EQ(3, parsed.size);
+    EXPECT_EQ(551, parsed.deletion_time);
 }

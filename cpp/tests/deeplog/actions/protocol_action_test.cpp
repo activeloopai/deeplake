@@ -16,7 +16,7 @@ TEST(ActionTest, UpgradeProtocolJson) {
     EXPECT_EQ("{\"protocol\":{\"minReaderVersion\":5,\"minWriterVersion\":6}}", j.dump());
 
     auto parsed = deeplog::protocol_action(j);
-    EXPECT_EQ(5, parsed.min_reader_version());
-    EXPECT_EQ(6, parsed.min_writer_version());
+    EXPECT_EQ(5, parsed.min_reader_version);
+    EXPECT_EQ(6, parsed.min_writer_version);
 }
 

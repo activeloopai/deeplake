@@ -15,10 +15,10 @@ TEST(MetadataActionTest, to_json) {
             j.dump());
 
     auto parsed = deeplog::metadata_action(j);
-    EXPECT_EQ("asdf", parsed.id());
-    EXPECT_EQ("name here", parsed.name());
-    EXPECT_EQ("desc here", parsed.description());
-    EXPECT_EQ(12345, parsed.created_time());
+    EXPECT_EQ("asdf", parsed.id);
+    EXPECT_EQ("name here", parsed.name);
+    EXPECT_EQ("desc here", parsed.description);
+    EXPECT_EQ(12345, parsed.created_time);
 
 
     action = deeplog::metadata_action("asdf", std::nullopt, std::nullopt, 12345);
@@ -27,8 +27,8 @@ TEST(MetadataActionTest, to_json) {
     EXPECT_EQ("{\"metadata\":{\"createdTime\":12345,\"description\":null,\"id\":\"asdf\",\"name\":null}}", j.dump());
 
     parsed = deeplog::metadata_action(j);
-    EXPECT_EQ("asdf", parsed.id());
-    EXPECT_FALSE(parsed.name().has_value());
-    EXPECT_FALSE(parsed.description().has_value());
-    EXPECT_EQ(12345, action.created_time());
+    EXPECT_EQ("asdf", parsed.id);
+    EXPECT_FALSE(parsed.name.has_value());
+    EXPECT_FALSE(parsed.description.has_value());
+    EXPECT_EQ(12345, action.created_time);
 }

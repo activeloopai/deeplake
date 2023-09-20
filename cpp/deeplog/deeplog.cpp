@@ -185,7 +185,7 @@ namespace deeplog {
         auto data = all_branches.data;
 
         auto branch = std::ranges::find_if(data,
-                                           [branch_id](std::shared_ptr<create_branch_action> b) { return b->id() == branch_id; });
+                                           [branch_id](std::shared_ptr<create_branch_action> b) { return b->id == branch_id; });
         if (branch == data.end()) {
             throw std::runtime_error("Branch id '" + branch_id + "' not found");
         }
@@ -216,11 +216,11 @@ namespace deeplog {
 
         if (branch_id != MAIN_BRANCH_ID) {
             auto branch_obj = branch_by_id(branch_id).data;
-            for (const auto &action: list_actions(branch_id, from, branch_obj->from_version()).data) {
+            for (const auto &action: list_actions(branch_id, from, branch_obj->from_version).data) {
                 return_actions.push_back(action);
             }
 
-            next_from = branch_obj->from_version() + 1;
+            next_from = branch_obj->from_version + 1;
         }
 
         std::set < std::filesystem::path > sorted_paths = {};
@@ -249,12 +249,16 @@ namespace deeplog {
             for (auto &element: jsonArray) {
                 if (element.contains("add")) {
                     return_actions.push_back(std::make_shared<add_file_action>(add_file_action(element)));
+                } else if (element.contains("commit")) {
+                    return_actions.push_back(std::make_shared<create_commit_action>(create_commit_action(element)));
                 } else if (element.contains("createBranch")) {
                     return_actions.push_back(std::make_shared<create_branch_action>(create_branch_action(element)));
                 } else if (element.contains("protocol")) {
                     return_actions.push_back(std::make_shared<protocol_action>(protocol_action(element)));
                 } else if (element.contains("metadata")) {
                     return_actions.push_back(std::make_shared<metadata_action>(metadata_action(element)));
+                } else if (element.contains("tensor")) {
+                    return_actions.push_back(std::make_shared<create_tensor_action>(create_tensor_action(element)));
                 }
             }
         }

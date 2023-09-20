@@ -50,7 +50,7 @@ from deeplake.constants import COMMIT_INFO_FILENAME
 from deeplake.util.path import relpath
 from deeplake.util.remove_cache import get_base_storage
 from deeplake.hooks import dataset_committed
-from deeplake.deeplog import DeepLog
+from deeplake.deeplog import DeepLog, DeepLogSnapshot
 from datetime import datetime
 import deeplake.core.dataset
 
@@ -1080,7 +1080,7 @@ def _get_dataset_meta_at_commit(storage, commit_id):
 
 def _get_deeplog_meta_at_commit(deeplog: DeepLog, branch_id: str, branch_version: int) -> DatasetMeta:
     meta = DatasetMeta()
-    tensor_data = deeplog.tensors(branch_id, branch_version).data()
+    tensor_data = DeepLogSnapshot(branch_id, branch_version, deeplog).tensors()
 
     meta.tensors = [action.id for action in tensor_data]
     meta.tensor_names = {action.name: action.id for action in tensor_data}
@@ -1128,7 +1128,7 @@ def load_meta(dataset: "deeplake.core.dataset.Dataset"):
         _tensors.clear()
         _tensor_names = version_state["tensor_names"]
         _tensor_names.clear()
-        tensor_names = {action.name: action.id for action in deeplog.tensors(branch_id, branch_version).data()}
+        tensor_names = {action.name: action.id for action in DeepLogSnapshot(branch_id, branch_version, deeplog).tensors()}
         _tensor_names.update(tensor_names)
 
 
