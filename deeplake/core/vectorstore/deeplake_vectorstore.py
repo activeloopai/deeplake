@@ -5,7 +5,7 @@ import jwt
 
 import numpy as np
 
-from deeplake.core.vector_index.distance_type import DistanceType
+from deeplake.core.distance_type import DistanceType
 from deeplake.util.dataset import try_flushing
 
 try:
