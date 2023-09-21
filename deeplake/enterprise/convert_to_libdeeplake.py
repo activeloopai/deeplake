@@ -182,6 +182,8 @@ def dataset_to_libdeeplake(hub2_dataset: Dataset):
                 libdeeplake_dataset = _get_indra_ds_from_azure_provider(
                     path=path, token=token, provider=provider
                 )
+            else:
+                raise ValueError("Unknown storage provider for hub:// dataset")
 
         elif path.startswith("s3://"):
             libdeeplake_dataset = _get_indra_ds_from_s3_provider(
