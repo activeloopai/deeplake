@@ -74,8 +74,7 @@ from deeplake.htype import (
 import warnings
 import webbrowser
 
-from deeplake.core.vector_index.distance_type import DistanceType
-from deeplake.core.vector_index.indexer import Indexer
+from deeplake.core.distance_type import DistanceType
 
 
 def create_tensor(

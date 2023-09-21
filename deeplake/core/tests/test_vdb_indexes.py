@@ -1,7 +1,7 @@
 import deeplake
 import numpy as np
 
-from deeplake.core.vector_index.distance_type import DistanceType
+from deeplake.core.distance_type import DistanceType
 from deeplake.tests.common import requires_libdeeplake
 from deeplake.tests.dataset_fixtures import local_auth_ds_generator
 from deeplake.util.exceptions import ReadOnlyModeError
