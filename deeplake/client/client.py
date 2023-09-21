@@ -537,8 +537,8 @@ class DeepMemoryBackendClient(DeepLakeBackendClient):
 
     def start_taining(
         self,
-        corpus_path,
-        queries_path,
+        corpus_path: str,
+        queries_path: str,
     ) -> Dict[str, Any]:
         response = self.request(
             method="POST",
@@ -549,11 +549,18 @@ class DeepMemoryBackendClient(DeepLakeBackendClient):
         return response.json()
 
     def cancel(self, job_id: str):
-        response = self.request(
-            method="POST",
-            relative_url=f"/api/deepmemory/v1/jobs/{job_id}/cancel",
-        )
+        try:
+            response = self.request(
+                method="POST",
+                relative_url=f"/api/deepmemory/v1/jobs/{job_id}/cancel",
+            )
+        except Exception as e:
+            print(f"Job with job_id='{job_id}' was not cancelled!\n Error: {e}")
+            return False
+
         check_response_status(response)
+        print("Job cancelled successfully")
+        return True
 
     def check_status(self, job_id: str):
         response = self.request(
@@ -565,7 +572,7 @@ class DeepMemoryBackendClient(DeepLakeBackendClient):
         response_status_schema.print_status(job_id)
         return response.json()
 
-    def list_jobs(self, dataset_path):
+    def list_jobs(self, dataset_path: str):
         dataset_id = dataset_path[6:]
         response = self.request(
             method="GET",
@@ -584,6 +591,10 @@ class DeepMemoryBackendClient(DeepLakeBackendClient):
         check_response_status(response)
 
 
+# TODO: Refactor JobResponseStatusSchema code as it have a lot of hard coded edge cases and duplications
+# Ideally, need to create a class called Table for status and Docker table class for job list, then
+# create subclasses for each entry and move edge cases to specific classes. Also move out all hard coded
+# constants into deeplake.constans class.
 class JobResponseStatusSchema:
     def __init__(self, response: Dict[str, Any]):
         if not isinstance(response, List):
@@ -747,6 +758,7 @@ class JobResponseStatusSchema:
 def get_results(response, indent, add_vertical_bars, width=21):
     progress = response["progress"]
 
+    best_recall = 0
     for progress_key, progress_value in progress.items():
         if progress_key == "best_recall@10":
             recall, improvement = progress_value.split("%")[:2]
@@ -819,7 +831,7 @@ def preprocess_progress(response, progress_indent, add_vertical_bars=False):
                     if first_error_line:
                         first_error_line = False
                         if add_vertical_bars:
-                            value_i += (22 - len(value_i)) * " " + "|"
+                            value_i += (23 - len(value_i)) * " " + "|"
                     else:
                         if add_vertical_bars:
                             value_i = (
@@ -828,10 +840,11 @@ def preprocess_progress(response, progress_indent, add_vertical_bars=False):
                                 + "| "
                                 + " " * 7
                                 + value_i
-                                + (22 - len(value_i)) * " "
+                                + (23 - len(value_i)) * " "
                                 + "|"
                             )
                     value += value_i
+                value = value[:-1]
 
             if isinstance(value, float):
                 value = f"{value:.1f}"

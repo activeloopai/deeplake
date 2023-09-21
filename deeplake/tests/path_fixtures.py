@@ -1,10 +1,8 @@
-from deeplake.core.storage.gcs import GCSProvider
-from deeplake.core.storage.google_drive import GDriveProvider
-from deeplake.util.storage import storage_provider_from_hub_path
-from deeplake.core.storage.s3 import S3Provider
-from deeplake.core.storage.local import LocalProvider
-from deeplake.core.storage.azure import AzureProvider
 import os
+import posixpath
+import pytest
+import sys
+
 import deeplake
 from deeplake.constants import (
     HUB_CLOUD_OPT,
@@ -28,15 +26,21 @@ from deeplake.constants import (
     ENV_GDRIVE_CLIENT_SECRET,
     ENV_GDRIVE_REFRESH_TOKEN,
 )
-import posixpath
+from deeplake import VectorStore
+from deeplake.client.client import DeepMemoryBackendClient
+from deeplake.core.storage.gcs import GCSProvider
+from deeplake.core.storage.google_drive import GDriveProvider
+from deeplake.util.storage import storage_provider_from_hub_path
+from deeplake.core.storage.s3 import S3Provider
+from deeplake.core.storage.local import LocalProvider
+from deeplake.core.storage.azure import AzureProvider
+from deeplake.core.vectorstore import utils
 from deeplake.tests.common import (
     SESSION_ID,
     current_test_name,
     get_dummy_data_path,
     is_opt_true,
 )
-import pytest
-import sys
 
 
 MEMORY = "memory"
@@ -424,6 +428,47 @@ def hub_cloud_vstream_path(request, hub_cloud_dev_token):
     path = f"{PYTEST_HUB_CLOUD_PROVIDER_BASE_ROOT}vstream_test_dataset"
 
     yield path
+
+
+@pytest.fixture
+def corpus_query_pair_path(request, hub_cloud_dev_token):
+    corpus = _get_storage_path(request, HUB_CLOUD)
+    query = corpus + "_query"
+
+    corpus_db = VectorStore(
+        corpus,
+        token=hub_cloud_dev_token,
+        runtime={"tensor_db": True},
+        overwrite=True,
+    )
+    query_db = VectorStore(
+        query,
+        token=hub_cloud_dev_token,
+        runtime={"tensor_db": True},
+        overwrite=True,
+    )
+
+    texts, embeddings, ids, metadata, _ = utils.create_data(
+        number_of_data=10, embedding_dim=15
+    )
+
+    corpus_db.add(
+        id=ids,
+        text=texts,
+        embedding=embeddings,
+        metadata=metadata,
+    )
+
+    query_db.add(
+        text=texts,
+        embedding=embeddings,
+        metadata=[{"relevence": [[id_, 1]]} for id_ in ids],
+    )
+
+    yield corpus, query
+
+    deeplake.delete(corpus, force=True, large_ok=True, token=hub_cloud_dev_token)
+    deeplake.delete(query, force=True, large_ok=True, token=hub_cloud_dev_token)
 
 
 @pytest.fixture

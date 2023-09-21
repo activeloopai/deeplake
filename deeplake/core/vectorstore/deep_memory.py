@@ -115,14 +115,16 @@ class DeepMemory:
         """
         self.client.check_status(job_id=job_id)
 
-    def list_jobs(self, dataset_path: str):
+    @classmethod
+    def list_jobs(dataset_path, token=None):
         """List all training jobs on DeepMemory managed service."""
-        self.client.list_jobs(dataset_path=dataset_path)
+        client = DeepMemoryBackendClient(token=token)
+        client.list_jobs(dataset_path=dataset_path)
 
     def evaluate(
         self,
         queries: List[str],
-        relevance: List[List[Tuple[str, int]]],
+        relevances: List[List[Tuple[str, int]]],
         run_locally: bool = True,
         embedding_function: Optional[Callable[[str], np.ndarray]] = None,
         top_k: List[int] = [1, 3, 5, 10, 50, 100],
@@ -141,12 +143,11 @@ class DeepMemory:
                 "Evaluation on DeepMemory managed service is not yet implemented"
             )
 
-        # if not INDRA_AVAILABLE:
-        #     raise ImportError(
-        #         "Evaluation on DeepMemory managed service requires the indra package. "
-        #         "Please install it with `pip install deeplake[enterprise]`."
-        #     )
-        from indra import api
+        if not INDRA_AVAILABLE:
+            raise ImportError(
+                "Evaluation on DeepMemory managed service requires the indra package. "
+                "Please install it with `pip install deeplake[enterprise]`."
+            )
 
         indra_dataset = api.dataset(self.dataset.path)
         api.tql.prepare_deepmemory_metrics(indra_dataset)
@@ -166,7 +167,7 @@ class DeepMemory:
                     self.dataset,
                     queries,
                     indra_dataset,
-                    relevance,
+                    relevances,
                     top_k=k,
                     query_embs=query_embs,
                     metric=metric,
@@ -176,9 +177,9 @@ class DeepMemory:
 
 def recall_at_k(
     dataset: Dataset,
-    queries: torch.Tensor,
-    indra_dataset: torch.Tensor,
-    relevance: List[List[Tuple[str, int]]],
+    queries: List[str],
+    indra_dataset: Any,
+    relevances: List[List[Tuple[str, int]]],
     query_embs,
     metric,
     top_k: int = 10,
@@ -188,7 +189,7 @@ def recall_at_k(
     for query_idx, query in enumerate(queries):
         query_emb = query_embs[query_idx]
         # Get the indices of the relevant data for this query
-        query_relevance = relevance[query_idx]
+        query_relevance = relevances[query_idx]
         correct_labels = [label for label, _ in query_relevance]
 
         # Compute the cosine similarity between the query and all data points
@@ -215,7 +216,7 @@ def recall_at_k(
         recalls.append(recall)
 
     # Average the recalls for each query
-    avg_recall = torch.FloatTensor(recalls).mean()
+    avg_recall = np.mean(np.array(recalls))
 
     return avg_recall
 
