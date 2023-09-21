@@ -1,4 +1,5 @@
 import warnings
+from uuid import uuid4
 from deeplake.core.compute.provider import ComputeProvider
 from pathos.pools import ProcessPool  # type: ignore
 from pathos.helpers import mp as pathos_multiprocess  # type: ignore
@@ -7,7 +8,7 @@ from pathos.helpers import mp as pathos_multiprocess  # type: ignore
 class ProcessProvider(ComputeProvider):
     def __init__(self, workers):
         self.workers = workers
-        self.pool = ProcessPool(nodes=workers)
+        self.pool = ProcessPool(nodes=workers, id=uuid4())
         self.manager = pathos_multiprocess.Manager()
         self._closed = False
 
@@ -21,6 +22,9 @@ class ProcessProvider(ComputeProvider):
         self.pool.close()
         self.pool.join()
         self.pool.clear()
+        if self.manager is not None:
+            self.manager.shutdown()
+            self.manager = None
         self._closed = True
 
     def __del__(self):
