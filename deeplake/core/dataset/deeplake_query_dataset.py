@@ -267,7 +267,10 @@ class DeepLakeQueryDataset(Dataset):
         from deeplake.enterprise import DeepLakeDataLoader
 
         dataloader = DeepLakeDataLoader(
-            self, _indra_dataset=self.indra_ds, _ignore_errors=ignore_errors, _verbose=verbose
+            self,
+            _indra_dataset=self.indra_ds,
+            _ignore_errors=ignore_errors,
+            _verbose=verbose,
         )
         return dataloader
 

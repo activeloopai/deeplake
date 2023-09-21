@@ -2175,7 +2175,7 @@ class Dataset:
 
         deeplake_reporter.feature_report(feature_name="dataloader", parameters={})
 
-        return dataloader(self, ignore_errors=ignore_errors,  verbose=verbose)
+        return dataloader(self, ignore_errors=ignore_errors, verbose=verbose)
 
     def filter(
         self,
