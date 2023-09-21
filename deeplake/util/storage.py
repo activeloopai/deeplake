@@ -1,4 +1,4 @@
-from deeplake.deeplog.deeplog import open_deeplog
+from deeplake.deeplog import DeepLog
 from deeplake.util.agreement import handle_dataset_agreements
 from deeplake.util.cache_chain import generate_chain
 from deeplake.constants import LOCAL_CACHE_PREFIX, MB
@@ -236,7 +236,7 @@ def get_storage_and_cache_chain(
     if storage.read_only:
         storage_chain.enable_readonly()
 
-    storage.set_deeplog(open_deeplog(path, storage_chain))
+    storage.set_deeplog(DeepLog.open(path))
     return storage, storage_chain
 
 

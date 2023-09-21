@@ -218,3 +218,6 @@ benchmarks/torch_data
 # API docs
 api_docs/
 
+/cpp/cmake-build-debug/
+/cpp/external/
+_deeplake/**/*.pyi

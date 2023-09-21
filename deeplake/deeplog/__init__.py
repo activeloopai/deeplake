@@ -1,1 +1,1 @@
-from .deeplog import DeepLog
+from _deeplake._deeplog import *

@@ -11,7 +11,7 @@ import numpy as np
 from typing import Dict, List, Sequence, Union, Optional, Tuple, Any, Callable
 from functools import reduce, partial
 from deeplake.core.index import Index, IndexEntry, replace_ellipsis_with_slices
-from deeplake.core.meta.tensor_meta import TensorMeta
+from deeplake.core.meta.tensor_meta import TensorMeta, _validate_htype_exists
 from deeplake.core.storage import StorageProvider
 from deeplake.core.chunk_engine import ChunkEngine
 from deeplake.core.compression import _read_timestamps
@@ -44,6 +44,7 @@ from deeplake.util.exceptions import (
     TensorDoesNotExistError,
     InvalidKeyTypeError,
     TensorAlreadyExistsError,
+    UnsupportedCompressionError,
 )
 from deeplake.util.iteration_warning import check_if_iteration
 from deeplake.hooks import dataset_read, dataset_written
@@ -577,6 +578,15 @@ class Tensor:
         if self.is_link:
             htype = f"link[{htype}]"
         return htype
+
+    @htype.setter
+    def htype(self, value):
+        self._check_compatibility_with_htype(value)
+        self.meta.htype = value
+        if value == "class_label":
+            self.meta._disable_temp_transform = False
+        self.meta.is_dirty = True
+        self.dataset.maybe_flush()
 
     @property
     def hidden(self) -> bool:
@@ -1405,3 +1415,27 @@ class Tensor:
     def invalidate_libdeeplake_dataset(self):
         """Invalidates the libdeeplake dataset object."""
         self.dataset.libdeeplake_dataset = None
+
+    def _check_compatibility_with_htype(self, htype):
+        """Checks if the tensor is compatible with the given htype.
+        Raises an error if not compatible.
+        """
+        is_sequence, is_link, htype = parse_complex_htype(htype)
+        if is_sequence or is_link:
+            raise ValueError(f"Cannot change htype to a sequence or link.")
+        _validate_htype_exists(htype)
+        if self.htype not in HTYPE_CONVERSION_LHS:
+            raise NotImplementedError(
+                f"Changing the htype of a tensor of htype {self.htype} is not supported."
+            )
+        if htype not in HTYPE_CONSTRAINTS:
+            raise NotImplementedError(
+                f"Changing the htype to {htype} is not supported."
+            )
+        compression = self.meta.sample_compression or self.meta.chunk_compression
+        if compression:
+            supported_compressions = HTYPE_SUPPORTED_COMPRESSIONS.get(htype)
+            if supported_compressions and compression not in supported_compressions:
+                raise UnsupportedCompressionError(compression, htype)
+        constraints = HTYPE_CONSTRAINTS[htype]
+        constraints(self.shape, self.dtype)
