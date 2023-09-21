@@ -1,4 +1,4 @@
-from deeplake.core.vector_index.distance_type import DistanceType
+from deeplake.core.distance_type import DistanceType
 from deeplake.core.storage import azure, gcs, google_drive, local, lru_cache, memory
 from deeplake.core.vectorstore import utils
 
