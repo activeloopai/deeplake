@@ -147,8 +147,6 @@ class DeepLakeDataLoader(DataLoader):
         self._iterator = None
         self._worker_init_fn = None
 
-        self._internal_iterator = None
-
     @property
     def batch_size(self):
         return self._batch_size or 1
@@ -426,8 +424,8 @@ class DeepLakeDataLoader(DataLoader):
 
     def close(self):
         """Shuts down the workers and releases the resources."""
-        if self._internal_iterator is not None:
-            self._internal_iterator = None
+        if self._iterator is not None:
+            self._iterator.close()
         if self._dataloader is not None:
             self._dataloader = None
 
@@ -785,23 +783,36 @@ class DeepLakeDataLoader(DataLoader):
 
         dataset_read(self._orig_dataset)
 
-        if self._internal_iterator is not None:
-            self._internal_iterator = iter(self._internal_iterator)
+        if self._iterator is not None:
+            self._iterator = iter(self._iterator)
 
         return self
+
+    def __setattr__(self, attr, val):
+        if (
+            attr == "_iterator"
+            and val is None
+            and hasattr(self, "_iterator")
+            and self._iterator is not None
+        ):
+            self._iterator.close()
+        else:
+            super().__setattr__(attr, val)
 
     def __next__(self):
         if self._dataloader is None:
             self.__iter__()
-        if self._internal_iterator is None:
-            self._internal_iterator = iter(self._dataloader)
-        return next(self._internal_iterator)
+        if self._iterator is None:
+            self._iterator = iter(self._dataloader)
+        return next(self._iterator)
 
     def __del__(self):
         self.close()
 
 
-def dataloader(dataset, ignore_errors: bool = False, verbose: bool = False) -> DeepLakeDataLoader:
+def dataloader(
+    dataset, ignore_errors: bool = False, verbose: bool = False
+) -> DeepLakeDataLoader:
     """Returns a :class:`~deeplake.enterprise.dataloader.DeepLakeDataLoader` object which can be transformed to either pytorch dataloader or numpy.
 
 
