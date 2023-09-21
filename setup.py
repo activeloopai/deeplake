@@ -50,7 +50,7 @@ extras = {
 def libdeeplake_available():
     py_ver = sys.version_info
     if sys.platform == "linux":
-        if py_ver >= (3, 6) and py_ver <= (3, 11):
+        if py_ver >= (3, 6) and py_ver <= (3, 12):
             return True
     if sys.platform == "darwin":
         mac_ver = list(map(int, platform.mac_ver()[0].split(".")))
