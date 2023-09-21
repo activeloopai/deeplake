@@ -1114,52 +1114,52 @@ def test_update_embedding(
     )
     vector_store.delete_by_path(path + "_multi", token=ds.token)
 
-    @requires_libdeeplake
-    def test_vdb_index_creation(local_path, capsys, hub_cloud_dev_token):
-        number_of_data = 1000
-        texts, embeddings, ids, metadatas, _ = utils.create_data(
-            number_of_data=number_of_data, embedding_dim=EMBEDDING_DIM
-        )
+@requires_libdeeplake
+def test_vdb_index_creation(local_path, capsys, hub_cloud_dev_token):
+    number_of_data = 1000
+    texts, embeddings, ids, metadatas, _ = utils.create_data(
+        number_of_data=number_of_data, embedding_dim=EMBEDDING_DIM
+    )
 
-        # initialize vector store object with vdb index threshold as 200.
-        vector_store = DeepLakeVectorStore(
-            path=local_path,
-            overwrite=True,
-            verbose=True,
-            exec_option="compute_engine",
-            index_params={"threshold": 200, "distance_metric": "L2"},
-            token=hub_cloud_dev_token,
-        )
+    # initialize vector store object with vdb index threshold as 200.
+    vector_store = DeepLakeVectorStore(
+        path=local_path,
+        overwrite=True,
+        verbose=True,
+        exec_option="compute_engine",
+        index_params={"threshold": 200, "distance_metric": "L2"},
+        token=hub_cloud_dev_token,
+    )
 
-        vector_store.add(embedding=embeddings, text=texts, id=ids, metadata=metadatas)
+    vector_store.add(embedding=embeddings, text=texts, id=ids, metadata=metadatas)
 
-        assert len(vector_store) == number_of_data
-        assert set(vector_store.dataset.tensors) == set(
-            [
-                "embedding",
-                "id",
-                "metadata",
-                "text",
-            ]
-        )
-        assert set(vector_store.tensors()) == set(
-            [
-                "embedding",
-                "id",
-                "metadata",
-                "text",
-            ]
-        )
+    assert len(vector_store) == number_of_data
+    assert set(vector_store.dataset.tensors) == set(
+        [
+            "embedding",
+            "id",
+            "metadata",
+            "text",
+        ]
+    )
+    assert set(vector_store.tensors()) == set(
+        [
+            "embedding",
+            "id",
+            "metadata",
+            "text",
+        ]
+    )
 
-        # Check if the index is recreated properly.
-        ds = vector_store.dataset
-        es = ds.embedding.get_vdb_indexes()
-        assert len(es) == 1
-        assert es[0]["id"] == "hnsw_1"
-        assert es[0]["distance"] == "l2_norm"
-        assert es[0]["type"] == "hnsw"
+    # Check if the index is recreated properly.
+    ds = vector_store.dataset
+    es = ds.embedding.get_vdb_indexes()
+    assert len(es) == 1
+    assert es[0]["id"] == "hnsw_1"
+    assert es[0]["distance"] == "l2_norm"
+    assert es[0]["type"] == "hnsw"
 
-        vector_store.delete_by_path(local_path, token=ds.token)
+    vector_store.delete_by_path(local_path, token=ds.token)
 
 
 def assert_vectorstore_structure(vector_store, number_of_data):
