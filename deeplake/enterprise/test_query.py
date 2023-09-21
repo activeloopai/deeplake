@@ -18,6 +18,11 @@ def test_query(hub_cloud_ds):
     for i in range(20):
         assert dsv.label[i].numpy() == 2
 
+    dsv2 = hub_cloud_ds.query("SELECT * WHERE label < 3")
+    assert len(dsv2) == 60
+    dsv3 = dsv2.query("SELECT * WHERE label > 1")
+    assert len(dsv3) == 20
+
 
 @requires_libdeeplake
 def test_default_query_message(hub_cloud_ds_generator):
