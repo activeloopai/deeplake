@@ -439,6 +439,9 @@ def create_worker_chunk_engines(
                     hidden=existing_meta.hidden,
                     verify=existing_meta.verify,
                 )
+                new_tensor_meta.max_shape = existing_meta.max_shape.copy()
+                new_tensor_meta.min_shape = existing_meta.min_shape.copy()
+                new_tensor_meta.name = existing_meta.name
                 meta_key = get_tensor_meta_key(tensor, version_state["commit_id"])
                 memory_cache[meta_key] = new_tensor_meta  # type: ignore
                 storage_cache.clear_cache()
