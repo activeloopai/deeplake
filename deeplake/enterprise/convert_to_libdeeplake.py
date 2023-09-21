@@ -214,7 +214,7 @@ def dataset_to_libdeeplake(hub2_dataset: Dataset):
 
     assert libdeeplake_dataset is not None
     libdeeplake_dataset._max_cache_size = max(
-        hub2_dataset.storage.cache_size * MB, libdeeplake_dataset._max_cache_size
+        hub2_dataset.storage.cache_size, libdeeplake_dataset._max_cache_size
     )
     commit_id = hub2_dataset.pending_commit_id
     libdeeplake_dataset.checkout(commit_id)
