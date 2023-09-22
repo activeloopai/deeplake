@@ -1,5 +1,7 @@
+import pytest
+
 import deeplake
-from vectorstore import VectorStore
+from deeplake import VectorStore
 
 
 def test_deepmemory_init(hub_cloud_path, hub_cloud_dev_token):
@@ -20,6 +22,7 @@ def test_deepmemory_evaluate():
     pass
 
 
+@pytest.mark.slow
 def test_deepmemory_train(corpus_query_pair_path, hub_cloud_dev_token):
     corpus, _ = corpus_query_pair_path
     queries = ["query1", "query2", "query3"]
@@ -40,4 +43,4 @@ def test_deepmemory_train(corpus_query_pair_path, hub_cloud_dev_token):
     assert deeplake.exists(corpus + "_queries")
     qds = deeplake.load(corpus + "_queries")
     for i in range(len(qds.dataset.metata.data()["value"])):
-        assert db.deep_memory[i].data()["value"][i] == {"relevance": [f"{i}", 1]}
+        assert qds[i].data()["value"] == {"relevance": [[f"{i}", 1]]}

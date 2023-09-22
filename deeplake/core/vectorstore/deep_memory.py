@@ -2,14 +2,11 @@ import os
 from typing import Any, Optional, List, Dict, Union, Callable, Tuple
 import textwrap
 
-import torch
 import numpy as np
 from time import time
 
 from deeplake.client import config
 from deeplake.core.vectorstore.vector_search import vector_search
-
-config.USE_DEV_ENVIRONMENT = True
 
 try:
     from indra import api

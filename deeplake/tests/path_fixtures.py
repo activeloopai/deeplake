@@ -435,34 +435,17 @@ def corpus_query_pair_path(request, hub_cloud_dev_token):
     corpus = _get_storage_path(request, HUB_CLOUD)
     query = corpus + "_query"
 
-    corpus_db = VectorStore(
+    deeplake.deepcopy(
+        "hub://testingacc2/scifact_corpus",
         corpus,
         token=hub_cloud_dev_token,
-        runtime={"tensor_db": True},
         overwrite=True,
     )
-    query_db = VectorStore(
-        query,
+    deeplake.deepcopy(
+        "hub://testingacc2/scifact_corpus",
+        corpus,
         token=hub_cloud_dev_token,
-        runtime={"tensor_db": True},
         overwrite=True,
-    )
-
-    texts, embeddings, ids, metadata, _ = utils.create_data(
-        number_of_data=10, embedding_dim=15
-    )
-
-    corpus_db.add(
-        id=ids,
-        text=texts,
-        embedding=embeddings,
-        metadata=metadata,
-    )
-
-    query_db.add(
-        text=texts,
-        embedding=embeddings,
-        metadata=[{"relevence": [[id_, 1]]} for id_ in ids],
     )
 
     yield corpus, query

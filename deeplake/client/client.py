@@ -757,14 +757,9 @@ class JobResponseStatusSchema:
 
 def get_results(response, indent, add_vertical_bars, width=21):
     progress = response["progress"]
-
-    best_recall = 0
     for progress_key, progress_value in progress.items():
         if progress_key == "best_recall@10":
             recall, improvement = progress_value.split("%")[:2]
-
-            if float(recall) > best_recall:
-                best_recall = float(recall)
 
             output = (
                 "Congratulations! Your model has achieved a recall@10 of "
