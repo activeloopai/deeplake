@@ -1433,21 +1433,27 @@ class Tensor:
 
         if type(distance) == DistanceType:
             distance = distance.value
-        if incr_row_ids is not None:
+        if incr_row_ids is None:
             self.meta.add_vdb_index(
                 id=id, type="hnsw", distance=distance, additional_params=additional_params
             )
         try:
             if incr_row_ids is not None:
+                commit_id = self.version_state["commit_id"]
+                index_data = self.chunk_engine.base_storage[
+                    get_tensor_vdb_index_key(self.key, commit_id, id)
+                ]
                 if additional_params is None:
                     index = api.vdb.generate_index(
-                        ts, index_type="hnsw", incr_row_ids=incr_row_ids, delete_row = delete_row,)
+                        ts, index_type="hnsw", incr_row_ids=incr_row_ids, delete_row = delete_row, index_data = index_data,)
                 else:
                     index = api.vdb.generate_index(
                         ts,
+                        b,
                         index_type="hnsw",
                         incr_row_ids=incr_row_ids,
                         delete_row = delete_row,
+                        index_data = index_data,
                         param=additional_params,
                     )
             else:    

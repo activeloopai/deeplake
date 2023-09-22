@@ -1191,7 +1191,14 @@ def test_vdb_index_maintenance(local_path, hub_cloud_dev_token):
     )
 
     vector_store.add(embedding=embeddings_1, text=texts_1, id=ids_1, metadata=metadatas_1)
-    vector_store.add(embedding=embeddings_2, text=texts_2, id=ids_1, metadata=metadatas_2)
+    ds = vector_store.dataset
+    es = ds.embedding.get_vdb_indexes()
+    assert len(es) == 1
+    assert es[0]["id"] == "hnsw_1"
+    assert es[0]["distance"] == "l2_norm"
+    assert es[0]["type"] == "hnsw"
+
+    vector_store.add(embedding=embeddings_2, text=texts_2, id=ids_2, metadata=metadatas_2)
 
     assert len(vector_store) == number_of_data
 
