@@ -28,6 +28,7 @@ from deeplake.util.keys import (
     get_tensor_commit_diff_key,
     get_tensor_meta_key,
     get_tensor_tile_encoder_key,
+    get_tensor_vdb_index_key,
     get_sequence_encoder_key,
     tensor_exists,
     get_tensor_info_key,
@@ -72,6 +73,8 @@ from deeplake.htype import (
 )
 import warnings
 import webbrowser
+
+from deeplake.core.distance_type import DistanceType
 
 
 def create_tensor(
@@ -139,6 +142,12 @@ def delete_tensor(key: str, dataset):
     tensor = Tensor(key, dataset)
     chunk_engine: ChunkEngine = tensor.chunk_engine
     enc = chunk_engine.chunk_id_encoder
+
+    # Clear out the indexes associated with tensor.
+    index_ids = tensor.meta.get_vdb_index_ids()
+    for id in index_ids:
+        tensor.delete_vdb_index(id)
+
     n_chunks = chunk_engine.num_chunks
     chunk_names = [enc.get_name_for_chunk(i) for i in range(n_chunks)]
     chunk_keys = [
@@ -1398,6 +1407,148 @@ class Tensor:
     def invalidate_libdeeplake_dataset(self):
         """Invalidates the libdeeplake dataset object."""
         self.dataset.libdeeplake_dataset = None
+
+    def create_vdb_index(
+        self,
+        id: str,
+        distance: Union[DistanceType, str] = DistanceType.L2_NORM,
+        additional_params: Optional[Dict[str, int]] = None,
+    ):
+        self.storage.check_readonly()
+        if self.meta.htype != "embedding":
+            raise Exception(f"Only supported for embedding tensors.")
+        if not self.dataset.libdeeplake_dataset is None:
+            ds = self.dataset.libdeeplake_dataset
+        else:
+            from deeplake.enterprise.convert_to_libdeeplake import (
+                dataset_to_libdeeplake,
+            )
+
+            ds = dataset_to_libdeeplake(self.dataset)
+        ts = getattr(ds, self.meta.name)
+        from indra import api  # type: ignore
+
+        if type(distance) == DistanceType:
+            distance = distance.value
+        self.meta.add_vdb_index(
+            id=id, type="hnsw", distance=distance, additional_params=additional_params
+        )
+        try:
+            if additional_params is None:
+                index = api.vdb.generate_index(
+                    ts, index_type="hnsw", distance_type=distance
+                )
+            else:
+                index = api.vdb.generate_index(
+                    ts,
+                    index_type="hnsw",
+                    distance_type=distance,
+                    param=additional_params,
+                )
+            b = index.serialize()
+            commit_id = self.version_state["commit_id"]
+            self.storage[get_tensor_vdb_index_key(self.key, commit_id, id)] = b
+            self.invalidate_libdeeplake_dataset()
+        except:
+            self.meta.remove_vdb_index(id=id)
+            raise
+        return index
+
+    def delete_vdb_index(self, id: str):
+        self.storage.check_readonly()
+        if self.meta.htype != "embedding":
+            raise Exception(f"Only supported for embedding tensors.")
+        commit_id = self.version_state["commit_id"]
+        self.storage.pop(get_tensor_vdb_index_key(self.key, commit_id, id))
+        self.meta.remove_vdb_index(id=id)
+        self.invalidate_libdeeplake_dataset()
+        self.storage.flush()
+
+    def _regenerate_vdb_indexes(self):
+        try:
+            is_embedding = self.htype == "embedding"
+            has_vdb_indexes = hasattr(self.meta, "vdb_indexes")
+            try:
+                vdb_index_ids_present = len(self.meta.vdb_indexes) > 0
+            except AttributeError:
+                vdb_index_ids_present = False
+
+            if is_embedding and has_vdb_indexes and vdb_index_ids_present:
+                for vdb_index in self.meta.vdb_indexes:
+                    id = vdb_index["id"]
+                    distance = vdb_index["distance"]
+                    self.delete_vdb_index(id)
+                    # Recreate it back.
+                    self.create_vdb_index(id, distance)
+        except Exception as e:
+            raise Exception(f"An error occurred while regenerating VDB indexes: {e}")
+
+    def _verify_and_delete_vdb_indexes(self):
+        try:
+            is_embedding = self.htype == "embedding"
+            has_vdb_indexes = hasattr(self.meta, "vdb_indexes")
+            try:
+                vdb_index_ids_present = len(self.meta.vdb_indexes) > 0
+            except AttributeError:
+                vdb_index_ids_present = False
+
+            if is_embedding and has_vdb_indexes and vdb_index_ids_present:
+                for vdb_index in self.meta.vdb_indexes:
+                    id = vdb_index["id"]
+                    self.delete_vdb_index(id)
+        except Exception as e:
+            raise Exception(f"An error occurred while deleting VDB indexes: {e}")
+
+    def load_vdb_index(self, id: str):
+        if self.meta.htype != "embedding":
+            raise Exception(f"Only supported for embedding tensors.")
+        if not self.meta.contains_vdb_index(id):
+            raise ValueError(f"Tensor meta has no vdb index with name '{id}'.")
+        if not self.dataset.libdeeplake_dataset is None:
+            ds = self.dataset.libdeeplake_dataset
+        else:
+            from deeplake.enterprise.convert_to_libdeeplake import (
+                dataset_to_libdeeplake,
+            )
+
+            ds = dataset_to_libdeeplake(self.dataset)
+
+        ts = getattr(ds, self.meta.name)
+        from indra import api  # type: ignore
+
+        index_meta = next(x for x in self.meta.vdb_indexes if x["id"] == id)
+        commit_id = self.version_state["commit_id"]
+        b = self.chunk_engine.base_storage[
+            get_tensor_vdb_index_key(self.key, commit_id, id)
+        ]
+        return api.vdb.load_index(
+            ts, b, index_type=index_meta["type"], distance_type=index_meta["distance"]
+        )
+
+    def unload_index_cache(self):
+        if self.meta.htype != "embedding":
+            raise Exception(f"Only supported for embedding tensors.")
+        if not self.dataset.libdeeplake_dataset is None:
+            ds = self.dataset.libdeeplake_dataset
+        else:
+            from deeplake.enterprise.convert_to_libdeeplake import (
+                dataset_to_libdeeplake,
+            )
+
+            ds = dataset_to_libdeeplake(self.dataset)
+
+        ts = getattr(ds, self.meta.name)
+        from indra import api  # type: ignore
+
+        try:
+            api.vdb.unload_index_cache(ts)
+        except Exception as e:
+            raise Exception(f"An error occurred while cleaning VDB Cache: {e}")
+
+    def get_vdb_indexes(self) -> List[Dict[str, str]]:
+        if self.meta.htype != "embedding":
+            raise Exception(f"Only supported for embedding tensors.")
+        return self.meta.vdb_indexes
 
     def _check_compatibility_with_htype(self, htype):
         """Checks if the tensor is compatible with the given htype.
