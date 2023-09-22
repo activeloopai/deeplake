@@ -1,5 +1,5 @@
-from multiprocessing import Manager
 from deeplake.core.compute.provider import ComputeProvider
+from multiprocessing import Manager
 from pathos.pools import ThreadPool  # type: ignore
 
 
