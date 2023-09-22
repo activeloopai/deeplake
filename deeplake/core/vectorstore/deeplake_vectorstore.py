@@ -5,6 +5,9 @@ import jwt
 
 import numpy as np
 
+from deeplake.core.distance_type import DistanceType
+from deeplake.util.dataset import try_flushing
+
 try:
     from indra import api  # type: ignore
 
@@ -17,11 +20,14 @@ from deeplake.constants import (
     DEFAULT_VECTORSTORE_TENSORS,
     MAX_BYTES_PER_MINUTE,
     TARGET_BYTE_SIZE,
+    DEFAULT_VECTORSTORE_DISTANCE_METRIC,
 )
 from deeplake.client.utils import read_token
 from deeplake.core.vectorstore import utils
 from deeplake.core.vectorstore.vector_search import vector_search
 from deeplake.core.vectorstore.vector_search import dataset as dataset_utils
+from deeplake.core.vectorstore.vector_search import filter as filter_utils
+from deeplake.core.vectorstore.vector_search.indra import index
 
 from deeplake.util.bugout_reporter import (
     feature_report_path,
@@ -41,6 +47,7 @@ class VectorStore:
         embedding_function: Optional[Callable] = None,
         read_only: Optional[bool] = None,
         ingestion_batch_size: int = 1000,
+        index_params: Optional[Dict[str, Union[int, str]]] = None,
         num_workers: int = 0,
         exec_option: str = "auto",
         token: Optional[str] = None,
@@ -87,6 +94,14 @@ class VectorStore:
             read_only (bool, optional):  Opens dataset in read-only mode if True. Defaults to False.
             num_workers (int): Number of workers to use for parallel ingestion.
             ingestion_batch_size (int): Batch size to use for parallel ingestion.
+            index_params (Dict[str, Union[int, str]]): Dictionary containing information about vector index that will be created. Defaults to None, which will utilize ``DEFAULT_VECTORSTORE_INDEX_PARAMS`` from ``deeplake.constants``. The specified key-values override the default ones.
+                - threshold: The threshold for the dataset size above which an index will be created for the embedding tensor. When the threshold value is set to -1, index creation is turned off.
+                             Defaults to -1, which turns off the index.
+                - distance_metric: This key specifies the method of calculating the distance between vectors when creating the vector database (VDB) index. It can either be a string that corresponds to a member of the DistanceType enumeration, or the string value itself.
+                    - If no value is provided, it defaults to "L2".
+                    - "L2" corresponds to DistanceType.L2_NORM.
+                    - "COS" corresponds to DistanceType.COSINE_SIMILARITY.
+                - additional_params: Additional parameters for fine-tuning the index.
             exec_option (str): Default method for search execution. It could be either ``"auto"``, ``"python"``, ``"compute_engine"`` or ``"tensor_db"``. Defaults to ``"auto"``. If None, it's set to "auto".
                 - ``auto``- Selects the best execution method based on the storage location of the Vector Store. It is the default option.
                 - ``python`` - Pure-python implementation that runs on the client and can be used for data stored anywhere. WARNING: using this option with big datasets is discouraged because it can lead to memory issues.
@@ -124,6 +139,7 @@ class VectorStore:
                 "overwrite": overwrite,
                 "read_only": read_only,
                 "ingestion_batch_size": ingestion_batch_size,
+                "index_params": index_params,
                 "exec_option": exec_option,
                 "token": self.token,
                 "verbose": verbose,
@@ -134,6 +150,7 @@ class VectorStore:
         )
 
         self.ingestion_batch_size = ingestion_batch_size
+        self.index_params = utils.parse_index_params(index_params)
         self.num_workers = num_workers
 
         if creds is None:
@@ -157,6 +174,14 @@ class VectorStore:
         self._exec_option = exec_option
         self.verbose = verbose
         self.tensor_params = tensor_params
+        self.index_created = False
+        if utils.index_used(self.exec_option):
+            index.index_cache_cleanup(self.dataset)
+            self.index_created = index.validate_and_create_vector_index(
+                dataset=self.dataset,
+                index_params=self.index_params,
+                regenerate_index=False,
+            )
 
     @property
     def token(self):
@@ -306,6 +331,12 @@ class VectorStore:
         assert id_ is not None
         utils.check_length_of_each_tensor(processed_tensors)
 
+        # In Case prefilled dataset which is already having index defined
+        # regenerate the index post ingestion.
+        index_regeneration = False
+        if len(self.dataset) > 0 and index.check_vdb_indexes(self.dataset):
+            index_regeneration = True
+
         dataset_utils.extend_or_ingest_dataset(
             processed_tensors=processed_tensors,
             dataset=self.dataset,
@@ -315,6 +346,16 @@ class VectorStore:
             batch_byte_size=batch_byte_size,
             rate_limiter=rate_limiter,
         )
+
+        if utils.index_used(self.exec_option):
+            index.index_cache_cleanup(self.dataset)
+            self.index_created = index.validate_and_create_vector_index(
+                dataset=self.dataset,
+                index_params=self.index_params,
+                regenerate_index=index_regeneration,
+            )
+
+        try_flushing(self.dataset)
 
         if self.verbose:
             self.dataset.summary()
@@ -329,7 +370,7 @@ class VectorStore:
         embedding_function: Optional[Callable] = None,
         embedding: Optional[Union[List[float], np.ndarray]] = None,
         k: int = 4,
-        distance_metric: str = "COS",
+        distance_metric: Optional[str] = None,
         query: Optional[str] = None,
         filter: Optional[Union[Dict, Callable]] = None,
         exec_option: Optional[str] = None,
@@ -371,7 +412,7 @@ class VectorStore:
             embedding_data (List[str]): Data against which the search will be performed by embedding it using the `embedding_function`. Defaults to None. The `embedding_data` and `embedding` cannot both be specified.
             embedding_function (Optional[Callable], optional): function for converting `embedding_data` into embedding. Only valid if `embedding_data` is specified. Input to `embedding_function` is a list of data and output is a list of embeddings.
             k (int): Number of elements to return after running query. Defaults to 4.
-            distance_metric (str): Type of distance metric to use for sorting the data. Avaliable options are: ``"L1", "L2", "COS", "MAX"``. Defaults to ``"COS"``.
+            distance_metric (str): Distance metric to use for sorting the data. Avaliable options are: ``"L1", "L2", "COS", "MAX"``. Defaults to None, which uses same distance metric specified in ``index_params``. If there is no index, it performs linear search using ``DEFAULT_VECTORSTORE_DISTANCE_METRIC``.
             query (Optional[str]):  TQL Query string for direct evaluation, without application of additional filters or vector search.
             filter (Union[Dict, Callable], optional): Additional filter evaluated prior to the embedding search.
 
@@ -383,6 +424,7 @@ class VectorStore:
                 - ``python`` - Pure-python implementation that runs on the client and can be used for data stored anywhere. WARNING: using this option with big datasets is discouraged because it can lead to memory issues.
                 - ``compute_engine`` - Performant C++ implementation of the Deep Lake Compute Engine that runs on the client and can be used for any data stored in or connected to Deep Lake. It cannot be used with in-memory or local datasets.
                 - ``tensor_db`` - Performant and fully-hosted Managed Tensor Database that is responsible for storage and query execution. Only available for data stored in the Deep Lake Managed Database. Store datasets in this database by specifying runtime = {"tensor_db": True} during dataset creation.
+
             embedding_tensor (str): Name of tensor with embeddings. Defaults to "embedding".
             return_tensors (Optional[List[str]]): List of tensors to return data for. Defaults to None, which returns data for all tensors except the embedding tensor (in order to minimize payload). To return data for all tensors, specify return_tensors = "*".
             return_view (bool): Return a Deep Lake dataset view that satisfied the search parameters, instead of a dictionary with data. Defaults to False. If ``True`` return_tensors is set to "*" beucase data is lazy-loaded and there is no cost to including all tensors in the view.
@@ -416,6 +458,8 @@ class VectorStore:
             token=self.token,
             username=self.username,
         )
+
+        try_flushing(self.dataset)
 
         if exec_option is None and self.exec_option != "python" and callable(filter):
             logger.warning(
@@ -451,6 +495,14 @@ class VectorStore:
                 embedding_data,
                 embedding_function=embedding_function or self.embedding_function,
             )
+
+        if self.index_created:
+            distance_metric = index.get_index_distance_metric_from_params(
+                logger, self.index_params, distance_metric
+            )
+
+        distance_metric = distance_metric or DEFAULT_VECTORSTORE_DISTANCE_METRIC
+
         return vector_search.search(
             query=query,
             logger=logger,
@@ -550,7 +602,8 @@ class VectorStore:
         if dataset_deleted:
             return True
 
-        dataset_utils.delete_and_commit(self.dataset, row_ids)
+        dataset_utils.delete_and_without_commit(self.dataset, row_ids)
+        try_flushing(self.dataset)
         return True
 
     def update_embedding(
@@ -625,6 +678,8 @@ class VectorStore:
             username=self.username,
         )
 
+        try_flushing(self.dataset)
+
         (
             embedding_function,
             embedding_source_tensor,
@@ -656,19 +711,24 @@ class VectorStore:
         )
 
         self.dataset[row_ids].update(embedding_tensor_data)
-        self.dataset.commit(allow_empty=True)
+        try_flushing(self.dataset)
 
     @staticmethod
     def delete_by_path(
         path: Union[str, pathlib.Path],
         token: Optional[str] = None,
         force: bool = False,
+        creds: Optional[Union[Dict, str]] = None,
     ) -> None:
         """Deleted the Vector Store at the specified path.
 
         Args:
             path (str, pathlib.Path): The full path to the Deep Lake Vector Store.
             token (str, optional): Activeloop token, used for fetching user credentials. This is optional, as tokens are normally autogenerated. Defaults to ``None``.
+            creds (dict, str, optional): The string ``ENV`` or a dictionary containing credentials used to access the dataset at the path.
+                - If 'aws_access_key_id', 'aws_secret_access_key', 'aws_session_token' are present, these take precedence over credentials present in the environment or in credentials file. Currently only works with s3 paths.
+                - It supports 'aws_access_key_id', 'aws_secret_access_key', 'aws_session_token', 'endpoint_url', 'aws_region', 'profile_name' as keys.
+                - If 'ENV' is passed, credentials are fetched from the environment variables. This is also the case when creds is not passed for cloud datasets. For datasets connected to hub cloud, specifying 'ENV' will override the credentials fetched from Activeloop and use local ones.
             force (bool): delete the path in a forced manner without rising an exception. Defaults to ``True``.
 
         Danger:
@@ -683,10 +743,19 @@ class VectorStore:
                 "path": path,
                 "token": token,
                 "force": force,
+                "creds": creds,
             },
             token=token,
         )
-        deeplake.delete(path, large_ok=True, token=token, force=force)
+        deeplake.delete(path, large_ok=True, token=token, force=force, creds=creds)
+
+    def commit(self, allow_empty: bool = True) -> None:
+        """Commits the Vector Store.
+
+        Args:
+            allow_empty (bool): Whether to allow empty commits. Defaults to True.
+        """
+        self.dataset.commit(allow_empty=allow_empty)
 
     def tensors(self):
         """Returns the list of tensors present in the dataset"""

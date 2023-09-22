@@ -19,7 +19,10 @@ METRIC_FUNC_TO_METRIC_STRING = {
 
 
 def create_tql_string(metric_function, order="ASC"):
-    return f"select * from (select *, {METRIC_FUNC_TO_METRIC_STRING[metric_function]} as score) order by score {order} limit 10"
+    # TODO: BRING THIS BACK AND DELETE IMPLEMENTATION BELOW AFTER TQL IS UPDATED
+    # return f"select * from (select *, {METRIC_FUNC_TO_METRIC_STRING[metric_function]} as score) order by score {order} limit 10"
+
+    return f"select *, score from (select *, {METRIC_FUNC_TO_METRIC_STRING[metric_function]} as score order by {METRIC_FUNC_TO_METRIC_STRING[metric_function]} {order} limit 10)"
 
 
 METRIC_FUNC_TO_QUERY_STRING = {

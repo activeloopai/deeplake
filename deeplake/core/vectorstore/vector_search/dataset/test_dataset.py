@@ -128,7 +128,9 @@ def test_load(caplog, hub_cloud_dev_token):
     assert dataset.max_len == 10
 
     deeplake_vectorstore = DeepLakeVectorStore(
-        path=DEFAULT_VECTORSTORE_DEEPLAKE_PATH, overwrite=True
+        path=DEFAULT_VECTORSTORE_DEEPLAKE_PATH,
+        overwrite=True,
+        token=hub_cloud_dev_token,
     )
 
     test_logger = logging.getLogger("test_logger")

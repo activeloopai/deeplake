@@ -96,6 +96,12 @@ def get_tensor_meta_key(key: str, commit_id: str) -> str:
     return "/".join(("versions", commit_id, key, TENSOR_META_FILENAME))
 
 
+def get_tensor_vdb_index_key(key: str, commit_id: str, vdb_index_id) -> str:
+    if commit_id == FIRST_COMMIT_ID:
+        return "/".join((key, "vdb_indexes", vdb_index_id))
+    return "/".join(("versions", commit_id, key, "vdb_indexes", vdb_index_id))
+
+
 def get_tensor_tile_encoder_key(key: str, commit_id: str) -> str:
     if commit_id == FIRST_COMMIT_ID:
         return "/".join((key, ENCODED_TILE_NAMES_FOLDER, UNSHARDED_ENCODER_FILENAME))
