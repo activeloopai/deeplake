@@ -1,4 +1,8 @@
-from deeplake.util.exceptions import SampleAppendError, SampleAppendingError
+from deeplake.util.exceptions import (
+    SampleAppendError,
+    SampleAppendingError,
+    SampleExtendingError,
+)
 from deeplake.core.transform.transform_tensor import TransformTensor
 from deeplake.core.linked_tiled_sample import LinkedTiledSample
 from deeplake.core.partial_sample import PartialSample
@@ -78,6 +82,33 @@ class TransformDataset:
                 self[k].append(sample[k])
             elif append_empty:
                 self[k].append(None)
+
+    def extend(self, sample, skip_ok=False, append_empty=False):
+        if not isinstance(sample, dict):
+            raise SampleExtendingError()
+
+        if skip_ok:
+            raise ValueError(
+                "`skip_ok` is not supported for `ds.extend` in transforms. Use `skip_ok` parameter of the `eval` method instead."
+            )
+
+        if len(set(map(len, (self[k] for k in sample)))) != 1:
+            raise ValueError(
+                "All tensors are expected to have the same length before `ds.extend`."
+            )
+
+        n = len(next(iter(sample.values())))
+        for v in sample.values():
+            if len(v) != n:
+                sizes = {k: len(v) for (k, v) in sample.items()}
+                raise ValueError(
+                    f"Incoming samples are not of equal lengths. Incoming sample sizes: {sizes}"
+                )
+
+        for i in range(n):
+            self.append(
+                {k: v[i] for (k, v) in sample.items()}, append_empty=append_empty
+            )
 
     def update(self, sample):
         raise NotImplementedError("ds.update is not supported in transforms.")
