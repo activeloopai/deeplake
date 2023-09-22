@@ -14,7 +14,7 @@ def linf_norm(embedding_tensor, query_embedding):
     return f"LINF_NORM({embedding_tensor}-{query_embedding})"
 
 
-TQL_METRIC_TO_TQL_QUERY = {
+METRIC_TO_TQL_QUERY = {
     "l1": l1_norm,
     "l2": l2_norm,
     "cos": cosine_similarity,
@@ -23,5 +23,5 @@ TQL_METRIC_TO_TQL_QUERY = {
 
 
 def get_tql_distance_metric(distance_metric, embedding_tensor, query_embedding):
-    metric_fn = TQL_METRIC_TO_TQL_QUERY[distance_metric]
+    metric_fn = METRIC_TO_TQL_QUERY[distance_metric]
     return metric_fn(embedding_tensor, query_embedding)

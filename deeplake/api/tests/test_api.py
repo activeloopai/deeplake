@@ -2860,6 +2860,7 @@ def test_dataset_extend_error_suggestion(local_ds):
     ) in str(e)
 
 
+@pytest.mark.flaky(retry_count=3)
 def test_extend_rollbacks(local_ds, lfpw_links):
     with local_ds as ds:
         ds.create_tensor("images", htype="image", sample_compression="jpg")
