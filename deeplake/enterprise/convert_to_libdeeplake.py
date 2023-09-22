@@ -1,5 +1,6 @@
 from deeplake import Dataset
 
+from deeplake.constants import MB
 from deeplake.core.storage.gcs import GCSProvider
 from deeplake.enterprise.util import raise_indra_installation_error  # type: ignore
 from deeplake.core.storage import S3Provider
@@ -181,6 +182,8 @@ def dataset_to_libdeeplake(hub2_dataset: Dataset):
                 libdeeplake_dataset = _get_indra_ds_from_azure_provider(
                     path=path, token=token, provider=provider
                 )
+            else:
+                raise ValueError("Unknown storage provider for hub:// dataset")
 
         elif path.startswith("s3://"):
             libdeeplake_dataset = _get_indra_ds_from_s3_provider(
@@ -212,6 +215,9 @@ def dataset_to_libdeeplake(hub2_dataset: Dataset):
         libdeeplake_dataset = hub2_dataset.libdeeplake_dataset
 
     assert libdeeplake_dataset is not None
+    libdeeplake_dataset._max_cache_size = max(
+        hub2_dataset.storage.cache_size, libdeeplake_dataset._max_cache_size
+    )
     commit_id = hub2_dataset.pending_commit_id
     libdeeplake_dataset.checkout(commit_id)
     slice_ = hub2_dataset.index.values[0].value

@@ -704,7 +704,9 @@ def reset_and_checkout(ds, address, err, verbose=True):
 def _merge_commit_node_maps(map1, map2):
     merged_map = {}
 
-    def _merge_node(commit_id):
+    commit_ids = [FIRST_COMMIT_ID]
+    while commit_ids:
+        commit_id = commit_ids.pop()
         if commit_id in map1 and commit_id in map2:
             node1 = map1[commit_id]
             node2 = map2[commit_id]
@@ -718,23 +720,37 @@ def _merge_commit_node_maps(map1, map2):
                 "total_samples_processed",
             ):
                 setattr(merged_node, attr, getattr(node1, attr) or getattr(node2, attr))
-            for child in set(
-                [node.commit_id for node in node1.children]
-                + [node.commit_id for node in node2.children]
-            ):
-                merged_node.add_child(_merge_node(child))
+
+            if node1.parent:
+                assert node1.parent.commit_id == node2.parent.commit_id
+                parent_id = node1.parent.commit_id
+            else:
+                parent_id = None
+
+            commit_ids.extend(
+                set(
+                    [node.commit_id for node in node1.children]
+                    + [node.commit_id for node in node2.children]
+                )
+            )
         else:
             if commit_id in map1:
                 orig_node = map1[commit_id]
             else:
                 orig_node = map2[commit_id]
             merged_node = orig_node.copy()
-            for child in [node.commit_id for node in orig_node.children]:
-                merged_node.add_child(_merge_node(child))
-        merged_map[commit_id] = merged_node
-        return merged_node
 
-    _merge_node(FIRST_COMMIT_ID)
+            if orig_node.parent:
+                parent_id = orig_node.parent.commit_id
+            else:
+                parent_id = None
+
+            commit_ids.extend([node.commit_id for node in orig_node.children])
+
+        if parent_id:
+            parent_node = merged_map[parent_id]
+            parent_node.add_child(merged_node)
+        merged_map[commit_id] = merged_node
     return merged_map
 
 
