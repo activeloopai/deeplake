@@ -111,13 +111,11 @@ def validate_and_create_vector_index(dataset, index_params, regenerate_index=Fal
 
     below_threshold = threshold <= 0 or len(dataset) < threshold
 
-    print(f"below_threshold: {below_threshold}")
-
-    index_regen = False
     tensors = dataset.tensors
 
     # TODO: BRING BACK WHEN IT IS IN USE
 
+    # index_regen = False
     # Check if regenerate_index is true.
     # if regenerate_index:
     #     for _, tensor in tensors.items():
