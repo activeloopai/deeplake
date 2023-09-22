@@ -34,6 +34,8 @@ from tqdm.std import tqdm
 tqdm.monitor_interval = 0
 
 
+collect_ignore = ["cpp", "deeplake/cpp"]
+
 def pytest_configure(config):
     config.addinivalue_line(
         "markers",
