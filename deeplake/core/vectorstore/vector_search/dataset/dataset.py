@@ -236,8 +236,18 @@ def delete_and_commit(dataset, ids):
     return True
 
 
+def delete_and_without_commit(dataset, ids):
+    with dataset:
+        for id in sorted(ids)[::-1]:
+            dataset.pop(id)
+
+
 def delete_all_samples_if_specified(dataset, delete_all):
     if delete_all:
+        # delete any indexes linked to any tensors.
+        for t in dataset.tensors:
+            dataset[t]._verify_and_delete_vdb_indexes()
+
         dataset = deeplake.like(
             dataset.path,
             dataset,
@@ -271,6 +281,11 @@ def get_embedding(embedding, embedding_data, embedding_function=None):
         isinstance(embedding, list) or embedding.dtype != "float32"
     ):
         embedding = np.array(embedding, dtype=np.float32)
+
+    if isinstance(embedding, np.ndarray):
+        assert (
+            embedding.ndim == 1 or embedding.shape[0] == 1
+        ), "Query embedding must be 1-dimensional. Please consider using another embedding function for converting query string to embedding."
 
     return embedding
 
@@ -406,6 +421,7 @@ def extend(
     dataset: deeplake.core.dataset.Dataset,
     batch_byte_size: int,
     rate_limiter: Dict,
+    index_regeneration: bool = False,
 ):
     """
     Function to extend the dataset with new data.
@@ -418,10 +434,12 @@ def extend(
         dataset (deeplake.core.dataset.Dataset): Dataset to be extended.
         batch_byte_size (int): Batch size to use for parallel ingestion.
         rate_limiter (Dict): Rate limiter configuration.
+        index_regeneration (bool): Denotes if index will be regenerated or not.
 
     Raises:
         IncorrectEmbeddingShapeError: If embeding function shapes is incorrect.
         ValueError: If embedding function returned empty list
+
 
     """
     if embedding_function:
@@ -448,7 +466,9 @@ def extend(
 
             processed_tensors[tensor] = return_embedded_data
 
-    dataset.extend(processed_tensors, progressbar=True)
+    dataset.extend(
+        processed_tensors, progressbar=True, index_regeneration=index_regeneration
+    )
 
 
 class DataIterator:
@@ -526,6 +546,7 @@ def extend_or_ingest_dataset(
     embedding_data,
     batch_byte_size,
     rate_limiter,
+    index_regeneration=False,
 ):
     # TODO: Add back the old logic with checkpointing after indexing is fixed
     extend(
@@ -536,6 +557,7 @@ def extend_or_ingest_dataset(
         dataset,
         batch_byte_size,
         rate_limiter,
+        index_regeneration=index_regeneration,
     )
 
 

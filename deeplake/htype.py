@@ -69,7 +69,7 @@ HTYPE_CONFIGURATIONS: Dict[str, Dict] = {
     htype.BBOX: {"dtype": "float32", "coords": {}, "_info": ["coords"]},
     htype.BBOX_3D: {"dtype": "float32", "coords": {}, "_info": ["coords"]},
     htype.AUDIO: {"dtype": "float64"},
-    htype.EMBEDDING: {"dtype": "float32"},
+    htype.EMBEDDING: {"dtype": "float32", "vdb_indexes": []},
     htype.VIDEO: {"dtype": "uint8"},
     htype.BINARY_MASK: {
         "dtype": "bool"

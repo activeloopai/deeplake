@@ -38,7 +38,7 @@ MIN_FIRST_CACHE_SIZE = 32 * MB
 MIN_SECOND_CACHE_SIZE = 160 * MB
 
 # without MB multiplication, meant for the dataset API that takes cache size in MBs
-DEFAULT_MEMORY_CACHE_SIZE = 256
+DEFAULT_MEMORY_CACHE_SIZE = 2000
 DEFAULT_LOCAL_CACHE_SIZE = 0
 
 # maximum allowable size before `large_ok` must be passed to dataset delete methods
@@ -258,3 +258,14 @@ TARGET_BYTE_SIZE = 10000
 
 # Maximum default message length for saving query views
 QUERY_MESSAGE_MAX_SIZE = 1000
+
+DEFAULT_VECTORSTORE_DISTANCE_METRIC = "COS"
+
+DEFAULT_VECTORSTORE_INDEX_PARAMS = {
+    "threshold": -1,
+    "distance_metric": DEFAULT_VECTORSTORE_DISTANCE_METRIC,
+    "additional_params": {
+        "efConstruction": 200,
+        "M": 16,
+    },
+}
