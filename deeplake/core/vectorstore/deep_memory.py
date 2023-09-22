@@ -7,14 +7,7 @@ from time import time
 
 from deeplake.client import config
 from deeplake.core.vectorstore.vector_search import vector_search
-
-try:
-    from indra import api
-
-    INDRA_AVAILABLE = True
-except ImportError:
-    INDRA_AVAILABLE = False
-
+from deeplake.enterprise.dataloader import indra_available
 from deeplake.core.dataset import Dataset
 from deeplake.core.vectorstore import utils
 from deeplake.core.vectorstore.deeplake_vectorstore import VectorStore
@@ -63,6 +56,11 @@ class DeepMemory:
         """
         corpus_path = self.dataset.path
         queries_path = corpus_path + "_queries"
+
+        if embedding_function is None and self.embedding_function is None:
+            raise ValueError(
+                "Embedding function should be specifed either during initialization or during training."
+            )
 
         queries_vs = VectorStore(
             path=queries_path,
@@ -123,7 +121,6 @@ class DeepMemory:
         self,
         queries: List[str],
         relevances: List[List[Tuple[str, int]]],
-        run_locally: bool = True,
         embedding_function: Optional[Callable[[str], np.ndarray]] = None,
         top_k: List[int] = [1, 3, 5, 10, 50, 100],
     ):
@@ -136,16 +133,14 @@ class DeepMemory:
             embedding_function (Optional[Callable[[str], np.ndarray]], optional): Embedding funtion used to convert queries to embeddings. Defaults to None.
             top_k (List[int], optional): List of top_k values to evaluate the model on. Defaults to [1, 3, 5, 10, 50, 100].
         """
-        if not run_locally:
-            raise NotImplementedError(
-                "Evaluation on DeepMemory managed service is not yet implemented"
+        try:
+            indra_available()
+        except ImportError:
+            raise ImportError(
+                "indra is not installed. Please install indra to use this functionality."
             )
 
-        if not INDRA_AVAILABLE:
-            raise ImportError(
-                "Evaluation on DeepMemory managed service requires the indra package. "
-                "Please install it with `pip install deeplake[enterprise]`."
-            )
+        from indra import api
 
         indra_dataset = api.dataset(self.dataset.path)
         api.tql.prepare_deepmemory_metrics(indra_dataset)

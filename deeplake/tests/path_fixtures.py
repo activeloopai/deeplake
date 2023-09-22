@@ -442,8 +442,8 @@ def corpus_query_pair_path(request, hub_cloud_dev_token):
         overwrite=True,
     )
     deeplake.deepcopy(
-        "hub://testingacc2/scifact_corpus",
-        corpus,
+        "hub://testingacc2/scifact_queries",
+        query,
         token=hub_cloud_dev_token,
         overwrite=True,
     )
