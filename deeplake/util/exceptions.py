@@ -900,6 +900,16 @@ class SampleAppendingError(Exception):
         super().__init__(message)
 
 
+class SampleExtendingError(Exception):
+    def __init__(self):
+        message = (
+            "Cannot extend because tensor(s) are not specified. Expected input to ds.extend is a dictionary. "
+            "To extend tensors, you need to either specify the tensors and add the samples as a dictionary, like: "
+            "`ds.extend({'image_tensor': samples, 'label_tensor': samples})` or you need to call `extend` method of the required tensor, "
+            "like: `ds.image_tensor.extend(samples)`"
+        )
+
+
 class DatasetTooLargeToDelete(Exception):
     def __init__(self, ds_path):
         message = f"Deep Lake Dataset {ds_path} was too large to delete. Try again with large_ok=True."
