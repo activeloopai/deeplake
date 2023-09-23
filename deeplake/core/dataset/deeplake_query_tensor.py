@@ -35,9 +35,7 @@ class DeepLakeQueryTensor(tensor.Tensor):
 
     def __getattr__(self, key):
         if key == "chunk_engine":
-            raise AttributeError(
-                f"'{self.__class__}' object has no attribute '{key}'"
-            )
+            raise AttributeError(f"'{self.__class__}' object has no attribute '{key}'")
         try:
             return getattr(self.deeplake_tensor, key)
         except AttributeError:
