@@ -496,9 +496,10 @@ class VectorStore:
                 embedding_function=embedding_function or self.embedding_function,
             )
 
-        distance_metric = index.get_index_distance_metric_from_params(
-            logger, self.distance_metric_index, distance_metric
-        )
+        if self.distance_metric_index:
+            distance_metric = index.get_index_distance_metric_from_params(
+                logger, self.distance_metric_index, distance_metric
+            )
 
         distance_metric = distance_metric or DEFAULT_VECTORSTORE_DISTANCE_METRIC
 

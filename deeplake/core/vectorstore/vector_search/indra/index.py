@@ -155,7 +155,7 @@ def validate_and_create_vector_index(dataset, index_params, regenerate_index=Fal
                     return
                 except ValueError as e:
                     raise e
-            else:
+            elif len(vdb_indexes) > 0:
                 return vdb_indexes[0]["distance"]
 
     return None
