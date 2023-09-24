@@ -23,6 +23,8 @@ dask-worker-space/
 ###################
 *.com
 *.class
+*.exp
+*.lib
 *.dll
 *.exe
 *.o
