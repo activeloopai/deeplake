@@ -511,7 +511,6 @@ def test_search_basic(local_path, hub_cloud_dev_token):
     assert len(result) == 4
 
 
-@pytest.mark.slow
 @requires_libdeeplake
 def test_index_basic(local_path, hub_cloud_dev_token):
     # Start by testing behavior without an index
