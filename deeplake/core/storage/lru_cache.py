@@ -144,6 +144,7 @@ class LRUCache(StorageProvider):
             assert issubclass(expected_class, BaseChunk)
             if path in self.lru_sizes:
                 return self[path]
+            print(f"Getting header for path: {partial_bytes}B")
             buff = self.get_bytes(path, 0, partial_bytes)
             obj = expected_class.frombuffer(buff, meta, partial=True)
             obj.data_bytes = PartialReader(self, path, header_offset=obj.header_bytes)
@@ -245,6 +246,7 @@ class LRUCache(StorageProvider):
             and self.cache_storage[path].is_partially_read_chunk
         ):
             self.lru_sizes.move_to_end(path)  # refresh position for LRU
+            print(f"Getting bytes from cache for {path}: {end_byte - start_byte}B")
             return self.cache_storage[path][start_byte:end_byte]
         else:
             if self.next_storage is not None:

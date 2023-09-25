@@ -1368,7 +1368,7 @@ class Tensor:
         if self.ndim == 1:
             return self.numpy(fetch_chunks=fetch_chunks)[0]
         else:
-            return [sample[0] for sample in self.numpy(aslist=True)]
+            return [sample[0] for sample in self.numpy(aslist=True, fetch_chunks=fetch_chunks)]
 
     def text(self, fetch_chunks: bool = False):
         """Return text data. Only applicable for tensors with 'text' base htype."""
