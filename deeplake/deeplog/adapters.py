@@ -3,14 +3,15 @@ from typing import Tuple
 from deeplake.constants import FIRST_COMMIT_ID
 
 from deeplake.core.meta import TensorMeta
-from deeplake.deeplog import DeepLog
+from deeplake.deeplog import DeepLog, DeepLogSnapshot
 
 
 def get_tensor_metadata(
     deeplog: DeepLog, branch_id: str, branch_version: int
 ) -> TensorMeta:
+    snapshot = DeepLogSnapshot(branch_id, branch_version, deeplog)
     create_tensor = [
-        tensor for tensor in deeplog.tensors(branch_id, branch_version).data()
+        tensor for tensor in snapshot.tensors()
     ][0]
     meta = TensorMeta()
     meta.name = create_tensor.name
@@ -34,10 +35,10 @@ def get_tensor_metadata(
 
 
 def parse_commit_id(commit_id: str) -> Tuple[str, int]:
-    branch_id, _, branch_version = commit_id.rpartition("-")
+    branch_id, _, branch_version = commit_id.partition("-")
 
-    if branch_id == "":
-        branch_id = FIRST_COMMIT_ID
+    if branch_id == FIRST_COMMIT_ID:
+        branch_id = ""
     return branch_id, int(branch_version)
 
 
