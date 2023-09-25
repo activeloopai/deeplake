@@ -1,6 +1,28 @@
 #include "create_tensor_action.hpp"
 
 namespace deeplog {
+
+    std::shared_ptr<arrow::DataType> create_tensor_action::arrow_struct = arrow::struct_({
+                                                                           arrow::field("id", arrow::utf8()),
+                                                                           arrow::field("name", arrow::utf8()),
+                                                                           arrow::field("dtype", arrow::utf8()),
+                                                                           arrow::field("htype", arrow::utf8()),
+                                                                           arrow::field("length", arrow::uint64()),
+                                                                           arrow::field("link", arrow::boolean()),
+                                                                           arrow::field("sequence", arrow::boolean()),
+                                                                           arrow::field("hidden", arrow::boolean()),
+                                                                           arrow::field("chunkCompression", arrow::utf8()),
+                                                                           arrow::field("sampleCompression", arrow::utf8()),
+                                                                           arrow::field("links", arrow::map(arrow::utf8(), arrow::map(arrow::utf8(), arrow::utf8()))),
+                                                                           arrow::field("maxChunkSize", arrow::uint64()),
+                                                                           arrow::field("minShape", arrow::list(arrow::uint64())),
+                                                                           arrow::field("maxShape", arrow::list(arrow::uint64())),
+                                                                           arrow::field("tilingThreshold", arrow::uint64()),
+                                                                           arrow::field("typestr", arrow::utf8()),
+                                                                           arrow::field("verify", arrow::boolean()),
+                                                                           arrow::field("version", arrow::utf8()),
+                                                                   });
+
     create_tensor_action::create_tensor_action(std::string id, std::string name,
                                                std::optional<std::string> dtype, std::string htype,
                                                long length, bool is_link, bool is_sequence, bool hidden,

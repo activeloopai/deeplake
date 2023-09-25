@@ -7,6 +7,8 @@
 namespace deeplog {
     class remove_file_action : public action {
     public:
+        static std::shared_ptr<arrow::DataType> arrow_struct;
+
         remove_file_action(std::string path, long size, long deletion_timestamp, bool data_change);
 
         remove_file_action(const nlohmann::json &j);

@@ -1,6 +1,15 @@
 #include "create_commit_action.hpp"
 
 namespace deeplog {
+
+    std::shared_ptr<arrow::DataType> create_commit_action::arrow_struct = arrow::struct_({
+                                                                           arrow::field("id", arrow::utf8()),
+                                                                           arrow::field("branchId", arrow::utf8()),
+                                                                           arrow::field("branchVersion", arrow::uint64()),
+                                                                           arrow::field("message", arrow::utf8()),
+                                                                           arrow::field("commitTime", arrow::uint64()),
+                                                                   });
+
     create_commit_action::create_commit_action(std::string id, std::string branch_id, long branch_version, std::optional<std::string> message, long commit_time) :
             id(std::move(id)), branch_id(std::move(branch_id)), branch_version(branch_version), message(std::move(message)), commit_time(commit_time) {}
 
@@ -34,15 +43,7 @@ namespace deeplog {
     }
 
     std::shared_ptr<arrow::StructBuilder> deeplog::create_commit_action::arrow_array() {
-        auto action_struct = arrow::struct_({
-                                                      arrow::field("id", arrow::utf8()),
-                                                      arrow::field("branchId", arrow::utf8()),
-                                                      arrow::field("branchVersion", arrow::uint64()),
-                                                      arrow::field("message", arrow::utf8()),
-                                                      arrow::field("commitTime", arrow::uint64()),
-                                              });
-
-        return std::make_shared<arrow::StructBuilder>(std::move(arrow::StructBuilder(action_struct, arrow::default_memory_pool(), {
+        return std::make_shared<arrow::StructBuilder>(std::move(arrow::StructBuilder(arrow_struct, arrow::default_memory_pool(), {
                 std::make_shared<arrow::StringBuilder>(arrow::StringBuilder()),
                 std::make_shared<arrow::StringBuilder>(arrow::StringBuilder()),
                 std::make_shared<arrow::Int64Builder>(arrow::Int64Builder()),

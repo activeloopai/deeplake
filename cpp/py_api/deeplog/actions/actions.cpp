@@ -21,7 +21,7 @@ namespace py_api {
 
         pybind11::class_<deeplog::create_branch_action, deeplog::action, std::shared_ptr<deeplog::create_branch_action>>(module, "CreateBranchAction")
                 .def(pybind11::init<std::string, std::string, std::string, long>(),
-                     pybind11::arg("id"), pybind11::arg("name"), pybind11::arg("from_branch_id"), pybind11::arg("from_branch_version"))
+                     pybind11::arg("id"), pybind11::arg("name"), pybind11::arg("from_id"), pybind11::arg("from_version"))
                 .def_readonly("id", &deeplog::create_branch_action::id)
                 .def_readonly("name", &deeplog::create_branch_action::name)
                 .def_readonly("from_id", &deeplog::create_branch_action::from_id)

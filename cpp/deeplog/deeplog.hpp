@@ -54,18 +54,21 @@ namespace deeplog {
 
         void checkpoint(const std::string &branch_id);
 
+        arrow::Result<std::shared_ptr<arrow::Table>> operations(const std::string &branch_id, const long &from, const std::optional<long> &to) const;
+        deeplog_state<std::vector<std::shared_ptr<action>>> list_actions(const std::string &branch_id, const long &from, const std::optional<long> &to) const;
+
     private:
 
         //only created through open() etc.
         deeplog(std::string path);
 
-        deeplog_state<std::vector<std::shared_ptr<action>>> list_actions(const std::string &branch_id, const long &from, const std::optional<long> &to) const;
-
-        arrow::Status read_checkpoint(const std::string &dir_path, const long &version, std::vector<std::shared_ptr<action>> &actions) const;
-
+        arrow::Result<std::shared_ptr<arrow::Table>> read_checkpoint(const std::string &dir_path, const long &version) const;
+        arrow::Result<std::shared_ptr<arrow::StructScalar>> last_value(const std::string &column_name, const std::shared_ptr<arrow::Table> &table) const;
         arrow::Status write_checkpoint(const std::string &branch_id, const long &version);
 
         long file_version(const std::filesystem::path &path) const;
+
+        const static std::shared_ptr<arrow::Schema> arrow_schema;
     };
 
 }

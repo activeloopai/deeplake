@@ -11,6 +11,8 @@ namespace deeplog {
 
         virtual void to_json(nlohmann::json &json) = 0;
         virtual arrow::Status append_to(const std::shared_ptr<arrow::StructBuilder> &builder) = 0;
+
     };
+
 
 }

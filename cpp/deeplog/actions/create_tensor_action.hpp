@@ -6,6 +6,8 @@ namespace deeplog {
     class create_tensor_action : public action {
 
     public:
+        static std::shared_ptr<arrow::DataType> arrow_struct;
+
         create_tensor_action(std::string id,
                              std::string name,
                              std::optional<std::string> dtype,

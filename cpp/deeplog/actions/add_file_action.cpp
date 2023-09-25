@@ -1,6 +1,14 @@
 #include "add_file_action.hpp"
 
 namespace deeplog {
+
+    std::shared_ptr<arrow::DataType> add_file_action::arrow_struct = arrow::struct_({
+                                                                           arrow::field("path", arrow::utf8()),
+                                                                           arrow::field("size", arrow::uint64()),
+                                                                           arrow::field("modificationTime", arrow::uint64()),
+                                                                           arrow::field("dataChange", arrow::boolean()),
+                                                                   });
+
     add_file_action::add_file_action(std::string path, long size, long modification_time, bool data_change) :
             path(path), size(size), modification_time(modification_time), data_change(data_change) {}
 
@@ -27,14 +35,7 @@ namespace deeplog {
     }
 
     std::shared_ptr<arrow::StructBuilder> deeplog::add_file_action::arrow_array() {
-        auto protocol_struct = arrow::struct_({
-                                                      arrow::field("path", arrow::utf8()),
-                                                      arrow::field("size", arrow::uint64()),
-                                                      arrow::field("modificationTime", arrow::uint64()),
-                                                      arrow::field("dataChange", arrow::boolean()),
-                                              });
-
-        return std::make_shared<arrow::StructBuilder>(std::move(arrow::StructBuilder(protocol_struct, arrow::default_memory_pool(), {
+        return std::make_shared<arrow::StructBuilder>(std::move(arrow::StructBuilder(arrow_struct, arrow::default_memory_pool(), {
                 std::make_shared<arrow::StringBuilder>(arrow::StringBuilder()),
                 std::make_shared<arrow::Int64Builder>(arrow::Int64Builder()),
                 std::make_shared<arrow::Int64Builder>(arrow::Int64Builder()),

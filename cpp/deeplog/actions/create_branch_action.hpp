@@ -6,7 +6,11 @@ namespace deeplog {
     class create_branch_action : public action {
 
     public:
-        create_branch_action(std::string id, std::string name, std::string from_branch, long from_version);
+        static std::shared_ptr<arrow::DataType> arrow_struct;
+
+        create_branch_action(std::string id, std::string name, std::string from_id, long from_version);
+
+        create_branch_action(const std::shared_ptr<arrow::StructScalar> &struct_scalar);
 
         create_branch_action(const nlohmann::json &j);
 

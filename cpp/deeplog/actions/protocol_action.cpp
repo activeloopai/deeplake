@@ -3,10 +3,28 @@
 #include "protocol_action.hpp"
 
 namespace deeplog {
+
+    std::shared_ptr<arrow::DataType> protocol_action::arrow_struct = arrow::struct_({
+                                                                                            arrow::field("minReaderVersion", arrow::int32()),
+                                                                                            arrow::field("minWriterVersion", arrow::int32()),
+                                                                                    });
+
     deeplog::protocol_action::protocol_action(int min_reader_version, int min_writer_version)
             : min_reader_version(min_reader_version), min_writer_version(min_writer_version) {}
 
     protocol_action::protocol_action(const nlohmann::json &j) {
+//        auto protocol_struct = arrow::struct_({
+//                                                      arrow::field("minReaderVersion", arrow::int32()),
+//                                                      arrow::field("minWriterVersion", arrow::int32()),
+//                                              });
+//
+//        auto name = "protocol";
+//
+//        auto base = j.at(name);
+//        for (auto field : protocol_struct->fields()) {
+//            base.at(field->name()).get_to()
+//        }
+
         j.at("protocol").at("minReaderVersion").get_to(min_reader_version);
         j.at("protocol").at("minWriterVersion").get_to(min_writer_version);
     }
@@ -31,15 +49,13 @@ namespace deeplog {
 
 
     std::shared_ptr<arrow::StructBuilder> deeplog::protocol_action::arrow_array() {
-        auto protocol_struct = arrow::struct_({
-                                                      arrow::field("minReaderVersion", arrow::int32()),
-                                                      arrow::field("minWriterVersion", arrow::int32()),
-                                              });
+        std::vector<std::shared_ptr<arrow::ArrayBuilder>> builders = {};
 
-        return std::make_shared<arrow::StructBuilder>(std::move(arrow::StructBuilder(protocol_struct, arrow::default_memory_pool(), {
-                std::make_shared<arrow::Int32Builder>(arrow::Int32Builder()),
-                std::make_shared<arrow::Int32Builder>(arrow::Int32Builder()),
-        })));
+        for (auto field : arrow_struct->fields()) {
+            builders.push_back(arrow::MakeBuilder(field->type()).ValueOrDie());
+        }
+
+        return std::make_shared<arrow::StructBuilder>(std::move(arrow::StructBuilder(arrow_struct, arrow::default_memory_pool(), builders)));
 
     }
 }

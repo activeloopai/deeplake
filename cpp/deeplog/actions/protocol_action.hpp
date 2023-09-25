@@ -9,6 +9,8 @@ namespace deeplog {
     public:
         static std::shared_ptr<arrow::StructBuilder> arrow_array();
 
+        static std::shared_ptr<arrow::DataType> arrow_struct;
+
         protocol_action(int min_reader_version, int min_writer_version);
 
         protocol_action(const nlohmann::json &j);

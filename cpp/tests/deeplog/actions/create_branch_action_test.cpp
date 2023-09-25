@@ -10,7 +10,7 @@ TEST(CreateBranchActionTest, to_json) {
 
     json j = json::object();
     action.to_json(j);
-    EXPECT_EQ("{\"createBranch\":{\"fromId\":\"other_id\",\"fromVersion\":93,\"id\":\"my_id\",\"name\":\"my_name\"}}", j.dump());
+    EXPECT_EQ("{\"branch\":{\"fromId\":\"other_id\",\"fromVersion\":93,\"id\":\"my_id\",\"name\":\"my_name\"}}", j.dump());
 
     auto parsed = deeplog::create_branch_action(j);
     EXPECT_EQ("my_id", parsed.id);
