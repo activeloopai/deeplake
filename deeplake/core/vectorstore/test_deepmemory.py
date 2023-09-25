@@ -41,7 +41,7 @@ def test_deepmemory_train_and_cancel(
 
     job = db.deep_memory.train(
         query_embeddings=questions_embeddings,
-        query_relevances=questions_relevances,
+        relevances=questions_relevances,
     )
 
     cancelled = db.deep_memory.cancel(job["job_id"])
