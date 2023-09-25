@@ -152,7 +152,7 @@ def validate_and_create_vector_index(dataset, index_params, regenerate_index=Fal
                     else:
                         tensor.create_vdb_index("hnsw_1", distance=distance)
 
-                    return
+                    return distance
                 except ValueError as e:
                     raise e
             elif len(vdb_indexes) > 0:

@@ -15,6 +15,7 @@ from deeplake.core.vectorstore import utils
 from deeplake.tests.common import requires_libdeeplake
 from deeplake.constants import (
     DEFAULT_VECTORSTORE_TENSORS,
+    DEFAULT_VECTORSTORE_DISTANCE_METRIC,
 )
 from deeplake.constants import MB
 from deeplake.util.exceptions import (
@@ -22,6 +23,7 @@ from deeplake.util.exceptions import (
     TensorDoesNotExistError,
     DatasetHandlerError,
 )
+from deeplake.core.vectorstore.vector_search.indra.index import METRIC_TO_INDEX_METRIC
 from deeplake.core.vectorstore.vector_search import dataset as dataset_utils
 from deeplake.cli.auth import login, logout
 from click.testing import CliRunner
@@ -507,6 +509,43 @@ def test_search_basic(local_path, hub_cloud_dev_token):
     vector_store.add(embedding=embeddings, text=texts, metadata=metadatas)
     result = vector_store.search(embedding_data=["dummy"])
     assert len(result) == 4
+
+
+@pytest.mark.slow
+@requires_libdeeplake
+def test_index_basic(local_path, hub_cloud_dev_token):
+    # Start by testing behavior without an index
+    vector_store = VectorStore(
+        path=local_path,
+        overwrite=True,
+        token=hub_cloud_dev_token,
+    )
+
+    vector_store.add(embedding=embeddings, text=texts, metadata=metadatas)
+
+    assert vector_store.distance_metric_index is None
+
+    # Then test behavior when index is added
+    vector_store = VectorStore(
+        path=local_path, token=hub_cloud_dev_token, index_params={"threshold": 1}
+    )
+
+    assert (
+        vector_store.distance_metric_index
+        == METRIC_TO_INDEX_METRIC[DEFAULT_VECTORSTORE_DISTANCE_METRIC]
+    )
+
+    # Then test behavior when index is added previously and the dataset is reloaded
+    vector_store = VectorStore(path=local_path, token=hub_cloud_dev_token)
+
+    assert (
+        vector_store.distance_metric_index
+        == METRIC_TO_INDEX_METRIC[DEFAULT_VECTORSTORE_DISTANCE_METRIC]
+    )
+
+    # Check that distance metric cannot be specified when there is an index
+    with pytest.warns(None):
+        vector_store.search(embedding=query_embedding, distance_metric="blabla")
 
 
 @pytest.mark.slow
