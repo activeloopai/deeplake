@@ -433,7 +433,7 @@ def hub_cloud_vstream_path(request, hub_cloud_dev_token):
 
 
 @pytest.fixture
-def corpus_query_copy(request, hub_cloud_dev_token):
+def corpus_query_relevances_copy(request, hub_cloud_dev_token):
     if not is_opt_true(request, HUB_CLOUD_OPT):
         pytest.skip(f"{HUB_CLOUD_OPT} flag not set")
         return
@@ -445,15 +445,18 @@ def corpus_query_copy(request, hub_cloud_dev_token):
         token=hub_cloud_dev_token,
     )
     queries = query_vs.dataset.text.data()["value"]
+    relevances = query_vs.dataset.metadata.data()["value"]
+    relevances = [relevance["relevance"] for relevance in relevances]
 
     deeplake.deepcopy(
         f"hub://{HUB_CLOUD_DEV_USERNAME}/deepmemory_test_corpus",
         corpus,
         token=hub_cloud_dev_token,
         overwrite=True,
+        runtime={"tensor_db": True},
     )
 
-    yield corpus, queries
+    yield corpus, queries, relevances
 
     deeplake.delete(corpus, force=True, large_ok=True, token=hub_cloud_dev_token)
 

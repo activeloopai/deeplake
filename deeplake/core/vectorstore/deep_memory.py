@@ -41,7 +41,6 @@ class DeepMemory:
         self,
         queries: List[str],
         relevances: List[List[Tuple[str, int]]],
-        query_embeddings: Optional[List[np.ndarray]] = None,
         embedding_function: Optional[Callable[[str], np.ndarray]] = None,
         token: Optional[str] = None,
     ):
@@ -56,6 +55,7 @@ class DeepMemory:
         Returns:
             str: job_id of the training job.
         """
+        # TODO: Support for passing query_embeddings directly without embedding function
         corpus_path = self.dataset.path
         queries_path = corpus_path + "_queries"
 
@@ -81,10 +81,7 @@ class DeepMemory:
             ],
         }
 
-        if query_embeddings:
-            add_kwargs["embedding"] = query_embeddings
-        else:
-            add_kwargs["embedding_data"] = [query for query in queries]
+        add_kwargs["embedding_data"] = [query for query in queries]
         queries_vs.add(**add_kwargs)
         # do some rest_api calls to train the model
         response = self.client.start_taining(
@@ -102,8 +99,24 @@ class DeepMemory:
         try:
             self.client.cancel_job(job_id=job_id)
             print(f"Job with job_id='{job_id}' was sucessfully cancelled!")
+            return True
         except Exception as e:
             print(f"Job with job_id='{job_id}' was not cancelled! Error: {e}")
+            return False
+
+    def delete(self, job_id: str):
+        """Delete a training job on DeepMemory managed service.
+
+        Args:
+            job_id (str): job_id of the training job.
+        """
+        try:
+            self.client.delete_job(job_id=job_id)
+            print(f"Job with job_id='{job_id}' was sucessfully deleted!")
+            return True
+        except Exception as e:
+            print(f"Job with job_id='{job_id}' was not deleted! Error: {e}")
+            return False
 
     def status(self, job_id: Union[str, List[str]]):
         """Get the status of a training job on DeepMemory managed service.
