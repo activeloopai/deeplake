@@ -34,8 +34,6 @@ class DeepLakeQueryTensor(tensor.Tensor):
         self._index = index or Index(self.indra_tensor.index)
 
     def __getattr__(self, key):
-        if key == "chunk_engine":
-            raise AttributeError(f"'{self.__class__}' object has no attribute '{key}'")
         try:
             return getattr(self.deeplake_tensor, key)
         except AttributeError:
@@ -110,7 +108,7 @@ class DeepLakeQueryTensor(tensor.Tensor):
 
     @htype.setter
     def htype(self, value):
-        raise NotImplementedError("htype of a query tensor cannot be set.")
+        raise NotImplementedError("htype of a virtual tensor cannot be set.")
 
     @property
     def sample_compression(self):
@@ -134,6 +132,10 @@ class DeepLakeQueryTensor(tensor.Tensor):
     @property
     def min_shape(self):
         return self.indra_tensor.min_shape
+
+    @property
+    def chunk_engine(self):
+        raise NotImplementedError("Virtual tensor does not have chunk engine.")
 
     @property
     def shape(self):
