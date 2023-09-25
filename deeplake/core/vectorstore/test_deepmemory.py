@@ -40,6 +40,7 @@ def test_deepmemory_train_and_cancel(
     questions_embeddings, questions_relevances = questions_embeddings_and_relevances
 
     job = db.deep_memory.train(
+        queries=queries,
         query_embeddings=questions_embeddings,
         relevances=questions_relevances,
     )
