@@ -8,11 +8,11 @@ namespace deeplog {
     public:
         create_tensor_action(std::string id,
                              std::string name,
-                             std::string dtype,
+                             std::optional<std::string> dtype,
                              std::string htype,
                              long length,
-                             bool link,
-                             bool sequence,
+                             bool is_link,
+                             bool is_sequence,
                              bool hidden,
                              std::optional<std::string> chunk_compression,
                              std::optional<std::string> sample_compression,
@@ -40,11 +40,11 @@ namespace deeplog {
     public:
         std::string id;
         std::string name;
-        std::string dtype;
+        std::optional<std::string> dtype;
         std::string htype;
         long length;
-        bool link;
-        bool sequence;
+        bool is_link;
+        bool is_sequence;
         bool hidden;
         std::optional<std::string> chunk_compression;
         std::optional<std::string> sample_compression;

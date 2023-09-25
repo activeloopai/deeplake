@@ -2,8 +2,8 @@
 
 namespace deeplog {
     create_tensor_action::create_tensor_action(std::string id, std::string name,
-                                               std::string dtype, std::string htype,
-                                               long length, bool link, bool sequence, bool hidden,
+                                               std::optional<std::string> dtype, std::string htype,
+                                               long length, bool is_link, bool is_sequence, bool hidden,
                                                std::optional<std::string> chunk_compression, std::optional<std::string> sample_compression,
                                                std::map<std::string, std::map<std::string, std::string>> links,
                                                std::optional<long> max_chunk_size,
@@ -14,7 +14,7 @@ namespace deeplog {
                                                bool verify, std::string version)
             : id(id), name(name),
               dtype(dtype), htype(htype),
-              length(length), link(link), sequence(sequence), hidden(hidden),
+              length(length), is_link(is_link), is_sequence(is_sequence), hidden(hidden),
               chunk_compression(chunk_compression), sample_compression(sample_compression),
               links(links),
               max_chunk_size(max_chunk_size),
@@ -27,10 +27,12 @@ namespace deeplog {
         const auto &base = j.at("tensor");
         base.at("id").get_to(id);
         base.at("name").get_to(name);
-        base.at("dtype").get_to(dtype);
+        if (!base.at("dtype").is_null()) {
+            dtype = base.at("dtype").get<std::string>();
+        }
         base.at("htype").get_to(htype);
-        base.at("link").get_to(link);
-        base.at("sequence").get_to(sequence);
+        base.at("link").get_to(is_link);
+        base.at("sequence").get_to(is_sequence);
         base.at("hidden").get_to(hidden);
         if (!base.at("chunkCompression").is_null()) {
             chunk_compression = base.at("chunkCompression").get<std::string>();
@@ -59,8 +61,8 @@ namespace deeplog {
         dtype = reinterpret_pointer_cast<arrow::StringScalar>(value->field("dtype").ValueOrDie())->view();
         htype = reinterpret_pointer_cast<arrow::StringScalar>(value->field("htype").ValueOrDie())->view();
         length = reinterpret_pointer_cast<arrow::Int64Scalar>(value->field("length").ValueOrDie())->value;
-        link = reinterpret_pointer_cast<arrow::BooleanScalar>(value->field("link").ValueOrDie())->value;
-        sequence = reinterpret_pointer_cast<arrow::BooleanScalar>(value->field("sequence").ValueOrDie())->value;
+        is_link = reinterpret_pointer_cast<arrow::BooleanScalar>(value->field("link").ValueOrDie())->value;
+        is_sequence = reinterpret_pointer_cast<arrow::BooleanScalar>(value->field("sequence").ValueOrDie())->value;
         hidden = reinterpret_pointer_cast<arrow::BooleanScalar>(value->field("hidden").ValueOrDie())->value;
         chunk_compression = reinterpret_pointer_cast<arrow::StringScalar>(value->field("chunkCompression").ValueOrDie())->view();
         sample_compression = reinterpret_pointer_cast<arrow::StringScalar>(value->field("sampleCompression").ValueOrDie())->view();
@@ -76,11 +78,15 @@ namespace deeplog {
     void create_tensor_action::to_json(nlohmann::json &j) {
         j["tensor"]["id"] = id;
         j["tensor"]["name"] = name;
-        j["tensor"]["dtype"] = dtype;
+        if (dtype.has_value()) {
+            j["tensor"]["dtype"] = dtype.value();
+        } else {
+            j["tensor"]["dtype"] = nlohmann::json::value_t::null;
+        }
         j["tensor"]["htype"] = htype;
         j["tensor"]["length"] = length;
-        j["tensor"]["link"] = link;
-        j["tensor"]["sequence"] = sequence;
+        j["tensor"]["link"] = is_link;
+        j["tensor"]["sequence"] = is_sequence;
         j["tensor"]["hidden"] = hidden;
         if (chunk_compression.has_value()) {
             j["tensor"]["chunkCompression"] = chunk_compression.value();
@@ -121,8 +127,8 @@ namespace deeplog {
                                                     arrow::field("dtype", arrow::utf8()),
                                                     arrow::field("htype", arrow::utf8()),
                                                     arrow::field("length", arrow::uint64()),
-                                                    arrow::field("link", arrow::boolean()),
-                                                    arrow::field("sequence", arrow::boolean()),
+                                                    arrow::field("is_link", arrow::boolean()),
+                                                    arrow::field("is_sequence", arrow::boolean()),
                                                     arrow::field("hidden", arrow::boolean()),
                                                     arrow::field("chunkCompression", arrow::utf8()),
                                                     arrow::field("sampleCompression", arrow::utf8()),
@@ -160,11 +166,15 @@ namespace deeplog {
     arrow::Status create_tensor_action::append_to(const std::shared_ptr<arrow::StructBuilder> &builder) {
         ARROW_RETURN_NOT_OK(builder->field_builder(0)->AppendScalar(arrow::StringScalar{id}));
         ARROW_RETURN_NOT_OK(builder->field_builder(1)->AppendScalar(arrow::StringScalar{name}));
-        ARROW_RETURN_NOT_OK(builder->field_builder(2)->AppendScalar(arrow::StringScalar{dtype}));
+        if (dtype.has_value()) {
+            ARROW_RETURN_NOT_OK(builder->field_builder(2)->AppendScalar(arrow::StringScalar{dtype.value()}));
+        } else {
+            ARROW_RETURN_NOT_OK(builder->field_builder(2)->AppendNull());
+        }
         ARROW_RETURN_NOT_OK(builder->field_builder(3)->AppendScalar(arrow::StringScalar{htype}));
         ARROW_RETURN_NOT_OK(builder->field_builder(4)->AppendScalar(arrow::Int64Scalar{length}));
-        ARROW_RETURN_NOT_OK(builder->field_builder(5)->AppendScalar(arrow::BooleanScalar{link}));
-        ARROW_RETURN_NOT_OK(builder->field_builder(6)->AppendScalar(arrow::BooleanScalar{sequence}));
+        ARROW_RETURN_NOT_OK(builder->field_builder(5)->AppendScalar(arrow::BooleanScalar{is_link}));
+        ARROW_RETURN_NOT_OK(builder->field_builder(6)->AppendScalar(arrow::BooleanScalar{is_sequence}));
         ARROW_RETURN_NOT_OK(builder->field_builder(7)->AppendScalar(arrow::BooleanScalar{hidden}));
         if (chunk_compression.has_value()) {
             ARROW_RETURN_NOT_OK(builder->field_builder(8)->AppendScalar(arrow::StringScalar{chunk_compression.value()}));

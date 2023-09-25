@@ -38,7 +38,7 @@ namespace py_api {
                 .def_readonly("commit_time", &deeplog::create_commit_action::commit_time);
 
         pybind11::class_<deeplog::create_tensor_action, deeplog::action, std::shared_ptr<deeplog::create_tensor_action>>(module, "CreateTensorAction")
-                .def(pybind11::init<std::string, std::string, std::string, std::string, long, bool, bool, bool, std::optional<std::string>,
+                .def(pybind11::init<std::string, std::string, std::optional<std::string>, std::string, long, bool, bool, bool, std::optional<std::string>,
                              std::optional<std::string>,
                              std::map<std::string, std::map<std::string, std::string>>,
                              std::optional<long>,
@@ -50,8 +50,8 @@ namespace py_api {
                      pybind11::arg("dtype"),
                      pybind11::arg("htype"),
                      pybind11::arg("length"),
-                     pybind11::arg("link"),
-                     pybind11::arg("sequence"),
+                     pybind11::arg("is_link"),
+                     pybind11::arg("is_sequence"),
                      pybind11::arg("hidden"),
                      pybind11::arg("chunk_compression"),
                      pybind11::arg("sample_compression"),
@@ -69,8 +69,8 @@ namespace py_api {
                 .def_readonly("dtype", &deeplog::create_tensor_action::dtype)
                 .def_readonly("htype", &deeplog::create_tensor_action::htype)
                 .def_readonly("length", &deeplog::create_tensor_action::length)
-                .def_readonly("link", &deeplog::create_tensor_action::link)
-                .def_readonly("sequence", &deeplog::create_tensor_action::sequence)
+                .def_readonly("is_link", &deeplog::create_tensor_action::is_link)
+                .def_readonly("is_sequence", &deeplog::create_tensor_action::is_sequence)
                 .def_readonly("hidden", &deeplog::create_tensor_action::hidden)
                 .def_readonly("chunk_compression", &deeplog::create_tensor_action::chunk_compression)
                 .def_readonly("sample_compression", &deeplog::create_tensor_action::sample_compression)

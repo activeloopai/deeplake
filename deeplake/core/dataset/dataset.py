@@ -1394,8 +1394,10 @@ class Dataset:
                 version_state["branch_commit_map"][branch] = commit_id
                 version_state["commit_node_map"][commit_id] = commit_node
         else:
-            metadata_snapshot = MetadataSnapshot(self.storage.deeplog)
-            snapshot = DeepLogSnapshot(metadata_snapshot.branch_id(address), self.storage.deeplog)
+            deeplog = self.storage.deeplog
+            metadata_snapshot = MetadataSnapshot(deeplog)
+            branch_id = metadata_snapshot.branch_id(address)
+            snapshot = DeepLogSnapshot(branch_id, deeplog)
             branch_data = metadata_snapshot.branches()
             commit_data = snapshot.commits()
 

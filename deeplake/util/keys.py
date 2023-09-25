@@ -25,7 +25,7 @@ from deeplake.constants import (
     QUERIES_FILENAME,
     QUERIES_LOCK_FILENAME,
 )
-from deeplake.deeplog import DeepLog
+from deeplake.deeplog import DeepLog, DeepLogSnapshot
 from deeplake.util.exceptions import (
     S3GetError,
     S3GetAccessError,
@@ -217,9 +217,8 @@ def tensor_exists(key: str, storage, commit_id: str) -> bool:
 def tensor_exists_in_log(
     deeplog: DeepLog, tensor_id: str, branch: str, branch_version: int
 ) -> bool:
-    return tensor_id in [
-        tensor.id for tensor in deeplog.tensors(branch, branch_version).data()
-    ]
+    snapshot = DeepLogSnapshot(branch, branch_version, deeplog)
+    return tensor_id in [tensor.id for tensor in snapshot.tensors()]
 
 
 def get_queries_key() -> str:

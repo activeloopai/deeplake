@@ -157,11 +157,7 @@ class TensorMeta(Meta):
         if not kwargs:
             kwargs = HTYPE_CONFIGURATIONS[htype]
 
-        _validate_htype_exists(htype)
-        _validate_htype_overwrites(htype, kwargs)
-        _replace_unspecified_values(htype, kwargs)
-        _validate_required_htype_overwrites(htype, kwargs)
-        _format_values(htype, kwargs)
+        validate_and_process_kwargs(htype, kwargs)
 
         required_meta = _required_meta_from_htype(htype)
         required_meta.update(kwargs)
@@ -418,3 +414,10 @@ def _is_dtype_supported_by_numpy(dtype: str) -> bool:
         return True
     except:
         return False
+
+def validate_and_process_kwargs(htype, kwargs):
+    _validate_htype_exists(htype)
+    _validate_htype_overwrites(htype, kwargs)
+    _replace_unspecified_values(htype, kwargs)
+    _validate_required_htype_overwrites(htype, kwargs)
+    _format_values(htype, kwargs)

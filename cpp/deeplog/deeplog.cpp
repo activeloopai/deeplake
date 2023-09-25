@@ -196,7 +196,7 @@ namespace deeplog {
     deeplog_state<std::vector<std::shared_ptr<action>>> deeplog::list_actions(const std::string &branch_id,
                                                                               const long &from,
                                                                               const std::optional<long> &to) const {
-        long higheset_version = -1;
+        long highest_version = -1;
         std::vector<std::shared_ptr<action>> return_actions = {};
 
         const std::filesystem::path dir_path = {path + "/_deeplake_log/" + branch_id};
@@ -208,13 +208,16 @@ namespace deeplog {
             auto checkpoint = last_checkpoint(last_checkpoint_json);
 
             auto status = read_checkpoint(dir_path.string(), checkpoint.version, return_actions);
-            higheset_version = checkpoint.version;
+            highest_version = checkpoint.version;
         }
 
 
         std::optional<long> next_from = from;
 
-        if (branch_id != MAIN_BRANCH_ID) {
+        if (branch_id == MAIN_BRANCH_ID) {
+            return_actions.push_back(std::make_shared<create_branch_action>(create_branch_action(MAIN_BRANCH_ID, "main", "", -1)));
+        }
+        else {
             auto branch_obj = branch_by_id(branch_id).data;
             for (const auto &action: list_actions(branch_id, from, branch_obj->from_version).data) {
                 return_actions.push_back(action);
@@ -229,8 +232,8 @@ namespace deeplog {
             for (const auto &entry: std::filesystem::directory_iterator(dir_path)) {
                 if (std::filesystem::is_regular_file(entry.path()) && entry.path().extension() == ".json" && !entry.path().filename().string().starts_with("_")) {
                     auto found_version = file_version(entry.path());
-                    if (higheset_version < found_version) {
-                        higheset_version = found_version;
+                    if (highest_version < found_version) {
+                        highest_version = found_version;
                     }
                     if (to.has_value() && found_version > to) {
                         continue;
@@ -263,7 +266,7 @@ namespace deeplog {
             }
         }
 
-        return deeplog_state(return_actions, higheset_version);
+        return deeplog_state(return_actions, highest_version);
     }
 
     long deeplog::file_version(const std::filesystem::path &path) const {
@@ -319,21 +322,21 @@ namespace deeplog {
                     std::shared_ptr<arrow::Scalar> val;
                     ARROW_ASSIGN_OR_RAISE(val, batch->GetColumnByName("protocol")->GetScalar(i));
 
-                    actions.push_back(std::make_shared<protocol_action>(protocol_action(reinterpret_pointer_cast<arrow::StructScalar>(val))));
+                    actions.push_back(std::make_shared<protocol_action>(protocol_action(std::reinterpret_pointer_cast<arrow::StructScalar>(val))));
                 }
 
                 if (!batch->GetColumnByName("metadata")->data()->IsNull(i)) {
                     std::shared_ptr<arrow::Scalar> val;
                     ARROW_ASSIGN_OR_RAISE(val, batch->GetColumnByName("metadata")->GetScalar(i));
 
-                    actions.push_back(std::make_shared<metadata_action>(metadata_action(reinterpret_pointer_cast<arrow::StructScalar>(val))));
+                    actions.push_back(std::make_shared<metadata_action>(metadata_action(std::reinterpret_pointer_cast<arrow::StructScalar>(val))));
                 }
 
                 if (!batch->GetColumnByName("add")->data()->IsNull(i)) {
                     std::shared_ptr<arrow::Scalar> val;
                     ARROW_ASSIGN_OR_RAISE(val, batch->GetColumnByName("add")->GetScalar(i));
 
-                    actions.push_back(std::make_shared<add_file_action>(add_file_action(reinterpret_pointer_cast<arrow::StructScalar>(val))));
+                    actions.push_back(std::make_shared<add_file_action>(add_file_action(std::reinterpret_pointer_cast<arrow::StructScalar>(val))));
                 }
             }
         }

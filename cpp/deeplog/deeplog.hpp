@@ -12,6 +12,7 @@
 namespace deeplog {
 
     const std::string MAIN_BRANCH_ID = "";
+    const std::string MAIN_BRANCH_NAME = "main";
 
     template<typename T>
     struct deeplog_state {
