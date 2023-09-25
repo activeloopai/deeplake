@@ -1944,6 +1944,7 @@ class ChunkEngine:
         chunk_id, row, worst_case_header_size = self.get_chunk_info(
             global_sample_index, fetch_chunks
         )
+        print("worst case header size:", worst_case_header_size)
         local_sample_index = enc.translate_index_relative_to_chunks(global_sample_index)
         chunk = self.get_chunk_from_chunk_id(
             chunk_id, partial_chunk_bytes=worst_case_header_size
