@@ -1,11 +1,9 @@
-# type: ignore
-
 from typing import Tuple, Optional
 from deeplake.htype import htype as HTYPE, HTYPE_CONFIGURATIONS
 from deeplake.util.exceptions import TensorMetaInvalidHtype
 
 
-def parse_complex_htype(htype: Optional[str]) -> Tuple[bool, bool, str]:
+def parse_complex_htype(htype: Optional[str]) -> Tuple[bool, bool, Optional[str]]:
     is_sequence = False
     is_link = False
 

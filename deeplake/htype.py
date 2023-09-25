@@ -1,4 +1,6 @@
-from typing import Dict
+from typing import Callable, Dict
+
+import numpy as np
 from deeplake.compression import (
     IMAGE_COMPRESSIONS,
     VIDEO_COMPRESSIONS,
@@ -8,6 +10,7 @@ from deeplake.compression import (
     POINT_CLOUD_COMPRESSIONS,
     MESH_COMPRESSIONS,
 )
+from deeplake.util.exceptions import IncompatibleHtypeError
 
 
 class htype:
@@ -66,7 +69,7 @@ HTYPE_CONFIGURATIONS: Dict[str, Dict] = {
     htype.BBOX: {"dtype": "float32", "coords": {}, "_info": ["coords"]},
     htype.BBOX_3D: {"dtype": "float32", "coords": {}, "_info": ["coords"]},
     htype.AUDIO: {"dtype": "float64"},
-    htype.EMBEDDING: {"dtype": "float32"},
+    htype.EMBEDDING: {"dtype": "float32", "vdb_indexes": []},
     htype.VIDEO: {"dtype": "uint8"},
     htype.BINARY_MASK: {
         "dtype": "bool"
@@ -98,7 +101,98 @@ HTYPE_CONFIGURATIONS: Dict[str, Dict] = {
     htype.INTRINSICS: {"dtype": "float32"},
     htype.POLYGON: {"dtype": "float32"},
     htype.MESH: {"sample_compression": "ply"},
-    htype.EMBEDDING: {},
+}
+
+HTYPE_CONVERSION_LHS = {htype.DEFAULT, htype.IMAGE}
+
+
+class constraints:
+    """Constraints for converting a tensor to a htype"""
+
+    ndim_error = (
+        lambda htype, ndim: f"Incompatible number of dimensions for htype {htype}: {ndim}"
+    )
+    shape_error = (
+        lambda htype, shape: f"Incompatible shape of tensor for htype {htype}: {shape}"
+    )
+    dtype_error = (
+        lambda htype, dtype: f"Incompatible dtype of tensor for htype {htype}: {dtype}"
+    )
+
+    INSTANCE_LABEL = lambda shape, dtype: True
+
+    @staticmethod
+    def IMAGE(shape, dtype):
+        if len(shape) not in (3, 4):
+            raise IncompatibleHtypeError(constraints.ndim_error("image", len(shape)))
+        if len(shape) == 4 and shape[-1] not in (1, 3, 4):
+            raise IncompatibleHtypeError(constraints.shape_error("image", shape))
+
+    @staticmethod
+    def CLASS_LABEL(shape, dtype):
+        if len(shape) != 2:
+            raise IncompatibleHtypeError(
+                constraints.ndim_error("class_label", len(shape))
+            )
+
+    @staticmethod
+    def BBOX(shape, dtype):
+        if len(shape) not in (2, 3):
+            raise IncompatibleHtypeError(constraints.ndim_error("bbox", len(shape)))
+        if shape[-1] != 4:
+            raise IncompatibleHtypeError(constraints.shape_error("bbox", shape))
+
+    @staticmethod
+    def BBOX_3D(shape, dtype):
+        if len(shape) not in (2, 3):
+            raise IncompatibleHtypeError(constraints.ndim_error("bbox.3d", len(shape)))
+        if shape[-1] != 8:
+            raise IncompatibleHtypeError(constraints.shape_error("bbox.3d", shape))
+
+    @staticmethod
+    def EMBEDDING(shape, dtype):
+        if dtype != np.float32:
+            raise IncompatibleHtypeError(constraints.dtype_error("embedding", dtype))
+
+    @staticmethod
+    def BINARY_MASK(shape, dtype):
+        if len(shape) not in (3, 4):
+            raise IncompatibleHtypeError(
+                constraints.ndim_error("binary_mask", len(shape))
+            )
+
+    SEGMENT_MASK = BINARY_MASK
+
+    @staticmethod
+    def KEYPOINTS_COCO(shape, dtype):
+        if len(shape) != 3:
+            raise IncompatibleHtypeError(
+                constraints.ndim_error("keypoints_coco", len(shape))
+            )
+        if shape[1] % 3 != 0:
+            raise IncompatibleHtypeError(
+                constraints.shape_error("keypoints_coco", shape)
+            )
+
+    @staticmethod
+    def POINT(shape, dtype):
+        if len(shape) != 3:
+            raise IncompatibleHtypeError(constraints.ndim_error("point", len(shape)))
+        if shape[-1] not in (2, 3):
+            raise IncompatibleHtypeError(constraints.shape_error("point", shape))
+
+
+HTYPE_CONSTRAINTS: Dict[str, Callable] = {
+    htype.IMAGE: constraints.IMAGE,
+    htype.CLASS_LABEL: constraints.CLASS_LABEL,
+    htype.BBOX: constraints.BBOX,
+    htype.BBOX_3D: constraints.BBOX_3D,
+    htype.EMBEDDING: constraints.EMBEDDING,
+    htype.BINARY_MASK: constraints.BINARY_MASK,
+    htype.SEGMENT_MASK: constraints.SEGMENT_MASK,
+    htype.INSTANCE_LABEL: constraints.INSTANCE_LABEL,
+    htype.KEYPOINTS_COCO: constraints.KEYPOINTS_COCO,
+    htype.POINT: constraints.POINT,
 }
 
 HTYPE_VERIFICATIONS: Dict[str, Dict] = {

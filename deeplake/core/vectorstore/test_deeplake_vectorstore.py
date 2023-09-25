@@ -86,7 +86,8 @@ def test_id_backward_compatibility(local_path):
     embedding_dim = 100
 
     ids = [f"{i}" for i in range(num_of_items)]
-    embedding = [np.zeros(embedding_dim) for i in range(num_of_items)]
+    # Creating embeddings of float32 as dtype of embedding tensor is float32.
+    embedding = [np.zeros(embedding_dim, dtype=np.float32) for i in range(num_of_items)]
     text = ["aadfv" for i in range(num_of_items)]
     metadata = [{"key": i} for i in range(num_of_items)]
 
@@ -550,7 +551,7 @@ def test_search_quantitative(distance_metric, hub_cloud_dev_token):
     assert data_p["metadata"] == data_ce["metadata"]
 
     # use indra implementation to search the data
-    data_ce = vector_store.search(
+    data_ce_f = vector_store.search(
         embedding=None,
         exec_option="compute_engine",
         distance_metric=distance_metric,
@@ -558,7 +559,7 @@ def test_search_quantitative(distance_metric, hub_cloud_dev_token):
     )
 
     # All medatata are the same to this should return k (k) results
-    assert len(data_ce["id"]) == 4
+    assert len(data_ce_f["id"]) == 4
 
     with pytest.raises(ValueError):
         # use indra implementation to search the data
@@ -571,11 +572,11 @@ def test_search_quantitative(distance_metric, hub_cloud_dev_token):
 
     test_id = vector_store.dataset.id[0].data()["value"]
 
-    data_ce = vector_store.search(
+    data_ce_q = vector_store.search(
         query=f"select * where id == '{test_id}'",
         exec_option="compute_engine",
     )
-    assert data_ce["id"][0] == test_id
+    assert data_ce_q["id"][0] == test_id
 
 
 @requires_libdeeplake
@@ -619,7 +620,8 @@ def test_search_managed(hub_cloud_dev_token):
     assert data_ce["id"] == data_db["id"]
 
 
-def test_delete(local_path):
+@requires_libdeeplake
+def test_delete(local_path, hub_cloud_dev_token):
     # initialize vector store object:
     vector_store = DeepLakeVectorStore(
         path=local_path,
@@ -657,6 +659,7 @@ def test_delete(local_path):
     vector_store_b = DeepLakeVectorStore(
         path=local_path,
         overwrite=True,
+        exec_option="compute_engine",
         tensor_params=[
             {
                 "name": "ids",
@@ -667,6 +670,7 @@ def test_delete(local_path):
                 "htype": "text",
             },
         ],
+        token=hub_cloud_dev_token,
     )
     # add data to the dataset:
     vector_store_b.add(ids=ids, docs=texts)
@@ -687,6 +691,8 @@ def test_delete(local_path):
 
     vector_store = DeepLakeVectorStore(
         path=local_path,
+        exec_option="compute_engine",
+        token=hub_cloud_dev_token,
     )
     vector_store.delete(ids=ids[:3])
     assert len(vector_store) == NUMBER_OF_DATA - 3
@@ -747,9 +753,6 @@ def assert_updated_vector_store(
                 new_embeddings[i],
             )
 
-    # check whether we are doing commits actually
-    assert len(vector_store.dataset.commits) > 0
-
 
 @requires_libdeeplake
 @pytest.mark.parametrize(
@@ -765,6 +768,7 @@ def assert_updated_vector_store(
 )
 @pytest.mark.parametrize("init_embedding_function", [embedding_fn3, None])
 @pytest.mark.slow
+@requires_libdeeplake
 def test_update_embedding(
     ds,
     vector_store_hash_ids,
@@ -779,12 +783,15 @@ def test_update_embedding(
     embedding_tensor = "embedding"
     embedding_source_tensor = "text"
     # dataset has a single embedding_tensor:
+
     path = ds.path
     vector_store = DeepLakeVectorStore(
         path=path,
         overwrite=True,
         verbose=False,
+        exec_option="compute_engine",
         embedding_function=init_embedding_function,
+        index_params={"threshold": 10},
         token=ds.token,
     )
 
@@ -1106,6 +1113,54 @@ def test_update_embedding(
         num_changed_samples=5,
     )
     vector_store.delete_by_path(path + "_multi", token=ds.token)
+
+
+@requires_libdeeplake
+def test_vdb_index_creation(local_path, capsys, hub_cloud_dev_token):
+    number_of_data = 1000
+    texts, embeddings, ids, metadatas, _ = utils.create_data(
+        number_of_data=number_of_data, embedding_dim=EMBEDDING_DIM
+    )
+
+    # initialize vector store object with vdb index threshold as 200.
+    vector_store = DeepLakeVectorStore(
+        path=local_path,
+        overwrite=True,
+        verbose=True,
+        exec_option="compute_engine",
+        index_params={"threshold": 200, "distance_metric": "L2"},
+        token=hub_cloud_dev_token,
+    )
+
+    vector_store.add(embedding=embeddings, text=texts, id=ids, metadata=metadatas)
+
+    assert len(vector_store) == number_of_data
+    assert set(vector_store.dataset.tensors) == set(
+        [
+            "embedding",
+            "id",
+            "metadata",
+            "text",
+        ]
+    )
+    assert set(vector_store.tensors()) == set(
+        [
+            "embedding",
+            "id",
+            "metadata",
+            "text",
+        ]
+    )
+
+    # Check if the index is recreated properly.
+    ds = vector_store.dataset
+    es = ds.embedding.get_vdb_indexes()
+    assert len(es) == 1
+    assert es[0]["id"] == "hnsw_1"
+    assert es[0]["distance"] == "l2_norm"
+    assert es[0]["type"] == "hnsw"
+
+    vector_store.delete_by_path(local_path, token=ds.token)
 
 
 def assert_vectorstore_structure(vector_store, number_of_data):

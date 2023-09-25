@@ -50,7 +50,7 @@ def query(dataset, query_string: str):
 
     if not isinstance(dataset, DeepLakeQueryDataset) and INDRA_API.tql.parse(query_string).is_filter:  # type: ignore
         indexes = dsv.indexes
-        return dataset[indexes]
+        return dataset.no_view_dataset[indexes]
     else:
         view = DeepLakeQueryDataset(deeplake_ds=dataset, indra_ds=dsv)
         view._tql_query = query_string
@@ -117,4 +117,4 @@ def sample_by(
     else:
         dsv = ds.sample(weights, replace=replace, size=size)
     indexes = dsv.indexes
-    return dataset[indexes]
+    return dataset.no_view_dataset[indexes]

@@ -110,6 +110,7 @@ class DeepLakeDataLoader(DataLoader):
         _dataloader=None,
         _world_size=1,
         _ignore_errors=False,
+        _verbose=False,
         _offset=None,
         **kwargs,
     ):
@@ -135,6 +136,7 @@ class DeepLakeDataLoader(DataLoader):
         self._dataloader = _dataloader
         self._world_size = _world_size
         self._ignore_errors = _ignore_errors
+        self._verbose = _verbose
         self._offset = _offset
         for k, v in kwargs.items():
             setattr(self, k, v)
@@ -144,8 +146,6 @@ class DeepLakeDataLoader(DataLoader):
         self._IterableDataset_len_called = None
         self._iterator = None
         self._worker_init_fn = None
-
-        self._internal_iterator = None
 
     @property
     def batch_size(self):
@@ -424,8 +424,8 @@ class DeepLakeDataLoader(DataLoader):
 
     def close(self):
         """Shuts down the workers and releases the resources."""
-        if self._internal_iterator is not None:
-            self._internal_iterator = None
+        if self._iterator is not None:
+            self._iterator.close()
         if self._dataloader is not None:
             self._dataloader = None
 
@@ -723,6 +723,7 @@ class DeepLakeDataLoader(DataLoader):
             htype_dict=htype_dict,
             ndim_dict=ndim_dict,
             tensor_info_dict=tensor_info_dict,
+            verbose=self._verbose,
             offset=self._offset,
             worker_init_fn=self.worker_init_fn,
         )
@@ -782,29 +783,43 @@ class DeepLakeDataLoader(DataLoader):
 
         dataset_read(self._orig_dataset)
 
-        if self._internal_iterator is not None:
-            self._internal_iterator = iter(self._internal_iterator)
+        if self._iterator is not None:
+            self._iterator = iter(self._iterator)
 
         return self
+
+    def __setattr__(self, attr, val):
+        if (
+            attr == "_iterator"
+            and val is None
+            and hasattr(self, "_iterator")
+            and self._iterator is not None
+        ):
+            self._iterator.close()
+        else:
+            super().__setattr__(attr, val)
 
     def __next__(self):
         if self._dataloader is None:
             self.__iter__()
-        if self._internal_iterator is None:
-            self._internal_iterator = iter(self._dataloader)
-        return next(self._internal_iterator)
+        if self._iterator is None:
+            self._iterator = iter(self._dataloader)
+        return next(self._iterator)
 
     def __del__(self):
         self.close()
 
 
-def dataloader(dataset, ignore_errors: bool = False) -> DeepLakeDataLoader:
+def dataloader(
+    dataset, ignore_errors: bool = False, verbose: bool = False
+) -> DeepLakeDataLoader:
     """Returns a :class:`~deeplake.enterprise.dataloader.DeepLakeDataLoader` object which can be transformed to either pytorch dataloader or numpy.
 
 
     Args:
         dataset: :class:`~deeplake.core.dataset.Dataset` object on which dataloader needs to be built
-        ignore_errors (bool): If ``True``, the data loader will ignore errors apperaing during dataloading otherwise it will collct the statistics and report appeard errors. Default value is ``False``
+        ignore_errors (bool): If ``True``, the data loader will ignore errors appeared during data iteration otherwise it will collect the statistics and report appeared errors. Default value is ``False``
+        verbose (bool): If ``True``, the data loader will dump verbose logs of it's steps. Default value is ``False``
 
 
     Returns:
@@ -854,7 +869,7 @@ def dataloader(dataset, ignore_errors: bool = False) -> DeepLakeDataLoader:
         ...     # custom logic on data
         ...     pass
 
-        Creating dataloader and chaning with query
+        Creating dataloader and chaining with query
 
         >>> ds = deeplake.load('hub://activeloop/coco-train')
         >>> dl = dataloader(ds_train)
@@ -867,7 +882,7 @@ def dataloader(dataset, ignore_errors: bool = False) -> DeepLakeDataLoader:
         ...     pass
     """
     verify_base_storage(dataset)
-    return DeepLakeDataLoader(dataset, _ignore_errors=ignore_errors)
+    return DeepLakeDataLoader(dataset, _ignore_errors=ignore_errors, _verbose=verbose)
 
 
 def validate_tensors(tensors, dataset, all_vars):

@@ -1,4 +1,5 @@
 from random import sample
+import copy
 import deeplake
 from deeplake.core.fast_forwarding import ffw_tensor_meta
 from typing import Any, Callable, Dict, List, Sequence, Union, Optional, Tuple
@@ -46,6 +47,7 @@ class TensorMeta(Meta):
     is_sequence: bool
     is_link: bool
     verify: bool
+    vdb_indexes: List[Dict[str, str]]
 
     def __init__(
         self,
@@ -84,6 +86,44 @@ class TensorMeta(Meta):
         _validate_links(d)
         self.links.update(d)  # type: ignore
         self.is_dirty = True
+
+    def contains_vdb_index(self, id: str) -> bool:
+        for index in getattr(self, "vdb_indexes", []):
+            if id == index["id"]:
+                return True
+        return False
+
+    def get_vdb_index_ids(self):
+        index_ids = []
+        for index in getattr(self, "vdb_indexes", []):
+            index_ids.append(index["id"])
+        return index_ids
+
+    def add_vdb_index(self, id: str, type: str, distance: str, **kwargs):
+        if self.contains_vdb_index(id):
+            raise ValueError(f"Tensor meta already has a vdb index with name '{id}'.")
+
+        if not hasattr(self, "vdb_indexes"):
+            self.vdb_indexes = []
+
+        self.vdb_indexes.append(
+            {
+                "id": id,
+                "type": type,
+                "distance": distance,
+                **kwargs,
+            }
+        )
+        self.is_dirty = True
+
+    def remove_vdb_index(self, id: str):
+        if not self.contains_vdb_index(id):
+            raise ValueError(f"Tensor meta has no vdb index with name '{id}'.")
+        for i in range(len(self.vdb_indexes)):
+            if id == self.vdb_indexes[i]["id"]:
+                del self.vdb_indexes[i]
+                self.is_dirty = True
+                return
 
     def set_hidden(self, val: bool):
         """Set visibility of tensor."""
@@ -186,6 +226,9 @@ class TensorMeta(Meta):
         super().__setstate__(state)
         self._required_meta_keys = tuple(state.keys())
         ffw_tensor_meta(self)
+        if self.htype == "embedding" and not hasattr(self, "vdb_indexes"):
+            self.vdb_indexes = []
+            self._required_meta_keys += ("vdb_indexes",)
 
     @property
     def nbytes(self):
@@ -234,7 +277,8 @@ def _required_meta_from_htype(htype: str) -> dict:
     """Gets a dictionary with all required meta information to define a tensor."""
 
     _validate_htype_exists(htype)
-    defaults = HTYPE_CONFIGURATIONS[htype]
+    # Do deepcopy to avoid overwriting,
+    defaults = copy.deepcopy(HTYPE_CONFIGURATIONS[htype])
 
     required_meta = {
         "htype": htype,

@@ -18,9 +18,9 @@ EXEC_OPTION_TO_SEARCH_TYPE: Dict[str, Callable] = {
 
 def search(
     k: Optional[int],
-    distance_metric: str,
     exec_option: str,
     deeplake_dataset: DeepLakeDataset,
+    distance_metric: str,
     return_tensors: Optional[List[str]] = None,
     query: Optional[str] = None,
     logger: Optional[logging.Logger] = None,

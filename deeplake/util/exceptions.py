@@ -1,6 +1,5 @@
 import numpy as np
 import deeplake
-from deeplake.htype import HTYPE_CONFIGURATIONS
 from typing import Any, List, Sequence, Tuple, Optional, Union
 
 
@@ -483,7 +482,7 @@ class TensorDtypeMismatchError(MetaError):
 
         # TODO: we may want to raise this error at the API level to determine if the user explicitly overwrote the `dtype` or not. (to make this error message more precise)
         # TODO: because if the user uses `dtype=np.uint8`, but the `htype` the tensor is created with has it's default dtype set as `uint8` also, then this message is ambiguous
-        htype_dtype = HTYPE_CONFIGURATIONS[htype].get("dtype", None)
+        htype_dtype = deeplake.HTYPE_CONFIGURATIONS[htype].get("dtype", None)
         if htype_dtype is not None and htype_dtype == expected:
             msg += f" Htype '{htype}' expects samples to have dtype='{htype_dtype}'."
             super().__init__("")
@@ -901,6 +900,16 @@ class SampleAppendingError(Exception):
         super().__init__(message)
 
 
+class SampleExtendingError(Exception):
+    def __init__(self):
+        message = (
+            "Cannot extend because tensor(s) are not specified. Expected input to ds.extend is a dictionary. "
+            "To extend tensors, you need to either specify the tensors and add the samples as a dictionary, like: "
+            "`ds.extend({'image_tensor': samples, 'label_tensor': samples})` or you need to call `extend` method of the required tensor, "
+            "like: `ds.image_tensor.extend(samples)`"
+        )
+
+
 class DatasetTooLargeToDelete(Exception):
     def __init__(self, ds_path):
         message = f"Deep Lake Dataset {ds_path} was too large to delete. Try again with large_ok=True."
@@ -1088,3 +1097,8 @@ class IncorrectEmbeddingShapeError(Exception):
             "Please either use different embedding function or exclude invalid "
             "files that are not supported by the embedding function. "
         )
+
+
+class IncompatibleHtypeError(Exception):
+    def __init__(self, msg):
+        super().__init__(msg)

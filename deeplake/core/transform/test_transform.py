@@ -15,6 +15,7 @@ from deeplake.util.exceptions import (
     AllSamplesSkippedError,
     EmptyTensorError,
     InvalidOutputDatasetError,
+    SampleExtendingError,
     TransformError,
 )
 from deeplake.tests.common import parametrize_num_workers
@@ -1757,3 +1758,43 @@ def test_transform_summary(local_ds, capsys):
 
     captured = capsys.readouterr()
     assert captured.out == ""
+
+
+def test_transform_extend(local_ds):
+    # skip_ok is not supported with extend
+    @deeplake.compute
+    def bad_upload(batch, ds):
+        ds.extend(batch, skip_ok=True)
+
+    @deeplake.compute
+    def upload(batch, ds):
+        ds.extend(batch, append_empty=True)
+
+    with local_ds as ds:
+        ds.create_tensor("abc")
+        ds.create_tensor("xyz")
+        ds.abc.append(np.ones((10, 10)))
+        ds.xyz.append(1)
+
+    batches = [{"abc": np.ones((5, 10, 10))} for _ in range(10)]
+
+    with pytest.raises(TransformError):
+        bad_upload().eval(batches, ds, num_workers=TRANSFORM_TEST_NUM_WORKERS)
+
+    ds.xyz.append(2)
+    # unequal tensor lengths
+    with pytest.raises(TransformError):
+        upload().eval(batches, ds, num_workers=TRANSFORM_TEST_NUM_WORKERS)
+
+    ds.abc.append(np.ones((10, 10)))
+    # items should be dicts
+    with pytest.raises(TransformError):
+        upload().eval([1, 2, 3, 4, 5], ds, num_workers=TRANSFORM_TEST_NUM_WORKERS)
+
+    upload().eval(batches, ds, num_workers=TRANSFORM_TEST_NUM_WORKERS)
+
+    assert len(ds) == 52
+    assert ds.abc.numpy().shape == (52, 10, 10)
+    assert ds.xyz.shape == (52, None)
+    assert ds.xyz[:2].numpy().shape == (2, 1)
+    assert ds.xyz[2:].numpy().shape == (50, 0)

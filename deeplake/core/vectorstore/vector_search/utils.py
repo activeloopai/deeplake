@@ -1,6 +1,6 @@
 from abc import ABC, abstractmethod
 
-from deeplake.constants import MB
+from deeplake.constants import MB, DEFAULT_VECTORSTORE_INDEX_PARAMS
 from deeplake.enterprise.util import raise_indra_installation_error
 from deeplake.util.exceptions import TensorDoesNotExistError
 from deeplake.util.warnings import always_warn
@@ -99,6 +99,22 @@ def parse_exec_option(dataset, exec_option, indra_installed, username):
         exec_option = exec_option_factory(dataset, indra_installed, username)
         return exec_option.get_exec_option()
     return exec_option
+
+
+def parse_index_params(index_params):
+    ip = DEFAULT_VECTORSTORE_INDEX_PARAMS.copy()
+    valid_keys = ip.keys()
+
+    if index_params:
+        for key, value in index_params.items():
+            if key not in valid_keys:
+                raise ValueError(
+                    f"Invalid key '{key}' in index_params. Valid keys are: {valid_keys}"
+                )
+
+            ip[key] = value
+
+    return ip
 
 
 def parse_return_tensors(dataset, return_tensors, embedding_tensor, return_view):
@@ -522,12 +538,25 @@ def get_embedding_tensors(embedding_tensor, tensor_args, dataset) -> List[str]:
 def find_embedding_tensors(dataset) -> List[str]:
     """Find all the embedding tensors in a dataset."""
     matching_tensors = []
-    for tensor in dataset.tensors:
-        if (
-            dataset[tensor].htype == "embedding"
-            or tensor == "embedding"
-            or tensor == "embeddings"
-        ):
-            matching_tensors.append(tensor)
+    for tensor in dataset.tensors.values():
+        if is_embedding_tensor(tensor):
+            matching_tensors.append(tensor.key)
 
     return matching_tensors
+
+
+def is_embedding_tensor(tensor):
+    """Check if a tensor is an embedding tensor."""
+
+    valid_names = ["embedding", "embeddings"]
+
+    return (
+        tensor.htype == "embedding"
+        or tensor.meta.name in valid_names
+        or tensor.key in valid_names
+    )
+
+
+def index_used(exec_option):
+    """Check if the index is used for the exec_option"""
+    return exec_option in ("tensor_db", "compute_engine")
