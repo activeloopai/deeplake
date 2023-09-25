@@ -4,58 +4,30 @@
 
 namespace deeplog {
 
-    std::shared_ptr<arrow::DataType> protocol_action::arrow_struct = arrow::struct_({
-                                                                                            arrow::field("minReaderVersion", arrow::int32()),
-                                                                                            arrow::field("minWriterVersion", arrow::int32()),
-                                                                                    });
+    std::shared_ptr<arrow::StructType> protocol_action::arrow_type = std::dynamic_pointer_cast<arrow::StructType>(
+            arrow::struct_({
+                                   arrow::field("minReaderVersion", arrow::int32()),
+                                   arrow::field("minWriterVersion", arrow::int32()),
+                           }));
 
-    deeplog::protocol_action::protocol_action(int min_reader_version, int min_writer_version)
+    deeplog::protocol_action::protocol_action(const int &min_reader_version, const int &min_writer_version)
             : min_reader_version(min_reader_version), min_writer_version(min_writer_version) {}
-
-    protocol_action::protocol_action(const nlohmann::json &j) {
-//        auto protocol_struct = arrow::struct_({
-//                                                      arrow::field("minReaderVersion", arrow::int32()),
-//                                                      arrow::field("minWriterVersion", arrow::int32()),
-//                                              });
-//
-//        auto name = "protocol";
-//
-//        auto base = j.at(name);
-//        for (auto field : protocol_struct->fields()) {
-//            base.at(field->name()).get_to()
-//        }
-
-        j.at("protocol").at("minReaderVersion").get_to(min_reader_version);
-        j.at("protocol").at("minWriterVersion").get_to(min_writer_version);
-    }
 
     protocol_action::protocol_action(const std::shared_ptr<arrow::StructScalar> &value) {
         min_reader_version = reinterpret_pointer_cast<arrow::Int32Scalar>(value->field("minReaderVersion").ValueOrDie())->value;
         min_writer_version = reinterpret_pointer_cast<arrow::Int32Scalar>(value->field("minWriterVersion").ValueOrDie())->value;
     }
 
-    void deeplog::protocol_action::to_json(nlohmann::json &j) {
-        j["protocol"]["minReaderVersion"] = min_reader_version;
-        j["protocol"]["minWriterVersion"] = min_writer_version;
+    std::string protocol_action::action_name() {
+        return "protocol";
     }
 
-    arrow::Status protocol_action::append_to(const std::shared_ptr<arrow::StructBuilder> &builder) {
-        ARROW_RETURN_NOT_OK(builder->field_builder(0)->AppendScalar(arrow::Int32Scalar{min_reader_version}));
-        ARROW_RETURN_NOT_OK(builder->field_builder(1)->AppendScalar(arrow::Int32Scalar{min_writer_version}));
+    nlohmann::json deeplog::protocol_action::to_json() {
+        nlohmann::json json;
 
-        ARROW_RETURN_NOT_OK(builder->Append());
-        return arrow::Status::OK();
-    }
+        json["minReaderVersion"] = min_reader_version;
+        json["minWriterVersion"] = min_writer_version;
 
-
-    std::shared_ptr<arrow::StructBuilder> deeplog::protocol_action::arrow_array() {
-        std::vector<std::shared_ptr<arrow::ArrayBuilder>> builders = {};
-
-        for (auto field : arrow_struct->fields()) {
-            builders.push_back(arrow::MakeBuilder(field->type()).ValueOrDie());
-        }
-
-        return std::make_shared<arrow::StructBuilder>(std::move(arrow::StructBuilder(arrow_struct, arrow::default_memory_pool(), builders)));
-
+        return json;
     }
 }

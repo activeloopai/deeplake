@@ -8,9 +8,9 @@ namespace deeplog {
     class action {
 
     public:
+        virtual nlohmann::json to_json() = 0;
 
-        virtual void to_json(nlohmann::json &json) = 0;
-        virtual arrow::Status append_to(const std::shared_ptr<arrow::StructBuilder> &builder) = 0;
+        virtual std::string action_name() = 0;
 
     };
 

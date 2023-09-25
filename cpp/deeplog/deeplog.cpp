@@ -24,10 +24,10 @@
 namespace deeplog {
 
     const std::shared_ptr<arrow::Schema> deeplog::arrow_schema = std::make_shared<arrow::Schema>(arrow::FieldVector{
-            arrow::field("protocol", protocol_action::arrow_struct),
-            arrow::field("metadata", metadata_action::arrow_struct),
-            arrow::field("add", add_file_action::arrow_struct),
-            arrow::field("branch", create_branch_action::arrow_struct),
+            arrow::field("protocol", protocol_action::arrow_type),
+            arrow::field("metadata", metadata_action::arrow_type),
+            arrow::field("add", add_file_action::arrow_type),
+            arrow::field("branch", create_branch_action::arrow_type),
             arrow::field("version", arrow::uint64()),
     });
 
@@ -180,9 +180,9 @@ namespace deeplog {
         }
 
         for (auto action: actions) {
-            nlohmann::json action_json = nlohmann::json::object();
-            action->to_json(action_json);
-            file << action_json;
+            nlohmann::json json;
+            json[action->action_name()] = action->to_json();
+            file << json;
         }
 
         file.close();
@@ -227,15 +227,10 @@ namespace deeplog {
 
         std::optional<long> next_from = from;
 
-        if (branch_id == MAIN_BRANCH_ID) {
-            return_actions.push_back(std::make_shared<create_branch_action>(create_branch_action(MAIN_BRANCH_ID, "main", "", -1)));
-        }
-        else {
-            auto branch_obj = branch_by_id(branch_id).data;
-            all_tables.push_back(operations(branch_id, from, branch_obj->from_version).ValueOrDie());
+        auto branch_obj = branch_by_id(branch_id).data;
+        all_tables.push_back(operations(branch_id, from, branch_obj->from_version).ValueOrDie());
 
-            next_from = branch_obj->from_version + 1;
-        }
+        next_from = branch_obj->from_version + 1;
 
         std::set < std::filesystem::path > sorted_paths = {};
 

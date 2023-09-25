@@ -62,13 +62,10 @@ TEST(ActionTest, UpgradeProtocolJson) {
 
     auto orig = deeplog::protocol_action(5, 6);
 
-    json j = json::object();
-    orig.to_json(j);
+    json action_json = orig.to_json();
+    nlohmann::json j;
+    j[orig.action_name()] = action_json;
 
     EXPECT_EQ("{\"protocol\":{\"minReaderVersion\":5,\"minWriterVersion\":6}}", j.dump());
-
-    auto parsed = deeplog::protocol_action(j);
-    EXPECT_EQ(5, parsed.min_reader_version);
-    EXPECT_EQ(6, parsed.min_writer_version);
 }
 

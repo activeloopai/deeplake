@@ -13,11 +13,6 @@ TEST(CreateTensorActionTest, to_json) {
                                                 93,
                                                 {}, {}, 53, "my_typestr", true, "my_version");
 
-    json j = json::object();
-    action.to_json(j);
-    EXPECT_EQ("{\"tensor\":{\"chunkCompression\":\"my_chunk_compression\",\"dtype\":\"my_dtype\",\"hidden\":true,\"htype\":\"my_htype\",\"id\":\"my_id\",\"length\":93,\"link\":true,\"links\":{},\"maxChunkSize\":93,\"maxShape\":[],\"minShape\":[],\"name\":\"my_name\",\"sampleCompression\":\"my_sample_compression\",\"sequence\":false,\"tilingThreshold\":53,\"typestr\":\"my_typestr\",\"verify\":true,\"version\":\"my_version\"}}", j.dump());
-
-    auto parsed = deeplog::create_tensor_action(j);
-    EXPECT_EQ("my_id", parsed.id);
-    EXPECT_EQ("my_name", parsed.name);
+    json j = action.to_json();
+    EXPECT_EQ("{\"chunkCompression\":\"my_chunk_compression\",\"dtype\":\"my_dtype\",\"hidden\":true,\"htype\":\"my_htype\",\"id\":\"my_id\",\"length\":93,\"link\":true,\"links\":{},\"maxChunkSize\":93,\"maxShape\":[],\"minShape\":[],\"name\":\"my_name\",\"sampleCompression\":\"my_sample_compression\",\"sequence\":false,\"tilingThreshold\":53,\"typestr\":\"my_typestr\",\"verify\":true,\"version\":\"my_version\"}", j.dump());
 }

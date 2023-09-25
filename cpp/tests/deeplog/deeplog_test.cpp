@@ -71,7 +71,7 @@ TEST_F(DeeplogTest, create) {
     const auto files = snapshot.data_files();
     EXPECT_EQ(0, files.size());
 
-    EXPECT_THROW(deeplog::deeplog::create(test_dir), std::runtime_error) << "Should not be able to create log twice";
+    EXPECT_THROW(auto ignore = deeplog::deeplog::create(test_dir), std::runtime_error) << "Should not be able to create log twice";
 }
 
 TEST_F(DeeplogTest, manual) {
