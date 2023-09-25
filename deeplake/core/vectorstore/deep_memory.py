@@ -119,9 +119,10 @@ class DeepMemory:
 
     def evaluate(
         self,
-        queries: List[str],
-        relevances: List[List[Tuple[str, int]]],
+        relevances: List[List[str]],
+        queries: Optional[List[str]] = None,
         embedding_function: Optional[Callable[[str], np.ndarray]] = None,
+        embedding: Optional[np.ndarray] = None,
         top_k: List[int] = [1, 3, 5, 10, 50, 100],
     ):
         """Evaluate a model on DeepMemory managed service.
@@ -147,18 +148,22 @@ class DeepMemory:
 
         # TODO: validate user permissions
         start = time()
-        query_embs = embedding_function(queries)
-        print(f"Embedding queries took {time() - start:.2f} seconds")
 
+        query_embs = embedding
+        if queries:
+            query_embs = embedding_function(queries)
+
+        print(f"Embedding queries took {time() - start:.2f} seconds")
+        recalls = {"with model": {}, "without model": {}}
         for use_model, metric in [
             (False, "COSINE_SIMILARITY"),
             (True, "deepmemory_norm"),
         ]:
-            print(f"---- Evaluating {'with' if use_model else 'without'} model ---- ")
+            eval_type = "with" if use_model else "without"
+            print(f"---- Evaluating {eval_type} model ---- ")
             for k in top_k:
                 recall = recall_at_k(
                     self.dataset,
-                    queries,
                     indra_dataset,
                     relevances,
                     top_k=k,
@@ -166,11 +171,12 @@ class DeepMemory:
                     metric=metric,
                 )
                 print(f"Recall@{k}:\t {100*recall: .1f}%")
+                recalls[f"{eval_type} model"][f"recall@{k}"] = recall
+        return recalls
 
 
 def recall_at_k(
     dataset: Dataset,
-    queries: List[str],
     indra_dataset: Any,
     relevances: List[List[Tuple[str, int]]],
     query_embs,
@@ -179,11 +185,11 @@ def recall_at_k(
 ):
     recalls = []
 
-    for query_idx, query in enumerate(queries):
+    for query_idx, _ in enumerate(query_embs):
         query_emb = query_embs[query_idx]
         # Get the indices of the relevant data for this query
         query_relevance = relevances[query_idx]
-        correct_labels = [label for label, _ in query_relevance]
+        correct_labels = [label for label in query_relevance]
 
         # Compute the cosine similarity between the query and all data points
         view_top_k = get_view_top_k(
