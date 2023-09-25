@@ -24,12 +24,37 @@ def test_deepmemory_search():
     pass
 
 
-def test_deepmemory_train(
-    capsys, corpus_copy, questions_embeddings_and_relevances, hub_cloud_dev_token
+def test_deepmemory_train_and_cancel(
+    corpus_query_copy,
+    questions_embeddings_and_relevances,
+    hub_cloud_dev_token,
 ):
-    pass
-    # TODO: add tests
-    # Not sure how to test this on a deeplake side, need to figure out how to mock the API call
+    corpus, queries = corpus_query_copy
+
+    db = VectorStore(
+        path=corpus,
+        runtime={"tensor_db": True},
+        token=hub_cloud_dev_token,
+    )
+
+    questions_embeddings, questions_relevances = questions_embeddings_and_relevances
+
+    job = db.deep_memory.train(
+        query_embeddings=questions_embeddings,
+        query_relevances=questions_relevances,
+    )
+
+    cancelled = db.deep_memory.cancel(job["job_id"])
+    assert cancelled == True
+
+    job = db.deep_memory.train(
+        queries=queries,
+        relevances=questions_relevances,
+        embedding_function=embedding_fn,
+    )
+
+    cancelled = db.deep_memory.cancel(job["job_id"])
+    assert cancelled == True
 
 
 @pytest.mark.slow

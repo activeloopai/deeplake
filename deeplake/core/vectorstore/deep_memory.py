@@ -43,6 +43,7 @@ class DeepMemory:
         relevances: List[List[Tuple[str, int]]],
         query_embeddings: Optional[List[np.ndarray]] = None,
         embedding_function: Optional[Callable[[str], np.ndarray]] = None,
+        token: Optional[str] = None,
     ):
         """Train a model on DeepMemory managed service.
 
@@ -50,6 +51,7 @@ class DeepMemory:
             queries (List[str]): List of queries to train the model on.
             relevances (List[List[Tuple[str, int]]]): List of relevant documents for each query.
             embedding_function (Optional[Callable[[str], np.ndarray]], optional): Embedding funtion used to convert queries to embeddings. Defaults to None.
+            token (str, optional): API token for the DeepMemory managed service. Defaults to None.
 
         Returns:
             str: job_id of the training job.
@@ -68,6 +70,7 @@ class DeepMemory:
             runtime={"tensor_db": True},
             embedding_function=embedding_function
             or self.embedding_function.embed_documents,
+            token=token,
         )
 
         add_kwargs = {
