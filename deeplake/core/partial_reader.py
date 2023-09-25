@@ -15,6 +15,7 @@ class PartialReader:
         assert start is not None and stop is not None
         assert step is None or step == 1
         slice_tuple = (start, stop)
+        print(f"Fetching sample bytes: {stop - start}")
         if slice_tuple not in self.data_fetched:
             self.data_fetched[slice_tuple] = memoryview(
                 self.cache.get_bytes(self.path, start, stop)
