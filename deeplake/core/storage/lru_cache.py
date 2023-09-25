@@ -246,7 +246,6 @@ class LRUCache(StorageProvider):
             and self.cache_storage[path].is_partially_read_chunk
         ):
             self.lru_sizes.move_to_end(path)  # refresh position for LRU
-            print(f"Getting bytes from cache for {path}: {end_byte - start_byte}B")
             return self.cache_storage[path][start_byte:end_byte]
         else:
             if self.next_storage is not None:

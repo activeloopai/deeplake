@@ -1948,6 +1948,7 @@ class ChunkEngine:
         chunk = self.get_chunk_from_chunk_id(
             chunk_id, partial_chunk_bytes=worst_case_header_size
         )
+        print(f"Got chunk: {chunk.nbytes}")
         decompress = decompress or (
             isinstance(chunk, ChunkCompressedChunk) or len(index) > 1
         )
