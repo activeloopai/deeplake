@@ -154,39 +154,3 @@ class DataIngestion:
                 embedding_tensor=self.embedding_tensor,
             )
             data_ingestion.run()
-
-
-# @deeplake.compute
-# def ingest(
-#     sample_in: list,
-#     sample_out: list,
-#     embedding_function,
-#     embedding_tensor,
-# ) -> None:
-#     embeds: List[Optional[np.ndarray]] = [None] * len(sample_in)
-#     if embedding_function:
-#         try:
-#             for func, tensor in zip(embedding_function, embedding_tensor):
-#                 embedding_data = [s[tensor] for s in sample_in]
-#                 embeddings = func(embedding_data)
-#         except Exception as exc:
-#             raise Exception(
-#                 "Could not use embedding function. Please try again with a different embedding function."
-#             )
-
-#         shape = np.array(embeddings[0]).shape
-#         embeds = []
-#         for e in embeddings:
-#             embedding = np.array(e, dtype=np.float32)
-#             if shape != embedding.shape:
-#                 raise IncorrectEmbeddingShapeError()
-#             embeds.append(embedding)
-
-#     for s, emb in zip(sample_in, embeds):
-#         sample_in_i = {tensor_name: s[tensor_name] for tensor_name in s}
-
-#         if embedding_function:
-#             for tensor in embedding_tensor:
-#                 sample_in_i[tensor] = np.array(emb, dtype=np.float32)
-
-#         sample_out.append(sample_in_i)
