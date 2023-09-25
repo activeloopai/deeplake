@@ -444,7 +444,7 @@ def corpus_query_copy(request, hub_cloud_dev_token):
         runtime={"tensor_db": True},
         token=hub_cloud_dev_token,
     )
-    queries = query_vs.text.data()["value"]
+    queries = query_vs.dataset.text.data()["value"]
 
     deeplake.deepcopy(
         f"hub://{HUB_CLOUD_DEV_USERNAME}/deepmemory_test_corpus",
