@@ -646,7 +646,7 @@ class JobResponseStatusSchema:
             print(line)
             print("\n")
 
-    def print_jobs(self):
+    def print_jobs(self, debug=False):
         (
             id_size,
             dataset_id_size,
@@ -662,12 +662,10 @@ class JobResponseStatusSchema:
         header_format = f"{{:<{id_size}}}  {{:<{dataset_id_size}}}  {{:<{organization_id_size}}}  {{:<{status_size}}}  {{:<{results_size}}}  {{:<{progress_size}}}"
         data_format = header_format  # as they are the same
 
-        print(
-            header_format.format(
-                "ID", "DATASET ID", "ORGANIZATION ID", "STATUS", "RESULTS", "PROGRESS"
-            )
+        output_str = header_format.format(
+            "ID", "DATASET ID", "ORGANIZATION ID", "STATUS", "RESULTS", "PROGRESS"
         )
-        # print(separator)
+
         for response in self.responses:
             response_id = response["id"]
             response_dataset_id = response["dataset_id"]
@@ -715,44 +713,41 @@ class JobResponseStatusSchema:
                 for idx, response_results_item in enumerate(response_results_items):
                     if first_time:
                         first_time = False
-                        print(
-                            data_format.format(
-                                response_id,
-                                response_dataset_id,
-                                response_organization_id,
-                                response_status,
-                                response_results_item,
-                                response_progress_items[idx],
-                            )
+                        output_str += data_format.format(
+                            response_id,
+                            response_dataset_id,
+                            response_organization_id,
+                            response_status,
+                            response_results_item,
+                            response_progress_items[idx],
                         )
                     else:
                         response_progress_item = ""
                         if idx < len(response_progress_items):
                             response_progress_item = response_progress_items[idx]
 
-                        print(
-                            data_format.format(
-                                "",
-                                "",
-                                "",
-                                "",
-                                response_results_item,
-                                response_progress_item,
-                            )
+                        output_str += data_format.format(
+                            "",
+                            "",
+                            "",
+                            "",
+                            response_results_item,
+                            response_progress_item,
                         )
 
             else:
-                print(
-                    data_format.format(
-                        response_id,
-                        response_dataset_id,
-                        response_organization_id,
-                        response_status,
-                        response_results,
-                        str(response_progress),
-                    )
+                output_str += data_format.format(
+                    response_id,
+                    response_dataset_id,
+                    response_organization_id,
+                    response_status,
+                    response_results,
+                    str(response_progress),
                 )
-        # print(separator)
+
+        print(output_str)
+        if debug:
+            return output_str
 
 
 def get_results(response, indent, add_vertical_bars, width=21):
@@ -798,7 +793,9 @@ def format_to_fixed_width(s, width, indent, add_vertical_bars):
         current_indent = "|" + indent[:-2] + "| " if add_vertical_bars else indent
         lines += current_indent
         lines += (
-            line.rstrip() + (30 - len(line)) * " " + " |" if add_vertical_bars else "\n"
+            line.rstrip() + (30 - len(line)) * " " + " |"
+            if add_vertical_bars
+            else line.rstrip() + "\n"
         )
 
     return lines
@@ -831,19 +828,19 @@ def preprocess_progress(response, progress_indent, add_vertical_bars=False):
                         first_error_line = False
                         if add_vertical_bars:
                             value_i += (23 - len(value_i)) * " " + "|"
-                    else:
-                        if add_vertical_bars:
-                            value_i = (
-                                "\n"
-                                + progress_indent[:-1]
-                                + "| "
-                                + " " * 7
-                                + value_i
-                                + (23 - len(value_i)) * " "
-                                + "|"
-                            )
+                    elif add_vertical_bars:
+                        value_i = (
+                            "\n"
+                            + progress_indent[:-1]
+                            + "| "
+                            + " " * 7
+                            + value_i
+                            + (23 - len(value_i)) * " "
+                            + "|"
+                        )
                     value += value_i
-                value = value[:-1]
+                if value[-1] == "|":
+                    value = value[:-1]
 
             if isinstance(value, float):
                 value = f"{value:.1f}"

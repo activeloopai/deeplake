@@ -154,69 +154,6 @@ class Status:
         "--------------------------------------------------------------\n\n\n"
     )
 
-    list_jobs = (
-        "ID                        DATASET ID       ORGANIZATION ID       STATUS     RESULTS          "
-        + 520 * " "
-        + "PROGRESS       \n"
-        "6508464cd80cab681bfcfff3  some_dataset_id  some_organization_id  pending    not available yet"
-        + 520 * " "
-        + "None           \n"
-        "6508464cd80cab681bfcfff3  some_dataset_id  some_organization_id  training   not available yet"
-        + 520 * " "
-        + "eta: 100.3 seconds\n"
-        "                                                                                             "
-        + 520 * " "
-        + "recall@10: 85.5% (+2.6)%\n"
-        "                                                                                             "
-        + 520 * " "
-        + "dataset: query\n"
-        "6508464cd80cab681bfcfff3  some_dataset_id  some_organization_id  completed  Congratulations! "
-        + 520 * " "
-        + "eta: 100.3 seconds\n"
-        "                                                                            Your model has   "
-        + 520 * " "
-        + "recall@10: 85.5% (+2.6)%\n"
-        "                                                                            achieved a       "
-        + 520 * " "
-        + "dataset: query \n"
-        "                                                                            recall@10 of     "
-        + 520 * " "
-        + "\n"
-        "                                                                            85.5 which is    "
-        + 520 * " "
-        + "\n"
-        "                                                                            an improvement   "
-        + 520 * " "
-        + "\n"
-        "                                                                            of (+2.6) on     "
-        + 520 * " "
-        + "\n"
-        "                                                                            the validation   "
-        + 520 * " "
-        + "\n"
-        "                                                                            set compared     "
-        + 520 * " "
-        + "\n"
-        "                                                                            to naive         "
-        + 520 * " "
-        + "\n"
-        "                                                                                             "
-        + 520 * " "
-        + "\n"
-        "                                                                                             "
-        + 520 * " "
-        + "\n"
-        "6508464cd80cab681bfcfff3  some_dataset_id  some_organization_id  failed     not available yet"
-        + 520 * " "
-        + "eta: None seconds\n"
-        "                                                                                             "
-        + 520 * " "
-        + "error: list indices must beintegers or slices,not st\n"
-        "                                                                                             "
-        + 520 * " "
-        + "dataset: query\n"
-    )
-
     @classmethod
     def get_cancelled_str(job_id):
         return """
@@ -234,7 +171,7 @@ class Status:
         )
 
 
-def test_deepmemory_print_status_and_list_jobs(capsys):
+def test_deepmemory_print_status_and_list_jobs(capsys, jobs_list):
     # for training that is just started
     pending_response = create_response(
         status="pending",
@@ -283,9 +220,8 @@ def test_deepmemory_print_status_and_list_jobs(capsys):
         failed_response,
     ]
     response_schema = JobResponseStatusSchema(response=responses)
-    response_schema.print_jobs()
-    captured = capsys.readouterr()
-    assert captured.out == Status.list_jobs[1:]
+    output_str = response_schema.print_jobs(debug=True)
+    assert output_str == jobs_list
 
 
 @pytest.mark.slow

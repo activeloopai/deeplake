@@ -110,12 +110,10 @@ class DeepMemory:
         """
         self.client.check_status(job_id=job_id)
 
-    @classmethod
-    def list_jobs(self, dataset_path, token=None):
+    def list_jobs(self):
         """List all training jobs on DeepMemory managed service."""
-        client = DeepMemoryBackendClient(token=token)
-        response = client.list_jobs(dataset_path=dataset_path)
-        return response.json()
+        response = self.client.list_jobs(dataset_path=self.dataset.path)
+        return response
 
     def evaluate(
         self,

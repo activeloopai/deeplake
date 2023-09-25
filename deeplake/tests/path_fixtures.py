@@ -1,4 +1,5 @@
 import os
+import pickle
 import posixpath
 import pytest
 import sys
@@ -25,6 +26,7 @@ from deeplake.constants import (
     ENV_GDRIVE_CLIENT_ID,
     ENV_GDRIVE_CLIENT_SECRET,
     ENV_GDRIVE_REFRESH_TOKEN,
+    HUB_CLOUD_DEV_USERNAME,
 )
 from deeplake import VectorStore
 from deeplake.client.client import DeepMemoryBackendClient
@@ -431,27 +433,37 @@ def hub_cloud_vstream_path(request, hub_cloud_dev_token):
 
 
 @pytest.fixture
-def corpus_query_pair_path(request, hub_cloud_dev_token):
+def corpus_query_relevances_copy(request, hub_cloud_dev_token):
+    if not is_opt_true(request, HUB_CLOUD_OPT):
+        pytest.skip(f"{HUB_CLOUD_OPT} flag not set")
+        return
+
     corpus = _get_storage_path(request, HUB_CLOUD)
-    query = corpus + "_query"
+    query_vs = VectorStore(
+        path=f"hub://{HUB_CLOUD_DEV_USERNAME}/deepmemory_test_queries",
+        runtime={"tensor_db": True},
+        token=hub_cloud_dev_token,
+    )
+    queries = query_vs.text.data()["value"]
+    relevances = query_vs.metadata.data()["value"]
 
     deeplake.deepcopy(
-        "hub://testingacc2/scifact_corpus",
+        f"hub://{HUB_CLOUD_DEV_USERNAME}/deepmemory_test_corpus",
         corpus,
         token=hub_cloud_dev_token,
         overwrite=True,
     )
-    deeplake.deepcopy(
-        "hub://testingacc2/scifact_queries",
-        query,
-        token=hub_cloud_dev_token,
-        overwrite=True,
-    )
 
-    yield corpus, query
+    yield corpus, queries, relevances
 
     deeplake.delete(corpus, force=True, large_ok=True, token=hub_cloud_dev_token)
-    deeplake.delete(query, force=True, large_ok=True, token=hub_cloud_dev_token)
+
+
+@pytest.fixture
+def corpus_query_pair_path():
+    corpus = f"hub://{HUB_CLOUD_DEV_USERNAME}/deepmemory_test_corpus"
+    query = f"hub://{HUB_CLOUD_DEV_USERNAME}/deepmemory_test_queries"
+    return corpus, query
 
 
 @pytest.fixture
@@ -690,3 +702,22 @@ def vector_store_filters(request):
 @pytest.fixture
 def vector_store_query(request):
     return "select * where metadata=={'a': 1}"
+
+
+@pytest.fixture
+def jobs_list():
+    parent = get_dummy_data_path("deep_memory")
+
+    with open(os.path.join(parent, "jobs_list.txt"), "r") as f:
+        jobs = f.read()
+    return jobs
+
+
+@pytest.fixture
+def questions_embeddings_and_relevances():
+    parent = get_dummy_data_path("deep_memory")
+    with open(os.path.join(parent, "questions_embeddings.pkl"), "rb") as f:
+        questions_embeddings = pickle.load(f)
+    with open(os.path.join(parent, "questions_relevances.pkl"), "rb") as f:
+        question_relevances = pickle.load(f)
+    return questions_embeddings, question_relevances
