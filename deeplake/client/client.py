@@ -555,7 +555,7 @@ class DeepMemoryBackendClient(DeepLakeBackendClient):
         check_response_status(response)
         return response.json()
 
-    def cancel(self, job_id: str):
+    def cancel_job(self, job_id: str):
         """Cancels a job with job_id.
         Args:
             job_id (str): The job_id of the job to be cancelled.
@@ -608,7 +608,7 @@ class DeepMemoryBackendClient(DeepLakeBackendClient):
         response_status_schema.print_jobs()
         return response.json()
 
-    def delete(self, job_id: str):
+    def delete_job(self, job_id: str):
         """Deletes a job with job_id.
         Args:
             job_id (str): The job_id of the job to be deleted.

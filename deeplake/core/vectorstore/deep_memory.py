@@ -99,8 +99,24 @@ class DeepMemory:
         try:
             self.client.cancel_job(job_id=job_id)
             print(f"Job with job_id='{job_id}' was sucessfully cancelled!")
+            return True
         except Exception as e:
             print(f"Job with job_id='{job_id}' was not cancelled! Error: {e}")
+            return False
+
+    def delete(self, job_id: str):
+        """Delete a training job on DeepMemory managed service.
+
+        Args:
+            job_id (str): job_id of the training job.
+        """
+        try:
+            self.client.delete_job(job_id=job_id)
+            print(f"Job with job_id='{job_id}' was sucessfully deleted!")
+            return True
+        except Exception as e:
+            print(f"Job with job_id='{job_id}' was not deleted! Error: {e}")
+            return False
 
     def status(self, job_id: Union[str, List[str]]):
         """Get the status of a training job on DeepMemory managed service.

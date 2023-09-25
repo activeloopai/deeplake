@@ -25,11 +25,10 @@ def test_deepmemory_search():
 
 
 def test_deepmemory_train_and_cancel(
-    corpus_query_copy,
-    questions_embeddings_and_relevances,
+    corpus_query_relevances_copy,
     hub_cloud_dev_token,
 ):
-    corpus, queries = corpus_query_copy
+    corpus, queries, relevances = corpus_query_relevances_copy
 
     db = VectorStore(
         path=corpus,
@@ -37,25 +36,17 @@ def test_deepmemory_train_and_cancel(
         token=hub_cloud_dev_token,
     )
 
-    questions_embeddings, questions_relevances = questions_embeddings_and_relevances
-
-    job = db.deep_memory.train(
+    job_id = db.deep_memory.train(
         queries=queries,
-        query_embeddings=questions_embeddings,
-        relevances=questions_relevances,
-    )
-
-    cancelled = db.deep_memory.cancel(job["job_id"])
-    assert cancelled == True
-
-    job = db.deep_memory.train(
-        queries=queries,
-        relevances=questions_relevances,
+        relevances=relevances,
         embedding_function=embedding_fn,
     )
 
-    cancelled = db.deep_memory.cancel(job["job_id"])
+    cancelled = db.deep_memory.cancel(job_id)
     assert cancelled == True
+
+    deleted = db.deep_memory.delete(job_id)
+    assert deleted == True
 
 
 @pytest.mark.slow
