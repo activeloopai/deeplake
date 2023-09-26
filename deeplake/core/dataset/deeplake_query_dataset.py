@@ -196,7 +196,7 @@ class DeepLakeQueryDataset(Dataset):
         return len(self.indra_ds)
 
     @deeplake_reporter.record_call
-    def dataloader(self, ignore_errors: bool = False, verbose: bool = False):
+    def dataloader(self, ignore_errors: bool = False):
         """Returns a :class:`~deeplake.enterprise.DeepLakeDataLoader` object. To use this, install deeplake with ``pip install deeplake[enterprise]``.
 
         Args:
@@ -264,13 +264,12 @@ class DeepLakeQueryDataset(Dataset):
         - Users of our Community plan can create dataloaders on Activeloop datasets ("hub://activeloop/..." datasets).
         - To run queries on your own datasets, `upgrade your organization's plan <https://www.activeloop.ai/pricing/>`_.
         """
-        from deeplake.enterprise import DeepLakeDataLoader
+        from deeplake.enterprise.dataloader import DeepLakeDataLoader
 
         dataloader = DeepLakeDataLoader(
             self,
             _indra_dataset=self.indra_ds,
             _ignore_errors=ignore_errors,
-            _verbose=verbose,
         )
         return dataloader
 

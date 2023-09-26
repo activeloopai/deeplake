@@ -110,8 +110,8 @@ class DeepLakeDataLoader(DataLoader):
         _dataloader=None,
         _world_size=1,
         _ignore_errors=False,
-        _verbose=False,
         _offset=None,
+        # _verbose=False,
         **kwargs,
     ):
         import_indra_loader()
@@ -136,8 +136,8 @@ class DeepLakeDataLoader(DataLoader):
         self._dataloader = _dataloader
         self._world_size = _world_size
         self._ignore_errors = _ignore_errors
-        self._verbose = _verbose
         self._offset = _offset
+        # self._verbose=_verbose
         for k, v in kwargs.items():
             setattr(self, k, v)
 
@@ -723,7 +723,7 @@ class DeepLakeDataLoader(DataLoader):
             htype_dict=htype_dict,
             ndim_dict=ndim_dict,
             tensor_info_dict=tensor_info_dict,
-            verbose=self._verbose,
+            # verbose=self._verbose,
             offset=self._offset,
             worker_init_fn=self.worker_init_fn,
         )
@@ -810,8 +810,8 @@ class DeepLakeDataLoader(DataLoader):
         self.close()
 
 
-def dataloader(
-    dataset, ignore_errors: bool = False, verbose: bool = False
+def to_enterprise(
+    dataset, ignore_errors: bool = False
 ) -> DeepLakeDataLoader:
     """Returns a :class:`~deeplake.enterprise.dataloader.DeepLakeDataLoader` object which can be transformed to either pytorch dataloader or numpy.
 
@@ -882,7 +882,7 @@ def dataloader(
         ...     pass
     """
     verify_base_storage(dataset)
-    return DeepLakeDataLoader(dataset, _ignore_errors=ignore_errors, _verbose=verbose)
+    return DeepLakeDataLoader(dataset, _ignore_errors=ignore_errors)
 
 
 def validate_tensors(tensors, dataset, all_vars):

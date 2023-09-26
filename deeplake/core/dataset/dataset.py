@@ -2123,7 +2123,7 @@ class Dataset:
         dataset_read(self)
         return dataloader
 
-    def dataloader(self, ignore_errors: bool = False, verbose: bool = False):
+    def dataloader(self, ignore_errors: bool = False):
         """Returns a :class:`~deeplake.enterprise.DeepLakeDataLoader` object. To use this, install deeplake with ``pip install deeplake[enterprise]``.
 
         Args:
@@ -2185,11 +2185,11 @@ class Dataset:
             ...     pass
 
         """
-        from deeplake.enterprise import dataloader
+        from deeplake.enterprise.dataloader import to_enterprise
 
         deeplake_reporter.feature_report(feature_name="dataloader", parameters={})
 
-        return dataloader(self, ignore_errors=ignore_errors, verbose=verbose)
+        return to_enterprise(self, ignore_errors=ignore_errors)
 
     def filter(
         self,
