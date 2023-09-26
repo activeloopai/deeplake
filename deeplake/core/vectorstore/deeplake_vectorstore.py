@@ -9,7 +9,9 @@ from deeplake.core.distance_type import DistanceType
 from deeplake.util.dataset import try_flushing
 
 try:
-    from indra import api  # type: ignore
+    from deeplake.enterprise.convert_to_libdeeplake import import_indra_api
+
+    import_indra_api()
 
     _INDRA_INSTALLED = True
 except Exception:  # pragma: no cover
