@@ -4,9 +4,11 @@ from deeplake.util.exceptions import (
     SampleExtendingError,
 )
 from deeplake.core.transform.transform_tensor import TransformTensor
+from deeplake.util.json import validate_json_object, HubJsonEncoder
 from deeplake.core.linked_tiled_sample import LinkedTiledSample
 from deeplake.core.partial_sample import PartialSample
 from deeplake.core.linked_sample import LinkedSample
+from deeplake.util.casting import intelligent_cast
 from deeplake.core.sample import Sample
 from deeplake.core.tensor import Tensor
 from deeplake.constants import MB
@@ -15,6 +17,7 @@ from deeplake.constants import MB
 import numpy as np
 
 import posixpath
+import json
 
 
 class TransformDataset:
@@ -113,7 +116,7 @@ class TransformDataset:
     def update(self, sample):
         raise NotImplementedError("ds.update is not supported in transforms.")
 
-    def item_added(self, item):
+    def item_added(self, item, tensor):
         if isinstance(item, Sample):
             sizeof_item = len(item.buffer)
         elif isinstance(item, LinkedSample):
@@ -125,7 +128,19 @@ class TransformDataset:
         elif isinstance(item, LinkedTiledSample):
             sizeof_item = item.path_array.nbytes
         else:
-            sizeof_item = np.asarray(item, dtype=object).nbytes
+            chunk_engine = self.all_chunk_engines[tensor]
+            meta = chunk_engine.tensor_meta
+            htype, dtype = meta.htype, meta.dtype
+            if isinstance(item, str):
+                sizeof_item = len(item.encode())
+            elif htype in ("json", "list"):
+                # NOTE: These samples will be serialized twice. Once here, and once in the chunk engine.
+                validate_json_object(item, dtype)
+                byts = json.dumps(item, cls=HubJsonEncoder).encode()
+                sizeof_item = len(byts)
+            else:
+                item = intelligent_cast(item, dtype, htype)
+                sizeof_item = item.nbytes
 
         self.cache_used += sizeof_item
 
