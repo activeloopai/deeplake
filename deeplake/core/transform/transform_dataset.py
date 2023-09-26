@@ -149,6 +149,7 @@ class TransformDataset:
 
     def check_flush(self):
         if self.cache_used >= self.cache_size:
+            print("Flushing...")
             self.flush()
 
     def _flush_numpy_tensor_to_chunk_engine(
