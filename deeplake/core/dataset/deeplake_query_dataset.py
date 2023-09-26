@@ -196,7 +196,7 @@ class DeepLakeQueryDataset(Dataset):
         return len(self.indra_ds)
 
     @deeplake_reporter.record_call
-    def dataloader(self, ignore_errors: bool = False, verbose: bool = False):
+    def dataloader(self, ignore_errors: bool = False):
         """Returns a :class:`~deeplake.enterprise.DeepLakeDataLoader` object. To use this, install deeplake with ``pip install deeplake[enterprise]``.
 
         Args:
@@ -270,7 +270,6 @@ class DeepLakeQueryDataset(Dataset):
             self,
             _indra_dataset=self.indra_ds,
             _ignore_errors=ignore_errors,
-            _verbose=verbose,
         )
         return dataloader
 
