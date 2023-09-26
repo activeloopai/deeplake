@@ -810,7 +810,7 @@ class DeepLakeDataLoader(DataLoader):
         self.close()
 
 
-def dataloader(
+def to_enterprise(
     dataset, ignore_errors: bool = False, verbose: bool = False
 ) -> DeepLakeDataLoader:
     """Returns a :class:`~deeplake.enterprise.dataloader.DeepLakeDataLoader` object which can be transformed to either pytorch dataloader or numpy.

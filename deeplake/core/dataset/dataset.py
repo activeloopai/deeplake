@@ -2185,11 +2185,11 @@ class Dataset:
             ...     pass
 
         """
-        from deeplake.enterprise import dataloader
+        from deeplake.enterprise.dataloader import to_enterprise
 
         deeplake_reporter.feature_report(feature_name="dataloader", parameters={})
 
-        return dataloader(self, ignore_errors=ignore_errors, verbose=verbose)
+        return to_enterprise(self, ignore_errors=ignore_errors, verbose=verbose)
 
     def filter(
         self,
