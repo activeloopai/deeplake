@@ -264,7 +264,7 @@ class DeepLakeQueryDataset(Dataset):
         - Users of our Community plan can create dataloaders on Activeloop datasets ("hub://activeloop/..." datasets).
         - To run queries on your own datasets, `upgrade your organization's plan <https://www.activeloop.ai/pricing/>`_.
         """
-        from deeplake.enterprise import DeepLakeDataLoader
+        from deeplake.enterprise.dataloader import DeepLakeDataLoader
 
         dataloader = DeepLakeDataLoader(
             self,
