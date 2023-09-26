@@ -375,9 +375,9 @@ class LinkedChunkEngine(ChunkEngine):
         sample = self.get_deeplake_read_sample(global_sample_index)
         return sample.buffer
 
-    def path(self, index, fetch_chunks):
+    def path(self, index, aslist, fetch_chunks):
         return self.path_chunk_engine.numpy(
-            index, fetch_chunks=fetch_chunks, use_data_cache=False
+            index, aslist=aslist, fetch_chunks=fetch_chunks, use_data_cache=False
         )
 
     def _update_non_tiled_sample(

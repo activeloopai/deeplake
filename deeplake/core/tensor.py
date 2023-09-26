@@ -1388,12 +1388,12 @@ class Tensor:
         else:
             return list(map(list, self.numpy(aslist=True, fetch_chunks=fetch_chunks)))
 
-    def path(self, fetch_chunks: bool = False):
+    def path(self, aslist: bool = True, fetch_chunks: bool = False):
         """Return path data. Only applicable for linked tensors"""
         if not self.is_link:
             raise Exception("Only supported for linked tensors.")
         assert isinstance(self.chunk_engine, LinkedChunkEngine)
-        return self.chunk_engine.path(self.index, fetch_chunks=fetch_chunks)
+        return self.chunk_engine.path(self.index, aslist=aslist, fetch_chunks=fetch_chunks)
 
     def creds_key(self):
         """Return path data. Only applicable for linked tensors"""
@@ -1402,6 +1402,9 @@ class Tensor:
         if self.index.values[0].subscriptable() or len(self.index.values) > 1:
             raise ValueError("_linked_sample can be used only on exatcly 1 sample.")
         assert isinstance(self.chunk_engine, LinkedChunkEngine)
+        if self.is_sequence:
+            indices = range(*self.chunk_engine.sequence_encoder[self.index.values[0].value])
+            return [self.chunk_engine.creds_key(i) for i in indices]
         return self.chunk_engine.creds_key(self.index.values[0].value)
 
     def invalidate_libdeeplake_dataset(self):
