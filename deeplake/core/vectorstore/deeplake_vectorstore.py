@@ -5,6 +5,7 @@ import jwt
 
 import numpy as np
 
+import deeplake
 from deeplake.core.distance_type import DistanceType
 from deeplake.util.dataset import try_flushing
 
@@ -58,6 +59,7 @@ class VectorStore:
         creds: Optional[Union[Dict, str]] = None,
         org_id: Optional[str] = None,
         logger: logging.Logger = logger,
+        branch: str = "main",
         **kwargs: Any,
     ) -> None:
         """Creates an empty VectorStore or loads an existing one if it exists at the specified ``path``.
@@ -117,6 +119,7 @@ class VectorStore:
                 - It supports 'aws_access_key_id', 'aws_secret_access_key', 'aws_session_token', 'endpoint_url', 'aws_region', 'profile_name' as keys.
                 - If 'ENV' is passed, credentials are fetched from the environment variables. This is also the case when creds is not passed for cloud datasets. For datasets connected to hub cloud, specifying 'ENV' will override the credentials fetched from Activeloop and use local ones.
             runtime (Dict, optional): Parameters for creating the Vector Store in Deep Lake's Managed Tensor Database. Not applicable when loading an existing Vector Store. To create a Vector Store in the Managed Tensor Database, set `runtime = {"tensor_db": True}`.
+            branch (str): Branch name to use for the Vector Store. Defaults to "main".
 
             **kwargs (Any): Additional keyword arguments.
 
@@ -171,6 +174,7 @@ class VectorStore:
             overwrite,
             runtime,
             org_id,
+            branch,
             **kwargs,
         )
         self.embedding_function = embedding_function
@@ -759,6 +763,14 @@ class VectorStore:
             allow_empty (bool): Whether to allow empty commits. Defaults to True.
         """
         self.dataset.commit(allow_empty=allow_empty)
+
+    def checkout(self, branch: str = "main") -> None:
+        """Checkout the Vector Store to a specific branch.
+
+        Args:
+            branch (str): Branch name to checkout. Defaults to "main".
+        """
+        self.dataset.checkout(branch)
 
     def tensors(self):
         """Returns the list of tensors present in the dataset"""

@@ -6,6 +6,14 @@ import deeplake
 from deeplake import VectorStore
 
 
+import os
+
+
+os.environ["ACTIVELOOP_HUB_USERNAME"] = "testingacc2"
+os.environ["ACTIVELOOP_HUB_PASSWORD"] = "d3epl@ke1est5"
+
+
+@pytest.mark.slow
 def test_deepmemory_init(hub_cloud_path, hub_cloud_dev_token):
     db = VectorStore(
         hub_cloud_path,
@@ -24,6 +32,7 @@ def test_deepmemory_search():
     pass
 
 
+@pytest.mark.slow
 def test_deepmemory_train_and_cancel(
     corpus_query_relevances_copy,
     hub_cloud_dev_token,
@@ -56,8 +65,12 @@ def test_deepmemory_evaluate(
     questions_embeddings_and_relevances,
     hub_cloud_dev_token,
 ):
-    corpus, _ = corpus_query_pair_path
-    questions_embeddings, question_relevances = questions_embeddings_and_relevances
+    corpus, query_path = corpus_query_pair_path
+    (
+        questions_embeddings,
+        question_relevances,
+        queries,
+    ) = questions_embeddings_and_relevances
 
     db = VectorStore(
         corpus,
@@ -66,8 +79,13 @@ def test_deepmemory_evaluate(
     )
 
     recall = db.deep_memory.evaluate(
+        queries=queries,
         embedding=questions_embeddings,
-        relevances=question_relevances,
+        relevance=question_relevances,
+        qvs_params={
+            "log_queries": True,
+            "branch": "queires",
+        },
     )
 
     assert recall["without model"] == {
@@ -87,3 +105,44 @@ def test_deepmemory_evaluate(
         "recall@50": 0.9,
         "recall@100": 0.9,
     }
+
+    queries_dataset = VectorStore(
+        path=query_path,
+        token=hub_cloud_dev_token,
+        read_only=True,
+        branch="queires",
+    )
+    assert len(queries_dataset) == len(question_relevances)
+
+    recall = db.deep_memory.evaluate(
+        queries=queries,
+        embedding=questions_embeddings,
+        relevance=question_relevances,
+        qvs_params={
+            "log_queries": True,
+            "branch": "queires",
+        },
+    )
+    queries_dataset = VectorStore(
+        path=query_path,
+        token=hub_cloud_dev_token,
+        read_only=True,
+        branch="queires",
+    )
+    queries_dataset.checkout("queires")
+    assert len(queries_dataset) == 2 * len(question_relevances)
+
+    recall = db.deep_memory.evaluate(
+        queries=queries,
+        embedding=questions_embeddings,
+        relevance=question_relevances,
+        qvs_params={
+            "log_queries": True,
+        },
+    )
+    queries_dataset = VectorStore(
+        path=query_path,
+        token=hub_cloud_dev_token,
+        read_only=True,
+    )
+    assert len(queries_dataset) == len(question_relevances)

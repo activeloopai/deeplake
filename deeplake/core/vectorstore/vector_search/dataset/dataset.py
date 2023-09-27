@@ -41,6 +41,7 @@ def create_or_load_dataset(
     overwrite,
     runtime,
     org_id,
+    branch,
     **kwargs,
 ):
     utils.check_indra_installation(
@@ -62,6 +63,7 @@ def create_or_load_dataset(
             read_only,
             runtime,
             org_id,
+            branch,
             **kwargs,
         )
 
@@ -76,6 +78,7 @@ def create_or_load_dataset(
         creds,
         runtime,
         org_id,
+        branch,
         **kwargs,
     )
 
@@ -95,6 +98,7 @@ def load_dataset(
     read_only,
     runtime,
     org_id,
+    branch,
     **kwargs,
 ):
     if dataset_path == DEFAULT_VECTORSTORE_DEEPLAKE_PATH:
@@ -112,6 +116,7 @@ def load_dataset(
         org_id=org_id,
         **kwargs,
     )
+    dataset.checkout(branch)
     check_tensors(dataset)
 
     logger.warning(
@@ -169,6 +174,7 @@ def create_dataset(
     creds,
     runtime,
     org_id,
+    branch,
     **kwargs,
 ):
     if exec_option == "tensor_db" and (
@@ -192,6 +198,7 @@ def create_dataset(
         org_id=org_id,
         **kwargs,
     )
+    dataset.checkout(branch)
     create_tensors(tensor_params, dataset, logger, embedding_function)
 
     return dataset

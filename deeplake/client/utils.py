@@ -1,6 +1,7 @@
 import os
 import json
 import requests
+import textwrap
 from pathlib import Path
 from typing import Dict, List, Any, Union
 
@@ -121,9 +122,9 @@ def get_user_name() -> str:
 class JobResponseStatusSchema:
     def __init__(self, response: Dict[str, Any]):
         if not isinstance(response, List):
-            response = [response]
+            responses = [response]
 
-        self.responses = response
+        self.responses: List[Dict[str, Any]] = responses
         self.validate_status_response()
 
     def validate_status_response(self):
@@ -236,7 +237,7 @@ class JobResponseStatusSchema:
                 for idx, response_results_item in enumerate(response_results_items):
                     if first_time:
                         first_time = False
-                        output_str += data_format.format(
+                        output_str += "\n" + data_format.format(
                             response_id,
                             response_dataset_id,
                             response_organization_id,
@@ -249,7 +250,7 @@ class JobResponseStatusSchema:
                         if idx < len(response_progress_items):
                             response_progress_item = response_progress_items[idx]
 
-                        output_str += data_format.format(
+                        output_str += "\n" + data_format.format(
                             "",
                             "",
                             "",
@@ -259,7 +260,7 @@ class JobResponseStatusSchema:
                         )
 
             else:
-                output_str += data_format.format(
+                output_str += "\n" + data_format.format(
                     response_id,
                     response_dataset_id,
                     response_organization_id,
@@ -410,7 +411,7 @@ def preprocess_progress(
     return response_progress
 
 
-def get_table_size(responses: Dict[str, Any]):
+def get_table_size(responses: List[Dict[str, Any]]):
     id_size, dataset_id_size, organization_id_size, status_size, results_size = (
         2,  # Minimum size to fit "ID"
         10,  # Minimum size to fit "DATASET ID"

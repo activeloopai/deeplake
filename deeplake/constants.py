@@ -4,6 +4,10 @@ import sys
 import numpy as np
 
 
+os.environ["ACTIVELOOP_HUB_USERNAME"] = "testingacc2"
+os.environ["ACTIVELOOP_HUB_PASSWORD"] = "d3epl@ke1est5"
+
+
 BYTE_PADDING = b"\0"
 
 # number of bytes per unit
@@ -239,6 +243,67 @@ DEFAULT_VECTORSTORE_TENSORS = [
     {
         "name": "id",
         "htype": "text",
+        "create_id_tensor": False,
+        "create_sample_info_tensor": False,
+        "create_shape_tensor": False,
+    },
+]
+
+DEFAULT_QUERIES_VECTORSTORE_TENSORS = [
+    {
+        "name": "text",
+        "htype": "text",
+        "create_id_tensor": False,
+        "create_sample_info_tensor": False,
+        "create_shape_tensor": False,
+    },
+    {
+        "name": "metadata",
+        "htype": "json",
+        "create_id_tensor": False,
+        "create_sample_info_tensor": False,
+        "create_shape_tensor": False,
+    },
+    {
+        "name": "embedding",
+        "htype": "embedding",
+        "dtype": np.float32,
+        "create_id_tensor": False,
+        "create_sample_info_tensor": False,
+        "create_shape_tensor": True,
+        "max_chunk_size": 64 * MB,
+    },
+    {
+        "name": "id",
+        "htype": "text",
+        "create_id_tensor": False,
+        "create_sample_info_tensor": False,
+        "create_shape_tensor": False,
+    },
+    {
+        "name": "dm_top_10_docs",
+        "htype": "json",
+        "create_id_tensor": False,
+        "create_sample_info_tensor": False,
+        "create_shape_tensor": False,
+    },
+    {
+        "name": "dm_recall",
+        "htype": "json",
+        "create_id_tensor": False,
+        "create_sample_info_tensor": False,
+        "create_shape_tensor": False,
+    },
+    {
+        "name": "naive_vs_top_10_docs",
+        "htype": "json",
+        "create_id_tensor": False,
+        "create_sample_info_tensor": False,
+        "create_shape_tensor": False,
+    },
+    {
+        "name": "naive_vs_recall",
+        "htype": "json",
         "create_id_tensor": False,
         "create_sample_info_tensor": False,
         "create_shape_tensor": False,

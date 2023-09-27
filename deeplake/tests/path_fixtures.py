@@ -464,8 +464,10 @@ def corpus_query_relevances_copy(request, hub_cloud_dev_token):
 @pytest.fixture
 def corpus_query_pair_path():
     corpus = f"hub://{HUB_CLOUD_DEV_USERNAME}/deepmemory_test_corpus"
-    query = f"hub://{HUB_CLOUD_DEV_USERNAME}/deepmemory_test_queries"
-    return corpus, query
+    query = corpus + "_queries"
+
+    yield corpus, query
+    deeplake.delete(query, force=True, large_ok=True)
 
 
 @pytest.fixture
@@ -718,8 +720,11 @@ def jobs_list():
 @pytest.fixture
 def questions_embeddings_and_relevances():
     parent = get_dummy_data_path("deep_memory")
+
+    with open(os.path.join(parent, "questions.pkl"), "rb") as f:
+        questions = pickle.load(f)
     with open(os.path.join(parent, "questions_embeddings.pkl"), "rb") as f:
         questions_embeddings = pickle.load(f)
     with open(os.path.join(parent, "questions_relevances.pkl"), "rb") as f:
         question_relevances = pickle.load(f)
-    return questions_embeddings, question_relevances
+    return questions_embeddings, question_relevances, questions
