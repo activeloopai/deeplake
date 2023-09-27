@@ -384,6 +384,7 @@ class VectorStore:
         embedding_tensor: str = "embedding",
         return_tensors: Optional[List[str]] = None,
         return_view: bool = False,
+        deep_memory: bool = False,
     ) -> Union[Dict, Dataset]:
         """VectorStore search method that combines embedding search, metadata search, and custom TQL search.
 
@@ -435,12 +436,15 @@ class VectorStore:
             embedding_tensor (str): Name of tensor with embeddings. Defaults to "embedding".
             return_tensors (Optional[List[str]]): List of tensors to return data for. Defaults to None, which returns data for all tensors except the embedding tensor (in order to minimize payload). To return data for all tensors, specify return_tensors = "*".
             return_view (bool): Return a Deep Lake dataset view that satisfied the search parameters, instead of a dictionary with data. Defaults to False. If ``True`` return_tensors is set to "*" beucase data is lazy-loaded and there is no cost to including all tensors in the view.
+            deep_memory (bool): Whether to use the Deep Memory model for improving search results. Defaults to False if deep_memory is not specified in the Vector Store initialization.
+                If True, the distance metric is set to "deepmemory_norm", which represents the metric with which the model was trained. The search is performed using the Deep Memory model. If False, the distance metric is set to "COS" or whatever distance metric user specifies.
 
         ..
             # noqa: DAR101
 
         Raises:
             ValueError: When invalid parameters are specified.
+            ValueError: when deep_memory is True. Deep Memory is only available for datasets stored in the Deep Lake Managed Database for paid accounts.
 
         Returns:
             Dict: Dictionary where keys are tensor names and values are the results of the search
@@ -476,6 +480,13 @@ class VectorStore:
             exec_option = "python"
 
         exec_option = exec_option or self.exec_option
+
+        if deep_memory:
+            raise ValueError(
+                "Deep Memory dataset should have been created with runtime = {'tensor_db': True} during initialization. "
+                "Please create a new Vector Store with runtime = {'tensor_db': True} and try again. "
+                "NOTE: Deep Memory is only available for datasets stored in the Deep Lake Managed Database for paid accounts."
+            )
 
         utils.parse_search_args(
             embedding_data=embedding_data,
