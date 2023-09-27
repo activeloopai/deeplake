@@ -136,7 +136,7 @@ class DeepMemory:
         """Get the status of a training job on DeepMemory managed service.
 
         Args:
-            job_id (Union[str, List[str]]): job_id of the training job.
+            job_id (str): job_id of the training job.
         """
         self.client.check_status(job_id=job_id)
 
