@@ -1,5 +1,6 @@
 #include "deeplog.hpp"
 #include <filesystem>
+#include <algorithm>
 #include <iostream>
 #include <set>
 #include <fstream>
@@ -70,99 +71,8 @@ namespace deeplog {
     }
 
     long deeplog::version(const std::string &branch_id) const {
-        return list_actions(branch_id, 0, std::nullopt).version;
+        return get<1>(get_actions(branch_id, std::nullopt));
     }
-
-    deeplog_state<std::shared_ptr<protocol_action>> deeplog::protocol() const {
-        auto actions = list_actions(MAIN_BRANCH_ID, 0, std::nullopt);
-
-        std::shared_ptr<protocol_action> protocol;
-
-        for (auto action: actions.data) {
-            auto casted = std::dynamic_pointer_cast<protocol_action>(action);
-            if (casted != nullptr) {
-                protocol = casted;
-            }
-        }
-
-        return {protocol, actions.version};
-    }
-
-    deeplog_state<std::shared_ptr<metadata_action>> deeplog::metadata() const {
-        auto actions = list_actions(MAIN_BRANCH_ID, 0, std::nullopt);
-
-        std::shared_ptr<metadata_action> metadata;
-
-        for (auto action: actions.data) {
-            auto casted = std::dynamic_pointer_cast<metadata_action>(action);
-            if (casted != nullptr) {
-                metadata = casted;
-            }
-        }
-
-        return {metadata, actions.version};
-    }
-
-    deeplog_state<std::vector<std::shared_ptr<add_file_action>>> deeplog::data_files(const std::string &branch_id, const std::optional<long> &version) {
-        auto actions = list_actions(branch_id, 0, std::nullopt);
-
-        std::vector<std::shared_ptr<add_file_action>> branches = {};
-
-        for (const auto action: actions.data) {
-            auto casted = std::dynamic_pointer_cast<add_file_action>(action);
-            if (casted != nullptr) {
-                branches.push_back(casted);
-            }
-        }
-
-        return {std::vector<std::shared_ptr<add_file_action>>(branches), actions.version};
-    }
-
-    deeplog_state<std::vector<std::shared_ptr<create_commit_action>>> deeplog::commits(const std::string &branch_id, const std::optional<long> &version) {
-        auto actions = list_actions(branch_id, 0, std::nullopt);
-
-        std::vector<std::shared_ptr<create_commit_action>> commits = {};
-
-        for (const auto action: actions.data) {
-            auto casted = std::dynamic_pointer_cast<create_commit_action>(action);
-            if (casted != nullptr) {
-                commits.push_back(casted);
-            }
-        }
-
-        return {std::vector<std::shared_ptr<create_commit_action>>(commits), actions.version};
-    }
-
-    deeplog_state<std::vector<std::shared_ptr<create_tensor_action>>> deeplog::tensors(const std::string &branch_id, const std::optional<long> &version) const {
-        auto actions = list_actions(MAIN_BRANCH_ID, 0, std::nullopt);
-
-        std::vector<std::shared_ptr<create_tensor_action>> tensors = {};
-
-        for (const auto action: actions.data) {
-            auto casted = std::dynamic_pointer_cast<create_tensor_action>(action);
-            if (casted != nullptr) {
-                tensors.push_back(casted);
-            }
-        }
-
-        return {std::vector<std::shared_ptr<create_tensor_action>>(tensors), actions.version};
-    }
-
-    deeplog_state<std::vector<std::shared_ptr<create_branch_action>>> deeplog::branches() const {
-        auto actions = list_actions(MAIN_BRANCH_ID, 0, std::nullopt);
-
-        std::vector<std::shared_ptr<create_branch_action>> branches = {};
-
-        for (const auto action: actions.data) {
-            auto casted = std::dynamic_pointer_cast<create_branch_action>(action);
-            if (casted != nullptr) {
-                branches.push_back(casted);
-            }
-        }
-
-        return {std::vector<std::shared_ptr<create_branch_action>>(branches), actions.version};
-    }
-
 
     void deeplog::commit(const std::string &branch_id,
                          const long &base_version,
@@ -188,22 +98,9 @@ namespace deeplog {
         file.close();
     }
 
-    deeplog_state<std::shared_ptr<create_branch_action>> deeplog::branch_by_id(const std::string &branch_id) const {
-        auto all_branches = this->branches();
-        auto data = all_branches.data;
-
-        auto branch = std::ranges::find_if(data,
-                                           [branch_id](std::shared_ptr<create_branch_action> b) { return b->id == branch_id; });
-        if (branch == data.end()) {
-            throw std::runtime_error("Branch id '" + branch_id + "' not found");
-        }
-
-        return {*branch, all_branches.version};
-    }
-
-    arrow::Result<std::shared_ptr<arrow::Table>> deeplog::operations(const std::string &branch_id,
-                                                                     const long &from,
-                                                                     const std::optional<long> &to) const {
+    arrow::Result<std::shared_ptr<arrow::Table>> deeplog::action_data(const std::string &branch_id,
+                                                                          const long &from,
+                                                                          const std::optional<long> &to) const {
         long highest_version = -1;
         std::vector<std::shared_ptr<arrow::Table>> all_tables = {};
 
@@ -227,10 +124,10 @@ namespace deeplog {
 
         std::optional<long> next_from = from;
 
-        auto branch_obj = branch_by_id(branch_id).data;
-        all_tables.push_back(operations(branch_id, from, branch_obj->from_version).ValueOrDie());
+//        auto branch_obj = branch_by_id(branch_id).data;
+//        all_tables.push_back(action_data(branch_id, from, branch_obj->from_version).ValueOrDie());
 
-        next_from = branch_obj->from_version + 1;
+//        next_from = branch_obj->from_version + 1;
 
         std::set < std::filesystem::path > sorted_paths = {};
 
@@ -239,12 +136,14 @@ namespace deeplog {
             for (const auto &entry: std::filesystem::directory_iterator(dir_path)) {
                 if (std::filesystem::is_regular_file(entry.path()) && entry.path().extension() == ".json" && !entry.path().filename().string().starts_with("_")) {
                     auto found_version = file_version(entry.path());
-                    if (highest_version < found_version) {
-                        highest_version = found_version;
-                    }
                     if (to.has_value() && found_version > to) {
                         continue;
                     }
+
+                    if (highest_version < found_version) {
+                        highest_version = found_version;
+                    }
+
                     if (!next_from.has_value() || found_version >= next_from) {
                         sorted_paths.insert(entry.path());
                     }
@@ -280,7 +179,7 @@ namespace deeplog {
         }
 
         std::vector<std::shared_ptr<arrow::Array>> version_row;
-        for (const auto& field : arrow_schema->fields()) {
+        for (const auto &field: arrow_schema->fields()) {
             if (field->name() == "version") {
                 version_row.push_back(arrow::MakeArrayFromScalar(arrow::UInt64Scalar(highest_version), 1).ValueOrDie());
             } else {
@@ -292,58 +191,62 @@ namespace deeplog {
         return arrow::ConcatenateTables(all_tables).ValueOrDie();
     }
 
-    arrow::Result<std::shared_ptr<arrow::StructScalar>> deeplog::last_value(const std::string &column_name, const std::shared_ptr<arrow::Table> &table) const {
-        auto non_nulls = arrow::compute::DropNull(table->GetColumnByName(column_name)).ValueOrDie();
-        auto slice = non_nulls.chunked_array()->Slice(non_nulls.length() - 1);
-        return std::dynamic_pointer_cast<arrow::StructScalar>(slice->GetScalar(0).ValueOrDie());
-    }
-
-    deeplog_state<std::vector<std::shared_ptr<action>>> deeplog::list_actions(const std::string &branch_id,
-                                                                              const long &from,
-                                                                              const std::optional<long> &to) const {
+    std::tuple<std::shared_ptr<std::vector<std::shared_ptr<action>>>, long> deeplog::get_actions(const std::string &branch_id,
+                                                                             const std::optional<long> &to) const {
         std::vector<std::shared_ptr<action>> return_actions = {};
 
-        auto all_operations = operations(branch_id, from, to).ValueOrDie();
-        //            std::ifstream ifs(path);
-//
-//            nlohmann::json jsonArray = nlohmann::json::parse(ifs);
-//            for (auto &element: jsonArray) {
-//                if (element.contains("add")) {
-//                    return_actions.push_back(std::make_shared<add_file_action>(add_file_action(element)));
-//                } else if (element.contains("commit")) {
-//                    return_actions.push_back(std::make_shared<create_commit_action>(create_commit_action(element)));
-//                } else if (element.contains("branch")) {
-//                    return_actions.push_back(std::make_shared<create_branch_action>(create_branch_action(element)));
-//                } else if (element.contains("protocol")) {
-//                    return_actions.push_back(std::make_shared<protocol_action>(protocol_action(element)));
-//                } else if (element.contains("metadata")) {
-//                    return_actions.push_back(std::make_shared<metadata_action>(metadata_action(element)));
-//                } else if (element.contains("tensor")) {
-//                    return_actions.push_back(std::make_shared<create_tensor_action>(create_tensor_action(element)));
-//                }
-//            }
+        auto all_operations = action_data(branch_id, 0, to).ValueOrDie();
 
-        return_actions.push_back(std::make_shared<::deeplog::protocol_action>(::deeplog::protocol_action(last_value("protocol", all_operations).ValueOrDie())));
-        return_actions.push_back(std::make_shared<::deeplog::metadata_action>(::deeplog::metadata_action(last_value("metadata", all_operations).ValueOrDie())));
+        unsigned long version = -1;
+        for (long row_id = 0; row_id < all_operations->num_rows(); ++row_id) {
+            auto field_id = 0;
+            for (const auto &field: all_operations->fields()) {
+                auto scalar = all_operations->column(field_id)->GetScalar(row_id).ValueOrDie();
+                if (scalar->is_valid) {
+                    if (field->name() == "version") {
+                        version = std::dynamic_pointer_cast<arrow::UInt64Scalar>(scalar)->value;
+                    } else {
+                        std::shared_ptr<::deeplog::action> action;
+                        auto struct_scalar = std::dynamic_pointer_cast<arrow::StructScalar>(scalar);
+                        if (field->name() == "protocol") {
+                            action = std::make_shared<::deeplog::protocol_action>(::deeplog::protocol_action(struct_scalar));
+                        } else if (field->name() == "metadata") {
+                            action = std::make_shared<::deeplog::metadata_action>(::deeplog::metadata_action(struct_scalar));
+                        } else if (field->name() == "branch") {
+                            action = std::make_shared<::deeplog::create_branch_action>(::deeplog::create_branch_action(struct_scalar));
+                        } else if (field->name() == "add") {
+                            action = std::make_shared<::deeplog::add_file_action>(::deeplog::add_file_action(struct_scalar));
+                        } else {
+                            throw std::runtime_error("Unknown action type: " + field->name());
+                        }
 
-        for (long rowId = 0; rowId < all_operations->num_rows(); ++rowId) {
-            auto branch_scalar = all_operations->GetColumnByName("branch")->GetScalar(rowId).ValueOrDie();
-            if (branch_scalar->is_valid) {
-                auto branch_action = create_branch_action(std::dynamic_pointer_cast<arrow::StructScalar>(branch_scalar));
-                return_actions.push_back(std::make_shared<create_branch_action>(branch_action));
+                        auto replace_action = std::dynamic_pointer_cast<::deeplog::replace_action>(action);
+                        if (replace_action == nullptr) {
+                            return_actions.push_back(action);
+                        } else {
+                            auto matches = std::find_if(return_actions.begin(), return_actions.end(), [replace_action](std::shared_ptr<::deeplog::action> a) {
+                                return replace_action->replaces(a);
+                            });
+
+                            if (matches == return_actions.end()) {
+                                return_actions.push_back(action);
+                            } else {
+                                auto index = std::distance(return_actions.begin(), matches);
+                                auto replacement = replace_action->replace(*matches);
+                                if (replacement == nullptr) {
+                                    return_actions.erase(return_actions.begin() + index);
+                                } else {
+                                    return_actions.at(index) = replacement;
+                                }
+                            }
+                        }
+                    }
+                }
+                ++field_id;
             }
-
-            auto file_scalar = all_operations->GetColumnByName("add")->GetScalar(rowId).ValueOrDie();
-            if (file_scalar->is_valid) {
-                auto action = add_file_action(std::dynamic_pointer_cast<arrow::StructScalar>(file_scalar));
-                return_actions.push_back(std::make_shared<add_file_action>(action));
-            }
-
         }
 
-
-        auto last_version = arrow::compute::Last(all_operations->GetColumnByName("version")).ValueOrDie();
-        return deeplog_state(return_actions, last_version.scalar_as<arrow::UInt64Scalar>().value);
+        return std::make_tuple(std::make_shared<std::vector<std::shared_ptr<action>>>(return_actions), version);
     }
 
     long deeplog::file_version(const std::filesystem::path &path) const {
@@ -388,7 +291,7 @@ namespace deeplog {
     }
 
     arrow::Status deeplog::write_checkpoint(const std::string &branch_id, const long &version) {
-        auto checkpoint_table = operations(branch_id, 0, version).ValueOrDie();
+        auto checkpoint_table = action_data(branch_id, 0, version).ValueOrDie();
 
         std::shared_ptr<parquet::WriterProperties> props = parquet::WriterProperties::Builder().compression(arrow::Compression::SNAPPY)->build();
         std::shared_ptr<parquet::ArrowWriterProperties> arrow_props = parquet::ArrowWriterProperties::Builder().store_schema()->build();

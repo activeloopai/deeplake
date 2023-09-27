@@ -2,6 +2,7 @@
 #include <filesystem>
 #include "../../deeplog/deeplog.hpp"
 #include "../../deeplog/snapshot.hpp"
+#include "../../deeplog/metadata_snapshot.hpp"
 
 class DeeplogSnapshotTest : public ::testing::Test {
 protected:
@@ -23,7 +24,7 @@ protected:
 TEST_F(DeeplogSnapshotTest, construct) {
     auto log = deeplog::deeplog::create(test_dir);
 
-    auto original_metadata = log->metadata().data;
+    auto original_metadata = deeplog::metadata_snapshot(log).metadata();
     auto action = deeplog::metadata_action(original_metadata->id, "new name", "new desc", original_metadata->created_time);
     log->commit(deeplog::MAIN_BRANCH_ID, log->version(deeplog::MAIN_BRANCH_ID), {std::make_shared<deeplog::metadata_action>(action)});
 

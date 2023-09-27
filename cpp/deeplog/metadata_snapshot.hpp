@@ -1,16 +1,15 @@
 #pragma once
 
 #include "deeplog.hpp"
+#include "base_snapshot.hpp"
 
 namespace deeplog {
 
-    class metadata_snapshot {
+    class metadata_snapshot : public base_snapshot {
     public:
-        metadata_snapshot(const std::shared_ptr<deeplog> &deeplog);
+        metadata_snapshot(const std::shared_ptr<::deeplog::deeplog> &deeplog);
 
-        metadata_snapshot(const long &version, const std::shared_ptr<deeplog> &deeplog);
-
-        const long version;
+        metadata_snapshot(const long &version, const std::shared_ptr<::deeplog::deeplog> &deeplog);
 
         std::shared_ptr<protocol_action> protocol() const;
 
@@ -22,8 +21,5 @@ namespace deeplog {
 
         std::optional<std::string> branch_id(const std::string &name) const;
 
-    private:
-        std::shared_ptr<deeplog> deeplog_;
     };
-
 }

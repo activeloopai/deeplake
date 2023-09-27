@@ -23,7 +23,7 @@ protected:
 TEST_F(DeeplogMetadataSnapshotTest, construct) {
     auto log = deeplog::deeplog::create(test_dir);
 
-    auto original_metadata = log->metadata().data;
+    auto original_metadata = deeplog::metadata_snapshot(log).metadata();
     auto action = deeplog::metadata_action(original_metadata->id, "new name", "new desc", original_metadata->created_time);
     log->commit(deeplog::MAIN_BRANCH_ID, log->version(deeplog::MAIN_BRANCH_ID), {std::make_shared<deeplog::metadata_action>(action)});
 

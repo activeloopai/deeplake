@@ -55,7 +55,7 @@ TEST_F(DeeplogTest, create) {
     EXPECT_TRUE(json_string.find("metadata") != std::string::npos);
     EXPECT_TRUE(json_string.find("branch") != std::string::npos);
 
-    auto meta_snapshot = deeplog::metadata_snapshot(0, log);
+    auto meta_snapshot = deeplog::metadata_snapshot(log);
 
     EXPECT_EQ(1, meta_snapshot.branches().size());
     EXPECT_EQ("main", meta_snapshot.branches().begin()->get()->name);
@@ -74,13 +74,6 @@ TEST_F(DeeplogTest, create) {
     EXPECT_THROW(auto ignore = deeplog::deeplog::create(test_dir), std::runtime_error) << "Should not be able to create log twice";
 }
 
-TEST_F(DeeplogTest, manual) {
-    auto log = deeplog::deeplog::open("tmp/manual-test");
-
-    log->list_actions(deeplog::MAIN_BRANCH_ID, 0, std::nullopt);
-    EXPECT_EQ("tmp/manual-test", log->path);
-}
-
 TEST_F(DeeplogTest, open) {
     auto log = deeplog::deeplog::open(test_dir);
 
@@ -94,7 +87,7 @@ TEST_F(DeeplogTest, version) {
 
 TEST_F(DeeplogTest, branch_by_id) {
     auto log = deeplog::deeplog::create(test_dir);
-    EXPECT_EQ("main", deeplog::metadata_snapshot(0, log).branch_by_id(deeplog::MAIN_BRANCH_ID)->name);
+    EXPECT_EQ("main", deeplog::metadata_snapshot(log).branch_by_id(deeplog::MAIN_BRANCH_ID)->name);
 }
 
 
@@ -102,7 +95,7 @@ TEST_F(DeeplogTest, commit_protocol) {
     auto log = deeplog::deeplog::create(test_dir);
 
     auto action = deeplog::protocol_action(5, 6);
-    log->commit(deeplog::MAIN_BRANCH_ID, log->version(deeplog::MAIN_BRANCH_ID), {std::make_shared<deeplog::protocol_action>(action)});
+    log->commit(deeplog::MAIN_BRANCH_ID, 0, {std::make_shared<deeplog::protocol_action>(action)});
 
     EXPECT_EQ((std::set < std::string > {"00000000000000000000.json", "00000000000000000001.json"}), list_log_files());
     std::ifstream ifs(test_dir + "/_deeplake_log/00000000000000000001.json");
@@ -112,14 +105,14 @@ TEST_F(DeeplogTest, commit_protocol) {
 
     EXPECT_NE(json_string.find("protocol"), std::string::npos);
 
-    EXPECT_EQ(5, deeplog::metadata_snapshot(1, log).protocol()->min_reader_version);
-    EXPECT_EQ(6, deeplog::metadata_snapshot(1, log).protocol()->min_writer_version);
+    EXPECT_EQ(5, deeplog::metadata_snapshot(log).protocol()->min_reader_version);
+    EXPECT_EQ(6, deeplog::metadata_snapshot(log).protocol()->min_writer_version);
 }
 
 TEST_F(DeeplogTest, commit_metadata) {
     auto log = deeplog::deeplog::create(test_dir);
 
-    auto original_metadata = deeplog::metadata_snapshot(0, log).metadata();
+    auto original_metadata = deeplog::metadata_snapshot(log).metadata();
     auto action = deeplog::metadata_action(original_metadata->id, "new name", "new desc", original_metadata->created_time);
     log->commit(deeplog::MAIN_BRANCH_ID, log->version(deeplog::MAIN_BRANCH_ID), {std::make_shared<deeplog::metadata_action>(action)});
 
@@ -131,7 +124,7 @@ TEST_F(DeeplogTest, commit_metadata) {
 
     EXPECT_NE(json_string.find("metadata"), std::string::npos);
 
-    auto new_metadata = deeplog::metadata_snapshot(1, log).metadata();
+    auto new_metadata = deeplog::metadata_snapshot(log).metadata();
     EXPECT_EQ(original_metadata->id, new_metadata->id);
     EXPECT_EQ(original_metadata->created_time, new_metadata->created_time);
     EXPECT_EQ("new name", new_metadata->name);
@@ -155,9 +148,9 @@ TEST_F(DeeplogTest, commit_add_file) {
     auto files = deeplog::snapshot(deeplog::MAIN_BRANCH_ID, 1, log).data_files();
 
     EXPECT_EQ(1, files.size());
-    EXPECT_EQ("my/path", files[0]->path);
-    EXPECT_EQ(3, files[0]->size);
-    EXPECT_EQ(45, files[0]->modification_time);
+    EXPECT_EQ("my/path", files.at(0)->path);
+    EXPECT_EQ(3, files.at(0)->size);
+    EXPECT_EQ(45, files.at(0)->modification_time);
 }
 
 TEST_F(DeeplogTest, commit_create_branch) {
@@ -174,20 +167,20 @@ TEST_F(DeeplogTest, commit_create_branch) {
 
     EXPECT_NE(json_string.find("branch"), std::string::npos);
 
-    auto branches = deeplog::metadata_snapshot(1, log).branches();
+    auto branches = deeplog::metadata_snapshot(log).branches();
 
     EXPECT_EQ(2, branches.size());
-    EXPECT_EQ("", (branches)[0]->id);
-    EXPECT_EQ("main", (branches)[0]->name);
+    EXPECT_EQ("", (branches).at(0)->id);
+    EXPECT_EQ("main", (branches).at(0)->name);
 
-    EXPECT_EQ("123", (branches)[1]->id);
-    EXPECT_EQ("branch1", (branches)[1]->name);
+    EXPECT_EQ("123", (branches).at(1)->id);
+    EXPECT_EQ("branch1", (branches).at(1)->name);
 }
 
 TEST_F(DeeplogTest, checkpoint) {
     auto log = deeplog::deeplog::create(test_dir);
 
-    auto original_metadata = deeplog::metadata_snapshot(0, log).metadata();
+    auto original_metadata = deeplog::metadata_snapshot(log).metadata();
     for (int i = 0; i <= 3; ++i) {
         auto action = deeplog::metadata_action(original_metadata->id, "name " + std::to_string(i), "desc " + std::to_string(i), original_metadata->created_time);
         log->commit(deeplog::MAIN_BRANCH_ID, log->version(deeplog::MAIN_BRANCH_ID), {std::make_shared<deeplog::metadata_action>(action)});
@@ -201,7 +194,7 @@ TEST_F(DeeplogTest, checkpoint) {
     EXPECT_EQ(8, log->version(deeplog::MAIN_BRANCH_ID));
     EXPECT_EQ(9, list_log_files().size());
 
-    auto new_metadata = deeplog::metadata_snapshot(8, log).metadata();
+    auto new_metadata = deeplog::metadata_snapshot(log).metadata();
     EXPECT_EQ(original_metadata->id, new_metadata->id);
     EXPECT_EQ(original_metadata->created_time, new_metadata->created_time);
     EXPECT_EQ("name 3", new_metadata->name);
@@ -226,7 +219,7 @@ TEST_F(DeeplogTest, checkpoint) {
     EXPECT_FALSE(list_log_files().contains("00000000000000000000.json"));
 
     auto new_log = deeplog::deeplog::open(test_dir);
-    new_metadata = deeplog::metadata_snapshot(8, new_log).metadata();
+    new_metadata = deeplog::metadata_snapshot(new_log).metadata();
     EXPECT_EQ(8, new_log->version(deeplog::MAIN_BRANCH_ID));
     EXPECT_EQ(original_metadata->id, new_metadata->id);
     EXPECT_EQ("name 3", new_metadata->name);

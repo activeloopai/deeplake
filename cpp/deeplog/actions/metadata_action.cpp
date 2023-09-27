@@ -67,6 +67,14 @@ namespace deeplog {
         return uuids::to_string(uuids::uuid_random_generator{generator}());
     }
 
+    bool metadata_action::replaces(std::shared_ptr<action> action) {
+        return action->action_name() == action_name();
+    }
+
+    std::shared_ptr<action> metadata_action::replace(std::shared_ptr<action> action) {
+        return shared_from_this();
+    }
+
     long current_timestamp() {
         return std::chrono::duration_cast<std::chrono::milliseconds>(
                 std::chrono::system_clock::now().time_since_epoch()).count();

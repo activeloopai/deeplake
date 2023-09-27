@@ -1,6 +1,7 @@
 #pragma once
 
 #include "action.hpp"
+#include "replace_action.hpp"
 #include <uuid.h>
 #include <random>
 #include <nlohmann/json.hpp>
@@ -8,7 +9,7 @@
 
 namespace deeplog {
 
-    class metadata_action : public action {
+    class metadata_action : public action, public replace_action, public std::enable_shared_from_this<metadata_action> {
     public:
         std::string id;
         std::optional<std::string> name;
@@ -26,6 +27,11 @@ namespace deeplog {
         nlohmann::json to_json() override;
 
         std::string action_name() override;
+
+        bool replaces(std::shared_ptr<action> action) override;
+
+        std::shared_ptr<action> replace(std::shared_ptr<action> action) override;
+
     };
 
     std::string generate_uuid();

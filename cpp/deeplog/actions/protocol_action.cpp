@@ -30,4 +30,12 @@ namespace deeplog {
 
         return json;
     }
+
+    bool protocol_action::replaces(std::shared_ptr<action> action) {
+        return action->action_name() == action_name();
+    }
+
+    std::shared_ptr<action> protocol_action::replace(std::shared_ptr<action> action) {
+        return shared_from_this();
+    }
 }
