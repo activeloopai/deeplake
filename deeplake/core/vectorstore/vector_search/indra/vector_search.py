@@ -2,10 +2,12 @@ from typing import Dict, Union, Callable
 from deeplake.core.dataset import Dataset as DeepLakeDataset
 
 try:
-    from indra import api  # type: ignore
+    from deeplake.enterprise.convert_to_libdeeplake import import_indra_api
 
-    _INDRA_INSTALLED = True  # pragma: no cover
-except ImportError:  # pragma: no cover
+    import_indra_api()
+
+    _INDRA_INSTALLED = True
+except Exception:  # pragma: no cover
     _INDRA_INSTALLED = False  # pragma: no cover
 
 from deeplake.core.vectorstore.vector_search import utils

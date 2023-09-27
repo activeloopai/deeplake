@@ -1426,8 +1426,13 @@ class Tensor:
             )
 
             ds = dataset_to_libdeeplake(self.dataset)
+
+        from deeplake.enterprise.convert_to_libdeeplake import (
+            import_indra_api,
+        )
+
         ts = getattr(ds, self.meta.name)
-        from indra import api  # type: ignore
+        api = import_indra_api()
 
         if type(distance) == DistanceType:
             distance = distance.value
@@ -1501,6 +1506,10 @@ class Tensor:
             raise Exception(f"An error occurred while deleting VDB indexes: {e}")
 
     def load_vdb_index(self, id: str):
+        from deeplake.enterprise.convert_to_libdeeplake import (
+            import_indra_api,
+        )
+
         if self.meta.htype != "embedding":
             raise Exception(f"Only supported for embedding tensors.")
         if not self.meta.contains_vdb_index(id):
@@ -1514,8 +1523,10 @@ class Tensor:
 
             ds = dataset_to_libdeeplake(self.dataset)
 
+        from deeplake.enterprise.convert_to_libdeeplake import import_indra_api
+
         ts = getattr(ds, self.meta.name)
-        from indra import api  # type: ignore
+        api = import_indra_api()
 
         index_meta = next(x for x in self.meta.vdb_indexes if x["id"] == id)
         commit_id = self.version_state["commit_id"]
@@ -1538,8 +1549,12 @@ class Tensor:
 
             ds = dataset_to_libdeeplake(self.dataset)
 
+        # from deeplake.enterprise.convert_to_libdeeplake import (
+        #         import_indra_api
+        # )
+
         ts = getattr(ds, self.meta.name)
-        from indra import api  # type: ignore
+        # api = import_indra_api()
 
         try:
             api.vdb.unload_index_cache(ts)
