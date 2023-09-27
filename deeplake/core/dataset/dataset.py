@@ -152,6 +152,11 @@ import jwt
 
 
 _LOCKABLE_STORAGES = {S3Provider, GCSProvider, AzureProvider, LocalProvider}
+_INDEX_OPERATION_MAPPING= {
+    "ADD": 1,
+    "REMOVE": 2,
+    "UPDATE": 3,
+}
 
 
 class Dataset:
@@ -1417,7 +1422,7 @@ class Dataset:
             if is_embedding and has_vdb_indexes and vdb_index_ids_present:
                 tensor._regenerate_vdb_indexes()
 
-    def incr_maintenance_vdb_indexes(self, indexes, delete = False):
+    def incr_maintenance_vdb_indexes(self, indexes, index_operation):
         tensors = self.tensors
 
         for _, tensor in tensors.items():
@@ -1429,7 +1434,7 @@ class Dataset:
                 vdb_index_ids_present = False
 
             if is_embedding and has_vdb_indexes and vdb_index_ids_present:
-                tensor._incr_maintenance_vdb_indexes(indexes, delete)
+                tensor._incr_maintenance_vdb_indexes(indexes, index_operation)
 
     def _lock(self, err=False, verbose=True):
         if not self.is_head_node or not self._locking_enabled:
@@ -3114,7 +3119,7 @@ class Dataset:
                     raise e
             # Regenerate Index.
             if index_regeneration:
-                self.incr_maintenance_vdb_indexes(new_row_ids)
+                self.incr_maintenance_vdb_indexes(new_row_ids, _INDEX_OPERATION_MAPPING["ADD"])
 
     def extend(
         self,
@@ -3317,7 +3322,7 @@ class Dataset:
                         saved[k].append(old_sample)
                     self[k] = v
                 # Regenerate Index
-                self.incr_maintenance_vdb_indexes(self.index)
+                self.incr_maintenance_vdb_indexes(self.index, _INDEX_OPERATION_MAPPING["UPDATE"])
 
             except Exception as e:
                 for k, v in saved.items():
@@ -4607,7 +4612,7 @@ class Dataset:
                 if tensor.num_samples > index:
                     tensor.pop(index)
             # Regenerate vdb indexes.
-            self.incr_maintenance_vdb_indexes(index)
+            self.incr_maintenance_vdb_indexes(index, _INDEX_OPERATION_MAPPING["REMOVE"])
 
     @property
     def is_view(self) -> bool:

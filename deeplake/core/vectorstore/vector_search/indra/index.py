@@ -124,7 +124,7 @@ def validate_and_create_vector_index(dataset,
             if is_embedding and has_vdb_indexes and vdb_index_ids_present:
                 if incr_maintenance_index == True:
                     add_index = list(range(previous_dataset_len, len(dataset)))
-                    tensor._incr_maintenance_vdb_indexes(add_index)
+                    tensor._incr_maintenance_vdb_indexes(add_index, 1)
                 else:
                     tensor._regenerate_vdb_indexes()
                 index_regen = True

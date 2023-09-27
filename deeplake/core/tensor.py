@@ -77,6 +77,11 @@ import webbrowser
 from deeplake.core.vector_index.distance_type import DistanceType
 from deeplake.core.vector_index.indexer import Indexer
 
+_INDEX_OPERATION_MAPPING= {
+    "ADD": 1,
+    "REMOVE": 2,
+    "UPDATE": 3,
+}
 
 def create_tensor(
     key: str,
@@ -1409,11 +1414,71 @@ class Tensor:
         """Invalidates the libdeeplake dataset object."""
         self.dataset.libdeeplake_dataset = None
 
+    def get_operation_indices(operation_kind, row_ids):
+        add_indices = []
+        remove_indices = []
+        update_indices = []
+
+        if operation_kind == _INDEX_OPERATION_MAPPING["ADD"]:
+            # For ADD operation, row_ids represent the rows to be added
+            add_indices = row_ids
+        elif operation_kind == _INDEX_OPERATION_MAPPING["REMOVE"]:
+            # For REMOVE operation, row_ids represent the rows to be removed
+            remove_indices = row_ids
+        elif operation_kind == _INDEX_OPERATION_MAPPING["UPDATE"]:
+            # For UPDATE operation, row_ids represent the rows to be updated
+            update_indices = row_ids
+        else:
+            # Handle unsupported operation kinds or provide a default behavior
+            raise Exception(f"Unsupported operation_kind: {operation_kind}")
+
+        return add_indices, remove_indices, update_indices
+    def update_vdb_index(
+            self,
+            id: str,
+            operation_kind: int,
+            row_ids: List[int] = None,
+    ):
+        self.storage.check_readonly()
+        if self.meta.htype != "embedding":
+            raise Exception(f"Only supported for embedding tensors.")
+        if not self.dataset.libdeeplake_dataset is None:
+            ds = self.dataset.libdeeplake_dataset
+        else:
+            from deeplake.enterprise.convert_to_libdeeplake import (
+                dataset_to_libdeeplake,
+            )
+
+            ds = dataset_to_libdeeplake(self.dataset)
+            ts = getattr(ds, self.meta.name)
+            from indra import api
+
+            commit_id = self.version_state["commit_id"]
+            index_data = self.chunk_engine.base_storage[
+                get_tensor_vdb_index_key(self.key, commit_id, id)
+            ]
+
+            add_indices, remove_indices, update_indices = self.get_operation_indices(
+                operation_kind, row_ids)
+
+            try:
+                index = api.vdb.apply_index_changes(ts,
+                                                    index_type="hnsw",
+                                                    add_row = add_indices,
+                                                    delete_row = remove_indices,
+                                                    update_row = update_indices,
+                                                    index_data=index_data)
+                b = index.serialize()
+                commit_id = self.version_state["commit_id"]
+                self.storage[get_tensor_vdb_index_key(self.key, commit_id, id)] = b
+                self.invalidate_libdeeplake_dataset()
+            except:
+                raise
+        return index
+
     def create_vdb_index(
         self,
         id: str,
-        incr_row_ids: List[int] = None,
-        delete_row: bool = False,
         distance: Union[DistanceType, str] = DistanceType.L2_NORM,
         additional_params: Optional[Dict[str, int]] = None,
     ):
@@ -1433,41 +1498,21 @@ class Tensor:
 
         if type(distance) == DistanceType:
             distance = distance.value
-        if incr_row_ids is None:
-            self.meta.add_vdb_index(
-                id=id, type="hnsw", distance=distance, additional_params=additional_params
-            )
+        self.meta.add_vdb_index(
+            id=id, type="hnsw", distance=distance, additional_params=additional_params
+        )
         try:
-            if incr_row_ids is not None:
-                commit_id = self.version_state["commit_id"]
-                index_data = self.chunk_engine.base_storage[
-                    get_tensor_vdb_index_key(self.key, commit_id, id)
-                ]
-                if additional_params is None:
-                    index = api.vdb.generate_index(
-                        ts, index_type="hnsw", incr_row_ids=incr_row_ids, delete_row = delete_row, index_data = index_data,)
-                else:
-                    index = api.vdb.generate_index(
-                        ts,
-                        b,
-                        index_type="hnsw",
-                        incr_row_ids=incr_row_ids,
-                        delete_row = delete_row,
-                        index_data = index_data,
-                        param=additional_params,
-                    )
-            else:    
-                if additional_params is None:
-                    index = api.vdb.generate_index(
-                        ts, index_type="hnsw", distance_type=distance
-                    )
-                else:
-                    index = api.vdb.generate_index(
-                        ts,
-                        index_type="hnsw",
-                        distance_type=distance,
-                        param=additional_params,
-                    )
+            if additional_params is None:
+                index = api.vdb.generate_index(
+                    ts, index_type="hnsw", distance_type=distance
+                )
+            else:
+                index = api.vdb.generate_index(
+                    ts,
+                    index_type="hnsw",
+                    distance_type=distance,
+                    param=additional_params,
+                )
             b = index.serialize()
             commit_id = self.version_state["commit_id"]
             self.storage[get_tensor_vdb_index_key(self.key, commit_id, id)] = b
@@ -1506,7 +1551,7 @@ class Tensor:
         except Exception as e:
             raise Exception(f"An error occurred while regenerating VDB indexes: {e}")
 
-    def _incr_maintenance_vdb_indexes(self, indexes, delete = False):
+    def _incr_maintenance_vdb_indexes(self, indexes, index_operation):
         try:
             is_embedding = self.htype == "embedding"
             has_vdb_indexes = hasattr(self.meta, "vdb_indexes")
@@ -1520,7 +1565,7 @@ class Tensor:
                     # Maintain incrementally.
                     distance = vdb_index["distance"]
                     id = vdb_index["id"]
-                    self.create_vdb_index(id, incr_row_ids=indexes, delete_row = delete, distance=distance,)
+                    self.update_vdb_index(id, operation_kind=index_operation,  row_ids=indexes)
         except Exception as e:
             raise Exception(f"An error occurred while regenerating VDB indexes: {e}")
 
