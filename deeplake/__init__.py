@@ -31,6 +31,7 @@ from .htype import HTYPE_CONFIGURATIONS
 from .htype import htype
 from .integrations import huggingface
 from .integrations import wandb
+from _deeplake._deeplake import *
 
 compressions = list(SUPPORTED_COMPRESSIONS)
 htypes = sorted(list(HTYPE_CONFIGURATIONS))

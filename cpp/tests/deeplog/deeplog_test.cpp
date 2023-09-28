@@ -75,6 +75,8 @@ TEST_F(DeeplogTest, create) {
 }
 
 TEST_F(DeeplogTest, open) {
+    auto ignore = deeplog::deeplog::create(test_dir, 4);
+
     auto log = deeplog::deeplog::open(test_dir);
 
     EXPECT_EQ(test_dir, log->path);
@@ -186,7 +188,7 @@ TEST_F(DeeplogTest, checkpoint) {
         log->commit(deeplog::MAIN_BRANCH_ID, log->version(deeplog::MAIN_BRANCH_ID), {std::make_shared<deeplog::metadata_action>(action)});
     }
 
-    for (int i=0; i<4; ++i) {
+    for (int i = 0; i < 4; ++i) {
         auto action = deeplog::add_file_action("my/path" + std::to_string(i), 3, 45, true);
         log->commit(deeplog::MAIN_BRANCH_ID, log->version(deeplog::MAIN_BRANCH_ID), {std::make_shared<deeplog::add_file_action>(action)});
     }

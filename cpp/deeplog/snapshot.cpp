@@ -13,33 +13,17 @@ namespace deeplog {
             branch_id(std::move(branch_id)) {}
 
     std::vector<std::shared_ptr<add_file_action>> snapshot::data_files() {
-        std::vector<std::shared_ptr<add_file_action>> actions = {};
-
-        for (auto it = find_actions(typeid(add_file_action)); it != actions_->end(); ++it) {
-            actions.push_back(std::dynamic_pointer_cast<add_file_action>(*it));
-        }
-
-        return actions;
+        return find_actions<add_file_action>();
     }
 
     std::vector<std::shared_ptr<create_commit_action>> snapshot::commits() {
-        std::vector<std::shared_ptr<create_commit_action>> actions = {};
+        return find_actions<create_commit_action>();
 
-        for (auto it = find_actions(typeid(create_commit_action)); it != actions_->end(); ++it) {
-            actions.push_back(std::dynamic_pointer_cast<create_commit_action>(*it));
-        }
-
-        return actions;
     }
 
     std::vector<std::shared_ptr<create_tensor_action>> snapshot::tensors() {
-        std::vector<std::shared_ptr<create_tensor_action>> actions = {};
+        return find_actions<create_tensor_action>();
 
-        for (auto it = find_actions(typeid(create_tensor_action)); it != actions_->end(); ++it) {
-            actions.push_back(std::dynamic_pointer_cast<create_tensor_action>(*it));
-        }
-
-        return actions;
     }
 
 }

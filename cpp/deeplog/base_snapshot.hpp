@@ -16,8 +16,10 @@ namespace deeplog {
 
         base_snapshot(const long &version, const std::shared_ptr<::deeplog::deeplog> &deeplog);
 
-        std::vector<std::shared_ptr<action>>::iterator find_actions(const std::type_info &type) const;
+        template<typename T>
+        std::vector<std::shared_ptr<T>> find_actions() const;
 
-        std::shared_ptr<action> find_action(const std::type_info &type) const;
+        template<typename T>
+        std::shared_ptr<T> find_action() const;
     };
 }

@@ -15,18 +15,44 @@ namespace deeplog {
         std::tie(actions_, this->version) = deeplog->get_actions(MAIN_BRANCH_ID, version);
     }
 
-    std::vector<std::shared_ptr<action>>::iterator base_snapshot::find_actions(const std::type_info &type) const {
-        return std::find_if(actions_->begin(), actions_->end(), [&type](const std::shared_ptr<::deeplog::action> &action) {
-            return typeid(*action) == type;
-        });
+    template<typename T>
+    std::vector<std::shared_ptr<T>> base_snapshot::find_actions() const {
+        static_assert(std::is_base_of<action, T>::value, "T must be a subclass of action");
+
+        std::vector<std::shared_ptr<T>> return_actions = {};
+        for (auto found : *actions_) {
+            auto casted = std::dynamic_pointer_cast<T>(found);
+            if (casted != nullptr) {
+                return_actions.push_back(casted);
+            }
+        }
+
+        return return_actions;
+
     }
 
-    std::shared_ptr<action> base_snapshot::find_action(const std::type_info &type) const {
-        auto actions = find_actions(type);
+    template<typename T>
+    std::shared_ptr<T> base_snapshot::find_action() const {
+        static_assert(std::is_base_of<action, T>::value, "T must be a subclass of action");
 
-        if (actions == actions_->end()) {
+        auto actions = find_actions<T>();
+
+        if (actions.empty()) {
             return nullptr;
         }
-        return *actions;
+        return actions.at(0);
     }
+
+
+    template std::vector<std::shared_ptr<create_branch_action>> base_snapshot::find_actions() const;
+
+    template std::vector<std::shared_ptr<create_tensor_action>> base_snapshot::find_actions() const;
+
+    template std::vector<std::shared_ptr<create_commit_action>> base_snapshot::find_actions() const;
+
+    template std::vector<std::shared_ptr<add_file_action>> base_snapshot::find_actions() const;
+
+    template std::shared_ptr<metadata_action> base_snapshot::find_action() const;
+
+    template std::shared_ptr<protocol_action> base_snapshot::find_action() const;
 }

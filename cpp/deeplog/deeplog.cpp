@@ -5,21 +5,22 @@
 #include <set>
 #include <fstream>
 #include <nlohmann/json.hpp>
+#include <spdlog/spdlog.h>
 #include "actions/protocol_action.hpp"
 #include "actions/metadata_action.hpp"
 #include "actions/create_branch_action.hpp"
 #include "actions/create_tensor_action.hpp"
-#include "arrow/io/file.h"
-#include "arrow/dataset/api.h"
-#include "parquet/stream_writer.h"
-#include "parquet/arrow/writer.h"
-#include "parquet/arrow/reader.h"
-#include "arrow/util/type_fwd.h"
-#include "arrow/table.h"
-#include "arrow/array.h"
-#include "arrow/builder.h"
-#include "arrow/api.h"
-#include "arrow/json/api.h"
+#include <arrow/io/file.h>
+#include <arrow/dataset/api.h>
+#include <parquet/stream_writer.h>
+#include <parquet/arrow/writer.h>
+#include <parquet/arrow/reader.h>
+#include <arrow/util/type_fwd.h>
+#include <arrow/table.h>
+#include <arrow/array.h>
+#include <arrow/builder.h>
+#include <arrow/api.h>
+#include <arrow/json/api.h>
 #include "last_checkpoint.hpp"
 #include "deeplog_v3.hpp"
 
@@ -66,6 +67,7 @@ namespace deeplog {
     }
 
     std::shared_ptr<deeplog> deeplog::open(const std::string &path) {
+        spdlog::debug("Opening log at path: {}", std::filesystem::absolute(path).string());
         if (!std::filesystem::exists(path)) {
             throw std::runtime_error("'" + path + "' does not exist");
         }
