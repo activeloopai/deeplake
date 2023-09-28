@@ -16,8 +16,8 @@ namespace deeplog {
                                    arrow::field("sampleCompression", arrow::utf8(), true),
 //                                   arrow::field("links", arrow::map(arrow::utf8(), arrow::map(arrow::utf8(), arrow::utf8())), true),
                                    arrow::field("maxChunkSize", arrow::uint64(), true),
-//                                   arrow::field("minShape", arrow::list(arrow::uint64()), true),
-//                                   arrow::field("maxShape", arrow::list(arrow::uint64()), true),
+                                   arrow::field("minShape", arrow::list(arrow::uint64()), true),
+                                   arrow::field("maxShape", arrow::list(arrow::uint64()), true),
                                    arrow::field("tilingThreshold", arrow::uint64(), true),
                                    arrow::field("typestr", arrow::utf8(), true),
                                    arrow::field("verify", arrow::boolean(), true),
@@ -36,8 +36,8 @@ namespace deeplog {
                                                const std::optional<std::string> &sample_compression,
                                                const std::map<std::string, std::map<std::string, std::string>> &links,
                                                const std::optional<long> &max_chunk_size,
-                                               const std::vector<long> &min_shape,
-                                               const std::vector<long> &max_shape,
+                                               const std::vector<unsigned long> &min_shape,
+                                               const std::vector<unsigned long> &max_shape,
                                                const std::optional<long> &tiling_threshold,
                                                const std::optional<std::string> &typestr,
                                                const bool &verify,
@@ -65,8 +65,8 @@ namespace deeplog {
         chunk_compression = from_struct<std::string>("chunkCompression", value);
         sample_compression = from_struct<std::string>("sampleCompression", value);
         max_chunk_size = from_struct<long>("maxChunkSize", value);
-//        min_shape = std::vector<long>(reinterpret_pointer_cast<arrow::UInt64Array>(value->field("minShape").ValueOrDie())->raw_values());
-//        max_shape = reinterpret_pointer_cast<arrow::UInt64Array>(value->field("maxShape").ValueOrDie());
+        min_shape = from_arraystruct<unsigned long>("minShape", value);
+        max_shape = from_arraystruct<unsigned long>("maxShape", value);
         tiling_threshold = from_struct<long>("tilingThreshold", value);
         typestr = from_struct<std::string>("typestr", value);
         verify = from_struct<bool>("verify", value).value();
@@ -92,8 +92,8 @@ namespace deeplog {
         json["sampleCompression"] = to_json_value<std::string>(sample_compression);
 //        json["links"] = links;
         json["maxChunkSize"] = to_json_value<long>(max_chunk_size);
-//        json["minShape"] = min_shape;
-//        json["maxShape"] = max_shape;
+        json["minShape"] = min_shape;
+        json["maxShape"] = max_shape;
         json["tilingThreshold"] = to_json_value<long>(tiling_threshold);
         json["typestr"] = to_json_value<std::string>(typestr);
         json["verify"] = verify;
