@@ -55,6 +55,7 @@ class DeepMemory:
             >>> relevance: List[List[int]] = [["doc_1", "doc_2"], ["doc_3"]]
             >>> job_id: str = vectorstore.deep_memory.train(queries, relevance)
 
+
         Args:
             queries (List[str]): List of queries to train the model on.
             relevance (List[List[int]]): List of relevant documents for each query.
