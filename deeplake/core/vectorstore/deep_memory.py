@@ -84,7 +84,7 @@ class DeepMemory:
             overwrite=True,
             runtime={"tensor_db": True},
             embedding_function=embedding_function,
-            token=token,
+            token=token or self.token,
         )
 
         queries_vs.add(
