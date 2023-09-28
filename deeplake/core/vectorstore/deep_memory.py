@@ -90,8 +90,7 @@ class DeepMemory:
         queries_vs.add(
             text=[query for query in queries],
             metadata=[
-                {"relevance": [rel for rel in relevance_per_doc]}
-                for relevance_per_doc in relevance
+                {"relevance": relevance_per_doc} for relevance_per_doc in relevance
             ],
             embedding_data=[query for query in queries],
         )
@@ -279,7 +278,7 @@ class DeepMemory:
         queries_data = {
             "text": queries,
             "metadata": [
-                {"relvence": [rel for rel in rel_list]} for rel_list in relevance
+                {"relvence": relevance_per_doc} for relevance_per_doc in relevance
             ],
             "embedding": query_embs,
             "id": [uuid.uuid4().hex for i in range(len(queries))],
@@ -332,7 +331,7 @@ class DeepMemory:
 def recall_at_k(
     dataset: Dataset,
     indra_dataset: Any,
-    relevance: List[List[str]],
+    relevance: List[List[Tuple[str, int]]],
     query_embs: Union[List[np.ndarray], List[List[float]]],
     metric: str,
     top_k: int = 10,
@@ -346,7 +345,7 @@ def recall_at_k(
         query_emb = query_embs[query_idx]
         # Get the indices of the relevant data for this query
         query_relevance = relevance[query_idx]
-        correct_labels = [label for label in query_relevance]
+        correct_labels = [rel[0] for rel in query_relevance]
 
         # Compute the cosine similarity between the query and all data points
         view_top_k = get_view_top_k(
