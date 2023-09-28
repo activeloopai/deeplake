@@ -39,7 +39,7 @@ protected:
 
 
 TEST_F(DeeplogTest, create) {
-    auto log = deeplog::deeplog::create(test_dir);
+    auto log = deeplog::deeplog::create(test_dir, 4);
 
     EXPECT_EQ(test_dir, log->path);
     EXPECT_TRUE(std::filesystem::exists({test_dir + "/_deeplake_log/"}));
@@ -71,7 +71,7 @@ TEST_F(DeeplogTest, create) {
     const auto files = snapshot.data_files();
     EXPECT_EQ(0, files.size());
 
-    EXPECT_THROW(auto ignore = deeplog::deeplog::create(test_dir), std::runtime_error) << "Should not be able to create log twice";
+    EXPECT_THROW(auto ignore = deeplog::deeplog::create(test_dir, 4), std::runtime_error) << "Should not be able to create log twice";
 }
 
 TEST_F(DeeplogTest, open) {
@@ -81,18 +81,18 @@ TEST_F(DeeplogTest, open) {
 }
 
 TEST_F(DeeplogTest, version) {
-    auto log = deeplog::deeplog::create(test_dir);
+    auto log = deeplog::deeplog::create(test_dir, 4);
     EXPECT_EQ(0, log->version(deeplog::MAIN_BRANCH_ID));
 }
 
 TEST_F(DeeplogTest, branch_by_id) {
-    auto log = deeplog::deeplog::create(test_dir);
+    auto log = deeplog::deeplog::create(test_dir, 4);
     EXPECT_EQ("main", deeplog::metadata_snapshot(log).branch_by_id(deeplog::MAIN_BRANCH_ID)->name);
 }
 
 
 TEST_F(DeeplogTest, commit_protocol) {
-    auto log = deeplog::deeplog::create(test_dir);
+    auto log = deeplog::deeplog::create(test_dir, 4);
 
     auto action = deeplog::protocol_action(5, 6);
     log->commit(deeplog::MAIN_BRANCH_ID, 0, {std::make_shared<deeplog::protocol_action>(action)});
@@ -110,7 +110,7 @@ TEST_F(DeeplogTest, commit_protocol) {
 }
 
 TEST_F(DeeplogTest, commit_metadata) {
-    auto log = deeplog::deeplog::create(test_dir);
+    auto log = deeplog::deeplog::create(test_dir, 4);
 
     auto original_metadata = deeplog::metadata_snapshot(log).metadata();
     auto action = deeplog::metadata_action(original_metadata->id, "new name", "new desc", original_metadata->created_time);
@@ -132,7 +132,7 @@ TEST_F(DeeplogTest, commit_metadata) {
 }
 
 TEST_F(DeeplogTest, commit_add_file) {
-    auto log = deeplog::deeplog::create(test_dir);
+    auto log = deeplog::deeplog::create(test_dir, 4);
 
     auto action = deeplog::add_file_action("my/path", 3, 45, true);
     log->commit(deeplog::MAIN_BRANCH_ID, log->version(deeplog::MAIN_BRANCH_ID), {std::make_shared<deeplog::add_file_action>(action)});
@@ -154,7 +154,7 @@ TEST_F(DeeplogTest, commit_add_file) {
 }
 
 TEST_F(DeeplogTest, commit_create_branch) {
-    auto log = deeplog::deeplog::create(test_dir);
+    auto log = deeplog::deeplog::create(test_dir, 4);
 
     auto action = deeplog::create_branch_action("123", "branch1", deeplog::MAIN_BRANCH_ID, 0);
     log->commit(deeplog::MAIN_BRANCH_ID, log->version(deeplog::MAIN_BRANCH_ID), {std::make_shared<deeplog::create_branch_action>(action)});
@@ -178,7 +178,7 @@ TEST_F(DeeplogTest, commit_create_branch) {
 }
 
 TEST_F(DeeplogTest, checkpoint) {
-    auto log = deeplog::deeplog::create(test_dir);
+    auto log = deeplog::deeplog::create(test_dir, 4);
 
     auto original_metadata = deeplog::metadata_snapshot(log).metadata();
     for (int i = 0; i <= 3; ++i) {
@@ -227,7 +227,7 @@ TEST_F(DeeplogTest, checkpoint) {
 
 //TEST(IntTest, e2eTest) {
 //    auto test_dir = "../test-ds";
-////    auto log = deeplog::deeplog::create(test_dir);
+////    auto log = deeplog::deeplog::create(test_dir, 4);
 //    auto log = deeplog::deeplog::open(test_dir);
 //
 //    const auto &current_metadata = log->metadata();

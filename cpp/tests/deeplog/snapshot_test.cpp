@@ -22,7 +22,7 @@ protected:
 };
 
 TEST_F(DeeplogSnapshotTest, construct) {
-    auto log = deeplog::deeplog::create(test_dir);
+    auto log = deeplog::deeplog::create(test_dir, 4);
 
     auto original_metadata = deeplog::metadata_snapshot(log).metadata();
     auto action = deeplog::metadata_action(original_metadata->id, "new name", "new desc", original_metadata->created_time);

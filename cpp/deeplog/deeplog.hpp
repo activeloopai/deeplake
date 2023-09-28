@@ -16,7 +16,7 @@ namespace deeplog {
 
     class deeplog {
     public:
-        [[nodiscard]] static std::shared_ptr<deeplog> create(const std::string &path);
+        [[nodiscard]] static std::shared_ptr<deeplog> create(const std::string &path, const int &log_version);
 
         [[nodiscard]] static std::shared_ptr<deeplog> open(const std::string &path);
 
@@ -38,10 +38,12 @@ namespace deeplog {
 
         std::tuple<std::shared_ptr<std::vector<std::shared_ptr<action>>>, long> get_actions(const std::string &branch_id, const std::optional<long> &to) const;
 
-    private:
+    protected:
 
         //only created through open() etc.
         deeplog(std::string path);
+
+    private:
 
         arrow::Result<std::shared_ptr<arrow::Table>> read_checkpoint(const std::string &dir_path, const long &version) const;
 

@@ -21,6 +21,7 @@
 #include "arrow/api.h"
 #include "arrow/json/api.h"
 #include "last_checkpoint.hpp"
+#include "deeplog_v3.hpp"
 
 namespace deeplog {
 
@@ -34,9 +35,16 @@ namespace deeplog {
 
     deeplog::deeplog(std::string path) : path(path) {};
 
-    std::shared_ptr<deeplog> deeplog::create(const std::string &path) {
+    std::shared_ptr<deeplog> deeplog::create(const std::string &path, const int &log_version) {
         if (std::filesystem::exists(path)) {
             throw std::runtime_error("'" + path + "' already exists");
+        }
+
+        if (log_version < 3) {
+            throw std::runtime_error("Log version " + std::to_string(log_version) + " is not supported");
+        }
+        if (log_version == 3) {
+            return std::make_shared<deeplog_v3>(deeplog_v3(path));
         }
 
         std::filesystem::create_directories(path);
@@ -57,6 +65,18 @@ namespace deeplog {
     }
 
     std::shared_ptr<deeplog> deeplog::open(const std::string &path) {
+        if (!std::filesystem::exists(path)) {
+            throw std::runtime_error("'" + path + "' does not exist");
+        }
+
+        auto deeplog_dir = std::filesystem::path(path + "/_deeplake_log");
+        if (!std::filesystem::exists(deeplog_dir)) {
+            if (std::filesystem::exists(path + "/dataset_meta.json")) {
+                return std::make_shared<deeplog_v3>(deeplog_v3(path));
+            }
+            throw std::runtime_error("'" + deeplog_dir.string() + "' does not exist");
+        }
+
         return std::make_shared<deeplog>(deeplog(path));
     }
 
@@ -99,8 +119,8 @@ namespace deeplog {
     }
 
     arrow::Result<std::shared_ptr<arrow::Table>> deeplog::action_data(const std::string &branch_id,
-                                                                          const long &from,
-                                                                          const std::optional<long> &to) const {
+                                                                      const long &from,
+                                                                      const std::optional<long> &to) const {
         long highest_version = -1;
         std::vector<std::shared_ptr<arrow::Table>> all_tables = {};
 
@@ -190,7 +210,7 @@ namespace deeplog {
     }
 
     std::tuple<std::shared_ptr<std::vector<std::shared_ptr<action>>>, long> deeplog::get_actions(const std::string &branch_id,
-                                                                             const std::optional<long> &to) const {
+                                                                                                 const std::optional<long> &to) const {
         std::vector<std::shared_ptr<action>> return_actions = {};
 
         auto all_operations = action_data(branch_id, 0, to).ValueOrDie();
