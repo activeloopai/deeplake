@@ -125,6 +125,7 @@ def get_user_name() -> str:
 # constants into deeplake.constans class.
 class JobResponseStatusSchema:
     def __init__(self, response: Dict[str, Any]):
+        responses = response
         if not isinstance(response, List):
             responses = [response]
 

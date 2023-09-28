@@ -171,6 +171,21 @@ class Status:
         )
 
 
+def test_deepmemory_response_without_job_id():
+    response = create_response()
+
+    del response["dataset_id"]
+    del response["id"]
+
+    with pytest.raises(ValueError):
+        response_schema = JobResponseStatusSchema(response=response)
+
+    response["dataset_id"] = "some id"
+
+    with pytest.raises(ValueError):
+        response_schema = JobResponseStatusSchema(response=response)
+
+
 def test_deepmemory_print_status_and_list_jobs(capsys, jobs_list):
     # for training that is just started
     pending_response = create_response(

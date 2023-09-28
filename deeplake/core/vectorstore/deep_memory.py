@@ -374,10 +374,10 @@ def recall_at_k(
     avg_recall = np.mean(np.array(recalls))
     queries_data = {}
     if collect_data:
-        model_type = "dm" if use_model else "naive_vs"
+        model_type = "deep_memory" if use_model else "vector_search"
 
         queries_data = {
-            f"{model_type}_top_10_docs": top_k_list,
+            f"{model_type}_top_10": top_k_list,
             f"{model_type}_recall": recalls,
         }
     return avg_recall, queries_data
