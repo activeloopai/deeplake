@@ -253,10 +253,7 @@ class DeepMemory:
 
         from indra import api  # type: ignore
 
-        indra_dataset = api.dataset(
-            self.dataset.path, token=self.token
-        )  # somehow wheel is not working when used with token
-        # indra_dataset = api.dataset(self.dataset.path)
+        indra_dataset = api.dataset(self.dataset.path, token=self.token)
         api.tql.prepare_deepmemory_metrics(indra_dataset)
 
         parsed_qvs_params = parse_queries_params(qvs_params)
@@ -281,7 +278,7 @@ class DeepMemory:
                 {"relvence": relevance_per_doc} for relevance_per_doc in relevance
             ],
             "embedding": query_embs,
-            "id": [uuid.uuid4().hex for i in range(len(queries))],
+            "id": [uuid.uuid4().hex for _ in range(len(queries))],
         }
         for use_model, metric in [
             (False, "COSINE_SIMILARITY"),
@@ -313,7 +310,7 @@ class DeepMemory:
         log_queries = parsed_qvs_params.get("log_queries")
         branch = parsed_qvs_params.get("branch")
 
-        if not log_queries:
+        if log_queries == False:
             return recalls
 
         create = branch not in self.queries_dataset.branches
@@ -409,11 +406,22 @@ def get_view_top_k(
 
 
 def parse_queries_params(queries_params: Optional[Dict[str, Any]] = None):
+    log_queries = queries_params.get("log_queries")
+    if log_queries is None:
+        log_queries = True
+
     if queries_params is None or (
-        queries_params["log_queries"] and not queries_params.get("branch")
+        queries_params.get("log_queries") and not queries_params.get("branch")
     ):
-        return {
+        queries_params = {
             "log_queries": True,
             "branch": "main",
         }
+
+    for query_param in queries_params:
+        if query_param not in ["log_queries", "branch"]:
+            raise ValueError(
+                f"Invalid query param '{query_param}'. Valid query params are 'log_queries' and 'branch'."
+            )
+
     return queries_params

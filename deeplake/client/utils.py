@@ -27,6 +27,10 @@ from deeplake.util.exceptions import (
 )
 
 
+PENDING_STATUS = "not available yet"
+BEST_RECALL = "best_recall@10"
+
+
 def write_token(token: str):
     """Writes the auth token to the token file."""
     if not token:
@@ -164,7 +168,7 @@ class JobResponseStatusSchema:
             results_str = "| {:<27}| {:<30}"
             if not response.get("results"):
                 results_str += "|"
-                response["results"] = "not available yet"
+                response["results"] = PENDING_STATUS
 
             print(results_str.format("results", response["results"]))
             print(line)
@@ -197,16 +201,9 @@ class JobResponseStatusSchema:
             response_status = response["status"]
 
             response_results = (
-                response["results"] if response.get("results") else "not available yet"
+                response["results"] if response.get("results") else PENDING_STATUS
             )
             if response_status == "completed":
-                progress_indent = " " * (
-                    id_size
-                    + dataset_id_size
-                    + organization_id_size
-                    + status_size
-                    + 5 * 2
-                )
                 response_results = get_results(
                     response,
                     "",
@@ -282,7 +279,7 @@ def get_results(
 ):
     progress = response["progress"]
     for progress_key, progress_value in progress.items():
-        if progress_key == "best_recall@10":
+        if progress_key == BEST_RECALL:
             recall, improvement = progress_value.split("%")[:2]
 
             output = (
@@ -335,12 +332,16 @@ def format_to_fixed_width(
     return lines
 
 
+from typing import Dict, Any
+import textwrap
+
+
 def preprocess_progress(
     response: Dict[str, Any],
     progress_indent: str,
     add_vertical_bars: bool = False,
 ):
-    allowed_progress_items = ["eta", "best_recall@10", "dataset", "error"]
+    allowed_progress_items = ["eta", BEST_RECALL, "dataset", "error"]
     progress_indent = (
         "|" + progress_indent[:-1] if add_vertical_bars else progress_indent
     )
@@ -397,7 +398,7 @@ def preprocess_progress(
 
             if key == "eta":
                 key_value_pair = f"{key}: {value} seconds"
-            elif key == "best_recall@10":
+            elif key == BEST_RECALL:
                 key = "recall@10"
                 key_value_pair = f"{key}: {value}"
 
@@ -426,8 +427,6 @@ def get_table_size(responses: List[Dict[str, Any]]):
             organization_id_size, len(response["organization_id"])
         )
         status_size = max(status_size, len(response["status"]))
-        results_size = max(
-            results_size, len(response.get("results", "not available yet"))
-        )
+        results_size = max(results_size, len(response.get("results", PENDING_STATUS)))
 
     return id_size, dataset_id_size, organization_id_size, status_size, results_size
