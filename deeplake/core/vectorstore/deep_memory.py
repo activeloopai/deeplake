@@ -44,7 +44,7 @@ class DeepMemory:
     def train(
         self,
         queries: List[str],
-        relevance: List[List[Tuple[str, int]]],
+        relevance: List[List[int]],
         embedding_function: Optional[Callable[[str], np.ndarray]] = None,
         token: Optional[str] = None,
     ):
@@ -52,7 +52,7 @@ class DeepMemory:
 
         Args:
             queries (List[str]): List of queries to train the model on.
-            relevance (List[List[Tuple[str, int]]]): List of relevant documents for each query.
+            relevance (List[List[int]]): List of relevant documents for each query.
             embedding_function (Optional[Callable[[str], np.ndarray]], optional): Embedding funtion used to convert queries to embeddings. Defaults to None.
             token (str, optional): API token for the DeepMemory managed service. Defaults to None.
 

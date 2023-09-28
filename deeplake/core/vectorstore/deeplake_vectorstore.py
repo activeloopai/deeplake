@@ -484,7 +484,7 @@ class VectorStore:
         if deep_memory:
             raise ValueError(
                 "Deep Memory dataset should have been created with runtime = {'tensor_db': True} during initialization. "
-                "Please create a new Vector Store with runtime = {'tensor_db': True} and try again. "
+                "Please create a new Vector Store with runtime = {'tensor_db': True} or deep copy with runtime = {'tensor_db': True}."
                 "NOTE: Deep Memory is only available for datasets stored in the Deep Lake Managed Database for paid accounts."
             )
 
