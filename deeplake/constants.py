@@ -4,10 +4,6 @@ import sys
 import numpy as np
 
 
-os.environ["ACTIVELOOP_HUB_USERNAME"] = "testingacc2"
-os.environ["ACTIVELOOP_HUB_PASSWORD"] = "d3epl@ke1est5"
-
-
 BYTE_PADDING = b"\0"
 
 # number of bytes per unit

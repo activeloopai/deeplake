@@ -6,13 +6,6 @@ import deeplake
 from deeplake import VectorStore
 
 
-import os
-
-
-os.environ["ACTIVELOOP_HUB_USERNAME"] = "testingacc2"
-os.environ["ACTIVELOOP_HUB_PASSWORD"] = "d3epl@ke1est5"
-
-
 @pytest.mark.slow
 def test_deepmemory_init(hub_cloud_path, hub_cloud_dev_token):
     db = VectorStore(
