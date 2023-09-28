@@ -30,6 +30,7 @@ namespace deeplog {
             arrow::field("metadata", metadata_action::arrow_type),
             arrow::field("add", add_file_action::arrow_type),
             arrow::field("branch", create_branch_action::arrow_type),
+            arrow::field("tensor", create_tensor_action::arrow_type),
             arrow::field("version", arrow::uint64()),
     });
 
@@ -234,6 +235,8 @@ namespace deeplog {
                             action = std::make_shared<::deeplog::create_branch_action>(::deeplog::create_branch_action(struct_scalar));
                         } else if (field->name() == "add") {
                             action = std::make_shared<::deeplog::add_file_action>(::deeplog::add_file_action(struct_scalar));
+                        } else if (field->name() == "tensor") {
+                            action = std::make_shared<::deeplog::create_tensor_action>(::deeplog::create_tensor_action(struct_scalar));
                         } else {
                             throw std::runtime_error("Unknown action type: " + field->name());
                         }

@@ -20,7 +20,7 @@ namespace deeplog {
             actions.push_back(std::dynamic_pointer_cast<create_branch_action>(*it));
         }
 
-        return std::vector<std::shared_ptr<create_branch_action>>(actions);
+        return actions;
     }
 
     std::shared_ptr<create_branch_action> metadata_snapshot::branch_by_id(const std::string &branch_id) const {
