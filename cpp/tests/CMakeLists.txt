@@ -6,7 +6,8 @@ enable_testing()
 
 file(GLOB_RECURSE TEST_SOURCES "*.cpp")
 
-add_executable(runTests ${TEST_SOURCES})
+add_executable(runTests ${TEST_SOURCES} ${BACKWARD_ENABLE})
+add_backward(runTests)
 
 target_link_libraries(runTests
         deeplog

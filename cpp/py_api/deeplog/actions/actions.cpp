@@ -38,12 +38,12 @@ namespace py_api {
                 .def_readonly("commit_time", &deeplog::create_commit_action::commit_time);
 
         pybind11::class_<deeplog::create_tensor_action, deeplog::action, std::shared_ptr<deeplog::create_tensor_action>>(module, "CreateTensorAction")
-                .def(pybind11::init<std::string, std::string, std::string, std::string, long, bool, bool, bool, std::optional<std::string>,
+                .def(pybind11::init<std::string, std::string, std::optional<std::string>, std::string, long, bool, bool, bool, std::optional<std::string>,
                              std::optional<std::string>,
                              std::map<std::string, std::map<std::string, std::string>>,
                              std::optional<long>,
-                             std::vector<long>,
-                             std::vector<long>,
+                             std::vector<unsigned long>,
+                             std::vector<unsigned long>,
                              std::optional<long>, std::optional<std::string>, bool, std::string>(),
                      pybind11::arg("id"),
                      pybind11::arg("name"),

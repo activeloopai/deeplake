@@ -18,8 +18,8 @@ namespace deeplog {
         std::optional<std::string> sample_compression;
         std::map<std::string, std::map<std::string, std::string>> links;
         std::optional<long> max_chunk_size;
-        std::vector<long> min_shape;
-        std::vector<long> max_shape;
+        std::vector<unsigned long> min_shape;
+        std::vector<unsigned long> max_shape;
         std::optional<long> tiling_threshold;
         std::optional<std::string> typestr;
         bool verify;
@@ -30,7 +30,7 @@ namespace deeplog {
 
         create_tensor_action(std::string id,
                              std::string name,
-                             std::string dtype,
+                             std::optional<std::string> dtype,
                              std::string htype,
                              const long &length,
                              const bool &is_link,
@@ -40,8 +40,8 @@ namespace deeplog {
                              const std::optional<std::string> &sample_compression,
                              const std::map<std::string, std::map<std::string, std::string>> &links,
                              const std::optional<long> &max_chunk_size,
-                             const std::vector<long> &min_shape,
-                             const std::vector<long> &max_shape,
+                             const std::vector<unsigned long> &min_shape,
+                             const std::vector<unsigned long> &max_shape,
                              const std::optional<long> &tiling_threshold,
                              const std::optional<std::string> &typestr,
                              const bool &verify,

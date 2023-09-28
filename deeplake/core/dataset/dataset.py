@@ -837,6 +837,7 @@ class Dataset:
             overwrite=True,
             **meta_kwargs,
         )
+        self._refresh_snapshots()
         meta: DatasetMeta = self.meta
         ffw_dataset_meta(meta)
         meta.add_tensor(name, key, hidden=hidden)
@@ -1347,6 +1348,18 @@ class Dataset:
                 f"Address {address} not found. Ensure the commit id / branch name is correct."
             )
         return commit_id
+
+    def _refresh_snapshots(self):
+        """
+        If using deeplog, update the version state.
+        This needs to be called after any transaction commits to move the version read along
+        """
+        if self.deeplog.log_format() > 3:
+            branch = self.version_state["branch"]
+            old_version_state = self.version_state
+            self.version_state = None
+            self._load_version_info(branch)
+            self.version_state = dict(list(old_version_state.items()) + list(self.version_state.items()))
 
     def _load_version_info(self, address=None):
         """Loads data from version_control_file otherwise assume it doesn't exist and load all empty"""
@@ -2040,21 +2053,22 @@ class Dataset:
                 storage.next_storage.enable_readonly()
             self._unlock()
         else:
-            try:
-                locked = self._lock(err=err)
-                if locked:
-                    self.storage.disable_readonly()
-                    if (
-                        isinstance(storage, LRUCache)
-                        and storage.next_storage is not None
-                    ):
-                        storage.next_storage.disable_readonly()
-                else:
+            if storage.deeplog.log_format() < 4:
+                try:
+                    locked = self._lock(err=err)
+                    if locked:
+                        self.storage.disable_readonly()
+                        if (
+                            isinstance(storage, LRUCache)
+                            and storage.next_storage is not None
+                        ):
+                            storage.next_storage.disable_readonly()
+                    else:
+                        self.__dict__["_read_only"] = True
+                except LockedException as e:
                     self.__dict__["_read_only"] = True
-            except LockedException as e:
-                self.__dict__["_read_only"] = True
-                if err:
-                    raise e
+                    if err:
+                        raise e
 
     @read_only.setter
     @invalid_view_op
