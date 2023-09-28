@@ -157,21 +157,19 @@ namespace deeplog {
             auto parse_options = arrow::json::ParseOptions::Defaults();
             parse_options.explicit_schema = arrow_schema;
 
-            std::shared_ptr<arrow::json::TableReader> json_reader;
             auto status = arrow::json::TableReader::Make(arrow::default_memory_pool(), file.ValueOrDie(), read_options, parse_options);
             if (!status.ok()) {
                 std::cerr << "JSON reader creation failed: " << status.status() << std::endl;
                 continue;
             }
-            json_reader = status.ValueOrDie();
+            auto json_reader = status.ValueOrDie();
 
 
             // Read the JSON data into an Arrow Table
             std::shared_ptr<arrow::Table> arrow_table;
             auto reader_status = json_reader->Read();
             if (!reader_status.ok()) {
-                std::cerr << "JSON read failed: " << reader_status.status() << std::endl;
-                continue;
+                throw std::runtime_error("JSON read failed: " + reader_status.status().message());
             }
             arrow_table = reader_status.ValueOrDie();
 

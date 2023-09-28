@@ -58,7 +58,7 @@ TEST_F(DeeplogTest, create) {
     auto meta_snapshot = deeplog::metadata_snapshot(log);
 
     EXPECT_EQ(1, meta_snapshot.branches().size());
-    EXPECT_EQ("main", meta_snapshot.branches().begin()->get()->name);
+    EXPECT_EQ("main", meta_snapshot.branches().at(0)->name);
     EXPECT_EQ(4, meta_snapshot.protocol()->min_reader_version);
     EXPECT_EQ(4, meta_snapshot.protocol()->min_writer_version);
 

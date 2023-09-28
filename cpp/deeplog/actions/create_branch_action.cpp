@@ -5,10 +5,10 @@
 namespace deeplog {
     std::shared_ptr<arrow::StructType> create_branch_action::arrow_type = std::dynamic_pointer_cast<arrow::StructType>(
             arrow::struct_({
-                                   arrow::field("id", arrow::utf8()),
-                                   arrow::field("name", arrow::utf8()),
-                                   arrow::field("fromId", arrow::utf8()),
-                                   arrow::field("fromVersion", arrow::int64()),
+                                   arrow::field("id", arrow::utf8(), true),
+                                   arrow::field("name", arrow::utf8(), true),
+                                   arrow::field("fromId", arrow::utf8(), true),
+                                   arrow::field("fromVersion", arrow::int64(), true),
                            }));
 
 
@@ -16,10 +16,10 @@ namespace deeplog {
             id(std::move(id)), name(std::move(name)), from_id(std::move(from_id)), from_version(from_version) {}
 
     create_branch_action::create_branch_action(const std::shared_ptr<arrow::StructScalar> &value) {
-        id = reinterpret_pointer_cast<arrow::StringScalar>(value->field("id").ValueOrDie())->view();
-        name = reinterpret_pointer_cast<arrow::StringScalar>(value->field("name").ValueOrDie())->view();
-        from_id = reinterpret_pointer_cast<arrow::StringScalar>(value->field("fromId").ValueOrDie())->view();
-        from_version = reinterpret_pointer_cast<arrow::Int64Scalar>(value->field("fromVersion").ValueOrDie())->value;
+        id = from_struct<std::string>("id", value).value();
+        name = from_struct<std::string>("name", value).value();
+        from_id = from_struct<std::string>("fromId", value).value();
+        from_version = from_struct<long>("fromVersion", value).value();
     }
 
     std::string create_branch_action::action_name() {

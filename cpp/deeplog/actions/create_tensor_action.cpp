@@ -4,24 +4,24 @@ namespace deeplog {
 
     std::shared_ptr<arrow::StructType> create_tensor_action::arrow_type = std::dynamic_pointer_cast<arrow::StructType>(
             arrow::struct_({
-                                   arrow::field("id", arrow::utf8()),
-                                   arrow::field("name", arrow::utf8()),
-                                   arrow::field("dtype", arrow::utf8()),
-                                   arrow::field("htype", arrow::utf8()),
-                                   arrow::field("length", arrow::uint64()),
-                                   arrow::field("link", arrow::boolean()),
-                                   arrow::field("sequence", arrow::boolean()),
-                                   arrow::field("hidden", arrow::boolean()),
-                                   arrow::field("chunkCompression", arrow::utf8()),
-                                   arrow::field("sampleCompression", arrow::utf8()),
-                                   arrow::field("links", arrow::map(arrow::utf8(), arrow::map(arrow::utf8(), arrow::utf8()))),
-                                   arrow::field("maxChunkSize", arrow::uint64()),
-                                   arrow::field("minShape", arrow::list(arrow::uint64())),
-                                   arrow::field("maxShape", arrow::list(arrow::uint64())),
-                                   arrow::field("tilingThreshold", arrow::uint64()),
-                                   arrow::field("typestr", arrow::utf8()),
-                                   arrow::field("verify", arrow::boolean()),
-                                   arrow::field("version", arrow::utf8()),
+                                   arrow::field("id", arrow::utf8(), true),
+                                   arrow::field("name", arrow::utf8(), true),
+                                   arrow::field("dtype", arrow::utf8(), true),
+                                   arrow::field("htype", arrow::utf8(), true),
+                                   arrow::field("length", arrow::uint64(), true),
+                                   arrow::field("link", arrow::boolean(), true),
+                                   arrow::field("sequence", arrow::boolean(), true),
+                                   arrow::field("hidden", arrow::boolean(), true),
+                                   arrow::field("chunkCompression", arrow::utf8(), true),
+                                   arrow::field("sampleCompression", arrow::utf8(), true),
+//                                   arrow::field("links", arrow::map(arrow::utf8(), arrow::map(arrow::utf8(), arrow::utf8())), true),
+                                   arrow::field("maxChunkSize", arrow::uint64(), true),
+//                                   arrow::field("minShape", arrow::list(arrow::uint64()), true),
+//                                   arrow::field("maxShape", arrow::list(arrow::uint64()), true),
+                                   arrow::field("tilingThreshold", arrow::uint64(), true),
+                                   arrow::field("typestr", arrow::utf8(), true),
+                                   arrow::field("verify", arrow::boolean(), true),
+                                   arrow::field("version", arrow::utf8(), true),
                            }));
 
     create_tensor_action::create_tensor_action(std::string id,
@@ -54,23 +54,23 @@ namespace deeplog {
               verify(verify), version(std::move(version)) {}
 
     create_tensor_action::create_tensor_action(const std::shared_ptr<arrow::StructScalar> &value) {
-        id = reinterpret_pointer_cast<arrow::StringScalar>(value->field("id").ValueOrDie())->view();
-        name = reinterpret_pointer_cast<arrow::StringScalar>(value->field("name").ValueOrDie())->view();
-        dtype = reinterpret_pointer_cast<arrow::StringScalar>(value->field("dtype").ValueOrDie())->view();
-        htype = reinterpret_pointer_cast<arrow::StringScalar>(value->field("htype").ValueOrDie())->view();
-        length = reinterpret_pointer_cast<arrow::Int64Scalar>(value->field("length").ValueOrDie())->value;
-        is_link = reinterpret_pointer_cast<arrow::BooleanScalar>(value->field("link").ValueOrDie())->value;
-        is_sequence = reinterpret_pointer_cast<arrow::BooleanScalar>(value->field("sequence").ValueOrDie())->value;
-        hidden = reinterpret_pointer_cast<arrow::BooleanScalar>(value->field("hidden").ValueOrDie())->value;
-        chunk_compression = reinterpret_pointer_cast<arrow::StringScalar>(value->field("chunkCompression").ValueOrDie())->view();
-        sample_compression = reinterpret_pointer_cast<arrow::StringScalar>(value->field("sampleCompression").ValueOrDie())->view();
-        max_chunk_size = reinterpret_pointer_cast<arrow::Int64Scalar>(value->field("maxChunkSize").ValueOrDie())->value;
-//        min_shape = reinterpret_pointer_cast<arrow::ListScalar>(value->field("minShape").ValueOrDie())->value;
-//        max_shape = reinterpret_pointer_cast<arrow::ListScalar>(value->field("maxShape").ValueOrDie())->value;
-        tiling_threshold = reinterpret_pointer_cast<arrow::Int64Scalar>(value->field("tilingThreshold").ValueOrDie())->value;
-        typestr = reinterpret_pointer_cast<arrow::StringScalar>(value->field("typestr").ValueOrDie())->view();
-        verify = reinterpret_pointer_cast<arrow::BooleanScalar>(value->field("verify").ValueOrDie())->value;
-        version = reinterpret_pointer_cast<arrow::StringScalar>(value->field("version").ValueOrDie())->view();
+        id = from_struct<std::string>("id", value).value();
+        name = from_struct<std::string>("name", value).value();
+        dtype = from_struct<std::string>("dtype", value);
+        htype = from_struct<std::string>("htype", value).value();
+        length = from_struct<long>("length", value).value();
+        is_link = from_struct<bool>("link", value).value();
+        is_sequence = from_struct<bool>("sequence", value).value();
+        hidden = from_struct<bool>("hidden", value).value();
+        chunk_compression = from_struct<std::string>("chunkCompression", value);
+        sample_compression = from_struct<std::string>("sampleCompression", value);
+        max_chunk_size = from_struct<long>("maxChunkSize", value);
+//        min_shape = std::vector<long>(reinterpret_pointer_cast<arrow::UInt64Array>(value->field("minShape").ValueOrDie())->raw_values());
+//        max_shape = reinterpret_pointer_cast<arrow::UInt64Array>(value->field("maxShape").ValueOrDie());
+        tiling_threshold = from_struct<long>("tilingThreshold", value);
+        typestr = from_struct<std::string>("typestr", value);
+        verify = from_struct<bool>("verify", value).value();
+        version = from_struct<std::string>("version", value).value();
     }
 
     std::string create_tensor_action::action_name() {
@@ -82,44 +82,20 @@ namespace deeplog {
 
         json["id"] = id;
         json["name"] = name;
-        if (dtype.has_value()) {
-            json["dtype"] = dtype.value();
-        } else {
-            json["dtype"] = nlohmann::json::value_t::null;
-        }
+        json["dtype"] = to_json_value<std::string>(dtype);
         json["htype"] = htype;
         json["length"] = length;
         json["link"] = is_link;
         json["sequence"] = is_sequence;
         json["hidden"] = hidden;
-        if (chunk_compression.has_value()) {
-            json["chunkCompression"] = chunk_compression.value();
-        } else {
-            json["chunkCompression"] = nlohmann::json::value_t::null;
-        }
-        if (sample_compression.has_value()) {
-            json["sampleCompression"] = sample_compression.value();
-        } else {
-            json["sampleCompression"] = nlohmann::json::value_t::null;
-        }
-        json["links"] = links;
-        if (max_chunk_size.has_value()) {
-            json["maxChunkSize"] = max_chunk_size.value();
-        } else {
-            json["maxChunkSize"] = nlohmann::json::value_t::null;
-        }
-        json["minShape"] = min_shape;
-        json["maxShape"] = max_shape;
-        if (tiling_threshold.has_value()) {
-            json["tilingThreshold"] = tiling_threshold.value();
-        } else {
-            json["tilingThreshold"] = nlohmann::json::value_t::null;
-        }
-        if (typestr.has_value()) {
-            json["typestr"] = typestr.value();
-        } else {
-            json["typestr"] = nlohmann::json::value_t::null;
-        }
+        json["chunkCompression"] = to_json_value<std::string>(chunk_compression);
+        json["sampleCompression"] = to_json_value<std::string>(sample_compression);
+//        json["links"] = links;
+        json["maxChunkSize"] = to_json_value<long>(max_chunk_size);
+//        json["minShape"] = min_shape;
+//        json["maxShape"] = max_shape;
+        json["tilingThreshold"] = to_json_value<long>(tiling_threshold);
+        json["typestr"] = to_json_value<std::string>(typestr);
         json["verify"] = verify;
         json["version"] = version;
 

@@ -8,7 +8,7 @@ namespace deeplog {
     public:
         std::string id;
         std::string branch_id;
-        long branch_version;
+        unsigned long branch_version;
         std::optional<std::string> message;
         long commit_time;
 

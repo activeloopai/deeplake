@@ -7,7 +7,7 @@ namespace deeplog {
 
     public:
         std::string path;
-        long size;
+        unsigned long size;
         long modification_time;
         bool data_change;
 
