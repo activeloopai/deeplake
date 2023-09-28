@@ -26,7 +26,7 @@ namespace deeplog {
 
     create_tensor_action::create_tensor_action(std::string id,
                                                std::string name,
-                                               std::string dtype,
+                                               std::optional<std::string> dtype,
                                                std::string htype,
                                                const long &length,
                                                const bool &is_link,

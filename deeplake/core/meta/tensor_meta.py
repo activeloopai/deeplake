@@ -415,6 +415,7 @@ def _is_dtype_supported_by_numpy(dtype: str) -> bool:
     except:
         return False
 
+
 def validate_and_process_kwargs(htype, kwargs):
     _validate_htype_exists(htype)
     _validate_htype_overwrites(htype, kwargs)

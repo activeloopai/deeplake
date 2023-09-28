@@ -365,7 +365,7 @@ class dataset:
         lock_enabled: Optional[bool] = True,
         lock_timeout: Optional[int] = 0,
         verbose: bool = True,
-        log_format: int = 3,
+        log_format: int = 4,
     ) -> Dataset:
         """Creates an empty dataset
 
@@ -718,7 +718,9 @@ class dataset:
     @staticmethod
     def _load(dataset_kwargs, access_method=None, create=False, check_integrity=True):
         if create:
-            dataset_kwargs["storage"].set_deeplog(DeepLog.create(dataset_kwargs["path"], dataset_kwargs["log_format"]))
+            dataset_kwargs["storage"].set_deeplog(
+                DeepLog.create(dataset_kwargs["path"], dataset_kwargs["log_format"])
+            )
         else:
             dataset_kwargs["storage"].set_deeplog(DeepLog.open(dataset_kwargs["path"]))
 

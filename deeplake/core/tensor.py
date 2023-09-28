@@ -70,12 +70,19 @@ from deeplake.util.object_3d.mesh import (
 from deeplake.deeplog.actions import CreateTensorAction
 from deeplake.deeplog import DeepLogSnapshot
 from deeplake.deeplog import OptimisticTransaction
-from deeplake.deeplog.adapters import parse_commit_id
+from deeplake.deeplog.adapters import parse_commit_id, to_commit_id
 
-from deeplake.htype import HTYPE_SUPPORTED_COMPRESSIONS, HTYPE_CONSTRAINTS, HTYPE_CONVERSION_LHS
+from deeplake.htype import (
+    HTYPE_SUPPORTED_COMPRESSIONS,
+    HTYPE_CONSTRAINTS,
+    HTYPE_CONVERSION_LHS,
+)
 from deeplake.util.htype import parse_complex_htype
 from deeplake.htype import htype as HTYPE
-from deeplake.core.meta.tensor_meta import validate_and_process_kwargs, _required_meta_from_htype
+from deeplake.core.meta.tensor_meta import (
+    validate_and_process_kwargs,
+    _required_meta_from_htype,
+)
 import warnings
 import webbrowser
 
@@ -112,7 +119,11 @@ def create_tensor(
     commit_id = version_state["commit_id"]
     if not overwrite and tensor_exists(key, storage, commit_id):
         raise TensorAlreadyExistsError(key)
-    tensor_options = dict(sample_compression=sample_compression, chunk_compression=chunk_compression, **kwargs)
+    tensor_options = dict(
+        sample_compression=sample_compression,
+        chunk_compression=chunk_compression,
+        **kwargs,
+    )
 
     if storage.deeplog.log_format() < 4:
         meta_key = get_tensor_meta_key(key, commit_id)
@@ -133,6 +144,9 @@ def create_tensor(
         validate_and_process_kwargs(htype, tensor_options)
 
         required_meta = _required_meta_from_htype(htype)
+        info_keys = required_meta.pop("_info", [])
+        for info_key in info_keys:
+            required_meta.pop(info_key)
         required_meta.update(tensor_options)
         if not required_meta.get("links"):
             required_meta["links"] = {}
@@ -144,6 +158,9 @@ def create_tensor(
         transaction = OptimisticTransaction(snapshot)
         transaction.add(CreateTensorAction(id=key, name=key, **required_meta))
         transaction.commit()
+        version_state["commit_id"] = to_commit_id(
+            branch_id, deeplog.version(branch_id)
+        )  # TODO: have a function to update version_state on any update
 
 
 def delete_tensor(key: str, dataset):

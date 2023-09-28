@@ -175,7 +175,8 @@ namespace deeplog {
         }
 
         for (const auto &json_path: sorted_paths) {
-            auto file = arrow::io::ReadableFile::Open(json_path);
+            const std::string& json_path_string{json_path.string()};
+            auto file = arrow::io::ReadableFile::Open(json_path_string);
             auto read_options = arrow::json::ReadOptions::Defaults();
             auto parse_options = arrow::json::ParseOptions::Defaults();
             parse_options.explicit_schema = arrow_schema;

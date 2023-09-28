@@ -1426,8 +1426,7 @@ class Dataset:
                         branch_names[branch_info.id], head_commit_id
                     )
 
-                version_state["branch_commit_map"][branch_info.name] =  branch_info.id
-
+                version_state["branch_commit_map"][branch_info.name] = branch_info.id
 
             commit_id = to_commit_id(snapshot.branch_id, snapshot.version)
 

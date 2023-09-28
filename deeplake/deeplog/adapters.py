@@ -10,9 +10,7 @@ def get_tensor_metadata(
     deeplog: DeepLog, branch_id: str, branch_version: int
 ) -> TensorMeta:
     snapshot = DeepLogSnapshot(branch_id, branch_version, deeplog)
-    create_tensor = [
-        tensor for tensor in snapshot.tensors()
-    ][0]
+    create_tensor = [tensor for tensor in snapshot.tensors()][0]
     meta = TensorMeta()
     meta.name = create_tensor.name
     meta.htype = create_tensor.htype

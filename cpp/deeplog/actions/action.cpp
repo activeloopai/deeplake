@@ -11,15 +11,15 @@ namespace deeplog {
 
 
         if constexpr (std::is_same<T, std::string>::value) {
-            return reinterpret_pointer_cast<arrow::StringScalar>(scalar)->value->ToString();
+            return std::reinterpret_pointer_cast<arrow::StringScalar>(scalar)->value->ToString();
         } else if constexpr (std::is_same<T, long>::value) {
-            return reinterpret_pointer_cast<arrow::Int64Scalar>(scalar)->value;
+            return std::reinterpret_pointer_cast<arrow::Int64Scalar>(scalar)->value;
         } else if constexpr (std::is_same<T, unsigned long>::value) {
-            return reinterpret_pointer_cast<arrow::UInt64Scalar>(scalar)->value;
+            return std::reinterpret_pointer_cast<arrow::UInt64Scalar>(scalar)->value;
         } else if constexpr (std::is_same<T, int>::value) {
-            return reinterpret_pointer_cast<arrow::Int32Scalar>(scalar)->value;
+            return std::reinterpret_pointer_cast<arrow::Int32Scalar>(scalar)->value;
         } else if constexpr (std::is_same<T, bool>::value) {
-            return reinterpret_pointer_cast<arrow::BooleanScalar>(scalar)->value;
+            return std::reinterpret_pointer_cast<arrow::BooleanScalar>(scalar)->value;
         } else {
             throw std::runtime_error("Unsupported struct type: " + std::string(typeid(T).name()));
         }
