@@ -47,8 +47,13 @@ class DeepMemory:
         relevance: List[List[int]],
         embedding_function: Optional[Callable[[str], np.ndarray]] = None,
         token: Optional[str] = None,
-    ):
+    ) -> str:
         """Train a model on DeepMemory managed service.
+
+        Examples:
+            >>> queries: List[str] = ["What is the capital of India?", "What is the capital of France?"]
+            >>> relevance: List[List[int]] = [["doc_1", "doc_2"], ["doc_3"]]
+            >>> job_id: str = vectorstore.deep_memory.train(queries, relevance)
 
         Args:
             queries (List[str]): List of queries to train the model on.
@@ -101,6 +106,9 @@ class DeepMemory:
     def cancel(self, job_id: str):
         """Cancel a training job on DeepMemory managed service.
 
+        Examples:
+            >>> cancelled: bool = vectorstore.deep_memory.cancel(job_id)
+
         Args:
             job_id (str): job_id of the training job.
 
@@ -118,6 +126,9 @@ class DeepMemory:
     def delete(self, job_id: str):
         """Delete a training job on DeepMemory managed service.
 
+        Examples:
+            >>> deleted: bool = vectorstore.deep_memory.delete(job_id)
+
         Args:
             job_id (str): job_id of the training job.
 
@@ -134,6 +145,19 @@ class DeepMemory:
 
     def status(self, job_id: str):
         """Get the status of a training job on DeepMemory managed service.
+
+        Examples:
+            >>> vectorstore.deep_memory.status(job_id)
+
+            --------------------------------------------------------------
+            |                  6508464cd80cab681bfcfff3                  |
+            --------------------------------------------------------------
+            | status                     | pending                       |
+            --------------------------------------------------------------
+            | progress                   | None                          |
+            --------------------------------------------------------------
+            | results                    | not available yet             |
+            --------------------------------------------------------------
 
         Args:
             job_id (str): job_id of the training job.
@@ -157,6 +181,54 @@ class DeepMemory:
         qvs_params: Optional[Dict[str, Any]] = None,
     ) -> Dict[str, Dict[str, float]]:
         """Evaluate a model on DeepMemory managed service.
+
+        Examples:
+            # Evaluate a model with embedding function
+            >>> relevance: List[List[str]] = [["doc_1", "doc_2"], ["doc_3"]]
+            >>> queries: List[str] = ["What is the capital of India?", "What is the capital of France?"]
+            >>> embedding_function: Callable[..., List[np.ndarray] = openai_embedding.embed_documents
+            >>> vectorstore.deep_memory.evaluate(
+            ...     relevance=relevance,
+            ...     queries=queries,
+            ...     embedding_function=embedding_function,
+            ... )
+
+            # Evaluate a model with precomputed embeddings
+            >>> relevance: List[List[str]] = [["doc_1", "doc_2"], ["doc_3"]]
+            >>> queries: List[str] = ["What is the capital of India?", "What is the capital of France?"]
+            >>> embedding: Union[List[np.ndarray[Any, Any]], List[List[float]] = [[-1.2, 12, ...], ...]
+            >>> vectorstore.deep_memory.evaluate(
+            ...     relevance=relevance,
+            ...     queries=queries,
+            ...     embedding=embedding,
+            ... )
+
+            # Evaluate a model with precomputed embeddings and log queries
+            >>> relevance: List[List[str]] = [["doc_1", "doc_2"], ["doc_3"]]
+            >>> queries: List[str] = ["What is the capital of India?", "What is the capital of France?"]
+            >>> embedding: Union[List[np.ndarray[Any, Any]], List[List[float]] = [[-1.2, 12, ...], ...]
+            >>> vectorstore.deep_memory.evaluate(
+            ...     relevance=relevance,
+            ...     queries=queries,
+            ...     embedding=embedding,
+            ...     qvs_params={
+            ...         "log_queries": True,
+            ...     }
+            ... )
+
+            # Evaluate a model with precomputed embeddings and log queries, and custom branch
+            >>> relevance: List[List[str]] = [["doc_1", "doc_2"], ["doc_3"]]
+            >>> queries: List[str] = ["What is the capital of India?", "What is the capital of France?"]
+            >>> embedding: Union[List[np.ndarray[Any, Any]], List[List[float]] = [[-1.2, 12, ...], ...]
+            >>> vectorstore.deep_memory.evaluate(
+            ...     relevance=relevance,
+            ...     queries=queries,
+            ...     embedding=embedding,
+            ...     qvs_params={
+            ...         "log_queries": True,
+            ...         "branch": "queries",
+            ...     }
+            ... )
 
         Args:
             queries (List[str]): List of queries to evaluate the model on.
