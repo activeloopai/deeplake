@@ -181,7 +181,7 @@ class VectorStore:
         self._exec_option = exec_option
         self.verbose = verbose
         self.tensor_params = tensor_params
-        self.distance_metric_index = False
+        self.distance_metric_index = None
         if utils.index_used(self.exec_option):
             index.index_cache_cleanup(self.dataset)
             self.distance_metric_index = index.validate_and_create_vector_index(
@@ -515,7 +515,7 @@ class VectorStore:
             )
 
         if self.distance_metric_index:
-            distance_metric = index.get_index_distance_metric_from_params(
+            distance_metric = index.parse_index_distance_metric_from_params(
                 logger, self.distance_metric_index, distance_metric
             )
 
