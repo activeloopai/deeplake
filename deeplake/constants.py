@@ -99,7 +99,6 @@ ENV_GDRIVE_REFRESH_TOKEN = "GDRIVE_REFRESH_TOKEN"
 HUB_CLOUD_DEV_USERNAME = os.getenv(ENV_HUB_DEV_USERNAME)  # type: ignore
 HUB_CLOUD_DEV_PASSWORD = os.getenv(ENV_HUB_DEV_PASSWORD)
 
-
 # dataset base roots for pytests
 PYTEST_MEMORY_PROVIDER_BASE_ROOT = "mem://hub_pytest"
 PYTEST_LOCAL_PROVIDER_BASE_ROOT = "./hub_pytest/"

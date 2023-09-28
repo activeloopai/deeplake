@@ -44,7 +44,7 @@ class DeepMemory:
     def train(
         self,
         queries: List[str],
-        relevance: List[List[int]],
+        relevance: List[List[Tuple[str, int]]],
         embedding_function: Optional[Callable[[str], np.ndarray]] = None,
         token: Optional[str] = None,
     ) -> str:
@@ -52,13 +52,12 @@ class DeepMemory:
 
         Examples:
             >>> queries: List[str] = ["What is the capital of India?", "What is the capital of France?"]
-            >>> relevance: List[List[int]] = [["doc_1", "doc_2"], ["doc_3"]]
+            >>> relevance: List[List[Tuple[str, int]]] = [[("doc_1", 1), ("doc_2", 1)], [("doc_3", 1)]]
             >>> job_id: str = vectorstore.deep_memory.train(queries, relevance)
-
 
         Args:
             queries (List[str]): List of queries to train the model on.
-            relevance (List[List[int]]): List of relevant documents for each query.
+            relevance (List[List[Tuple[str, int]]]): List of relevant documents for each query with their respective relevance score.
             embedding_function (Optional[Callable[[str], np.ndarray]], optional): Embedding funtion used to convert queries to embeddings. Defaults to None.
             token (str, optional): API token for the DeepMemory managed service. Defaults to None.
 
@@ -91,8 +90,8 @@ class DeepMemory:
         queries_vs.add(
             text=[query for query in queries],
             metadata=[
-                {"relevance": [(doc_id, 1) for doc_id in relevance]}
-                for relevance in relevance
+                {"relevance": [rel for rel in relevance_per_doc]}
+                for relevance_per_doc in relevance
             ],
             embedding_data=[query for query in queries],
         )
@@ -172,7 +171,7 @@ class DeepMemory:
 
     def evaluate(
         self,
-        relevance: List[List[str]],
+        relevance: List[List[Tuple[str, int]]],
         queries: List[str],
         embedding_function: Optional[Callable[..., List[np.ndarray]]] = None,
         embedding: Optional[
@@ -185,7 +184,7 @@ class DeepMemory:
 
         Examples:
             # Evaluate a model with embedding function
-            >>> relevance: List[List[str]] = [["doc_1", "doc_2"], ["doc_3"]]
+            >>> relevance: List[List[Tuple[str, int]]] = [[("doc_1", 1), ("doc_2", 1)], [("doc_3", 1)]]
             >>> queries: List[str] = ["What is the capital of India?", "What is the capital of France?"]
             >>> embedding_function: Callable[..., List[np.ndarray] = openai_embedding.embed_documents
             >>> vectorstore.deep_memory.evaluate(
@@ -195,7 +194,7 @@ class DeepMemory:
             ... )
 
             # Evaluate a model with precomputed embeddings
-            >>> relevance: List[List[str]] = [["doc_1", "doc_2"], ["doc_3"]]
+            >>> relevance: List[List[Tuple[str, int]]] = [[("doc_1", 1), ("doc_2", 1)], [("doc_3", 1)]]
             >>> queries: List[str] = ["What is the capital of India?", "What is the capital of France?"]
             >>> embedding: Union[List[np.ndarray[Any, Any]], List[List[float]] = [[-1.2, 12, ...], ...]
             >>> vectorstore.deep_memory.evaluate(
@@ -205,7 +204,7 @@ class DeepMemory:
             ... )
 
             # Evaluate a model with precomputed embeddings and log queries
-            >>> relevance: List[List[str]] = [["doc_1", "doc_2"], ["doc_3"]]
+            >>> relevance: List[List[Tuple[str, int]]] = [[("doc_1", 1), ("doc_2", 1)], [("doc_3", 1)]]
             >>> queries: List[str] = ["What is the capital of India?", "What is the capital of France?"]
             >>> embedding: Union[List[np.ndarray[Any, Any]], List[List[float]] = [[-1.2, 12, ...], ...]
             >>> vectorstore.deep_memory.evaluate(
@@ -218,7 +217,7 @@ class DeepMemory:
             ... )
 
             # Evaluate a model with precomputed embeddings and log queries, and custom branch
-            >>> relevance: List[List[str]] = [["doc_1", "doc_2"], ["doc_3"]]
+            >>> relevance: List[List[Tuple[str, int]]] = [[("doc_1", 1), ("doc_2", 1)], [("doc_3", 1)]]p
             >>> queries: List[str] = ["What is the capital of India?", "What is the capital of France?"]
             >>> embedding: Union[List[np.ndarray[Any, Any]], List[List[float]] = [[-1.2, 12, ...], ...]
             >>> vectorstore.deep_memory.evaluate(
@@ -233,7 +232,7 @@ class DeepMemory:
 
         Args:
             queries (List[str]): List of queries to evaluate the model on.
-            relevance (List[List[Tuple[str, int]]]): List of relevant documents for each query.
+            relevance (List[List[Tuple[str, int]]]): List of relevant documents for each query with their respective relevance score.
             embedding (Optional[np.ndarray], optional): Embedding of the queries. Defaults to None.
             embedding_function (Optional[Callable[..., List[np.ndarray]]], optional): Embedding funtion used to convert queries to embeddings. Defaults to None.
             top_k (List[int], optional): List of top_k values to evaluate the model on. Defaults to [1, 3, 5, 10, 50, 100].

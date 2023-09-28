@@ -445,8 +445,7 @@ def corpus_query_relevances_copy(request, hub_cloud_dev_token):
         token=hub_cloud_dev_token,
     )
     queries = query_vs.dataset.text.data()["value"]
-    relevances = query_vs.dataset.metadata.data()["value"]
-    relevances = [relevance["relevance"] for relevance in relevances]
+    relevance = query_vs.dataset.metadata.data()["value"]
 
     deeplake.deepcopy(
         f"hub://{HUB_CLOUD_DEV_USERNAME}/deepmemory_test_corpus",
@@ -456,7 +455,7 @@ def corpus_query_relevances_copy(request, hub_cloud_dev_token):
         runtime={"tensor_db": True},
     )
 
-    yield corpus, queries, relevances
+    yield corpus, queries, relevance
 
     deeplake.delete(corpus, force=True, large_ok=True, token=hub_cloud_dev_token)
 
