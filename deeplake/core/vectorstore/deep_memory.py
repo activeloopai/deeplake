@@ -406,9 +406,10 @@ def get_view_top_k(
 
 
 def parse_queries_params(queries_params: Optional[Dict[str, Any]] = None):
-    log_queries = queries_params.get("log_queries")
-    if log_queries is None:
-        log_queries = True
+    if queries_params is not None:
+        log_queries = queries_params.get("log_queries")
+        if log_queries is None:
+            queries_params["log_queries"] = True
 
     if queries_params is None or (
         queries_params.get("log_queries") and not queries_params.get("branch")
