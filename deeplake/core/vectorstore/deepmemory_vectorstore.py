@@ -18,7 +18,10 @@ class DeepMemoryVectorStore(VectorStore):
                 token=self.token,
                 embedding_function=self.embedding_function,
             )
-        except Exception:
+        except Exception as e:
+            if e == LockedException:
+                raise e
+
             self.deep_memory = None
 
     def search(

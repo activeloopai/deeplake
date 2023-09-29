@@ -17,6 +17,9 @@ from deeplake.constants import DEFAULT_QUERIES_VECTORSTORE_TENSORS
 from deeplake.core.dataset import Dataset
 from deeplake.core.vectorstore.deeplake_vectorstore import VectorStore
 from deeplake.client.client import DeepMemoryBackendClient
+from deeplake.util.bugout_reporter import (
+    feature_report_path,
+)
 
 
 class DeepMemory:
@@ -36,6 +39,7 @@ class DeepMemory:
         Raises:
             ImportError: if indra is not installed
         """
+        # TODO: add reporting
         self.dataset = dataset
         self.token = token
         self.embedding_function = embedding_function
