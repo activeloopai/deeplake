@@ -542,9 +542,9 @@ def test_index_basic(local_path, hub_cloud_dev_token):
         == METRIC_TO_INDEX_METRIC[DEFAULT_VECTORSTORE_DISTANCE_METRIC]
     )
 
-    # Check that distance metric cannot be specified when there is an index
+    # Check that distance metric throws a warning when there is an index
     with pytest.warns(None):
-        vector_store.search(embedding=query_embedding, distance_metric="blabla")
+        vector_store.search(embedding=query_embedding, distance_metric="l1")
 
 
 @pytest.mark.slow

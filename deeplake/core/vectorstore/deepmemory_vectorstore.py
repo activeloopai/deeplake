@@ -5,7 +5,7 @@ import numpy as np
 from deeplake.core.dataset import Dataset
 from deeplake.core.vectorstore.deeplake_vectorstore import VectorStore
 from deeplake.core.vectorstore.deep_memory import DeepMemory
-from deeplake.constants import DEFAULT_VECTORSTORE_DISTANCE_METRIC
+from deeplake.constants import DEFAULT_DEEPMEMORY_DISTANCE_METRIC
 from deeplake.util.exceptions import LockedException
 
 
@@ -42,10 +42,8 @@ class DeepMemoryVectorStore(VectorStore):
                 "The search will be executed on the Deep Lake Managed Database."
             )
 
-        distance_metric = distance_metric or DEFAULT_VECTORSTORE_DISTANCE_METRIC
-
-        if deep_memory:
-            distance_metric = "deepmemory_distance"
+        if deep_memory and not distance_metric:
+            distance_metric = DEFAULT_DEEPMEMORY_DISTANCE_METRIC
 
         return super().search(
             embedding_data=embedding_data,
