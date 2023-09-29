@@ -285,7 +285,6 @@ DEFAULT_QUERIES_VECTORSTORE_TENSORS = [
     },
     {
         "name": "deep_memory_recall",
-        "htype": "json",
         "create_id_tensor": False,
         "create_sample_info_tensor": False,
         "create_shape_tensor": False,
@@ -299,7 +298,6 @@ DEFAULT_QUERIES_VECTORSTORE_TENSORS = [
     },
     {
         "name": "vector_search_recall",
-        "htype": "json",
         "create_id_tensor": False,
         "create_sample_info_tensor": False,
         "create_shape_tensor": False,
