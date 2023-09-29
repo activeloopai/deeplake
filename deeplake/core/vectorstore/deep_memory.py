@@ -28,6 +28,7 @@ class DeepMemory:
         dataset: Dataset,
         embedding_function: Optional[Any] = None,
         token: Optional[str] = None,
+        client: Optional[DeepMemoryBackendClient] = None,
     ):
         """Based Deep Memory class to train and evaluate models on DeepMemory managed service.
 
@@ -43,7 +44,7 @@ class DeepMemory:
         self.dataset = dataset
         self.token = token
         self.embedding_function = embedding_function
-        self.client = DeepMemoryBackendClient(token=token)
+        self.client = client
         self.queries_dataset = deeplake.dataset(
             self.dataset.path + "_eval_queries",
             token=token,

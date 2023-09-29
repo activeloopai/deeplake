@@ -10,19 +10,14 @@ from deeplake.util.exceptions import LockedException
 
 
 class DeepMemoryVectorStore(VectorStore):
-    def __init__(self, *arg, **kwargs):
+    def __init__(self, client, *arg, **kwargs):
         super().__init__(*arg, **kwargs)
-        try:
-            self.deep_memory = DeepMemory(
-                self.dataset,
-                token=self.token,
-                embedding_function=self.embedding_function,
-            )
-        except Exception as e:
-            if e == LockedException:
-                raise e
-
-            self.deep_memory = None
+        self.deep_memory = DeepMemory(
+            self.dataset,
+            token=self.token,
+            embedding_function=self.embedding_function,
+            client=client,
+        )
 
     def search(
         self,
