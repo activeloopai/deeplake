@@ -5,17 +5,28 @@ from deeplake.core.vectorstore import utils
 
 METRIC_TO_INDEX_METRIC = {
     "L2": "l2_norm",
+    "L1": "l1_norm",
     "COS": "cosine_similarity",
 }
 
 
-def get_index_distance_metric_from_params(logger, index_params, distance_metric):
+def get_index_distance_metric_from_params(
+    logger, distance_metric_index, distance_metric
+):
     if distance_metric:
         logger.warning(
             f"Specifying `distance_metric` for a Vector Store with an index is not supported; `distance_metric` was specified as: `{distance_metric}`. "
-            f"The search will be performed using the distance metric from index_params['distance_metric']: `{index_params['distance_metric']}`"
+            f"The search will be performed using the distance metric from the index: `{distance_metric_index}`"
         )
-    return index_params.get("distance_metric", "L2")
+
+    for key in METRIC_TO_INDEX_METRIC:
+        if METRIC_TO_INDEX_METRIC[key] == distance_metric_index:
+            return key
+
+    raise ValueError(
+        f"Invalid distance metric in the index: {distance_metric_index}. "
+        f"Valid options are: {', '.join([e for e in list(METRIC_TO_INDEX_METRIC.keys())])}"
+    )
 
 
 def get_index_metric(metric):
@@ -87,47 +98,64 @@ def index_cache_cleanup(dataset):
 
 
 def validate_and_create_vector_index(dataset, index_params, regenerate_index=False):
+    """
+    Validate if the index is present in the dataset and create one if not present but required based on the specified index_params.
+    Currently only supports 1 index per dataset.
+
+    Returns: Distance metric for the index. If None, then no index is available.
+
+    TODO: Update to support multiple indexes per dataset, only once the TQL parser also supports that
+    """
+
     threshold = index_params.get("threshold", -1)
-    if threshold <= 0:
-        return False
-    elif len(dataset) < threshold:
-        return False
 
-    index_regen = False
+    below_threshold = threshold <= 0 or len(dataset) < threshold
+
     tensors = dataset.tensors
-    # Check if regenerate_index is true.
-    if regenerate_index:
-        for _, tensor in tensors.items():
-            is_embedding = utils.is_embedding_tensor(tensor)
-            has_vdb_indexes = hasattr(tensor.meta, "vdb_indexes")
-            try:
-                vdb_index_ids_present = len(tensor.meta.vdb_indexes) > 0
-            except AttributeError:
-                vdb_index_ids_present = False
 
-            if is_embedding and has_vdb_indexes and vdb_index_ids_present:
-                tensor._regenerate_vdb_indexes()
-                index_regen = True
-        if index_regen:
-            return
+    # TODO: BRING BACK WHEN IT IS IN USE
+
+    # index_regen = False
+    # Check if regenerate_index is true.
+    # if regenerate_index:
+    #     for _, tensor in tensors.items():
+    #         is_embedding = utils.is_embedding_tensor(tensor)
+    #         has_vdb_indexes = hasattr(tensor.meta, "vdb_indexes")
+    #         try:
+    #             vdb_index_ids_present = len(tensor.get_vdb_indexes()) > 0
+    #         except AttributeError:
+    #             vdb_index_ids_present = False
+
+    #         if is_embedding and has_vdb_indexes and vdb_index_ids_present:
+    #             tensor._regenerate_vdb_indexes()
+    #             index_regen = True
+    #     if index_regen:
+    #         return
 
     # Check all tensors from the dataset.
     for _, tensor in tensors.items():
         is_embedding = utils.is_embedding_tensor(tensor)
-        vdb_index_absent = len(tensor.meta.get_vdb_index_ids()) == 0
-        if is_embedding and vdb_index_absent:
-            try:
-                distance_str = index_params.get("distance_metric", "L2")
-                additional_params_dict = index_params.get("additional_params", None)
-                distance = get_index_metric(distance_str.upper())
-                if additional_params_dict and len(additional_params_dict) > 0:
-                    param_dict = normalize_additional_params(additional_params_dict)
-                    tensor.create_vdb_index(
-                        "hnsw_1", distance=distance, additional_params=param_dict
-                    )
-                else:
-                    tensor.create_vdb_index("hnsw_1", distance=distance)
-            except ValueError as e:
-                raise e
 
-    return True
+        if is_embedding:
+            vdb_indexes = tensor.get_vdb_indexes()
+
+            if len(vdb_indexes) == 0 and not below_threshold:
+                try:
+                    distance_str = index_params.get("distance_metric", "L2")
+                    additional_params_dict = index_params.get("additional_params", None)
+                    distance = get_index_metric(distance_str.upper())
+                    if additional_params_dict and len(additional_params_dict) > 0:
+                        param_dict = normalize_additional_params(additional_params_dict)
+                        tensor.create_vdb_index(
+                            "hnsw_1", distance=distance, additional_params=param_dict
+                        )
+                    else:
+                        tensor.create_vdb_index("hnsw_1", distance=distance)
+
+                    return distance
+                except ValueError as e:
+                    raise e
+            elif len(vdb_indexes) > 0:
+                return vdb_indexes[0]["distance"]
+
+    return None

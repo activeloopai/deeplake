@@ -181,10 +181,10 @@ class VectorStore:
         self._exec_option = exec_option
         self.verbose = verbose
         self.tensor_params = tensor_params
-        self.index_created = False
+        self.distance_metric_index = False
         if utils.index_used(self.exec_option):
             index.index_cache_cleanup(self.dataset)
-            self.index_created = index.validate_and_create_vector_index(
+            self.distance_metric_index = index.validate_and_create_vector_index(
                 dataset=self.dataset,
                 index_params=self.index_params,
                 regenerate_index=False,
@@ -356,7 +356,7 @@ class VectorStore:
 
         if utils.index_used(self.exec_option):
             index.index_cache_cleanup(self.dataset)
-            self.index_created = index.validate_and_create_vector_index(
+            self.distance_metric_index = index.validate_and_create_vector_index(
                 dataset=self.dataset,
                 index_params=self.index_params,
                 regenerate_index=index_regeneration,
@@ -514,9 +514,9 @@ class VectorStore:
                 embedding_function=embedding_function or self.embedding_function,
             )
 
-        if self.index_created:
+        if self.distance_metric_index:
             distance_metric = index.get_index_distance_metric_from_params(
-                logger, self.index_params, distance_metric
+                logger, self.distance_metric_index, distance_metric
             )
 
         distance_metric = distance_metric or DEFAULT_VECTORSTORE_DISTANCE_METRIC

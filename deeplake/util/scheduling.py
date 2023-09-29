@@ -41,7 +41,10 @@ def create_fetching_schedule(
         for item in slice_:
             index_struct[item] += 1
     primary_tensor = dataset[primary_tensor_name]
-    chunk_id_encoder: ChunkIdEncoder = primary_tensor.chunk_engine.chunk_id_encoder
+    try:
+        chunk_id_encoder: ChunkIdEncoder = primary_tensor.chunk_engine.chunk_id_encoder
+    except NotImplementedError:
+        return None
     enc_array = chunk_id_encoder.array
     num_chunks = chunk_id_encoder.num_chunks
     # pick chunks randomly, one by one
