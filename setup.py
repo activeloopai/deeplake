@@ -73,6 +73,7 @@ if libdeeplake_available():
     libdeeplake = "libdeeplake==0.0.79"
     extras_require["enterprise"] = [libdeeplake, "pyjwt"]
     extras_require["all"].append(libdeeplake)
+    install_requires.append(libdeeplake)
 
 init_file = os.path.join(project_name, "__init__.py")
 
