@@ -7,13 +7,6 @@ from tqdm import tqdm
 
 import numpy as np
 
-try:
-    from indra import api  # type: ignore
-
-    _INDRA_INSTALLED = True  # pragma: no cover
-except ImportError:  # pragma: no cover
-    _INDRA_INSTALLED = False  # pragma: no cover
-
 import deeplake
 from deeplake.util.path import get_path_type
 from deeplake.core.vectorstore.vector_search import utils
@@ -44,6 +37,13 @@ def create_or_load_dataset(
     branch,
     **kwargs,
 ):
+    try:
+        from indra import api  # type: ignore
+
+        _INDRA_INSTALLED = True  # pragma: no cover
+    except ImportError:  # pragma: no cover
+        _INDRA_INSTALLED = False  # pragma: no cover
+
     utils.check_indra_installation(
         exec_option=exec_option, indra_installed=_INDRA_INSTALLED
     )
