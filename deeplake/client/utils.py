@@ -141,7 +141,10 @@ class JobResponseStatusSchema:
                 raise ValueError("Invalid response. Missing 'id' key.")
 
     def print_status(
-        self, job_id: Union[str, List[str]], recall: str, importvement: str
+        self,
+        job_id: Union[str, List[str]],
+        recall: Optional[str] = None,
+        importvement: Optional[str] = None,
     ):
         if not isinstance(job_id, List):
             job_id = [job_id]
