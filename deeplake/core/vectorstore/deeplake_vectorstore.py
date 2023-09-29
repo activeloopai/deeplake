@@ -9,13 +9,6 @@ import deeplake
 from deeplake.core.distance_type import DistanceType
 from deeplake.util.dataset import try_flushing
 
-try:
-    from indra import api  # type: ignore
-
-    _INDRA_INSTALLED = True
-except Exception:  # pragma: no cover
-    _INDRA_INSTALLED = False  # pragma: no cover
-
 from deeplake.api import dataset
 from deeplake.core.dataset import Dataset
 from deeplake.constants import (
@@ -128,6 +121,13 @@ class VectorStore:
         Danger:
             Setting ``overwrite`` to ``True`` will delete all of your data if the Vector Store exists! Be very careful when setting this parameter.
         """
+        try:
+            from indra import api  # type: ignore
+
+            self.indra_installed = True
+        except Exception:  # pragma: no cover
+            self.indra_installed = False  # pragma: no cover
+
         self._token = token
         self.path = path
         self.logger = logger
@@ -196,7 +196,7 @@ class VectorStore:
     @property
     def exec_option(self) -> str:
         return utils.parse_exec_option(
-            self.dataset, self._exec_option, _INDRA_INSTALLED, self.username
+            self.dataset, self._exec_option, self.indra_installed, self.username
         )
 
     @property

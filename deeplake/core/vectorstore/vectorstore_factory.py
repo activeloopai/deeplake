@@ -9,9 +9,9 @@ def vectorstore_factory(
 ):
     dm_client = DeepMemoryBackendClient(token=kwargs.get("token"))
     path = kwargs.get("path")
+    # TODO: add support for windows
     dataset_id = path[6:].split("/")[0]
-    # deepmemory_is_available = dm_client.deepmemory_is_available(dataset_id)
-    deepmemory_is_available = True
+    deepmemory_is_available = dm_client.deepmemory_is_available(dataset_id)
     if kwargs.get("runtime") == {"tensor_db": True} and deepmemory_is_available:
         return DeepMemoryVectorStore(client=dm_client, *args, **kwargs)
     return VectorStore(*args, **kwargs)
