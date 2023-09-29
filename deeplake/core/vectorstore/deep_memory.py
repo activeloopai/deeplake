@@ -63,12 +63,16 @@ class DeepMemory:
 
         Examples:
             >>> queries: List[str] = ["What is the capital of India?", "What is the capital of France?"]
-            >>> relevance: List[List[Tuple[str, int]]] = [[("doc_1", 1), ("doc_2", 1)], [("doc_3", 1)]]
+            >>> relevance: List[List[Tuple[str, int]]] = [[("doc_id_1", 1), ("doc_id_2", 1)], [("doc_id_3", 1)]]
+            >>> # doc_id_1, doc_id_2, doc_id_3 are the ids of the documents in the corpus dataset that is relevant to the queries
             >>> job_id: str = vectorstore.deep_memory.train(queries, relevance)
 
         Args:
             queries (List[str]): List of queries to train the model on.
             relevance (List[List[Tuple[str, int]]]): List of relevant documents for each query with their respective relevance score.
+                The outer list corresponds to the queries and the inner list corresponds to the doc_id, relevence_score pair for each query.
+                doc_id is the document id in the corpus dataset. It is stored in the `id` tensor of the corpus dataset.
+                relevence_score is the relevance score of the document for the query. The range is between 0 and 1, where 0 stands for not relevant and 1 stands for relevant.
             embedding_function (Optional[Callable[[str], np.ndarray]], optional): Embedding funtion used to convert queries to embeddings. Defaults to None.
             token (str, optional): API token for the DeepMemory managed service. Defaults to None.
 
@@ -218,7 +222,8 @@ class DeepMemory:
 
         Examples:
             # Evaluate a model with embedding function
-            >>> relevance: List[List[Tuple[str, int]]] = [[("doc_1", 1), ("doc_2", 1)], [("doc_3", 1)]]
+            >>> relevance: List[List[Tuple[str, int]]] = [[("doc_id_1", 1), ("doc_id_2", 1)], [("doc_id_3", 1)]]
+            >>> # doc_id_1, doc_id_2, doc_id_3 are the ids of the documents in the corpus dataset that is relevant to the queries
             >>> queries: List[str] = ["What is the capital of India?", "What is the capital of France?"]
             >>> embedding_function: Callable[..., List[np.ndarray] = openai_embedding.embed_documents
             >>> vectorstore.deep_memory.evaluate(
@@ -228,7 +233,8 @@ class DeepMemory:
             ... )
 
             # Evaluate a model with precomputed embeddings
-            >>> relevance: List[List[Tuple[str, int]]] = [[("doc_1", 1), ("doc_2", 1)], [("doc_3", 1)]]
+            >>> relevance: List[List[Tuple[str, int]]] = [[("doc_id_1", 1), ("doc_id_2", 1)], [("doc_id_3", 1)]]
+            >>> # doc_id_1, doc_id_2, doc_id_3 are the ids of the documents in the corpus dataset that is relevant to the queries
             >>> queries: List[str] = ["What is the capital of India?", "What is the capital of France?"]
             >>> embedding: Union[List[np.ndarray[Any, Any]], List[List[float]] = [[-1.2, 12, ...], ...]
             >>> vectorstore.deep_memory.evaluate(
@@ -238,7 +244,8 @@ class DeepMemory:
             ... )
 
             # Evaluate a model with precomputed embeddings and log queries
-            >>> relevance: List[List[Tuple[str, int]]] = [[("doc_1", 1), ("doc_2", 1)], [("doc_3", 1)]]
+            >>> relevance: List[List[Tuple[str, int]]] = [[("doc_id_1", 1), ("doc_id_2", 1)], [("doc_id_3", 1)]]
+            >>> # doc_id_1, doc_id_2, doc_id_3 are the ids of the documents in the corpus dataset that is relevant to the queries
             >>> queries: List[str] = ["What is the capital of India?", "What is the capital of France?"]
             >>> embedding: Union[List[np.ndarray[Any, Any]], List[List[float]] = [[-1.2, 12, ...], ...]
             >>> vectorstore.deep_memory.evaluate(
@@ -251,7 +258,8 @@ class DeepMemory:
             ... )
 
             # Evaluate a model with precomputed embeddings and log queries, and custom branch
-            >>> relevance: List[List[Tuple[str, int]]] = [[("doc_1", 1), ("doc_2", 1)], [("doc_3", 1)]]p
+            >>> relevance: List[List[Tuple[str, int]]] = [[("doc_id_1", 1), ("doc_id_2", 1)], [("doc_id_3", 1)]]
+            >>> # doc_id_1, doc_id_2, doc_id_3 are the ids of the documents in the corpus dataset that is relevant to the queries
             >>> queries: List[str] = ["What is the capital of India?", "What is the capital of France?"]
             >>> embedding: Union[List[np.ndarray[Any, Any]], List[List[float]] = [[-1.2, 12, ...], ...]
             >>> vectorstore.deep_memory.evaluate(
@@ -267,6 +275,9 @@ class DeepMemory:
         Args:
             queries (List[str]): List of queries to evaluate the model on.
             relevance (List[List[Tuple[str, int]]]): List of relevant documents for each query with their respective relevance score.
+                The outer list corresponds to the queries and the inner list corresponds to the doc_id, relevence_score pair for each query.
+                doc_id is the document id in the corpus dataset. It is stored in the `id` tensor of the corpus dataset.
+                relevence_score is the relevance score of the document for the query. The range is between 0 and 1, where 0 stands for not relevant and 1 stands for relevant.
             embedding (Optional[np.ndarray], optional): Embedding of the queries. Defaults to None.
             embedding_function (Optional[Callable[..., List[np.ndarray]]], optional): Embedding funtion used to convert queries to embeddings. Defaults to None.
             top_k (List[int], optional): List of top_k values to evaluate the model on. Defaults to [1, 3, 5, 10, 50, 100].
