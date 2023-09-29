@@ -34,7 +34,7 @@ class DeepMemory:
         self.embedding_function = embedding_function
         self.client = DeepMemoryBackendClient(token=token)
         self.queries_dataset = deeplake.dataset(
-            self.dataset.path + "_queries",
+            self.dataset.path + "_eval_queries",
             token=token,
             read_only=False,
         )
@@ -161,11 +161,35 @@ class DeepMemory:
         Args:
             job_id (str): job_id of the training job.
         """
-        self.client.check_status(job_id=job_id)
+        try:
+            recall = "{:.2f}".format(
+                100 * self.dataset.embedding.info["deepmemory/model.npy"]["recall@10"]
+            )
+            improvement = "{:.2f}".format(
+                100 * self.dataset.embedding.info["deepmemory/model.npy"]["delta"]
+            )
+        except:
+            recall = "N/A"
+            improvement = "N/A"
+        self.client.check_status(job_id=job_id, recall=recall, improvement=improvement)
 
     def list_jobs(self):
         """List all training jobs on DeepMemory managed service."""
-        response = self.client.list_jobs(dataset_path=self.dataset.path)
+        try:
+            recall = "{:.2f}".format(
+                100 * self.dataset.embedding.info["deepmemory/model.npy"]["recall@10"]
+            )
+            improvement = "{:.2f}".format(
+                100 * self.dataset.embedding.info["deepmemory/model.npy"]["delta"]
+            )
+        except:
+            recall = "N/A"
+            improvement = "N/A"
+        response = self.client.list_jobs(
+            dataset_path=self.dataset.path,
+            recall=recall,
+            improvement=improvement,
+        )
         return response
 
     def evaluate(
@@ -282,7 +306,7 @@ class DeepMemory:
         }
         for use_model, metric in [
             (False, "COSINE_SIMILARITY"),
-            (True, "deepmemory_norm"),
+            (True, "deepmemory_distance"),
         ]:
             eval_type = "with" if use_model else "without"
             print(f"---- Evaluating {eval_type} model ---- ")

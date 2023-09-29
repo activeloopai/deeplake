@@ -575,10 +575,12 @@ class DeepMemoryBackendClient(DeepLakeBackendClient):
         print("Job cancelled successfully")
         return True
 
-    def check_status(self, job_id: str):
+    def check_status(self, job_id: str, recall: str, improvement: str):
         """Checks status of a job with job_id.
         Args:
             job_id (str): The job_id of the job to be checked.
+            recall (str): Current best top 10 recall
+            importvement (str): Current best improvement over baseline
         Returns:
             Dict[str, Any]: The json response containing job status.
         """
@@ -588,10 +590,10 @@ class DeepMemoryBackendClient(DeepLakeBackendClient):
         )
         check_response_status(response)
         response_status_schema = JobResponseStatusSchema(response=response.json())
-        response_status_schema.print_status(job_id)
+        response_status_schema.print_status(job_id, recall, improvement)
         return response.json()
 
-    def list_jobs(self, dataset_path: str):
+    def list_jobs(self, dataset_path: str, recall: str, improvement: str):
         """Lists all jobs for a dataset.
         Args:
             dataset_path (str): The path to the dataset.
@@ -605,7 +607,10 @@ class DeepMemoryBackendClient(DeepLakeBackendClient):
         )
         check_response_status(response)
         response_status_schema = JobResponseStatusSchema(response=response.json())
-        response_status_schema.print_jobs()
+        response_status_schema.print_jobs(
+            recall=recall,
+            improvement=improvement,
+        )
         return response.json()
 
     def delete_job(self, job_id: str):

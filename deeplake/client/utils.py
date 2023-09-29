@@ -3,7 +3,7 @@ import json
 import requests
 import textwrap
 from pathlib import Path
-from typing import Dict, List, Any, Union
+from typing import Dict, List, Any, Union, Optional
 
 
 from deeplake.client.config import (
@@ -140,7 +140,9 @@ class JobResponseStatusSchema:
             if "id" not in response:
                 raise ValueError("Invalid response. Missing 'id' key.")
 
-    def print_status(self, job_id: Union[str, List[str]]):
+    def print_status(
+        self, job_id: Union[str, List[str]], recall: str, importvement: str
+    ):
         if not isinstance(job_id, List):
             job_id = [job_id]
 
@@ -151,7 +153,11 @@ class JobResponseStatusSchema:
 
             if response["status"] == "completed":
                 response["results"] = get_results(
-                    response, " " * 30, add_vertical_bars=True
+                    response,
+                    " " * 30,
+                    add_vertical_bars=True,
+                    recall=recall,
+                    improvement=importvement,
                 )
 
             print(line)
@@ -159,7 +165,13 @@ class JobResponseStatusSchema:
             print(line)
             print("| {:<27}| {:<30}|".format("status", response["status"]))
             print(line)
-            progress = preprocess_progress(response, " " * 30, add_vertical_bars=True)
+            progress = preprocess_progress(
+                response,
+                " " * 30,
+                add_vertical_bars=True,
+                recall=recall,
+                improvement=importvement,
+            )
             progress_string = "| {:<27}| {:<30}"
             if progress == "None":
                 progress_string += "|"
@@ -175,7 +187,12 @@ class JobResponseStatusSchema:
             print(line)
             print("\n")
 
-    def print_jobs(self, debug: bool = False):
+    def print_jobs(
+        self,
+        debug: bool = False,
+        recall: Optional[str] = None,
+        improvement: Optional[str] = None,
+    ):
         (
             id_size,
             dataset_id_size,
@@ -210,6 +227,8 @@ class JobResponseStatusSchema:
                     "",
                     add_vertical_bars=False,
                     width=15,
+                    recall=recall,
+                    improvement=improvement,
                 )
 
             progress_indent = " " * (
@@ -221,12 +240,20 @@ class JobResponseStatusSchema:
                 + 5 * 2
             )
             response_progress = preprocess_progress(
-                response, progress_indent, add_vertical_bars=False
+                response,
+                progress_indent,
+                add_vertical_bars=False,
+                recall=recall,
+                improvement=improvement,
             )
 
             if response_status == "completed":
                 response_progress = preprocess_progress(
-                    response, "", add_vertical_bars=False
+                    response,
+                    "",
+                    add_vertical_bars=False,
+                    recall=recall,
+                    improvement=improvement,
                 )
                 response_results_items = response_results.split("\n")[1:]
                 response_progress_items = response_progress.split("\n")
@@ -277,20 +304,17 @@ def get_results(
     indent: str,
     add_vertical_bars: bool,
     width: int = 21,
+    improvement: Optional[str] = None,
+    recall: Optional[str] = None,
 ):
-    progress = response["progress"]
-    for progress_key, progress_value in progress.items():
-        if progress_key == BEST_RECALL:
-            recall, improvement = progress_value.split("%")[:2]
-
-            output = (
-                "Congratulations! Your model has achieved a recall@10 of "
-                + str(recall)
-                + " which is an improvement of "
-                + str(improvement)
-                + " on the validation set compared to naive vector search."
-            )
-            return format_to_fixed_width(output, width, indent, add_vertical_bars)
+    output = (
+        "Congratulations! Your model has achieved a recall@10 of "
+        + str(recall)
+        + "% which is an improvement of "
+        + str(improvement)
+        + "% on the validation set compared to naive vector search."
+    )
+    return format_to_fixed_width(output, width, indent, add_vertical_bars)
 
 
 def format_to_fixed_width(
@@ -341,6 +365,8 @@ def preprocess_progress(
     response: Dict[str, Any],
     progress_indent: str,
     add_vertical_bars: bool = False,
+    recall: Optional[str] = None,
+    improvement: Optional[str] = None,
 ):
     allowed_progress_items = ["eta", BEST_RECALL, "dataset", "error"]
     progress_indent = (
@@ -401,7 +427,7 @@ def preprocess_progress(
                 key_value_pair = f"{key}: {value} seconds"
             elif key == BEST_RECALL:
                 key = "recall@10"
-                key_value_pair = f"{key}: {value}"
+                key_value_pair = f"{key}: {recall}% (+{improvement}%)"
 
             vertical_bar_if_needed = (
                 (30 - len(key_value_pair)) * " " + "|\n" if add_vertical_bars else "\n"

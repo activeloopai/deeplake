@@ -45,7 +45,7 @@ class DeepMemoryVectorStore(VectorStore):
         distance_metric = distance_metric or DEFAULT_VECTORSTORE_DISTANCE_METRIC
 
         if deep_memory:
-            distance_metric = "deepmemory_norm"
+            distance_metric = "deepmemory_distance"
 
         return super().search(
             embedding_data=embedding_data,
