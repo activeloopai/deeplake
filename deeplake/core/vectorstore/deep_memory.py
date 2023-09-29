@@ -184,8 +184,8 @@ class DeepMemory:
                 100 * self.dataset.embedding.info["deepmemory/model.npy"]["delta"]
             )
         except:
-            recall = "N/A"
-            improvement = "N/A"
+            recall = None
+            improvement = None
         self.client.check_status(job_id=job_id, recall=recall, improvement=improvement)
 
     def list_jobs(self):
@@ -198,8 +198,8 @@ class DeepMemory:
                 100 * self.dataset.embedding.info["deepmemory/model.npy"]["delta"]
             )
         except:
-            recall = "N/A"
-            improvement = "N/A"
+            recall = None
+            improvement = None
         response = self.client.list_jobs(
             dataset_path=self.dataset.path,
             recall=recall,

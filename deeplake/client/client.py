@@ -531,25 +531,6 @@ class DeepLakeBackendClient:
         return response
 
 
-def is_deep_memory_available(token: Optional[str] = None):
-    """Checks if DeepMemory is available for the user.
-
-    Returns:
-        bool: True if DeepMemory is available, False otherwise.
-    """
-    version = deeplake.__version__
-    _token_from_env = False
-    auth_header = None
-    token = token or self.get_token()
-    self.auth_header = f"Bearer {self.token}"
-    response = client.request(
-        "GET",
-        f"/api/organizations/{org_id}/features/deepmemory",
-        endpoint=client.endpoint(),
-    )
-    return response.json()["available"]
-
-
 class DeepMemoryBackendClient(DeepLakeBackendClient):
     def __init__(self, token: Optional[str] = None):
         super().__init__(token=token)

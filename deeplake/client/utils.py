@@ -310,14 +310,22 @@ def get_results(
     improvement: Optional[str] = None,
     recall: Optional[str] = None,
 ):
-    output = (
-        "Congratulations! Your model has achieved a recall@10 of "
-        + str(recall)
-        + "% which is an improvement of "
-        + str(improvement)
-        + "% on the validation set compared to naive vector search."
-    )
-    return format_to_fixed_width(output, width, indent, add_vertical_bars)
+    progress = response["progress"]
+    for progress_key, progress_value in progress.items():
+        if progress_key == BEST_RECALL:
+            curr_recall, curr_improvement = progress_value.split("%")[:2]
+
+            recall = recall or curr_recall
+            improvement = improvement or curr_improvement
+
+            output = (
+                "Congratulations! Your model has achieved a recall@10 of "
+                + str(recall)
+                + " which is an improvement of "
+                + str(improvement)
+                + " on the validation set compared to naive vector search."
+            )
+            return format_to_fixed_width(output, width, indent, add_vertical_bars)
 
 
 def format_to_fixed_width(
