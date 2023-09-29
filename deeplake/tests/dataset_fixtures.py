@@ -184,3 +184,8 @@ def ds(request):
 def ds_generator(request):
     """Used with parametrize to use all enabled persistent dataset generator fixtures."""
     return request.getfixturevalue(request.param)
+
+
+@pytest.fixture
+def runtime():
+    return {"tensor_db": True}

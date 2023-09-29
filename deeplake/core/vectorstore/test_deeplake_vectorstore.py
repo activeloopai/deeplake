@@ -11,6 +11,8 @@ from deeplake.core.vectorstore.deeplake_vectorstore import (
     DeepLakeVectorStore,
     VectorStore,
 )
+from deeplake.core.vectorstore.deepmemory_vectorstore import DeepMemoryVectorStore
+from deeplake.core.vectorstore.vectorstore_factory import vectorstore_factory
 from deeplake.core.vectorstore import utils
 from deeplake.tests.common import requires_libdeeplake
 from deeplake.constants import (
@@ -2000,3 +2002,22 @@ def test_exec_option_with_connected_datasets(
     )
     db.dataset.add_creds_key(hub_cloud_dev_managed_creds_key, managed=True)
     assert db.exec_option == "compute_engine"
+
+
+@pytest.mark.slow
+@pytest.mark.parametrize(
+    "runtime",
+    ["runtime", None],
+    indirect=True,
+)
+def test_vectorstore_factory(hub_cloud_dev_token, hub_cloud_path, runtime):
+    db = vectorstore_factory(
+        path=hub_cloud_path,
+        runtime=runtime,
+        token=hub_cloud_dev_token,
+    )
+
+    if runtime is not None:
+        assert isinstance(db, DeepMemoryVectorStore)
+    else:
+        assert isinstance(db, DeepLakeVectorStore)
