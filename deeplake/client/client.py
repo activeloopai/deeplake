@@ -606,7 +606,7 @@ class DeepMemoryBackendClient(DeepLakeBackendClient):
         response_status_schema.print_status(job_id, recall, improvement)
         return response.json()
 
-    def list_jobs(self, dataset_path: str, recall: str, improvement: str):
+    def list_jobs(self, dataset_path: str):
         """Lists all jobs for a dataset.
         Args:
             dataset_path (str): The path to the dataset.
@@ -619,11 +619,6 @@ class DeepMemoryBackendClient(DeepLakeBackendClient):
             relative_url=f"/api/deepmemory/v1/{dataset_id}/jobs",
         )
         check_response_status(response)
-        response_status_schema = JobResponseStatusSchema(response=response.json())
-        response_status_schema.print_jobs(
-            recall=recall,
-            improvement=improvement,
-        )
         return response.json()
 
     def delete_job(self, job_id: str):

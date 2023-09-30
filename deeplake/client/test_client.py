@@ -298,11 +298,21 @@ def test_deepmemory_list_jobs(corpus_with_failed_runs, capsys, hub_cloud_dev_tok
     assert captured.out == Status.list_jobs[1:]
 
 
-def test_deepmemory_delete(corpus_path, query_path, hub_cloud_dev_token):
+def test_deepmemory_delete(
+    hub_cloud_dev_credentials, corpus_query_relevances_copy, hub_cloud_dev_token
+):
+    (
+        corpus_path,
+        _,
+        _,
+    ) = corpus_query_relevances_copy
+
+    username, _ = hub_cloud_dev_credentials
+    query_path = f"hub://{username}/deepmemory_test_queries_managed"
     client = DeepMemoryBackendClient(hub_cloud_dev_token)
     job = client.start_taining(
         corpus_path=corpus_path,
-        query_path=query_path,
+        queries_path=query_path,
     )
-    client.cancel(job_id=job["job_id"])
-    client.delete(job_id=job["job_id"])
+    client.cancel_job(job_id=job["job_id"])
+    client.delete_job(job_id=job["job_id"])

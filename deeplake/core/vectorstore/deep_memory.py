@@ -10,6 +10,7 @@ from deeplake.constants import DEFAULT_QUERIES_VECTORSTORE_TENSORS
 from deeplake.core.dataset import Dataset
 from deeplake.core.vectorstore.deeplake_vectorstore import VectorStore
 from deeplake.client.client import DeepMemoryBackendClient
+from deeplake.client.utils import JobResponseStatusSchema
 from deeplake.util.bugout_reporter import (
     feature_report_path,
 )
@@ -171,12 +172,9 @@ class DeepMemory:
             job_id (str): job_id of the training job.
         """
         try:
-            recall = "{:.2f}".format(
-                100 * self.dataset.embedding.info["deepmemory/model.npy"]["recall@10"]
-            )
-            improvement = "{:.2f}".format(
-                100 * self.dataset.embedding.info["deepmemory/model.npy"]["delta"]
-            )
+            recall, improvement = _get_best_model(self.dataset.embedding)
+            recall = "{:.2f}".format(100 * recall)
+            improvement = "{:.2f}".format(100 * improvement)
         except:
             recall = None
             improvement = None
@@ -184,21 +182,22 @@ class DeepMemory:
 
     def list_jobs(self):
         """List all training jobs on DeepMemory managed service."""
-        try:
-            recall = "{:.2f}".format(
-                100 * self.dataset.embedding.info["deepmemory/model.npy"]["recall@10"]
-            )
-            improvement = "{:.2f}".format(
-                100 * self.dataset.embedding.info["deepmemory/model.npy"]["delta"]
-            )
-        except:
-            recall = None
-            improvement = None
         response = self.client.list_jobs(
             dataset_path=self.dataset.path,
-            recall=recall,
-            improvement=improvement,
         )
+
+        response_status_schema = JobResponseStatusSchema(response=response.json())
+
+        jobs = [job["id"] for job in response]
+
+        recalls = []
+        deltas = []
+
+        for job in jobs:
+            recall, delta = _get_best_model(self.dataset.embedding, job)
+            recalls.append({f"{job}": recall})
+            deltas.append({f"{delta}": recall})
+        response_status_schema.print_jobs(recalls, deltas)
         return response
 
     def evaluate(
@@ -471,3 +470,15 @@ def parse_queries_params(queries_params: Optional[Dict[str, Any]] = None):
             )
 
     return queries_params
+
+
+def _get_best_model(embedding: np.ndarray, job_id: str):
+    info = embedding.info
+    best_recall = 0
+    for job, value in info.items():
+        if job_id in job:
+            recall = value["base_recall@10"]
+            if recall > best_recall:
+                best_recall = recall
+                best_delta = value["delta"]
+    return best_recall, best_delta

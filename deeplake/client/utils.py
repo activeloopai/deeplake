@@ -193,8 +193,8 @@ class JobResponseStatusSchema:
     def print_jobs(
         self,
         debug: bool = False,
-        recall: Optional[str] = None,
-        improvement: Optional[str] = None,
+        recalls: Optional[str] = None,
+        improvements: Optional[str] = None,
     ):
         (
             id_size,
@@ -230,8 +230,8 @@ class JobResponseStatusSchema:
                     "",
                     add_vertical_bars=False,
                     width=15,
-                    recall=recall,
-                    improvement=improvement,
+                    recall=recalls[response_id],
+                    improvement=improvements[response_id],
                 )
 
             progress_indent = " " * (
@@ -246,8 +246,8 @@ class JobResponseStatusSchema:
                 response,
                 progress_indent,
                 add_vertical_bars=False,
-                recall=recall,
-                improvement=improvement,
+                recall=recalls[response_id],
+                improvement=improvements[response_id],
             )
 
             if response_status == "completed":
@@ -255,8 +255,8 @@ class JobResponseStatusSchema:
                     response,
                     "",
                     add_vertical_bars=False,
-                    recall=recall,
-                    improvement=improvement,
+                    recall=recalls[response_id],
+                    improvement=improvements[response_id],
                 )
                 response_results_items = response_results.split("\n")[1:]
                 response_progress_items = response_progress.split("\n")
@@ -321,9 +321,9 @@ def get_results(
             output = (
                 "Congratulations! Your model has achieved a recall@10 of "
                 + str(recall)
-                + " which is an improvement of "
+                + "% which is an improvement of "
                 + str(improvement)
-                + " on the validation set compared to naive vector search."
+                + "% on the validation set compared to naive vector search."
             )
             return format_to_fixed_width(output, width, indent, add_vertical_bars)
 
