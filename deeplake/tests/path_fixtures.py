@@ -461,12 +461,15 @@ def corpus_query_relevances_copy(request, hub_cloud_dev_token):
 
 
 @pytest.fixture
-def corpus_query_pair_path():
+def corpus_query_pair_path(hub_cloud_dev_token):
     corpus = f"hub://{HUB_CLOUD_DEV_USERNAME}/deepmemory_test_corpus"
     query = corpus + "_eval_queries"
-
+    try:
+        deeplake.delete(query, force=True, large_ok=True, token=hub_cloud_dev_token)
+    except Exception:
+        pass
     yield corpus, query
-    deeplake.delete(query, force=True, large_ok=True)
+    deeplake.delete(query, force=True, large_ok=True, token=hub_cloud_dev_token)
 
 
 @pytest.fixture

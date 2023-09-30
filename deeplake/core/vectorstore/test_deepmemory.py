@@ -120,9 +120,9 @@ def test_deepmemory_evaluate(
         path=query_path,
         token=hub_cloud_dev_token,
         read_only=True,
-        branch="queires",
+        branch="queries",
     )
-    queries_dataset.checkout("queires")
+    queries_dataset.checkout("queries")
     assert len(queries_dataset) == 2 * len(question_relevances)
 
     recall = db.deep_memory.evaluate(
