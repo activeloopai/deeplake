@@ -34,7 +34,7 @@ def create_or_load_dataset(
     overwrite,
     runtime,
     org_id,
-    branch,
+    branch="main",
     **kwargs,
 ):
     try:

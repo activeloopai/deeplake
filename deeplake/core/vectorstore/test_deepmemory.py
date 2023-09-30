@@ -40,7 +40,7 @@ def test_deepmemory_train_and_cancel(
 
     job_id = db.deep_memory.train(
         queries=queries,
-        relevances=relevances,
+        relevance=relevances,
         embedding_function=embedding_fn,
     )
 
@@ -77,7 +77,7 @@ def test_deepmemory_evaluate(
         relevance=question_relevances,
         qvs_params={
             "log_queries": True,
-            "branch": "queires",
+            "branch": "queries",
         },
     )
 

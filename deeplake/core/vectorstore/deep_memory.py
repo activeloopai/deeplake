@@ -4,13 +4,6 @@ from time import time
 
 import numpy as np
 
-try:
-    from indra import api
-
-    INDRA_INSTALLED = True
-except Exception:
-    INDRA_INSTALLED = False
-
 import deeplake
 from deeplake.enterprise.dataloader import indra_available
 from deeplake.constants import DEFAULT_QUERIES_VECTORSTORE_TENSORS
@@ -291,6 +284,13 @@ class DeepMemory:
             ImportError: if indra is not installed
             ValueError: if embedding_function is not specified either during initialization or during evaluation.
         """
+        try:
+            from indra import api
+
+            INDRA_INSTALLED = True
+        except Exception:
+            INDRA_INSTALLED = False
+
         if not INDRA_INSTALLED:
             raise ImportError(
                 "indra is not installed. Please install indra to use this functionality with: pip install `deeplake[enterprise]`"
