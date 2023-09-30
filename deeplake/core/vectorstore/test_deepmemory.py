@@ -103,7 +103,7 @@ def test_deepmemory_evaluate(
         path=query_path,
         token=hub_cloud_dev_token,
         read_only=True,
-        branch="queires",
+        branch="queries",
     )
     assert len(queries_dataset) == len(question_relevances)
 
@@ -113,7 +113,7 @@ def test_deepmemory_evaluate(
         relevance=question_relevances,
         qvs_params={
             "log_queries": True,
-            "branch": "queires",
+            "branch": "queries",
         },
     )
     queries_dataset = VectorStore(
