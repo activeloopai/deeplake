@@ -125,9 +125,10 @@ def get_user_name() -> str:
 # constants into deeplake.constans class.
 class JobResponseStatusSchema:
     def __init__(self, response: Dict[str, Any]):
-        responses = response
         if not isinstance(response, List):
             responses = [response]
+        else:
+            responses = response
 
         self.responses: List[Dict[str, Any]] = responses
         self.validate_status_response()
@@ -192,9 +193,9 @@ class JobResponseStatusSchema:
 
     def print_jobs(
         self,
-        debug: bool = False,
-        recalls: Optional[str] = None,
-        improvements: Optional[str] = None,
+        debug: bool,
+        recalls: str,
+        improvements: str,
     ):
         (
             id_size,
