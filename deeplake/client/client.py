@@ -539,7 +539,6 @@ class DeepMemoryBackendClient(DeepLakeBackendClient):
         """Checks if DeepMemory is available for the user.
         Args:
             org_id (str): The name of the user/organization to which the dataset belongs.
-
         Returns:
             bool: True if DeepMemory is available, False otherwise.
         """
@@ -627,9 +626,16 @@ class DeepMemoryBackendClient(DeepLakeBackendClient):
         """Deletes a job with job_id.
         Args:
             job_id (str): The job_id of the job to be deleted.
+        Returns:
+            bool: True if job was deleted successfully, False otherwise.
         """
-        response = self.request(
-            method="DELETE",
-            relative_url=f"/api/deepmemory/v1/jobs/{job_id}",
-        )
-        check_response_status(response)
+        try:
+            response = self.request(
+                method="DELETE",
+                relative_url=f"/api/deepmemory/v1/jobs/{job_id}",
+            )
+            check_response_status(response)
+            return True
+        except Exception as e:
+            print(f"Job with job_id='{job_id}' was not deleted!\n Error: {e}")
+            return False
