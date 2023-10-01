@@ -287,7 +287,10 @@ def test_deepmemory_list_jobs(capsys):
 
 
 def test_deepmemory_delete(
-    hub_cloud_dev_credentials, corpus_query_relevances_copy, hub_cloud_dev_token
+    capsys,
+    hub_cloud_dev_credentials,
+    corpus_query_relevances_copy,
+    hub_cloud_dev_token,
 ):
     (
         corpus_path,
@@ -304,3 +307,9 @@ def test_deepmemory_delete(
     )
     client.cancel_job(job_id=job["job_id"])
     client.delete_job(job_id=job["job_id"])
+
+    deleted = client.delete_job(job_id="non-existent-job-id")
+    output_str = capsys.readouterr()
+    expected = "Job with job_id='non-existent-job-id' was not deleted!\n Error: Entity non-existent-job-id does not exist.\n"
+    assert deleted == False
+    assert expected in output_str.out

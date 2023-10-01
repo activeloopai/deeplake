@@ -125,13 +125,7 @@ class DeepMemory:
         Returns:
             bool: True if job was cancelled successfully, False otherwise.
         """
-        try:
-            self.client.cancel_job(job_id=job_id)
-            print(f"Job with job_id='{job_id}' was sucessfully cancelled!")
-            return True
-        except Exception as e:
-            print(f"Job with job_id='{job_id}' was not cancelled! Error: {e}")
-            return False
+        return self.client.cancel_job(job_id=job_id)
 
     def delete(self, job_id: str):
         """Delete a training job on DeepMemory managed service.
@@ -145,13 +139,7 @@ class DeepMemory:
         Returns:
             bool: True if job was deleted successfully, False otherwise.
         """
-        try:
-            self.client.delete_job(job_id=job_id)
-            print(f"Job with job_id='{job_id}' was sucessfully deleted!")
-            return True
-        except Exception as e:
-            print(f"Job with job_id='{job_id}' was not deleted! Error: {e}")
-            return False
+        return self.client.delete_job(job_id=job_id)
 
     def status(self, job_id: str):
         """Get the status of a training job on DeepMemory managed service.
@@ -401,12 +389,10 @@ def recall_at_k(
 
         # Compute the cosine similarity between the query and all data points
         view_top_k = get_view_top_k(
-            dataset=dataset,
             metric=metric,
             query_emb=query_emb,
             top_k=top_k,
             indra_dataset=indra_dataset,
-            return_deeplake_view=False,
         )
 
         top_k_retrieved = [
@@ -443,8 +429,6 @@ def get_view_top_k(
     query_emb: Union[List[float], np.ndarray],
     top_k: int,
     indra_dataset: Any,
-    dataset: Dataset,
-    return_deeplake_view: bool,
     return_tensors: List[str] = ["text", "metadata", "id"],
     tql_filter: str = "",
 ):
@@ -453,10 +437,6 @@ def get_view_top_k(
     return_tensors_str = ", ".join(return_tensors)
     tql = f"SELECT * FROM (SELECT {return_tensors_str}, ROW_NUMBER() as indices, {metric}(embedding, ARRAY[{query_emb_str}]) as score {tql_filter_str} order by {metric}(embedding, ARRAY[{query_emb_str}]) desc limit {top_k})"
     indra_view = indra_dataset.query(tql)
-    if return_deeplake_view:
-        indices = [[sample.indices.numpy() for sample in indra_view]]
-        deeplake_view = dataset[indices]
-        return deeplake_view
     return indra_view
 
 
@@ -466,9 +446,7 @@ def parse_queries_params(queries_params: Optional[Dict[str, Any]] = None):
         if log_queries is None:
             queries_params["log_queries"] = True
 
-    if queries_params is None or (
-        queries_params.get("log_queries") and not queries_params.get("branch")
-    ):
+    if queries_params is None:
         queries_params = {
             "log_queries": True,
             "branch": "main",
@@ -479,6 +457,12 @@ def parse_queries_params(queries_params: Optional[Dict[str, Any]] = None):
             raise ValueError(
                 f"Invalid query param '{query_param}'. Valid query params are 'log_queries' and 'branch'."
             )
+
+    if queries_params.get("log_queries") and not queries_params.get("branch"):
+        queries_params = {
+            "log_queries": True,
+            "branch": "main",
+        }
 
     return queries_params
 
