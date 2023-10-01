@@ -8,7 +8,10 @@ from deeplake import VectorStore
 
 class DummyEmbedder:
     def embed_documents(self, texts):
-        return [np.random.rand(1536) for i in range(len(texts))]
+        return [
+            np.random.uniform(low=-10, high=10, size=(1536)).astype(np.float32)
+            for _ in range(len(texts))
+        ]
 
 
 @pytest.mark.slow
@@ -23,7 +26,10 @@ def test_deepmemory_init(hub_cloud_path, hub_cloud_dev_token):
 
 
 def embedding_fn(texts):
-    return [np.random.rand(1536) for _ in range(len(texts))]
+    return [
+        np.random.uniform(low=-10, high=10, size=(1536)).astype(np.float32)
+        for _ in range(len(texts))
+    ]
 
 
 @pytest.mark.slow
@@ -137,6 +143,17 @@ def test_deepmemory_evaluate(
             },
         )
 
+    # embedding_function is not provided in the constructor or in the eval method
+    with pytest.raises(ValueError):
+        db.deep_memory.evaluate(
+            queries=queries,
+            relevance=question_relevances,
+            qvs_params={
+                "log_queries": True,
+                "branch_name": "wrong_branch",
+            },
+        )
+
     recall = db.deep_memory.evaluate(
         queries=queries,
         embedding=questions_embeddings,
@@ -219,6 +236,30 @@ def test_deepmemory_evaluate(
         read_only=True,
     )
     assert len(queries_dataset) == len(question_relevances)
+
+    recall = db.deep_memory.evaluate(
+        queries=queries,
+        embedding=questions_embeddings,
+        relevance=question_relevances,
+    )
+    queries_dataset = VectorStore(
+        path=query_path,
+        token=hub_cloud_dev_token,
+        read_only=True,
+    )
+    assert len(queries_dataset) == 2 * len(question_relevances)
+
+    recall = db.deep_memory.evaluate(
+        queries=queries,
+        relevance=question_relevances,
+        embedding_function=embedding_fn,
+    )
+    queries_dataset = VectorStore(
+        path=query_path,
+        token=hub_cloud_dev_token,
+        read_only=True,
+    )
+    assert len(queries_dataset) == 3 * len(question_relevances)
 
 
 def test_deepmemory_list_jobs(jobs_list, corpus_query_pair_path, hub_cloud_dev_token):
