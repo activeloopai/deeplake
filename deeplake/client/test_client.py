@@ -275,7 +275,7 @@ def test_deepmemory_train_and_cancel(
 
 
 @pytest.mark.slow
-def test_deepmemory_list_jobs(corpus_with_failed_runs, capsys, hub_cloud_dev_token):
+def test_deepmemory_list_jobs(capsys):
     # Note: this test could be flaky as it depends heavilly on deepmemory managed service
     responses = []
     response = create_response(
