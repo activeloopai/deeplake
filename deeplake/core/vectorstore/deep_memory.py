@@ -20,14 +20,15 @@ class DeepMemory:
     def __init__(
         self,
         dataset: Dataset,
+        client: DeepMemoryBackendClient,
         embedding_function: Optional[Any] = None,
         token: Optional[str] = None,
-        client: Optional[DeepMemoryBackendClient] = None,
     ):
         """Based Deep Memory class to train and evaluate models on DeepMemory managed service.
 
         Args:
             dataset (Dataset): deeplake dataset object.
+            client (DeepMemoryBackendClient): Client to interact with the DeepMemory managed service. Defaults to None.
             embedding_function (Optional[Any], optional): Embedding funtion class used to convert queries/documents to embeddings. Defaults to None.
             token (Optional[str], optional): API token for the DeepMemory managed service. Defaults to None.
 
@@ -172,7 +173,10 @@ class DeepMemory:
             job_id (str): job_id of the training job.
         """
         try:
-            recall, improvement = _get_best_model(self.dataset.embedding, job_id=job_id)
+            recall, improvement = _get_best_model(
+                self.dataset.embedding, job_id, latest_job=True
+            )
+
             recall = "{:.2f}".format(100 * recall)
             improvement = "{:.2f}".format(100 * improvement)
         except:
@@ -193,8 +197,13 @@ class DeepMemory:
         recalls = {}
         deltas = {}
 
+        latest_job = jobs[-1]
         for job in jobs:
-            recall, delta = _get_best_model(self.dataset.embedding, job)
+            recall, delta = _get_best_model(
+                self.dataset.embedding,
+                job,
+                latest_job=latest_job == job,
+            )
             recalls[f"{job}"] = "{:.2f}".format(100 * recall)
             deltas[f"{job}"] = "{:.2f}".format(100 * delta)
         reposnse_str = response_status_schema.print_jobs(
@@ -286,7 +295,7 @@ class DeepMemory:
             ValueError: if embedding_function is not specified either during initialization or during evaluation.
         """
         try:
-            from indra import api
+            from indra import api  # type: ignore
 
             INDRA_INSTALLED = True
         except Exception:
@@ -474,10 +483,13 @@ def parse_queries_params(queries_params: Optional[Dict[str, Any]] = None):
     return queries_params
 
 
-def _get_best_model(embedding: np.ndarray, job_id: str):
+def _get_best_model(embedding: Any, job_id: str, latest_job: bool = False):
     info = embedding.info
     best_recall = 0
     best_delta = 0
+    if latest_job:
+        best_recall = info["deepmemory/model.npy"]["recall@10"]
+        best_delta = info["deepmemory/model.npy"]["delta"]
     for job, value in info.items():
         if job_id in job:
             recall = value["recall@10"]

@@ -141,20 +141,17 @@ def test_deepmemory_evaluate(
     assert len(queries_dataset) == len(question_relevances)
 
 
-def test_deepmemory_list_jobs(corpus_query_pair_path, hub_cloud_dev_token):
-    # output_str = ""
+def test_deepmemory_list_jobs(jobs_list, corpus_query_pair_path, hub_cloud_dev_token):
+    corpus, query_path = corpus_query_pair_path
 
-    # corpus, query_path = corpus_query_pair_path
+    db = VectorStore(
+        corpus,
+        runtime={"tensor_db": True},
+        token=hub_cloud_dev_token,
+    )
 
-    # db = VectorStore(
-    #     corpus,
-    #     runtime={"tensor_db": True},
-    #     token=hub_cloud_dev_token,
-    # )
-
-    # jobs_list = db.deep_memory.list_jobs(debug=True)
-    # assert output_str == jobs_list
-    pass
+    output_str = db.deep_memory.list_jobs(debug=True)
+    assert output_str == jobs_list
 
 
 def test_deepmemory_status(capsys, corpus_query_pair_path, hub_cloud_dev_token):
