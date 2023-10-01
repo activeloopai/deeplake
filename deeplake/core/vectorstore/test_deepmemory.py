@@ -21,10 +21,6 @@ def embedding_fn(texts):
     return [np.random.rand(1536) for _ in range(len(texts))]
 
 
-def test_deepmemory_search():
-    pass
-
-
 @pytest.mark.slow
 def test_deepmemory_train_and_cancel(
     corpus_query_relevances_copy,

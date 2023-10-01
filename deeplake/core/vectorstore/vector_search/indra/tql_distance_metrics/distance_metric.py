@@ -14,11 +14,16 @@ def linf_norm(embedding_tensor, query_embedding):
     return f"LINF_NORM({embedding_tensor}-{query_embedding})"
 
 
+def deepmemory_norm(embedding_tensor, query_embedding):
+    return f"DEEPMEMORY_NORM({embedding_tensor}, {query_embedding})"
+
+
 METRIC_TO_TQL_QUERY = {
     "l1": l1_norm,
     "l2": l2_norm,
     "cos": cosine_similarity,
     "max": linf_norm,
+    "deepmemory_norm": deepmemory_norm,
 }
 
 
