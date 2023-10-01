@@ -483,7 +483,7 @@ def parse_queries_params(queries_params: Optional[Dict[str, Any]] = None):
     return queries_params
 
 
-def _get_best_model(embedding: deeplake.Tensor, job_id: str, latest_job: bool = False):
+def _get_best_model(embedding: Any, job_id: str, latest_job: bool = False):
     info = embedding.info
     best_recall = 0
     best_delta = 0
