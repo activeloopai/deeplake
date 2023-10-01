@@ -469,7 +469,11 @@ def corpus_query_pair_path(hub_cloud_dev_token):
     except Exception:
         pass
     yield corpus, query
-    deeplake.delete(query, force=True, large_ok=True, token=hub_cloud_dev_token)
+
+    try:
+        deeplake.delete(query, force=True, large_ok=True, token=hub_cloud_dev_token)
+    except Exception:
+        pass
 
 
 @pytest.fixture
