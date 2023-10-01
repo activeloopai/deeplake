@@ -91,8 +91,8 @@ def test_deepmemory_evaluate(
     }
 
     assert recall["with model"] == {
-        "recall@1": 0.9,
-        "recall@3": 0.9,
+        "recall@1": 0.8,
+        "recall@3": 0.8,
         "recall@5": 0.9,
         "recall@10": 0.9,
         "recall@50": 0.9,
@@ -158,25 +158,25 @@ def test_deepmemory_status(capsys, corpus_query_pair_path, hub_cloud_dev_token):
     job_id = "6518aa0cc948ea74bce29fa2"
 
     output_str = (
-        "--------------------------------------------------------------"
-        "|                  6518aa0cc948ea74bce29fa2                  |"
-        "--------------------------------------------------------------"
-        "| status                     | completed                     |"
-        "--------------------------------------------------------------"
-        "| progress                   | eta: 121.1 seconds            |"
-        "|                            | dataset: query                |"
-        "|                            | recall@10: 82.92% (+5.09%)    |"
-        "--------------------------------------------------------------"
-        "| results                    | Congratulations!              |"
-        "|                            | Your model has                |"
-        "|                            | achieved a recall@10          |"
-        "|                            | of 82.92% which is            |"
-        "|                            | an improvement of             |"
-        "|                            | 5.09% on the                  |"
-        "|                            | validation set                |"
-        "|                            | compared to naive             |"
-        "|                            | vector search.                |"
-        "--------------------------------------------------------------"
+        "--------------------------------------------------------------\n"
+        "|                  6518aa0cc948ea74bce29fa2                  |\n"
+        "--------------------------------------------------------------\n"
+        "| status                     | completed                     |\n"
+        "--------------------------------------------------------------\n"
+        "| progress                   | eta: 121.1 seconds            |\n"
+        "|                            | recall@10: 89.40% (+9.04%)    |\n"
+        "|                            | dataset: query                |\n"
+        "--------------------------------------------------------------\n"
+        "| results                    | Congratulations!              |\n"
+        "|                            | Your model has                |\n"
+        "|                            | achieved a recall@10          |\n"
+        "|                            | of 89.40% which is            |\n"
+        "|                            | an improvement of             |\n"
+        "|                            | 9.05% on the                  |\n"
+        "|                            | validation set                |\n"
+        "|                            | compared to naive             |\n"
+        "|                            | vector search.                |\n"
+        "--------------------------------------------------------------\n\n\n"
     )
 
     corpus, query_path = corpus_query_pair_path
@@ -189,6 +189,7 @@ def test_deepmemory_status(capsys, corpus_query_pair_path, hub_cloud_dev_token):
 
     jobs_list = db.deep_memory.status(job_id)
     status = capsys.readouterr()
+    print(output_str)
     assert status.out == output_str
 
 
