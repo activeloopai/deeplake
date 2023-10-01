@@ -139,3 +139,57 @@ def test_deepmemory_evaluate(
         read_only=True,
     )
     assert len(queries_dataset) == len(question_relevances)
+
+
+def test_deepmemory_list_jobs(corpus_query_pair_path, hub_cloud_dev_token):
+    # output_str = ""
+
+    # corpus, query_path = corpus_query_pair_path
+
+    # db = VectorStore(
+    #     corpus,
+    #     runtime={"tensor_db": True},
+    #     token=hub_cloud_dev_token,
+    # )
+
+    # jobs_list = db.deep_memory.list_jobs(debug=True)
+    # assert output_str == jobs_list
+    pass
+
+
+def test_deepmemory_status(capsys, corpus_query_pair_path, hub_cloud_dev_token):
+    job_id = "6518aa0cc948ea74bce29fa2"
+
+    output_str = (
+        "--------------------------------------------------------------"
+        "|                  6518aa0cc948ea74bce29fa2                  |"
+        "--------------------------------------------------------------"
+        "| status                     | completed                     |"
+        "--------------------------------------------------------------"
+        "| progress                   | eta: 121.1 seconds            |"
+        "|                            | dataset: query                |"
+        "|                            | recall@10: 82.92% (+5.09%)    |"
+        "--------------------------------------------------------------"
+        "| results                    | Congratulations!              |"
+        "|                            | Your model has                |"
+        "|                            | achieved a recall@10          |"
+        "|                            | of 82.92% which is            |"
+        "|                            | an improvement of             |"
+        "|                            | 5.09% on the                  |"
+        "|                            | validation set                |"
+        "|                            | compared to naive             |"
+        "|                            | vector search.                |"
+        "--------------------------------------------------------------"
+    )
+
+    corpus, query_path = corpus_query_pair_path
+
+    db = VectorStore(
+        corpus,
+        runtime={"tensor_db": True},
+        token=hub_cloud_dev_token,
+    )
+
+    jobs_list = db.deep_memory.status(job_id)
+    status = capsys.readouterr()
+    assert status.out == output_str

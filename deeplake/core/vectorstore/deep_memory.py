@@ -172,7 +172,7 @@ class DeepMemory:
             job_id (str): job_id of the training job.
         """
         try:
-            recall, improvement = _get_best_model(self.dataset.embedding)
+            recall, improvement = _get_best_model(self.dataset.embedding, job_id=job_id)
             recall = "{:.2f}".format(100 * recall)
             improvement = "{:.2f}".format(100 * improvement)
         except:
@@ -180,25 +180,27 @@ class DeepMemory:
             improvement = None
         self.client.check_status(job_id=job_id, recall=recall, improvement=improvement)
 
-    def list_jobs(self):
+    def list_jobs(self, debug=False):
         """List all training jobs on DeepMemory managed service."""
         response = self.client.list_jobs(
             dataset_path=self.dataset.path,
         )
 
-        response_status_schema = JobResponseStatusSchema(response=response.json())
+        response_status_schema = JobResponseStatusSchema(response=response)
 
         jobs = [job["id"] for job in response]
 
-        recalls = []
-        deltas = []
+        recalls = {}
+        deltas = {}
 
         for job in jobs:
             recall, delta = _get_best_model(self.dataset.embedding, job)
-            recalls.append({f"{job}": recall})
-            deltas.append({f"{delta}": recall})
-        response_status_schema.print_jobs(recalls, deltas)
-        return response
+            recalls[f"{job}"] = "{:.2f}".format(100 * recall)
+            deltas[f"{job}"] = "{:.2f}".format(100 * delta)
+        reposnse_str = response_status_schema.print_jobs(
+            debug=debug, recalls=recalls, improvements=deltas
+        )
+        return reposnse_str
 
     def evaluate(
         self,
@@ -475,10 +477,12 @@ def parse_queries_params(queries_params: Optional[Dict[str, Any]] = None):
 def _get_best_model(embedding: np.ndarray, job_id: str):
     info = embedding.info
     best_recall = 0
+    best_delta = 0
     for job, value in info.items():
         if job_id in job:
-            recall = value["base_recall@10"]
-            if recall > best_recall:
+            recall = value["recall@10"]
+            delta = value["delta"]
+            if delta > best_delta:
                 best_recall = recall
                 best_delta = value["delta"]
     return best_recall, best_delta
