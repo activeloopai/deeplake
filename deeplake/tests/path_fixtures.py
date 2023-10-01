@@ -734,3 +734,8 @@ def questions_embeddings_and_relevances():
     with open(os.path.join(parent, "questions_relevances.pkl"), "rb") as f:
         question_relevances = pickle.load(f)
     return questions_embeddings, question_relevances, questions
+
+
+@pytest.fixture
+def job_id():
+    return "6518aa0cc948ea74bce29fa2"
