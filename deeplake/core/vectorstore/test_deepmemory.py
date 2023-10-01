@@ -190,3 +190,25 @@ def test_deepmemory_status(capsys, corpus_query_pair_path, hub_cloud_dev_token):
     jobs_list = db.deep_memory.status(job_id)
     status = capsys.readouterr()
     assert status.out == output_str
+
+
+def test_deepmemory_search(
+    corpus_query_relevances_copy,
+    hub_cloud_dev_token,
+):
+    corpus, _, _ = corpus_query_relevances_copy
+
+    db = VectorStore(
+        path=corpus,
+        runtime={"tensor_db": True},
+        token=hub_cloud_dev_token,
+    )
+
+    query_embedding = np.random.uniform(low=-10, high=10, size=(1536)).astype(
+        np.float32
+    )
+
+    output = db.search(embedding=query_embedding)
+
+    assert db.deep_memory is not None
+    assert len(output) == 4
