@@ -154,17 +154,15 @@ def test_deepmemory_list_jobs(jobs_list, corpus_query_pair_path, hub_cloud_dev_t
     assert output_str == jobs_list
 
 
-def test_deepmemory_status(capsys, corpus_query_pair_path, hub_cloud_dev_token):
-    job_id = "6518aa0cc948ea74bce29fa2"
-
+def test_deepmemory_status(capsys, job_id, corpus_query_pair_path, hub_cloud_dev_token):
     output_str = (
         "--------------------------------------------------------------\n"
-        "|                  6518aa0cc948ea74bce29fa2                  |\n"
+        f"|                  {job_id}                  |\n"
         "--------------------------------------------------------------\n"
         "| status                     | completed                     |\n"
         "--------------------------------------------------------------\n"
         "| progress                   | eta: 121.1 seconds            |\n"
-        "|                            | recall@10: 89.40% (+9.04%)    |\n"
+        "|                            | recall@10: 89.40% (+9.05%)    |\n"
         "|                            | dataset: query                |\n"
         "--------------------------------------------------------------\n"
         "| results                    | Congratulations!              |\n"

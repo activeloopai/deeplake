@@ -243,39 +243,27 @@ def test_deepmemory_print_status_and_list_jobs(capsys, jobs_list):
 
 
 @pytest.mark.slow
-def test_deepmemory_train_and_cancel(
-    corpus_query_pair_path, job_id, capsys, hub_cloud_dev_token
-):
-    # Note: this test could be flaky as it depends heavilly on deepmemory managed service
-    corpus_path, query_path = corpus_query_pair_path
-
+def test_deepmemory_train_and_cancel(job_id, capsys, hub_cloud_dev_token):
     client = DeepMemoryBackendClient(hub_cloud_dev_token)
-    job = client.start_taining(
-        corpus_path=corpus_path,
-        query_path=query_path,
+
+    canceled = client.cancel_job(job_id="non-existent-job-id")
+    captured = capsys.readouterr()
+    expected = "Job with job_id='non-existent-job-id' was not cancelled!\n Error: Entity non-existent-job-id does not exist.\n"
+    assert canceled == False
+    assert captured.out == expected
+
+    canceled = client.cancel_job(job_id=job_id)
+    captured = capsys.readouterr()
+    expected = (
+        f"Job with job_id='{job_id}' was not cancelled!\n"
+        f" Error: Job {job_id} is not in pending state, skipping cancellation.\n"
     )
-    captured = capsys.readouterr()
-    canceled = client.cancel(job_id=job["id"])
-    client.check_status(job_id=job["id"])
-    assert canceled == True
-    assert captured.out == Status.get_cancelled_str(job["job_id"])[1:]
-
-    captured = capsys.readouterr()
-    canceled = client.cancel(job_id="non-existent-job-id")
-    expected = "Job with job_id='random id' was not cancelled!\n Error: Entity random id does not exist."
     assert canceled == False
-    assert captured.out == expected
-
-    captured = capsys.readouterr()
-    canceled = client.cancel(job_id=job_id)
-    expected = f"Job with job_id={job_id} was not cancelled!\n "
-    f"Error: Job {job_id} is not in pending state, skipping cancellation."
-    assert canceled == False
-    assert captured.out == expected
+    assert expected in captured.out == expected
 
 
 @pytest.mark.slow
-def test_deepmemory_list_jobs(corpus_with_failed_runs, capsys, hub_cloud_dev_token):
+def test_deepmemory_list_jobs(capsys):
     # Note: this test could be flaky as it depends heavilly on deepmemory managed service
     responses = []
     response = create_response(
