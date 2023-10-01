@@ -538,7 +538,7 @@ class DeepMemoryBackendClient(DeepLakeBackendClient):
     def deepmemory_is_available(self, org_id: str):
         """Checks if DeepMemory is available for the user.
         Args:
-            ord_id (str): The name of the user/organization to which the dataset belongs.
+            org_id (str): The name of the user/organization to which the dataset belongs.
 
         Returns:
             bool: True if DeepMemory is available, False otherwise.
