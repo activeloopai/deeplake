@@ -666,9 +666,13 @@ def test_creds(hub_cloud_ds_generator, cat_path):
     ds.populate_creds(creds_key, from_environment=True)
     with ds:
         tensor = ds.create_tensor("abc", "link[image]", sample_compression="jpeg")
-        seq_tensor = ds.create_tensor("xyz", "sequence[link[image]]", sample_compression="jpeg")
+        seq_tensor = ds.create_tensor(
+            "xyz", "sequence[link[image]]", sample_compression="jpeg"
+        )
         tensor.append(deeplake.link(cat_path, creds_key))
-        seq_tensor.append([deeplake.link(cat_path, creds_key), deeplake.link(cat_path,  creds_key)])
+        seq_tensor.append(
+            [deeplake.link(cat_path, creds_key), deeplake.link(cat_path, creds_key)]
+        )
 
     assert tensor[0].creds_key() == creds_key
     assert seq_tensor[0].creds_key() == [creds_key, creds_key]
