@@ -455,9 +455,12 @@ def corpus_query_relevances_copy(request, hub_cloud_dev_token):
         runtime={"tensor_db": True},
     )
 
-    yield corpus, queries, relevance
+    queries_path = corpus + "_eval_queries"
+
+    yield corpus, queries, relevance, queries_path
 
     delete_if_exists(corpus, hub_cloud_dev_token)
+    delete_if_exists(queries_path, hub_cloud_dev_token)
 
 
 def delete_if_exists(path, token):
@@ -471,14 +474,10 @@ def delete_if_exists(path, token):
 def corpus_query_pair_path(hub_cloud_dev_token):
     corpus = f"hub://{HUB_CLOUD_DEV_USERNAME}/deepmemory_test_corpus_managed_2"
     query = corpus + "_eval_queries"
-    delete_if_exists(corpus + "_eval_queries", hub_cloud_dev_token)
+    delete_if_exists(query, hub_cloud_dev_token)
     yield corpus, query
 
-    delete_if_exists(corpus + "_copy", hub_cloud_dev_token)
-    delete_if_exists(corpus + "_queries", hub_cloud_dev_token)
-    delete_if_exists(corpus + "_copy_queries", hub_cloud_dev_token)
-    delete_if_exists(corpus + "_eval_queries", hub_cloud_dev_token)
-    delete_if_exists(corpus + "_copy_eval_queries", hub_cloud_dev_token)
+    delete_if_exists(query, hub_cloud_dev_token)
 
 
 @pytest.fixture
