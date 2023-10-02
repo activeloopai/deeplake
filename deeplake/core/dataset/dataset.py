@@ -1322,7 +1322,7 @@ class Dataset:
             if "meta" in self.version_state:
                 return self.__setitem__(name, value)
             raise TensorDoesNotExistError(name)
-        except (TensorDoesNotExistError, TypeError):
+        except TensorDoesNotExistError:
             if isinstance(value, (np.ndarray, np.generic)):
                 raise TypeError(
                     "Setting tensor attributes directly is not supported. To add a tensor, use the `create_tensor` method."

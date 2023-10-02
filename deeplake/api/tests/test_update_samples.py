@@ -1,5 +1,5 @@
 from deeplake.constants import KB, MB
-from deeplake.util.exceptions import SampleUpdateError
+from deeplake.util.exceptions import SampleUpdateError, TensorDoesNotExistError
 import pytest
 from typing import Callable
 from deeplake.tests.common import assert_array_lists_equal
@@ -759,8 +759,16 @@ def test_update_vc_bug(local_path):
 def test_setattr_update(local_path):
     with deeplake.empty(local_path, overwrite=True) as ds:
         ds.create_tensor("abc")
+        ds.create_tensor("xyz/t1")
         ds.abc.extend([1, 2, 3, 4, 5])
+        ds.xyz.t1.extend([1, 2, 3, 4, 5])
 
     ds[3].abc = 10
 
     np.testing.assert_array_equal(ds.abc.numpy(), [[1], [2], [3], [10], [5]])
+
+    with pytest.raises(TypeError):
+        ds[3] = 10
+    
+    with pytest.raises(TypeError):
+        ds[3].xyz = 10
