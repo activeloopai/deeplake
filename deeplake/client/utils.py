@@ -182,9 +182,8 @@ class JobResponseStatusSchema:
             progress_string = progress_string.format("progress", progress)
             print(progress_string)
             print(line)
-            results_str = "| {:<27}| {:<30}"
+            results_str = "| {:<27}| {:<30}|"
             if not response.get("results"):
-                results_str += "|"
                 response["results"] = PENDING_STATUS
 
             print(results_str.format("results", response["results"]))
@@ -199,27 +198,18 @@ class JobResponseStatusSchema:
     ):
         (
             id_size,
-            dataset_id_size,
-            organization_id_size,
             status_size,
             results_size,
+            progress_size,
         ) = get_table_size(responses=self.responses)
 
-        progress_size = (
-            15  # Keep it fixed for simplicity or compute dynamically if needed
-        )
-
-        header_format = f"{{:<{id_size}}}  {{:<{dataset_id_size}}}  {{:<{organization_id_size}}}  {{:<{status_size}}}  {{:<{results_size}}}  {{:<{progress_size}}}"
+        header_format = f"{{:<{id_size}}}  {{:<{status_size}}}  {{:<{results_size}}}  {{:<{progress_size}}}"
         data_format = header_format  # as they are the same
 
-        output_str = header_format.format(
-            "ID", "DATASET ID", "ORGANIZATION ID", "STATUS", "RESULTS", "PROGRESS"
-        )
+        output_str = header_format.format("ID", "STATUS", "RESULTS", "PROGRESS")
 
         for response in self.responses:
             response_id = response["id"]
-            response_dataset_id = response["dataset_id"]
-            response_organization_id = response["organization_id"]
             response_status = response["status"]
 
             response_results = (
@@ -235,14 +225,7 @@ class JobResponseStatusSchema:
                     improvement=improvements[response_id],
                 )
 
-            progress_indent = " " * (
-                id_size
-                + dataset_id_size
-                + organization_id_size
-                + status_size
-                + results_size
-                + 5 * 2
-            )
+            progress_indent = " " * (id_size + status_size + results_size + 6)
             response_progress = preprocess_progress(
                 response,
                 progress_indent,
@@ -251,52 +234,45 @@ class JobResponseStatusSchema:
                 improvement=improvements[response_id],
             )
 
-            if response_status == "completed":
-                response_progress = preprocess_progress(
-                    response,
-                    "",
-                    add_vertical_bars=False,
-                    recall=recalls[response_id],
-                    improvement=improvements[response_id],
-                )
-                response_results_items = response_results.split("\n")[1:]
-                response_progress_items = response_progress.split("\n")
+            # if response_status == "completed":
+            response_progress = preprocess_progress(
+                response,
+                "",
+                add_vertical_bars=False,
+                recall=recalls[response_id],
+                improvement=improvements[response_id],
+            )
+            response_progress_items = response_progress.split("\n")
 
-                first_time = True
-                for idx, response_results_item in enumerate(response_results_items):
-                    if first_time:
-                        first_time = False
-                        output_str += "\n" + data_format.format(
-                            response_id,
-                            response_dataset_id,
-                            response_organization_id,
-                            response_status,
-                            response_results_item,
-                            response_progress_items[idx],
-                        )
-                    else:
-                        response_progress_item = ""
-                        if idx < len(response_progress_items):
-                            response_progress_item = response_progress_items[idx]
+            not_allowed_response_progress_items = ["dataset: query"]
+            first_time = True
+            for idx, response_progress_item in enumerate(response_progress_items):
+                if response_progress_item in not_allowed_response_progress_items:
+                    continue
 
-                        output_str += "\n" + data_format.format(
-                            "",
-                            "",
-                            "",
-                            "",
-                            response_results_item,
-                            response_progress_item,
-                        )
+                if first_time:
+                    first_time = False
+                    output_str += "\n" + data_format.format(
+                        response_id,
+                        response_status,
+                        response_results,
+                        response_progress_item,
+                    )
+                else:
+                    output_str += "\n" + data_format.format(
+                        "",
+                        "",
+                        "",
+                        response_progress_item,
+                    )
 
-            else:
-                output_str += "\n" + data_format.format(
-                    response_id,
-                    response_dataset_id,
-                    response_organization_id,
-                    response_status,
-                    response_results,
-                    str(response_progress),
-                )
+            # else:
+            #     output_str += "\n" + data_format.format(
+            #         response_id,
+            #         response_status,
+            #         response_results,
+            #         str(response_progress),
+            #     )
 
         print(output_str)
         if debug:
@@ -319,14 +295,9 @@ def get_results(
             recall = recall or curr_recall
             improvement = improvement or curr_improvement
 
-            output = (
-                "Congratulations! Your model has achieved a recall@10 of "
-                + str(recall)
-                + "% which is an improvement of "
-                + str(improvement)
-                + "% on the validation set compared to naive vector search."
-            )
-            return format_to_fixed_width(output, width, indent, add_vertical_bars)
+            output = f"recall@10: {str(recall)}% (+{str(improvement)}%)"
+            # return format_to_fixed_width(output, width, indent, add_vertical_bars)
+            return output
 
 
 def format_to_fixed_width(
@@ -439,7 +410,11 @@ def preprocess_progress(
                 key_value_pair = f"{key}: {value} seconds"
             elif key == BEST_RECALL:
                 key = "recall@10"
-                key_value_pair = f"{key}: {recall}% (+{improvement}%)"
+                recall = recall or value.split("%")[0]
+                improvement = improvement or value.split("%")[1]
+                if "(" not in improvement:
+                    improvement = f"(+{improvement}%)"
+                key_value_pair = f"{key}: {recall}% {improvement}"
 
             vertical_bar_if_needed = (
                 (30 - len(key_value_pair)) * " " + "|\n" if add_vertical_bars else "\n"
@@ -452,20 +427,15 @@ def preprocess_progress(
 
 
 def get_table_size(responses: List[Dict[str, Any]]):
-    id_size, dataset_id_size, organization_id_size, status_size, results_size = (
+    id_size, status_size, results_size, progress_size = (
         2,  # Minimum size to fit "ID"
-        10,  # Minimum size to fit "DATASET ID"
-        15,  # Minimum size to fit "ORGANIZATION ID"
         6,  # Minimum size to fit "STATUS"
-        7,  # Minimum size to fit "RESULTS"
+        25,  # Minimum size to fit "RESULTS"
+        15,  # Minimum size to fit "PROGRESS"
     )
     for response in responses:
         id_size = max(id_size, len(response["id"]))
-        dataset_id_size = max(dataset_id_size, len(response["dataset_id"]))
-        organization_id_size = max(
-            organization_id_size, len(response["organization_id"])
-        )
         status_size = max(status_size, len(response["status"]))
         results_size = max(results_size, len(response.get("results", PENDING_STATUS)))
 
-    return id_size, dataset_id_size, organization_id_size, status_size, results_size
+    return id_size, status_size, results_size, progress_size

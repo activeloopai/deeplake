@@ -487,14 +487,7 @@ def test_deepmemory_status(capsys, job_id, corpus_query_pair_path, hub_cloud_dev
         "|                            | dataset: query                |\n"
         "|                            | recall@10: 0.62% (+0.62%)     |\n"
         "--------------------------------------------------------------\n"
-        "| results                    | Congratulations!              |\n"
-        "|                            | Your model has                |\n"
-        "|                            | achieved a recall@10          |\n"
-        "|                            | of 0.62% which is an          |\n"
-        "|                            | improvement of 0.62%          |\n"
-        "|                            | on the validation             |\n"
-        "|                            | set compared to               |\n"
-        "|                            | naive vector search.          |\n"
+        "| results                    | recall@10: 0.62% (+0.62%)     |\n"
         "--------------------------------------------------------------\n\n\n"
     )
 

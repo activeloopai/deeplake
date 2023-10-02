@@ -187,13 +187,21 @@ class DeepMemory:
 
         latest_job = jobs[-1]
         for job in jobs:
-            recall, delta = _get_best_model(
-                self.dataset.embedding,
-                job,
-                latest_job=latest_job == job,
-            )
-            recalls[f"{job}"] = "{:.2f}".format(100 * recall)
-            deltas[f"{job}"] = "{:.2f}".format(100 * delta)
+            try:
+                recall, delta = _get_best_model(
+                    self.dataset.embedding,
+                    job,
+                    latest_job=job == latest_job,
+                )
+                recall = "{:.2f}".format(100 * recall)
+                delta = "{:.2f}".format(100 * delta)
+            except:
+                recall = None
+                delta = None
+
+            recalls[f"{job}"] = recall
+            deltas[f"{job}"] = delta
+
         reposnse_str = response_status_schema.print_jobs(
             debug=debug, recalls=recalls, improvements=deltas
         )
@@ -477,6 +485,7 @@ def _get_best_model(embedding: Any, job_id: str, latest_job: bool = False):
     if latest_job:
         best_recall = info["deepmemory/model.npy"]["recall@10"]
         best_delta = info["deepmemory/model.npy"]["delta"]
+
     for job, value in info.items():
         if job_id in job:
             recall = value["recall@10"]

@@ -126,14 +126,7 @@ class Status:
         "|                            | recall@10: 85.5% (+2.6%)      |\n"
         "|                            | dataset: query                |\n"
         "--------------------------------------------------------------\n"
-        "| results                    | Congratulations!              |\n"
-        "|                            | Your model has                |\n"
-        "|                            | achieved a recall@10          |\n"
-        "|                            | of 85.5% which is an          |\n"
-        "|                            | improvement of 2.6%           |\n"
-        "|                            | on the validation             |\n"
-        "|                            | set compared to               |\n"
-        "|                            | naive vector search.          |\n"
+        "| results                    | recall@10: 85.5% (+2.6%)      |\n"
         "--------------------------------------------------------------\n\n\n"
     )
 
