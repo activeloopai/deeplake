@@ -265,6 +265,7 @@ def test_deepmemory_train_and_cancel(job_id, capsys, hub_cloud_dev_token):
     assert expected in captured.out == expected
 
 
+@pytest.mark.slow
 def test_deepmemory_delete(
     capsys,
     hub_cloud_dev_credentials,
