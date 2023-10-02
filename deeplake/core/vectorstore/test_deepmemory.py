@@ -1,5 +1,6 @@
 import numpy as np
 import pytest
+import sys
 from time import sleep
 
 import deeplake
@@ -16,6 +17,7 @@ class DummyEmbedder:
 
 
 @pytest.mark.slow
+@pytest.mark.skipif(sys.platform == "win32", reason="Does not run on Windows")
 def test_deepmemory_init(hub_cloud_path, hub_cloud_dev_token):
     db = VectorStore(
         hub_cloud_path,
@@ -34,6 +36,7 @@ def embedding_fn(texts):
 
 
 @pytest.mark.slow
+@pytest.mark.skipif(sys.platform == "win32", reason="Does not run on Windows")
 def test_deepmemory_train_and_cancel(
     capsys,
     corpus_query_relevances_copy,
@@ -114,6 +117,7 @@ def test_deepmemory_train_and_cancel(
 
 @pytest.mark.slow
 @pytest.mark.timeout(600)
+@pytest.mark.skipif(sys.platform == "win32", reason="Does not run on Windows")
 def test_deepmemory_evaluate(
     corpus_query_pair_path,
     questions_embeddings_and_relevances,
@@ -344,6 +348,7 @@ def test_deepmemory_evaluate(
     )
 
 
+@pytest.mark.skipif(sys.platform == "win32", reason="Does not run on Windows")
 def test_deepmemory_list_jobs(jobs_list, corpus_query_pair_path, hub_cloud_dev_token):
     corpus, _ = corpus_query_pair_path
 
@@ -361,6 +366,7 @@ def test_deepmemory_list_jobs(jobs_list, corpus_query_pair_path, hub_cloud_dev_t
     assert output_str[:375] == jobs_list[:375]
 
 
+@pytest.mark.skipif(sys.platform == "win32", reason="Does not run on Windows")
 def test_deepmemory_status(capsys, job_id, corpus_query_pair_path, hub_cloud_dev_token):
     output_str = (
         "--------------------------------------------------------------\n"
@@ -399,6 +405,7 @@ def test_deepmemory_status(capsys, job_id, corpus_query_pair_path, hub_cloud_dev
     assert status.out[511:] == output_str[511:]
 
 
+@pytest.mark.skipif(sys.platform == "win32", reason="Does not run on Windows")
 def test_deepmemory_search(
     caplog,
     corpus_query_relevances_copy,
