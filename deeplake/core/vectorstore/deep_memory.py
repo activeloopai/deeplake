@@ -111,6 +111,8 @@ class DeepMemory:
             corpus_path=corpus_path,
             queries_path=queries_path,
         )
+
+        print(f"DeepMemory training job started. Job ID: {response['job_id']}")
         return response["job_id"]
 
     def cancel(self, job_id: str):
