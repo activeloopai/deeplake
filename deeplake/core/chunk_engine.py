@@ -362,10 +362,7 @@ class ChunkEngine:
                 self._chunk_id_encoder_commit_id = commit_id
                 self.meta_cache.register_deeplake_object(key, enc)
             else:
-                self._chunk_id_encoder = ChunkIdEncoder(
-                    dtype=np.uint64,
-                    encoded=np.array([[8823025984165662238, 3]], dtype=np.uint64),
-                )
+                self._chunk_id_encoder = ChunkIdEncoder(dtype=np.uint64)
         return self._chunk_id_encoder
 
     @property
