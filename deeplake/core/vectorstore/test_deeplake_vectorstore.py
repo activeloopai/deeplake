@@ -2010,6 +2010,7 @@ def test_exec_option_with_connected_datasets(
     ["runtime", None],
     indirect=True,
 )
+@pytest.mark.skipif(sys.platform == "win32", reason="Does not run on Windows")
 def test_vectorstore_factory(hub_cloud_dev_token, hub_cloud_path, runtime):
     db = vectorstore_factory(
         path=hub_cloud_path,
