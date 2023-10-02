@@ -484,7 +484,6 @@ def test_deepmemory_status(capsys, job_id, corpus_query_pair_path, hub_cloud_dev
         "| status                     | completed                     |\n"
         "--------------------------------------------------------------\n"
         "| progress                   | eta: 2.5 seconds              |\n"
-        "|                            | dataset: query                |\n"
         "|                            | recall@10: 0.62% (+0.62%)     |\n"
         "--------------------------------------------------------------\n"
         "| results                    | recall@10: 0.62% (+0.62%)     |\n"
