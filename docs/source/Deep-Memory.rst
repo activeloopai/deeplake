@@ -6,7 +6,9 @@ Deep Memory
 .. role:: sql(code)
     :language: sql
 
-This page describes  :meth:`ds.query <deeplake.core.vectostore.deep_memory>`. To use deep_memory, please subscribe to our wait list.
+This page describes  :meth:`ds.query <deeplake.core.vectostore.deep_memory>`. DeepMemory is a deep learning model that is trained on the dataset 
+to improve the search results, by alligning queries with the corpus dataset. It gives up to +22% of recall improvement on an eval dataset. 
+To use deep_memory, please subscribe to our waitlist.
 
 Syntax
 ~~~~~~~~

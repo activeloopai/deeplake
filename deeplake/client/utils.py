@@ -225,16 +225,6 @@ class JobResponseStatusSchema:
                     improvement=improvements[response_id],
                 )
 
-            progress_indent = " " * (id_size + status_size + results_size + 6)
-            response_progress = preprocess_progress(
-                response,
-                progress_indent,
-                add_vertical_bars=False,
-                recall=recalls[response_id],
-                improvement=improvements[response_id],
-            )
-
-            # if response_status == "completed":
             response_progress = preprocess_progress(
                 response,
                 "",
@@ -351,7 +341,7 @@ def preprocess_progress(
     recall: Optional[str] = None,
     improvement: Optional[str] = None,
 ):
-    allowed_progress_items = ["eta", BEST_RECALL, "dataset", "error"]
+    allowed_progress_items = ["eta", BEST_RECALL, "error"]
     progress_indent = (
         "|" + progress_indent[:-1] if add_vertical_bars else progress_indent
     )
@@ -430,7 +420,7 @@ def get_table_size(responses: List[Dict[str, Any]]):
     id_size, status_size, results_size, progress_size = (
         2,  # Minimum size to fit "ID"
         6,  # Minimum size to fit "STATUS"
-        25,  # Minimum size to fit "RESULTS"
+        29,  # Minimum size to fit "RESULTS"
         15,  # Minimum size to fit "PROGRESS"
     )
     for response in responses:
