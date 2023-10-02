@@ -755,11 +755,12 @@ def test_update_vc_bug(local_path):
 
     np.testing.assert_array_equal(ds.abc.numpy(), [[1], [2], [3], [4], [1]])
 
+
 def test_setattr_update(local_path):
     with deeplake.empty(local_path, overwrite=True) as ds:
         ds.create_tensor("abc")
         ds.abc.extend([1, 2, 3, 4, 5])
-    
+
     ds[3].abc = 10
 
     np.testing.assert_array_equal(ds.abc.numpy(), [[1], [2], [3], [10], [5]])

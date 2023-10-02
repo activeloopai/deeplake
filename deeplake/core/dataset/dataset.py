@@ -1317,16 +1317,17 @@ class Dataset:
             ) from ke
 
     def __setattr__(self, name: str, value):
-        # Dataset is not fully loaded if meta is not in version_state
-        if "meta" in self.version_state:
-            try:
+        try:
+            # Dataset is not fully loaded if meta is not in version_state
+            if "meta" in self.version_state:
                 return self.__setitem__(name, value)
-            except (TensorDoesNotExistError, TypeError):
-                if isinstance(value, (np.ndarray, np.generic)):
-                    raise TypeError(
-                        "Setting tensor attributes directly is not supported. To add a tensor, use the `create_tensor` method."
-                        + "To add data to a tensor, use the `append` and `extend` methods."
-                    )
+            raise TensorDoesNotExistError(name)
+        except (TensorDoesNotExistError, TypeError):
+            if isinstance(value, (np.ndarray, np.generic)):
+                raise TypeError(
+                    "Setting tensor attributes directly is not supported. To add a tensor, use the `create_tensor` method."
+                    + "To add data to a tensor, use the `append` and `extend` methods."
+                )
         return super().__setattr__(name, value)
 
     def __iter__(self):
