@@ -457,23 +457,28 @@ def corpus_query_relevances_copy(request, hub_cloud_dev_token):
 
     yield corpus, queries, relevance
 
-    deeplake.delete(corpus, force=True, large_ok=True, token=hub_cloud_dev_token)
+    delete_if_exists(corpus, hub_cloud_dev_token)
+
+
+def delete_if_exists(path, token):
+    try:
+        deeplake.delete(path, force=True, large_ok=True, token=token)
+    except Exception:
+        pass
 
 
 @pytest.fixture
 def corpus_query_pair_path(hub_cloud_dev_token):
-    corpus = f"hub://{HUB_CLOUD_DEV_USERNAME}/deepmemory_test_corpus_managed"
+    corpus = f"hub://{HUB_CLOUD_DEV_USERNAME}/deepmemory_test_corpus_managed_2"
     query = corpus + "_eval_queries"
-    try:
-        deeplake.delete(query, force=True, large_ok=True, token=hub_cloud_dev_token)
-    except Exception:
-        pass
+    delete_if_exists(corpus + "_eval_queries", hub_cloud_dev_token)
     yield corpus, query
 
-    try:
-        deeplake.delete(query, force=True, large_ok=True, token=hub_cloud_dev_token)
-    except Exception:
-        pass
+    delete_if_exists(corpus + "_copy", hub_cloud_dev_token)
+    delete_if_exists(corpus + "_queries", hub_cloud_dev_token)
+    delete_if_exists(corpus + "_copy_queries", hub_cloud_dev_token)
+    delete_if_exists(corpus + "_eval_queries", hub_cloud_dev_token)
+    delete_if_exists(corpus + "_copy_eval_queries", hub_cloud_dev_token)
 
 
 @pytest.fixture
@@ -738,4 +743,13 @@ def questions_embeddings_and_relevances():
 
 @pytest.fixture
 def job_id():
-    return "6518aa0cc948ea74bce29fa2"
+    return "65198efcd28df3238c49a849"
+
+
+@pytest.fixture
+def precomputed_jobs_list():
+    parent = get_dummy_data_path("deep_memory")
+
+    with open(os.path.join(parent, "precomputed_jobs_list.txt"), "r") as f:
+        jobs = f.read()
+    return jobs

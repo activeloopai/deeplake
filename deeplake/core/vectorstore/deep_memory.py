@@ -204,9 +204,7 @@ class DeepMemory:
         relevance: List[List[Tuple[str, int]]],
         queries: List[str],
         embedding_function: Optional[Callable[..., List[np.ndarray]]] = None,
-        embedding: Optional[
-            Union[List[np.ndarray[Any, Any]], List[List[float]]]
-        ] = None,
+        embedding: Optional[Union[List[np.ndarray], List[List[float]]]] = None,
         top_k: List[int] = [1, 3, 5, 10, 50, 100],
         qvs_params: Optional[Dict[str, Any]] = None,
     ) -> Dict[str, Dict[str, float]]:
@@ -306,12 +304,17 @@ class DeepMemory:
         if embedding is not None:
             query_embs = embedding
         elif embedding is None:
-            if embedding_function is not None:
-                query_embs = embedding_function(queries)
-            else:
+            if self.embedding_function is not None:
+                embedding_function = (
+                    embedding_function or self.embedding_function.embed_documents
+                )
+
+            if embedding_function is None:
                 raise ValueError(
                     "Embedding function should be specifed either during initialization or during evaluation."
                 )
+            query_embs = embedding_function(queries)
+
         print(f"Embedding queries took {time() - start:.2f} seconds")
 
         recalls: Dict[str, Dict] = {"with model": {}, "without model": {}}

@@ -1,92 +1,37 @@
-ID                        DATASET ID                                  ORGANIZATION ID  STATUS     RESULTS            PROGRESS       
-6518aa0cc948ea74bce29fa2  testingacc2/deepmemory_test_corpus_managed  testingacc2      completed  Congratulations!   eta: 121.1 seconds
-                                                                                                  Your model has     dataset: query 
-                                                                                                  achieved a         recall@10: 89.40% (+9.05%)
-                                                                                                  recall@10 of                      
-                                                                                                  89.40% which                      
-                                                                                                  is an                             
-                                                                                                  improvement of                    
-                                                                                                  9.05% on the                      
-                                                                                                  validation set                    
-                                                                                                  compared to                       
-                                                                                                  naive vector                      
-                                                                                                  search.                           
-                                                                                                                                    
-6518b1baa64a69575675cab7  testingacc2/deepmemory_test_corpus_managed  testingacc2      completed  Congratulations!   eta: 132.9 seconds
-                                                                                                  Your model has     dataset: query 
-                                                                                                  achieved a         recall@10: 89.40% (+9.05%)
-                                                                                                  recall@10 of                      
-                                                                                                  89.40% which                      
-                                                                                                  is an                             
-                                                                                                  improvement of                    
-                                                                                                  9.05% on the                      
-                                                                                                  validation set                    
-                                                                                                  compared to                       
-                                                                                                  naive vector                      
-                                                                                                  search.                           
-                                                                                                                                    
-6518b3bac4354d10154a900f  testingacc2/deepmemory_test_corpus_managed  testingacc2      completed  Congratulations!   eta: 116.3 seconds
-                                                                                                  Your model has     dataset: query 
-                                                                                                  achieved a         recall@10: 90.74% (+9.77%)
-                                                                                                  recall@10 of                      
-                                                                                                  90.74% which                      
-                                                                                                  is an                             
-                                                                                                  improvement of                    
-                                                                                                  9.77% on the                      
-                                                                                                  validation set                    
-                                                                                                  compared to                       
-                                                                                                  naive vector                      
-                                                                                                  search.                           
-                                                                                                                                    
-6518bac9a64a69575675cab8  testingacc2/deepmemory_test_corpus_managed  testingacc2      completed  Congratulations!   eta: 133.1 seconds
-                                                                                                  Your model has     dataset: query 
-                                                                                                  achieved a         recall@10: 90.12% (+9.77%)
-                                                                                                  recall@10 of                      
-                                                                                                  90.12% which                      
-                                                                                                  is an                             
-                                                                                                  improvement of                    
-                                                                                                  9.77% on the                      
-                                                                                                  validation set                    
-                                                                                                  compared to                       
-                                                                                                  naive vector                      
-                                                                                                  search.                           
-                                                                                                                                    
-6518bdd0c4354d10154a9011  testingacc2/deepmemory_test_corpus_managed  testingacc2      completed  Congratulations!   eta: 132.4 seconds
-                                                                                                  Your model has     dataset: query 
-                                                                                                  achieved a         recall@10: 90.43% (+10.08%)
-                                                                                                  recall@10 of                      
-                                                                                                  90.43% which                      
-                                                                                                  is an                             
-                                                                                                  improvement of                    
-                                                                                                  10.08% on the                     
-                                                                                                  validation set                    
-                                                                                                  compared to                       
-                                                                                                  naive vector                      
-                                                                                                  search.                           
-                                                                                                                                    
-6518cf72b95fa8e980d99e20  testingacc2/deepmemory_test_corpus_managed  testingacc2      completed  Congratulations!   eta: 140.0 seconds
-                                                                                                  Your model has     dataset: query 
-                                                                                                  achieved a         recall@10: 90.02% (+9.67%)
-                                                                                                  recall@10 of                      
-                                                                                                  90.02% which                      
-                                                                                                  is an                             
-                                                                                                  improvement of                    
-                                                                                                  9.67% on the                      
-                                                                                                  validation set                    
-                                                                                                  compared to                       
-                                                                                                  naive vector                      
-                                                                                                  search.                           
-                                                                                                                                    
-6518d336f66e23720d38af1a  testingacc2/deepmemory_test_corpus_managed  testingacc2      completed  Congratulations!   eta: 93.2 seconds
-                                                                                                  Your model has     dataset: query 
-                                                                                                  achieved a         recall@10: 89.20% (+8.85%)
-                                                                                                  recall@10 of                      
-                                                                                                  89.20% which                      
-                                                                                                  is an                             
-                                                                                                  improvement of                    
-                                                                                                  8.85% on the                      
-                                                                                                  validation set                    
-                                                                                                  compared to                       
-                                                                                                  naive vector                      
-                                                                                                  search.                           
-                                                                                                                                    
+ID                        DATASET ID                                    ORGANIZATION ID  STATUS     RESULTS            PROGRESS       
+65198efcd28df3238c49a849  testingacc2/deepmemory_test_corpus_managed_2  testingacc2      completed  Congratulations!   eta: 2.5 seconds
+                                                                                                    Your model has     dataset: query 
+                                                                                                    achieved a         recall@10: 0.62% (+0.62%)
+                                                                                                    recall@10 of                      
+                                                                                                    0.62% which is                    
+                                                                                                    an improvement                    
+                                                                                                    of 0.62% on                       
+                                                                                                    the validation                    
+                                                                                                    set compared                      
+                                                                                                    to naive                          
+                                                                                                    vector search.                    
+                                                                                                                                      
+651a4d41d05a21a5a6a15f67  testingacc2/deepmemory_test_corpus_managed_2  testingacc2      completed  Congratulations!   eta: 2.5 seconds
+                                                                                                    Your model has     dataset: query 
+                                                                                                    achieved a         recall@10: 0.62% (+0.62%)
+                                                                                                    recall@10 of                      
+                                                                                                    0.62% which is                    
+                                                                                                    an improvement                    
+                                                                                                    of 0.62% on                       
+                                                                                                    the validation                    
+                                                                                                    set compared                      
+                                                                                                    to naive                          
+                                                                                                    vector search.                    
+                                                                                                                                      
+651a56c15a18dea3283ffc1c  testingacc2/deepmemory_test_corpus_managed_2  testingacc2      completed  Congratulations!   eta: 2.4 seconds
+                                                                                                    Your model has     dataset: query 
+                                                                                                    achieved a         recall@10: 0.62% (+0.62%)
+                                                                                                    recall@10 of                      
+                                                                                                    0.62% which is                    
+                                                                                                    an improvement                    
+                                                                                                    of 0.62% on                       
+                                                                                                    the validation                    
+                                                                                                    set compared                      
+                                                                                                    to naive                          
+                                                                                                    vector search.                    
+                                                                                                                                      
